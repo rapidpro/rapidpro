@@ -8,6 +8,8 @@
   .title-icon
     %span.glyph.icon-global
 
+-block page-top
+
 - block summary
   -if global_count
     {% blocktrans trimmed with counter=global_count|intcomma count num=global_count  %}
@@ -25,196 +27,116 @@
         %input.input-medium.search-query(type="text" placeholder="Search" name="search" value="{{ search }}")
 
 -block content
-
-  {% block pjax %}
   #pjax
-    .row-fluid
-      .span3.sidebox
-        %div.globals(style="margin-bottom: 10px")
+    -block pjax
+      .lp-frame
+        .left
           - if view.add_button and org_perms.globals.global_create
-            %a.btn.btn-primary.btn-block(onClick='showCreateGlobalModal()')
-              -trans "Create Global"
+            %temba-modax#create-global-modal{ header:'{% trans "Create Global" %}', endpoint:"{% url 'globals.global_create' %}"}
+              .button-primary.mb-3
+                -trans "Create Global"
 
-        #sidebar-nav
-          %ul.nav.nav-list
-            %li.nav-header
-              -trans "Globals"
+          .lp-nav.upper
+            .font-normal.uppercase.text-xs.pb-1.text-gray-500
+              - trans "Globals"
             - for category in global_categories
-              %li(class='{% if request.path == category.url %}active{% endif %}')
-                %a(href='{{category.url}}')
-                  {{category.label}} ({{ category.count }})
+              .lp-nav-item{'class': '{% if request.path == category.url %}font-normal{% endif %}' }
+                .name{onclick:"goto(event)", href:'{{category.url}}'}
+                  {{category.label}}
+                .count{onclick:"goto(event)", href:'{{category.url}}'}
+                  {{ category.count | intcomma }}
 
-      .span9
-        - block pre-table
+        .right
+          .flex.w-full.mb-4.items-end.flex-wrap.justify-end.-mt-2{style:"min-height:41px"}
+            .flex-grow.ml-1.self-end.items-end
+              .flex.flex-col.pr-12
+                .page-title.leading-tight
+                  -block title
+                    {{title}}
+                .subtitle
+                  -block subtitle
 
-        - block table
-          .scroll-x
-            %table(class='{% get_list_class object_list %} list-table table' cellspacing='0')
-              %thead
-                %tbody
-                  - for obj in object_list
-                    %tr.global(data-gid="{{ obj.id }}")
-                      %td(style="min-width: 240px")
-                        {{ obj.name }}
-                      %td(style="font-family: monospace; font-size: 12px;")
-                        @globals.{{ obj.key }}
-                      %td
-                        {{ obj.value }}
-                      %td.dependencies
-                        - with usage_count=obj.get_usage_count
-                          - if usage_count
-                            %a.dependencies(href="#" onClick='showDetailGlobalModal({{ obj.id }}, "{{ obj.name }}");')
-                              {% blocktrans trimmed count counter=usage_count %}
-                                {{counter}} Use
-                              {% plural %}
-                                {{counter}} Uses
-                              {% endblocktrans %}
+          %form#search-form.mb-4(method="get")
+            %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
 
-                  - empty
-                    %tr.empty_list
-                      %td(colspan='99')
-                        -trans "No globals"
+          -if search_error
+            .mb-4.ml-2
+              %span.search-error
+                =search_error
+          -elif search
+            .mb-4.ml-1.text-base.leading-relaxed
+              -blocktrans trimmed with results_count=paginator.count|intcomma count cc=paginator.count
+                Found {{ results_count }} global matching <i>{{search}}</i>.
+              -plural
+                Found {{ results_count }} globals matching <i>{{search}}</i>.
 
-          - block extra-rows
+          -block pre-table
+            -for obj in object_list
+              %temba-modax{ id:'update-{{obj.id}}', header:'{% trans "Update Global" %}', endpoint:"{% url 'globals.global_update' obj.id %}" }
+              %temba-modax{ id:'delete-{{obj.id}}', header:'{% trans "Delete Global" %}', endpoint:"{% url 'globals.global_delete' obj.id %}" }
+              %temba-modax{ id:'uses-{{obj.id}}', header:'{% trans "Global Details" %}', endpoint:"{% url 'globals.global_detail' obj.id %}" }
 
-        - block post-table
+          %table.list.object-list.lined{class:"{% if org_perms.contacts.contact_update %}selectable{%endif%}"}
+            %tbody
+              - for obj in object_list
+                %tr.hover-linked.update{onclick:"showUpdateGlobalModal({{obj.id}})"}
+                  %td(style="min-width: 240px")
+                    {{ obj.name }}
+                  %td(style="font-family: monospace; font-size: 12px;")
+                    @globals.{{ obj.key }}
+                  %td
+                    {{ obj.value }}
+                  %td.dependencies
+                    .text-right
+                      - with usage_count=obj.get_usage_count
+                        - if usage_count
+                          .dependencies(onClick='event.stopPropagation(); showDetailGlobalModal({{ obj.id }}, "{{ obj.name }}");')
+                            {% blocktrans trimmed count counter=usage_count %}
+                              {{counter}} Use
+                            {% plural %}
+                              {{counter}} Uses
+                            {% endblocktrans %}
 
-  {% block paginator %}
-
-{% endblock pjax %}
-{% endblock content %}
+                  %td.w-10
+                    -if org_perms.globals.global_delete
+                      .pl-2.pt-1.delete-link.linked.text-gray-400{style:"visibility:hidden", onclick:"event.stopPropagation(); showDeleteGlobalModal({{obj.id}});"}
+                        %span.icon-close
+              - empty
+                %tr.empty_list
+                  %td(colspan='99')
+                    -trans "No globals"
+          .flex.flex-col.mb-16
+            -include "includes/pagination.haml"
 
 - block extra-script
   {{ block.super }}
   <script>
-    $(document).ready(function(){
-      $('tr[data-gid]').on('click', function(evt) {
-        evt.preventDefault();
-        var srcElem = $(evt.srcElement);
-
-        // if user clicked on the the field that shows dependencies
-        if (srcElem.hasClass('dependencies')) {
-          // pass, do nothing, onClick method will handle this
-        } else {
-          - if org_perms.globals.global_update
-            showUpdateGlobalModal($(this).data('gid'));
-        }
-      });
-
-    }); // document.ready
-
-    function showCreateGlobalModal() {
-
-      var modal = new Modax('{{ _("Create Global")|escapejs }}', '{% url "globals.global_create" %}');
-      modal.setIcon('icon-global');
-      modal.ele.find('.primary').text('{{ _("Create")|escapejs }}');
-
-      modal.setListeners({
-        onSuccess: function() {
-          // simply reload the whole page
-          location.reload();
-        },
-        onFormLoaded: function() {
-          useFontCheckbox(".smartmin-form input[type=checkbox]");
-        }
-      })
-      modal.show()
+    function showUpdateGlobalModal(id) {
+      var modax = document.querySelector('#update-' + id);
+      modax.open = true;
     }
 
-    function showUpdateGlobalModal(gid) {
-      var updateUrl = '/global/update/' + gid + '/';
-
-      var modal = new Modax('{{ _("Update Global")|escapejs }}', updateUrl);
-
-      modal.setIcon('icon-global');
-      modal.ele.find('.primary').text('{{ _("Update")|escapejs }}');
-
-      - if org_perms.globals.global_delete
-        modal.setTertiaryButton('{{ _("Delete")|escapejs }}', function() {
-          // hide current UpdateModal
-          modal.dismiss();
-
-          showDeleteGlobalModal(gid);
-        });
-        // make Delete dangerous
-        modal.ele.find('.tertiary').addClass('btn-danger');
-
-      modal.setListeners({
-        onSuccess: function() {
-          // simply reload the whole page
-          location.reload();
-        },
-        onFormLoaded: function() {
-          useFontCheckbox(".smartmin-form input[type=checkbox]");
-        }
-      })
-      modal.show();
+    function showDeleteGlobalModal(id) {
+      var modax = document.querySelector('#delete-' + id);
+      modax.open = true;
     }
 
-    function _updateModalButtonsStyle(modal) {
-      var has_related_flows = !!$(modal.ele.find('.has-related-flows')).length;
-
-      if (has_related_flows) {
-        // hide the secondary button
-        modal.hideSecondaryButton();
-        // rename the primary button
-        modal.ele.find('.primary').text('Ok').on('click', function () { modal.dismiss()} );
-
-        modal.submit = function () {};
-      } else {
-        modal.ele.find('.primary').text('{{ _("Delete")|escapejs }}').addClass('btn-danger')
-      }
+    function showDetailGlobalModal(id, label) {
+      var modax = document.querySelector('#uses-' + id);
+      modax.open = true;
     }
 
-    function showDeleteGlobalModal(gid) {
-      var deleteUrl = '/global/delete/' + gid + '/';
-
-      var modal = new Modax('{{ _("Delete Global")|escapejs }}', deleteUrl);
-
-      modal.setIcon('icon-global');
-      modal.addClass("alert");
-      modal.redirectOnSuccess = true;
-
-      modal.show();
-
-      modal.setListeners({
-        onCompleted: function() {
-          _updateModalButtonsStyle(modal)
-
-          // simply reload the whole page
-          location.reload();
-        },
-        onFormLoaded: function() {
-          _updateModalButtonsStyle(modal)
-        }
-      })
-    }
-
-    function showDetailGlobalModal(gid, name) {
-      var detailUrl = '/global/detail/' + gid + '/';
-
-      var modal = new Modax(name + ' ' + '{{ _("Uses")|escapejs }}', detailUrl);
-
-      modal.setIcon('icon-global');
-
-      modal.ele.find('.primary').hide();  // hide primary, because primary button onClick handler will try to submit the form
-
-      modal.ele.find('.secondary').text('{{ _("Ok")|escapejs }}');
-
-      modal.setListeners({
-        onSuccess: function() {
-          // simply reload the whole page
-          location.reload();
-        },
-      })
-      modal.show();
-    }
   </script>
 
 -block extra-style
+  {{block.super}}
   :css
     tr.global {
       cursor: pointer;
+    }
+
+    tr:hover .delete-link {
+      visibility: visible !important;
     }
 
     .title-icon {

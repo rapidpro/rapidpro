@@ -5,60 +5,59 @@
   -trans "Channel Event"
 
 -block title
-  .medium-help.icon-cloud-upload{ style:'float:left;' }
-  %h2.header-margin
-    -if object.is_error
-      -trans "Message Error"
+  -if object.is_error
+    -trans "Message Error"
+  -else
+    -if object.connection_type
+      -trans "Call Log"
     -else
-      -if object.connection_type
-        -trans "Call Log"
-      -else
-        -trans "Message Log"
+      -trans "Message Log"
 
-  %h5.header-margin
-    Provider: {{ object.channel.get_channel_type_display }}
+-block subtitle
+  {{ object.channel.get_channel_type_display }}
 
--block above-bar
-  %a.btn.btn-secondary{ href: '{% url "channels.channellog_list" object.channel.uuid %}' } Message Log
 
 -block content
 
-  .log-details
-    .detail.recipient
-      .header
-        Recipient
-          -if object.msg
-            %a{href:'{% url "contacts.contact_read" object.msg.contact.uuid %}'}
-              {{object.msg.contact_urn.get_display}}
-          -elif object.connection_type
-            %a{href:'{% url "contacts.contact_read" object.contact.uuid %}'}
-              {{object.contact_urn.path}}
-    .detail.channel
-      .header
-        Channel
+  .card.flex.mt-0
+    .inline-flex.mr-8
+      .font-normal.mr-2
+        -trans "Recipient"
+      -if object.msg
+        %a{href:'{% url "contacts.contact_read" object.msg.contact.uuid %}'}
+          {{object.msg.contact_urn.get_display}}
+      -elif object.connection_type
+        %a{href:'{% url "contacts.contact_read" object.contact.uuid %}'}
+          {{object.contact_urn.path}}
+
+    .inline-flex.mr-8
+      .font-normal.mr-2
+        -trans "Channel"
       %a{href:'{% url "channels.channel_read" object.channel.uuid %}'}
         {{object.channel}}
-    .detail.direction
-      .header
-        Direction
+
+    .inline-flex.mr-8
+      .font-normal.mr-2
+        -trans "Direction"
       -if object.connection_type
         {{object.get_direction_display}}
       -else
         {{object.msg.get_direction_display}}
-    .detail.started
-      .header
-        Date
+
+    .inline-flex.mr-8
+      .font-normal.mr-2
+        -trans "Date"
       {{object.created_on|date:"M j, Y g:i:s a"}}
 
     -if object.duration
-      .detail.duration
-        .header
-          Duration
+      .inline-flex.mr-8
+        .font-normal.mr-2
+          -trans "Duration"
         {{object.get_duration|delta}}
 
-    .detail.status
-      .header
-        Status
+    .inline-flex.mr-8
+      .font-normal.mr-2
+        -trans "Status"
       -if object.connection_type
         {{object.get_status_display}}
       -else
@@ -102,88 +101,34 @@
 -block extra-style
   {{ block.super }}
   <link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}rest_framework/css/prettify.css"/>
+  :css
+    .page-content {
+      max-width: 100%;
+    }
 
 -block extra-less
   {{block.super}}
   -compress css inline
     {% lessblock %}
       :plain
-        .result {
-          clear: both;
-          margin-bottom: 10px;
-        }
-
-        .result-status {
-          float: left;
-          margin-top: 10px;
-          font-size: 32px;
-          color: #666;
-        }
-
-        .result .result-summary {
-          margin-left: 70px;
-        }
-
-        .log {
-          padding: 0px;
-          border: 1px solid #f7f7f9 - #111;
-          margin-bottom:10px;
-
-          pre, .prettyprint {
-            border: 0;
-            margin-bottom: 0px;
-          }
-
-          .request-time {
-            margin-right: 50px;
-
-            .request-time-value {
-              font-weight: bold
-            }
-          }
-
-          .status-code {
-            margin-right: 5px;
-          }
-
-          .summary {
-            border: 1px solid #f7f7f9 - #111;
-            padding: 10px;
-            color: @flat-grey;
-            cursor: pointer;
-            word-break: break-all;
-            word-wrap: break-word;
-
-            .method {
-              font-weight: bold;
-            }
-          }
-          .prettyprint {
-            padding: 10px;
-            border-radius: 0;
-
-            &.request {
-              background: #f7f7f9 + 111;
-              border-bottom: 1px solid @flat-white;
+        table.list {
+          tbody {
+            tr:first-child {
+              td {
+                padding: 1.5rem;
+              }
             }
           }
         }
 
-        .log-details {
-          padding: 10px;
-          margin-bottom:10px;
-          border: 1px solid #f7f7f9 - #111;
-          font-size: 80%;
+        pre.prettyprint {
+          margin: 0;
+          border: 0;
+          max-height: none !important;
+          padding: 1.5rem;
 
-          .header {
-            display: inline-block;
-            font-weight: 400;
-            margin-right: 2px;
-          }
-
-          .detail {
-            display: inline-block;
-            margin-right: 16px;
+          &.request {
+            background: #f7f7f9 + 111;
           }
         }
     {% endlessblock %}

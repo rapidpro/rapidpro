@@ -1,13 +1,16 @@
-function initializeDatetimePicker(minDate, initialDate, showButtons) {
-    if (showButtons === undefined) {
-        showButtons = true;
-    }
+function initializeDatetimePicker(
+    ele,
+    minDate,
+    initialDate,
+    showButtons,
+    user_tz,
+    user_tz_offset
+) {
+    // force us into jQuery
+    ele = $(ele);
 
-    var hasInitial = true;
-    if (initialDate === undefined) {
-        initialDate = minDate;
-        hasInitial = false;
-    }
+    initialDate = initialDate || minDate;
+    var hasInitial = !!initialDate;
 
     var initial = moment(initialDate).tz(user_tz);
     setDatetimeValue(initial, null, initialDate);
@@ -20,14 +23,11 @@ function initializeDatetimePicker(minDate, initialDate, showButtons) {
         initialHour = initial.hour();
         initialMinute = initial.minute();
         initialDate = initial.toDate();
-
-        $('#start-datetime').val(
-            initial.format('dddd, MMMM D, YYYY [at] h:mm a')
-        );
+        ele.val(initial.format('dddd, MMMM D, YYYY [at] h:mm a'));
     }
 
     var timeFormat = 'h:mm tt';
-    $('#start-datetime').datetimepicker({
+    ele.datetimepicker({
         dateFormat: 'DD, MM d, yy',
         timeFormat: timeFormat,
         pickerTimeFormat: "'Start at' " + timeFormat,
@@ -39,7 +39,7 @@ function initializeDatetimePicker(minDate, initialDate, showButtons) {
         minute: initialMinute,
         hour: initialHour,
         timezone: user_tz_offset,
-        onSelect: setDatetimeValue
+        onSelect: setDatetimeValue,
     });
 }
 
@@ -58,15 +58,16 @@ function setDatetimeValue(datetimeText, datepickerInstance, nextStart) {
 
 // show our day selectors when we are set to weekly
 $('#modal, #id-schedule, #id-trigger-schedule')
-    .on('change', 'select[name=repeat_period]', function() {
-        if ($(this).val() == 'W') {
+    .on('change', 'temba-select[name=repeat_period]', function () {
+        var value = this.values[0].value;
+        if (value == 'W') {
             if ($('.btn-group').children('.active').length == 0) {
                 // account for Sunday being 0 in JS but 7 in python
                 var day = getStartTime().day();
                 if (day == 0) {
                     day = 7;
                 }
-                $('.btn-group > .btn:nth-child(' + day + ')').each(function() {
+                $('.btn-group > .btn:nth-child(' + day + ')').each(function () {
                     $(this).addClass('active');
                 });
             }
@@ -128,13 +129,13 @@ function resetStartDatetime() {
     $('#start-datetime').datetimepicker({
         showButtonPanel: false,
         timezone: user_tz_offset,
-        minDateTime: null
+        minDateTime: null,
     });
 }
 
 function updateDailySelection() {
     var selected = '';
-    $('.btn-group > .btn').each(function() {
+    $('.btn-group > .btn').each(function () {
         if ($(this).hasClass('active')) {
             selected += $(this).attr('value');
         }
@@ -143,8 +144,8 @@ function updateDailySelection() {
 }
 
 // handle our toggle for when to start
-$(document).ready(function() {
-    $('input[name=start]').on('click', function() {
+$(document).ready(function () {
+    $('input[name=start]').on('click', function () {
         var id = $(this).attr('id');
         var actionButton = $('.start-button');
         var recurrence = $('#recurrence');

@@ -47,6 +47,11 @@ class Field(Modifier):
 
 
 class Status(Modifier):
+    ACTIVE = "active"
+    BLOCKED = "blocked"
+    STOPPED = "stopped"
+    ARCHIVED = "archived"
+
     type = "status"
 
     def __init__(self, status: str):

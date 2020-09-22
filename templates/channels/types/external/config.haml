@@ -1,119 +1,140 @@
 -load i18n
 
-%h4
-  -blocktrans trimmed
-    To finish configuring your connection you'll need to set the following callback URLs on your service or aggregator.
+-blocktrans trimmed
+  To finish configuring your connection you'll need to set the following callback URLs on your service or aggregator.
 
-%hr
+.card.mt-6
+  .title
+    -trans "Send URL"
 
-%h4
-  -trans "Send URL"
-  %code
+  .code.inline-block.m-0
     {{ channel.config.send_url }}
 
-%p
-  -blocktrans trimmed
-    When we need to send an outgoing message it will make a
+  .my-4
+    -blocktrans trimmed
+      When we need to send an outgoing message it will make a
+    {{ channel.config.method|default:"POST" }}
+    -blocktrans trimmed
+      to this URL with the parameters 'text', 'to', 'from', 'channel' and 'id'
 
-  {{ channel.config.method|default:"POST" }}
+  .bleed-x.bleed-b.text-white.bg-black.p-6
+    .cap-label.mb-2.text-gray-600
+      -trans "Example"
 
-  -blocktrans trimmed
-    to this URL with the parameters 'text', 'to', 'from', 'channel' and 'id'
+    .code.break-all.text-white.bg-black.p-0.m-0.whitespace-normal<
+      {{ channel.config.method }}
+      {{ example_url }}
 
-%h4
-  -trans "Example"
+      -if channel.config.method == "POST"
+        .mt-2.text-gray-400
+          {{ example_body }}
 
--if channel.config.method == "GET"
-
-  %pre.prettyprint.example<
-    :plain
-      {{ channel.config.method }} {{ example_url }}
-
--else
-  %pre.prettyprint.example<
-    :plain
-      {{ channel.config.method }} {{ example_url }}
-      {{ example_content_type }}
-
-      {{ example_body }}
-%hr
 
 -if object.role != 'S'
-
-  %h4
-    -trans "Received URL"
-    %code
+  .card.mt-6
+    .title
+      -trans "Received URL"
+    .code.inline-block.m-0
       https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'receive' %}
 
-  %p
-    -blocktrans trimmed
-      When a new message is received by your service, it should notify us with a POST to the following URL, passing
-      the following parameters: 'from' and 'text'. Callers can optionally also send a 'date' parameter in ISO-8601
-      (ex: 2012-04-23T18:25:43.511Z) format to specify the time the message was received.
-  %pre.prettyprint.example<
-    :plain
-      POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'receive' %}
-      from=%2B250788123123&text=Love+is+patient.+Love+is+kind.&date=2012-04-23T18:25:43.511Z
-  %hr
+    .my-4
+      -blocktrans trimmed
+        When a new message is received by your service, it should notify us with a POST to the following URL, passing
+        the following parameters: 'from' and 'text'. Callers can optionally also send a 'date' parameter in ISO-8601
+        (ex: 2012-04-23T18:25:43.511Z) format to specify the time the message was received.
 
-%h4
-  -trans "Sent URL"
-  %code
-    https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'sent' %}
+    .bleed-x.bleed-b.text-white.bg-black.p-6
+      .cap-label.mb-2.text-gray-600
+        -trans "Example"
 
-%p
-  -blocktrans trimmed
-    When your service successfully sends a message, it should notify us with a POST to the following URL, passing
-    the id of the message as the parameter 'id' (reporting sent messages is optional)
-%pre.prettyprint.example<
-  :plain
-    POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'sent' %}
-    id=2599235
-%hr
+      .code.break-all.bg-black.text-white.p-0.m-0.whitespace-normal<
+        POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'receive' %}
+      
+        .mt-2.text-gray-400.break-all
+          from=%2B250788123123&text=Love+is+patient.+Love+is+kind.&date=2012-04-23T18:25:43.511Z
 
-%h4
-  -trans "Delivered URL"
-  %code
-    https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'delivered' %}
+  .card.mt-6
+    .title
+      -trans "Sent URL"
+    .code.inline-block.m-0
+      https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'sent' %}
 
-%p
-  -blocktrans trimmed
-    When your service successfully delivers a message, it should notify us with a POST to the following URL, passing
-    the id of the message as the parameter 'id' (reporting deliveries is optional)
-%pre.prettyprint.example<
-  :plain
-    POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'delivered' %}
-    id=2599235
-%hr
+    .my-4
+      -blocktrans trimmed
+        When your service successfully sends a message, it should notify us with a POST to the following URL, passing
+        the id of the message as the parameter 'id' (reporting sent messages is optional)
 
-%h4
-  -trans "Failed URL"
-  %code
-    https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'failed' %}
+    .bleed-x.bleed-b.text-white.bg-black.p-6
+      .cap-label.mb-2.text-gray-600
+        -trans "Example"
 
-%p
-  -blocktrans trimmed
-    If your service fails to send an outgoing message, it should notify us with a POST to the following URL, passing
-    the id of the message as the parameter 'id' (reporting failed sends is optional)
-%pre.prettyprint.example<
-  :plain
-    POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'failed' %}
-    id=2599235
-%hr
+      .code.break-all.bg-black.text-white.p-0.m-0.whitespace-normal<
+        POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'sent' %}
+        
+        .mt-2.text-gray-400
+          id=2599235
 
 
-%h4
-  -trans "Contact Opt out/Stopped URL"
-  %code
-    https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'stopped' %}
+  .card.mt-6
+    .title
+      -trans "Delivered URL"
+    .code.inline-block.m-0
+      https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'delivered' %}
 
-%p
-  -blocktrans trimmed
-    If this channel provides a way for contacts to opt out and stop receiving messages,
-    the service should notify us with a POST to the following URL, passing the phone number as the parameter "from"
-%pre.prettyprint.example<
-  :plain
-    POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'stopped' %}
-    from=%2B250788123123
-%hr
+    .my-4
+      -blocktrans trimmed
+        When your service successfully delivers a message, it should notify us with a POST to the following URL, passing
+        the id of the message as the parameter 'id' (reporting deliveries is optional)
 
+    .bleed-x.bleed-b.text-white.bg-black.p-6
+      .cap-label.mb-2.text-gray-600
+        -trans "Example"
+
+      .code.break-all.bg-black.text-white.p-0.m-0.whitespace-normal<
+        POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'delivered' %}
+    
+        .mt-2.text-gray-400
+          id=2599235
+
+  .card.mt-6
+    .title
+      -trans "Failed URL"
+    .code.inline-block.m-0
+      https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'failed' %}
+
+    .my-4
+      -blocktrans trimmed
+        If your service fails to send an outgoing message, it should notify us with a POST to the following URL, passing
+        the id of the message as the parameter 'id' (reporting failed sends is optional)
+
+    .bleed-x.bleed-b.text-white.bg-black.p-6
+      .cap-label.mb-2.text-gray-600
+        -trans "Example"
+
+      .code.break-all.bg-black.text-white.p-0.m-0.whitespace-normal<
+        POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'failed' %}
+
+        .mt-2.text-gray-400
+          id=2599235
+
+  .card.mt-6
+    .title
+      -trans "Contact Opt out/Stopped URL"
+  
+    .code.inline-block.m-0
+      https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'stopped' %}
+
+    .my-4
+      -blocktrans trimmed
+        If this channel provides a way for contacts to opt out and stop receiving messages,
+        the service should notify us with a POST to the following URL, passing the phone number as the parameter "from"
+
+    .bleed-x.bleed-b.text-white.bg-black.p-6
+      .cap-label.mb-2.text-gray-600
+        -trans "Example"
+
+      .code.break-all.bg-black.text-white.p-0.m-0.whitespace-normal<
+        POST https://{{ channel.callback_domain }}{% url 'courier.ex' channel.uuid 'stopped' %}
+    
+        .mt-2.text-gray-400
+          from=%2B250788123123

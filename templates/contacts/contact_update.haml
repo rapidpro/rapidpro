@@ -1,30 +1,59 @@
--extends 'smartmin/update.html'
+-extends 'includes/modax.html'
 
+-block modal-extra-style
+  {{block.super}}
+  :css
+    .icon-arrow-down {
+      -ms-transform: rotate(180deg);
+      -moz-transform: rotate(180deg);
+      -webkit-transform: rotate(180deg);
+      -o-transform: rotate(180deg);
+
+      font-size:12px;
+      cursor: pointer;
+      display: inline;
+      margin-bottom: -1px;
+    }
+    
+    label {
+      margin-bottom: 2px;
+      margin-left: 4px;
+      display: block;
+      font-weight: 400;
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      line-height: normal;
+      color: rgb(119, 119, 119);
+    }
+    
+    .help-text {
+      font-size: 11px;
+      line-height: inherit;
+      color: rgba(0, 0, 0, 0.25);
+      opacity: 1;
+      margin-top: 4px;
+      margin-left: 4px;
+      pointer-events: none;
+      transition: opacity 100ms ease-in-out 0s, margin-top 200ms ease-in-out 0s;
+    }
 
 -block modal-script
   {{block.super}}
 
   :javascript
     $(document).ready(function() {
-      //add select2 to contact group
-      $('#id_groups').select2({
-        containerCssClass: "select2-temba-field"
-      });
-
-      $('#id-urn-scheme').select2({width:'150px', minimumResultsForSearch: -1})
-
-      select2div('#id_language', '520px', 'No preference')
       createMoveLinks();
-
     });
 
     function createMoveLinks() {
-      $('.order-helper').remove();
+      var body = document.querySelector("#edit-contact").shadowRoot.querySelector(".modax-body");
+
+      $(body).find('.order-helper').remove();
 
       // :not(:first)
       var idx = 0;
       var first = true;
-      $(".control-group input[id^=id_urn__]").each(function() {
+      $(body).find(".control-group temba-textinput[id^=id_urn__]").each(function() {
         var input = $('#' + this.id);
         var parts = this.id.split('__');
 
@@ -34,8 +63,8 @@
         // add a link to increase the priority
         if (!first) {
           var link = 'javascript:moveUp("' + this.id + '");';
-          link = "<div style='float:right' title='Increase priority' class='order-helper icon-arrow-down' onclick='" + link + "'></div>"
-          $(this).parents('.control-group').prepend(link)
+          link = "<div class='flex -mb-12 mt-12 mr-3 order-helper' ><div class='flex-grow'></div><div title='Increase priority' class='icon-arrow-down text-gray-400 linked' onclick='" + link + "'></div></div>"
+          $(this).parents('.control-group').prepend(link);
         }
 
 
@@ -47,7 +76,8 @@
     }
 
     function moveUp(link) {
-      var group = $('#' + link).parents('.control-group');
+      var body = document.querySelector("#edit-contact").shadowRoot.querySelector(".modax-body");
+      var group = $(body).find('#' + link).parents('.control-group');
       var previous = group.prev();
       previous.before(group);
       createMoveLinks();
@@ -55,46 +85,27 @@
 
 
 
--block extra-fields
-  :css
-    .icon-arrow-down {
-      -ms-transform: rotate(180deg);
-      -moz-transform: rotate(180deg);
-      -webkit-transform: rotate(180deg);
-      -o-transform: rotate(180deg);
+-block fields
 
-      margin-top:10px;
-      font-size:14px;
-      cursor: pointer;
-      color: #ccc;
-    }
-
-
-  //-for urn in object.get_urns
-    {{urn.scheme}}
-    %input{value:'{{urn.path}}'}
-
-
+  {{block.super}}
   // Manual option to add a new URN for this contact
   {% if not user_org.is_anon %}
-  <div class="control-group {% if form.errors.new_path %}error{%endif%}">
-    %label.control-label
-      Add Connection
-    .controls
+    <div class="control-group {% if form.errors.new_path %}error{%endif%}">
+      %label.control-label
+        Add Connection
+      .controls
+        .flex
+          %temba-select#id-urn-scheme.w-64{name:'new_scheme', float:'left'}
+            -for key, value in schemes
+              <temba-option name='{{value}}' value='{{key}}' {% if form.data.new_scheme == key %}selected{%endif%}></temba-option>
+          %temba-textinput.flex-grow{name:'new_path', type:'text', style:'margin-left:5px;width:345px', value:'{{form.data.new_path}}'}
 
-
-      %select#id-urn-scheme{name:'new_scheme', float:'left'}
-        -for key, value in schemes
-          <option value='{{key}}' {% if form.data.new_scheme == key %}selected{%endif%}>{{value}}</option>
-      %input{name:'new_path', type:'text', style:'margin-left:5px;width:345px', value:'{{form.data.new_path}}'}
-
-      %p.help-block
-        Add a new way connect with this contact
-      -if form.errors.new_path
-        %p.help-block.field-errors
-          {{form.errors.new_path}}
-
-  </div>
+        .help-text
+          Add a new way connect with this contact
+        -if form.errors.new_path
+          .alert-error.mt-2
+            {{form.errors.new_path}}
+    </div>
   {% endif %}
 
 

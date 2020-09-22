@@ -1,27 +1,36 @@
--load humanize channels
+-load humanize channels i18n
 
-.log<
-  .summary{id:"{{log.id}}"}
-    .time.pull-right
-      {{log.created_on|date:"M j, Y g:i:s a"}}
+%table.list
+  %tbody
+    %tr.border-b
+      %td(style="width: 30px;")
+        .font-normal.text-2xl
+          {{ log.response_status }}
 
-
-    .request-time.pull-right
-      -if log.request_time
-        Request time:
-        %span.request-time-value
-          {{ log.request_time|default:"0"|intcomma }}ms
-
-    -if log.response_status
-      %span.status-code
-        {{ log.response_status }}
-    %span.url
-      %span.method= log.method
+      %td
+        .font-normal.inline.mr-1
+          %span.method= log.method
         {% channellog_url log %}
-  .details.hide
-    %pre.prettyprint.request<
-      :plain
-        {% channellog_request log %}
-    %pre.prettyprint.response<
-      :plain
-        {% channellog_response log %}
+
+      %td
+        .text-right.whitespace-no-wrap
+          -if log.request_time
+            -trans "Took"
+            %span.request-time-value
+              {{ log.request_time|default:"0"|intcomma }}ms
+      %td
+        .text-right.whitespace-no-wrap
+          {{log.created_on|date:"M j, Y g:i:s a"}}
+
+
+    %tr
+      %td(colspan="4" style="padding:0;")
+        %pre.prettyprint.request<
+          :plain
+            {% channellog_request log %}
+
+    %tr
+      %td(colspan="4" style="padding:0;")
+        %pre.prettyprint.response<
+          :plain
+            {% channellog_response log %}

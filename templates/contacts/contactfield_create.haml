@@ -1,0 +1,13 @@
+-extends 'includes/modax.html'
+-load i18n
+-load smartmin
+
+-block fields
+  .flex.items-start.flex-col
+    .w-full
+      -render_field 'label'
+    .w-full
+      -render_field 'value_type'
+    
+    -render_field 'show_in_table'
+

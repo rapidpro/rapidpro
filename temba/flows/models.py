@@ -230,7 +230,11 @@ class Flow(TembaModel):
     )
 
     base_language = models.CharField(
-        max_length=4, null=True, blank=True, help_text=_("The primary language for editing this flow"), default="base"
+        max_length=4,
+        null=True,
+        blank=True,
+        help_text=_("The authoring language, additional languages can be added later"),
+        default="base",
     )
 
     version_number = models.CharField(

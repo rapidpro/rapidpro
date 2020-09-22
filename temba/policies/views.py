@@ -1,6 +1,6 @@
 from gettext import gettext as _
 
-from smartmin.views import SmartCreateView, SmartCRUDL, SmartFormView, SmartListView, SmartReadView
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartUpdateView
 
 from django import forms
 from django.db.models import Max
@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from temba.orgs.views import OrgPermsMixin
 from temba.utils import analytics
+from temba.utils.views import ComponentFormMixin
 
 from .models import Consent, Policy
 
@@ -25,6 +26,10 @@ class PolicyCRUDL(SmartCRUDL):
         title = "Policies"
         paginate_by = 500
 
+        def get_gear_links(self):
+            links = [dict(title=_("New Policy"), href=reverse("policies.policy_create"),)]
+            return links
+
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)
             return queryset.filter(is_active=False)
@@ -32,9 +37,13 @@ class PolicyCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["active_policies"] = Policy.objects.filter(is_active=True).order_by(*self.ordering)
+            context["gear_links"] = self.get_gear_links()
             return context
 
-    class Create(SmartCreateView):
+    class Update(ComponentFormMixin, SmartUpdateView):
+        pass
+
+    class Create(ComponentFormMixin, SmartCreateView):
 
         # make sure we only have one active policy at a time
         def post_save(self, obj):
@@ -85,6 +94,8 @@ class PolicyCRUDL(SmartCRUDL):
                         Max("created_on")
                     )["created_on__max"]
 
+            context["next"] = self.request.GET.get("next", None)
+
             return context
 
     class GiveConsent(OrgPermsMixin, SmartFormView):
@@ -121,4 +132,8 @@ class PolicyCRUDL(SmartCRUDL):
                 # forget we were ever friends
                 analytics.change_consent(self.request.user.email, False)
 
-            return HttpResponseRedirect(reverse("policies.policy_list"))
+            redirect = self.request.POST.get("next")
+            if not redirect:
+                redirect = reverse("policies.policy_list")
+
+            return HttpResponseRedirect(redirect)

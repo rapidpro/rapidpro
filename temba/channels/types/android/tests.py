@@ -220,7 +220,7 @@ class AndroidTypeTest(TembaTest):
 
         # now adding Nexmo bulk sender should work
         response = self.client.post(claim_nexmo_url, dict(connection="NX", channel=android2.pk))
-        self.assertRedirect(response, reverse("orgs.org_home"))
+        self.assertRedirect(response, reverse("channels.channel_read", args=[android2.uuid]))
 
         # new Nexmo channel created for delegated sending
         nexmo = self.org.get_send_channel(TEL_SCHEME)
@@ -347,6 +347,5 @@ class AndroidTypeTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(update_url)
         self.assertEqual(
-            ["name", "address", "country", "alert_email", "allow_international", "loc"],
-            list(response.context["form"].fields.keys()),
+            ["name", "alert_email", "allow_international", "loc"], list(response.context["form"].fields.keys()),
         )

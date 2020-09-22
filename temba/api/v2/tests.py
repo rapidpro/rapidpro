@@ -22,7 +22,7 @@ from django.utils import timezone
 
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from temba.archives.models import Archive
-from temba.campaigns.models import Campaign, CampaignEvent, EventFire
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.luis import LuisType
@@ -768,7 +768,7 @@ class APITest(TembaTest):
         self.assertResponseError(
             response,
             "non_field_errors",
-            "Sorry, your account is currently flagged. To enable " "sending messages, please contact support.",
+            "Sorry, your workspace is currently flagged. To enable sending messages, please contact support.",
         )
 
     def test_archives(self):
@@ -1003,7 +1003,8 @@ class APITest(TembaTest):
         )
         self.assertEqual(response.status_code, 404)
 
-    def test_campaign_events(self):
+    @mock_mailroom
+    def test_campaign_events(self, mr_mocks):
         url = reverse("api.v2.campaign_events")
 
         self.assertEndpointAccess(url)
@@ -1261,8 +1262,16 @@ class APITest(TembaTest):
         self.assertEqual(event2.message, None)
         self.assertEqual(event2.flow, flow)
 
-        # make sure some event fires were created for the contact
-        self.assertEqual(1, EventFire.objects.filter(contact=contact, event=event2).count())
+        # make sure we queued a mailroom task to schedule this event
+        self.assertEqual(
+            {
+                "org_id": self.org.id,
+                "type": "schedule_campaign_event",
+                "queued_on": matchers.Datetime(),
+                "task": {"campaign_event_id": event2.id, "org_id": self.org.id},
+            },
+            mr_mocks.queued_batch_tasks[-1],
+        )
 
         # update the message event to be a flow event
         response = self.postJSON(
@@ -1347,9 +1356,6 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 204)
 
         self.assertFalse(CampaignEvent.objects.filter(id=event1.id, is_active=True).exists())
-
-        # should no longer have any events
-        self.assertEqual(1, EventFire.objects.filter(contact=contact, event=event2).count())
 
     def test_campaignevents_cant_modify_on_inactive_campaign(self):
         url = reverse("api.v2.campaign_events")
@@ -1724,9 +1730,12 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, {"name": None, "language": None, "urns": [], "groups": [], "fields": {}})
         self.assertEqual(response.status_code, 201)
 
-        jaqen = Contact.objects.filter(name=None, language=None).order_by("-pk").first()
-        self.assertEqual(set(jaqen.urns.all()), set())
-        self.assertEqual(set(jaqen.user_groups.all()), set())
+        jaqen = Contact.objects.order_by("id").last()
+        self.assertIsNone(jaqen.name)
+        self.assertIsNone(jaqen.language)
+        self.assertEqual(Contact.STATUS_ACTIVE, jaqen.status)
+        self.assertEqual(set(), set(jaqen.urns.all()))
+        self.assertEqual(set(), set(jaqen.user_groups.all()))
         self.assertIsNone(jaqen.fields)
 
         # create a dynamic group
@@ -1830,6 +1839,13 @@ class APITest(TembaTest):
         self.assertEqual(set(jean.user_groups.all()), set())
         self.assertEqual(jean.get_field_value(nickname), "Žan")
 
+        # invalid language values are ignored
+        response = self.postJSON(url, "uuid=%s" % jean.uuid, {"language": "xyz"})
+        self.assertEqual(response.status_code, 200)
+        jean.refresh_from_db()
+        self.assertEqual(jean.name, "Jean II")
+        self.assertIsNone(jean.language)
+
         # update by uuid and remove all fields
         response = self.postJSON(
             url,
@@ -1918,7 +1934,7 @@ class APITest(TembaTest):
         # try to move a blocked contact into a group
         jean.block(self.user)
         response = self.postJSON(url, "uuid=%s" % jean.uuid, {"groups": [group.uuid]})
-        self.assertResponseError(response, "groups", "Blocked or stopped contacts can't be added to groups")
+        self.assertResponseError(response, "groups", "Non-active contacts can't be added to groups")
 
         # try to update a contact by both UUID and URN
         response = self.postJSON(url, "uuid=%s&urn=%s" % (jean.uuid, quote_plus("tel:+250784444444")), {})
@@ -2206,7 +2222,7 @@ class APITest(TembaTest):
 
         # error reporting that the deleted and test contacts are invalid
         self.assertResponseError(
-            response, "non_field_errors", "Blocked or stopped contacts cannot be added to groups: %s" % contact4.uuid
+            response, "non_field_errors", "Non-active contacts cannot be added to groups: %s" % contact4.uuid
         )
 
         # add valid contacts to the group by name
@@ -2260,13 +2276,15 @@ class APITest(TembaTest):
             url, None, {"contacts": [contact1.uuid, contact2.uuid, contact3.uuid, contact4.uuid], "action": "block"}
         )
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(Contact.objects.filter(is_blocked=True)), {contact1, contact2, contact3, contact4})
+        self.assertEqual(
+            set(Contact.objects.filter(status=Contact.STATUS_BLOCKED)), {contact1, contact2, contact3, contact4}
+        )
 
         # unblock contact 1
         response = self.postJSON(url, None, {"contacts": [contact1.uuid], "action": "unblock"})
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(set(self.org.contacts.filter(is_blocked=False)), {contact1, contact5})
-        self.assertEqual(set(self.org.contacts.filter(is_blocked=True)), {contact2, contact3, contact4})
+        self.assertEqual(set(self.org.contacts.filter(status=Contact.STATUS_ACTIVE)), {contact1, contact5})
+        self.assertEqual(set(self.org.contacts.filter(status=Contact.STATUS_BLOCKED)), {contact2, contact3, contact4})
 
         # interrupt any active runs of contacts 1 and 2
         with patch("temba.mailroom.queue_interrupt") as mock_queue_interrupt:
@@ -2276,7 +2294,7 @@ class APITest(TembaTest):
             mock_queue_interrupt.assert_called_once_with(self.org, contacts=[contact1, contact2])
 
         # archive all messages for contacts 1 and 2
-        response = self.postJSON(url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "archive"})
+        response = self.postJSON(url, None, {"contacts": [contact1.uuid, contact2.uuid], "action": "archive_messages"})
         self.assertEqual(response.status_code, 204)
         self.assertFalse(Msg.objects.filter(contact__in=[contact1, contact2], direction="I", visibility="V").exists())
         self.assertTrue(Msg.objects.filter(contact=contact3, direction="I", visibility="V").exists())

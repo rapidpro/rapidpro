@@ -1,0 +1,6 @@
+-load humanize
+
+-if not paginator or paginator.num_pages <= 1
+    {{ object_list|length }} result{% if object_list|length == 0 or object_list|length > 1 %}s{% endif %}
+-else
+    Results {{ page_obj.start_index|intcomma }} - {{ page_obj.end_index|intcomma }} of {{ paginator.count|intcomma }}

@@ -1,142 +1,62 @@
 -extends "smartmin/form.html"
 -load i18n
 
--block title-text
-  %h1= org.name
-
+-block title
+  .page-title= org.name
 
 -block page-top
   -if org.is_active
-
     -if org.is_suspended
-      .alert.alert-error
+      .alert-warning.mb-4
         -trans "This workspace has been suspended"
 
     -if org.is_flagged
-      .alert.alert-error
+      .alert-warning.mb-4
         -trans "This workspace has been flagged for possible spamming"
 
     -if org.is_verified
-      .alert.alert-info
+      .alert-info.mb-4
         -trans "This workspace has been verified"
   -else
-    .alert.alert-error
+    .alert-danger.mb-4
       -trans "This workspace has been scheduled for deletion"
 
   {{ block.super }}
 
-
--block post-form
-  .pull-right.roles
+-block pre-form
+  .mb-4.flex
     -if org.administrators.all
-      .role
-        .title
+      .mb-2
+        .cap-label
           Administrators
-        .users
-          -for user in org.administrators.all
-            .user
-              %a{href:'{% url "users.user_update" user.id %}'}
-                {{user.email}}
+
+        -for user in org.administrators.all
+          %a{href:'{% url "users.user_update" user.id %}'}
+            {{user.email}}
 
     -if org.editors.all
-      .role
-        .title
+      .mb-2
+        .cap-label
           Editors
-        .users
-          -for user in org.editors.all
-            .user
-              %a{href:'{% url "users.user_update" user.id %}'}
-                {{user.email}}
+
+        -for user in org.editors.all
+          %a{href:'{% url "users.user_update" user.id %}'}
+            {{user.email}}
 
     -if org.viewers.all
-      .role
-        .title
+      .mb-2
+        .cap-label
           Viewers
-        .users
-          -for user in org.viewers.all
-            .user
-              %a{href:'{% url "users.user_update" user.id %}'}
-                {{user.email}}
+
+        -for user in org.viewers.all
+          %a{href:'{% url "users.user_update" user.id %}'}
+            {{user.email}}
 
     -if org.surveyors.all
-      .role
-        .title
+      .mb-2
+        .cap-label
           Surveyors
-        .users
-          -for user in org.surveyors.all
-            .user
-              %a{href:'{% url "users.user_update" user.id %}'}
-                {{user.email}}
 
-  .deletion.hide
-    .title
-      -trans "Delete"
-
-    .body
-      .attn
-        -trans "Whoa, whoa, whoa!"
-      -blocktrans with org.name as name
-        Are you sure you want to delete everything for {{name}}? Everything will be gone and there is no going back.
-        This includes all flows, contacts, messages, etc.
-
-      .delete-warning
-        -blocktrans
-          Also, any logins will be deleted if they don't belong to another workspace.
-
-    %a#delete-form.posterize{href:'{% url "orgs.org_update" org.id %}?action=delete'}
-
--block extra-script
-  <script>
-    $(".org-delete-button").live('click', function() {
-      $(".gear-menu").removeClass("open");
-      modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
-      modal.addClass('alert');
-      modal.setListeners({onPrimary: function(){
-        $('#delete-form').click();
-      }}, false);
-      modal.setPrimaryButton('{{ _("Delete")|escapejs }}');
-      modal.show();
-    });
-  </script>
-
--block extra-style
-  {{block.super}}
-  :css
-
-    form {
-      float: left;
-    }
-    .delete-warning {
-      margin-top: 10px;
-    }
-
-    .attn {
-      font-weight: 400;
-      font-size: 110%;
-    }
-    .roles {
-      margin-top: 15px;
-      border: 1px solid #e6e6e6;
-    }
-
-    .role {
-      padding: 15px;
-      width: 300px;
-    }
-
-    .role .title {
-      font-weight: 400;
-    }
-
-    .form-horizontal .controls {
-      margin-left: 180px;
-    }
-
-    .form-horizontal .smartmin-form-buttons {
-      padding-left: 180px;
-      margin-bottom: 20px;
-    }
-
-    .form-horizontal .control-label {
-      width: 160px;
-    }
+        -for user in org.surveyors.all
+          %a{href:'{% url "users.user_update" user.id %}'}
+            {{user.email}}

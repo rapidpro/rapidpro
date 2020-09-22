@@ -8,51 +8,89 @@
 
 {% block extra-style %}
     {{ block.super }}
-    <link rel="stylesheet" type="text/css" href="{% static "rest_framework/css/prettify.css" %}"/>
-    <link rel="stylesheet" type="text/css" href="{% static "css/codemirror.css" %}"/>
+    <link rel="stylesheet" type="text/css" href='{% static "rest_framework/css/prettify.css" %}'/>
+    <link rel="stylesheet" type="text/css" href='{% static "css/codemirror.css" %}'/>
 
  <style>
-   .button-form {
-       float: right;
-   }
+    .page-content {
+         max-width: 100%;
+    }
 
-   #get-form {
-       margin-left: 5px;
-   }
+    .button-form {
+        float: right;
+    }
+ 
+    #get-form {
+        margin-left: 5px;
+    }
+ 
+    .form-horizontal .form-actions {
+        margin-top: 0px;
+        margin-bottom: 0px;
+        padding-top: 0px;
+        padding-bottom: 0px;
+    }
+ 
+    .nav.nav-tabs {
+        margin-bottom: 0px;
+    }
+ 
+    pre {
+        line-height: 18px;
+        font-size:  12px;
+        font-family: monospace;
+    }
+ 
+    .CodeMirror {
+        background: #fff;
+        border: 1px solid #eee;
+        margin-bottom: 10px;
+        height: 200px;
+    }
+ 
+    .str, .atv {
+        color: teal;
+    }
 
-   .form-horizontal .form-actions {
-       margin-top: 0px;
-       margin-bottom: 0px;
-       padding-top: 0px;
-       padding-bottom: 0px;
-   }
+    h1,
+    h2,
+    h3,
+    h4,
+    h5 {
+      color: #444;
+      padding: 0;
+      text-transform: none;
+      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+    }
+    h1 {
+      font-size: 24px;
+      line-height: 40px;
+    }
+    h2 {
+      font-size: 42px;
+    }
+    h3 {
+      font-size: 26px;
+    }
+    h5 {
+      margin-bottom: 5px;
+    }
 
-   .nav.nav-tabs {
-       margin-bottom: 0px;
-   }
+    ul, ol {
+       padding: 0;
+        margin: 0 0 10px 25px;
+    }
 
-   pre {
-       line-height: 18px;
-       font-size:  12px;
-       font-family: monospace;
-   }
-
-   .CodeMirror {
-       background: #fff;
-       border: 1px solid #eee;
-       margin-bottom: 10px;
-       height: 200px;
-   }
-
-   .str, .atv {
-       color: teal;
-   }
+    strong {
+       font-weight: bold;
+    }
  </style>
 {% endblock %}
 
 {% block content %}
     {% block breadcrumbs %}
-    <ul class="breadcrumb">
+    <ul class="breadcrumb -mt-12 mb-12">
         {% for breadcrumb_name, breadcrumb_url in breadcrumblist %}
             <li>
                 <a href="{{ breadcrumb_url }}" {% if forloop.last %}class="active"{% endif %}>{% if forloop.first %}{{ brand.name }} API v2{% else %}{{ breadcrumb_name }}{% endif %}</a> {% if not forloop.last %}<span class="divider">&rsaquo;</span>{% endif %}
@@ -64,11 +102,11 @@
     {% endblock %}
 
     <!-- Content -->
-    <a class="btn btn-primary pull-right" href='{% url "api.v2.explorer" %}' style="margin-left: 10px">API Explorer</a>
+    <a class="button-primary pull-right" href='{% url "api.v2.explorer" %}' style="margin-left: 10px">API Explorer</a>
 
     <div id="content">
         <div class="content-main">
-            <div class="page-header"><h1>{% if name == "Root" %}{{ brand.name }} API v2{% else %}{{ name }}{% endif %}</h1></div>
+            <div class="page-title mb-8">{% if name == "Root" %}{{ brand.name }} API v2{% else %}{{ name }}{% endif %}</h1></div>
             {{ description }}
         </div>
     </div>

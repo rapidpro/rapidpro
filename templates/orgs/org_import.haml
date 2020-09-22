@@ -4,98 +4,60 @@
 -load i18n humanize
 
 -block title
-  %h1
-    -trans "Import Flows and Campaigns"
+  -trans "Import Flows and Campaigns"
 
-- block pjax
-  #pjax
-    .row{style:"height:250px;"}
-      .span9
-        %p
-          -trans "If you have an export file with flows and or campaigns, select it below to import it into your workspace."
+-block content
+  .mb-2
+    -trans "If you have an export file with flows and or campaigns, select it below to import it into your workspace."
 
-        - block import-status
-          %form#import-form.smartmin-form.horizontal-form{method:"post", action:"{% url 'orgs.org_import' %}", enctype:"multipart/form-data"}
-            - if form.non_field_errors
-              %div.alert.alert-error.form-errors
-                {{ form.non_field_errors }}
+  -block import-status
+    .flex.w-full.mb-4.items-end.flex-wrap{style:"min-height:41px"}
+      %form#import-form{method:"post", action:"{% url 'orgs.org_import' %}", enctype:"multipart/form-data"}
+        - if form.non_field_errors
+          .text-error
+            {{ form.non_field_errors }}
 
-            -csrf_token
-            -if form.non_field_errors
-              %div.alert.alert-error.form-errors
-                {{ form.non_field_errors }}
+        -csrf_token
+        -if form.non_field_errors
+          .text-error
+            {{ form.non_field_errors }}
 
-            -block fields
-              %div#import_file_errors
-                {{ form.import_file.errors }}
-              #file-upload
-                %input{type:"file", name:"import_file", id:"import_file", onchange:'updateFlowImportFile()'}
-              #real_button
-                %input{type:"text", id:"file-field"}
-                %a.btn.btn-primary
-                  -trans "Choose File"
+        -block fields
+          .mt-4.mb-4.text-error
+            {{ form.import_file.errors }}
+          #file-upload
+            %input{type:"file", name:"import_file", id:"import_file", onchange:'updateFlowImportFile()'}
+          #real_button.flex
+            %input{type:"text", id:"file-field"}
+            .block.button-primary.ml-4(style="margin-top:-1px")
+              -trans "Choose File"
 
-            .warning
-              .attn
-                -trans "Warning!"
+        .my-6.alert-warning
+          .font-normal.text-2xl
+            -trans "Warning!"
+          .mt-2
+            -trans "If you have flows or campaigns with the same names or UUIDs as the ones you are importing they will be replaced and all history for them will be lost."
+          .mt-4.font-normal
+            -trans "Do not proceed unless you are willing to replace your existing flows and campaigns."
 
-              -trans "If you have flows or campaigns with the same names or UUIDs as the ones you are importing they will be replaced and all history for them will be lost."
-              %p
-              %b
-                -trans "Do not proceed unless you are willing to replace your existing flows and campaigns."
 
-            .form-buttons
-              %input.btn.btn-primary{type:"submit", value:'{% trans "Import" %}'}
-              %a.btn{onclick:"javascript:history.go(-1)"}
-                -trans "Cancel"
+        .flex
+          %input.button-primary{type:"submit", value:'{% trans "Import" %}'}
+          .ml-4.button-light{onclick:"javascript:history.go(-1)"}
+            -trans "Cancel"
 
 
 {% block extra-style %}
 :css
 
-  .warning {
-    margin-top:20px;
-    margin-bottom:20px;
-    width: 600px;
-    padding: 15px;
-    background: #fff6c0;
-    border: 1px solid #EFE7B4;
-  }
-
-  .warning .attn {
-    font-weight: 500;
-    margin-bottom:8px;
-    font-size:20px;
-  }
-
-  .form-buttons {
-    margin-top: 10px;
-  }
-
-  #update {
-    margin-top:-5px;
-  }
-
-  label {
-    display: inline;
-    color: #666;
-    margin-left: 2px;
-
-    line-height: 33px;
-
-  }
-
-  #example {
-    margin-top: 20px;
-    background: #f8f8f8;
+  input {
+    padding: 9px;
+    cursor: pointer;
+    box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 0px 1px, rgba(0, 0, 0, 0.04) 0px 3px 20px 0px, rgba(0, 0, 0, 0.02) 0px 1px 2px 0px;
   }
 
   #file-upload {
     position:relative;
-  }
-
-  #import_file_errors {
-    font-size: 14px;
   }
 
   #real-button {
@@ -104,20 +66,20 @@
     left: 0px;
     z-index: 1;
     height:35px;
-    width:340px;
+    width:450px;
   }
 
   #file-field {
-    width:255px;
-    height:25px;
+    width:300px;
+    height:35px;
     font-size:16px;
-    border:solid 1px #000;
     margin-bottom: 0px;
+    border-radius: 5px;
   }
 
   #import_file {
     position:absolute;
-    width:340px;
+    width:450px;
     height:35px;
     top: 0px;
     left: 0px;
@@ -127,21 +89,7 @@
     opacity: 0;
     z-index: 2;
   }
-  
-  #import-message {
-    font-size: 22px;
-  }
 
-  #import-message .glyph {
-    font-size: 35px;
-    margin: 0px 20px;
-    color: green;
-    line-height: 22px;
-  }
-
-  #import-message a {
-    text-decoration :none;
-  }
 {% endblock %}
 
 -block extra-script

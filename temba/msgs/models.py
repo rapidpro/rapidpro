@@ -657,7 +657,7 @@ class Msg(models.Model):
                     Msg.objects.filter(id__in=msg_ids)
                     .exclude(channel__channel_type=AndroidType.code)
                     .exclude(msg_type=IVR)
-                    .exclude(topup=None)
+                    .exclude(status=FAILED)
                 )
                 send_messages.update(status=QUEUED, queued_on=queued_on, modified_on=queued_on)
 
@@ -674,7 +674,7 @@ class Msg(models.Model):
 
                     if (
                         (msg.msg_type != IVR and msg.channel and not msg.channel.is_android())
-                        and msg.topup
+                        and msg.status != FAILED
                         and msg.uuid
                     ):
                         courier_msgs.append(msg)
@@ -1259,7 +1259,9 @@ class Label(TembaModel):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs_labels")
 
-    name = models.CharField(max_length=MAX_NAME_LEN, verbose_name=_("Name"), help_text=_("The name of this label"))
+    name = models.CharField(
+        max_length=MAX_NAME_LEN, verbose_name=_("Name"), help_text=_("Choose a name for your label")
+    )
 
     folder = models.ForeignKey(
         "Label", on_delete=models.PROTECT, verbose_name=_("Folder"), null=True, related_name="children"
