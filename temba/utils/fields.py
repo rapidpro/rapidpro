@@ -140,7 +140,7 @@ class OmniboxChoice(forms.Widget):
         return selected
 
 
-class ArbitraryChoiceField(forms.ChoiceField):
+class ArbitraryChoiceField(forms.ChoiceField):  # pragma: needs cover
     def valid_value(self, value):
         return True
 
