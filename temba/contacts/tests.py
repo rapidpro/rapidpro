@@ -618,6 +618,11 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(set(group.query_fields.all()), {age})
         self.assertEqual(group.status, ContactGroup.STATUS_INITIALIZING)
 
+        # try to update group query to something invalid
+        mr_mocks.error("no valid")
+        with self.assertRaises(ValueError):
+            group.update_query("age ~ Mary")
+
         # can't create a dynamic group with empty query
         self.assertRaises(ValueError, ContactGroup.create_dynamic, self.org, self.admin, "Empty", "")
 
@@ -793,15 +798,29 @@ class ContactGroupTest(TembaTest):
         self.assertEqual(all_contacts.get_member_count(), 3)
         self.assertEqual(ContactGroupCount.objects.filter(group=all_contacts).count(), 1)
 
-    def test_delete(self):
+    def test_release(self):
         group = self.create_group("one")
         flow = self.get_flow("favorites")
 
+        campaign = Campaign.create(self.org, self.admin, "Reminders", group)
+        joined = ContactField.get_or_create(
+            self.org, self.admin, "joined", "Joined On", value_type=Value.TYPE_DATETIME
+        )
+        event = CampaignEvent.create_message_event(self.org, self.admin, campaign, joined, 2, unit="D", message="Hi")
+        EventFire.objects.create(event=event, contact=self.joe, scheduled=timezone.now() + timedelta(days=2))
+        campaign.is_archived = True
+        campaign.save()
+
         self.login(self.admin)
 
-        self.client.post(reverse("contacts.contactgroup_delete", args=[group.pk]), dict())
-        self.assertIsNone(ContactGroup.user_groups.filter(pk=group.pk).first())
-        self.assertFalse(ContactGroup.all_groups.get(pk=group.pk).is_active)
+        response = self.client.post(reverse("contacts.contactgroup_delete", args=[group.id]), {})
+        self.assertEqual(200, response.status_code)
+
+        self.assertIsNone(ContactGroup.user_groups.filter(pk=group.id).first())
+        self.assertFalse(ContactGroup.all_groups.get(pk=group.id).is_active)
+
+        # event firs will have been deleted
+        self.assertEqual(0, EventFire.objects.count())
 
         group = self.create_group("one")
         delete_url = reverse("contacts.contactgroup_delete", args=[group.pk])
@@ -1360,6 +1379,13 @@ class ContactTest(TembaTest):
             .save()
         )
 
+        campaign = Campaign.create(self.org, self.admin, "Reminders", group)
+        joined = ContactField.get_or_create(
+            self.org, self.admin, "joined", "Joined On", value_type=Value.TYPE_DATETIME
+        )
+        event = CampaignEvent.create_message_event(self.org, self.admin, campaign, joined, 2, unit="D", message="Hi")
+        EventFire.objects.create(event=event, contact=contact, scheduled=timezone.now() + timedelta(days=2))
+
         self.create_incoming_call(msg_flow, contact)
 
         self.assertEqual(1, group.contacts.all().count())
@@ -1369,6 +1395,7 @@ class ContactTest(TembaTest):
         self.assertEqual(2, contact.runs.all().count())
         self.assertEqual(7, contact.msgs.all().count())
         self.assertEqual(2, len(contact.fields))
+        self.assertEqual(1, contact.campaign_fires.count())
 
         # first try a regular release and make sure our urns are anonymized
         contact.release(self.admin, full=False)
@@ -1391,6 +1418,7 @@ class ContactTest(TembaTest):
         self.assertEqual(0, contact.urns.all().count())
         self.assertEqual(0, contact.runs.all().count())
         self.assertEqual(0, contact.msgs.all().count())
+        self.assertEqual(0, contact.campaign_fires.count())
 
         # contact who used to own our urn had theirs released too
         self.assertEqual(0, old_contact.connections.all().count())
@@ -6439,6 +6467,18 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         def upload(path):
             with open(path, "rb") as f:
                 return SimpleUploadedFile(path, content=f.read())
+
+        # try uploading when we've already reached our group limit
+        self.create_group("Testers", contacts=[])
+        with patch("temba.contacts.models.ContactGroup.MAX_ORG_CONTACTGROUPS", 1):
+            response = self.client.post(create_url, {"file": upload("media/test_imports/simple.xlsx")})
+            self.assertFormError(
+                response,
+                "form",
+                "__all__",
+                "This workspace has reached the limit of 1 groups. "
+                "You must delete existing ones before you can perform an import.",
+            )
 
         # try uploading an empty CSV file
         response = self.client.post(create_url, {"file": upload("media/test_imports/empty.csv")})

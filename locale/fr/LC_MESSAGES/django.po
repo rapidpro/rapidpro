@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-22 14:50+0000\n"
+"POT-Creation-Date: 2020-09-22 21:23+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2708,9 +2708,6 @@ msgstr "Langue"
 msgid "The preferred language for this contact"
 msgstr "La langue préférée pour ce contact"
 
-msgid "Provided URNs belong to different existing contacts"
-msgstr "Les URNs fournis appartiennent à différents contacts existants"
-
 msgid "Any authentication information needed by this URN"
 msgstr "Toute information d'authentification requise par cet URN"
 
@@ -3016,6 +3013,11 @@ msgstr "Mettre à jour"
 
 msgid "Contact field uses"
 msgstr "Utilisation du champ de contact"
+
+#, fuzzy, python-format
+#| msgid "This org has %(count)d groups and the limit is %(limit)d. You must delete existing ones before you can create new ones."
+msgid "This workspace has reached the limit of %(count)d groups. You must delete existing ones before you can perform an import."
+msgstr "Cette organisation a %(count)d groupes et la limite est %(limit)d. Vous devez supprimer les existants avant de pouvoir en créer de nouveaux."
 
 #, python-format
 msgid "Field name for '%(header)s' can't be empty."
@@ -11759,6 +11761,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Provided URNs belong to different existing contacts"
+#~ msgstr "Les URNs fournis appartiennent à différents contacts existants"
 
 #, fuzzy
 #~| msgid ""

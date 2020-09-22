@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-22 14:50+0000\n"
+"POT-Creation-Date: 2020-09-22 21:23+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3713,9 +3713,6 @@ msgstr "Idioma"
 msgid "The preferred language for this contact"
 msgstr "El idioma preferido para este contacto"
 
-msgid "Provided URNs belong to different existing contacts"
-msgstr ""
-
 msgid "Any authentication information needed by this URN"
 msgstr ""
 
@@ -4051,6 +4048,10 @@ msgstr "Actualizar campos"
 #| msgid "Contact Field: %(label)s"
 msgid "Contact field uses"
 msgstr "Campo de contacto: %(label)s"
+
+#, python-format
+msgid "This workspace has reached the limit of %(count)d groups. You must delete existing ones before you can perform an import."
+msgstr ""
 
 #, python-format
 msgid "Field name for '%(header)s' can't be empty."

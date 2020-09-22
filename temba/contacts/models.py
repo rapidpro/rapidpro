@@ -1198,7 +1198,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         if existing_urn and existing_urn.contact:
             contact = existing_urn.contact
-            ContactURN.update_auth(existing_urn, auth)
             return contact, existing_urn
         else:
             kwargs = dict(org=org, name=name, created_by=user)
@@ -1436,7 +1435,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from .search import evaluate_query
 
         # inactive contacts can't be in dynamic groups
-        if self.status != Contact.STATUS_ACTIVE:
+        if self.status != Contact.STATUS_ACTIVE:  # pragma: no cover
             return set()
 
         # cache contact search json
@@ -1647,11 +1646,6 @@ class ContactURN(models.Model):
         for event in ChannelEvent.objects.filter(contact_urn=self):
             event.release()
         self.delete()
-
-    def update_auth(self, auth):
-        if auth and auth != self.auth:
-            self.auth = auth
-            self.save(update_fields=["auth"])
 
     def ensure_number_normalization(self, country_code):
         """
@@ -2362,7 +2356,7 @@ class ExportContactsTask(BaseExportTask):
         return exporter.save_file()
 
 
-def get_import_upload_path(instance, filename):
+def get_import_upload_path(instance: Any, filename: str):
     return f"contact_imports/{instance.org_id}/{filename}"
 
 
@@ -2391,7 +2385,7 @@ class ContactImport(SmartModel):
     started_on = models.DateTimeField(null=True)
 
     @classmethod
-    def try_to_parse(cls, org, file, filename) -> Tuple[List, Dict, int]:
+    def try_to_parse(cls, org: Org, file, filename: str) -> Tuple[List, Dict, int]:
         """
         Tries to parse the given file stream as an import. If successful it returns the raw headers and the automatic
         mappings. Otherwise raises a ValidationError.
@@ -2432,7 +2426,7 @@ class ContactImport(SmartModel):
         return headers, mappings, num_records
 
     @classmethod
-    def _auto_mappings(cls, org, headers: List[str]) -> Dict:
+    def _auto_mappings(cls, org: Org, headers: List[str]) -> Dict:
         """
         Automatic mappings for the given list of headers - users can customize these later
         """
@@ -2595,7 +2589,14 @@ class ContactImport(SmartModel):
             "time_taken": int(time_taken.total_seconds()),
         }
 
-    def _get_overall_status(self, statuses: Set) -> str:
+    def _get_file_type(self):
+        """
+        Returns one of xlxs, xls, or csv
+        """
+        return Path(self.file.name).suffix[1:].lower()
+
+    @staticmethod
+    def _get_overall_status(statuses: Set) -> str:
         """
         Merges the statues from the import's batches into a single status value
         """
@@ -2609,16 +2610,9 @@ class ContactImport(SmartModel):
             return ContactImport.STATUS_PROCESSING
 
         # all batches have finished - if any batch failed (shouldn't happen), we failed
-        if ContactImport.STATUS_FAILED in statuses:
-            return ContactImport.STATUS_FAILED
-
-        return ContactImport.STATUS_COMPLETE
-
-    def _get_file_type(self):
-        """
-        Returns one of xlxs, xls, or csv
-        """
-        return Path(self.file.name).suffix[1:].lower()
+        return (
+            ContactImport.STATUS_FAILED if ContactImport.STATUS_FAILED in statuses else ContactImport.STATUS_COMPLETE
+        )
 
     @staticmethod
     def _parse_header(header: str) -> Tuple[str, str]:
@@ -2677,7 +2671,7 @@ class ContactImport(SmartModel):
     @classmethod
     def _detect_spamminess(cls, urns: List[str]) -> bool:
         """
-        Takes the list of URNs that have been imported and trie to detect spamming
+        Takes the list of URNs that have been imported and tries to detect spamming
         """
 
         # extract all numerical URN paths

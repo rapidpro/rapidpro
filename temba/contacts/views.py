@@ -2,7 +2,6 @@ import logging
 from collections import OrderedDict
 from datetime import timedelta
 
-import regex
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -1818,11 +1817,6 @@ class ContactImportCRUDL(SmartCRUDL):
 
             def clean_file(self):
                 file = self.cleaned_data["file"]
-                if not regex.match(r"^[A-Za-z0-9_.\-*() ]+$", file.name, regex.V0):
-                    raise forms.ValidationError(
-                        "Please make sure the file name only contains alphanumeric characters and "
-                        "special characters in -, _, ., (, )"
-                    )
 
                 # try to parse the file saving the headers and mappings so we don't have to repeat parsing when
                 # saving the import
@@ -1837,10 +1831,10 @@ class ContactImportCRUDL(SmartCRUDL):
                 if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
                     raise forms.ValidationError(
                         _(
-                            "This org has %(count)d groups and the limit is %(limit)d. "
-                            "You must delete existing ones before you can "
-                            "create new ones." % dict(count=groups_count, limit=ContactGroup.MAX_ORG_CONTACTGROUPS)
-                        )
+                            "This workspace has reached the limit of %(count)d groups. "
+                            "You must delete existing ones before you can perform an import."
+                        ),
+                        params={"count": ContactGroup.MAX_ORG_CONTACTGROUPS},
                     )
 
                 return self.cleaned_data

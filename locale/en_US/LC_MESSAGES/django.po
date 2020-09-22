@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-22 14:50+0000\n"
+"POT-Creation-Date: 2020-09-22 21:23+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2374,9 +2374,6 @@ msgstr ""
 msgid "The preferred language for this contact"
 msgstr ""
 
-msgid "Provided URNs belong to different existing contacts"
-msgstr ""
-
 msgid "Any authentication information needed by this URN"
 msgstr ""
 
@@ -2663,6 +2660,10 @@ msgid "Update"
 msgstr ""
 
 msgid "Contact field uses"
+msgstr ""
+
+#, python-format
+msgid "This workspace has reached the limit of %(count)d groups. You must delete existing ones before you can perform an import."
 msgstr ""
 
 #, python-format
