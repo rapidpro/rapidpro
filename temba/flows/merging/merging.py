@@ -1,6 +1,6 @@
 import itertools
 
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 from jellyfish import jaro_distance
 
 from .test_data import get_name_of_flow_step
@@ -8,6 +8,7 @@ from .test_data import get_name_of_flow_step
 
 def all_equal(iterable):
     return len(set(iterable)) <= 1
+
 
 class NodeConflictTypes:
     ROUTER_CONFLICT = "ROUTER_CONFLICT"
@@ -52,10 +53,10 @@ class Node:
             other_actions = other.data.get("actions")
 
             def compare_router_params(param):
-                return(
-                    (param in self_router and param in other_router) and
-                    (self_router[param] != "" and other_router[param] != "") and
-                    (jaro_distance(self_router[param], other_router[param]) == 1.0)
+                return (
+                    (param in self_router and param in other_router)
+                    and (self_router[param] != "" and other_router[param] != "")
+                    and (jaro_distance(self_router[param], other_router[param]) == 1.0)
                 )
 
             def get_action_pairs_for_comparing(action_type):
@@ -79,7 +80,7 @@ class Node:
 
                 if self_router.get("result_name") != other_router.get("result_name"):
                     return False
-                
+
                 if self_actions and self_actions[0]["type"] == "enter_flow":
                     for self_action, other_action in get_action_pairs_for_comparing("enter_flow"):
                         if self_action["flow"]["uuid"] == other_action["flow"]["uuid"]:
@@ -98,16 +99,13 @@ class Node:
             def check_update_contact():
                 for self_action, other_action in get_action_pairs_for_comparing("set_contact_field"):
                     is_similar = (
-                        self_action["field"]["key"] == other_action["field"]["key"] and
-                        self_action["value"] == other_action["value"]
+                        self_action["field"]["key"] == other_action["field"]["key"]
+                        and self_action["value"] == other_action["value"]
                     )
                     if is_similar:
                         return True
 
-            action_checks = {
-                "send_msg": check_send_message,
-                "set_contact_field": check_update_contact
-            }
+            action_checks = {"send_msg": check_send_message, "set_contact_field": check_update_contact}
             common_actions = {"send_msg", "set_contact_field"}.intersection(common_types)
             if common_actions and not all([action_checks[action]() for action in common_actions]):
                 return False
@@ -152,6 +150,7 @@ class Graph:
         self.nodes_map = {}
         self.edges_map = {}
         self.resource = resource
+        self.result_names = []
         if resource:
             self.create_nodes()
 
@@ -168,6 +167,7 @@ class Graph:
             node.data = OrderedDict(**node_data)
             node.has_router = "router" in node_data
             self.nodes_map[node.uuid] = node
+            self.extract_result_names(node_data)
 
             destinations = {
                 node_exit["destination_uuid"] for node_exit in node_data["exits"] if node_exit.get("destination_uuid")
@@ -188,6 +188,18 @@ class Graph:
             else:
                 for child in children:
                     self.nodes_map.get(child).set_parent(parent)
+
+    def extract_result_names(self, node_data):
+        for action in node_data.get("actions", []):
+            if "result_name" in action:
+                self.result_names.append(action["result_name"])
+        if "result_name" in node_data.get("router", {}):
+            self.result_names.append(node_data["router"]["result_name"])
+
+    def get_not_unique_result_names(self):
+        counter = Counter(self.result_names)
+        not_unique = [result_name for result_name, times in counter.items() if times > 1]
+        return not_unique
 
 
 class GraphDifferenceNode(Node):

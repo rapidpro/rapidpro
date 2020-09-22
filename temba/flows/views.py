@@ -3064,6 +3064,20 @@ class FlowCRUDL(SmartCRUDL):
                     )
                 ]
 
+            not_unique_results = {
+                *source_graph.get_not_unique_result_names(),
+                *target_graph.get_not_unique_result_names(),
+            }
+            if not_unique_results:
+                context["prevent_merge"] = True
+                context["warnings"] = [
+                    _(
+                        "Flow fields need to be unique to combine flows. The following duplicate flow fields detected: "
+                        "%s. Please rename the flow fields and try again."
+                    )
+                    % ", ".join(not_unique_results)
+                ]
+
             return self.render_to_response(context)
 
         def post(self, request, *args, **kwargs):
