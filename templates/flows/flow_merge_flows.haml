@@ -24,16 +24,17 @@
           %input{type:"hidden", name:"merging_map", value:"{{ merging_map }}"}
 
           -block fields
-            %label{for: "flow_name"}
-              -trans "Name of new combined flow:"
-            %input{type:"text", name:"flow_name", id:"flow_name", value:"{% if flow_name %}{{ flow_name }}{% else %}Merge of {{ source.name }} with {{ target.name }}{% endif %}"}
+            - if not prevent_merge
+              %label{for: "flow_name"}
+                -trans "Name of new combined flow:"
+              %input{type:"text", name:"flow_name", id:"flow_name", value:"{% if flow_name %}{{ flow_name }}{% else %}Merge of {{ source.name }} with {{ target.name }}{% endif %}"}
 
           - if errors
             - for error in errors
               %div.alert.alert-error.form-errors
                 {{ error }}
 
-          - if conflict_solutions
+          - if conflict_solutions and not prevent_merge
             %label{for: "flow_name"}
               -trans "Merging conflicts:"
             %fieldset
@@ -61,9 +62,14 @@
                   =warning
         
           .form-buttons
-            %input.btn.btn-primary{type:"submit", value:'{% trans "Combine Flows" %}'}
-            %a.btn{onclick:"javascript:history.go(-1)"}
-              -trans "Cancel"
+            - if not prevent_merge
+              %input.btn.btn-primary{type:"submit", value:'{% trans "Combine Flows" %}'}
+              %a.btn{onclick:"javascript:history.go(-1)"}
+                -trans "Cancel"
+            - else
+              %a.btn{onclick:"javascript:history.go(-1)"}
+                -trans "Back"
+
 
 - block extra-script
   :javascript

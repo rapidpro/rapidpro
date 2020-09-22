@@ -1,9 +1,13 @@
 import itertools
 
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 from jellyfish import jaro_distance
 
 from .test_data import get_name_of_flow_step
+
+
+def all_equal(iterable):
+    return len(set(iterable)) <= 1
 
 
 class NodeConflictTypes:
@@ -43,47 +47,67 @@ class Node:
             # set of instructions to chack if one node match another node by different metrics
             common_types = self.node_types.intersection(other.node_types)
             both_routers = self.has_router == other.has_router
+            self_router = self.data.get("router")
+            other_router = other.data.get("router")
+            self_actions = self.data.get("actions")
+            other_actions = other.data.get("actions")
+
+            def compare_router_params(param):
+                return (
+                    (param in self_router and param in other_router)
+                    and (self_router[param] != "" and other_router[param] != "")
+                    and (jaro_distance(self_router[param], other_router[param]) == 1.0)
+                )
+
+            def get_action_pairs_for_comparing(action_type):
+                for self_action in self.data.get("actions", []):
+                    for other_action in other.data.get("actions", []):
+                        if all_equal((action_type, self_action["type"], other_action["type"])):
+                            yield (self_action, other_action)
+
             if not (bool(common_types) and both_routers):
                 return False
 
-            if self.has_router and other.has_router:
-                self_router = self.data.get("router")
-                other_router = other.data.get("router")
-                self_actions = self.data.get("actions")
-                other_actions = other.data.get("actions")
-                if len(self_actions) != len(other_actions):
-                    return False
-
-                if len(self_actions) > 1:
-                    return False
-
-                if self_router["type"] == other_router["type"]:
-                    if self_router["type"] == "switch":
-                        if jaro_distance(self_router["operand"], other_router["operand"]) < 0.9:
-                            return False
-                        if "result_name" in self_router:
-                            if jaro_distance(self_router["result_name"], other_router.get("result_name", "")) < 0.95:
-                                return False
-                else:
-                    return False
-
-                if self_actions and other_actions and self_actions[0]["type"] != other_actions[0]["type"]:
-                    return False
-
-            if "send_msg" in common_types:
-                for self_action in self.data.get("actions", []):
-                    for other_action in other.data.get("actions", []):
-                        if self_action["type"] == other_action["type"] and self_action["type"] == "send_msg":
-                            if jaro_distance(self_action["text"], other_action["text"]) >= 0.8:
-                                return True
+            if len(self_actions) != len(other_actions):
                 return False
-            elif "enter_flow" in common_types:
-                for self_action in self.data.get("actions", []):
-                    for other_action in other.data.get("actions", []):
-                        if self_action["type"] == other_action["type"] and self_action["type"] == "enter_flow":
-                            if self_action["flow"]["uuid"] == other_action["flow"]["uuid"]:
-                                if self_router.get("result_name") == other_router.get("result_name"):
-                                    return True
+
+            if self.has_router and other.has_router:
+                if self_actions and (len(self_actions) > 1 or self_actions[0]["type"] != other_actions[0]["type"]):
+                    return False
+
+                if self_router["type"] != other_router["type"]:
+                    return False
+
+                if self_router.get("result_name") != other_router.get("result_name"):
+                    return False
+
+                if self_actions and self_actions[0]["type"] == "enter_flow":
+                    for self_action, other_action in get_action_pairs_for_comparing("enter_flow"):
+                        if self_action["flow"]["uuid"] == other_action["flow"]["uuid"]:
+                            return True
+                    return False
+
+                if self_router["type"] == "switch":
+                    if not all(map(compare_router_params, ("operand", "result_name"))):
+                        return False
+
+            def check_send_message():
+                for self_action, other_action in get_action_pairs_for_comparing("send_msg"):
+                    if self_action["text"] == other_action["text"]:
+                        return True
+
+            def check_update_contact():
+                for self_action, other_action in get_action_pairs_for_comparing("set_contact_field"):
+                    is_similar = (
+                        self_action["field"]["key"] == other_action["field"]["key"]
+                        and self_action["value"] == other_action["value"]
+                    )
+                    if is_similar:
+                        return True
+
+            action_checks = {"send_msg": check_send_message, "set_contact_field": check_update_contact}
+            common_actions = {"send_msg", "set_contact_field"}.intersection(common_types)
+            if common_actions and not all([action_checks[action]() for action in common_actions]):
                 return False
             return True
 
@@ -126,6 +150,7 @@ class Graph:
         self.nodes_map = {}
         self.edges_map = {}
         self.resource = resource
+        self.result_names = []
         if resource:
             self.create_nodes()
 
@@ -142,6 +167,7 @@ class Graph:
             node.data = OrderedDict(**node_data)
             node.has_router = "router" in node_data
             self.nodes_map[node.uuid] = node
+            self.extract_result_names(node_data)
 
             destinations = {
                 node_exit["destination_uuid"] for node_exit in node_data["exits"] if node_exit.get("destination_uuid")
@@ -162,6 +188,18 @@ class Graph:
             else:
                 for child in children:
                     self.nodes_map.get(child).set_parent(parent)
+
+    def extract_result_names(self, node_data):
+        for action in node_data.get("actions", []):
+            if "result_name" in action:
+                self.result_names.append(action["result_name"])
+        if "result_name" in node_data.get("router", {}):
+            self.result_names.append(node_data["router"]["result_name"])
+
+    def get_not_unique_result_names(self):
+        counter = Counter(self.result_names)
+        not_unique = [result_name for result_name, times in counter.items() if times > 1]
+        return not_unique
 
 
 class GraphDifferenceNode(Node):
@@ -867,9 +905,26 @@ class GraphDifferenceMap:
                 del self.conflicts[node_uuid]
         self.definition["nodes"] = [node.data for node in self.diff_nodes_map.values()]
 
+    def fill_missed_parrents(self):
+        for node in self.diff_nodes_map.values():
+            if node.parent is None:
+                parent = None
+                if all((node.left_origin_node, node.right_origin_node)):
+                    origin_parent = node.left_origin_node.parent or node.right_origin_node.parent
+                    parent_uuid = origin_parent.uuid if origin_parent else None
+                    parent = self.diff_nodes_origin_map.get(parent_uuid)
+                elif any((node.left_origin_node, node.right_origin_node)):
+                    origin_node = node.left_origin_node or node.right_origin_node
+                    origin_parent = origin_node.parent
+                    parent_uuid = origin_parent.uuid if origin_parent else None
+                    parent = self.diff_nodes_origin_map.get(parent_uuid)
+                if parent:
+                    node.set_parent(parent)
+
     def compare_graphs(self):
         self.match_flow_steps()
         self.check_differences()
+        self.fill_missed_parrents()
         self.order_nodes()
         self.merge_ui_definition()
         self.merge_localizations()
