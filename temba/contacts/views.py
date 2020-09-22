@@ -1004,7 +1004,9 @@ class ContactCRUDL(SmartCRUDL):
             context = super().get_context_data(*args, **kwargs)
             org = self.request.user.get_org()
 
-            context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
+            context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by(
+                "-show_in_table", "-priority", "pk"
+            )[0:6]
             return context
 
     class Blocked(ContactListView):

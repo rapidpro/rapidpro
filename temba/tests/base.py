@@ -26,7 +26,7 @@ from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
 from temba.values.constants import Value
 
-from .mailroom import update_field_locally, update_fields_locally
+from .mailroom import create_contact_locally, update_field_locally
 
 
 def add_testing_flag_to_context(*args):
@@ -184,33 +184,16 @@ class TembaTestMixin:
         data = self.get_import_json(filename, substitutions=substitutions)
         return data["flows"][0]
 
-    def create_contact(self, name=None, number=None, twitter=None, urn=None, fields=None, **kwargs):
+    def create_contact(self, name=None, *, language=None, phone=None, urns=None, fields=None, org=None, user=None):
         """
-        Create a contact in the master test org
+        Create a new contact
         """
 
-        org = kwargs.pop("org", None) or self.org
-        user = kwargs.pop("user", None) or self.user
+        org = org or self.org
+        user = user or self.user
+        urns = [URN.from_tel(phone)] if phone else urns
 
-        urns = []
-        if number:
-            urns.append(URN.from_tel(number))
-        if twitter:
-            urns.append(URN.from_twitter(twitter))
-        if urn:
-            urns.append(urn)
-
-        assert name or urns, "contact should have a name or a contact"
-
-        kwargs["name"] = name
-        kwargs["urns"] = urns
-
-        contact = Contact.get_or_create_by_urns(org, user, **kwargs)
-
-        if fields:
-            update_fields_locally(user, contact, fields)
-
-        return contact
+        return create_contact_locally(org, user, name, language, urns or [], fields or {}, group_uuids=[])
 
     def create_group(self, name, contacts=(), query=None, org=None):
         assert not (contacts and query), "can't provide contact list for a smart group"

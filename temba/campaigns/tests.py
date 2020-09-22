@@ -22,10 +22,10 @@ class CampaignTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.farmer1 = self.create_contact("Rob Jasper", "+250788111111")
-        self.farmer2 = self.create_contact("Mike Gordon", "+250788222222", language="spa")
+        self.farmer1 = self.create_contact("Rob Jasper", phone="+250788111111")
+        self.farmer2 = self.create_contact("Mike Gordon", phone="+250788222222", language="spa")
 
-        self.nonfarmer = self.create_contact("Trey Anastasio", "+250788333333")
+        self.nonfarmer = self.create_contact("Trey Anastasio", phone="+250788333333")
         self.farmers = self.create_group("Farmers", [self.farmer1, self.farmer2])
 
         self.reminder_flow = self.create_flow(name="Reminder Flow")
@@ -1245,7 +1245,7 @@ class CampaignTest(TembaTest):
         )
 
         # create a contact not in the group, but with a field value
-        anna = self.create_contact("Anna", urn="tel:+250788333333", fields={"planting_date": "09-10-2020 12:30"})
+        anna = self.create_contact("Anna", phone="+250788444444", fields={"planting_date": "09-10-2020 12:30"})
 
         # no contacts in our dynamic group yet, so no event fires
         self.assertEqual(EventFire.objects.filter(event=event).count(), 0)
