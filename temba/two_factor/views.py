@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.models import BackupToken
+from temba.utils.fields import InputWidget
 
 
 class LoginView(Login):
@@ -36,6 +37,7 @@ class TokenView(SmartFormView):
             help_text=_("Enter the code from your authentication application"),
             strip=True,
             required=True,
+            widget=InputWidget(),
         )
 
         def __init__(self, *args, **kwargs):
@@ -75,7 +77,7 @@ class TokenView(SmartFormView):
     fields = ("token",)
     success_url = "@orgs.org_choose"
     template_name = "two_factor/token.html"
-    submit_button_name = _("Save")
+    submit_button_name = _("Submit")
     title = "Two Factor Authentication"
 
 
@@ -86,6 +88,7 @@ class BackupTokenView(SmartFormView):
             help_text=_("Enter one of the tokens generated when activating the two-factor login"),
             strip=True,
             required=True,
+            widget=InputWidget(),
         )
 
         def __init__(self, *args, **kwargs):
@@ -132,5 +135,5 @@ class BackupTokenView(SmartFormView):
     fields = ("backup_token",)
     success_url = "@orgs.org_choose"
     template_name = "two_factor/backup_tokens.html"
-    submit_button_name = _("Save")
+    submit_button_name = _("Submit")
     title = "Backup Tokens"
