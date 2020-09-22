@@ -1255,84 +1255,6 @@ class ContactTest(TembaTest):
         self.assertEqual(contact.name, "Kendrick")  # should not change the name for existing contact
         self.assertEqual(1, contact.urns.all().count())
 
-    def test_get_or_create_by_urns(self):
-
-        # can't create without org or user
-        with self.assertRaises(ValueError):
-            Contact.get_or_create_by_urns(None, None, name="Joe", urns=["tel:123"])
-
-        # incoming channel with no urns
-        with self.assertRaises(ValueError):
-            Contact.get_or_create_by_urns(self.org, self.user, channel=self.channel, name="Joe", urns=None)
-
-        # incoming channel with two urns
-        with self.assertRaises(ValueError):
-            Contact.get_or_create_by_urns(
-                self.org, self.user, channel=self.channel, name="Joe", urns=["tel:123", "tel:456"]
-            )
-
-        # missing scheme
-        with self.assertRaises(ValueError):
-            Contact.get_or_create_by_urns(self.org, self.user, name="Joe", urns=[":123"])
-
-        # missing path
-        with self.assertRaises(ValueError):
-            Contact.get_or_create_by_urns(self.org, self.user, name="Joe", urns=["tel:"])
-
-        # name too long gets truncated
-        contact = Contact.get_or_create_by_urns(self.org, self.user, name="Roger " + "xxxxx" * 100)
-        self.assertEqual(len(contact.name), 128)
-
-        # create a contact with name, phone number and language
-        joe = Contact.get_or_create_by_urns(self.org, self.user, name="Joe", urns=["tel:0783835665"], language="fra")
-        self.assertEqual(joe.org, self.org)
-        self.assertEqual(joe.name, "Joe")
-        self.assertEqual(joe.language, "fra")
-        self.assertEqual(joe.status, Contact.STATUS_ACTIVE)
-
-        # calling again with same URN updates and returns existing contact
-        contact = Contact.get_or_create_by_urns(
-            self.org, self.user, name="Joey", urns=["tel:+250783835665"], language="eng"
-        )
-        self.assertEqual(contact, joe)
-        self.assertEqual(contact.name, "Joey")
-        self.assertEqual(contact.language, "eng")
-
-        # calling again with same URN updates and returns existing contact
-        contact = Contact.get_or_create_by_urns(
-            self.org, self.user, name="Joey", urns=["tel:+250783835665"], language="eng", force_urn_update=True
-        )
-        self.assertEqual(contact, joe)
-        self.assertEqual(contact.name, "Joey")
-        self.assertEqual(contact.language, "eng")
-
-        # create a URN-less contact and try to update them with a taken URN
-        snoop = Contact.get_or_create_by_urns(self.org, self.user, name="Snoop")
-        with self.assertRaises(ValueError):
-            Contact.get_or_create_by_urns(self.org, self.user, uuid=snoop.uuid, urns=["tel:+250781111111"])
-
-        # now give snoop his own urn
-        Contact.get_or_create_by_urns(self.org, self.user, uuid=snoop.uuid, urns=["tel:456"])
-
-        self.assertIsNone(snoop.urns.all().first().channel)
-        snoop = Contact.get_or_create_by_urns(
-            self.org, self.user, channel=self.channel, urns=["tel:456"], auth="12345"
-        )
-        self.assertEqual(1, snoop.urns.all().count())
-        self.assertEqual(snoop.urns.first().auth, "12345")
-
-        snoop = Contact.get_or_create_by_urns(
-            self.org, self.user, uuid=snoop.uuid, channel=self.channel, urns=["tel:456"], auth="12345678"
-        )
-        self.assertEqual(1, snoop.urns.all().count())
-        self.assertEqual(snoop.urns.first().auth, "12345678")
-
-        # create contact with new urns one normalized and the other not
-        jimmy = Contact.get_or_create_by_urns(
-            self.org, self.user, name="Jimmy", urns=["tel:+250788112233", "tel:0788112233"]
-        )
-        self.assertEqual(1, jimmy.urns.all().count())
-
     @mock_mailroom
     def test_contact_create(self, mr_mocks):
         self.login(self.admin)
@@ -2414,53 +2336,6 @@ class ContactTest(TembaTest):
         # escaped quotes
         query = legacy_parse_query(r'name ~ "O\"Learly"')
         self.assertEqual(query.as_text(), r'name ~ "O"Learly"')
-
-    @mock_mailroom
-    def test_contact_create_with_dynamicgroup_reevaluation(self, mr_mocks):
-
-        age = ContactField.get_or_create(self.org, self.admin, "age", label="Age", value_type=Value.TYPE_NUMBER)
-        gender = ContactField.get_or_create(self.org, self.admin, "gender", label="Gender", value_type=Value.TYPE_TEXT)
-
-        mr_mocks.parse_query(
-            '(age < 18 AND gender = "male") or (age > 18 and gender = "female")', fields=[age, gender]
-        )
-        ContactGroup.create_dynamic(
-            self.org, self.admin, "simple group", '(Age < 18 and gender = "male") or (Age > 18 and gender = "female")',
-        )
-
-        mr_mocks.parse_query('age > 18 and gender = "male"', fields=[age, gender])
-        ContactGroup.create_dynamic(self.org, self.admin, "cannon fodder", 'age > 18 and gender = "male"')
-
-        mr_mocks.parse_query('age = ""', fields=[age])
-        ContactGroup.create_dynamic(self.org, self.admin, "Empty age field", 'age = ""')
-
-        mr_mocks.parse_query('age != ""', fields=[age])
-        ContactGroup.create_dynamic(self.org, self.admin, "Age field is set", 'age != ""')
-
-        mr_mocks.parse_query('twitter = "helio"')
-        ContactGroup.create_dynamic(self.org, self.admin, "urn group", 'twitter = "helio"')
-
-        with self.assertRaises(ValueError):
-            mr_mocks.error("age field is invalid")
-            ContactGroup.create_dynamic(self.org, self.admin, "Age field is invalid", 'age < "age"')
-
-        # when creating a new contact we should only reevaluate 'empty age field' and 'urn group' groups
-        with self.assertNumQueries(33):
-            contact = Contact.get_or_create_by_urns(self.org, self.admin, name="Željko", urns=["twitter:helio"])
-
-        self.assertCountEqual(
-            [group.name for group in contact.user_groups.filter(is_active=True).all()],
-            ["Empty age field", "urn group"],
-        )
-
-        # field update works as expected
-        self.set_contact_field(contact, "gender", "male", legacy_handle=True)
-        self.set_contact_field(contact, "age", "20", legacy_handle=True)
-
-        self.assertCountEqual(
-            [group.name for group in contact.user_groups.filter(is_active=True).all()],
-            ["cannon fodder", "urn group", "Age field is set"],
-        )
 
     @mock_mailroom
     def test_omnibox(self, mr_mocks):
