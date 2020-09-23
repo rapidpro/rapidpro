@@ -83,6 +83,7 @@ URN_SCHEME_CONFIG = (
     (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME),
     (FRESHCHAT_SCHEME, _("Freshchat identifier"), FRESHCHAT_SCHEME),
     (VK_SCHEME, _("VK identifier"), VK_SCHEME),
+    (ROCKETCHAT_SCHEME, _("RocketChat identifier"), ROCKETCHAT_SCHEME),
 )
 
 
