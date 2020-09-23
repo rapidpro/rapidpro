@@ -2558,15 +2558,17 @@ class ContactImport(SmartModel):
         errors = []
         oldest_finished_on = None
 
-        for batch in self.batches.defer("specs"):
-            statuses.add(batch.status)
-            num_created += batch.num_created
-            num_updated += batch.num_updated
-            num_errored += batch.num_errored
-            errors.extend(batch.errors)
+        batches = self.batches.values("status", "num_created", "num_updated", "num_errored", "errors", "finished_on")
 
-            if batch.finished_on and (oldest_finished_on is None or batch.finished_on > oldest_finished_on):
-                oldest_finished_on = batch.finished_on
+        for batch in batches:
+            statuses.add(batch["status"])
+            num_created += batch["num_created"]
+            num_updated += batch["num_updated"]
+            num_errored += batch["num_errored"]
+            errors.extend(batch["errors"])
+
+            if batch["finished_on"] and (oldest_finished_on is None or batch["finished_on"] > oldest_finished_on):
+                oldest_finished_on = batch["finished_on"]
 
         status = self._get_overall_status(statuses)
 

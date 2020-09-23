@@ -150,7 +150,7 @@ def queue_contact_import_batch(batch):
 
     task = {"contact_import_batch_id": batch.id}
 
-    _queue_batch_task(batch.contact_import.org.id, BatchTask.IMPORT_CONTACT_BATCH, task, HIGH_PRIORITY)
+    _queue_batch_task(batch.contact_import.org.id, BatchTask.IMPORT_CONTACT_BATCH, task, DEFAULT_PRIORITY)
 
 
 def queue_interrupt(org, *, contacts=None, channel=None, flow=None, session=None):
