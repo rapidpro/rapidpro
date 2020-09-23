@@ -52,14 +52,14 @@ class APITest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact("Joe Blow", "0788123123")
-        self.frank = self.create_contact("Frank", twitter="franky")
+        self.joe = self.create_contact("Joe Blow", phone="0788123123")
+        self.frank = self.create_contact("Frank", urns=["twitter:franky"])
 
         self.twitter = Channel.create(
             self.org, self.user, None, "TT", name="Twitter Channel", address="billy_bob", role="SR"
         )
 
-        self.hans = self.create_contact("Hans Gruber", "+4921551511", org=self.org2)
+        self.hans = self.create_contact("Hans Gruber", phone="+4921551511", org=self.org2)
 
         self.org2channel = Channel.create(self.org2, self.user, "RW", "A", name="Org2Channel")
 
@@ -768,7 +768,7 @@ class APITest(TembaTest):
         self.assertResponseError(
             response,
             "non_field_errors",
-            "Sorry, your account is currently flagged. To enable " "sending messages, please contact support.",
+            "Sorry, your workspace is currently flagged. To enable sending messages, please contact support.",
         )
 
     def test_archives(self):
@@ -1018,7 +1018,7 @@ class APITest(TembaTest):
 
         # create our contact and set a registration date
         contact = self.create_contact(
-            "Joe", "+12065551515", fields={"registration": self.org.format_datetime(timezone.now())}
+            "Joe", phone="+12065551515", fields={"registration": self.org.format_datetime(timezone.now())}
         )
         reporters.contacts.add(contact)
 
@@ -1592,12 +1592,12 @@ class APITest(TembaTest):
 
         # create some more contacts (in addition to Joe and Frank)
         contact1 = self.create_contact(
-            "Ann", "0788000001", language="fra", fields={"nickname": "Annie", "gender": "female"}
+            "Ann", phone="0788000001", language="fra", fields={"nickname": "Annie", "gender": "female"}
         )
-        contact2 = self.create_contact("Bob", "0788000002")
-        contact3 = self.create_contact("Cat", "0788000003")
+        contact2 = self.create_contact("Bob", phone="0788000002")
+        contact3 = self.create_contact("Cat", phone="0788000003")
         contact4 = self.create_contact(
-            "Don", "0788000004", language="fra", fields={"nickname": "Donnie", "gender": "male"}
+            "Don", phone="0788000004", language="fra", fields={"nickname": "Donnie", "gender": "male"}
         )
 
         contact1.stop(self.user)
@@ -1620,7 +1620,7 @@ class APITest(TembaTest):
         self.joe.refresh_from_db()
 
         # create contact for other org
-        hans = self.create_contact("Hans", "0788000004", org=self.org2)
+        hans = self.create_contact("Hans", phone="0788000004", org=self.org2)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
@@ -2165,11 +2165,11 @@ class APITest(TembaTest):
 
         # create some contacts to act on
         self.bulk_release([self.joe, self.frank], user=self.admin, delete=True)
-        contact1 = self.create_contact("Ann", "+250788000001")
-        contact2 = self.create_contact("Bob", "+250788000002")
-        contact3 = self.create_contact("Cat", "+250788000003")
-        contact4 = self.create_contact("Don", "+250788000004")  # a blocked contact
-        contact5 = self.create_contact("Eve", "+250788000005")  # a deleted contact
+        contact1 = self.create_contact("Ann", phone="+250788000001")
+        contact2 = self.create_contact("Bob", phone="+250788000002")
+        contact3 = self.create_contact("Cat", phone="+250788000003")
+        contact4 = self.create_contact("Don", phone="+250788000004")  # a blocked contact
+        contact5 = self.create_contact("Eve", phone="+250788000005")  # a deleted contact
         contact4.block(self.user)
         contact5.release(self.user)
 

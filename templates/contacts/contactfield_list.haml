@@ -8,17 +8,17 @@
   #pjax
     -block pjax
       -if total_count >= total_limit
-        .(style="margin-bottom: 10px")
+        .mb-4
           %temba-alert(level="warning")
             -blocktrans trimmed with limit=total_limit
               You have reached the limit of {{ limit }} fields per workspace. Please remove fields that you are no longer using.
       -elif total_count >= total_limit|add:-10
-        .(style="margin-bottom: 10px")
+        .mb-4
           %temba-alert(level="warning")
             -blocktrans trimmed with limit=total_limit
               You are approaching the limit of {{ limit }} fields per workspace. You should remove fields that you are no longer using.
 
-      .lp-frame
+      .lp-frame.mt-0
         .left
             .flex.flex-col
               -if org_perms.contacts.contactfield_create
@@ -55,12 +55,10 @@
                 Featured fields are shown prominently on contact pages. Drag to reorder the fields that you would most like to see at glance.
 
           -block pre-table
-
-            -for obj in object_list
-              %temba-modax{ id:'update-{{obj.id}}', header:'{% trans "Update Field" %}', endpoint:"{% url 'contacts.contactfield_update' obj.id %}" }
-              %temba-modax{ id:'delete-{{obj.id}}', header:'{% trans "Delete Field" %}', endpoint:"{% url 'contacts.contactfield_delete' obj.id %}" }
-              %temba-modax{ id:'uses-{{obj.id}}', header:'{% trans "Field Details" %}', endpoint:"{% url 'contacts.contactfield_detail' obj.id %}" }
-
+            %temba-modax{ id:'update-field', header:'{% trans "Update Field" %}'}
+            %temba-modax{ id:'delete-field', header:'{% trans "Delete Field" %}'}
+            %temba-modax{ id:'uses-modal', header:'{% trans "Field Details" %}'}
+          
           - block table
             %table.list.lined{ class:'{% get_list_class object_list %}', cellspacing:'0'}
               %thead
@@ -177,19 +175,21 @@
 
   }); // document.ready
 
-
   function showUpdateContactFieldModal(id) {
-    var modax = document.querySelector('#update-' + id);
+    var modax = document.querySelector('#update-field');
+    modax.endpoint = `/contactfield/update/${id}/`;
     modax.open = true;
   }
 
   function showDeleteContactFieldModal(id) {
-    var modax = document.querySelector('#delete-' + id);
+    var modax = document.querySelector('#delete-field');
+    modax.endpoint = `/contactfield/delete/${id}/`;
     modax.open = true;
   }
 
   function showDetailContactFieldModal(id, label) {
-    var modax = document.querySelector('#uses-' + id);
+    var modax = document.querySelector('#uses-modal');
+    modax.endpoint = "/contactfield/detail/" + id;
     modax.open = true;
   }
 

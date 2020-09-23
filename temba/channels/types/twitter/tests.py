@@ -149,7 +149,7 @@ class TwitterTypeTest(TembaTest):
     @patch("twython.Twython.lookup_user")
     @mock_mailroom
     def test_resolve(self, mr_mocks, mock_lookup_user):
-        self.joe = self.create_contact("joe", twitter="therealjoe")
+        self.joe = self.create_contact("joe", urns=["twitter:therealjoe"])
 
         urn = self.joe.get_urns()[0]
 
@@ -179,8 +179,8 @@ class TwitterTypeTest(TembaTest):
         self.assertEqual("therealjoe", new_urn.display)
         self.assertEqual("twitterid:123456#therealjoe", new_urn.urn)
 
-        old_fred = self.create_contact("old fred", urn=URN.from_twitter("fred"))
-        new_fred = self.create_contact("new fred", urn=URN.from_twitterid("12345", screen_name="fred"))
+        old_fred = self.create_contact("old fred", urns=[URN.from_twitter("fred")])
+        new_fred = self.create_contact("new fred", urns=[URN.from_twitterid("12345", screen_name="fred")])
 
         mock_lookup_user.return_value = [dict(screen_name="fred", id="12345")]
         resolve_twitter_ids()
@@ -191,7 +191,7 @@ class TwitterTypeTest(TembaTest):
         # old fred should be unchanged
         self.assertEqual("twitterid:12345", old_fred.urns.all()[0].identity)
 
-        self.jane = self.create_contact("jane", twitter="jane10")
+        self.jane = self.create_contact("jane", urns=["twitter:jane10"])
         mock_lookup_user.side_effect = Exception(
             "Twitter API returned a 404 (Not Found), No user matches for specified terms."
         )
@@ -200,7 +200,7 @@ class TwitterTypeTest(TembaTest):
         self.jane.refresh_from_db()
         self.assertEqual(Contact.STATUS_STOPPED, self.jane.status)
 
-        self.sarah = self.create_contact("sarah", twitter="sarah20")
+        self.sarah = self.create_contact("sarah", urns=["twitter:sarah20"])
         mock_lookup_user.side_effect = Exception("Unable to reach API")
         resolve_twitter_ids()
 

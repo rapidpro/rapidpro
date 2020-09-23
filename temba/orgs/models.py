@@ -415,8 +415,12 @@ class Org(SmartModel):
             new_flows = Flow.import_flows(self, user, export_json, dependency_mapping, same_site)
 
             # these depend on flows so are imported last
-            Campaign.import_campaigns(self, user, export_campaigns, same_site)
+            new_campaigns = Campaign.import_campaigns(self, user, export_campaigns, same_site)
             Trigger.import_triggers(self, user, export_triggers, same_site)
+
+        # queue mailroom tasks to schedule campaign events
+        for campaign in new_campaigns:
+            campaign.schedule_events_async()
 
         # with all the flows and dependencies committed, we can now have mailroom do full validation
         for flow in new_flows:
@@ -1427,6 +1431,11 @@ class Org(SmartModel):
 
         # any time we've reapplied topups, lets invalidate our credit cache too
         self.clear_credit_cache()
+
+        # if we our suspended and have credits now, unsuspend ourselves
+        if self.is_suspended and self.get_credits_remaining() > 0:
+            self.is_suspended = False
+            self.save(update_fields=["is_suspended"])
 
         # update our capabilities based on topups
         self.update_capabilities()

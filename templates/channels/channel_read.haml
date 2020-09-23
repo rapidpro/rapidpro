@@ -50,7 +50,7 @@
 
 
     -for link in object.get_type.extra_links
-      <a class="btn btn-tiny" href="{% url link.name object.uuid %}">{{ link.link }}</a>
+      <a class="inline-block button-light px-4 py-2 mr-2" href="{% url link.name object.uuid %}">{{ link.link }}</a>
 
     .my-4.text-base
       -if delayed_sync_event or unsent_msgs_count
