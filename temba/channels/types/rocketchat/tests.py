@@ -210,7 +210,7 @@ class RocketChatViewTest(RocketChatMixin):
                 self.assertEqual(response.status_code, 302)
                 self.assertIsInstance(_channel, Channel, msg=f"Data: {data}")
                 self.assertEqual(_channel.channel_type, RocketChatType.code)
-                self.assertRedirect(response, reverse("channels.channel_configuration", args=[_channel.uuid]))
+                self.assertRedirect(response, reverse("channels.channel_read", args=[_channel.uuid]))
 
                 domain = data["base_url"].replace("http://", "").replace("https://", "").split("/")[0]
                 expected = f"{RocketChatType.name}: {domain}"
@@ -219,8 +219,21 @@ class RocketChatViewTest(RocketChatMixin):
                 self.assertEqual(_channel.name, expected, f"\nExpected: {expected}\nGot: {_channel.name}")
                 self.assertFalse(_channel.config[RocketChatType.CONFIG_BASE_URL].endswith("/"))
 
-    def test_form_invalid_base_url(self):
+    @patch("temba.channels.types.rocketchat.client.Client.settings")
+    def test_form_invalid_base_url(self, mock_settings):
+        def settings_effect(domain, channel):
+            nonlocal _channel
+            _channel = channel
+
+        mock_settings.side_effect = settings_effect
+
         data = self.new_form_data()
+        _channel: Channel = None
+
+        response = self.submit_form(data)
+        # retry with same base_url
+        response = self.submit_form(data)
+        self.assertFormError(response, "form", "base_url", "There is already a channel configured for this URL.")
 
         data.pop("base_url")
         response = self.submit_form(data)
