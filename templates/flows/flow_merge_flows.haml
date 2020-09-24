@@ -64,11 +64,8 @@
           .form-buttons
             - if not prevent_merge
               %input.btn.btn-primary{type:"submit", value:'{% trans "Combine Flows" %}'}
-              %a.btn{onclick:"javascript:history.go(-1)"}
-                -trans "Cancel"
-            - else
-              %a.btn{onclick:"javascript:history.go(-1)"}
-                -trans "Back"
+            %a.btn{onclick:"javascript:history.go(-1)"}
+              -trans "Cancel"
 
 
 - block extra-script
