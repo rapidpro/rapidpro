@@ -15,7 +15,7 @@
         socketUrl: '{{ channel.address }}',
         channelUUID: '{{ channel.uuid }}',
         title: '{{ channel.config.title|adapt_for_widget }}',
-        autoOpen: {{ channel.config.auto_open }},
+        autoOpen: {{ channel.config.auto_open|adapt_for_widget_bool }},
         hostApi: 'https://{{ hostname }}',
         icon: '{{ channel.config.logo }}',
         welcomeMessage: '{{ channel.config.welcome_message_default|adapt_for_widget }}',
