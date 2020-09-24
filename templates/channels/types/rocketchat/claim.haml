@@ -37,3 +37,33 @@
     list-style-type: decimal;
     margin-top: 0.3em;
     }
+
+-block extra-script
+  {{ block.super }}
+  -compress js
+    :javascript
+      function processURI(input) {
+        let value = input.val();
+        if (value != null) {
+          let uri = value.match(/https?:\/\/[^ "]+\/[0-9a-fA-F]{8}(?:\-[0-9a-fA-F]{4}){3}\-[0-9a-fA-F]{12}/);
+          if (uri != null) {
+            if (value !== uri[0]){
+              input.val(uri[0]);
+            }
+            return uri[0];
+          }
+        }
+        return null;
+      }
+
+      $("#{{ form.base_url.id_for_label }}").on("change", function() {
+        processURI($(this));
+      }).parents("form").on("submit", function(event) {
+        let input = $("#{{ form.base_url.id_for_label }}");
+        let uri = processURI(input);
+        if (uri == null) {
+          input.parents(".control-group").addClass("error")
+          input.val("");
+          event.preventDefault();
+        }
+      });
