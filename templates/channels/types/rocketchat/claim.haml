@@ -4,24 +4,24 @@
 -block pre-form
   %h4.form_blurb
     {{ form_blurb }}
-
-  -blocktrans trimmed with brand=brand.name
-    You will need to enable Omnichannel and setup a {{ brand }} Channel app on your RocketChat. To do so:
-
+  
+  %h4
+    - blocktrans
+      Instructions:
   %ol.instructions
     %li
       -blocktrans trimmed
-        On your RocketChat, go to <b>Administration > Omnichannel</b> and enable the Omnichannel.
+        On your RocketChat, go to <i>Administration > Omnichannel</i> and enable it.
+    %li
+      -blocktrans trimmed
+        Add a new user with "user" and "bot" roles (<i>Administration > Users > <b>"New"</b></i>)
     %li
       -blocktrans trimmed with brand=brand.name
-        Install your {{ brand }} Channel app from marketplace.
+        Install the app <b> {{ brand }} Channel Integration </b> (<i>Administration > Marketplace </i>)
     %li
-      -blocktrans trimmed
-        Open the app details, at <b>Administration > Apps > app</b>, and in its settings section put the following token on the <b>App's Secret</b> field:
+      -blocktrans trimmed with brand=brand.name
+        Open the app details, at <i>Administration > Apps > <b> {{ brand }} Channel Integration</b></i>, and in its settings section put the following token on the <b>App's Secret</b> field: <code>{{ secret }}</code>
 
-    %p
-      -blocktrans trimmed
-        Your new secret: <code>{{ secret }}</code>.
     %li
       -blocktrans trimmed with brand=brand.name
         Save the changes, copy the app's URL and back to {{ brand }} by pasting that URL on field below, so try connect.
