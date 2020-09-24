@@ -31,3 +31,8 @@ def channellog_response(context, log, *args, **kwargs):
 @register.filter
 def adapt_for_widget(text):
     return text.replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r")
+
+
+@register.filter
+def adapt_for_widget_bool(value):
+    return str(bool(value and value == "true")).lower()
