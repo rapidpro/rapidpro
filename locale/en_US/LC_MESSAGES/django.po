@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-15 21:00+0000\n"
+"POT-Creation-Date: 2020-09-24 23:17+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1606,6 +1606,49 @@ msgstr ""
 msgid "Easily add a two way number you have configured with <a href=\"http://www.redrabbitsms.com/\">Red Rabbit</a> using their APIs."
 msgstr ""
 
+msgid "Connection to RocketChat is taking too long."
+msgstr ""
+
+msgid "Unable to configure. Connection to RocketChat is taking too long."
+msgstr ""
+
+msgid "Add a <a href=\"https://rocket.chat/\">Rocket.Chat</a> bot to send and receive messages to Rocket.Chat users. "
+msgstr ""
+
+msgid "Setup your RocketChat first to be able to integrate."
+msgstr ""
+
+msgid "Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b-5f8091899f7b"
+msgstr ""
+
+msgid "The URL for your RocketChat Channnel app"
+msgstr ""
+
+msgid "Bot username"
+msgstr ""
+
+msgid "The username of your RocketChat bot"
+msgstr ""
+
+msgid "Secret to be passed to RocketChat"
+msgstr ""
+
+msgid "Invalid secret code."
+msgstr ""
+
+msgid "Secret code change detected."
+msgstr ""
+
+#, python-format
+msgid "Invalid URL %(base_url)s"
+msgstr ""
+
+msgid "There is already a channel configured for this URL."
+msgstr ""
+
+msgid "Configuration has failed"
+msgstr ""
+
 msgid ""
 "If you are based in Somalia, you can integrate with Shaqodoon to send\n"
 "                       and receive messages on your shortcode."
@@ -2351,6 +2394,9 @@ msgid "Freshchat identifier"
 msgstr ""
 
 msgid "VK identifier"
+msgstr ""
+
+msgid "RocketChat identifier"
 msgstr ""
 
 msgid "Label"
@@ -5718,6 +5764,30 @@ msgid ""
 "\n"
 "      Use this Token as Authorization when sending incoming messages\n"
 "    "
+msgstr ""
+
+msgid ""
+"\n"
+"      Instructions:\n"
+"    "
+msgstr ""
+
+msgid "On your RocketChat, go to <i>Administration > Omnichannel</i> and enable it."
+msgstr ""
+
+msgid "Add a new user with the \"bot\" role (<i>Administration > Users > <b>\"New\"</b></i>)"
+msgstr ""
+
+#, python-format
+msgid "Install the app <b> %(brand)s Channel Integration </b> (<i>Administration > Marketplace </i>)"
+msgstr ""
+
+#, python-format
+msgid "Open the app details, at <i>Administration > Apps > <b> %(brand)s Channel Integration</b></i>, and in its settings section put the following token on the <b>App's Secret</b> field: <code>%(secret)s</code>"
+msgstr ""
+
+#, python-format
+msgid "Save the changes, copy the app's URL and back to %(brand)s by pasting that URL on field below, so try connect."
 msgstr ""
 
 #, python-format

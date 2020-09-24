@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-15 21:00+0000\n"
+"POT-Creation-Date: 2020-09-24 23:17+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1841,6 +1841,55 @@ msgstr "Un problème est survenu lors de la mise à jour de ce numéro. Veuillez
 msgid "Easily add a two way number you have configured with <a href=\"http://www.redrabbitsms.com/\">Red Rabbit</a> using their APIs."
 msgstr "Ajoutez facilement un numéro à double sens que vous avez configuré avec <a href=\"http://www.redrabbitsms.com/\">Red Rabbit</a> à l'aide de leurs APIs."
 
+msgid "Connection to RocketChat is taking too long."
+msgstr ""
+
+msgid "Unable to configure. Connection to RocketChat is taking too long."
+msgstr ""
+
+msgid "Add a <a href=\"https://rocket.chat/\">Rocket.Chat</a> bot to send and receive messages to Rocket.Chat users. "
+msgstr ""
+
+msgid "Setup your RocketChat first to be able to integrate."
+msgstr ""
+
+msgid "Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b-5f8091899f7b"
+msgstr ""
+
+msgid "The URL for your RocketChat Channnel app"
+msgstr ""
+
+#, fuzzy
+#| msgid "Username"
+msgid "Bot username"
+msgstr "Nom d'utilisateur"
+
+#, fuzzy
+#| msgid "The name of your bot"
+msgid "The username of your RocketChat bot"
+msgstr "Le nom de votre bot"
+
+msgid "Secret to be passed to RocketChat"
+msgstr ""
+
+msgid "Invalid secret code."
+msgstr ""
+
+msgid "Secret code change detected."
+msgstr ""
+
+#, python-format
+msgid "Invalid URL %(base_url)s"
+msgstr ""
+
+msgid "There is already a channel configured for this URL."
+msgstr ""
+
+#, fuzzy
+#| msgid "Configuration"
+msgid "Configuration has failed"
+msgstr "Configuration"
+
 msgid ""
 "If you are based in Somalia, you can integrate with Shaqodoon to send\n"
 "                       and receive messages on your shortcode."
@@ -2686,6 +2735,11 @@ msgstr "Identifiant Freshchat"
 
 msgid "VK identifier"
 msgstr "Identifiant VK"
+
+#, fuzzy
+#| msgid "WeChat identifier"
+msgid "RocketChat identifier"
+msgstr "Identifiant WeChat"
 
 msgid "Label"
 msgstr "Etiquette"
@@ -6751,6 +6805,30 @@ msgstr ""
 "\n"
 "      Utiliser ce jeton comme autorisation lors de l'envoi de messages entrants\n"
 "    "
+
+msgid ""
+"\n"
+"      Instructions:\n"
+"    "
+msgstr ""
+
+msgid "On your RocketChat, go to <i>Administration > Omnichannel</i> and enable it."
+msgstr ""
+
+msgid "Add a new user with the \"bot\" role (<i>Administration > Users > <b>\"New\"</b></i>)"
+msgstr ""
+
+#, python-format
+msgid "Install the app <b> %(brand)s Channel Integration </b> (<i>Administration > Marketplace </i>)"
+msgstr ""
+
+#, python-format
+msgid "Open the app details, at <i>Administration > Apps > <b> %(brand)s Channel Integration</b></i>, and in its settings section put the following token on the <b>App's Secret</b> field: <code>%(secret)s</code>"
+msgstr ""
+
+#, python-format
+msgid "Save the changes, copy the app's URL and back to %(brand)s by pasting that URL on field below, so try connect."
+msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""
@@ -11794,7 +11872,6 @@ msgstr "Entrez une requête"
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        Are you sure you want to delete everything for %(name)s? Everything will be gone and there is no going back.\n"
@@ -11987,7 +12064,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
 #~ msgstr "Vous pouvez également inclure des valeurs de champs de contact personnalisées dans le fichier XLS pour les colonnes avec le préfixe <i>Field:</i>, par exemple: <i>Field:Team</i>."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                          Created %(create_count)s new contact\n"
@@ -12223,7 +12299,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "No runs"
 #~ msgstr "Aucune exécution"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                              %(run_count)s run\n"
@@ -12241,7 +12316,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "                              %(run_count)s exécutions\n"
 #~ "                            "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                            %(completed_percentage)s%% completion\n"
@@ -12251,7 +12325,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "                              %(completed_percentage)s%% terminé\n"
 #~ "                            "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                        %(count_comma)s recipient\n"
@@ -12269,7 +12342,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "                          %(count_comma)s destinataires\n"
 #~ "                      "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -12282,7 +12354,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Write the message that will get sent when the scheduled time arrives"
 #~ msgstr "Écrivez le message qui sera envoyé lorsque  l'heure prévue arrive"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -12312,7 +12383,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "          </span>\n"
 #~ "      "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -12437,7 +12507,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "month"
 #~ msgstr "Mois"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          on the %(repeat_day_of_month)s\n"
@@ -12447,7 +12516,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "le %(repeat_day_of_month)s"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          It will repeat <span class='attn'>%(repeat_period_display)s</span> at around the same time.\n"
@@ -12478,12 +12546,12 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "The archive we were rolled up into, if any"
 #~ msgstr "Les archives dans lesquelles nous avons été rassemblées, le cas échéant"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
 #~ msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
 #~ msgstr "%s est utilisé dans une campagne. Pour l'archiver, commencez par le supprimer de vos campagnes."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
 #~ msgid "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
 #~ msgstr "%s sont utilisés dans une campagne. Pour les archiver, commencez par les supprimer de vos campagnes."
@@ -12552,59 +12620,45 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Empty user access token!"
 #~ msgstr "Jeton d'accès au serveur de votre application"
 
-#, python-brace-format
 #~ msgid "Unrecognized field: '{prop}'"
 #~ msgstr "Champ non reconnu: '{prop}'"
 
-#, python-brace-format
 #~ msgid "Unknown text comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de texte inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown number comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de nombre inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unable to parse the date '{self.value}'"
 #~ msgstr "Impossible d'analyser la date '{self.value}'"
 
-#, python-brace-format
 #~ msgid "Unknown datetime comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de date/heure inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown location type: '{field.value_type}'"
 #~ msgstr "Type d'emplacement inconnu: '{field.value_type}'"
 
-#, python-brace-format
 #~ msgid "Unsupported comparator '{self.comparator}' for location field"
 #~ msgstr "Comparateur non pris en charge '{self.comparator}' pour le champ de localisation"
 
-#, python-brace-format
 #~ msgid "Unrecognized contact field type '{field.value_type}'"
 #~ msgstr "Type de champ de contact non reconnu '{field.value_type}'"
 
-#, python-brace-format
 #~ msgid "Unknown urn scheme comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de schéma URN inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown language comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de langue inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown created_on comparator: '{self.comparator}'"
 #~ msgstr "Comparateur created_on inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown name comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de nom inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "No support for attribute field: '{field}'"
 #~ msgstr "Pas de support pour le champ d'attribut: '{field}'"
 
-#, python-brace-format
 #~ msgid "Unrecognized contact field type '{prop_type}'"
 #~ msgstr "Type de champ de contact non reconnu '{prop_type}'"
 
@@ -12735,7 +12789,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Channel Alarms (low battery, loss of connectivity)"
 #~ msgstr "Channel alarmes (batterie faible, perte de connectivité)"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"

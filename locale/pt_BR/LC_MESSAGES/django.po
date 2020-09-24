@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-15 21:00+0000\n"
+"POT-Creation-Date: 2020-09-24 23:17+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -2311,6 +2311,63 @@ msgstr ""
 "\n"
 "Adicione facilmente um número de duas vias que você configurou usando as APIs do <a href=\"http://infobip.com\">Infobip</a>."
 
+msgid "Connection to RocketChat is taking too long."
+msgstr ""
+
+msgid "Unable to configure. Connection to RocketChat is taking too long."
+msgstr ""
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "                    It's easy to create logic in flows to route users based on their responses.\n"
+#| "\n"
+#| "                  "
+msgid "Add a <a href=\"https://rocket.chat/\">Rocket.Chat</a> bot to send and receive messages to Rocket.Chat users. "
+msgstr ""
+"\n"
+"É fácil criar uma lógica de fluxos de usuários com base em suas respostas."
+
+msgid "Setup your RocketChat first to be able to integrate."
+msgstr ""
+
+msgid "Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b-5f8091899f7b"
+msgstr ""
+
+msgid "The URL for your RocketChat Channnel app"
+msgstr ""
+
+#, fuzzy
+#| msgid "Username"
+msgid "Bot username"
+msgstr "Nome de usuário"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The username of your RocketChat bot"
+msgstr "Nome da sua organização"
+
+msgid "Secret to be passed to RocketChat"
+msgstr ""
+
+msgid "Invalid secret code."
+msgstr ""
+
+msgid "Secret code change detected."
+msgstr ""
+
+#, python-format
+msgid "Invalid URL %(base_url)s"
+msgstr ""
+
+msgid "There is already a channel configured for this URL."
+msgstr ""
+
+#, fuzzy
+#| msgid "Configuration"
+msgid "Configuration has failed"
+msgstr "Configuração"
+
 #, fuzzy
 msgid ""
 "If you are based in Somalia, you can integrate with Shaqodoon to send\n"
@@ -3390,6 +3447,11 @@ msgstr "ID Externo"
 #, fuzzy
 #| msgid "External ID"
 msgid "VK identifier"
+msgstr "ID Externo"
+
+#, fuzzy
+#| msgid "External ID"
+msgid "RocketChat identifier"
 msgstr "ID Externo"
 
 msgid "Label"
@@ -7720,6 +7782,30 @@ msgid ""
 "\n"
 "      Use this Token as Authorization when sending incoming messages\n"
 "    "
+msgstr ""
+
+msgid ""
+"\n"
+"      Instructions:\n"
+"    "
+msgstr ""
+
+msgid "On your RocketChat, go to <i>Administration > Omnichannel</i> and enable it."
+msgstr ""
+
+msgid "Add a new user with the \"bot\" role (<i>Administration > Users > <b>\"New\"</b></i>)"
+msgstr ""
+
+#, python-format
+msgid "Install the app <b> %(brand)s Channel Integration </b> (<i>Administration > Marketplace </i>)"
+msgstr ""
+
+#, python-format
+msgid "Open the app details, at <i>Administration > Apps > <b> %(brand)s Channel Integration</b></i>, and in its settings section put the following token on the <b>App's Secret</b> field: <code>%(secret)s</code>"
+msgstr ""
+
+#, python-format
+msgid "Save the changes, copy the app's URL and back to %(brand)s by pasting that URL on field below, so try connect."
 msgstr ""
 
 #, fuzzy, python-format
@@ -12242,7 +12328,7 @@ msgstr ""
 #~ msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
 #~ msgstr "Cada linha deve ter o número de telefone (incluindo o código do país) e o nome do contato, se disponível."
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                          Created %(create_count)s new contact\n"
@@ -12469,7 +12555,7 @@ msgstr ""
 #~ msgid "Unlabel"
 #~ msgstr "Remover rótulo"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                              %(run_count)s run\n"
@@ -12485,7 +12571,7 @@ msgstr ""
 #~ "\n"
 #~ "%(participant_count)s participante %(participant_count_plr)s, %(completed_count)s completos"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                            %(completed_percentage)s%% completion\n"
@@ -12494,7 +12580,7 @@ msgstr ""
 #~ "\n"
 #~ "%(new_contacts)s Nova Resposta %(new_contact_plr)s"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                        %(count_comma)s recipient\n"
@@ -12510,7 +12596,7 @@ msgstr ""
 #~ "\n"
 #~ "Distribuir para %(count_comma)s contatos"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -12522,7 +12608,7 @@ msgstr ""
 #~ msgid "Write the message that will get sent when the scheduled time arrives"
 #~ msgstr "Escrever a mensagem que será enviada quando chegar o momento agendado"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -12552,7 +12638,7 @@ msgstr ""
 #~ "contatos %(pluralizer)s\n"
 #~ "</span>"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -12680,7 +12766,6 @@ msgstr ""
 #~ msgid "month"
 #~ msgstr "mês"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          on the %(repeat_day_of_month)s\n"
@@ -12690,7 +12775,6 @@ msgstr ""
 #~ "\n"
 #~ "no %(repeat_day_of_month)s"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          It will repeat <span class='attn'>%(repeat_period_display)s</span> at around the same time.\n"
@@ -12784,12 +12868,12 @@ msgstr ""
 #~ msgid "Empty user access token!"
 #~ msgstr "Seu Token API é"
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #~| msgid "Invalid group or contact id"
 #~ msgid "Unable to parse the date '{self.value}'"
 #~ msgstr "Grupo ou id do contato inválido"
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #~| msgid "Unknown alert type: %(alert)s"
 #~ msgid "Unknown location type: '{field.value_type}'"
 #~ msgstr "Tipo de alerta desconhecido: %(alert)s"
@@ -12922,7 +13006,7 @@ msgstr ""
 #~ msgid "Channel Alarms (low battery, loss of connectivity)"
 #~ msgstr "Alarmes do Transmissor (bateria fraca, perda de conexão)"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
@@ -13008,7 +13092,7 @@ msgstr ""
 #~ "\n"
 #~ "%(sms_sent)s Enviadas"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"
@@ -14017,17 +14101,6 @@ msgstr ""
 #~| msgid "What if I need to send a lot of messages?"
 #~ msgid "What encoding to use for outgoing messages, used only for HTTP GET"
 #~ msgstr "E se eu precisar de enviar muitas mensagens?"
-
-#, fuzzy
-#~| msgid ""
-#~| "\n"
-#~| "                    It's easy to create logic in flows to route users based on their responses.\n"
-#~| "\n"
-#~| "                  "
-#~ msgid "Add a <a href=\"http://twitter.com\">Twitter</a> account to send messages as direct messages."
-#~ msgstr ""
-#~ "\n"
-#~ "É fácil criar uma lógica de fluxos de usuários com base em suas respostas."
 
 #~ msgid "Single Message Flow"
 #~ msgstr "Fluxo de mensagem única"
