@@ -6383,6 +6383,28 @@ class ContactImportTest(TembaTest):
             batch.specs[2],
         )
 
+        # uuids and languages converted to lowercase, case in names is preserved
+        imp = self.create_contact_import("media/test_imports/uppercase.xlsx")
+        imp.start()
+        batch = imp.batches.get()
+        self.assertEqual(
+            [
+                {
+                    "uuid": "92faa753-6faa-474a-a833-788032d0b757",
+                    "name": "Eric Newcomer",
+                    "language": "eng",
+                    "groups": [str(imp.group.uuid)],
+                },
+                {
+                    "uuid": "3c11ac1f-c869-4247-a73c-9b97bff61659",
+                    "name": "NIC POTTIER",
+                    "language": "spa",
+                    "groups": [str(imp.group.uuid)],
+                },
+            ],
+            batch.specs,
+        )
+
     @mock_mailroom
     def test_detect_spamminess(self, mr_mocks):
         imp = self.create_contact_import("media/test_imports/sequential_tels.xls")

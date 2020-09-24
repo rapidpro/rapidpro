@@ -2640,6 +2640,8 @@ class ContactImport(SmartModel):
 
             if mapping["type"] == "attribute":
                 attribute = mapping["name"]
+                if attribute in ("uuid", "language"):
+                    value = value.lower()
                 spec[attribute] = value
             elif mapping["type"] == "scheme":
                 scheme = mapping["scheme"]
