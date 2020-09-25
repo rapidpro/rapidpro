@@ -7071,6 +7071,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
                 {"key": "whatsapp", "label": "WhatsApp identifier"},
                 {"key": "freshchat", "label": "Freshchat identifier"},
                 {"key": "vk", "label": "VK identifier"},
+                {"key": "rocketchat", "label": "RocketChat identifier"},
                 {"key": "groups", "label": "Groups"},
                 {"id": self.age.id, "key": "age", "label": "Age"},
                 {"id": self.gender.id, "key": "gender", "label": "Gender"},
