@@ -1320,8 +1320,8 @@ class UpdateWebChatForm(UpdateChannelForm):
 
             self.fields["inputtext_placeholder_default"].initial = config.get("inputtext_placeholder_default", "")
 
-            response_fonts = (
-                requests.get(f"https://www.googleapis.com/webfonts/v1/webfonts?key={settings.GOOGLE_FONT_API_KEY}")
+            response_fonts = requests.get(
+                f"https://www.googleapis.com/webfonts/v1/webfonts?key={settings.GOOGLE_FONT_API_KEY}"
             )
 
             if response_fonts.status_code == 200:
