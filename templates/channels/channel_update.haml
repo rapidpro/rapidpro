@@ -173,6 +173,8 @@
     {% if object.channel_type == "WCH" %}
     $(document).ready(function() {
 
+      buildGoogleFontLink($("#id_google_font").val());
+
       var updateChangesBtn = document.createElement("a");
       updateChangesBtn.className = "btn btn-primary";
       updateChangesBtn.onclick = function() { updateFormActionAndSubmit(); };
@@ -195,6 +197,7 @@
 
       $("#id_google_font").change(function() {
         buildWebChat();
+        buildGoogleFontLink($("#id_google_font").val());
       });
 
       var allLanguages = [{"iso_code": "default", "name": "Default"}];
@@ -283,6 +286,16 @@
     $("a[data-placeholder-iso-code='" + el.data('placeholder-iso-code') + "']").addClass("active");
     $("div[class^='control-group field_inputtext_placeholder_']").addClass('hide');
     $(".field_inputtext_placeholder_" + el.data('placeholder-iso-code')).removeClass('hide');
+  }
+
+  function buildGoogleFontLink(fontName) {
+    if (!fontName) {
+      $("#google_font_preview").remove();
+      return
+    }
+    var fullURL = `https://fonts.google.com/specimen/${fontName}`;
+    $("#google_font_preview").remove();
+    $(".field_google_font").append(`<span id="google_font_preview">Google Font preview at <a href="${fullURL}" target="_new">${fullURL}</a></span>`);
   }
 
 {% endblock %}
