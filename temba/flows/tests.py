@@ -69,10 +69,10 @@ class FlowTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.contact = self.create_contact("Eric", "+250788382382")
-        self.contact2 = self.create_contact("Nic", "+250788383383")
-        self.contact3 = self.create_contact("Norbert", "+250788123456")
-        self.contact4 = self.create_contact("Teeh", "+250788123457", language="por")
+        self.contact = self.create_contact("Eric", phone="+250788382382")
+        self.contact2 = self.create_contact("Nic", phone="+250788383383")
+        self.contact3 = self.create_contact("Norbert", phone="+250788123456")
+        self.contact4 = self.create_contact("Teeh", phone="+250788123457", language="por")
 
         self.other_group = self.create_group("Other", [])
 
@@ -938,7 +938,7 @@ class FlowTest(TembaTest):
         self.assertEqual(recent.visited_on, iso8601.parse_date(run1.path[1]["arrived_on"]))
 
         # a new participant, showing distinct active counts and incremented path
-        ryan = self.create_contact("Ryan Lewis", "+12065550725")
+        ryan = self.create_contact("Ryan Lewis", phone="+12065550725")
         session2 = (
             MockSessionWriter(ryan, flow)
             .visit(color_prompt)
@@ -1138,7 +1138,7 @@ class FlowTest(TembaTest):
         self.assertEqual(0, FlowRun.objects.filter(flow=flow).count())
 
         # test that expirations remove activity when triggered from the cron in the same way
-        tupac = self.create_contact("Tupac Shakur", "+12065550725")
+        tupac = self.create_contact("Tupac Shakur", phone="+12065550725")
         (
             MockSessionWriter(tupac, flow)
             .visit(color_prompt)
@@ -1203,7 +1203,7 @@ class FlowTest(TembaTest):
         )
 
         # check that flow interruption counts properly
-        jimmy = self.create_contact("Jimmy Graham", "+12065558888")
+        jimmy = self.create_contact("Jimmy Graham", phone="+12065558888")
         (
             MockSessionWriter(jimmy, flow)
             .visit(color_prompt)
@@ -1285,7 +1285,7 @@ class FlowTest(TembaTest):
 
         # add in some fake data
         for i in range(0, 10):
-            contact = self.create_contact("Contact %d" % i, "+120655530%d" % i)
+            contact = self.create_contact("Contact %d" % i, phone="+120655530%d" % i)
             (
                 MockSessionWriter(contact, favorites)
                 .visit(color_prompt)
@@ -1311,7 +1311,7 @@ class FlowTest(TembaTest):
             )
 
         for i in range(0, 5):
-            contact = self.create_contact("Contact %d" % i, "+120655531%d" % i)
+            contact = self.create_contact("Contact %d" % i, phone="+120655531%d" % i)
             (
                 MockSessionWriter(contact, favorites)
                 .visit(color_prompt)
@@ -1338,7 +1338,7 @@ class FlowTest(TembaTest):
 
         # test update flow values
         for i in range(0, 5):
-            contact = self.create_contact("Contact %d" % i, "+120655532%d" % i)
+            contact = self.create_contact("Contact %d" % i, phone="+120655532%d" % i)
             (
                 MockSessionWriter(contact, favorites)
                 .visit(color_prompt)
@@ -1395,7 +1395,7 @@ class FlowTest(TembaTest):
 
         # send a few more runs through our updated flow
         for i in range(0, 3):
-            contact = self.create_contact("Contact %d" % i, "+120655533%d" % i)
+            contact = self.create_contact("Contact %d" % i, phone="+120655533%d" % i)
             (
                 MockSessionWriter(contact, favorites)
                 .visit(color_prompt)
@@ -1489,7 +1489,7 @@ class FlowTest(TembaTest):
         # create start for 10 contacts
         start = FlowStart.objects.create(org=self.org, flow=flow, created_by=self.admin)
         for i in range(10):
-            contact = self.create_contact("Bob", twitter=f"bobby{i}")
+            contact = self.create_contact("Bob", urns=[f"twitter:bobby{i}"])
             start.contacts.add(contact)
 
         # create runs for first 5
@@ -1520,7 +1520,7 @@ class FlowTest(TembaTest):
 
         # send 12 invalid color responses from two contacts
         session = None
-        bob = self.create_contact("Bob", number="+260964151234")
+        bob = self.create_contact("Bob", phone="+260964151234")
         for m in range(12):
             contact = self.contact if m % 2 == 0 else bob
             session = (
@@ -2252,7 +2252,7 @@ class FlowTest(TembaTest):
         )
 
         # run it again to completion
-        joe = self.create_contact("Joe", "1234")
+        joe = self.create_contact("Joe", phone="1234")
         (
             MockSessionWriter(joe, flow)
             .visit(color_prompt)
@@ -2427,7 +2427,7 @@ class FlowTest(TembaTest):
 
 class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_views(self):
-        contact = self.create_contact("Eric", "+250788382382")
+        contact = self.create_contact("Eric", phone="+250788382382")
         flow = self.get_flow("color", legacy=True)
 
         # create a flow for another org
@@ -3075,7 +3075,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(["Favorites"], [res["text"] for res in json_payload["results"]])
 
     def test_broadcast(self):
-        contact = self.create_contact("Bob", number="+593979099111")
+        contact = self.create_contact("Bob", phone="+593979099111")
         flow = self.get_flow("color")
 
         self.login(self.admin)
@@ -3247,7 +3247,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             self.assertLoginRedirect(response)
 
     def test_recent_messages(self):
-        contact = self.create_contact("Bob", number="+593979099111")
+        contact = self.create_contact("Bob", phone="+593979099111")
         flow = self.get_flow("favorites_v13")
         flow_nodes = flow.as_json()["nodes"]
         color_prompt = flow_nodes[0]
@@ -3347,7 +3347,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         name_split = flow_nodes[7]
         end_prompt = flow_nodes[8]
 
-        pete = self.create_contact("Pete", "+12065553027")
+        pete = self.create_contact("Pete", phone="+12065553027")
         pete_session = (
             MockSessionWriter(pete, flow)
             .visit(color_prompt)
@@ -3363,7 +3363,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             .save()
         )
 
-        jimmy = self.create_contact("Jimmy", "+12065553026")
+        jimmy = self.create_contact("Jimmy", phone="+12065553026")
         (
             MockSessionWriter(jimmy, flow)
             .visit(color_prompt)
@@ -3535,7 +3535,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         beer_prompt = flow_nodes[3]
         beer_split = flow_nodes[5]
 
-        pete = self.create_contact("Pete", "+12065553027")
+        pete = self.create_contact("Pete", phone="+12065553027")
         (
             MockSessionWriter(pete, flow)
             .visit(color_prompt)
@@ -4042,7 +4042,7 @@ class FlowRunTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.contact = self.create_contact("Ben Haggerty", "+250788123123")
+        self.contact = self.create_contact("Ben Haggerty", phone="+250788123123")
 
     def test_as_archive_json(self):
         flow = self.get_flow("color_v13")
@@ -4278,7 +4278,7 @@ class FlowRunTest(TembaTest):
 
 class FlowSessionTest(TembaTest):
     def test_trim(self):
-        contact = self.create_contact("Ben Haggerty", "+250788123123")
+        contact = self.create_contact("Ben Haggerty", phone="+250788123123")
         flow = self.get_flow("color")
 
         # create some runs that have sessions
@@ -4324,7 +4324,7 @@ class FlowSessionTest(TembaTest):
 
 class FlowStartTest(TembaTest):
     def test_trim(self):
-        contact = self.create_contact("Ben Haggerty", "+250788123123")
+        contact = self.create_contact("Ben Haggerty", phone="+250788123123")
         group = self.create_group("Testers", contacts=[contact])
         flow = self.get_flow("color")
 
@@ -4381,9 +4381,9 @@ class ExportFlowResultsTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.contact = self.create_contact("Eric", "+250788382382")
-        self.contact2 = self.create_contact("Nic", "+250788383383")
-        self.contact3 = self.create_contact("Norbert", "+250788123456")
+        self.contact = self.create_contact("Eric", phone="+250788382382")
+        self.contact2 = self.create_contact("Nic", phone="+250788383383")
+        self.contact3 = self.create_contact("Norbert", phone="+250788123456")
 
     def _export(
         self, flow, responded_only=False, include_msgs=True, contact_fields=None, extra_urns=(), group_memberships=None
@@ -6293,7 +6293,7 @@ class SimulationTest(TembaTest):
 
 class FlowSessionCRUDLTest(TembaTest):
     def test_session_json(self):
-        contact = self.create_contact("Bob", number="+1234567890")
+        contact = self.create_contact("Bob", phone="+1234567890")
         flow = self.get_flow("color_v13")
 
         session = MockSessionWriter(contact, flow).wait().save().session
@@ -6322,7 +6322,7 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         list_url = reverse("flows.flowstart_list")
 
         flow = self.get_flow("color_v13")
-        contact = self.create_contact("Bob", number="+1234567890")
+        contact = self.create_contact("Bob", phone="+1234567890")
         group = self.create_group("Testers", contacts=[contact])
         start1 = FlowStart.create(flow, self.admin, contacts=[contact])
         start2 = FlowStart.create(flow, self.admin, query="name ~ Bob", restart_participants=False, start_type="A")

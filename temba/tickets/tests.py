@@ -16,7 +16,7 @@ class TicketTest(TembaTest):
     def test_model(self):
         ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
 
-        contact = self.create_contact("Bob", twitter="bobby")
+        contact = self.create_contact("Bob", urns=["twitter:bobby"])
 
         ticket = Ticket.objects.create(
             org=self.org,
@@ -46,7 +46,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.mailgun = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
         self.zendesk = Ticketer.create(self.org, self.user, ZendeskType.slug, "Zendesk (acme)", {})
-        self.contact = self.create_contact("Bob", twitter="bobby")
+        self.contact = self.create_contact("Bob", urns=["twitter:bobby"])
 
     def create_ticket(self, subject, body, status, ticketer=None, org=None):
         return Ticket.objects.create(
@@ -158,7 +158,7 @@ class TicketerTest(TembaTest):
     def test_release(self):
         ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
 
-        contact = self.create_contact("Bob", twitter="bobby")
+        contact = self.create_contact("Bob", urns=["twitter:bobby"])
 
         ticket = Ticket.objects.create(
             org=self.org,

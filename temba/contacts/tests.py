@@ -77,8 +77,8 @@ class ContactCRUDLTest(TembaTest):
         self.login(self.user)
         list_url = reverse("contacts.contact_list")
 
-        joe = self.create_contact("Joe", urn="tel:123", fields={"age": "20", "home": "Kigali"})
-        frank = self.create_contact("Frank", urn="tel:124", fields={"age": "18"})
+        joe = self.create_contact("Joe", phone="123", fields={"age": "20", "home": "Kigali"})
+        frank = self.create_contact("Frank", phone="124", fields={"age": "18"})
 
         creating = ContactGroup.create_static(
             self.org, self.user, "Group being created", status=ContactGroup.STATUS_INITIALIZING
@@ -217,10 +217,10 @@ class ContactCRUDLTest(TembaTest):
 
     @mock_mailroom
     def test_blocked(self, mr_mocks):
-        joe = self.create_contact("Joe", urn="twitter:joe")
-        frank = self.create_contact("Frank", urn="twitter:frank")
-        billy = self.create_contact("Billy", urn="twitter:billy")
-        self.create_contact("Mary", urn="twitter:mary")
+        joe = self.create_contact("Joe", urns=["twitter:joe"])
+        frank = self.create_contact("Frank", urns=["twitter:frank"])
+        billy = self.create_contact("Billy", urns=["twitter:billy"])
+        self.create_contact("Mary", urns=["twitter:mary"])
 
         joe.block(self.admin)
         frank.block(self.admin)
@@ -260,10 +260,10 @@ class ContactCRUDLTest(TembaTest):
 
     @mock_mailroom
     def test_stopped(self, mr_mocks):
-        joe = self.create_contact("Joe", urn="twitter:joe")
-        frank = self.create_contact("Frank", urn="twitter:frank")
-        billy = self.create_contact("Billy", urn="twitter:billy")
-        self.create_contact("Mary", urn="twitter:mary")
+        joe = self.create_contact("Joe", urns=["twitter:joe"])
+        frank = self.create_contact("Frank", urns=["twitter:frank"])
+        billy = self.create_contact("Billy", urns=["twitter:billy"])
+        self.create_contact("Mary", urns=["twitter:mary"])
 
         joe.stop(self.admin)
         frank.stop(self.admin)
@@ -304,10 +304,10 @@ class ContactCRUDLTest(TembaTest):
     @patch("temba.contacts.models.Contact.BULK_RELEASE_IMMEDIATELY_LIMIT", 5)
     @mock_mailroom
     def test_archived(self, mr_mocks):
-        joe = self.create_contact("Joe", urn="twitter:joe")
-        frank = self.create_contact("Frank", urn="twitter:frank")
-        billy = self.create_contact("Billy", urn="twitter:billy")
-        self.create_contact("Mary", urn="twitter:mary")
+        joe = self.create_contact("Joe", urns=["twitter:joe"])
+        frank = self.create_contact("Frank", urns=["twitter:frank"])
+        billy = self.create_contact("Billy", urns=["twitter:billy"])
+        self.create_contact("Mary", urns=["twitter:mary"])
 
         joe.archive(self.admin)
         frank.archive(self.admin)
@@ -357,7 +357,7 @@ class ContactCRUDLTest(TembaTest):
 
         # for larger numbers of contacts, a background task is used
         for c in range(6):
-            contact = self.create_contact(f"Bob{c}", urn=f"twitter:bob{c}")
+            contact = self.create_contact(f"Bob{c}", urns=[f"twitter:bob{c}"])
             contact.archive(self.user)
 
         response = self.client.get(archived_url)
@@ -371,7 +371,7 @@ class ContactCRUDLTest(TembaTest):
     @mock_mailroom
     def test_read(self, mr_mocks):
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe")
-        other_org_contact = self.create_contact("Hans", number="+593979123456", org=self.org2)
+        other_org_contact = self.create_contact("Hans", phone="+593979123456", org=self.org2)
 
         read_url = reverse("contacts.contact_read", args=[self.joe.uuid])
         block_url = reverse("contacts.contact_block", args=[self.joe.id])
@@ -446,7 +446,7 @@ class ContactCRUDLTest(TembaTest):
         self.assertEqual(response.status_code, 404)
 
         # contact with only a urn
-        nameless = self.create_contact("", twitter="bobby_anon")
+        nameless = self.create_contact("", urns=["twitter:bobby_anon"])
         response = self.client.get(reverse("contacts.contact_read", args=[nameless.uuid]))
         self.assertContains(response, "bobby_anon")
 
@@ -461,8 +461,8 @@ class ContactCRUDLTest(TembaTest):
 
     @mock_mailroom
     def test_archive(self, mr_mocks):
-        contact = self.create_contact("Joe", number="+593979000111")
-        other_org_contact = self.create_contact("Hans", number="+593979123456", org=self.org2)
+        contact = self.create_contact("Joe", phone="+593979000111")
+        other_org_contact = self.create_contact("Hans", phone="+593979123456", org=self.org2)
 
         archive_url = reverse("contacts.contact_archive", args=[contact.id])
 
@@ -495,9 +495,9 @@ class ContactCRUDLTest(TembaTest):
 
     @mock_mailroom
     def test_restore(self, mr_mocks):
-        contact = self.create_contact("Joe", number="+593979000111")
+        contact = self.create_contact("Joe", phone="+593979000111")
         contact.stop(self.admin)
-        other_org_contact = self.create_contact("Hans", number="+593979123456", org=self.org2)
+        other_org_contact = self.create_contact("Hans", phone="+593979123456", org=self.org2)
         other_org_contact.stop(self.admin2)
 
         restore_url = reverse("contacts.contact_restore", args=[contact.id])
@@ -530,8 +530,8 @@ class ContactCRUDLTest(TembaTest):
         self.assertEqual(Contact.STATUS_STOPPED, other_org_contact.status)
 
     def test_delete(self):
-        contact = self.create_contact("Joe", number="+593979000111")
-        other_org_contact = self.create_contact("Hans", number="+593979123456", org=self.org2)
+        contact = self.create_contact("Joe", phone="+593979000111")
+        other_org_contact = self.create_contact("Hans", phone="+593979123456", org=self.org2)
 
         delete_url = reverse("contacts.contact_delete", args=[contact.id])
 
@@ -567,9 +567,9 @@ class ContactGroupTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact("Joe Blow", urn="tel:123", fields={"age": "17", "gender": "male"})
-        self.frank = self.create_contact("Frank Smith", urn="tel:1234")
-        self.mary = self.create_contact("Mary Mo", urn="tel:345", fields={"age": "21", "gender": "female"})
+        self.joe = self.create_contact("Joe Blow", phone="123", fields={"age": "17", "gender": "male"})
+        self.frank = self.create_contact("Frank Smith", phone="1234")
+        self.mary = self.create_contact("Mary Mo", phone="345", fields={"age": "21", "gender": "female"})
 
     def test_create_static(self):
         group = ContactGroup.create_static(self.org, self.admin, " group one ")
@@ -721,10 +721,10 @@ class ContactGroupTest(TembaTest):
             },
         )
 
-        self.create_contact("Hannibal", number="0783835001")
-        face = self.create_contact("Face", number="0783835002")
-        ba = self.create_contact("B.A.", number="0783835003")
-        murdock = self.create_contact("Murdock", number="0783835004")
+        self.create_contact("Hannibal", phone="0783835001")
+        face = self.create_contact("Face", phone="0783835002")
+        ba = self.create_contact("B.A.", phone="0783835003")
+        murdock = self.create_contact("Murdock", phone="0783835004")
 
         counts = ContactGroup.get_system_group_counts(self.org)
         self.assertEqual(
@@ -929,9 +929,7 @@ class ElasticSearchLagTest(TembaTest):
         with ESMockWithScroll(data=mock_es_data):
             self.assertFalse(check_elasticsearch_lag())
 
-        frank = Contact.get_or_create_by_urns(
-            self.org, self.user, name="Frank Smith", urns=["tel:1234", "twitter:hola"]
-        )
+        frank = self.create_contact("Frank Smith", urns=["tel:1234", "twitter:hola"])
 
         mock_es_data = [
             {
@@ -963,9 +961,7 @@ class ContactGroupCRUDLTest(TembaTest):
         super().setUp()
 
         self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe Blow")
-        self.frank = Contact.get_or_create_by_urns(
-            self.org, self.user, name="Frank Smith", urns=["tel:1234", "twitter:hola"]
-        )
+        self.frank = self.create_contact("Frank Smith", urns=["tel:1234", "twitter:hola"])
 
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
 
@@ -1167,10 +1163,10 @@ class ContactTest(TembaTest):
 
         self.user1 = self.create_user("nash")
 
-        self.joe = self.create_contact(name="Joe Blow", number="+250781111111", twitter="blow80")
-        self.frank = self.create_contact(name="Frank Smith", number="+250782222222")
+        self.joe = self.create_contact(name="Joe Blow", urns=["twitter:blow80", "tel:+250781111111"])
+        self.frank = self.create_contact(name="Frank Smith", phone="+250782222222")
         self.billy = self.create_contact(name="Billy Nophone")
-        self.voldemort = self.create_contact(number="+250768383383")
+        self.voldemort = self.create_contact(phone="+250768383383")
 
         # create an orphaned URN
         ContactURN.objects.create(
@@ -1182,7 +1178,7 @@ class ContactTest(TembaTest):
         self.jim.release(self.user)
 
         # create contact in other org
-        self.other_org_contact = self.create_contact(name="Fred", number="+250768111222", org=self.org2)
+        self.other_org_contact = self.create_contact(name="Fred", phone="+250768111222", org=self.org2)
 
     def create_campaign(self):
         # create a campaign with a future event and add joe
@@ -1217,7 +1213,7 @@ class ContactTest(TembaTest):
         )
 
     def test_contact_save_raises_ValueError_if_handle_update_is_not_specified(self):
-        joe = self.create_contact("Joe Blow", "0788123123")
+        joe = self.create_contact("Joe Blow", phone="0788123123")
 
         self.assertRaises(ValueError, joe.save, update_fields=("name",))
 
@@ -1387,7 +1383,7 @@ class ContactTest(TembaTest):
 
     def test_release(self):
         # create a contact with a message
-        old_contact = self.create_contact("Jose", "+12065552000")
+        old_contact = self.create_contact("Jose", phone="+12065552000")
         self.create_incoming_msg(old_contact, "hola mundo")
         urn = old_contact.get_urn()
 
@@ -1397,7 +1393,7 @@ class ContactTest(TembaTest):
         self.create_incoming_call(msg_flow, old_contact)
 
         # steal his urn into a new contact
-        contact = self.create_contact("Joe", "tweettweet")
+        contact = self.create_contact("Joe", urns=["twitter:tweettweet"])
         urn.contact = contact
         urn.save(update_fields=("contact",))
         group = self.create_group("Test Group", contacts=[contact])
@@ -1452,7 +1448,7 @@ class ContactTest(TembaTest):
             self.assertEqual(DELETED_SCHEME, urn.scheme)
 
         # a new contact arrives with those urns
-        new_contact = self.create_contact("URN Thief", "+12065552000", "tweettweet")
+        new_contact = self.create_contact("URN Thief", urns=["tel:+12065552000", "twitter:tweettweet"])
         self.assertEqual(2, new_contact.urns.all().count())
 
         # now lets go for a full release
@@ -1652,7 +1648,7 @@ class ContactTest(TembaTest):
         )
 
     def test_contact_display(self):
-        mr_long_name = self.create_contact(name="Wolfeschlegelsteinhausenbergerdorff", number="8877")
+        mr_long_name = self.create_contact(name="Wolfeschlegelsteinhausenbergerdorff", phone="8877")
 
         self.assertEqual("Joe Blow", self.joe.get_display(org=self.org, formatted=False))
         self.assertEqual("Joe Blow", self.joe.get_display(short=True))
@@ -2441,7 +2437,7 @@ class ContactTest(TembaTest):
             ContactGroup.create_dynamic(self.org, self.admin, "Age field is invalid", 'age < "age"')
 
         # when creating a new contact we should only reevaluate 'empty age field' and 'urn group' groups
-        with self.assertNumQueries(32):
+        with self.assertNumQueries(33):
             contact = Contact.get_or_create_by_urns(self.org, self.admin, name="Željko", urns=["twitter:helio"])
 
         self.assertCountEqual(
@@ -2720,7 +2716,7 @@ class ContactTest(TembaTest):
         with patch("temba.contacts.models.MAX_HISTORY", 100):
             url = reverse("contacts.contact_history", args=[self.joe.uuid])
 
-            kurt = self.create_contact("Kurt", "123123")
+            kurt = self.create_contact("Kurt", phone="123123")
             self.joe.created_on = timezone.now() - timedelta(days=1000)
             self.joe.save(update_fields=("created_on",), handle_update=False)
 
@@ -2904,7 +2900,7 @@ class ContactTest(TembaTest):
             self.assertContains(response, "file.mp4")
 
             # can't view history of contact in another org
-            hans = self.create_contact("Hans", twitter="hans", org=self.org2)
+            hans = self.create_contact("Hans", urns=["twitter:hans"], org=self.org2)
             response = self.client.get(reverse("contacts.contact_history", args=[hans.uuid]))
             self.assertLoginRedirect(response)
 
@@ -3072,7 +3068,7 @@ class ContactTest(TembaTest):
     def test_activity_tags(self):
         self.create_campaign()
 
-        contact = self.create_contact("Joe Blow", "tel:+1234")
+        contact = self.create_contact("Joe Blow", phone="+1234")
         msg = self.create_incoming_msg(contact, "Inbound message")
 
         flow = self.get_flow("color_v13")
@@ -3347,7 +3343,7 @@ class ContactTest(TembaTest):
 
         self.assertGreater(upcoming[6]["scheduled"], upcoming[7]["scheduled"])
 
-        contact_no_name = self.create_contact(name=None, number="678")
+        contact_no_name = self.create_contact(name=None, phone="678")
         read_url = reverse("contacts.contact_read", args=[contact_no_name.uuid])
         response = self.fetch_protected(read_url, self.superuser)
         self.assertEqual(contact_no_name, response.context["object"])
@@ -4052,25 +4048,21 @@ class ContactTest(TembaTest):
 
     @mock_mailroom
     def test_contact_model(self, mr_mocks):
-        contact = self.create_contact(name="Boy", number="12345")
+        contact = self.create_contact(name="Boy", phone="12345")
         self.assertEqual(contact.get_display(), "Boy")
 
-        contact3 = self.create_contact(name=None, number="0788111222")
+        contact3 = self.create_contact(name=None, phone="0788111222")
         self.channel.country = "RW"
         self.channel.save()
 
         normalized = contact3.get_urn(TEL_SCHEME).ensure_number_normalization(self.channel)
         self.assertEqual(normalized.path, "+250788111222")
 
-        contact4 = self.create_contact(name=None, number="0788333444")
+        contact4 = self.create_contact(name=None, phone="0788333444")
         normalized = contact4.get_urn(TEL_SCHEME).ensure_number_normalization(self.channel)
         self.assertEqual(normalized.path, "+250788333444")
 
-        # check normalization leads to matching
-        contact5 = self.create_contact(name="Jimmy", number="+250788333555")
-        contact6 = self.create_contact(name="James", number="0788333555")
-        self.assertEqual(contact5.pk, contact6.pk)
-
+        contact5 = self.create_contact(name="Jimmy", phone="+250788333555")
         mods = contact5.update_urns(["twitter:jimmy_woot", "tel:0788333666"])
         contact5.modify(self.user, mods)
 
@@ -4399,11 +4391,11 @@ class ContactTest(TembaTest):
 
         self.releaseContacts(delete=True)
         self.bulk_release(ContactGroup.user_groups.all())
-        contact = self.create_contact(name="Bob", number="+250788111111")
+        contact = self.create_contact(name="Bob", phone="+250788111111")
         contact.uuid = "uuid-1111"
         contact.save(update_fields=("uuid",), handle_update=False)
 
-        contact2 = self.create_contact(name="Kobe", number="+250788383396")
+        contact2 = self.create_contact(name="Kobe", phone="+250788383396")
         contact2.uuid = "uuid-4444"
         contact2.save(update_fields=("uuid",), handle_update=False)
 
@@ -4436,11 +4428,11 @@ class ContactTest(TembaTest):
         self.releaseContacts(delete=True)
         self.bulk_release(ContactGroup.user_groups.all())
 
-        contact = self.create_contact(name="Bob", number="+250788111111")
+        contact = self.create_contact(name="Bob", phone="+250788111111")
         contact.uuid = "uuid-1111"
         contact.save(update_fields=("uuid",), handle_update=False)
 
-        contact2 = self.create_contact(name="Kobe", number="+250788383396")
+        contact2 = self.create_contact(name="Kobe", phone="+250788383396")
         contact2.uuid = "uuid-4444"
         contact2.save(update_fields=("uuid",), handle_update=False)
 
@@ -4622,11 +4614,11 @@ class ContactTest(TembaTest):
 
         self.releaseContacts(delete=True)
         self.bulk_release(ContactGroup.user_groups.all())
-        contact = self.create_contact(name="Bob", number="+250788111111")
+        contact = self.create_contact(name="Bob", phone="+250788111111")
         contact.uuid = "uuid-1111"
         contact.save(update_fields=("uuid",), handle_update=False)
 
-        contact2 = self.create_contact(name="Kobe", number="+250788383396")
+        contact2 = self.create_contact(name="Kobe", phone="+250788383396")
         contact2.uuid = "uuid-4444"
         contact2.save(update_fields=("uuid",), handle_update=False)
 
@@ -4704,11 +4696,11 @@ class ContactTest(TembaTest):
         self.releaseContacts(delete=True)
         self.bulk_release(ContactGroup.user_groups.all())
 
-        contact = self.create_contact(name="Bob", number="+250788111111")
+        contact = self.create_contact(name="Bob", phone="+250788111111")
         contact.uuid = "uuid-1111"
         contact.save(update_fields=("uuid",), handle_update=False)
 
-        contact2 = self.create_contact(name="Kobe", number="+250788383396")
+        contact2 = self.create_contact(name="Kobe", phone="+250788383396")
         contact2.uuid = "uuid-4444"
         contact2.save(update_fields=("uuid",), handle_update=False)
 
@@ -4785,11 +4777,11 @@ class ContactTest(TembaTest):
 
         self.releaseContacts(delete=True)
         self.bulk_release(ContactGroup.user_groups.all())
-        contact = self.create_contact(name="Bob", number="+250788111111")
+        contact = self.create_contact(name="Bob", phone="+250788111111")
         contact.uuid = "uuid-1111"
         contact.save(update_fields=("uuid",), handle_update=False)
 
-        contact2 = self.create_contact(name="Kobe", number="+250788383396")
+        contact2 = self.create_contact(name="Kobe", phone="+250788383396")
         contact2.uuid = "uuid-4444"
         contact2.save(update_fields=("uuid",), handle_update=False)
 
@@ -5262,7 +5254,7 @@ class ContactTest(TembaTest):
         self.assertEqual(event_fire.scheduled, contact1_planting_date + timedelta(days=7))
 
     def test_contact_import_with_languages(self):
-        self.create_contact(name="Eric", number="+250788382382")
+        self.create_contact(name="Eric", phone="+250788382382")
 
         imported_contacts, import_task = self.do_import(self.user, "sample_contacts_with_language.xls")
 
@@ -5293,10 +5285,6 @@ class ContactTest(TembaTest):
     @mock_mailroom
     def test_import_methods(self, mr_mocks):
         user = self.user
-        c1 = self.create_contact(name=None, number="0788382382")
-        c2 = self.create_contact(name=None, number="0788382382")
-        self.assertEqual(c1.pk, c2.pk)
-
         field_dict = {
             "urn:tel": "0788123123",
             "created_by": user,
@@ -5668,15 +5656,14 @@ class ContactTest(TembaTest):
 
         jemila = self.create_contact(
             name="Jemila Alley",
-            number="123",
-            twitter="fulani_p",
+            urns=["tel:123", "twitter:fulani_p"],
             fields={"state": "kano", "district": "bichi", "ward": "bichi"},
         )
         self.assertEqual(jemila.get_field_serialized(ward), "Rwanda > Kano > Bichi > Bichi")
 
     @mock_mailroom
     def test_update_handling(self, mr_mocks):
-        bob = self.create_contact("Bob", "111222")
+        bob = self.create_contact("Bob", phone="111222")
         bob.name = "Bob Marley"
         bob.save(update_fields=("name",), handle_update=False)
 
@@ -5704,10 +5691,10 @@ class ContactTest(TembaTest):
             mtn_group = self.create_group("People with number containing '078'", query='tel has "078"')
 
             self.mary = self.create_contact(
-                "Mary", urn="tel:+250783333333", fields={"gender": "Female", "age": "21", "joined": "31/12/2013"}
+                "Mary", phone="+250783333333", fields={"gender": "Female", "age": "21", "joined": "31/12/2013"}
             )
             self.annie = self.create_contact(
-                "Annie", urn="tel:7879", fields={"gender": "Female", "age": "9", "joined": "31/12/2013"}
+                "Annie", phone="7879", fields={"gender": "Female", "age": "9", "joined": "31/12/2013"}
             )
             self.set_contact_field(self.joe, "gender", "Male")
             self.set_contact_field(self.joe, "age", "25")
@@ -5813,8 +5800,8 @@ class ContactFieldTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact(name="Joe Blow", number="123")
-        self.frank = self.create_contact(name="Frank Smith", number="1234")
+        self.joe = self.create_contact(name="Joe Blow", phone="123")
+        self.frank = self.create_contact(name="Frank Smith", phone="1234")
 
         self.contactfield_1 = ContactField.get_or_create(self.org, self.admin, "first", "First", priority=10)
         self.contactfield_2 = ContactField.get_or_create(self.org, self.admin, "second", "Second")
@@ -5951,7 +5938,7 @@ class ContactFieldTest(TembaTest):
 
         # start one of our contacts down it
         contact = self.create_contact(
-            "Be\02n Haggerty", urn="tel:+12067799294", fields={"First": "On\02e", "Third": "20/12/2015 08:30"}
+            "Be\02n Haggerty", phone="+12067799294", fields={"First": "On\02e", "Third": "20/12/2015 08:30"}
         )
 
         flow = self.get_flow("color_v13")
@@ -5969,7 +5956,7 @@ class ContactFieldTest(TembaTest):
         )
 
         # create another contact, this should sort before Ben
-        contact2 = self.create_contact("Adam Sumner", "+12067799191", twitter="adam", language="eng")
+        contact2 = self.create_contact("Adam Sumner", urns=["tel:+12067799191", "twitter:adam"], language="eng")
         urns = [str(urn) for urn in contact2.get_urns()]
         urns.append("mailto:adam@sumner.com")
         urns.append("telegram:1234")
@@ -6122,8 +6109,8 @@ class ContactFieldTest(TembaTest):
         assertImportExportedFile()
 
         # more contacts do not increase the queries
-        contact3 = self.create_contact("Luol Deng", "+12078776655", twitter="deng")
-        contact4 = self.create_contact("Stephen", "+12078778899", twitter="stephen")
+        contact3 = self.create_contact("Luol Deng", urns=["tel:+12078776655", "twitter:deng"])
+        contact4 = self.create_contact("Stephen", urns=["tel:+12078778899", "twitter:stephen"])
         ContactURN.create(self.org, contact, "tel:+12062233445")
 
         # but should have additional Twitter and phone columns
@@ -7332,7 +7319,11 @@ class ESIntegrationTest(TembaNonAtomicTest):
             if i % 3 == 0:
                 fields["profession"] = "Farmer"  # only some contacts have any value for this
 
-            contact = self.create_contact(name=name, number=number, twitter=twitter, fields=fields)
+            urns = [f"tel:{number}"]
+            if twitter:
+                urns.append(f"twitter:{twitter}")
+
+            self.create_contact(name, urns=urns, fields=fields)
 
         def q(query):
             results = search_contacts(self.org.id, self.org.cached_active_contacts_group.uuid, query, None)

@@ -640,7 +640,7 @@ class TemplateTagTestSimple(TestCase):
 
 class CacheTest(TembaTest):
     def test_get_cacheable_result(self):
-        self.create_contact("Bob", number="1234")
+        self.create_contact("Bob", phone="1234")
 
         def calculate():
             return Contact.objects.all().count(), 60
@@ -650,7 +650,7 @@ class CacheTest(TembaTest):
         with self.assertNumQueries(0):
             self.assertEqual(get_cacheable_result("test_contact_count", calculate), 1)  # from cache
 
-        self.create_contact("Jim", number="2345")
+        self.create_contact("Jim", phone="2345")
 
         with self.assertNumQueries(0):
             self.assertEqual(get_cacheable_result("test_contact_count", calculate), 1)  # not updated
@@ -939,7 +939,7 @@ class GSM7Test(TembaTest):
 
 class ModelsTest(TembaTest):
     def test_require_update_fields(self):
-        contact = self.create_contact("Bob", twitter="bobby")
+        contact = self.create_contact("Bob", urns=["twitter:bobby"])
         flow = self.get_flow("color")
         run = FlowRun.objects.create(org=self.org, flow=flow, contact=contact)
 
@@ -969,8 +969,8 @@ class ModelsTest(TembaTest):
         self.assertEqual(curr, 100)
 
     def test_patch_queryset_count(self):
-        self.create_contact("Ann", twitter="ann")
-        self.create_contact("Bob", twitter="bob")
+        self.create_contact("Ann", urns=["twitter:ann"])
+        self.create_contact("Bob", urns=["twitter:bob"])
 
         with self.assertNumQueries(0):
             qs = Contact.objects.all()
@@ -1304,7 +1304,7 @@ class TestJSONAsTextField(TestCase):
 
 class TestJSONField(TembaTest):
     def test_jsonfield_decimal_encoding(self):
-        contact = self.create_contact("Xavier", number="+5939790990001")
+        contact = self.create_contact("Xavier", phone="+5939790990001")
 
         with connection.cursor() as cur:
             cur.execute(

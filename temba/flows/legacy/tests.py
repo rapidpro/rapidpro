@@ -1032,7 +1032,7 @@ class FlowMigrationTest(TembaTest):
             self.assertNotIn("webhook_action", ruleset)
 
     def test_migrate_to_9(self):
-        contact = self.create_contact("Ben Haggerty", number="+12065552020")
+        contact = self.create_contact("Ben Haggerty", phone="+12065552020")
 
         # our group and flow to move to uuids
         group = self.create_group("Phans", [])
