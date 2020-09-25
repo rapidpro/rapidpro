@@ -1,11 +1,16 @@
 import regex
 import pycountry
+import requests
 
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.http import HttpResponse
 from django.utils.translation import ugettext_lazy as _
+from django.views import View
 from smartmin.views import SmartFormView
+
+from temba.utils import json
 from ...models import Channel
 from ...views import ClaimViewMixin
 
@@ -83,3 +88,21 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         return super().form_valid(form)
+
+
+class RenderDownloadImage(View):
+    def get(self, *args, **kwargs):
+        url = self.request.GET.get("url")
+        if not url:
+            return HttpResponse(status=500, content=json.dumps({"error": "URL not found"}))
+
+        resp = requests.get(url)
+
+        if resp.status_code != 200:
+            return HttpResponse(status=404, content=json.dumps({"error": "Image not found"}))
+
+        filename = str(url).split("/")[-1]
+        response = HttpResponse(content_type=f"image/{filename.split('.')[-1]}", content=resp.content)
+        response["Content-Disposition"] = f"attachment; filename={filename}"
+
+        return response
