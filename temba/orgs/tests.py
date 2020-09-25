@@ -5021,3 +5021,18 @@ class OrgActivityTest(TembaTest):
         self.assertEqual(1, activity.active_contact_count)
         self.assertEqual(2, activity.incoming_count)
         self.assertEqual(1, activity.outgoing_count)
+        self.assertIsNone(activity.plan_active_contact_count)
+
+        # set a plan start and plan end
+        OrgActivity.objects.all().delete()
+        self.org.plan_start = now
+        self.org.plan_end = now + timedelta(days=30)
+        self.org.save()
+
+        update_org_activity(now + timedelta(days=1))
+        activity = OrgActivity.objects.get()
+        self.assertEqual(2, activity.contact_count)
+        self.assertEqual(1, activity.active_contact_count)
+        self.assertEqual(2, activity.incoming_count)
+        self.assertEqual(1, activity.outgoing_count)
+        self.assertEqual(1, activity.plan_active_contact_count)
