@@ -11,11 +11,4 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AddField(model_name="org", name="plan_start", field=models.DateTimeField(null=True),),
-        migrations.AlterField(
-            model_name="org",
-            name="brand",
-            field=models.CharField(
-                default="textit.com", help_text="The brand used in emails", max_length=128, verbose_name="Brand"
-            ),
-        ),
     ]
