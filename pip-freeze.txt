@@ -26,6 +26,7 @@ cryptography==2.3.1       # via pyjwt, python-telegram-bot
 dj-database-url==0.5.0
 django-appconf==1.0.2     # via django-compressor
 django-compressor==2.2
+django-cors-headers==3.5.0
 django-countries==5.3.3
 django-hamlpy==1.2
 django-mptt==0.8.7

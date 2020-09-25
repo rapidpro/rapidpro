@@ -180,6 +180,7 @@ FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 MIDDLEWARE = (
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -232,6 +233,8 @@ INSTALLED_APPS = (
     "sorl.thumbnail",
     # django-timezone-field
     "timezone_field",
+    # CORS control
+    "corsheaders",
     # temba apps
     "temba.apks",
     "temba.archives",
@@ -1257,3 +1260,8 @@ AUTHY_MAGIC_PASS = os.environ.get("AUTHY_MAGIC_PASS", "")
 CREDITS_EXPIRATION = False
 
 GOOGLE_FONT_API_KEY = os.environ.get("GOOGLE_FONT_API_KEY", "")
+
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_METHODS = [
+    'GET',
+]
