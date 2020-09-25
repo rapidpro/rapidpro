@@ -144,7 +144,7 @@ class WhatsAppTypeTest(TembaTest):
         with patch("requests.post") as mock_post:
             mock_post.side_effect = [MockResponse(200, '{ "error": false }')]
             self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_CONTACTS_REFRESHED, is_error=False))
-            self.create_contact("Joe", urn="whatsapp:250788382382")
+            self.create_contact("Joe", urns=["whatsapp:250788382382"])
             self.client.post(refresh_url)
 
             self.assertEqual(mock_post.call_args_list[0][1]["json"]["contacts"], ["+250788382382"])
