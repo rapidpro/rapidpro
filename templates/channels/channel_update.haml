@@ -50,6 +50,17 @@
       color: #000000;
     }
 
+    #s2id_id_google_font .select2-search-choice-close {
+      left: 10px;
+      right: auto;
+      top: 9px;
+    }
+
+    #s2id_id_google_font.select2-allowclear .select2-chosen {
+      margin-right: 0;
+      margin-left: 25px;
+    }
+
 {% block extra-script %}
 <script src="{{ STATIC_URL }}js/jscolor.js"></script>
 {% if object.channel_type == "WCH" %}
