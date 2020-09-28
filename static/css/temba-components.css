@@ -16,6 +16,8 @@ html {
   --selection-light-rgb: 240, 240, 240;
   --selection-dark-rgb: 180, 180, 180;
 
+  --select-input-height: inherit;
+
   /* Old style matching, squared off, borded inputs, select2 colors */
   --curvature: 6px;
   --curvature-widget: 6px;
