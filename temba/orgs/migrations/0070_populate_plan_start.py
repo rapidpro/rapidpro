@@ -9,7 +9,7 @@ def populate_plan_start(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
 
     for org in Org.objects.exclude(plan_end=None):
-        org.plan_start = org.plan_end - relativedelta(month=1)
+        org.plan_start = org.plan_end - relativedelta(months=1)
         org.save(update_fields=["plan_start"])
 
 
