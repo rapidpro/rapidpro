@@ -1,3 +1,9 @@
+v5.7.51
+----------
+ * Add plan_start, calculate active contacts in plan period, add to OrgActivity
+ * Tweak how mailroom_db creates extra group contacts
+ * Update to latest django-hamlpy
+
 v5.7.50
 ----------
  * Optimizations for orgs with many contact fields
