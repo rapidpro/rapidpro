@@ -170,6 +170,14 @@
 
 %body#pageBody.bg-gradient
   -include "components-body.html"
+
+  -block temba-store
+    %temba-store(
+      completions="/mr/docs/completion.json"
+      functions="/mr/docs/functions.json"
+      fields="/api/v2/fields.json"
+      globals="/api/v2/globals.json")
+
   .flex.flex-col.h-full
     <!-- Header -->
     #header
