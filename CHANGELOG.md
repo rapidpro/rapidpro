@@ -1,3 +1,8 @@
+v5.7.54
+----------
+ * Update editor to get support for expressions in add to group actions
+ * Remove unused localized text on Msg and Broadcast
+
 v5.7.52
 ----------
  * Migrations and models for new imports
