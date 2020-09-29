@@ -3186,7 +3186,6 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **flow** - the flow which was started (object)
      * **contacts** - the list of contacts that were started in the flow (objects)
      * **groups** - the list of groups that were started in the flow (objects)
-     * **urns** - the list of URNs that were started in the flow (strings)
      * **restart_participants** - whether the contacts were restarted in this flow (boolean)
      * **status** - the status of this flow start
      * **params** - the dictionary of extra parameters passed to the flow start (object)
@@ -3212,7 +3211,6 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                     "contacts": [
                          {"uuid": "f5901b62-ba76-4003-9c62-fjjajdsi15553", "name": "Wanz"}
                     ],
-                    "urns": ["tel:+12067791212"],
                     "restart_participants": true,
                     "status": "complete",
                     "params": {

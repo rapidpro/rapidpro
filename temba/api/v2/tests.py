@@ -4109,7 +4109,6 @@ class APITest(TembaTest):
                 "id": start3.id,
                 "uuid": str(start3.uuid),
                 "flow": {"uuid": flow.uuid, "name": "Favorites"},
-                "urns": ["tel:+12067791212"],
                 "contacts": [{"uuid": self.joe.uuid, "name": "Joe Blow"}],
                 "groups": [{"uuid": hans_group.uuid, "name": "hans"}],
                 "restart_participants": False,
@@ -4132,27 +4131,6 @@ class APITest(TembaTest):
         # check filtering by id (deprecated)
         response = self.fetchJSON(url, "id=%d" % start2.id)
         self.assertResultsById(response, [start2])
-
-        # check anon orgs don't see URNs
-        with AnonymousOrg(self.org):
-            response = self.fetchJSON(url, "uuid=%s" % str(start3.uuid))
-            self.assertEqual(
-                response.json()["results"][0],
-                {
-                    "id": start3.id,
-                    "uuid": str(start3.uuid),
-                    "flow": {"uuid": flow.uuid, "name": "Favorites"},
-                    "urns": None,
-                    "contacts": [{"uuid": self.joe.uuid, "name": "Joe Blow"}],
-                    "groups": [{"uuid": hans_group.uuid, "name": "hans"}],
-                    "restart_participants": False,
-                    "status": "pending",
-                    "extra": {"first_name": "Bob", "last_name": "Marley"},
-                    "params": {"first_name": "Bob", "last_name": "Marley"},
-                    "created_on": format_datetime(start3.created_on),
-                    "modified_on": format_datetime(start3.modified_on),
-                },
-            )
 
     def test_templates(self):
         url = reverse("api.v2.templates")
