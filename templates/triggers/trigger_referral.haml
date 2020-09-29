@@ -3,11 +3,3 @@
 
 -block summary
   -trans "Start a flow when Facebook refers a contact."
-
--block extra-script
-  {{block.super}}
-  %script
-    $(document).ready(function() {
-      select2div("#id_referral_channel", "520px", '{{ _("Restrict to channel")|escapejs }}');
-      select2div("#id_referral_flow", "520px", '{{ _("Flow to start")|escapejs }}');
-    });

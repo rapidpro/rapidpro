@@ -1,62 +1,51 @@
-{% extends "smartmin/base.html" %}
+-extends "includes/modal.html"
 
 {% load smartmin %}
 {% load i18n %}
 
--block page-top
-
--block content
+-block modal
   -block pjax
+    -if dep_flows
+      .py-2
+        -blocktrans trimmed count counter=dep_flows|length
+          Used in the flow
+          -plural
+            Used in the flows
+    
+        -for flow in dep_flows
+          %a{href:"{% url 'flows.flow_editor' flow.uuid%}"}<
+            {{flow.name}}
+          {{forloop|oxford}}
 
-    .row
-      .span5
-        %h4
-          -trans "Flows:"
+    -if dep_campaignevents
+      .py-2
+        -blocktrans trimmed count counter=dep_campaignevents|length
+          Used in the campaign event
+          -plural
+            Used in the campaign events
+    
+        -for campaign_event in dep_campaignevents
+          .inline<
+            %a{href:"{% url 'campaigns.campaignevent_read' campaign_event.id %}"}
+              {{ campaign_event.campaign.name }} - 
+            
+              -if campaign_event.offset < 0
+                {{campaign_event.abs_offset}} {{campaign_event.get_unit_display|slice:"-1"}}{{campaign_event.offset|pluralize}} Before
+              -elif campaign_event.offset == 0
+                On
+              -else
+                {{campaign_event.abs_offset}} {{campaign_event.get_unit_display|slice:"-1"}}{{campaign_event.offset|pluralize}} After
+              {{campaign_event.relative_to|title}}
+            {{forloop|oxford}}
 
-        -if dep_flows
-          %ul
-            - for flow in dep_flows
-              %li
-                %a{href:"{% url 'flows.flow_editor' flow.uuid %}"}
-                  {{ flow.name }}
-        -else
-          %ul
-            %li
-              -trans "No related flows."
+    -if dep_groups
+      .py-2
+        -blocktrans trimmed count counter=dep_groups|length
+          Used in the group
+          -plural
+            Used in the groups
 
-        %h4
-          -trans "Campaign events:"
-
-        -if dep_campaignevents
-          %ul
-            -for campaign_event in dep_campaignevents
-              %li
-                %a{href:"{% url 'campaigns.campaignevent_read' campaign_event.id %}"}
-                  {{campaign_event.campaign.name}} --
-
-                  -# representation copied from templates/campaigns/campaignevent_read.haml
-                  -if campaign_event.offset < 0
-                    {{campaign_event.abs_offset}} {{campaign_event.get_unit_display|slice:"-1"}}{{campaign_event.offset|pluralize}} Before
-                  -elif campaign_event.offset == 0
-                    On
-                  -else
-                    {{campaign_event.abs_offset}} {{campaign_event.get_unit_display|slice:"-1"}}{{campaign_event.offset|pluralize}} After
-                  {{campaign_event.relative_to|title}}
-
-        -else
-          %ul
-            %li
-              -trans "No related campaigns."
-
-        %h4
-          -trans "Contact groups:"
-        -if dep_groups
-          %ul
-            -for group in dep_groups
-              %li
-                %a{href:"{% url 'contacts.contact_filter' group.uuid %}"}
-                  {{ group.name }}
-        -else
-          %ul
-            %li
-              -trans "No related contact groups."
+        -for group in dep_groups
+          %a{href:"{% url 'contacts.contact_filter' group.uuid %}"}<
+            {{ group.name }}
+          {{forloop|oxford}}

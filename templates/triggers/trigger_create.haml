@@ -12,11 +12,13 @@
       margin-top:15px;
     }
 
--block content
+-block title  
+  {{title}}
 
-  %p.instructions
+  .mb-3.text-xl.mt-2
     -trans "Triggers allow users to start flows based on user actions or schedules."
-
+  
+-block content
   -include "formax.haml"
 
 -block extra-script

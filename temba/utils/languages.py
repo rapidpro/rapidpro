@@ -41,7 +41,7 @@ def search_language_names(query):
 
     for lang in pycountry.languages:
         if query in lang.name.lower():
-            matches.append(dict(id=lang.alpha_3, text=lang.name))
+            matches.append(dict(id=lang.alpha_3, text=lang.name, value=lang.alpha_3, name=lang.name))
     return matches
 
 

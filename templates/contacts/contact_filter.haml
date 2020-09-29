@@ -3,49 +3,9 @@
 -load i18n
 
 -block title
+  {{current_group.name}}
+-block subtitle
   -if current_group.is_dynamic
-    // TODO new icon for dynamic groups?
-    %span.title-icon
-      .glyph.icon-users-2
-  -else
-    %span.title-icon
-      .glyph.icon-users-2
-  %h2.header-margin
-    {{current_group.name}}
+    .hidden.lbl-secondary.linked{onclick:"goto(event)", href:"{% url 'contacts.contact_filter' current_group.uuid %}"}
+      -trans "Smart Group"
 
-  -if current_group.is_dynamic
-    %h5.header-margin
-      -trans "Dynamic group based on:"
-      %i {{current_group.query}}
-
--block buttons-right
-  -block gear-menu
-    -include "gear_links_include.haml"
-
--block post-content
-  {{ block.super }}
-  - if org_perms.msgs.broadcast_send
-    - include "msgs/msg_send_modal.haml"
-
--block extra-script
-  {{ block.super }}
-    -if org_perms.contacts.contactgroup_update
-      :javascript
-        $(".update-contactgroup").live('click', function(){
-          var modal = new Modax('{{ _("Update Contact Group")|escapejs }}', '{% url "contacts.contactgroup_update" current_group.id %}');
-          modal.setIcon('icon-users-2');
-          modal.setListeners({
-            onSuccess: function(data){ location.reload(); },
-            onFormLoaded: function(){ $('#id_join_flow').select2(); }
-          });
-          modal.show();
-        });
-
-    -if org_perms.contacts.contactgroup_delete
-      :javascript
-        $(".delete-contactgroup").live('click', function() {    
-          var modal = new Modax('{{ _("Delete Group")|escapejs }}', '{% url "contacts.contactgroup_delete" current_group.id %}');
-          modal.addClass("alert");
-          modal.setRedirectOnSuccess(true);
-          modal.show();
-        });

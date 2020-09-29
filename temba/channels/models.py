@@ -1096,7 +1096,6 @@ class Channel(TembaModel):
                 | Q(status=ERRORED, next_attempt__lte=now)
             )
             .exclude(channel__channel_type=AndroidType.code)
-            .exclude(topup=None)
             .order_by("created_on")
         )
 

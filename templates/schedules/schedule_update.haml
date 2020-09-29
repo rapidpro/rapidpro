@@ -1,123 +1,98 @@
 -extends 'smartmin/form.html'
 
--block form-span
--load i18n
-
-
--block extra-script
-  {{ block.super }}
-  %script{src:"{{ STATIC_URL }}js/schedules-ui.js?v=2"}
-
-  :javascript
-    var user_tz = "{{ user_tz }}";
-    var user_tz_offset = {{ user_tz_offset }};
-
-    $(document).ready(function() {
-        var minDate = new Date();
-        var minutes = minDate.getMinutes();
-        if (minutes > 0) {
-            minDate.setMinutes(0);
-            minDate.setHours(minDate.getHours() + 1);
-        }
-
-        {% if object.next_fire and object.next_fire|timeuntil != "0 minutes" %}
-          initializeDatetimePicker(minDate, new Date({{object.next_fire|date:"U"}} * 1000));
-        {% else %}
-          initializeDatetimePicker(minDate);
-        {% endif %}
-    });
-    
-
-
+-load i18n humanize
 
 -block fields
   -load smartmin
+  .title
+    -trans "Schedule"
 
-  %p.instructions
-    Choose when you would like the message to be sent out.
+  .mb-3
+    -trans "Select when you would like the message to be sent"
 
   #schedule-options
     -if object.get_broadcast
-      -if not object.next_fire
-        <input id='stop-option' name='start' class='unchanged' type='radio' value='stop' checked>
-        -trans "Leave unscheduled"
-        <br/>
-      -else
-        <input id='stop-option' name='start' type='radio' value='stop'>
-        -trans "Cancel schedule"
-        <br/>
-
-    <input id='later-option' name='start' type='radio' value='later' {% if object.next_fire %} checked {%endif%}>
-    %input#start-datetime{ disabled:'true', name:'start_datetime', value:'Schedule for later'}
-    %input#start-datetime-value{ hidden:'true', name:'start_datetime_value', value:'{{ object.next_fire|date:"U" }}'}
-
-  #recurrence{class:'{% if not object.next_fire %}hide{% endif %}'}
-    .repeat-period
-      %p.instructions
-        -render_field 'repeat_period'
-    .weekly-repeat-options{class:'{% if object.repeat_period == "W" %}{% else%}hide{%endif%}'}
-      .btn-group{'data-toggle':'buttons-checkbox'}
-        #mon.btn{value:"M", class:'{% if "M" in days %}active{% endif %}'}
-          -trans "Mon"
-        #tue.btn{value:"T", class:'{% if "T" in days %}active{% endif %}'}
-          -trans "Tue"
-        #wed.btn{value:"W", class:'{% if "W" in days %}active{% endif %}'}
-          -trans "Wed"
-        #thu.btn{value:"R", class:'{% if "R" in days %}active{% endif %}'}
-          -trans "Thu"
-        #fri.btn{value:"F", class:'{% if "F" in days %}active{% endif %}'}
-          -trans "Fri"
-        #sat.btn{value:"S", class:'{% if "S" in days %}active{% endif %}'}
-          -trans "Sat"
-        #sun.btn{value:"U", class:'{% if "U" in days %}active{% endif %}'}
-          -trans "Sun"
-
-      %input#repeat-days-value{name:'repeat_days_of_week', type:'hidden', value:'{{days}}'}
-
--load humanize
+      #schedule-options
+        -render_field 'start_datetime'
+      #recurrence
+        .repeat-period
+          -render_field 'repeat_period'
+        .weekly-repeat-options{class:'{% if form.repeat_period.value == "W" %}{% else%}hidden{%endif%}'}
+          -render_field 'repeat_days_of_week'
 
 -block summary
   -if object.next_fire
-    -spaceless
-      -if object.get_broadcast
-        -trans "The next message will be sent on"
-        <span class='attn next-fire'>{{ object.next_fire|naturaltime }}</span>.
+    .flex
+      .schedule-summary
+        -spaceless
+          -if object.get_broadcast
+            -trans "The next message will be sent on"
+            <b>{{ object.next_fire|naturaltime }}</b>.
 
-    -if not object.repeat_period == 'O'
-      -if object.repeat_period == 'W'
-        -trans "It will repeat every"
-        -with object.get_repeat_days_display|length as day_count
-          -for day in object.get_repeat_days_display
-            {% if forloop.last and day_count > 1 %} and {%endif%}
-            %span.attn
-              {{day}}{% if not forloop.last and day_count > 2%}, {%endif%}
+        -if not object.repeat_period == 'O'
+          -if object.repeat_period == 'W'
+            -trans "It will repeat every"
+            -with object.get_repeat_days_display|length as day_count
+              -for day in object.get_repeat_days_display
+                {% if forloop.last and day_count > 1 %} and {%endif%}
+                %b
+                  {{day}}{% if not forloop.last and day_count > 2%}, {%endif%}
 
-        -trans "at around the same time."
-      -elif object.repeat_period == 'M'
-        -trans "It will repeat every"
-        %span.attn
-          month
-        -trans "on the"
-        {{ object.repeat_day_of_month|ordinal }}.
+            -trans "at around the same time."
+          -elif object.repeat_period == 'M'
+            -trans "It will repeat every"
+            %b
+              month
+            -trans "on the"
+            {{ object.repeat_day_of_month|ordinal }}.
 
-      -else
-        -trans "It will repeat"
-        <span class='attn'>{{object.get_repeat_period_display|lower}}</span>
-        -trans "at around the same time."
-    -else
-      -trans "It will "
-      <span class='attn'>
-      -trans "not repeat"
-      </span>.
+          -else
+            -trans "It will repeat"
+            %b
+              {{object.get_repeat_period_display|lower}}
+            -trans "at around the same time."
+        -else
+          -trans "It will "
+          %b
+            -trans "not repeat"
+
+      .unschedule.ml-8
+        .button-light(onclick="unschedule(event)" href="{% url 'schedules.schedule_update' object.id %}?start_datetime=&repeat_period=O")
+          -trans "Unschedule"
 
   -else
     -trans "Not scheduled"
 
 -block form-buttons
-  #form-buttons
-    %br
-    -if not object.next_fire
-      %input.btn.start-button{type:'submit',value:'Done'}
+  #form-buttons.mt-4
+    %input.button-primary{type:'submit', value:'Schedule'}
 
-    -else
-      %input.btn.btn-primary.start-button{type:'submit',value:'Schedule'}
+-block extra-script
+  {{block.super}}
+  :javascript
+    function unschedule(event) {
+      event.stopPropagation();
+      event.preventDefault();
+      handlePosterize(event.currentTarget);
+    }
+
+    function wireRepeatListener() {
+      var repeatPeriod = document.querySelector("#id_repeat_period");      
+      if (repeatPeriod) {
+        repeatPeriod.addEventListener("change", function(event){
+          var currentRepeat = event.currentTarget.values[0].value;
+          if (currentRepeat == 'W') {
+            document.querySelector(".weekly-repeat-options").classList.remove("hidden");
+          } else {
+            document.querySelector(".weekly-repeat-options").classList.add("hidden");
+          }
+        });
+      } else {
+        // we can't use DOMContentLoaded here since we need it 
+        // to invoke after formax submission too
+        window.setTimeout(function(){wireRepeatListener()}, 300);
+      }
+    }
+
+    wireRepeatListener();
+

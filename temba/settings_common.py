@@ -144,6 +144,8 @@ COMPRESS_ROOT = os.path.join(PROJECT_DIR, "../sitestatic")
 MEDIA_ROOT = os.path.join(PROJECT_DIR, "../media")
 MEDIA_URL = "/media/"
 
+HELP_URL = None
+
 
 # -----------------------------------------------------------------------------------
 # Templates Configuration
@@ -290,6 +292,12 @@ LOGGING = {
     },
 }
 
+# the name of our topup plan
+TOPUP_PLAN = "topups"
+
+# Default plan for new orgs
+DEFAULT_PLAN = TOPUP_PLAN
+
 # -----------------------------------------------------------------------------------
 # Branding Configuration
 # -----------------------------------------------------------------------------------
@@ -300,6 +308,7 @@ BRANDING = {
         "org": "UNICEF",
         "colors": dict(primary="#0c6596"),
         "styles": ["brands/rapidpro/font/style.css"],
+        "default_plan": TOPUP_PLAN,
         "welcome_topup": 1000,
         "email": "join@rapidpro.io",
         "support_email": "support@rapidpro.io",
@@ -345,6 +354,8 @@ PERMISSIONS = {
     "classifiers.intent": ("api",),
     "contacts.contact": (
         "api",
+        "archive",
+        "archived",
         "block",
         "blocked",
         "break_anon",
@@ -355,9 +366,8 @@ PERMISSIONS = {
         "history",
         "import",
         "omnibox",
+        "restore",
         "search",
-        "unblock",
-        "unstop",
         "update_fields",
         "update_fields_input",
     ),
@@ -392,6 +402,7 @@ PERMISSIONS = {
         "manage_accounts_sub_org",
         "nexmo_account",
         "nexmo_connect",
+        "plan",
         "plivo_connect",
         "profile",
         "prometheus",
@@ -564,6 +575,8 @@ GROUP_PERMISSIONS = {
         "classifiers.classifier_sync",
         "classifiers.intent_api",
         "contacts.contact_api",
+        "contacts.contact_archive",
+        "contacts.contact_archived",
         "contacts.contact_block",
         "contacts.contact_blocked",
         "contacts.contact_create",
@@ -576,10 +589,9 @@ GROUP_PERMISSIONS = {
         "contacts.contact_list",
         "contacts.contact_omnibox",
         "contacts.contact_read",
+        "contacts.contact_restore",
         "contacts.contact_search",
         "contacts.contact_stopped",
-        "contacts.contact_unblock",
-        "contacts.contact_unstop",
         "contacts.contact_update",
         "contacts.contact_update_fields",
         "contacts.contact_update_fields_input",
@@ -611,6 +623,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_manage_accounts_sub_org",
         "orgs.org_nexmo_account",
         "orgs.org_nexmo_connect",
+        "orgs.org_plan",
         "orgs.org_plivo_connect",
         "orgs.org_profile",
         "orgs.org_prometheus",
@@ -695,6 +708,8 @@ GROUP_PERMISSIONS = {
         "classifiers.classifier_list",
         "classifiers.intent_api",
         "contacts.contact_api",
+        "contacts.contact_archive",
+        "contacts.contact_archived",
         "contacts.contact_block",
         "contacts.contact_blocked",
         "contacts.contact_create",
@@ -707,10 +722,9 @@ GROUP_PERMISSIONS = {
         "contacts.contact_list",
         "contacts.contact_omnibox",
         "contacts.contact_read",
+        "contacts.contact_restore",
         "contacts.contact_search",
         "contacts.contact_stopped",
-        "contacts.contact_unblock",
-        "contacts.contact_unstop",
         "contacts.contact_update",
         "contacts.contact_update_fields",
         "contacts.contact_update_fields_input",
@@ -730,6 +744,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_import",
         "orgs.org_profile",
         "orgs.org_resthooks",
+        "orgs.org_token",
         "orgs.topup_list",
         "orgs.topup_read",
         "orgs.usersettings_phone",
@@ -790,6 +805,7 @@ GROUP_PERMISSIONS = {
         "classifiers.classifier_read",
         "classifiers.classifier_list",
         "classifiers.intent_api",
+        "contacts.contact_archived",
         "contacts.contact_blocked",
         "contacts.contact_export",
         "contacts.contact_filter",
@@ -921,6 +937,7 @@ CELERYBEAT_SCHEDULE = {
     "squash-flowcounts": {"task": "squash_flowcounts", "schedule": timedelta(seconds=60)},
     "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=60)},
     "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=60)},
+    "suspend-topup-orgs": {"task": "suspend_topup_orgs_task", "schedule": timedelta(hours=1)},
     "sync-classifier-intents": {"task": "sync_classifier_intents", "schedule": timedelta(seconds=300)},
     "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
     "track-org-channel-counts": {"task": "track_org_channel_counts", "schedule": crontab(hour=4, minute=0)},
@@ -1062,6 +1079,8 @@ CHANNEL_TYPES = [
     "temba.channels.types.burstsms.BurstSMSType",
     "temba.channels.types.chikka.ChikkaType",
     "temba.channels.types.clickatell.ClickatellType",
+    "temba.channels.types.clickmobile.ClickMobileType",
+    "temba.channels.types.clicksend.ClickSendType",
     "temba.channels.types.dartmedia.DartMediaType",
     "temba.channels.types.dmark.DMarkType",
     "temba.channels.types.external.ExternalType",
@@ -1073,6 +1092,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.highconnection.HighConnectionType",
     "temba.channels.types.hormuud.HormuudType",
     "temba.channels.types.hub9.Hub9Type",
+    "temba.channels.types.i2sms.I2SMSType",
     "temba.channels.types.infobip.InfobipType",
     "temba.channels.types.jasmin.JasminType",
     "temba.channels.types.jiochat.JioChatType",
@@ -1104,8 +1124,6 @@ CHANNEL_TYPES = [
     "temba.channels.types.wechat.WeChatType",
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia.ZenviaType",
-    "temba.channels.types.i2sms.I2SMSType",
-    "temba.channels.types.clicksend.ClickSendType",
     "temba.channels.types.android.AndroidType",
 ]
 
@@ -1209,9 +1227,6 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 
 # ElasticSearch configuration (URL RFC-1738)
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
-
-# Default plan for new orgs
-DEFAULT_PLAN = "topups"
 
 # Maximum active objects are org can have
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255

@@ -1,38 +1,31 @@
 -extends "channels/channel_claim_form.html"
 -load i18n compress temba
 
--block title
-  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
-
-  %h2.font_normalize.header-margin
-    {{ title }}
-
 -block pre-form
-  .info
-    %p
-      -blocktrans with name=brand.name trimmed
-        To connect your VK community to RapidPro, you will need to
-        create a community token with messaging permissions.
+    -blocktrans with name=brand.name trimmed
+      To connect your VK community to RapidPro, you will need to
+      create a community token with messaging permissions.
 
-    %p
+  .mt-2
+    -blocktrans trimmed
+      To obtain the name of your community, access it and enter the exact name below.
+  .mt-2
+
+    -blocktrans trimmed
+      To get your community id, go to Manage > API Usage > Callback API > Server Settings.
+      Copy the whole number you have right after the group_id present in the example json
+      present in the part regarding the verification of the request.
+  .mt-2
+
+    -blocktrans trimmed
+      To obtain the verification string, go to the Manage > API Usage > Callback API > Server Settings section.
+      You will find the verification string in an excerpt similar to: String to be returned: <code>4412dd18</code>, copy the string and inform below.
+
+  .mt-2
+
+    .alert-warning
       -blocktrans trimmed
-        To obtain the name of your community, access it and enter the exact name below.
-
-    %p
-      -blocktrans trimmed
-        To get your community id, go to Manage > API Usage > Callback API > Server Settings.
-        Copy the whole number you have right after the group_id present in the example json
-        present in the part regarding the verification of the request.
-
-    %p
-      -blocktrans trimmed
-        To obtain the verification string, go to the Manage > API Usage > Callback API > Server Settings section.
-        You will find the verification string in an excerpt similar to: String to be returned: <code>4412dd18</code>, copy the string and inform below.
-
-    .important
-      %p
-        -blocktrans trimmed
-          The API Version of the configured server must be <code>5.103</code>. To configure this, go to Manage > API Usage > Callback API > Server Settings.
+        The API Version of the configured server must be <code>5.103</code>. To configure this, go to Manage > API Usage > Callback API > Server Settings.
 
 
 -block extra-style

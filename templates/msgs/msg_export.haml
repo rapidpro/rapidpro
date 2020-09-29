@@ -1,10 +1,17 @@
--extends 'smartmin/form.html'
+-extends 'includes/modax.html'
 -load i18n
 -load smartmin
 
--block modal-script
-  {{block.super}}
-  %script
-    $('#id_export_all').select2({containerCssClass: "select2-temba-field", minimumResultsForSearch: -1});
-    $('#id_groups').select2({containerCssClass: "select2-temba-field"});
-    $('.datepicker').datepicker({dateFormat: "MM d, yy",});
+-block fields
+
+  .mb-0
+    -render_field 'export_all'
+  
+  .flex
+    .start.flex-grow
+      -render_field 'start_date'
+    .px-1
+    .end.flex-grow
+      -render_field 'end_date'
+  
+  -render_field 'groups'

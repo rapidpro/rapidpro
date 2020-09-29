@@ -1,0 +1,16 @@
+-extends "smartmin/users/login_base.html"
+
+-load smartmin i18n
+
+-block login-title
+  -trans "Reset Password" 
+
+-block login-content
+  -blocktrans
+    Enter the email address you used to sign up. We will
+    send you an email with details on how to reset your password.
+
+  %form.mt-8(method="post" action="{% url 'users.user_forget' %}")
+    {% csrf_token %}
+    %temba-textinput(type="email" name="email" required="" placeholder='{{_("Email Address")|escapejs}}')
+    %input.mt-4.button-primary(type="submit" value='{{_("Reset Password")}}')

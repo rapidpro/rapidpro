@@ -1,23 +1,24 @@
 -extends "smartmin/list.html"
 -load compress temba
 
--block above-bar
-  %a.btn.btn-primary{ style:"float:right; margin-left:10px", href:"{% url 'orgs.topup_create' %}?org={{ org.id }}" } Add TopUp
-  %a.btn.btn-primary{ style:"float:right; margin-left:10px", href:"{% url 'orgs.org_update' org.id %}" } Workspace
+-block title
+  .page-title
+    {{ org.name }} TopUps
 
--block extra-less
+-block table-controls
+  .flex.justify-end.mb-4
+    %a.button.button-primary{ style:"float:right; margin-left:10px", href:"{% url 'orgs.topup_create' %}?org={{ org.id }}" } Add TopUp
+    %a.button.button-primary{ style:"float:right; margin-left:10px", href:"{% url 'orgs.org_update' org.id %}" } Workspace
+
+-block extra-style
   {{block.super}}
-  -compress css
-    {% lessblock %}
-      :plain
-        th.header-credits {
-          text-align: right;
-        }
+  :css
+    #header-credits {
+      text-align: right !important;
+    }
 
-        td.value-credits {
-          text-align: right;
-          font-size:22px;
-          font-weight:100;
-        }
-    {% endlessblock %}
-
+    td.value-credits {
+      text-align: right;
+      font-size:18px;
+      font-weight:100;
+    }

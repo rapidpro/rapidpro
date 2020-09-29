@@ -8,6 +8,7 @@ import polib
 
 parser = argparse.ArgumentParser(description="Code checks")
 parser.add_argument("--skip-compilemessages", action="store_true")
+parser.add_argument("--skip-flake", action="store_true")
 parser.add_argument("--debug", action="store_true")
 args = parser.parse_args()
 
@@ -73,8 +74,9 @@ if __name__ == "__main__":
     status("Running black")
     cmd("black --line-length=119 --target-version=py36 temba")
 
-    status("Running flake8")
-    cmd("flake8")
+    if not args.skip_flake:
+        status("Running flake8")
+        cmd("flake8")
 
     status("Running isort")
     cmd("isort -rc temba")

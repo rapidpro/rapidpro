@@ -274,7 +274,22 @@ class WhatsAppTypeTest(TembaTest):
                 "category": "ISSUE_RESOLUTION",
                 "id": "9014"
               },
-
+              {
+                "name": "missing_text_component",
+                "components" : [
+                  {
+                    "type": "HEADER",
+                    "format": "IMAGE",
+                    "example": {
+                      "header_handle": ["FOO"]
+                    }
+                  }
+                ],
+                "language": "en",
+                "status": "APPROVED",
+                "category": "ISSUE_RESOLUTION",
+                "id": "1235"
+              },
               {
                 "name": "invalid_component",
                 "components": [
