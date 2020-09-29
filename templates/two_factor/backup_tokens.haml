@@ -5,6 +5,7 @@
   span8
 
 - block form-buttons
-    {{block.super}}
-    %a.btn.btn-primary{href: '{% url "two_factor.token" %}'}
+    {{ block.super }}
+    %br
+    %a.button-primary{href: '{% url "two_factor.token" %}'}
         -trans "Back"
