@@ -6,7 +6,7 @@ from django.db import migrations
 from django.utils import timezone
 
 
-def fail_msg_without_topup(apps, schema_editor):
+def fail_msg_without_topup(apps, schema_editor):  # pragma: no cover
     Msg = apps.get_model("msgs", "Msg")
 
     now = timezone.now()
