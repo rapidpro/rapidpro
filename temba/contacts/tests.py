@@ -370,11 +370,11 @@ class ContactCRUDLTest(TembaTest):
 
     @mock_mailroom
     def test_read(self, mr_mocks):
-        self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe")
+        joe = self.create_contact("Joe", phone="123")
         other_org_contact = self.create_contact("Hans", phone="+593979123456", org=self.org2)
 
-        read_url = reverse("contacts.contact_read", args=[self.joe.uuid])
-        block_url = reverse("contacts.contact_block", args=[self.joe.id])
+        read_url = reverse("contacts.contact_read", args=[joe.uuid])
+        block_url = reverse("contacts.contact_block", args=[joe.id])
 
         response = self.client.get(read_url)
         self.assertLoginRedirect(response)
@@ -396,16 +396,16 @@ class ContactCRUDLTest(TembaTest):
         self.assertContains(response, block_url)
 
         # and that it works
-        self.client.post(block_url, dict(id=self.joe.id))
-        self.assertTrue(Contact.objects.get(pk=self.joe.id, status="B"))
+        self.client.post(block_url, dict(id=joe.id))
+        self.assertTrue(Contact.objects.get(pk=joe.id, status="B"))
 
         # try unblocking now
         response = self.client.get(read_url)
-        restore_url = reverse("contacts.contact_restore", args=[self.joe.id])
+        restore_url = reverse("contacts.contact_restore", args=[joe.id])
         self.assertContains(response, restore_url)
 
-        self.client.post(restore_url, dict(id=self.joe.id))
-        self.assertTrue(Contact.objects.get(pk=self.joe.id, status="A"))
+        self.client.post(restore_url, dict(id=joe.id))
+        self.assertTrue(Contact.objects.get(pk=joe.id, status="A"))
 
         # can't block contacts from other orgs
         response = self.client.post(reverse("contacts.contact_block", args=[other_org_contact.id]))
@@ -425,7 +425,7 @@ class ContactCRUDLTest(TembaTest):
         other_org_contact.refresh_from_db()
         self.assertEqual(Contact.STATUS_BLOCKED, other_org_contact.status)
 
-        delete_url = reverse("contacts.contact_archive", args=[self.joe.id])
+        delete_url = reverse("contacts.contact_archive", args=[joe.id])
 
         response = self.client.get(read_url)
 
@@ -433,14 +433,14 @@ class ContactCRUDLTest(TembaTest):
         self.assertContains(response, delete_url)
 
         # unstop option available for stopped contacts
-        self.joe.stop(self.user)
+        joe.stop(self.user)
         response = self.client.get(read_url)
 
         self.assertContains(response, restore_url)
         self.assertContains(response, delete_url)
 
         # can't access a deleted contact
-        self.joe.release(self.admin)
+        joe.release(self.admin)
 
         response = self.client.get(read_url)
         self.assertEqual(response.status_code, 404)
@@ -960,7 +960,7 @@ class ContactGroupCRUDLTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe Blow")
+        self.joe = self.create_contact("Joe Blow", phone="123")
         self.frank = self.create_contact("Frank Smith", urns=["tel:1234", "twitter:hola"])
 
         self.joe_and_frank = self.create_group("Customers", [self.joe, self.frank])
