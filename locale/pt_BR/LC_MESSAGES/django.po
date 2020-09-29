@@ -2,7 +2,7 @@
 # Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-# 
+#
 # Translators:
 # pericles ilha <pericles.terto@ilhasoft.com.br>, 2019
 # Nathallia Salvador <nathallia.salvador@ilhasoft.com.br>, 2019
@@ -10,7 +10,7 @@
 # Nyaruka <info@textit.in>, 2020
 # Paulo Bernardo <paulo.bernardo@ilhasoft.com.br>, 2020
 # Matheus Soares <matheus.soares@ilhasoft.com.br>, 2020
-# 
+#
 #, fuzzy
 msgid ""
 msgstr ""
