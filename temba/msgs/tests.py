@@ -350,7 +350,7 @@ class MsgTest(TembaTest):
     def test_outbox(self):
         self.login(self.admin)
 
-        contact, urn_obj = Contact.get_or_create(self.channel.org, "tel:250788382382", user=self.admin)
+        contact = self.create_contact("", phone="250788382382")
         broadcast1 = self.create_broadcast(self.admin, "How is it going?", contacts=[contact])
 
         # put messages back into pending state
@@ -1898,7 +1898,7 @@ class BroadcastTest(TembaTest):
         )
 
     def test_get_recipient_counts(self):
-        contact, urn_obj = Contact.get_or_create(self.channel.org, "tel:250788382382", user=self.admin)
+        contact = self.create_contact("", phone="250788382382")
 
         broadcast1 = self.create_broadcast(
             self.user, "Very old broadcast", groups=[self.joe_and_frank], contacts=[self.kevin, self.lucy]
@@ -1934,7 +1934,7 @@ class BroadcastTest(TembaTest):
             base_language="eng",
             groups=[],
             contacts=[],
-            urns=[urn_obj],
+            urns=[contact.urns.get()],
             schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
         )
         self.assertEqual({"recipients": 1, "groups": 0, "contacts": 0, "urns": 0}, broadcast4.get_recipient_counts())
@@ -2264,8 +2264,8 @@ class BroadcastCRUDLTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe Blow")
-        self.frank, urn_obj = Contact.get_or_create(self.org, "tel:1234", user=self.user, name="Frank Blow")
+        self.joe = self.create_contact("Joe Blow", phone="123")
+        self.frank = self.create_contact("Frank Blow", phone="1234")
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
     def test_send(self):
