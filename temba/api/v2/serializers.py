@@ -984,6 +984,7 @@ class FlowStartReadSerializer(ReadSerializer):
     status = serializers.SerializerMethodField()
     groups = fields.ContactGroupField(many=True)
     contacts = fields.ContactField(many=True)
+    urns = serializers.SerializerMethodField()
     extra = serializers.JSONField(required=False)
     params = serializers.JSONField(required=False, source="extra")
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
@@ -991,6 +992,12 @@ class FlowStartReadSerializer(ReadSerializer):
 
     def get_status(self, obj):
         return FlowStartReadSerializer.STATUSES.get(obj.status)
+
+    def get_urns(self, obj):
+        if self.context["org"].is_anon:
+            return None
+        else:
+            return obj.urns or []
 
     class Meta:
         model = FlowStart
@@ -1001,6 +1008,7 @@ class FlowStartReadSerializer(ReadSerializer):
             "status",
             "groups",
             "contacts",
+            "urns",
             "restart_participants",
             "extra",
             "params",
@@ -1048,11 +1056,6 @@ class FlowStartWriteSerializer(WriteSerializer):
         if params:
             extra = params
 
-        # convert URNs to contacts
-        for urn in urns:
-            contact, urn_obj = Contact.get_or_create(self.context["org"], urn, user=self.context["user"])
-            contacts.append(contact)
-
         # ok, let's go create our flow start, the actual starting will happen in our view
         return FlowStart.create(
             self.validated_data["flow"],
@@ -1061,6 +1064,7 @@ class FlowStartWriteSerializer(WriteSerializer):
             restart_participants=restart_participants,
             contacts=contacts,
             groups=groups,
+            urns=urns,
             extra=extra,
         )
 
