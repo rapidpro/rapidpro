@@ -5,7 +5,7 @@ import time
 import uuid
 from decimal import Decimal
 from itertools import chain
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import iso8601
 import phonenumbers
@@ -15,6 +15,7 @@ from smartmin.csv_imports.models import ImportTask
 from smartmin.models import SmartImportRowError, SmartModel
 
 from django.conf import settings
+from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, connection, models, transaction
@@ -3114,6 +3115,63 @@ class ExportContactsTask(BaseExportTask):
                     self.save(update_fields=["modified_on"])
 
         return exporter.save_file()
+
+
+def get_import_upload_path(instance: Any, filename: str):  # pragma: no cover
+    return f"contact_imports/{instance.org_id}/{filename}"
+
+
+class ContactImport(SmartModel):
+    MAX_RECORDS = 25_000
+    BATCH_SIZE = 100
+    EXPLICIT_CLEAR = "--"
+
+    # how many sequential URNs triggers flagging
+    SEQUENTIAL_URNS_THRESHOLD = 250
+
+    STATUS_PENDING = "P"
+    STATUS_PROCESSING = "O"
+    STATUS_COMPLETE = "C"
+    STATUS_FAILED = "F"
+
+    MAPPING_IGNORE = {"type": "ignore"}
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contact_imports")
+    file = models.FileField(upload_to=get_import_upload_path)
+    original_filename = models.TextField()
+    headers = ArrayField(models.CharField(max_length=255))  # raw header values as ordered list
+    mappings = JSONField()
+    num_records = models.IntegerField()
+    group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, null=True, related_name="imports")
+    started_on = models.DateTimeField(null=True)
+
+
+class ContactImportBatch(models.Model):
+    """
+    A batch of contact records to be handled by mailroom
+    """
+
+    STATUS_CHOICES = (
+        (ContactImport.STATUS_PENDING, "Pending"),
+        (ContactImport.STATUS_PROCESSING, "Processing"),
+        (ContactImport.STATUS_COMPLETE, "Complete"),
+        (ContactImport.STATUS_FAILED, "Failed"),
+    )
+
+    contact_import = models.ForeignKey(ContactImport, on_delete=models.PROTECT, related_name="batches")
+    status = models.CharField(max_length=1, default=ContactImport.STATUS_PENDING, choices=STATUS_CHOICES)
+    specs = JSONField()
+
+    # the range of records from the entire import contained in this batch
+    record_start = models.IntegerField()
+    record_end = models.IntegerField()
+
+    # results written by mailroom after processing this batch
+    num_created = models.IntegerField(default=0)
+    num_updated = models.IntegerField(default=0)
+    num_errored = models.IntegerField(default=0)
+    errors = JSONField(default=list)
+    finished_on = models.DateTimeField(null=True)
 
 
 @register_asset_store

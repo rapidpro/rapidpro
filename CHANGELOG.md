@@ -1,3 +1,7 @@
+v5.7.52
+----------
+ * Migrations and models for new imports
+
 v5.7.51
 ----------
  * Add plan_start, calculate active contacts in plan period, add to OrgActivity
