@@ -117,14 +117,8 @@ app.controller 'FlowController', [ '$scope', '$rootScope', '$timeout', '$log', '
 
     # setting our default language
     if id == 'default_language'
-      modal = new ConfirmationModal(gettext('Default Language'), gettext('The default language for the flow is used for contacts which have no preferred language. Are you sure you want to set the default language for this flow to') + ' <span class="attn">' + Flow.language.name + "</span>?")
-      modal.addClass('warning')
-      modal.setListeners
-        onPrimary: ->
-          $scope.setBaseLanguage(Flow.language)
-      modal.show()
-
-    return false
+      $scope.setBaseLanguage(Flow.language)
+    return true
 
 
   $rootScope.activityInterval = 5000

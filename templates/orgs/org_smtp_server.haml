@@ -6,8 +6,6 @@
   .title-icon
     %span.glyph.icon-email
 
--block form-span
-
 -block title-text
   .title-text
     %h1
@@ -18,13 +16,13 @@
       Emails sent from flows will come from <b>{{from_email}}</b>.
 
 -block pre-form
-  %p
+  .mb-4
     -blocktrans with brand=brand.name
       You can configure {{ brand }} to send emails generated within flows from an email address of your choosing. <br/>
       This will let you receive replies from your recipients.
 
   -if object.has_smtp_config and request.META.HTTP_X_FORMAX
-    %p
+    .mb-4
       -blocktrans with from_email=flow_from_email
         If you no longer want to use {{ from_email }} to send emails, you can <a href='javascript:confirmSMTPRemove();'>remove your SMTP configuration</a>.
 
@@ -34,26 +32,26 @@
       .body
         -blocktrans with brand=brand.name
           Removing your SMTP configuration will result in emails being delivered from {{ brand }} that cannot be replied to. Are you sure you want to continue?
-    %a#remove-smtp-form.posterize{href:'{% url "orgs.org_smtp_server" %}?disconnect=true'}
+    
+      #remove-smtp-form{href:'{% url "orgs.org_smtp_server" %}?disconnect=true'}
 
-  %hr
+-block fields
+  -render_field 'smtp_from_email'
+
+  .flex
+    .host.flex-grow.mr-4
+      -render_field 'smtp_host'
+    .port
+      -render_field 'smtp_port'
+
+  -render_field 'smtp_username'
+  -render_field 'smtp_password'
+  -render_field 'disconnect'
+
 
 -block extra-script
   {{block.super}}
   :javascript
     function confirmSMTPRemove() {
       removalConfirmation("remove-smtp", "Remove");
-    }
-
-    $(document).ready(function() {
-      $('#id_smtp_encryption').select2({
-        containerCssClass: 'select2-smtp-encryption',
-        minimumResultsForSearch: '-1',
-      });
-    });
-
--block extra-style
-  :css
-    .select2-smtp-encryption {
-      width: 365px;
     }

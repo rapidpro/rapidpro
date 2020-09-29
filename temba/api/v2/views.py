@@ -1259,6 +1259,7 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
      * **stopped** - whether the contact is stopped, i.e. has opted out (boolean).
      * **created_on** - when this contact was created (datetime).
      * **modified_on** - when this contact was last modified (datetime), filterable as `before` and `after`.
+     * **last_seen_on** - when this contact last communicated with us (datetime).
 
     Example:
 
@@ -1283,7 +1284,8 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
                 "blocked": false,
                 "stopped": false,
                 "created_on": "2015-11-11T13:05:57.457742Z",
-                "modified_on": "2015-11-11T13:05:57.576056Z"
+                "modified_on": "2020-08-11T13:05:57.576056Z",
+                "last_seen_on": "2020-07-11T13:05:57.576056Z"
             }]
         }
 
@@ -1326,7 +1328,8 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
             "blocked": false,
             "stopped": false,
             "created_on": "2015-11-11T13:05:57.457742Z",
-            "modified_on": "2015-11-11T13:05:57.576056Z"
+            "modified_on": "2015-11-11T13:05:57.576056Z",
+            "last_seen_on": null
         }
 
     ## Updating Contacts
@@ -1521,7 +1524,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         * _block_ - Block the contacts
         * _unblock_ - Un-block the contacts
         * _interrupt_ - Interrupt and end any of the contacts' active flow runs
-        * _archive_ - Archive all of the contacts' messages
+        * _archive_messages_ - Archive all of the contacts' messages
         * _delete_ - Permanently delete the contacts
 
     * **group** - the UUID or name of a contact group (string, optional)
@@ -3437,9 +3440,11 @@ class TicketersEndpoint(ListAPIMixin, BaseAPIView):
      * **created_on** - when this ticketer was created
 
     Example:
+
         GET /api/v2/ticketers.json
 
     Response:
+
         {
             "next": null,
             "previous": null,

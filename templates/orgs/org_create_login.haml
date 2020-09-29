@@ -3,134 +3,67 @@
 -load i18n
 
 -block title
-  .title-icon
-    .glyph.icon-users{style:"float:left;"}
-  .title-text
-    %h1
-      {{title}}
+  {{title}}
 
 -block content
-  %ul.parts
-    %li
+  .formax
+    .formax-section
+      .formax-icon.bg-gray-100.flex.flex-row.items-stretch
+        .margin-wrapper
+          .i-container.icon-user
+      .formax-container.flex-grow
+        .formax-summary
+          -trans "Create new login"
+        .formax-form
+          %form#create_login-form{method:"post", encrypt:"multipart/form-data"}
+            -if form.non_field_errors
+              .alert.alert-error.form-errors
+                {{ form.non_field_errors }}
 
+            -block fields
+              %fieldset
+                .flex
+                  .first-name.flex-grow(class="w-1/2")
+                    -render_field 'first_name'
+                  .px-1
+                  .last-name.flex-grow(class="w-1/2")
+                    -render_field 'last_name'
+                .mb-2
+                  -render_field 'email'
 
-      .create_login-part
-        %h3
-          .glyph.icon-user.part-icon.create_login-part-icon
-          %span.part-text#create_login-part-text
-            -trans "Create new login"
+                -render_field 'password'
 
-      %form#create_login-form.form-horizontal.smartmin-form{method:"post", encrypt:"multipart/form-data"}
-        -if form.non_field_errors
-          .alert.alert-error.form-errors
-            {{ form.non_field_errors }}
+            -csrf_token
 
-        -block fields
-          %fieldset
-            -for field in fields
-              -render_field field
+            -block form-buttons
+              %input.button-primary{type:"submit", value:"{{submit_button_name}}"}
 
+    .formax-section
+      .formax-icon.bg-gray-100.flex.flex-row.items-stretch
+        .margin-wrapper
+          .i-container.icon-user
+      .formax-container.flex-grow
+        .formax-summary
+          -trans "Sign in"
+        .formax-form
+          %form#login-form{method:"post", action:"{% url 'users.user_login' %}?next={% url 'orgs.org_join' secret %}"}
+            %fieldset
+              .control-group
+                %temba-textinput#id_username(type="text" name="username" maxlenght="30" label="{% trans 'Email Address' %}")
 
-        -csrf_token
+              .control-group
+                %temba-textinput#id_password(type="password" name="password" label="{% trans 'Password' %}" placeholder="{% trans 'Your password, at least eight letters please' %}" password)
 
-        -block form-buttons
-          .form-actions
-            %input.btn.btn-primary{type:"submit", value:"{{submit_button_name}}"}
-            %a.btn{onclick:"javascript:history.go(-1)"}
-              -trans "Cancel"
+            -csrf_token
+            %input.button-primary{type:"submit", value:"Login"}
 
-    %li
-      .login-part
-        %h3
-          .glyph.icon-user.part-icon.login-part-icon
-          %span.part-text#login-part-text
-              -trans "Sign in"
-
-      %form#login-form.form-horizontal{method:"post", action:"{% url 'users.user_login' %}?next={% url 'orgs.org_join' secret %}"}
-        %fieldset
-          .control-group
-            %label.control-label{for:"username"}
-              -trans "Email Address"
-            .input.controls
-              %input{id:"id_username", type:"text", name:"username", maxlength:"30"}
-
-          .control-group
-            %label.control-label{for:"password"}
-              -trans "Password"
-            .input.controls
-              %input{type:"password", name:"password", id:"id_password"}
-
-        -csrf_token
-        .form-actions
-          %input.btn.btn-primary{type:"submit", value:"Login"}
 
 -block extra-script
   {{ block.super }}
   :javascript
-    $("#login-form").hide();
-    $("#create_login-form").hide();
-
-    // hide login link in the menu we have a sign in form on this page
-    $(".icon-login").hide();
-
-    $(".page-content").on('click', ".login-part", function(){
-
-      if (!$(".login-part").hasClass("expanded")) {
-        $("#login-form").show();
-        $("#create_login-form").hide();
-        $(".login-part-icon").animate({'font-size':'80px', 'width':'80px', 'height':'80px'}, 100);
-        $(".create_login-part-icon").animate({'font-size':'35px', 'width':'40px', 'height':'40px'}, 100);
-        $(".login-part").addClass("expanded");
-      } else {
-        $("#login-form").hide();
-        $(".login-part-icon").animate({'font-size':'35px', 'width':'40px', 'height':'40px'}, 100);
-        $(".login-part").removeClass("expanded");
-      }
+    $(function() {
+      $(".formax-icon, .formax-summary").on('click', function(){
+        $(this).parents(".formax-section").toggleClass('open');
+        $(this).parents(".formax-section").siblings('formax-section').removeClass('open');
+      });
     });
-
-    $(".page-content").on('click', ".create_login-part", function(){
-      if (!$(".create_login-part").hasClass("expanded")) {
-        $("#login-form").hide();
-        $("#create_login-form").show();
-        $(".create_login-part-icon").animate({'font-size':'80px', 'width':'80px', 'height':'80px'}, 100);
-        $(".login-part-icon").animate({'font-size':'35px', 'width':'40px', 'height':'40px'}, 100);
-        $(".create_login-part").addClass("expanded");
-      } else {
-        $("#create_login-form").hide();
-        $(".create_login-part-icon").animate({'font-size':'35px', 'width':'40px', 'height':'40px'}, 100);
-        $(".create_login-part").removeClass("expanded");
-      }
-    });
-  -if form.errors
-    :javascript
-      $('.create_login-part').click();
-
-
--block extra-style
-  :css
-    ul.parts > li  {
-      padding: 20px 0px;
-      min-height: 40px;
-      border-top: 1px solid #dddddd;
-    }
-
-    #create_login-form, #login-form {
-      margin-left: 70px;
-      margin-top: -35px;
-    }
-
-    .part-icon {
-      font-size: 35px;
-      widht: 40px;
-      height: 40px;
-    }
-
-    .part-icon:hover , .part-text:hover {
-      cursor: pointer;
-      color: #3498db;
-    }
-
-    .part-text {
-      line-height: 40px;
-      margin-left: 30px;
-    }

@@ -4,10 +4,11 @@ from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartLi
 
 from django import forms
 from django.conf import settings
-from django.http import HttpResponseRedirect
+from django.http import HttpResponse
 from django.urls import reverse
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.utils.fields import InputWidget
 
 from .models import Global
 
@@ -49,6 +50,10 @@ class CreateGlobalForm(forms.ModelForm):
     class Meta:
         model = Global
         fields = ("name", "value")
+        widgets = {
+            "name": InputWidget(attrs={"name": _("Name"), "widget_only": False}),
+            "value": InputWidget(attrs={"name": _("Value"), "widget_only": False}),
+        }
 
 
 class UpdateGlobalForm(forms.ModelForm):
@@ -61,6 +66,9 @@ class UpdateGlobalForm(forms.ModelForm):
     class Meta:
         model = Global
         fields = ("value",)
+        widgets = {
+            "value": InputWidget(attrs={"name": _("Value"), "widget_only": False}),
+        }
 
 
 class GlobalCRUDL(SmartCRUDL):
@@ -121,7 +129,9 @@ class GlobalCRUDL(SmartCRUDL):
 
             self.object.release()
 
-            return HttpResponseRedirect(redirect_url)
+            response = HttpResponse()
+            response["Temba-Success"] = redirect_url
+            return response
 
     class List(OrgPermsMixin, SmartListView):
         title = _("Manage Globals")

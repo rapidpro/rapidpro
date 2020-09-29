@@ -1,0 +1,60 @@
+-load humanize
+
+  .flex.min-w-full.px-2.pb-6
+  
+    .text-gray-400
+      -if not paginator or paginator.num_pages <= 1
+        {{ object_list|length }} result{% if object_list|length == 0 or object_list|length > 1 %}s{% endif %}
+      -else
+        Results {{ page_obj.start_index|intcomma }} - {{ page_obj.end_index|intcomma }} of {{ paginator.count|intcomma }}
+
+
+    .flex-grow
+      .flex.items-end.justify-end.uppercase.text-xs.font-normal.tracking-wider
+        -if paginator and paginator.num_pages > 1 
+          .mr-2
+            - if page_obj.has_previous 
+              %a{href:"{{url_params|safe}}page={{page_obj.previous_page_number}}"}
+                &larr;
+            - else 
+              %a.disabled.text-gray-300{href:"#"}
+                &larr;
+
+          - for page_num in paginator.page_range 
+            .mr-1
+              - if page_obj.number < 5 
+                - if page_num < 10 
+                  - if not page_num == page_obj.number 
+                    %a.px-1{href:"{{url_params|safe}}page={{page_num}}"}
+                      {{ page_num }}
+                  - else
+                    .active.bg-dark-alpha-50.rounded-full.px-1.leading-none.py-1.w-5.h-5.text-center{href:"#"}
+                      {{ page_num }}
+
+              - elif page_num < page_obj.number|add:"5" and page_num > page_obj.number|add:"-5" 
+                - if not page_num == page_obj.number
+                  %a{href:"{{url_params|safe}}page={{page_num}}"}
+                    {{ page_num }}
+                - else 
+                  %a.active.bg-primary{href:"#"}
+                    {{ page_num }}
+
+              - elif page_obj.number > paginator.num_pages|add:"-5"
+                - if page_num > paginator.num_pages|add:"-9"
+                  - if not page_num == page_obj.number
+                    %a{href:"{{url_params|safe}}page={{page_num}}"}
+                      {{ page_num }}
+                  - else 
+                    %a.active.bg-primary{href:"#"}
+                      {{ page_num }}
+
+          
+          - if page_obj.has_next 
+            %a{href:"{{url_params|safe}}page={{page_obj.next_page_number}}"}
+              &rarr;
+          - else 
+            %a.disabled{href:"#"}
+              &rarr;
+
+
+

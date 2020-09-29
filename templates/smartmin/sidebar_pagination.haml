@@ -1,48 +1,37 @@
 -load humanize
 
-.span3
-  .pagination.pagination-text
+.flex
+  .w-64.pagination.pagination-text
     -if not paginator or paginator.num_pages <= 1
       {{ object_list|length }} result{% if object_list|length == 0 or object_list|length > 1 %}s{% endif %}
     -else
       Results {{ page_obj.start_index|intcomma }} - {{ page_obj.end_index|intcomma }} of {{ paginator.count|intcomma }}
-.span9
-  - if paginator and paginator.num_pages > 1 
-    .pagination.pagination-right
-      %ul
-        - if page_obj.has_previous 
-          %li.prev
-            %a{href:"{{url_params|safe}}page={{page_obj.previous_page_number}}"}
-              &larr; Previous
-        - else 
-          %li.prev.disabled
-            %a{href:"#"}
-              &larr; Previous
+  .flex-grow
+    - if paginator and paginator.num_pages > 1 
+      .pagination.pagination-right
+        %ul
+          - if page_obj.has_previous 
+            %li.prev
+              %a{href:"{{url_params|safe}}page={{page_obj.previous_page_number}}"}
+                &larr; Previous
+          - else 
+            %li.prev.disabled
+              %a{href:"#"}
+                &larr; Previous
 
-        - for page_num in paginator.page_range 
-          - if page_obj.number < 5 
-            - if page_num < 10 
-              - if not page_num == page_obj.number 
-                %li
-                  %a{href:"{{url_params|safe}}page={{page_num}}"}
-                    {{ page_num }}
-              - else
-                %li.active
-                  %a{href:"#"}
-                    {{ page_num }}
+          - for page_num in paginator.page_range 
+            - if page_obj.number < 5 
+              - if page_num < 10 
+                - if not page_num == page_obj.number 
+                  %li
+                    %a{href:"{{url_params|safe}}page={{page_num}}"}
+                      {{ page_num }}
+                - else
+                  %li.active
+                    %a{href:"#"}
+                      {{ page_num }}
 
-          - elif page_num < page_obj.number|add:"5" and page_num > page_obj.number|add:"-5" 
-            - if not page_num == page_obj.number
-              %li
-                %a{href:"{{url_params|safe}}page={{page_num}}"}
-                  {{ page_num }}
-            - else 
-              %li.active
-                %a{href:"#"}
-                  {{ page_num }}
-
-          - elif page_obj.number > paginator.num_pages|add:"-5"
-            - if page_num > paginator.num_pages|add:"-9"
+            - elif page_num < page_obj.number|add:"5" and page_num > page_obj.number|add:"-5" 
               - if not page_num == page_obj.number
                 %li
                   %a{href:"{{url_params|safe}}page={{page_num}}"}
@@ -52,15 +41,26 @@
                   %a{href:"#"}
                     {{ page_num }}
 
-        
-        - if page_obj.has_next 
-          %li.next
-            %a{href:"{{url_params|safe}}page={{page_obj.next_page_number}}"}
-              Next &rarr;
-        - else 
-          %li.next.disabled
-            %a{href:"#"}
-              Next &rarr;
+            - elif page_obj.number > paginator.num_pages|add:"-5"
+              - if page_num > paginator.num_pages|add:"-9"
+                - if not page_num == page_obj.number
+                  %li
+                    %a{href:"{{url_params|safe}}page={{page_num}}"}
+                      {{ page_num }}
+                - else 
+                  %li.active
+                    %a{href:"#"}
+                      {{ page_num }}
+
+          
+          - if page_obj.has_next 
+            %li.next
+              %a{href:"{{url_params|safe}}page={{page_obj.next_page_number}}"}
+                Next &rarr;
+          - else 
+            %li.next.disabled
+              %a{href:"#"}
+                Next &rarr;
 
 
 

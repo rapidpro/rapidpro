@@ -2,23 +2,17 @@
 -load smartmin i18n humanize
 
 
--block extra-style
-  :css
-    #id-topups .formax-summary {
-      padding-top: 0px;
-    }
-
 -block summary
 
   -with user_org.get_credits_remaining as credits
     -if credits < 500
       .errored
         -trans "You have"
-        %span.attn {{ credits|intcomma }}
+        %b {{ credits|intcomma }}
         -trans "credits remaining."
     -else
       -trans "You have"
-      %span.attn {{ credits|intcomma }}
+      %b {{ credits|intcomma }}
       -trans "credits remaining."
 
   .extra

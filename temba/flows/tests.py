@@ -201,7 +201,8 @@ class FlowTest(TembaTest):
 
         # should have a list of four flows for our appointment schedule
         response = self.client.get(reverse("flows.flow_list"))
-        self.assertContains(response, "Appointment Schedule (4)")
+        self.assertContains(response, "Appointment Schedule")
+        self.assertEqual(4, response.context["campaigns"][0]["count"])
 
         campaign = Campaign.objects.filter(name="Appointment Schedule").first()
         self.assertIsNotNone(campaign)
@@ -1573,7 +1574,7 @@ class FlowTest(TembaTest):
             reverse("flows.flow_create"),
             {
                 "name": "Flow #1",
-                "keyword_triggers": "toooooooooooooolong,test",
+                "keyword_triggers": ["toooooooooooooolong", "test"],
                 "flow_type": Flow.TYPE_MESSAGE,
                 "expires_after_minutes": 60 * 12,
             },
@@ -1592,7 +1593,7 @@ class FlowTest(TembaTest):
             reverse("flows.flow_create"),
             {
                 "name": "Flow #1",
-                "keyword_triggers": "testing, test",
+                "keyword_triggers": ["testing", "test"],
                 "flow_type": Flow.TYPE_MESSAGE,
                 "expires_after_minutes": 60 * 12,
             },
@@ -1608,7 +1609,7 @@ class FlowTest(TembaTest):
             reverse("flows.flow_create"),
             {
                 "name": "Survey Flow",
-                "keyword_triggers": "notallowed",
+                "keyword_triggers": ["notallowed"],
                 "flow_type": Flow.TYPE_SURVEY,
                 "expires_after_minutes": 60 * 12,
             },
@@ -1652,7 +1653,7 @@ class FlowTest(TembaTest):
             reverse("flows.flow_update", args=[flow.id]),
             {
                 "name": "Flow With Keyword Triggers",
-                "keyword_triggers": "it,changes,everything",
+                "keyword_triggers": ["it", "changes", "everything"],
                 "expires_after_minutes": 60 * 12,
                 "base_language": "base",
             },
@@ -1711,15 +1712,14 @@ class FlowTest(TembaTest):
         # update flow triggers
         post_data = dict()
         post_data["name"] = "Flow With Keyword Triggers"
-        post_data["keyword_triggers"] = "it,join"
+        post_data["keyword_triggers"] = ["it", "join"]
         post_data["expires_after_minutes"] = 60 * 12
         post_data["base_language"] = "base"
         response = self.client.post(reverse("flows.flow_update", args=[flow.pk]), post_data, follow=True)
 
         flow_with_keywords = Flow.objects.get(name=post_data["name"])
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_list"))
-        self.assertTrue(flow_with_keywords in response.context["object_list"].all())
+        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor_next", args=[flow.uuid]))
         self.assertEqual(flow_with_keywords.triggers.count(), 8)
         self.assertEqual(flow_with_keywords.triggers.filter(is_archived=True).count(), 2)
         self.assertEqual(
@@ -2504,7 +2504,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # test flows with triggers
         # create a new flow with one unformatted keyword
-        post_data = {"name": "Flow With Unformated Keyword Triggers", "keyword_triggers": "this is,it"}
+        post_data = {"name": "Flow With Unformated Keyword Triggers", "keyword_triggers": ["this is", "it"]}
         response = self.client.post(reverse("flows.flow_create"), post_data)
         self.assertFormError(
             response,
@@ -2514,7 +2514,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # create a new flow with one existing keyword
-        post_data = {"name": "Flow With Existing Keyword Triggers", "keyword_triggers": "this,is,unique"}
+        post_data = {"name": "Flow With Existing Keyword Triggers", "keyword_triggers": ["this", "is", "unique"]}
         response = self.client.post(reverse("flows.flow_create"), post_data)
         self.assertFormError(
             response, "form", "keyword_triggers", 'The keyword "unique" is already used for another flow'
@@ -2534,7 +2534,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # create a new flow with keywords
         post_data = {
             "name": "Flow With Good Keyword Triggers",
-            "keyword_triggers": "this,is,it",
+            "keyword_triggers": ["this", "is", "it"],
             "flow_type": Flow.TYPE_MESSAGE,
             "expires_after_minutes": 30,
         }
@@ -2618,14 +2618,13 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         post_data = dict()
         post_data["name"] = "Flow With Keyword Triggers"
-        post_data["keyword_triggers"] = "it,changes,everything"
+        post_data["keyword_triggers"] = ["it", "changes", "everything"]
         post_data["expires_after_minutes"] = 60 * 12
         response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data, follow=True)
 
         flow3 = Flow.objects.get(name=post_data["name"])
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_list"))
-        self.assertTrue(flow3 in response.context["object_list"].all())
+        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor_next", args=[flow3.uuid]))
         self.assertEqual(flow3.triggers.count(), 5)
         self.assertEqual(flow3.triggers.filter(is_archived=True).count(), 2)
         self.assertEqual(flow3.triggers.filter(is_archived=False).count(), 3)
@@ -2637,11 +2636,11 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(response.context["form"].errors)
 
         # update flow with unformated keyword
-        post_data["keyword_triggers"] = "it,changes,everything,unique"
+        post_data["keyword_triggers"] = ["it", "changes", "everything", "unique"]
         response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data)
         self.assertTrue(response.context["form"].errors)
         response = self.client.get(reverse("flows.flow_update", args=[flow3.pk]))
-        self.assertEqual(response.context["form"].fields["keyword_triggers"].initial, "it,changes,everything")
+        self.assertEqual(response.context["form"].fields["keyword_triggers"].initial, ["it", "changes", "everything"])
         self.assertEqual(flow3.triggers.filter(is_archived=False).count(), 3)
         self.assertEqual(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 0)
         trigger = Trigger.objects.get(keyword="everything", flow=flow3)
@@ -2651,7 +2650,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 1)
         self.assertEqual(flow3.triggers.filter(is_archived=False).exclude(groups=None)[0].keyword, "everything")
         response = self.client.get(reverse("flows.flow_update", args=[flow3.pk]))
-        self.assertEqual(response.context["form"].fields["keyword_triggers"].initial, "it,changes")
+        self.assertEqual(response.context["form"].fields["keyword_triggers"].initial, ["it", "changes"])
         self.assertNotContains(response, "contact_creation")
         self.assertEqual(flow3.triggers.filter(is_archived=False).count(), 3)
         self.assertEqual(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 1)
