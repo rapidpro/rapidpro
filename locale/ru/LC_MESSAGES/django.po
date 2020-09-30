@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-22 21:23+0000\n"
+"POT-Creation-Date: 2020-09-30 20:31+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3591,191 +3591,8 @@ msgstr "Не удалось отправить"
 msgid "Resent message"
 msgstr "Повторно отправленное сообщение"
 
-msgid "The org this broadcast is connected to"
-msgstr "Организация, с которой связана эта рассылка "
-
-msgid "The groups to send the message to"
-msgstr "Группы, которым нужно отправить сообщение"
-
-msgid "Individual contacts included in this message"
-msgstr "Отдельные контакты, включенные в данное сообщение"
-
-msgid "Individual URNs included in this message"
-msgstr "Отдельные названия URN, включенные в данное сообщение"
-
-msgid "Channel to use for message sending"
-msgstr "Канал, используемый для отправки сообщений"
-
-msgid "Status"
-msgstr "Состояние"
-
-msgid "The current status for this broadcast"
-msgstr "Текущее состояние этой рассылки"
-
-msgid "Schedule"
-msgstr "Расписание"
-
-msgid "Our recurring schedule if we have one"
-msgstr "Наше повторяющиеся расписание, если у нас таковое имеется"
-
-msgid "Translations"
-msgstr "Переводы"
-
-msgid "The localized versions of the message text"
-msgstr "Локализованные версии текста сообщения"
-
-msgid "The language used to send this to contacts without a language"
-msgstr "Язык, используемый для рассылки контактам без указания языка"
-
 msgid "When this broadcast was created"
 msgstr "Когда была создана эта рассылка"
-
-msgid "Media"
-msgstr "Мультимедиа"
-
-msgid "The localized versions of the media"
-msgstr "Локализованные версии мультимедиа"
-
-msgid "The metadata for messages of this broadcast"
-msgstr "Метаданные для сообщений этой рассылки"
-
-msgid "Visible"
-msgstr "Видимо"
-
-msgid "Deleted"
-msgstr "Удалено"
-
-msgid "Incoming"
-msgstr "Входящий"
-
-msgid "Outgoing"
-msgstr "Исходящий"
-
-msgid "Inbox Message"
-msgstr "Входящее Сообщение"
-
-msgid "Flow Message"
-msgstr "Сообщение Потока"
-
-msgid "IVR Message"
-msgstr "Сообщение ИРВ"
-
-msgid "USSD Message"
-msgstr "Сообщение USSD"
-
-msgid "The UUID for this message"
-msgstr "UUID этого сообщения"
-
-msgid "The org this message is connected to"
-msgstr "Организация, с которой связано это сообщение"
-
-msgid "The channel object that this message is associated with"
-msgstr "Объект канала, с которым связано это сообщение"
-
-msgid "The contact this message is communicating with"
-msgstr "Контакт, с которым взаимодействует это сообщение"
-
-msgid "Contact URN"
-msgstr "URN Контакта"
-
-msgid "The URN this message is communicating with"
-msgstr "URN, с которым взаимодействует это сообщение"
-
-msgid "Broadcast"
-msgstr "Рассылка"
-
-msgid "If this message was sent to more than one recipient"
-msgstr "Если это сообщение было отправлено более чем одному получателю"
-
-msgid "Text"
-msgstr "Текст"
-
-msgid "The actual message content that was sent"
-msgstr "Фактическое содержание отправленного сообщения"
-
-msgid "Give this message higher priority than other messages"
-msgstr "Предоставить этому сообщению более высокий приоритет по сравнению с другими сообщениями"
-
-msgid "When this message was created"
-msgstr "Когда было создано это сообщение"
-
-msgid "Modified On"
-msgstr "Изменено"
-
-msgid "When this message was last modified"
-msgstr "Когда это сообщение было последний раз изменено"
-
-msgid "Sent On"
-msgstr "Отправлено"
-
-msgid "When this message was sent to the endpoint"
-msgstr "Когда это сообщение было направлено на конечную точку"
-
-msgid "Queued On"
-msgstr "Поставлено в очередь"
-
-msgid "When this message was queued to be sent or handled."
-msgstr "Когда это сообщение было поставлено в очередь на отправку или обработано."
-
-msgid "Direction"
-msgstr "Направление"
-
-msgid "The direction for this message, either incoming or outgoing"
-msgstr "Направление для этого сообщения, либо входящее, либо исходящее"
-
-msgid "The current status for this message"
-msgstr "Текущее состояние этого сообщения"
-
-msgid "Response To"
-msgstr "Ответ на"
-
-msgid "The message that this message is in reply to"
-msgstr "Сообщение, на которое отвечает это сообщение"
-
-msgid "Any labels on this message"
-msgstr "Любые метки по данному сообщению"
-
-msgid "Visibility"
-msgstr "Видимость"
-
-msgid "The current visibility of this message, either visible, archived or deleted"
-msgstr "Текущая видимость сообщения, видимо, архивировано или удалено"
-
-msgid "Message Type"
-msgstr "Тип Сообщения"
-
-msgid "The type of this message"
-msgstr "Тип данного сообщения"
-
-msgid "Message Count"
-msgstr "Количество Сообщений"
-
-msgid "The number of messages that were used to send this message, calculated on Twilio channels"
-msgstr "Количество сообщений, которые были использованы для отправки этого сообщения, рассчитанные по каналам Twilio "
-
-msgid "The number of times this message has errored"
-msgstr "Количество раз, когда возникала ошибка по этому сообщению"
-
-msgid "When we should next attempt to deliver this message"
-msgstr "Когда мы должны предпринять следующую попытку доставить это сообщение"
-
-msgid "External ID"
-msgstr "Внешний ID"
-
-msgid "External id used for integrating with callbacks from other APIs"
-msgstr "Внешний ID, используемый для интеграции с обратными вызовами от других API"
-
-msgid "The media attachments on this message if any"
-msgstr "Мультимедийные приложения к этому сообщению, если имеются"
-
-msgid "The session this message was a part of if any"
-msgstr "Сессия, частью которой было это сообщение, если имеется"
-
-msgid "The metadata for this msg"
-msgstr "Метаданные для данного сообщения"
-
-msgid "Why the message is being deleted"
-msgstr "Почему сообщение удаляется"
 
 msgid "Whether this count is for archived messages"
 msgstr "Будет ли этот подсчет проводиться для архивированных сообщений"
@@ -4955,6 +4772,9 @@ msgstr "Группы, которым нужно разослать поток"
 msgid "Individual contacts to broadcast the flow to"
 msgstr "Отдельные контакты, которым нужно рассылать поток"
 
+msgid "Schedule"
+msgstr "Расписание"
+
 msgid "Our recurring schedule"
 msgstr "Наше повторяющиеся расписание"
 
@@ -5127,6 +4947,9 @@ msgstr ", "
 msgid "An error occurred while making your changes. Please try again."
 msgstr "При обновлении Вашего контакта произошла ошибка. Пожалуйста, попробуйте позже."
 
+msgid "Text"
+msgstr "Текст"
+
 msgid "Date & Time"
 msgstr "Дата и Время"
 
@@ -5168,6 +4991,9 @@ msgstr "Просмотреть документацию полностью"
 #| msgid "Webhook Log"
 msgid "Webhook Calls"
 msgstr "Журнал Вебхука"
+
+msgid "Status"
+msgstr "Состояние"
 
 msgid "Elapsed"
 msgstr "Прошло"
@@ -5452,6 +5278,12 @@ msgstr "Исходящие Сообщения ИРВ"
 msgid "Synced on"
 msgstr "Синхронизировано на"
 
+msgid "Incoming"
+msgstr "Входящий"
+
+msgid "Outgoing"
+msgstr "Исходящий"
+
 msgid "Retry"
 msgstr "Повторить"
 
@@ -5516,6 +5348,9 @@ msgstr "Журнал Сообщений"
 #| msgid "Recipients"
 msgid "Recipient"
 msgstr "Получатели"
+
+msgid "Direction"
+msgstr "Направление"
 
 #, fuzzy
 #| msgid "Expiration Date"
@@ -7155,6 +6990,9 @@ msgstr "Классификатор"
 #| msgid "Intents Synced"
 msgid "Intent"
 msgstr "Намерения синхронизированы"
+
+msgid "External ID"
+msgstr "Внешний ID"
 
 msgid "No synced intents at this time."
 msgstr "На данный момент синхронизированные намерения отсутствуют."
@@ -11894,6 +11732,168 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "The org this broadcast is connected to"
+#~ msgstr "Организация, с которой связана эта рассылка "
+
+#~ msgid "The groups to send the message to"
+#~ msgstr "Группы, которым нужно отправить сообщение"
+
+#~ msgid "Individual contacts included in this message"
+#~ msgstr "Отдельные контакты, включенные в данное сообщение"
+
+#~ msgid "Individual URNs included in this message"
+#~ msgstr "Отдельные названия URN, включенные в данное сообщение"
+
+#~ msgid "Channel to use for message sending"
+#~ msgstr "Канал, используемый для отправки сообщений"
+
+#~ msgid "The current status for this broadcast"
+#~ msgstr "Текущее состояние этой рассылки"
+
+#~ msgid "Our recurring schedule if we have one"
+#~ msgstr "Наше повторяющиеся расписание, если у нас таковое имеется"
+
+#~ msgid "Translations"
+#~ msgstr "Переводы"
+
+#~ msgid "The localized versions of the message text"
+#~ msgstr "Локализованные версии текста сообщения"
+
+#~ msgid "The language used to send this to contacts without a language"
+#~ msgstr "Язык, используемый для рассылки контактам без указания языка"
+
+#~ msgid "Media"
+#~ msgstr "Мультимедиа"
+
+#~ msgid "The localized versions of the media"
+#~ msgstr "Локализованные версии мультимедиа"
+
+#~ msgid "The metadata for messages of this broadcast"
+#~ msgstr "Метаданные для сообщений этой рассылки"
+
+#~ msgid "Visible"
+#~ msgstr "Видимо"
+
+#~ msgid "Deleted"
+#~ msgstr "Удалено"
+
+#~ msgid "Inbox Message"
+#~ msgstr "Входящее Сообщение"
+
+#~ msgid "Flow Message"
+#~ msgstr "Сообщение Потока"
+
+#~ msgid "IVR Message"
+#~ msgstr "Сообщение ИРВ"
+
+#~ msgid "USSD Message"
+#~ msgstr "Сообщение USSD"
+
+#~ msgid "The UUID for this message"
+#~ msgstr "UUID этого сообщения"
+
+#~ msgid "The org this message is connected to"
+#~ msgstr "Организация, с которой связано это сообщение"
+
+#~ msgid "The channel object that this message is associated with"
+#~ msgstr "Объект канала, с которым связано это сообщение"
+
+#~ msgid "The contact this message is communicating with"
+#~ msgstr "Контакт, с которым взаимодействует это сообщение"
+
+#~ msgid "Contact URN"
+#~ msgstr "URN Контакта"
+
+#~ msgid "The URN this message is communicating with"
+#~ msgstr "URN, с которым взаимодействует это сообщение"
+
+#~ msgid "Broadcast"
+#~ msgstr "Рассылка"
+
+#~ msgid "If this message was sent to more than one recipient"
+#~ msgstr "Если это сообщение было отправлено более чем одному получателю"
+
+#~ msgid "The actual message content that was sent"
+#~ msgstr "Фактическое содержание отправленного сообщения"
+
+#~ msgid "Give this message higher priority than other messages"
+#~ msgstr "Предоставить этому сообщению более высокий приоритет по сравнению с другими сообщениями"
+
+#~ msgid "When this message was created"
+#~ msgstr "Когда было создано это сообщение"
+
+#~ msgid "Modified On"
+#~ msgstr "Изменено"
+
+#~ msgid "When this message was last modified"
+#~ msgstr "Когда это сообщение было последний раз изменено"
+
+#~ msgid "Sent On"
+#~ msgstr "Отправлено"
+
+#~ msgid "When this message was sent to the endpoint"
+#~ msgstr "Когда это сообщение было направлено на конечную точку"
+
+#~ msgid "Queued On"
+#~ msgstr "Поставлено в очередь"
+
+#~ msgid "When this message was queued to be sent or handled."
+#~ msgstr "Когда это сообщение было поставлено в очередь на отправку или обработано."
+
+#~ msgid "The direction for this message, either incoming or outgoing"
+#~ msgstr "Направление для этого сообщения, либо входящее, либо исходящее"
+
+#~ msgid "The current status for this message"
+#~ msgstr "Текущее состояние этого сообщения"
+
+#~ msgid "Response To"
+#~ msgstr "Ответ на"
+
+#~ msgid "The message that this message is in reply to"
+#~ msgstr "Сообщение, на которое отвечает это сообщение"
+
+#~ msgid "Any labels on this message"
+#~ msgstr "Любые метки по данному сообщению"
+
+#~ msgid "Visibility"
+#~ msgstr "Видимость"
+
+#~ msgid "The current visibility of this message, either visible, archived or deleted"
+#~ msgstr "Текущая видимость сообщения, видимо, архивировано или удалено"
+
+#~ msgid "Message Type"
+#~ msgstr "Тип Сообщения"
+
+#~ msgid "The type of this message"
+#~ msgstr "Тип данного сообщения"
+
+#~ msgid "Message Count"
+#~ msgstr "Количество Сообщений"
+
+#~ msgid "The number of messages that were used to send this message, calculated on Twilio channels"
+#~ msgstr "Количество сообщений, которые были использованы для отправки этого сообщения, рассчитанные по каналам Twilio "
+
+#~ msgid "The number of times this message has errored"
+#~ msgstr "Количество раз, когда возникала ошибка по этому сообщению"
+
+#~ msgid "When we should next attempt to deliver this message"
+#~ msgstr "Когда мы должны предпринять следующую попытку доставить это сообщение"
+
+#~ msgid "External id used for integrating with callbacks from other APIs"
+#~ msgstr "Внешний ID, используемый для интеграции с обратными вызовами от других API"
+
+#~ msgid "The media attachments on this message if any"
+#~ msgstr "Мультимедийные приложения к этому сообщению, если имеются"
+
+#~ msgid "The session this message was a part of if any"
+#~ msgstr "Сессия, частью которой было это сообщение, если имеется"
+
+#~ msgid "The metadata for this msg"
+#~ msgstr "Метаданные для данного сообщения"
+
+#~ msgid "Why the message is being deleted"
+#~ msgstr "Почему сообщение удаляется"
 
 #~ msgid "Provided URNs belong to different existing contacts"
 #~ msgstr "Предоставленные URN принадлежат различным существующим контактам"

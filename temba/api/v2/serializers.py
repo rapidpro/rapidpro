@@ -1048,11 +1048,6 @@ class FlowStartWriteSerializer(WriteSerializer):
         if params:
             extra = params
 
-        # convert URNs to contacts
-        for urn in urns:
-            contact, urn_obj = Contact.get_or_create(self.context["org"], urn, user=self.context["user"])
-            contacts.append(contact)
-
         # ok, let's go create our flow start, the actual starting will happen in our view
         return FlowStart.create(
             self.validated_data["flow"],
@@ -1061,6 +1056,7 @@ class FlowStartWriteSerializer(WriteSerializer):
             restart_participants=restart_participants,
             contacts=contacts,
             groups=groups,
+            urns=urns,
             extra=extra,
         )
 

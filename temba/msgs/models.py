@@ -97,71 +97,30 @@ class Broadcast(models.Model):
     METADATA_QUICK_REPLIES = "quick_replies"
     METADATA_TEMPLATE_STATE = "template_state"
 
-    org = models.ForeignKey(
-        Org, on_delete=models.PROTECT, verbose_name=_("Org"), help_text=_("The org this broadcast is connected to")
-    )
+    org = models.ForeignKey(Org, on_delete=models.PROTECT)
 
-    groups = models.ManyToManyField(
-        ContactGroup,
-        verbose_name=_("Groups"),
-        related_name="addressed_broadcasts",
-        help_text=_("The groups to send the message to"),
-    )
+    # recipients of this broadcast
+    groups = models.ManyToManyField(ContactGroup, related_name="addressed_broadcasts")
+    contacts = models.ManyToManyField(Contact, related_name="addressed_broadcasts")
+    urns = models.ManyToManyField(ContactURN, related_name="addressed_broadcasts")
 
-    contacts = models.ManyToManyField(
-        Contact,
-        verbose_name=_("Contacts"),
-        related_name="addressed_broadcasts",
-        help_text=_("Individual contacts included in this message"),
-    )
+    # message content
+    text = TranslatableField(max_length=MAX_TEXT_LEN)
+    media = TranslatableField(max_length=2048, null=True)
 
-    urns = models.ManyToManyField(
-        ContactURN,
-        verbose_name=_("URNs"),
-        related_name="addressed_broadcasts",
-        help_text=_("Individual URNs included in this message"),
-    )
+    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True)
 
-    channel = models.ForeignKey(
-        Channel,
-        on_delete=models.PROTECT,
-        null=True,
-        verbose_name=_("Channel"),
-        help_text=_("Channel to use for message sending"),
-    )
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=INITIALIZING)
 
-    status = models.CharField(
-        max_length=1,
-        verbose_name=_("Status"),
-        choices=STATUS_CHOICES,
-        default=INITIALIZING,
-        help_text=_("The current status for this broadcast"),
-    )
+    schedule = models.OneToOneField(Schedule, on_delete=models.PROTECT, null=True, related_name="broadcast")
 
-    schedule = models.OneToOneField(
-        Schedule,
-        on_delete=models.PROTECT,
-        verbose_name=_("Schedule"),
-        null=True,
-        help_text=_("Our recurring schedule if we have one"),
-        related_name="broadcast",
-    )
+    # used for repeating scheduled broadcasts
+    parent = models.ForeignKey("Broadcast", on_delete=models.PROTECT, null=True, related_name="children")
 
-    parent = models.ForeignKey(
-        "Broadcast", on_delete=models.PROTECT, verbose_name=_("Parent"), null=True, related_name="children"
-    )
+    # language used for contacts who don't have a language
+    base_language = models.CharField(max_length=4)
 
-    text = TranslatableField(
-        verbose_name=_("Translations"),
-        max_length=MAX_TEXT_LEN,
-        help_text=_("The localized versions of the message text"),
-    )
-
-    base_language = models.CharField(
-        max_length=4, help_text=_("The language used to send this to contacts without a language")
-    )
-
-    is_active = models.BooleanField(default=True, help_text="Whether this broadcast is active")
+    is_active = models.BooleanField(default=True)
 
     created_by = models.ForeignKey(
         User,
@@ -185,15 +144,10 @@ class Broadcast(models.Model):
 
     modified_on = models.DateTimeField(auto_now=True, help_text="When this item was last modified")
 
-    media = TranslatableField(
-        verbose_name=_("Media"), max_length=2048, help_text=_("The localized versions of the media"), null=True
-    )
+    # whether this broadcast should send to all URNs for each contact
+    send_all = models.BooleanField(default=False)
 
-    send_all = models.BooleanField(
-        default=False, help_text="Whether this broadcast should send to all URNs for each contact"
-    )
-
-    metadata = JSONAsTextField(null=True, help_text=_("The metadata for messages of this broadcast"), default=dict)
+    metadata = JSONAsTextField(null=True, default=dict)
 
     @classmethod
     def create(
@@ -422,20 +376,20 @@ class Msg(models.Model):
 
     # single char flag, human readable name, API readable name
     VISIBILITY_CONFIG = (
-        (VISIBILITY_VISIBLE, _("Visible"), "visible"),
-        (VISIBILITY_ARCHIVED, _("Archived"), "archived"),
-        (VISIBILITY_DELETED, _("Deleted"), "deleted"),
+        (VISIBILITY_VISIBLE, "Visible", "visible"),
+        (VISIBILITY_ARCHIVED, "Archived", "archived"),
+        (VISIBILITY_DELETED, "Deleted", "deleted"),
     )
 
     VISIBILITY_CHOICES = [(s[0], s[1]) for s in VISIBILITY_CONFIG]
 
-    DIRECTION_CHOICES = ((INCOMING, _("Incoming")), (OUTGOING, _("Outgoing")))
+    DIRECTION_CHOICES = ((INCOMING, "Incoming"), (OUTGOING, "Outgoing"))
 
     MSG_TYPES_CHOICES = (
-        (INBOX, _("Inbox Message")),
-        (FLOW, _("Flow Message")),
-        (IVR, _("IVR Message")),
-        (USSD, _("USSD Message")),
+        (INBOX, "Inbox Message"),
+        (FLOW, "Flow Message"),
+        (IVR, "IVR Message"),
+        (USSD, "USSD Message"),
     )
 
     DELETE_FOR_ARCHIVE = "A"
@@ -457,179 +411,69 @@ class Msg(models.Model):
     DIRECTIONS = {INCOMING: "in", OUTGOING: "out"}
     MSG_TYPES = {INBOX: "inbox", FLOW: "flow", IVR: "ivr"}
 
-    uuid = models.UUIDField(null=True, default=uuid4, help_text=_("The UUID for this message"))
+    uuid = models.UUIDField(null=True, default=uuid4)
 
-    org = models.ForeignKey(
-        Org,
-        on_delete=models.PROTECT,
-        related_name="msgs",
-        verbose_name=_("Org"),
-        help_text=_("The org this message is connected to"),
-    )
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs")
 
-    channel = models.ForeignKey(
-        Channel,
-        on_delete=models.PROTECT,
-        null=True,
-        related_name="msgs",
-        verbose_name=_("Channel"),
-        help_text=_("The channel object that this message is associated with"),
-    )
+    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True, related_name="msgs")
 
-    contact = models.ForeignKey(
-        Contact,
-        on_delete=models.PROTECT,
-        related_name="msgs",
-        verbose_name=_("Contact"),
-        help_text=_("The contact this message is communicating with"),
-        db_index=False,
-    )
+    contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="msgs", db_index=False)
 
-    contact_urn = models.ForeignKey(
-        ContactURN,
-        on_delete=models.PROTECT,
-        null=True,
-        related_name="msgs",
-        verbose_name=_("Contact URN"),
-        help_text=_("The URN this message is communicating with"),
-    )
+    contact_urn = models.ForeignKey(ContactURN, on_delete=models.PROTECT, null=True, related_name="msgs")
 
-    broadcast = models.ForeignKey(
-        Broadcast,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="msgs",
-        verbose_name=_("Broadcast"),
-        help_text=_("If this message was sent to more than one recipient"),
-    )
+    broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, null=True, blank=True, related_name="msgs")
 
-    text = models.TextField(verbose_name=_("Text"), help_text=_("The actual message content that was sent"))
+    text = models.TextField()
 
-    high_priority = models.BooleanField(
-        null=True, help_text=_("Give this message higher priority than other messages")
-    )
+    high_priority = models.BooleanField(null=True)
 
-    created_on = models.DateTimeField(
-        verbose_name=_("Created On"), db_index=True, help_text=_("When this message was created")
-    )
+    created_on = models.DateTimeField(db_index=True)
 
-    modified_on = models.DateTimeField(
-        null=True,
-        blank=True,
-        verbose_name=_("Modified On"),
-        auto_now=True,
-        help_text=_("When this message was last modified"),
-    )
+    modified_on = models.DateTimeField(null=True, blank=True, auto_now=True)
 
-    sent_on = models.DateTimeField(
-        null=True, blank=True, verbose_name=_("Sent On"), help_text=_("When this message was sent to the endpoint")
-    )
+    sent_on = models.DateTimeField(null=True, blank=True)
 
-    queued_on = models.DateTimeField(
-        null=True,
-        blank=True,
-        verbose_name=_("Queued On"),
-        help_text=_("When this message was queued to be sent or handled."),
-    )
+    queued_on = models.DateTimeField(null=True, blank=True)
 
-    direction = models.CharField(
-        max_length=1,
-        choices=DIRECTION_CHOICES,
-        verbose_name=_("Direction"),
-        help_text=_("The direction for this message, either incoming or outgoing"),
-    )
+    direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
 
-    status = models.CharField(
-        max_length=1,
-        choices=STATUS_CHOICES,
-        default="P",
-        verbose_name=_("Status"),
-        db_index=True,
-        help_text=_("The current status for this message"),
-    )
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default="P", db_index=True)
 
     response_to = models.ForeignKey(
-        "Msg",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="responses",
-        verbose_name=_("Response To"),
-        db_index=False,
-        help_text=_("The message that this message is in reply to"),
+        "Msg", on_delete=models.PROTECT, null=True, blank=True, related_name="responses", db_index=False,
     )
 
-    labels = models.ManyToManyField(
-        "Label", related_name="msgs", verbose_name=_("Labels"), help_text=_("Any labels on this message")
-    )
+    labels = models.ManyToManyField("Label", related_name="msgs")
 
-    visibility = models.CharField(
-        max_length=1,
-        choices=VISIBILITY_CHOICES,
-        default=VISIBILITY_VISIBLE,
-        verbose_name=_("Visibility"),
-        help_text=_("The current visibility of this message, either visible, archived or deleted"),
-    )
+    visibility = models.CharField(max_length=1, choices=VISIBILITY_CHOICES, default=VISIBILITY_VISIBLE)
 
-    msg_type = models.CharField(
-        max_length=1,
-        choices=MSG_TYPES_CHOICES,
-        null=True,
-        verbose_name=_("Message Type"),
-        help_text=_("The type of this message"),
-    )
+    msg_type = models.CharField(max_length=1, choices=MSG_TYPES_CHOICES, null=True)
 
-    msg_count = models.IntegerField(
-        default=1,
-        verbose_name=_("Message Count"),
-        help_text=_("The number of messages that were used to send this message, calculated on Twilio channels"),
-    )
+    # the number of actual messages the channel sent this as (outgoing only)
+    msg_count = models.IntegerField(default=1)
 
-    error_count = models.IntegerField(
-        default=0, verbose_name=_("Error Count"), help_text=_("The number of times this message has errored")
-    )
+    # the number of times this message has errored (outgoing only)
+    error_count = models.IntegerField(default=0)
 
-    next_attempt = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name=_("Next Attempt"),
-        help_text=_("When we should next attempt to deliver this message"),
-    )
+    # when we'll next try to send this message (outgoing only)
+    next_attempt = models.DateTimeField(auto_now_add=True)
 
-    external_id = models.CharField(
-        max_length=255,
-        null=True,
-        blank=True,
-        verbose_name=_("External ID"),
-        help_text=_("External id used for integrating with callbacks from other APIs"),
-    )
+    # the id of this message on the other side of its channel
+    external_id = models.CharField(max_length=255, null=True, blank=True)
 
-    topup = models.ForeignKey(
-        TopUp,
-        null=True,
-        blank=True,
-        related_name="msgs",
-        on_delete=models.PROTECT,
-        help_text="The topup that this message was deducted from",
-    )
+    topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT,)
 
-    attachments = ArrayField(
-        models.URLField(max_length=2048), null=True, help_text=_("The media attachments on this message if any")
-    )
+    attachments = ArrayField(models.URLField(max_length=2048), null=True)
 
+    # used for IVR sessions on channels
     connection = models.ForeignKey(
-        "channels.ChannelConnection",
-        on_delete=models.PROTECT,
-        related_name="msgs",
-        null=True,
-        help_text=_("The session this message was a part of if any"),
+        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="msgs", null=True,
     )
 
-    metadata = JSONAsTextField(null=True, help_text=_("The metadata for this msg"), default=dict)
+    metadata = JSONAsTextField(null=True, default=dict)
 
-    delete_reason = models.CharField(
-        null=True, max_length=1, choices=DELETE_CHOICES, help_text=_("Why the message is being deleted")
-    )
+    # why this message is being deleted - determines what happens with counts
+    delete_reason = models.CharField(null=True, max_length=1, choices=DELETE_CHOICES)
 
     @classmethod
     def send_messages(cls, all_msgs):

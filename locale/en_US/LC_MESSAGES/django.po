@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-22 21:23+0000\n"
+"POT-Creation-Date: 2020-09-30 20:31+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3264,190 +3264,7 @@ msgstr ""
 msgid "Resent message"
 msgstr ""
 
-msgid "The org this broadcast is connected to"
-msgstr ""
-
-msgid "The groups to send the message to"
-msgstr ""
-
-msgid "Individual contacts included in this message"
-msgstr ""
-
-msgid "Individual URNs included in this message"
-msgstr ""
-
-msgid "Channel to use for message sending"
-msgstr ""
-
-msgid "Status"
-msgstr ""
-
-msgid "The current status for this broadcast"
-msgstr ""
-
-msgid "Schedule"
-msgstr ""
-
-msgid "Our recurring schedule if we have one"
-msgstr ""
-
-msgid "Translations"
-msgstr ""
-
-msgid "The localized versions of the message text"
-msgstr ""
-
-msgid "The language used to send this to contacts without a language"
-msgstr ""
-
 msgid "When this broadcast was created"
-msgstr ""
-
-msgid "Media"
-msgstr ""
-
-msgid "The localized versions of the media"
-msgstr ""
-
-msgid "The metadata for messages of this broadcast"
-msgstr ""
-
-msgid "Visible"
-msgstr ""
-
-msgid "Deleted"
-msgstr ""
-
-msgid "Incoming"
-msgstr ""
-
-msgid "Outgoing"
-msgstr ""
-
-msgid "Inbox Message"
-msgstr ""
-
-msgid "Flow Message"
-msgstr ""
-
-msgid "IVR Message"
-msgstr ""
-
-msgid "USSD Message"
-msgstr ""
-
-msgid "The UUID for this message"
-msgstr ""
-
-msgid "The org this message is connected to"
-msgstr ""
-
-msgid "The channel object that this message is associated with"
-msgstr ""
-
-msgid "The contact this message is communicating with"
-msgstr ""
-
-msgid "Contact URN"
-msgstr ""
-
-msgid "The URN this message is communicating with"
-msgstr ""
-
-msgid "Broadcast"
-msgstr ""
-
-msgid "If this message was sent to more than one recipient"
-msgstr ""
-
-msgid "Text"
-msgstr ""
-
-msgid "The actual message content that was sent"
-msgstr ""
-
-msgid "Give this message higher priority than other messages"
-msgstr ""
-
-msgid "When this message was created"
-msgstr ""
-
-msgid "Modified On"
-msgstr ""
-
-msgid "When this message was last modified"
-msgstr ""
-
-msgid "Sent On"
-msgstr ""
-
-msgid "When this message was sent to the endpoint"
-msgstr ""
-
-msgid "Queued On"
-msgstr ""
-
-msgid "When this message was queued to be sent or handled."
-msgstr ""
-
-msgid "Direction"
-msgstr ""
-
-msgid "The direction for this message, either incoming or outgoing"
-msgstr ""
-
-msgid "The current status for this message"
-msgstr ""
-
-msgid "Response To"
-msgstr ""
-
-msgid "The message that this message is in reply to"
-msgstr ""
-
-msgid "Any labels on this message"
-msgstr ""
-
-msgid "Visibility"
-msgstr ""
-
-msgid "The current visibility of this message, either visible, archived or deleted"
-msgstr ""
-
-msgid "Message Type"
-msgstr ""
-
-msgid "The type of this message"
-msgstr ""
-
-msgid "Message Count"
-msgstr ""
-
-msgid "The number of messages that were used to send this message, calculated on Twilio channels"
-msgstr ""
-
-msgid "The number of times this message has errored"
-msgstr ""
-
-msgid "When we should next attempt to deliver this message"
-msgstr ""
-
-msgid "External ID"
-msgstr ""
-
-msgid "External id used for integrating with callbacks from other APIs"
-msgstr ""
-
-msgid "The media attachments on this message if any"
-msgstr ""
-
-msgid "The session this message was a part of if any"
-msgstr ""
-
-msgid "The metadata for this msg"
-msgstr ""
-
-msgid "Why the message is being deleted"
 msgstr ""
 
 msgid "Whether this count is for archived messages"
@@ -4519,6 +4336,9 @@ msgstr ""
 msgid "Individual contacts to broadcast the flow to"
 msgstr ""
 
+msgid "Schedule"
+msgstr ""
+
 msgid "Our recurring schedule"
 msgstr ""
 
@@ -4671,6 +4491,9 @@ msgstr ""
 msgid "An error occurred while making your changes. Please try again."
 msgstr ""
 
+msgid "Text"
+msgstr ""
+
 msgid "Date & Time"
 msgstr ""
 
@@ -4709,6 +4532,9 @@ msgid "View Full Documentation"
 msgstr ""
 
 msgid "Webhook Calls"
+msgstr ""
+
+msgid "Status"
 msgstr ""
 
 msgid "Elapsed"
@@ -4950,6 +4776,12 @@ msgstr ""
 msgid "Synced on"
 msgstr ""
 
+msgid "Incoming"
+msgstr ""
+
+msgid "Outgoing"
+msgstr ""
+
 msgid "Retry"
 msgstr ""
 
@@ -5007,6 +4839,9 @@ msgid "Message Log"
 msgstr ""
 
 msgid "Recipient"
+msgstr ""
+
+msgid "Direction"
 msgstr ""
 
 msgid "Date"
@@ -5958,6 +5793,9 @@ msgid "Classifier"
 msgstr ""
 
 msgid "Intent"
+msgstr ""
+
+msgid "External ID"
 msgstr ""
 
 msgid "No synced intents at this time."

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-22 21:23+0000\n"
+"POT-Creation-Date: 2020-09-30 20:31+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4763,224 +4763,9 @@ msgstr "Envío no realizado"
 msgid "Resent message"
 msgstr "Mensaje reciente"
 
-msgid "The org this broadcast is connected to"
-msgstr "La organización a la que está conectada este anuncio"
-
-msgid "The groups to send the message to"
-msgstr "Los grupos a los que se envía este mensaje "
-
-msgid "Individual contacts included in this message"
-msgstr "Contactos individuales incluidos en este mensaje"
-
-#, fuzzy
-msgid "Individual URNs included in this message"
-msgstr "Contactos individuales incluidos en este mensaje"
-
-msgid "Channel to use for message sending"
-msgstr ""
-
-msgid "Status"
-msgstr "Estátus"
-
-msgid "The current status for this broadcast"
-msgstr "El estátus actual para esta comunicación"
-
-msgid "Schedule"
-msgstr "Horario"
-
-msgid "Our recurring schedule if we have one"
-msgstr "Nuestro cronograma periódico, en caso de tenerlo"
-
-msgid "Translations"
-msgstr "Traducciones"
-
-#, fuzzy
-#| msgid "The localized versions of the broadcast"
-msgid "The localized versions of the message text"
-msgstr "Las versiones localizadas del anuncio"
-
-#, fuzzy
-#| msgid "The primary language will be used for contacts with no language preference."
-msgid "The language used to send this to contacts without a language"
-msgstr "Para los contactos sin preferencia de idioma, se usará el idioma principal"
-
 #, fuzzy
 msgid "When this broadcast was created"
 msgstr "Cuándo se creó este registro de la acción"
-
-msgid "Media"
-msgstr ""
-
-#, fuzzy
-#| msgid "The localized versions of the broadcast"
-msgid "The localized versions of the media"
-msgstr "Las versiones localizadas del anuncio"
-
-#, fuzzy
-#| msgid "The current status for this broadcast"
-msgid "The metadata for messages of this broadcast"
-msgstr "El estátus actual para esta comunicación"
-
-msgid "Visible"
-msgstr "Visible"
-
-msgid "Deleted"
-msgstr "Borrado"
-
-msgid "Incoming"
-msgstr "Entrante"
-
-msgid "Outgoing"
-msgstr "Saliente"
-
-msgid "Inbox Message"
-msgstr "Mensaje en la bandeja de entrada"
-
-msgid "Flow Message"
-msgstr "Mensaje del flujo"
-
-#, fuzzy
-#| msgid "Message"
-msgid "IVR Message"
-msgstr "Mensaje"
-
-#, fuzzy
-#| msgid "Send Message"
-msgid "USSD Message"
-msgstr "Enviar mensaje"
-
-#, fuzzy
-#| msgid "The type of this message"
-msgid "The UUID for this message"
-msgstr "El tipo de este mensaje"
-
-msgid "The org this message is connected to"
-msgstr "La organización a la que está conectado este mensaje"
-
-msgid "The channel object that this message is associated with"
-msgstr "El objeto del transmisor al que está asociado este mensaje"
-
-msgid "The contact this message is communicating with"
-msgstr "El contacto con el que este mensaje se está comunicando"
-
-msgid "Contact URN"
-msgstr "Contacto URN"
-
-msgid "The URN this message is communicating with"
-msgstr "El URN con el que este mensaje se está comunicando"
-
-msgid "Broadcast"
-msgstr "Anuncio"
-
-msgid "If this message was sent to more than one recipient"
-msgstr "Si este mensaje se envió a más de un destinatario"
-
-msgid "Text"
-msgstr "Texto"
-
-#, fuzzy
-msgid "The actual message content that was sent"
-msgstr "El mensaje de texto real que se envió"
-
-msgid "Give this message higher priority than other messages"
-msgstr ""
-
-msgid "When this message was created"
-msgstr "Cuando se creó este mensaje"
-
-#, fuzzy
-#| msgid "Ended On"
-msgid "Modified On"
-msgstr "Finalizó el"
-
-#, fuzzy
-#| msgid "When this ruleset was last modified"
-msgid "When this message was last modified"
-msgstr "Cuándo fue la última vez que se modificó este grupo de reglas"
-
-msgid "Sent On"
-msgstr "Enviado el"
-
-msgid "When this message was sent to the endpoint"
-msgstr "Cuando este mensaje se envió al endpoint"
-
-msgid "Queued On"
-msgstr "Puesto en cola el"
-
-#, fuzzy
-msgid "When this message was queued to be sent or handled."
-msgstr "Cuando este mensaje se puso en cola para ser enviado. (solamente salientes)"
-
-msgid "Direction"
-msgstr "Dirección"
-
-msgid "The direction for this message, either incoming or outgoing"
-msgstr "La dirección para este mensaje, ya sea entrante o saliente"
-
-msgid "The current status for this message"
-msgstr "El estátus actual para este mensaje"
-
-msgid "Response To"
-msgstr "Respuesta a "
-
-msgid "The message that this message is in reply to"
-msgstr "El mensaje al que este mensaje está respondiendo"
-
-msgid "Any labels on this message"
-msgstr "Cualquier etiqueta en este mensaje"
-
-msgid "Visibility"
-msgstr "Visibilidad"
-
-msgid "The current visibility of this message, either visible, archived or deleted"
-msgstr "La visibilidad actual de este mensaje, ya sea visible, archivado o borrado"
-
-#, fuzzy
-msgid "Message Type"
-msgstr "Mensaje"
-
-msgid "The type of this message"
-msgstr "El tipo de este mensaje"
-
-#, fuzzy
-msgid "Message Count"
-msgstr "Reintentar el conteo de mensajes"
-
-#, fuzzy
-msgid "The number of messages that were used to send this message, calculated on Twilio channels"
-msgstr "El número de SMSs que se ha usado para enviar este mensaje, calulado en los transmisosres de Twilio"
-
-msgid "The number of times this message has errored"
-msgstr "El número de veces que este mensaje ha fallado"
-
-msgid "When we should next attempt to deliver this message"
-msgstr "Cuando tendremos que realizar el próximo intento para entregar este mensaje"
-
-msgid "External ID"
-msgstr "ID externo"
-
-msgid "External id used for integrating with callbacks from other APIs"
-msgstr "ID externo usado para integrar con las devoluciones de llamadas de otros APIs"
-
-#, fuzzy
-#| msgid "The message that this message is in reply to"
-msgid "The media attachments on this message if any"
-msgstr "El mensaje al que este mensaje está respondiendo"
-
-#, fuzzy
-#| msgid "When this message was created"
-msgid "The session this message was a part of if any"
-msgstr "Cuando se creó este mensaje"
-
-#, fuzzy
-#| msgid "The current status for this message"
-msgid "The metadata for this msg"
-msgstr "El estátus actual para este mensaje"
-
-#, fuzzy
-#| msgid "The message that is being delivered"
-msgid "Why the message is being deleted"
-msgstr "El mensaje que se está entregando"
 
 #, fuzzy
 #| msgid "Whether this flow is archived"
@@ -6280,6 +6065,9 @@ msgstr "Los grupos para comunicar el flujo a"
 msgid "Individual contacts to broadcast the flow to"
 msgstr "Contactos individuales para comunicar el flujo a"
 
+msgid "Schedule"
+msgstr "Horario"
+
 msgid "Our recurring schedule"
 msgstr "Nuestro programa periódico"
 
@@ -6458,6 +6246,9 @@ msgstr ","
 msgid "An error occurred while making your changes. Please try again."
 msgstr "Encontramos un error para retirar su transmisor, por favor, inténtelo nuevamente más tarde."
 
+msgid "Text"
+msgstr "Texto"
+
 #, fuzzy
 #| msgid "Current Date and Time"
 msgid "Date & Time"
@@ -6513,6 +6304,9 @@ msgstr "Documentación API"
 #| msgid "Webhook URL"
 msgid "Webhook Calls"
 msgstr "URL de Webhook"
+
+msgid "Status"
+msgstr "Estátus"
 
 msgid "Elapsed"
 msgstr ""
@@ -6939,6 +6733,12 @@ msgstr "Mensajes de texto salientes"
 msgid "Synced on"
 msgstr "Sincronizado el"
 
+msgid "Incoming"
+msgstr "Entrante"
+
+msgid "Outgoing"
+msgstr "Saliente"
+
 msgid "Retry"
 msgstr "Reintentar"
 
@@ -7033,6 +6833,9 @@ msgstr "Mensaje"
 #, fuzzy
 msgid "Recipient"
 msgstr "Número de créditos"
+
+msgid "Direction"
+msgstr "Dirección"
 
 #, fuzzy
 #| msgid "Export Data"
@@ -8655,6 +8458,9 @@ msgstr "Evento del transmisor"
 #| msgid "Activate"
 msgid "Intent"
 msgstr "Activar"
+
+msgid "External ID"
+msgstr "ID externo"
 
 msgid "No synced intents at this time."
 msgstr ""
@@ -13029,6 +12835,191 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "The org this broadcast is connected to"
+#~ msgstr "La organización a la que está conectada este anuncio"
+
+#~ msgid "The groups to send the message to"
+#~ msgstr "Los grupos a los que se envía este mensaje "
+
+#~ msgid "Individual contacts included in this message"
+#~ msgstr "Contactos individuales incluidos en este mensaje"
+
+#, fuzzy
+#~ msgid "Individual URNs included in this message"
+#~ msgstr "Contactos individuales incluidos en este mensaje"
+
+#~ msgid "The current status for this broadcast"
+#~ msgstr "El estátus actual para esta comunicación"
+
+#~ msgid "Our recurring schedule if we have one"
+#~ msgstr "Nuestro cronograma periódico, en caso de tenerlo"
+
+#~ msgid "Translations"
+#~ msgstr "Traducciones"
+
+#, fuzzy
+#~| msgid "The localized versions of the broadcast"
+#~ msgid "The localized versions of the message text"
+#~ msgstr "Las versiones localizadas del anuncio"
+
+#, fuzzy
+#~| msgid "The primary language will be used for contacts with no language preference."
+#~ msgid "The language used to send this to contacts without a language"
+#~ msgstr "Para los contactos sin preferencia de idioma, se usará el idioma principal"
+
+#, fuzzy
+#~| msgid "The localized versions of the broadcast"
+#~ msgid "The localized versions of the media"
+#~ msgstr "Las versiones localizadas del anuncio"
+
+#, fuzzy
+#~| msgid "The current status for this broadcast"
+#~ msgid "The metadata for messages of this broadcast"
+#~ msgstr "El estátus actual para esta comunicación"
+
+#~ msgid "Visible"
+#~ msgstr "Visible"
+
+#~ msgid "Deleted"
+#~ msgstr "Borrado"
+
+#~ msgid "Inbox Message"
+#~ msgstr "Mensaje en la bandeja de entrada"
+
+#~ msgid "Flow Message"
+#~ msgstr "Mensaje del flujo"
+
+#, fuzzy
+#~| msgid "Message"
+#~ msgid "IVR Message"
+#~ msgstr "Mensaje"
+
+#, fuzzy
+#~| msgid "Send Message"
+#~ msgid "USSD Message"
+#~ msgstr "Enviar mensaje"
+
+#, fuzzy
+#~| msgid "The type of this message"
+#~ msgid "The UUID for this message"
+#~ msgstr "El tipo de este mensaje"
+
+#~ msgid "The org this message is connected to"
+#~ msgstr "La organización a la que está conectado este mensaje"
+
+#~ msgid "The channel object that this message is associated with"
+#~ msgstr "El objeto del transmisor al que está asociado este mensaje"
+
+#~ msgid "The contact this message is communicating with"
+#~ msgstr "El contacto con el que este mensaje se está comunicando"
+
+#~ msgid "Contact URN"
+#~ msgstr "Contacto URN"
+
+#~ msgid "The URN this message is communicating with"
+#~ msgstr "El URN con el que este mensaje se está comunicando"
+
+#~ msgid "Broadcast"
+#~ msgstr "Anuncio"
+
+#~ msgid "If this message was sent to more than one recipient"
+#~ msgstr "Si este mensaje se envió a más de un destinatario"
+
+#, fuzzy
+#~ msgid "The actual message content that was sent"
+#~ msgstr "El mensaje de texto real que se envió"
+
+#~ msgid "When this message was created"
+#~ msgstr "Cuando se creó este mensaje"
+
+#, fuzzy
+#~| msgid "Ended On"
+#~ msgid "Modified On"
+#~ msgstr "Finalizó el"
+
+#, fuzzy
+#~| msgid "When this ruleset was last modified"
+#~ msgid "When this message was last modified"
+#~ msgstr "Cuándo fue la última vez que se modificó este grupo de reglas"
+
+#~ msgid "Sent On"
+#~ msgstr "Enviado el"
+
+#~ msgid "When this message was sent to the endpoint"
+#~ msgstr "Cuando este mensaje se envió al endpoint"
+
+#~ msgid "Queued On"
+#~ msgstr "Puesto en cola el"
+
+#, fuzzy
+#~ msgid "When this message was queued to be sent or handled."
+#~ msgstr "Cuando este mensaje se puso en cola para ser enviado. (solamente salientes)"
+
+#~ msgid "The direction for this message, either incoming or outgoing"
+#~ msgstr "La dirección para este mensaje, ya sea entrante o saliente"
+
+#~ msgid "The current status for this message"
+#~ msgstr "El estátus actual para este mensaje"
+
+#~ msgid "Response To"
+#~ msgstr "Respuesta a "
+
+#~ msgid "The message that this message is in reply to"
+#~ msgstr "El mensaje al que este mensaje está respondiendo"
+
+#~ msgid "Any labels on this message"
+#~ msgstr "Cualquier etiqueta en este mensaje"
+
+#~ msgid "Visibility"
+#~ msgstr "Visibilidad"
+
+#~ msgid "The current visibility of this message, either visible, archived or deleted"
+#~ msgstr "La visibilidad actual de este mensaje, ya sea visible, archivado o borrado"
+
+#, fuzzy
+#~ msgid "Message Type"
+#~ msgstr "Mensaje"
+
+#~ msgid "The type of this message"
+#~ msgstr "El tipo de este mensaje"
+
+#, fuzzy
+#~ msgid "Message Count"
+#~ msgstr "Reintentar el conteo de mensajes"
+
+#, fuzzy
+#~ msgid "The number of messages that were used to send this message, calculated on Twilio channels"
+#~ msgstr "El número de SMSs que se ha usado para enviar este mensaje, calulado en los transmisosres de Twilio"
+
+#~ msgid "The number of times this message has errored"
+#~ msgstr "El número de veces que este mensaje ha fallado"
+
+#~ msgid "When we should next attempt to deliver this message"
+#~ msgstr "Cuando tendremos que realizar el próximo intento para entregar este mensaje"
+
+#~ msgid "External id used for integrating with callbacks from other APIs"
+#~ msgstr "ID externo usado para integrar con las devoluciones de llamadas de otros APIs"
+
+#, fuzzy
+#~| msgid "The message that this message is in reply to"
+#~ msgid "The media attachments on this message if any"
+#~ msgstr "El mensaje al que este mensaje está respondiendo"
+
+#, fuzzy
+#~| msgid "When this message was created"
+#~ msgid "The session this message was a part of if any"
+#~ msgstr "Cuando se creó este mensaje"
+
+#, fuzzy
+#~| msgid "The current status for this message"
+#~ msgid "The metadata for this msg"
+#~ msgstr "El estátus actual para este mensaje"
+
+#, fuzzy
+#~| msgid "The message that is being delivered"
+#~ msgid "Why the message is being deleted"
+#~ msgstr "El mensaje que se está entregando"
 
 #~ msgid "column as"
 #~ msgstr "columna como"

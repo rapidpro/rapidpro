@@ -75,17 +75,19 @@ class ChannelTest(TembaTest):
         )
 
     def send_message(self, numbers, message, org=None, user=None):
-        if not org:
-            org = self.org
-
-        if not user:
-            user = self.user
+        org = org or self.org
+        user = user or self.user
 
         group = ContactGroup.get_or_create(org, user, "Numbers: %s" % ",".join(numbers))
-        contacts = list()
+
+        contacts = []
         for number in numbers:
-            contact, urn_obj = Contact.get_or_create(org, URN.from_tel(number), user=user, name=None)
-            contacts.append(contact)
+            urn = URN.from_tel(number)
+            urn_obj = ContactURN.lookup(org, urn)
+            if urn_obj:
+                contacts.append(urn_obj.contact)
+            else:
+                contacts.append(self.create_contact("", urns=[urn]))
 
         group.contacts.add(*contacts)
 
@@ -2020,8 +2022,7 @@ class ChannelCountTest(TembaTest):
         ChannelCount.objects.all().delete()
 
         # ok, test outgoing now
-        real_contact, urn_obj = Contact.get_or_create(self.org, "tel:+250788111222", user=self.admin)
-        msg = self.create_outgoing_msg(real_contact, "Real Message", channel=self.channel)
+        msg = self.create_outgoing_msg(contact, "Real Message", channel=self.channel)
         log = ChannelLog.objects.create(channel=self.channel, msg=msg, description="Unable to send", is_error=True)
 
         # squash our counts
@@ -2050,7 +2051,7 @@ class ChannelCountTest(TembaTest):
         ChannelCount.objects.all().delete()
 
         # outgoing ivr
-        msg = self.create_outgoing_msg(real_contact, "Real Voice", msg_type=IVR)
+        msg = self.create_outgoing_msg(contact, "Real Voice", msg_type=IVR)
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
         msg.release()
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())

@@ -1563,7 +1563,8 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
 class DefinitionsEndpoint(BaseAPIView):
     """
-    This endpoint allows you to export definitions of flows, campaigns and triggers in your account.
+    This endpoint allows you to export definitions of flows, campaigns and triggers in your account. Note that the
+    schema of flow definitions may change over time.
 
     ## Exporting Definitions
 
@@ -1581,70 +1582,37 @@ class DefinitionsEndpoint(BaseAPIView):
     Response is a collection of definitions:
 
         {
-          version: 8,
-          campaigns: [],
-          triggers: [],
-          flows: [{
-            metadata: {
-              "name": "Water Point Survey",
-              "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c0b",
-              "saved_on": "2015-09-23T00:25:50.709164Z",
-              "revision": 28,
-              "expires": 7880,
-              "id": 12712,
-            },
-            "version": 7,
-            "flow_type": "S",
-            "base_language": "eng",
-            "entry": "87929095-7d13-4003-8ee7-4c668b736419",
-            "action_sets": [
-              {
-                "y": 0,
-                "x": 100,
-                "destination": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
-                "uuid": "87929095-7d13-4003-8ee7-4c668b736419",
-                "actions": [
-                  {
-                    "msg": {
-                      "eng": "What is your name?"
-                    },
-                    "type": "reply"
-                  }
-                ]
-              },
-              ...
+            "version": "13",
+            "site": "https://app.rapidpro.io",
+            "flows": [
+                {
+                    "uuid": "7adbf194-a05c-4fe0-bd22-a178e24bee5e",
+                    "name": "My Flow",
+                    "spec_version": "13.1.0",
+                    "language": "eng",
+                    "type": "messaging",
+                    "nodes": [
+                        {
+                            "uuid": "d2240abf-8c70-4cb4-96e9-c7e67ccb0e2a",
+                            "actions": [
+                                {
+                                    "attachments": [],
+                                    "text": "Hi @contact! Which state do you live in?",
+                                    "type": "send_msg",
+                                    "quick_replies": [],
+                                    "uuid": "9012e709-76c8-4f2f-aea9-c1f7a31e7bb0"
+                                }
+                            ],
+                            "exits": [
+                                {
+                                    "uuid": "81683d94-9623-4706-8878-e314beb9325c"
+                                }
+                            ]
+                        }
+                    ]
+                }
             ],
-            "rule_sets": [
-              {
-                "uuid": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
-                "webhook_action": null,
-                "rules": [
-                  {
-                    "test": {
-                      "test": "true",
-                      "type": "true"
-                    },
-                      "category": {
-                      "eng": "All Responses"
-                    },
-                    "destination": null,
-                    "uuid": "5fa6e9ae-e78e-4e38-9c66-3acf5e32fcd2",
-                    "destination_type": null
-                  }
-                ],
-                "webhook": null,
-                "ruleset_type": "wait_message",
-                "label": "Name",
-                "operand": "@step.value",
-                "finished_key": null,
-                "y": 162,
-                "x": 62,
-                "config": {}
-              },
-              ...
-            ]
-            }
-          }]
+            ...
         }
     """
 
