@@ -61,6 +61,32 @@
       margin-left: 25px;
     }
 
+    .custom-collapsed-menu {
+      margin: 0 0 20px 0;
+    }
+
+    .custom-collapsed-menu .collapsed-title {
+      font-size: 16px;
+      margin: 0 0 10px 0;
+      display: block;
+      font-weight: 500;
+      text-decoration: none;
+      color: #666;
+    }
+
+    .custom-collapsed-menu .collapsed-title:hover {
+      text-decoration: none;
+      color: #569D9B;
+    }
+
+    .custom-collapsed-menu.active .custom-collapsed-menu-fields {
+      display: table;
+    }
+
+    .custom-collapsed-menu .custom-collapsed-menu-fields {
+      display: none;
+    }
+
 {% block extra-script %}
 <script src="{{ STATIC_URL }}js/jscolor.js"></script>
 {% if object.channel_type == "WCH" %}
@@ -169,9 +195,98 @@
       $(".smartmin-form").submit();
     }
 
+    function reformatWebChatUpdatePage() {
+
+      // Position and Size
+
+      $(".smartmin-form fieldset").prepend(`
+        <div class='custom-collapsed-menu position-and-size'>
+          <a href='javascript:;' class='collapsed-title'>
+            <i class='icon-arrow-right-8'></i>
+            Position and Size
+          </a>
+          <div class='custom-collapsed-menu-fields'></div>
+        </div>
+      `);
+
+      $('.control-group.field_side_padding').appendTo('.custom-collapsed-menu.position-and-size .custom-collapsed-menu-fields');
+      $('.control-group.field_bottom_padding').appendTo('.custom-collapsed-menu.position-and-size .custom-collapsed-menu-fields');
+      $('.control-group.field_side_of_screen').appendTo('.custom-collapsed-menu.position-and-size .custom-collapsed-menu-fields');
+      $('.control-group.field_auto_open').appendTo('.custom-collapsed-menu.position-and-size .custom-collapsed-menu-fields');
+
+      // Look and Feel
+
+      $(".smartmin-form fieldset").prepend(`
+        <div class='custom-collapsed-menu look-and-feel'>
+          <a href='javascript:;' class='collapsed-title'>
+            <i class='icon-arrow-right-8'></i>
+            Look and Feel
+          </a>
+          <div class='custom-collapsed-menu-fields'></div>
+        </div>
+      `);
+
+      $('.control-group.field_theme').appendTo('.custom-collapsed-menu.look-and-feel .custom-collapsed-menu-fields');
+      $('.control-group.field_widget_bg_color').appendTo('.custom-collapsed-menu.look-and-feel .custom-collapsed-menu-fields');
+      $('.control-group.field_chat_header_bg_color').appendTo('.custom-collapsed-menu.look-and-feel .custom-collapsed-menu-fields');
+      $('.control-group.field_chat_header_text_color').appendTo('.custom-collapsed-menu.look-and-feel .custom-collapsed-menu-fields');
+      $('.control-group.field_automated_chat_bg').appendTo('.custom-collapsed-menu.look-and-feel .custom-collapsed-menu-fields');
+      $('.control-group.field_automated_chat_txt').appendTo('.custom-collapsed-menu.look-and-feel .custom-collapsed-menu-fields');
+      $('.control-group.field_user_chat_bg').appendTo('.custom-collapsed-menu.look-and-feel .custom-collapsed-menu-fields');
+      $('.control-group.field_user_chat_txt').appendTo('.custom-collapsed-menu.look-and-feel .custom-collapsed-menu-fields');
+      $('.control-group.field_chat_button_height').appendTo('.custom-collapsed-menu.look-and-feel .custom-collapsed-menu-fields');
+      $('.control-group.field_google_font').appendTo('.custom-collapsed-menu.look-and-feel .custom-collapsed-menu-fields');
+
+      // Welcome Message
+
+      $(".smartmin-form fieldset").prepend(`
+        <div class='custom-collapsed-menu welcome-message'>
+          <a href='javascript:;' class='collapsed-title'>
+            <i class='icon-arrow-right-8'></i>
+            Welcome Message
+          </a>
+          <div class='custom-collapsed-menu-fields'></div>
+        </div>
+      `);
+
+      $('.control-group.field_welcome_message_default').appendTo('.custom-collapsed-menu.welcome-message .custom-collapsed-menu-fields');
+      {% for lang in languages %}
+        $('.control-group.field_welcome_message_{{ lang.iso_code }}').appendTo('.custom-collapsed-menu.welcome-message .custom-collapsed-menu-fields');
+      {% endfor %}
+
+      $('.control-group.field_inputtext_placeholder_default').appendTo('.custom-collapsed-menu.welcome-message .custom-collapsed-menu-fields');
+      {% for lang in languages %}
+        $('.control-group.field_inputtext_placeholder_{{ lang.iso_code }}').appendTo('.custom-collapsed-menu.welcome-message .custom-collapsed-menu-fields');
+      {% endfor %}
+
+      // Setup
+
+      $(".smartmin-form fieldset").prepend(`
+        <div class='custom-collapsed-menu setup active'>
+          <a href='javascript:;' class='collapsed-title'>
+            <i class='icon-arrow-right-8'></i>
+            WebChat Setup
+          </a>
+          <div class='custom-collapsed-menu-fields'></div>
+        </div>
+      `);
+      $('.control-group.field_name').appendTo('.custom-collapsed-menu.setup .custom-collapsed-menu-fields');
+      $('.control-group.field_alert_email').appendTo('.custom-collapsed-menu.setup .custom-collapsed-menu-fields');
+      $('.control-group.field_logo').appendTo('.custom-collapsed-menu.setup .custom-collapsed-menu-fields');
+      $('.control-group.field_logo_style').appendTo('.custom-collapsed-menu.setup .custom-collapsed-menu-fields');
+      $('.control-group.field_title').appendTo('.custom-collapsed-menu.setup .custom-collapsed-menu-fields');
+    }
+
     // adding languages to the form
     {% if object.channel_type == "WCH" %}
     $(document).ready(function() {
+      reformatWebChatUpdatePage();
+
+      $(".custom-collapsed-menu .collapsed-title").click(function() {
+        var el = $(this).parent().find(".custom-collapsed-menu-fields");
+        $(".custom-collapsed-menu-fields").slideUp();
+        el.slideDown();
+      });
 
       buildGoogleFontLink($("#id_google_font").val());
 
