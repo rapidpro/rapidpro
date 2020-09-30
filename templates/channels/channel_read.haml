@@ -329,16 +329,6 @@
     <script src="{{ STATIC_URL }}bower/highcharts/highcharts.js"></script>
 
   :javascript
-
-    {% if org_perms.channels.channel_facebook_whitelist %}
-      $(".facebook-whitelist").live('click', function(){
-        var modal = new Modax('{{ _("Whitelist Domain")|escapejs }}','{% url "channels.channel_facebook_whitelist" object.uuid %}');
-        modal.setIcon('icon-facebook-official');
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-    {% endif %}
-
     {% if start_date %}
 
       $(function () {
