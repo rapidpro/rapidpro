@@ -3953,9 +3953,9 @@ class APITest(TembaTest):
         start2 = flow.starts.get(id=response.json()["id"])
         self.assertEqual(start2.flow, flow)
         self.assertEqual(start2.start_type, FlowStart.TYPE_API)
-        self.assertTrue(start2.contacts.filter(urns__path="+12067791212"))
-        self.assertTrue(start2.contacts.filter(id=self.joe.id))
-        self.assertTrue(start2.groups.filter(id=hans_group.id))
+        self.assertEqual(["tel:+12067791212"], start2.urns)
+        self.assertEqual({self.joe}, set(start2.contacts.all()))
+        self.assertEqual({hans_group}, set(start2.groups.all()))
         self.assertFalse(start2.restart_participants)
         self.assertTrue(start2.extra, {"first_name": "Ryan", "last_name": "Lewis"})
 
@@ -3982,9 +3982,9 @@ class APITest(TembaTest):
         # assert our new start
         start3 = flow.starts.get(pk=response.json()["id"])
         self.assertEqual(start3.flow, flow)
-        self.assertTrue(start3.contacts.filter(urns__path="+12067791212"))
-        self.assertTrue(start3.contacts.filter(id=self.joe.id))
-        self.assertTrue(start3.groups.filter(id=hans_group.id))
+        self.assertEqual(["tel:+12067791212"], start3.urns)
+        self.assertEqual({self.joe}, set(start3.contacts.all()))
+        self.assertEqual({hans_group}, set(start3.groups.all()))
         self.assertFalse(start3.restart_participants)
         self.assertTrue(start3.extra, {"first_name": "Bob", "last_name": "Marley"})
 
@@ -4098,9 +4098,6 @@ class APITest(TembaTest):
         response = self.postJSON(url, None, dict(flow=flow.uuid, restart_participants=True, groups=group_uuids))
         self.assertResponseError(response, "groups", "This field can only contain up to 100 items.")
 
-        # check our list
-        anon_contact = Contact.objects.get(urns__path="+12067791212")
-
         # check no params
         response = self.fetchJSON(url)
         self.assertEqual(response.status_code, 200)
@@ -4112,7 +4109,7 @@ class APITest(TembaTest):
                 "id": start3.id,
                 "uuid": str(start3.uuid),
                 "flow": {"uuid": flow.uuid, "name": "Favorites"},
-                "contacts": [{"uuid": self.joe.uuid, "name": "Joe Blow"}, {"uuid": anon_contact.uuid, "name": None}],
+                "contacts": [{"uuid": self.joe.uuid, "name": "Joe Blow"}],
                 "groups": [{"uuid": hans_group.uuid, "name": "hans"}],
                 "restart_participants": False,
                 "status": "pending",
