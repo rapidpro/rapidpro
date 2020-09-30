@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-30 20:31+0000\n"
+"POT-Creation-Date: 2020-09-30 22:51+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -7554,12 +7554,6 @@ msgstr ""
 msgid "Contact Import"
 msgstr "Контакт"
 
-msgid "All done!"
-msgstr ""
-
-msgid "One moment.."
-msgstr ""
-
 #, fuzzy, python-format
 #| msgid "Create a contact "
 msgid "Created %(count)s new contact"
@@ -7577,6 +7571,14 @@ msgstr[0] "Создать контакт"
 msgstr[1] "Создать контакт"
 msgstr[2] "Создать контакт"
 msgstr[3] "Создать контакт"
+
+#, python-format
+msgid "Added %(count)s contact to the <a href=\"%(group_url)s\">%(group_name)s</a> group"
+msgid_plural "Added %(count)s contacts to the <a href=\"%(group_url)s\">%(group_name)s</a> group"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
 
 #, python-format
 msgid "Ignored %(count)s record because of errors"

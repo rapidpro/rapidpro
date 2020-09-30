@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-30 20:31+0000\n"
+"POT-Creation-Date: 2020-09-30 22:51+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -8431,12 +8431,6 @@ msgstr ""
 msgid "Contact Import"
 msgstr "Contatos"
 
-msgid "All done!"
-msgstr ""
-
-msgid "One moment.."
-msgstr ""
-
 #, fuzzy, python-format
 msgid "Created %(count)s new contact"
 msgid_plural "Created %(count)s new contacts"
@@ -8448,6 +8442,12 @@ msgid "Updated %(count)s existing contact"
 msgid_plural "Updated %(count)s existing contacts"
 msgstr[0] "Criar grupo de contatos"
 msgstr[1] "Criar grupo de contatos"
+
+#, python-format
+msgid "Added %(count)s contact to the <a href=\"%(group_url)s\">%(group_name)s</a> group"
+msgid_plural "Added %(count)s contacts to the <a href=\"%(group_url)s\">%(group_name)s</a> group"
+msgstr[0] ""
+msgstr[1] ""
 
 #, python-format
 msgid "Ignored %(count)s record because of errors"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-30 20:31+0000\n"
+"POT-Creation-Date: 2020-09-30 22:51+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6234,12 +6234,6 @@ msgstr ""
 msgid "Contact Import"
 msgstr ""
 
-msgid "All done!"
-msgstr ""
-
-msgid "One moment.."
-msgstr ""
-
 #, python-format
 msgid "Created %(count)s new contact"
 msgid_plural "Created %(count)s new contacts"
@@ -6249,6 +6243,12 @@ msgstr[1] ""
 #, python-format
 msgid "Updated %(count)s existing contact"
 msgid_plural "Updated %(count)s existing contacts"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "Added %(count)s contact to the <a href=\"%(group_url)s\">%(group_name)s</a> group"
+msgid_plural "Added %(count)s contacts to the <a href=\"%(group_url)s\">%(group_name)s</a> group"
 msgstr[0] ""
 msgstr[1] ""
 

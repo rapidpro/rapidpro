@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-30 20:31+0000\n"
+"POT-Creation-Date: 2020-09-30 22:51+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -9128,12 +9128,6 @@ msgstr ""
 msgid "Contact Import"
 msgstr "Contactos %d"
 
-msgid "All done!"
-msgstr ""
-
-msgid "One moment.."
-msgstr ""
-
 #, fuzzy, python-format
 #| msgid "Create Contact"
 msgid "Created %(count)s new contact"
@@ -9147,6 +9141,12 @@ msgid "Updated %(count)s existing contact"
 msgid_plural "Updated %(count)s existing contacts"
 msgstr[0] "Crear Contacto"
 msgstr[1] "Crear Contacto"
+
+#, python-format
+msgid "Added %(count)s contact to the <a href=\"%(group_url)s\">%(group_name)s</a> group"
+msgid_plural "Added %(count)s contacts to the <a href=\"%(group_url)s\">%(group_name)s</a> group"
+msgstr[0] ""
+msgstr[1] ""
 
 #, python-format
 msgid "Ignored %(count)s record because of errors"
