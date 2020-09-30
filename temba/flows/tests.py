@@ -478,83 +478,6 @@ class FlowTest(TembaTest):
             json.loads(response.context["feature_filters"]),
         )
 
-    def test_legacy_editor(self):
-        flow = self.get_flow("color", legacy=True)
-
-        self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertTrue(response.context["mutable"])
-        self.assertFalse(response.context["has_airtime_service"])
-        self.assertFalse(response.context["is_starting"])
-
-        # superusers can't edit flows
-        self.login(self.superuser)
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertFalse(response.context["mutable"])
-
-        # create a customer service user
-        self.csrep = self.create_user("csrep")
-        self.csrep.groups.add(Group.objects.get(name="Customer Support"))
-        self.csrep.is_staff = True
-        self.csrep.save()
-
-        self.org.administrators.add(self.csrep)
-
-        self.login(self.csrep)
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        gear_links = response.context["view"].get_gear_links()
-        self.assertEqual(gear_links[-1]["title"], "Service")
-        self.assertEqual(
-            gear_links[-1]["href"], f"/org/service/?organization={flow.org_id}&redirect_url=/flow/editor/{flow.uuid}/"
-        )
-        self.assertTrue(gear_links[-2]["divider"])
-
-        self.assertListEqual(
-            [link.get("title") for link in gear_links],
-            [
-                "Start Flow",
-                "Results",
-                None,
-                "Edit",
-                "Copy",
-                "Export",
-                None,
-                "Revision History",
-                "Delete",
-                None,
-                "New Editor",
-                None,
-                "Service",
-            ],
-        )
-
-    def test_legacy_flow_editor_for_archived_flow(self):
-        flow = self.get_flow("color", legacy=True)
-        flow.archive()
-
-        self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-
-        gear_links = response.context["view"].get_gear_links()
-
-        self.assertFalse(response.context["mutable"])
-        self.assertFalse(response.context["can_start"])
-
-        # cannot 'Edit' an archived Flow
-        self.assertListEqual(
-            [link.get("title") for link in gear_links],
-            ["Results", "Copy", "Export", None, "Revision History", "Delete", None, "New Editor"],
-        )
-
-    def test_legacy_flow_editor_for_inactive_flow(self):
-        flow = self.get_flow("color", legacy=True)
-        flow.release()
-
-        self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-
-        self.assertEqual(404, response.status_code)
-
     def test_save_revision(self):
         self.login(self.admin)
         self.client.post(reverse("flows.flow_create"), {"name": "Go Flow", "flow_type": Flow.TYPE_MESSAGE})
@@ -3653,9 +3576,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.version_number = Flow.FINAL_LEGACY_VERSION
         flow.update(flow.as_json())
 
-        # old editor
+        # should load editor
         response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertNotRedirect(response, reverse("flows.flow_editor", args=[flow.uuid]))
 
         # new flow definition
         self.client.post(
@@ -3667,8 +3589,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             org=self.org, name="New Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.CURRENT_SPEC_VERSION
         )
 
-        # now loading the editor page should redirect
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
+        # loading the (old) new editor page should redirect
+        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
         self.assertRedirect(response, reverse("flows.flow_editor", args=[flow.uuid]))
 
     def test_save_contact_does_not_update_field_label(self):
