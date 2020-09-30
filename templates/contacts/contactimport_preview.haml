@@ -60,7 +60,12 @@
 
 
 -block extra-style
+  {{ block.super }}
   :css
+    .page-content {
+      align-self: auto;
+      max-width: 1024px;
+    }
     .mapping .disabled-checkbox {
       --fa-icon-fill-color: #CCC;
     }

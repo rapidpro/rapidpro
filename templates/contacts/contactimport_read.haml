@@ -8,17 +8,11 @@
   -block pjax
     #pjax
       .card
-        .bleed-x.bleed-t.bg-gray-100.px-6.py-4.text-xl
-          -if is_finished
-            -trans "All done!"
-          -else
-            -trans "One moment.."
-
         .import-result.text-lg.mt-2
           -if is_finished
             .icon-checkmark.text-success.mr-2
           -else
-            .icon-spinner.mr-2
+            .icon-loop.mr-2.text-gray-400.spin
 
           -blocktrans trimmed count info.num_created as count
             Created {{ count }} new contact
@@ -29,12 +23,22 @@
           -if is_finished
             .icon-checkmark.text-success.mr-2
           -else
-            .icon-spinner.mr-2
+            .icon-loop.mr-2.text-gray-400.spin
 
           -blocktrans trimmed count info.num_updated as count
             Updated {{ count }} existing contact
             -plural
               Updated {{ count }} existing contacts
+
+        -if is_finished
+          .import-result.text-lg.mt-2
+            .icon-checkmark.text-success.mr-2
+
+            {% url 'contacts.contact_filter' object.group.uuid as group_url %}
+            -blocktrans trimmed count info.num_created|add:info.num_updated as count with group_url=group_url group_name=object.group.name
+              Added {{ count }} existing contact to <a href="{{ group_url }}">{{ group_name }}</a>
+              -plural
+                Added {{ count }} existing contacts to <a href="{{ group_url }}">{{ group_name }}</a>
 
         -if info.num_errored
           .import-result.text-lg.mt-2
@@ -53,3 +57,15 @@
                 .import-error
                   -blocktrans trimmed with row=error.record|add:"2" message=error.message
                     Row {{ row }}: {{ message }}
+
+-block extra-style
+  {{ block.super }}
+  :css
+    .page-content {
+      align-self: auto;
+      max-width: 1024px;
+    }
+
+    .import-result .spin {
+      animation: rotation 2s infinite linear;
+    }
