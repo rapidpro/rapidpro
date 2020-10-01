@@ -1,3 +1,7 @@
+v5.7.61
+----------
+ * Remove old editor, redirect editor_next to editor
+
 v5.7.60
 ----------
  * Fix contact imports from CSV files
