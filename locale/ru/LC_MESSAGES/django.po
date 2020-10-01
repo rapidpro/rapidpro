@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-30 22:51+0000\n"
+"POT-Creation-Date: 2020-10-01 15:23+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -7449,20 +7449,20 @@ msgstr "URN:Tel"
 msgid "Field:Team"
 msgstr "Поле:Команда"
 
-msgid "+250788123123"
-msgstr "+250788123123"
+msgid "+12025550199"
+msgstr ""
 
-msgid "John Doe"
-msgstr "Джон Доу"
+msgid "John Smith"
+msgstr ""
 
 msgid "Managers"
 msgstr "Менеджеры"
 
-msgid "+250788111222"
-msgstr "+250788111222"
+msgid "+14045550178"
+msgstr ""
 
-msgid "Jane Doe"
-msgstr "Джейн Доу"
+msgid "Mary Green"
+msgstr ""
 
 msgid "Advisors"
 msgstr "Консультанты"
@@ -7487,24 +7487,14 @@ msgstr "Название Контакта"
 msgid "Contact language"
 msgstr "Язык Контакта"
 
-msgid "Only valid ISO639-3 codes supportted"
-msgstr "Поддерживаются только действительные коды ISO639-3"
-
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "                  You will have the option to choose the columns to import and to which field to import them.\n"
-#| "\n"
-#| "                "
-msgid "You will have the option to choose the columns to import and to which field to import them."
+msgid "Only valid <a href=\"https://en.wikipedia.org/wiki/ISO_639-3\" target=\"_new\">ISO639-3</a> codes supported."
 msgstr ""
-"\n"
-"                  У Вас будет возможность выбрать столбцы для импорта и поле, в которое их импортировать.\n"
-"\n"
-"                "
+
+msgid "If fields don't exist you will have the option to create them or ignore them."
+msgstr ""
 
 #, python-format
-msgid "You can download <a href=\"%(sample_url)s\">this Excel template</a> as a sample. Note that blank values will be ignored. If you want to explicitly clear values use <code>%(code)s</code>."
+msgid "You can download <a href=\"%(sample_url)s\">this Excel template</a> as a sample. Imports files can contain a maximum of %(max)s records. Note that blank values will be ignored. If you want to explicitly clear values use <tt>%(code)s</tt>."
 msgstr ""
 
 msgid "Choose File"
@@ -11734,6 +11724,34 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "+250788123123"
+#~ msgstr "+250788123123"
+
+#~ msgid "John Doe"
+#~ msgstr "Джон Доу"
+
+#~ msgid "+250788111222"
+#~ msgstr "+250788111222"
+
+#~ msgid "Jane Doe"
+#~ msgstr "Джейн Доу"
+
+#~ msgid "Only valid ISO639-3 codes supportted"
+#~ msgstr "Поддерживаются только действительные коды ISO639-3"
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "                  You will have the option to choose the columns to import and to which field to import them.\n"
+#~| "\n"
+#~| "                "
+#~ msgid "You will have the option to choose the columns to import and to which field to import them."
+#~ msgstr ""
+#~ "\n"
+#~ "                  У Вас будет возможность выбрать столбцы для импорта и поле, в которое их импортировать.\n"
+#~ "\n"
+#~ "                "
 
 #~ msgid "The org this broadcast is connected to"
 #~ msgstr "Организация, с которой связана эта рассылка "

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-30 22:51+0000\n"
+"POT-Creation-Date: 2020-10-01 15:23+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -9019,22 +9019,22 @@ msgstr ""
 msgid "Field:Team"
 msgstr "Campos de la solicitud"
 
-msgid "+250788123123"
-msgstr "+250788123123"
+msgid "+12025550199"
+msgstr ""
 
-msgid "John Doe"
-msgstr "John Doe"
+msgid "John Smith"
+msgstr ""
 
 #, fuzzy
 #| msgid "Managers,"
 msgid "Managers"
 msgstr "Directores,"
 
-msgid "+250788111222"
-msgstr "+250788111222"
+msgid "+14045550178"
+msgstr ""
 
-msgid "Jane Doe"
-msgstr "Jane Doe"
+msgid "Mary Green"
+msgstr ""
 
 msgid "Advisors"
 msgstr ""
@@ -9067,19 +9067,14 @@ msgstr "Nombre del contacto"
 msgid "Contact language"
 msgstr "Establecer idioma"
 
-msgid "Only valid ISO639-3 codes supportted"
+msgid "Only valid <a href=\"https://en.wikipedia.org/wiki/ISO_639-3\" target=\"_new\">ISO639-3</a> codes supported."
 msgstr ""
 
-#, fuzzy
-msgid "You will have the option to choose the columns to import and to which field to import them."
+msgid "If fields don't exist you will have the option to create them or ignore them."
 msgstr ""
-"\n"
-"                    %(sms_failed)s Error\n"
-"\n"
-"         "
 
 #, python-format
-msgid "You can download <a href=\"%(sample_url)s\">this Excel template</a> as a sample. Note that blank values will be ignored. If you want to explicitly clear values use <code>%(code)s</code>."
+msgid "You can download <a href=\"%(sample_url)s\">this Excel template</a> as a sample. Imports files can contain a maximum of %(max)s records. Note that blank values will be ignored. If you want to explicitly clear values use <tt>%(code)s</tt>."
 msgstr ""
 
 msgid "Choose File"
@@ -12835,6 +12830,26 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "+250788123123"
+#~ msgstr "+250788123123"
+
+#~ msgid "John Doe"
+#~ msgstr "John Doe"
+
+#~ msgid "+250788111222"
+#~ msgstr "+250788111222"
+
+#~ msgid "Jane Doe"
+#~ msgstr "Jane Doe"
+
+#, fuzzy
+#~ msgid "You will have the option to choose the columns to import and to which field to import them."
+#~ msgstr ""
+#~ "\n"
+#~ "                    %(sms_failed)s Error\n"
+#~ "\n"
+#~ "         "
 
 #~ msgid "The org this broadcast is connected to"
 #~ msgstr "La organización a la que está conectada este anuncio"
