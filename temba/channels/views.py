@@ -1318,6 +1318,8 @@ class UpdateWebChatForm(UpdateChannelForm):
 
             self.fields["welcome_message_default"].initial = config.get("welcome_message_default", "")
 
+            self.fields["welcome_msg_quick_replies"].initial = ",".join(config.get("welcome_msg_quick_replies", []))
+
             self.fields["inputtext_placeholder_default"].initial = config.get("inputtext_placeholder_default", "")
 
             response_fonts = requests.get(
@@ -1399,6 +1401,10 @@ class UpdateWebChatForm(UpdateChannelForm):
 
         return logo_media
 
+    def clean_welcome_msg_quick_replies(self):
+        quick_replies = self.cleaned_data.get("welcome_msg_quick_replies", "")
+        return [item for item in quick_replies.split(",") if item != ""]
+
     def add_extra_fields(self):
 
         self.add_config_field(
@@ -1452,6 +1458,16 @@ class UpdateWebChatForm(UpdateChannelForm):
                 ),
                 "",
             )
+
+        self.add_config_field(
+            "welcome_msg_quick_replies",
+            forms.CharField(
+                required=False,
+                label=_("Welcome Message Quick Replies"),
+                widget=forms.TextInput(),
+            ),
+            None,
+        )
 
         self.add_config_field(
             "inputtext_placeholder_default",

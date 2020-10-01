@@ -259,6 +259,8 @@
         $('.control-group.field_inputtext_placeholder_{{ lang.iso_code }}').appendTo('.custom-collapsed-menu.welcome-message .custom-collapsed-menu-fields');
       {% endfor %}
 
+      $('.control-group.field_welcome_msg_quick_replies').appendTo('.custom-collapsed-menu.welcome-message .custom-collapsed-menu-fields');
+
       // Setup
 
       $(".smartmin-form fieldset").prepend(`
@@ -281,6 +283,14 @@
     {% if object.channel_type == "WCH" %}
     $(document).ready(function() {
       reformatWebChatUpdatePage();
+
+      $('#id_welcome_msg_quick_replies').select2({
+        tags: [],
+        tokenSeparators: [","],
+        minimumResultsForSearch: -1,
+        placeholder: "Add quick replies to the welcome message",
+        containerCssClass: "select2-temba-field"
+      });
 
       $(".custom-collapsed-menu .collapsed-title").click(function() {
         var el = $(this).parent().find(".custom-collapsed-menu-fields");
