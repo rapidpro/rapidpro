@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-29 17:34+0000\n"
+"POT-Creation-Date: 2020-09-30 22:51+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3713,21 +3713,6 @@ msgstr "Idioma"
 msgid "The preferred language for this contact"
 msgstr "El idioma preferido para este contacto"
 
-msgid "Provided URNs belong to different existing contacts"
-msgstr ""
-
-#, python-brace-format
-msgid "The provided file has unrecognized headers. Columns \"{joined_unsupported_headers}\" should be removed or prepended with the prefix \"Field:\"."
-msgstr ""
-
-#, fuzzy, python-brace-format
-#| msgid "The file you provided is missing a required header called \"Phone\"."
-msgid "The file you provided is missing a required header. At least one of \"{joined_possible_headers}\" or \"Contact UUID\" should be included."
-msgstr "Al archivo que envió le falta un encabezado requerido llamado\"Teléfono\"."
-
-msgid "The file you provided is missing a required header called \"Name\"."
-msgstr "Al archivo que envió le falta un encabezado requerido llamado \"Nombre\"."
-
 msgid "Any authentication information needed by this URN"
 msgstr ""
 
@@ -3764,6 +3749,39 @@ msgid "The unique group to export"
 msgstr "El grupo único para exportar"
 
 msgid "The search query"
+msgstr ""
+
+msgid "Import file appears to be empty."
+msgstr ""
+
+msgid "Import file contains an empty header."
+msgstr ""
+
+#, python-format
+msgid "Import files can contain a maximum of %(max)d records."
+msgstr ""
+
+msgid "Import file doesn't contain any records."
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "Using a Local Number"
+msgid "Header '%(header)s' is not a valid URN type."
+msgstr "Con un número local"
+
+#, fuzzy, python-format
+#| msgid "Using a Local Number"
+msgid "Header '%(header)s' is not a valid field name."
+msgstr "Con un número local"
+
+#, python-format
+msgid "Header '%(header)s' is duplicated."
+msgstr ""
+
+msgid "Import files must contain either UUID or a URN header."
+msgstr ""
+
+msgid "Import files must contain columns besides UUID."
 msgstr ""
 
 #, python-format
@@ -3924,24 +3942,6 @@ msgstr "Le enviaremos un mensaje de correo electrónico a %s cuando esté listo.
 msgid "Export complete, you can find it here: %s (production users will get an email)"
 msgstr "Exportación completa, puede encontrarla aquí: %s (los usuarios de producción recibirán un mensaje de correo electrónico)"
 
-#, fuzzy
-#| msgid "Field names can only contain letters, numbers, spaces and hypens"
-msgid "Can only contain letters, numbers and hypens."
-msgstr "Los nombres en los campos solo pueden contener letras, números, espacios y guiones"
-
-#, python-format
-msgid "%s is an invalid name or is a reserved name for contact fields, field names should start with a letter."
-msgstr ""
-
-#, fuzzy, python-format
-#| msgid "\"%s\" would be sent to %s"
-msgid "%s should be used once"
-msgstr "\"%s\" será enviado a %s"
-
-#, python-format
-msgid "'%(label)s' contact field has '%(key)s' key which is reserved name. Column cannot be imported"
-msgstr ""
-
 msgid "Send Message"
 msgstr "Enviar mensaje"
 
@@ -4010,6 +4010,11 @@ msgid "Select a field to update"
 msgstr "Elegir todos"
 
 #, fuzzy
+#| msgid "Field names can only contain letters, numbers, spaces and hypens"
+msgid "Can only contain letters, numbers and hypens."
+msgstr "Los nombres en los campos solo pueden contener letras, números, espacios y guiones"
+
+#, fuzzy
 #| msgid "Alias names must be unique, try again."
 msgid "Must be unique."
 msgstr "Los apelativos deben ser únicos, inténtelo de nuevo."
@@ -4043,6 +4048,26 @@ msgstr "Actualizar campos"
 #| msgid "Contact Field: %(label)s"
 msgid "Contact field uses"
 msgstr "Campo de contacto: %(label)s"
+
+#, python-format
+msgid "This workspace has reached the limit of %(count)d groups. You must delete existing ones before you can perform an import."
+msgstr ""
+
+#, python-format
+msgid "Field name for '%(header)s' can't be empty."
+msgstr ""
+
+#, python-format
+msgid "Field name for '%(header)s' matches an existing field."
+msgstr ""
+
+#, python-format
+msgid "Field name for '%(header)s' is invalid or a reserved word."
+msgstr ""
+
+#, python-format
+msgid "Field name '%(name)s' is repeated."
+msgstr ""
 
 #, fuzzy
 msgid "Message flow"
@@ -8494,28 +8519,6 @@ msgstr "¿Está seguro de que desea borrar estos contactos?"
 msgid "This operation can take a while to complete. Contacts may remain in this view during the process."
 msgstr ""
 
-msgid ""
-"\n"
-"    We noticed your file contains some extra columns to import, you can add these as custom fields on\n"
-"    your contact by selecting them below.\n"
-"\n"
-"  "
-msgstr ""
-
-msgid "column as"
-msgstr "columna como"
-
-#, fuzzy
-msgid ""
-"\n"
-"                      of type\n"
-"                    "
-msgstr ""
-"\n"
-"                    %(sms_failed)s Error\n"
-"\n"
-"         "
-
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
@@ -8783,163 +8786,6 @@ msgstr "Desarchivar"
 msgid "Import Contacts"
 msgstr "Importar contactos"
 
-msgid "You can import your contacts from an XLS file you create in Excel."
-msgstr "Puede importar sus contactos de un archivo XLS que haya creado en Excel. "
-
-msgid "URN:Tel"
-msgstr ""
-
-#, fuzzy
-#| msgid "Query Fields"
-msgid "Field:Team"
-msgstr "Campos de la solicitud"
-
-msgid "+250788123123"
-msgstr "+250788123123"
-
-msgid "John Doe"
-msgstr "John Doe"
-
-#, fuzzy
-#| msgid "Managers,"
-msgid "Managers"
-msgstr "Directores,"
-
-msgid "+250788111222"
-msgstr "+250788111222"
-
-msgid "Jane Doe"
-msgstr "Jane Doe"
-
-msgid "Advisors"
-msgstr ""
-
-#, fuzzy
-#| msgid "Query Fields"
-msgid "Supported Fields"
-msgstr "Campos de la solicitud"
-
-msgid "Any columns that do not match the following table will be ignored."
-msgstr ""
-
-#, fuzzy
-#| msgid "column as"
-msgid "Column Header"
-msgstr "columna como"
-
-#, fuzzy
-#| msgid "Import"
-msgid "Imported as"
-msgstr "Importar"
-
-msgid "Details"
-msgstr ""
-
-#, fuzzy
-#| msgid "Contact Name"
-msgid "Contact name"
-msgstr "Nombre del contacto"
-
-#, fuzzy
-#| msgid "Set Language"
-msgid "Contact language"
-msgstr "Establecer idioma"
-
-msgid "Only valid ISO639-3 codes supportted"
-msgstr ""
-
-#, fuzzy
-msgid "You will have the option to choose the columns to import and to which field to import them."
-msgstr ""
-"\n"
-"                    %(sms_failed)s Error\n"
-"\n"
-"         "
-
-msgid "IGNORED"
-msgstr ""
-
-msgid "One moment.."
-msgstr ""
-
-msgid "All done!"
-msgstr ""
-
-#, fuzzy, python-format
-#| msgid "Create Contact"
-msgid "Created %(create_count)s new contact"
-msgid_plural "Created %(create_count)s new contacts"
-msgstr[0] "Crear Contacto"
-msgstr[1] "Crear Contacto"
-
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "                              %(completed_percentage)s%% completion\n"
-#| "                            "
-msgid "Updated %(update_count)s contact with an existing phone number"
-msgid_plural "Updated %(update_count)s contacts with existing phone numbers"
-msgstr[0] ""
-"\n"
-"                              %(completed_percentage)s%% completion\n"
-"                            "
-msgstr[1] ""
-"\n"
-"                              %(completed_percentage)s%% completion\n"
-"                            "
-
-#, fuzzy
-#| msgid "Add Contacts to Flow"
-msgid "Added all contacts to the new"
-msgstr "Agregar contactos al flujo"
-
-msgid "Some rows were not imported"
-msgstr ""
-
-#, fuzzy
-#| msgid "Description"
-msgid "Errors description"
-msgstr "Descripción"
-
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "                              %(completed_percentage)s%% completion\n"
-#| "                            "
-msgid "Failed to import %(error_count)s contact due to missing or invalid phone number"
-msgid_plural "Failed to import %(error_count)s contacts due to missing or invalid phone numbers"
-msgstr[0] ""
-"\n"
-"                              %(completed_percentage)s%% completion\n"
-"                            "
-msgstr[1] ""
-"\n"
-"                              %(completed_percentage)s%% completion\n"
-"                            "
-
-#, fuzzy
-#| msgid "Group"
-msgid "Grouping.."
-msgstr "Grupo"
-
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "                              %(completed_percentage)s%% completion\n"
-#| "                            "
-msgid "No contacts imported, please make sure your have a channel connected."
-msgstr ""
-"\n"
-"                              %(completed_percentage)s%% completion\n"
-"                            "
-
-#, python-format
-msgid "You can download <a href='%(STATIC_URL)sexamples/contacts.xls'>this Excel template</a> as a sample."
-msgstr ""
-
-msgid "Choose File"
-msgstr "Elegir archivo"
-
 #, fuzzy
 #| msgid "Contact Groups"
 msgid "Smart Groups"
@@ -8987,6 +8833,9 @@ msgid "To view more than 10,000 search results, save it as a group."
 msgstr ""
 
 msgid "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
+msgstr ""
+
+msgid "Details"
 msgstr ""
 
 #, fuzzy
@@ -9157,6 +9006,162 @@ msgstr ""
 msgid "Show Contacts"
 msgstr "Mostrar Contactos"
 
+#, fuzzy
+#| msgid "You can import your contacts from an XLS file you create in Excel."
+msgid "You can import contacts from an Excel spreadsheet or comma separated values file."
+msgstr "Puede importar sus contactos de un archivo XLS que haya creado en Excel. "
+
+msgid "URN:Tel"
+msgstr ""
+
+#, fuzzy
+#| msgid "Query Fields"
+msgid "Field:Team"
+msgstr "Campos de la solicitud"
+
+msgid "+250788123123"
+msgstr "+250788123123"
+
+msgid "John Doe"
+msgstr "John Doe"
+
+#, fuzzy
+#| msgid "Managers,"
+msgid "Managers"
+msgstr "Directores,"
+
+msgid "+250788111222"
+msgstr "+250788111222"
+
+msgid "Jane Doe"
+msgstr "Jane Doe"
+
+msgid "Advisors"
+msgstr ""
+
+#, fuzzy
+#| msgid "Query Fields"
+msgid "Supported Fields"
+msgstr "Campos de la solicitud"
+
+msgid "Any columns that do not match the following table will be ignored."
+msgstr ""
+
+#, fuzzy
+#| msgid "column as"
+msgid "Column Header"
+msgstr "columna como"
+
+#, fuzzy
+#| msgid "Import"
+msgid "Imported as"
+msgstr "Importar"
+
+#, fuzzy
+#| msgid "Contact Name"
+msgid "Contact name"
+msgstr "Nombre del contacto"
+
+#, fuzzy
+#| msgid "Set Language"
+msgid "Contact language"
+msgstr "Establecer idioma"
+
+msgid "Only valid ISO639-3 codes supportted"
+msgstr ""
+
+#, fuzzy
+msgid "You will have the option to choose the columns to import and to which field to import them."
+msgstr ""
+"\n"
+"                    %(sms_failed)s Error\n"
+"\n"
+"         "
+
+#, python-format
+msgid "You can download <a href=\"%(sample_url)s\">this Excel template</a> as a sample. Note that blank values will be ignored. If you want to explicitly clear values use <code>%(code)s</code>."
+msgstr ""
+
+msgid "Choose File"
+msgstr "Elegir archivo"
+
+#, fuzzy
+#| msgid "Device"
+msgid "Preview"
+msgstr "Dispositivo"
+
+#, fuzzy
+msgid "Preview Contact Import"
+msgstr "1 Contacto"
+
+#, python-format
+msgid "This import file contains <strong>%(count)s</strong> records. Headers that didn't match existing fields can be ignored or added as new custom fields by editing them below."
+msgstr ""
+
+msgid "will be ignored"
+msgstr ""
+
+#, fuzzy
+#| msgid "has"
+msgid "as"
+msgstr "tiene"
+
+#, fuzzy
+#| msgid "1 field"
+msgid "new field"
+msgstr "1 campo"
+
+msgid "of type"
+msgstr ""
+
+#, fuzzy
+#| msgid "1 field"
+msgid "field"
+msgstr "1 campo"
+
+#, python-format
+msgid "a <strong>%(scheme)s</strong> URN"
+msgstr ""
+
+#, fuzzy
+#| msgid "Contacts %d"
+msgid "Contact Import"
+msgstr "Contactos %d"
+
+#, fuzzy, python-format
+#| msgid "Create Contact"
+msgid "Created %(count)s new contact"
+msgid_plural "Created %(count)s new contacts"
+msgstr[0] "Crear Contacto"
+msgstr[1] "Crear Contacto"
+
+#, fuzzy, python-format
+#| msgid "Create Contact"
+msgid "Updated %(count)s existing contact"
+msgid_plural "Updated %(count)s existing contacts"
+msgstr[0] "Crear Contacto"
+msgstr[1] "Crear Contacto"
+
+#, python-format
+msgid "Added %(count)s contact to the <a href=\"%(group_url)s\">%(group_name)s</a> group"
+msgid_plural "Added %(count)s contacts to the <a href=\"%(group_url)s\">%(group_name)s</a> group"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "Ignored %(count)s record because of errors"
+msgid_plural "Ignored %(count)s records because of errors"
+msgstr[0] ""
+msgstr[1] ""
+
+#, fuzzy
+msgid "Errors"
+msgstr "Conteo de errores"
+
+#, python-format
+msgid "Row %(row)s: %(message)s"
+msgstr ""
+
 msgid "Hi there!"
 msgstr "¡Hola!"
 
@@ -9179,12 +9184,7 @@ msgid ""
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"      Contacts will automatically be added here as you communicate with them using %(name)s.\n"
-"      From here you can change a contact's name, organize them into groups and see the communication you've had with each.\n"
-"\n"
-"    "
+msgid "Contacts will automatically be added here as you communicate with them using %(name)s. From here you can change a contact's name, organize them into groups and see the communication you've had with each."
 msgstr ""
 
 #, fuzzy, python-format
@@ -9195,12 +9195,7 @@ msgstr ""
 #| "      from a file you create in Excel.\n"
 #| "\n"
 #| "    "
-msgid ""
-"\n"
-"      To get started you can\n"
-"        <a href='%(contact_import_url)s'>import contacts</a>\n"
-"      from a file you create in Excel.\n"
-"    "
+msgid "To get started you can %%a{href:'%(contact_import_url)s'} import contacts from a file you create in Excel."
 msgstr ""
 "\n"
 "      Para empezar puede\n"
@@ -13026,6 +13021,106 @@ msgstr ""
 #~ msgid "Why the message is being deleted"
 #~ msgstr "El mensaje que se está entregando"
 
+#~ msgid "column as"
+#~ msgstr "columna como"
+
+#, fuzzy
+#~ msgid ""
+#~ "\n"
+#~ "                      of type\n"
+#~ "                    "
+#~ msgstr ""
+#~ "\n"
+#~ "                    %(sms_failed)s Error\n"
+#~ "\n"
+#~ "         "
+
+#~ msgid "You can import your contacts from an XLS file you create in Excel."
+#~ msgstr "Puede importar sus contactos de un archivo XLS que haya creado en Excel. "
+
+#, fuzzy, python-format
+#~| msgid "Create Contact"
+#~ msgid "Created %(create_count)s new contact"
+#~ msgid_plural "Created %(create_count)s new contacts"
+#~ msgstr[0] "Crear Contacto"
+#~ msgstr[1] "Crear Contacto"
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "                              %(completed_percentage)s%% completion\n"
+#~| "                            "
+#~ msgid "Updated %(update_count)s contact with an existing phone number"
+#~ msgid_plural "Updated %(update_count)s contacts with existing phone numbers"
+#~ msgstr[0] ""
+#~ "\n"
+#~ "                              %(completed_percentage)s%% completion\n"
+#~ "                            "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "                              %(completed_percentage)s%% completion\n"
+#~ "                            "
+
+#, fuzzy
+#~| msgid "Add Contacts to Flow"
+#~ msgid "Added all contacts to the new"
+#~ msgstr "Agregar contactos al flujo"
+
+#, fuzzy
+#~| msgid "Description"
+#~ msgid "Errors description"
+#~ msgstr "Descripción"
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "                              %(completed_percentage)s%% completion\n"
+#~| "                            "
+#~ msgid "Failed to import %(error_count)s contact due to missing or invalid phone number"
+#~ msgid_plural "Failed to import %(error_count)s contacts due to missing or invalid phone numbers"
+#~ msgstr[0] ""
+#~ "\n"
+#~ "                              %(completed_percentage)s%% completion\n"
+#~ "                            "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "                              %(completed_percentage)s%% completion\n"
+#~ "                            "
+
+#, fuzzy
+#~| msgid "Group"
+#~ msgid "Grouping.."
+#~ msgstr "Grupo"
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "                              %(completed_percentage)s%% completion\n"
+#~| "                            "
+#~ msgid "No contacts imported, please make sure your have a channel connected."
+#~ msgstr ""
+#~ "\n"
+#~ "                              %(completed_percentage)s%% completion\n"
+#~ "                            "
+
+#, fuzzy, python-brace-format
+#~| msgid "The file you provided is missing a required header called \"Phone\"."
+#~ msgid "The file you provided is missing a required header. At least one of \"{joined_possible_headers}\" or \"Contact UUID\" should be included."
+#~ msgstr "Al archivo que envió le falta un encabezado requerido llamado\"Teléfono\"."
+
+#~ msgid "The file you provided is missing a required header called \"Name\"."
+#~ msgstr "Al archivo que envió le falta un encabezado requerido llamado \"Nombre\"."
+
+#, fuzzy, python-format
+#~| msgid "\"%s\" would be sent to %s"
+#~ msgid "%s should be used once"
+#~ msgstr "\"%s\" será enviado a %s"
+
+#, fuzzy
+#~| msgid "You can import your contacts from an XLS file you create in Excel."
+#~ msgid "You can import your contacts from an XLSX file you create in Excel."
+#~ msgstr "Puede importar sus contactos de un archivo XLS que haya creado en Excel. "
+
 #~ msgid "Unblock"
 #~ msgstr "Desbloquear"
 
@@ -13163,11 +13258,6 @@ msgstr ""
 
 #~ msgid "instead."
 #~ msgstr "en lugar de esa."
-
-#, fuzzy
-#~| msgid "Device"
-#~ msgid "view"
-#~ msgstr "Dispositivo"
 
 #~ msgid "View Sample Flows"
 #~ msgstr "Ver Flujos de Muestra"
@@ -15146,9 +15236,6 @@ msgstr ""
 #~ msgid "run"
 #~ msgstr "Domingo"
 
-#~ msgid "1 field"
-#~ msgstr "1 campo"
-
 #~ msgid "{} fields"
 #~ msgstr "{} campos"
 
@@ -16352,10 +16439,6 @@ msgstr ""
 
 #~ msgid "Restart any of the above contacts already participating in this flow"
 #~ msgstr "Reiniciar cualquiera de los contactos anteriores que ya están participando en este flujo"
-
-#, fuzzy
-#~ msgid "View Contact"
-#~ msgstr "1 Contacto"
 
 #, fuzzy
 #~ msgid ""

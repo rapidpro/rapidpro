@@ -2,12 +2,9 @@ import logging
 from collections import OrderedDict
 from datetime import timedelta
 
-import regex
-from smartmin.csv_imports.models import ImportTask
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
-    SmartCSVImportView,
     SmartDeleteView,
     SmartFormView,
     SmartListView,
@@ -21,7 +18,7 @@ from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.core.files.base import ContentFile
+from django.core.validators import FileExtensionValidator
 from django.db import transaction
 from django.db.models import Count
 from django.db.models.functions import Lower, Upper
@@ -29,6 +26,7 @@ from django.forms import Form
 from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.functional import cached_property
 from django.utils.http import is_safe_url, urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
@@ -41,9 +39,8 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
-from temba.utils.fields import ArbitraryChoiceField, CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
+from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
-from temba.utils.text import slugify_with
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin
 from temba.values.constants import Value
 
@@ -55,6 +52,7 @@ from .models import (
     ContactField,
     ContactGroup,
     ContactGroupCount,
+    ContactImport,
     ContactURN,
     ExportContactsTask,
 )
@@ -517,12 +515,10 @@ class ContactCRUDL(SmartCRUDL):
         "stopped",
         "archived",
         "list",
-        "import",
         "read",
         "filter",
         "blocked",
         "omnibox",
-        "customize",
         "update_fields",
         "update_fields_input",
         "export",
@@ -624,337 +620,6 @@ class ContactCRUDL(SmartCRUDL):
                         success_script=getattr(self, "success_script", None),
                     )
                 )
-
-    class Customize(OrgPermsMixin, SmartUpdateView):
-        class CustomizeForm(forms.ModelForm):
-            def __init__(self, *args, **kwargs):
-                self.org = kwargs["org"]
-                del kwargs["org"]
-                super().__init__(*args, **kwargs)
-
-            def clean(self):
-
-                existing_contact_fields = ContactField.user_fields.active_for_org(org=self.org).values("key", "label")
-                existing_contact_fields_map = {elt["label"]: elt["key"] for elt in existing_contact_fields}
-
-                used_labels = []
-                # don't allow users to specify field keys or labels
-                re_col_name_field = regex.compile(r"column_\w+_label$", regex.V0)
-                for key, value in self.data.items():
-                    if re_col_name_field.match(key):
-                        field_label = value.strip()
-                        field_key = ContactField.make_key(field_label)
-
-                        if not ContactField.is_valid_label(field_label):
-                            raise forms.ValidationError(_("Can only contain letters, numbers and hypens."))
-
-                        if not ContactField.is_valid_key(field_key):
-                            raise forms.ValidationError(
-                                _(
-                                    "%s is an invalid name or is a reserved name for contact "
-                                    "fields, field names should start with a letter."
-                                )
-                                % value
-                            )
-
-                        if field_label in used_labels:
-                            raise forms.ValidationError(_("%s should be used once") % field_label)
-
-                        existing_key = existing_contact_fields_map.get(field_label, None)
-                        if existing_key and existing_key in Contact.RESERVED_FIELD_KEYS:
-                            raise forms.ValidationError(
-                                _(
-                                    "'%(label)s' contact field has '%(key)s' key which is reserved name. "
-                                    "Column cannot be imported"
-                                )
-                                % dict(label=value, key=existing_key)
-                            )
-
-                        self.fields[key].choices.append((field_label, field_label))
-                        used_labels.append(field_label)
-
-                return self.cleaned_data
-
-            class Meta:
-                model = ImportTask
-                fields = "__all__"
-
-        model = ImportTask
-        form_class = CustomizeForm
-
-        def pre_process(self, request, *args, **kwargs):
-            pre_process = super().pre_process(request, *args, **kwargs)
-            if pre_process is not None:  # pragma: needs cover
-                return pre_process
-
-            headers = Contact.get_org_import_file_headers(self.get_object().csv_file.file, self.derive_org())
-
-            if not headers:
-                task = self.get_object()
-                self.post_save(task)
-                return HttpResponseRedirect(reverse("contacts.contact_import") + "?task=%d" % task.pk)
-
-            self.headers = headers
-            return None
-
-        def create_column_controls(self, column_headers):
-            """
-            Adds fields to the form for extra columns found in the spreadsheet. Returns a list of dictionaries
-            containing the column label and the names of the fields
-            """
-            org = self.derive_org()
-            column_controls = []
-
-            cf_qs = ContactField.user_fields.active_for_org(org=org).order_by("label")
-            cf_labels_choices = [(c.label, c.label) for c in cf_qs]
-
-            for header_col in column_headers:
-
-                header = header_col
-                if header.startswith("field:"):
-                    header = header.replace("field:", "", 1).strip()
-
-                header_key = slugify_with(header)
-
-                include_field = forms.BooleanField(
-                    label=" ", required=False, initial=True, widget=CheckboxWidget(attrs={"widget_only": True})
-                )
-                include_field_name = "column_%s_include" % header_key
-
-                label_initial = ContactField.get_by_label(org, header.title())
-
-                label_field_initial = header.title()
-                if label_initial:
-                    label_field_initial = label_initial.label
-
-                label_field = ArbitraryChoiceField(
-                    initial=label_field_initial,
-                    choices=cf_labels_choices,
-                    required=False,
-                    widget=SelectWidget(attrs={"widget_only": True, "searchable": True, "tags": True}),
-                )
-
-                label_field_name = "column_%s_label" % header_key
-
-                type_field_initial = None
-                if label_initial:
-                    type_field_initial = label_initial.value_type
-
-                type_field = forms.ChoiceField(
-                    label=" ",
-                    choices=Value.TYPE_CHOICES,
-                    required=True,
-                    initial=type_field_initial,
-                    widget=SelectWidget(attrs={"widget_only": True}),
-                )
-                type_field_name = "column_%s_type" % header_key
-
-                fields = [
-                    (include_field_name, include_field),
-                    (label_field_name, label_field),
-                    (type_field_name, type_field),
-                ]
-
-                self.form.fields = OrderedDict(list(self.form.fields.items()) + fields)
-
-                column_controls.append(
-                    dict(
-                        header=header_col,
-                        include_field=include_field_name,
-                        label_field=label_field_name,
-                        type_field=type_field_name,
-                    )
-                )
-
-            return column_controls
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["column_controls"] = self.column_controls
-            context["task"] = self.get_object()
-            return context
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.derive_org()
-            return kwargs
-
-        def get_form(self):
-            form = super().get_form()
-            form.fields.clear()
-
-            self.column_controls = self.create_column_controls(self.headers)
-
-            return form
-
-        def pre_save(self, task):
-            extra_fields = []
-            cleaned_data = self.form.cleaned_data
-
-            # enumerate the columns which the user has chosen to include as fields
-            for column in self.column_controls:
-                if cleaned_data[column["include_field"]]:
-                    label = cleaned_data[column["label_field"]]
-                    label = label.strip()
-                    value_type = cleaned_data[column["type_field"]]
-                    org = self.derive_org()
-
-                    field_key = slugify_with(label)
-
-                    existing_field = ContactField.get_by_label(org, label)
-                    if existing_field:
-                        field_key = existing_field.key
-                        value_type = existing_field.value_type
-
-                    extra_fields.append(dict(key=field_key, header=column["header"], label=label, type=value_type))
-
-            # update the extra_fields in the task's params
-            params = json.loads(task.import_params)
-            params["extra_fields"] = extra_fields
-            task.import_params = json.dumps(params)
-
-            return task
-
-        def post_save(self, task):
-
-            if not task.done():
-                task.start()
-
-            return task
-
-        def derive_success_message(self):
-            return None
-
-        def get_success_url(self):
-            return reverse("contacts.contact_import") + "?task=%d" % self.object.pk
-
-    class Import(OrgPermsMixin, SmartCSVImportView):
-        class ImportForm(forms.ModelForm):
-            def __init__(self, *args, **kwargs):
-                self.org = kwargs["org"]
-                del kwargs["org"]
-                super().__init__(*args, **kwargs)
-
-            def clean_csv_file(self):
-                if not regex.match(r"^[A-Za-z0-9_.\-*() ]+$", self.cleaned_data["csv_file"].name, regex.V0):
-                    raise forms.ValidationError(
-                        "Please make sure the file name only contains "
-                        "alphanumeric characters [0-9a-zA-Z] and "
-                        "special characters in -, _, ., (, )"
-                    )
-
-                try:
-                    Contact.get_org_import_file_headers(ContentFile(self.cleaned_data["csv_file"].read()), self.org)
-                except Exception as e:
-                    raise forms.ValidationError(str(e))
-
-                return self.cleaned_data["csv_file"]
-
-            def clean(self):
-                groups_count = ContactGroup.user_groups.filter(org=self.org).count()
-                if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
-                    raise forms.ValidationError(
-                        _(
-                            "This org has %(count)d groups and the limit is %(limit)d. "
-                            "You must delete existing ones before you can "
-                            "create new ones." % dict(count=groups_count, limit=ContactGroup.MAX_ORG_CONTACTGROUPS)
-                        )
-                    )
-
-                return self.cleaned_data
-
-            class Meta:
-                model = ImportTask
-                fields = "__all__"
-
-        form_class = ImportForm
-        model = ImportTask
-        fields = ("csv_file",)
-        success_message = ""
-
-        def get_gear_links(self):
-            return [dict(title=_("Contacts"), style="button-light", href=reverse("contacts.contact_list"))]
-
-        def pre_save(self, task):
-            super().pre_save(task)
-
-            previous_import = ImportTask.objects.filter(created_by=self.request.user).order_by("-created_on").first()
-            if previous_import and previous_import.created_on < timezone.now() - timedelta(
-                hours=24
-            ):  # pragma: needs cover
-                analytics.track(self.request.user.username, "temba.contact_imported")
-
-            return task
-
-        def post_save(self, task):
-            # configure import params with current org and timezone
-            org = self.derive_org()
-            params = dict(
-                org_id=org.id,
-                timezone=str(org.timezone),
-                extra_fields=[],
-                original_filename=self.form.cleaned_data["csv_file"].name,
-            )
-            params_dump = json.dumps(params)
-            ImportTask.objects.filter(pk=task.pk).update(import_params=params_dump)
-
-            return task
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["org"] = self.derive_org()
-            return kwargs
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["task"] = None
-            context["group"] = None
-            context["show_form"] = True
-            org = self.derive_org()
-            connected_channels = Channel.objects.filter(is_active=True, org=org)
-            ch_schemes = set()
-            for ch in connected_channels:
-                ch_schemes.union(ch.schemes)
-
-            context["urn_scheme_config"] = [
-                conf for conf in URN_SCHEME_CONFIG if conf[0] == TEL_SCHEME or conf[0] in ch_schemes
-            ]
-
-            task_id = self.request.GET.get("task", None)
-            if task_id:
-                tasks = ImportTask.objects.filter(pk=task_id, created_by=self.request.user)
-
-                if tasks:
-                    task = tasks[0]
-                    context["task"] = task
-                    context["show_form"] = False
-                    context["results"] = json.loads(task.import_results) if task.import_results else dict()
-
-                    groups = ContactGroup.user_groups.filter(import_task=task)
-
-                    if groups:
-                        context["group"] = groups[0]
-
-                    elif not task.status() in ["PENDING", "RUNNING", "STARTED"]:  # pragma: no cover
-                        context["show_form"] = True
-
-            return context
-
-        def derive_refresh(self):
-            task_id = self.request.GET.get("task", None)
-            if task_id:
-                tasks = ImportTask.objects.filter(pk=task_id, created_by=self.request.user)
-                if tasks and tasks[0].status() in ["PENDING", "RUNNING", "STARTED"]:  # pragma: no cover
-                    return 3000
-                elif not ContactGroup.user_groups.filter(import_task__id=task_id).exists():
-                    return 3000
-            return 0
-
-        def derive_success_message(self):
-            return None
-
-        def get_success_url(self):
-            return reverse("contacts.contact_customize", args=[self.object.pk])
 
     class Omnibox(OrgPermsMixin, SmartListView):
         paginate_by = 75
@@ -2132,3 +1797,236 @@ class ContactFieldCRUDL(SmartCRUDL):
             sorted_results.insert(0, dict(key="name", label="Full name"))
 
             return HttpResponse(json.dumps(sorted_results), content_type="application/json")
+
+
+class ContactImportCRUDL(SmartCRUDL):
+    model = ContactImport
+    actions = ("create", "preview", "read")
+
+    class Create(OrgPermsMixin, SmartCreateView):
+        class Form(forms.ModelForm):
+            file = forms.FileField(validators=[FileExtensionValidator(allowed_extensions=("xls", "xlsx", "csv"))])
+
+            def __init__(self, *args, org, **kwargs):
+                self.org = org
+                self.headers = None
+                self.mappings = None
+                self.num_records = None
+
+                super().__init__(*args, **kwargs)
+
+            def clean_file(self):
+                file = self.cleaned_data["file"]
+
+                # try to parse the file saving the headers and mappings so we don't have to repeat parsing when
+                # saving the import
+                self.headers, self.mappings, self.num_records = ContactImport.try_to_parse(
+                    self.org, file.file, file.name
+                )
+
+                return file
+
+            def clean(self):
+                groups_count = ContactGroup.user_groups.filter(org=self.org).count()
+                if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+                    raise forms.ValidationError(
+                        _(
+                            "This workspace has reached the limit of %(count)d groups. "
+                            "You must delete existing ones before you can perform an import."
+                        ),
+                        params={"count": ContactGroup.MAX_ORG_CONTACTGROUPS},
+                    )
+
+                return self.cleaned_data
+
+            class Meta:
+                model = ContactImport
+                fields = ("file",)
+
+        form_class = Form
+        success_message = ""
+        success_url = "id@contacts.contactimport_preview"
+
+        def get_gear_links(self):
+            return [dict(title=_("Contacts"), style="button-light", href=reverse("contacts.contact_list"))]
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.derive_org()
+            return kwargs
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            org = self.derive_org()
+            schemes = org.get_schemes(role=Channel.ROLE_SEND)
+            schemes.add(TEL_SCHEME)  # always show tel
+            context["urn_scheme_config"] = [conf for conf in URN_SCHEME_CONFIG if conf[0] in schemes]
+            context["explicit_clear"] = ContactImport.EXPLICIT_CLEAR
+
+            return context
+
+        def pre_save(self, obj):
+            obj = super().pre_save(obj)
+            obj.org = self.get_user().get_org()
+            obj.original_filename = self.form.cleaned_data["file"].name
+            obj.headers = self.form.headers
+            obj.mappings = self.form.mappings
+            obj.num_records = self.form.num_records
+            return obj
+
+    class Preview(OrgObjPermsMixin, SmartUpdateView):
+        class Form(forms.ModelForm):
+            def __init__(self, *args, org, **kwargs):
+                self.org = org
+                super().__init__(*args, **kwargs)
+
+                self.columns = []
+                for i, header in enumerate(self.instance.headers):
+                    mapping = self.instance.mappings[header]
+                    column = {"header": header, "mapping": mapping}
+
+                    if mapping["type"] == "new_field":
+                        include_field = forms.BooleanField(
+                            label=" ", required=False, initial=True, widget=CheckboxWidget(attrs={"widget_only": True})
+                        )
+                        name_field = forms.CharField(
+                            label=" ", initial=mapping["name"], required=False, widget=InputWidget(),
+                        )
+                        value_type_field = forms.ChoiceField(
+                            label=" ",
+                            choices=Value.TYPE_CHOICES,
+                            required=True,
+                            initial=Value.TYPE_TEXT,
+                            widget=SelectWidget(attrs={"widget_only": True}),
+                        )
+
+                        column_controls = OrderedDict(
+                            [
+                                (f"column_{i}_include", include_field),
+                                (f"column_{i}_name", name_field),
+                                (f"column_{i}_value_type", value_type_field),
+                            ]
+                        )
+                        self.fields.update(column_controls)
+
+                        column["controls"] = list(column_controls.keys())
+
+                    self.columns.append(column)
+
+            def get_data_by_header(self):
+                """
+                Gather form data into a map organized by import header
+                """
+                data = {}
+                for i, header in enumerate(self.instance.headers):
+                    data[header] = {
+                        "include": self.cleaned_data.get(f"column_{i}_include", True),
+                        "name": self.cleaned_data.get(f"column_{i}_name", "").strip(),
+                        "value_type": self.cleaned_data.get(f"column_{i}_value_type", Value.TYPE_TEXT),
+                    }
+                return data
+
+            def clean(self):
+                existing_field_keys = {f.key for f in self.org.contactfields.filter(is_active=True)}
+                used_field_keys = set()
+                data_by_header = self.get_data_by_header()
+                for header, data in data_by_header.items():
+                    mapping = self.instance.mappings[header]
+
+                    if mapping["type"] == "new_field" and data["include"]:
+                        field_name = data["name"]
+                        if not field_name:
+                            raise ValidationError(
+                                _("Field name for '%(header)s' can't be empty.") % {"header": header}
+                            )
+                        else:
+                            field_key = ContactField.make_key(field_name)
+                            if field_key in existing_field_keys:
+                                raise forms.ValidationError(
+                                    _("Field name for '%(header)s' matches an existing field."),
+                                    params={"header": header},
+                                )
+
+                            if not ContactField.is_valid_label(field_name) or not ContactField.is_valid_key(field_key):
+                                raise forms.ValidationError(
+                                    _("Field name for '%(header)s' is invalid or a reserved word."),
+                                    params={"header": header},
+                                )
+
+                            if field_key in used_field_keys:
+                                raise forms.ValidationError(
+                                    _("Field name '%(name)s' is repeated.") % {"name": field_name}
+                                )
+
+                            used_field_keys.add(field_key)
+
+                return self.cleaned_data
+
+            class Meta:
+                model = ContactImport
+                fields = ("id",)
+
+        form_class = Form
+        success_url = "id@contacts.contactimport_read"
+        success_message = ""
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.derive_org()
+            return kwargs
+
+        def pre_process(self, request, *args, **kwargs):
+            obj = self.get_object()
+
+            # can't preview an import which has already started
+            if obj.started_on:
+                return HttpResponseRedirect(reverse("contacts.contactimport_read", args=[obj.id]))
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["num_records"] = self.get_object().num_records
+            return context
+
+        def pre_save(self, obj):
+            data_by_header = self.form.get_data_by_header()
+
+            # rewrite mappings using values from form
+            for i, header in enumerate(obj.headers):
+                data = data_by_header[header]
+                mapping = obj.mappings[header]
+
+                if not data["include"]:
+                    mapping = ContactImport.MAPPING_IGNORE
+                else:
+                    if mapping["type"] == "new_field":
+                        mapping["key"] = ContactField.make_key(data["name"])
+                        mapping["name"] = data["name"]
+                        mapping["value_type"] = data["value_type"]
+
+                obj.mappings[header] = mapping
+            return obj
+
+        def post_save(self, obj):
+            obj.start_async()
+            return obj
+
+    class Read(OrgObjPermsMixin, SmartReadView):
+        def get_gear_links(self):
+            return [dict(title=_("Contacts"), style="button-light", href=reverse("contacts.contact_list"))]
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["info"] = self.import_info
+            context["is_finished"] = self.is_import_finished()
+            return context
+
+        @cached_property
+        def import_info(self):
+            return self.get_object().get_info()
+
+        def is_import_finished(self):
+            return self.import_info["status"] in (ContactImport.STATUS_COMPLETE, ContactImport.STATUS_FAILED)
+
+        def derive_refresh(self):
+            return 0 if self.is_import_finished() else 3000
