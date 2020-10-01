@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-30 22:51+0000\n"
+"POT-Creation-Date: 2020-10-01 15:23+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6153,19 +6153,19 @@ msgstr ""
 msgid "Field:Team"
 msgstr ""
 
-msgid "+250788123123"
+msgid "+12025550199"
 msgstr ""
 
-msgid "John Doe"
+msgid "John Smith"
 msgstr ""
 
 msgid "Managers"
 msgstr ""
 
-msgid "+250788111222"
+msgid "+14045550178"
 msgstr ""
 
-msgid "Jane Doe"
+msgid "Mary Green"
 msgstr ""
 
 msgid "Advisors"
@@ -6189,14 +6189,14 @@ msgstr ""
 msgid "Contact language"
 msgstr ""
 
-msgid "Only valid ISO639-3 codes supportted"
+msgid "Only valid <a href=\"https://en.wikipedia.org/wiki/ISO_639-3\" target=\"_new\">ISO639-3</a> codes supported."
 msgstr ""
 
-msgid "You will have the option to choose the columns to import and to which field to import them."
+msgid "If fields don't exist you will have the option to create them or ignore them."
 msgstr ""
 
 #, python-format
-msgid "You can download <a href=\"%(sample_url)s\">this Excel template</a> as a sample. Note that blank values will be ignored. If you want to explicitly clear values use <code>%(code)s</code>."
+msgid "You can download <a href=\"%(sample_url)s\">this Excel template</a> as a sample. Imports files can contain a maximum of %(max)s records. Note that blank values will be ignored. If you want to explicitly clear values use <tt>%(code)s</tt>."
 msgstr ""
 
 msgid "Choose File"

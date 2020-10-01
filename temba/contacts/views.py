@@ -1863,7 +1863,7 @@ class ContactImportCRUDL(SmartCRUDL):
             schemes.add(TEL_SCHEME)  # always show tel
             context["urn_scheme_config"] = [conf for conf in URN_SCHEME_CONFIG if conf[0] in schemes]
             context["explicit_clear"] = ContactImport.EXPLICIT_CLEAR
-
+            context["max_records"] = ContactImport.MAX_RECORDS
             return context
 
         def pre_save(self, obj):
