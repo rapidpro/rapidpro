@@ -196,7 +196,7 @@ class BroadcastReadSerializer(ReadSerializer):
         if self.context["org"].is_anon:
             return None
         else:
-            return obj.raw_urns
+            return obj.raw_urns or []
 
     class Meta:
         model = Broadcast
@@ -235,7 +235,7 @@ class BroadcastWriteSerializer(WriteSerializer):
             base_language=base_language,
             groups=self.validated_data.get("groups", []),
             contacts=self.validated_data.get("contacts", []),
-            raw_urns=self.validated_data.get("urns", []),
+            urns=self.validated_data.get("urns", []),
             channel=self.validated_data.get("channel"),
             template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
         )

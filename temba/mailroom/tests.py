@@ -396,7 +396,7 @@ class MailroomQueueTest(TembaTest):
             {"eng": "Welcome to mailroom!", "spa": "¡Bienvenidx a mailroom!"},
             groups=[bobs],
             contacts=[jim],
-            urns=[jim.urns.get()],
+            urns=["tel:+12065556666"],
             base_language="eng",
         )
 
@@ -415,7 +415,7 @@ class MailroomQueueTest(TembaTest):
                     },
                     "template_state": "legacy",
                     "base_language": "eng",
-                    "urns": ["tel:+12065551212"],
+                    "urns": ["tel:+12065556666"],
                     "contact_ids": [jim.id],
                     "group_ids": [bobs.id],
                     "broadcast_id": bcast.id,
