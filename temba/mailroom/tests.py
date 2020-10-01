@@ -400,7 +400,7 @@ class MailroomQueueTest(TembaTest):
             base_language="eng",
         )
 
-        bcast.send()
+        bcast.send_async()
 
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(

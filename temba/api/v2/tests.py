@@ -657,7 +657,7 @@ class APITest(TembaTest):
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
 
-        bcast1 = Broadcast.create(self.org, self.admin, "Hello 1", urns=[self.frank.get_urn("twitter")])
+        bcast1 = Broadcast.create(self.org, self.admin, "Hello 1", urns=["twitter:franky"])
         bcast2 = Broadcast.create(self.org, self.admin, "Hello 2", contacts=[self.joe])
         bcast3 = Broadcast.create(self.org, self.admin, "Hello 3", contacts=[self.frank], status="S")
         bcast4 = Broadcast.create(
@@ -732,7 +732,7 @@ class APITest(TembaTest):
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
         self.assertEqual({"base": "Hi @(format_urn(urns.tel))"}, broadcast.text)
-        self.assertEqual({"twitter:franky"}, set(broadcast.urns.values_list("identity", flat=True)))
+        self.assertEqual(["twitter:franky"], broadcast.raw_urns)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
         self.assertEqual({reporters}, set(broadcast.groups.all()))
         self.assertEqual(self.channel, broadcast.channel)

@@ -2,6 +2,7 @@ import logging
 import time
 from array import array
 from datetime import datetime, timedelta
+from typing import Dict, List
 
 import iso8601
 import pytz
@@ -104,6 +105,9 @@ class Broadcast(models.Model):
     contacts = models.ManyToManyField(Contact, related_name="addressed_broadcasts")
     urns = models.ManyToManyField(ContactURN, related_name="addressed_broadcasts")
 
+    # URN strings that mailroom will turn into contacts and URN objects
+    raw_urns = ArrayField(models.TextField(), null=True)
+
     # message content
     text = TranslatableField(max_length=MAX_TEXT_LEN)
     media = TranslatableField(max_length=2048, null=True)
@@ -158,15 +162,15 @@ class Broadcast(models.Model):
         *,
         groups=None,
         contacts=None,
-        urns=None,
-        contact_ids=None,
-        base_language=None,
-        channel=None,
-        media=None,
-        send_all=False,
-        quick_replies=None,
-        template_state=TEMPLATE_STATE_LEGACY,
-        status=INITIALIZING,
+        urns: List[str] = None,
+        contact_ids: List[int] = None,
+        base_language: str = None,
+        channel: Channel = None,
+        media: Dict = None,
+        send_all: bool = False,
+        quick_replies: List[Dict] = None,
+        template_state: str = TEMPLATE_STATE_LEGACY,
+        status: str = INITIALIZING,
         **kwargs,
     ):
         # for convenience broadcasts can still be created with single translation and no base_language
@@ -174,15 +178,9 @@ class Broadcast(models.Model):
             base_language = org.primary_language.iso_code if org.primary_language else "base"
             text = {base_language: text}
 
-        # check we have at least one recipient type
-        if groups is None and contacts is None and contact_ids is None and urns is None:
-            raise ValueError("Must specify at least one recipient kind in broadcast creation")
-
-        if base_language not in text:  # pragma: no cover
-            raise ValueError("Base language '%s' doesn't exist in the provided translations dict" % base_language)
-
-        if media and base_language not in media:  # pragma: no cover
-            raise ValueError("Base language '%s' doesn't exist in the provided media dict" % base_language)
+        assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
+        assert base_language in text, "base_language doesn't exist in text translations"
+        assert not media or base_language in media, "base _language doesn't exist in media translations"
 
         if quick_replies:
             for quick_reply in quick_replies:
@@ -215,7 +213,7 @@ class Broadcast(models.Model):
 
         return broadcast
 
-    def send(self):
+    def send_async(self):
         """
         Queues this broadcast for sending by mailroom
         """
@@ -236,7 +234,7 @@ class Broadcast(models.Model):
 
         group_count = self.groups.count()
         contact_count = self.contacts.count()
-        urn_count = self.urns.count()
+        urn_count = len(self.raw_urns) if self.raw_urns else 0
 
         if group_count == 1 and contact_count == 0 and urn_count == 0:
             return {"recipients": self.groups.first().get_member_count(), "groups": 0, "contacts": 0, "urns": 0}
@@ -271,18 +269,17 @@ class Broadcast(models.Model):
         if self.schedule:
             self.schedule.delete()
 
-    def update_recipients(self, *, groups=None, contacts=None, urns=None):
+    def update_recipients(self, *, groups=None, contacts=None, urns: List[str] = None):
         """
         Only used to update recipients for scheduled / repeating broadcasts
         """
         # clear our current recipients
         self.groups.clear()
         self.contacts.clear()
-        self.urns.clear()
 
         self._set_recipients(groups=groups, contacts=contacts, urns=urns)
 
-    def _set_recipients(self, *, groups=None, contacts=None, urns=None, contact_ids=None):
+    def _set_recipients(self, *, groups=None, contacts=None, urns: List[str] = None, contact_ids=None):
         """
         Sets the recipients which may be contact groups, contacts or contact URNs.
         """
@@ -293,7 +290,8 @@ class Broadcast(models.Model):
             self.contacts.add(*contacts)
 
         if urns:
-            self.urns.add(*urns)
+            self.raw_urns = urns
+            self.save(update_fields=("raw_urns",))
 
         if contact_ids:
             RelatedModel = self.contacts.through
