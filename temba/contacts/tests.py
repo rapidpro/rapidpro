@@ -1239,11 +1239,6 @@ class ContactTest(TembaTest):
             message="Sent 7 days after planting date",
         )
 
-    def test_contact_save_raises_ValueError_if_handle_update_is_not_specified(self):
-        joe = self.create_contact("Joe Blow", phone="0788123123")
-
-        self.assertRaises(ValueError, joe.save, update_fields=("name",))
-
     def test_get_or_create(self):
 
         # can't create without org
@@ -1348,7 +1343,7 @@ class ContactTest(TembaTest):
         group = self.create_group("Test Group", contacts=[contact])
 
         contact.fields = {"gender": "Male", "age": 40}
-        contact.save(update_fields=("fields",), handle_update=False)
+        contact.save(update_fields=("fields",))
 
         self.create_broadcast(self.admin, "Test Broadcast", contacts=[contact])
 
@@ -1592,7 +1587,7 @@ class ContactTest(TembaTest):
 
         # we don't let users undo releasing a contact... but if we have to do it for some reason
         self.joe.is_active = True
-        self.joe.save(update_fields=("is_active",), handle_update=False)
+        self.joe.save(update_fields=("is_active",))
 
         # check joe goes into the appropriate groups
         self.assertEqual(
@@ -1691,7 +1686,7 @@ class ContactTest(TembaTest):
     def test_contact_search_evaluation_created_on_utc_rollover(self):
         # org is in Africa/Kigali timezone: +02:00
         self.joe.created_on = datetime(2019, 6, 8, 23, 14, 0, tzinfo=pytz.UTC)
-        self.joe.save(update_fields=("created_on",), handle_update=False)
+        self.joe.save(update_fields=("created_on",))
 
         query_created_on = self.joe.created_on.astimezone(self.org.timezone).date().isoformat()
 
@@ -1766,7 +1761,7 @@ class ContactTest(TembaTest):
 
         # test 'language' attribute
         self.joe.language = "eng"
-        self.joe.save(update_fields=("language",), handle_update=False)
+        self.joe.save(update_fields=("language",))
         self.assertTrue(evaluate_query(self.org, 'language = "eng"', contact_json=self.joe.as_search_json()))
 
         self.assertFalse(evaluate_query(self.org, 'language != "eng"', contact_json=self.joe.as_search_json()))
@@ -1783,7 +1778,7 @@ class ContactTest(TembaTest):
         )
 
         self.joe.language = None
-        self.joe.save(update_fields=("language",), handle_update=False)
+        self.joe.save(update_fields=("language",))
 
         self.assertFalse(evaluate_query(self.org, 'language = "eng"', contact_json=self.joe.as_search_json()))
 
@@ -1826,7 +1821,7 @@ class ContactTest(TembaTest):
 
         # test 'last_seen_on' attribute
         self.joe.last_seen_on = datetime(2020, 3, 17, 13, 0, 0, 0, pytz.UTC)
-        self.joe.save(update_fields=("last_seen_on",), handle_update=False)
+        self.joe.save(update_fields=("last_seen_on",))
 
         self.assertRaises(
             SearchException,
@@ -1868,7 +1863,7 @@ class ContactTest(TembaTest):
         self.assertFalse(evaluate_query(self.org, f'last_seen_on = ""', contact_json=self.joe.as_search_json()))
 
         self.joe.last_seen_on = None
-        self.joe.save(update_fields=("last_seen_on",), handle_update=False)
+        self.joe.save(update_fields=("last_seen_on",))
 
         self.assertFalse(
             evaluate_query(self.org, f"last_seen_on = 2016-01-01", contact_json=self.joe.as_search_json())
@@ -2629,7 +2624,7 @@ class ContactTest(TembaTest):
 
             kurt = self.create_contact("Kurt", phone="123123")
             self.joe.created_on = timezone.now() - timedelta(days=1000)
-            self.joe.save(update_fields=("created_on",), handle_update=False)
+            self.joe.save(update_fields=("created_on",))
 
             self.create_campaign()
 
@@ -3332,14 +3327,14 @@ class ContactTest(TembaTest):
 
         # this is a bogus
         self.joe.language = "zzz"
-        self.joe.save(update_fields=("language",), handle_update=False)
+        self.joe.save(update_fields=("language",))
         response = self.fetch_protected(reverse("contacts.contact_read", args=[self.joe.uuid]), self.admin)
 
         # should just show the language code instead of the language name
         self.assertContains(response, "zzz")
 
         self.joe.language = "fra"
-        self.joe.save(update_fields=("language",), handle_update=False)
+        self.joe.save(update_fields=("language",))
         response = self.fetch_protected(reverse("contacts.contact_read", args=[self.joe.uuid]), self.admin)
 
         # with a proper code, we should see the language
@@ -3728,7 +3723,7 @@ class ContactTest(TembaTest):
         # update our language to something not on the org
         self.joe.refresh_from_db()
         self.joe.language = "fra"
-        self.joe.save(update_fields=("language",), handle_update=False)
+        self.joe.save(update_fields=("language",))
 
         # add some languages to our org, but not french
         self.client.post(
@@ -3896,7 +3891,7 @@ class ContactTest(TembaTest):
         self.assertEqual([modifiers.Language(language="eng")], self.joe.update(name="Joe Blow", language="eng"))
 
         self.joe.language = "eng"
-        self.joe.save(update_fields=("language",), handle_update=False)
+        self.joe.save(update_fields=("language",))
 
         # change name
         self.assertEqual([modifiers.Name(name="Joseph Blow")], self.joe.update(name="Joseph Blow", language="eng"))
@@ -4149,7 +4144,7 @@ class ContactTest(TembaTest):
 
         joe = Contact.objects.get(pk=self.joe.pk)
         joe.language = "eng"
-        joe.save(update_fields=("language",), handle_update=False)
+        joe.save(update_fields=("language",))
 
         # none value instances
         self.assertEqual(joe.get_field_serialized(weight_field), None)
@@ -4258,7 +4253,7 @@ class ContactTest(TembaTest):
     def test_update_handling(self, mr_mocks):
         bob = self.create_contact("Bob", phone="111222")
         bob.name = "Bob Marley"
-        bob.save(update_fields=("name",), handle_update=False)
+        bob.save(update_fields=("name",))
 
         group = self.create_group("Customers", [])
         nickname = self.create_field("nickname", "Nickname")

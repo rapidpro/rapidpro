@@ -1610,10 +1610,10 @@ class APITest(TembaTest):
 
         # tweak modified_on so we get the order we want
         self.joe.modified_on = timezone.now()
-        self.joe.save(update_fields=("modified_on",), handle_update=False)
+        self.joe.save(update_fields=("modified_on",))
         contact4.modified_on = timezone.now()
         contact4.last_seen_on = datetime(2020, 8, 12, 13, 30, 45, 123456, pytz.UTC)
-        contact4.save(update_fields=("modified_on", "last_seen_on"), handle_update=False)
+        contact4.save(update_fields=("modified_on", "last_seen_on"))
 
         contact1.refresh_from_db()
         contact4.refresh_from_db()

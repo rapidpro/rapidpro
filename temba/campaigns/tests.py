@@ -979,7 +979,7 @@ class CampaignTest(TembaTest):
 
         # give contact a last seen on value
         self.farmer1.last_seen_on = timezone.now()
-        self.farmer1.save(update_fields=("last_seen_on",), handle_update=False)
+        self.farmer1.save(update_fields=("last_seen_on",))
 
         ev4 = EventFire.objects.create(event=event3, contact=self.farmer1, scheduled=trim_date, fired=trim_date)
         self.assertIsNotNone(ev4.get_relative_to_value())
@@ -1024,7 +1024,7 @@ class CampaignTest(TembaTest):
         # give contact a last seen on value
         now = timezone.now()
         self.farmer1.last_seen_on = now
-        self.farmer1.save(update_fields=("last_seen_on",), handle_update=False)
+        self.farmer1.save(update_fields=("last_seen_on",))
 
         expected_result = (now + timedelta(days=5)).replace(second=0, microsecond=0).astimezone(self.org.timezone)
         self.assertEqual(event.calculate_scheduled_fire(self.farmer1), expected_result)
