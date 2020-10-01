@@ -1,3 +1,8 @@
+v5.7.60
+----------
+ * Fix contact imports from CSV files
+ * Tweaks to import UI
+
 v5.7.59
 ----------
  * Imports 2.0
