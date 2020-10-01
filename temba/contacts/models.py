@@ -2519,8 +2519,12 @@ class ContactImport(SmartModel):
         self.group = ContactGroup.create_static(self.org, self.created_by, self._default_group_name())
         self.save(update_fields=("group",))
 
+        # CSV reader expects str stream so wrap file
+        file_type = self._get_file_type()
+        file = io.TextIOWrapper(self.file) if file_type == "csv" else self.file
+
         # parse each row, creating batch tasks for mailroom
-        data = pyexcel.iget_array(file_stream=self.file, file_type=self._get_file_type(), start_row=1)
+        data = pyexcel.iget_array(file_stream=file, file_type=file_type, start_row=1)
 
         urns = []
 
