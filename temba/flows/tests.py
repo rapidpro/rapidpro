@@ -398,7 +398,7 @@ class FlowTest(TembaTest):
 
         self.login(self.admin)
 
-        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
 
         self.assertTrue(response.context["mutable"])
         self.assertTrue(response.context["can_start"])
@@ -414,7 +414,7 @@ class FlowTest(TembaTest):
 
         self.login(csrep)
 
-        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertContains(response, "Service")
 
         # flows that are archived can't be edited, started or simulated
@@ -423,7 +423,7 @@ class FlowTest(TembaTest):
         flow.is_archived = True
         flow.save(update_fields=("is_archived",))
 
-        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
 
         self.assertFalse(response.context["mutable"])
         self.assertFalse(response.context["can_start"])
@@ -436,28 +436,28 @@ class FlowTest(TembaTest):
         self.login(self.admin)
 
         # empty feature set
-        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertEqual([], json.loads(response.context["feature_filters"]))
 
         # with zapier
         Resthook.objects.create(org=flow.org, created_by=self.admin, modified_by=self.admin)
-        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertEqual(["resthook"], json.loads(response.context["feature_filters"]))
 
         # add in a classifier
         Classifier.objects.create(org=flow.org, config="", created_by=self.admin, modified_by=self.admin)
-        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertEqual(["classifier", "resthook"], json.loads(response.context["feature_filters"]))
 
         # add in an airtime connection
         flow.org.connect_dtone("login", "token", self.admin)
-        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertEqual(["airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"]))
 
         # change our channel to use a whatsapp scheme
         self.channel.schemes = [WHATSAPP_SCHEME]
         self.channel.save()
-        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertEqual(
             ["whatsapp", "airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"])
         )
@@ -465,95 +465,18 @@ class FlowTest(TembaTest):
         # change our channel to use a facebook scheme
         self.channel.schemes = [FACEBOOK_SCHEME]
         self.channel.save()
-        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertEqual(
             ["facebook", "airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"])
         )
 
         # add in a ticketer
         Ticketer.create(self.org, self.user, "mailgun", "Email (bob@acme.com)", {})
-        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertEqual(
             ["facebook", "airtime", "classifier", "ticketer", "resthook"],
             json.loads(response.context["feature_filters"]),
         )
-
-    def test_legacy_editor(self):
-        flow = self.get_flow("color", legacy=True)
-
-        self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertTrue(response.context["mutable"])
-        self.assertFalse(response.context["has_airtime_service"])
-        self.assertFalse(response.context["is_starting"])
-
-        # superusers can't edit flows
-        self.login(self.superuser)
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertFalse(response.context["mutable"])
-
-        # create a customer service user
-        self.csrep = self.create_user("csrep")
-        self.csrep.groups.add(Group.objects.get(name="Customer Support"))
-        self.csrep.is_staff = True
-        self.csrep.save()
-
-        self.org.administrators.add(self.csrep)
-
-        self.login(self.csrep)
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        gear_links = response.context["view"].get_gear_links()
-        self.assertEqual(gear_links[-1]["title"], "Service")
-        self.assertEqual(
-            gear_links[-1]["href"], f"/org/service/?organization={flow.org_id}&redirect_url=/flow/editor/{flow.uuid}/"
-        )
-        self.assertTrue(gear_links[-2]["divider"])
-
-        self.assertListEqual(
-            [link.get("title") for link in gear_links],
-            [
-                "Start Flow",
-                "Results",
-                None,
-                "Edit",
-                "Copy",
-                "Export",
-                None,
-                "Revision History",
-                "Delete",
-                None,
-                "New Editor",
-                None,
-                "Service",
-            ],
-        )
-
-    def test_legacy_flow_editor_for_archived_flow(self):
-        flow = self.get_flow("color", legacy=True)
-        flow.archive()
-
-        self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-
-        gear_links = response.context["view"].get_gear_links()
-
-        self.assertFalse(response.context["mutable"])
-        self.assertFalse(response.context["can_start"])
-
-        # cannot 'Edit' an archived Flow
-        self.assertListEqual(
-            [link.get("title") for link in gear_links],
-            ["Results", "Copy", "Export", None, "Revision History", "Delete", None, "New Editor"],
-        )
-
-    def test_legacy_flow_editor_for_inactive_flow(self):
-        flow = self.get_flow("color", legacy=True)
-        flow.release()
-
-        self.login(self.admin)
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-
-        self.assertEqual(404, response.status_code)
 
     def test_save_revision(self):
         self.login(self.admin)
@@ -1719,7 +1642,7 @@ class FlowTest(TembaTest):
 
         flow_with_keywords = Flow.objects.get(name=post_data["name"])
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor_next", args=[flow.uuid]))
+        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertEqual(flow_with_keywords.triggers.count(), 8)
         self.assertEqual(flow_with_keywords.triggers.filter(is_archived=True).count(), 2)
         self.assertEqual(
@@ -2488,7 +2411,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(flow2.expires_after_minutes, 10080)
 
         # make sure we don't get a start flow button for Android Surveys
-        response = self.client.get(reverse("flows.flow_editor_next", args=[flow2.uuid]))
+        response = self.client.get(reverse("flows.flow_editor", args=[flow2.uuid]))
         self.assertNotContains(response, "broadcast-rulesflow btn-primary")
 
         # create a new voice flow
@@ -2542,7 +2465,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow3 = Flow.objects.get(name=post_data["name"])
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor_next", args=[flow3.uuid]))
+        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[flow3.uuid]))
         self.assertEqual(response.context["object"].triggers.count(), 3)
 
         # update expiration for voice flow, and test if form has expected fields
@@ -2624,7 +2547,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         flow3 = Flow.objects.get(name=post_data["name"])
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor_next", args=[flow3.uuid]))
+        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[flow3.uuid]))
         self.assertEqual(flow3.triggers.count(), 5)
         self.assertEqual(flow3.triggers.filter(is_archived=True).count(), 2)
         self.assertEqual(flow3.triggers.filter(is_archived=False).count(), 3)
@@ -2771,7 +2694,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         msg_flow = Flow.objects.get(name=post_data["name"])
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor_next", args=[msg_flow.uuid]))
+        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[msg_flow.uuid]))
         self.assertEqual(msg_flow.flow_type, Flow.TYPE_MESSAGE)
 
         post_data = dict(name="Call flow", expires_after_minutes=5, flow_type=Flow.TYPE_VOICE)
@@ -2779,7 +2702,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         call_flow = Flow.objects.get(name=post_data["name"])
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor_next", args=[call_flow.uuid]))
+        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[call_flow.uuid]))
         self.assertEqual(call_flow.flow_type, Flow.TYPE_VOICE)
 
         # test creating a flow with base language
@@ -2802,7 +2725,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         language_flow = Flow.objects.get(name="Language Flow")
 
         self.assertEqual(200, response.status_code)
-        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor_next", args=[language_flow.uuid]))
+        self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[language_flow.uuid]))
         self.assertEqual(language_flow.base_language, language.iso_code)
 
     def test_list_views(self):
@@ -3653,9 +3576,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.version_number = Flow.FINAL_LEGACY_VERSION
         flow.update(flow.as_json())
 
-        # old editor
+        # should load editor
         response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertNotRedirect(response, reverse("flows.flow_editor_next", args=[flow.uuid]))
 
         # new flow definition
         self.client.post(
@@ -3667,9 +3589,9 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             org=self.org, name="New Flow", flow_type=Flow.TYPE_MESSAGE, version_number=Flow.CURRENT_SPEC_VERSION
         )
 
-        # now loading the editor page should redirect
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertRedirect(response, reverse("flows.flow_editor_next", args=[flow.uuid]))
+        # loading the (old) new editor page should redirect
+        response = self.client.get(reverse("flows.flow_editor_next", args=[flow.uuid]))
+        self.assertRedirect(response, reverse("flows.flow_editor", args=[flow.uuid]))
 
     def test_save_contact_does_not_update_field_label(self):
         self.login(self.admin)
@@ -4032,7 +3954,7 @@ msgstr "Azul"
 
         # should redirect back to editor
         self.assertEqual(302, response.status_code)
-        self.assertEqual(f"/flow/editor_next/{flow.uuid}/", response.url)
+        self.assertEqual(f"/flow/editor/{flow.uuid}/", response.url)
 
         # should have a new revision
         self.assertEqual(2, flow.revisions.count())

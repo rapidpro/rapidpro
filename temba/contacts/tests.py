@@ -6406,6 +6406,21 @@ class ContactImportTest(TembaTest):
         )
 
     @mock_mailroom
+    def test_batches_from_csv(self, mr_mocks):
+        imp = self.create_contact_import("media/test_imports/simple.csv")
+        imp.start()
+        batch = imp.batches.get()
+
+        self.assertEqual(
+            [
+                {"name": "Eric Newcomer", "urns": ["tel:250788382382"], "groups": [str(imp.group.uuid)]},
+                {"name": "NIC POTTIER", "urns": ["tel:250(78) 8 383 383"], "groups": [str(imp.group.uuid)]},
+                {"name": "jen newcomer", "urns": ["tel:250788383385"], "groups": [str(imp.group.uuid)]},
+            ],
+            batch.specs,
+        )
+
+    @mock_mailroom
     def test_detect_spamminess(self, mr_mocks):
         imp = self.create_contact_import("media/test_imports/sequential_tels.xls")
         imp.start()

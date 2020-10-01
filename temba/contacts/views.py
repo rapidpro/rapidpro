@@ -1847,9 +1847,6 @@ class ContactImportCRUDL(SmartCRUDL):
         success_message = ""
         success_url = "id@contacts.contactimport_preview"
 
-        def get_gear_links(self):
-            return [dict(title=_("Contacts"), style="button-light", href=reverse("contacts.contact_list"))]
-
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["org"] = self.derive_org()
@@ -1863,7 +1860,7 @@ class ContactImportCRUDL(SmartCRUDL):
             schemes.add(TEL_SCHEME)  # always show tel
             context["urn_scheme_config"] = [conf for conf in URN_SCHEME_CONFIG if conf[0] in schemes]
             context["explicit_clear"] = ContactImport.EXPLICIT_CLEAR
-
+            context["max_records"] = ContactImport.MAX_RECORDS
             return context
 
         def pre_save(self, obj):
@@ -2012,9 +2009,6 @@ class ContactImportCRUDL(SmartCRUDL):
             return obj
 
     class Read(OrgObjPermsMixin, SmartReadView):
-        def get_gear_links(self):
-            return [dict(title=_("Contacts"), style="button-light", href=reverse("contacts.contact_list"))]
-
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["info"] = self.import_info

@@ -152,18 +152,6 @@
           .button-light.lift.inline-block(href="{% url 'api' %}" onclick="goto(event)")
             -trans "API Documentation"
 
--block extra-script
-  {{ block.super }}
-  :javascript
-    {% if org_perms.flows.flow_create %}
-      $(".create_flow").on('click', function() {
-        var modal = new Modax('{{ _("Create a Flow")|escapejs }}', '{% url "flows.flow_create" %}');
-        modal.setIcon('icon-tree');
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-    {% endif %}
-
 
 -block extra-less
   -compress css inline
