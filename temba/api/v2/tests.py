@@ -1534,13 +1534,13 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        call1 = ChannelEvent.create(self.channel, "tel:0788123123", ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now())
-        call2 = ChannelEvent.create(
-            self.channel, "tel:0788124124", ChannelEvent.TYPE_CALL_IN, timezone.now(), dict(duration=36)
+        call1 = self.create_channel_event(self.channel, "tel:0788123123", ChannelEvent.TYPE_CALL_IN_MISSED)
+        call2 = self.create_channel_event(
+            self.channel, "tel:0788124124", ChannelEvent.TYPE_CALL_IN, extra=dict(duration=36)
         )
-        call3 = ChannelEvent.create(self.channel, "tel:0788124124", ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now())
-        call4 = ChannelEvent.create(
-            self.channel, "tel:0788123123", ChannelEvent.TYPE_CALL_OUT, timezone.now(), dict(duration=15)
+        call3 = self.create_channel_event(self.channel, "tel:0788124124", ChannelEvent.TYPE_CALL_OUT_MISSED)
+        call4 = self.create_channel_event(
+            self.channel, "tel:0788123123", ChannelEvent.TYPE_CALL_OUT, extra=dict(duration=15)
         )
 
         # no filtering
