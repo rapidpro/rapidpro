@@ -1,7 +1,5 @@
 -extends "smartmin/form.html"
-
--load smartmin
--load i18n
+-load smartmin i18n humanize
 
 -block title
   -trans "Import Contacts"
@@ -21,16 +19,16 @@
           -trans "Field:Team"
       %tr
         %td
-          -trans "+250788123123"
+          -trans "+12025550199"
         %td
-          -trans "John Doe"
+          -trans "John Smith"
         %td
           -trans "Managers"
       %tr
         %td
-          -trans "+250788111222"
+          -trans "+14045550178"
         %td
-          -trans "Jane Doe"
+          -trans "Mary Green"
         %td
           -trans "Advisors"
 
@@ -59,7 +57,8 @@
         %td.whitespace-no-wrap
           -trans "Contact language"
         %td
-          -trans "Only valid ISO639-3 codes supportted"
+          -blocktrans trimmed
+            Only valid <a href="https://en.wikipedia.org/wiki/ISO_639-3" target="_new">ISO639-3</a> codes supported.
 
       -for conf in urn_scheme_config
         %tr
@@ -76,12 +75,13 @@
           <i>custom_field</i>
         %td
           -blocktrans trimmed
-            You will have the option to choose the columns to import and to which field to import them.
+            If fields don't exist you will have the option to create them or ignore them.
 
     %p
-      -blocktrans trimmed with sample_url=STATIC_URL|add:"examples/contacts.xls" code=explicit_clear
-        You can download <a href="{{ sample_url }}">this Excel template</a> as a sample. Note that blank values will be
-        ignored. If you want to explicitly clear values use <code>{{ code }}</code>.
+      -blocktrans trimmed with sample_url=STATIC_URL|add:"examples/sample_import.xlsx" code=explicit_clear max=max_records|intcomma
+        You can download <a href="{{ sample_url }}">this Excel template</a> as a sample. Imports files can contain a
+        maximum of {{ max }} records. Note that blank values will be ignored. If you want to explicitly clear values
+        use <tt>{{ code }}</tt>.
 
     %form#import-form(method="post" enctype="multipart/form-data")
       -csrf_token
