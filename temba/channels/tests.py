@@ -272,9 +272,7 @@ class ChannelTest(TembaTest):
 
         # a message, a call, and a broadcast
         msg = self.send_message(["250788382382"], "How is it going?")
-        call = ChannelEvent.create(
-            self.tel_channel, "tel:+250788383385", ChannelEvent.TYPE_CALL_IN, timezone.now(), {}
-        )
+        call = self.create_channel_event(self.tel_channel, "tel:+250788383385", ChannelEvent.TYPE_CALL_IN, extra={})
 
         self.assertEqual(self.org, msg.org)
         self.assertEqual(self.tel_channel, msg.channel)
@@ -1683,30 +1681,11 @@ class ChannelBatchTest(TembaTest):
         self.assertEqual(ms_to_datetime(epoch), now)
 
 
-class ChannelEventTest(TembaTest):
-    def test_create(self):
-        now = timezone.now()
-        event = ChannelEvent.create(
-            self.channel, "tel:+250783535665", ChannelEvent.TYPE_CALL_OUT, now, extra=dict(duration=300)
-        )
-
-        contact = Contact.objects.get()
-        self.assertEqual(str(contact.get_urn()), "tel:+250783535665")
-
-        self.assertEqual(event.org, self.org)
-        self.assertEqual(event.channel, self.channel)
-        self.assertEqual(event.contact, contact)
-        self.assertEqual(event.event_type, ChannelEvent.TYPE_CALL_OUT)
-        self.assertEqual(event.occurred_on, now)
-        self.assertEqual(event.extra["duration"], 300)
-
-
 class ChannelEventCRUDLTest(TembaTest):
     def test_calls(self):
-        now = timezone.now()
-        ChannelEvent.create(self.channel, "tel:12345", ChannelEvent.TYPE_CALL_IN, now, dict(duration=600))
-        ChannelEvent.create(self.channel, "tel:890", ChannelEvent.TYPE_CALL_IN_MISSED, now)
-        ChannelEvent.create(self.channel, "tel:456767", ChannelEvent.TYPE_UNKNOWN, now)
+        self.create_channel_event(self.channel, "tel:12345", ChannelEvent.TYPE_CALL_IN, extra=dict(duration=600))
+        self.create_channel_event(self.channel, "tel:890", ChannelEvent.TYPE_CALL_IN_MISSED)
+        self.create_channel_event(self.channel, "tel:456767", ChannelEvent.TYPE_UNKNOWN)
 
         list_url = reverse("channels.channelevent_calls")
 

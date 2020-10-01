@@ -2701,16 +2701,16 @@ class ContactTest(TembaTest):
             )
 
             # create missed incoming and outgoing calls
-            ChannelEvent.create(
-                self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), {}
+            self.create_channel_event(
+                self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, extra={}
             )
-            ChannelEvent.create(
-                self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {}
+            self.create_channel_event(
+                self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, extra={}
             )
 
             # and a referral event
-            ChannelEvent.create(
-                self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_NEW_CONVERSATION, timezone.now(), {}
+            self.create_channel_event(
+                self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_NEW_CONVERSATION, extra={}
             )
 
             # try adding some failed calls
@@ -3815,8 +3815,8 @@ class ContactTest(TembaTest):
         self.frank.block(self.admin)
 
         # try archive action
-        event = ChannelEvent.create(
-            self.channel, str(self.frank.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), {}
+        event = self.create_channel_event(
+            self.channel, str(self.frank.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, extra={}
         )
 
         self.client.post(blocked_url, {"action": "archive", "objects": self.frank.id})
