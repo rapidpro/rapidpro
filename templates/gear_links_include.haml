@@ -115,17 +115,4 @@
            return false;
         });
 
-        $("#gear-container .gear-modal").on('click', function(e){
-          e.stopPropagation();
-          var modal = new Modax($(this).text(), $(this).attr('href'));
-          modal.show();
 
-          var successUrl = $(this).data('success-url');
-          if (successUrl){
-            modal.setListeners({ onSuccess: function(){ document.location.href = successUrl; } });
-          } else {
-            modal.setListeners({ onSuccess: function(){ modal.dismiss() } });
-          }
-
-          return false;
-        });

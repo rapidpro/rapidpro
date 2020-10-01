@@ -1394,7 +1394,14 @@ class ChannelCRUDL(SmartCRUDL):
                 )
 
             if self.object.channel_type == "FB" and self.has_org_perm("channels.channel_facebook_whitelist"):
-                links.append(dict(title=_("Whitelist Domain"), js_class="facebook-whitelist", href="#"))
+                links.append(
+                    dict(
+                        id="fb-whitelist",
+                        title=_("Whitelist Domain"),
+                        modax=_("Whitelist Domain"),
+                        href=reverse("channels.channel_facebook_whitelist", args=[self.get_object().uuid]),
+                    )
+                )
 
             user = self.get_user()
             if user.is_superuser or user.is_staff:
@@ -1600,7 +1607,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             return context
 
-    class FacebookWhitelist(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
+    class FacebookWhitelist(ComponentFormMixin, ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         class DomainForm(forms.Form):
             whitelisted_domain = forms.URLField(
                 required=True,
