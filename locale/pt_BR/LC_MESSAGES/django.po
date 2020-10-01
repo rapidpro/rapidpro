@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-30 22:51+0000\n"
+"POT-Creation-Date: 2020-10-01 16:44+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4157,17 +4157,9 @@ msgid "Copy"
 msgstr ""
 
 #, fuzzy
-msgid "Revision History"
-msgstr "Histórico de mensagens"
-
-#, fuzzy
 #| msgid "Create Flow"
 msgid "Delete Flow"
 msgstr "Criar fluxo"
-
-#, fuzzy
-msgid "New Editor"
-msgstr "Nenhum editor"
 
 #, fuzzy
 #| msgid "Export Data"
@@ -6137,7 +6129,7 @@ msgstr "Envie com Nexmo"
 #| "            to send messages to over 200 countries.\n"
 #| "\n"
 #| "          "
-msgid "Instead of using your Android phone to send messages, you can use your <a class='nexmo-account' href='#'>Nexmo Account</a> to send messages to over 200 countries."
+msgid "Instead of using your Android phone to send messages, you can use your Nexmo Account to send messages to over 200 countries."
 msgstr ""
 "\n"
 "Em vez de usar o seu telefone Android para enviar mensagens, você pode usar a sua \n"
@@ -6145,6 +6137,10 @@ msgstr ""
 "Conta Nexmo \n"
 "</ a> \n"
 "para enviar mensagens para mais de 200 países."
+
+#, fuzzy
+msgid "Connect External API"
+msgstr "Conecte a um Serviço Externo"
 
 #, fuzzy
 #| msgid ""
@@ -6159,9 +6155,6 @@ msgstr ""
 "\n"
 "Se você tiver um provedor externo que você deseja usar para enviar mensagens, você pode conectá-lo \n"
 "usando nossa API externa. "
-
-msgid "Disconnect Nexmo"
-msgstr "Desconectar Nexmo"
 
 #, fuzzy
 msgid "Add a Channel"
@@ -8685,171 +8678,6 @@ msgstr ""
 "para enviar mensagens para mais de 200 países."
 
 #, fuzzy
-#| msgid "Update Fields"
-msgid "Update Flow"
-msgstr "Atualizar campos"
-
-msgid "This flow is using a discontinued version of the flow editor. Update it to use the new editor today to start using powerful new features. Starting <b>October 1st</b>, all remaining flows will be updated automatically."
-msgstr ""
-
-msgid "To make your next connection,"
-msgstr "Para fazer a sua próxima conexão,"
-
-msgid "drag"
-msgstr "arrastar"
-
-msgid "the red box."
-msgstr "a caixa vermelha"
-
-msgid "Run in"
-msgstr "Executar em"
-
-msgid "Simulator"
-msgstr "Simulador"
-
-#, fuzzy
-msgid ""
-"\n"
-"              This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.\n"
-"\n"
-"            "
-msgstr ""
-"\n"
-"Este fluxo está em processo de envio, esta mensagem irá desaparecer assim que todos os contatos tenham sido adicionados ao fluxo."
-
-msgid "Error Contacting Server. Changes may not be saved."
-msgstr "Erro ao Contactar o Servidor. As mudanças podem não ser salvas."
-
-msgid "Let's get started"
-msgstr "Vamos começar"
-
-msgid ""
-"\n"
-"                It's a good idea to start your call off by saying something first. You'll probably want to\n"
-"                introduce yourself and ask them a question. Just type the message for now, you'll be able to\n"
-"                add a voice recording of your message later.\n"
-"              "
-msgstr ""
-
-msgid ""
-"\n"
-"                Welcome to a USSD flow. USSD is a session based communication type. We recommend starting your flow\n"
-"                by sending a USSD message. This message will be sent to anybody right after they join the flow.\n"
-"                This is your chance to send a single message or menu.\n"
-"              "
-msgstr ""
-
-#, fuzzy
-msgid "Receive a Message First"
-msgstr "Arquivar mensagens"
-
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "                You will now have a chance to branch your flow by category. This allows you to ask\n"
-#| "                different follow-up questions based on how they respond.\n"
-#| "\n"
-#| "              "
-msgid ""
-"\n"
-"            A more advanced flow might start by receiving a message first. This lets you do different things\n"
-"            based on how the flow was triggered.\n"
-"          "
-msgstr ""
-"\n"
-"Agora você terá uma chance de diversificar o seu fluxo por categoria. Isso permite que você pergunte diferentes questões de acompanhamento com base em como eles respondem. "
-
-msgid "Flow Start"
-msgstr "Início do fluxo"
-
-#, fuzzy
-#| msgid "Click here to send a message"
-msgid "Click here to add a message"
-msgstr "Clique aqui para enviar uma mensagem"
-
-#, fuzzy
-#| msgid "Remove from Group"
-msgid "Remove from all groups"
-msgstr "Remover do grupo"
-
-#, fuzzy
-#| msgid "Resend Messages"
-msgid "Recent Messages"
-msgstr "Mensagens reenviadas"
-
-#, fuzzy
-#| msgid "Resend Messages"
-msgid "No recent messages to show"
-msgstr "Mensagens reenviadas"
-
-#, fuzzy
-#| msgid "Wait for Download"
-msgid "Wait for "
-msgstr "Aguarde terminar de baixar"
-
-#, fuzzy
-#| msgid "Wait for Download"
-msgid "Wait for USSD Menu"
-msgstr "Aguarde terminar de baixar"
-
-#, fuzzy
-#| msgid "Wait for Download"
-msgid "Wait for USSD Response"
-msgstr "Aguarde terminar de baixar"
-
-#, fuzzy
-#| msgid "Wait for Download"
-msgid "Wait for Menu"
-msgstr "Aguarde terminar de baixar"
-
-#, fuzzy
-#| msgid "Wait for Download"
-msgid "Wait for Digits"
-msgstr "Aguarde terminar de baixar"
-
-msgid "Random Split"
-msgstr ""
-
-#, fuzzy
-#| msgid "Expires on "
-msgid "Split on "
-msgstr "Expira em"
-
-#, fuzzy
-#| msgid "Expires on "
-msgid "Split on field in "
-msgstr "Expira em"
-
-msgid "Call Webhook"
-msgstr "Chamar Webhook"
-
-#, fuzzy
-#| msgid "Call Type"
-msgid "Call Zapier"
-msgstr "Tipo de chamada"
-
-msgid "Split by Expression"
-msgstr ""
-
-#, fuzzy
-msgid "Transfer Airtime"
-msgstr "Último nome"
-
-#, fuzzy
-msgid "Split on Group"
-msgstr "Criar grupos"
-
-#, fuzzy
-#| msgid "Group Flow"
-msgid "Run Flow"
-msgstr "Grupo do fluxo"
-
-#, fuzzy
-#| msgid "flow"
-msgid "Run flow "
-msgstr "fluxo"
-
-#, fuzzy
 #| msgid "Language"
 msgid "Change Language"
 msgstr "Linguagem"
@@ -10139,6 +9967,9 @@ msgstr ""
 msgid "Surveyors."
 msgstr ""
 
+msgid "Disconnect Nexmo"
+msgstr "Desconectar Nexmo"
+
 msgid ""
 "\n"
 "          Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?\n"
@@ -10886,355 +10717,6 @@ msgstr ""
 "\n"
 "Instalar o %(name)s app"
 
-msgid "Using a Local Number"
-msgstr "Use um número local"
-
-#, python-format
-msgid ""
-"\n"
-"    No matter where you are in the world, there's a way for you to use %(name)s with a local number.\n"
-"\n"
-"  "
-msgstr ""
-"\n"
-"Não importa onde você esteja no mundo, há uma maneira para você usar %(name)s com um número local."
-
-#, python-format
-msgid ""
-"\n"
-"          Using %(name)s with an Android Phone\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"Use %(name)s com um telefone Android"
-
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "          The easiest and most popular way to deploy %(name)s is by using a cheap Android phone along with a local sim card. It's quite\n"
-#| "          simple in principal. When your %(name)s account sends a message, it notifies your Android phone. The phone will then\n"
-#| "          send the message out from your local number on your behalf. If somebody responds to that message, the phone will then\n"
-#| "          relay that message to your %(name)s account.\n"
-#| "\n"
-#| "        "
-msgid ""
-"\n"
-"          The easiest and most popular way to deploy %(name)s is by using a cheap Android phone along with a local sim card. It's quite\n"
-"          simple in principal. When your %(name)s workspace sends a message, it notifies your Android phone. The phone will then\n"
-"          send the message out from your local number on your behalf. If somebody responds to that message, the phone will then\n"
-"          relay that message to your %(name)s workspace.\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"A maneira mais fácil e mais popular para implantar %(name)s é usando um telefone Android barato, juntamente com um cartão SIM local. A princípio é muito simples. Quando a sua conta %(name)s envia uma mensagem, ele notifica o seu telefone Android. O telefone irá então \n"
-"enviar a mensagem a partir do seu número local em seu nome. Se alguém responde a mensagem, o telefone em seguida retransmiti essa mensagem para sua conta %(name)s. "
-
-msgid "Buy an Android phone"
-msgstr "Compre um telefone Android"
-
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "        We always recommend that the phone you use for %(name)s be dedicated for that purpose. The good news\n"
-#| "        is that Android phones are very inexpensive and getting more capable every day.\n"
-#| "\n"
-#| "      "
-msgid ""
-"\n"
-"        We always recommend that the phone you use for %(name)s be dedicated for that purpose. The good news\n"
-"        is that Android phones are very inexpensive and getting more capable every day. We recommend using a\n"
-"        current version of an inexpensive phone such as the Moto G.\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"Recomendamos que o telefone usado para o %(name)s, sempre seja dedicado para esse fim. A boa notícia é que os telefones Android são muito baratos e cada vez mais eficientes. "
-
-msgid "Get a local sim card"
-msgstr "Obter um cartão SIM local"
-
-msgid ""
-"\n"
-"        You might already have a local number to use, if so, just pop it in your android phone.\n"
-"        Otherwise, you will want to aquire a sim card from your local carrier of choice. We recommend setting the account\n"
-"        up to be data enabled. However, if you feel comfortable relying on your Wi-Fi connection, that's okay too. We also\n"
-"        encourage that the account be on a post-paid plan so you don't have to worry about the phone running out of credit.\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"Talvez você já tenha um número local para usar, então basta colocá-lo em seu telefone Android. Caso contrário, você vai querer adquirir um cartão SIM de uma operadora local a sua escolha. Recomendamos configurar a conta para habilitar dados. No entanto, se você se sente confortável em utilizar em sua conexão Wi-Fi, tudo bem. Prefira utilizar uma conta com um plano pós-pago, assim você não precisa se preocupar em ficar sem crédito no telefone."
-
-#, python-format
-msgid ""
-"\n"
-"          Install the %(name)s app\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"Instalar o %(name)s app"
-
-msgid "Reverse Billing"
-msgstr "Faturamento reverso"
-
-msgid ""
-"\n"
-"          In some countries it's even possible have sim cards set up to be what is commonly known as <i>reverse billed</i>.\n"
-"          When accounts are reverse billed, it's free\n"
-"          for anyone to send messages to that number and you pay for both incoming and outgoing messages. This\n"
-"          configuration is especially useful for programs working with populations that\n"
-"          don't have the financial means to interact with the service.\n"
-"\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"Em alguns países é possível ter cartões SIM configurados para o que normalmente é conhecido como <i> faturamento reverso </ i>. Quando as contas são cobradas reversamente, é grátis para enviar mensagens para este número, você paga por ambas, as mensagens recebidas e enviadas. Esta configuração é especialmente útil para programas que trabalham com populações que não têm os meios financeiros para interagir com o serviço."
-
-msgid "You can download the free Android app from"
-msgstr "Você pode baixar o aplicativo Android gratuitamente de"
-
-msgid "Once the app is installed it will give you a 6 digit claim code that you then"
-msgstr "Assim que o aplicativo for instalado, ele lhe dará um código de requisição de 6 dígitos, em seguida você,"
-
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "        And that's all there is to it. From then on, that phone will handle sending all the messages for your %(name)s account.\n"
-#| "\n"
-#| "      "
-msgid ""
-"\n"
-"        And that's all there is to it. From then on, that phone will handle sending all the messages for your %(name)s workspace.\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"E isso é tudo que existe para ele. A partir de então, o telefone irá lidar com o envio de todas as mensagens para sua conta %(name)s."
-
-msgid "Give the phone a good home"
-msgstr "Dê ao telefone um bom lar"
-
-msgid ""
-"\n"
-"        Android phones are great because they can be used in even the most challenging environments. You only need to locate\n"
-"        one place in the country where you will have the most reliable power and good phone signal. You will\n"
-"        need either a Wi-Fi or GSM data connection, but if you can get both, even better. The phone will be smart\n"
-"        about which network to use if one connection isn't working well.\n"
-"\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"Celulares com Android são ótimos, porque eles podem ser usados ​​mesmo nos ambientes mais difíceis. Você só precisa localizar um lugar no país em que você vai ter bateria e sinal telefônico bom. Você vai precisar de uma conexão de dados Wi-Fi ou GSM, mas se você tiver ambos, melhor ainda. Se uma conexão não está funcionando bem, o telefone escolherá de forma inteligente a rede que irá utilizar."
-
-#, python-format
-msgid ""
-"\n"
-"          %(name)s with Android FAQ\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"%(name)s com Android FAQ"
-
-msgid "What if I need to send a lot of messages?"
-msgstr "E se eu precisar de enviar muitas mensagens?"
-
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "          We encourage people to validate their ideas and experiment before focusing on scaling. Starting with Android\n"
-#| "          phones is a logical starting point for most projects and you'll have no problem sending up to around 1,000 messages per hour.\n"
-#| "          If you do outgrow that, we can help you connect your %(name)s account\n"
-#| "          with a local aggregator or even a direct connection with the carriers themselves.\n"
-#| "\n"
-#| "        "
-msgid ""
-"\n"
-"          We encourage people to validate their ideas and experiment before focusing on scaling. Starting with Android\n"
-"          phones is a logical starting point for most projects and you'll have no problem sending up to around 1,000 messages per hour.\n"
-"          If you do outgrow that, we can help you connect your %(name)s workspace\n"
-"          with a local aggregator or even a direct connection with the carriers themselves.\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"Encorajamos as pessoas a validar as suas ideias e experimentar antes de se concentrar em escala. Começar com telefones Android é um ponto de partida lógico para a maioria dos projetos, e você não terá nenhum problema ao enviar até cerca de 1.000 mensagens por hora. \n"
-"Se você passar disso, nós podemos ajudá-lo a conectar sua conta %(name)s com um agregador local, ou mesmo uma conexão direta com as próprias operadoras."
-
-msgid "What happens if the battery dies?"
-msgstr "O que acontece se a bateria acabar?"
-
-#, python-format
-msgid ""
-"\n"
-"          Android phones are great because they have redundant network connections and a backup battery. So, if the office\n"
-"          where it is located loses power or the network goes down, the %(name)s app will continue to relay messages. In most\n"
-"          cases, using an Android phone with %(name)s means you can just <i>set it and forget it</i>.\n"
-"\n"
-"          We'll notify you automatically if the phone is running low on battery, out of credit, or if it doesn't have\n"
-"          network connectivity so someone can check up on it.\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"Celulares com Android são ótimos, porque eles têm conexões de rede redundantes e uma bateria de backup. Assim, se o escritório \n"
-"onde está localizado ficar sem energia ou a rede cair, a aplicação do %(name)s continuará a transmitir mensagens. Na maioria dos \n"
-"casos, usar um telefone Android com %(name)s significa que você pode simplesmente <i> configurá-lo e esquecê-lo </ i>.  \n"
-"Vamos notificá-lo automaticamente se o telefone estiver com pouca bateria, sem crédito, ou se ele não tem  \n"
-"conectividade de rede para que alguém possa contactá-lo."
-
-msgid "Can I use a short code? What about reverse billing?"
-msgstr "Posso usar um número curto? E faturamento reverso?"
-
-msgid ""
-"\n"
-"          While these features are generally viewed as unique to SMPP accounts, in some countries the carriers will allow short codes\n"
-"          to point to sim accounts. This means texting or calling that short code would route to your Android phone. In\n"
-"          some cases these sim-based accounts can also be reverse-billed.\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"Embora essas funcionalidades são geralmente vistas como exclusivas para contas SMPP, em alguns países as operadoras permitirão números curtos  \n"
-"para apontar para contas SIM. Isso significa que mensagens ou ligações para o número curto se destinam ao seu telefone Android. Em  \n"
-"alguns casos, essas contas baseadas em SIM também podem ter o faturamento reverso."
-
-#, python-format
-msgid ""
-"\n"
-"          Does the fee I pay to %(name)s include messaging fees?\n"
-"        "
-msgstr ""
-"\n"
-"Será que a taxa que eu pago para o %(name)s incluem taxas de mensagens?"
-
-#, python-format
-msgid ""
-"\n"
-"          No, the fee covers the use of the %(name)s platform. Any messaging rates imposed by your carrier apply.\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"Não, a taxa cobre o uso da plataforma %(name)s. Outras taxas de mensagens impostas por sua operadora se aplicam."
-
-#, python-format
-msgid ""
-"\n"
-"          Will %(name)s work for my remote ICT4D project?\n"
-"        "
-msgstr ""
-"\n"
-"Será que o %(name)s irá funcionar para o meu projeto remoto ICT4D?"
-
-#, python-format
-msgid ""
-"\n"
-"          We understand that deploying SMS applications has traditionally been one of the trickiest parts when launching ICT4D projects.\n"
-"          In fact, it's the primary thing that drove us to create %(name)s in the first place. We try hard to make it as easy as possible\n"
-"          but we realize that you probably have questions on what this all means for your\n"
-"          specific project. Please\n"
-"        "
-msgstr ""
-"\n"
-"Entendemos que a implantação de aplicações SMS tem sido, tradicionalmente, uma das partes mais difíceis ao lançar projetos ICT4D. \n"
-"De fato foi, em primeiro lugar, o que nos levou a criar o %(name)s. Nós nos esforçamos para torná-lo o mais fácil possível, mas entendemos que você provavelmente tem perguntas sobre o que tudo isso significa para o seu projeto específico. Por favor "
-
-msgid ""
-"\n"
-"          with <i>any questions</i> and we'll help you work through your options.\n"
-"\n"
-"        "
-msgstr ""
-"\n"
-"com <i> quaisquer perguntas </ i> e nós vamos ajudá-lo a resolver suas escolhas. "
-
-msgid "Connecting to Carriers"
-msgstr "Conectando-se as Operadoras"
-
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "        For projects that need to send more than a few thousand messages an hour, it may be worth looking\n"
-#| "        into a direct connection with the local carriers. When your project is ready for it, your %(name)s account can be\n"
-#| "        coverted over to an SMPP connection. Integrating with each carrier is generally expensive and time consuming,\n"
-#| "        so it's not something that should be considered until it is absolutely necessary.\n"
-#| "\n"
-#| "      "
-msgid ""
-"\n"
-"        For projects that need to send more than a few thousand messages an hour, it may be worth looking\n"
-"        into a direct connection with the local carriers. When your project is ready for it, your %(name)s workspace can be\n"
-"        coverted over to an SMPP connection. Integrating with each carrier is generally expensive and time consuming,\n"
-"        so it's not something that should be considered until it is absolutely necessary.\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"Para os projetos que precisam enviar em escala maior que alguns milhares de mensagens por hora, pode valer a pena \n"
-"uma conexão direta com as operadoras locais. Quando o seu projeto estiver pronto para isso, sua conta %(name)s pode ser convertida para uma conexão SMPP. Integrar-se com cada operadora geralmente consome muito tempo e tem alto custo, \n"
-"por isso não é algo que deve ser considerado, a não ser que seja absolutamente necessário. "
-
-msgid "Local Aggregators"
-msgstr "Facilitadores locais"
-
-msgid ""
-"\n"
-"        Using a local aggregator is much like connecting with a carrier except that it usually is less expensive and\n"
-"        much, much quicker to setup. Additionally they generally work across all carriers in the country, so that means less\n"
-"        trouble for you.\n"
-"\n"
-"        In countries where we have agreements in place, you can elect to use one\n"
-"        of these aggregators. For example, for US, Canada or UK numbers, you can use <a href=\"http://www.twilio.com\">Twilio</a>.\n"
-"        For Kenyan numbers, you can use <a href=\"http://www.africastalking.com\">Africa's Talking</a>.\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"Usando um facilitador local será muito parecido com uma operadora telefônica com exceção de que é geralmente mais barato e muito, muito mais rápido de configurar. Além disso, eles geralmente trabalham em todas as operadoras do país, o que significa menos \n"
-"problemas para você. \n"
-"Em países onde temos contratos no lugar, você pode optar por usar um \n"
-"destes facilitadores. Por exemplo, para os EUA, Canadá ou números do Reino Unido, você pode usar <a href=\"http://www.twilio.com\"> Twilio </ a> . \n"
-"Para números do Quênia, você pode usar <a href=\"http://www.africastalking.com\"> África's Talking </ a>. "
-
-msgid "Non-Profit discount"
-msgstr "Desconto sem fins lucrativos"
-
-#, python-format
-msgid ""
-"\n"
-"        One of the biggest aggregators in the world, Twilio, recently announced <a href=\"http://twilio.org\">twilio.org</a> which promises a 25%% discount on messaging and voice\n"
-"        fees for qualified non-profits. They'll even grant you a $500 credit to get started. These non-profit Twilio accounts\n"
-"        can be connected easily to %(name)s. We'd be happy to help you get started with this great program.\n"
-"\n"
-"      "
-msgstr ""
-"\n"
-"Um dos maiores facilitadores do mundo, Twilio, anunciou recentemente <a href=\"http://twilio.org\"> twilio.org </ a>, que promete dar 25%% de desconto nas taxas de mensagens e voz \n"
-"para organizações sem fins lucrativos qualificadas. Eles ainda vão conceder-lhe um crédito de US $ 500 para começar. Estas contas Twilio sem fins lucrativos\n"
-"podem ser ligadas facilmente ao %(name)s. Nós ficaremos felizes em ajudar você a começar com este ótimo programa."
-
-msgid "Adding more aggregators"
-msgstr "Adicionando mais facilitadores"
-
-#, fuzzy, python-format
-msgid ""
-"\n"
-"      We're always extending our network of local aggregators. If you don't see an option for your country,\n"
-"      <a href='javascript:void(0);' class='launch-support-widget'>let us know</a>. We'd be happy to help source a\n"
-"      local aggregator that we can integrate with %(name)s for your country.\n"
-"    "
-msgstr ""
-"\n"
-"Estamos sempre ampliando nossa rede de agregadores locais. Se você não conhece uma opção para o seu país,  \n"
-"<a href='javascript:void(0);' class='uv-send-message'> avise-nos </ a>. Ficaremos felizes em ajudar a encontrar um \n"
-"agregador local com quem poderemos integrar o %(name)s para o seu país."
-
 #, python-format
 msgid ""
 "\n"
@@ -11468,9 +10950,6 @@ msgstr ""
 
 msgid "API Documentation"
 msgstr "Documentação da API"
-
-msgid "Create a Flow"
-msgstr "Criar um fluxo"
 
 #, fuzzy, python-format
 msgid ""
@@ -11897,6 +11376,506 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Revision History"
+#~ msgstr "Histórico de mensagens"
+
+#, fuzzy
+#~ msgid "New Editor"
+#~ msgstr "Nenhum editor"
+
+#, fuzzy
+#~| msgid "Update Fields"
+#~ msgid "Update Flow"
+#~ msgstr "Atualizar campos"
+
+#~ msgid "To make your next connection,"
+#~ msgstr "Para fazer a sua próxima conexão,"
+
+#~ msgid "drag"
+#~ msgstr "arrastar"
+
+#~ msgid "the red box."
+#~ msgstr "a caixa vermelha"
+
+#~ msgid "Run in"
+#~ msgstr "Executar em"
+
+#~ msgid "Simulator"
+#~ msgstr "Simulador"
+
+#, fuzzy
+#~ msgid ""
+#~ "\n"
+#~ "              This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.\n"
+#~ "\n"
+#~ "            "
+#~ msgstr ""
+#~ "\n"
+#~ "Este fluxo está em processo de envio, esta mensagem irá desaparecer assim que todos os contatos tenham sido adicionados ao fluxo."
+
+#~ msgid "Error Contacting Server. Changes may not be saved."
+#~ msgstr "Erro ao Contactar o Servidor. As mudanças podem não ser salvas."
+
+#~ msgid "Let's get started"
+#~ msgstr "Vamos começar"
+
+#, fuzzy
+#~ msgid "Receive a Message First"
+#~ msgstr "Arquivar mensagens"
+
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "                You will now have a chance to branch your flow by category. This allows you to ask\n"
+#~| "                different follow-up questions based on how they respond.\n"
+#~| "\n"
+#~| "              "
+#~ msgid ""
+#~ "\n"
+#~ "            A more advanced flow might start by receiving a message first. This lets you do different things\n"
+#~ "            based on how the flow was triggered.\n"
+#~ "          "
+#~ msgstr ""
+#~ "\n"
+#~ "Agora você terá uma chance de diversificar o seu fluxo por categoria. Isso permite que você pergunte diferentes questões de acompanhamento com base em como eles respondem. "
+
+#~ msgid "Flow Start"
+#~ msgstr "Início do fluxo"
+
+#, fuzzy
+#~| msgid "Click here to send a message"
+#~ msgid "Click here to add a message"
+#~ msgstr "Clique aqui para enviar uma mensagem"
+
+#, fuzzy
+#~| msgid "Remove from Group"
+#~ msgid "Remove from all groups"
+#~ msgstr "Remover do grupo"
+
+#, fuzzy
+#~| msgid "Resend Messages"
+#~ msgid "Recent Messages"
+#~ msgstr "Mensagens reenviadas"
+
+#, fuzzy
+#~| msgid "Resend Messages"
+#~ msgid "No recent messages to show"
+#~ msgstr "Mensagens reenviadas"
+
+#, fuzzy
+#~| msgid "Wait for Download"
+#~ msgid "Wait for "
+#~ msgstr "Aguarde terminar de baixar"
+
+#, fuzzy
+#~| msgid "Wait for Download"
+#~ msgid "Wait for USSD Menu"
+#~ msgstr "Aguarde terminar de baixar"
+
+#, fuzzy
+#~| msgid "Wait for Download"
+#~ msgid "Wait for USSD Response"
+#~ msgstr "Aguarde terminar de baixar"
+
+#, fuzzy
+#~| msgid "Wait for Download"
+#~ msgid "Wait for Menu"
+#~ msgstr "Aguarde terminar de baixar"
+
+#, fuzzy
+#~| msgid "Wait for Download"
+#~ msgid "Wait for Digits"
+#~ msgstr "Aguarde terminar de baixar"
+
+#, fuzzy
+#~| msgid "Expires on "
+#~ msgid "Split on "
+#~ msgstr "Expira em"
+
+#, fuzzy
+#~| msgid "Expires on "
+#~ msgid "Split on field in "
+#~ msgstr "Expira em"
+
+#~ msgid "Call Webhook"
+#~ msgstr "Chamar Webhook"
+
+#, fuzzy
+#~| msgid "Call Type"
+#~ msgid "Call Zapier"
+#~ msgstr "Tipo de chamada"
+
+#, fuzzy
+#~ msgid "Transfer Airtime"
+#~ msgstr "Último nome"
+
+#, fuzzy
+#~ msgid "Split on Group"
+#~ msgstr "Criar grupos"
+
+#, fuzzy
+#~| msgid "Group Flow"
+#~ msgid "Run Flow"
+#~ msgstr "Grupo do fluxo"
+
+#, fuzzy
+#~| msgid "flow"
+#~ msgid "Run flow "
+#~ msgstr "fluxo"
+
+#~ msgid "Using a Local Number"
+#~ msgstr "Use um número local"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "    No matter where you are in the world, there's a way for you to use %(name)s with a local number.\n"
+#~ "\n"
+#~ "  "
+#~ msgstr ""
+#~ "\n"
+#~ "Não importa onde você esteja no mundo, há uma maneira para você usar %(name)s com um número local."
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "          Using %(name)s with an Android Phone\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "Use %(name)s com um telefone Android"
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "          The easiest and most popular way to deploy %(name)s is by using a cheap Android phone along with a local sim card. It's quite\n"
+#~| "          simple in principal. When your %(name)s account sends a message, it notifies your Android phone. The phone will then\n"
+#~| "          send the message out from your local number on your behalf. If somebody responds to that message, the phone will then\n"
+#~| "          relay that message to your %(name)s account.\n"
+#~| "\n"
+#~| "        "
+#~ msgid ""
+#~ "\n"
+#~ "          The easiest and most popular way to deploy %(name)s is by using a cheap Android phone along with a local sim card. It's quite\n"
+#~ "          simple in principal. When your %(name)s workspace sends a message, it notifies your Android phone. The phone will then\n"
+#~ "          send the message out from your local number on your behalf. If somebody responds to that message, the phone will then\n"
+#~ "          relay that message to your %(name)s workspace.\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "A maneira mais fácil e mais popular para implantar %(name)s é usando um telefone Android barato, juntamente com um cartão SIM local. A princípio é muito simples. Quando a sua conta %(name)s envia uma mensagem, ele notifica o seu telefone Android. O telefone irá então \n"
+#~ "enviar a mensagem a partir do seu número local em seu nome. Se alguém responde a mensagem, o telefone em seguida retransmiti essa mensagem para sua conta %(name)s. "
+
+#~ msgid "Buy an Android phone"
+#~ msgstr "Compre um telefone Android"
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "        We always recommend that the phone you use for %(name)s be dedicated for that purpose. The good news\n"
+#~| "        is that Android phones are very inexpensive and getting more capable every day.\n"
+#~| "\n"
+#~| "      "
+#~ msgid ""
+#~ "\n"
+#~ "        We always recommend that the phone you use for %(name)s be dedicated for that purpose. The good news\n"
+#~ "        is that Android phones are very inexpensive and getting more capable every day. We recommend using a\n"
+#~ "        current version of an inexpensive phone such as the Moto G.\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "Recomendamos que o telefone usado para o %(name)s, sempre seja dedicado para esse fim. A boa notícia é que os telefones Android são muito baratos e cada vez mais eficientes. "
+
+#~ msgid "Get a local sim card"
+#~ msgstr "Obter um cartão SIM local"
+
+#~ msgid ""
+#~ "\n"
+#~ "        You might already have a local number to use, if so, just pop it in your android phone.\n"
+#~ "        Otherwise, you will want to aquire a sim card from your local carrier of choice. We recommend setting the account\n"
+#~ "        up to be data enabled. However, if you feel comfortable relying on your Wi-Fi connection, that's okay too. We also\n"
+#~ "        encourage that the account be on a post-paid plan so you don't have to worry about the phone running out of credit.\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "Talvez você já tenha um número local para usar, então basta colocá-lo em seu telefone Android. Caso contrário, você vai querer adquirir um cartão SIM de uma operadora local a sua escolha. Recomendamos configurar a conta para habilitar dados. No entanto, se você se sente confortável em utilizar em sua conexão Wi-Fi, tudo bem. Prefira utilizar uma conta com um plano pós-pago, assim você não precisa se preocupar em ficar sem crédito no telefone."
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "          Install the %(name)s app\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "Instalar o %(name)s app"
+
+#~ msgid "Reverse Billing"
+#~ msgstr "Faturamento reverso"
+
+#~ msgid ""
+#~ "\n"
+#~ "          In some countries it's even possible have sim cards set up to be what is commonly known as <i>reverse billed</i>.\n"
+#~ "          When accounts are reverse billed, it's free\n"
+#~ "          for anyone to send messages to that number and you pay for both incoming and outgoing messages. This\n"
+#~ "          configuration is especially useful for programs working with populations that\n"
+#~ "          don't have the financial means to interact with the service.\n"
+#~ "\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "Em alguns países é possível ter cartões SIM configurados para o que normalmente é conhecido como <i> faturamento reverso </ i>. Quando as contas são cobradas reversamente, é grátis para enviar mensagens para este número, você paga por ambas, as mensagens recebidas e enviadas. Esta configuração é especialmente útil para programas que trabalham com populações que não têm os meios financeiros para interagir com o serviço."
+
+#~ msgid "You can download the free Android app from"
+#~ msgstr "Você pode baixar o aplicativo Android gratuitamente de"
+
+#~ msgid "Once the app is installed it will give you a 6 digit claim code that you then"
+#~ msgstr "Assim que o aplicativo for instalado, ele lhe dará um código de requisição de 6 dígitos, em seguida você,"
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "        And that's all there is to it. From then on, that phone will handle sending all the messages for your %(name)s account.\n"
+#~| "\n"
+#~| "      "
+#~ msgid ""
+#~ "\n"
+#~ "        And that's all there is to it. From then on, that phone will handle sending all the messages for your %(name)s workspace.\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "E isso é tudo que existe para ele. A partir de então, o telefone irá lidar com o envio de todas as mensagens para sua conta %(name)s."
+
+#~ msgid "Give the phone a good home"
+#~ msgstr "Dê ao telefone um bom lar"
+
+#~ msgid ""
+#~ "\n"
+#~ "        Android phones are great because they can be used in even the most challenging environments. You only need to locate\n"
+#~ "        one place in the country where you will have the most reliable power and good phone signal. You will\n"
+#~ "        need either a Wi-Fi or GSM data connection, but if you can get both, even better. The phone will be smart\n"
+#~ "        about which network to use if one connection isn't working well.\n"
+#~ "\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "Celulares com Android são ótimos, porque eles podem ser usados ​​mesmo nos ambientes mais difíceis. Você só precisa localizar um lugar no país em que você vai ter bateria e sinal telefônico bom. Você vai precisar de uma conexão de dados Wi-Fi ou GSM, mas se você tiver ambos, melhor ainda. Se uma conexão não está funcionando bem, o telefone escolherá de forma inteligente a rede que irá utilizar."
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "          %(name)s with Android FAQ\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "%(name)s com Android FAQ"
+
+#~ msgid "What if I need to send a lot of messages?"
+#~ msgstr "E se eu precisar de enviar muitas mensagens?"
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "          We encourage people to validate their ideas and experiment before focusing on scaling. Starting with Android\n"
+#~| "          phones is a logical starting point for most projects and you'll have no problem sending up to around 1,000 messages per hour.\n"
+#~| "          If you do outgrow that, we can help you connect your %(name)s account\n"
+#~| "          with a local aggregator or even a direct connection with the carriers themselves.\n"
+#~| "\n"
+#~| "        "
+#~ msgid ""
+#~ "\n"
+#~ "          We encourage people to validate their ideas and experiment before focusing on scaling. Starting with Android\n"
+#~ "          phones is a logical starting point for most projects and you'll have no problem sending up to around 1,000 messages per hour.\n"
+#~ "          If you do outgrow that, we can help you connect your %(name)s workspace\n"
+#~ "          with a local aggregator or even a direct connection with the carriers themselves.\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "Encorajamos as pessoas a validar as suas ideias e experimentar antes de se concentrar em escala. Começar com telefones Android é um ponto de partida lógico para a maioria dos projetos, e você não terá nenhum problema ao enviar até cerca de 1.000 mensagens por hora. \n"
+#~ "Se você passar disso, nós podemos ajudá-lo a conectar sua conta %(name)s com um agregador local, ou mesmo uma conexão direta com as próprias operadoras."
+
+#~ msgid "What happens if the battery dies?"
+#~ msgstr "O que acontece se a bateria acabar?"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "          Android phones are great because they have redundant network connections and a backup battery. So, if the office\n"
+#~ "          where it is located loses power or the network goes down, the %(name)s app will continue to relay messages. In most\n"
+#~ "          cases, using an Android phone with %(name)s means you can just <i>set it and forget it</i>.\n"
+#~ "\n"
+#~ "          We'll notify you automatically if the phone is running low on battery, out of credit, or if it doesn't have\n"
+#~ "          network connectivity so someone can check up on it.\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "Celulares com Android são ótimos, porque eles têm conexões de rede redundantes e uma bateria de backup. Assim, se o escritório \n"
+#~ "onde está localizado ficar sem energia ou a rede cair, a aplicação do %(name)s continuará a transmitir mensagens. Na maioria dos \n"
+#~ "casos, usar um telefone Android com %(name)s significa que você pode simplesmente <i> configurá-lo e esquecê-lo </ i>.  \n"
+#~ "Vamos notificá-lo automaticamente se o telefone estiver com pouca bateria, sem crédito, ou se ele não tem  \n"
+#~ "conectividade de rede para que alguém possa contactá-lo."
+
+#~ msgid "Can I use a short code? What about reverse billing?"
+#~ msgstr "Posso usar um número curto? E faturamento reverso?"
+
+#~ msgid ""
+#~ "\n"
+#~ "          While these features are generally viewed as unique to SMPP accounts, in some countries the carriers will allow short codes\n"
+#~ "          to point to sim accounts. This means texting or calling that short code would route to your Android phone. In\n"
+#~ "          some cases these sim-based accounts can also be reverse-billed.\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "Embora essas funcionalidades são geralmente vistas como exclusivas para contas SMPP, em alguns países as operadoras permitirão números curtos  \n"
+#~ "para apontar para contas SIM. Isso significa que mensagens ou ligações para o número curto se destinam ao seu telefone Android. Em  \n"
+#~ "alguns casos, essas contas baseadas em SIM também podem ter o faturamento reverso."
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "          Does the fee I pay to %(name)s include messaging fees?\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "Será que a taxa que eu pago para o %(name)s incluem taxas de mensagens?"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "          No, the fee covers the use of the %(name)s platform. Any messaging rates imposed by your carrier apply.\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "Não, a taxa cobre o uso da plataforma %(name)s. Outras taxas de mensagens impostas por sua operadora se aplicam."
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "          Will %(name)s work for my remote ICT4D project?\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "Será que o %(name)s irá funcionar para o meu projeto remoto ICT4D?"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "          We understand that deploying SMS applications has traditionally been one of the trickiest parts when launching ICT4D projects.\n"
+#~ "          In fact, it's the primary thing that drove us to create %(name)s in the first place. We try hard to make it as easy as possible\n"
+#~ "          but we realize that you probably have questions on what this all means for your\n"
+#~ "          specific project. Please\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "Entendemos que a implantação de aplicações SMS tem sido, tradicionalmente, uma das partes mais difíceis ao lançar projetos ICT4D. \n"
+#~ "De fato foi, em primeiro lugar, o que nos levou a criar o %(name)s. Nós nos esforçamos para torná-lo o mais fácil possível, mas entendemos que você provavelmente tem perguntas sobre o que tudo isso significa para o seu projeto específico. Por favor "
+
+#~ msgid ""
+#~ "\n"
+#~ "          with <i>any questions</i> and we'll help you work through your options.\n"
+#~ "\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "com <i> quaisquer perguntas </ i> e nós vamos ajudá-lo a resolver suas escolhas. "
+
+#~ msgid "Connecting to Carriers"
+#~ msgstr "Conectando-se as Operadoras"
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "        For projects that need to send more than a few thousand messages an hour, it may be worth looking\n"
+#~| "        into a direct connection with the local carriers. When your project is ready for it, your %(name)s account can be\n"
+#~| "        coverted over to an SMPP connection. Integrating with each carrier is generally expensive and time consuming,\n"
+#~| "        so it's not something that should be considered until it is absolutely necessary.\n"
+#~| "\n"
+#~| "      "
+#~ msgid ""
+#~ "\n"
+#~ "        For projects that need to send more than a few thousand messages an hour, it may be worth looking\n"
+#~ "        into a direct connection with the local carriers. When your project is ready for it, your %(name)s workspace can be\n"
+#~ "        coverted over to an SMPP connection. Integrating with each carrier is generally expensive and time consuming,\n"
+#~ "        so it's not something that should be considered until it is absolutely necessary.\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "Para os projetos que precisam enviar em escala maior que alguns milhares de mensagens por hora, pode valer a pena \n"
+#~ "uma conexão direta com as operadoras locais. Quando o seu projeto estiver pronto para isso, sua conta %(name)s pode ser convertida para uma conexão SMPP. Integrar-se com cada operadora geralmente consome muito tempo e tem alto custo, \n"
+#~ "por isso não é algo que deve ser considerado, a não ser que seja absolutamente necessário. "
+
+#~ msgid "Local Aggregators"
+#~ msgstr "Facilitadores locais"
+
+#~ msgid ""
+#~ "\n"
+#~ "        Using a local aggregator is much like connecting with a carrier except that it usually is less expensive and\n"
+#~ "        much, much quicker to setup. Additionally they generally work across all carriers in the country, so that means less\n"
+#~ "        trouble for you.\n"
+#~ "\n"
+#~ "        In countries where we have agreements in place, you can elect to use one\n"
+#~ "        of these aggregators. For example, for US, Canada or UK numbers, you can use <a href=\"http://www.twilio.com\">Twilio</a>.\n"
+#~ "        For Kenyan numbers, you can use <a href=\"http://www.africastalking.com\">Africa's Talking</a>.\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "Usando um facilitador local será muito parecido com uma operadora telefônica com exceção de que é geralmente mais barato e muito, muito mais rápido de configurar. Além disso, eles geralmente trabalham em todas as operadoras do país, o que significa menos \n"
+#~ "problemas para você. \n"
+#~ "Em países onde temos contratos no lugar, você pode optar por usar um \n"
+#~ "destes facilitadores. Por exemplo, para os EUA, Canadá ou números do Reino Unido, você pode usar <a href=\"http://www.twilio.com\"> Twilio </ a> . \n"
+#~ "Para números do Quênia, você pode usar <a href=\"http://www.africastalking.com\"> África's Talking </ a>. "
+
+#~ msgid "Non-Profit discount"
+#~ msgstr "Desconto sem fins lucrativos"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "        One of the biggest aggregators in the world, Twilio, recently announced <a href=\"http://twilio.org\">twilio.org</a> which promises a 25%% discount on messaging and voice\n"
+#~ "        fees for qualified non-profits. They'll even grant you a $500 credit to get started. These non-profit Twilio accounts\n"
+#~ "        can be connected easily to %(name)s. We'd be happy to help you get started with this great program.\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "Um dos maiores facilitadores do mundo, Twilio, anunciou recentemente <a href=\"http://twilio.org\"> twilio.org </ a>, que promete dar 25%% de desconto nas taxas de mensagens e voz \n"
+#~ "para organizações sem fins lucrativos qualificadas. Eles ainda vão conceder-lhe um crédito de US $ 500 para começar. Estas contas Twilio sem fins lucrativos\n"
+#~ "podem ser ligadas facilmente ao %(name)s. Nós ficaremos felizes em ajudar você a começar com este ótimo programa."
+
+#~ msgid "Adding more aggregators"
+#~ msgstr "Adicionando mais facilitadores"
+
+#, fuzzy, python-format
+#~ msgid ""
+#~ "\n"
+#~ "      We're always extending our network of local aggregators. If you don't see an option for your country,\n"
+#~ "      <a href='javascript:void(0);' class='launch-support-widget'>let us know</a>. We'd be happy to help source a\n"
+#~ "      local aggregator that we can integrate with %(name)s for your country.\n"
+#~ "    "
+#~ msgstr ""
+#~ "\n"
+#~ "Estamos sempre ampliando nossa rede de agregadores locais. Se você não conhece uma opção para o seu país,  \n"
+#~ "<a href='javascript:void(0);' class='uv-send-message'> avise-nos </ a>. Ficaremos felizes em ajudar a encontrar um \n"
+#~ "agregador local com quem poderemos integrar o %(name)s para o seu país."
+
+#~ msgid "Create a Flow"
+#~ msgstr "Criar um fluxo"
 
 #~ msgid "The org this broadcast is connected to"
 #~ msgstr "A organização com a qual esta divulgação está conectada"
@@ -15329,10 +15308,6 @@ msgstr ""
 
 #~ msgid "External API"
 #~ msgstr "API Externa"
-
-#, fuzzy
-#~ msgid "Connect External Service"
-#~ msgstr "Conecte a um Serviço Externo"
 
 #, fuzzy
 #~| msgid "Connect Twilio"
