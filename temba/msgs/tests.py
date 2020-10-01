@@ -699,7 +699,7 @@ class MsgTest(TembaTest):
         self.login(self.admin)
 
         self.joe.name = "Jo\02e Blow"
-        self.joe.save(update_fields=("name",), handle_update=False)
+        self.joe.save(update_fields=("name",))
 
         self.org.created_on = datetime(2017, 1, 1, 9, tzinfo=pytz.UTC)
         self.org.save()
@@ -1189,7 +1189,7 @@ class MsgTest(TembaTest):
         self.login(self.admin)
 
         self.joe.name = "Jo\02e Blow"
-        self.joe.save(update_fields=("name",), handle_update=False)
+        self.joe.save(update_fields=("name",))
 
         msg1 = self.create_incoming_msg(self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
         msg2 = self.create_incoming_msg(self.joe, "hello 2", created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC))
@@ -2047,7 +2047,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual("Hola a todos", broadcast1.get_translated_text(self.joe))  # uses org primary language
 
         self.joe.language = "fra"
-        self.joe.save(update_fields=("language",), handle_update=False)
+        self.joe.save(update_fields=("language",))
 
         self.assertEqual("Salut à tous", broadcast1.get_translated_text(self.joe))  # uses contact language
 

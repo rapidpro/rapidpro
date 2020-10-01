@@ -802,17 +802,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
-    def save(self, *args, handle_update=None, **kwargs):
-        super().save(*args, **kwargs)
-
-        # `handle_update` must be explicity set to execute handle_update when saving contact
-        if self.id and "update_fields" in kwargs:
-            if handle_update is None:
-                raise ValueError("When saving contacts we need to specify value for `handle_update`.")
-
-            if handle_update is True:
-                self.handle_update(fields=kwargs["update_fields"])
-
     def as_json(self):
         obj = dict(id=self.pk, name=str(self), uuid=self.uuid)
 
@@ -1316,7 +1305,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.is_active = False
             self.name = None
             self.fields = None
-            self.save(update_fields=("name", "is_active", "fields", "modified_on"), handle_update=False)
+            self.save(update_fields=("name", "is_active", "fields", "modified_on"))
 
         # if we are removing everything do so
         if full:
