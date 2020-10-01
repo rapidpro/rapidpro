@@ -47,10 +47,6 @@ module.exports = (config) ->
       { pattern: 'media/test_flows/*.json', watched: true, served: true, included: false },
 
       # our test files
-      'karma/flows/test_services.coffee',
-      'karma/flows/test_directives.coffee',
-      'karma/flows/test_controllers.coffee',
-      'karma/test_completions.coffee',
       'karma/test_temba.coffee',
 
       # paritals templates to be loaded by ng-html2js
