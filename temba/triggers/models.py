@@ -329,10 +329,10 @@ class Trigger(SmartModel):
 
         for node, words in nodes_cases.items():
             singular = len(words) == 1
-            words = ", ".join(words)
+            words = ", ".join(set(words))
             issues.append(
                 {
-                    "type": "used_trigger",
+                    "type": "warning_message",
                     "node_uuid": node,
                     "message": _(
                         "%s %s used by another flow as an active trigger. This means that a user "
