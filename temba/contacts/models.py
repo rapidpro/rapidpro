@@ -2445,7 +2445,7 @@ class ContactImport(SmartModel):
             if mapping["type"] == "attribute" and mapping["name"] == "uuid":
                 uuid = value.lower()
             elif mapping["type"] == "scheme" and value:
-                urns.append(URN.from_parts(mapping["scheme"], value))
+                urns.append(URN.normalize(URN.from_parts(mapping["scheme"], value)))
         return uuid, urns
 
     @classmethod
