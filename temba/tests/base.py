@@ -15,8 +15,8 @@ from django.test import TransactionTestCase
 from django.utils import timezone
 
 from temba.archives.models import Archive
-from temba.channels.models import Channel, ChannelLog
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactImport
+from temba.channels.models import Channel, ChannelEvent, ChannelLog
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactImport, ContactURN
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -484,6 +484,24 @@ class TembaTestMixin:
                 created_by=self.admin,
                 modified_by=self.admin,
             )
+
+    def create_channel_event(self, channel, urn, event_type, occurred_on=None, extra=None):
+        urn_obj = ContactURN.lookup(channel.org, urn, country_code=channel.country)
+        if urn_obj:
+            contact = urn_obj.contact
+        else:
+            contact = self.create_contact(urns=[urn])
+            urn_obj = contact.urns.get()
+
+        return ChannelEvent.objects.create(
+            org=channel.org,
+            channel=channel,
+            contact=contact,
+            contact_urn=urn_obj,
+            occurred_on=occurred_on or timezone.now(),
+            event_type=event_type,
+            extra=extra,
+        )
 
     def set_contact_field(self, contact, key, value, legacy_handle=False):
         update_field_locally(self.admin, contact, key, value)

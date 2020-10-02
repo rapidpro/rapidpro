@@ -699,7 +699,7 @@ class MsgTest(TembaTest):
         self.login(self.admin)
 
         self.joe.name = "Jo\02e Blow"
-        self.joe.save(update_fields=("name",), handle_update=False)
+        self.joe.save(update_fields=("name",))
 
         self.org.created_on = datetime(2017, 1, 1, 9, tzinfo=pytz.UTC)
         self.org.save()
@@ -1189,7 +1189,7 @@ class MsgTest(TembaTest):
         self.login(self.admin)
 
         self.joe.name = "Jo\02e Blow"
-        self.joe.save(update_fields=("name",), handle_update=False)
+        self.joe.save(update_fields=("name",))
 
         msg1 = self.create_incoming_msg(self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
         msg2 = self.create_incoming_msg(self.joe, "hello 2", created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC))
@@ -2047,7 +2047,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual("Hola a todos", broadcast1.get_translated_text(self.joe))  # uses org primary language
 
         self.joe.language = "fra"
-        self.joe.save(update_fields=("language",), handle_update=False)
+        self.joe.save(update_fields=("language",))
 
         self.assertEqual("Salut à tous", broadcast1.get_translated_text(self.joe))  # uses contact language
 
@@ -2755,7 +2755,7 @@ class SystemLabelTest(TembaTest):
         self.create_incoming_msg(contact1, "Message 2")
         msg3 = self.create_incoming_msg(contact1, "Message 3")
         msg4 = self.create_incoming_msg(contact1, "Message 4")
-        call1 = ChannelEvent.create(self.channel, "tel:0783835001", ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
+        call1 = self.create_channel_event(self.channel, "tel:0783835001", ChannelEvent.TYPE_CALL_IN, extra={})
         Broadcast.create(self.org, self.user, "Broadcast 2", contacts=[contact1, contact2], status=QUEUED)
         Broadcast.create(
             self.org,
@@ -2785,7 +2785,7 @@ class SystemLabelTest(TembaTest):
         Msg.objects.filter(broadcast=bcast1).update(status=PENDING)
 
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
-        ChannelEvent.create(self.channel, "tel:0783835002", ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
+        self.create_channel_event(self.channel, "tel:0783835002", ChannelEvent.TYPE_CALL_IN, extra={})
         Broadcast.create(
             self.org,
             self.user,
@@ -2948,23 +2948,21 @@ class TagsTest(TembaTest):
         # default cause is pending sent
         self.assertHasClass(as_icon(None), "icon-bubble-dots-2 green")
 
-        in_call = ChannelEvent.create(
-            self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN, timezone.now(), {}
-        )
+        in_call = self.create_channel_event(self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN)
         self.assertHasClass(as_icon(in_call), "icon-call-incoming green")
 
-        in_miss = ChannelEvent.create(
-            self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {}
+        in_miss = self.create_channel_event(
+            self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED
         )
         self.assertHasClass(as_icon(in_miss), "icon-call-incoming red")
 
-        out_call = ChannelEvent.create(
-            self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT, timezone.now(), {}
+        out_call = self.create_channel_event(
+            self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT
         )
         self.assertHasClass(as_icon(out_call), "icon-call-outgoing green")
 
-        out_miss = ChannelEvent.create(
-            self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), {}
+        out_miss = self.create_channel_event(
+            self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED
         )
         self.assertHasClass(as_icon(out_miss), "icon-call-outgoing red")
 

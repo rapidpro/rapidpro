@@ -4364,7 +4364,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # contact name with an illegal character
         self.contact3.name = "Nor\02bert"
-        self.contact3.save(update_fields=("name",), handle_update=False)
+        self.contact3.save(update_fields=("name",))
 
         contact3_run1 = (
             MockSessionWriter(self.contact3, flow)

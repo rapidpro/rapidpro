@@ -1311,24 +1311,6 @@ class ChannelEvent(models.Model):
     )
 
     @classmethod
-    def create(cls, channel, urn, event_type, occurred_on, extra=None):
-        from temba.contacts.models import Contact
-
-        contact, contact_urn = Contact.get_or_create(channel.org, urn, channel, name=None, user=get_anonymous_user())
-
-        event = cls.objects.create(
-            org=channel.org,
-            channel=channel,
-            contact=contact,
-            contact_urn=contact_urn,
-            occurred_on=occurred_on,
-            event_type=event_type,
-            extra=extra,
-        )
-
-        return event
-
-    @classmethod
     def create_relayer_event(cls, channel, urn, event_type, occurred_on, extra=None):
         from temba.contacts.models import Contact
 
