@@ -678,7 +678,7 @@ class OrgCRUDL(SmartCRUDL):
                                 filter_params["groups"] = None
 
                             if not Trigger.objects.filter(**filter_params).exists():
-                                triggers.appent(trigger)
+                                triggers.append(trigger)
                         else:
                             triggers.append(trigger)
                     json_data["triggers"] = triggers
