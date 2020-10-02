@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-01 17:58+0000\n"
+"POT-Creation-Date: 2020-10-02 16:06+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3242,6 +3242,11 @@ msgstr "Повторить вызов, если не удается подсое
 
 msgid "Retries call three times for the chosen interval"
 msgstr "Повторяет вызов три раза с заданным интервалом"
+
+#, fuzzy
+#| msgid "Keyword"
+msgid "Keywords"
+msgstr "Ключевое слово"
 
 #, python-format
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
