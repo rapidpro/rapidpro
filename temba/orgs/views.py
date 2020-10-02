@@ -55,6 +55,7 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.flows.models import Flow, RuleSet
 from temba.links.models import Link
+from temba.triggers.models import Trigger
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages
 from temba.utils.email import is_valid_address
@@ -660,6 +661,28 @@ class OrgCRUDL(SmartCRUDL):
                     raise ValidationError(
                         _("This file is no longer valid. Please export a new version and try again.")
                     )
+
+                # preprocessing of the triggers
+                if json_data.get("triggers", []):
+                    triggers = []
+                    for trigger in json_data["triggers"]:
+                        if trigger.get("trigger_type") == "K":
+                            filter_params = {
+                                "keyword": trigger.get("keyword", ""),
+                                "is_active": True,
+                                "is_archived": False,
+                            }
+                            if trigger.get("groups"):
+                                filter_params["groups__name__in"] = [group["name"] for group in trigger["groups"]]
+                            else:
+                                filter_params["groups"] = None
+
+                            if not Trigger.objects.filter(**filter_params).exists():
+                                triggers.append(trigger)
+                        else:
+                            triggers.append(trigger)
+                    json_data["triggers"] = triggers
+                    data = json.dumps(json_data)
 
                 return data
 

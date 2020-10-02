@@ -146,8 +146,8 @@ class Link(TembaModel):
                 Link.objects.create(**dict_args)
 
     @classmethod
-    def check_misstyped_links(cls, definition):
-        links = cls.objects.filter(is_archived=False).order_by(Length("destination").asc())
+    def check_misstyped_links(cls, flow, definition):
+        links = cls.objects.filter(org=flow.org, is_archived=False).order_by(Length("destination").asc())
         issues = []
         action_list = []
         pattern = r"\b(?P<url>(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+)(\s|$)"
@@ -164,7 +164,7 @@ class Link(TembaModel):
                         )
 
         for action in action_list:
-            if cls.objects.filter(destination=action["url"]).exists():
+            if cls.objects.filter(org=flow.org, is_archived=False, destination=action["url"]).exists():
                 continue
 
             for link in links:
