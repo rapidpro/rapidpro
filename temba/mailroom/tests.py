@@ -217,6 +217,20 @@ class MailroomClientTest(TembaTest):
         )
 
     @patch("requests.post")
+    def test_contact_resolve(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"contact": {"id": 1234}, "urn": {"id": 2345}}')
+
+        # try with empty contact spec
+        response = get_client().contact_resolve(self.org.id, 345, "tel:+1234567890")
+
+        self.assertEqual({"contact": {"id": 1234}, "urn": {"id": 2345}}, response)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/resolve",
+            headers={"User-Agent": "Temba"},
+            json={"org_id": self.org.id, "channel_id": 345, "urn": "tel:+1234567890"},
+        )
+
+    @patch("requests.post")
     def test_contact_search(self, mock_post):
         mock_post.return_value = MockResponse(
             200,

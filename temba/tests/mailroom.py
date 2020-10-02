@@ -15,7 +15,7 @@ from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
 from temba.tickets.models import Ticket
-from temba.utils import format_number, json
+from temba.utils import format_number, get_anonymous_user, json
 from temba.values.constants import Value
 
 
@@ -125,6 +125,23 @@ class TestClient(MailroomClient):
         apply_modifiers(org, user, contacts, modifiers)
 
         return {c.id: {"contact": {}, "events": []} for c in contacts}
+
+    @_client_method
+    def contact_resolve(self, org_id: int, channel_id: int, urn: str):
+        org = Org.objects.get(id=org_id)
+        user = get_anonymous_user()
+
+        contact_urn = ContactURN.lookup(org, urn)
+        if contact_urn:
+            contact = contact_urn.contact
+        else:
+            contact = create_contact_locally(org, user, name="", language="", urns=[urn], fields={}, group_uuids=[])
+            contact_urn = ContactURN.lookup(org, urn)
+
+        return {
+            "contact": {"id": contact.id, "uuid": str(contact.uuid), "name": contact.name},
+            "urn": {"id": contact_urn.id, "identity": contact_urn.identity},
+        }
 
     @_client_method
     def parse_query(self, org_id, query, group_uuid=""):

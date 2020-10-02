@@ -31,7 +31,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, chunk_list, es, format_number, get_anonymous_user, on_transaction_commit
+from temba.utils import chunk_list, es, format_number, get_anonymous_user, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.models import JSONField as TembaJSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import truncate, unsnakify
@@ -788,6 +788,16 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         )
         return Contact.objects.get(id=response["contact"]["id"])
 
+    @classmethod
+    def resolve(cls, channel, urn):
+        """
+        Resolves a contact and URN from a channel interaction. Only used for relayer endpoints.
+        """
+        response = mailroom.get_client().contact_resolve(channel.org_id, channel.id, urn)
+        contact = Contact.objects.get(id=response["contact"]["id"])
+        contact_urn = ContactURN.objects.get(id=response["urn"]["id"])
+        return contact, contact_urn
+
     @property
     def anon_identifier(self):
         """
@@ -1161,55 +1171,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return urn_obj.contact
         else:
             return None
-
-    @classmethod
-    def get_or_create(cls, org, urn, channel=None, name=None, auth=None, user=None, init_new=True):
-        """
-        Gets or creates a contact with the given URN
-        """
-
-        # if we don't have an org blow up, this is required
-        if not org:
-            raise ValueError("Attempt to create contact without org")
-
-        # get country from channel or org
-        if channel:
-            country = channel.country.code
-        else:
-            country = org.get_country_code()
-
-        # limit our contact name to 128 chars
-        if name:
-            name = name[:128]
-
-        normalized = URN.normalize(urn, country)
-        existing_urn = ContactURN.lookup(org, normalized, normalize=False, country_code=country)
-
-        if existing_urn and existing_urn.contact:
-            contact = existing_urn.contact
-            return contact, existing_urn
-        else:
-            kwargs = dict(org=org, name=name, created_by=user)
-            contact = Contact.objects.create(**kwargs)
-            contact.is_new = True
-            updated_attrs = list(kwargs.keys())
-
-            if existing_urn:
-                ContactURN.objects.filter(pk=existing_urn.pk).update(contact=contact)
-                urn_obj = existing_urn
-            else:
-                urn_obj = ContactURN.get_or_create(org, contact, normalized, channel=channel, auth=auth)
-
-            updated_urns = [urn]
-
-            # record contact creation in analytics
-            analytics.gauge("temba.contact_created")
-
-            # handle group and campaign updates
-            if init_new:
-                contact.handle_update(fields=updated_attrs, urns=updated_urns, is_new=True)
-
-            return contact, urn_obj
 
     @classmethod
     def bulk_change_status(cls, user, contacts, status):
