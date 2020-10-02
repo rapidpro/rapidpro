@@ -643,7 +643,11 @@ class FlowCRUDL(SmartCRUDL):
                 # get our metadata
                 flow_info = mailroom.get_client().flow_inspect(flow.org_id, definition)
                 metadata = Flow.get_metadata(flow_info)
-                metadata["issues"] = [*metadata.get("issues", []), *Link.check_misstyped_links(definition)]
+                metadata["issues"] = [
+                    *metadata.get("issues", []),
+                    *Link.check_misstyped_links(flow, definition),
+                    *Trigger.check_used_trigger_words(flow, definition),
+                ]
                 return JsonResponse(dict(definition=definition, metadata=metadata))
 
             # get a list of all revisions, these should be reasonably pruned already
@@ -700,7 +704,11 @@ class FlowCRUDL(SmartCRUDL):
                 flow = self.get_object(self.get_queryset())
                 revision = flow.save_revision(self.request.user, definition)
                 metadata = flow.metadata
-                metadata["issues"] = [*metadata.get("issues", []), *Link.check_misstyped_links(definition)]
+                metadata["issues"] = [
+                    *metadata.get("issues", []),
+                    *Link.check_misstyped_links(flow, definition),
+                    *Trigger.check_used_trigger_words(flow, definition),
+                ]
                 return JsonResponse(
                     {
                         "status": "success",

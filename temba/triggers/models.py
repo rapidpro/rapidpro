@@ -296,6 +296,54 @@ class Trigger(SmartModel):
 
         return [t.pk for t in triggers]
 
+    @classmethod
+    def check_used_trigger_words(cls, flow, definition):
+        if flow.ignore_triggers:
+            return []
+
+        text_containing_cases = ["has_any_word", "has_all_words", "has_phrase", "has_only_phrase", "has_beginning"]
+
+        issues = []
+        nodes_cases = {}
+        triggers = cls.objects.filter(
+            org=flow.org, trigger_type=Trigger.TYPE_KEYWORD, is_active=True, is_archived=False
+        )
+        current_keywords = triggers.filter(flow=flow).values_list("keyword", flat=True)
+        flow_start = sorted(
+            definition.get("_ui", {}).get("nodes", {}).items(),
+            key=lambda x: float(f"{x[1]['position']['top']}.{x[1]['position']['left']}"),
+        )
+        flow_start = flow_start[0][0] if flow_start else None
+        for node in definition.get("nodes", []):
+            triggers_list = (
+                triggers.values_list("keyword", flat=True)
+                if node["uuid"] != flow_start
+                else triggers.exclude(keyword__in=current_keywords).values_list("keyword", flat=True)
+            )
+            node_ui = definition.get("_ui", {}).get("nodes", {}).get(node["uuid"])
+            if node_ui and node_ui["type"] == "wait_for_response":
+                for case in filter(lambda x: x["type"] in text_containing_cases, node["router"].get("cases", [])):
+                    for argument in case["arguments"][0].split():
+                        if argument.lower() in triggers_list:
+                            nodes_cases[node["uuid"]] = nodes_cases.get(node["uuid"], []) + [argument]
+
+        for node, words in nodes_cases.items():
+            singular = len(words) == 1
+            words = ", ".join(words)
+            issues.append(
+                {
+                    "type": "used_trigger",
+                    "node_uuid": node,
+                    "message": _(
+                        "%s %s used by another flow as an active trigger. This means that a user "
+                        "responding with %s will start a different flow. If you do not intend for"
+                        " this to happen, please change the response rule in this flow step."
+                    )
+                    % (words, (_("is") if singular else _("are")), (_("this word") if singular else _("these words"))),
+                }
+            )
+        return issues
+
     def as_export_def(self):
         """
         The definition of this trigger for export.
