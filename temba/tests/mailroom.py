@@ -1,6 +1,7 @@
 import functools
 import re
 from collections import defaultdict
+from functools import wraps
 from typing import Dict, List
 from unittest.mock import call, patch
 
@@ -180,17 +181,36 @@ class TestClient(MailroomClient):
         return {"changed_ids": [t.id for t in tickets]}
 
 
-def mock_mailroom(f):
+def mock_mailroom(method=None, *, client=True, queue=True):
     """
     Convenience decorator to make a test method use a mocked version of the mailroom client
     """
 
-    def wrapped(instance, *args, **kwargs):
-        with patch("temba.mailroom.get_client") as mock_get_client, patch(
-            "temba.mailroom.queue._queue_batch_task"
-        ) as mock_queue_batch_task:
-            mocks = Mocks()
+    def actual_decorator(f):
+        @wraps(f)
+        def wrapper(instance, *args, **kwargs):
+            _wrap_test_method(f, client, queue, instance, *args, **kwargs)
+
+        return wrapper
+
+    return actual_decorator(method) if method else actual_decorator
+
+
+def _wrap_test_method(f, mock_client: bool, mock_queue: bool, instance, *args, **kwargs):
+    mocks = Mocks()
+
+    patch_get_client = None
+    patch_queue_batch_task = None
+
+    try:
+        if mock_client:
+            patch_get_client = patch("temba.mailroom.get_client")
+            mock_get_client = patch_get_client.start()
             mock_get_client.return_value = TestClient(mocks)
+
+        if mock_queue:
+            patch_queue_batch_task = patch("temba.mailroom.queue._queue_batch_task")
+            mock_queue_batch_task = patch_queue_batch_task.start()
 
             def queue_batch_task(org_id, task_type, task, priority):
                 mocks.queued_batch_tasks.append(
@@ -199,9 +219,12 @@ def mock_mailroom(f):
 
             mock_queue_batch_task.side_effect = queue_batch_task
 
-            return f(instance, mocks, *args, **kwargs)
-
-    return wrapped
+        return f(instance, mocks, *args, **kwargs)
+    finally:
+        if patch_get_client:
+            patch_get_client.stop()
+        if patch_queue_batch_task:
+            patch_queue_batch_task.stop()
 
 
 def apply_modifiers(org, user, contacts, modifiers: List):

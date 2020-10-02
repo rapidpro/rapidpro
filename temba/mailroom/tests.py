@@ -10,7 +10,7 @@ from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowRun, FlowStart
 from temba.mailroom.client import ContactSpec, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
-from temba.tests import MockResponse, TembaTest, matchers
+from temba.tests import MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.utils import json
 
@@ -333,7 +333,8 @@ class MailroomQueueTest(TembaTest):
         r = get_redis_connection()
         r.execute_command("select", settings.REDIS_DB)
 
-    def test_queue_msg_handling(self):
+    @mock_mailroom(queue=False)
+    def test_queue_msg_handling(self, mr_mocks):
         with override_settings(TESTING=False):
             msg = Msg.create_relayer_incoming(self.org, self.channel, "tel:12065551212", "Hello World", timezone.now())
 
@@ -355,13 +356,14 @@ class MailroomQueueTest(TembaTest):
                     "urn_id": msg.contact.urns.get().id,
                     "text": "Hello World",
                     "attachments": None,
-                    "new_contact": True,
+                    "new_contact": False,
                 },
                 "queued_on": matchers.ISODate(),
             },
         )
 
-    def test_queue_mo_miss_event(self):
+    @mock_mailroom(queue=False)
+    def test_queue_mo_miss_event(self, mr_mocks):
         get_redis_connection("default").flushall()
         event = ChannelEvent.create_relayer_event(
             self.channel, "tel:12065551212", ChannelEvent.TYPE_CALL_OUT, timezone.now()
@@ -391,7 +393,7 @@ class MailroomQueueTest(TembaTest):
                     "event_type": "mo_miss",
                     "extra": None,
                     "id": event.id,
-                    "new_contact": True,
+                    "new_contact": False,
                     "org_id": event.contact.org.id,
                     "urn": "tel:+12065551515",
                     "urn_id": event.contact.urns.get().id,
