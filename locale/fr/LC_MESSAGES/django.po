@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-01 17:58+0000\n"
+"POT-Creation-Date: 2020-10-02 16:06+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3288,6 +3288,11 @@ msgstr "Relancez l'appel si vous ne parvenez pas à vous connecter"
 
 msgid "Retries call three times for the chosen interval"
 msgstr "Relance l'appel trois fois pour l'intervalle choisi"
+
+#, fuzzy
+#| msgid "Keyword"
+msgid "Keywords"
+msgstr "Mot-clé"
 
 #, python-format
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"

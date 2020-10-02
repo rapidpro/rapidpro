@@ -1,3 +1,9 @@
+v5.7.62
+----------
+ * Update version of editor and components
+ * Upload imports to use UUID based path
+ * Fix issue where all keywords couldnt be removed from a flow
+
 v5.7.61
 ----------
  * Remove old editor, redirect editor_next to editor
