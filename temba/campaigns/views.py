@@ -52,7 +52,7 @@ class CampaignCRUDL(SmartCRUDL):
             else:
                 return queryset.filter(org=self.request.user.get_org())
 
-    class Update(OrgMixin, ModalMixin, SmartUpdateView):
+    class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
         fields = ("name", "group")
         success_message = ""
         form_class = UpdateCampaignForm

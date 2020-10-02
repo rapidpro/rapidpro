@@ -9,6 +9,6 @@
       .glyph.icon-user
       -trans "Show Contacts"
 
-  -if perms.contacts.contact_import
-    %a.btn.btn-secondary.pull-right{href:"{% url 'contacts.contact_import' %}", style:"margin-right:10px"}
+  -if perms.contacts.contactimport_create
+    %a.btn.btn-secondary.pull-right{href:"{% url 'contacts.contactimport_create' %}", style:"margin-right:10px"}
       -trans "Import"

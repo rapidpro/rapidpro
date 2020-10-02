@@ -1534,13 +1534,13 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        call1 = ChannelEvent.create(self.channel, "tel:0788123123", ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now())
-        call2 = ChannelEvent.create(
-            self.channel, "tel:0788124124", ChannelEvent.TYPE_CALL_IN, timezone.now(), dict(duration=36)
+        call1 = self.create_channel_event(self.channel, "tel:0788123123", ChannelEvent.TYPE_CALL_IN_MISSED)
+        call2 = self.create_channel_event(
+            self.channel, "tel:0788124124", ChannelEvent.TYPE_CALL_IN, extra=dict(duration=36)
         )
-        call3 = ChannelEvent.create(self.channel, "tel:0788124124", ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now())
-        call4 = ChannelEvent.create(
-            self.channel, "tel:0788123123", ChannelEvent.TYPE_CALL_OUT, timezone.now(), dict(duration=15)
+        call3 = self.create_channel_event(self.channel, "tel:0788124124", ChannelEvent.TYPE_CALL_OUT_MISSED)
+        call4 = self.create_channel_event(
+            self.channel, "tel:0788123123", ChannelEvent.TYPE_CALL_OUT, extra=dict(duration=15)
         )
 
         # no filtering
@@ -1610,10 +1610,10 @@ class APITest(TembaTest):
 
         # tweak modified_on so we get the order we want
         self.joe.modified_on = timezone.now()
-        self.joe.save(update_fields=("modified_on",), handle_update=False)
+        self.joe.save(update_fields=("modified_on",))
         contact4.modified_on = timezone.now()
         contact4.last_seen_on = datetime(2020, 8, 12, 13, 30, 45, 123456, pytz.UTC)
-        contact4.save(update_fields=("modified_on", "last_seen_on"), handle_update=False)
+        contact4.save(update_fields=("modified_on", "last_seen_on"))
 
         contact1.refresh_from_db()
         contact4.refresh_from_db()

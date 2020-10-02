@@ -8,14 +8,15 @@ from smartmin.tests import SmartminTest, SmartminTestMixin
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import mail
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 from django.utils import timezone
 
 from temba.archives.models import Archive
-from temba.channels.models import Channel, ChannelLog
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup
+from temba.channels.models import Channel, ChannelEvent, ChannelLog
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactImport, ContactURN
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -470,6 +471,37 @@ class TembaTestMixin:
         if rollup_of:
             Archive.objects.filter(id__in=[a.id for a in rollup_of]).update(rollup=archive)
         return archive
+
+    def create_contact_import(self, path):
+        with open(path, "rb") as f:
+            headers, mappings, num_records = ContactImport.try_to_parse(self.org, f, path)
+            return ContactImport.objects.create(
+                org=self.org,
+                file=SimpleUploadedFile(f.name, f.read()),
+                headers=headers,
+                mappings=mappings,
+                num_records=num_records,
+                created_by=self.admin,
+                modified_by=self.admin,
+            )
+
+    def create_channel_event(self, channel, urn, event_type, occurred_on=None, extra=None):
+        urn_obj = ContactURN.lookup(channel.org, urn, country_code=channel.country)
+        if urn_obj:
+            contact = urn_obj.contact
+        else:
+            contact = self.create_contact(urns=[urn])
+            urn_obj = contact.urns.get()
+
+        return ChannelEvent.objects.create(
+            org=channel.org,
+            channel=channel,
+            contact=contact,
+            contact_urn=urn_obj,
+            occurred_on=occurred_on or timezone.now(),
+            event_type=event_type,
+            extra=extra,
+        )
 
     def set_contact_field(self, contact, key, value, legacy_handle=False):
         update_field_locally(self.admin, contact, key, value)

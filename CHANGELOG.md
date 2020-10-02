@@ -1,3 +1,16 @@
+v5.7.61
+----------
+ * Remove old editor, redirect editor_next to editor
+
+v5.7.60
+----------
+ * Fix contact imports from CSV files
+ * Tweaks to import UI
+
+v5.7.59
+----------
+ * Imports 2.0
+
 v5.7.55
 ----------
  * Use v13 flow as example on definitions endpoint docs

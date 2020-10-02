@@ -21,8 +21,8 @@
       .lp-frame
 
         .left
-          -if org_perms.contacts.contact_import
-            .button-primary{ onclick:"goto(event)", href:"{% url 'contacts.contact_import' %}"}
+          -if org_perms.contacts.contactimport_create
+            .button-primary(onclick="goto(event)" href="{% url 'contacts.contactimport_create' %}")
               -trans "Import Contacts"
 
           .lp-nav.upper
