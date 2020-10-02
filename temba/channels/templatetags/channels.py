@@ -36,3 +36,8 @@ def adapt_for_widget(text):
 @register.filter
 def adapt_for_widget_bool(value):
     return str(bool(value and value == "true")).lower()
+
+
+@register.filter
+def adapt_for_widget_list(_list):
+    return _list if _list else []

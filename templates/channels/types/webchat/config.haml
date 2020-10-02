@@ -20,7 +20,7 @@
         icon: '{{ channel.config.logo }}',
         welcomeMessage: '{{ channel.config.welcome_message_default|adapt_for_widget }}',
         welcomeMessageI18n: {{ welcome_message_i18n }},
-        welcomeMessageQuickReplies: {{ channel.config.welcome_msg_quick_replies }},
+        welcomeMessageQuickReplies: {{ channel.config.welcome_msg_quick_replies|adapt_for_widget_list }},
         inputTextPlaceholder: '{{ channel.config.inputtext_placeholder_default|adapt_for_widget }}',
         inputTextPlaceholderI18n: {{ input_placeholder_i18n }},
         theme: {
