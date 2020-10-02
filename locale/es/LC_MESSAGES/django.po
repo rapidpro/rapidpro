@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-01 17:58+0000\n"
+"POT-Creation-Date: 2020-10-02 16:06+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4362,6 +4362,11 @@ msgstr ""
 
 msgid "Retries call three times for the chosen interval"
 msgstr ""
+
+#, fuzzy
+#| msgid "Keyword"
+msgid "Keywords"
+msgstr "Palabra clave"
 
 #, python-format
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
