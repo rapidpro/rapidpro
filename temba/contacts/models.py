@@ -1,12 +1,12 @@
 import io
 import logging
 import time
-import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from itertools import chain, zip_longest
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
+from uuid import uuid4
 
 import iso8601
 import phonenumbers
@@ -465,7 +465,7 @@ class ContactField(SmartModel):
         Value.TYPE_WARD: "ward",
     }
 
-    uuid = models.UUIDField(unique=True, default=uuid.uuid4)
+    uuid = models.UUIDField(unique=True, default=uuid4)
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, verbose_name=_("Org"), related_name="contactfields")
 
@@ -1291,7 +1291,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         with transaction.atomic():
             # prep our urns for deletion so our old path creates a new urn
             for urn in self.urns.all():
-                path = str(uuid.uuid4())
+                path = str(uuid4())
                 urn.identity = f"{DELETED_SCHEME}:{path}"
                 urn.path = path
                 urn.scheme = DELETED_SCHEME
@@ -2346,7 +2346,8 @@ class ExportContactsTask(BaseExportTask):
 
 
 def get_import_upload_path(instance: Any, filename: str):
-    return f"contact_imports/{instance.org_id}/{filename}"
+    ext = Path(filename).suffix.lower()
+    return f"contact_imports/{instance.org_id}/{uuid4()}{ext}"
 
 
 class ContactImport(SmartModel):
@@ -2397,9 +2398,27 @@ class ContactImport(SmartModel):
 
         mappings = cls._auto_mappings(org, headers)
 
-        # iterate over rest of the rows to check if we exceed record limit
+        # iterate over rest of the rows to do row-level validation
+        seen_uuids = set()
+        seen_urns = set()
         num_records = 0
         for row in data:
+            record = cls._row_to_record(headers, row)
+            uuid, urns = cls._extract_uuid_and_urns(record, mappings)
+            if uuid:
+                if uuid in seen_uuids:
+                    raise ValidationError(
+                        _("Import file contains duplicated contact UUID '%(uuid)s'."), params={"uuid": uuid}
+                    )
+                seen_uuids.add(uuid)
+            for urn in urns:
+                if urn in seen_urns:
+                    raise ValidationError(
+                        _("Import file contains duplicated contact URN '%(urn)s'."), params={"urn": urn}
+                    )
+                seen_urns.add(urn)
+
+            # check if we exceed record limit
             num_records += 1
             if num_records > ContactImport.MAX_RECORDS:
                 raise ValidationError(
@@ -2413,6 +2432,21 @@ class ContactImport(SmartModel):
         file.seek(0)  # seek back to beginning so subsequent reads work
 
         return headers, mappings, num_records
+
+    @staticmethod
+    def _extract_uuid_and_urns(record, mappings) -> Tuple[str, List[str]]:
+        """
+        Extracts any UUIDs and URNs from the given record so they can be checked for uniqueness
+        """
+        uuid = ""
+        urns = []
+        for header, value in record.items():
+            mapping = mappings[header]
+            if mapping["type"] == "attribute" and mapping["name"] == "uuid":
+                uuid = value.lower()
+            elif mapping["type"] == "scheme" and value:
+                urns.append(URN.from_parts(mapping["scheme"], value))
+        return uuid, urns
 
     @classmethod
     def _auto_mappings(cls, org: Org, headers: List[str]) -> Dict:
@@ -2523,10 +2557,8 @@ class ContactImport(SmartModel):
             batch_start = record_num
 
             for row in row_batch:
-                row = row[: len(self.headers)]  # ignore any columns beyond our headers
-
-                record = dict(zip_longest(self.headers, row, fillvalue=""))
-                spec = self._parse_record(record)
+                record = self._row_to_record(self.headers, row)
+                spec = self._record_to_spec(record)
                 batch_specs.append(spec)
                 record_num += 1
 
@@ -2619,7 +2651,20 @@ class ContactImport(SmartModel):
         prefix, name = (parts[0], parts[1]) if len(parts) >= 2 else ("", parts[0])
         return prefix.lower(), name
 
-    def _parse_record(self, record: Dict) -> Dict:
+    @staticmethod
+    def _row_to_record(headers, row):
+        """
+        Convert a row (array of values) to a record (dict of headers to values)
+        """
+
+        row = row[: len(headers)]  # ignore any columns beyond our headers
+        return dict(zip_longest(headers, row, fillvalue=""))
+
+    def _record_to_spec(self, record: Dict) -> Dict:
+        """
+        Convert a record (dict of headers to values) to a contact spec
+        """
+
         spec = {"groups": [str(self.group.uuid)]}
 
         for header, raw_value in record.items():
