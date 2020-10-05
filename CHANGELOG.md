@@ -1,3 +1,11 @@
+v5.7.64
+----------
+ * Don't create contacts and URNs for broadcasts but instead defer the raw URNs to mailroom
+
+v5.7.63
+----------
+ * Validate that import files don't contain duplicate UUIDs or URNs
+
 v5.7.62
 ----------
  * Update version of editor and components

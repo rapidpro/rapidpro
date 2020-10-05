@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-02 16:06+0000\n"
+"POT-Creation-Date: 2020-10-02 17:44+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2748,6 +2748,14 @@ msgid "Import file appears to be empty."
 msgstr ""
 
 msgid "Import file contains an empty header."
+msgstr ""
+
+#, python-format
+msgid "Import file contains duplicated contact UUID '%(uuid)s'."
+msgstr ""
+
+#, python-format
+msgid "Import file contains duplicated contact URN '%(urn)s'."
 msgstr ""
 
 #, python-format

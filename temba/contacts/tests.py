@@ -6113,6 +6113,11 @@ class ContactImportTest(TembaTest):
             ("empty.csv", "Import file doesn't contain any records."),
             ("empty_header.xls", "Import file contains an empty header."),
             ("duplicate_header.xlsx", "Header 'name' is duplicated."),
+            ("duplicate_urn.xlsx", "Import file contains duplicated contact URN 'tel:+250788382382'."),
+            (
+                "duplicate_uuid.xlsx",
+                "Import file contains duplicated contact UUID 'f519ca1f-8513-49ba-8896-22bf0420dec7'.",
+            ),
             ("invalid_scheme.xlsx", "Header 'URN:XXX' is not a valid URN type."),
             ("invalid_field_key.xlsx", "Header 'Field: #$^%' is not a valid field name."),
             ("no_urn_or_uuid.xlsx", "Import files must contain either UUID or a URN header."),
