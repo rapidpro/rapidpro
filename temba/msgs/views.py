@@ -318,7 +318,7 @@ class BroadcastCRUDL(SmartCRUDL):
         def derive_initial(self):
             org = self.object.org
             results = [*self.object.groups.all(), *self.object.contacts.all()]
-            selected = omnibox_results_to_dict(org, results, version=2)
+            selected = omnibox_results_to_dict(org, results, version="2")
             message = self.object.text[self.object.base_language]
             return dict(message=message, omnibox=selected)
 
@@ -328,7 +328,6 @@ class BroadcastCRUDL(SmartCRUDL):
             org = broadcast.org
 
             # save off our broadcast info
-            omnibox = form.cleaned_data["omnibox"]
             omnibox = omnibox_deserialize(org, self.form.cleaned_data["omnibox"])
 
             # set our new message
@@ -460,7 +459,7 @@ class BroadcastCRUDL(SmartCRUDL):
             return HttpResponseRedirect(self.get_success_url())
 
         def post_save(self, obj):
-            on_transaction_commit(lambda: obj.send())
+            on_transaction_commit(lambda: obj.send_async())
             return obj
 
         def get_form_kwargs(self):

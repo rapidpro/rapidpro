@@ -88,7 +88,7 @@ def queue_broadcast(broadcast):
         "translations": {lang: {"text": text} for lang, text in broadcast.text.items()},
         "template_state": broadcast.get_template_state(),
         "base_language": broadcast.base_language,
-        "urns": [u.urn for u in broadcast.urns.all()],
+        "urns": broadcast.raw_urns or [],
         "contact_ids": list(broadcast.contacts.values_list("id", flat=True)),
         "group_ids": list(broadcast.groups.values_list("id", flat=True)),
         "broadcast_id": broadcast.id,

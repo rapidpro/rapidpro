@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
-from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactURN
+from temba.contacts.models import TEL_SCHEME, ContactField, ContactURN
 from temba.contacts.omnibox import omnibox_serialize
 from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow
@@ -2035,7 +2035,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual("I", broadcast1.status)
 
         with patch("temba.mailroom.queue_broadcast") as mock_queue_broadcast:
-            broadcast1.send()
+            broadcast1.send_async()
 
             mock_queue_broadcast.assert_called_once_with(broadcast1)
 
@@ -2067,7 +2067,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(0, Broadcast.objects.count())
         self.assertEqual(0, Schedule.objects.count())
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(AssertionError):
             Broadcast.create(self.org, self.user, "no recipients")
 
     @patch("temba.mailroom.queue_broadcast")
@@ -2168,7 +2168,9 @@ class BroadcastTest(TembaTest):
         )
 
         self.assertEqual(4, Broadcast.objects.all().count())
-        self.assertEqual(1, Contact.objects.filter(urns__path="2065551212").count())
+
+        bcast = Broadcast.objects.order_by("id").last()
+        self.assertEqual(["tel:2065551212"], bcast.raw_urns)
 
         # test missing senders
         response = self.client.post(send_url, {"text": "message content"}, follow=True)
@@ -2290,18 +2292,16 @@ class BroadcastCRUDLTest(TembaTest):
         omnibox = omnibox_serialize(self.org, [just_joe], [self.frank], True)
         omnibox.append('{"type": "urn", "id": "tel:0780000001"}')
 
-        post_data = dict(omnibox=omnibox, text="Hey Joe, where you goin' with that gun in your hand?")
-        response = self.client.post(url, post_data)
-
-        # raw number means a new contact created
-        new_urn = ContactURN.objects.get(path="+250780000001")
-        Contact.objects.get(urns=new_urn)
+        response = self.client.post(
+            url, {"omnibox": omnibox, "text": "Hey Joe, where you goin' with that gun in your hand?"}
+        )
+        self.assertEqual(302, response.status_code)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, {"base": "Hey Joe, where you goin' with that gun in your hand?"})
-        self.assertEqual(set(broadcast.groups.all()), {just_joe})
-        self.assertEqual(set(broadcast.contacts.all()), {self.frank})
-        self.assertEqual(set(broadcast.urns.all()), {new_urn})
+        self.assertEqual({"base": "Hey Joe, where you goin' with that gun in your hand?"}, broadcast.text)
+        self.assertEqual({just_joe}, set(broadcast.groups.all()))
+        self.assertEqual({self.frank}, set(broadcast.contacts.all()))
+        self.assertEqual(["tel:0780000001"], broadcast.raw_urns)
 
     def test_update(self):
         self.login(self.editor)
