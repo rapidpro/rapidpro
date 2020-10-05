@@ -69,7 +69,7 @@ class Campaign(TembaModel):
         """
         for event in self.get_events():
             if EventFire.objects.filter(event=event).exists():
-                event = event.deactivate_and_copy()
+                event = event.deactivate_and_copy()  # pragma: needs cover
 
             event.schedule_async()
 
@@ -270,7 +270,7 @@ class Campaign(TembaModel):
 
         self.delete()
 
-    def __str__(self):
+    def __str__(self):  # pragma: needs cover
         return f'Campaign[uuid={self.uuid}, name="{self.name}"]'
 
 
