@@ -1080,6 +1080,18 @@ class GlobalWriteSerializer(WriteSerializer):
             raise serializers.ValidationError("Name creates Key that is invalid")
         return value
 
+    def validate(self, data):
+        if not self.instance and not data.get("name"):
+            raise serializers.ValidationError("Name is required when creating new global.")
+
+        globals_count = Global.objects.filter(org=self.context["org"], is_active=True).count()
+        if globals_count >= Global.MAX_ORG_GLOBALS:
+            raise serializers.ValidationError(
+                "This org has %s globals and the limit is %s. You must delete existing ones before you can "
+                "create new ones." % (globals_count, Global.MAX_ORG_GLOBALS)
+            )
+        return data
+
     def save(self):
         value = self.validated_data["value"]
         if self.instance:

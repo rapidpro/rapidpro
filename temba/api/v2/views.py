@@ -1774,7 +1774,7 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     def get_queryset(self):
         org = self.request.user.get_org()
-        return getattr(self.model, "user_fields").filter(org=org)
+        return self.model.user_fields.filter(org=org, is_active=True)
 
     def filter_queryset(self, queryset):
         params = self.request.query_params

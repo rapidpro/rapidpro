@@ -1503,6 +1503,10 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
+        # create deleted channel
+        deleted = Channel.create(self.org, self.admin, None, "JC", name="Deleted", address="nyaruka", role="SR")
+        deleted.release()
+
         # create channel for other org
         Channel.create(self.org2, self.admin2, None, "TT", name="Twitter Channel", address="nyaruka", role="SR")
 
@@ -2440,9 +2444,12 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        ContactField.get_or_create(self.org, self.admin, "nick_name", "Nick Name")
-        ContactField.get_or_create(self.org, self.admin, "registered", "Registered On", value_type=Value.TYPE_DATETIME)
-        ContactField.get_or_create(self.org2, self.admin2, "not_ours", "Something Else")
+        self.create_field("nick_name", "Nick Name")
+        self.create_field("registered", "Registered On", value_type=Value.TYPE_DATETIME)
+        self.create_field("not_ours", "Something Else", org=self.org2)
+
+        deleted = self.create_field("deleted", "Deleted")
+        deleted.release(self.admin)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
@@ -2496,6 +2503,10 @@ class APITest(TembaTest):
         age.refresh_from_db()
         self.assertEqual(age.label, "Real Age")
         self.assertEqual(age.value_type, "D")
+
+        # try to update with key of deleted field
+        response = self.postJSON(url, "key=deleted", {"label": "Something", "value_type": "text"})
+        self.assert404(response)
 
         # try to update with non-existent key
         response = self.postJSON(url, "key=not_ours", {"label": "Something", "value_type": "text"})
@@ -2680,6 +2691,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertResultsByUUID(response, [color, survey])
 
+    @patch.object(Global, "MAX_ORG_GLOBALS", new=3)
     def test_globals(self):
         url = reverse("api.v2.globals")
         self.assertEndpointAccess(url)
@@ -2779,6 +2791,10 @@ class APITest(TembaTest):
         global1.refresh_from_db()
         self.assertEqual(global1.value, "Acme LLC")
 
+        # try to create a global with no name
+        response = self.postJSON(url, None, {"value": "yes"})
+        self.assertResponseError(response, "non_field_errors", "Name is required when creating new global.")
+
         # try to create a global with invalid name
         response = self.postJSON(url, None, {"name": "!!!#$%^"})
         self.assertResponseError(response, "name", "Name contains illegal characters.")
@@ -2794,7 +2810,6 @@ class APITest(TembaTest):
         # lets create a global via the API
         response = self.postJSON(url, None, {"name": "New Global", "value": "23464373"})
         self.assertEqual(response.status_code, 201)
-        print(response)
         global3 = Global.objects.get(key="new_global")
         self.assertEqual(
             response.json(),
@@ -2804,6 +2819,15 @@ class APITest(TembaTest):
                 "value": "23464373",
                 "modified_on": format_datetime(global3.modified_on),
             },
+        )
+
+        # try again now that we've hit the mocked limit of globals per org
+        response = self.postJSON(url, None, {"name": "Website URL", "value": "http://example.com"})
+        self.assertResponseError(
+            response,
+            "non_field_errors",
+            "This org has 3 globals and the limit is 3. "
+            "You must delete existing ones before you can create new ones.",
         )
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
