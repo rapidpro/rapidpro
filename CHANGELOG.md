@@ -1,3 +1,8 @@
+v5.7.67
+----------
+ * Fix globals endpoint so name is required
+ * Filter by is_active when updating fields on API endpoint
+
 v5.7.66
 ----------
  * Replace remaining Contact.get_or_create calls with mailroom's resolve endpoint
