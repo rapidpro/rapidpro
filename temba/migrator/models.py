@@ -790,7 +790,7 @@ class MigrationTask(TembaModel):
         for idx, schedule in enumerate(schedules, start=1):
             logger.info(f">>> [{idx}/{count}] Schedule: {schedule.id}")
 
-            if schedule.repeat_period == "W":
+            if schedule.repeat_period == "W" and schedule.repeat_days is not None:
                 repeat_days_of_week = ""
                 bitmask_number = bin(schedule.repeat_days)
                 for idx2 in range(7):
