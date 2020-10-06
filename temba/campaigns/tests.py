@@ -40,6 +40,65 @@ class CampaignTest(TembaTest):
             self.org, self.admin, "planting_date", "Planting Date", value_type=Value.TYPE_DATETIME
         )
 
+    @mock_mailroom
+    def test_model(self, mr_mocks):
+        campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
+
+        flow = self.create_flow()
+
+        event1 = CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, self.planting_date, offset=1, unit="W", flow=flow, delivery_hour=13
+        )
+        event2 = CampaignEvent.create_message_event(
+            self.org, self.admin, campaign, self.planting_date, offset=3, unit="D", message="Hello", delivery_hour=9
+        )
+
+        self.assertEqual("Reminders", campaign.name)
+        self.assertEqual(f'Campaign[uuid={campaign.uuid}, name="Reminders"]', str(campaign))
+        self.assertEqual(f'Event[relative_to=planting_date, offset=1, flow="Color Flow"]', str(event1))
+        self.assertEqual([event1, event2], list(campaign.get_events()))
+
+        campaign.schedule_events_async()
+
+        # should have queued a scheduling task to mailroom for each event
+        self.assertEqual(
+            [
+                {
+                    "org_id": self.org.id,
+                    "type": "schedule_campaign_event",
+                    "queued_on": matchers.Datetime(),
+                    "task": {"campaign_event_id": event1.id, "org_id": self.org.id},
+                },
+                {
+                    "org_id": self.org.id,
+                    "type": "schedule_campaign_event",
+                    "queued_on": matchers.Datetime(),
+                    "task": {"campaign_event_id": event2.id, "org_id": self.org.id},
+                },
+            ],
+            mr_mocks.queued_batch_tasks,
+        )
+
+        campaign.recreate_events()
+
+        # existing events should be deactivated
+        event1.refresh_from_db()
+        event2.refresh_from_db()
+        self.assertFalse(event1.is_active)
+        self.assertFalse(event2.is_active)
+
+        # and clones created
+        new_event1, new_event2 = campaign.events.filter(is_active=True).order_by("id")
+
+        self.assertEqual(self.planting_date, new_event1.relative_to)
+        self.assertEqual("W", new_event1.unit)
+        self.assertEqual(1, new_event1.offset)
+        self.assertEqual(flow, new_event1.flow)
+        self.assertEqual(13, new_event1.delivery_hour)
+        self.assertEqual("D", new_event2.unit)
+        self.assertEqual(3, new_event2.offset)
+        self.assertEqual({"base": "Hello"}, new_event2.message)
+
     def test_get_unique_name(self):
         campaign1 = Campaign.create(
             self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers
@@ -655,8 +714,8 @@ class CampaignTest(TembaTest):
         response = self.client.get(reverse("campaigns.campaign_list"))
         self.assertNotContains(response, "Planting Reminders")
 
-        # should have queued another scheduling task to mailroom
-        self.assertEqual(5, len(mr_mocks.queued_batch_tasks))
+        # should not have queued another scheduling task to mailroom since campaign is now archived
+        self.assertEqual(4, len(mr_mocks.queued_batch_tasks))
 
         # shouldn't have any active event fires
         self.assertFalse(EventFire.objects.filter(event__is_active=True).exists())
@@ -666,7 +725,7 @@ class CampaignTest(TembaTest):
         self.client.post(reverse("campaigns.campaign_archived"), post_data)
 
         # should have queued another scheduling task to mailroom
-        self.assertEqual(6, len(mr_mocks.queued_batch_tasks))
+        self.assertEqual(5, len(mr_mocks.queued_batch_tasks))
 
         # set a planting date on our other farmer
         self.set_contact_field(self.farmer2, "planting_date", "1/6/2022", legacy_handle=True)

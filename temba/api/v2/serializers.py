@@ -384,7 +384,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
         if self.instance:
 
             # we dont update, we only create
-            self.instance = self.instance.deactivate_and_copy()
+            self.instance = self.instance.recreate()
 
             # we are being set to a flow
             if flow:

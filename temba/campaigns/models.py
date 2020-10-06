@@ -62,15 +62,20 @@ class Campaign(TembaModel):
 
         return name
 
+    def recreate_events(self):
+        """
+        Recreates all the events in this campaign - called when something like the group changes.
+        """
+
+        for event in self.get_events():
+            event.recreate()
+
     def schedule_events_async(self):
         """
-        Updates all the scheduled events for each contact for this campaign.
-        Should be called anytime a campaign changes.
+        Schedules all the events in this campaign - called when something like the group changes.
         """
-        for event in self.get_events():
-            if EventFire.objects.filter(event=event).exists():
-                event = event.deactivate_and_copy()  # pragma: needs cover
 
+        for event in self.get_events():
             event.schedule_async()
 
     @classmethod
@@ -184,34 +189,31 @@ class Campaign(TembaModel):
         return imported
 
     @classmethod
-    def restore_flows(cls, campaign):
-        events = (
-            campaign.events.filter(is_active=True, event_type=CampaignEvent.TYPE_FLOW)
-            .exclude(flow=None)
-            .select_related("flow")
-        )
-        for event in events:
-            event.flow.restore()
-
-    @classmethod
     def apply_action_archive(cls, user, campaigns):
         campaigns.update(is_archived=True, modified_by=user, modified_on=timezone.now())
 
-        # update the events for each campaign
+        # recreate events so existing event fires will be ignored
         for campaign in campaigns:
-            campaign.schedule_events_async()
+            campaign.recreate_events()
 
     @classmethod
     def apply_action_restore(cls, user, campaigns):
         campaigns.update(is_archived=False, modified_by=user, modified_on=timezone.now())
 
-        # update the events for each campaign
         for campaign in campaigns:
-            Campaign.restore_flows(campaign)
+            # for any flow events, ensure flows are restored as well
+            events = (
+                campaign.events.filter(is_active=True, event_type=CampaignEvent.TYPE_FLOW)
+                .exclude(flow=None)
+                .select_related("flow")
+            )
+            for event in events:
+                event.flow.restore()
+
             campaign.schedule_events_async()
 
     def get_events(self):
-        return self.events.filter(is_active=True).order_by("relative_to", "offset")
+        return self.events.filter(is_active=True).order_by("id")
 
     def as_export_def(self):
         """
@@ -270,7 +272,7 @@ class Campaign(TembaModel):
 
         self.delete()
 
-    def __str__(self):  # pragma: needs cover
+    def __str__(self):
         return f'Campaign[uuid={self.uuid}, name="{self.name}"]'
 
 
@@ -514,8 +516,12 @@ class CampaignEvent(TembaModel):
 
         return None  # pragma: no cover
 
-    def deactivate_and_copy(self):
-
+    def recreate(self):
+        """
+        Cleaning up millions of event fires would be expensive so instead we treat campaign events as immutable objects
+        and when a change is made that would invalidate existing event fires, we deactivate the event and recreate it.
+        The event fire handling code knows to ignore event fires for deactivated event.
+        """
         self.release()
 
         # clone our event into a new event

@@ -1,3 +1,8 @@
+v5.7.65
+----------
+ * URN lookups onthe contact API endpoint should be normalized with org country
+ * Archiving a campaign should only recreate events
+
 v5.7.64
 ----------
  * Don't create contacts and URNs for broadcasts but instead defer the raw URNs to mailroom
