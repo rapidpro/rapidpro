@@ -1664,7 +1664,7 @@ class APITest(TembaTest):
         self.assertResultsByUUID(response, [contact2])
 
         # filter by URN (which should be normalized)
-        response = self.fetchJSON(url, "urn=%s" % quote_plus("tel:+250-78-8000004"))
+        response = self.fetchJSON(url, "urn=%s" % quote_plus("tel:078-8000004"))
         self.assertResultsByUUID(response, [contact4])
 
         # error if URN can't be parsed
