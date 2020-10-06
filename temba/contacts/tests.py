@@ -1239,36 +1239,6 @@ class ContactTest(TembaTest):
             message="Sent 7 days after planting date",
         )
 
-    def test_get_or_create(self):
-
-        # can't create without org
-        with self.assertRaises(ValueError):
-            Contact.get_or_create(None, "tel:+250781111111", self.channel)
-
-        contact, urn_obj = Contact.get_or_create(self.org, "tel:+250781111111", None)
-        self.assertEqual(contact.pk, self.joe.pk)
-
-        contact, urn_obj = Contact.get_or_create(self.org, "tel:+250781111111", self.channel)
-        self.assertEqual(contact.pk, self.joe.pk)
-
-        contact, urn_obj = Contact.get_or_create(self.org, "tel:+250781111111", self.channel, name="Kendrick")
-        self.assertEqual(contact.name, "Joe Blow")  # should not change the name for existing contact
-
-        contact, urn_obj = Contact.get_or_create(self.org, "tel:124", self.channel, name="Kendrick")
-        self.assertEqual(contact.name, "Kendrick")
-
-        contact, urn_obj = Contact.get_or_create(self.org, "tel:+250781111111", None, None, user=self.user)
-        self.assertEqual(contact.pk, self.joe.pk)
-
-        urn = ContactURN.get_or_create(self.org, contact, "tel:+250781111111", self.channel)
-        urn.contact = None
-        urn.save()
-
-        # existing urn without a contact should be used on the new contact
-        contact, urn_obj = Contact.get_or_create(self.org, "tel:+250781111111", self.channel, name="Kendrick")
-        self.assertEqual(contact.name, "Kendrick")  # should not change the name for existing contact
-        self.assertEqual(1, contact.urns.all().count())
-
     @mock_mailroom
     def test_contact_create(self, mr_mocks):
         self.login(self.admin)
