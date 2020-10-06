@@ -1503,6 +1503,10 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
+        # create deleted channel
+        deleted = Channel.create(self.org, self.admin, None, "JC", name="Deleted", address="nyaruka", role="SR")
+        deleted.release()
+
         # create channel for other org
         Channel.create(self.org2, self.admin2, None, "TT", name="Twitter Channel", address="nyaruka", role="SR")
 
@@ -2440,9 +2444,12 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        ContactField.get_or_create(self.org, self.admin, "nick_name", "Nick Name")
-        ContactField.get_or_create(self.org, self.admin, "registered", "Registered On", value_type=Value.TYPE_DATETIME)
-        ContactField.get_or_create(self.org2, self.admin2, "not_ours", "Something Else")
+        self.create_field("nick_name", "Nick Name")
+        self.create_field("registered", "Registered On", value_type=Value.TYPE_DATETIME)
+        self.create_field("not_ours", "Something Else", org=self.org2)
+
+        deleted = self.create_field("deleted", "Deleted")
+        deleted.release(self.admin)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
@@ -2496,6 +2503,10 @@ class APITest(TembaTest):
         age.refresh_from_db()
         self.assertEqual(age.label, "Real Age")
         self.assertEqual(age.value_type, "D")
+
+        # try to update with key of deleted field
+        response = self.postJSON(url, "key=deleted", {"label": "Something", "value_type": "text"})
+        self.assert404(response)
 
         # try to update with non-existent key
         response = self.postJSON(url, "key=not_ours", {"label": "Something", "value_type": "text"})
