@@ -2691,6 +2691,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertResultsByUUID(response, [color, survey])
 
+    @patch.object(Global, "MAX_ORG_GLOBALS", new=3)
     def test_globals(self):
         url = reverse("api.v2.globals")
         self.assertEndpointAccess(url)
@@ -2790,6 +2791,10 @@ class APITest(TembaTest):
         global1.refresh_from_db()
         self.assertEqual(global1.value, "Acme LLC")
 
+        # try to create a global with no name
+        response = self.postJSON(url, None, {"value": "yes"})
+        self.assertResponseError(response, "non_field_errors", "Name is required when creating new global.")
+
         # try to create a global with invalid name
         response = self.postJSON(url, None, {"name": "!!!#$%^"})
         self.assertResponseError(response, "name", "Name contains illegal characters.")
@@ -2805,7 +2810,6 @@ class APITest(TembaTest):
         # lets create a global via the API
         response = self.postJSON(url, None, {"name": "New Global", "value": "23464373"})
         self.assertEqual(response.status_code, 201)
-        print(response)
         global3 = Global.objects.get(key="new_global")
         self.assertEqual(
             response.json(),
@@ -2815,6 +2819,15 @@ class APITest(TembaTest):
                 "value": "23464373",
                 "modified_on": format_datetime(global3.modified_on),
             },
+        )
+
+        # try again now that we've hit the mocked limit of globals per org
+        response = self.postJSON(url, None, {"name": "Website URL", "value": "http://example.com"})
+        self.assertResponseError(
+            response,
+            "non_field_errors",
+            "This org has 3 globals and the limit is 3. "
+            "You must delete existing ones before you can create new ones.",
         )
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
