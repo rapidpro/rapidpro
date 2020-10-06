@@ -3148,9 +3148,11 @@ class ContactTest(TembaTest):
             )
 
         planters = self.create_group("Planters", query='planting_date != ""')
+        planters.contacts.add(self.joe)
 
         now = timezone.now()
-        self.set_contact_field(self.joe, "planting_date", (now + timedelta(days=1)).isoformat(), legacy_handle=True)
+        joe_planting_date = now + timedelta(days=1)
+        self.set_contact_field(self.joe, "planting_date", joe_planting_date.isoformat())
 
         # should have seven fires, one for each campaign event
         self.assertEqual(7, EventFire.objects.filter(event__is_active=True).count())
@@ -4218,83 +4220,6 @@ class ContactTest(TembaTest):
             fields={"state": "kano", "district": "bichi", "ward": "bichi"},
         )
         self.assertEqual(jemila.get_field_serialized(ward), "Rwanda > Kano > Bichi > Bichi")
-
-    @mock_mailroom
-    def test_update_handling(self, mr_mocks):
-        bob = self.create_contact("Bob", phone="111222")
-        bob.name = "Bob Marley"
-        bob.save(update_fields=("name",))
-
-        group = self.create_group("Customers", [])
-        nickname = self.create_field("nickname", "Nickname")
-
-        old_modified_on = bob.modified_on
-
-        mods = bob.update_static_groups([group]) + bob.update_fields({nickname: "Bobby"})
-
-        bob.modify(self.admin, mods)
-
-        self.assertTrue(bob.modified_on > old_modified_on)
-
-        # run all tests as 2/Jan/2014 03:04 AFT
-        tz = pytz.timezone("Asia/Kabul")
-
-        with patch.object(timezone, "now", return_value=tz.localize(datetime(2014, 1, 2, 3, 4, 5, 6))):
-            ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type="N")
-            ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type="T")
-            joined_field = ContactField.get_or_create(self.org, self.admin, "joined", "Join Date", value_type="D")
-
-            # create groups based on name or URN (checks that contacts are added correctly on contact create)
-            joes_group = self.create_group("People called Joe", query='twitter = "blow80"')
-            mtn_group = self.create_group("People with number containing '078'", query='tel has "078"')
-
-            self.mary = self.create_contact(
-                "Mary", phone="+250783333333", fields={"gender": "Female", "age": "21", "joined": "31/12/2013"}
-            )
-            self.annie = self.create_contact(
-                "Annie", phone="7879", fields={"gender": "Female", "age": "9", "joined": "31/12/2013"}
-            )
-            self.set_contact_field(self.joe, "gender", "Male")
-            self.set_contact_field(self.joe, "age", "25")
-            self.set_contact_field(self.joe, "joined", "1/1/2014")
-            self.set_contact_field(self.frank, "gender", "Male")
-            self.set_contact_field(self.frank, "age", "50")
-            self.set_contact_field(self.frank, "joined", "1/1/2014")
-
-            men_group = self.create_group("Boys", query='gender = "male" AND age >= 18')
-            women_group = self.create_group("Girls", query='gender = "female" AND age >= 18')
-
-            joe_flow = self.create_flow()
-            joes_campaign = Campaign.create(self.org, self.admin, "Joe Reminders", joes_group)
-            joes_event = CampaignEvent.create_flow_event(
-                self.org,
-                self.admin,
-                joes_campaign,
-                relative_to=joined_field,
-                offset=1,
-                unit="W",
-                flow=joe_flow,
-                delivery_hour=17,
-            )
-
-            for c in [self.frank, self.joe, self.mary]:
-                c.handle_update(is_new=True)
-
-            # check initial group members added correctly
-            self.assertEqual([self.frank, self.joe, self.mary], list(mtn_group.contacts.order_by("name")))
-            self.assertEqual([self.frank, self.joe], list(men_group.contacts.order_by("name")))
-            self.assertEqual([self.mary], list(women_group.contacts.order_by("name")))
-            self.assertEqual([self.joe], list(joes_group.contacts.order_by("name")))
-
-            # check event fire initialized correctly
-            joe_fires = EventFire.objects.filter(event=joes_event)
-            self.assertEqual(1, joe_fires.count())
-            self.assertEqual(self.joe, joe_fires.first().contact)
-
-            # Frank becomes Francine...
-            self.set_contact_field(self.frank, "gender", "Female", legacy_handle=True)
-            self.assertEqual([self.joe], list(men_group.contacts.order_by("name")))
-            self.assertEqual([self.frank, self.mary], list(women_group.contacts.order_by("name")))
 
 
 class ContactURNTest(TembaTest):

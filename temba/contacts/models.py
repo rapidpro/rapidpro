@@ -1060,28 +1060,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         else:
             return str(value)
 
-    def handle_update(self, urns=(), fields=None, group=None, is_new=False):
-        """
-        Handles an update to a contact which can be one of
-          1. A change to one or more attributes
-          2. A change to the specified contact field
-          3. A manual change to a group membership
-        """
-        changed_groups = set([group]) if group else set()
-        if fields or urns or is_new:
-            # ensure dynamic groups are up to date
-            changed_groups.update(self.reevaluate_dynamic_groups(for_fields=fields, urns=urns))
-
-        # ensure our campaigns are up to date
-        from temba.campaigns.models import EventFire
-
-        if fields:
-            EventFire.update_events_for_contact_fields(contact=self, keys=fields)
-
-        if changed_groups:
-            # ensure our campaigns are up to date
-            EventFire.update_events_for_contact_groups(self, changed_groups)
-
     def update(self, name: str, language: str) -> List[modifiers.Modifier]:
         """
         Updates attributes of this contact
@@ -1259,14 +1237,19 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 urn.channel = None
                 urn.save(update_fields=("identity", "path", "scheme", "channel"))
 
-            # no group for you!
-            self.clear_all_groups(user)
+            # remove from all static and dynamic groups
+            for group in self.user_groups.all():
+                group.contacts.remove(self)
+
+            # delete any unfired campaign event fires
+            self.campaign_fires.filter(fired=None).delete()
 
             # now deactivate the contact itself
             self.is_active = False
             self.name = None
             self.fields = None
-            self.save(update_fields=("name", "is_active", "fields", "modified_on"))
+            self.modified_by = user
+            self.save(update_fields=("name", "is_active", "fields", "modified_by", "modified_on"))
 
         # if we are removing everything do so
         if full:
@@ -1412,13 +1395,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             changed_set.update(dynamic_group._update_contacts(user, [self], add=should_add))
 
         return changed_set
-
-    def clear_all_groups(self, user):
-        """
-        Removes this contact from all groups - static and dynamic.
-        """
-        for group in self.user_groups.all():
-            group.remove_contacts(user, [self])
 
     def get_display(self, org=None, formatted=True, short=False, for_expressions=False):
         """
@@ -1869,50 +1845,6 @@ class ContactGroup(TembaModel):
 
         # first character must be a word char
         return regex.match(r"\w", name[0], flags=regex.UNICODE)
-
-    def remove_contacts(self, user, contacts):
-        """
-        Forces removal of contacts from this group regardless of whether it is static or dynamic
-        """
-        if self.group_type != self.TYPE_USER_DEFINED:  # pragma: no cover
-            raise ValueError("Can't remove contacts from system groups")
-
-        return self._update_contacts(user, contacts, add=False)
-
-    def _update_contacts(self, user, contacts, add):
-        """
-        Adds or removes contacts from this group - used for both non-dynamic and dynamic groups
-        """
-        changed = set()
-        group_contacts = self.contacts.all()
-
-        for contact in contacts:
-            if add and (contact.status != Contact.STATUS_ACTIVE or not contact.is_active):  # pragma: no cover
-                raise ValueError("Blocked, stopped and deleted contacts can't be added to groups")
-
-            contact_changed = False
-
-            # if we are adding the contact to the group, and this contact is not in this group
-            if add:
-                if not group_contacts.filter(id=contact.id):
-                    self.contacts.add(contact)
-                    contact_changed = True
-            else:
-                if group_contacts.filter(id=contact.id):
-                    self.contacts.remove(contact)
-                    contact_changed = True
-
-            if contact_changed:
-                changed.add(contact.pk)
-                contact.handle_update(group=self)
-
-        if changed:
-            # update modified on in small batches to avoid long table lock, and having too many non-unique values for
-            # modified_on which is the primary ordering for the API
-            for batch in chunk_list(changed, 100):
-                Contact.objects.filter(org=self.org, pk__in=batch).update(modified_on=timezone.now())
-
-        return changed
 
     def update_query(self, query, reevaluate=True, parsed=None):
         """
