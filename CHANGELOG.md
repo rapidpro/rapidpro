@@ -1,3 +1,7 @@
+v5.7.66
+----------
+ * Replace remaining Contact.get_or_create calls with mailroom's resolve endpoint
+
 v5.7.65
 ----------
  * URN lookups onthe contact API endpoint should be normalized with org country
