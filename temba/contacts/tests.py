@@ -643,12 +643,6 @@ class ContactGroupTest(TembaTest):
         with self.assertRaises(ValueError):
             group.update_query("age = 18")
 
-    @mock_mailroom
-    def test_query_elasticsearch_for_ids_bad_query(self, mr_mocks):
-        with self.assertRaises(SearchException):
-            mr_mocks.error("bad field <> error")
-            Contact.query_elasticsearch_for_ids(self.org, "bad_field <> error")
-
     def test_get_or_create(self):
         group = ContactGroup.get_or_create(self.org, self.user, " first ")
         self.assertEqual(group.name, "first")
