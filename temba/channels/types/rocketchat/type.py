@@ -18,6 +18,8 @@ class RocketChatType(ChannelType):
 
     CONFIG_BASE_URL = "base_url"
     CONFIG_BOT_USERNAME = "bot_username"
+    CONFIG_ADMIN_AUTH_TOKEN = "admin_auth_token"
+    CONFIG_ADMIN_USER_ID = "admin_user_id"
     CONFIG_SECRET = "secret"
 
     code = "RC"

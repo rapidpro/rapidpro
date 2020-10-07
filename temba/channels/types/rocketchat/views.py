@@ -31,11 +31,19 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         base_url = ExternalURLField(
             label=_("URL"),
             widget=forms.URLInput(
-                attrs={"placeholder": _("Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b-5f8091899f7b")}
+                attrs={"placeholder": _("Ex.: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4")}
             ),
             help_text=_("The URL for your RocketChat Channnel app"),
         )
-        bot_username = forms.CharField(label=_("Bot username"), help_text=_("The username of your RocketChat bot"))
+        bot_username = forms.CharField(
+            label=_("Bot Username"), help_text=_("The username of your RocketChat bot")
+        )
+        admin_auth_token = forms.CharField(
+            label=_("Admin Auth Token"), help_text=_("The admin user token of your RocketChat")
+        )
+        admin_user_id = forms.CharField(
+            label=_("Admin User ID"), help_text=_("The admin user ID of your RocketChat")
+        )
         secret = forms.CharField(
             label=_("Secret"), widget=forms.HiddenInput(), help_text=_("Secret to be passed to RocketChat"),
         )
@@ -90,10 +98,14 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         base_url = form.cleaned_data["base_url"]
         bot_username = form.cleaned_data["bot_username"]
+        admin_auth_token = form.cleaned_data["admin_auth_token"]
+        admin_user_id = form.cleaned_data["admin_user_id"]
         secret = form.cleaned_data["secret"]
         config = {
             RocketChatType.CONFIG_BASE_URL: base_url,
             RocketChatType.CONFIG_BOT_USERNAME: bot_username,
+            RocketChatType.CONFIG_ADMIN_AUTH_TOKEN: admin_auth_token,
+            RocketChatType.CONFIG_ADMIN_USER_ID: admin_user_id,
             RocketChatType.CONFIG_SECRET: secret,
         }
 
@@ -111,7 +123,11 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         try:
-            client = Client(**config)
+            client = Client(
+                config[RocketChatType.CONFIG_BASE_URL],
+                config[RocketChatType.CONFIG_BOT_USERNAME],
+                config[RocketChatType.CONFIG_SECRET],
+            )
             client.settings(self.request.build_absolute_uri("/"), self.object)
         except ClientError as err:
             messages.error(self.request, err.msg if err.msg else _("Configuration has failed"))

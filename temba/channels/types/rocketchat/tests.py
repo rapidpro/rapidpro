@@ -22,6 +22,8 @@ class RocketChatMixin(TembaTest):
         self.claim_url = reverse("channels.types.rocketchat.claim")
         self.app_id = f"{uuid.uuid4()}"
         self.bot_username = "test-bot"
+        self.admin_auth_token = "abc123"
+        self.admin_user_id = "123"
         self.secret = random_string(SECRET_LENGTH)
         self.secret2 = random_string(SECRET_LENGTH)
 
@@ -44,6 +46,8 @@ class RocketChatMixin(TembaTest):
             config = {
                 RocketChatType.CONFIG_BASE_URL: self.new_url(self.domain),
                 RocketChatType.CONFIG_BOT_USERNAME: self.bot_username,
+                RocketChatType.CONFIG_ADMIN_AUTH_TOKEN: self.admin_auth_token,
+                RocketChatType.CONFIG_ADMIN_USER_ID: self.admin_user_id,
                 RocketChatType.CONFIG_SECRET: self.secret,
             }
         return Channel.create(
@@ -141,6 +145,8 @@ class RocketChatViewTest(RocketChatMixin):
             "secret": self.secret,
             "base_url": base_url,
             "bot_username": self.bot_username,
+            "admin_auth_token": self.admin_auth_token,
+            "admin_user_id": self.admin_user_id,
         }
 
     @patch("socket.gethostbyname")
@@ -276,6 +282,28 @@ class RocketChatViewTest(RocketChatMixin):
         data["bot_username"] = ""
         response = self.submit_form(data)
         self.assertFormError(response, "form", "bot_username", "This field is required.")
+
+    def test_form_invalid_admin_auth_token(self):
+        data = self.new_form_data()
+
+        data.pop("admin_auth_token")
+        response = self.submit_form(data)
+        self.assertFormError(response, "form", "admin_auth_token", "This field is required.")
+
+        data["admin_auth_token"] = ""
+        response = self.submit_form(data)
+        self.assertFormError(response, "form", "admin_auth_token", "This field is required.")
+
+    def test_form_invalid_admin_user_id(self):
+        data = self.new_form_data()
+
+        data.pop("admin_user_id")
+        response = self.submit_form(data)
+        self.assertFormError(response, "form", "admin_user_id", "This field is required.")
+
+        data["admin_user_id"] = ""
+        response = self.submit_form(data)
+        self.assertFormError(response, "form", "admin_user_id", "This field is required.")
 
     @patch("socket.gethostbyname")
     @patch("random.choice")
