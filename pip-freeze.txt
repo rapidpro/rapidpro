@@ -6,7 +6,6 @@
 #
 amqp==2.1.4               # via kombu
 analytics-python==1.2.9
-antlr4-python3-runtime==4.7.2
 appdirs==1.4.3            # via black
 asn1crypto==0.22.0        # via cryptography
 attrs==18.1.0             # via black
