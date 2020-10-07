@@ -2097,10 +2097,7 @@ class BroadcastTest(TembaTest):
 
         # initialize a broadcast form based on a step uuid
         response = self.client.get(f"{send_url}?step_node=step")
-        fields = response.context["form"].fields
-        field_names = [_ for _ in fields]
-        self.assertIn("step_node", field_names)
-        self.assertNotIn("omnibox", field_names)
+        self.assertEqual(["text", "step_node", "loc"], list(response.context["form"].fields.keys()))
 
         # try with no channel
         omnibox = omnibox_serialize(self.org, [], [self.joe], True)
@@ -2215,15 +2212,20 @@ class BroadcastTest(TembaTest):
 
         self.assertRedirect(response, reverse("msgs.msg_inbox"))
 
-        response = self.client.post(send_url, payload, follow=True)
-
-        self.assertContains(response, "success")
-
         broadcast = Broadcast.objects.order_by("id").last()
         self.assertEqual(broadcast.text, {"base": "message content"})
         self.assertEqual(broadcast.groups.count(), 0)
-        self.assertEqual(broadcast.contacts.count(), 1)
-        self.assertIn(self.joe, broadcast.contacts.all())
+        self.assertEqual({self.joe}, set(broadcast.contacts.all()))
+
+        self.assertEqual(7, Broadcast.objects.count())
+
+        # if there are no contacts at that node, we don't actually create a broadcast
+        self.joe.runs.update(is_active=False)
+
+        response = self.client.post(send_url, payload, follow=True)
+        self.assertContains(response, "success")
+
+        self.assertEqual(7, Broadcast.objects.count())
 
     def test_message_parts(self):
         contact = self.create_contact("Matt", phone="+12067778811")
