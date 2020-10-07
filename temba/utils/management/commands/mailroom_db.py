@@ -603,7 +603,7 @@ class Command(BaseCommand):
 
             contact = Contact.create(org, user, c["name"], language="", urns=c["urns"], fields=values, groups=groups)
             contact.uuid = c["uuid"]
-            contact.save(update_fields=["uuid"], handle_update=False)
+            contact.save(update_fields=("uuid",))
 
         self._log(self.style.SUCCESS("OK") + "\n")
 

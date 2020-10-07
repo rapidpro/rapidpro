@@ -136,20 +136,6 @@
         %p Are you sure you want to remove this event? Once the event is removed, it will be gone forever. This cannot be undone.
       %a#delete-form.posterize{}
 
-
--block extra-script
-  {{block.super}}
-  -if org_perms.flows.flow_update
-    :javascript
-      {% if org_perms.campaigns.campaignevent_update %}
-        $(".update-event").live('click', function(){
-          var modal = new Modax('{{_("Update Event")|escapejs }}', '{% url "campaigns.campaignevent_update" object.pk %}');
-          modal.setIcon('icon-campaign');
-          modal.setRedirectOnSuccess(true);
-          modal.show();
-        });
-      {% endif %}
-
 -block extra-less
   -compress css
     {% lessblock %}

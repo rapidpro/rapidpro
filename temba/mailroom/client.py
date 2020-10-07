@@ -152,6 +152,15 @@ class MailroomClient:
 
         return self._request("contact/modify", payload)
 
+    def contact_resolve(self, org_id: int, channel_id: int, urn: str):
+        payload = {
+            "org_id": org_id,
+            "channel_id": channel_id,
+            "urn": urn,
+        }
+
+        return self._request("contact/resolve", payload)
+
     def contact_search(self, org_id, group_uuid, query, sort, offset=0, exclude_ids=()):
         payload = {
             "org_id": org_id,

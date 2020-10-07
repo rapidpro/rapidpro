@@ -52,7 +52,7 @@ class CampaignCRUDL(SmartCRUDL):
             else:
                 return queryset.filter(org=self.request.user.get_org())
 
-    class Update(OrgMixin, ModalMixin, SmartUpdateView):
+    class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
         fields = ("name", "group")
         success_message = ""
         form_class = UpdateCampaignForm
@@ -83,6 +83,7 @@ class CampaignCRUDL(SmartCRUDL):
 
             # if our group changed, create our new fires
             if new_group != previous_group:
+                self.object.recreate_events()
                 self.object.schedule_events_async()
 
             response = self.render_to_response(
@@ -678,7 +679,7 @@ class CampaignEventCRUDL(SmartCRUDL):
                 or prev.flow != obj.flow
                 or prev.start_mode != obj.start_mode
             ):
-                obj = obj.deactivate_and_copy()
+                obj = obj.recreate()
                 obj.schedule_async()
 
             return obj

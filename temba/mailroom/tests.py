@@ -10,7 +10,7 @@ from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowRun, FlowStart
 from temba.mailroom.client import ContactSpec, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
-from temba.tests import MockResponse, TembaTest, matchers
+from temba.tests import MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.utils import json
 
@@ -217,6 +217,20 @@ class MailroomClientTest(TembaTest):
         )
 
     @patch("requests.post")
+    def test_contact_resolve(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"contact": {"id": 1234}, "urn": {"id": 2345}}')
+
+        # try with empty contact spec
+        response = get_client().contact_resolve(self.org.id, 345, "tel:+1234567890")
+
+        self.assertEqual({"contact": {"id": 1234}, "urn": {"id": 2345}}, response)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/resolve",
+            headers={"User-Agent": "Temba"},
+            json={"org_id": self.org.id, "channel_id": 345, "urn": "tel:+1234567890"},
+        )
+
+    @patch("requests.post")
     def test_contact_search(self, mock_post):
         mock_post.return_value = MockResponse(
             200,
@@ -319,7 +333,8 @@ class MailroomQueueTest(TembaTest):
         r = get_redis_connection()
         r.execute_command("select", settings.REDIS_DB)
 
-    def test_queue_msg_handling(self):
+    @mock_mailroom(queue=False)
+    def test_queue_msg_handling(self, mr_mocks):
         with override_settings(TESTING=False):
             msg = Msg.create_relayer_incoming(self.org, self.channel, "tel:12065551212", "Hello World", timezone.now())
 
@@ -341,13 +356,14 @@ class MailroomQueueTest(TembaTest):
                     "urn_id": msg.contact.urns.get().id,
                     "text": "Hello World",
                     "attachments": None,
-                    "new_contact": True,
+                    "new_contact": False,
                 },
                 "queued_on": matchers.ISODate(),
             },
         )
 
-    def test_queue_mo_miss_event(self):
+    @mock_mailroom(queue=False)
+    def test_queue_mo_miss_event(self, mr_mocks):
         get_redis_connection("default").flushall()
         event = ChannelEvent.create_relayer_event(
             self.channel, "tel:12065551212", ChannelEvent.TYPE_CALL_OUT, timezone.now()
@@ -377,7 +393,7 @@ class MailroomQueueTest(TembaTest):
                     "event_type": "mo_miss",
                     "extra": None,
                     "id": event.id,
-                    "new_contact": True,
+                    "new_contact": False,
                     "org_id": event.contact.org.id,
                     "urn": "tel:+12065551515",
                     "urn_id": event.contact.urns.get().id,
@@ -396,11 +412,11 @@ class MailroomQueueTest(TembaTest):
             {"eng": "Welcome to mailroom!", "spa": "¡Bienvenidx a mailroom!"},
             groups=[bobs],
             contacts=[jim],
-            urns=[jim.urns.get()],
+            urns=["tel:+12065556666"],
             base_language="eng",
         )
 
-        bcast.send()
+        bcast.send_async()
 
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(
@@ -415,7 +431,7 @@ class MailroomQueueTest(TembaTest):
                     },
                     "template_state": "legacy",
                     "base_language": "eng",
-                    "urns": ["tel:+12065551212"],
+                    "urns": ["tel:+12065556666"],
                     "contact_ids": [jim.id],
                     "group_ids": [bobs.id],
                     "broadcast_id": bcast.id,
@@ -435,6 +451,7 @@ class MailroomQueueTest(TembaTest):
             self.admin,
             groups=[bobs],
             contacts=[jim],
+            urns=["tel:+1234567890", "twitter:bobby"],
             restart_participants=True,
             extra={"foo": "bar"},
             include_active=True,
@@ -457,11 +474,27 @@ class MailroomQueueTest(TembaTest):
                     "flow_type": "M",
                     "contact_ids": [jim.id],
                     "group_ids": [bobs.id],
+                    "urns": ["tel:+1234567890", "twitter:bobby"],
                     "query": None,
                     "restart_participants": True,
                     "include_active": True,
                     "extra": {"foo": "bar"},
                 },
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
+    def test_queue_contact_import_batch(self):
+        imp = self.create_contact_import("media/test_imports/simple.xlsx")
+        imp.start()
+
+        self.assert_org_queued(self.org, "batch")
+        self.assert_queued_batch_task(
+            self.org,
+            {
+                "type": "import_contact_batch",
+                "org_id": self.org.id,
+                "task": {"contact_import_batch_id": imp.batches.get().id},
                 "queued_on": matchers.ISODate(),
             },
         )

@@ -26,7 +26,7 @@ from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN, Contact, Cont
 from temba.ivr.models import IVRCall
 from temba.msgs.models import IVR, PENDING, QUEUED, Broadcast, Msg
 from temba.orgs.models import Org
-from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest
+from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest, mock_mailroom
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
@@ -75,17 +75,19 @@ class ChannelTest(TembaTest):
         )
 
     def send_message(self, numbers, message, org=None, user=None):
-        if not org:
-            org = self.org
-
-        if not user:
-            user = self.user
+        org = org or self.org
+        user = user or self.user
 
         group = ContactGroup.get_or_create(org, user, "Numbers: %s" % ",".join(numbers))
-        contacts = list()
+
+        contacts = []
         for number in numbers:
-            contact, urn_obj = Contact.get_or_create(org, URN.from_tel(number), user=user, name=None)
-            contacts.append(contact)
+            urn = URN.from_tel(number)
+            urn_obj = ContactURN.lookup(org, urn)
+            if urn_obj:
+                contacts.append(urn_obj.contact)
+            else:
+                contacts.append(self.create_contact("", urns=[urn]))
 
         group.contacts.add(*contacts)
 
@@ -270,9 +272,7 @@ class ChannelTest(TembaTest):
 
         # a message, a call, and a broadcast
         msg = self.send_message(["250788382382"], "How is it going?")
-        call = ChannelEvent.create(
-            self.tel_channel, "tel:+250788383385", ChannelEvent.TYPE_CALL_IN, timezone.now(), {}
-        )
+        call = self.create_channel_event(self.tel_channel, "tel:+250788383385", ChannelEvent.TYPE_CALL_IN, extra={})
 
         self.assertEqual(self.org, msg.org)
         self.assertEqual(self.tel_channel, msg.channel)
@@ -1223,7 +1223,8 @@ class ChannelTest(TembaTest):
         self.assertEqual(len(cmds[0]["to"]), 1)
         self.assertEqual(cmds[0]["to"][0]["phone"], "+250788383383")
 
-    def test_sync(self):
+    @mock_mailroom
+    def test_sync(self, mr_mocks):
         date = timezone.now()
         date = int(time.mktime(date.timetuple())) * 1000
 
@@ -1558,7 +1559,8 @@ class ChannelTest(TembaTest):
         self.assertIsNotNone(r0)
         self.assertEqual(r0["cmd"], "ack")
 
-    def test_inbox_duplication(self):
+    @mock_mailroom
+    def test_inbox_duplication(self, mr_mocks):
 
         # if the connection gets interrupted but some messages succeed, we want to make sure subsequent
         # syncs do not result in duplication of messages from the inbox
@@ -1681,30 +1683,11 @@ class ChannelBatchTest(TembaTest):
         self.assertEqual(ms_to_datetime(epoch), now)
 
 
-class ChannelEventTest(TembaTest):
-    def test_create(self):
-        now = timezone.now()
-        event = ChannelEvent.create(
-            self.channel, "tel:+250783535665", ChannelEvent.TYPE_CALL_OUT, now, extra=dict(duration=300)
-        )
-
-        contact = Contact.objects.get()
-        self.assertEqual(str(contact.get_urn()), "tel:+250783535665")
-
-        self.assertEqual(event.org, self.org)
-        self.assertEqual(event.channel, self.channel)
-        self.assertEqual(event.contact, contact)
-        self.assertEqual(event.event_type, ChannelEvent.TYPE_CALL_OUT)
-        self.assertEqual(event.occurred_on, now)
-        self.assertEqual(event.extra["duration"], 300)
-
-
 class ChannelEventCRUDLTest(TembaTest):
     def test_calls(self):
-        now = timezone.now()
-        ChannelEvent.create(self.channel, "tel:12345", ChannelEvent.TYPE_CALL_IN, now, dict(duration=600))
-        ChannelEvent.create(self.channel, "tel:890", ChannelEvent.TYPE_CALL_IN_MISSED, now)
-        ChannelEvent.create(self.channel, "tel:456767", ChannelEvent.TYPE_UNKNOWN, now)
+        self.create_channel_event(self.channel, "tel:12345", ChannelEvent.TYPE_CALL_IN, extra=dict(duration=600))
+        self.create_channel_event(self.channel, "tel:890", ChannelEvent.TYPE_CALL_IN_MISSED)
+        self.create_channel_event(self.channel, "tel:456767", ChannelEvent.TYPE_UNKNOWN)
 
         list_url = reverse("channels.channelevent_calls")
 
@@ -1733,7 +1716,8 @@ class SyncEventTest(SmartminTest):
             config={Channel.CONFIG_FCM_ID: "123"},
         )
 
-    def test_sync_event_model(self):
+    @mock_mailroom
+    def test_sync_event_model(self, mr_mocks):
         self.sync_event = SyncEvent.create(
             self.tel_channel,
             dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc="RW"),
@@ -2020,8 +2004,7 @@ class ChannelCountTest(TembaTest):
         ChannelCount.objects.all().delete()
 
         # ok, test outgoing now
-        real_contact, urn_obj = Contact.get_or_create(self.org, "tel:+250788111222", user=self.admin)
-        msg = self.create_outgoing_msg(real_contact, "Real Message", channel=self.channel)
+        msg = self.create_outgoing_msg(contact, "Real Message", channel=self.channel)
         log = ChannelLog.objects.create(channel=self.channel, msg=msg, description="Unable to send", is_error=True)
 
         # squash our counts
@@ -2050,7 +2033,7 @@ class ChannelCountTest(TembaTest):
         ChannelCount.objects.all().delete()
 
         # outgoing ivr
-        msg = self.create_outgoing_msg(real_contact, "Real Voice", msg_type=IVR)
+        msg = self.create_outgoing_msg(contact, "Real Voice", msg_type=IVR)
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())
         msg.release()
         self.assertDailyCount(self.channel, 1, ChannelCount.OUTGOING_IVR_TYPE, msg.created_on.date())

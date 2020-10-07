@@ -1,3 +1,64 @@
+v5.7.67
+----------
+ * Fix globals endpoint so name is required
+ * Filter by is_active when updating fields on API endpoint
+
+v5.7.66
+----------
+ * Replace remaining Contact.get_or_create calls with mailroom's resolve endpoint
+
+v5.7.65
+----------
+ * URN lookups onthe contact API endpoint should be normalized with org country
+ * Archiving a campaign should only recreate events
+
+v5.7.64
+----------
+ * Don't create contacts and URNs for broadcasts but instead defer the raw URNs to mailroom
+
+v5.7.63
+----------
+ * Validate that import files don't contain duplicate UUIDs or URNs
+
+v5.7.62
+----------
+ * Update version of editor and components
+ * Upload imports to use UUID based path
+ * Fix issue where all keywords couldnt be removed from a flow
+
+v5.7.61
+----------
+ * Remove old editor, redirect editor_next to editor
+
+v5.7.60
+----------
+ * Fix contact imports from CSV files
+ * Tweaks to import UI
+
+v5.7.59
+----------
+ * Imports 2.0
+
+v5.7.55
+----------
+ * Use v13 flow as example on definitions endpoint docs
+ * Add URNs field to FlowStart and pass to mailroom so that it creates contacts
+
+v5.7.54
+----------
+ * Update editor to get support for expressions in add to group actions
+ * Remove unused localized text on Msg and Broadcast
+
+v5.7.52
+----------
+ * Migrations and models for new imports
+
+v5.7.51
+----------
+ * Add plan_start, calculate active contacts in plan period, add to OrgActivity
+ * Tweak how mailroom_db creates extra group contacts
+ * Update to latest django-hamlpy
+
 v5.7.50
 ----------
  * Optimizations for orgs with many contact fields

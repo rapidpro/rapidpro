@@ -122,7 +122,7 @@ def omnibox_serialize(org, groups, contacts, json_encode=False):
     """
     Shortcut for proper way to serialize a queryset of groups and contacts for omnibox component
     """
-    serialized = omnibox_results_to_dict(org, list(groups) + list(contacts), 2)
+    serialized = omnibox_results_to_dict(org, list(groups) + list(contacts), version="2")
 
     if json_encode:
         return [json.dumps(_) for _ in serialized]
@@ -130,16 +130,10 @@ def omnibox_serialize(org, groups, contacts, json_encode=False):
     return serialized
 
 
-def omnibox_deserialize(org, omnibox, user=None):
+def omnibox_deserialize(org, omnibox):
     group_ids = [item["id"] for item in omnibox if item["type"] == "group"]
     contact_ids = [item["id"] for item in omnibox if item["type"] == "contact"]
-    urn_specs = [item["id"] for item in omnibox if item["type"] == "urn"]
-
-    urns = []
-    if not org.is_anon:
-        for urn_spec in urn_specs:
-            contact, urn = Contact.get_or_create(org, urn_spec, user)
-            urns.append(urn)
+    urns = [item["id"] for item in omnibox if item["type"] == "urn"] if not org.is_anon else []
 
     return {
         "groups": ContactGroup.all_groups.filter(uuid__in=group_ids, org=org, is_active=True),
@@ -148,7 +142,7 @@ def omnibox_deserialize(org, omnibox, user=None):
     }
 
 
-def omnibox_results_to_dict(org, results, version="1"):
+def omnibox_results_to_dict(org, results, version: str = "1"):
     """
     Converts the result of a omnibox query (queryset of contacts, groups or URNs, or a list) into a dict {id, text}
     """

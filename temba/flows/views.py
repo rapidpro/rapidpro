@@ -595,7 +595,14 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Global keyword triggers"),
                 help_text=_("When a user sends any of these keywords they will begin this flow"),
                 widget=SelectWidget(
-                    attrs={"widget_only": False, "multi": True, "searchable": True, "tags": True, "space_select": True}
+                    attrs={
+                        "widget_only": False,
+                        "multi": True,
+                        "searchable": True,
+                        "tags": True,
+                        "space_select": True,
+                        "placeholder": _("Keywords"),
+                    }
                 ),
             )
 
@@ -631,7 +638,14 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Global keyword triggers"),
                 help_text=_("When a user sends any of these keywords they will begin this flow"),
                 widget=SelectWidget(
-                    attrs={"widget_only": False, "multi": True, "searchable": True, "tags": True, "space_select": True}
+                    attrs={
+                        "widget_only": False,
+                        "multi": True,
+                        "searchable": True,
+                        "tags": True,
+                        "space_select": True,
+                        "placeholder": _("Keywords"),
+                    }
                 ),
             )
 
@@ -1065,138 +1079,21 @@ class FlowCRUDL(SmartCRUDL):
                 dict(message_completions=messages_completions, function_completions=function_completions)
             )
 
-    class Editor(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+    class EditorNext(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def get(self, request, *args, **kwargs):
-            flow = self.get_object()
+            # redirect to the editor endpoint
+            return HttpResponseRedirect(reverse("flows.flow_editor", args=[self.get_object().uuid]))
 
-            # redirect to new editor if this is a migrated flow
-            if Version(flow.version_number) >= Version(Flow.INITIAL_GOFLOW_VERSION):
-                return HttpResponseRedirect(reverse("flows.flow_editor_next", args=[self.get_object().uuid]))
-
-            return super().get(request, *args, **kwargs)
+    class Editor(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = "uuid"
 
         def derive_title(self):
             return self.object.name
 
         def get_template_names(self):
             return "flows/flow_editor.haml"
-
-        def get_context_data(self, *args, **kwargs):
-            context = super().get_context_data(*args, **kwargs)
-
-            flow = self.object
-            org = self.request.user.get_org()
-
-            context["flow_version"] = Flow.FINAL_LEGACY_VERSION
-            flow.ensure_current_version()
-
-            if org:
-                languages = org.languages.all().order_by("orgs")
-                for lang in languages:
-                    if flow.base_language == lang.iso_code:
-                        context["base_language"] = lang
-
-                context["languages"] = languages
-
-            if flow.is_archived:
-                context["mutable"] = False
-                context["can_start"] = False
-            else:
-                context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
-                context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
-
-            static_url = f"http://{org.get_brand_domain()}{settings.STATIC_URL}" if org else settings.STATIC_URL
-
-            context["media_url"] = f"{settings.STORAGE_URL}/"
-            context["static_url"] = static_url
-            context["is_starting"] = flow.is_starting()
-            context["has_airtime_service"] = bool(flow.org.is_connected_to_dtone())
-            context["has_mailroom"] = bool(settings.MAILROOM_URL)
-            return context
-
-        def get_gear_links(self):
-            links = []
-            flow = self.object
-
-            if (
-                flow.flow_type != Flow.TYPE_SURVEY
-                and self.has_org_perm("flows.flow_broadcast")
-                and not flow.is_archived
-            ):
-                links.append(
-                    dict(
-                        id="start-flow",
-                        title=_("Start Flow"),
-                        style="button-primary",
-                        href=f"{reverse('flows.flow_broadcast', args=[self.object.pk])}",
-                        modax=_("Start Flow"),
-                    )
-                )
-
-            if self.has_org_perm("flows.flow_results"):
-                links.append(
-                    dict(title=_("Results"), style="btn-primary", href=reverse("flows.flow_results", args=[flow.uuid]))
-                )
-            if len(links) > 1:
-                links.append(dict(divider=True))
-
-            if self.has_org_perm("flows.flow_update") and not flow.is_archived:
-                links.append(
-                    dict(
-                        id="edit-flow",
-                        title=_("Edit"),
-                        href=f"{reverse('flows.flow_update', args=[self.object.pk])}",
-                        modax=_("Edit Flow"),
-                    )
-                )
-
-            if self.has_org_perm("flows.flow_copy"):
-                links.append(dict(title=_("Copy"), posterize=True, href=reverse("flows.flow_copy", args=[flow.id])))
-
-            if self.has_org_perm("orgs.org_export"):
-                links.append(dict(title=_("Export"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id)))
-
-            if self.has_org_perm("flows.flow_revisions"):
-                links.append(dict(divider=True)),
-                links.append(dict(title=_("Revision History"), ngClick="showRevisionHistory()", href="#"))
-
-            if self.has_org_perm("flows.flow_delete"):
-                links.append(
-                    dict(
-                        id="delete-flow",
-                        title=_("Delete"),
-                        href=f"{reverse('flows.flow_delete', args=[self.object.pk])}",
-                        modax=_("Delete Flow"),
-                    )
-                )
-
-            links.append(dict(divider=True))
-            links.append(dict(title=_("New Editor"), js_class="migrate-flow", href="#"))
-
-            user = self.get_user()
-            if user.is_superuser or user.is_staff:
-                if len(links) > 1:
-                    links.append(dict(divider=True))
-                links.append(
-                    dict(
-                        title=_("Service"),
-                        posterize=True,
-                        href=f'{reverse("orgs.org_service")}?organization={flow.org_id}&redirect_url={reverse("flows.flow_editor", args=[flow.uuid])}',
-                    )
-                )
-
-            return links
-
-    class EditorNext(OrgObjPermsMixin, SmartReadView):
-        slug_url_kwarg = "uuid"
-
-        def derive_title(self):
-            return self.object.name
-
-        def get_template_names(self):
-            return "flows/flow_editor_next.haml"
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -1525,7 +1422,7 @@ class FlowCRUDL(SmartCRUDL):
 
         title = _("Import Translation")
         submit_button_name = _("Import")
-        success_url = "uuid@flows.flow_editor_next"
+        success_url = "uuid@flows.flow_editor"
 
         def get_form_class(self):
             return self.ConfirmForm if self.request.GET.get("po") else self.UploadForm

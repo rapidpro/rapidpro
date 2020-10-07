@@ -196,7 +196,7 @@ class BroadcastReadSerializer(ReadSerializer):
         if self.context["org"].is_anon:
             return None
         else:
-            return [str(urn) for urn in obj.urns.all()]
+            return obj.raw_urns or []
 
     class Meta:
         model = Broadcast
@@ -221,11 +221,6 @@ class BroadcastWriteSerializer(WriteSerializer):
         """
         Create a new broadcast to send out
         """
-        contact_urns = []
-        for urn in self.validated_data.get("urns", []):
-            # create contacts for URNs if necessary
-            __, contact_urn = Contact.get_or_create(self.context["org"], urn, user=self.context["user"])
-            contact_urns.append(contact_urn)
 
         text, base_language = self.validated_data["text"]
 
@@ -240,13 +235,13 @@ class BroadcastWriteSerializer(WriteSerializer):
             base_language=base_language,
             groups=self.validated_data.get("groups", []),
             contacts=self.validated_data.get("contacts", []),
-            urns=contact_urns,
+            urns=self.validated_data.get("urns", []),
             channel=self.validated_data.get("channel"),
             template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
         )
 
         # send it
-        on_transaction_commit(lambda: broadcast.send())
+        on_transaction_commit(lambda: broadcast.send_async())
 
         return broadcast
 
@@ -389,7 +384,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
         if self.instance:
 
             # we dont update, we only create
-            self.instance = self.instance.deactivate_and_copy()
+            self.instance = self.instance.recreate()
 
             # we are being set to a flow
             if flow:
@@ -1048,11 +1043,6 @@ class FlowStartWriteSerializer(WriteSerializer):
         if params:
             extra = params
 
-        # convert URNs to contacts
-        for urn in urns:
-            contact, urn_obj = Contact.get_or_create(self.context["org"], urn, user=self.context["user"])
-            contacts.append(contact)
-
         # ok, let's go create our flow start, the actual starting will happen in our view
         return FlowStart.create(
             self.validated_data["flow"],
@@ -1061,6 +1051,7 @@ class FlowStartWriteSerializer(WriteSerializer):
             restart_participants=restart_participants,
             contacts=contacts,
             groups=groups,
+            urns=urns,
             extra=extra,
         )
 
@@ -1088,6 +1079,18 @@ class GlobalWriteSerializer(WriteSerializer):
         if not Global.is_valid_key(key):
             raise serializers.ValidationError("Name creates Key that is invalid")
         return value
+
+    def validate(self, data):
+        if not self.instance and not data.get("name"):
+            raise serializers.ValidationError("Name is required when creating new global.")
+
+        globals_count = Global.objects.filter(org=self.context["org"], is_active=True).count()
+        if globals_count >= Global.MAX_ORG_GLOBALS:
+            raise serializers.ValidationError(
+                "This org has %s globals and the limit is %s. You must delete existing ones before you can "
+                "create new ones." % (globals_count, Global.MAX_ORG_GLOBALS)
+            )
+        return data
 
     def save(self):
         value = self.validated_data["value"]

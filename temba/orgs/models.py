@@ -129,6 +129,7 @@ class Org(SmartModel):
         default=settings.DEFAULT_PLAN,
         help_text=_("What plan your organization is on"),
     )
+    plan_start = models.DateTimeField(null=True)
     plan_end = models.DateTimeField(null=True)
 
     stripe_customer = models.CharField(
@@ -2630,6 +2631,7 @@ class OrgActivity(models.Model):
        * total # of active contacts (that sent or received a message)
        * total # of messages sent
        * total # of message received
+       * total # of active contacts in plan period up to that date (if there is one)
     """
 
     # the org this contact activity is being tracked for
@@ -2650,11 +2652,16 @@ class OrgActivity(models.Model):
     # the number of messages received on this day
     incoming_count = models.IntegerField(default=0)
 
+    # the number of active contacts in the plan period (if they are on a plan)
+    plan_active_contact_count = models.IntegerField(null=True)
+
     @classmethod
     def update_day(cls, now):
         """
         Updates our org activity for the passed in day.
         """
+        from temba.msgs.models import Msg
+
         # truncate to midnight the same day in UTC
         end = pytz.utc.normalize(now.astimezone(pytz.utc)).replace(hour=0, minute=0, second=0, microsecond=0)
         start = end - timedelta(days=1)
@@ -2682,6 +2689,23 @@ class OrgActivity(models.Model):
         ).annotate(msg_count=Count("id"))
         outgoing_count = {o.id: o.msg_count for o in outgoing_count}
 
+        # calculate active count in plan period for orgs with an active plan
+        plan_active_contact_counts = dict()
+        for org in (
+            Org.objects.exclude(plan_end=None)
+            .exclude(plan_start=None)
+            .exclude(plan_end__lt=start)
+            .only("plan_start", "plan_end")
+        ):
+            plan_end = org.plan_end if org.plan_end < end else end
+            count = (
+                Msg.objects.filter(org=org, created_on__gt=org.plan_start, created_on__lt=plan_end)
+                .only("contact")
+                .distinct("contact")
+                .count()
+            )
+            plan_active_contact_counts[org.id] = count
+
         for org in contact_counts:
             OrgActivity.objects.update_or_create(
                 org=org,
@@ -2690,6 +2714,7 @@ class OrgActivity(models.Model):
                 active_contact_count=active_counts.get(org.id, 0),
                 incoming_count=incoming_count.get(org.id, 0),
                 outgoing_count=outgoing_count.get(org.id, 0),
+                plan_active_contact_count=plan_active_contact_counts.get(org.id),
             )
 
     class Meta:
