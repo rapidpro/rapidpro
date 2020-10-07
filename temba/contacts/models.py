@@ -38,6 +38,8 @@ from temba.utils.text import truncate, unsnakify
 from temba.utils.urns import ParsedURN, parse_urn
 from temba.values.constants import Value
 
+from .search import SearchException, parse_query
+
 logger = logging.getLogger(__name__)
 
 DELETED_SCHEME = "deleted"
@@ -823,30 +825,12 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return obj
 
-    def as_search_json(self):
-        def urn_as_json(urn):
-            if self.org.is_anon:
-                return {"scheme": urn.scheme, "path": ContactURN.ANON_MASK}
-            return {"scheme": urn.scheme, "path": urn.path}
-
-        return {
-            "id": self.id,
-            "uuid": self.uuid,
-            "name": self.name,
-            "language": self.language,
-            "urns": [urn_as_json(u) for u in self.urns.all()],
-            "fields": self.fields if self.fields else {},
-            "created_on": self.created_on.isoformat(),
-            "last_seen_on": self.last_seen_on.isoformat() if self.last_seen_on else None,
-        }
-
     @classmethod
     def query_elasticsearch_for_ids(cls, org, query, group=None):
         from temba.contacts import search
 
         try:
-            group_uuid = group.uuid if group else ""
-            parsed = search.parse_query(org.id, query, group_uuid=group_uuid)
+            parsed = search.parse_query(org, query, group=group)
             results = (
                 es.ModelESSearch(model=Contact, index="contacts")
                 .source(include=["id"])
@@ -1813,7 +1797,6 @@ class ContactGroup(TembaModel):
         """
         Updates the query for a dynamic group
         """
-        from temba.contacts.search import parse_query, SearchException
 
         if not self.is_dynamic:
             raise ValueError("Cannot update query on a non-smart group")
@@ -1822,7 +1805,7 @@ class ContactGroup(TembaModel):
 
         try:
             if not parsed:
-                parsed = parse_query(self.org_id, query)
+                parsed = parse_query(self.org, query)
 
             if not parsed.metadata.allow_as_group:
                 raise ValueError(f"Cannot use query '{query}' as a smart group")
@@ -1925,9 +1908,7 @@ class ContactGroup(TembaModel):
 
             parsed_query = None
             if group_query:
-                from .search import parse_query
-
-                parsed_query = parse_query(org.id, group_query)
+                parsed_query = parse_query(org, group_query)
                 for field_ref in parsed_query.metadata.fields:
                     ContactField.get_or_create(org, user, key=field_ref["key"])
 
