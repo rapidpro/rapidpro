@@ -31,7 +31,7 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import Org, OrgLock
-from temba.utils import chunk_list, es, format_number, get_anonymous_user, on_transaction_commit
+from temba.utils import chunk_list, es, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.models import JSONField as TembaJSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import truncate, unsnakify
@@ -1358,43 +1358,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         else:
             # otherwise return highest priority of any scheme
             return urns[0] if urns else None
-
-    def reevaluate_dynamic_groups(self, for_fields=None, urns=()):
-        """
-        Re-evaluates this contacts membership of dynamic groups. If field is specified then re-evaluation is only
-        performed for those groups which reference that field.
-        :returns: the set of groups that were affected
-        """
-        from .search import evaluate_query
-
-        # inactive contacts can't be in dynamic groups
-        if self.status != Contact.STATUS_ACTIVE:  # pragma: no cover
-            return set()
-
-        # cache contact search json
-        contact_search_json = self.as_search_json()
-        user = get_anonymous_user()
-
-        affected_dynamic_groups = ContactGroup.get_user_groups(self.org, dynamic=True, ready_only=False)
-
-        # if we have fields and no urn changes, filter to just the groups that may have changed
-        if not urns and for_fields:
-            affected_dynamic_groups = affected_dynamic_groups.filter(query_fields__key__in=for_fields)
-
-        changed_set = set()
-
-        for dynamic_group in affected_dynamic_groups:
-            dynamic_group.org = self.org
-
-            try:
-                should_add = evaluate_query(self.org, dynamic_group.query, contact_json=contact_search_json)
-            except Exception as e:  # pragma: no cover
-                should_add = False
-                logger.error(f"Error evaluating query: {str(e)}", exc_info=True)
-
-            changed_set.update(dynamic_group._update_contacts(user, [self], add=should_add))
-
-        return changed_set
 
     def get_display(self, org=None, formatted=True, short=False, for_expressions=False):
         """
