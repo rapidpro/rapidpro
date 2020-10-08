@@ -429,7 +429,7 @@ class BroadcastCRUDL(SmartCRUDL):
                 if has_schedule:
                     success_url = reverse("msgs.broadcast_schedule_read", args=[broadcast.pk])
 
-                response = self.render_to_response(self.get_context_data())
+                response = self.render_to_response(self.get_context_data(success_url=success_url))
                 response["Temba-Success"] = success_url
                 return response
 

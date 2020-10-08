@@ -473,7 +473,7 @@ class @Modax extends @ConfirmationModal
             modal.ele.find('.loader').show()
 
             redirect = xhr.getResponseHeader("Temba-Success")
-            if redirect
+            if redirect && redirect != 'hide'
               document.location.href = redirect
             else
               modal.dismiss()
