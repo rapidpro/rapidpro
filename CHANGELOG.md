@@ -1,3 +1,7 @@
+v5.7.70
+----------
+ * Fix pdf selection
+
 v5.7.69
 ----------
  * Validate language codes passed to contact API endpoint
