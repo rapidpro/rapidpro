@@ -128,6 +128,8 @@ class RocketChatViewTest(RocketChatMixin):
                 "secret": self.secret,
                 "base_url": self.new_url("valid.com", path=f"/{self.app_id}"),
                 "bot_username": self.bot_username,
+                "admin_auth_token": self.admin_auth_token,
+                "admin_user_id": self.admin_user_id,
             }
 
             response = self.client.post(self.claim_url, data=data)
