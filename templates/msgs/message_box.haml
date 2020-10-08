@@ -49,8 +49,8 @@
         .span3.sidebox
           %div{style:"margin-bottom: 10px"}
             - if org_perms.msgs.broadcast_send
-              %rp-modax#send-message-modal{ header:'{% trans "Send Message" %}', endpoint:"{% url 'msgs.broadcast_send' %}" }
-                %rp-button#send-message-button{ name:'{% trans "Send Message"%}', primary: 'true'}
+              %button#send-message-button.btn.btn-primary(style="width: 100%")
+                {% trans "Send Message"%}
 
           #sidebar-nav
             %ul.nav.nav-list.level1
@@ -275,6 +275,14 @@
     }
 
     {% endif %}
+
+    $('.page-content').on('click', "#send-message-button", function() {
+      var modal = new Modax("{% trans 'Send Message' %}", "{% url 'msgs.broadcast_send' %}");
+      modal.setIcon('icon-inbox');
+      modal.setListeners({onCompleted: function() { refresh(null, true);}});
+      modal.setRedirectOnSuccess(true);
+      modal.show();
+    });
 
     $('.page-content').on('click', ".add-label", function() {
       lastChecked = getCheckedIds();

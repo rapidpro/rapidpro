@@ -4,6 +4,15 @@
 -load i18n
 
 
+-block extra-style
+  :css
+    #ui-datepicker-div {
+      z-index: 1025 !important;
+    }
+    #start-datetime {
+      -webkit-text-fill-color: #999;
+    }
+
 -block extra-script
   {{ block.super }}
   %script{src:"{{ STATIC_URL }}js/schedules-ui.js?v=2"}
