@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-02 17:44+0000\n"
+"POT-Creation-Date: 2020-10-08 12:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1618,16 +1618,28 @@ msgstr ""
 msgid "Setup your RocketChat first to be able to integrate."
 msgstr ""
 
-msgid "Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b-5f8091899f7b"
+msgid "Ex.: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
 msgstr ""
 
 msgid "The URL for your RocketChat Channnel app"
 msgstr ""
 
-msgid "Bot username"
+msgid "Bot Username"
 msgstr ""
 
 msgid "The username of your RocketChat bot"
+msgstr ""
+
+msgid "Admin Auth Token"
+msgstr ""
+
+msgid "The admin user token of your RocketChat"
+msgstr ""
+
+msgid "Admin User ID"
+msgstr ""
+
+msgid "The admin user ID of your RocketChat"
 msgstr ""
 
 msgid "Secret to be passed to RocketChat"

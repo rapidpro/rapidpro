@@ -31,19 +31,19 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         base_url = ExternalURLField(
             label=_("URL"),
             widget=forms.URLInput(
-                attrs={"placeholder": _("Ex.: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4")}
+                attrs={
+                    "placeholder": _(
+                        "Ex.: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
+                    )
+                }
             ),
             help_text=_("The URL for your RocketChat Channnel app"),
         )
-        bot_username = forms.CharField(
-            label=_("Bot Username"), help_text=_("The username of your RocketChat bot")
-        )
+        bot_username = forms.CharField(label=_("Bot Username"), help_text=_("The username of your RocketChat bot"))
         admin_auth_token = forms.CharField(
             label=_("Admin Auth Token"), help_text=_("The admin user token of your RocketChat")
         )
-        admin_user_id = forms.CharField(
-            label=_("Admin User ID"), help_text=_("The admin user ID of your RocketChat")
-        )
+        admin_user_id = forms.CharField(label=_("Admin User ID"), help_text=_("The admin user ID of your RocketChat"))
         secret = forms.CharField(
             label=_("Secret"), widget=forms.HiddenInput(), help_text=_("Secret to be passed to RocketChat"),
         )
