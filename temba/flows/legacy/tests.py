@@ -162,7 +162,7 @@ class FlowMigrationTest(TembaTest):
                 revision=revision.revision if revision else 1,
             )
 
-        flow_json = FlowRevision.migrate_definition(flow_json, flow, to_version=to_version)
+        flow_json = Flow.migrate_definition(flow_json, flow, to_version=to_version)
         if "definition" in flow_json:
             flow_json = flow_json["definition"]
 
@@ -1124,9 +1124,7 @@ class FlowMigrationTest(TembaTest):
         flow = Flow.objects.create(
             name="test flow", created_by=self.admin, modified_by=self.admin, org=self.org, saved_by=self.admin
         )
-        flow.update(
-            FlowRevision.migrate_definition(exported_json["flows"][0], flow, to_version=Flow.FINAL_LEGACY_VERSION)
-        )
+        flow.update(Flow.migrate_definition(exported_json["flows"][0], flow, to_version=Flow.FINAL_LEGACY_VERSION))
 
         # can also just import a single flow
         exported_json = self.get_import_json("migrate_to_9", substitutions)

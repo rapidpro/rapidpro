@@ -17,7 +17,7 @@ from django.utils import timezone
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactImport, ContactURN
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, clear_flow_users
+from temba.flows.models import Flow, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Label, Msg
@@ -403,7 +403,7 @@ class TembaTestMixin:
         flow.version_number = definition["version"]
         flow.save()
 
-        json_flow = FlowRevision.migrate_definition(definition, flow, to_version=Flow.FINAL_LEGACY_VERSION)
+        json_flow = Flow.migrate_definition(definition, flow, to_version=Flow.FINAL_LEGACY_VERSION)
         flow.update(json_flow)
 
         return flow

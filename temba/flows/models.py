@@ -1298,6 +1298,20 @@ class Flow(TembaModel):
 
         return revision
 
+    @classmethod
+    def migrate_definition(cls, flow_def, flow, to_version=None):
+        if not to_version:
+            to_version = cls.CURRENT_SPEC_VERSION
+
+        if "version" in flow_def:
+            flow_def = legacy.migrate_definition(flow_def, flow=flow)
+
+        # migrate using goflow for anything newer
+        if Version(to_version) >= Version(Flow.INITIAL_GOFLOW_VERSION):
+            flow_def = mailroom.get_client().flow_migrate(flow_def, to_version)
+
+        return flow_def
+
     def update(self, json_dict, user=None, force=False):
         """
         Updates a definition for a flow and returns the new revision
@@ -2360,30 +2374,6 @@ class FlowRevision(SmartModel):
 
         return exported_json
 
-    @classmethod
-    def migrate_definition(cls, json_flow, flow, to_version=Flow.CURRENT_SPEC_VERSION):
-        from temba.flows.legacy import migrations
-
-        # migrate any legacy versions forward
-        if Flow.VERSION in json_flow:
-            versions = legacy.get_versions_after(json_flow[Flow.VERSION])
-            for version in versions:
-                version_slug = version.replace(".", "_")
-                migrate_fn = getattr(migrations, "migrate_to_version_%s" % version_slug, None)
-
-                if migrate_fn:
-                    json_flow = migrate_fn(json_flow, flow)
-                    json_flow[Flow.VERSION] = version
-
-                if version == to_version:
-                    break
-
-        # migrate using goflow for anything newer
-        if Version(to_version) >= Version(Flow.INITIAL_GOFLOW_VERSION):
-            json_flow = mailroom.get_client().flow_migrate(json_flow, to_version)
-
-        return json_flow
-
     def get_definition_json(self, to_version=Flow.CURRENT_SPEC_VERSION):
         definition = self.definition
 
@@ -2409,7 +2399,7 @@ class FlowRevision(SmartModel):
                 definition[Flow.METADATA] = {}
 
             definition[Flow.METADATA][Flow.METADATA_REVISION] = self.revision
-            definition = FlowRevision.migrate_definition(definition, self.flow, to_version)
+            definition = Flow.migrate_definition(definition, self.flow, to_version)
 
         # update variables from our db into our revision
         flow = self.flow
