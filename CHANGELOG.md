@@ -1,3 +1,9 @@
+v5.7.69
+----------
+ * Validate language codes passed to contact API endpoint
+ * Don't actually create a broadcast if sending to node but nobody is there
+ * Update to latest floweditor
+
 v5.7.67
 ----------
  * Fix globals endpoint so name is required
