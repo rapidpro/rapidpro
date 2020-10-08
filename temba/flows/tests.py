@@ -2826,66 +2826,101 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, response.context["folders"][0]["count"])
         self.assertEqual(1, response.context["folders"][1]["count"])  # only flow2
 
-    def test_revision_history(self):
+    def test_fetch_revisions(self):
+        self.login(self.admin)
+
         flow = self.get_flow("color", legacy=True)
 
-        # we should initially have one revision
+        # we should have one legacy revision
         revision = flow.revisions.get()
 
+        self.assertEqual(revision.spec_version, Flow.FINAL_LEGACY_VERSION)
         self.assertEqual(revision.revision, 1)
         self.assertEqual(revision.created_by, flow.created_by)
 
-        flow_json = flow.as_json()
+        # create a new migrated revision
+        flow_ref = revision.get_definition_json()
+        flow.save_revision(self.admin, flow_ref)
 
-        # create a new update
-        flow.update(flow_json, user=self.admin)
-        revisions = flow.revisions.all().order_by("created_on")
+        revisions = list(flow.revisions.all().order_by("-created_on"))
 
         # now we should have two revisions
-        self.assertEqual(2, revisions.count())
-        self.assertEqual(1, revisions[0].revision)
-        self.assertEqual(2, revisions[1].revision)
+        self.assertEqual(2, len(revisions))
+        self.assertEqual(2, revisions[0].revision)
+        self.assertEqual(Flow.CURRENT_SPEC_VERSION, revisions[0].spec_version)
+        self.assertEqual(1, revisions[1].revision)
+        self.assertEqual(Flow.FINAL_LEGACY_VERSION, revisions[1].spec_version)
 
-        self.assertEqual(revisions[0].spec_version, Flow.FINAL_LEGACY_VERSION)
-        self.assertEqual(revisions[0].as_json()["version"], Flow.FINAL_LEGACY_VERSION)
-        self.assertEqual(revisions[0].get_definition_json(Flow.FINAL_LEGACY_VERSION)["base_language"], "base")
-
-        # now make one revision invalid
-        revision = revisions[1]
-        definition = revision.get_definition_json(Flow.FINAL_LEGACY_VERSION)
-        del definition["base_language"]
-        revision.definition = definition
-        revision.save()
-
-        # should be back to one valid flow
-        self.login(self.admin)
         response = self.client.get(reverse("flows.flow_revisions", args=[flow.uuid]))
-        self.assertEqual(1, len(response.json()))
+        self.assertEqual(
+            [
+                {
+                    "user": {"email": "Administrator@nyaruka.com", "name": ""},
+                    "created_on": matchers.ISODate(),
+                    "id": revisions[0].id,
+                    "version": "13.1.0",
+                    "revision": 2,
+                },
+                {
+                    "user": {"email": "Administrator@nyaruka.com", "name": ""},
+                    "created_on": matchers.ISODate(),
+                    "id": revisions[1].id,
+                    "version": "11.12",
+                    "revision": 1,
+                },
+            ],
+            response.json()["results"],
+        )
+
+        # now make our legacy revision invalid
+        definition = revisions[1].get_definition_json(Flow.FINAL_LEGACY_VERSION)
+        del definition["base_language"]
+        revisions[1].definition = definition
+        revisions[1].save(update_fields=("definition",))
+
+        # should be back to one valid revision (the non-legacy one)
+        response = self.client.get(reverse("flows.flow_revisions", args=[flow.uuid]))
+        self.assertEqual(1, len(response.json()["results"]))
 
         # fetch that revision
         revision_id = response.json()["results"][0]["id"]
-        response = self.client.get(
-            "%s%s/?version=%s"
-            % (reverse("flows.flow_revisions", args=[flow.uuid]), revision_id, Flow.FINAL_LEGACY_VERSION)
-        )
+        response = self.client.get(f"{reverse('flows.flow_revisions', args=[flow.uuid])}{revision_id}/")
 
         # make sure we can read the definition
-        definition = response.json()
-        self.assertEqual("base", definition["base_language"])
+        definition = response.json()["definition"]
+        self.assertEqual("base", definition["language"])
 
-        # make the last revision even more invalid (missing ruleset)
-        revision = revisions[0]
-        definition = revision.get_definition_json(Flow.FINAL_LEGACY_VERSION)
+        # make the legacy revision even more invalid (missing ruleset)
+        definition = revisions[1].get_definition_json(Flow.FINAL_LEGACY_VERSION)
         del definition["rule_sets"]
-        revision.definition = definition
-        revision.save()
+        revisions[1].definition = definition
+        revisions[1].save(update_fields=("definition",))
 
-        # no valid revisions (but we didn't throw!)
+        # should still have only one valid revision
         response = self.client.get(reverse("flows.flow_revisions", args=[flow.uuid]))
+        self.assertEqual(1, len(response.json()["results"]))
 
-        self.assertEqual(0, len(response.json()["results"]))
+        # fix the legacy revision
+        definition = revisions[1].get_definition_json(Flow.FINAL_LEGACY_VERSION)
+        definition["base_language"] = "base"
+        revisions[1].definition = definition
+        revisions[1].save(update_fields=("definition",))
 
-    def test_goflow_revisions(self):
+        # fetch that revision
+        response = self.client.get(f"{reverse('flows.flow_revisions', args=[flow.uuid])}{revisions[1].id}/")
+
+        # should automatically migrate to latest spec
+        self.assertEqual(Flow.CURRENT_SPEC_VERSION, response.json()["definition"]["spec_version"])
+
+        # but we can also limit how far it is migrated
+        response = self.client.get(
+            f"{reverse('flows.flow_revisions', args=[flow.uuid])}{revisions[1].id}/?version=13.0.0"
+        )
+
+        # should only have been migrated to that version
+        self.assertEqual("13.0.0", response.json()["definition"]["spec_version"])
+
+    def test_save_revisions(self):
         self.login(self.admin)
         self.client.post(reverse("flows.flow_create"), data=dict(name="Go Flow", flow_type=Flow.TYPE_MESSAGE))
         flow = Flow.objects.get(

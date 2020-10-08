@@ -236,6 +236,9 @@ class FlowCRUDL(SmartCRUDL):
             return initial_queryset.filter(is_active=True)
 
     class RecentMessages(OrgObjPermsMixin, SmartReadView):
+        """
+        Used by the editor for the rollover of recent messages on path segments in a flow
+        """
 
         slug_url_kwarg = "uuid"
 
@@ -254,6 +257,9 @@ class FlowCRUDL(SmartCRUDL):
             return JsonResponse(recent_messages, safe=False)
 
     class Revisions(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+        """
+        Used by the editor for fetching and saving flow definitions
+        """
 
         slug_url_kwarg = "uuid"
 
@@ -263,62 +269,48 @@ class FlowCRUDL(SmartCRUDL):
 
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
-
-            flow_version = request.GET.get("version", Flow.CURRENT_SPEC_VERSION)
             revision_id = self.kwargs["revision_id"]
+
+            # the editor requests the spec version it supports which allows us to add support for new versions
+            # on the goflow/mailroom side before updating the editor to use that new version
+            requested_version = request.GET.get("version", Flow.CURRENT_SPEC_VERSION)
 
             # we are looking for a specific revision, fetch it and migrate it forward
             if revision_id:
-                revision = FlowRevision.objects.get(flow=flow, pk=revision_id)
-                definition = revision.get_definition_json(to_version=flow_version)
-
-                # TODO: this is only needed to support the legacy editor
-                if Version(flow_version) < Version(Flow.INITIAL_GOFLOW_VERSION):
-                    return JsonResponse(definition)
+                revision = FlowRevision.objects.get(flow=flow, id=revision_id)
+                definition = revision.get_definition_json(to_version=requested_version)
 
                 # get our metadata
                 flow_info = mailroom.get_client().flow_inspect(flow.org_id, definition)
                 return JsonResponse(dict(definition=definition, metadata=Flow.get_metadata(flow_info)))
 
-            # get a list of all revisions, these should be reasonably pruned already
+            # build a list of valid revisions to display
             revisions = []
-            requested_version = Version(flow_version)
-            release = requested_version.release
 
-            # if a patch version wasn't given, we want to include all patches
-            # for example, 13.2 should include anything up to but not including 13.3.0
-            # up to the next minor version
-            include_patches = len(release) == 2
-            up_to_version = Version(".".join([str(release[0]), str((release[1]) + 1), "0"]))
-
-            for revision in flow.revisions.all().order_by("-revision"):
-
+            for revision in flow.revisions.all().order_by("-revision")[:100]:
                 revision_version = Version(revision.spec_version)
 
-                # any version up to the requested version is allowed
-                if revision_version <= requested_version or (include_patches and revision_version < up_to_version):
+                # our goflow revisions are already validated
+                if revision_version >= Version(Flow.INITIAL_GOFLOW_VERSION):
+                    revisions.append(revision.as_json())
+                    continue
 
-                    # our goflow revisions are already validated
-                    if revision_version >= Version(Flow.INITIAL_GOFLOW_VERSION):
-                        revisions.append(revision.as_json())
-                        continue
+                # legacy revisions should be validated first as a failsafe
+                try:
+                    legacy_flow_def = revision.get_definition_json(to_version=Flow.FINAL_LEGACY_VERSION)
+                    FlowRevision.validate_legacy_definition(legacy_flow_def)
+                    revisions.append(revision.as_json())
 
-                    # legacy revisions should be validated first as a failsafe
-                    try:
-                        legacy_flow_def = revision.get_definition_json(to_version=Flow.FINAL_LEGACY_VERSION)
-                        FlowRevision.validate_legacy_definition(legacy_flow_def)
-                        revisions.append(revision.as_json())
+                except ValueError:
+                    # "expected" error in the def, silently cull it
+                    pass
 
-                    except ValueError:
-                        # "expected" error in the def, silently cull it
-                        pass
-
-                    except Exception as e:
-                        # something else, we still cull, but report it to sentry
-                        logger.error(
-                            f"Error validating flow revision ({flow.uuid} [{revision.id}]): {str(e)}", exc_info=True
-                        )
-                        pass
+                except Exception as e:
+                    # something else, we still cull, but report it to sentry
+                    logger.error(
+                        f"Error validating flow revision ({flow.uuid} [{revision.id}]): {str(e)}", exc_info=True
+                    )
+                    pass
 
             return JsonResponse({"results": revisions}, safe=False)
 
