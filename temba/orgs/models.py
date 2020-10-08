@@ -372,7 +372,7 @@ class Org(SmartModel):
         """
         return self.config.get(Org.CONFIG_VERIFIED, False)
 
-    def import_app(self, export_json, user, site=None, legacy=False):
+    def import_app(self, export_json, user, site=None):
         """
         Imports previously exported JSON
         """
@@ -400,7 +400,7 @@ class Org(SmartModel):
 
         # do we need to migrate the export forward?
         if export_version < Version(Flow.CURRENT_SPEC_VERSION):
-            export_json = FlowRevision.migrate_export(self, export_json, same_site, export_version, legacy=legacy)
+            export_json = FlowRevision.migrate_export(self, export_json, same_site, export_version)
 
         export_fields = export_json.get(Org.EXPORT_FIELDS, [])
         export_groups = export_json.get(Org.EXPORT_GROUPS, [])
@@ -445,7 +445,7 @@ class Org(SmartModel):
         for component in components:
             if isinstance(component, Flow):
                 component.ensure_current_version()  # only export current versions
-                exported_flows.append(component.as_json(expand_contacts=True))
+                exported_flows.append(component.get_definition())
 
                 if include_groups:
                     groups.update(component.group_dependencies.all())

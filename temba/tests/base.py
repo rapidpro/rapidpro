@@ -151,9 +151,9 @@ class TembaTestMixin:
         """
         shutil.rmtree("%s/%s" % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR), ignore_errors=True)
 
-    def import_file(self, filename, site="http://rapidpro.io", substitutions=None, legacy=False):
+    def import_file(self, filename, site="http://rapidpro.io", substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
-        self.org.import_app(data, self.admin, site=site, legacy=legacy)
+        self.org.import_app(data, self.admin, site=site)
 
     def get_import_json(self, filename, substitutions=None):
         handle = open("%s/test_flows/%s.json" % (settings.MEDIA_ROOT, filename), "r+")
@@ -167,10 +167,10 @@ class TembaTestMixin:
 
         return json.loads(data)
 
-    def get_flow(self, filename, substitutions=None, legacy=False):
+    def get_flow(self, filename, substitutions=None, migrate=True):
         now = timezone.now()
 
-        self.import_file(filename, substitutions=substitutions, legacy=legacy)
+        self.import_file(filename, substitutions=substitutions)
 
         imported_flows = Flow.objects.filter(org=self.org, saved_on__gt=now)
         flow = imported_flows.order_by("id").last()
@@ -178,6 +178,16 @@ class TembaTestMixin:
         assert flow, f"no flow imported from {filename}.json"
 
         flow.org = self.org
+
+        # there's no way to import without migrating, so this is a hack to overwrite the migrated flow definition
+        # with the unmigrated original from the import file
+        if not migrate:
+            flow_def = self.get_flow_json(filename, substitutions)
+            rev = flow.revisions.order_by("revision").last()
+            rev.definition = flow_def
+            rev.spec_version = flow_def["version"]
+            rev.save(update_fields=("definition", "spec_version"))
+
         return flow
 
     def get_flow_json(self, filename, substitutions=None):
@@ -403,8 +413,8 @@ class TembaTestMixin:
         flow.version_number = definition["version"]
         flow.save()
 
-        json_flow = Flow.migrate_definition(definition, flow, to_version=Flow.FINAL_LEGACY_VERSION)
-        flow.update(json_flow)
+        json_flow = Flow.migrate_definition(definition, flow)
+        flow.save_revision(self.admin, json_flow)
 
         return flow
 

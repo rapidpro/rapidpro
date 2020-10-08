@@ -2355,19 +2355,19 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        self.import_file("subflow", legacy=True)
+        self.import_file("subflow")
         flow = Flow.objects.filter(name="Parent Flow").first()
 
         # all flow dependencies and we should get the child flow
         response = self.fetchJSON(url, "flow=%s" % flow.uuid)
-        self.assertEqual({f["metadata"]["name"] for f in response.json()["flows"]}, {"Parent Flow", "Child Flow"})
+        self.assertEqual({f["name"] for f in response.json()["flows"]}, {"Parent Flow", "Child Flow"})
 
         # export just the parent flow
         response = self.fetchJSON(url, "flow=%s&dependencies=none" % flow.uuid)
-        self.assertEqual({f["metadata"]["name"] for f in response.json()["flows"]}, {"Parent Flow"})
+        self.assertEqual({f["name"] for f in response.json()["flows"]}, {"Parent Flow"})
 
         # import the clinic app which has campaigns
-        self.import_file("the_clinic", legacy=True)
+        self.import_file("the_clinic")
 
         # our catchall flow, all alone
         flow = Flow.objects.filter(name="Catch All").first()
@@ -2530,9 +2530,9 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        survey = self.get_flow("media_survey", legacy=True)
-        color = self.get_flow("color", legacy=True)
-        archived = self.get_flow("favorites", legacy=True)
+        survey = self.get_flow("media_survey")
+        color = self.get_flow("color")
+        archived = self.get_flow("favorites")
         archived.archive()
 
         # add a campaign message flow that should be filtered out

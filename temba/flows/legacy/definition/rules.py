@@ -1,6 +1,46 @@
 from temba.contacts.models import ContactGroup
 
 
+class RuleSet:
+    TYPE_WAIT_MESSAGE = "wait_message"
+    TYPE_WAIT_USSD_MENU = "wait_menu"
+    TYPE_WAIT_USSD = "wait_ussd"
+    TYPE_WAIT_RECORDING = "wait_recording"
+    TYPE_WAIT_DIGIT = "wait_digit"
+    TYPE_WAIT_DIGITS = "wait_digits"
+    TYPE_WAIT_PHOTO = "wait_photo"
+    TYPE_WAIT_VIDEO = "wait_video"
+    TYPE_WAIT_AUDIO = "wait_audio"
+    TYPE_WAIT_GPS = "wait_gps"
+    TYPE_AIRTIME = "airtime"
+    TYPE_WEBHOOK = "webhook"
+    TYPE_RESTHOOK = "resthook"
+    TYPE_FLOW_FIELD = "flow_field"
+    TYPE_FORM_FIELD = "form_field"
+    TYPE_CONTACT_FIELD = "contact_field"
+    TYPE_EXPRESSION = "expression"
+    TYPE_GROUP = "group"
+    TYPE_RANDOM = "random"
+    TYPE_SUBFLOW = "subflow"
+    CONFIG_WEBHOOK = "webhook"
+    CONFIG_WEBHOOK_ACTION = "webhook_action"
+    CONFIG_WEBHOOK_HEADERS = "webhook_headers"
+    CONFIG_RESTHOOK = "resthook"
+
+    TYPE_MEDIA = (TYPE_WAIT_PHOTO, TYPE_WAIT_GPS, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_RECORDING)
+
+    TYPE_WAIT = (
+        TYPE_WAIT_MESSAGE,
+        TYPE_WAIT_RECORDING,
+        TYPE_WAIT_DIGIT,
+        TYPE_WAIT_DIGITS,
+        TYPE_WAIT_PHOTO,
+        TYPE_WAIT_VIDEO,
+        TYPE_WAIT_AUDIO,
+        TYPE_WAIT_GPS,
+    )
+
+
 class Rule:
     def __init__(self, uuid, category, destination, destination_type, test, label=None):
         self.uuid = uuid

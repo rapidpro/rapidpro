@@ -42,7 +42,7 @@ from temba.contacts.models import (
     ExportContactsTask,
 )
 from temba.contacts.omnibox import omnibox_serialize
-from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
+from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
@@ -59,7 +59,6 @@ from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
-from temba.utils.uuid import uuid4
 from temba.values.constants import Value
 
 from .context_processors import GroupPermWrapper
@@ -3839,39 +3838,6 @@ class BulkExportTest(TembaTest):
         with self.assertRaises(ValueError):
             self.org.import_app({"version": "21415", "flows": []}, self.admin)
 
-    def test_get_dependencies(self):
-
-        # import a flow that triggers another flow
-        contact1 = self.create_contact("Marshawn", phone="+14255551212")
-        substitutions = dict(contact_id=contact1.id)
-        flow = self.get_flow("triggered", substitutions, legacy=True)
-
-        # read in the old version 8 raw json
-        old_json = self.get_import_json("triggered", substitutions)
-        old_actions = old_json["flows"][1]["action_sets"][0]["actions"]
-
-        # splice our actionset with old bits
-        actionset = flow.action_sets.all()[0]
-        actionset.actions = old_actions
-        actionset.save()
-
-        # fake our version number back to 8
-        flow.version_number = 8
-        flow.save()
-
-        # now make sure a call to get dependencies succeeds and shows our flow
-        triggeree = Flow.objects.filter(name="Triggeree").first()
-        self.assertIn(triggeree, flow.flow_dependencies.all())
-
-    def test_trigger_flow(self):
-        self.import_file("triggered_flow", legacy=True)
-
-        flow = Flow.objects.filter(name="Trigger a Flow", org=self.org).first()
-        definition = flow.as_json()
-        actions = definition[Flow.ACTION_SETS][0]["actions"]
-        self.assertEqual(1, len(actions))
-        self.assertEqual("Triggered Flow", actions[0]["flow"]["name"])
-
     def test_trigger_dependency(self):
         # tests the case of us doing an export of only a single flow (despite dependencies) and making sure we
         # don't include the triggers of our dependent flows (which weren't exported)
@@ -3906,38 +3872,6 @@ class BulkExportTest(TembaTest):
         self.assertIn("Parent Flow", group)
         self.assertIn("Child Flow", group)
 
-    def test_flow_export_dynamic_group(self):
-        from temba.flows.legacy import AddToGroupAction
-
-        flow = self.get_flow("favorites", legacy=True)
-
-        # get one of our flow actionsets, change it to an AddToGroupAction
-        actionset = ActionSet.objects.filter(flow=flow).order_by("y").first()
-
-        # replace the actions
-        actionset.actions = [
-            AddToGroupAction(str(uuid4()), [dict(uuid="123", name="Other Group"), "@contact.name"]).as_json()
-        ]
-        actionset.save()
-
-        # now let's export!
-        self.login(self.admin)
-        post_data = dict(flows=[flow.pk], campaigns=[])
-        response = self.client.post(reverse("orgs.org_export"), post_data)
-        exported = response.json()
-
-        # try to import the flow
-        flow.release()
-        response.json()
-
-        dep_mapping = {}
-        Flow.import_flows(self.org, self.admin, exported, dep_mapping)
-
-        # make sure the created flow has the same action set
-        flow = Flow.objects.filter(name="%s" % flow.name).first()
-        actionset = ActionSet.objects.filter(flow=flow).order_by("y").first()
-        self.assertIn("@contact.name", actionset.get_actions()[0].groups)
-
     def test_import_voice_flows_expiration_time(self):
         # all imported voice flows should have a max expiration time of 15 min
         self.get_flow("ivr")
@@ -3946,30 +3880,6 @@ class BulkExportTest(TembaTest):
         voice_flow = Flow.objects.get(flow_type=Flow.TYPE_VOICE)
         self.assertEqual(voice_flow.name, "IVR Flow")
         self.assertEqual(voice_flow.expires_after_minutes, 15)
-
-    def test_missing_flows_on_import(self):
-        # import a flow that starts a missing flow
-        self.import_file("start_missing_flow", legacy=True)
-
-        # the flow that kicks off our missing flow
-        flow = Flow.objects.get(name="Start Missing Flow")
-
-        # make sure our missing flow is indeed not there
-        self.assertIsNone(Flow.objects.filter(name="Missing Flow").first())
-
-        # these two actionsets only have a single action that starts the missing flow
-        # therefore they should not be created on import
-        self.assertIsNone(ActionSet.objects.filter(flow=flow, y=160, x=90).first())
-        self.assertIsNone(ActionSet.objects.filter(flow=flow, y=233, x=395).first())
-
-        # should have this actionset, but only one action now since one was removed
-        other_actionset = ActionSet.objects.filter(flow=flow, y=145, x=731).first()
-        self.assertEqual(1, len(other_actionset.get_actions()))
-
-        # now make sure it does the same thing from an actionset
-        self.import_file("start_missing_flow_from_actionset", legacy=True)
-        self.assertIsNotNone(Flow.objects.filter(name="Start Missing Flow").first())
-        self.assertIsNone(Flow.objects.filter(name="Missing Flow").first())
 
     def test_import(self):
 
@@ -4052,7 +3962,7 @@ class BulkExportTest(TembaTest):
         self.assertNotEqual(event.id, new_event.id)
 
     def test_import_mixed_flow_versions(self):
-        self.import_file("mixed_versions", legacy=True)
+        self.import_file("mixed_versions")
 
         group = ContactGroup.user_groups.get(name="Survey Audience")
 
@@ -4108,7 +4018,7 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(parent.flow_dependencies.all()), {child2})
 
     def test_implicit_group_imports_legacy(self):
-        self.import_file("cataclysm_legacy", legacy=True)
+        self.import_file("cataclysm_legacy")
         flow = Flow.objects.get(name="Cataclysmic")
 
         from temba.flows.legacy.tests import get_legacy_groups
@@ -4332,7 +4242,7 @@ class BulkExportTest(TembaTest):
             )
 
         # import all our bits
-        self.import_file("the_clinic", legacy=True)
+        self.import_file("the_clinic")
 
         # check that the right number of objects successfully imported for our app
         assert_object_counts()
@@ -4341,12 +4251,6 @@ class BulkExportTest(TembaTest):
         confirm_appointment = Flow.objects.get(name="Confirm Appointment")
         confirm_appointment.expires_after_minutes = 60
         confirm_appointment.save()
-
-        action_set = confirm_appointment.action_sets.order_by("-y").first()
-        actions = action_set.actions
-        actions[0]["msg"]["base"] = "Thanks for nothing"
-        action_set.actions = actions
-        action_set.save()
 
         trigger = Trigger.objects.filter(keyword="patient").first()
         trigger.flow = confirm_appointment
@@ -4358,16 +4262,11 @@ class BulkExportTest(TembaTest):
         message_flow.update_single_message_flow(self.admin, {"base": "No reminders for you!"}, base_language="base")
 
         # now reimport
-        self.import_file("the_clinic", legacy=True)
+        self.import_file("the_clinic")
 
         # our flow should get reset from the import
-        confirm_appointment = Flow.objects.get(pk=confirm_appointment.pk)
-        action_set = confirm_appointment.action_sets.order_by("-y").first()
-        actions = action_set.actions
-        self.assertEqual(
-            "Thanks, your appointment at The Clinic has been confirmed for @(format_date(contact.next_appointment)). See you then!",
-            actions[0]["msg"]["base"],
-        )
+        confirm_appointment = Flow.objects.get(id=confirm_appointment.id)
+        self.assertEqual(720, confirm_appointment.expires_after_minutes)
 
         # same with our trigger
         trigger = Trigger.objects.filter(keyword="patient").order_by("-created_on").first()

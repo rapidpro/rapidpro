@@ -507,6 +507,15 @@ class FlowMigrationTest(TembaTest):
         definition = flow.revisions.order_by("revision").last().definition
         self.assertEqual(len(definition["action_sets"]), 0)
 
+    def test_migrate_to_11_12_channel_dependencies(self):
+        self.channel.name = "1234"
+        self.channel.save()
+
+        self.get_flow("migrate_to_11_12_one_node", legacy=True)
+        flow = Flow.objects.filter(name="channel").first()
+
+        self.assertEqual(flow.channel_dependencies.count(), 1)
+
     def test_migrate_to_11_11(self):
 
         flow = self.get_flow("migrate_to_11_11")

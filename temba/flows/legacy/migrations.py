@@ -4,7 +4,7 @@ from collections import defaultdict
 import regex
 
 from temba.contacts.models import ContactField, ContactGroup
-from temba.flows.models import Flow, RuleSet
+from temba.flows.models import Flow
 from temba.msgs.models import Label
 from temba.utils import json
 from temba.utils.languages import iso6392_to_iso6393
@@ -16,6 +16,7 @@ from .definition import (
     InGroupTest,
     RegexTest,
     ReplyAction,
+    RuleSet,
     SayAction,
     SendAction,
     StartFlowAction,
