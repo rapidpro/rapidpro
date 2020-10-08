@@ -1,0 +1,72 @@
+-extends "smartmin/read.html"
+-load smartmin i18n
+
+-block title
+  -trans "Contact Import"
+
+-block content
+  -block pjax
+    #pjax
+      .card
+        .import-result.text-lg.mt-2
+          -if is_finished
+            .icon.icon-checkmark.text-success.mr-2
+          -else
+            .icon.icon-loop.mr-2.text-gray-400.spin
+
+          -blocktrans trimmed count info.num_created as count
+            Created {{ count }} new contact
+            -plural
+              Created {{ count }} new contacts
+
+        .import-result.text-lg.mt-2
+          -if is_finished
+            .icon.icon-checkmark.text-success.mr-2
+          -else
+            .icon.icon-loop.mr-2.text-gray-400.spin
+
+          -blocktrans trimmed count info.num_updated as count
+            Updated {{ count }} existing contact
+            -plural
+              Updated {{ count }} existing contacts
+
+        -if is_finished
+          .import-result.text-lg.mt-2
+            .icon.icon-checkmark.text-success.mr-2
+
+            {% url 'contacts.contact_filter' object.group.uuid as group_url %}
+            -blocktrans trimmed count info.num_created|add:info.num_updated as count with group_url=group_url group_name=object.group.name
+              Added {{ count }} contact to the <a href="{{ group_url }}">{{ group_name }}</a> group
+              -plural
+                Added {{ count }} contacts to the <a href="{{ group_url }}">{{ group_name }}</a> group
+
+        -if info.num_errored
+          .import-result.text-lg.mt-2
+            .icon.icon-warning.text-error.mr-2
+            -blocktrans trimmed count info.num_errored as count
+              Ignored {{ count }} record because of errors
+              -plural
+                Ignored {{ count }} records because of errors
+
+        -if info.errors
+          .import-result.text-lg.mt-6
+            %strong
+              -trans "Errors"
+            .well.well-small.mb-0.mt-4
+              -for error in info.errors
+                .import-error
+                  -blocktrans trimmed with row=error.record|add:"2" message=error.message
+                    Row {{ row }}: {{ message }}
+
+-block extra-style
+  {{ block.super }}
+  :css
+    .page-content {
+      align-self: auto;
+      max-width: 1024px;
+    }
+
+    .import-result .icon {
+      width: 16px;
+      height: 16px;
+    }

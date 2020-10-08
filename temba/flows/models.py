@@ -15,6 +15,7 @@ from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
+from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
@@ -230,7 +231,11 @@ class Flow(TembaModel):
     )
 
     base_language = models.CharField(
-        max_length=4, null=True, blank=True, help_text=_("The primary language for editing this flow"), default="base"
+        max_length=4,
+        null=True,
+        blank=True,
+        help_text=_("The authoring language, additional languages can be added later"),
+        default="base",
     )
 
     version_number = models.CharField(
@@ -3135,6 +3140,9 @@ class FlowStart(models.Model):
     # the individual contacts that should be considered for start in this flow
     contacts = models.ManyToManyField(Contact)
 
+    # the individual URNs that should be considered for start in this flow
+    urns = ArrayField(models.TextField(), null=True)
+
     # the query (if any) that should be used to select contacts to start
     query = models.TextField(null=True)
 
@@ -3184,20 +3192,15 @@ class FlowStart(models.Model):
         flow,
         user,
         start_type=TYPE_MANUAL,
-        groups=None,
-        contacts=None,
+        groups=(),
+        contacts=(),
+        urns=(),
         query=None,
         restart_participants=True,
         extra=None,
         include_active=True,
         campaign_event=None,
     ):
-        if contacts is None:  # pragma: needs cover
-            contacts = []
-
-        if groups is None:  # pragma: needs cover
-            groups = []
-
         start = FlowStart.objects.create(
             org=flow.org,
             flow=flow,
@@ -3205,6 +3208,7 @@ class FlowStart(models.Model):
             restart_participants=restart_participants,
             include_active=include_active,
             campaign_event=campaign_event,
+            urns=list(urns),
             query=query,
             extra=extra,
             created_by=user,

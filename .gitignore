@@ -36,11 +36,13 @@ temba/smartmin
 temba.db
 smartmin
 mailroom_test.dump
+docs/
 
 # Exclude media folder except files used for import testing
 media/apks
 media/contacts
 media/csv_imports
+media/contact_imports
 media/flow
 media/messages
 media/orgs
@@ -126,3 +128,6 @@ ansible/site.retry
 
 # VS Code projects
 .vscode/
+
+# autoenv
+.direnv/

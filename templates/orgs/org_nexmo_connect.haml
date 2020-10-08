@@ -2,17 +2,11 @@
 
 -load compress temba i18n
 
--block title-icon
-  .title-icon
-    %span.glyph.icon-nexmo
-
--block title-text
-  .title-text
-    %h1
-      -trans "Connect Nexmo"
+-block title
+  -trans "Connect Nexmo"
 
 -block pre-form
-  .connect-help
+  .mb-4
     %p
       -trans "To connect your Nexmo Account you will need to provide us your Nexmo API key and secret."
 
@@ -30,17 +24,3 @@
       $("form.smartmin-form").attr('autocomplete', 'off');
     });
 
--block extra-less
-  -compress css inline
-    {% lessblock %}
-      :plain
-        .connect-help {
-          margin-bottom: 25px;
-          width: 600;
-        }
-
-        a:hover {
-          text-decoration: none;
-        }
-
-    {% endlessblock %}

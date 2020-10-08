@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
-from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactURN
+from temba.contacts.models import TEL_SCHEME, ContactField, ContactURN
 from temba.contacts.omnibox import omnibox_serialize
 from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow
@@ -53,11 +53,11 @@ class MsgTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact("Joe Blow", "123")
+        self.joe = self.create_contact("Joe Blow", phone="123")
         ContactURN.create(self.org, self.joe, "tel:789")
 
-        self.frank = self.create_contact("Frank Blow", "321")
-        self.kevin = self.create_contact("Kevin Durant", "987")
+        self.frank = self.create_contact("Frank Blow", phone="321")
+        self.kevin = self.create_contact("Kevin Durant", phone="987")
 
         self.just_joe = self.create_group("Just Joe", [self.joe])
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
@@ -314,8 +314,8 @@ class MsgTest(TembaTest):
 
     def test_broadcast_metadata(self):
         Channel.create(self.org, self.admin, None, channel_type="TT")
-        contact1 = self.create_contact("Stephen", "+12078778899", language="fra")
-        contact2 = self.create_contact("Maaaarcos", number="+12078778888", twitter="marky65")
+        contact1 = self.create_contact("Stephen", phone="+12078778899", language="fra")
+        contact2 = self.create_contact("Maaaarcos", urns=["tel:+12078778888", "twitter:marky65"])
 
         # can't create quick replies if you don't include base translation
         with self.assertRaises(ValueError):
@@ -350,7 +350,7 @@ class MsgTest(TembaTest):
     def test_outbox(self):
         self.login(self.admin)
 
-        contact, urn_obj = Contact.get_or_create(self.channel.org, "tel:250788382382", user=self.admin)
+        contact = self.create_contact("", phone="250788382382")
         broadcast1 = self.create_broadcast(self.admin, "How is it going?", contacts=[contact])
 
         # put messages back into pending state
@@ -361,7 +361,7 @@ class MsgTest(TembaTest):
         with self.assertNumQueries(46):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
-        self.assertContains(response, "Outbox (1)")
+        self.assertEqual(1, response.context_data["folders"][3]["count"])  # Outbox
         self.assertEqual(set(response.context_data["object_list"]), {msg1})
 
         broadcast2 = self.create_broadcast(
@@ -385,7 +385,7 @@ class MsgTest(TembaTest):
         with self.assertNumQueries(43):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
-        self.assertContains(response, "Outbox (5)")
+        self.assertEqual(5, response.context_data["folders"][3]["count"])  # Outbox
         self.assertEqual(list(response.context_data["object_list"]), [msg4, msg3, msg2, msg1])
         self.assertEqual(list(response.context_data["pending_broadcasts"]), [broadcast3])
 
@@ -488,7 +488,7 @@ class MsgTest(TembaTest):
         response = self.client.post(reverse("msgs.label_delete", args=[label1.id]))
         label1.refresh_from_db()
 
-        self.assertEqual(302, response.status_code)
+        self.assertTrue(response.has_header("Temba-Success"))
         self.assertFalse(label1.is_active)
 
         # shouldn't have a remove on the update page
@@ -699,7 +699,7 @@ class MsgTest(TembaTest):
         self.login(self.admin)
 
         self.joe.name = "Jo\02e Blow"
-        self.joe.save(update_fields=("name",), handle_update=False)
+        self.joe.save(update_fields=("name",))
 
         self.org.created_on = datetime(2017, 1, 1, 9, tzinfo=pytz.UTC)
         self.org.save()
@@ -912,8 +912,8 @@ class MsgTest(TembaTest):
                 "?l=I",
                 {
                     "export_all": 0,
-                    "start_date": msg5.created_on.strftime("%B %d, %Y"),
-                    "end_date": msg7.created_on.strftime("%B %d, %Y"),
+                    "start_date": msg5.created_on.strftime("%Y-%m-%d"),
+                    "end_date": msg7.created_on.strftime("%Y-%m-%d"),
                 },
             )
 
@@ -1189,7 +1189,7 @@ class MsgTest(TembaTest):
         self.login(self.admin)
 
         self.joe.name = "Jo\02e Blow"
-        self.joe.save(update_fields=("name",), handle_update=False)
+        self.joe.save(update_fields=("name",))
 
         msg1 = self.create_incoming_msg(self.joe, "hello 1", created_on=datetime(2017, 1, 1, 10, tzinfo=pytz.UTC))
         msg2 = self.create_incoming_msg(self.joe, "hello 2", created_on=datetime(2017, 1, 2, 10, tzinfo=pytz.UTC))
@@ -1513,8 +1513,8 @@ class MsgTest(TembaTest):
         export_data = {
             "export_all": 1,
             "groups": [self.just_joe.id],
-            "start_date": msg5.created_on.strftime("%B %d, %Y"),
-            "end_date": msg7.created_on.strftime("%B %d, %Y"),
+            "start_date": msg5.created_on.strftime("%Y-%m-%d"),
+            "end_date": msg7.created_on.strftime("%Y-%m-%d"),
         }
 
         self.assertExcelSheet(
@@ -1718,9 +1718,9 @@ class MsgCRUDLTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact("Joe Blow", "+250788000001")
-        self.frank = self.create_contact("Frank Blow", "250788000002")
-        self.billy = self.create_contact("Billy Bob", twitter="billy_bob")
+        self.joe = self.create_contact("Joe Blow", phone="+250788000001")
+        self.frank = self.create_contact("Frank Blow", phone="250788000002")
+        self.billy = self.create_contact("Billy Bob", urns=["twitter:billy_bob"])
 
     def test_filter(self):
         # create some folders and labels
@@ -1751,7 +1751,7 @@ class MsgCRUDLTest(TembaTest):
         self.login(self.user)
         response = self.client.get(reverse("msgs.msg_filter", args=[label3.uuid]))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["actions"], ("unlabel", "label"))
+        self.assertEqual(response.context["actions"], ("label",))
         self.assertNotContains(response, reverse("msgs.label_update", args=[label3.pk]))  # can't update label
         self.assertNotContains(response, reverse("msgs.label_delete", args=[label3.pk]))  # can't delete label
 
@@ -1761,7 +1761,7 @@ class MsgCRUDLTest(TembaTest):
         # check viewing a folder
         response = self.client.get(reverse("msgs.msg_filter", args=[folder.uuid]))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["actions"], ("unlabel", "label"))
+        self.assertEqual(response.context["actions"], ("label",))
         self.assertNotContains(response, reverse("msgs.label_update", args=[folder.pk]))  # can't update folder
         self.assertNotContains(response, reverse("msgs.label_delete", args=[folder.pk]))  # can't delete folder
 
@@ -1791,15 +1791,15 @@ class BroadcastTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact("Joe Blow", "123")
-        self.frank = self.create_contact("Frank Blow", "321")
+        self.joe = self.create_contact("Joe Blow", phone="123")
+        self.frank = self.create_contact("Frank Blow", phone="321")
 
         self.just_joe = self.create_group("Just Joe", [self.joe])
 
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
-        self.kevin = self.create_contact(name="Kevin Durant", number="987")
-        self.lucy = self.create_contact(name="Lucy M", twitter="lucy")
+        self.kevin = self.create_contact(name="Kevin Durant", phone="987")
+        self.lucy = self.create_contact(name="Lucy M", urns=["twitter:lucy"])
 
         # a Twitter channel
         self.twitter = Channel.create(self.org, self.user, None, "TT")
@@ -1898,7 +1898,7 @@ class BroadcastTest(TembaTest):
         )
 
     def test_get_recipient_counts(self):
-        contact, urn_obj = Contact.get_or_create(self.channel.org, "tel:250788382382", user=self.admin)
+        contact = self.create_contact("", phone="250788382382")
 
         broadcast1 = self.create_broadcast(
             self.user, "Very old broadcast", groups=[self.joe_and_frank], contacts=[self.kevin, self.lucy]
@@ -1934,7 +1934,7 @@ class BroadcastTest(TembaTest):
             base_language="eng",
             groups=[],
             contacts=[],
-            urns=[urn_obj],
+            urns=[contact.urns.get()],
             schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
         )
         self.assertEqual({"recipients": 1, "groups": 0, "contacts": 0, "urns": 0}, broadcast4.get_recipient_counts())
@@ -2035,7 +2035,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual("I", broadcast1.status)
 
         with patch("temba.mailroom.queue_broadcast") as mock_queue_broadcast:
-            broadcast1.send()
+            broadcast1.send_async()
 
             mock_queue_broadcast.assert_called_once_with(broadcast1)
 
@@ -2047,7 +2047,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual("Hola a todos", broadcast1.get_translated_text(self.joe))  # uses org primary language
 
         self.joe.language = "fra"
-        self.joe.save(update_fields=("language",), handle_update=False)
+        self.joe.save(update_fields=("language",))
 
         self.assertEqual("Salut à tous", broadcast1.get_translated_text(self.joe))  # uses contact language
 
@@ -2067,7 +2067,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(0, Broadcast.objects.count())
         self.assertEqual(0, Schedule.objects.count())
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(AssertionError):
             Broadcast.create(self.org, self.user, "no recipients")
 
     @patch("temba.mailroom.queue_broadcast")
@@ -2168,7 +2168,9 @@ class BroadcastTest(TembaTest):
         )
 
         self.assertEqual(4, Broadcast.objects.all().count())
-        self.assertEqual(1, Contact.objects.filter(urns__path="2065551212").count())
+
+        bcast = Broadcast.objects.order_by("id").last()
+        self.assertEqual(["tel:2065551212"], bcast.raw_urns)
 
         # test missing senders
         response = self.client.post(send_url, {"text": "message content"}, follow=True)
@@ -2224,7 +2226,7 @@ class BroadcastTest(TembaTest):
         self.assertIn(self.joe, broadcast.contacts.all())
 
     def test_message_parts(self):
-        contact = self.create_contact("Matt", "+12067778811")
+        contact = self.create_contact("Matt", phone="+12067778811")
 
         sms = self.create_outgoing_msg(contact, "Text")
 
@@ -2264,8 +2266,8 @@ class BroadcastCRUDLTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe, urn_obj = Contact.get_or_create(self.org, "tel:123", user=self.user, name="Joe Blow")
-        self.frank, urn_obj = Contact.get_or_create(self.org, "tel:1234", user=self.user, name="Frank Blow")
+        self.joe = self.create_contact("Joe Blow", phone="123")
+        self.frank = self.create_contact("Frank Blow", phone="1234")
         self.joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
 
     def test_send(self):
@@ -2290,18 +2292,16 @@ class BroadcastCRUDLTest(TembaTest):
         omnibox = omnibox_serialize(self.org, [just_joe], [self.frank], True)
         omnibox.append('{"type": "urn", "id": "tel:0780000001"}')
 
-        post_data = dict(omnibox=omnibox, text="Hey Joe, where you goin' with that gun in your hand?")
-        response = self.client.post(url, post_data)
-
-        # raw number means a new contact created
-        new_urn = ContactURN.objects.get(path="+250780000001")
-        Contact.objects.get(urns=new_urn)
+        response = self.client.post(
+            url, {"omnibox": omnibox, "text": "Hey Joe, where you goin' with that gun in your hand?"}
+        )
+        self.assertEqual(302, response.status_code)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, {"base": "Hey Joe, where you goin' with that gun in your hand?"})
-        self.assertEqual(set(broadcast.groups.all()), {just_joe})
-        self.assertEqual(set(broadcast.contacts.all()), {self.frank})
-        self.assertEqual(set(broadcast.urns.all()), {new_urn})
+        self.assertEqual({"base": "Hey Joe, where you goin' with that gun in your hand?"}, broadcast.text)
+        self.assertEqual({just_joe}, set(broadcast.groups.all()))
+        self.assertEqual({self.frank}, set(broadcast.contacts.all()))
+        self.assertEqual(["tel:0780000001"], broadcast.raw_urns)
 
     def test_update(self):
         self.login(self.editor)
@@ -2314,7 +2314,8 @@ class BroadcastCRUDLTest(TembaTest):
         self.assertEqual(list(response.context["form"].fields.keys()), ["message", "omnibox", "loc"])
 
         # updates still use select2 omnibox
-        response = self.client.post(url, dict(message="Dinner reminder", omnibox="c-%s" % self.frank.uuid))
+        omnibox = omnibox_serialize(self.org, [], [self.frank], True)
+        response = self.client.post(url, dict(message="Dinner reminder", omnibox=omnibox))
         self.assertEqual(response.status_code, 302)
 
         broadcast = Broadcast.objects.get()
@@ -2360,19 +2361,20 @@ class BroadcastCRUDLTest(TembaTest):
         self.client.post(reverse("msgs.broadcast_send"), dict(omnibox=omnibox, text="Lunch reminder", schedule=True))
         broadcast = Broadcast.objects.get()
 
+        omnibox = omnibox_serialize(self.org, [], [], True)
         response = self.client.post(
             reverse("msgs.broadcast_update", args=[broadcast.pk]),
-            dict(omnibox="", message="Empty contacts", schedule=True),
+            dict(omnibox=omnibox, message="Empty contacts", schedule=True),
         )
-        self.assertFormError(response, "form", "omnibox", "This field is required.")
+        self.assertFormError(response, "form", None, "At least one recipient is required")
 
 
 class LabelTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact("Joe Blow", number="073835001")
-        self.frank = self.create_contact("Frank", number="073835002")
+        self.joe = self.create_contact("Joe Blow", phone="073835001")
+        self.frank = self.create_contact("Frank", phone="073835002")
 
     def test_get_or_create(self):
         label1 = Label.get_or_create(self.org, self.user, "Spam")
@@ -2666,7 +2668,7 @@ class LabelCRUDLTest(TembaTest):
         self.login(self.admin)
         response = self.client.post(delete_url)
 
-        self.assertEqual(302, response.status_code)
+        self.assertTrue(response.has_header("Temba-Success"))
 
         label1.refresh_from_db()
 
@@ -2747,13 +2749,13 @@ class SystemLabelTest(TembaTest):
             },
         )
 
-        contact1 = self.create_contact("Bob", number="0783835001")
-        contact2 = self.create_contact("Jim", number="0783835002")
+        contact1 = self.create_contact("Bob", phone="0783835001")
+        contact2 = self.create_contact("Jim", phone="0783835002")
         msg1 = self.create_incoming_msg(contact1, "Message 1")
         self.create_incoming_msg(contact1, "Message 2")
         msg3 = self.create_incoming_msg(contact1, "Message 3")
         msg4 = self.create_incoming_msg(contact1, "Message 4")
-        call1 = ChannelEvent.create(self.channel, "tel:0783835001", ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
+        call1 = self.create_channel_event(self.channel, "tel:0783835001", ChannelEvent.TYPE_CALL_IN, extra={})
         Broadcast.create(self.org, self.user, "Broadcast 2", contacts=[contact1, contact2], status=QUEUED)
         Broadcast.create(
             self.org,
@@ -2783,7 +2785,7 @@ class SystemLabelTest(TembaTest):
         Msg.objects.filter(broadcast=bcast1).update(status=PENDING)
 
         msg5, msg6 = tuple(Msg.objects.filter(broadcast=bcast1))
-        ChannelEvent.create(self.channel, "tel:0783835002", ChannelEvent.TYPE_CALL_IN, timezone.now(), {})
+        self.create_channel_event(self.channel, "tel:0783835002", ChannelEvent.TYPE_CALL_IN, extra={})
         Broadcast.create(
             self.org,
             self.user,
@@ -2912,7 +2914,7 @@ class TagsTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.joe = self.create_contact("Joe Blow", number="+250788382382")
+        self.joe = self.create_contact("Joe Blow", phone="+250788382382")
 
     def render_template(self, string, context=None):
         from django.template import Context, Template
@@ -2946,23 +2948,21 @@ class TagsTest(TembaTest):
         # default cause is pending sent
         self.assertHasClass(as_icon(None), "icon-bubble-dots-2 green")
 
-        in_call = ChannelEvent.create(
-            self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN, timezone.now(), {}
-        )
+        in_call = self.create_channel_event(self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN)
         self.assertHasClass(as_icon(in_call), "icon-call-incoming green")
 
-        in_miss = ChannelEvent.create(
-            self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, timezone.now(), {}
+        in_miss = self.create_channel_event(
+            self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED
         )
         self.assertHasClass(as_icon(in_miss), "icon-call-incoming red")
 
-        out_call = ChannelEvent.create(
-            self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT, timezone.now(), {}
+        out_call = self.create_channel_event(
+            self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT
         )
         self.assertHasClass(as_icon(out_call), "icon-call-outgoing green")
 
-        out_miss = ChannelEvent.create(
-            self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, timezone.now(), {}
+        out_miss = self.create_channel_event(
+            self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED
         )
         self.assertHasClass(as_icon(out_miss), "icon-call-outgoing red")
 

@@ -1,18 +1,19 @@
+import logging
 import numbers
 from collections import OrderedDict
 
 import iso8601
+import pycountry
 import pytz
 import regex
 from rest_framework import serializers
 
 from django.conf import settings
-from django.db import transaction
 
 from temba import mailroom
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
 from temba.archives.models import Archive
-from temba.campaigns.models import Campaign, CampaignEvent, EventFire
+from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup
@@ -30,6 +31,8 @@ from . import fields
 from .validators import UniqueForOrgValidator
 
 INVALID_EXTRA_KEY_CHARS = regex.compile(r"[^a-zA-Z0-9_]")
+
+logger = logging.getLogger(__name__)
 
 
 def format_datetime(value):
@@ -114,7 +117,7 @@ class WriteSerializer(serializers.Serializer):
 
         if self.context["org"].is_flagged or self.context["org"].is_suspended:
             state = "flagged" if self.context["org"].is_flagged else "suspended"
-            msg = f"Sorry, your account is currently {state}. To enable sending messages, please contact support."
+            msg = f"Sorry, your workspace is currently {state}. To enable sending messages, please contact support."
             raise serializers.ValidationError(detail={"non_field_errors": [msg]})
 
         return super().run_validation(data)
@@ -193,7 +196,7 @@ class BroadcastReadSerializer(ReadSerializer):
         if self.context["org"].is_anon:
             return None
         else:
-            return [str(urn) for urn in obj.urns.all()]
+            return obj.raw_urns or []
 
     class Meta:
         model = Broadcast
@@ -218,11 +221,6 @@ class BroadcastWriteSerializer(WriteSerializer):
         """
         Create a new broadcast to send out
         """
-        contact_urns = []
-        for urn in self.validated_data.get("urns", []):
-            # create contacts for URNs if necessary
-            __, contact_urn = Contact.get_or_create(self.context["org"], urn, user=self.context["user"])
-            contact_urns.append(contact_urn)
 
         text, base_language = self.validated_data["text"]
 
@@ -237,13 +235,13 @@ class BroadcastWriteSerializer(WriteSerializer):
             base_language=base_language,
             groups=self.validated_data.get("groups", []),
             contacts=self.validated_data.get("contacts", []),
-            urns=contact_urns,
+            urns=self.validated_data.get("urns", []),
             channel=self.validated_data.get("channel"),
             template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
         )
 
         # send it
-        on_transaction_commit(lambda: broadcast.send())
+        on_transaction_commit(lambda: broadcast.send_async())
 
         return broadcast
 
@@ -386,7 +384,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
         if self.instance:
 
             # we dont update, we only create
-            self.instance = self.instance.deactivate_and_copy()
+            self.instance = self.instance.recreate()
 
             # we are being set to a flow
             if flow:
@@ -449,7 +447,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
             self.instance.update_flow_name()
 
         # create our event fires for this event in the background
-        EventFire.create_eventfires_for_event(self.instance)
+        self.instance.schedule_async()
 
         return self.instance
 
@@ -537,10 +535,10 @@ class ContactReadSerializer(ReadSerializer):
         return fields
 
     def get_blocked(self, obj):
-        return obj.is_blocked if obj.is_active else None
+        return obj.status == Contact.STATUS_BLOCKED if obj.is_active else None
 
     def get_stopped(self, obj):
-        return obj.is_stopped if obj.is_active else None
+        return obj.status == Contact.STATUS_STOPPED if obj.is_active else None
 
     class Meta:
         model = Contact
@@ -569,10 +567,21 @@ class ContactWriteSerializer(WriteSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    def validate_language(self, value):
+        if value and not pycountry.languages.get(alpha_3=value):
+            # for backward compatibility we log and ignore junk values for now but eventually this should be an error
+            # raise serializers.ValidationError("Not a valid ISO639-3 language code.")
+            extra = {"org_id": self.context["org"].id, "org_name": self.context["org"].name, "value": value}
+            logger.error(f"API endpoint passed invalid language code", extra=extra)
+
+            value = None
+
+        return value
+
     def validate_groups(self, value):
-        # if contact is blocked, they can't be added to groups
-        if self.instance and (self.instance.is_blocked or self.instance.is_stopped) and value:
-            raise serializers.ValidationError("Blocked or stopped contacts can't be added to groups")
+        # only active contacts can be added to groups
+        if self.instance and (self.instance.status != Contact.STATUS_ACTIVE) and value:
+            raise serializers.ValidationError("Non-active contacts can't be added to groups")
 
         return value
 
@@ -632,24 +641,16 @@ class ContactWriteSerializer(WriteSerializer):
 
         mods = []
 
-        with transaction.atomic():
-            if self.instance:
-                # update our name and language
-                if "name" in self.validated_data and name != self.instance.name:
-                    mods.append(modifiers.Name(name=name))
-                if "language" in self.validated_data and language != self.instance.language:
-                    mods.append(modifiers.Language(language=language))
+        # update an existing contact
+        if self.instance:
+            # update our name and language
+            if "name" in self.validated_data and name != self.instance.name:
+                mods.append(modifiers.Name(name=name))
+            if "language" in self.validated_data and language != self.instance.language:
+                mods.append(modifiers.Language(language=language))
 
-                if "urns" in self.validated_data and urns is not None:
-                    mods += self.instance.update_urns(urns)
-            else:
-                self.instance = Contact.get_or_create_by_urns(
-                    self.context["org"], self.context["user"], name, urns=urns, language=language
-                )
-
-                # the above call won't always get the URN order correct so have mailroom fix them
-                if urns:
-                    mods += self.instance.update_urns(urns)
+            if "urns" in self.validated_data and urns is not None:
+                mods += self.instance.update_urns(urns)
 
             # update our fields
             if custom_fields is not None:
@@ -659,8 +660,20 @@ class ContactWriteSerializer(WriteSerializer):
             if groups is not None:
                 mods += self.instance.update_static_groups(groups)
 
-        if mods:
-            self.instance.modify(self.context["user"], mods)
+            if mods:
+                self.instance.modify(self.context["user"], mods)
+
+        # create new contact
+        else:
+            self.instance = Contact.create(
+                self.context["org"],
+                self.context["user"],
+                name,
+                language,
+                urns or [],
+                custom_fields or {},
+                groups or [],
+            )
 
         return self.instance
 
@@ -782,10 +795,11 @@ class ContactBulkActionSerializer(WriteSerializer):
     BLOCK = "block"
     UNBLOCK = "unblock"
     INTERRUPT = "interrupt"
-    ARCHIVE = "archive"
+    ARCHIVE_MESSAGES = "archive_messages"
     DELETE = "delete"
+    ARCHIVE = "archive"  # backward compatibility
 
-    ACTIONS = (ADD, REMOVE, BLOCK, UNBLOCK, INTERRUPT, ARCHIVE, DELETE)
+    ACTIONS = (ADD, REMOVE, BLOCK, UNBLOCK, INTERRUPT, ARCHIVE_MESSAGES, DELETE, ARCHIVE)
     ACTIONS_WITH_GROUP = (ADD, REMOVE)
 
     contacts = fields.ContactField(many=True)
@@ -808,11 +822,11 @@ class ContactBulkActionSerializer(WriteSerializer):
             raise serializers.ValidationError('For action "%s" you should not specify a group' % action)
 
         if action == self.ADD:
-            # if adding to a group, check for blocked contacts
-            invalid_uuids = {c.uuid for c in contacts if c.is_blocked or c.is_stopped}
+            # if adding to a group, check for non-active contacts
+            invalid_uuids = {c.uuid for c in contacts if c.status != Contact.STATUS_ACTIVE}
             if invalid_uuids:
                 raise serializers.ValidationError(
-                    "Blocked or stopped contacts cannot be added to groups: %s" % ", ".join(invalid_uuids)
+                    "Non-active contacts cannot be added to groups: %s" % ", ".join(invalid_uuids)
                 )
 
         return data
@@ -829,12 +843,12 @@ class ContactBulkActionSerializer(WriteSerializer):
             Contact.bulk_change_group(user, contacts, group, add=False)
         elif action == self.INTERRUPT:
             mailroom.queue_interrupt(self.context["org"], contacts=contacts)
-        elif action == self.ARCHIVE:
+        elif action == self.ARCHIVE_MESSAGES or action == self.ARCHIVE:
             Msg.archive_all_for_contacts(contacts)
         elif action == self.BLOCK:
-            Contact.bulk_change_status(user, contacts, Contact.STATUS_BLOCKED)
+            Contact.bulk_change_status(user, contacts, modifiers.Status.BLOCKED)
         elif action == self.UNBLOCK:
-            Contact.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
+            Contact.bulk_change_status(user, contacts, modifiers.Status.ACTIVE)
         elif action == self.DELETE:
             for contact in contacts:
                 contact.release(user)
@@ -1029,11 +1043,6 @@ class FlowStartWriteSerializer(WriteSerializer):
         if params:
             extra = params
 
-        # convert URNs to contacts
-        for urn in urns:
-            contact, urn_obj = Contact.get_or_create(self.context["org"], urn, user=self.context["user"])
-            contacts.append(contact)
-
         # ok, let's go create our flow start, the actual starting will happen in our view
         return FlowStart.create(
             self.validated_data["flow"],
@@ -1042,6 +1051,7 @@ class FlowStartWriteSerializer(WriteSerializer):
             restart_participants=restart_participants,
             contacts=contacts,
             groups=groups,
+            urns=urns,
             extra=extra,
         )
 
@@ -1069,6 +1079,18 @@ class GlobalWriteSerializer(WriteSerializer):
         if not Global.is_valid_key(key):
             raise serializers.ValidationError("Name creates Key that is invalid")
         return value
+
+    def validate(self, data):
+        if not self.instance and not data.get("name"):
+            raise serializers.ValidationError("Name is required when creating new global.")
+
+        globals_count = Global.objects.filter(org=self.context["org"], is_active=True).count()
+        if globals_count >= Global.MAX_ORG_GLOBALS:
+            raise serializers.ValidationError(
+                "This org has %s globals and the limit is %s. You must delete existing ones before you can "
+                "create new ones." % (globals_count, Global.MAX_ORG_GLOBALS)
+            )
+        return data
 
     def save(self):
         value = self.validated_data["value"]

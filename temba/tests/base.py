@@ -8,14 +8,15 @@ from smartmin.tests import SmartminTest, SmartminTestMixin
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import mail
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 from django.utils import timezone
 
 from temba.archives.models import Archive
-from temba.channels.models import Channel, ChannelLog
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup
+from temba.channels.models import Channel, ChannelEvent, ChannelLog
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactImport, ContactURN
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -25,7 +26,7 @@ from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
 from temba.values.constants import Value
 
-from .mailroom import update_field_locally, update_fields_locally
+from .mailroom import create_contact_locally, update_field_locally
 
 
 def add_testing_flag_to_context(*args):
@@ -183,36 +184,19 @@ class TembaTestMixin:
         data = self.get_import_json(filename, substitutions=substitutions)
         return data["flows"][0]
 
-    def create_contact(self, name=None, number=None, twitter=None, urn=None, fields=None, **kwargs):
+    def create_contact(self, name=None, *, language=None, phone=None, urns=None, fields=None, org=None, user=None):
         """
-        Create a contact in the master test org
+        Create a new contact
         """
 
-        org = kwargs.pop("org", None) or self.org
-        user = kwargs.pop("user", None) or self.user
+        org = org or self.org
+        user = user or self.user
+        urns = [URN.from_tel(phone)] if phone else urns
 
-        urns = []
-        if number:
-            urns.append(URN.from_tel(number))
-        if twitter:
-            urns.append(URN.from_twitter(twitter))
-        if urn:
-            urns.append(urn)
-
-        assert name or urns, "contact should have a name or a contact"
-
-        kwargs["name"] = name
-        kwargs["urns"] = urns
-
-        contact = Contact.get_or_create_by_urns(org, user, **kwargs)
-
-        if fields:
-            update_fields_locally(user, contact, fields)
-
-        return contact
+        return create_contact_locally(org, user, name, language, urns or [], fields or {}, group_uuids=[])
 
     def create_group(self, name, contacts=(), query=None, org=None):
-        assert not (contacts and query), "can't provide contact list for a dynamic group"
+        assert not (contacts and query), "can't provide contact list for a smart group"
 
         if query:
             return ContactGroup.create_dynamic(org or self.org, self.user, name, query=query)
@@ -487,6 +471,37 @@ class TembaTestMixin:
         if rollup_of:
             Archive.objects.filter(id__in=[a.id for a in rollup_of]).update(rollup=archive)
         return archive
+
+    def create_contact_import(self, path):
+        with open(path, "rb") as f:
+            headers, mappings, num_records = ContactImport.try_to_parse(self.org, f, path)
+            return ContactImport.objects.create(
+                org=self.org,
+                file=SimpleUploadedFile(f.name, f.read()),
+                headers=headers,
+                mappings=mappings,
+                num_records=num_records,
+                created_by=self.admin,
+                modified_by=self.admin,
+            )
+
+    def create_channel_event(self, channel, urn, event_type, occurred_on=None, extra=None):
+        urn_obj = ContactURN.lookup(channel.org, urn, country_code=channel.country)
+        if urn_obj:
+            contact = urn_obj.contact
+        else:
+            contact = self.create_contact(urns=[urn])
+            urn_obj = contact.urns.get()
+
+        return ChannelEvent.objects.create(
+            org=channel.org,
+            channel=channel,
+            contact=contact,
+            contact_urn=urn_obj,
+            occurred_on=occurred_on or timezone.now(),
+            event_type=event_type,
+            extra=extra,
+        )
 
     def set_contact_field(self, contact, key, value, legacy_handle=False):
         update_field_locally(self.admin, contact, key, value)

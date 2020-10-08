@@ -11,7 +11,7 @@ class AirtimeCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
-        contact = self.create_contact("Ben Haggerty", "+250700000003")
+        contact = self.create_contact("Ben Haggerty", phone="+250700000003")
 
         self.transfer1 = AirtimeTransfer.objects.create(
             org=self.org,
@@ -37,7 +37,7 @@ class AirtimeCRUDLTest(TembaTest, CRUDLTestMixin):
         self.other_org_transfer = AirtimeTransfer.objects.create(
             org=self.org2,
             status=AirtimeTransfer.STATUS_SUCCESS,
-            contact=self.create_contact("Frank", "+12065552021", org=self.org2),
+            contact=self.create_contact("Frank", phone="+12065552021", org=self.org2),
             recipient="tel:+12065552021",
             currency="USD",
             desired_amount="1",
@@ -150,7 +150,7 @@ class RecipientsToURNsMigrationTest(MigrationTest):
     migrate_to = "0013_recipient_to_urn"
 
     def setUpBeforeMigration(self, apps):
-        contact = self.create_contact("Ben Haggerty", "+250700000003")
+        contact = self.create_contact("Ben Haggerty", phone="+250700000003")
 
         self.transfer1 = AirtimeTransfer.objects.create(
             org=self.org,

@@ -1,3 +1,259 @@
+v5.7.67
+----------
+ * Fix globals endpoint so name is required
+ * Filter by is_active when updating fields on API endpoint
+
+v5.7.66
+----------
+ * Replace remaining Contact.get_or_create calls with mailroom's resolve endpoint
+
+v5.7.65
+----------
+ * URN lookups onthe contact API endpoint should be normalized with org country
+ * Archiving a campaign should only recreate events
+
+v5.7.64
+----------
+ * Don't create contacts and URNs for broadcasts but instead defer the raw URNs to mailroom
+
+v5.7.63
+----------
+ * Validate that import files don't contain duplicate UUIDs or URNs
+
+v5.7.62
+----------
+ * Update version of editor and components
+ * Upload imports to use UUID based path
+ * Fix issue where all keywords couldnt be removed from a flow
+
+v5.7.61
+----------
+ * Remove old editor, redirect editor_next to editor
+
+v5.7.60
+----------
+ * Fix contact imports from CSV files
+ * Tweaks to import UI
+
+v5.7.59
+----------
+ * Imports 2.0
+
+v5.7.55
+----------
+ * Use v13 flow as example on definitions endpoint docs
+ * Add URNs field to FlowStart and pass to mailroom so that it creates contacts
+
+v5.7.54
+----------
+ * Update editor to get support for expressions in add to group actions
+ * Remove unused localized text on Msg and Broadcast
+
+v5.7.52
+----------
+ * Migrations and models for new imports
+
+v5.7.51
+----------
+ * Add plan_start, calculate active contacts in plan period, add to OrgActivity
+ * Tweak how mailroom_db creates extra group contacts
+ * Update to latest django-hamlpy
+
+v5.7.50
+----------
+ * Optimizations for orgs with many contact fields
+
+v5.7.49
+----------
+ * Update plan_end when suspending topup orgs
+ * Suspend topup orgs that have no active credits
+ * Show suspension header when an org is suspended
+ * Tweak external channel config styling
+ * Fix styles for button on WA config page
+
+v5.7.48
+----------
+ * Fix button style for channel extra links
+ * Skip components missing text for WA templates sync
+ * Editors should have API tokens
+
+v5.7.47
+----------
+ * Queue mailroom task to schedule campaign events outside of import transaction
+ * Fix margin on fields warning alert
+
+v5.7.46
+----------
+ * Use mailroom task for scheduling of campaign events
+
+v5.7.45
+----------
+ * Make sure form._errors is a list
+
+v5.7.44
+----------
+ * Add index to enforce uniqueness for event fires
+
+v5.7.43
+----------
+ * Fix migration
+
+v5.7.42
+----------
+ * Bump smartmin to 2.2.3
+ * Fix attachment download and pdf links
+
+v5.7.41
+----------
+ * Fix messages to send without topup, and migrations
+ * No topup transfers on suborgs, show contacts, not credits
+
+v5.7.40
+----------
+ * Invalid language codes passed to contact API endpoint should be ignored and logged for now
+
+v5.7.39
+----------
+ * Update widget focus and borders on legacy editor
+ * Show global form errors and pre-form on modax template
+
+v5.7.38
+----------
+ * Add alpha sort and search to results view
+ * Searchable contact fields and wired listeners after group changes
+ * Force policy redirect on welcome page, honor follow-on navigation redirect
+ * Use mailroom for contact creation in API and mailroom_db command
+ * Adjust styling for contact import scenarios
+ * Show address when it doesn't match channel name
+
+v5.7.37
+----------
+ * add topup button to topup manage page
+
+v5.7.36
+----------
+ * Fix deleting ticketers
+
+v5.7.35
+----------
+ * Zendesk file view needs to be csrf exempt
+ * Use mailroom to create contacts from UI
+
+v5.7.34
+----------
+ * Add view to handle file URL callbacks from Zendesk
+
+v5.7.33
+----------
+ * Fix delete button on archived contacts page
+ * Don't allow saving queries that aren't supported as smart groups
+ * Delete no longer used contacts/fields.py
+ * Fix contacts reppearing in ES searches after being modified by a bulk action
+ * Adjust pjax block for contact import block
+
+v5.7.32
+----------
+ * Modal max-height in vh to not obscure buttons
+
+v5.7.31
+----------
+ * Add padding for p tags on policies
+
+v5.7.30
+----------
+ * Add content guideline policy option, update styling a bit
+
+v5.7.29
+----------
+ * Sitewide refresh of styles using Tailwind
+
+v5.7.27
+----------
+ * Site refresh of styles using Tailwind.
+
+v5.7.28
+----------
+ * Update to flow editor v1.9.15
+
+v5.7.27
+----------
+ * Update to flow editor v1.9.14
+ * Add support for last_seen_on in legacy search code
+
+v5.7.26
+----------
+ * Handle large deletes of contacts in background task
+
+v5.7.25
+----------
+ * Fix bulk actions against querysets from ES searches
+ * Fix bulk action permissions on contact views
+
+v5.7.24
+----------
+ * Rename existing 'archive' contact action in API to 'archive_messages'
+ * Allow deleting of all contacts from Archived view
+
+v5.7.23
+----------
+ * Rename All Contacts to Active
+ * Add UI for archiving, restoring and deleting contacts
+
+v5.7.22
+----------
+ * Bump version of mailroom and indexer used for tests
+ * Drop no longer used is_blocked and is_stopped fields
+
+v5.7.21
+----------
+ * Add missing migration from last rev
+
+v5.7.20
+----------
+ * Add missing migration
+
+v5.7.19
+----------
+ * Make contact.is_stopped and is_blocked nullable and stop writing
+
+v5.7.18
+----------
+ * Update sys group trigger to handle archiving
+
+v5.7.17
+----------
+ * Migration to add Archived sys group to all orgs
+
+v5.7.16
+----------
+ * Update to flow editor 1.9.11
+ * Update database triggers to use contact status instead of is_blocked or is_stopped
+ * Make contact.status non-null
+ * Create new archived system group for new orgs
+
+v5.7.15
+----------
+ * Add nag warning to legacy editor
+
+v5.7.14
+----------
+ * Migration to backfill contact status
+
+v5.7.13
+----------
+ * Enable channelback files for Zendesk ticketers
+ * Set status as active for new contacts
+ * Add new status field to contact
+ * Fix legacy editor by putting html-tag block back
+ * Change the label for CM channel claim
+
+v5.7.12
+----------
+ * Fix imports that match by UUID
+ * Fix Nexmo search numbers and claim number
+ * Use Django language code on html tag
+ * Add support for ClickMobile channel type
+
 v5.7.11
 ----------
  * Fix creating of campaign events based on last_seen_on

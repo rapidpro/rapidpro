@@ -48,12 +48,12 @@ install:
   - ./elasticsearch-${ES_VERSION}/bin/elasticsearch &
 
   # install mailroom
-  - MAILROOM_VERSION=5.7.3
+  - MAILROOM_VERSION=5.7.14
   - wget https://github.com/nyaruka/mailroom/releases/download/v${MAILROOM_VERSION}/mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz
   - tar -xvf mailroom_${MAILROOM_VERSION}_linux_amd64.tar.gz mailroom
 
   # install rp-indexer
-  - RPINDEXER_VERSION=5.2.0
+  - RPINDEXER_VERSION=5.7.1
   - wget https://github.com/nyaruka/rp-indexer/releases/download/v${RPINDEXER_VERSION}/rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
   - tar -xvf rp-indexer_${RPINDEXER_VERSION}_linux_amd64.tar.gz
 
@@ -90,9 +90,6 @@ script:
 
   # test that everything is well formatted, no missing migrations etc
   - ./code_check.py --debug $([[ "$TRAVIS_BRANCH" =~ "translations_django-po" ]] && echo "--skip-compilemessages")
-
-  # run our Javascript tests
-  - node_modules/karma/bin/karma start karma.conf.coffee --single-run --browsers PhantomJS
 
   # check we can collect and compress all static files
   - python manage.py collectstatic --noinput --verbosity=0

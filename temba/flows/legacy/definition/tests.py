@@ -177,7 +177,7 @@ class ActionTest(TembaTest):
         self.assertEqual([label, "@step.contact"], action.labels)
 
     def test_trigger_flow(self):
-        contact = self.create_contact("Eric", "+250788382382")
+        contact = self.create_contact("Eric", phone="+250788382382")
         group = self.create_group("My Group", [])
         flow = self.get_flow("color")
 
@@ -190,7 +190,7 @@ class ActionTest(TembaTest):
         self.assertEqual(["@contact.supervisor"], action.variables)
 
     def test_send(self):
-        contact = self.create_contact("Eric", "+250788382382")
+        contact = self.create_contact("Eric", phone="+250788382382")
         group = self.create_group("My Group", [])
 
         action = SendAction(

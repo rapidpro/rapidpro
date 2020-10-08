@@ -7,7 +7,7 @@ from django.urls import reverse
 from temba.contacts.models import ContactGroup
 from temba.flows.models import ActionSet, Flow, FlowRevision, RuleSet, get_flow_user
 from temba.msgs.models import Label
-from temba.tests import TembaTest, matchers
+from temba.tests import TembaTest, matchers, mock_mailroom
 from temba.utils import json
 from temba.utils.uuid import uuid4
 from temba.values.constants import Value
@@ -684,7 +684,8 @@ class FlowMigrationTest(TembaTest):
         # check value field on save action was updsated
         self.assertEqual(flow_json["action_sets"][1]["actions"][1]["value"], "@extra.response_3")
 
-    def test_migrate_to_11_4(self):
+    @mock_mailroom
+    def test_migrate_to_11_4(self, mr_mocks):
         flow = self.get_flow("migrate_to_11_4", legacy=True)
         flow_json = flow.as_json()
 
@@ -1032,7 +1033,7 @@ class FlowMigrationTest(TembaTest):
             self.assertNotIn("webhook_action", ruleset)
 
     def test_migrate_to_9(self):
-        contact = self.create_contact("Ben Haggerty", number="+12065552020")
+        contact = self.create_contact("Ben Haggerty", phone="+12065552020")
 
         # our group and flow to move to uuids
         group = self.create_group("Phans", [])

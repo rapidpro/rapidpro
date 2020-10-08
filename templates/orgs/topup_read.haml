@@ -1,0 +1,11 @@
+-extends "smartmin/read.haml"
+-load humanize
+
+
+-block content
+  %table.table.receipt-table{ width: "75%" }
+    %tr
+      %td.receipt-credits
+        {{ topup.credits|intcomma }} Credits
+      %td.receipt-right
+        ${{ topup.dollars|floatformat:"2" }}

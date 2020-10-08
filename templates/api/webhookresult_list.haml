@@ -2,17 +2,14 @@
 -load i18n temba humanize
 
 -block page-title
-  {{ brand.name }} - WebHook Events
+  {{ brand.name }} - WebHook Calls
 
 -block title
-  .medium-help.icon-cloud-upload{ style:'float:left;' }
-  %h2.header-margin
-    -trans "Recent Webhook Events"
-  %h5.header-margin
-    -trans "Webhook events that have been created recently can be found here."
+  -trans "Webhook Calls"
 
--block table
-  %table.list-table.table.table-condensed
+-block content
+
+  %table.list.object-list.lined
     %thead
       %tr
         %th
@@ -24,6 +21,7 @@
         %th{ style:'width:100px;text-align: right'}
           -trans "Time"
 
+    %tbody
       -for obj in object_list
         %tr
           %td.clickable
@@ -38,4 +36,3 @@
               {{ "--" }}
           %td{ style:'text-align: right', nowrap:'true' }
             {% format_datetime obj.created_on %}
-

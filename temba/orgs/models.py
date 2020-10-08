@@ -129,6 +129,7 @@ class Org(SmartModel):
         default=settings.DEFAULT_PLAN,
         help_text=_("What plan your organization is on"),
     )
+    plan_start = models.DateTimeField(null=True)
     plan_end = models.DateTimeField(null=True)
 
     stripe_customer = models.CharField(
@@ -323,8 +324,8 @@ class Org(SmartModel):
         """
         from temba.contacts.models import ContactGroup
 
-        counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ALL, ContactGroup.TYPE_BLOCKED))
-        return (counts[ContactGroup.TYPE_ALL] + counts[ContactGroup.TYPE_BLOCKED]) > 0
+        counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ACTIVE, ContactGroup.TYPE_BLOCKED))
+        return (counts[ContactGroup.TYPE_ACTIVE] + counts[ContactGroup.TYPE_BLOCKED]) > 0
 
     @cached_property
     def has_ticketer(self):
@@ -415,8 +416,12 @@ class Org(SmartModel):
             new_flows = Flow.import_flows(self, user, export_json, dependency_mapping, same_site)
 
             # these depend on flows so are imported last
-            Campaign.import_campaigns(self, user, export_campaigns, same_site)
+            new_campaigns = Campaign.import_campaigns(self, user, export_campaigns, same_site)
             Trigger.import_triggers(self, user, export_triggers, same_site)
+
+        # queue mailroom tasks to schedule campaign events
+        for campaign in new_campaigns:
+            campaign.schedule_events_async()
 
         # with all the flows and dependencies committed, we can now have mailroom do full validation
         for flow in new_flows:
@@ -513,10 +518,10 @@ class Org(SmartModel):
             return channel
 
     @cached_property
-    def cached_all_contacts_group(self):
+    def cached_active_contacts_group(self):
         from temba.contacts.models import ContactGroup
 
-        return ContactGroup.all_groups.get(org=self, group_type=ContactGroup.TYPE_ALL)
+        return ContactGroup.all_groups.get(org=self, group_type=ContactGroup.TYPE_ACTIVE)
 
     def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
         from temba.contacts.models import TEL_SCHEME
@@ -1427,6 +1432,11 @@ class Org(SmartModel):
 
         # any time we've reapplied topups, lets invalidate our credit cache too
         self.clear_credit_cache()
+
+        # if we our suspended and have credits now, unsuspend ourselves
+        if self.is_suspended and self.get_credits_remaining() > 0:
+            self.is_suspended = False
+            self.save(update_fields=["is_suspended"])
 
         # update our capabilities based on topups
         self.update_capabilities()
@@ -2621,6 +2631,7 @@ class OrgActivity(models.Model):
        * total # of active contacts (that sent or received a message)
        * total # of messages sent
        * total # of message received
+       * total # of active contacts in plan period up to that date (if there is one)
     """
 
     # the org this contact activity is being tracked for
@@ -2641,11 +2652,16 @@ class OrgActivity(models.Model):
     # the number of messages received on this day
     incoming_count = models.IntegerField(default=0)
 
+    # the number of active contacts in the plan period (if they are on a plan)
+    plan_active_contact_count = models.IntegerField(null=True)
+
     @classmethod
     def update_day(cls, now):
         """
         Updates our org activity for the passed in day.
         """
+        from temba.msgs.models import Msg
+
         # truncate to midnight the same day in UTC
         end = pytz.utc.normalize(now.astimezone(pytz.utc)).replace(hour=0, minute=0, second=0, microsecond=0)
         start = end - timedelta(days=1)
@@ -2673,6 +2689,23 @@ class OrgActivity(models.Model):
         ).annotate(msg_count=Count("id"))
         outgoing_count = {o.id: o.msg_count for o in outgoing_count}
 
+        # calculate active count in plan period for orgs with an active plan
+        plan_active_contact_counts = dict()
+        for org in (
+            Org.objects.exclude(plan_end=None)
+            .exclude(plan_start=None)
+            .exclude(plan_end__lt=start)
+            .only("plan_start", "plan_end")
+        ):
+            plan_end = org.plan_end if org.plan_end < end else end
+            count = (
+                Msg.objects.filter(org=org, created_on__gt=org.plan_start, created_on__lt=plan_end)
+                .only("contact")
+                .distinct("contact")
+                .count()
+            )
+            plan_active_contact_counts[org.id] = count
+
         for org in contact_counts:
             OrgActivity.objects.update_or_create(
                 org=org,
@@ -2681,6 +2714,7 @@ class OrgActivity(models.Model):
                 active_contact_count=active_counts.get(org.id, 0),
                 incoming_count=incoming_count.get(org.id, 0),
                 outgoing_count=outgoing_count.get(org.id, 0),
+                plan_active_contact_count=plan_active_contact_counts.get(org.id),
             )
 
     class Meta:

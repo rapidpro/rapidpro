@@ -12,52 +12,61 @@
 
 -block title-icon
   .title-icon
-    %span.glyph.icon-instant
+    %span.glyph.icon-campaign
 
--block title-text
-  .title-text
-    %h2
-      %a{href:"{% url 'campaigns.campaign_read' object.campaign.pk %}"}
-        {{object.campaign.name}}
-        -if object.campaign.is_archived
-          -trans "(Archived)"
-    %h4
-      -if object.offset < 0
-        {{object.abs_offset}} {{object.get_unit_display|slice:"-1"}}{{object.offset|pluralize}} Before
-      -elif object.offset == 0
-        On
-      -else
-        {{object.abs_offset}} {{object.get_unit_display|slice:"-1"}}{{object.offset|pluralize}} After
-      {{object.relative_to|title}}
+-block title
+  %a{href:"{% url 'campaigns.campaign_read' object.campaign.pk %}"}
+    {{object.campaign.name}}
+    -if object.campaign.is_archived
+      -trans "(Archived)"
 
-      // Event for {{object.campaign.name}}
+-block subtitle
+  -if object.offset < 0
+    {{object.abs_offset}} {{object.get_unit_display|slice:"-1"}}{{object.offset|pluralize}} Before
+  -elif object.offset == 0
+    On
+  -else
+    {{object.abs_offset}} {{object.get_unit_display|slice:"-1"}}{{object.offset|pluralize}} After
+  {{object.relative_to|title}}
 
-    -if object.event_type == 'M'
-      .message
-        .icon-left-quote
-        .text
-          {{object.get_message}}
-    -else
-      .start-flow
-        Start the
-        %a.href{ href: "{% url 'flows.flow_editor' object.flow.uuid %}" }= object.flow.name
-        Flow
+  .mt-2
+    -if object.campaign.group.is_active
+      .lbl-group.linked(onclick="goto(event)" href="{% url 'contacts.contact_filter' object.campaign.group.uuid %}")
+        {{object.campaign.group.name}}
 
 -block content
+  .event-details.p-4.bg-gray-100.rounded-lg.mb-6
+    -if object.event_type == 'M'
+      .cap-label
+        -trans "Send Message"
+      .text-gray-600
+        {{object.get_message}}
+    -else
+      .start-flow
+        -trans "Start the"
+        %a.href{ href: "{% url 'flows.flow_editor' object.flow.uuid %}" }= object.flow.name
+        -trans "Flow"
+
+
   -if not scheduled_event_fires
-    %h4
-      Upcoming Events
-    %table.table
+    %table.list
+      %thead
+        %tr
+          %th{colspan:"99"}
+            -trans "Upcoming Events"
+
       %body
         %tr.empty_list
           %td
-            .no-messages
-              No events yet
+            .ml-3
+              -trans "No events scheduled"
   -else
 
-    %h4
-      Next {{scheduled_event_fires|length|intcomma}} Event{{scheduled_event_fires|length|pluralize}}
-    %table.table
+    %table.list
+      %thead
+        %tr
+          %th{colspan:"99"}
+            Next {{scheduled_event_fires|length|intcomma}} Event{{scheduled_event_fires|length|pluralize}}
       %body
         -for fire in scheduled_event_fires
           %tr.event_fire
@@ -81,22 +90,25 @@
                 {{scheduled_event_fires_count}} more
 
 
-  -if not fired_event_fires
-    %h4
-      Recent Events
+  .mt-6
 
-    %table.table
-      %body
+  -if not fired_event_fires
+    %table.list
+      %thead
+        %tr
+          %th{colspan:"99"}
+            -trans "Recent Events"
+      %tbody
         %tr.empty_list
           %td
-            .no-messages
+            .ml-3
               No events yet
   -else
-    %h4
+    .cap-label
       Last {{fired_event_fires|length|intcomma}} Event{{fired_event_fires|length|pluralize}}
 
-    %table.table
-      %body
+    %table.list
+      %tbody
         -for fire in fired_event_fires
           %tr.event_fire
             %td
@@ -123,20 +135,6 @@
       .body
         %p Are you sure you want to remove this event? Once the event is removed, it will be gone forever. This cannot be undone.
       %a#delete-form.posterize{}
-
-
--block extra-script
-  {{block.super}}
-  -if org_perms.flows.flow_update
-    :javascript
-      {% if org_perms.campaigns.campaignevent_update %}
-        $(".update-event").live('click', function(){
-          var modal = new Modax('{{_("Update Event")|escapejs }}', '{% url "campaigns.campaignevent_update" object.pk %}');
-          modal.setIcon('icon-instant');
-          modal.setRedirectOnSuccess(true);
-          modal.show();
-        });
-      {% endif %}
 
 -block extra-less
   -compress css
@@ -209,9 +207,6 @@
           }
         }
 
-        .no-messages {
-          color: #bbb;
-        }
     {% endlessblock %}
 
 -block extra-style

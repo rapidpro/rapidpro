@@ -1,23 +1,26 @@
-import datetime
+import io
 import logging
-import os
 import time
-import uuid
+from datetime import date, datetime, timedelta
 from decimal import Decimal
-from itertools import chain
-from typing import Dict, List
+from itertools import chain, zip_longest
+from pathlib import Path
+from typing import Any, Dict, List, Set, Tuple
+from uuid import uuid4
 
 import iso8601
 import phonenumbers
+import pyexcel
 import pytz
 import regex
 from smartmin.csv_imports.models import ImportTask
-from smartmin.models import SmartImportRowError, SmartModel
+from smartmin.models import SmartModel
 
 from django.conf import settings
+from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db import IntegrityError, connection, models, transaction
+from django.db import IntegrityError, models, transaction
 from django.db.models import Count, Max, Q, Sum
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -26,24 +29,16 @@ from temba import mailroom
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
-from temba.mailroom import modifiers, queue_populate_dynamic_group
+from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, chunk_list, es, format_number, get_anonymous_user, json, on_transaction_commit
+from temba.utils import chunk_list, es, format_number, get_anonymous_user, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
-from temba.utils.languages import _get_language_name_iso6393
-from temba.utils.models import JSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
+from temba.utils.models import JSONField as TembaJSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import truncate, unsnakify
 from temba.utils.urns import ParsedURN, parse_urn
-from temba.utils.uuid import uuid4
 from temba.values.constants import Value
 
 logger = logging.getLogger(__name__)
-
-# phone number for every org's test contact
-OLD_TEST_CONTACT_TEL = "12065551212"
-
-# how many sequential contacts on import triggers suspension
-SEQUENTIAL_CONTACTS_THRESHOLD = 250
 
 DELETED_SCHEME = "deleted"
 EMAIL_SCHEME = "mailto"
@@ -83,9 +78,6 @@ URN_SCHEME_CONFIG = (
     (FRESHCHAT_SCHEME, _("Freshchat identifier"), FRESHCHAT_SCHEME),
     (VK_SCHEME, _("VK identifier"), VK_SCHEME),
 )
-
-
-IMPORT_HEADERS = tuple((f"URN:{c[0]}", c[0]) for c in URN_SCHEME_CONFIG)
 
 # events from sessions to include in contact history
 HISTORY_INCLUDE_EVENTS = {
@@ -473,7 +465,7 @@ class ContactField(SmartModel):
         Value.TYPE_WARD: "ward",
     }
 
-    uuid = models.UUIDField(unique=True, default=uuid.uuid4)
+    uuid = models.UUIDField(unique=True, default=uuid4)
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, verbose_name=_("Org"), related_name="contactfields")
 
@@ -697,6 +689,21 @@ MAX_HISTORY = 50
 
 
 class Contact(RequireUpdateFieldsMixin, TembaModel):
+    """
+    A contact represents an individual with which we can communicate and collect data
+    """
+
+    STATUS_ACTIVE = "A"  # is active in flows, campaigns etc
+    STATUS_BLOCKED = "B"  # was blocked by a user and their message will always be ignored
+    STATUS_STOPPED = "S"  # opted out and their messages will be ignored until they message in again
+    STATUS_ARCHIVED = "V"  # user intends to delete them
+    STATUS_CHOICES = (
+        (STATUS_ACTIVE, "Active"),
+        (STATUS_BLOCKED, "Blocked"),
+        (STATUS_STOPPED, "Stopped"),
+        (STATUS_ARCHIVED, "Archived"),
+    )
+
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contacts")
 
     name = models.CharField(
@@ -711,14 +718,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         help_text=_("The preferred language for this contact"),
     )
 
-    # whether contact has been blocked by a user
-    is_blocked = models.BooleanField(default=False)
-
-    # whether contact has opted out of receiving messages
-    is_stopped = models.BooleanField(default=False)
-
     # custom field values for this contact, keyed by field UUID
-    fields = JSONField(null=True)
+    fields = TembaJSONField(null=True)
+
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
 
     # user that last modified this contact
     modified_by = models.ForeignKey(
@@ -765,17 +768,35 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         "tel_e164",
     }
 
-    SUPPORTED_IMPORT_ATTRIBUTE_HEADERS = {ID, NAME, LANGUAGE, UUID, CONTACT_UUID}
-
     # can't create custom contact fields with these keys
     RESERVED_FIELD_KEYS = RESERVED_ATTRIBUTES.union(URN.VALID_SCHEMES)
 
-    # the import headers which map to contact attributes or URNs rather than custom fields
-    ATTRIBUTE_AND_URN_IMPORT_HEADERS = RESERVED_ATTRIBUTES.union(URN.IMPORT_HEADERS)
+    # maximum number of contacts to release without using a background task
+    BULK_RELEASE_IMMEDIATELY_LIMIT = 50
 
-    STATUS_ACTIVE = "active"
-    STATUS_BLOCKED = "blocked"
-    STATUS_STOPPED = "stopped"
+    @classmethod
+    def create(
+        cls, org, user, name: str, language: str, urns: List[str], fields: Dict[ContactField, str], groups: List
+    ):
+        fields_by_key = {f.key: v for f, v in fields.items()}
+        group_uuids = [g.uuid for g in groups]
+
+        response = mailroom.get_client().contact_create(
+            org.id,
+            user.id,
+            ContactSpec(name=name, language=language, urns=urns, fields=fields_by_key, groups=group_uuids),
+        )
+        return Contact.objects.get(id=response["contact"]["id"])
+
+    @classmethod
+    def resolve(cls, channel, urn):
+        """
+        Resolves a contact and URN from a channel interaction. Only used for relayer endpoints.
+        """
+        response = mailroom.get_client().contact_resolve(channel.org_id, channel.id, urn)
+        contact = Contact.objects.get(id=response["contact"]["id"])
+        contact_urn = ContactURN.objects.get(id=response["urn"]["id"])
+        return contact, contact_urn
 
     @property
     def anon_identifier(self):
@@ -790,17 +811,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Define Contact.user_groups to only refer to user groups
         """
         return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
-
-    def save(self, *args, handle_update=None, **kwargs):
-        super().save(*args, **kwargs)
-
-        # `handle_update` must be explicity set to execute handle_update when saving contact
-        if self.id and "update_fields" in kwargs:
-            if handle_update is None:
-                raise ValueError("When saving contacts we need to specify value for `handle_update`.")
-
-            if handle_update is True:
-                self.handle_update(fields=kwargs["update_fields"])
 
     def as_json(self):
         obj = dict(id=self.pk, name=str(self), uuid=self.uuid)
@@ -827,6 +837,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             "urns": [urn_as_json(u) for u in self.urns.all()],
             "fields": self.fields if self.fields else {},
             "created_on": self.created_on.isoformat(),
+            "last_seen_on": self.last_seen_on.isoformat() if self.last_seen_on else None,
         }
 
     @classmethod
@@ -1049,129 +1060,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         else:
             return str(value)
 
-    def serialize_field(self, field, value):
-        # parse as all value data types
-        str_value = str(value)[: Value.MAX_VALUE_LEN]
-        dt_value = self.org.parse_datetime(value)
-        num_value = self.org.parse_number(value)
-        loc_value = None
-
-        # for locations, if it has a '>' then it is explicit, look it up that way
-        if AdminBoundary.PATH_SEPARATOR in str_value:
-            loc_value = self.org.parse_location_path(str_value)
-
-        # otherwise, try to parse it as a name at the appropriate level
-        else:
-            if field.value_type == Value.TYPE_WARD:
-                district_field = ContactField.get_location_field(self.org, Value.TYPE_DISTRICT)
-                district_value = self.get_field_value(district_field)
-                if district_value:
-                    loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value)
-
-            elif field.value_type == Value.TYPE_DISTRICT:
-                state_field = ContactField.get_location_field(self.org, Value.TYPE_STATE)
-                if state_field:
-                    state_value = self.get_field_value(state_field)
-                    if state_value:
-                        loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value)
-
-            elif field.value_type == Value.TYPE_STATE:
-                loc_value = self.org.parse_location(str_value, AdminBoundary.LEVEL_STATE)
-
-            if loc_value is not None and len(loc_value) > 0:
-                loc_value = loc_value[0]
-            else:
-                loc_value = None
-
-        # all fields have a text value
-        field_dict = {Value.KEY_TEXT: str_value}
-
-        # set all the other fields that have a non-zero value
-        if dt_value is not None:
-            field_dict[Value.KEY_DATETIME] = timezone.localtime(dt_value, self.org.timezone).isoformat()
-
-        if num_value is not None:
-            field_dict[Value.KEY_NUMBER] = format_number(num_value)
-
-        if loc_value:
-            if loc_value.level == AdminBoundary.LEVEL_STATE:
-                field_dict[Value.KEY_STATE] = loc_value.path
-            elif loc_value.level == AdminBoundary.LEVEL_DISTRICT:
-                field_dict[Value.KEY_DISTRICT] = loc_value.path
-                field_dict[Value.KEY_STATE] = AdminBoundary.strip_last_path(loc_value.path)
-            elif loc_value.level == AdminBoundary.LEVEL_WARD:
-                field_dict[Value.KEY_WARD] = loc_value.path
-                field_dict[Value.KEY_DISTRICT] = AdminBoundary.strip_last_path(loc_value.path)
-                field_dict[Value.KEY_STATE] = AdminBoundary.strip_last_path(field_dict[Value.KEY_DISTRICT])
-
-        return field_dict
-
-    def set_fields(self, user, fields):
-        """
-        Sets multiple field values on a contact - used by imports
-        """
-        if self.fields is None:
-            self.fields = {}
-
-        fields_for_delete = set()
-        fields_for_update = set()
-        changed_field_keys = set()
-        all_fields = {}
-
-        for key, value in fields.items():
-            field = ContactField.get_or_create(self.org, user, key)
-
-            field_uuid = str(field.uuid)
-
-            # parse into the appropriate value types
-            if value is None or value == "":
-                # value being cleared, remove our key
-                if field_uuid in self.fields:  # pragma: no cover
-                    fields_for_delete.add(field_uuid)
-
-                    changed_field_keys.add(key)
-
-            else:
-                field_dict = self.serialize_field(field, value)
-
-                # update our field if it is different
-                if self.fields.get(field_uuid) != field_dict:
-                    fields_for_update.add(field_uuid)
-                    all_fields.update({field_uuid: field_dict})
-
-                    changed_field_keys.add(key)
-
-        modified_on = timezone.now()
-
-        # if there was a change, update our JSONB on our contact
-        if fields_for_delete:  # pragma: no cover
-            with connection.cursor() as cursor:
-                # prepare expression for multiple field delete
-                remove_fields = " - ".join(f"%s" for _ in range(len(fields_for_delete)))
-                cursor.execute(
-                    f"UPDATE contacts_contact SET fields = fields - {remove_fields}, modified_on = %s WHERE id = %s",
-                    [*fields_for_delete, modified_on, self.id],
-                )
-
-        if fields_for_update:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb, modified_on = %s WHERE id = %s",
-                    [json.dumps(all_fields), modified_on, self.id],
-                )
-
-        # update local contact cache
-        self.fields.update(all_fields)
-
-        # remove deleted fields
-        for field_uuid in fields_for_delete:  # pragma: no cover
-            self.fields.pop(field_uuid, None)
-
-        self.modified_on = modified_on
-
-        if changed_field_keys:
-            self.handle_update(fields=list(fields.keys()))
-
     def handle_update(self, urns=(), fields=None, group=None, is_new=False):
         """
         Handles an update to a contact which can be one of
@@ -1285,673 +1173,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return None
 
     @classmethod
-    def get_or_create(cls, org, urn, channel=None, name=None, auth=None, user=None, init_new=True):
-        """
-        Gets or creates a contact with the given URN
-        """
-
-        # if we don't have an org blow up, this is required
-        if not org:
-            raise ValueError("Attempt to create contact without org")
-
-        # get country from channel or org
-        if channel:
-            country = channel.country.code
-        else:
-            country = org.get_country_code()
-
-        # limit our contact name to 128 chars
-        if name:
-            name = name[:128]
-
-        normalized = URN.normalize(urn, country)
-        existing_urn = ContactURN.lookup(org, normalized, normalize=False, country_code=country)
-
-        if existing_urn and existing_urn.contact:
-            contact = existing_urn.contact
-            ContactURN.update_auth(existing_urn, auth)
-            return contact, existing_urn
-        else:
-            kwargs = dict(org=org, name=name, created_by=user)
-            contact = Contact.objects.create(**kwargs)
-            contact.is_new = True
-            updated_attrs = list(kwargs.keys())
-
-            if existing_urn:
-                ContactURN.objects.filter(pk=existing_urn.pk).update(contact=contact)
-                urn_obj = existing_urn
-            else:
-                urn_obj = ContactURN.get_or_create(org, contact, normalized, channel=channel, auth=auth)
-
-            updated_urns = [urn]
-
-            # record contact creation in analytics
-            analytics.gauge("temba.contact_created")
-
-            # handle group and campaign updates
-            if init_new:
-                contact.handle_update(fields=updated_attrs, urns=updated_urns, is_new=True)
-
-            return contact, urn_obj
-
-    @classmethod
-    def get_or_create_by_urns(
-        cls, org, user, name=None, urns=None, channel=None, uuid=None, language=None, force_urn_update=False, auth=None
-    ):
-        """
-        Gets or creates a contact with the given URNs
-        """
-        # if we don't have an org or user, blow up, this is required
-        if not org or not user:
-            raise ValueError("Attempt to create contact without org or user")
-
-        # if channel is specified then urns should contain the single URN that communicated with the channel
-        if channel and (not urns or len(urns) > 1):
-            raise ValueError("Only one URN may be specified when calling from channel event")
-
-        # deal with None being passed into urns
-        if urns is None:
-            urns = ()
-
-        # get country from channel or org
-        if channel:
-            country = channel.country.code
-        else:
-            country = org.get_country_code()
-
-        contact = None
-
-        # limit our contact name to 128 chars
-        if name:
-            name = name[:128]
-
-        # optimize the single URN contact lookup case with an existing contact, this doesn't need a lock as
-        # it is read only from a contacts perspective, but it is by far the most common case
-        if not uuid and not name and urns and len(urns) == 1:
-            existing_urn = ContactURN.lookup(org, urns[0], country)
-
-            if existing_urn and existing_urn.contact:
-                contact = existing_urn.contact
-                ContactURN.update_auth(existing_urn, auth)
-                return contact
-
-        # if we were passed in a UUID, look it up by that
-        if uuid:
-            contact = Contact.objects.filter(org=org, is_active=True, uuid=uuid).first()
-
-            # if contact already exists try to figured if it has all the urn to skip the lock
-            if contact:
-                contact_has_all_urns = True
-                contact_urns = set(contact.get_urns().values_list("identity", flat=True))
-                if len(urns) <= len(contact_urns):
-                    for urn in urns:
-                        normalized = URN.normalize(urn, country)
-                        identity = URN.identity(normalized)
-                        if identity not in contact_urns:
-                            contact_has_all_urns = False
-
-                        existing_urn = ContactURN.lookup(org, normalized, country_code=country, normalize=False)
-                        if existing_urn and auth:
-                            ContactURN.update_auth(existing_urn, auth)
-
-                    if contact_has_all_urns:
-                        # update contact name if provided
-                        updated_attrs = []
-                        if name:
-                            contact.name = name
-                            updated_attrs.append(ContactField.KEY_NAME)
-                        if language:  # pragma: needs cover
-                            contact.language = language
-                            updated_attrs.append(ContactField.KEY_LANGUAGE)
-
-                        if updated_attrs:
-                            contact.save(update_fields=updated_attrs + ["modified_on"], handle_update=False)
-                        # handle group and campaign updates
-                        contact.handle_update(fields=updated_attrs)
-                        return contact
-
-        # perform everything in a org-level lock to prevent duplication by different instances
-        with org.lock_on(OrgLock.contacts):
-            # figure out which URNs already exist and who they belong to
-            existing_owned_urns = dict()
-            existing_orphan_urns = dict()
-            urns_to_create = dict()
-            for urn in urns:
-                normalized = URN.normalize(urn, country)
-                existing_urn = ContactURN.lookup(org, normalized, normalize=False, country_code=country)
-
-                if existing_urn:
-                    if existing_urn.contact and not force_urn_update:
-                        existing_owned_urns[urn] = existing_urn
-                        if contact and contact != existing_urn.contact:
-                            raise ValueError(_("Provided URNs belong to different existing contacts"))
-                        else:
-                            contact = existing_urn.contact
-                    else:
-                        existing_orphan_urns[urn] = existing_urn
-                        if not contact and existing_urn.contact:
-                            contact = existing_urn.contact
-
-                    ContactURN.update_auth(existing_urn, auth)
-
-                else:
-                    urns_to_create[urn] = normalized
-
-            # URNs correspond to one contact so update and return that
-            if contact:
-                contact.is_new = False
-                # update contact name if provided
-                updated_attrs = []
-                if name:
-                    contact.name = name
-                    updated_attrs.append(ContactField.KEY_NAME)
-                if language:
-                    contact.language = language
-                    updated_attrs.append(ContactField.KEY_LANGUAGE)
-
-                if updated_attrs:
-                    contact.save(update_fields=updated_attrs + ["modified_on"], handle_update=False)
-
-            # otherwise create new contact with all URNs
-            else:
-                kwargs = dict(org=org, name=name, language=language, created_by=user)
-                contact = Contact.objects.create(**kwargs)
-                updated_attrs = ["name", "language", "created_on"]
-
-                # add attribute which allows import process to track new vs existing
-                contact.is_new = True
-
-            # attach all orphaned URNs
-            ContactURN.objects.filter(pk__in=[urn.id for urn in existing_orphan_urns.values()]).update(contact=contact)
-
-            # create dict of all requested URNs and actual URN objects
-            urn_objects = existing_orphan_urns.copy()
-
-            # add all new URNs
-            for raw, normalized in urns_to_create.items():
-                urn = ContactURN.get_or_create(org, contact, normalized, channel=channel, auth=auth)
-                urn_objects[raw] = urn
-
-            # save which urns were updated
-            updated_urns = list(urn_objects.keys())
-
-        # record contact creation in analytics
-        if getattr(contact, "is_new", False):
-            analytics.gauge("temba.contact_created")
-
-        # handle group and campaign updates
-        contact.handle_update(fields=updated_attrs, urns=updated_urns, is_new=contact.is_new)
-        return contact
-
-    @classmethod
-    def create_instance(cls, field_dict):
-        """
-        Creates or updates a contact from the given field values during an import
-        """
-        if "org" not in field_dict or "created_by" not in field_dict:
-            raise ValueError("Import fields dictionary must include org and created_by")
-
-        org = field_dict.pop("org")
-        user = field_dict.pop("created_by")
-        is_admin = org.administrators.filter(id=user.id).exists()
-        uuid = field_dict.pop("contact uuid", None)
-
-        # for backward compatibility
-        if uuid is None:
-            uuid = field_dict.pop("uuid", None)
-
-        country = org.get_country_code()
-        urns = []
-
-        possible_urn_headers = [scheme[0] for scheme in IMPORT_HEADERS]
-        possible_urn_headers_case_insensitive = [scheme.lower() for scheme in possible_urn_headers]
-
-        # prevent urns update on anon org
-        if uuid and org.is_anon and not is_admin:
-            possible_urn_headers_case_insensitive = []
-
-        for urn_header in possible_urn_headers_case_insensitive:
-            value = None
-            if urn_header in field_dict:
-                value = field_dict[urn_header]
-                del field_dict[urn_header]
-
-            if not value:
-                continue
-
-            value = str(value)
-
-            urn_scheme = ContactURN.IMPORT_HEADER_TO_SCHEME[urn_header]
-
-            if urn_scheme == TEL_SCHEME:
-
-                value = regex.sub(r"[ \-()]+", "", value, regex.V0)
-
-                # at this point the number might be a decimal, something that looks like '18094911278.0' due to
-                # excel formatting that field as numeric.. try to parse it into an int instead
-                try:
-                    value = str(int(float(value)))
-                except Exception:  # pragma: no cover
-                    # oh well, neither of those, stick to the plan, maybe we can make sense of it below
-                    pass
-
-                # only allow valid numbers
-                (normalized, is_valid) = URN.normalize_number(value, country)
-
-                if not is_valid:
-                    error_msg = f"Invalid Phone number {value}"
-                    if not country:
-                        error_msg = f"Invalid Phone number or no country code specified for {value}"
-
-                    raise SmartImportRowError(error_msg)
-
-                # in the past, test contacts have ended up in exports. Don't re-import them
-                if value == OLD_TEST_CONTACT_TEL:
-                    raise SmartImportRowError("Ignored test contact")
-
-            urn = URN.normalize(URN.from_parts(urn_scheme, value), country)
-            if not URN.validate(urn):
-                raise SmartImportRowError(f"Invalid URN: {value}")
-
-            search_contact = Contact.from_urn(org, urn, country)
-
-            # if this is an anonymous org, don't allow updating
-            if org.is_anon and search_contact and not is_admin:
-                raise SmartImportRowError("Other existing contact in anonymous workspace")
-
-            urns.append(urn)
-
-        if not urns and not (org.is_anon or uuid):
-            urn_headers = ", ".join(possible_urn_headers)
-            raise SmartImportRowError(
-                f"Missing any valid URNs; at least one among {urn_headers} should be provided or a Contact UUID"
-            )
-
-        # title case our name
-        name = field_dict.get(ContactField.KEY_NAME, None)
-        if name:
-            name = " ".join([_.capitalize() for _ in name.split()])
-
-        language = field_dict.get(ContactField.KEY_LANGUAGE)
-        if language is not None and len(language) != 3:
-            language = None
-        if language is not None and _get_language_name_iso6393(language) is None:
-            raise SmartImportRowError(f"Language: '{language}' is not a valid ISO639-3 code")
-
-        # if this is just a UUID import, look up the contact directly
-        if uuid and not urns and not language and not name:
-            contact = Contact.objects.filter(uuid=uuid).first()
-            if not contact:
-                raise SmartImportRowError(f"No contact found with uuid: {uuid}")
-
-        else:
-            # create new contact or fetch existing one
-            contact = Contact.get_or_create_by_urns(
-                org, user, name, uuid=uuid, urns=urns, language=language, force_urn_update=True
-            )
-
-        # if they exist and are blocked, reactivate them
-        if contact.is_blocked:
-            contact.reactivate(user)
-
-        # ignore any reserved fields or URN schemes
-        valid_keys = (
-            key
-            for key in field_dict.keys()
-            if not (key in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS or key.startswith("urn:"))
-        )
-
-        valid_field_dict = {}
-        for key in valid_keys:
-            value = field_dict[key]
-
-            # date values need converted to localized strings
-            if isinstance(value, datetime.date):
-                # make naive datetime timezone-aware, ignoring date
-                if getattr(value, "tzinfo", "ignore") is None:
-                    value = org.timezone.localize(value) if org.timezone else pytz.utc.localize(value)
-
-                value = org.format_datetime(value, True)
-
-            valid_field_dict.update({key: value})
-
-        contact.set_fields(user, valid_field_dict)
-
-        return contact
-
-    @classmethod
-    def prepare_fields(cls, field_dict, import_params=None, user=None):
-        if not import_params or "org_id" not in import_params or "extra_fields" not in import_params:
-            raise ValueError("Import params must include org_id and extra_fields")
-
-        field_dict["created_by"] = user
-        field_dict["org"] = Org.objects.get(pk=import_params["org_id"])
-
-        extra_fields = []
-
-        # include extra fields specified in the params
-        for field in import_params["extra_fields"]:
-            key = field["key"]
-            label = field["label"]
-            if key not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS:
-                # column values are mapped to lower-cased column header names but we need them by contact field key
-                value = field_dict[field["header"]]
-                del field_dict[field["header"]]
-                field_dict[key] = value
-
-                # create the contact field if it doesn't exist
-                ContactField.get_or_create(field_dict["org"], user, key, label, value_type=field["type"])
-
-                extra_fields.append(key)
-            else:
-                raise ValueError("Extra field %s is a reserved field name" % key)
-
-        active_scheme_headers = [h[0].lower() for h in IMPORT_HEADERS]
-
-        # remove any field that's not a reserved field or an explicitly included extra field
-        return {
-            key: value
-            for key, value in field_dict.items()
-            if not (
-                (key not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS)
-                and key not in extra_fields
-                and key not in active_scheme_headers
-            )
-        }
-
-    @classmethod
-    def get_org_import_file_headers(cls, csv_file, org):
-        csv_file.open()
-
-        # this file isn't good enough, lets write it to local disk
-        from django.conf import settings
-
-        # make sure our tmp directory is present (throws if already present)
-        try:
-            os.makedirs(os.path.join(settings.MEDIA_ROOT, "tmp"))
-        except Exception:
-            pass
-
-        # write our file out
-        tmp_file = os.path.join(settings.MEDIA_ROOT, "tmp/%s" % str(uuid.uuid4()))
-
-        out_file = open(tmp_file, "wb")
-        out_file.write(csv_file.read())
-        out_file.close()
-
-        try:
-            headers = SmartModel.get_import_file_headers(open(tmp_file))
-        finally:
-            os.remove(tmp_file)
-
-        Contact.validate_org_import_header(headers, org)
-
-        # return the column headers which can become contact fields
-        possible_fields = []
-        for header in headers:
-            header = header.strip().lower()
-            if not header.startswith("field:"):
-                continue
-
-            if header and header not in Contact.ATTRIBUTE_AND_URN_IMPORT_HEADERS:
-                possible_fields.append(header)
-
-        return possible_fields
-
-    @classmethod
-    def validate_org_import_header(cls, headers, org):
-        possible_headers = [h[0] for h in IMPORT_HEADERS]
-        possible_headers_case_insensitive = [h.lower() for h in possible_headers]
-
-        found_headers = []
-        unsupported_headers = []
-
-        for h in headers:
-            h_lower_stripped = h.strip().lower()
-
-            if h_lower_stripped in possible_headers_case_insensitive:
-                found_headers.append(h_lower_stripped)
-
-            if (
-                h_lower_stripped
-                and not h_lower_stripped.startswith("urn:")
-                and not h_lower_stripped.startswith("field:")
-                and not h_lower_stripped.startswith("group:")
-                and h_lower_stripped not in Contact.SUPPORTED_IMPORT_ATTRIBUTE_HEADERS
-                and h_lower_stripped != Contact.CREATED_ON_TITLE
-            ):
-                unsupported_headers.append(h_lower_stripped)
-
-        joined_possible_headers = '", "'.join([h for h in possible_headers])
-        joined_unsupported_headers = '", "'.join([h for h in unsupported_headers])
-
-        if unsupported_headers:
-            raise Exception(
-                _(
-                    f'The provided file has unrecognized headers. Columns "{joined_unsupported_headers}" should be removed or prepended with the prefix "Field:".'
-                )
-            )
-
-        if "uuid" in headers or "contact uuid" in headers:
-            return
-
-        if not found_headers:
-            raise Exception(
-                _(
-                    f'The file you provided is missing a required header. At least one of "{joined_possible_headers}" or "Contact UUID" should be included.'
-                )
-            )
-
-        if "name" not in headers:
-            raise Exception(_('The file you provided is missing a required header called "Name".'))
-
-    @classmethod
-    def normalize_value(cls, val):
-        if isinstance(val, str):
-            return SmartModel.normalize_value(val)
-        return val
-
-    @classmethod
-    def import_excel(cls, filename, user, import_params, task, log=None, import_results=None):
-
-        import pyexcel
-
-        sheet_data = pyexcel.get_array(file_name=filename.name)
-
-        line_number = 0
-
-        header = sheet_data[line_number]
-        line_number += 1
-        while header is not None and len(header[0]) > 1 and header[0][0] == "#":  # pragma: needs cover
-            header = sheet_data[line_number]
-            line_number += 1
-
-        # do some sanity checking to make sure they uploaded the right kind of file
-        if len(header) < 1:  # pragma: needs cover
-            raise Exception("Invalid header for import file")
-
-        # normalize our header names, removing quotes and spaces
-        header = [cls.normalize_value(str(cell_value)).lower() for cell_value in header]
-
-        cls.validate_import_header(header)
-
-        records = []
-        num_errors = 0
-        error_messages = []
-        row_processed = 0
-
-        sheet_data_records = sheet_data[line_number:]
-
-        for row in sheet_data_records:
-            row_processed += 1
-
-            if row_processed % 100 == 0:  # pragma: no cover
-                task.modified_on = timezone.now()
-                task.save(update_fields=["modified_on"])
-
-            # trim all our values
-            row_data = []
-            for cell in row:
-                cell_value = cls.normalize_value(cell)
-                if not isinstance(cell_value, datetime.date) and not isinstance(cell_value, datetime.datetime):
-                    cell_value = str(cell_value)
-                row_data.append(cell_value)
-
-            line_number += 1
-
-            # make sure there are same number of fields
-            if len(row_data) != len(header):  # pragma: needs cover
-                raise Exception(
-                    "Line %d: The number of fields for this row is incorrect. Expected %d but found %d."
-                    % (line_number, len(header), len(row_data))
-                )
-
-            field_values = dict(zip(header, row_data))
-            log_field_values = field_values.copy()
-            field_values["created_by"] = user
-            try:
-
-                field_values = cls.prepare_fields(field_values, import_params, user)
-                record = cls.create_instance(field_values)
-                if record:
-                    records.append(record)
-                else:  # pragma: needs cover
-                    num_errors += 1
-
-            except SmartImportRowError as e:
-                error_messages.append(dict(line=line_number, error=str(e)))
-
-            except Exception as e:  # pragma: needs cover
-                if log:
-                    import traceback
-
-                    traceback.print_exc(limit=100, file=log)
-                raise Exception("Line %d: %s\n\n%s" % (line_number, str(e), str(log_field_values)))
-
-        if import_results is not None:
-            import_results["records"] = len(records)
-            import_results["errors"] = num_errors + len(error_messages)
-            import_results["error_messages"] = error_messages
-
-        return records
-
-    @classmethod
-    def finalize_import(cls, task, records):
-        for chunk in chunk_list(records, 1000):
-            Contact.objects.filter(id__in=[c.id for c in chunk]).update(modified_on=timezone.now())
-
-    @classmethod
-    def import_csv(cls, task, log=None):
-        import pyexcel
-
-        filename = task.csv_file.file
-        user = task.created_by
-
-        # additional parameters are optional
-        import_params = None
-        if task.import_params:
-            try:
-                import_params = json.loads(task.import_params)
-            except Exception:  # pragma: needs cover
-                logger.error("Failed to parse JSON for contact import #d" % task.pk, exc_info=True)
-
-        # this file isn't good enough, lets write it to local disk
-        # make sure our tmp directory is present (throws if already present)
-        try:
-            os.makedirs(os.path.join(settings.MEDIA_ROOT, "tmp"))
-        except Exception:
-            pass
-
-        # rewrite our file to local disk
-        extension = filename.name.rpartition(".")[2]
-        tmp_file = os.path.join(settings.MEDIA_ROOT, "tmp/%s.%s" % (str(uuid4()), extension.lower()))
-        filename.open()
-
-        out_file = open(tmp_file, "wb")
-        out_file.write(filename.read())
-        out_file.close()
-
-        # convert the file to CSV
-        csv_tmp_file = os.path.join(settings.MEDIA_ROOT, "tmp/%s.csv" % str(uuid4()))
-
-        pyexcel.save_as(file_name=out_file.name, dest_file_name=csv_tmp_file)
-
-        import_results = dict()
-
-        try:
-            contacts = cls.import_excel(open(tmp_file), user, import_params, task, log, import_results)
-        finally:
-            os.remove(tmp_file)
-            os.remove(csv_tmp_file)
-
-        # save the import results even if no record was created
-        task.import_results = json.dumps(import_results)
-
-        # don't create a group if there are no contacts
-        if not contacts:
-            return contacts
-
-        # we always create a group after a successful import (strip off 8 character uniquifier by django)
-        group_name = os.path.splitext(os.path.split(import_params.get("original_filename"))[-1])[0]
-        group_name = group_name.replace("_", " ").replace("-", " ").title()
-
-        if len(group_name) >= ContactGroup.MAX_NAME_LEN - 10:
-            group_name = group_name[: ContactGroup.MAX_NAME_LEN - 10]
-
-        # group org is same as org of any contact in that group
-        group_org = contacts[0].org
-        group = ContactGroup.create_static(
-            group_org, user, group_name, status=ContactGroup.STATUS_INITIALIZING, task=task
-        )
-
-        num_creates = 0
-        for contact in contacts:
-            # if contact has is_new attribute, then we have created a new contact rather than updated an existing one
-            if getattr(contact, "is_new", False):
-                num_creates += 1
-
-            # do not add blocked or stopped contacts
-            if not contact.is_stopped and not contact.is_blocked:
-                group.contacts.add(contact)
-
-        # group is now ready to be used in a flow starts etc
-        group.status = ContactGroup.STATUS_READY
-        group.save(update_fields=("status",))
-
-        # if we aren't verified, check for sequential phone numbers
-        if not group_org.is_verified():
-            try:
-                # get all of our phone numbers for the imported contacts
-                paths = [
-                    int(u.path)
-                    for u in ContactURN.objects.filter(scheme=TEL_SCHEME, contact__in=[c.pk for c in contacts])
-                ]
-                paths = sorted(paths)
-
-                last_path = None
-                sequential = 0
-                for path in paths:
-                    if last_path:
-                        if path - last_path == 1:
-                            sequential += 1
-                    last_path = path
-
-                    if sequential > SEQUENTIAL_CONTACTS_THRESHOLD:
-                        group_org.flag()
-                        break
-
-            except Exception:  # pragma: no cover
-                # if we fail to parse phone numbers for any reason just punt
-                pass
-
-        # overwrite the import results for adding the counts
-        import_results["creates"] = num_creates
-        import_results["updates"] = len(contacts) - num_creates
-        task.import_results = json.dumps(import_results)
-
-        return contacts
-
-    @classmethod
     def bulk_change_status(cls, user, contacts, status):
         cls.bulk_modify(user, contacts, [modifiers.Status(status=status)])
 
@@ -1964,15 +1185,15 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def apply_action_block(cls, user, contacts):
-        cls.bulk_change_status(user, contacts, Contact.STATUS_BLOCKED)
+        cls.bulk_change_status(user, contacts, modifiers.Status.BLOCKED)
 
     @classmethod
-    def apply_action_unblock(cls, user, contacts):
-        cls.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
+    def apply_action_archive(cls, user, contacts):
+        cls.bulk_change_status(user, contacts, modifiers.Status.ARCHIVED)
 
     @classmethod
-    def apply_action_unstop(cls, user, contacts):
-        cls.bulk_change_status(user, contacts, Contact.STATUS_ACTIVE)
+    def apply_action_restore(cls, user, contacts):
+        cls.bulk_change_status(user, contacts, modifiers.Status.ACTIVE)
 
     @classmethod
     def apply_action_label(cls, user, contacts, group):
@@ -1984,15 +1205,20 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     @classmethod
     def apply_action_delete(cls, user, contacts):
-        for contact in contacts:
-            contact.release(user)
+        if len(contacts) <= cls.BULK_RELEASE_IMMEDIATELY_LIMIT:
+            for contact in contacts:
+                contact.release(user)
+        else:
+            from .tasks import release_contacts
+
+            on_transaction_commit(lambda: release_contacts.delay(user.id, [c.id for c in contacts]))
 
     def block(self, user):
         """
         Blocks this contact removing it from all non-dynamic groups
         """
 
-        Contact.bulk_change_status(user, [self], Contact.STATUS_BLOCKED)
+        Contact.bulk_change_status(user, [self], modifiers.Status.BLOCKED)
         self.refresh_from_db()
 
     def stop(self, user):
@@ -2000,15 +1226,23 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Marks this contact has stopped, removing them from all groups.
         """
 
-        Contact.bulk_change_status(user, [self], Contact.STATUS_STOPPED)
+        Contact.bulk_change_status(user, [self], modifiers.Status.STOPPED)
         self.refresh_from_db()
 
-    def reactivate(self, user):
+    def archive(self, user):
         """
-        Reactivates a stopped or blocked contact, re-adding them to any dynamic groups they belong to
+        Blocks this contact removing it from all non-dynamic groups
         """
 
-        Contact.bulk_change_status(user, [self], Contact.STATUS_ACTIVE)
+        Contact.bulk_change_status(user, [self], modifiers.Status.ARCHIVED)
+        self.refresh_from_db()
+
+    def restore(self, user):
+        """
+        Restores a contact to active, re-adding them to any dynamic groups they belong to
+        """
+
+        Contact.bulk_change_status(user, [self], modifiers.Status.ACTIVE)
         self.refresh_from_db()
 
     def release(self, user, *, full=True, immediately=False):
@@ -2018,7 +1252,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         with transaction.atomic():
             # prep our urns for deletion so our old path creates a new urn
             for urn in self.urns.all():
-                path = str(uuid.uuid4())
+                path = str(uuid4())
                 urn.identity = f"{DELETED_SCHEME}:{path}"
                 urn.path = path
                 urn.scheme = DELETED_SCHEME
@@ -2032,14 +1266,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.is_active = False
             self.name = None
             self.fields = None
-            self.save(update_fields=("name", "is_active", "fields", "modified_on"), handle_update=False)
+            self.save(update_fields=("name", "is_active", "fields", "modified_on"))
 
         # if we are removing everything do so
         if full:
             if immediately:
                 self._full_release()
             else:
-                from temba.contacts.tasks import full_release_contact
+                from .tasks import full_release_contact
 
                 full_release_contact.delay(self.id)
 
@@ -2150,8 +1384,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         from .search import evaluate_query
 
-        # blocked, stopped or test contacts can't be in dynamic groups
-        if self.is_blocked or self.is_stopped:
+        # inactive contacts can't be in dynamic groups
+        if self.status != Contact.STATUS_ACTIVE:  # pragma: no cover
             return set()
 
         # cache contact search json
@@ -2235,7 +1469,6 @@ class ContactURN(models.Model):
     SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
     CONTEXT_KEYS_TO_SCHEME = {c[2]: c[0] for c in URN_SCHEME_CONFIG}
     CONTEXT_KEYS_TO_LABEL = {c[2]: c[1] for c in URN_SCHEME_CONFIG}
-    IMPORT_HEADER_TO_SCHEME = {s[0].lower(): s[1] for s in IMPORT_HEADERS}
 
     # schemes that support "new conversation" triggers
     SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME, TELEGRAM_SCHEME}
@@ -2364,11 +1597,6 @@ class ContactURN(models.Model):
             event.release()
         self.delete()
 
-    def update_auth(self, auth):
-        if auth and auth != self.auth:
-            self.auth = auth
-            self.save(update_fields=["auth"])
-
     def ensure_number_normalization(self, country_code):
         """
         Tries to normalize our phone number from a possible 10 digit (0788 383 383) to a 12 digit number
@@ -2444,15 +1672,17 @@ class ContactGroup(TembaModel):
     MAX_NAME_LEN = 64
     MAX_ORG_CONTACTGROUPS = 250
 
-    TYPE_ALL = "A"
+    TYPE_ACTIVE = "A"
     TYPE_BLOCKED = "B"
     TYPE_STOPPED = "S"
+    TYPE_ARCHIVED = "V"
     TYPE_USER_DEFINED = "U"
 
     TYPE_CHOICES = (
-        (TYPE_ALL, "All Contacts"),
-        (TYPE_BLOCKED, "Blocked Contacts"),
-        (TYPE_STOPPED, "Stopped Contacts"),
+        (TYPE_ACTIVE, "Active"),
+        (TYPE_BLOCKED, "Blocked"),
+        (TYPE_STOPPED, "Stopped"),
+        (TYPE_ARCHIVED, "Archived"),
         (TYPE_USER_DEFINED, "User Defined Groups"),
     )
 
@@ -2515,20 +1745,23 @@ class ContactGroup(TembaModel):
         Creates our system groups for the given organization so that we can keep track of counts etc..
         """
         org.all_groups.create(
-            name="All Contacts",
-            group_type=ContactGroup.TYPE_ALL,
-            created_by=org.created_by,
-            modified_by=org.modified_by,
+            name="Active", group_type=ContactGroup.TYPE_ACTIVE, created_by=org.created_by, modified_by=org.modified_by,
         )
         org.all_groups.create(
-            name="Blocked Contacts",
+            name="Blocked",
             group_type=ContactGroup.TYPE_BLOCKED,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
         org.all_groups.create(
-            name="Stopped Contacts",
+            name="Stopped",
             group_type=ContactGroup.TYPE_STOPPED,
+            created_by=org.created_by,
+            modified_by=org.modified_by,
+        )
+        org.all_groups.create(
+            name="Archived",
+            group_type=ContactGroup.TYPE_ARCHIVED,
             created_by=org.created_by,
             modified_by=org.modified_by,
         )
@@ -2586,7 +1819,7 @@ class ContactGroup(TembaModel):
         Creates a dynamic group with the given query, e.g. gender=M
         """
         if not query:
-            raise ValueError("Query cannot be empty for a dynamic group")
+            raise ValueError("Query cannot be empty for a smart group")
 
         group = cls._create(org, user, name, ContactGroup.STATUS_INITIALIZING, query=query)
         group.update_query(query=query, reevaluate=evaluate, parsed=parsed_query)
@@ -2654,7 +1887,7 @@ class ContactGroup(TembaModel):
         group_contacts = self.contacts.all()
 
         for contact in contacts:
-            if add and (contact.is_blocked or contact.is_stopped or not contact.is_active):  # pragma: no cover
+            if add and (contact.status != Contact.STATUS_ACTIVE or not contact.is_active):  # pragma: no cover
                 raise ValueError("Blocked, stopped and deleted contacts can't be added to groups")
 
             contact_changed = False
@@ -2688,7 +1921,7 @@ class ContactGroup(TembaModel):
         from temba.contacts.search import parse_query, SearchException
 
         if not self.is_dynamic:
-            raise ValueError("Cannot update query on a non-dynamic group")
+            raise ValueError("Cannot update query on a non-smart group")
         if self.status == ContactGroup.STATUS_EVALUATING:
             raise ValueError("Cannot update query on a group which is currently re-evaluating")
 
@@ -2697,7 +1930,7 @@ class ContactGroup(TembaModel):
                 parsed = parse_query(self.org_id, query)
 
             if not parsed.metadata.allow_as_group:
-                raise ValueError(f"Cannot use query '{query}' as a dynamic group")
+                raise ValueError(f"Cannot use query '{query}' as a smart group")
 
             self.query = parsed.query
             self.status = ContactGroup.STATUS_INITIALIZING
@@ -2834,6 +2067,13 @@ class ContactGroupCount(SquashableModel):
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="counts", db_index=True)
     count = models.IntegerField(default=0)
 
+    COUNTED_TYPES = [
+        ContactGroup.TYPE_ACTIVE,
+        ContactGroup.TYPE_BLOCKED,
+        ContactGroup.TYPE_STOPPED,
+        ContactGroup.TYPE_ARCHIVED,
+    ]
+
     @classmethod
     def get_squash_query(cls, distinct_set):
         sql = """
@@ -2847,6 +2087,13 @@ class ContactGroupCount(SquashableModel):
         }
 
         return sql, (distinct_set.group_id,) * 2
+
+    @classmethod
+    def total_for_org(cls, org):
+        count = cls.objects.filter(group__org=org, group__group_type__in=ContactGroupCount.COUNTED_TYPES).aggregate(
+            count=Sum("count")
+        )
+        return count["count"] if count["count"] else 0
 
     @classmethod
     def get_totals(cls, groups):
@@ -2957,7 +2204,7 @@ class ExportContactsTask(BaseExportTask):
     def write_export(self):
         fields, scheme_counts, group_fields = self.get_export_fields_and_schemes()
 
-        group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ALL)
+        group = self.group or ContactGroup.all_groups.get(org=self.org, group_type=ContactGroup.TYPE_ACTIVE)
 
         include_group_memberships = bool(self.group_memberships.exists())
 
@@ -3057,6 +2304,446 @@ class ExportContactsTask(BaseExportTask):
                     self.save(update_fields=["modified_on"])
 
         return exporter.save_file()
+
+
+def get_import_upload_path(instance: Any, filename: str):
+    ext = Path(filename).suffix.lower()
+    return f"contact_imports/{instance.org_id}/{uuid4()}{ext}"
+
+
+class ContactImport(SmartModel):
+    MAX_RECORDS = 25_000
+    BATCH_SIZE = 100
+    EXPLICIT_CLEAR = "--"
+
+    # how many sequential URNs triggers flagging
+    SEQUENTIAL_URNS_THRESHOLD = 250
+
+    STATUS_PENDING = "P"
+    STATUS_PROCESSING = "O"
+    STATUS_COMPLETE = "C"
+    STATUS_FAILED = "F"
+
+    MAPPING_IGNORE = {"type": "ignore"}
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contact_imports")
+    file = models.FileField(upload_to=get_import_upload_path)
+    original_filename = models.TextField()
+    headers = ArrayField(models.CharField(max_length=255))  # raw header values as ordered list
+    mappings = JSONField()
+    num_records = models.IntegerField()
+    group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, null=True, related_name="imports")
+    started_on = models.DateTimeField(null=True)
+
+    @classmethod
+    def try_to_parse(cls, org: Org, file, filename: str) -> Tuple[List, Dict, int]:
+        """
+        Tries to parse the given file stream as an import. If successful it returns the raw headers and the automatic
+        mappings. Otherwise raises a ValidationError.
+        """
+
+        file_type = Path(filename).suffix[1:].lower()
+
+        # CSV reader expects str stream so wrap file
+        if file_type == "csv":
+            file = io.TextIOWrapper(file)
+
+        data = pyexcel.iget_array(file_stream=file, file_type=file_type)
+        try:
+            headers = next(data)
+        except StopIteration:
+            raise ValidationError(_("Import file appears to be empty."))
+
+        if any([h.strip() == "" for h in headers]):
+            raise ValidationError(_("Import file contains an empty header."))
+
+        mappings = cls._auto_mappings(org, headers)
+
+        # iterate over rest of the rows to do row-level validation
+        seen_uuids = set()
+        seen_urns = set()
+        num_records = 0
+        for row in data:
+            record = cls._row_to_record(headers, row)
+            uuid, urns = cls._extract_uuid_and_urns(record, mappings)
+            if uuid:
+                if uuid in seen_uuids:
+                    raise ValidationError(
+                        _("Import file contains duplicated contact UUID '%(uuid)s'."), params={"uuid": uuid}
+                    )
+                seen_uuids.add(uuid)
+            for urn in urns:
+                if urn in seen_urns:
+                    raise ValidationError(
+                        _("Import file contains duplicated contact URN '%(urn)s'."), params={"urn": urn}
+                    )
+                seen_urns.add(urn)
+
+            # check if we exceed record limit
+            num_records += 1
+            if num_records > ContactImport.MAX_RECORDS:
+                raise ValidationError(
+                    _("Import files can contain a maximum of %(max)d records."),
+                    params={"max": ContactImport.MAX_RECORDS},
+                )
+
+        if num_records == 0:
+            raise ValidationError(_("Import file doesn't contain any records."))
+
+        file.seek(0)  # seek back to beginning so subsequent reads work
+
+        return headers, mappings, num_records
+
+    @staticmethod
+    def _extract_uuid_and_urns(record, mappings) -> Tuple[str, List[str]]:
+        """
+        Extracts any UUIDs and URNs from the given record so they can be checked for uniqueness
+        """
+        uuid = ""
+        urns = []
+        for header, value in record.items():
+            mapping = mappings[header]
+            if mapping["type"] == "attribute" and mapping["name"] == "uuid":
+                uuid = value.lower()
+            elif mapping["type"] == "scheme" and value:
+                urns.append(URN.normalize(URN.from_parts(mapping["scheme"], value)))
+        return uuid, urns
+
+    @classmethod
+    def _auto_mappings(cls, org: Org, headers: List[str]) -> Dict:
+        """
+        Automatic mappings for the given list of headers - users can customize these later
+        """
+        existing_fields = {f.key: f for f in org.contactfields.filter(is_active=True)}
+
+        mappings = {}
+
+        for header in headers:
+            header_prefix, header_name = cls._parse_header(header)
+            mapping = ContactImport.MAPPING_IGNORE
+
+            if header_prefix == "":
+                attribute = header_name.lower()
+                if attribute.startswith("contact "):  # header "Contact UUID" -> uuid etc
+                    attribute = attribute[8:]
+
+                if attribute in ("uuid", "name", "language"):
+                    mapping = {"type": "attribute", "name": attribute}
+            elif header_prefix == "urn" and header_name:
+                mapping = {"type": "scheme", "scheme": header_name.lower()}
+            elif header_prefix == "field" and header_name:
+                field_key = ContactField.make_key(header_name)
+                if field_key in existing_fields:
+                    mapping = {"type": "field", "key": field_key, "name": header_name}
+                else:
+                    # can be created or selected in next step
+                    mapping = {"type": "new_field", "key": field_key, "name": header_name, "value_type": "T"}
+
+            mappings[header] = mapping
+
+        cls._validate_mappings(mappings)
+        return mappings
+
+    @staticmethod
+    def _validate_mappings(mappings: Dict):
+        valid_schemes = {c[0] for c in URN_SCHEME_CONFIG}
+        non_ignored_mappings = []
+
+        has_uuid, has_urn = False, False
+        for header, mapping in mappings.items():
+            if mapping["type"] == "attribute" and mapping["name"] == "uuid":
+                has_uuid = True
+            elif mapping["type"] == "scheme":
+                has_urn = True
+                if mapping["scheme"] not in valid_schemes:
+                    raise ValidationError(_("Header '%(header)s' is not a valid URN type."), params={"header": header})
+            elif mapping["type"] == "new_field":
+                if not ContactField.is_valid_key(mapping["key"]):
+                    raise ValidationError(
+                        _("Header '%(header)s' is not a valid field name."), params={"header": header}
+                    )
+
+            if mapping != ContactImport.MAPPING_IGNORE:
+                # if we're not ignoring this column, then it needs to mapped to something unique
+                if mapping in non_ignored_mappings:
+                    raise ValidationError(_("Header '%(header)s' is duplicated."), params={"header": header})
+
+                non_ignored_mappings.append(mapping)
+
+        if not (has_uuid or has_urn):
+            raise ValidationError(_("Import files must contain either UUID or a URN header."))
+
+        if has_uuid and len(non_ignored_mappings) == 1:
+            raise ValidationError(_("Import files must contain columns besides UUID."))
+
+    def start_async(self):
+        from .tasks import import_contacts_task
+
+        on_transaction_commit(lambda: import_contacts_task.delay(self.id))
+
+    def start(self):
+        """
+        Starts this import, creating batches to be handled by mailroom
+        """
+
+        assert self.started_on is None, "trying to start an already started import"
+
+        # mark us as started to prevent double starting
+        self.started_on = timezone.now()
+        self.save(update_fields=("started_on",))
+
+        # create new contact fields as necessary
+        for mapping in self.mappings.values():
+            if mapping["type"] == "new_field":
+                ContactField.get_or_create(
+                    self.org, self.created_by, mapping["key"], label=mapping["name"], value_type=mapping["value_type"],
+                )
+
+        # create the destination group
+        self.group = ContactGroup.create_static(self.org, self.created_by, self._default_group_name())
+        self.save(update_fields=("group",))
+
+        # CSV reader expects str stream so wrap file
+        file_type = self._get_file_type()
+        file = io.TextIOWrapper(self.file) if file_type == "csv" else self.file
+
+        # parse each row, creating batch tasks for mailroom
+        data = pyexcel.iget_array(file_stream=file, file_type=file_type, start_row=1)
+
+        urns = []
+
+        record_num = 0
+        for row_batch in chunk_list(data, ContactImport.BATCH_SIZE):
+            batch_specs = []
+            batch_start = record_num
+
+            for row in row_batch:
+                record = self._row_to_record(self.headers, row)
+                spec = self._record_to_spec(record)
+                batch_specs.append(spec)
+                record_num += 1
+
+                urns.extend(spec.get("urns", []))
+
+            batch = self.batches.create(specs=batch_specs, record_start=batch_start, record_end=record_num)
+            batch.import_async()
+
+        # flag org if the set of imported URNs looks suspicious
+        if not self.org.is_verified() and self._detect_spamminess(urns):
+            self.org.flag()
+
+    def get_info(self):
+        """
+        Gets info about this import by merging info from its batches
+        """
+
+        statuses = set()
+        num_created = 0
+        num_updated = 0
+        num_errored = 0
+        errors = []
+        oldest_finished_on = None
+
+        batches = self.batches.values("status", "num_created", "num_updated", "num_errored", "errors", "finished_on")
+
+        for batch in batches:
+            statuses.add(batch["status"])
+            num_created += batch["num_created"]
+            num_updated += batch["num_updated"]
+            num_errored += batch["num_errored"]
+            errors.extend(batch["errors"])
+
+            if batch["finished_on"] and (oldest_finished_on is None or batch["finished_on"] > oldest_finished_on):
+                oldest_finished_on = batch["finished_on"]
+
+        status = self._get_overall_status(statuses)
+
+        # sort errors by record #
+        errors = sorted(errors, key=lambda e: e["record"])
+
+        if status in (ContactImport.STATUS_COMPLETE, ContactImport.STATUS_FAILED):
+            time_taken = oldest_finished_on - self.started_on
+        elif self.started_on:
+            time_taken = timezone.now() - self.started_on
+        else:
+            time_taken = timedelta(seconds=0)
+
+        return {
+            "status": status,
+            "num_created": num_created,
+            "num_updated": num_updated,
+            "num_errored": num_errored,
+            "errors": errors,
+            "time_taken": int(time_taken.total_seconds()),
+        }
+
+    def _get_file_type(self):
+        """
+        Returns one of xlxs, xls, or csv
+        """
+        return Path(self.file.name).suffix[1:].lower()
+
+    @staticmethod
+    def _get_overall_status(statuses: Set) -> str:
+        """
+        Merges the statues from the import's batches into a single status value
+        """
+        if not statuses:
+            return ContactImport.STATUS_PENDING
+        elif len(statuses) == 1:  # if there's only one status then we're that
+            return list(statuses)[0]
+
+        # if any batches haven't finished, we're processing
+        if ContactImport.STATUS_PENDING in statuses or ContactImport.STATUS_PROCESSING in statuses:
+            return ContactImport.STATUS_PROCESSING
+
+        # all batches have finished - if any batch failed (shouldn't happen), we failed
+        return (
+            ContactImport.STATUS_FAILED if ContactImport.STATUS_FAILED in statuses else ContactImport.STATUS_COMPLETE
+        )
+
+    @staticmethod
+    def _parse_header(header: str) -> Tuple[str, str]:
+        """
+        Parses a header like "Field: Foo" into ("field", "Foo")
+        """
+        parts = header.split(":", maxsplit=1)
+        parts = [p.strip() for p in parts]
+        prefix, name = (parts[0], parts[1]) if len(parts) >= 2 else ("", parts[0])
+        return prefix.lower(), name
+
+    @staticmethod
+    def _row_to_record(headers, row):
+        """
+        Convert a row (array of values) to a record (dict of headers to values)
+        """
+
+        row = row[: len(headers)]  # ignore any columns beyond our headers
+        return dict(zip_longest(headers, row, fillvalue=""))
+
+    def _record_to_spec(self, record: Dict) -> Dict:
+        """
+        Convert a record (dict of headers to values) to a contact spec
+        """
+
+        spec = {"groups": [str(self.group.uuid)]}
+
+        for header, raw_value in record.items():
+            mapping = self.mappings[header]
+            value = self._parse_value(raw_value)
+
+            if not value:  # blank values interpreted as leaving values unchanged
+                continue
+            if value == ContactImport.EXPLICIT_CLEAR:
+                value = ""
+
+            if mapping["type"] == "attribute":
+                attribute = mapping["name"]
+                if attribute in ("uuid", "language"):
+                    value = value.lower()
+                spec[attribute] = value
+            elif mapping["type"] == "scheme":
+                scheme = mapping["scheme"]
+                if "urns" not in spec:
+                    spec["urns"] = []
+                spec["urns"].append(URN.from_parts(scheme, value))
+            elif mapping["type"] in ("field", "new_field"):
+                if "fields" not in spec:
+                    spec["fields"] = {}
+                key = mapping["key"]
+                spec["fields"][key] = value
+
+        return spec
+
+    def _parse_value(self, value: Any) -> str:
+        """
+        Parses a record value into a string that can be serialized and understood by mailroom
+        """
+
+        if isinstance(value, datetime):
+            # make naive datetime timezone-aware
+            if not value.tzinfo:
+                value = self.org.timezone.localize(value) if self.org.timezone else pytz.utc.localize(value)
+
+            return value.isoformat()
+        elif isinstance(value, date):
+            return value.isoformat()
+        else:
+            return str(value).strip()
+
+    @classmethod
+    def _detect_spamminess(cls, urns: List[str]) -> bool:
+        """
+        Takes the list of URNs that have been imported and tries to detect spamming
+        """
+
+        # extract all numerical URN paths
+        numerical_paths = []
+        for urn in urns:
+            scheme, path, query, display = URN.to_parts(urn)
+            try:
+                numerical_paths.append(int(path))
+            except ValueError:
+                pass
+
+        if len(numerical_paths) < cls.SEQUENTIAL_URNS_THRESHOLD:
+            return False
+
+        numerical_paths = sorted(numerical_paths)
+        last_path = numerical_paths[0]
+        num_sequential = 1
+        for path in numerical_paths[1:]:
+            if path == last_path + 1:
+                num_sequential += 1
+            last_path = path
+
+            if num_sequential >= cls.SEQUENTIAL_URNS_THRESHOLD:
+                return True
+
+        return False
+
+    def _default_group_name(self):
+        name = Path(self.original_filename).stem.title()
+        name = name.replace("_", " ").replace("-", " ").strip()  # convert _- to spaces
+        name = regex.sub(r"[^\w\s]", "", name)  # remove any non-word or non-space chars
+
+        if len(name) >= ContactGroup.MAX_NAME_LEN - 10:  # truncate
+            name = name[: ContactGroup.MAX_NAME_LEN - 10]
+        elif len(name) < 4:  # default if too short
+            name = "Import"
+
+        return name
+
+
+class ContactImportBatch(models.Model):
+    """
+    A batch of contact records to be handled by mailroom
+    """
+
+    STATUS_CHOICES = (
+        (ContactImport.STATUS_PENDING, "Pending"),
+        (ContactImport.STATUS_PROCESSING, "Processing"),
+        (ContactImport.STATUS_COMPLETE, "Complete"),
+        (ContactImport.STATUS_FAILED, "Failed"),
+    )
+
+    contact_import = models.ForeignKey(ContactImport, on_delete=models.PROTECT, related_name="batches")
+    status = models.CharField(max_length=1, default=ContactImport.STATUS_PENDING, choices=STATUS_CHOICES)
+    specs = JSONField()
+
+    # the range of records from the entire import contained in this batch
+    record_start = models.IntegerField()
+    record_end = models.IntegerField()
+
+    # results written by mailroom after processing this batch
+    num_created = models.IntegerField(default=0)
+    num_updated = models.IntegerField(default=0)
+    num_errored = models.IntegerField(default=0)
+    errors = JSONField(default=list)
+    finished_on = models.DateTimeField(null=True)
+
+    def import_async(self):
+        mailroom.queue_contact_import_batch(self)
 
 
 @register_asset_store

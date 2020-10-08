@@ -7,7 +7,7 @@ KEY_LAST_SEEN_ON = "last_seen_on"
 TYPE_DATETIME = "D"
 
 
-def add_last_seen_on_sys_field(apps, schema_editor):
+def add_last_seen_on_sys_field(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
     for org in Org.objects.all():
         if not org.contactfields.filter(field_type=FIELD_TYPE_SYSTEM, key=KEY_LAST_SEEN_ON).exists():

@@ -1,6 +1,8 @@
--extends 'smartmin/update.html'
+-extends 'includes/modax.html'
+-load smartmin
 
 -block modal-extra-style
+  {{block.super}}
   :css
     input[name="field_value"]:disabled {
       background: #ffffff !important;
@@ -17,32 +19,23 @@
   {{block.super}}
   :javascript
     var input_url = '/contact/update_fields_input/{{contact.id}}/?field=';
-    $(document).ready(function() {
-    	$('input.select2_field').on('change', function(evt) {
-        $('.rendered-field-input').children().css('visibility', 'hidden');
-        $('.modal-footer .btn').attr('disabled', true);
-        $('.modal .loader-circles').show();
-
-    		$('.rendered-field-input').attr('ic-src', input_url + evt.added.id)
-        Intercooler.triggerRequest($('.rendered-field-input'));
-    	});
+    var body = document.querySelector("#update-custom-fields").shadowRoot.querySelector(".modax-body");
+    var fieldSelect = body.querySelector("temba-select[name='contact_field']");
+    fieldSelect.addEventListener('change', function(event) {
+      var selectedField = event.target.values[0].value;
+    	$(body).find('.rendered-field-input').attr('ic-src', input_url + selectedField);
+      Intercooler.triggerRequest($(body).find('.rendered-field-input'));
     });
 
+    {% if contact_field %}
+    window.setTimeout(function(){
+      fieldSelect.setSelection("{{contact_field.id}}");
+    }, 0);
+    {% endif %}
+
+
 -block fields
-  .controls
-    %label.control-label
-      Custom Field
-	%input.select2_field{
-	  name:'contact_field',
-      url:'/contactfield/?_format=select2',
-      placeholder: 'Select a custom field to update',
-      value: "{{contact_field.id}}",
-      text: "{{contact_field.label}}"
-    }
-  .loader-circles.hide
+  .field-choice
+    -render_field 'contact_field'
+  .loader-circles.hidden
   .rendered-field-input
-    -if contact_field
-      %label.control-label
-        {{contact_field.get_value_type_display}} Value
-      .controls
-        %input{ name:'field_value', type:'text', disabled:'disabled' }

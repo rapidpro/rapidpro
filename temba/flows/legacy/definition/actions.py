@@ -379,12 +379,7 @@ class VariableContactAction(Action):
             contact = Contact.objects.filter(uuid=contact_uuid, org=org).first()
 
             if not contact:
-                contact = Contact.get_or_create_by_urns(org, org.created_by, name=None, urns=urns)
-
-                # if they don't have a name use the one in our action
-                if name and not contact.name:  # pragma: needs cover
-                    contact.name = name
-                    contact.save(update_fields=["name"], handle_update=True)
+                contact = Contact.create(org, org.created_by, name=name, language="", urns=urns, fields={}, groups=[])
 
             if contact:
                 contacts.append(contact)

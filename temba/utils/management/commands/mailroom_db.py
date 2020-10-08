@@ -14,7 +14,7 @@ from django.utils import timezone
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
-from temba.contacts.models import Contact, ContactField, ContactGroup
+from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN
 from temba.flows.models import Flow
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
@@ -598,19 +598,12 @@ class Command(BaseCommand):
         fields_by_key = {f.key: f for f in ContactField.user_fields.all()}
 
         for c in spec["contacts"]:
-            contact = Contact.get_or_create_by_urns(org, user, c["name"], c["urns"])
-            contact.uuid = c["uuid"]
-            contact.save(update_fields=["uuid"], handle_update=False)
-
-            # add to any groups we belong to
-            groups = list(ContactGroup.user_groups.filter(org=org, name__in=c.get("groups", [])))
-            mods = contact.update_static_groups(groups)
-
-            # set any fields we have
             values = {fields_by_key[key]: val for key, val in c.get("fields", {}).items()}
-            mods += contact.update_fields(values)
+            groups = list(ContactGroup.user_groups.filter(org=org, name__in=c.get("groups", [])))
 
-            contact.modify(user, mods)
+            contact = Contact.create(org, user, c["name"], language="", urns=c["urns"], fields=values, groups=groups)
+            contact.uuid = c["uuid"]
+            contact.save(update_fields=("uuid",))
 
         self._log(self.style.SUCCESS("OK") + "\n")
 
@@ -624,8 +617,10 @@ class Command(BaseCommand):
 
                 contacts = []
                 for i in range(size):
-                    urn = "tel:+250788%06d" % i
-                    contact, _ = Contact.get_or_create(org, urn, user=user)
+                    urn = f"tel:+250788{i:06}"
+                    contact = ContactURN.lookup(org, urn)
+                    if not contact:
+                        contact = Contact.create(org, user, name="", language="", urns=[urn], fields={}, groups=[])
                     contacts.append(contact)
 
                 Contact.bulk_change_group(user, contacts, group, add=True)

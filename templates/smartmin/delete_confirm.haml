@@ -1,8 +1,26 @@
-{% extends "smartmin/base.html" %}
-
-{% load smartmin %}
+-extends "smartmin/base.html"
+-load smartmin i18n
 
 -block page-top
+
+-block modal-extra-style
+  {{block.super}}
+  %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/tailwind.css", type:"text/css"}
+  %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
+
+-block modal
+  -block delete-message
+    -blocktrans trimmed
+      You are about to delete
+      %span.font-normal
+          {{object}}.
+      There is no way to undo this. Are you sure?
+    
+  -block delete-form
+    %form(method="post")
+      -csrf_token
+      .hidden
+        %input(type="submit" value="{{submit_button_name|escapejs}}")
 
 -block content
   -block pjax

@@ -1,5 +1,7 @@
 fetchPJAXContent = (url, container, options) ->
+  console.log("fetchPJAXContent")
   type = 'GET'
+  bleep = 'Bloop'
   data = undefined
   if options
     if 'postData' of options
