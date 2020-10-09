@@ -533,14 +533,14 @@ class GraphDifferenceNode(Node):
 
         if l_action["type"] == "send_email":
             conflicts = []
-            l_action["addresses"] = list(set([*l_action["addresses"], *r_action["addresses"]]))
-            l_action["attachments"] = list(set([*l_action["attachments"], *r_action["attachments"]]))
-            if l_action["body"] != r_action["body"]:
+            l_action["addresses"] = list(set([*l_action.get("addresses", []), *r_action.get("addresses", [])]))
+            l_action["attachments"] = list(set([*l_action.get("attachments", []), *r_action.get("attachments", [])]))
+            if l_action.get("body") != r_action.get("body"):
                 body_conflict = dict(conflict)
                 body_conflict["field"] = "body"
                 conflicts.append(body_conflict)
 
-            if l_action["subject"] != r_action["subject"]:
+            if l_action.get("subject") != r_action.get("subject"):
                 subject_conflict = dict(conflict)
                 subject_conflict["field"] = "subject"
                 conflicts.append(subject_conflict)
