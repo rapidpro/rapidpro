@@ -161,7 +161,7 @@ class CampaignTest(TembaTest):
         flow.refresh_from_db()
 
         self.assertNotEqual(flow.version_number, 3)
-        self.assertEqual(flow.version_number, Flow.FINAL_LEGACY_VERSION)
+        self.assertEqual(flow.version_number, Flow.CURRENT_SPEC_VERSION)
 
     def test_message_event(self):
         # create a campaign with a message event 1 day after planting date
@@ -180,7 +180,6 @@ class CampaignTest(TembaTest):
         )
 
         self.assertEqual(
-            event.flow.as_json(),
             {
                 "uuid": str(event.flow.uuid),
                 "name": event.flow.name,
@@ -188,7 +187,7 @@ class CampaignTest(TembaTest):
                 "revision": 1,
                 "language": "eng",
                 "type": "messaging",
-                "expire_after_minutes": 720,
+                "expire_after_minutes": 10080,
                 "localization": {},
                 "nodes": [
                     {
@@ -204,6 +203,7 @@ class CampaignTest(TembaTest):
                     }
                 ],
             },
+            event.flow.as_json(),
         )
 
     def test_trim_event_fires(self):
@@ -332,13 +332,12 @@ class CampaignTest(TembaTest):
         action_uuid = flow_json["nodes"][0]["actions"][0]["uuid"]
 
         self.assertEqual(
-            flow_json,
             {
                 "uuid": str(event.flow.uuid),
                 "name": f"Single Message ({event.id})",
                 "spec_version": "13.0.0",
                 "revision": 1,
-                "expire_after_minutes": 720,
+                "expire_after_minutes": 10080,
                 "language": "base",
                 "type": "messaging",
                 "localization": {"spa": {action_uuid: {"text": ["hola"]}}},
@@ -350,6 +349,7 @@ class CampaignTest(TembaTest):
                     }
                 ],
             },
+            flow_json,
         )
 
         url = reverse("campaigns.campaignevent_update", args=[event.id])

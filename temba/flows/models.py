@@ -1499,12 +1499,6 @@ class RuleSet(models.Model):
             config=self.config,
         )
 
-    def __str__(self):  # pragma: no cover
-        if self.label:
-            return "RuleSet: %s - %s" % (self.uuid, self.label)
-        else:
-            return "RuleSet: %s" % (self.uuid,)
-
 
 class ActionSet(models.Model):
     uuid = models.CharField(max_length=36, unique=True)
@@ -1535,9 +1529,6 @@ class ActionSet(models.Model):
             actions=self.actions,
             exit_uuid=self.exit_uuid,
         )
-
-    def __str__(self):  # pragma: no cover
-        return "ActionSet: %s" % (self.uuid,)
 
 
 class FlowRevision(SmartModel):
