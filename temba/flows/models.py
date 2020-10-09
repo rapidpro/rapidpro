@@ -188,7 +188,7 @@ class Flow(TembaModel):
     INITIAL_GOFLOW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
     CURRENT_SPEC_VERSION = "13.1.0"  # current flow spec version
 
-    DEFAULT_EXPIRES_AFTER = 60 * 12
+    DEFAULT_EXPIRES_AFTER = 60 * 24 * 7  # 1 week
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
 
@@ -391,39 +391,19 @@ class Flow(TembaModel):
         from temba.campaigns.models import Campaign
         from temba.triggers.models import Trigger
 
-        version = Version(str(export_json.get("version", "0")))
         created_flows = []
         db_types = {value: key for key, value in Flow.GOFLOW_TYPES.items()}
 
         # fetch or create all the flow db objects
         for flow_def in export_json[Org.EXPORT_FLOWS]:
-            if FlowRevision.is_legacy_definition(flow_def):
-                flow_version = Version(flow_def["version"]) if "version" in flow_def else version
-                flow_metadata = flow_def[Flow.METADATA]
-                flow_type = flow_def.get("flow_type", Flow.TYPE_MESSAGE)
-                flow_uuid = flow_metadata["uuid"]
-                flow_name = flow_metadata["name"]
-                flow_expires = flow_metadata.get(Flow.METADATA_EXPIRES, Flow.DEFAULT_EXPIRES_AFTER)
-
-                FlowRevision.validate_legacy_definition(flow_def)
-            else:
-                flow_version = Version(flow_def[Flow.DEFINITION_SPEC_VERSION])
-                flow_type = db_types[flow_def[Flow.DEFINITION_TYPE]]
-                flow_uuid = flow_def[Flow.DEFINITION_UUID]
-                flow_name = flow_def[Flow.DEFINITION_NAME]
-                flow_expires = flow_def.get(Flow.DEFINITION_EXPIRE_AFTER_MINUTES, Flow.DEFAULT_EXPIRES_AFTER)
+            flow_version = Version(flow_def[Flow.DEFINITION_SPEC_VERSION])
+            flow_type = db_types[flow_def[Flow.DEFINITION_TYPE]]
+            flow_uuid = flow_def[Flow.DEFINITION_UUID]
+            flow_name = flow_def[Flow.DEFINITION_NAME]
+            flow_expires = flow_def.get(Flow.DEFINITION_EXPIRE_AFTER_MINUTES, Flow.DEFAULT_EXPIRES_AFTER)
 
             flow = None
             flow_name = flow_name[:64].strip()
-
-            # Exports up to version 3 included campaign message flows, which will have type_type=M. We don't create
-            # these here as they'll be created by the campaign event itself.
-            if flow_version <= Version("3.0") and flow_type == "M":  # pragma: no cover
-                continue
-
-            # M used to mean single message flow and regular flows were F, now all messaging flows are M
-            if flow_type == "F":
-                flow_type = Flow.TYPE_MESSAGE
 
             if flow_type == Flow.TYPE_VOICE:
                 flow_expires = min([flow_expires, 15])  # voice flow expiration can't be more than 15 minutes
@@ -431,17 +411,17 @@ class Flow(TembaModel):
             # check if we can find that flow by UUID first
             if same_site:
                 flow = org.flows.filter(is_active=True, uuid=flow_uuid).first()
-                if flow:  # pragma: needs cover
-                    flow.expires_after_minutes = flow_expires
-                    flow.name = Flow.get_unique_name(org, flow_name, ignore=flow)
-                    flow.save(update_fields=("name", "expires_after_minutes"))
 
             # if it's not of our world, let's try by name
             if not flow:
-                flow = Flow.objects.filter(org=org, is_active=True, name=flow_name).first()
+                flow = org.flows.filter(is_active=True, name=flow_name).first()
 
-            # if there isn't one already, create a new flow
-            if not flow:
+            if flow:
+                flow.name = Flow.get_unique_name(org, flow_name, ignore=flow)
+                flow.version_number = flow_version
+                flow.expires_after_minutes = flow_expires
+                flow.save(update_fields=("name", "expires_after_minutes"))
+            else:
                 flow = Flow.create(
                     org,
                     user,
@@ -926,11 +906,36 @@ class Flow(TembaModel):
         if "version" in flow_def:
             flow_def = legacy.migrate_definition(flow_def, flow=flow)
 
+        if "metadata" not in flow_def:
+            flow_def["metadata"] = {}
+
+        # ensure definition has a valid expiration
+        expires = flow_def["metadata"].get("expires", 0)
+        if expires <= 0 or expires > (30 * 24 * 60):
+            flow_def["metadata"]["expires"] = Flow.DEFAULT_EXPIRES_AFTER
+
         # migrate using goflow for anything newer
         if Version(to_version) >= Version(Flow.INITIAL_GOFLOW_VERSION):
             flow_def = mailroom.get_client().flow_migrate(flow_def, to_version)
 
         return flow_def
+
+    @classmethod
+    def migrate_export(cls, org, exported_json, same_site, version):
+        # use legacy migrations to get export to final legacy version
+        if version < Version(Flow.FINAL_LEGACY_VERSION):
+            from temba.flows.legacy import exports
+
+            exported_json = exports.migrate(org, exported_json, same_site, version)
+
+        migrated_flows = []
+        for flow_def in exported_json[Org.EXPORT_FLOWS]:
+            migrated_def = Flow.migrate_definition(flow_def, flow=None)
+            migrated_flows.append(migrated_def)
+
+        exported_json[Org.EXPORT_FLOWS] = migrated_flows
+
+        return exported_json
 
     def update_dependencies(self, dependencies):
         # build a lookup of types to identifier lists
@@ -1638,23 +1643,6 @@ class FlowRevision(SmartModel):
         for ruleset in definition[Flow.RULE_SETS]:
             for rule in ruleset["rules"]:
                 validate_localization(rule["category"])
-
-    @classmethod
-    def migrate_export(cls, org, exported_json, same_site, version):
-        # use legacy migrations to get export to final legacy version
-        if version < Version(Flow.FINAL_LEGACY_VERSION):
-            from temba.flows.legacy import exports
-
-            exported_json = exports.migrate(org, exported_json, same_site, version)
-
-        # use mailroom to get export to current spec version
-        migrated_flows = []
-        for flow_def in exported_json[Org.EXPORT_FLOWS]:
-            migrated_flows.append(mailroom.get_client().flow_migrate(flow_def))
-
-        exported_json[Org.EXPORT_FLOWS] = migrated_flows
-
-        return exported_json
 
     def get_definition_json(self, to_version=Flow.CURRENT_SPEC_VERSION):
         definition = self.definition

@@ -3972,7 +3972,7 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(child.group_dependencies.all()), {group})
 
         parent = Flow.objects.get(name="Legacy Parent")
-        self.assertEqual(parent.version_number, Flow.FINAL_LEGACY_VERSION)
+        self.assertEqual(parent.version_number, Flow.CURRENT_SPEC_VERSION)
         self.assertEqual(set(parent.flow_dependencies.all()), {child})
         self.assertEqual(set(parent.group_dependencies.all()), set())
 
@@ -4016,24 +4016,6 @@ class BulkExportTest(TembaTest):
 
         self.import_file("parent_without_its_child")
         self.assertEqual(set(parent.flow_dependencies.all()), {child2})
-
-    def test_implicit_group_imports_legacy(self):
-        self.import_file("cataclysm_legacy")
-        flow = Flow.objects.get(name="Cataclysmic")
-
-        from temba.flows.legacy.tests import get_legacy_groups
-
-        definition_groups = get_legacy_groups(flow.as_json())
-
-        # we should have 5 groups
-        self.assertEqual(5, len(definition_groups))
-        self.assertEqual(5, ContactGroup.user_groups.all().count())
-
-        for uuid, name in definition_groups.items():
-            self.assertTrue(
-                ContactGroup.user_groups.filter(uuid=uuid, name=name).exists(),
-                msg="Group UUID mismatch for imported flow: %s [%s]" % (name, uuid),
-            )
 
     def validate_flow_dependencies(self, definition):
         flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
@@ -4244,13 +4226,15 @@ class BulkExportTest(TembaTest):
         # import all our bits
         self.import_file("the_clinic")
 
+        confirm_appointment = Flow.objects.get(name="Confirm Appointment")
+        self.assertEqual(10080, confirm_appointment.expires_after_minutes)
+
         # check that the right number of objects successfully imported for our app
         assert_object_counts()
 
         # let's update some stuff
-        confirm_appointment = Flow.objects.get(name="Confirm Appointment")
-        confirm_appointment.expires_after_minutes = 60
-        confirm_appointment.save()
+        confirm_appointment.expires_after_minutes = 360
+        confirm_appointment.save(update_fields=("expires_after_minutes",))
 
         trigger = Trigger.objects.filter(keyword="patient").first()
         trigger.flow = confirm_appointment
@@ -4265,8 +4249,8 @@ class BulkExportTest(TembaTest):
         self.import_file("the_clinic")
 
         # our flow should get reset from the import
-        confirm_appointment = Flow.objects.get(id=confirm_appointment.id)
-        self.assertEqual(720, confirm_appointment.expires_after_minutes)
+        confirm_appointment.refresh_from_db()
+        self.assertEqual(10080, confirm_appointment.expires_after_minutes)
 
         # same with our trigger
         trigger = Trigger.objects.filter(keyword="patient").order_by("-created_on").first()
@@ -4306,6 +4290,9 @@ class BulkExportTest(TembaTest):
         self.assertNotContains(
             response, "&quot;Appointment Schedule&quot;"
         )  # previous bug rendered campaign names incorrectly
+
+        confirm_appointment.expires_after_minutes = 60
+        confirm_appointment.save(update_fields=("expires_after_minutes",))
 
         # now let's export!
         post_data = dict(

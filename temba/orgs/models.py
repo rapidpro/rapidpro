@@ -379,7 +379,7 @@ class Org(SmartModel):
 
         from temba.campaigns.models import Campaign
         from temba.contacts.models import ContactField, ContactGroup
-        from temba.flows.models import Flow, FlowRevision
+        from temba.flows.models import Flow
         from temba.triggers.models import Trigger
 
         # only required field is version
@@ -400,7 +400,7 @@ class Org(SmartModel):
 
         # do we need to migrate the export forward?
         if export_version < Version(Flow.CURRENT_SPEC_VERSION):
-            export_json = FlowRevision.migrate_export(self, export_json, same_site, export_version)
+            export_json = Flow.migrate_export(self, export_json, same_site, export_version)
 
         export_fields = export_json.get(Org.EXPORT_FIELDS, [])
         export_groups = export_json.get(Org.EXPORT_GROUPS, [])

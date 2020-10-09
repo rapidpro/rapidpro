@@ -2593,7 +2593,7 @@ class APITest(TembaTest):
                     "type": "message",
                     "archived": False,
                     "labels": [{"uuid": reporting.uuid, "name": "Reporting"}],
-                    "expires": 720,
+                    "expires": 10080,
                     "runs": {"active": 0, "completed": 1, "interrupted": 0, "expired": 0},
                     "results": [
                         {

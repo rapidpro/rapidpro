@@ -451,7 +451,7 @@ class FlowCRUDL(SmartCRUDL):
                 obj.base_language = "base"
 
             # default expiration is a week
-            expires_after_minutes = 60 * 24 * 7
+            expires_after_minutes = Flow.DEFAULT_EXPIRES_AFTER
             if obj.flow_type == Flow.TYPE_VOICE:
                 # ivr expires after 5 minutes of inactivity
                 expires_after_minutes = 5
