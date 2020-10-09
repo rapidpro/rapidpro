@@ -49,8 +49,8 @@ class Node:
             both_routers = self.has_router == other.has_router
             self_router = self.data.get("router")
             other_router = other.data.get("router")
-            self_actions = self.data.get("actions")
-            other_actions = other.data.get("actions")
+            self_actions = self.data.get("actions", [])
+            other_actions = other.data.get("actions", [])
 
             def compare_router_params(param):
                 return (
@@ -161,7 +161,7 @@ class Graph:
         # create all nodes
         for node_data in self.resource["nodes"]:
             node = Node(node_data["uuid"])
-            node.node_types = {action.get("type") for action in node_data.get("actions")}
+            node.node_types = {action.get("type") for action in node_data.get("actions", [])}
             if node_data.get("router"):
                 node.node_types.add(node_data["router"]["type"])
             node.data = OrderedDict(**node_data)
