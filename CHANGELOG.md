@@ -1,3 +1,8 @@
+v5.7.71
+----------
+ * Remove legacy contact searching
+ * Remove code for dynamic group reevaluation and campaign event scheduling
+
 v5.7.70
 ----------
  * Fix pdf selection
