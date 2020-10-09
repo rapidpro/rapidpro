@@ -37,8 +37,8 @@ from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.models import FACEBOOK_SCHEME, TEL_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup, ContactURN
-from temba.contacts.omnibox import omnibox_deserialize
 from temba.contacts.search import SearchException, parse_query
+from temba.contacts.search.omnibox import omnibox_deserialize
 from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task

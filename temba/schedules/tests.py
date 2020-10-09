@@ -5,7 +5,7 @@ import pytz
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.contacts.omnibox import omnibox_serialize
+from temba.contacts.search.omnibox import omnibox_serialize
 from temba.msgs.models import Broadcast
 from temba.tests import TembaTest
 from temba.utils.dates import datetime_to_str

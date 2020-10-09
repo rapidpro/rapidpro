@@ -11,7 +11,7 @@ from django.utils import timezone
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
 from temba.contacts.models import TEL_SCHEME, ContactField, ContactURN
-from temba.contacts.omnibox import omnibox_serialize
+from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow
 from temba.msgs.models import (

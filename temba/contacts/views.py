@@ -56,8 +56,8 @@ from .models import (
     ContactURN,
     ExportContactsTask,
 )
-from .omnibox import omnibox_query, omnibox_results_to_dict
 from .search import SearchException, parse_query, search_contacts
+from .search.omnibox import omnibox_query, omnibox_results_to_dict
 from .tasks import export_contacts_task, release_group_task
 
 logger = logging.getLogger(__name__)
