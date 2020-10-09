@@ -1,6 +1,7 @@
 import functools
 import re
 from collections import defaultdict
+from datetime import timedelta
 from functools import wraps
 from typing import Dict, List
 from unittest.mock import call, patch
@@ -10,6 +11,7 @@ from django.contrib.auth.models import User
 from django.db import connection
 from django.utils import timezone
 
+from temba.campaigns.models import CampaignEvent, EventFire
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
 from temba.locations.models import AdminBoundary
 from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
@@ -18,6 +20,13 @@ from temba.orgs.models import Org
 from temba.tickets.models import Ticket
 from temba.utils import format_number, get_anonymous_user, json
 from temba.values.constants import Value
+
+event_units = {
+    CampaignEvent.UNIT_MINUTES: "minutes",
+    CampaignEvent.UNIT_HOURS: "hours",
+    CampaignEvent.UNIT_DAYS: "days",
+    CampaignEvent.UNIT_WEEKS: "weeks",
+}
 
 
 class Mocks:
@@ -273,7 +282,8 @@ def apply_modifiers(org, user, contacts, modifiers: List):
         contacts.update(modified_by=user, modified_on=timezone.now(), **fields)
         if clear_groups:
             for c in contacts:
-                Contact.objects.get(id=c.id).clear_all_groups(user)
+                for g in c.user_groups.all():
+                    g.contacts.remove(c)
 
 
 def create_contact_locally(org, user, name, language, urns, fields, group_uuids):
@@ -302,6 +312,7 @@ def update_fields_locally(user, contact, fields):
 
 
 def update_field_locally(user, contact, key, value, label=None):
+    org = contact.org
     field = ContactField.get_or_create(contact.org, user, key, label=label)
 
     field_uuid = str(field.uuid)
@@ -330,6 +341,16 @@ def update_field_locally(user, contact, key, value, label=None):
                 "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb WHERE id = %s",
                 [json.dumps({field_uuid: contact.fields[field_uuid]}), contact.id],
             )
+
+    # very simplified version of mailroom's campaign event scheduling
+    events = CampaignEvent.objects.filter(relative_to=field, campaign__group__in=contact.user_groups.all())
+    for event in events:
+        EventFire.objects.filter(contact=contact, event=event).delete()
+        date_value = org.parse_datetime(value)
+        if date_value:
+            scheduled = date_value + timedelta(**{event_units[event.unit]: event.offset})
+            if scheduled > timezone.now():
+                EventFire.objects.create(contact=contact, event=event, scheduled=scheduled)
 
 
 def update_urns_locally(contact, urns: List[str]):

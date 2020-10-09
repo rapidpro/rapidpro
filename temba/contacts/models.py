@@ -31,12 +31,14 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import Org, OrgLock
-from temba.utils import chunk_list, es, format_number, get_anonymous_user, on_transaction_commit
+from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.models import JSONField as TembaJSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import truncate, unsnakify
 from temba.utils.urns import ParsedURN, parse_urn
 from temba.values.constants import Value
+
+from .search import SearchException, elastic, parse_query
 
 logger = logging.getLogger(__name__)
 
@@ -823,46 +825,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return obj
 
-    def as_search_json(self):
-        def urn_as_json(urn):
-            if self.org.is_anon:
-                return {"scheme": urn.scheme, "path": ContactURN.ANON_MASK}
-            return {"scheme": urn.scheme, "path": urn.path}
-
-        return {
-            "id": self.id,
-            "uuid": self.uuid,
-            "name": self.name,
-            "language": self.language,
-            "urns": [urn_as_json(u) for u in self.urns.all()],
-            "fields": self.fields if self.fields else {},
-            "created_on": self.created_on.isoformat(),
-            "last_seen_on": self.last_seen_on.isoformat() if self.last_seen_on else None,
-        }
-
-    @classmethod
-    def query_elasticsearch_for_ids(cls, org, query, group=None):
-        from temba.contacts import search
-
-        try:
-            group_uuid = group.uuid if group else ""
-            parsed = search.parse_query(org.id, query, group_uuid=group_uuid)
-            results = (
-                es.ModelESSearch(model=Contact, index="contacts")
-                .source(include=["id"])
-                .params(routing=org.id)
-                .using(es.ES)
-                .query(parsed.elastic_query)
-            )
-            matches = []
-            for r in results.scan():
-                matches.append(int(r.id))
-
-            return matches
-        except search.SearchException:
-            logger.error("Error evaluating query", exc_info=True)
-            raise  # reraise the exception
-
     def get_scheduled_messages(self):
         from temba.msgs.models import SystemLabel
 
@@ -1060,28 +1022,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         else:
             return str(value)
 
-    def handle_update(self, urns=(), fields=None, group=None, is_new=False):
-        """
-        Handles an update to a contact which can be one of
-          1. A change to one or more attributes
-          2. A change to the specified contact field
-          3. A manual change to a group membership
-        """
-        changed_groups = set([group]) if group else set()
-        if fields or urns or is_new:
-            # ensure dynamic groups are up to date
-            changed_groups.update(self.reevaluate_dynamic_groups(for_fields=fields, urns=urns))
-
-        # ensure our campaigns are up to date
-        from temba.campaigns.models import EventFire
-
-        if fields:
-            EventFire.update_events_for_contact_fields(contact=self, keys=fields)
-
-        if changed_groups:
-            # ensure our campaigns are up to date
-            EventFire.update_events_for_contact_groups(self, changed_groups)
-
     def update(self, name: str, language: str) -> List[modifiers.Modifier]:
         """
         Updates attributes of this contact
@@ -1259,14 +1199,19 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 urn.channel = None
                 urn.save(update_fields=("identity", "path", "scheme", "channel"))
 
-            # no group for you!
-            self.clear_all_groups(user)
+            # remove from all static and dynamic groups
+            for group in self.user_groups.all():
+                group.contacts.remove(self)
+
+            # delete any unfired campaign event fires
+            self.campaign_fires.filter(fired=None).delete()
 
             # now deactivate the contact itself
             self.is_active = False
             self.name = None
             self.fields = None
-            self.save(update_fields=("name", "is_active", "fields", "modified_on"))
+            self.modified_by = user
+            self.save(update_fields=("name", "is_active", "fields", "modified_by", "modified_on"))
 
         # if we are removing everything do so
         if full:
@@ -1375,50 +1320,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         else:
             # otherwise return highest priority of any scheme
             return urns[0] if urns else None
-
-    def reevaluate_dynamic_groups(self, for_fields=None, urns=()):
-        """
-        Re-evaluates this contacts membership of dynamic groups. If field is specified then re-evaluation is only
-        performed for those groups which reference that field.
-        :returns: the set of groups that were affected
-        """
-        from .search import evaluate_query
-
-        # inactive contacts can't be in dynamic groups
-        if self.status != Contact.STATUS_ACTIVE:  # pragma: no cover
-            return set()
-
-        # cache contact search json
-        contact_search_json = self.as_search_json()
-        user = get_anonymous_user()
-
-        affected_dynamic_groups = ContactGroup.get_user_groups(self.org, dynamic=True, ready_only=False)
-
-        # if we have fields and no urn changes, filter to just the groups that may have changed
-        if not urns and for_fields:
-            affected_dynamic_groups = affected_dynamic_groups.filter(query_fields__key__in=for_fields)
-
-        changed_set = set()
-
-        for dynamic_group in affected_dynamic_groups:
-            dynamic_group.org = self.org
-
-            try:
-                should_add = evaluate_query(self.org, dynamic_group.query, contact_json=contact_search_json)
-            except Exception as e:  # pragma: no cover
-                should_add = False
-                logger.error(f"Error evaluating query: {str(e)}", exc_info=True)
-
-            changed_set.update(dynamic_group._update_contacts(user, [self], add=should_add))
-
-        return changed_set
-
-    def clear_all_groups(self, user):
-        """
-        Removes this contact from all groups - static and dynamic.
-        """
-        for group in self.user_groups.all():
-            group.remove_contacts(user, [self])
 
     def get_display(self, org=None, formatted=True, short=False, for_expressions=False):
         """
@@ -1870,55 +1771,10 @@ class ContactGroup(TembaModel):
         # first character must be a word char
         return regex.match(r"\w", name[0], flags=regex.UNICODE)
 
-    def remove_contacts(self, user, contacts):
-        """
-        Forces removal of contacts from this group regardless of whether it is static or dynamic
-        """
-        if self.group_type != self.TYPE_USER_DEFINED:  # pragma: no cover
-            raise ValueError("Can't remove contacts from system groups")
-
-        return self._update_contacts(user, contacts, add=False)
-
-    def _update_contacts(self, user, contacts, add):
-        """
-        Adds or removes contacts from this group - used for both non-dynamic and dynamic groups
-        """
-        changed = set()
-        group_contacts = self.contacts.all()
-
-        for contact in contacts:
-            if add and (contact.status != Contact.STATUS_ACTIVE or not contact.is_active):  # pragma: no cover
-                raise ValueError("Blocked, stopped and deleted contacts can't be added to groups")
-
-            contact_changed = False
-
-            # if we are adding the contact to the group, and this contact is not in this group
-            if add:
-                if not group_contacts.filter(id=contact.id):
-                    self.contacts.add(contact)
-                    contact_changed = True
-            else:
-                if group_contacts.filter(id=contact.id):
-                    self.contacts.remove(contact)
-                    contact_changed = True
-
-            if contact_changed:
-                changed.add(contact.pk)
-                contact.handle_update(group=self)
-
-        if changed:
-            # update modified on in small batches to avoid long table lock, and having too many non-unique values for
-            # modified_on which is the primary ordering for the API
-            for batch in chunk_list(changed, 100):
-                Contact.objects.filter(org=self.org, pk__in=batch).update(modified_on=timezone.now())
-
-        return changed
-
     def update_query(self, query, reevaluate=True, parsed=None):
         """
         Updates the query for a dynamic group
         """
-        from temba.contacts.search import parse_query, SearchException
 
         if not self.is_dynamic:
             raise ValueError("Cannot update query on a non-smart group")
@@ -1927,7 +1783,7 @@ class ContactGroup(TembaModel):
 
         try:
             if not parsed:
-                parsed = parse_query(self.org_id, query)
+                parsed = parse_query(self.org, query)
 
             if not parsed.metadata.allow_as_group:
                 raise ValueError(f"Cannot use query '{query}' as a smart group")
@@ -2030,9 +1886,7 @@ class ContactGroup(TembaModel):
 
             parsed_query = None
             if group_query:
-                from .search import parse_query
-
-                parsed_query = parse_query(org.id, group_query)
+                parsed_query = parse_query(org, group_query)
                 for field_ref in parsed_query.metadata.fields:
                     ContactField.get_or_create(org, user, key=field_ref["key"])
 
@@ -2209,7 +2063,7 @@ class ExportContactsTask(BaseExportTask):
         include_group_memberships = bool(self.group_memberships.exists())
 
         if self.search:
-            contact_ids = Contact.query_elasticsearch_for_ids(self.org, self.search, group)
+            contact_ids = elastic.query_contact_ids(self.org, self.search, group=group)
         else:
             contact_ids = group.contacts.order_by("name", "id").values_list("id", flat=True)
 

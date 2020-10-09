@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.contacts.models import ContactField, ContactGroup
+from temba.contacts.models import ContactField
 from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org
@@ -424,7 +424,7 @@ class CampaignTest(TembaTest):
     @mock_mailroom
     def test_views(self, mr_mocks):
         # update the planting date for our contacts
-        self.set_contact_field(self.farmer1, "planting_date", "1/10/2020", legacy_handle=True)
+        self.set_contact_field(self.farmer1, "planting_date", "1/10/2020")
 
         # don't log in, try to create a new campaign
         response = self.client.get(reverse("campaigns.campaign_create"))
@@ -728,19 +728,14 @@ class CampaignTest(TembaTest):
         self.assertEqual(5, len(mr_mocks.queued_batch_tasks))
 
         # set a planting date on our other farmer
-        self.set_contact_field(self.farmer2, "planting_date", "1/6/2022", legacy_handle=True)
+        self.set_contact_field(self.farmer2, "planting_date", "1/6/2022")
 
         # should have an event fire now
         fires = EventFire.objects.filter(event__is_active=True)
         self.assertEqual(1, len(fires))
 
-        fire = fires[0]
-        self.assertEqual(2, fire.scheduled.day)
-        self.assertEqual(6, fire.scheduled.month)
-        self.assertEqual(2022, fire.scheduled.year)
-
         # setting a planting date on our outside contact has no effect
-        self.set_contact_field(self.nonfarmer, "planting_date", "1/7/2025", legacy_handle=True)
+        self.set_contact_field(self.nonfarmer, "planting_date", "1/7/2025")
         self.assertEqual(1, EventFire.objects.filter(event__is_active=True).count())
 
         planting_date_field = ContactField.get_by_key(self.org, "planting_date")
@@ -1043,51 +1038,6 @@ class CampaignTest(TembaTest):
         ev4 = EventFire.objects.create(event=event3, contact=self.farmer1, scheduled=trim_date, fired=trim_date)
         self.assertIsNotNone(ev4.get_relative_to_value())
 
-    def test_campaignevent_calculate_scheduled_fire(self):
-        planting_date = timezone.now()
-        created_on = self.org.contactfields.get(key="created_on")
-        last_seen_on = self.org.contactfields.get(key="last_seen_on")
-
-        self.set_contact_field(self.farmer1, "planting_date", self.org.format_datetime(planting_date))
-
-        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
-
-        # create a reminder for our first planting event
-        event = CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, relative_to=self.planting_date, offset=3, unit="D", flow=self.reminder_flow
-        )
-
-        expected_result = (
-            (planting_date + timedelta(days=3)).replace(second=0, microsecond=0).astimezone(self.org.timezone)
-        )
-        self.assertEqual(event.calculate_scheduled_fire(self.farmer1), expected_result)
-
-        # create a reminder for our first planting event based on created_on
-        event = CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, relative_to=created_on, offset=5, unit="D", flow=self.reminder_flow
-        )
-
-        expected_result = (
-            (self.farmer1.created_on + timedelta(days=5))
-            .replace(second=0, microsecond=0)
-            .astimezone(self.org.timezone)
-        )
-        self.assertEqual(event.calculate_scheduled_fire(self.farmer1), expected_result)
-
-        # create a reminder based on last_seen_on
-        event = CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, relative_to=last_seen_on, offset=5, unit="D", flow=self.reminder_flow
-        )
-        self.assertIsNone(event.calculate_scheduled_fire(self.farmer1))
-
-        # give contact a last seen on value
-        now = timezone.now()
-        self.farmer1.last_seen_on = now
-        self.farmer1.save(update_fields=("last_seen_on",))
-
-        expected_result = (now + timedelta(days=5)).replace(second=0, microsecond=0).astimezone(self.org.timezone)
-        self.assertEqual(event.calculate_scheduled_fire(self.farmer1), expected_result)
-
     def test_import_created_on_event(self):
         campaign = Campaign.create(self.org, self.admin, "New contact reminders", self.farmers)
         created_on = ContactField.system_fields.get(org=self.org, key="created_on")
@@ -1190,59 +1140,6 @@ class CampaignTest(TembaTest):
         campaign.refresh_from_db()
         self.assertFalse(campaign.is_archived)
         self.assertFalse(Flow.objects.filter(is_archived=True))
-
-    @mock_mailroom
-    def test_with_dynamic_group(self, mr_mocks):
-        # create a campaign on a dynamic group
-        self.create_field("gender", "Gender")
-
-        women = self.create_group("Women", query='gender="F"')
-        ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
-
-        campaign = Campaign.create(self.org, self.admin, "Planting Reminders for Women", women)
-        event = CampaignEvent.create_message_event(
-            self.org,
-            self.admin,
-            campaign,
-            relative_to=self.planting_date,
-            offset=0,
-            unit="D",
-            message={"eng": "hello"},
-            base_language="eng",
-        )
-
-        # create a contact not in the group, but with a field value
-        anna = self.create_contact("Anna", phone="+250788444444", fields={"planting_date": "09-10-2020 12:30"})
-
-        # no contacts in our dynamic group yet, so no event fires
-        self.assertEqual(EventFire.objects.filter(event=event).count(), 0)
-
-        # update contact so that they become part of the dynamic group
-        self.set_contact_field(anna, "gender", "f", legacy_handle=True)
-        self.assertEqual(set(women.contacts.all()), {anna})
-
-        # and who should now have an event fire for our campaign event
-        self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)
-
-        # change dynamic group query so anna is removed
-        women.update_query(query='gender="FEMALE"')
-        ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
-        anna.handle_update(fields=["gender"])
-
-        self.assertEqual(set(women.contacts.all()), set())
-
-        # check that her event fire is now removed
-        self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 0)
-
-        # but if query is reverted, her event fire should be recreated
-        women.update_query("gender=F")
-        ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
-        anna.handle_update(fields=["gender"])
-
-        self.assertEqual(set(women.contacts.all()), {anna})
-
-        # check that her event fire is now removed
-        self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)
 
     def test_model_as_export_def(self):
         field_created_on = self.org.contactfields.get(key="created_on")

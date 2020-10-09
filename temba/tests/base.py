@@ -513,11 +513,8 @@ class TembaTestMixin:
             extra=extra,
         )
 
-    def set_contact_field(self, contact, key, value, legacy_handle=False):
+    def set_contact_field(self, contact, key, value):
         update_field_locally(self.admin, contact, key, value)
-
-        if legacy_handle:
-            contact.handle_update(fields=[key])
 
     def bulk_release(self, objs, delete=False, user=None):
         for obj in objs:

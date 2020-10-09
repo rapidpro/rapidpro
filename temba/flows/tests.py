@@ -24,7 +24,7 @@ from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts.models import FACEBOOK_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup
 from temba.globals.models import Global
-from temba.mailroom import FlowValidationException, MailroomException
+from temba.mailroom import FlowValidationException
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
@@ -2490,7 +2490,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, len(json_payload["results"]))
         self.assertEqual(["Favorites"], [res["text"] for res in json_payload["results"]])
 
-    def test_broadcast(self):
+    @mock_mailroom
+    def test_broadcast(self, mr_mocks):
         contact = self.create_contact("Bob", phone="+593979099111")
         flow = self.get_flow("color")
 
@@ -2504,49 +2505,46 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         # create flow start with a query
-        with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
-            with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-                instance = mock_mr.return_value
-                instance.parse_query.return_value = {"query": 'name ~ "frank"', "fields": ["name"]}
+        mr_mocks.parse_query("frank", cleaned='name ~ "frank"', fields=[])
 
-                self.client.post(
-                    reverse("flows.flow_broadcast", args=[flow.id]),
-                    {
-                        "contact_query": "frank",
-                        "recipients_mode": "query",
-                        "restart_participants": "on",
-                        "include_active": "on",
-                    },
-                    follow=True,
-                )
+        self.client.post(
+            reverse("flows.flow_broadcast", args=[flow.id]),
+            {
+                "contact_query": "frank",
+                "recipients_mode": "query",
+                "restart_participants": "on",
+                "include_active": "on",
+            },
+            follow=True,
+        )
 
-                start = FlowStart.objects.get()
-                self.assertEqual(flow, start.flow)
-                self.assertEqual(FlowStart.STATUS_PENDING, start.status)
-                self.assertTrue(start.restart_participants)
-                self.assertTrue(start.include_active)
-                self.assertEqual('name ~ "frank"', start.query)
+        start = FlowStart.objects.get()
+        self.assertEqual(flow, start.flow)
+        self.assertEqual(FlowStart.STATUS_PENDING, start.status)
+        self.assertTrue(start.restart_participants)
+        self.assertTrue(start.include_active)
+        self.assertEqual('name ~ "frank"', start.query)
 
-                mock_queue_flow_start.assert_called_once_with(start)
+        self.assertEqual(1, len(mr_mocks.queued_batch_tasks))
+        self.assertEqual("start_flow", mr_mocks.queued_batch_tasks[0]["type"])
 
         FlowStart.objects.all().delete()
 
         # create flow start with a bogus query
-        with patch("temba.mailroom.client.MailroomClient") as mock_mr:
-            instance = mock_mr.return_value
-            instance.parse_query.side_effect = MailroomException("", "", {"error": "query contains an error"})
-            response = self.client.post(
-                reverse("flows.flow_broadcast", args=[flow.id]),
-                {
-                    "contact_query": 'name = "frank',
-                    "recipients_mode": "query",
-                    "restart_participants": "on",
-                    "include_active": "on",
-                },
-                follow=True,
-            )
+        mr_mocks.error("query contains an error")
 
-            self.assertFormError(response, "form", "contact_query", "query contains an error")
+        response = self.client.post(
+            reverse("flows.flow_broadcast", args=[flow.id]),
+            {
+                "contact_query": 'name = "frank',
+                "recipients_mode": "query",
+                "restart_participants": "on",
+                "include_active": "on",
+            },
+            follow=True,
+        )
+
+        self.assertFormError(response, "form", "contact_query", "query contains an error")
 
         # create flow start with an empty query
         response = self.client.post(
@@ -2558,65 +2556,58 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertFormError(response, "form", "contact_query", "Contact query is required")
 
         # create flow start with restart_participants and include_active both enabled
-        with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
+        selection = json.dumps({"id": contact.uuid, "name": contact.name, "type": "contact"})
 
-            selection = json.dumps({"id": contact.uuid, "name": contact.name, "type": "contact"})
+        self.client.post(
+            reverse("flows.flow_broadcast", args=[flow.id]),
+            {"omnibox": selection, "recipients_mode": "select", "restart_participants": "on", "include_active": "on"},
+            follow=True,
+        )
 
-            self.client.post(
-                reverse("flows.flow_broadcast", args=[flow.id]),
-                {
-                    "omnibox": selection,
-                    "recipients_mode": "select",
-                    "restart_participants": "on",
-                    "include_active": "on",
-                },
-                follow=True,
-            )
+        start = FlowStart.objects.get()
+        self.assertEqual({contact}, set(start.contacts.all()))
+        self.assertEqual(flow, start.flow)
+        self.assertEqual(FlowStart.TYPE_MANUAL, start.start_type)
+        self.assertEqual(FlowStart.STATUS_PENDING, start.status)
+        self.assertTrue(start.restart_participants)
+        self.assertTrue(start.include_active)
 
-            start = FlowStart.objects.get()
-            self.assertEqual({contact}, set(start.contacts.all()))
-            self.assertEqual(flow, start.flow)
-            self.assertEqual(FlowStart.TYPE_MANUAL, start.start_type)
-            self.assertEqual(FlowStart.STATUS_PENDING, start.status)
-            self.assertTrue(start.restart_participants)
-            self.assertTrue(start.include_active)
-
-            mock_queue_flow_start.assert_called_once_with(start)
+        self.assertEqual(2, len(mr_mocks.queued_batch_tasks))
+        self.assertEqual("start_flow", mr_mocks.queued_batch_tasks[1]["type"])
 
         FlowStart.objects.all().delete()
 
         # create flow start with restart_participants and include_active both enabled
-        with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
-            self.client.post(
-                reverse("flows.flow_broadcast", args=[flow.id]),
-                {"omnibox": selection, "recipients_mode": "select"},
-                follow=True,
-            )
+        self.client.post(
+            reverse("flows.flow_broadcast", args=[flow.id]),
+            {"omnibox": selection, "recipients_mode": "select"},
+            follow=True,
+        )
 
-            start = FlowStart.objects.get()
-            self.assertEqual({contact}, set(start.contacts.all()))
-            self.assertEqual(flow, start.flow)
-            self.assertEqual(FlowStart.STATUS_PENDING, start.status)
-            self.assertFalse(start.restart_participants)
-            self.assertFalse(start.include_active)
+        start = FlowStart.objects.get()
+        self.assertEqual({contact}, set(start.contacts.all()))
+        self.assertEqual(flow, start.flow)
+        self.assertEqual(FlowStart.STATUS_PENDING, start.status)
+        self.assertFalse(start.restart_participants)
+        self.assertFalse(start.include_active)
 
-            mock_queue_flow_start.assert_called_once_with(start)
+        self.assertEqual(3, len(mr_mocks.queued_batch_tasks))
 
         # trying to start again should fail because there is already a pending start for this flow
-        with patch("temba.mailroom.queue_flow_start") as mock_queue_flow_start:
-            response = self.client.post(
-                reverse("flows.flow_broadcast", args=[flow.id]),
-                {"omnibox": selection, "recipients_mode": "select"},
-                follow=True,
-            )
+        response = self.client.post(
+            reverse("flows.flow_broadcast", args=[flow.id]),
+            {"omnibox": selection, "recipients_mode": "select"},
+            follow=True,
+        )
 
-            # should have an error now
-            self.assertTrue(response.context["form"].errors)
+        # should have an error now
+        self.assertTrue(response.context["form"].errors)
 
-            # shouldn't have a new flow start as validation failed
-            self.assertFalse(FlowStart.objects.filter(flow=flow).exclude(id__lte=start.id))
+        # shouldn't have a new flow start as validation failed
+        self.assertFalse(FlowStart.objects.filter(flow=flow).exclude(id__lte=start.id))
 
-            mock_queue_flow_start.assert_not_called()
+        # nothing queued
+        self.assertEqual(3, len(mr_mocks.queued_batch_tasks))
 
     @patch("temba.flows.views.uuid4")
     def test_upload_media_action(self, mock_uuid):
