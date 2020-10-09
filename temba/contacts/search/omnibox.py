@@ -10,7 +10,7 @@ from temba.contacts.models import Contact, ContactGroup, ContactGroupCount, Cont
 from temba.msgs.models import Label
 from temba.utils.models import IDSliceQuerySet
 
-from .search import SearchException, search_contacts
+from . import SearchException, search_contacts
 
 SEARCH_ALL_GROUPS = "g"
 SEARCH_STATIC_GROUPS = "s"

@@ -24,7 +24,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.models import TEL_SCHEME, ContactGroup, ContactURN
-from temba.contacts.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
+from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
 from temba.flows.legacy.expressions import get_function_listing
 from temba.formax import FormaxMixin
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
