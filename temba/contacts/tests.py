@@ -1688,7 +1688,7 @@ class ContactTest(TembaTest):
 
         self.assertEqual([], omnibox_request("search=-123`213"))
 
-        with patch("temba.contacts.omnibox.search_contacts") as sc:
+        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(
                     query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
@@ -1710,7 +1710,7 @@ class ContactTest(TembaTest):
 
             self.assertEqual(expected_result, actual_result)
 
-        with patch("temba.contacts.omnibox.search_contacts") as sc:
+        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id]),
                 SearchResults(query="", total=2, contact_ids=[self.voldemort.id, self.frank.id],),
@@ -1732,7 +1732,7 @@ class ContactTest(TembaTest):
             ]
             self.assertEqual(expected_result, actual_result)
 
-        with patch("temba.contacts.omnibox.search_contacts") as sc:
+        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id]),
                 SearchResults(query="", total=0, contact_ids=[]),
@@ -1772,7 +1772,7 @@ class ContactTest(TembaTest):
             ],
         )
 
-        with patch("temba.contacts.omnibox.search_contacts") as sc:
+        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(
                     query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
@@ -1793,7 +1793,7 @@ class ContactTest(TembaTest):
             )
 
         # search for Frank by phone
-        with patch("temba.contacts.omnibox.search_contacts") as sc:
+        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(query="name ~ 222", total=0, contact_ids=[]),
                 SearchResults(query="urn ~ 222", total=1, contact_ids=[self.frank.id]),
@@ -1810,7 +1810,7 @@ class ContactTest(TembaTest):
         Channel.create(self.org, self.user, "RW", "EX", schemes=[TEL_SCHEME])
 
         # search for Joe - match on last name and twitter handle
-        with patch("temba.contacts.omnibox.search_contacts") as sc:
+        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(query="name ~ blow", total=1, contact_ids=[self.joe.id]),
                 SearchResults(query="urn ~ blow", total=1, contact_ids=[self.joe.id]),
@@ -1856,7 +1856,7 @@ class ContactTest(TembaTest):
         )
 
         with AnonymousOrg(self.org):
-            with patch("temba.contacts.omnibox.search_contacts") as sc:
+            with patch("temba.contacts.search.omnibox.search_contacts") as sc:
                 sc.side_effect = [SearchResults(query="", total=1, contact_ids=[self.billy.id])]
                 self.assertEqual(
                     omnibox_request(""),
@@ -1872,7 +1872,7 @@ class ContactTest(TembaTest):
                 )
 
             # same search but with v2 format
-            with patch("temba.contacts.omnibox.search_contacts") as sc:
+            with patch("temba.contacts.search.omnibox.search_contacts") as sc:
                 sc.side_effect = [SearchResults(query="", total=1, contact_ids=[self.billy.id])]
                 self.assertEqual(
                     omnibox_request("", version="2"),

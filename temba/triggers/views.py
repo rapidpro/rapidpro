@@ -9,7 +9,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup, ContactURN
-from temba.contacts.omnibox import omnibox_deserialize, omnibox_serialize
+from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_serialize
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.msgs.views import ModalMixin
