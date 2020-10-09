@@ -151,7 +151,7 @@ class FlowMigrationTest(TembaTest):
         if not to_version:
             to_version = Flow.FINAL_LEGACY_VERSION
 
-        flow_json = flow.as_json()
+        flow_json = flow.get_definition()
         if Version(flow.version_number) < Version("6"):
             revision = flow.revisions.all().order_by("-revision").first()
             flow_json = dict(
@@ -185,7 +185,7 @@ class FlowMigrationTest(TembaTest):
             flow=flow, definition=flow_json, spec_version=7, revision=1, created_by=self.admin, modified_by=self.admin
         )
 
-        old_json = flow.as_json()
+        old_json = flow.get_definition()
 
         saved_on = flow.saved_on
         modified_on = flow.modified_on
@@ -221,7 +221,7 @@ class FlowMigrationTest(TembaTest):
         )
 
         # now refresh and save a new version
-        flow.update(flow.as_json(), user=self.admin)
+        flow.update(flow.get_definition(), user=self.admin)
 
         self.assertEqual(flow.revisions.count(), 3)
         self.assertEqual(flow.revisions.filter(created_by=get_flow_user(self.org)).count(), 1)
@@ -250,7 +250,7 @@ class FlowMigrationTest(TembaTest):
         )
 
         flow.ensure_current_version()
-        flow_json = flow.as_json()
+        flow_json = flow.get_definition()
 
         self.assertEqual(len(flow_json["action_sets"]), 1)
         self.assertEqual(len(flow_json["rule_sets"]), 0)
@@ -263,7 +263,7 @@ class FlowMigrationTest(TembaTest):
         # so that we check clearing of prefetched nodes that might be deleted in .update()
         flow = Flow.objects.prefetch_related("action_sets", "rule_sets").get(id=flow.id)
 
-        flow_json = flow.as_json()
+        flow_json = flow.get_definition()
 
         # remove first ruleset
         ruleset1 = flow_json["rule_sets"][0]
@@ -293,7 +293,7 @@ class FlowMigrationTest(TembaTest):
         # so that we check clearing of prefetched nodes that might be deleted in .update()
         flow = Flow.objects.prefetch_related("action_sets", "rule_sets").get(id=flow.id)
 
-        flow_json = flow.as_json()
+        flow_json = flow.get_definition()
 
         # remove first actionset
         actionset1 = flow_json["action_sets"][0]
@@ -343,7 +343,7 @@ class FlowMigrationTest(TembaTest):
         flow.ensure_current_version()
 
         # and that the format looks correct
-        flow_json = flow.as_json()
+        flow_json = flow.get_definition()
 
         self.assertEqual(flow_json["metadata"]["name"], "Favorites")
         self.assertEqual(flow_json["metadata"]["revision"], 2)
@@ -530,7 +530,7 @@ class FlowMigrationTest(TembaTest):
         self.get_flow("migrate_to_11_10", legacy=True)
 
         parent = Flow.objects.get(name__contains="Parent")
-        parent_json = parent.as_json()
+        parent_json = parent.get_definition()
         ivr_child = Flow.objects.get(name__contains="IVR")
 
         # the subflow ruleset to a messaging flow remains as the only ruleset
@@ -588,7 +588,7 @@ class FlowMigrationTest(TembaTest):
         invalid2.save()
 
         flow = Flow.objects.get(name="Master")
-        flow_json = flow.as_json()
+        flow_json = flow.get_definition()
 
         self.assertEqual(len(flow_json["rule_sets"]), 4)
         self.assertEqual(sum(len(action_set["actions"]) for action_set in flow_json["action_sets"]), 8)
@@ -696,7 +696,7 @@ class FlowMigrationTest(TembaTest):
     @mock_mailroom
     def test_migrate_to_11_4(self, mr_mocks):
         flow = self.get_flow("migrate_to_11_4", legacy=True)
-        flow_json = flow.as_json()
+        flow_json = flow.get_definition()
 
         # gather up replies to check expressions were migrated
         replies = []
@@ -909,7 +909,7 @@ class FlowMigrationTest(TembaTest):
         self.create_field("joined_on", "Joined On", Value.TYPE_DATETIME)
 
         flow = self.get_flow("type_flow", legacy=True)
-        flow_json = flow.as_json()
+        flow_json = flow.get_definition()
 
         # gather up replies to check expressions were migrated
         replies = []
@@ -974,7 +974,7 @@ class FlowMigrationTest(TembaTest):
         self.assertEqual(migrated, definition)
 
     def test_migrate_to_11_0_with_broken_localization(self):
-        migrated = self.get_flow("migrate_to_11_0", legacy=True).as_json()
+        migrated = self.get_flow("migrate_to_11_0", legacy=True).get_definition()
 
         self.assertEqual(
             migrated["action_sets"][0]["actions"][0]["msg"],
@@ -1023,9 +1023,9 @@ class FlowMigrationTest(TembaTest):
                 self.assertIsNotNone(action.uuid)
 
         # since actions can generate their own uuids, lets make sure fetching from the databse yields the same uuids
-        exported = favorites.as_json()
+        exported = favorites.get_definition()
         flow = Flow.objects.filter(name="Favorites").first()
-        self.assertEqual(exported, flow.as_json())
+        self.assertEqual(exported, flow.get_definition())
         self.assertEqual(flow.version_number, Flow.FINAL_LEGACY_VERSION)
 
     def test_migrate_to_10(self):
@@ -1034,7 +1034,7 @@ class FlowMigrationTest(TembaTest):
         self.assertNotEqual(webhook_flow.modified_on, webhook_flow.saved_on)
 
         # get our definition out
-        flow_def = webhook_flow.as_json()
+        flow_def = webhook_flow.get_definition()
 
         # make sure our rulesets no longer have 'webhook' or 'webhook_action'
         for ruleset in flow_def["rule_sets"]:
@@ -1326,13 +1326,13 @@ class FlowMigrationTest(TembaTest):
 
         # check substitutions
         order_checker = self.org.flows.filter(name="Sample Flow - Order Status Checker").first()
-        webhook_node = order_checker.as_json()["nodes"][3]
+        webhook_node = order_checker.get_definition()["nodes"][3]
         webhook_action = webhook_node["actions"][0]
 
         self.assertEqual("https://app.rapidpro.io/demo/status/", webhook_action["url"])
 
         # our test user doesn't use an email address, check for Administrator for the email
-        email_node = order_checker.as_json()["nodes"][10]
+        email_node = order_checker.get_definition()["nodes"][10]
         email_action = email_node["actions"][1]
 
         self.assertEqual(["Administrator"], email_action["addresses"])

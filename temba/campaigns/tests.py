@@ -203,7 +203,7 @@ class CampaignTest(TembaTest):
                     }
                 ],
             },
-            event.flow.as_json(),
+            event.flow.get_definition(),
         )
 
     def test_trim_event_fires(self):
@@ -328,7 +328,7 @@ class CampaignTest(TembaTest):
         self.assertTrue(event.flow.is_system)
         self.assertTrue(event.flow.base_language, "base")
 
-        flow_json = event.flow.as_json()
+        flow_json = event.flow.get_definition()
         action_uuid = flow_json["nodes"][0]["actions"][0]["uuid"]
 
         self.assertEqual(

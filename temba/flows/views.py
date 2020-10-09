@@ -1272,7 +1272,9 @@ class FlowCRUDL(SmartCRUDL):
             return kwargs
 
         def form_valid(self, form):
-            flow_def = mailroom.get_client().flow_change_language(self.object.as_json(), form.cleaned_data["language"])
+            flow_def = mailroom.get_client().flow_change_language(
+                self.object.get_definition(), form.cleaned_data["language"]
+            )
 
             self.object.save_revision(self.get_user(), flow_def)
 

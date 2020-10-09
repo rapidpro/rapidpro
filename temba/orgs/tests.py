@@ -303,7 +303,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         # bring in some flows
         parent_flow = self.get_flow("color_v13")
-        flow_nodes = parent_flow.as_json()["nodes"]
+        flow_nodes = parent_flow.get_definition()["nodes"]
         (
             MockSessionWriter(parent_contact, parent_flow)
             .visit(flow_nodes[0])
@@ -3934,7 +3934,7 @@ class BulkExportTest(TembaTest):
         # base language for this flow is 'swa' despite our org languages being unset
         self.assertEqual(event.flow.base_language, "swa")
 
-        flow_def = event.flow.as_json()
+        flow_def = event.flow.get_definition()
         action = flow_def["nodes"][0]["actions"][0]
 
         self.assertEqual(action["text"], "hello")
@@ -4050,7 +4050,7 @@ class BulkExportTest(TembaTest):
             self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
         flow = Flow.objects.get(name="Cataclysmic")
-        self.validate_flow_dependencies(flow.as_json())
+        self.validate_flow_dependencies(flow.get_definition())
 
         # we should have 5 groups (all static since we can only create static groups from group references)
         self.assertEqual(ContactGroup.user_groups.all().count(), 5)
@@ -4073,7 +4073,7 @@ class BulkExportTest(TembaTest):
         self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
         flow = Flow.objects.get(name="Cataclysmic")
-        self.validate_flow_dependencies(flow.as_json())
+        self.validate_flow_dependencies(flow.get_definition())
 
         # we should have 5 groups (2 dynamic)
         self.assertEqual(ContactGroup.user_groups.all().count(), 5)
@@ -4109,7 +4109,7 @@ class BulkExportTest(TembaTest):
         self.import_file("cataclysm")
 
         flow = Flow.objects.get(name="Cataclysmic")
-        self.validate_flow_dependencies(flow.as_json())
+        self.validate_flow_dependencies(flow.get_definition())
 
         # we should have 5 groups (2 dynamic)
         self.assertEqual(ContactGroup.user_groups.all().count(), 5)
@@ -4267,7 +4267,7 @@ class BulkExportTest(TembaTest):
         )
 
         self.assertEqual(
-            message_flow.as_json()["nodes"][0]["actions"][0]["text"],
+            message_flow.get_definition()["nodes"][0]["actions"][0]["text"],
             "Hi there, just a quick reminder that you have an appointment at The Clinic at @(format_date(contact.next_appointment)). If you can't make it please call 1-888-THE-CLINIC.",
         )
 

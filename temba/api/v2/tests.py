@@ -3403,7 +3403,7 @@ class APITest(TembaTest):
         flow1 = self.get_flow("color_v13")
         flow2 = Flow.copy(flow1, self.user)
 
-        flow1_nodes = flow1.as_json()["nodes"]
+        flow1_nodes = flow1.get_definition()["nodes"]
         color_prompt = flow1_nodes[0]
         color_split = flow1_nodes[4]
         blue_reply = flow1_nodes[2]

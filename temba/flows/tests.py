@@ -485,16 +485,16 @@ class FlowTest(TembaTest):
 
     def test_copy_group_split_no_name(self):
         flow = self.get_flow("group_split_no_name")
-        flow_json = flow.as_json()
+        flow_def = flow.get_definition()
 
         copy = Flow.copy(flow, self.admin)
 
-        copy_json = copy.as_json()
+        copy_def = copy.get_definition()
 
-        self.assertEqual(len(copy_json["nodes"]), 1)
-        self.assertEqual(len(copy_json["nodes"][0]["router"]["cases"]), 1)
+        self.assertEqual(len(copy_def["nodes"]), 1)
+        self.assertEqual(len(copy_def["nodes"][0]["router"]["cases"]), 1)
         self.assertEqual(
-            copy_json["nodes"][0]["router"]["cases"][0],
+            copy_def["nodes"][0]["router"]["cases"][0],
             {
                 "uuid": matchers.UUID4String(),
                 "type": "has_group",
@@ -505,8 +505,8 @@ class FlowTest(TembaTest):
 
         # check that the original and the copy reference the same group
         self.assertEqual(
-            flow_json["nodes"][0]["router"]["cases"][0]["arguments"],
-            copy_json["nodes"][0]["router"]["cases"][0]["arguments"],
+            flow_def["nodes"][0]["router"]["cases"][0]["arguments"],
+            copy_def["nodes"][0]["router"]["cases"][0]["arguments"],
         )
 
     def test_length(self):
@@ -529,7 +529,7 @@ class FlowTest(TembaTest):
 
     def test_activity(self):
         flow = self.get_flow("favorites_v13")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_other = flow_nodes[1]
         color_split = flow_nodes[2]
@@ -983,7 +983,7 @@ class FlowTest(TembaTest):
             self.assertTrue(found)
 
         favorites = self.get_flow("favorites_v13")
-        flow_nodes = favorites.as_json()["nodes"]
+        flow_nodes = favorites.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_other = flow_nodes[1]
         color_split = flow_nodes[2]
@@ -1093,7 +1093,7 @@ class FlowTest(TembaTest):
         assertCount(counts, "color", "Green", 5)
 
         # now remap the uuid for our color node
-        flow_json = favorites.as_json()
+        flow_json = favorites.get_definition()
         flow_json = json.loads(json.dumps(flow_json).replace(color_split["uuid"], str(uuid4())))
         flow_nodes = flow_json["nodes"]
         color_prompt = flow_nodes[0]
@@ -1162,7 +1162,7 @@ class FlowTest(TembaTest):
 
     def test_category_counts_with_null_categories(self):
         flow = self.get_flow("color_v13")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[4]
 
@@ -1221,7 +1221,7 @@ class FlowTest(TembaTest):
 
     def test_prune_recentruns(self):
         flow = self.get_flow("color_v13")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_other = flow_nodes[3]
         color_split = flow_nodes[4]
@@ -1470,7 +1470,7 @@ class FlowTest(TembaTest):
 
     def test_flow_results_with_hidden_results(self):
         flow = self.get_flow("color_v13")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_split = flow_nodes[4]
 
         # add a spec for a hidden result to this flow.. which should not be included below
@@ -2071,7 +2071,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(voice_flow.metadata["ivr_retry"], 1440)
 
         # check we still have that value after saving a new revision
-        voice_flow.save_revision(self.admin, voice_flow.as_json())
+        voice_flow.save_revision(self.admin, voice_flow.get_definition())
         self.assertEqual(voice_flow.metadata["ivr_retry"], 1440)
 
         # update flow triggers, and test if form has expected fields
@@ -2667,7 +2667,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_recent_messages(self):
         contact = self.create_contact("Bob", phone="+593979099111")
         flow = self.get_flow("favorites_v13")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_other = flow_nodes[1]
         color_split = flow_nodes[2]
@@ -2756,7 +2756,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_results(self):
         flow = self.get_flow("favorites_v13")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[2]
         beer_prompt = flow_nodes[3]
@@ -2940,7 +2940,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_activity(self):
         flow = self.get_flow("favorites_v13")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[2]
         beer_prompt = flow_nodes[3]
@@ -3062,7 +3062,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_write_protection(self):
         flow = self.get_flow("favorites_v13")
-        flow_json = flow.as_json()
+        flow_json = flow.get_definition()
         flow_json_copy = flow_json.copy()
 
         self.assertEqual(1, flow_json["revision"])
@@ -3119,7 +3119,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertUpdateSubmit(change_url, {"language": "spa"}, success_status=302)
 
-        flow_def = flow.as_json()
+        flow_def = flow.get_definition()
         self.assertIn("eng", flow_def["localization"])
         self.assertEqual("¿Cuál es tu color favorito?", flow_def["nodes"][0]["actions"][0]["text"])
 
@@ -3279,7 +3279,7 @@ msgstr "Azul"
 
         # confirm the import
         with patch("temba.mailroom.client.MailroomClient.po_import") as mock_po_import:
-            mock_po_import.return_value = {"flows": [flow.as_json()]}
+            mock_po_import.return_value = {"flows": [flow.get_definition()]}
 
             response = self.requestView(step2_url, self.admin, post_data={"language": "spa"})
 
@@ -3299,7 +3299,7 @@ class FlowRunTest(TembaTest):
 
     def test_as_archive_json(self):
         flow = self.get_flow("color_v13")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[4]
         color_other = flow_nodes[3]
@@ -3424,7 +3424,7 @@ class FlowRunTest(TembaTest):
         """
 
         flow = self.get_flow("favorites_v13")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[2]
         beer_prompt = flow_nodes[3]
@@ -3670,7 +3670,7 @@ class ExportFlowResultsTest(TembaTest):
     @mock_mailroom
     def test_export_results(self, mr_mocks):
         flow = self.get_flow("color_v13")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[4]
         color_other = flow_nodes[3]
@@ -4203,7 +4203,7 @@ class ExportFlowResultsTest(TembaTest):
     def test_anon_org(self):
         with AnonymousOrg(self.org):
             flow = self.get_flow("color_v13")
-            flow_nodes = flow.as_json()["nodes"]
+            flow_nodes = flow.get_definition()["nodes"]
             color_prompt = flow_nodes[0]
             color_split = flow_nodes[4]
 
@@ -4262,7 +4262,7 @@ class ExportFlowResultsTest(TembaTest):
 
     def test_msg_with_attachments(self):
         flow = self.get_flow("color_v13")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[4]
 
@@ -4312,7 +4312,7 @@ class ExportFlowResultsTest(TembaTest):
 
     def test_broadcast_only_flow(self):
         flow = self.get_flow("send_only_v13")
-        send_node = flow.as_json()["nodes"][0]
+        send_node = flow.get_definition()["nodes"][0]
 
         for contact in [self.contact, self.contact2, self.contact3]:
             (
@@ -4621,7 +4621,7 @@ class ExportFlowResultsTest(TembaTest):
 
     def test_replaced_rulesets(self):
         favorites = self.get_flow("favorites_v13")
-        flow_json = favorites.as_json()
+        flow_json = favorites.get_definition()
         flow_nodes = flow_json["nodes"]
         color_prompt = flow_nodes[0]
         color_other = flow_nodes[1]
@@ -4972,7 +4972,7 @@ class ExportFlowResultsTest(TembaTest):
 
     def test_remove_control_characters(self):
         flow = self.get_flow("color_v13")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[4]
         color_other = flow_nodes[3]
@@ -5018,7 +5018,7 @@ class ExportFlowResultsTest(TembaTest):
 
     def test_from_archives(self):
         flow = self.get_flow("color_v13")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[4]
         color_other = flow_nodes[3]
@@ -5057,7 +5057,7 @@ class ExportFlowResultsTest(TembaTest):
 
         # and a run for a different flow
         flow2 = self.get_flow("favorites_v13")
-        flow2_nodes = flow2.as_json()["nodes"]
+        flow2_nodes = flow2.get_definition()["nodes"]
 
         contact2_other_flow = (
             MockSessionWriter(self.contact2, flow2)
@@ -5190,7 +5190,7 @@ class ExportFlowResultsTest(TembaTest):
         flow.flow_type = Flow.TYPE_SURVEY
         flow.save()
 
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[4]
 

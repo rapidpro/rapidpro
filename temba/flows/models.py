@@ -465,7 +465,7 @@ class Flow(TembaModel):
         copy = Flow.create(flow.org, user, "Copy of %s" % flow.name[:55], flow_type=flow.flow_type)
 
         # grab the json of our original
-        flow_json = flow.as_json()
+        flow_json = flow.get_definition()
 
         copy.import_definition(user, flow_json, {})
 
@@ -788,9 +788,6 @@ class Flow(TembaModel):
     def as_export_ref(self):
         return {Flow.DEFINITION_UUID: str(self.uuid), Flow.DEFINITION_NAME: self.name}
 
-    def as_json(self):
-        return self.get_definition()
-
     @classmethod
     def get_metadata(cls, flow_info, previous=None):
         data = {
@@ -835,10 +832,19 @@ class Flow(TembaModel):
 
         # update metadata in definition from database object as it may be out of date
         definition = rev.definition
-        definition[Flow.DEFINITION_UUID] = self.uuid
-        definition[Flow.DEFINITION_NAME] = self.name
-        definition[Flow.DEFINITION_REVISION] = rev.revision
-        definition[Flow.DEFINITION_EXPIRE_AFTER_MINUTES] = self.expires_after_minutes
+
+        if self.is_legacy():
+            if "metadata" not in definition:
+                definition["metadata"] = {}
+            definition["metadata"]["uuid"] = self.uuid
+            definition["metadata"]["name"] = self.name
+            definition["metadata"]["revision"] = rev.revision
+            definition["metadata"]["expires"] = self.expires_after_minutes
+        else:
+            definition[Flow.DEFINITION_UUID] = self.uuid
+            definition[Flow.DEFINITION_NAME] = self.name
+            definition[Flow.DEFINITION_REVISION] = rev.revision
+            definition[Flow.DEFINITION_EXPIRE_AFTER_MINUTES] = self.expires_after_minutes
         return definition
 
     def get_current_revision(self):
