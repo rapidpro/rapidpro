@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-02 17:44+0000\n"
+"POT-Creation-Date: 2020-10-09 18:02+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3133,9 +3133,6 @@ msgid "Download"
 msgstr ""
 
 msgid "Download Flow Results"
-msgstr ""
-
-msgid "Your flow contains an invalid loop. Please refresh your browser."
 msgstr ""
 
 msgid "Contacts & Groups"

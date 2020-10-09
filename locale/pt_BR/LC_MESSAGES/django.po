@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-02 17:44+0000\n"
+"POT-Creation-Date: 2020-10-09 18:02+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4290,9 +4290,6 @@ msgstr "Resultados ao vivo"
 #, fuzzy
 msgid "Download Flow Results"
 msgstr "Resultados ao vivo"
-
-msgid "Your flow contains an invalid loop. Please refresh your browser."
-msgstr ""
 
 #, fuzzy
 msgid "Contacts & Groups"
