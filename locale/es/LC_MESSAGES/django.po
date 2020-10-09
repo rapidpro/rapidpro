@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-02 17:44+0000\n"
+"POT-Creation-Date: 2020-10-09 18:26+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -8399,23 +8399,24 @@ msgstr ""
 
 msgid ""
 "\n"
-"    Your WhatsApp channel is now connected, you should be able to send and receive messages as normal.\n"
+"  Your WhatsApp channel is now connected, you should be able to send and receive messages as normal.\n"
 "\n"
-"  "
 msgstr ""
 
 msgid ""
 "\n"
-"    In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh\n"
-"    the contacts on the WhatsApp application. This may take a few minutes.\n"
+"  In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh\n"
+"  the contacts on the WhatsApp application. This may take a few minutes.\n"
 "\n"
-"  "
 msgstr ""
 
 #, fuzzy
 #| msgid "Has Template Error"
 msgid "WhatsApp Templates Events"
 msgstr "Tiene un error en la plantilla"
+
+msgid "No syncs yet. Check back later."
+msgstr ""
 
 #, fuzzy
 msgid "Templates"
