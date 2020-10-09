@@ -1302,6 +1302,11 @@ class ChannelCRUDL(SmartCRUDL):
 
             channel = self.get_object()
 
+            extra_links = channel.get_type().extra_links
+            if extra_links:
+                for extra in extra_links:
+                    links.append(dict(title=extra["name"], href=reverse(extra["link"], args=[channel.uuid])))
+
             if channel.parent:
                 links.append(
                     dict(
