@@ -14,6 +14,7 @@ from temba.utils import chunk_list
 from temba.utils.celery import nonoverlapping_task
 
 from .models import Contact, ContactGroup, ContactGroupCount, ContactImport, ExportContactsTask
+from .search import elastic
 
 logger = logging.getLogger(__name__)
 
@@ -74,24 +75,13 @@ def full_release_contact(contact_id):
 @task(name="check_elasticsearch_lag")
 def check_elasticsearch_lag():
     if settings.ELASTICSEARCH_URL:
-        from temba.utils.es import ES, ModelESSearch
+        es_last_modified_contact = elastic.get_last_modified()
 
-        # get the modified_on of the last synced contact
-        res = (
-            ModelESSearch(model=Contact, index="contacts")
-            .params(size=1)
-            .sort("-modified_on_mu")
-            .source(include=["modified_on", "id"])
-            .using(ES)
-            .execute()
-        )
-
-        es_hits = res["hits"]["hits"]
-        if es_hits:
+        if es_last_modified_contact:
             # if we have elastic results, make sure they aren't more than five minutes behind
             db_contact = Contact.objects.order_by("-modified_on").first()
-            es_modified_on = iso8601.parse_date(es_hits[0]["_source"]["modified_on"], pytz.utc)
-            es_id = es_hits[0]["_source"]["id"]
+            es_modified_on = iso8601.parse_date(es_last_modified_contact["modified_on"], pytz.utc)
+            es_id = es_last_modified_contact["id"]
 
             # no db contact is an error, ES should be empty as well
             if not db_contact:

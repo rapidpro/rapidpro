@@ -38,6 +38,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.models import FACEBOOK_SCHEME, TEL_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup, ContactURN
 from temba.contacts.omnibox import omnibox_deserialize
+from temba.contacts.search import SearchException, parse_query
 from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task
@@ -2079,13 +2080,11 @@ class FlowCRUDL(SmartCRUDL):
                     if not contact_query.strip():
                         raise ValidationError(_("Contact query is required"))
 
-                    client = mailroom.get_client()
-
                     try:
-                        resp = client.parse_query(self.flow.org_id, contact_query)
-                        contact_query = resp["query"]
-                    except mailroom.MailroomException as e:
-                        raise ValidationError(e.response["error"])
+                        parsed = parse_query(self.flow.org, contact_query)
+                        contact_query = parsed.query
+                    except SearchException as e:
+                        raise ValidationError(str(e))
 
                 return contact_query
 

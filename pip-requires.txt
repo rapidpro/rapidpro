@@ -38,7 +38,6 @@ python-magic
 xlsxlite
 
 ########################## misc ##########################
-antlr4-python3-runtime
 celery[redis]
 colorama
 gunicorn
