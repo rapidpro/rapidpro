@@ -167,27 +167,17 @@ class TembaTestMixin:
 
         return json.loads(data)
 
-    def get_flow(self, filename, substitutions=None, migrate=True):
+    def get_flow(self, filename, substitutions=None, name=None):
         now = timezone.now()
 
         self.import_file(filename, substitutions=substitutions)
 
         imported_flows = Flow.objects.filter(org=self.org, saved_on__gt=now)
-        flow = imported_flows.order_by("id").last()
+        flow = imported_flows.filter(name=name).first() if name else imported_flows.order_by("id").last()
 
         assert flow, f"no flow imported from {filename}.json"
 
         flow.org = self.org
-
-        # there's no way to import without migrating, so this is a hack to overwrite the migrated flow definition
-        # with the unmigrated original from the import file
-        if not migrate:
-            flow_def = self.get_flow_json(filename, substitutions)
-            rev = flow.revisions.order_by("revision").last()
-            rev.definition = flow_def
-            rev.spec_version = flow_def["version"]
-            rev.save(update_fields=("definition", "spec_version"))
-
         return flow
 
     def get_flow_json(self, filename, substitutions=None):

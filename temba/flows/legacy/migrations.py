@@ -1072,11 +1072,14 @@ def migrate_to_version_9(json_flow, flow):
     """
     This version marks the first usage of subflow rulesets. Moves more items to UUIDs.
     """
-    # inject metadata if it's missing
-    from temba.flows.models import Flow
 
-    if Flow.METADATA not in json_flow:
-        json_flow[Flow.METADATA] = flow.get_legacy_metadata()
+    if "metadata" not in json_flow:
+        json_flow["metadata"] = {
+            "uuid": flow.uuid,
+            "name": flow.name,
+            "revision": flow.revisions.order_by("revision").last().revision,
+            "expires": flow.expires_after_minutes,
+        }
     return migrate_export_to_version_9(dict(flows=[json_flow]), flow.org)["flows"][0]
 
 

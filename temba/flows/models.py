@@ -819,7 +819,7 @@ class Flow(TembaModel):
             revision = self.get_current_revision()
             flow_def = revision.get_definition_json(to_version)
 
-            self.save_revision(get_flow_user(self.org), flow_def)
+            self.save_revision(user=None, definition=flow_def)
             self.refresh_from_db()
 
     def get_definition(self):
@@ -882,14 +882,27 @@ class Flow(TembaModel):
         flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
         dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
 
+        if user is None:
+            is_system_rev = True
+            user = get_flow_user(self.org)
+        else:
+            is_system_rev = False
+
         with transaction.atomic():
             # update our flow fields
             self.base_language = definition.get(Flow.DEFINITION_LANGUAGE, None)
-            self.metadata = Flow.get_metadata(flow_info, self.metadata)
-            self.saved_by = user
-            self.saved_on = timezone.now()
             self.version_number = Flow.CURRENT_SPEC_VERSION
-            self.save(update_fields=["metadata", "version_number", "base_language", "saved_by", "saved_on"])
+            self.metadata = Flow.get_metadata(flow_info, self.metadata)
+            self.modified_by = user
+            self.modified_on = timezone.now()
+            fields = ["base_language", "version_number", "metadata", "modified_by", "modified_on"]
+
+            if not is_system_rev:
+                self.saved_by = user
+                self.saved_on = timezone.now()
+                fields += ["saved_by", "saved_on"]
+
+            self.save(update_fields=fields)
 
             # create our new revision
             revision = self.revisions.create(

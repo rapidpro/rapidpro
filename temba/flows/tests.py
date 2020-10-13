@@ -153,11 +153,19 @@ class FlowTest(TembaTest):
         rev.spec_version = "13.0.0"
         rev.save()
 
+        old_modified_on = flow.modified_on
+        old_saved_on = flow.saved_on
+
         flow.ensure_current_version()
 
         # check we migrate to current spec version
         self.assertEqual("13.1.0", flow.version_number)
         self.assertEqual(2, flow.revisions.count())
+        self.assertEqual(get_flow_user(self.org), flow.revisions.order_by("id").last().created_by)
+
+        # saved on won't have been updated but modified on will
+        self.assertEqual(old_saved_on, flow.saved_on)
+        self.assertGreater(flow.modified_on, old_modified_on)
 
     def test_campaign_filter(self):
         self.login(self.admin)
@@ -2300,9 +2308,14 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.login(self.admin)
 
         # we should have one revision for an imported flow
-        flow = self.get_flow("color", migrate=False)
+        flow = self.get_flow("color")
+        original_def = self.get_flow_json("color")
+
+        # rewind definition to legacy spec
         revision = flow.revisions.get()
-        original_def = revision.definition
+        revision.definition = original_def
+        revision.spec_version = "8"
+        revision.save()
 
         # create a new migrated revision
         flow_def = revision.get_definition_json()
