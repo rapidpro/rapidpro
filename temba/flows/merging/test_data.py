@@ -458,7 +458,7 @@ serialized_test_data = {
             [
                 ("uuid", "99d93eb4-53da-4638-962a-9ddfc8f8bb6b"),
                 (
-                    "left_origin_node",
+                    "source_node",
                     OrderedDict(
                         [
                             ("uuid", "99d93eb4-53da-4638-962a-9ddfc8f8bb6b"),
@@ -498,7 +498,7 @@ serialized_test_data = {
                         ]
                     ),
                 ),
-                ("right_origin_node", None),
+                ("destination_node", None),
                 ("conflicts", []),
                 (
                     "data",
@@ -527,7 +527,7 @@ serialized_test_data = {
             [
                 ("uuid", "98416034-f2f1-4bf7-af68-df6c687462bc"),
                 (
-                    "left_origin_node",
+                    "source_node",
                     OrderedDict(
                         [
                             ("uuid", "98416034-f2f1-4bf7-af68-df6c687462bc"),
@@ -607,7 +607,7 @@ serialized_test_data = {
                         ]
                     ),
                 ),
-                ("right_origin_node", None),
+                ("destination_node", None),
                 ("conflicts", []),
                 (
                     "data",
@@ -676,7 +676,7 @@ serialized_test_data = {
             [
                 ("uuid", "6cf462db-a29a-439f-82ce-76fc20a6002d"),
                 (
-                    "left_origin_node",
+                    "source_node",
                     OrderedDict(
                         [
                             ("uuid", "6cf462db-a29a-439f-82ce-76fc20a6002d"),
@@ -718,7 +718,7 @@ serialized_test_data = {
                         ]
                     ),
                 ),
-                ("right_origin_node", None),
+                ("destination_node", None),
                 ("conflicts", []),
                 (
                     "data",
@@ -755,7 +755,7 @@ serialized_test_data = {
             [
                 ("uuid", "62b84e54-9cbc-4895-bd92-0733bc256e90"),
                 (
-                    "left_origin_node",
+                    "source_node",
                     OrderedDict(
                         [
                             ("uuid", "62b84e54-9cbc-4895-bd92-0733bc256e90"),
@@ -804,7 +804,7 @@ serialized_test_data = {
                         ]
                     ),
                 ),
-                ("right_origin_node", None),
+                ("destination_node", None),
                 ("conflicts", []),
                 (
                     "data",
@@ -842,7 +842,7 @@ serialized_test_data = {
             [
                 ("uuid", "99d93eb4-53da-4638-962a-9ddfc8f8bb6b"),
                 (
-                    "left_origin_node",
+                    "source_node",
                     OrderedDict(
                         [
                             ("uuid", "99d93eb4-53da-4638-962a-9ddfc8f8bb6b"),
@@ -882,7 +882,7 @@ serialized_test_data = {
                         ]
                     ),
                 ),
-                ("right_origin_node", None),
+                ("destination_node", None),
                 ("conflicts", []),
                 (
                     "data",
@@ -911,7 +911,7 @@ serialized_test_data = {
             [
                 ("uuid", "98416034-f2f1-4bf7-af68-df6c687462bc"),
                 (
-                    "left_origin_node",
+                    "source_node",
                     OrderedDict(
                         [
                             ("uuid", "98416034-f2f1-4bf7-af68-df6c687462bc"),
@@ -991,7 +991,7 @@ serialized_test_data = {
                         ]
                     ),
                 ),
-                ("right_origin_node", None),
+                ("destination_node", None),
                 ("conflicts", []),
                 (
                     "data",
@@ -1060,7 +1060,7 @@ serialized_test_data = {
             [
                 ("uuid", "6cf462db-a29a-439f-82ce-76fc20a6002d"),
                 (
-                    "left_origin_node",
+                    "source_node",
                     OrderedDict(
                         [
                             ("uuid", "6cf462db-a29a-439f-82ce-76fc20a6002d"),
@@ -1102,7 +1102,7 @@ serialized_test_data = {
                         ]
                     ),
                 ),
-                ("right_origin_node", None),
+                ("destination_node", None),
                 ("conflicts", []),
                 (
                     "data",
@@ -1139,7 +1139,7 @@ serialized_test_data = {
             [
                 ("uuid", "62b84e54-9cbc-4895-bd92-0733bc256e90"),
                 (
-                    "left_origin_node",
+                    "source_node",
                     OrderedDict(
                         [
                             ("uuid", "62b84e54-9cbc-4895-bd92-0733bc256e90"),
@@ -1188,7 +1188,7 @@ serialized_test_data = {
                         ]
                     ),
                 ),
-                ("right_origin_node", None),
+                ("destination_node", None),
                 ("conflicts", []),
                 (
                     "data",

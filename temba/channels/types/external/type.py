@@ -25,7 +25,7 @@ class ExternalType(ChannelType):
     max_length = 160
     attachment_support = False
 
-    def get_configuration_context_dict(self, channel):
+    def get_configuration_context_dict(self, channel, context=None):
         context = dict(channel=channel, ip_addresses=settings.IP_ADDRESSES)
 
         config = channel.config

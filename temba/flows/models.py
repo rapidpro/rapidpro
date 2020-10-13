@@ -4136,14 +4136,16 @@ class MergeFlowsTask(TembaModel):
                 triggers.update(flow=self.target)
 
                 # move flow starts from source to target
-                flow_starts = self.source.starts.all()
+                flow_starts = self.source.starts.all().exclude(
+                    runs__status__in=[FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING]
+                )
                 backup_metadata["moved_flow_starts"] = [
                     str(uuid) for uuid in flow_starts.values_list("uuid", flat=True)
                 ]
                 flow_starts.update(flow=self.target)
 
                 # move runs from source to target
-                runs = self.source.runs.all()
+                runs = self.source.runs.all().exclude(status__in=[FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING])
                 backup_metadata["moved_flow_runs"] = [str(uuid) for uuid in runs.values_list("uuid", flat=True)]
                 for run in runs:
                     run.flow = self.target
@@ -4172,36 +4174,37 @@ class MergeFlowsTask(TembaModel):
                 links.update(related_flow=self.target)
 
                 # move analytics data
-                # move node counts
-                node_counts = self.source.node_counts.all()
-                backup_metadata["moved_node_counts"] = list(node_counts.values_list("id", flat=True))
+                active_pathes = {}
+                active_source_runs = self.source.runs.filter(
+                    status__in=[FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING]
+                )
+                for active_run in active_source_runs:
+                    for path_item in active_run.path:
+                        exit_uuid = path_item.get("exit_uuid")
+                        active_pathes[exit_uuid] = active_pathes.get(exit_uuid, 0) + 1
 
-                # update uuids for current counts
-                for node_count in self.target.node_counts.all().order_by("-count"):
-                    node_count.node_uuid = origin_node_uuids.get(str(node_count.node_uuid), node_count.node_uuid)
-                    node_count.save()
-
-                # transfer counts from source flow
-                for node_count in self.source.node_counts.all():
-                    node_count.node_uuid = origin_node_uuids.get(str(node_count.node_uuid), node_count.node_uuid)
-                    node_count.flow = self.target
-                    node_count.save()
-
-                # move path counts
+                # move path counts (responsible for numbers on action connections that display messages count)
                 path_counts = self.source.path_counts.all()
                 backup_metadata["path_path_counts"] = list(path_counts.values_list("id", flat=True))
 
-                # update uuids for current counts
-                for path_count in self.target.path_counts.all():
-                    path_count.from_uuid = origin_exit_uuids.get(str(path_count.from_uuid), path_count.from_uuid)
-                    path_count.to_uuid = origin_node_uuids.get(str(path_count.to_uuid), path_count.to_uuid)
-                    path_count.save()
-
                 # transfer counts from source flow
-                for path_count in self.source.path_counts.all():
-                    path_count.from_uuid = origin_exit_uuids.get(str(path_count.from_uuid), path_count.from_uuid)
-                    path_count.to_uuid = origin_node_uuids.get(str(path_count.to_uuid), path_count.to_uuid)
-                    path_count.flow = self.target
+                for path_count in self.source.path_counts.all().distinct("from_uuid"):
+                    need_to_skip = active_pathes.get(path_count.from_uuid, 0)
+                    dest_path_count = self.target.path_counts.filter(
+                        from_uuid=origin_exit_uuids.get(str(path_count.from_uuid), path_count.from_uuid),
+                        to_uuid=origin_node_uuids.get(str(path_count.to_uuid), path_count.to_uuid),
+                    ).first()
+                    if dest_path_count:
+                        dest_path_count.count += path_count.count - need_to_skip
+                        dest_path_count.save()
+                    else:
+                        self.target.path_counts.create(
+                            from_uuid=origin_exit_uuids.get(str(path_count.from_uuid), path_count.from_uuid),
+                            to_uuid=origin_node_uuids.get(str(path_count.to_uuid), path_count.to_uuid),
+                            count=path_count.count - need_to_skip,
+                            period=path_count.period,
+                        )
+                    path_count.count = need_to_skip
                     path_count.save()
 
                 # move category counts
@@ -4223,8 +4226,8 @@ class MergeFlowsTask(TembaModel):
                     category_count.flow = self.target
                     category_count.save()
 
-                # move exit counts
-                exits = self.source.exit_counts.all()
+                # move exit counts (responsible for completion chart and data on flow list page)
+                exits = self.source.exit_counts.all().exclude(exit_type__isnull=True)
                 backup_metadata["moved_flow_run_exits"] = list(exits.values_list("id", flat=True))
                 for source_exit in exits:
                     target_exit = self.target.exit_counts.filter(exit_type=source_exit.exit_type).first()
@@ -4253,9 +4256,8 @@ class MergeFlowsTask(TembaModel):
                 self.target.metadata["results"] = results
 
                 # archive source
-                active_runs_exists = FlowRun.objects.filter(
-                    Q(uuid__in=backup_metadata["moved_flow_runs"]) | Q(flow=self.source),
-                    status__in=[FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING],
+                active_runs_exists = self.source.runs.filter(
+                    status__in=[FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING]
                 ).exists()
                 if not active_runs_exists:
                     self.source.is_archived = True
