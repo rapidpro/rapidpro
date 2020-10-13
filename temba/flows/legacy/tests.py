@@ -39,13 +39,13 @@ from .migrations import (
 
 def get_legacy_groups(definition):
     groups = {}
-    for actionset in definition[Flow.ACTION_SETS]:
-        for action in actionset[Flow.ACTIONS]:
+    for actionset in definition["action_sets"]:
+        for action in actionset["actions"]:
             for group in action.get("groups", []):
                 groups[group["uuid"]] = group["name"]
 
-    for ruleset in definition[Flow.RULE_SETS]:
-        for rule in ruleset.get(Flow.RULES, []):
+    for ruleset in definition["rule_sets"]:
+        for rule in ruleset.get("rules", []):
             if rule["test"]["type"] == InGroupTest.TYPE:
                 group = rule["test"]["test"]
                 groups[group["uuid"]] = group["name"]
@@ -54,8 +54,8 @@ def get_legacy_groups(definition):
 
 def get_labels(definition):
     labels = {}
-    for actionset in definition[Flow.ACTION_SETS]:
-        for action in actionset[Flow.ACTIONS]:
+    for actionset in definition["action_sets"]:
+        for action in actionset["actions"]:
             for label in action.get("labels", []):
                 labels[label["uuid"]] = label["name"]
     return labels
@@ -408,7 +408,7 @@ class FlowMigrationTest(TembaTest):
     def test_migrate_to_11_8(self):
         def get_rule_uuids(f):
             uuids = []
-            for rs in f.get(Flow.RULE_SETS, []):
+            for rs in f.get("rule_sets", []):
                 for rule in rs.get("rules"):
                     uuids.append(rule["uuid"])
             return uuids

@@ -36,10 +36,10 @@ def migrate_to_version_11_12(json_flow, flow=None):
         return json_flow
 
     new_flow_json = json_flow.copy()
-    new_flow_json[Flow.ACTION_SETS] = []
+    new_flow_json["action_sets"] = []
 
-    entry = json_flow.get(Flow.ENTRY)
-    action_sets = json_flow.get(Flow.ACTION_SETS, [])
+    entry = json_flow.get("entry")
+    action_sets = json_flow.get("action_sets", [])
     reroute_uuid_remap = {}
     needs_move_entry = False
 
@@ -70,13 +70,13 @@ def migrate_to_version_11_12(json_flow, flow=None):
 
         action_set_clone["actions"] = valid_actions
         if len(valid_actions) > 0:
-            new_flow_json[Flow.ACTION_SETS].append(action_set_clone)
+            new_flow_json["action_sets"].append(action_set_clone)
         else:
             reroute_uuid_remap[action_set["uuid"]] = action_set.get("destination")
             needs_move_entry = True
 
-    action_sets = new_flow_json.get(Flow.ACTION_SETS, [])
-    rule_sets = new_flow_json.get(Flow.RULE_SETS, [])
+    action_sets = new_flow_json.get("action_sets", [])
+    rule_sets = new_flow_json.get("rule_sets", [])
 
     rerouted_sources = reroute_uuid_remap.keys()
     for source_uuid in rerouted_sources:
@@ -88,11 +88,11 @@ def migrate_to_version_11_12(json_flow, flow=None):
 
     if entry in reroute_uuid_remap:
         entry = reroute_uuid_remap[entry]
-        new_flow_json[Flow.ENTRY] = entry
+        new_flow_json["entry"] = entry
 
     for actionset_index, action_set in enumerate(action_sets):
         if action_set.get("destination") in reroute_uuid_remap:
-            new_flow_json[Flow.ACTION_SETS][actionset_index]["destination"] = reroute_uuid_remap[
+            new_flow_json["action_sets"][actionset_index]["destination"] = reroute_uuid_remap[
                 action_set["destination"]
             ]
 
@@ -100,11 +100,11 @@ def migrate_to_version_11_12(json_flow, flow=None):
             action_set["y"] = 0
 
     for ruleset_index, rule_set in enumerate(rule_sets):
-        for rule_index, rule in enumerate(rule_set.get(Flow.RULES)):
+        for rule_index, rule in enumerate(rule_set.get("rules")):
             if rule.get("destination") in reroute_uuid_remap:
-                new_flow_json[Flow.RULE_SETS][ruleset_index][Flow.RULES][rule_index][
-                    "destination"
-                ] = reroute_uuid_remap[rule["destination"]]
+                new_flow_json["rule_sets"][ruleset_index]["rules"][rule_index]["destination"] = reroute_uuid_remap[
+                    rule["destination"]
+                ]
 
     return new_flow_json
 
@@ -139,8 +139,8 @@ def migrate_to_version_11_11(json_flow, flow=None):
             elif label["uuid"] in uuid_map:
                 label["uuid"] = uuid_map[label["uuid"]]
 
-    for actionset in json_flow.get(Flow.ACTION_SETS, []):
-        for action in actionset[Flow.ACTIONS]:
+    for actionset in json_flow.get("action_sets", []):
+        for action in actionset["actions"]:
             for label in action.get("labels", []):
                 remap_label(label)
 
@@ -183,18 +183,18 @@ def migrate_to_version_11_10(json_flow, flow=None, flow_types=None):
         return (t1 == t2) or (t1 == "F" and t2 == "M") or (t1 == "M" and t2 == "F")
 
     def get_flow_type(flow_uuid):
-        if flow_uuid not in flow_types:
+        if flow_uuid not in flow_types:  # pragma: no cover
             f = Flow.objects.filter(uuid=flow_uuid).only("flow_type").first()
             flow_types[flow_uuid] = f.flow_type if f else None
         return flow_types[flow_uuid]
 
-    if Flow.ACTION_SETS not in json_flow:  # pragma: no cover
-        json_flow[Flow.ACTION_SETS] = []
-    if Flow.RULE_SETS not in json_flow:
-        json_flow[Flow.RULE_SETS] = []
+    if "action_sets" not in json_flow:  # pragma: no cover
+        json_flow["action_sets"] = []
+    if "rule_sets" not in json_flow:
+        json_flow["rule_sets"] = []
 
     # replace any StartFlowAction pointing to a flow of a different modality
-    for action_set in json_flow[Flow.ACTION_SETS]:
+    for action_set in json_flow["action_sets"]:
         for action in action_set.get("actions", []):
             if action["type"] == StartFlowAction.TYPE:
                 subflow_type = get_flow_type(action["flow"]["uuid"])
@@ -208,13 +208,13 @@ def migrate_to_version_11_10(json_flow, flow=None, flow_types=None):
     del_rule_sets = []
 
     # replace any subflow ruleset pointing to a flow of a different modality
-    for rule_set in json_flow.get(Flow.RULE_SETS, []):
+    for rule_set in json_flow.get("rule_sets", []):
         if rule_set["ruleset_type"] == RuleSet.TYPE_SUBFLOW:
             subflow_type = get_flow_type(rule_set["config"]["flow"]["uuid"])
             if subflow_type and not flow_types_eq(subflow_type, json_flow["flow_type"]):
 
                 # create new action set in same place with same connections
-                json_flow[Flow.ACTION_SETS].append(
+                json_flow["action_sets"].append(
                     {
                         "uuid": rule_set["uuid"],
                         "x": rule_set.get("x"),
@@ -238,7 +238,7 @@ def migrate_to_version_11_10(json_flow, flow=None, flow_types=None):
                 del_rule_sets.append(rule_set["uuid"])
 
     # remove any rulesets that were replaced
-    json_flow[Flow.RULE_SETS] = [rs for rs in json_flow[Flow.RULE_SETS] if rs["uuid"] not in del_rule_sets]
+    json_flow["rule_sets"] = [rs for rs in json_flow["rule_sets"] if rs["uuid"] not in del_rule_sets]
 
     return json_flow
 
@@ -254,8 +254,8 @@ def migrate_to_version_11_9(json_flow, flow=None):
         return json_flow
 
     main_flow_uuid = json_flow.get("metadata", {}).get("uuid", None)
-    action_sets = json_flow.get(Flow.ACTION_SETS, [])
-    rule_sets = json_flow.get(Flow.RULE_SETS, [])
+    action_sets = json_flow.get("action_sets", [])
+    rule_sets = json_flow.get("rule_sets", [])
 
     detected_flows = set()
 
@@ -297,14 +297,14 @@ def migrate_to_version_11_9(json_flow, flow=None):
                     flow_uuid = action["flow"]["uuid"]
                     if flow_uuid in invalid_flow_uuids:
 
-                        del new_flow_json[Flow.ACTION_SETS][actionset_index]["actions"][action_index]
+                        del new_flow_json["action_sets"][actionset_index]["actions"][action_index]
                         total_removed_actions += 1
 
                 if action["type"] == TriggerFlowAction.TYPE:
                     flow_uuid = action["flow"]["uuid"]
                     if flow_uuid in invalid_flow_uuids:
 
-                        del new_flow_json[Flow.ACTION_SETS][actionset_index]["actions"][action_index]
+                        del new_flow_json["action_sets"][actionset_index]["actions"][action_index]
                         total_removed_actions += 1
 
         for ruleset_index, rule_set in enumerate(rule_sets):
@@ -313,7 +313,7 @@ def migrate_to_version_11_9(json_flow, flow=None):
 
                 if flow_uuid in invalid_flow_uuids:
 
-                    del new_flow_json[Flow.RULE_SETS][ruleset_index]
+                    del new_flow_json["rule_sets"][ruleset_index]
                     total_removed_rulesets += 1
 
     if total_removed_actions + total_removed_rulesets > 0:
@@ -328,7 +328,7 @@ def migrate_to_version_11_8(json_flow, flow=None):
     """
     seen_uuids = set()
 
-    for rs in json_flow.get(Flow.RULE_SETS, []):
+    for rs in json_flow.get("rule_sets", []):
         for rule in rs.get("rules"):
             if rule.get("uuid") in seen_uuids or not rule.get("uuid"):
                 rule["uuid"] = str(uuid4())
@@ -344,7 +344,7 @@ def migrate_to_version_11_7(json_flow, flow=None):
 
     # need a lookup of all nodes to resolve destinations
     nodes_by_uuid = {}
-    for node in json_flow.get(Flow.ACTION_SETS, []) + json_flow.get(Flow.RULE_SETS, []):
+    for node in json_flow.get("action_sets", []) + json_flow.get("rule_sets", []):
         nodes_by_uuid[node["uuid"]] = node
 
     # map of actionset UUIDs to a list of the nodes replacing it
@@ -353,11 +353,11 @@ def migrate_to_version_11_7(json_flow, flow=None):
     # for creating unique ruleset labels
     num_new_rulesets = 0
 
-    for actionset in json_flow.get(Flow.ACTION_SETS, []):
+    for actionset in json_flow.get("action_sets", []):
         # split actions into a list of 1) single webhook actions 2) lists of non-webhook actions
         new_sets = []
         has_webooks = False
-        for action in actionset[Flow.ACTIONS]:
+        for action in actionset["actions"]:
             if action["type"] == "api":
                 new_sets.append(action)
                 has_webooks = True
@@ -421,10 +421,10 @@ def migrate_to_version_11_7(json_flow, flow=None):
                     },
                 }
 
-                if Flow.RULE_SETS not in json_flow:  # pragma: no cover
-                    json_flow[Flow.RULE_SETS] = []
+                if "rule_sets" not in json_flow:  # pragma: no cover
+                    json_flow["rule_sets"] = []
 
-                json_flow[Flow.RULE_SETS].append(new_node)
+                json_flow["rule_sets"].append(new_node)
             else:
                 new_node = {
                     "uuid": new_node_uuid,
@@ -434,7 +434,7 @@ def migrate_to_version_11_7(json_flow, flow=None):
                     "exit_uuid": str(uuid4()),
                     "destination": destination_uuid,
                 }
-                json_flow[Flow.ACTION_SETS].append(new_node)
+                json_flow["action_sets"].append(new_node)
 
             node_replacements[actionset["uuid"]].insert(0, new_node)  # so they're top to bottom
             destination = new_node
@@ -460,7 +460,7 @@ def migrate_to_version_11_7(json_flow, flow=None):
                 extra_y += estimate_node_height(new_node)
 
         # delete old actionset from flow
-        json_flow[Flow.ACTION_SETS].remove(old_actionset)
+        json_flow["action_sets"].remove(old_actionset)
 
     return json_flow
 
@@ -494,13 +494,13 @@ def migrate_to_version_11_6(json_flow, flow=None):
             elif group["uuid"] in uuid_map:
                 group["uuid"] = uuid_map[group["uuid"]]
 
-    for actionset in json_flow.get(Flow.ACTION_SETS, []):
-        for action in actionset[Flow.ACTIONS]:
+    for actionset in json_flow.get("action_sets", []):
+        for action in actionset["actions"]:
             for group in action.get("groups", []):
                 remap_group(group)
 
-    for ruleset in json_flow.get(Flow.RULE_SETS, []):
-        for rule in ruleset.get(Flow.RULES, []):
+    for ruleset in json_flow.get("rule_sets", []):
+        for rule in ruleset.get("rules", []):
             if rule["test"]["type"] == InGroupTest.TYPE:
                 group = rule["test"]["test"]
                 remap_group(group)
@@ -854,7 +854,7 @@ def migrate_to_version_10(json_flow, flow):
             ruleset.pop("webhook", None)
             return ruleset
 
-        if "config" not in ruleset:
+        if "config" not in ruleset:  # pragma: needs cover
             ruleset["config"] = dict()
 
         # webhook_action and webhook now live in config
@@ -1396,7 +1396,7 @@ def remove_extra_rules(json_flow, ruleset):
             if "base_language" in json_flow:
                 rule["category"][json_flow["base_language"]] = "All Responses"
             else:
-                rule["category"] = "All Responses"
+                rule["category"] = "All Responses"  # pragma: needs cover
             rules.append(rule)
 
     ruleset["rules"] = rules

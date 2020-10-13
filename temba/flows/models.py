@@ -97,46 +97,17 @@ FLOW_LOCK_KEY = "org:%d:lock:flow:%d:definition"
 
 
 class Flow(TembaModel):
-    UUID = "uuid"
-    ENTRY = "entry"
-    RULE_SETS = "rule_sets"
-    ACTION_SETS = "action_sets"
-    RULES = "rules"
-    CONFIG = "config"
-    ACTIONS = "actions"
-    DESTINATION = "destination"
-    EXIT_UUID = "exit_uuid"
-    LABEL = "label"
-    FINISHED_KEY = "finished_key"
-    RULESET_TYPE = "ruleset_type"
-    OPERAND = "operand"
-
-    LANGUAGE = "language"
-    BASE_LANGUAGE = "base_language"
-    SAVED_BY = "saved_by"
-    VERSION = "version"
-
     CONTACT_CREATION = "contact_creation"
     CONTACT_PER_RUN = "run"
     CONTACT_PER_LOGIN = "login"
 
-    FLOW_TYPE = "flow_type"
-    ID = "id"
-
     # items in metadata
-    METADATA = "metadata"
     METADATA_RESULTS = "results"
     METADATA_DEPENDENCIES = "dependencies"
     METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
     METADATA_PARENT_REFS = "parent_refs"
     METADATA_ISSUES = "issues"
     METADATA_IVR_RETRY = "ivr_retry"
-
-    # items in legacy metadata
-    METADATA_SAVED_ON = "saved_on"
-    METADATA_NAME = "name"
-    METADATA_REVISION = "revision"
-    METADATA_EXPIRES = "expires"
 
     # items in the response from mailroom flow inspection
     INSPECT_RESULTS = "results"
@@ -156,9 +127,6 @@ class Flow(TembaModel):
     DEFINITION_METADATA = "metadata"
     DEFINITION_NODES = "nodes"
     DEFINITION_UI = "_ui"
-
-    X = "x"
-    Y = "y"
 
     TYPE_MESSAGE = "M"
     TYPE_VOICE = "V"
@@ -1546,20 +1514,16 @@ class FlowRevision(SmartModel):
         return FlowRevision.objects.filter(flow=flow_id, created_on__lt=cutoff).exclude(id__in=keepers).delete()[0]
 
     @classmethod
-    def is_legacy_definition(cls, definition):
-        return Flow.DEFINITION_SPEC_VERSION not in definition
-
-    @classmethod
     def validate_legacy_definition(cls, definition):
-        if definition[Flow.FLOW_TYPE] not in (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, "F"):
+        if definition["flow_type"] not in (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, "F"):
             raise ValueError("unsupported flow type")
 
         # should always have a base_language
-        if Flow.BASE_LANGUAGE not in definition or not definition[Flow.BASE_LANGUAGE]:
+        if "base_language" not in definition or not definition["base_language"]:
             raise ValueError("non-localized flow definition")
 
         # language should match values in definition
-        base_language = definition[Flow.BASE_LANGUAGE]
+        base_language = definition["base_language"]
 
         def validate_localization(lang_dict):
             # must be a dict
@@ -1570,12 +1534,12 @@ class FlowRevision(SmartModel):
             if base_language not in lang_dict:  # pragma: needs cover
                 raise ValueError("non-localized flow definition")
 
-        for actionset in definition[Flow.ACTION_SETS]:
+        for actionset in definition["action_sets"]:
             for action in actionset["actions"]:
                 if "msg" in action and action["type"] != "email":
                     validate_localization(action["msg"])
 
-        for ruleset in definition[Flow.RULE_SETS]:
+        for ruleset in definition["rule_sets"]:
             for rule in ruleset["rules"]:
                 validate_localization(rule["category"])
 
@@ -1596,14 +1560,14 @@ class FlowRevision(SmartModel):
 
         # make sure old revisions migrate properly
         if Version(self.spec_version) <= Version(Flow.FINAL_LEGACY_VERSION):
-            definition[Flow.VERSION] = self.spec_version
+            definition["version"] = self.spec_version
+
+            if "metadata" not in definition:
+                definition["metadata"] = {}
+            definition["metadata"]["revision"] = self.revision
 
         # migrate our definition if necessary
         if self.spec_version != to_version:
-            if Flow.METADATA not in definition:
-                definition[Flow.METADATA] = {}
-
-            definition[Flow.METADATA][Flow.METADATA_REVISION] = self.revision
             definition = Flow.migrate_definition(definition, self.flow, to_version)
 
         # update variables from our db into our revision

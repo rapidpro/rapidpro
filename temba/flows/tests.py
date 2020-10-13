@@ -36,7 +36,6 @@ from temba.utils import json
 from temba.utils.uuid import uuid4
 from temba.values.constants import Value
 
-from . import legacy
 from .checks import mailroom_url
 from .models import (
     ExportFlowResultsTask,
@@ -516,24 +515,6 @@ class FlowTest(TembaTest):
             flow_def["nodes"][0]["router"]["cases"][0]["arguments"],
             copy_def["nodes"][0]["router"]["cases"][0]["arguments"],
         )
-
-    def test_length(self):
-        org = self.org
-
-        js = [
-            dict(category="Normal Length", uuid=uuid4(), destination=uuid4(), test=dict(type="true")),
-            dict(
-                category="Way too long, will get clipped at 36 characters",
-                uuid=uuid4(),
-                destination=uuid4(),
-                test=dict(type="true"),
-            ),
-        ]
-
-        rules = legacy.Rule.from_json_array(org, js)
-
-        self.assertEqual("Normal Length", rules[0].category)
-        self.assertEqual(36, len(rules[1].category))
 
     def test_activity(self):
         flow = self.get_flow("favorites_v13")
