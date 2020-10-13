@@ -1,3 +1,8 @@
+v5.7.73
+----------
+ * Make flows searchable and clickable on triggers
+ * Make flows searchable on edit campaign event
+
 v5.7.72
 ----------
  * Fix editor whatsapp templates, refresh whatsapp channel pages
