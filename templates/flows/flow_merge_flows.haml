@@ -27,7 +27,7 @@
             - if not prevent_merge
               %label{for: "flow_name"}
                 -trans "Name of new combined flow:"
-              %input{type:"text", name:"flow_name", id:"flow_name", value:"{% if flow_name %}{{ flow_name }}{% else %}Merge of {{ source.name }} with {{ target.name }}{% endif %}"}
+              %input{type:"text", name:"flow_name", id:"flow_name", value:"{{ target.name }}"}
 
           - if errors
             - for error in errors
