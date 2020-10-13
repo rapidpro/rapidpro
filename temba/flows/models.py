@@ -81,11 +81,6 @@ class FlowException(Exception):
     pass
 
 
-class FlowInvalidCycleException(FlowException):
-    def __init__(self, node_uuids):
-        self.node_uuids = node_uuids
-
-
 class FlowUserConflictException(FlowException):
     def __init__(self, other_user, last_saved_on):
         self.other_user = other_user
@@ -1465,59 +1460,6 @@ class RuleSet(models.Model):
     created_on = models.DateTimeField(auto_now_add=True, help_text=_("When this ruleset was originally created"))
     modified_on = models.DateTimeField(auto_now=True, help_text=_("When this ruleset was last modified"))
 
-    def get_value_type(self):
-        """
-        Determines the value type that this ruleset will generate.
-        """
-        # we keep track of specialized rule types we see
-        value_type = None
-
-        for rule in self.get_rules():
-            if isinstance(rule.test, legacy.TrueTest):
-                continue
-
-            rule_type = None
-
-            if isinstance(rule.test, legacy.NumericTest):
-                rule_type = Value.TYPE_NUMBER
-
-            elif isinstance(rule.test, legacy.DateTest):
-                rule_type = Value.TYPE_DATETIME
-
-            elif isinstance(rule.test, legacy.HasStateTest):
-                rule_type = Value.TYPE_STATE
-
-            elif isinstance(rule.test, legacy.HasDistrictTest):
-                rule_type = Value.TYPE_DISTRICT
-
-            elif isinstance(rule.test, legacy.HasWardTest):
-                rule_type = Value.TYPE_WARD
-
-            # this either isn't one of our value types or we have more than one type in this ruleset
-            if not rule_type or (value_type and rule_type != value_type):
-                return Value.TYPE_TEXT
-
-            value_type = rule_type
-
-        return value_type if value_type else Value.TYPE_TEXT
-
-    def get_rules(self):
-        return legacy.Rule.from_json_array(self.flow.org, self.rules)
-
-    def as_json(self):
-        return dict(
-            uuid=self.uuid,
-            x=self.x,
-            y=self.y,
-            label=self.label,
-            rules=self.rules,
-            finished_key=self.finished_key,
-            ruleset_type=self.ruleset_type,
-            response_type=self.response_type,
-            operand=self.operand,
-            config=self.config,
-        )
-
 
 class ActionSet(models.Model):
     uuid = models.CharField(max_length=36, unique=True)
@@ -1535,19 +1477,6 @@ class ActionSet(models.Model):
 
     created_on = models.DateTimeField(auto_now_add=True, help_text=_("When this action was originally created"))
     modified_on = models.DateTimeField(auto_now=True, help_text=_("When this action was last modified"))
-
-    def get_actions(self):
-        return legacy.Action.from_json_array(self.flow.org, self.actions)
-
-    def as_json(self):
-        return dict(
-            uuid=self.uuid,
-            x=self.x,
-            y=self.y,
-            destination=self.destination,
-            actions=self.actions,
-            exit_uuid=self.exit_uuid,
-        )
 
 
 class FlowRevision(SmartModel):
@@ -1622,28 +1551,24 @@ class FlowRevision(SmartModel):
 
     @classmethod
     def validate_legacy_definition(cls, definition):
-
         if definition[Flow.FLOW_TYPE] not in (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, "F"):
-            raise ValueError(_("Unsupported flow type"))
-
-        non_localized_error = _("Malformed flow, encountered non-localized definition")
+            raise ValueError("unsupported flow type")
 
         # should always have a base_language
         if Flow.BASE_LANGUAGE not in definition or not definition[Flow.BASE_LANGUAGE]:
-            raise ValueError(non_localized_error)
+            raise ValueError("non-localized flow definition")
 
         # language should match values in definition
         base_language = definition[Flow.BASE_LANGUAGE]
 
         def validate_localization(lang_dict):
-
             # must be a dict
             if not isinstance(lang_dict, dict):
-                raise ValueError(non_localized_error)
+                raise ValueError("non-localized flow definition")
 
             # and contain the base_language
             if base_language not in lang_dict:  # pragma: needs cover
-                raise ValueError(non_localized_error)
+                raise ValueError("non-localized flow definition")
 
         for actionset in definition[Flow.ACTION_SETS]:
             for action in actionset["actions"]:

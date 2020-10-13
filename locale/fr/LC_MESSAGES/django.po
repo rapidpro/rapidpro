@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-13 16:06+0000\n"
+"POT-Creation-Date: 2020-10-13 22:06+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3147,12 +3147,6 @@ msgstr "La définition du flux JSON"
 
 msgid "Revision number for this definition"
 msgstr "Numéro de révision pour cette définition"
-
-msgid "Unsupported flow type"
-msgstr "Type de flux non pris en charge"
-
-msgid "Malformed flow, encountered non-localized definition"
-msgstr "Flux mal formé, définition non-traduite rencontrée"
 
 msgid "The flows to export"
 msgstr "Les flux d'exportation"
@@ -11082,6 +11076,12 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Unsupported flow type"
+#~ msgstr "Type de flux non pris en charge"
+
+#~ msgid "Malformed flow, encountered non-localized definition"
+#~ msgstr "Flux mal formé, définition non-traduite rencontrée"
 
 #~ msgid "Your flow contains an invalid loop. Please refresh your browser."
 #~ msgstr "Votre flux contient une boucle non valide. Veuillez actualiser votre navigateur."

@@ -814,17 +814,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
 
-    def as_json(self):
-        obj = dict(id=self.pk, name=str(self), uuid=self.uuid)
-
-        if not self.org.is_anon:
-            urns = []
-            for urn in self.urns.all():
-                urns.append(dict(scheme=urn.scheme, path=urn.path, priority=urn.priority))
-            obj["urns"] = urns
-
-        return obj
-
     def get_scheduled_messages(self):
         from temba.msgs.models import SystemLabel
 

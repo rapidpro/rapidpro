@@ -2304,18 +2304,54 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(1, response.context["folders"][0]["count"])
         self.assertEqual(1, response.context["folders"][1]["count"])  # only flow2
 
+    def test_get_definition(self):
+        flow = self.get_flow("color_v13")
+
+        # if definition is outdated, metadata values are updated from db object
+        flow.name = "Amazing Flow"
+        flow.save(update_fields=("name",))
+
+        self.assertEqual("Amazing Flow", flow.get_definition()["name"])
+
+        # make a flow that looks like a legacy flow
+        flow = self.get_flow("color_v11")
+        original_def = self.get_flow_json("color_v11")
+
+        flow.version_number = "11.12"
+        flow.save(update_fields=("version_number",))
+
+        revision = flow.revisions.get()
+        revision.definition = original_def
+        revision.spec_version = "11.12"
+        revision.save(update_fields=("definition", "spec_version"))
+
+        self.assertIn("metadata", flow.get_definition())
+
+        # if definition is outdated, metadata values are updated from db object
+        flow.name = "Amazing Flow"
+        flow.save(update_fields=("name",))
+
+        self.assertEqual("Amazing Flow", flow.get_definition()["metadata"]["name"])
+
+        # metadata section can be missing too
+        del original_def["metadata"]
+        revision.definition = original_def
+        revision.save(update_fields=("definition",))
+
+        self.assertEqual("Amazing Flow", flow.get_definition()["metadata"]["name"])
+
     def test_fetch_revisions(self):
         self.login(self.admin)
 
         # we should have one revision for an imported flow
-        flow = self.get_flow("color")
-        original_def = self.get_flow_json("color")
+        flow = self.get_flow("color_v11")
+        original_def = self.get_flow_json("color_v11")
 
         # rewind definition to legacy spec
         revision = flow.revisions.get()
         revision.definition = original_def
-        revision.spec_version = "8"
-        revision.save()
+        revision.spec_version = "11.12"
+        revision.save(update_fields=("definition", "spec_version"))
 
         # create a new migrated revision
         flow_def = revision.get_definition_json()
@@ -2328,7 +2364,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(2, revisions[0].revision)
         self.assertEqual(Flow.CURRENT_SPEC_VERSION, revisions[0].spec_version)
         self.assertEqual(1, revisions[1].revision)
-        self.assertEqual("8", revisions[1].spec_version)
+        self.assertEqual("11.12", revisions[1].spec_version)
 
         response = self.client.get(reverse("flows.flow_revisions", args=[flow.uuid]))
         self.assertEqual(
@@ -2344,7 +2380,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                     "user": {"email": "Administrator@nyaruka.com", "name": ""},
                     "created_on": matchers.ISODate(),
                     "id": revisions[1].id,
-                    "version": "8",
+                    "version": "11.12",
                     "revision": 1,
                 },
             ],
