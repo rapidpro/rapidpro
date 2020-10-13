@@ -12,8 +12,11 @@ def all_equal(iterable):
 
 def has_result(node_data):
     result_name = node_data.get("router", {}).get("result_name")
-    action_result_names = [action["result_name"] for action in node_data.get("actions", []) if action.get("result_name")]
+    action_result_names = [
+        action["result_name"] for action in node_data.get("actions", []) if action.get("result_name")
+    ]
     return result_name or action_result_names[0] if action_result_names else None
+
 
 class NodeConflictTypes:
     ROUTER_CONFLICT = "ROUTER_CONFLICT"
@@ -322,9 +325,7 @@ class GraphDifferenceNode(Node):
         category_uuids = [category["uuid"] for category in self.data["router"]["categories"]]
 
         left = {case["category_uuid"]: case for case in self.source_node.data.get("router", {}).get("cases", [])}
-        right = {
-            case["category_uuid"]: case for case in self.destination_node.data.get("router", {}).get("cases", [])
-        }
+        right = {case["category_uuid"]: case for case in self.destination_node.data.get("router", {}).get("cases", [])}
         origin_cases = {**left, **right}
         for uuid in category_uuids:
             case = origin_cases.get(uuid)
@@ -657,7 +658,7 @@ class GraphDifferenceNode(Node):
             elif len(data.get("exits", [])) == 1:
                 categories_data[data["exits"][0]["uuid"]] = "Other"
             return categories_data
-        
+
         source_exits = get_exits_data(getattr(self.source_node, "data", {}))
         destination_exits = get_exits_data(getattr(self.destination_node, "data", {}))
 
@@ -668,11 +669,9 @@ class GraphDifferenceNode(Node):
                     self.origin_exits_map[dest_exit] = dest_exit
 
     def get_definition(self):
-        self.data = (
-            self.destination_node and self.destination_node.data
-            or self.source_node and self.source_node.data
-        )
+        self.data = self.destination_node and self.destination_node.data or self.source_node and self.source_node.data
         return self.data
+
 
 class GraphDifferenceMap:
     left_graph: Graph = None
@@ -971,11 +970,11 @@ class GraphDifferenceMap:
                 for parent, children in self.diff_nodes_edges.items():
                     if key in children:
                         children.remove(key)
-    
+
     def match_flow_step_exits(self):
         for node in self.diff_nodes_map.values():
             node.match_exits()
-    
+
     def prepare_definition(self):
         nodes = [node.get_definition() for node in self.diff_nodes_map.values()]
         self.definition["nodes"] = nodes
