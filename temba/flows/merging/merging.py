@@ -10,6 +10,11 @@ def all_equal(iterable):
     return len(set(iterable)) <= 1
 
 
+def has_result(node_data):
+    result_name = node_data.get("router", {}).get("result_name")
+    action_result_names = [action["result_name"] for action in node_data.get("actions", []) if action.get("result_name")]
+    return result_name or action_result_names[0] if action_result_names else None
+
 class NodeConflictTypes:
     ROUTER_CONFLICT = "ROUTER_CONFLICT"
     ACTION_CONFLICT = "ACTION_CONFLICT"
@@ -21,6 +26,7 @@ class Node:
     parent = None
     children: list = None
     has_router: bool = None
+    result_name: str = None
     routing_categories: dict = None
     parent_routind_data: dict = None
     data: OrderedDict = None
@@ -166,6 +172,7 @@ class Graph:
                 node.node_types.add(node_data["router"]["type"])
             node.data = OrderedDict(**node_data)
             node.has_router = "router" in node_data
+            node.result_name = has_result(node_data)
             self.nodes_map[node.uuid] = node
             self.extract_result_names(node_data)
 
@@ -204,16 +211,16 @@ class Graph:
 
 class GraphDifferenceNode(Node):
     graph = None
-    left_origin_node: Node = None
-    right_origin_node: Node = None
+    source_node: Node = None
+    destination_node: Node = None
     origin_exits_map: dict = None
     conflicts: list = None
     data: OrderedDict = None
 
     def __init__(self, *args, left_node=None, right_node=None, parent=None, conflicts=None, graph=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.left_origin_node = left_node
-        self.right_origin_node = right_node
+        self.source_node = left_node
+        self.destination_node = right_node
         self.parent = parent
         self.graph = graph
         self.conflicts = conflicts if conflicts else []
@@ -234,7 +241,7 @@ class GraphDifferenceNode(Node):
         self.parent.children.append(self)
 
     def get_uuids(self):
-        return [node.uuid for node in (self.left_origin_node, self.right_origin_node) if node]
+        return [node.uuid for node in (self.source_node, self.destination_node) if node]
 
     def get_child(self, uuid):
         child = self.graph.diff_nodes_origin_map.get(uuid)
@@ -254,11 +261,11 @@ class GraphDifferenceNode(Node):
                 category["exit_uuid"] = self.origin_exits_map.get(category["exit_uuid"], category["exit_uuid"])
 
     def check_categories(self):
-        if not (self.left_origin_node or self.right_origin_node).has_router:
+        if not (self.source_node or self.destination_node).has_router:
             return
 
-        left = {**self.left_origin_node.routing_categories}
-        right = {**self.right_origin_node.routing_categories}
+        left = {**self.source_node.routing_categories}
+        right = {**self.destination_node.routing_categories}
         default_category = None
         categories = []
         exits = []
@@ -277,8 +284,8 @@ class GraphDifferenceNode(Node):
                 _categories[category["name"]] = {"category": category, "exit": _exits[category["exit_uuid"]]}
             return _categories
 
-        left_categories = get_category_exits_dict(self.left_origin_node.data)
-        right_categories = get_category_exits_dict(self.right_origin_node.data)
+        left_categories = get_category_exits_dict(self.source_node.data)
+        right_categories = get_category_exits_dict(self.destination_node.data)
         all_categories = set({*left_categories.keys(), *right_categories.keys()})
 
         conditions_to_alter_all_responses_category = (
@@ -314,9 +321,9 @@ class GraphDifferenceNode(Node):
         cases = []
         category_uuids = [category["uuid"] for category in self.data["router"]["categories"]]
 
-        left = {case["category_uuid"]: case for case in self.left_origin_node.data.get("router", {}).get("cases", [])}
+        left = {case["category_uuid"]: case for case in self.source_node.data.get("router", {}).get("cases", [])}
         right = {
-            case["category_uuid"]: case for case in self.right_origin_node.data.get("router", {}).get("cases", [])
+            case["category_uuid"]: case for case in self.destination_node.data.get("router", {}).get("cases", [])
         }
         origin_cases = {**left, **right}
         for uuid in category_uuids:
@@ -347,8 +354,8 @@ class GraphDifferenceNode(Node):
                 }
             return result_data
 
-        left_data = get_exits_data(getattr(self.left_origin_node, "data", {}))
-        right_data = get_exits_data(getattr(self.right_origin_node, "data", {}))
+        left_data = get_exits_data(getattr(self.source_node, "data", {}))
+        right_data = get_exits_data(getattr(self.destination_node, "data", {}))
         merged_exits = []
 
         if left_data and right_data:
@@ -389,8 +396,8 @@ class GraphDifferenceNode(Node):
         self.data["exits"] = merged_exits
 
     def check_routers(self):
-        left = (self.left_origin_node or {}).data.get("router")
-        right = (self.right_origin_node or {}).data.get("router")
+        left = (self.source_node or {}).data.get("router")
+        right = (self.destination_node or {}).data.get("router")
 
         if left and right:
             self.data["router"] = left
@@ -429,8 +436,8 @@ class GraphDifferenceNode(Node):
         return conflicts
 
     def check_actions(self):
-        left = self.left_origin_node.data["actions"]
-        right = self.right_origin_node.data["actions"]
+        left = self.source_node.data["actions"]
+        right = self.destination_node.data["actions"]
         actions = []
 
         if "router" in self.data:
@@ -580,8 +587,8 @@ class GraphDifferenceNode(Node):
                 return [conflict]
 
     def check_difference(self):
-        if bool(self.left_origin_node) != bool(self.right_origin_node):
-            self.copy_data(self.left_origin_node or self.right_origin_node)
+        if bool(self.source_node) != bool(self.destination_node):
+            self.copy_data(self.source_node or self.destination_node)
             self.check_exits()
             self.correct_uuids()
             return
@@ -866,8 +873,8 @@ class GraphDifferenceMap:
         for uuid, conflicts in self.conflicts.items():
             for conflict in conflicts:
                 origin_node = (
-                    self.diff_nodes_origin_map.get(uuid).left_origin_node
-                    or self.diff_nodes_origin_map.get(uuid).right_origin_node
+                    self.diff_nodes_origin_map.get(uuid).source_node
+                    or self.diff_nodes_origin_map.get(uuid).destination_node
                 )
 
                 if conflict["conflict_type"] == NodeConflictTypes.ACTION_CONFLICT:
@@ -909,12 +916,12 @@ class GraphDifferenceMap:
         for node in self.diff_nodes_map.values():
             if node.parent is None:
                 parent = None
-                if all((node.left_origin_node, node.right_origin_node)):
-                    origin_parent = node.left_origin_node.parent or node.right_origin_node.parent
+                if all((node.source_node, node.destination_node)):
+                    origin_parent = node.source_node.parent or node.destination_node.parent
                     parent_uuid = origin_parent.uuid if origin_parent else None
                     parent = self.diff_nodes_origin_map.get(parent_uuid)
-                elif any((node.left_origin_node, node.right_origin_node)):
-                    origin_node = node.left_origin_node or node.right_origin_node
+                elif any((node.source_node, node.destination_node)):
+                    origin_node = node.source_node or node.destination_node
                     origin_parent = origin_node.parent
                     parent_uuid = origin_parent.uuid if origin_parent else None
                     parent = self.diff_nodes_origin_map.get(parent_uuid)

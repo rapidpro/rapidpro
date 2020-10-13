@@ -57,8 +57,8 @@ class GraphSerializer(serializers.Serializer):
 class DiffNodeSerializer(serializers.Serializer):
     uuid = serializers.CharField(required=False)
     node_types = serializers.ListField()
-    left_origin_node = NodeSerializer(many=False, allow_null=True)
-    right_origin_node = NodeSerializer(many=False, allow_null=True)
+    source_node = NodeSerializer(many=False, allow_null=True)
+    destination_node = NodeSerializer(many=False, allow_null=True)
     conflicts = serializers.ListField(child=serializers.JSONField())
     origin_exits_map = serializers.DictField(child=serializers.CharField())
     data = serializers.JSONField()
@@ -105,11 +105,11 @@ class DiffGraphSerializer(serializers.Serializer):
             node_serializer = DiffNodeSerializer(data=node)
             if node_serializer.is_valid():
                 node_obj = node_serializer.save()
-                node_obj.left_origin_node = self.get_origin_node(
-                    (node.get("left_origin_node") or {}).get("uuid", None), diff_graph.left_graph
+                node_obj.source_node = self.get_origin_node(
+                    (node.get("source_node") or {}).get("uuid", None), diff_graph.left_graph
                 )
-                node_obj.right_origin_node = self.get_origin_node(
-                    (node.get("right_origin_node") or {}).get("uuid", None), diff_graph.right_graph
+                node_obj.destination_node = self.get_origin_node(
+                    (node.get("destination_node") or {}).get("uuid", None), diff_graph.right_graph
                 )
                 nodes_map[node_obj.uuid] = node_obj
 
