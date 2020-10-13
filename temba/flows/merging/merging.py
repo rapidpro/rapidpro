@@ -1,5 +1,3 @@
-import itertools
-
 from collections import OrderedDict, Counter
 from jellyfish import jaro_distance
 
@@ -243,363 +241,12 @@ class GraphDifferenceNode(Node):
         self.parent = parent
         self.parent.children.append(self)
 
-    def get_uuids(self):
-        return [node.uuid for node in (self.source_node, self.destination_node) if node]
-
-    def get_child(self, uuid):
-        child = self.graph.diff_nodes_origin_map.get(uuid)
-        if child:
-            if child not in self.children:
-                child.set_parent(self)
-        return child
-
-    def copy_data(self, origin):
-        self.data.update(origin.data)
-
     def correct_uuids(self):
         self.data["uuid"] = self.uuid
 
         if "categories" in self.data.get("router", {}):
             for category in self.data["router"]["categories"]:
                 category["exit_uuid"] = self.origin_exits_map.get(category["exit_uuid"], category["exit_uuid"])
-
-    def check_categories(self):
-        if not (self.source_node or self.destination_node).has_router:
-            return
-
-        left = {**self.source_node.routing_categories}
-        right = {**self.destination_node.routing_categories}
-        default_category = None
-        categories = []
-        exits = []
-
-        def append_category(category):
-            categories.append(category["category"])
-            exits.append(category["exit"])
-            if category["category"]["name"].lower() in ("other", "all_responses"):
-                nonlocal default_category
-                default_category = category["category"]["uuid"]
-
-        def get_category_exits_dict(source):
-            _categories = {}
-            _exits = {exit_item["uuid"]: exit_item for exit_item in source["exits"]}
-            for category in source["router"]["categories"]:
-                _categories[category["name"]] = {"category": category, "exit": _exits[category["exit_uuid"]]}
-            return _categories
-
-        left_categories = get_category_exits_dict(self.source_node.data)
-        right_categories = get_category_exits_dict(self.destination_node.data)
-        all_categories = set({*left_categories.keys(), *right_categories.keys()})
-
-        conditions_to_alter_all_responses_category = (
-            "All Responses" in all_categories and "No Response" in all_categories and len(all_categories) > 2,
-            "All Responses" in all_categories and "No Response" not in all_categories and len(all_categories) > 1,
-        )
-        if any(conditions_to_alter_all_responses_category):
-            all_categories.remove("All Responses")
-            for categories_dict in (left, right, left_categories, right_categories):
-                if "All Responses" in categories_dict:
-                    data = categories_dict["All Responses"]
-                    if "category" in data:
-                        data["category"]["name"] = "Other"
-                    categories_dict["Other"] = data
-
-        for category in all_categories:
-            if category in left_categories and left.get(category) is not None:
-                append_category(left_categories[category])
-            elif category in right_categories and right.get(category) is not None:
-                append_category(right_categories[category])
-            elif category in left_categories:
-                append_category(left_categories[category])
-            elif category in right_categories:
-                append_category(right_categories[category])
-
-        self.data["router"]["categories"] = categories
-        self.data["router"]["default_category_uuid"] = default_category
-
-    def check_cases(self):
-        if "router" not in self.data:
-            return
-
-        cases = []
-        category_uuids = [category["uuid"] for category in self.data["router"]["categories"]]
-
-        left = {case["category_uuid"]: case for case in self.source_node.data.get("router", {}).get("cases", [])}
-        right = {case["category_uuid"]: case for case in self.destination_node.data.get("router", {}).get("cases", [])}
-        origin_cases = {**left, **right}
-        for uuid in category_uuids:
-            case = origin_cases.get(uuid)
-            if case:
-                cases.append(case)
-
-        self.data["router"]["cases"] = cases
-
-    def check_exits(self):
-        def get_exits_data(data):
-            if not data:
-                return {}
-
-            result_data = {}
-            categories_data = {}
-            if data.get("router", {}).get("categories"):
-                categories_data = {
-                    category["exit_uuid"]: "Other" if category["name"] == "All Responses" else category["name"]
-                    for category in data["router"]["categories"]
-                }
-            for exit_item in data["exits"]:
-                result_data[exit_item["uuid"]] = {
-                    "category": categories_data.get(exit_item["uuid"], "All Responses"),
-                    "destination": getattr(
-                        self.graph.diff_nodes_origin_map.get(exit_item.get("destination_uuid")), "uuid", None
-                    ),
-                }
-            return result_data
-
-        left_data = get_exits_data(getattr(self.source_node, "data", {}))
-        right_data = get_exits_data(getattr(self.destination_node, "data", {}))
-        merged_exits = []
-
-        if left_data and right_data:
-            matches = []
-            for uuid_l, data_l in left_data.items():
-                for uuid_r, data_r in right_data.items():
-                    if data_l["category"] == data_r["category"]:
-                        matches.append((uuid_l, uuid_r))
-                        merged_exits.append(
-                            {
-                                "uuid": uuid_l,
-                                "destination_uuid": data_l.get("destination") or data_r.get("destination"),
-                            }
-                        )
-                        self.origin_exits_map[uuid_l] = uuid_l
-                        self.origin_exits_map[uuid_r] = uuid_l
-
-            left_matched, right_matched = zip(*matches)
-
-            for uuid_l, data_l in left_data.items():
-                if uuid_l not in left_matched:
-                    self.origin_exits_map[uuid_l] = uuid_l
-                    merged_exits.append({"uuid": uuid_l, "destination_uuid": data_l.get("destination")})
-
-            for uuid_r, data_r in right_data.items():
-                if uuid_r not in right_matched:
-                    self.origin_exits_map[uuid_r] = uuid_r
-                    merged_exits.append({"uuid": uuid_r, "destination_uuid": data_r.get("destination")})
-        else:
-            exits_data = left_data or right_data
-            for uuid, data in exits_data.items():
-                self.origin_exits_map[uuid] = uuid
-                merged_exits.append({"uuid": uuid, "destination_uuid": data.get("destination")})
-
-        # delete exits duplications
-        merged_exits = [list(group)[0] for _, group in itertools.groupby(merged_exits, lambda x: x["uuid"])]
-
-        self.data["exits"] = merged_exits
-
-    def check_routers(self):
-        left = (self.source_node or {}).data.get("router")
-        right = (self.destination_node or {}).data.get("router")
-
-        if left and right:
-            self.data["router"] = left
-            conflicts = self.check_router_conflicts(left, right)
-            if conflicts:
-                self.conflicts.extend(conflicts)
-        elif bool(left) != bool(right):
-            if left:
-                self.data["router"] = left
-            if right:
-                self.data["router"] = right
-
-    def check_router_conflicts(self, left_router, right_router):
-        conflicts = []
-        conflict_base = {
-            "conflict_type": NodeConflictTypes.ROUTER_CONFLICT,
-            "left_router": left_router,
-            "right_router": right_router,
-        }
-        if left_router["type"] != right_router["type"]:
-            conflict = dict(conflict_base)
-            conflict.update({"field": "type"})
-            conflicts.append(conflict)
-            return conflicts
-
-        if left_router.get("operand") != right_router.get("operand"):
-            conflict = dict(conflict_base)
-            conflict.update({"field": "operand"})
-            conflicts.append(conflict)
-
-        if left_router.get("result_name") != right_router.get("result_name"):
-            conflict = dict(conflict_base)
-            conflict.update({"field": "result_name"})
-            conflicts.append(conflict)
-
-        return conflicts
-
-    def check_actions(self):
-        left = self.source_node.data["actions"]
-        right = self.destination_node.data["actions"]
-        actions = []
-
-        if "router" in self.data:
-            actions = left or right
-        else:
-            matched = []
-            if len(left) == len(right):
-                for l_action in left:
-                    for r_action in right:
-                        if self.check_actions_pair(l_action, r_action):
-                            conflicts = self.check_actions_conflicts(l_action, r_action)
-                            if conflicts:
-                                self.conflicts.extend(conflicts)
-                            else:
-                                actions.append(l_action)
-                            matched.append((l_action.get("uuid"), r_action.get("uuid")))
-
-            left_matched, right_matched = zip(*matched) if matched else ([], [])
-            for l_action in left:
-                if l_action["uuid"] not in left_matched:
-                    actions.append(l_action)
-
-            for r_action in right:
-                if r_action["uuid"] not in right_matched:
-                    actions.append(r_action)
-
-        self.data["actions"] = actions
-
-    def check_actions_pair(self, left, right):
-        def custom_checks():
-            if left["type"] == "set_contact_name":
-                return jaro_distance(left.get("name", ""), right.get("name", "")) >= 0.8
-            elif left["type"] == "set_contact_language":
-                return jaro_distance(left.get("language", ""), right.get("language", "")) >= 0.8
-            elif left["type"] == "set_contact_field":
-                return left["field"]["key"] == right["field"]["key"]
-            elif left["type"] == "enter_flow":
-                return left["flow"]["uuid"] == right["flow"]["uuid"]
-            elif left["type"] in ("set_contact_channel", "remove_contact_groups"):
-                return True
-
-        if left["type"] != right["type"]:
-            return
-
-        is_similar = [
-            jaro_distance(left.get("body", ""), right.get("body", "")) >= 0.8,
-            jaro_distance(left.get("name", ""), right.get("name", "")) >= 0.8,
-            jaro_distance(left.get("path", ""), right.get("path", "")) >= 0.8,
-            jaro_distance(left.get("scheme", ""), right.get("scheme", "")) >= 0.8,
-            jaro_distance(left.get("subject", ""), right.get("subject", "")) >= 0.8,
-            jaro_distance(left.get("text", ""), right.get("text", "")) >= 0.8,
-        ]
-        is_similar.append("labels" in left and "labels" in right)
-        is_similar.append("groups" in left and "groups" in right)
-        is_similar.append(custom_checks())
-        return any(is_similar)
-
-    def check_actions_conflicts(self, l_action, r_action):
-        conflict = {
-            "conflict_type": NodeConflictTypes.ACTION_CONFLICT,
-            "left_action": l_action,
-            "right_action": r_action,
-        }
-
-        if l_action["type"] in ("send_broadcast", "start_session"):
-            contacts = [contact["uuid"] for contact in l_action["contacts"]]
-            groups = [group["uuid"] for group in l_action["groups"]]
-            for contact in r_action["contacts"]:
-                if contact["uuid"] not in contacts:
-                    l_action["contacts"].append(contact)
-            for group in r_action["groups"]:
-                if group["uuid"] not in groups:
-                    l_action["groups"].append(group)
-
-        if l_action["type"] == "add_input_labels":
-            labels = [label["uuid"] for label in l_action["labels"]]
-            for label in r_action["labels"]:
-                if label["uuid"] not in labels:
-                    l_action["labels"].append(label)
-
-        if l_action["type"] in ("send_msg", "say_msg", "send_broadcast"):
-            if l_action["text"] != r_action["text"]:
-                conflict["field"] = "text"
-                return [conflict]
-
-        if l_action["type"] == "add_contact_urn":
-            if l_action["path"] != r_action["path"]:
-                conflict["field"] = "path"
-                return [conflict]
-
-        if l_action["type"] == "remove_contact_groups":
-            if any((l_action.get("all_groups", False), r_action.get("all_groups", False))):
-                l_action["all_groups"] = True
-                l_action["groups"] = []
-            else:
-                groups = [group["uuid"] for group in l_action["groups"]]
-                for group in r_action["groups"]:
-                    if group["uuid"] not in groups:
-                        l_action["groups"].append(group)
-
-        if l_action["type"] == "send_email":
-            conflicts = []
-            l_action["addresses"] = list(set([*l_action.get("addresses", []), *r_action.get("addresses", [])]))
-            l_action["attachments"] = list(set([*l_action.get("attachments", []), *r_action.get("attachments", [])]))
-            if l_action.get("body") != r_action.get("body"):
-                body_conflict = dict(conflict)
-                body_conflict["field"] = "body"
-                conflicts.append(body_conflict)
-
-            if l_action.get("subject") != r_action.get("subject"):
-                subject_conflict = dict(conflict)
-                subject_conflict["field"] = "subject"
-                conflicts.append(subject_conflict)
-            return conflicts
-
-        if l_action["type"] == "set_contact_name":
-            if l_action["name"] != r_action["name"]:
-                conflict["field"] = "name"
-                return [conflict]
-
-        if l_action["type"] == "set_contact_language":
-            if l_action["language"] != r_action["language"]:
-                conflict["field"] = "language"
-                return [conflict]
-
-        if l_action["type"] == "set_contact_channel":
-            if l_action["channel"]["uuid"] != r_action["channel"]["uuid"]:
-                conflict["field"] = "channel"
-                return [conflict]
-
-        if l_action["type"] == "set_contact_field":
-            conflicts = []
-            if l_action["field"]["key"] != r_action["field"]["key"]:
-                field_conflict = dict(conflict)
-                field_conflict["field"] = "field"
-                conflicts.append(field_conflict)
-
-            if l_action["value"] != r_action["value"]:
-                value_conflict = dict(conflict)
-                value_conflict["field"] = "value"
-                conflicts.append(value_conflict)
-            return conflicts
-
-        if l_action["type"] in ("start_session", "enter_flow"):
-            if l_action["flow"]["uuid"] != r_action["flow"]["uuid"]:
-                conflict["field"] = "flow"
-                return [conflict]
-
-    def check_difference(self):
-        if bool(self.source_node) != bool(self.destination_node):
-            self.copy_data(self.source_node or self.destination_node)
-            self.check_exits()
-            self.correct_uuids()
-            return
-
-        self.check_routers()
-        self.check_exits()
-        self.check_categories()
-        self.check_cases()
-        self.check_actions()
-        self.correct_uuids()
 
     def resolve_conflict(self, action_uuid, field_name, value):
         def get_conflict(action_uuid):
@@ -848,39 +495,11 @@ class GraphDifferenceMap:
                         pairs.append((sub_node_a, sub_node_b))
         return pairs, bool(node_a.children and node_b.children)
 
-    def check_differences(self):
-        conflicts = dict()
-        nodes = list()
-        for node in self.diff_nodes_map.values():
-            node.check_difference()
-            if node.conflicts:
-                conflicts[node.uuid] = node.conflicts
-            nodes.append(node.data)
-        self.definition["nodes"] = nodes
-        self.conflicts = conflicts
-
     def order_nodes(self):
         left_order = {node["uuid"]: index for index, node in enumerate(self.left_graph.resource["nodes"])}
         right_order = {node["uuid"]: index for index, node in enumerate(self.right_graph.resource["nodes"])}
         ordering = {**left_order, **right_order}
         self.definition["nodes"].sort(key=lambda node: ordering[node["uuid"]])
-
-    def merge_ui_definition(self):
-        origin_ui = {
-            **self.left_graph.resource["_ui"].get("nodes", {}),
-            **self.right_graph.resource["_ui"].get("nodes", {}),
-        }
-        merged_ui = {flow_uuid: origin_ui[flow_uuid] for flow_uuid in self.diff_nodes_map.keys()}
-        self.definition["_ui"]["nodes"] = merged_ui
-
-    def merge_localizations(self):
-        localization = self.left_graph.resource["localization"]
-        for key, value in self.right_graph.resource["localization"].items():
-            if key in localization:
-                localization[key].update(value)
-            else:
-                localization[key] = value
-        self.definition["localization"] = localization
 
     def get_conflict_solutions(self):
         conflict_solutions = []
@@ -942,7 +561,7 @@ class GraphDifferenceMap:
                 del self.conflicts[node_uuid]
         self.definition["nodes"] = [node.data for node in self.diff_nodes_map.values()]
 
-    def fill_missed_parrents(self):
+    def fill_missed_parents(self):
         for node in self.diff_nodes_map.values():
             if node.parent is None:
                 parent = None
@@ -984,8 +603,5 @@ class GraphDifferenceMap:
         self.delete_unmatched_source_nodes()
         self.match_flow_step_exits()
         self.prepare_definition()
-        # self.check_differences()
-        self.fill_missed_parrents()
+        self.fill_missed_parents()
         self.order_nodes()
-        # self.merge_ui_definition()
-        # self.merge_localizations()
