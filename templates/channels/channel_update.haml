@@ -111,6 +111,8 @@
     var bottomPadding = parseInt($("#id_bottom_padding").val());
     var sideOfScreen = $("#id_side_of_screen").val();
     var googleFont = $("#id_google_font").val();
+    var welcomeMessageQuickReplies = $("#id_welcome_msg_quick_replies").val();
+    welcomeMessageQuickReplies = welcomeMessageQuickReplies !== "" ? welcomeMessageQuickReplies.split(",") : [];
 
     window.renderSurveyor({
       socketUrl: '{{ websocket_url }}',
@@ -123,6 +125,7 @@
       welcomeMessageI18n: welcomeMsgDict,
       inputTextPlaceholder: inputTextPlaceholderValue,
       inputTextPlaceholderI18n: inputTextDict,
+      welcomeMessageQuickReplies: welcomeMessageQuickReplies,
       theme: {
         widgetBackgroundColor: widgetBackgroundColor,
         chatHeaderBackgroundColor: chatHeaderBackgroundColor,
@@ -209,6 +212,7 @@
         </div>
       `);
 
+      $('.control-group.field_chat_button_height').appendTo('.custom-collapsed-menu.position-and-size .custom-collapsed-menu-fields');
       $('.control-group.field_side_padding').appendTo('.custom-collapsed-menu.position-and-size .custom-collapsed-menu-fields');
       $('.control-group.field_bottom_padding').appendTo('.custom-collapsed-menu.position-and-size .custom-collapsed-menu-fields');
       $('.control-group.field_side_of_screen').appendTo('.custom-collapsed-menu.position-and-size .custom-collapsed-menu-fields');
@@ -234,7 +238,6 @@
       $('.control-group.field_automated_chat_txt').appendTo('.custom-collapsed-menu.look-and-feel .custom-collapsed-menu-fields');
       $('.control-group.field_user_chat_bg').appendTo('.custom-collapsed-menu.look-and-feel .custom-collapsed-menu-fields');
       $('.control-group.field_user_chat_txt').appendTo('.custom-collapsed-menu.look-and-feel .custom-collapsed-menu-fields');
-      $('.control-group.field_chat_button_height').appendTo('.custom-collapsed-menu.look-and-feel .custom-collapsed-menu-fields');
       $('.control-group.field_google_font').appendTo('.custom-collapsed-menu.look-and-feel .custom-collapsed-menu-fields');
 
       // Welcome Message
@@ -295,6 +298,8 @@
       $(".custom-collapsed-menu .collapsed-title").click(function() {
         var el = $(this).parent().find(".custom-collapsed-menu-fields");
         $(".custom-collapsed-menu-fields").slideUp();
+        $(".custom-collapsed-menu").find("a.collapsed-title").find("i").attr("class", "icon-arrow-right-8");
+        el.parent().find("a.collapsed-title").find("i").attr("class", "icon-arrow-down-2");
         el.slideDown();
       });
 
