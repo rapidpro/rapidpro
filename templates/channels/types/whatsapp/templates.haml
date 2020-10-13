@@ -6,17 +6,15 @@
 -block fields
 
 -block title
-  .medium-help.float-left.icon-template
+  {{ object.name }}
+  -trans "Templates"
 
-  %h2.font_normalize.header-margin.title
-    {{ object.name }}
-    -trans "Templates"
-
-  .header-margin
+-block subtitle
+  .text-lg
     -trans "Templates are synced from your WhatsApp account every 15 minutes."
 
 -block content
-  %table#templates
+  %table.list#templates
     -for translation in translations
       -ifchanged translation.template.name
         %tr.template-name
@@ -48,12 +46,8 @@
     #templates {
       width: 100%;
     }
-    td {
-      padding: 5px;
-    }
     tr.template-name td {
       font-weight: bold;
-      padding-top: 20px;
       border-bottom: 1px solid #e6e6e6;
     }
     tr.translation td {

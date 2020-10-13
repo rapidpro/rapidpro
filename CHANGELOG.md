@@ -1,3 +1,8 @@
+v5.7.72
+----------
+ * Fix editor whatsapp templates, refresh whatsapp channel pages
+ * Move omnibox module into temba.contacts.search
+
 v5.7.71
 ----------
  * Remove legacy contact searching

@@ -296,7 +296,9 @@ class CampaignEventForm(forms.ModelForm):
         queryset=Flow.objects.filter(is_active=True),
         required=False,
         empty_label=None,
-        widget=SelectWidget(attrs={"placeholder": _("Select a flow to start"), "widget_only": True}),
+        widget=SelectWidget(
+            attrs={"placeholder": _("Select a flow to start"), "widget_only": True, "searchable": True}
+        ),
     )
 
     relative_to = forms.ModelChoiceField(
