@@ -643,6 +643,36 @@ class GraphDifferenceNode(Node):
                 self.data["router"][conflict["field"]] = value
         return self.conflicts
 
+    def match_exits(self):
+        def get_exits_data(data):
+            if not data or len(data.get("exits", [])) == 0:
+                return {}
+
+            categories_data = {}
+            if data.get("router", {}).get("categories") and len(data["router"]["categories"]) == len(data["exits"]):
+                categories_data = {
+                    category["exit_uuid"]: "Other" if category["name"] == "All Responses" else category["name"]
+                    for category in data["router"]["categories"]
+                }
+            elif len(data.get("exits", [])) == 1:
+                categories_data[data["exits"][0]["uuid"]] = "Other"
+            return categories_data
+        
+        source_exits = get_exits_data(getattr(self.source_node, "data", {}))
+        destination_exits = get_exits_data(getattr(self.destination_node, "data", {}))
+
+        for dest_exit, dest_category in destination_exits.items():
+            for src_exit, src_category in source_exits.items():
+                if dest_category == src_category:
+                    self.origin_exits_map[src_exit] = dest_exit
+                    self.origin_exits_map[dest_exit] = dest_exit
+
+    def get_definition(self):
+        self.data = (
+            self.destination_node and self.destination_node.data
+            or self.source_node and self.source_node.data
+        )
+        return self.data
 
 class GraphDifferenceMap:
     left_graph: Graph = None
@@ -663,7 +693,8 @@ class GraphDifferenceMap:
         self.diff_nodes_map = {}
         self.diff_nodes_edges = {}
         self.diff_nodes_origin_map = {}
-        self.definition = OrderedDict(**_left.resource)
+        self.definition = OrderedDict(**_right.resource)
+        self.conflicts = {}
 
     def match_flow_steps(self):
         matched_pairs = self.find_matching_nodes()
@@ -706,7 +737,7 @@ class GraphDifferenceMap:
 
     def create_diff_node_for_matched_nodes_pair(self, matched_pair, parent=None):
         left, right = matched_pair
-        uuid = left.uuid or right.uuid
+        uuid = right.uuid or left.uuid
         if uuid in self.diff_nodes_map:
             diff_node = self.diff_nodes_map[uuid]
             if parent:
@@ -928,10 +959,34 @@ class GraphDifferenceMap:
                 if parent:
                     node.set_parent(parent)
 
+    def delete_unmatched_source_nodes(self):
+        node_keys = list(self.diff_nodes_map.keys())
+        for key in node_keys:
+            diff_node = self.diff_nodes_map[key]
+            if diff_node.source_node and not diff_node.destination_node:
+                del self.diff_nodes_map[key]
+                del self.diff_nodes_origin_map[key]
+                if key in self.diff_nodes_edges:
+                    del self.diff_nodes_edges[key]
+                for parent, children in self.diff_nodes_edges.items():
+                    if key in children:
+                        children.remove(key)
+    
+    def match_flow_step_exits(self):
+        for node in self.diff_nodes_map.values():
+            node.match_exits()
+    
+    def prepare_definition(self):
+        nodes = [node.get_definition() for node in self.diff_nodes_map.values()]
+        self.definition["nodes"] = nodes
+
     def compare_graphs(self):
         self.match_flow_steps()
-        self.check_differences()
+        self.delete_unmatched_source_nodes()
+        self.match_flow_step_exits()
+        self.prepare_definition()
+        # self.check_differences()
         self.fill_missed_parrents()
         self.order_nodes()
-        self.merge_ui_definition()
-        self.merge_localizations()
+        # self.merge_ui_definition()
+        # self.merge_localizations()
