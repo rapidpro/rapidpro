@@ -80,7 +80,7 @@
     }
 
     .custom-collapsed-menu.active .custom-collapsed-menu-fields {
-      display: table;
+      display: block;
     }
 
     .custom-collapsed-menu .custom-collapsed-menu-fields {
@@ -267,9 +267,9 @@
       // Setup
 
       $(".smartmin-form fieldset").prepend(`
-        <div class='custom-collapsed-menu setup active'>
-          <a href='javascript:;' class='collapsed-title'>
-            <i class='icon-arrow-right-8'></i>
+        <div class='custom-collapsed-menu setup'>
+          <a href='javascript:;' class='collapsed-title' id='link-menu-setup'>
+            <i class='icon-arrow-down-2'></i>
             WebChat Setup
           </a>
           <div class='custom-collapsed-menu-fields'></div>
@@ -280,12 +280,22 @@
       $('.control-group.field_logo').appendTo('.custom-collapsed-menu.setup .custom-collapsed-menu-fields');
       $('.control-group.field_logo_style').appendTo('.custom-collapsed-menu.setup .custom-collapsed-menu-fields');
       $('.control-group.field_title').appendTo('.custom-collapsed-menu.setup .custom-collapsed-menu-fields');
+
+      var errorsLenght = $("ul.errorlist").length;
+      if (errorsLenght == 0) {
+        $(".custom-collapsed-menu.setup").addClass("active");
+      }
     }
 
     // adding languages to the form
     {% if object.channel_type == "WCH" %}
     $(document).ready(function() {
       reformatWebChatUpdatePage();
+
+      $("ul.errorlist").each(function(idx, el) {
+        $(el.parentNode.parentNode.parentNode.parentNode.parentNode).find("a.collapsed-title").find("i").attr("class", "icon-arrow-down-2");
+        $(el.parentNode.parentNode.parentNode.parentNode.parentNode).find(".custom-collapsed-menu-fields").slideDown();
+      });
 
       $('#id_welcome_msg_quick_replies').select2({
         tags: [],
