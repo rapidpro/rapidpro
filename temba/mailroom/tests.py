@@ -309,7 +309,7 @@ class MailroomClientTest(TembaTest):
             mock_post.return_value = MockResponse(400, '{"errors":["Bad request", "Doh!"]}')
 
             with self.assertRaises(MailroomException) as e:
-                get_client().flow_migrate(flow.as_json())
+                get_client().flow_migrate(flow.get_definition())
 
         self.assertEqual(
             e.exception.as_json(),
@@ -549,7 +549,7 @@ class MailroomQueueTest(TembaTest):
         jim = self.create_contact("Jim", phone="+12065551212")
 
         flow = self.get_flow("favorites")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[2]
 

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-09 19:16+0000\n"
+"POT-Creation-Date: 2020-10-13 22:06+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3102,12 +3102,6 @@ msgstr "Определение потока JSON"
 msgid "Revision number for this definition"
 msgstr "Номер редакции для данного определения"
 
-msgid "Unsupported flow type"
-msgstr "Неподдерживаемый тип потока"
-
-msgid "Malformed flow, encountered non-localized definition"
-msgstr "Искаженный поток, встретилось нелокализованное определение"
-
 msgid "The flows to export"
 msgstr "Потоки для экспорта"
 
@@ -3457,9 +3451,6 @@ msgstr "Скачать"
 #| msgid "Download Results"
 msgid "Download Flow Results"
 msgstr "Скачать Результаты"
-
-msgid "Your flow contains an invalid loop. Please refresh your browser."
-msgstr "Ваш поток содержит недействительный цикл. Пожалуйста, обновите Ваш браузер."
 
 msgid "Contacts & Groups"
 msgstr "Контакты и Группы"
@@ -11191,6 +11182,15 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Unsupported flow type"
+#~ msgstr "Неподдерживаемый тип потока"
+
+#~ msgid "Malformed flow, encountered non-localized definition"
+#~ msgstr "Искаженный поток, встретилось нелокализованное определение"
+
+#~ msgid "Your flow contains an invalid loop. Please refresh your browser."
+#~ msgstr "Ваш поток содержит недействительный цикл. Пожалуйста, обновите Ваш браузер."
 
 #~ msgid "Revision History"
 #~ msgstr "История редактирования"

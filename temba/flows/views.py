@@ -26,7 +26,6 @@ from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.encoding import force_text
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
@@ -61,11 +60,10 @@ from temba.utils.fields import (
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.utils.uuid import uuid4
-from temba.utils.views import BulkActionMixin, NonAtomicMixin
+from temba.utils.views import BulkActionMixin
 
 from .models import (
     ExportFlowResultsTask,
-    FlowInvalidCycleException,
     FlowLabel,
     FlowPathRecentRun,
     FlowStartCount,
@@ -216,7 +214,6 @@ class FlowCRUDL(SmartCRUDL):
         "results",
         "run_table",
         "category_counts",
-        "json",
         "broadcast",
         "activity",
         "activity_chart",
@@ -237,6 +234,9 @@ class FlowCRUDL(SmartCRUDL):
             return initial_queryset.filter(is_active=True)
 
     class RecentMessages(OrgObjPermsMixin, SmartReadView):
+        """
+        Used by the editor for the rollover of recent messages on path segments in a flow
+        """
 
         slug_url_kwarg = "uuid"
 
@@ -255,6 +255,9 @@ class FlowCRUDL(SmartCRUDL):
             return JsonResponse(recent_messages, safe=False)
 
     class Revisions(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+        """
+        Used by the editor for fetching and saving flow definitions
+        """
 
         slug_url_kwarg = "uuid"
 
@@ -264,62 +267,48 @@ class FlowCRUDL(SmartCRUDL):
 
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
-
-            flow_version = request.GET.get("version", Flow.CURRENT_SPEC_VERSION)
             revision_id = self.kwargs["revision_id"]
+
+            # the editor requests the spec version it supports which allows us to add support for new versions
+            # on the goflow/mailroom side before updating the editor to use that new version
+            requested_version = request.GET.get("version", Flow.CURRENT_SPEC_VERSION)
 
             # we are looking for a specific revision, fetch it and migrate it forward
             if revision_id:
-                revision = FlowRevision.objects.get(flow=flow, pk=revision_id)
-                definition = revision.get_definition_json(to_version=flow_version)
-
-                # TODO: this is only needed to support the legacy editor
-                if Version(flow_version) < Version(Flow.INITIAL_GOFLOW_VERSION):
-                    return JsonResponse(definition)
+                revision = FlowRevision.objects.get(flow=flow, id=revision_id)
+                definition = revision.get_migrated_definition(to_version=requested_version)
 
                 # get our metadata
                 flow_info = mailroom.get_client().flow_inspect(flow.org_id, definition)
                 return JsonResponse(dict(definition=definition, metadata=Flow.get_metadata(flow_info)))
 
-            # get a list of all revisions, these should be reasonably pruned already
+            # build a list of valid revisions to display
             revisions = []
-            requested_version = Version(flow_version)
-            release = requested_version.release
 
-            # if a patch version wasn't given, we want to include all patches
-            # for example, 13.2 should include anything up to but not including 13.3.0
-            # up to the next minor version
-            include_patches = len(release) == 2
-            up_to_version = Version(".".join([str(release[0]), str((release[1]) + 1), "0"]))
-
-            for revision in flow.revisions.all().order_by("-revision"):
-
+            for revision in flow.revisions.all().order_by("-revision")[:100]:
                 revision_version = Version(revision.spec_version)
 
-                # any version up to the requested version is allowed
-                if revision_version <= requested_version or (include_patches and revision_version < up_to_version):
+                # our goflow revisions are already validated
+                if revision_version >= Version(Flow.INITIAL_GOFLOW_VERSION):
+                    revisions.append(revision.as_json())
+                    continue
 
-                    # our goflow revisions are already validated
-                    if revision_version >= Version(Flow.INITIAL_GOFLOW_VERSION):
-                        revisions.append(revision.as_json())
-                        continue
+                # legacy revisions should be validated first as a failsafe
+                try:
+                    legacy_flow_def = revision.get_migrated_definition(to_version=Flow.FINAL_LEGACY_VERSION)
+                    FlowRevision.validate_legacy_definition(legacy_flow_def)
+                    revisions.append(revision.as_json())
 
-                    # legacy revisions should be validated first as a failsafe
-                    try:
-                        legacy_flow_def = revision.get_definition_json(to_version=Flow.FINAL_LEGACY_VERSION)
-                        FlowRevision.validate_legacy_definition(legacy_flow_def)
-                        revisions.append(revision.as_json())
+                except ValueError:
+                    # "expected" error in the def, silently cull it
+                    pass
 
-                    except ValueError:
-                        # "expected" error in the def, silently cull it
-                        pass
-
-                    except Exception as e:
-                        # something else, we still cull, but report it to sentry
-                        logger.error(
-                            f"Error validating flow revision ({flow.uuid} [{revision.id}]): {str(e)}", exc_info=True
-                        )
-                        pass
+                except Exception as e:
+                    # something else, we still cull, but report it to sentry
+                    logger.error(
+                        f"Error validating flow revision ({flow.uuid} [{revision.id}]): {str(e)}", exc_info=True
+                    )
+                    pass
 
             return JsonResponse({"results": revisions}, safe=False)
 
@@ -462,7 +451,7 @@ class FlowCRUDL(SmartCRUDL):
                 obj.base_language = "base"
 
             # default expiration is a week
-            expires_after_minutes = 60 * 24 * 7
+            expires_after_minutes = Flow.DEFAULT_EXPIRES_AFTER
             if obj.flow_type == Flow.TYPE_VOICE:
                 # ivr expires after 5 minutes of inactivity
                 expires_after_minutes = 5
@@ -1283,7 +1272,9 @@ class FlowCRUDL(SmartCRUDL):
             return kwargs
 
         def form_valid(self, form):
-            flow_def = mailroom.get_client().flow_change_language(self.object.as_json(), form.cleaned_data["language"])
+            flow_def = mailroom.get_client().flow_change_language(
+                self.object.get_definition(), form.cleaned_data["language"]
+            )
 
             self.object.save_revision(self.get_user(), flow_def)
 
@@ -1935,90 +1926,6 @@ class FlowCRUDL(SmartCRUDL):
                 except mailroom.MailroomException:
                     return JsonResponse(dict(status="error", description="mailroom error"), status=500)
 
-    class Json(NonAtomicMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartUpdateView):
-        slug_url_kwarg = "uuid"
-        success_message = ""
-
-        def get(self, request, *args, **kwargs):
-
-            flow = self.get_object()
-            flow.ensure_current_version()
-
-            # all the translation languages for our org
-            languages = [lang.as_json() for lang in flow.org.languages.all().order_by("orgs")]
-
-            # all countries we have a channel for, never fail here
-            try:
-                channel_countries = flow.org.get_channel_countries()
-            except Exception:  # pragma: needs cover
-                logger.error("Unable to get currency for channel countries.", exc_info=True)
-                channel_countries = []
-
-            # all the channels available for our org
-            channels = [
-                dict(uuid=chan.uuid, name=f"{chan.get_channel_type_display()}: {chan.name}")
-                for chan in flow.org.channels.filter(is_active=True)
-            ]
-            return JsonResponse(
-                dict(
-                    flow=flow.as_json(expand_contacts=True),
-                    languages=languages,
-                    channel_countries=channel_countries,
-                    channels=channels,
-                )
-            )
-
-        def post(self, request, *args, **kwargs):
-
-            # require update permissions
-            if not self.has_org_perm("flows.flow_update"):
-                return HttpResponseRedirect(reverse("flows.flow_json", args=[self.get_object().pk]))
-
-            # try to parse our body
-            json_string = force_text(request.body)
-
-            # if the last modified on this flow is more than a day ago, log that this flow as updated
-            if self.get_object().saved_on < timezone.now() - timedelta(hours=24):  # pragma: needs cover
-                analytics.track(self.request.user.username, "temba.flow_updated")
-
-            # try to save the our flow, if this fails, let's let that bubble up to our logger
-            json_dict = json.loads(json_string)
-            print(json.dumps(json_dict, indent=2))
-
-            try:
-                flow = self.get_object(self.get_queryset())
-                revision = flow.update(json_dict, user=self.request.user)
-                return JsonResponse(
-                    {
-                        "status": "success",
-                        "saved_on": json.encode_datetime(flow.saved_on, micros=True),
-                        "revision": revision.revision,
-                    },
-                    status=200,
-                )
-
-            except FlowValidationException:  # pragma: no cover
-                error = _("Your flow failed validation. Please refresh your browser.")
-            except FlowInvalidCycleException:
-                error = _("Your flow contains an invalid loop. Please refresh your browser.")
-            except FlowVersionConflictException:
-                error = _(
-                    "Your flow has been upgraded to the latest version. "
-                    "In order to continue editing, please refresh your browser."
-                )
-            except FlowUserConflictException as e:
-                error = (
-                    _(
-                        "%s is currently editing this Flow. "
-                        "Your changes will not be saved until you refresh your browser."
-                    )
-                    % e.other_user
-                )
-            except Exception:  # pragma: no cover
-                error = _("Your flow could not be saved. Please refresh your browser.")
-
-            return JsonResponse({"status": "failure", "description": error}, status=400)
-
     class Broadcast(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class BroadcastForm(forms.ModelForm):
             def __init__(self, *args, **kwargs):
@@ -2138,7 +2045,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def has_facebook_topic(self, flow):
             if not flow.is_legacy():
-                definition = flow.get_current_revision().get_definition_json()
+                definition = flow.get_current_revision().get_migrated_definition()
                 for node in definition.get("nodes", []):
                     for action in node.get("actions", []):
                         if action.get("type", "") == "send_msg" and action.get("topic", ""):

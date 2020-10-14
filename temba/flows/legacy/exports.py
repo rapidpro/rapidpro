@@ -1,11 +1,7 @@
-from temba.flows.models import Flow
-
 from . import get_versions_after, migrations
 
 
 def migrate(org, exported_json, same_site, version):
-    to_version = Flow.FINAL_LEGACY_VERSION
-
     for version in get_versions_after(version):
         version_slug = version.replace(".", "_")
         migrate_fn = getattr(migrations, "migrate_export_to_version_%s" % version_slug, None)
@@ -16,7 +12,7 @@ def migrate(org, exported_json, same_site, version):
             # update the version of migrated flows
             flows = []
             for sub_flow in exported_json.get("flows", []):
-                sub_flow[Flow.VERSION] = version
+                sub_flow["version"] = version
                 flows.append(sub_flow)
 
             exported_json["flows"] = flows
@@ -34,9 +30,6 @@ def migrate(org, exported_json, same_site, version):
 
         # update each flow's version number
         for json_flow in exported_json.get("flows", []):
-            json_flow[Flow.VERSION] = version
-
-        if version == to_version:
-            break
+            json_flow["version"] = version
 
     return exported_json

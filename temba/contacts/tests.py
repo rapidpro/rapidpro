@@ -1311,7 +1311,7 @@ class ContactTest(TembaTest):
 
         self.create_broadcast(self.admin, "Test Broadcast", contacts=[contact])
 
-        flow_nodes = msg_flow.as_json()["nodes"]
+        flow_nodes = msg_flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[2]
         beer_prompt = flow_nodes[3]
@@ -1940,7 +1940,7 @@ class ContactTest(TembaTest):
             )
 
             flow = self.get_flow("color_v13")
-            nodes = flow.as_json()["nodes"]
+            nodes = flow.get_definition()["nodes"]
             color_prompt = nodes[0]
             color_split = nodes[4]
 
@@ -2182,7 +2182,7 @@ class ContactTest(TembaTest):
 
     def test_history_session_events(self):
         flow = self.get_flow("color_v13")
-        nodes = flow.as_json()["nodes"]
+        nodes = flow.get_definition()["nodes"]
         (
             MockSessionWriter(self.joe, flow)
             .visit(nodes[0])
@@ -2265,7 +2265,7 @@ class ContactTest(TembaTest):
         msg = self.create_incoming_msg(contact, "Inbound message")
 
         flow = self.get_flow("color_v13")
-        nodes = flow.as_json()["nodes"]
+        nodes = flow.get_definition()["nodes"]
         color_prompt = nodes[0]
         color_split = nodes[4]
 
@@ -3742,7 +3742,7 @@ class ContactFieldTest(TembaTest):
         )
 
         flow = self.get_flow("color_v13")
-        nodes = flow.as_json()["nodes"]
+        nodes = flow.get_definition()["nodes"]
         color_prompt = nodes[0]
         color_split = nodes[4]
 

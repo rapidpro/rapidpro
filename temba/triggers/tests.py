@@ -468,7 +468,7 @@ class TriggerTest(TembaTest):
 
         # did our group join flow get created?
         flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE, name="Join Chat")
-        flow_def = flow.as_json()
+        flow_def = flow.get_definition()
 
         self.assertEqual(len(flow_def["nodes"]), 1)
         self.assertEqual(len(flow_def["nodes"][0]["actions"]), 4)
@@ -537,7 +537,7 @@ class TriggerTest(TembaTest):
 
         # did our group join flow get created?
         flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE)
-        flow_def = flow.as_json()
+        flow_def = flow.get_definition()
 
         self.assertEqual(len(flow_def["nodes"]), 1)
         self.assertEqual(len(flow_def["nodes"][0]["actions"]), 2)

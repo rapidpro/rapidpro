@@ -2189,7 +2189,7 @@ class BroadcastTest(TembaTest):
 
         # give Joe a flow run that has stopped on a node
         flow = self.get_flow("color_v13")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[4]
         (

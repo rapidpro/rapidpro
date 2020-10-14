@@ -1,10 +1,10 @@
 import logging
 import time
 from array import array
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from datetime import timedelta
 from enum import Enum
-from urllib.request import urlopen
+from typing import Dict
 
 import iso8601
 import regex
@@ -35,7 +35,6 @@ from temba.orgs.models import Org
 from temba.templates.models import Template
 from temba.tickets.models import Ticketer
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
-from temba.utils.dates import str_to_datetime
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import (
     JSONAsTextField,
@@ -45,7 +44,6 @@ from temba.utils.models import (
     TembaModel,
     generate_uuid,
 )
-from temba.utils.s3 import public_file_storage
 from temba.utils.uuid import uuid4
 from temba.values.constants import Value
 
@@ -84,11 +82,6 @@ class FlowException(Exception):
     pass
 
 
-class FlowInvalidCycleException(FlowException):
-    def __init__(self, node_uuids):
-        self.node_uuids = node_uuids
-
-
 class FlowUserConflictException(FlowException):
     def __init__(self, other_user, last_saved_on):
         self.other_user = other_user
@@ -105,46 +98,17 @@ FLOW_LOCK_KEY = "org:%d:lock:flow:%d:definition"
 
 
 class Flow(TembaModel):
-    UUID = "uuid"
-    ENTRY = "entry"
-    RULE_SETS = "rule_sets"
-    ACTION_SETS = "action_sets"
-    RULES = "rules"
-    CONFIG = "config"
-    ACTIONS = "actions"
-    DESTINATION = "destination"
-    EXIT_UUID = "exit_uuid"
-    LABEL = "label"
-    FINISHED_KEY = "finished_key"
-    RULESET_TYPE = "ruleset_type"
-    OPERAND = "operand"
-
-    LANGUAGE = "language"
-    BASE_LANGUAGE = "base_language"
-    SAVED_BY = "saved_by"
-    VERSION = "version"
-
     CONTACT_CREATION = "contact_creation"
     CONTACT_PER_RUN = "run"
     CONTACT_PER_LOGIN = "login"
 
-    FLOW_TYPE = "flow_type"
-    ID = "id"
-
     # items in metadata
-    METADATA = "metadata"
     METADATA_RESULTS = "results"
     METADATA_DEPENDENCIES = "dependencies"
     METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
     METADATA_PARENT_REFS = "parent_refs"
     METADATA_ISSUES = "issues"
     METADATA_IVR_RETRY = "ivr_retry"
-
-    # items in legacy metadata
-    METADATA_SAVED_ON = "saved_on"
-    METADATA_NAME = "name"
-    METADATA_REVISION = "revision"
-    METADATA_EXPIRES = "expires"
 
     # items in the response from mailroom flow inspection
     INSPECT_RESULTS = "results"
@@ -164,9 +128,6 @@ class Flow(TembaModel):
     DEFINITION_METADATA = "metadata"
     DEFINITION_NODES = "nodes"
     DEFINITION_UI = "_ui"
-
-    X = "x"
-    Y = "y"
 
     TYPE_MESSAGE = "M"
     TYPE_VOICE = "V"
@@ -191,7 +152,7 @@ class Flow(TembaModel):
     INITIAL_GOFLOW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
     CURRENT_SPEC_VERSION = "13.1.0"  # current flow spec version
 
-    DEFAULT_EXPIRES_AFTER = 60 * 12
+    DEFAULT_EXPIRES_AFTER = 60 * 24 * 7  # 1 week
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
 
@@ -394,39 +355,19 @@ class Flow(TembaModel):
         from temba.campaigns.models import Campaign
         from temba.triggers.models import Trigger
 
-        version = Version(str(export_json.get("version", "0")))
         created_flows = []
         db_types = {value: key for key, value in Flow.GOFLOW_TYPES.items()}
 
         # fetch or create all the flow db objects
         for flow_def in export_json[Org.EXPORT_FLOWS]:
-            if FlowRevision.is_legacy_definition(flow_def):
-                flow_version = Version(flow_def["version"]) if "version" in flow_def else version
-                flow_metadata = flow_def[Flow.METADATA]
-                flow_type = flow_def.get("flow_type", Flow.TYPE_MESSAGE)
-                flow_uuid = flow_metadata["uuid"]
-                flow_name = flow_metadata["name"]
-                flow_expires = flow_metadata.get(Flow.METADATA_EXPIRES, Flow.DEFAULT_EXPIRES_AFTER)
-
-                FlowRevision.validate_legacy_definition(flow_def)
-            else:
-                flow_version = Version(flow_def[Flow.DEFINITION_SPEC_VERSION])
-                flow_type = db_types[flow_def[Flow.DEFINITION_TYPE]]
-                flow_uuid = flow_def[Flow.DEFINITION_UUID]
-                flow_name = flow_def[Flow.DEFINITION_NAME]
-                flow_expires = flow_def.get(Flow.DEFINITION_EXPIRE_AFTER_MINUTES, Flow.DEFAULT_EXPIRES_AFTER)
+            flow_version = Version(flow_def[Flow.DEFINITION_SPEC_VERSION])
+            flow_type = db_types[flow_def[Flow.DEFINITION_TYPE]]
+            flow_uuid = flow_def[Flow.DEFINITION_UUID]
+            flow_name = flow_def[Flow.DEFINITION_NAME]
+            flow_expires = flow_def.get(Flow.DEFINITION_EXPIRE_AFTER_MINUTES, Flow.DEFAULT_EXPIRES_AFTER)
 
             flow = None
             flow_name = flow_name[:64].strip()
-
-            # Exports up to version 3 included campaign message flows, which will have type_type=M. We don't create
-            # these here as they'll be created by the campaign event itself.
-            if flow_version <= Version("3.0") and flow_type == "M":  # pragma: no cover
-                continue
-
-            # M used to mean single message flow and regular flows were F, now all messaging flows are M
-            if flow_type == "F":
-                flow_type = Flow.TYPE_MESSAGE
 
             if flow_type == Flow.TYPE_VOICE:
                 flow_expires = min([flow_expires, 15])  # voice flow expiration can't be more than 15 minutes
@@ -434,17 +375,17 @@ class Flow(TembaModel):
             # check if we can find that flow by UUID first
             if same_site:
                 flow = org.flows.filter(is_active=True, uuid=flow_uuid).first()
-                if flow:  # pragma: needs cover
-                    flow.expires_after_minutes = flow_expires
-                    flow.name = Flow.get_unique_name(org, flow_name, ignore=flow)
-                    flow.save(update_fields=("name", "expires_after_minutes"))
 
             # if it's not of our world, let's try by name
             if not flow:
-                flow = Flow.objects.filter(org=org, is_active=True, name=flow_name).first()
+                flow = org.flows.filter(is_active=True, name=flow_name).first()
 
-            # if there isn't one already, create a new flow
-            if not flow:
+            if flow:
+                flow.name = Flow.get_unique_name(org, flow_name, ignore=flow)
+                flow.version_number = flow_version
+                flow.expires_after_minutes = flow_expires
+                flow.save(update_fields=("name", "expires_after_minutes"))
+            else:
                 flow = Flow.create(
                     org,
                     user,
@@ -488,7 +429,7 @@ class Flow(TembaModel):
         copy = Flow.create(flow.org, user, "Copy of %s" % flow.name[:55], flow_type=flow.flow_type)
 
         # grab the json of our original
-        flow_json = flow.as_json()
+        flow_json = flow.get_definition()
 
         copy.import_definition(user, flow_json, {})
 
@@ -644,9 +585,8 @@ class Flow(TembaModel):
         """
         Allows setting the definition for a flow from another definition. All UUID's will be remapped.
         """
-        if FlowRevision.is_legacy_definition(definition):
-            self.import_legacy_definition(definition, dependency_mapping)
-            return
+
+        definition = Flow.migrate_definition(definition, flow=None)
 
         flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
         dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
@@ -703,169 +643,6 @@ class Flow(TembaModel):
         # save a new revision but we can't validate it just yet because we're in a transaction and mailroom
         # won't see any new database objects
         self.save_revision(user, cloned_definition)
-
-    def import_legacy_definition(self, flow_json, uuid_map):
-        """
-        Imports a legacy definition
-        """
-
-        def copy_recording(url, path):
-            if not url:
-                return None
-
-            try:  # pragma: needs cover
-                url = f"{settings.STORAGE_URL}/{url}"
-                temp = NamedTemporaryFile(delete=True)
-                temp.write(urlopen(url).read())
-                temp.flush()
-                return public_file_storage.save(path, temp)
-            except Exception:  # pragma: needs cover
-                # its okay if its no longer there, we'll remove the recording
-                return None
-
-        def remap_uuid(json, attribute):
-            if attribute in json and json[attribute]:
-                uuid = json[attribute]
-                new_uuid = uuid_map.get(uuid, None)
-                if not new_uuid:
-                    new_uuid = str(uuid4())
-                    uuid_map[uuid] = new_uuid
-
-                json[attribute] = new_uuid
-
-        def remap_label(label):
-            # labels can be single string expressions
-            if type(label) is dict:
-                # we haven't been mapped yet (also, non-uuid labels can't be mapped)
-                if ("uuid" not in label or label["uuid"] not in uuid_map) and Label.is_valid_name(label["name"]):
-                    label_instance = Label.get_or_create(self.org, self.created_by, label["name"])
-
-                    # map label references that started with a uuid
-                    if "uuid" in label:
-                        uuid_map[label["uuid"]] = label_instance.uuid
-
-                    label["uuid"] = label_instance.uuid
-
-                # we were already mapped
-                elif label["uuid"] in uuid_map:
-                    label["uuid"] = uuid_map[label["uuid"]]
-
-        def remap_group(group):
-            # groups can be single string expressions
-            if type(group) is dict:
-
-                # we haven't been mapped yet (also, non-uuid groups can't be mapped)
-                if "uuid" not in group or group["uuid"] not in uuid_map:
-                    group_instance = ContactGroup.get_or_create(
-                        self.org, self.created_by, group["name"], uuid=group.get("uuid", None)
-                    )
-
-                    # map group references that started with a uuid
-                    if "uuid" in group:
-                        uuid_map[group["uuid"]] = group_instance.uuid
-
-                    group["uuid"] = group_instance.uuid
-
-                # we were already mapped
-                elif group["uuid"] in uuid_map:
-                    group["uuid"] = uuid_map[group["uuid"]]
-
-        def remap_flow(element):
-            # first map our id accordingly
-            if element["uuid"] in uuid_map:
-                element["uuid"] = uuid_map[element["uuid"]]
-
-            existing_flow = Flow.objects.filter(uuid=element["uuid"], org=self.org, is_active=True).first()
-            if not existing_flow:
-                existing_flow = Flow.objects.filter(org=self.org, name=element["name"], is_active=True).first()
-                if existing_flow:
-                    element["uuid"] = existing_flow.uuid  # pragma: needs cover
-
-        remap_uuid(flow_json[Flow.METADATA], "uuid")
-        remap_uuid(flow_json, "entry")
-
-        needs_move_entry = False
-
-        for actionset in flow_json[Flow.ACTION_SETS]:
-            remap_uuid(actionset, "uuid")
-            remap_uuid(actionset, "exit_uuid")
-            remap_uuid(actionset, "destination")
-            valid_actions = []
-
-            # for all of our recordings, pull them down and remap
-            for action in actionset["actions"]:
-
-                for group in action.get("groups", []):
-                    remap_group(group)
-
-                for label in action.get("labels", []):
-                    remap_label(label)
-
-                if "recording" in action:
-                    # if its a localized
-                    if isinstance(action["recording"], dict):  # pragma: no cover
-                        for lang, url in action["recording"].items():
-                            path = copy_recording(
-                                url, "recordings/%d/%d/steps/%s.wav" % (self.org.pk, self.pk, action["uuid"])
-                            )
-                            action["recording"][lang] = path
-                    else:
-                        path = copy_recording(
-                            action["recording"],
-                            "recordings/%d/%d/steps/%s.wav" % (self.org.pk, self.pk, action["uuid"]),
-                        )
-                        action["recording"] = path
-
-                if "channel" in action:
-                    channel = None
-                    channel_uuid = action.get("channel")
-                    channel_name = action.get("name")
-
-                    if channel_uuid is not None:
-                        channel = self.org.channels.filter(is_active=True, uuid=channel_uuid).first()
-
-                    if channel is None and channel_name is not None:
-                        name = channel_name.split(":")[-1].strip()
-                        channel = self.org.channels.filter(is_active=True, name=name).first()
-
-                    if channel is None:
-                        continue
-                    else:
-                        action["channel"] = channel.uuid
-                        action["name"] = "%s: %s" % (channel.get_channel_type_display(), channel.get_address_display())
-
-                if action["type"] in ["flow", "trigger-flow"]:
-                    remap_flow(action["flow"])
-
-                valid_actions.append(action)
-
-            actionset["actions"] = valid_actions
-            if not valid_actions:
-                uuid_map[actionset["uuid"]] = actionset.get("destination")
-                if actionset["uuid"] == flow_json["entry"]:
-                    flow_json["entry"] = actionset.get("destination")
-                    needs_move_entry = True
-
-        for actionset in flow_json[Flow.ACTION_SETS]:
-            if needs_move_entry and actionset["uuid"] == flow_json.get("entry"):
-                actionset["y"] = 0
-
-        for ruleset in flow_json[Flow.RULE_SETS]:
-            remap_uuid(ruleset, "uuid")
-
-            if ruleset["ruleset_type"] == RuleSet.TYPE_SUBFLOW:
-                remap_flow(ruleset["config"]["flow"])
-
-            for rule in ruleset.get(Flow.RULES, []):
-                remap_uuid(rule, "uuid")
-                remap_uuid(rule, "destination")
-
-                if rule["test"]["type"] == legacy.InGroupTest.TYPE:
-                    group = rule["test"]["test"]
-                    remap_group(group)
-
-        # now update with our remapped values
-        self.update(flow_json)
 
     def archive(self):
         self.is_archived = True
@@ -966,156 +743,17 @@ class Flow(TembaModel):
         deps = self.metadata.get(Flow.METADATA_DEPENDENCIES, [])
         return [d for d in deps if d["type"] == type_name]
 
-    def is_legacy(self):
+    def is_legacy(self) -> bool:
         """
         Returns whether this flow still uses a legacy definition
         """
         return Version(self.version_number) < Version(Flow.INITIAL_GOFLOW_VERSION)
 
-    def as_export_ref(self):
+    def as_export_ref(self) -> Dict:
         return {Flow.DEFINITION_UUID: str(self.uuid), Flow.DEFINITION_NAME: self.name}
 
-    def as_json(self, expand_contacts=False):
-        if self.is_legacy():
-            return self.get_legacy_definition(expand_contacts)
-
-        return self.get_definition()
-
-    def get_legacy_definition(self, expand_contacts=False):
-        """
-        Builds the JSON definition for a legacy flow from its action sets and rule sets.
-
-          expand_contacts:
-            Add names for contacts and groups that are just ids. This is useful for human readable
-            situations such as the flow editor.
-
-        """
-
-        flow = dict()
-
-        if self.entry_uuid:
-            flow[Flow.ENTRY] = self.entry_uuid
-        else:
-            flow[Flow.ENTRY] = None
-
-        actionsets = []
-        for actionset in ActionSet.objects.filter(flow=self).order_by("pk"):
-            actionsets.append(actionset.as_json())
-
-        def lookup_action_contacts(action, contacts, groups):
-
-            if "contact" in action:  # pragma: needs cover
-                contacts.append(action["contact"]["uuid"])
-
-            if "contacts" in action:
-                for contact in action["contacts"]:
-                    contacts.append(contact["uuid"])
-
-            if "group" in action:  # pragma: needs cover
-                g = action["group"]
-                if isinstance(g, dict):
-                    if "uuid" in g:
-                        groups.append(g["uuid"])
-
-            if "groups" in action:
-                for group in action["groups"]:
-                    if isinstance(group, dict):
-                        if "uuid" in group:
-                            groups.append(group["uuid"])
-
-        def replace_action_contacts(action, contacts, groups):
-
-            if "contact" in action:  # pragma: needs cover
-                contact = contacts.get(action["contact"]["uuid"], None)
-                if contact:
-                    action["contact"] = contact.as_json()
-
-            if "contacts" in action:
-                expanded_contacts = []
-                for contact in action["contacts"]:
-                    contact = contacts.get(contact["uuid"], None)
-                    if contact:
-                        expanded_contacts.append(contact.as_json())
-
-                action["contacts"] = expanded_contacts
-
-            if "group" in action:  # pragma: needs cover
-                # variable substitution
-                group = action["group"]
-                if isinstance(group, dict):
-                    if "uuid" in group:
-                        group = groups.get(group["uuid"], None)
-                        if group:
-                            action["group"] = dict(uuid=group.uuid, name=group.name)
-
-            if "groups" in action:
-                expanded_groups = []
-                for group in action["groups"]:
-
-                    # variable substitution
-                    if not isinstance(group, dict):
-                        expanded_groups.append(group)
-                    else:
-                        group_instance = groups.get(group["uuid"], None)
-                        if group_instance:
-                            expanded_groups.append(dict(uuid=group_instance.uuid, name=group_instance.name))
-                        else:
-                            expanded_groups.append(group)
-
-                action["groups"] = expanded_groups
-
-        if expand_contacts:
-            groups = []
-            contacts = []
-
-            for actionset in actionsets:
-                for action in actionset["actions"]:
-                    lookup_action_contacts(action, contacts, groups)
-
-            # load them all
-            contacts = dict((_.uuid, _) for _ in self.org.contacts.filter(uuid__in=contacts))
-            groups = dict((_.uuid, _) for _ in ContactGroup.user_groups.filter(org=self.org, uuid__in=groups))
-
-            # and replace them
-            for actionset in actionsets:
-                for action in actionset["actions"]:
-                    replace_action_contacts(action, contacts, groups)
-
-        flow[Flow.ACTION_SETS] = actionsets
-
-        # add in our rulesets
-        rulesets = []
-        for ruleset in RuleSet.objects.filter(flow=self).order_by("pk"):
-            rulesets.append(ruleset.as_json())
-        flow[Flow.RULE_SETS] = rulesets
-
-        # required flow running details
-        flow[Flow.BASE_LANGUAGE] = self.base_language
-        flow[Flow.FLOW_TYPE] = self.flow_type
-        flow[Flow.VERSION] = Flow.FINAL_LEGACY_VERSION
-        flow[Flow.METADATA] = self.get_legacy_metadata()
-        return flow
-
-    def get_legacy_metadata(self):
-        exclude_keys = (Flow.METADATA_RESULTS, Flow.METADATA_WAITING_EXIT_UUIDS, Flow.METADATA_PARENT_REFS)
-        metadata = {k: v for k, v in self.metadata.items() if k not in exclude_keys}
-
-        revision = self.get_current_revision()
-
-        last_saved = self.saved_on
-        if self.saved_by == get_flow_user(self.org):
-            last_saved = self.modified_on
-
-        metadata[Flow.UUID] = self.uuid
-        metadata[Flow.METADATA_NAME] = self.name
-        metadata[Flow.METADATA_SAVED_ON] = json.encode_datetime(last_saved, micros=True)
-        metadata[Flow.METADATA_REVISION] = revision.revision if revision else 1
-        metadata[Flow.METADATA_EXPIRES] = self.expires_after_minutes
-
-        return metadata
-
     @classmethod
-    def get_metadata(cls, flow_info, previous=None):
+    def get_metadata(cls, flow_info, previous=None) -> Dict:
         data = {
             Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
             Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
@@ -1130,102 +768,23 @@ class Flow(TembaModel):
 
         return data
 
-    @classmethod
-    def detect_invalid_cycles(cls, json_dict):
-        """
-        Checks for invalid cycles in our flow
-        :param json_dict: our flow definition
-        :return: invalid cycle path as list of uuids if found, otherwise empty list
-        """
-
-        # Adapted from a blog post by Guido:
-        # http://neopythonic.blogspot.com/2009/01/detecting-cycles-in-directed-graph.html
-
-        # Maintain path as a a depth-first path in the implicit tree;
-        # path is represented as an OrderedDict of {node: [child,...]} pairs.
-
-        nodes = list()
-        node_map = {}
-
-        for ruleset in json_dict.get(Flow.RULE_SETS, []):
-            nodes.append(ruleset.get("uuid"))
-            node_map[ruleset.get("uuid")] = ruleset
-
-        for actionset in json_dict.get(Flow.ACTION_SETS, []):
-            nodes.append(actionset.get("uuid"))
-            node_map[actionset.get("uuid")] = actionset
-
-        def get_destinations(uuid):
-            node = node_map.get(uuid)
-
-            if not node:  # pragma: needs cover
-                return []
-
-            rules = node.get("rules", [])
-            destinations = []
-            if rules:
-
-                if node.get("ruleset_type", None) in RuleSet.TYPE_WAIT:
-                    return []
-
-                for rule in rules:
-                    if rule.get("destination"):
-                        destinations.append(rule.get("destination"))
-
-            elif node.get("destination"):
-                destinations.append(node.get("destination"))
-            return destinations
-
-        while nodes:
-            root = nodes.pop()
-            path = OrderedDict({root: get_destinations(root)})
-            while path:
-                # children at the fringe of the tree
-                children = path[next(reversed(path))]
-                while children:
-                    child = children.pop()
-
-                    # found a loop
-                    if child in path:
-                        pathlist = list(path)
-                        return pathlist[pathlist.index(child) :] + [child]
-
-                    # new path
-                    if child in nodes:
-                        path[child] = get_destinations(child)
-                        nodes.remove(child)
-                        break
-                else:
-                    # no more children; pop back up a level
-                    path.popitem()
-        return None
-
     def ensure_current_version(self):
         """
-        Makes sure the flow is at the latest legacy or goflow spec version
+        Makes sure the flow is at the latest spec version
         """
 
-        to_version = Flow.FINAL_LEGACY_VERSION if self.is_legacy() else Flow.CURRENT_SPEC_VERSION
-
         # nothing to do if flow is already at the target version
-        if Version(self.version_number) >= Version(to_version):
+        if Version(self.version_number) >= Version(Flow.CURRENT_SPEC_VERSION):
             return
 
         with self.lock():
             revision = self.get_current_revision()
-            if revision:
-                flow_def = revision.get_definition_json(to_version)
-            else:  # pragma: needs cover
-                flow_def = self.as_json()
+            flow_def = revision.get_migrated_definition()
 
-            if self.is_legacy():
-                self.update(flow_def, user=get_flow_user(self.org))
-            else:
-                self.save_revision(get_flow_user(self.org), flow_def)
-
+            self.save_revision(user=None, definition=flow_def)
             self.refresh_from_db()
 
-    def get_definition(self):
+    def get_definition(self) -> Dict:
         """
         Returns the current definition of this flow
         """
@@ -1235,10 +794,19 @@ class Flow(TembaModel):
 
         # update metadata in definition from database object as it may be out of date
         definition = rev.definition
-        definition[Flow.DEFINITION_UUID] = self.uuid
-        definition[Flow.DEFINITION_NAME] = self.name
-        definition[Flow.DEFINITION_REVISION] = rev.revision
-        definition[Flow.DEFINITION_EXPIRE_AFTER_MINUTES] = self.expires_after_minutes
+
+        if self.is_legacy():
+            if "metadata" not in definition:
+                definition["metadata"] = {}
+            definition["metadata"]["uuid"] = self.uuid
+            definition["metadata"]["name"] = self.name
+            definition["metadata"]["revision"] = rev.revision
+            definition["metadata"]["expires"] = self.expires_after_minutes
+        else:
+            definition[Flow.DEFINITION_UUID] = self.uuid
+            definition[Flow.DEFINITION_NAME] = self.name
+            definition[Flow.DEFINITION_REVISION] = rev.revision
+            definition[Flow.DEFINITION_EXPIRE_AFTER_MINUTES] = self.expires_after_minutes
         return definition
 
     def get_current_revision(self):
@@ -1276,14 +844,27 @@ class Flow(TembaModel):
         flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
         dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
 
+        if user is None:
+            is_system_rev = True
+            user = get_flow_user(self.org)
+        else:
+            is_system_rev = False
+
         with transaction.atomic():
             # update our flow fields
             self.base_language = definition.get(Flow.DEFINITION_LANGUAGE, None)
-            self.metadata = Flow.get_metadata(flow_info, self.metadata)
-            self.saved_by = user
-            self.saved_on = timezone.now()
             self.version_number = Flow.CURRENT_SPEC_VERSION
-            self.save(update_fields=["metadata", "version_number", "base_language", "saved_by", "saved_on"])
+            self.metadata = Flow.get_metadata(flow_info, self.metadata)
+            self.modified_by = user
+            self.modified_on = timezone.now()
+            fields = ["base_language", "version_number", "metadata", "modified_by", "modified_on"]
+
+            if not is_system_rev:
+                self.saved_by = user
+                self.saved_on = timezone.now()
+                fields += ["saved_by", "saved_on"]
+
+            self.save(update_fields=fields)
 
             # create our new revision
             revision = self.revisions.create(
@@ -1298,340 +879,44 @@ class Flow(TembaModel):
 
         return revision
 
-    def update(self, json_dict, user=None, force=False):
-        """
-        Updates a definition for a flow and returns the new revision
-        """
+    @classmethod
+    def migrate_definition(cls, flow_def, flow, to_version=None):
+        if not to_version:
+            to_version = cls.CURRENT_SPEC_VERSION
 
-        cycle_node_uuids = Flow.detect_invalid_cycles(json_dict)
-        if cycle_node_uuids:
-            raise FlowInvalidCycleException(cycle_node_uuids)
+        if "version" in flow_def:
+            flow_def = legacy.migrate_definition(flow_def, flow=flow)
 
-        # make sure the flow version hasn't changed out from under us
-        if Version(json_dict.get(Flow.VERSION)) != Version(Flow.FINAL_LEGACY_VERSION):
-            raise FlowVersionConflictException(json_dict.get(Flow.VERSION))
+        if "metadata" not in flow_def:
+            flow_def["metadata"] = {}
 
-        flow_user = get_flow_user(self.org)
-        # check whether the flow has changed since this flow was last saved
-        if user and not force:
-            saved_on = json_dict.get(Flow.METADATA, {}).get(Flow.METADATA_SAVED_ON, None)
-            org = user.get_org()
+        # ensure definition has a valid expiration
+        expires = flow_def["metadata"].get("expires", 0)
+        if expires <= 0 or expires > (30 * 24 * 60):
+            flow_def["metadata"]["expires"] = Flow.DEFAULT_EXPIRES_AFTER
 
-            # check our last save if we aren't the system flow user
-            if user != flow_user:
-                migrated = self.saved_by == flow_user
-                last_save = self.saved_on
+        # migrate using goflow for anything newer
+        if Version(to_version) >= Version(Flow.INITIAL_GOFLOW_VERSION):
+            flow_def = mailroom.get_client().flow_migrate(flow_def, to_version)
 
-                # use modified on if it was a migration
-                if migrated:
-                    last_save = self.modified_on
+        return flow_def
 
-                if not saved_on or str_to_datetime(saved_on, org.timezone) < last_save:
-                    raise FlowUserConflictException(self.saved_by, last_save)
+    @classmethod
+    def migrate_export(cls, org, exported_json, same_site, version):
+        # use legacy migrations to get export to final legacy version
+        if version < Version(Flow.FINAL_LEGACY_VERSION):
+            from temba.flows.legacy import exports
 
-        try:
-            # run through all our action sets and validate / instantiate them, we need to do this in a transaction
-            # or mailroom won't know about the labels / groups possibly created here
-            with transaction.atomic():
-                for actionset in json_dict.get(Flow.ACTION_SETS, []):
-                    actions = [
-                        _.as_json() for _ in legacy.Action.from_json_array(self.org, actionset.get(Flow.ACTIONS))
-                    ]
-                    actionset[Flow.ACTIONS] = actions
+            exported_json = exports.migrate(org, exported_json, same_site, version)
 
-            flow_info = mailroom.get_client().flow_inspect(self.org.id, json_dict)
-            dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
+        migrated_flows = []
+        for flow_def in exported_json[Org.EXPORT_FLOWS]:
+            migrated_def = Flow.migrate_definition(flow_def, flow=None)
+            migrated_flows.append(migrated_def)
 
-            with transaction.atomic():
-                # TODO remove this when we no longer need rulesets or actionsets
-                self.update_rulesets_and_actionsets(json_dict)
+        exported_json[Org.EXPORT_FLOWS] = migrated_flows
 
-                # if we have a base language, set that
-                self.base_language = json_dict.get("base_language", None)
-
-                # set our metadata
-                self.metadata = json_dict.get(Flow.METADATA, {})
-                self.metadata[Flow.METADATA_RESULTS] = flow_info[Flow.INSPECT_RESULTS]
-                self.metadata[Flow.METADATA_WAITING_EXIT_UUIDS] = flow_info[Flow.INSPECT_WAITING_EXITS]
-                self.metadata[Flow.METADATA_PARENT_REFS] = flow_info[Flow.INSPECT_PARENT_REFS]
-
-                if user:
-                    self.saved_by = user
-
-                # if it's our migration user, don't update saved on
-                if user and user != flow_user:
-                    self.saved_on = timezone.now()
-
-                self.version_number = Flow.FINAL_LEGACY_VERSION
-                self.save()
-
-                # in case rulesets/actionsets were prefetched, clear those cached values
-                # TODO https://code.djangoproject.com/ticket/29625
-                self.action_sets._remove_prefetched_objects()
-                self.rule_sets._remove_prefetched_objects()
-
-                # create a version of our flow for posterity
-                if user is None:
-                    user = self.created_by
-
-                # last version
-                revision_num = 1
-                last_revision = self.get_current_revision()
-                if last_revision:
-                    revision_num = last_revision.revision + 1
-
-                # create a new version
-                revision = self.revisions.create(
-                    definition=json_dict,
-                    created_by=user,
-                    modified_by=user,
-                    spec_version=Flow.FINAL_LEGACY_VERSION,
-                    revision=revision_num,
-                )
-
-                self.update_dependencies(dependencies)
-
-        except Exception as e:
-            # user will see an error in the editor but log exception so we know we got something to fix
-            logger.error(str(e), exc_info=True)
-            raise e
-
-        return revision
-
-    def update_rulesets_and_actionsets(self, json_dict):
-        """
-        Creates RuleSet and ActionSet database objects as required by the legacy engine
-        """
-
-        def get_step_type(dest, rulesets, actionsets):
-            if dest:
-                if rulesets.get(dest, None):
-                    return Flow.NODE_TYPE_RULESET
-                if actionsets.get(dest, None):
-                    return Flow.NODE_TYPE_ACTIONSET
-            return None
-
-        top_y = 0
-        top_uuid = None
-
-        # load all existing objects into dicts by uuid
-        existing_actionsets = {actionset.uuid: actionset for actionset in self.action_sets.all()}
-        existing_rulesets = {ruleset.uuid: ruleset for ruleset in self.rule_sets.all()}
-
-        # set of uuids which we've seen, we use this set to remove objects no longer used in this flow
-        seen_rulesets = set()
-        seen_actionsets = set()
-        destinations = set()
-
-        # our steps in our current update submission
-        current_actionsets = {}
-        current_rulesets = {}
-
-        # parse our actions
-        for actionset in json_dict.get(Flow.ACTION_SETS, []):
-
-            uuid = actionset.get(Flow.UUID)
-
-            # validate our actions, normalizing them as JSON after reading them
-            actions = [_.as_json() for _ in legacy.Action.from_json_array(self.org, actionset.get(Flow.ACTIONS))]
-
-            if actions:
-                current_actionsets[uuid] = actions
-
-        for ruleset in json_dict.get(Flow.RULE_SETS, []):
-            uuid = ruleset.get(Flow.UUID)
-            current_rulesets[uuid] = ruleset
-            seen_rulesets.add(uuid)
-
-        # create all our rule sets
-        for ruleset in json_dict.get(Flow.RULE_SETS, []):
-
-            uuid = ruleset.get(Flow.UUID)
-            rules = ruleset.get(Flow.RULES)
-            label = ruleset.get(Flow.LABEL, None)
-            operand = ruleset.get(Flow.OPERAND, None)
-            finished_key = ruleset.get(Flow.FINISHED_KEY)
-            ruleset_type = ruleset.get(Flow.RULESET_TYPE)
-            config = ruleset.get(Flow.CONFIG)
-
-            if not config:
-                config = dict()
-
-            # cap our lengths
-            if label:
-                label = label[:64]
-
-            if operand:
-                operand = operand[:128]
-
-            (x, y) = (ruleset.get(Flow.X), ruleset.get(Flow.Y))
-
-            if not top_uuid or y < top_y:
-                top_y = y
-                top_uuid = uuid
-
-            # parse our rules, this will materialize any necessary dependencies
-            parsed_rules = []
-            rule_objects = legacy.Rule.from_json_array(self.org, rules)
-            for r in rule_objects:
-                parsed_rules.append(r.as_json())
-            rules = parsed_rules
-
-            for rule in rules:
-                if "destination" in rule:
-                    # if the destination was excluded for not having any actions
-                    # remove the connection for our rule too
-                    if rule["destination"] not in current_actionsets and rule["destination"] not in seen_rulesets:
-                        rule["destination"] = None
-                    else:
-                        destination_uuid = rule.get("destination", None)
-                        destinations.add(destination_uuid)
-
-                        # determine what kind of destination we are pointing to
-                        rule["destination_type"] = get_step_type(
-                            destination_uuid, current_rulesets, current_actionsets
-                        )
-
-                        # print "Setting destination [%s] type to: %s" % (destination_uuid, rule['destination_type'])
-
-            existing = existing_rulesets.get(uuid, None)
-
-            if existing:
-                existing.label = ruleset.get(Flow.LABEL, None)
-                existing.rules = rules
-                existing.operand = operand
-                existing.label = label
-                existing.finished_key = finished_key
-                existing.ruleset_type = ruleset_type
-                existing.config = config
-                (existing.x, existing.y) = (x, y)
-                existing.save()
-            else:
-
-                existing = RuleSet.objects.create(
-                    flow=self,
-                    uuid=uuid,
-                    label=label,
-                    rules=rules,
-                    finished_key=finished_key,
-                    ruleset_type=ruleset_type,
-                    operand=operand,
-                    config=config,
-                    x=x,
-                    y=y,
-                )
-
-            existing_rulesets[uuid] = existing
-
-            # update our value type based on our new rules
-            existing.value_type = existing.get_value_type()
-            RuleSet.objects.filter(pk=existing.pk).update(value_type=existing.value_type)
-
-        # now work through our action sets
-        for actionset in json_dict.get(Flow.ACTION_SETS, []):
-            uuid = actionset.get(Flow.UUID)
-            exit_uuid = actionset.get(Flow.EXIT_UUID)
-
-            # skip actionsets without any actions. This happens when there are no valid
-            # actions in an actionset such as when deleted groups or flows are the only actions
-            if uuid not in current_actionsets:
-                continue
-
-            actions = current_actionsets[uuid]
-            seen_actionsets.add(uuid)
-
-            (x, y) = (actionset.get(Flow.X), actionset.get(Flow.Y))
-
-            if not top_uuid or y < top_y:
-                top_y = y
-                top_uuid = uuid
-
-            existing = existing_actionsets.get(uuid, None)
-
-            # lookup our destination
-            destination_uuid = actionset.get("destination")
-            destination_type = get_step_type(destination_uuid, current_rulesets, current_actionsets)
-
-            if destination_uuid:
-                if not destination_type:
-                    destination_uuid = None
-
-            # only create actionsets if there are actions
-            if actions:
-                if existing:
-                    # print "Updating %s to point to %s" % (unicode(actions), destination_uuid)
-                    existing.destination = destination_uuid
-                    existing.destination_type = destination_type
-                    existing.exit_uuid = exit_uuid
-                    existing.actions = actions
-                    (existing.x, existing.y) = (x, y)
-                    existing.save()
-                else:
-                    existing = ActionSet.objects.create(
-                        flow=self,
-                        uuid=uuid,
-                        destination=destination_uuid,
-                        destination_type=destination_type,
-                        exit_uuid=exit_uuid,
-                        actions=actions,
-                        x=x,
-                        y=y,
-                    )
-
-                    existing_actionsets[uuid] = existing
-
-        existing_actionsets_to_delete = set()
-        seen_existing_actionsets = {}
-
-        # now work through all our objects once more, making sure all uuids map appropriately
-        for uuid, actionset in existing_actionsets.items():
-            if uuid not in seen_actionsets:
-                existing_actionsets_to_delete.add(uuid)
-            else:
-                seen_existing_actionsets[uuid] = actionset
-
-        # delete actionset which are not seen
-        ActionSet.objects.filter(uuid__in=existing_actionsets_to_delete).delete()
-
-        existing_actionsets = seen_existing_actionsets
-
-        existing_rulesets_to_delete = set()
-        seen_existing_rulesets = {}
-
-        for uuid, ruleset in existing_rulesets.items():
-            if uuid not in seen_rulesets:
-                existing_rulesets_to_delete.add(uuid)
-
-                # instead of deleting it, make it a phantom ruleset until we do away with values_value
-                ruleset.flow = None
-                ruleset.uuid = str(uuid4())
-                ruleset.save(update_fields=("flow", "uuid"))
-            else:
-                seen_existing_rulesets[uuid] = ruleset
-
-        existing_rulesets = seen_existing_rulesets
-
-        # make sure all destinations are present though
-        for destination in destinations:
-            if destination not in existing_rulesets and destination not in existing_actionsets:  # pragma: needs cover
-                raise FlowException("Invalid destination: '%s', no matching actionset or ruleset" % destination)
-
-        entry = json_dict.get("entry", None)
-
-        # check if we are pointing to a destination that is no longer valid
-        if entry not in existing_rulesets and entry not in existing_actionsets:
-            entry = None
-
-        if not entry and top_uuid:
-            entry = top_uuid
-
-        # set our entry
-        if entry in existing_actionsets:
-            self.entry_uuid = entry
-            self.entry_type = Flow.NODE_TYPE_ACTIONSET
-        elif entry in existing_rulesets:
-            self.entry_uuid = entry
-            self.entry_type = Flow.NODE_TYPE_RULESET
+        return exported_json
 
     def update_dependencies(self, dependencies):
         # build a lookup of types to identifier lists
@@ -2142,65 +1427,6 @@ class RuleSet(models.Model):
     created_on = models.DateTimeField(auto_now_add=True, help_text=_("When this ruleset was originally created"))
     modified_on = models.DateTimeField(auto_now=True, help_text=_("When this ruleset was last modified"))
 
-    def get_value_type(self):
-        """
-        Determines the value type that this ruleset will generate.
-        """
-        # we keep track of specialized rule types we see
-        value_type = None
-
-        for rule in self.get_rules():
-            if isinstance(rule.test, legacy.TrueTest):
-                continue
-
-            rule_type = None
-
-            if isinstance(rule.test, legacy.NumericTest):
-                rule_type = Value.TYPE_NUMBER
-
-            elif isinstance(rule.test, legacy.DateTest):
-                rule_type = Value.TYPE_DATETIME
-
-            elif isinstance(rule.test, legacy.HasStateTest):
-                rule_type = Value.TYPE_STATE
-
-            elif isinstance(rule.test, legacy.HasDistrictTest):
-                rule_type = Value.TYPE_DISTRICT
-
-            elif isinstance(rule.test, legacy.HasWardTest):
-                rule_type = Value.TYPE_WARD
-
-            # this either isn't one of our value types or we have more than one type in this ruleset
-            if not rule_type or (value_type and rule_type != value_type):
-                return Value.TYPE_TEXT
-
-            value_type = rule_type
-
-        return value_type if value_type else Value.TYPE_TEXT
-
-    def get_rules(self):
-        return legacy.Rule.from_json_array(self.flow.org, self.rules)
-
-    def as_json(self):
-        return dict(
-            uuid=self.uuid,
-            x=self.x,
-            y=self.y,
-            label=self.label,
-            rules=self.rules,
-            finished_key=self.finished_key,
-            ruleset_type=self.ruleset_type,
-            response_type=self.response_type,
-            operand=self.operand,
-            config=self.config,
-        )
-
-    def __str__(self):  # pragma: no cover
-        if self.label:
-            return "RuleSet: %s - %s" % (self.uuid, self.label)
-        else:
-            return "RuleSet: %s" % (self.uuid,)
-
 
 class ActionSet(models.Model):
     uuid = models.CharField(max_length=36, unique=True)
@@ -2218,22 +1444,6 @@ class ActionSet(models.Model):
 
     created_on = models.DateTimeField(auto_now_add=True, help_text=_("When this action was originally created"))
     modified_on = models.DateTimeField(auto_now=True, help_text=_("When this action was last modified"))
-
-    def get_actions(self):
-        return legacy.Action.from_json_array(self.flow.org, self.actions)
-
-    def as_json(self):
-        return dict(
-            uuid=self.uuid,
-            x=self.x,
-            y=self.y,
-            destination=self.destination,
-            actions=self.actions,
-            exit_uuid=self.exit_uuid,
-        )
-
-    def __str__(self):  # pragma: no cover
-        return "ActionSet: %s" % (self.uuid,)
 
 
 class FlowRevision(SmartModel):
@@ -2303,88 +1513,36 @@ class FlowRevision(SmartModel):
         return FlowRevision.objects.filter(flow=flow_id, created_on__lt=cutoff).exclude(id__in=keepers).delete()[0]
 
     @classmethod
-    def is_legacy_definition(cls, definition):
-        return Flow.DEFINITION_SPEC_VERSION not in definition
-
-    @classmethod
     def validate_legacy_definition(cls, definition):
-
-        if definition[Flow.FLOW_TYPE] not in (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, "F"):
-            raise ValueError(_("Unsupported flow type"))
-
-        non_localized_error = _("Malformed flow, encountered non-localized definition")
+        if definition["flow_type"] not in (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, "F"):
+            raise ValueError("unsupported flow type")
 
         # should always have a base_language
-        if Flow.BASE_LANGUAGE not in definition or not definition[Flow.BASE_LANGUAGE]:
-            raise ValueError(non_localized_error)
+        if "base_language" not in definition or not definition["base_language"]:
+            raise ValueError("non-localized flow definition")
 
         # language should match values in definition
-        base_language = definition[Flow.BASE_LANGUAGE]
+        base_language = definition["base_language"]
 
         def validate_localization(lang_dict):
-
             # must be a dict
             if not isinstance(lang_dict, dict):
-                raise ValueError(non_localized_error)
+                raise ValueError("non-localized flow definition")
 
             # and contain the base_language
             if base_language not in lang_dict:  # pragma: needs cover
-                raise ValueError(non_localized_error)
+                raise ValueError("non-localized flow definition")
 
-        for actionset in definition[Flow.ACTION_SETS]:
+        for actionset in definition["action_sets"]:
             for action in actionset["actions"]:
                 if "msg" in action and action["type"] != "email":
                     validate_localization(action["msg"])
 
-        for ruleset in definition[Flow.RULE_SETS]:
+        for ruleset in definition["rule_sets"]:
             for rule in ruleset["rules"]:
                 validate_localization(rule["category"])
 
-    @classmethod
-    def migrate_export(cls, org, exported_json, same_site, version, legacy=False):
-        # use legacy migrations to get export to final legacy version
-        if version < Version(Flow.FINAL_LEGACY_VERSION):
-            from temba.flows.legacy import exports
-
-            exported_json = exports.migrate(org, exported_json, same_site, version)
-
-        if legacy:
-            return exported_json
-
-        # use mailroom to get export to current spec version
-        migrated_flows = []
-        for flow_def in exported_json[Org.EXPORT_FLOWS]:
-            migrated_flows.append(mailroom.get_client().flow_migrate(flow_def))
-
-        exported_json[Org.EXPORT_FLOWS] = migrated_flows
-
-        return exported_json
-
-    @classmethod
-    def migrate_definition(cls, json_flow, flow, to_version=Flow.CURRENT_SPEC_VERSION):
-        from temba.flows.legacy import migrations
-
-        # migrate any legacy versions forward
-        if Flow.VERSION in json_flow:
-            versions = legacy.get_versions_after(json_flow[Flow.VERSION])
-            for version in versions:
-                version_slug = version.replace(".", "_")
-                migrate_fn = getattr(migrations, "migrate_to_version_%s" % version_slug, None)
-
-                if migrate_fn:
-                    json_flow = migrate_fn(json_flow, flow)
-                    json_flow[Flow.VERSION] = version
-
-                if version == to_version:
-                    break
-
-        # migrate using goflow for anything newer
-        if Version(to_version) >= Version(Flow.INITIAL_GOFLOW_VERSION):
-            json_flow = mailroom.get_client().flow_migrate(json_flow, to_version)
-
-        return json_flow
-
-    def get_definition_json(self, to_version=Flow.CURRENT_SPEC_VERSION):
+    def get_migrated_definition(self, to_version: str = Flow.CURRENT_SPEC_VERSION) -> Dict:
         definition = self.definition
 
         # if it's previous to version 6, wrap the definition to
@@ -2401,15 +1559,15 @@ class FlowRevision(SmartModel):
 
         # make sure old revisions migrate properly
         if Version(self.spec_version) <= Version(Flow.FINAL_LEGACY_VERSION):
-            definition[Flow.VERSION] = self.spec_version
+            definition["version"] = self.spec_version
+
+            if "metadata" not in definition:
+                definition["metadata"] = {}
+            definition["metadata"]["revision"] = self.revision
 
         # migrate our definition if necessary
         if self.spec_version != to_version:
-            if Flow.METADATA not in definition:
-                definition[Flow.METADATA] = {}
-
-            definition[Flow.METADATA][Flow.METADATA_REVISION] = self.revision
-            definition = FlowRevision.migrate_definition(definition, self.flow, to_version)
+            definition = Flow.migrate_definition(definition, self.flow, to_version)
 
         # update variables from our db into our revision
         flow = self.flow
