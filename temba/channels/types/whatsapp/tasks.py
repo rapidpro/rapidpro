@@ -83,7 +83,7 @@ def refresh_whatsapp_tokens():
 
     with r.lock("refresh_whatsapp_tokens", 1800):
         # iterate across each of our whatsapp channels and get a new token
-        for channel in Channel.objects.filter(is_active=True, channel_type="WA"):
+        for channel in Channel.objects.filter(is_active=True, channel_type="WA").order_by("id"):
             try:
                 url = channel.config["base_url"] + "/v1/users/login"
 
