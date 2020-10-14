@@ -174,7 +174,7 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
 
         with patch("requests.post") as mock_post:
-            mock_post.side_effect = [MockResponse(200, '')]
+            mock_post.side_effect = [MockResponse(200, "")]
             refresh_whatsapp_tokens()
 
         with patch("requests.get") as mock_get:
