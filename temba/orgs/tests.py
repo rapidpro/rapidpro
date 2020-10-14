@@ -3446,9 +3446,10 @@ class OrgCRUDLTest(TembaTest):
             config={Channel.CONFIG_FCM_ID: "123"},
         )
 
-        self.org = Org.objects.get(pk=self.org.pk)
+        self.org = Org.objects.get(id=self.org.id)
         self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_SEND))
         self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
+        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))  # from cache
 
         # add a send/receive tel channel
         Channel.create(
