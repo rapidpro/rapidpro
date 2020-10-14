@@ -2954,6 +2954,7 @@ class OrgCRUDL(SmartCRUDL):
                     attrs={
                         "placeholder": _("Select the primary language for contacts with no language preference"),
                         "searchable": True,
+                        "queryParam": "q",
                         "endpoint": reverse_lazy("orgs.org_languages"),
                     }
                 ),
@@ -2966,6 +2967,7 @@ class OrgCRUDL(SmartCRUDL):
                     attrs={
                         "placeholder": _("Additional languages you would like to provid translations for"),
                         "searchable": True,
+                        "queryParam": "q",
                         "endpoint": reverse_lazy("orgs.org_languages"),
                     }
                 ),
@@ -3022,8 +3024,7 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def get(self, request, *args, **kwargs):
-
-            if "search" in self.request.GET or "initial" in self.request.GET or "q" in self.request.GET:
+            if request.is_ajax():
                 initial = self.request.GET.get("initial", "").split(",")
                 matches = []
 
