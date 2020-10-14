@@ -35,10 +35,9 @@ from django.views.generic import FormView
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.contacts.models import FACEBOOK_SCHEME, TEL_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup, ContactURN
+from temba.contacts.models import FACEBOOK_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup, ContactURN
 from temba.contacts.search import SearchException, parse_query
 from temba.contacts.search.omnibox import omnibox_deserialize
-from temba.flows.legacy.expressions import get_function_listing
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
@@ -219,7 +218,6 @@ class FlowCRUDL(SmartCRUDL):
         "activity_chart",
         "filter",
         "campaign",
-        "completion",
         "revisions",
         "recent_messages",
         "assets",
@@ -991,83 +989,6 @@ class FlowCRUDL(SmartCRUDL):
             qs = qs.filter(labels__in=self.get_label_filter(), is_archived=False).distinct()
 
             return qs
-
-    class Completion(OrgPermsMixin, SmartListView):
-        def render_to_response(self, context, **response_kwargs):
-
-            org = self.request.user.get_org()
-
-            contact_variables = [
-                dict(name="contact", display=str(_("Contact Name"))),
-                dict(name="contact.created_on", display=str(_("Contact Creation Date"))),
-                dict(name="contact.first_name", display=str(_("Contact First Name"))),
-                dict(name="contact.groups", display=str(_("Contact Groups"))),
-                dict(name="contact.language", display=str(_("Contact Language"))),
-                dict(name="contact.mailto", display=str(_("Contact Email Address"))),
-                dict(name="contact.name", display=str(_("Contact Name"))),
-                dict(name="contact.tel", display=str(_("Contact Phone"))),
-                dict(name="contact.tel_e164", display=str(_("Contact Phone - E164"))),
-                dict(name="contact.uuid", display=str(_("Contact UUID"))),
-                dict(name="new_contact", display=str(_("New Contact"))),
-            ]
-
-            contact_variables += [
-                dict(name="contact.%s" % scheme, display=str(_("Contact %s" % label)))
-                for scheme, label in ContactURN.SCHEME_CHOICES
-                if scheme != TEL_SCHEME and scheme in org.get_schemes(Channel.ROLE_SEND)
-            ]
-
-            contact_variables += [
-                dict(name="contact.%s" % field.key, display=field.label)
-                for field in ContactField.user_fields.active_for_org(org=org)
-            ]
-
-            date_variables = [
-                dict(name="date", display=str(_("Current Date and Time"))),
-                dict(name="date.now", display=str(_("Current Date and Time"))),
-                dict(name="date.today", display=str(_("Current Date"))),
-                dict(name="date.tomorrow", display=str(_("Tomorrow's Date"))),
-                dict(name="date.yesterday", display=str(_("Yesterday's Date"))),
-            ]
-
-            flow_variables = [
-                dict(name="channel", display=str(_("Sent to"))),
-                dict(name="channel.name", display=str(_("Sent to"))),
-                dict(name="channel.tel", display=str(_("Sent to"))),
-                dict(name="channel.tel_e164", display=str(_("Sent to"))),
-                dict(name="step", display=str(_("Sent to"))),
-                dict(name="step.urn", display=str(_("Sent to"))),
-                dict(name="step.urn.display", display=str(_("Sent to URN display"))),
-                dict(name="step.urn.path", display=str(_("Sent to URN path"))),
-                dict(name="step.urn.scheme", display=str(_("Sent to URN type"))),
-                dict(name="step.urn.urn", display=str(_("Sent to URN"))),
-                dict(name="step.value", display=str(_("Sent to"))),
-            ]
-
-            parent_variables = [dict(name="parent.%s" % v["name"], display=v["display"]) for v in contact_variables]
-            parent_variables += [dict(name="parent.%s" % v["name"], display=v["display"]) for v in flow_variables]
-
-            child_variables = [dict(name="child.%s" % v["name"], display=v["display"]) for v in contact_variables]
-            child_variables += [dict(name="child.%s" % v["name"], display=v["display"]) for v in flow_variables]
-
-            flow_variables.append(dict(name="flow", display=str(_("All flow variables"))))
-
-            flow_uuid = self.request.GET.get("flow", None)
-            if flow_uuid:
-                flow = Flow.objects.get(org=org, uuid=flow_uuid)
-                for result in flow.metadata["results"]:
-                    key, label = result["key"], result["name"]
-                    flow_variables.append(dict(name="flow.%s" % key, display=label))
-                    flow_variables.append(dict(name="flow.%s.category" % key, display="%s Category" % label))
-                    flow_variables.append(dict(name="flow.%s.text" % key, display="%s Text" % label))
-                    flow_variables.append(dict(name="flow.%s.time" % key, display="%s Time" % label))
-
-            function_completions = get_function_listing()
-            messages_completions = contact_variables + date_variables + flow_variables
-            messages_completions += parent_variables + child_variables
-            return JsonResponse(
-                dict(message_completions=messages_completions, function_completions=function_completions)
-            )
 
     class EditorNext(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"

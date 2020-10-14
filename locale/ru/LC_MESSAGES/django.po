@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-13 22:06+0000\n"
+"POT-Creation-Date: 2020-10-14 18:12+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3262,70 +3262,6 @@ msgstr "Добавить метку"
 msgid "Remove"
 msgstr "Удалить"
 
-msgid "Contact Name"
-msgstr "Название Контакта"
-
-msgid "Contact Creation Date"
-msgstr "Дата Создания Контакта"
-
-msgid "Contact First Name"
-msgstr "Имя Контакта"
-
-msgid "Contact Groups"
-msgstr "Группы Контактов"
-
-msgid "Contact Language"
-msgstr "Язык Контакта"
-
-msgid "Contact Email Address"
-msgstr "Адрес электронной почты Контакта"
-
-msgid "Contact Phone"
-msgstr "Телефон Контакта"
-
-msgid "Contact Phone - E164"
-msgstr "Телефон Контакта - E164"
-
-msgid "Contact UUID"
-msgstr "UUID Контакта"
-
-msgid "New Contact"
-msgstr "Новый Контакт"
-
-#, python-format
-msgid "Contact %s"
-msgstr "Контакт %s"
-
-msgid "Current Date and Time"
-msgstr "Текущие дата и время"
-
-msgid "Current Date"
-msgstr "Текущая дата"
-
-msgid "Tomorrow's Date"
-msgstr "Завтрашняя дата"
-
-msgid "Yesterday's Date"
-msgstr "Вчерашняя дата"
-
-msgid "Sent to"
-msgstr "Отправлено на"
-
-msgid "Sent to URN display"
-msgstr "Отправлено на дисплей URN"
-
-msgid "Sent to URN path"
-msgstr "Отправлено на путь URN"
-
-msgid "Sent to URN type"
-msgstr "Отправлено на тип URN"
-
-msgid "Sent to URN"
-msgstr "Отправлено на URN"
-
-msgid "All flow variables"
-msgstr "Все переменные потока"
-
 msgid "Start Flow"
 msgstr "Начать поток"
 
@@ -3611,10 +3547,6 @@ msgstr "Дата самого старого сообщения для эксп�
 
 msgid "The date for the newest message to export"
 msgstr "Дата самого нового сообщения для экспорта"
-
-#, python-format
-msgid "Contact Field: %(label)s"
-msgstr "Поле Контакта: %(label)s"
 
 msgid "Recipients"
 msgstr "Получатели"
@@ -11182,6 +11114,74 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Contact Name"
+#~ msgstr "Название Контакта"
+
+#~ msgid "Contact Creation Date"
+#~ msgstr "Дата Создания Контакта"
+
+#~ msgid "Contact First Name"
+#~ msgstr "Имя Контакта"
+
+#~ msgid "Contact Groups"
+#~ msgstr "Группы Контактов"
+
+#~ msgid "Contact Language"
+#~ msgstr "Язык Контакта"
+
+#~ msgid "Contact Email Address"
+#~ msgstr "Адрес электронной почты Контакта"
+
+#~ msgid "Contact Phone"
+#~ msgstr "Телефон Контакта"
+
+#~ msgid "Contact Phone - E164"
+#~ msgstr "Телефон Контакта - E164"
+
+#~ msgid "Contact UUID"
+#~ msgstr "UUID Контакта"
+
+#~ msgid "New Contact"
+#~ msgstr "Новый Контакт"
+
+#, python-format
+#~ msgid "Contact %s"
+#~ msgstr "Контакт %s"
+
+#~ msgid "Current Date and Time"
+#~ msgstr "Текущие дата и время"
+
+#~ msgid "Current Date"
+#~ msgstr "Текущая дата"
+
+#~ msgid "Tomorrow's Date"
+#~ msgstr "Завтрашняя дата"
+
+#~ msgid "Yesterday's Date"
+#~ msgstr "Вчерашняя дата"
+
+#~ msgid "Sent to"
+#~ msgstr "Отправлено на"
+
+#~ msgid "Sent to URN display"
+#~ msgstr "Отправлено на дисплей URN"
+
+#~ msgid "Sent to URN path"
+#~ msgstr "Отправлено на путь URN"
+
+#~ msgid "Sent to URN type"
+#~ msgstr "Отправлено на тип URN"
+
+#~ msgid "Sent to URN"
+#~ msgstr "Отправлено на URN"
+
+#~ msgid "All flow variables"
+#~ msgstr "Все переменные потока"
+
+#, python-format
+#~ msgid "Contact Field: %(label)s"
+#~ msgstr "Поле Контакта: %(label)s"
 
 #~ msgid "Unsupported flow type"
 #~ msgstr "Неподдерживаемый тип потока"

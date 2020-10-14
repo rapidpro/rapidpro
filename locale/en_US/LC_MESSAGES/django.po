@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-13 22:06+0000\n"
+"POT-Creation-Date: 2020-10-14 18:12+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2947,70 +2947,6 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
-msgid "Contact Name"
-msgstr ""
-
-msgid "Contact Creation Date"
-msgstr ""
-
-msgid "Contact First Name"
-msgstr ""
-
-msgid "Contact Groups"
-msgstr ""
-
-msgid "Contact Language"
-msgstr ""
-
-msgid "Contact Email Address"
-msgstr ""
-
-msgid "Contact Phone"
-msgstr ""
-
-msgid "Contact Phone - E164"
-msgstr ""
-
-msgid "Contact UUID"
-msgstr ""
-
-msgid "New Contact"
-msgstr ""
-
-#, python-format
-msgid "Contact %s"
-msgstr ""
-
-msgid "Current Date and Time"
-msgstr ""
-
-msgid "Current Date"
-msgstr ""
-
-msgid "Tomorrow's Date"
-msgstr ""
-
-msgid "Yesterday's Date"
-msgstr ""
-
-msgid "Sent to"
-msgstr ""
-
-msgid "Sent to URN display"
-msgstr ""
-
-msgid "Sent to URN path"
-msgstr ""
-
-msgid "Sent to URN type"
-msgstr ""
-
-msgid "Sent to URN"
-msgstr ""
-
-msgid "All flow variables"
-msgstr ""
-
 msgid "Start Flow"
 msgstr ""
 
@@ -3279,10 +3215,6 @@ msgid "The date for the oldest message to export"
 msgstr ""
 
 msgid "The date for the newest message to export"
-msgstr ""
-
-#, python-format
-msgid "Contact Field: %(label)s"
 msgstr ""
 
 msgid "Recipients"

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-13 22:06+0000\n"
+"POT-Creation-Date: 2020-10-14 18:12+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3308,70 +3308,6 @@ msgstr "Ajouter une étiquette"
 msgid "Remove"
 msgstr "Supprimer"
 
-msgid "Contact Name"
-msgstr " Nom du Contact"
-
-msgid "Contact Creation Date"
-msgstr "Date de création du contact"
-
-msgid "Contact First Name"
-msgstr "Prénom du Contact"
-
-msgid "Contact Groups"
-msgstr "Groupes de contact"
-
-msgid "Contact Language"
-msgstr "Langue du contact"
-
-msgid "Contact Email Address"
-msgstr "Adresse email du contact"
-
-msgid "Contact Phone"
-msgstr "Contact"
-
-msgid "Contact Phone - E164"
-msgstr "Contact téléphone-E164"
-
-msgid "Contact UUID"
-msgstr "UUID du contact"
-
-msgid "New Contact"
-msgstr "Nouveau contact"
-
-#, python-format
-msgid "Contact %s"
-msgstr "Contact %s"
-
-msgid "Current Date and Time"
-msgstr "Date et Heure actuelle"
-
-msgid "Current Date"
-msgstr "Date Actuelle"
-
-msgid "Tomorrow's Date"
-msgstr "Date de Demain"
-
-msgid "Yesterday's Date"
-msgstr "Date d'Hier"
-
-msgid "Sent to"
-msgstr "Envoyer à"
-
-msgid "Sent to URN display"
-msgstr "Envoyé à l'affichage URN"
-
-msgid "Sent to URN path"
-msgstr "Envoyé au chemin URN"
-
-msgid "Sent to URN type"
-msgstr "Envoyé au type URN"
-
-msgid "Sent to URN"
-msgstr "Envoyé à URN"
-
-msgid "All flow variables"
-msgstr "Toutes les variables du flux"
-
 msgid "Start Flow"
 msgstr "Lancer un Flux"
 
@@ -3657,10 +3593,6 @@ msgstr "La date du message le plus ancien à exporter"
 
 msgid "The date for the newest message to export"
 msgstr "La date du message le plus récent à exporter"
-
-#, python-format
-msgid "Contact Field: %(label)s"
-msgstr "Champ contact: %(label)s"
 
 msgid "Recipients"
 msgstr "Destinataires"
@@ -11076,6 +11008,74 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Contact Name"
+#~ msgstr " Nom du Contact"
+
+#~ msgid "Contact Creation Date"
+#~ msgstr "Date de création du contact"
+
+#~ msgid "Contact First Name"
+#~ msgstr "Prénom du Contact"
+
+#~ msgid "Contact Groups"
+#~ msgstr "Groupes de contact"
+
+#~ msgid "Contact Language"
+#~ msgstr "Langue du contact"
+
+#~ msgid "Contact Email Address"
+#~ msgstr "Adresse email du contact"
+
+#~ msgid "Contact Phone"
+#~ msgstr "Contact"
+
+#~ msgid "Contact Phone - E164"
+#~ msgstr "Contact téléphone-E164"
+
+#~ msgid "Contact UUID"
+#~ msgstr "UUID du contact"
+
+#~ msgid "New Contact"
+#~ msgstr "Nouveau contact"
+
+#, python-format
+#~ msgid "Contact %s"
+#~ msgstr "Contact %s"
+
+#~ msgid "Current Date and Time"
+#~ msgstr "Date et Heure actuelle"
+
+#~ msgid "Current Date"
+#~ msgstr "Date Actuelle"
+
+#~ msgid "Tomorrow's Date"
+#~ msgstr "Date de Demain"
+
+#~ msgid "Yesterday's Date"
+#~ msgstr "Date d'Hier"
+
+#~ msgid "Sent to"
+#~ msgstr "Envoyer à"
+
+#~ msgid "Sent to URN display"
+#~ msgstr "Envoyé à l'affichage URN"
+
+#~ msgid "Sent to URN path"
+#~ msgstr "Envoyé au chemin URN"
+
+#~ msgid "Sent to URN type"
+#~ msgstr "Envoyé au type URN"
+
+#~ msgid "Sent to URN"
+#~ msgstr "Envoyé à URN"
+
+#~ msgid "All flow variables"
+#~ msgstr "Toutes les variables du flux"
+
+#, python-format
+#~ msgid "Contact Field: %(label)s"
+#~ msgstr "Champ contact: %(label)s"
 
 #~ msgid "Unsupported flow type"
 #~ msgstr "Type de flux non pris en charge"

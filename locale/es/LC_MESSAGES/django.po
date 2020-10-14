@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-13 22:06+0000\n"
+"POT-Creation-Date: 2020-10-14 18:12+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4382,85 +4382,6 @@ msgstr "Agregar etiqueta"
 msgid "Remove"
 msgstr "Retirar"
 
-msgid "Contact Name"
-msgstr "Nombre del contacto"
-
-#, fuzzy
-#| msgid "Contact First Name"
-msgid "Contact Creation Date"
-msgstr "Nombre del contacto"
-
-msgid "Contact First Name"
-msgstr "Nombre del contacto"
-
-msgid "Contact Groups"
-msgstr "Grupos de contactos"
-
-#, fuzzy
-#| msgid "Set Language"
-msgid "Contact Language"
-msgstr "Establecer idioma"
-
-#, fuzzy
-#| msgid "Email Address"
-msgid "Contact Email Address"
-msgstr "Dirección de correo electrónico"
-
-msgid "Contact Phone"
-msgstr "Teléfono del contacto"
-
-msgid "Contact Phone - E164"
-msgstr "Teléfono del contacto - E164"
-
-#, fuzzy
-msgid "Contact UUID"
-msgstr "Contacto URN"
-
-#, fuzzy
-msgid "New Contact"
-msgstr "1 Contacto"
-
-#, fuzzy, python-format
-#| msgid "Contacts"
-msgid "Contact %s"
-msgstr "Contactos"
-
-msgid "Current Date and Time"
-msgstr "Fecha y hora actual"
-
-msgid "Current Date"
-msgstr "Fecha actual"
-
-msgid "Tomorrow's Date"
-msgstr "Fecha de mañana"
-
-msgid "Yesterday's Date"
-msgstr "Fecha de ayer"
-
-msgid "Sent to"
-msgstr "Enviar a"
-
-msgid "Sent to URN display"
-msgstr ""
-
-#, fuzzy
-#| msgid "Sent to"
-msgid "Sent to URN path"
-msgstr "Enviar a"
-
-#, fuzzy
-#| msgid "Sent to"
-msgid "Sent to URN type"
-msgstr "Enviar a"
-
-#, fuzzy
-#| msgid "Sent to"
-msgid "Sent to URN"
-msgstr "Enviar a"
-
-msgid "All flow variables"
-msgstr "Todas las variables del flujo"
-
 msgid "Start Flow"
 msgstr "Empezar flujo"
 
@@ -4785,10 +4706,6 @@ msgstr "La fecha para el mensaje más antiguo para exportar"
 
 msgid "The date for the newest message to export"
 msgstr "La fecha para el mensaje más reciente para exportar"
-
-#, python-format
-msgid "Contact Field: %(label)s"
-msgstr "Campo de contacto: %(label)s"
 
 #, fuzzy
 msgid "Recipients"
@@ -12261,6 +12178,86 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Contact Name"
+#~ msgstr "Nombre del contacto"
+
+#, fuzzy
+#~| msgid "Contact First Name"
+#~ msgid "Contact Creation Date"
+#~ msgstr "Nombre del contacto"
+
+#~ msgid "Contact First Name"
+#~ msgstr "Nombre del contacto"
+
+#~ msgid "Contact Groups"
+#~ msgstr "Grupos de contactos"
+
+#, fuzzy
+#~| msgid "Set Language"
+#~ msgid "Contact Language"
+#~ msgstr "Establecer idioma"
+
+#, fuzzy
+#~| msgid "Email Address"
+#~ msgid "Contact Email Address"
+#~ msgstr "Dirección de correo electrónico"
+
+#~ msgid "Contact Phone"
+#~ msgstr "Teléfono del contacto"
+
+#~ msgid "Contact Phone - E164"
+#~ msgstr "Teléfono del contacto - E164"
+
+#, fuzzy
+#~ msgid "Contact UUID"
+#~ msgstr "Contacto URN"
+
+#, fuzzy
+#~ msgid "New Contact"
+#~ msgstr "1 Contacto"
+
+#, fuzzy, python-format
+#~| msgid "Contacts"
+#~ msgid "Contact %s"
+#~ msgstr "Contactos"
+
+#~ msgid "Current Date and Time"
+#~ msgstr "Fecha y hora actual"
+
+#~ msgid "Current Date"
+#~ msgstr "Fecha actual"
+
+#~ msgid "Tomorrow's Date"
+#~ msgstr "Fecha de mañana"
+
+#~ msgid "Yesterday's Date"
+#~ msgstr "Fecha de ayer"
+
+#~ msgid "Sent to"
+#~ msgstr "Enviar a"
+
+#, fuzzy
+#~| msgid "Sent to"
+#~ msgid "Sent to URN path"
+#~ msgstr "Enviar a"
+
+#, fuzzy
+#~| msgid "Sent to"
+#~ msgid "Sent to URN type"
+#~ msgstr "Enviar a"
+
+#, fuzzy
+#~| msgid "Sent to"
+#~ msgid "Sent to URN"
+#~ msgstr "Enviar a"
+
+#~ msgid "All flow variables"
+#~ msgstr "Todas las variables del flujo"
+
+#, python-format
+#~ msgid "Contact Field: %(label)s"
+#~ msgstr "Campo de contacto: %(label)s"
 
 #, fuzzy
 #~ msgid "Revision History"
