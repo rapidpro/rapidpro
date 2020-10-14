@@ -2335,7 +2335,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         revision.save(update_fields=("definition", "spec_version"))
 
         # create a new migrated revision
-        flow_def = revision.get_definition_json()
+        flow_def = revision.get_migrated_definition()
         flow.save_revision(self.admin, flow_def)
 
         revisions = list(flow.revisions.all().order_by("-created_on"))

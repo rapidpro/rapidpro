@@ -10,20 +10,6 @@ from temba.utils import json
 from temba.utils.languages import iso6392_to_iso6393
 from temba.utils.uuid import uuid4
 
-from .definition import (
-    ContainsAnyTest,
-    ContainsTest,
-    InGroupTest,
-    RegexTest,
-    ReplyAction,
-    RuleSet,
-    SayAction,
-    SendAction,
-    StartFlowAction,
-    StartsWithTest,
-    TriggerFlowAction,
-    VariableContactAction,
-)
 from .expressions import migrate_v7_template
 
 
@@ -196,20 +182,20 @@ def migrate_to_version_11_10(json_flow, flow=None, flow_types=None):
     # replace any StartFlowAction pointing to a flow of a different modality
     for action_set in json_flow["action_sets"]:
         for action in action_set.get("actions", []):
-            if action["type"] == StartFlowAction.TYPE:
+            if action["type"] == "flow":
                 subflow_type = get_flow_type(action["flow"]["uuid"])
                 if subflow_type and not flow_types_eq(subflow_type, json_flow["flow_type"]):
-                    action["type"] = TriggerFlowAction.TYPE
+                    action["type"] = "trigger-flow"
                     action["contacts"] = []
                     action["groups"] = []
                     action["urns"] = []
-                    action["variables"] = [{VariableContactAction.ID: "@contact.uuid"}]
+                    action["variables"] = [{"id": "@contact.uuid"}]
 
     del_rule_sets = []
 
     # replace any subflow ruleset pointing to a flow of a different modality
     for rule_set in json_flow.get("rule_sets", []):
-        if rule_set["ruleset_type"] == RuleSet.TYPE_SUBFLOW:
+        if rule_set["ruleset_type"] == "subflow":
             subflow_type = get_flow_type(rule_set["config"]["flow"]["uuid"])
             if subflow_type and not flow_types_eq(subflow_type, json_flow["flow_type"]):
 
@@ -222,13 +208,13 @@ def migrate_to_version_11_10(json_flow, flow=None, flow_types=None):
                         "destination": rule_set["rules"][0].get("destination"),
                         "actions": [
                             {
-                                "type": TriggerFlowAction.TYPE,
+                                "type": "trigger-flow",
                                 "uuid": str(uuid4()),
                                 "flow": rule_set["config"]["flow"],
                                 "contacts": [],
                                 "groups": [],
                                 "urns": [],
-                                "variables": [{VariableContactAction.ID: "@contact.uuid"}],
+                                "variables": [{"id": "@contact.uuid"}],
                             }
                         ],
                         "exit_uuid": rule_set["rules"][0]["uuid"],
@@ -261,16 +247,16 @@ def migrate_to_version_11_9(json_flow, flow=None):
 
     for action_set in action_sets:
         for action in action_set["actions"]:
-            if action["type"] == StartFlowAction.TYPE:
+            if action["type"] == "flow":
                 flow_uuid = action["flow"]["uuid"]
                 detected_flows.add(flow_uuid)
 
-            if action["type"] == TriggerFlowAction.TYPE:
+            if action["type"] == "trigger-flow":
                 flow_uuid = action["flow"]["uuid"]
                 detected_flows.add(flow_uuid)
 
     for rule_set in rule_sets:
-        if rule_set["ruleset_type"] == RuleSet.TYPE_SUBFLOW:
+        if rule_set["ruleset_type"] == "subflow":
             flow_uuid = rule_set["config"]["flow"]["uuid"]
             detected_flows.add(flow_uuid)
 
@@ -293,14 +279,14 @@ def migrate_to_version_11_9(json_flow, flow=None):
         # remove invalid actions and rulesets
         for actionset_index, action_set in enumerate(action_sets):
             for action_index, action in enumerate(action_set["actions"]):
-                if action["type"] == StartFlowAction.TYPE:
+                if action["type"] == "flow":
                     flow_uuid = action["flow"]["uuid"]
                     if flow_uuid in invalid_flow_uuids:
 
                         del new_flow_json["action_sets"][actionset_index]["actions"][action_index]
                         total_removed_actions += 1
 
-                if action["type"] == TriggerFlowAction.TYPE:
+                if action["type"] == "trigger-flow":
                     flow_uuid = action["flow"]["uuid"]
                     if flow_uuid in invalid_flow_uuids:
 
@@ -308,7 +294,7 @@ def migrate_to_version_11_9(json_flow, flow=None):
                         total_removed_actions += 1
 
         for ruleset_index, rule_set in enumerate(rule_sets):
-            if rule_set["ruleset_type"] == RuleSet.TYPE_SUBFLOW:
+            if rule_set["ruleset_type"] == "subflow":
                 flow_uuid = rule_set["config"]["flow"]["uuid"]
 
                 if flow_uuid in invalid_flow_uuids:
@@ -501,7 +487,7 @@ def migrate_to_version_11_6(json_flow, flow=None):
 
     for ruleset in json_flow.get("rule_sets", []):
         for rule in ruleset.get("rules", []):
-            if rule["test"]["type"] == InGroupTest.TYPE:
+            if rule["test"]["type"] == "in_group":
                 group = rule["test"]["test"]
                 remap_group(group)
 
@@ -520,7 +506,7 @@ def migrate_to_version_11_5(json_flow, flow=None):
         slug = Flow.label_to_slug(r["label"])
         if not slug:  # pragma: no cover
             continue
-        if r["ruleset_type"] in (RuleSet.TYPE_WEBHOOK, RuleSet.TYPE_RESTHOOK):
+        if r["ruleset_type"] in ("webhook", "resthook"):
             webhook_rulesets.add(slug)
         else:
             non_webhook_rulesets.add(slug)
@@ -547,7 +533,7 @@ def migrate_to_version_11_4(json_flow, flow=None):
     """
     # figure out which rulesets aren't waits
     rule_sets = json_flow.get("rule_sets", [])
-    non_waiting = {Flow.label_to_slug(r["label"]) for r in rule_sets if r["ruleset_type"] not in RuleSet.TYPE_WAIT}
+    non_waiting = {Flow.label_to_slug(r["label"]) for r in rule_sets if not r["ruleset_type"].startswith("wait_")}
 
     # make a regex that matches a context reference to the .text on any result from these
     replace_pattern = r"flow\.(" + "|".join(non_waiting) + r")\.text"
@@ -1182,19 +1168,14 @@ def migrate_to_version_6(json_flow, flow=None):
                 convert_to_dict(rule, "category")
 
                 # convert our localized types
-                if rule["test"]["type"] in [
-                    ContainsTest.TYPE,
-                    ContainsAnyTest.TYPE,
-                    StartsWithTest.TYPE,
-                    RegexTest.TYPE,
-                ]:
+                if rule["test"]["type"] in ("contains", "contains_any", "starts", "regex"):
                     convert_to_dict(rule["test"], "test")
 
         for actionset in definition.get("action_sets"):
             for action in actionset.get("actions"):
-                if action["type"] in [SendAction.TYPE, ReplyAction.TYPE, SayAction.TYPE]:
+                if action["type"] in ["send", "reply", "say"]:
                     convert_to_dict(action, "msg")
-                if action["type"] == SayAction.TYPE:
+                if action["type"] == "say":
                     if "recording" in action:
                         convert_to_dict(action, "recording")
 
@@ -1234,7 +1215,7 @@ def migrate_to_version_5(json_flow, flow=None):
             webhook_url = ruleset.pop("webhook", None)
             webhook_action = ruleset.pop("webhook_action", None)
 
-            has_old_webhook = webhook_url and ruleset_type != RuleSet.TYPE_WEBHOOK
+            has_old_webhook = webhook_url and ruleset_type != "webhook"
 
             # determine our type from our operand
             operand = ruleset.get("operand")
@@ -1250,23 +1231,23 @@ def migrate_to_version_5(json_flow, flow=None):
                     ruleset["operand"] = "@step.value"
 
                 if response_type == "K":  # pragma: no cover
-                    ruleset["ruleset_type"] = RuleSet.TYPE_WAIT_DIGITS
+                    ruleset["ruleset_type"] = "wait_digits"
                 elif response_type == "M":  # pragma: no cover
-                    ruleset["ruleset_type"] = RuleSet.TYPE_WAIT_DIGIT
+                    ruleset["ruleset_type"] = "wait_digit"
                 elif response_type == "R":  # pragma: no cover
-                    ruleset["ruleset_type"] = RuleSet.TYPE_WAIT_RECORDING
+                    ruleset["ruleset_type"] = "wait_recording"
                 else:
 
                     if operand == "@step.value":
-                        ruleset["ruleset_type"] = RuleSet.TYPE_WAIT_MESSAGE
+                        ruleset["ruleset_type"] = "wait_message"
                     else:
 
-                        ruleset["ruleset_type"] = RuleSet.TYPE_EXPRESSION
+                        ruleset["ruleset_type"] = "expression"
 
                         # if it's not a plain split, make us wait and create
                         # an expression split node to handle our response
                         pausing_ruleset = copy.deepcopy(ruleset)
-                        pausing_ruleset["ruleset_type"] = RuleSet.TYPE_WAIT_MESSAGE
+                        pausing_ruleset["ruleset_type"] = "wait_message"
                         pausing_ruleset["operand"] = "@step.value"
                         pausing_ruleset["label"] = label + " Response"
                         remove_extra_rules(definition, pausing_ruleset)
@@ -1274,21 +1255,21 @@ def migrate_to_version_5(json_flow, flow=None):
 
             else:
                 # if there's no reference to step, figure out our type
-                ruleset["ruleset_type"] = RuleSet.TYPE_EXPRESSION
+                ruleset["ruleset_type"] = "expression"
                 # special case contact and flow fields
                 if " " not in operand and "|" not in operand:  # pragma: needs cover
                     if operand == "@contact.groups":
-                        ruleset["ruleset_type"] = RuleSet.TYPE_EXPRESSION
+                        ruleset["ruleset_type"] = "expression"
                     elif operand.find("@contact.") == 0:
-                        ruleset["ruleset_type"] = RuleSet.TYPE_CONTACT_FIELD
+                        ruleset["ruleset_type"] = "contact_field"
                     elif operand.find("@flow.") == 0:
-                        ruleset["ruleset_type"] = RuleSet.TYPE_FLOW_FIELD
+                        ruleset["ruleset_type"] = "flow_field"
 
                 # we used to stop at webhooks, now we need a new node
                 # to make sure processing stops at this step now
                 if has_old_webhook:
                     pausing_ruleset = copy.deepcopy(ruleset)
-                    pausing_ruleset["ruleset_type"] = RuleSet.TYPE_WAIT_MESSAGE
+                    pausing_ruleset["ruleset_type"] = "wait_message"
                     pausing_ruleset["operand"] = "@step.value"
                     pausing_ruleset["label"] = label + " Response"
                     remove_extra_rules(definition, pausing_ruleset)
@@ -1300,7 +1281,7 @@ def migrate_to_version_5(json_flow, flow=None):
                 webhook_ruleset["webhook"] = webhook_url
                 webhook_ruleset["webhook_action"] = webhook_action
                 webhook_ruleset["operand"] = "@step.value"
-                webhook_ruleset["ruleset_type"] = RuleSet.TYPE_WEBHOOK
+                webhook_ruleset["ruleset_type"] = "webhook"
                 webhook_ruleset["label"] = label + " Webhook"
                 remove_extra_rules(definition, webhook_ruleset)
                 insert_node(definition, webhook_ruleset, ruleset)

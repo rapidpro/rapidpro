@@ -276,7 +276,7 @@ class FlowCRUDL(SmartCRUDL):
             # we are looking for a specific revision, fetch it and migrate it forward
             if revision_id:
                 revision = FlowRevision.objects.get(flow=flow, id=revision_id)
-                definition = revision.get_definition_json(to_version=requested_version)
+                definition = revision.get_migrated_definition(to_version=requested_version)
 
                 # get our metadata
                 flow_info = mailroom.get_client().flow_inspect(flow.org_id, definition)
@@ -295,7 +295,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 # legacy revisions should be validated first as a failsafe
                 try:
-                    legacy_flow_def = revision.get_definition_json(to_version=Flow.FINAL_LEGACY_VERSION)
+                    legacy_flow_def = revision.get_migrated_definition(to_version=Flow.FINAL_LEGACY_VERSION)
                     FlowRevision.validate_legacy_definition(legacy_flow_def)
                     revisions.append(revision.as_json())
 
@@ -2045,7 +2045,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def has_facebook_topic(self, flow):
             if not flow.is_legacy():
-                definition = flow.get_current_revision().get_definition_json()
+                definition = flow.get_current_revision().get_migrated_definition()
                 for node in definition.get("nodes", []):
                     for action in node.get("actions", []):
                         if action.get("type", "") == "send_msg" and action.get("topic", ""):

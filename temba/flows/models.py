@@ -4,6 +4,7 @@ from array import array
 from collections import defaultdict
 from datetime import timedelta
 from enum import Enum
+from typing import Dict
 
 import iso8601
 import regex
@@ -742,17 +743,17 @@ class Flow(TembaModel):
         deps = self.metadata.get(Flow.METADATA_DEPENDENCIES, [])
         return [d for d in deps if d["type"] == type_name]
 
-    def is_legacy(self):
+    def is_legacy(self) -> bool:
         """
         Returns whether this flow still uses a legacy definition
         """
         return Version(self.version_number) < Version(Flow.INITIAL_GOFLOW_VERSION)
 
-    def as_export_ref(self):
+    def as_export_ref(self) -> Dict:
         return {Flow.DEFINITION_UUID: str(self.uuid), Flow.DEFINITION_NAME: self.name}
 
     @classmethod
-    def get_metadata(cls, flow_info, previous=None):
+    def get_metadata(cls, flow_info, previous=None) -> Dict:
         data = {
             Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
             Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
@@ -772,20 +773,18 @@ class Flow(TembaModel):
         Makes sure the flow is at the latest spec version
         """
 
-        to_version = Flow.CURRENT_SPEC_VERSION
-
         # nothing to do if flow is already at the target version
-        if Version(self.version_number) >= Version(to_version):
+        if Version(self.version_number) >= Version(Flow.CURRENT_SPEC_VERSION):
             return
 
         with self.lock():
             revision = self.get_current_revision()
-            flow_def = revision.get_definition_json(to_version)
+            flow_def = revision.get_migrated_definition()
 
             self.save_revision(user=None, definition=flow_def)
             self.refresh_from_db()
 
-    def get_definition(self):
+    def get_definition(self) -> Dict:
         """
         Returns the current definition of this flow
         """
@@ -1543,7 +1542,7 @@ class FlowRevision(SmartModel):
             for rule in ruleset["rules"]:
                 validate_localization(rule["category"])
 
-    def get_definition_json(self, to_version=Flow.CURRENT_SPEC_VERSION):
+    def get_migrated_definition(self, to_version: str = Flow.CURRENT_SPEC_VERSION) -> Dict:
         definition = self.definition
 
         # if it's previous to version 6, wrap the definition to

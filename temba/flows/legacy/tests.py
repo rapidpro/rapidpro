@@ -6,7 +6,6 @@ from temba.msgs.models import Label
 from temba.tests import TembaTest, matchers, mock_mailroom
 from temba.values.constants import Value
 
-from .definition import InGroupTest
 from .expressions import _build_function_signature, get_function_listing, migrate_v7_template
 from .migrations import (
     map_actions,
@@ -46,7 +45,7 @@ def get_legacy_groups(definition):
 
     for ruleset in definition["rule_sets"]:
         for rule in ruleset.get("rules", []):
-            if rule["test"]["type"] == InGroupTest.TYPE:
+            if rule["test"]["type"] == "in_group":
                 group = rule["test"]["test"]
                 groups[group["uuid"]] = group["name"]
     return groups
