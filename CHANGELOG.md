@@ -1,3 +1,8 @@
+v5.7.74
+----------
+ * Remove legacy flow code
+ * WA channel tokens refresh catch errors for each channel independently
+
 v5.7.73
 ----------
  * Make flows searchable and clickable on triggers
