@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-13 22:06+0000\n"
+"POT-Creation-Date: 2020-10-14 18:12+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4071,83 +4071,6 @@ msgstr "Adicionar rótulo"
 msgid "Remove"
 msgstr "Remover"
 
-msgid "Contact Name"
-msgstr "Nome do contato"
-
-#, fuzzy
-#| msgid "Contact First Name"
-msgid "Contact Creation Date"
-msgstr "Primeiro nome do contato"
-
-msgid "Contact First Name"
-msgstr "Primeiro nome do contato"
-
-msgid "Contact Groups"
-msgstr "Grupos de contato"
-
-#, fuzzy
-msgid "Contact Language"
-msgstr "Linguagem"
-
-#, fuzzy
-#| msgid "Email Address"
-msgid "Contact Email Address"
-msgstr "Endereço de e-mail"
-
-msgid "Contact Phone"
-msgstr "Telefone do contato"
-
-msgid "Contact Phone - E164"
-msgstr "Telefone do contato - E164"
-
-#, fuzzy
-msgid "Contact UUID"
-msgstr "Nome do contato"
-
-#, fuzzy
-msgid "New Contact"
-msgstr "1 Contato"
-
-#, fuzzy, python-format
-#| msgid "Contacts"
-msgid "Contact %s"
-msgstr "Contatos"
-
-msgid "Current Date and Time"
-msgstr "Data e hora atual"
-
-msgid "Current Date"
-msgstr "Data atual"
-
-msgid "Tomorrow's Date"
-msgstr "Data de amanhã"
-
-msgid "Yesterday's Date"
-msgstr "Data de ontem"
-
-#, fuzzy
-msgid "Sent to"
-msgstr "Enviado"
-
-msgid "Sent to URN display"
-msgstr ""
-
-#, fuzzy
-msgid "Sent to URN path"
-msgstr "Enviado"
-
-#, fuzzy
-msgid "Sent to URN type"
-msgstr "Enviado"
-
-#, fuzzy
-msgid "Sent to URN"
-msgstr "Enviado"
-
-#, fuzzy
-msgid "All flow variables"
-msgstr "Nomeie a sua variável"
-
 #, fuzzy
 msgid "Start Flow"
 msgstr "Ação de iniciar o fluxo"
@@ -4468,10 +4391,6 @@ msgstr "O tipo dessa mensagem"
 #, fuzzy
 msgid "The date for the newest message to export"
 msgstr "O tipo dessa mensagem"
-
-#, python-format
-msgid "Contact Field: %(label)s"
-msgstr "Campo de contato: %(label)s"
 
 #, fuzzy
 msgid "Recipients"
@@ -11372,6 +11291,84 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Contact Name"
+#~ msgstr "Nome do contato"
+
+#, fuzzy
+#~| msgid "Contact First Name"
+#~ msgid "Contact Creation Date"
+#~ msgstr "Primeiro nome do contato"
+
+#~ msgid "Contact First Name"
+#~ msgstr "Primeiro nome do contato"
+
+#~ msgid "Contact Groups"
+#~ msgstr "Grupos de contato"
+
+#, fuzzy
+#~ msgid "Contact Language"
+#~ msgstr "Linguagem"
+
+#, fuzzy
+#~| msgid "Email Address"
+#~ msgid "Contact Email Address"
+#~ msgstr "Endereço de e-mail"
+
+#~ msgid "Contact Phone"
+#~ msgstr "Telefone do contato"
+
+#~ msgid "Contact Phone - E164"
+#~ msgstr "Telefone do contato - E164"
+
+#, fuzzy
+#~ msgid "Contact UUID"
+#~ msgstr "Nome do contato"
+
+#, fuzzy
+#~ msgid "New Contact"
+#~ msgstr "1 Contato"
+
+#, fuzzy, python-format
+#~| msgid "Contacts"
+#~ msgid "Contact %s"
+#~ msgstr "Contatos"
+
+#~ msgid "Current Date and Time"
+#~ msgstr "Data e hora atual"
+
+#~ msgid "Current Date"
+#~ msgstr "Data atual"
+
+#~ msgid "Tomorrow's Date"
+#~ msgstr "Data de amanhã"
+
+#~ msgid "Yesterday's Date"
+#~ msgstr "Data de ontem"
+
+#, fuzzy
+#~ msgid "Sent to"
+#~ msgstr "Enviado"
+
+#, fuzzy
+#~ msgid "Sent to URN path"
+#~ msgstr "Enviado"
+
+#, fuzzy
+#~ msgid "Sent to URN type"
+#~ msgstr "Enviado"
+
+#, fuzzy
+#~ msgid "Sent to URN"
+#~ msgstr "Enviado"
+
+#, fuzzy
+#~ msgid "All flow variables"
+#~ msgstr "Nomeie a sua variável"
+
+#, python-format
+#~ msgid "Contact Field: %(label)s"
+#~ msgstr "Campo de contato: %(label)s"
 
 #, fuzzy
 #~ msgid "Revision History"

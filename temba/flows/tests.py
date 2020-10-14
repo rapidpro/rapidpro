@@ -20,7 +20,6 @@ from django.utils.encoding import force_text
 from temba.api.models import Resthook
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts.models import FACEBOOK_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup
 from temba.globals.models import Global
@@ -3038,49 +3037,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("flows.flow_category_counts", args=[flow.uuid]))
 
         self.assertEqual(404, response.status_code)
-
-    def test_completion(self):
-        flow = self.get_flow("favorites")
-        self.login(self.admin)
-
-        response = self.client.get("%s?flow=%s" % (reverse("flows.flow_completion"), flow.uuid))
-        response = response.json()
-
-        def assert_in_response(response, data_key, key):
-            found = False
-            for item in response[data_key]:
-                if key == item["name"]:
-                    found = True
-            self.assertTrue(found, "Key %s not found in %s" % (key, response))
-
-        assert_in_response(response, "message_completions", "contact")
-        assert_in_response(response, "message_completions", "contact.first_name")
-        assert_in_response(response, "message_completions", "contact.tel")
-        assert_in_response(response, "message_completions", "contact.mailto")
-
-        assert_in_response(response, "message_completions", "parent.contact.uuid")
-        assert_in_response(response, "message_completions", "child.contact.uuid")
-
-        assert_in_response(response, "message_completions", "flow.color")
-        assert_in_response(response, "message_completions", "flow.color.category")
-        assert_in_response(response, "message_completions", "flow.color.text")
-        assert_in_response(response, "message_completions", "flow.color.time")
-
-        assert_in_response(response, "message_completions", "step")
-        assert_in_response(response, "message_completions", "step.urn")
-        assert_in_response(response, "message_completions", "step.urn.scheme")
-
-        assert_in_response(response, "function_completions", "SUM")
-        assert_in_response(response, "function_completions", "ABS")
-        assert_in_response(response, "function_completions", "YEAR")
-
-        # a Twitter channel
-        Channel.create(self.org, self.user, None, "TT")
-
-        response = self.client.get("%s?flow=%s" % (reverse("flows.flow_completion"), flow.uuid))
-        response = response.json()
-
-        assert_in_response(response, "message_completions", "contact.twitter")
 
     def test_editor_next_redirection(self):
         flow = self.get_flow("favorites_v13")
