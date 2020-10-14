@@ -3631,12 +3631,12 @@ class LanguageTest(TembaTest):
         self.assertFalse(self.org.languages.all())
 
         # search languages
-        response = self.client.get("%s?search=fra" % url)
+        response = self.client.get("%s?search=fra" % url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
         results = response.json()["results"]
         self.assertEqual(len(results), 7)
 
         # initial should do a match on code only
-        response = self.client.get("%s?initial=fra" % url)
+        response = self.client.get("%s?initial=fra" % url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
         results = response.json()["results"]
         self.assertEqual(len(results), 1)
 
