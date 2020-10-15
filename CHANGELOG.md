@@ -1,3 +1,10 @@
+v5.7.75
+----------
+ * Last tweaks before RuleSet and ActionSet can be dropped
+ * Contact id treatment for details
+ * Update components to ship ajax header and use it in language endpoint
+ * Remove no longer needed legacy editor completion
+
 v5.7.74
 ----------
  * Remove legacy flow code
