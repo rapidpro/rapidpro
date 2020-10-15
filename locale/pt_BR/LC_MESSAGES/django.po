@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-14 18:12+0000\n"
+"POT-Creation-Date: 2020-10-15 17:25+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3795,10 +3795,6 @@ msgstr "Rótulos"
 #, fuzzy
 msgid "Any labels on this flow"
 msgstr "Quaisquer rótulos nesta mensagem"
-
-#, fuzzy
-msgid "The type of node this flow starts with"
-msgstr "O nó com que esse fluxo inicia"
 
 msgid "Whether this flow is archived"
 msgstr "Se esse fluxo for arquivado"
@@ -11291,6 +11287,10 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "The type of node this flow starts with"
+#~ msgstr "O nó com que esse fluxo inicia"
 
 #~ msgid "Contact Name"
 #~ msgstr "Nome do contato"

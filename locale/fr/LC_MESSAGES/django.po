@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-14 18:12+0000\n"
+"POT-Creation-Date: 2020-10-15 17:25+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3063,9 +3063,6 @@ msgstr "Etiquettes"
 
 msgid "Any labels on this flow"
 msgstr "Tout label sur ce flux"
-
-msgid "The type of node this flow starts with"
-msgstr "Le type de noeud par lequel ce flux commence"
 
 msgid "Whether this flow is archived"
 msgstr "Que ce flux est archivée"
@@ -11008,6 +11005,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "The type of node this flow starts with"
+#~ msgstr "Le type de noeud par lequel ce flux commence"
 
 #~ msgid "Contact Name"
 #~ msgstr " Nom du Contact"

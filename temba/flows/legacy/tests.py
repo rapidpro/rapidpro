@@ -1,7 +1,7 @@
 from packaging.version import Version
 
 from temba.contacts.models import ContactGroup
-from temba.flows.models import Flow, FlowRevision, RuleSet
+from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Label
 from temba.tests import TembaTest, matchers, mock_mailroom
 from temba.values.constants import Value
@@ -1013,8 +1013,8 @@ class FlowMigrationTest(TembaTest):
         # we should now be pointing to a newly created webhook rule
         webhook = migrated["rule_sets"][4]
         self.assertEqual("webhook", webhook["ruleset_type"])
-        self.assertEqual("http://localhost:49999/status", webhook[RuleSet.CONFIG_WEBHOOK])
-        self.assertEqual("POST", webhook[RuleSet.CONFIG_WEBHOOK_ACTION])
+        self.assertEqual("http://localhost:49999/status", webhook["webhook"])
+        self.assertEqual("POST", webhook["webhook_action"])
         self.assertEqual("@step.value", webhook["operand"])
         self.assertEqual("Color Webhook", webhook["label"])
 

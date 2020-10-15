@@ -374,13 +374,12 @@ class TembaTestMixin:
         flow = Flow.create(org, self.admin, name, flow_type=flow_type)
         definition = {
             "uuid": "fc8cfc80-c73c-4d96-82b6-c8ab4ecb1df6",
-            "name": "Color Flow",
+            "name": name,
             "type": Flow.GOFLOW_TYPES[flow_type],
             "revision": 1,
             "spec_version": "13.1.0",
             "expire_after_minutes": Flow.DEFAULT_EXPIRES_AFTER,
             "language": "eng",
-            "localization": {},
             "nodes": [
                 {
                     "uuid": "f3d5ccd0-fee0-4955-bcb7-21613f049eae",
