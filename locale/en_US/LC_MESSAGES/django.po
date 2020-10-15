@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-15 17:25+0000\n"
+"POT-Creation-Date: 2020-10-15 20:16+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2751,39 +2751,6 @@ msgid "Archive delete"
 msgstr ""
 
 msgid "User delete"
-msgstr ""
-
-msgid "The label for this field"
-msgstr ""
-
-msgid "The value that rules will be run against, if None defaults to @step.value"
-msgstr ""
-
-msgid "The URL that will be called with the user's response before we run our rules"
-msgstr ""
-
-msgid "How the webhook should be executed"
-msgstr ""
-
-msgid "The JSON encoded actions for this action set"
-msgstr ""
-
-msgid "Ruleset Configuration"
-msgstr ""
-
-msgid "RuleSet type specific configuration"
-msgstr ""
-
-msgid "When this ruleset was originally created"
-msgstr ""
-
-msgid "When this ruleset was last modified"
-msgstr ""
-
-msgid "When this action was originally created"
-msgstr ""
-
-msgid "When this action was last modified"
 msgstr ""
 
 msgid "The JSON flow definition"
