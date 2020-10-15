@@ -3445,7 +3445,7 @@ class APITest(TembaTest):
         joe_run3 = MockSessionWriter(self.joe, flow2).wait().save().session.runs.get()
 
         # add a run for another org
-        flow3 = self.create_flow(org=self.org2, user=self.admin2)
+        flow3 = self.create_flow(org=self.org2)
         MockSessionWriter(self.hans, flow3).wait().save()
 
         # refresh runs which will have been modified by being interrupted

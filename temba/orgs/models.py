@@ -1608,7 +1608,6 @@ class Org(SmartModel):
         from temba.contacts.models import ContactGroup, ContactField
         from temba.flows.models import Flow
 
-        flow_prefetches = ("action_sets", "rule_sets")
         campaign_prefetches = (
             Prefetch(
                 "events",
@@ -1618,7 +1617,7 @@ class Org(SmartModel):
             "flow_events__flow",
         )
 
-        all_flows = self.flows.filter(is_active=True).exclude(is_system=True).prefetch_related(*flow_prefetches)
+        all_flows = self.flows.filter(is_active=True).exclude(is_system=True)
 
         if include_campaigns:
             all_campaigns = (
@@ -1846,9 +1845,6 @@ class Org(SmartModel):
 
             for rev in flow.revisions.all():
                 rev.release()
-
-            flow.rule_sets.all().delete()
-            flow.action_sets.all().delete()
 
             flow.category_counts.all().delete()
             flow.path_counts.all().delete()
