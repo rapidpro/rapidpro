@@ -369,38 +369,30 @@ class TembaTestMixin:
 
         return bcast
 
-    def create_flow(self, definition=None, **kwargs):
-        if "org" not in kwargs:
-            kwargs["org"] = self.org
-        if "user" not in kwargs:
-            kwargs["user"] = self.user
-        if "name" not in kwargs:
-            kwargs["name"] = "Color Flow"
+    def create_flow(self, name="Color Flow", flow_type=Flow.TYPE_MESSAGE, org=None):
+        org = org or self.org
+        flow = Flow.create(org, self.admin, name, flow_type=flow_type)
+        definition = {
+            "uuid": "fc8cfc80-c73c-4d96-82b6-c8ab4ecb1df6",
+            "name": "Color Flow",
+            "type": Flow.GOFLOW_TYPES[flow_type],
+            "revision": 1,
+            "spec_version": "13.1.0",
+            "expire_after_minutes": Flow.DEFAULT_EXPIRES_AFTER,
+            "language": "eng",
+            "localization": {},
+            "nodes": [
+                {
+                    "uuid": "f3d5ccd0-fee0-4955-bcb7-21613f049eae",
+                    "actions": [
+                        {"uuid": "f661e3f0-5148-4397-92ef-925629ad444d", "type": "send_msg", "text": "Hey everybody!"}
+                    ],
+                    "exits": [{"uuid": "72a3f1da-bde1-4549-a986-d35809807be8"}],
+                }
+            ],
+        }
 
-        flow = Flow.create(**kwargs)
-        if not definition:
-            # if definition isn't provided, generate simple single message flow
-            node_uuid = str(uuid4())
-            definition = {
-                "version": "10",
-                "flow_type": "F",
-                "base_language": "eng",
-                "entry": node_uuid,
-                "action_sets": [
-                    {
-                        "uuid": node_uuid,
-                        "x": 0,
-                        "y": 0,
-                        "actions": [
-                            {"msg": {"eng": "Hey everybody!"}, "media": {}, "send_all": False, "type": "reply"}
-                        ],
-                        "destination": None,
-                    }
-                ],
-                "rule_sets": [],
-            }
-
-        flow.version_number = definition["version"]
+        flow.version_number = definition["spec_version"]
         flow.save()
 
         json_flow = Flow.migrate_definition(definition, flow)

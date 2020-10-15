@@ -143,11 +143,6 @@ class Flow(TembaModel):
 
     GOFLOW_TYPES = {TYPE_MESSAGE: "messaging", TYPE_VOICE: "voice", TYPE_SURVEY: "messaging_offline"}
 
-    NODE_TYPE_RULESET = "R"
-    NODE_TYPE_ACTIONSET = "A"
-
-    ENTRY_TYPES = ((NODE_TYPE_RULESET, "Rules"), (NODE_TYPE_ACTIONSET, "Actions"))
-
     FINAL_LEGACY_VERSION = legacy.VERSIONS[-1]
     INITIAL_GOFLOW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
     CURRENT_SPEC_VERSION = "13.1.0"  # current flow spec version
@@ -161,12 +156,6 @@ class Flow(TembaModel):
     )
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flows")
-
-    entry_uuid = models.CharField(null=True, max_length=36, unique=True)
-
-    entry_type = models.CharField(
-        max_length=1, null=True, choices=ENTRY_TYPES, help_text=_("The type of node this flow starts with")
-    )
 
     is_archived = models.BooleanField(default=False, help_text=_("Whether this flow is archived"))
 
@@ -1337,24 +1326,6 @@ class RuleSet(models.Model):
     TYPE_GROUP = "group"
     TYPE_RANDOM = "random"
     TYPE_SUBFLOW = "subflow"
-
-    CONFIG_WEBHOOK = "webhook"
-    CONFIG_WEBHOOK_ACTION = "webhook_action"
-    CONFIG_WEBHOOK_HEADERS = "webhook_headers"
-    CONFIG_RESTHOOK = "resthook"
-
-    TYPE_MEDIA = (TYPE_WAIT_PHOTO, TYPE_WAIT_GPS, TYPE_WAIT_VIDEO, TYPE_WAIT_AUDIO, TYPE_WAIT_RECORDING)
-
-    TYPE_WAIT = (
-        TYPE_WAIT_MESSAGE,
-        TYPE_WAIT_RECORDING,
-        TYPE_WAIT_DIGIT,
-        TYPE_WAIT_DIGITS,
-        TYPE_WAIT_PHOTO,
-        TYPE_WAIT_VIDEO,
-        TYPE_WAIT_AUDIO,
-        TYPE_WAIT_GPS,
-    )
 
     TYPE_CHOICES = (
         (TYPE_WAIT_MESSAGE, "Wait for message"),

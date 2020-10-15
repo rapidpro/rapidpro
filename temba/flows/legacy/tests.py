@@ -240,10 +240,9 @@ class FlowMigrationTest(TembaTest):
 
         flow = self.get_flow("migrate_to_11_12_one_node")
         flow_json = self.get_flow_json("migrate_to_11_12_one_node")
-        migrate_to_version_11_12(flow_json, flow)
+        migrated = migrate_to_version_11_12(flow_json, flow)
 
-        action_sets = flow.action_sets.all()
-        self.assertEqual(len(action_sets), 0)
+        self.assertEqual(len(migrated["action_sets"]), 0)
 
     def test_migrate_to_11_12_other_org_existing_flow(self):
         flow = self.get_flow("migrate_to_11_12_other_org", {"CHANNEL-UUID": str(self.channel.uuid)})
