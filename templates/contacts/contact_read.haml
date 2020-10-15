@@ -102,9 +102,11 @@
           %td
             .whitespace-no-wrap.pr-12.contact-field
               .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
-              -trans "Contact Id"
+                -trans "Contact Id"
           %td.w-full
-            {{contact.anon_identifier}}
+            .contact-field
+              .contact-field-value
+                {{contact.anon_identifier}}
   
     
       -for field in all_contact_fields
