@@ -13,7 +13,7 @@ def has_result(node_data):
     action_result_names = [
         action["result_name"] for action in node_data.get("actions", []) if action.get("result_name")
     ]
-    return result_name or action_result_names[0] if action_result_names else None
+    return result_name or (action_result_names[0] if action_result_names else None)
 
 
 class NodeConflictTypes:
@@ -579,8 +579,16 @@ class GraphDifferenceMap:
 
     def delete_unmatched_source_nodes(self):
         node_keys = list(self.diff_nodes_map.keys())
+        destination_results = {has_result(node.data) for node in self.right_graph.nodes_map.values()}
         for key in node_keys:
             diff_node = self.diff_nodes_map[key]
+            if has_result(diff_node.source_node and diff_node.source_node.data or {}) not in destination_results:
+                for node_exit in diff_node.source_node.data["exits"]:
+                    node_exit["destination_uuid"] = None
+                self.definition.get("_ui", {}).get("nodes", {})[diff_node.uuid] = (
+                    self.left_graph.resource.get("_ui", {}).get("nodes", {}).get(diff_node.uuid, {})
+                )
+                continue
             if diff_node.source_node and not diff_node.destination_node:
                 del self.diff_nodes_map[key]
                 del self.diff_nodes_origin_map[key]
