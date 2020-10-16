@@ -45,7 +45,6 @@ from temba.utils.models import (
     generate_uuid,
 )
 from temba.utils.uuid import uuid4
-from temba.values.constants import Value
 
 from . import legacy
 
@@ -1296,125 +1295,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     def __str__(self):  # pragma: no cover
         return f"FlowRun[uuid={self.uuid}, flow={self.flow.uuid}]"
-
-
-class RuleSet(models.Model):
-    TYPE_WAIT_MESSAGE = "wait_message"
-
-    # Ussd
-    TYPE_WAIT_USSD_MENU = "wait_menu"
-    TYPE_WAIT_USSD = "wait_ussd"
-
-    # Calls
-    TYPE_WAIT_RECORDING = "wait_recording"
-    TYPE_WAIT_DIGIT = "wait_digit"
-    TYPE_WAIT_DIGITS = "wait_digits"
-
-    # Surveys
-    TYPE_WAIT_PHOTO = "wait_photo"
-    TYPE_WAIT_VIDEO = "wait_video"
-    TYPE_WAIT_AUDIO = "wait_audio"
-    TYPE_WAIT_GPS = "wait_gps"
-
-    TYPE_AIRTIME = "airtime"
-    TYPE_WEBHOOK = "webhook"
-    TYPE_RESTHOOK = "resthook"
-    TYPE_FLOW_FIELD = "flow_field"
-    TYPE_FORM_FIELD = "form_field"
-    TYPE_CONTACT_FIELD = "contact_field"
-    TYPE_EXPRESSION = "expression"
-    TYPE_GROUP = "group"
-    TYPE_RANDOM = "random"
-    TYPE_SUBFLOW = "subflow"
-
-    TYPE_CHOICES = (
-        (TYPE_WAIT_MESSAGE, "Wait for message"),
-        (TYPE_WAIT_USSD_MENU, "Wait for USSD menu"),
-        (TYPE_WAIT_USSD, "Wait for USSD message"),
-        (TYPE_WAIT_RECORDING, "Wait for recording"),
-        (TYPE_WAIT_DIGIT, "Wait for digit"),
-        (TYPE_WAIT_DIGITS, "Wait for digits"),
-        (TYPE_SUBFLOW, "Subflow"),
-        (TYPE_WEBHOOK, "Webhook"),
-        (TYPE_RESTHOOK, "Resthook"),
-        (TYPE_AIRTIME, "Transfer Airtime"),
-        (TYPE_FORM_FIELD, "Split by message form"),
-        (TYPE_CONTACT_FIELD, "Split on contact field"),
-        (TYPE_EXPRESSION, "Split by expression"),
-        (TYPE_RANDOM, "Split Randomly"),
-    )
-
-    uuid = models.CharField(max_length=36, unique=True)
-
-    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="rule_sets", null=True)
-
-    label = models.CharField(max_length=64, null=True, blank=True, help_text=_("The label for this field"))
-
-    operand = models.CharField(
-        max_length=128,
-        null=True,
-        blank=True,
-        help_text=_("The value that rules will be run against, if None defaults to @step.value"),
-    )
-
-    webhook_url = models.URLField(
-        null=True,
-        blank=True,
-        max_length=255,
-        help_text=_("The URL that will be called with the user's response before we run our rules"),
-    )
-
-    webhook_action = models.CharField(
-        null=True, blank=True, max_length=8, default="POST", help_text=_("How the webhook should be executed")
-    )
-
-    rules = JSONAsTextField(help_text=_("The JSON encoded actions for this action set"), default=list)
-
-    finished_key = models.CharField(
-        max_length=1, null=True, blank=True, help_text="During IVR, this is the key to indicate we are done waiting"
-    )
-
-    value_type = models.CharField(
-        max_length=1,
-        choices=Value.TYPE_CHOICES,
-        default=Value.TYPE_TEXT,
-        help_text="The type of value this ruleset saves",
-    )
-
-    ruleset_type = models.CharField(max_length=16, choices=TYPE_CHOICES, null=True, help_text="The type of ruleset")
-
-    response_type = models.CharField(max_length=1, help_text="The type of response that is being saved")
-
-    config = JSONAsTextField(
-        null=True,
-        verbose_name=_("Ruleset Configuration"),
-        default=dict,
-        help_text=_("RuleSet type specific configuration"),
-    )
-
-    x = models.IntegerField()
-    y = models.IntegerField()
-
-    created_on = models.DateTimeField(auto_now_add=True, help_text=_("When this ruleset was originally created"))
-    modified_on = models.DateTimeField(auto_now=True, help_text=_("When this ruleset was last modified"))
-
-
-class ActionSet(models.Model):
-    uuid = models.CharField(max_length=36, unique=True)
-    flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="action_sets")
-
-    destination = models.CharField(max_length=36, null=True)
-    destination_type = models.CharField(max_length=1, null=True)
-
-    exit_uuid = models.CharField(max_length=36, null=True)  # needed for migrating to new engine
-
-    actions = JSONAsTextField(help_text=_("The JSON encoded actions for this action set"), default=dict)
-
-    x = models.IntegerField()
-    y = models.IntegerField()
-
-    created_on = models.DateTimeField(auto_now_add=True, help_text=_("When this action was originally created"))
-    modified_on = models.DateTimeField(auto_now=True, help_text=_("When this action was last modified"))
 
 
 class FlowRevision(SmartModel):
