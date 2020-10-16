@@ -4114,8 +4114,6 @@ class MergeFlowsTask(TembaModel):
                 backup_metadata["terget_backup"] = target.as_json()
                 self.definition[Flow.DEFINITION_REVISION] = self.target.get_current_revision().revision + 1
                 target.save_revision(self.created_by, self.definition)
-                target.name = self.merge_name
-                target.save()
 
                 # move campaigns from source to target
                 from temba.campaigns.models import CampaignEvent
@@ -4187,25 +4185,36 @@ class MergeFlowsTask(TembaModel):
                 path_counts = self.source.path_counts.all()
                 backup_metadata["path_path_counts"] = list(path_counts.values_list("id", flat=True))
 
-                # transfer counts from source flow
-                for path_count in self.source.path_counts.all().distinct("from_uuid"):
-                    need_to_skip = active_pathes.get(path_count.from_uuid, 0)
-                    dest_path_count = self.target.path_counts.filter(
-                        from_uuid=origin_exit_uuids.get(str(path_count.from_uuid), path_count.from_uuid),
-                        to_uuid=origin_node_uuids.get(str(path_count.to_uuid), path_count.to_uuid),
-                    ).first()
-                    if dest_path_count:
-                        dest_path_count.count += path_count.count - need_to_skip
-                        dest_path_count.save()
-                    else:
-                        self.target.path_counts.create(
-                            from_uuid=origin_exit_uuids.get(str(path_count.from_uuid), path_count.from_uuid),
-                            to_uuid=origin_node_uuids.get(str(path_count.to_uuid), path_count.to_uuid),
-                            count=path_count.count - need_to_skip,
-                            period=path_count.period,
-                        )
-                    path_count.count = need_to_skip
+                # calculate the sum of all counts on each flow path
+                grouped_path_counts = [
+                    {"from_uuid": path["from_uuid"], "to_uuid": path["to_uuid"], "count": path["count"]}
+                    for path in self.source.path_counts.values("from_uuid", "to_uuid").annotate(count=Sum("count"))
+                ]
+                # transfer path counts from source flow to target flow
+                for path_count in path_counts:
+                    path_count.from_uuid = origin_exit_uuids.get(str(path_count.from_uuid), path_count.from_uuid)
+                    path_count.to_uuid = origin_node_uuids.get(str(path_count.to_uuid), path_count.to_uuid)
+                    path_count.flow = self.target
                     path_count.save()
+
+                # equalize path count for active runs
+                for path_count in grouped_path_counts:
+                    need_to_skip = active_pathes.get(str(path_count["from_uuid"]), 0)
+                    if need_to_skip == 0:
+                        continue
+
+                    self.target.path_counts.create(
+                        from_uuid=origin_exit_uuids.get(str(path_count["from_uuid"]), path_count["from_uuid"]),
+                        to_uuid=origin_node_uuids.get(str(path_count["to_uuid"]), path_count["to_uuid"]),
+                        count=-need_to_skip,
+                        period=timezone.now(),
+                    )
+                    self.source.path_counts.create(
+                        from_uuid=path_count["from_uuid"],
+                        to_uuid=path_count["to_uuid"],
+                        count=need_to_skip,
+                        period=timezone.now(),
+                    )
 
                 # move category counts
                 category_counts = self.source.category_counts.all()
@@ -4247,13 +4256,21 @@ class MergeFlowsTask(TembaModel):
                     waiting_exit_uuids[index] = origin_exit_uuids.get(exit_uuid, exit_uuid)
                 self.target.metadata["waiting_exit_uuids"] = list(set(waiting_exit_uuids))
 
-                results = source_metadata.get("results", [])
-                backup_metadata["moved_results"] = results
-                results = [*target_metadata.get("results", []), *results]
-                for result in results:
+                results_map = {result.get("key"): result for result in target_metadata.get("results", [])}
+                for result in source_metadata.get("results", []):
+                    if result.get("key") in results_map:
+                        results_map[result.get("key")]["node_uuids"] += result["node_uuids"]
+                        results_map[result.get("key")]["node_uuids"] = list(
+                            set(results_map[result.get("key")]["node_uuids"])
+                        )
+                    else:
+                        results_map[result.get("key")] = result
+                for result in results_map.values():
                     for index, node_uuid in enumerate(result.get("node_uuids", [])):
                         result["node_uuids"][index] = origin_node_uuids.get(node_uuid, node_uuid)
-                self.target.metadata["results"] = results
+                self.target.metadata["results"] = list(results_map.values())
+                self.target.name = self.merge_name
+                self.target.save()
 
                 # archive source
                 active_runs_exists = self.source.runs.filter(

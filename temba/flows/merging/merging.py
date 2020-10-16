@@ -13,7 +13,7 @@ def has_result(node_data):
     action_result_names = [
         action["result_name"] for action in node_data.get("actions", []) if action.get("result_name")
     ]
-    return result_name or action_result_names[0] if action_result_names else None
+    return result_name or (action_result_names[0] if action_result_names else None)
 
 
 class NodeConflictTypes:

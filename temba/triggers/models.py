@@ -321,7 +321,7 @@ class Trigger(SmartModel):
                 else triggers.exclude(keyword__in=current_keywords).values_list("keyword", flat=True)
             )
             node_ui = definition.get("_ui", {}).get("nodes", {}).get(node["uuid"])
-            if node_ui and node_ui["type"] == "wait_for_response":
+            if node_ui and node_ui.get("type", "") == "wait_for_response":
                 for case in filter(lambda x: x["type"] in text_containing_cases, node["router"].get("cases", [])):
                     for argument in case["arguments"][0].split():
                         if argument.lower() in triggers_list:
