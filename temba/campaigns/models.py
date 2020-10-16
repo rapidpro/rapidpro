@@ -12,7 +12,6 @@ from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import json, on_transaction_commit
 from temba.utils.models import TembaModel, TranslatableField
-from temba.values.constants import Value
 
 
 class Campaign(TembaModel):
@@ -350,7 +349,7 @@ class CampaignEvent(TembaModel):
         if campaign.org != org:
             raise ValueError("Org mismatch")
 
-        if relative_to.value_type != Value.TYPE_DATETIME:
+        if relative_to.value_type != ContactField.TYPE_DATETIME:
             raise ValueError(
                 f"Contact fields for CampaignEvents must have a datetime type, got {relative_to.value_type}."
             )
@@ -382,7 +381,7 @@ class CampaignEvent(TembaModel):
         if campaign.org != org:
             raise ValueError("Org mismatch")
 
-        if relative_to.value_type != Value.TYPE_DATETIME:
+        if relative_to.value_type != ContactField.TYPE_DATETIME:
             raise ValueError(
                 f"Contact fields for CampaignEvents must have a datetime type, got '{relative_to.value_type}'."
             )

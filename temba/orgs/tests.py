@@ -59,7 +59,6 @@ from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
-from temba.values.constants import Value
 
 from .context_processors import GroupPermWrapper
 from .models import CreditAlert, Invitation, Language, Org, TopUp, TopUpCredits
@@ -289,7 +288,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
         # add some fields
         parent_field = self.create_field("age", "Parent Age", org=self.parent_org)
         parent_datetime_field = self.create_field(
-            "planting_date", "Planting Date", value_type=Value.TYPE_DATETIME, org=self.parent_org
+            "planting_date", "Planting Date", value_type=ContactField.TYPE_DATETIME, org=self.parent_org
         )
         child_field = self.create_field("age", "Child Age", org=self.child_org)
 

@@ -13,7 +13,6 @@ from temba.msgs.models import Msg
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget
 from temba.utils.views import BulkActionMixin
-from temba.values.constants import Value
 
 from .models import Campaign, CampaignEvent
 
@@ -410,7 +409,7 @@ class CampaignEventForm(forms.ModelForm):
 
         relative_to = self.fields["relative_to"]
         relative_to.queryset = ContactField.all_fields.filter(
-            org=org, is_active=True, value_type=Value.TYPE_DATETIME
+            org=org, is_active=True, value_type=ContactField.TYPE_DATETIME
         ).order_by("label")
 
         flow = self.fields["flow_to_start"]
@@ -751,7 +750,7 @@ class CampaignEventCRUDL(SmartCRUDL):
 
             # default to our first date field
             initial["relative_to"] = ContactField.all_fields.filter(
-                org=self.request.user.get_org(), is_active=True, value_type=Value.TYPE_DATETIME
+                org=self.request.user.get_org(), is_active=True, value_type=ContactField.TYPE_DATETIME
             ).first()
 
             return initial

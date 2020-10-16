@@ -46,7 +46,6 @@ from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.dates import datetime_to_ms, datetime_to_str
-from temba.values.constants import Value
 
 from .models import (
     TEL_SCHEME,
@@ -595,7 +594,7 @@ class ContactGroupTest(TembaTest):
 
     @mock_mailroom
     def test_create_dynamic(self, mr_mocks):
-        age = ContactField.get_or_create(self.org, self.admin, "age", value_type=Value.TYPE_NUMBER)
+        age = ContactField.get_or_create(self.org, self.admin, "age", value_type=ContactField.TYPE_NUMBER)
         gender = ContactField.get_or_create(self.org, self.admin, "gender", priority=10)
 
         # create a dynamic group using a query
@@ -798,7 +797,7 @@ class ContactGroupTest(TembaTest):
 
         campaign = Campaign.create(self.org, self.admin, "Reminders", group)
         joined = ContactField.get_or_create(
-            self.org, self.admin, "joined", "Joined On", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "joined", "Joined On", value_type=ContactField.TYPE_DATETIME
         )
         event = CampaignEvent.create_message_event(self.org, self.admin, campaign, joined, 2, unit="D", message="Hi")
         EventFire.objects.create(event=event, contact=self.joe, scheduled=timezone.now() + timedelta(days=2))
@@ -1206,7 +1205,7 @@ class ContactTest(TembaTest):
         self.farmers = self.create_group("Farmers", [self.joe])
         self.reminder_flow = self.get_flow("color")
         self.planting_date = ContactField.get_or_create(
-            self.org, self.admin, "planting_date", "Planting Date", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "planting_date", "Planting Date", value_type=ContactField.TYPE_DATETIME
         )
         self.campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
@@ -1340,7 +1339,7 @@ class ContactTest(TembaTest):
 
         campaign = Campaign.create(self.org, self.admin, "Reminders", group)
         joined = ContactField.get_or_create(
-            self.org, self.admin, "joined", "Joined On", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "joined", "Joined On", value_type=ContactField.TYPE_DATETIME
         )
         event = CampaignEvent.create_message_event(self.org, self.admin, campaign, joined, 2, unit="D", message="Hi")
         EventFire.objects.create(event=event, contact=contact, scheduled=timezone.now() + timedelta(days=2))
@@ -2669,7 +2668,7 @@ class ContactTest(TembaTest):
         self.assertEqual(0, results["total"])
 
         # if we query a field, it should show up in our field dict
-        age = self.create_field("age", "Age", Value.TYPE_NUMBER)
+        age = self.create_field("age", "Age", ContactField.TYPE_NUMBER)
 
         mr_mocks.contact_search("age>32", cleaned='age > 32"', contacts=[self.frank], fields=[age])
 
@@ -2872,7 +2871,9 @@ class ContactTest(TembaTest):
         self.assertEqual(len(self.joe_and_frank.contacts.all()), 0)
 
         # add an extra field to the org
-        ContactField.get_or_create(self.org, self.user, "state", label="Home state", value_type=Value.TYPE_STATE)
+        ContactField.get_or_create(
+            self.org, self.user, "state", label="Home state", value_type=ContactField.TYPE_STATE
+        )
         self.set_contact_field(self.joe, "state", " kiGali   citY ")  # should match "Kigali City"
 
         # check that the field appears on the update form
@@ -3055,7 +3056,7 @@ class ContactTest(TembaTest):
         self.assertContains(response, "Rwa-magana")
 
         # change our field to a text field
-        state.value_type = Value.TYPE_TEXT
+        state.value_type = ContactField.TYPE_TEXT
         state.save()
         self.set_contact_field(self.joe, "state", "Rwama Value")
 
@@ -3356,7 +3357,7 @@ class ContactTest(TembaTest):
 
         # we try a bit harder if we know it is a location field
         state_uuid = str(
-            ContactField.get_or_create(self.org, self.user, "state", "State", value_type=Value.TYPE_STATE).uuid
+            ContactField.get_or_create(self.org, self.user, "state", "State", value_type=ContactField.TYPE_STATE).uuid
         )
         self.set_contact_field(self.joe, "state", "i live in eastern province")
         self.joe.refresh_from_db()
@@ -3367,11 +3368,11 @@ class ContactTest(TembaTest):
         # ok, let's test our other boundary levels
         district_uuid = str(
             ContactField.get_or_create(
-                self.org, self.user, "district", "District", value_type=Value.TYPE_DISTRICT
+                self.org, self.user, "district", "District", value_type=ContactField.TYPE_DISTRICT
             ).uuid
         )
         ward_uuid = str(
-            ContactField.get_or_create(self.org, self.user, "ward", "Ward", value_type=Value.TYPE_WARD).uuid
+            ContactField.get_or_create(self.org, self.user, "ward", "Ward", value_type=ContactField.TYPE_WARD).uuid
         )
         self.set_contact_field(self.joe, "district", "gatsibo")
         self.set_contact_field(self.joe, "ward", "kageyo")
@@ -3408,7 +3409,7 @@ class ContactTest(TembaTest):
     def test_date_field(self):
         # create a new date field
         birth_date = ContactField.get_or_create(
-            self.org, self.admin, "birth_date", label="Birth Date", value_type=Value.TYPE_TEXT
+            self.org, self.admin, "birth_date", label="Birth Date", value_type=ContactField.TYPE_TEXT
         )
 
         # set a field on our contact
@@ -3424,12 +3425,14 @@ class ContactTest(TembaTest):
         self.setUpLocations()
 
         registration_field = ContactField.get_or_create(
-            self.org, self.admin, "registration_date", "Registration Date", None, Value.TYPE_DATETIME
+            self.org, self.admin, "registration_date", "Registration Date", None, ContactField.TYPE_DATETIME
         )
 
-        weight_field = ContactField.get_or_create(self.org, self.admin, "weight", "Weight", None, Value.TYPE_NUMBER)
-        color_field = ContactField.get_or_create(self.org, self.admin, "color", "Color", None, Value.TYPE_TEXT)
-        state_field = ContactField.get_or_create(self.org, self.admin, "state", "State", None, Value.TYPE_STATE)
+        weight_field = ContactField.get_or_create(
+            self.org, self.admin, "weight", "Weight", None, ContactField.TYPE_NUMBER
+        )
+        color_field = ContactField.get_or_create(self.org, self.admin, "color", "Color", None, ContactField.TYPE_TEXT)
+        state_field = ContactField.get_or_create(self.org, self.admin, "state", "State", None, ContactField.TYPE_STATE)
 
         joe = Contact.objects.get(pk=self.joe.pk)
         joe.language = "eng"
@@ -3486,10 +3489,10 @@ class ContactTest(TembaTest):
         self.setUpLocations()
 
         district_field = ContactField.get_or_create(
-            self.org, self.admin, "district", "District", None, Value.TYPE_DISTRICT
+            self.org, self.admin, "district", "District", None, ContactField.TYPE_DISTRICT
         )
         not_state_field = ContactField.get_or_create(
-            self.org, self.admin, "not_state", "Not State", None, Value.TYPE_TEXT
+            self.org, self.admin, "not_state", "Not State", None, ContactField.TYPE_TEXT
         )
 
         # add duplicate district in different states
@@ -3504,7 +3507,7 @@ class ContactTest(TembaTest):
         # empty because it is ambiguous
         self.assertFalse(joe.get_field_value(district_field))
 
-        state_field = ContactField.get_or_create(self.org, self.admin, "state", "State", None, Value.TYPE_STATE)
+        state_field = ContactField.get_or_create(self.org, self.admin, "state", "State", None, ContactField.TYPE_STATE)
 
         self.set_contact_field(joe, "state", "Kigali city")
         self.assertEqual("Kigali City", joe.get_field_display(state_field))
@@ -3527,9 +3530,9 @@ class ContactTest(TembaTest):
         ward = AdminBoundary.create(osm_id="3710377", name="Bichi", level=3, parent=district)
         user1 = self.create_user("mcren")
 
-        ContactField.get_or_create(self.org, user1, "state", "State", None, Value.TYPE_STATE)
-        ContactField.get_or_create(self.org, user1, "district", "District", None, Value.TYPE_DISTRICT)
-        ward = ContactField.get_or_create(self.org, user1, "ward", "Ward", None, Value.TYPE_WARD)
+        ContactField.get_or_create(self.org, user1, "state", "State", None, ContactField.TYPE_STATE)
+        ContactField.get_or_create(self.org, user1, "district", "District", None, ContactField.TYPE_DISTRICT)
+        ward = ContactField.get_or_create(self.org, user1, "ward", "Ward", None, ContactField.TYPE_WARD)
 
         jemila = self.create_contact(
             name="Jemila Alley",
@@ -3613,28 +3616,30 @@ class ContactFieldTest(TembaTest):
         join_date = ContactField.get_or_create(self.org, self.admin, "join_date")
         self.assertEqual(join_date.key, "join_date")
         self.assertEqual(join_date.label, "Join Date")
-        self.assertEqual(join_date.value_type, Value.TYPE_TEXT)
-
-        another = ContactField.get_or_create(self.org, self.admin, "another", "My Label", value_type=Value.TYPE_NUMBER)
-        self.assertEqual(another.key, "another")
-        self.assertEqual(another.label, "My Label")
-        self.assertEqual(another.value_type, Value.TYPE_NUMBER)
+        self.assertEqual(join_date.value_type, ContactField.TYPE_TEXT)
 
         another = ContactField.get_or_create(
-            self.org, self.admin, "another", "Updated Label", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "another", "My Label", value_type=ContactField.TYPE_NUMBER
+        )
+        self.assertEqual(another.key, "another")
+        self.assertEqual(another.label, "My Label")
+        self.assertEqual(another.value_type, ContactField.TYPE_NUMBER)
+
+        another = ContactField.get_or_create(
+            self.org, self.admin, "another", "Updated Label", value_type=ContactField.TYPE_DATETIME
         )
         self.assertEqual(another.key, "another")
         self.assertEqual(another.label, "Updated Label")
-        self.assertEqual(another.value_type, Value.TYPE_DATETIME)
+        self.assertEqual(another.value_type, ContactField.TYPE_DATETIME)
 
         another = ContactField.get_or_create(
-            self.org, self.admin, "another", "Updated Label", show_in_table=True, value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "another", "Updated Label", show_in_table=True, value_type=ContactField.TYPE_DATETIME
         )
         self.assertTrue(another.show_in_table)
 
         for key in Contact.RESERVED_FIELD_KEYS:
             with self.assertRaises(ValueError):
-                ContactField.get_or_create(self.org, self.admin, key, key, value_type=Value.TYPE_TEXT)
+                ContactField.get_or_create(self.org, self.admin, key, key, value_type=ContactField.TYPE_TEXT)
 
         groups_field = ContactField.get_or_create(self.org, self.admin, "groups_field", "Groups Field")
         self.assertEqual(groups_field.key, "groups_field")
@@ -3733,7 +3738,7 @@ class ContactFieldTest(TembaTest):
         Contact.apply_action_block(self.admin, self.org.contacts.all())
 
         # make third a datetime
-        self.contactfield_3.value_type = Value.TYPE_DATETIME
+        self.contactfield_3.value_type = ContactField.TYPE_DATETIME
         self.contactfield_3.save()
 
         # start one of our contacts down it
@@ -4190,11 +4195,13 @@ class ContactFieldTest(TembaTest):
             assertImportExportedFile()
 
     def test_prepare_sort_field_struct(self):
-        ward = ContactField.get_or_create(self.org, self.admin, "ward", "Home Ward", value_type=Value.TYPE_WARD)
+        ward = ContactField.get_or_create(self.org, self.admin, "ward", "Home Ward", value_type=ContactField.TYPE_WARD)
         district = ContactField.get_or_create(
-            self.org, self.admin, "district", "Home District", value_type=Value.TYPE_DISTRICT
+            self.org, self.admin, "district", "Home District", value_type=ContactField.TYPE_DISTRICT
         )
-        state = ContactField.get_or_create(self.org, self.admin, "state", "Home Stat", value_type=Value.TYPE_STATE)
+        state = ContactField.get_or_create(
+            self.org, self.admin, "state", "Home Stat", value_type=ContactField.TYPE_STATE
+        )
 
         self.assertEqual(
             ContactListView.prepare_sort_field_struct(sort_on="created_on"),
@@ -4702,7 +4709,7 @@ class ContactFieldTest(TembaTest):
         self.login(self.admin)
         flow = self.get_flow("dependencies")
         dependant_field = ContactField.user_fields.filter(is_active=True, org=self.org, key="favorite_cat").get()
-        dependant_field.value_type = Value.TYPE_DATETIME
+        dependant_field.value_type = ContactField.TYPE_DATETIME
         dependant_field.save(update_fields=("value_type",))
 
         farmers = self.create_group("Farmers", [self.joe])
@@ -5380,7 +5387,7 @@ class ContactImportTest(TembaTest):
         self.assertEqual(["URN:Tel"], imp.headers)
         self.assertEqual({"URN:Tel": {"type": "scheme", "scheme": "tel"}}, imp.mappings)
 
-        self.create_field("goats", "Goats", Value.TYPE_NUMBER)
+        self.create_field("goats", "Goats", ContactField.TYPE_NUMBER)
 
         imp = self.create_contact_import("media/test_imports/extra_fields_and_group.xlsx")
         self.assertEqual(
@@ -5534,7 +5541,7 @@ class ContactImportTest(TembaTest):
 
     @mock_mailroom
     def test_batches_with_fields(self, mr_mocks):
-        self.create_field("goats", "Goats", Value.TYPE_NUMBER)
+        self.create_field("goats", "Goats", ContactField.TYPE_NUMBER)
 
         imp = self.create_contact_import("media/test_imports/extra_fields_and_group.xlsx")
         imp.start()
@@ -5761,7 +5768,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(read_url, response.url)
 
     def test_preview_with_mappings(self):
-        self.create_field("age", "Age", Value.TYPE_NUMBER)
+        self.create_field("age", "Age", ContactField.TYPE_NUMBER)
 
         imp = self.create_contact_import("media/test_imports/extra_fields_and_group.xlsx")
         preview_url = reverse("contacts.contactimport_preview", args=[imp.id])

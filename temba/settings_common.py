@@ -1181,7 +1181,6 @@ IP_ADDRESSES = ("172.16.10.10", "162.16.10.20")
 # Installs may choose how big they want their text messages and contact fields to be.
 # -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640
-VALUE_FIELD_SIZE = 640
 FLOW_START_PARAMS_SIZE = 256
 
 # -----------------------------------------------------------------------------------

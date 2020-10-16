@@ -1,10 +1,9 @@
 from packaging.version import Version
 
-from temba.contacts.models import ContactGroup
+from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Label
 from temba.tests import TembaTest, matchers, mock_mailroom
-from temba.values.constants import Value
 
 from .expressions import migrate_v7_template
 from .migrations import (
@@ -658,9 +657,9 @@ class FlowMigrationTest(TembaTest):
         self.assertRaises(ValueError, migrate_to_version_11_1, definition)
 
     def test_migrate_to_11_0(self):
-        self.create_field("nickname", "Nickname", Value.TYPE_TEXT)
-        self.create_field("district", "District", Value.TYPE_DISTRICT)
-        self.create_field("joined_on", "Joined On", Value.TYPE_DATETIME)
+        self.create_field("nickname", "Nickname", ContactField.TYPE_TEXT)
+        self.create_field("district", "District", ContactField.TYPE_DISTRICT)
+        self.create_field("joined_on", "Joined On", ContactField.TYPE_DATETIME)
 
         flow = self.get_flow("type_flow")
         flow_def = self.get_flow_json("type_flow")

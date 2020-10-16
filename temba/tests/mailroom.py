@@ -405,7 +405,7 @@ def serialize_field_value(contact, field, value):
     org = contact.org
 
     # parse as all value data types
-    str_value = str(value)[: Value.MAX_VALUE_LEN]
+    str_value = str(value)[:640]
     dt_value = org.parse_datetime(value)
     num_value = org.parse_number(value)
     loc_value = None
@@ -416,20 +416,20 @@ def serialize_field_value(contact, field, value):
 
     # otherwise, try to parse it as a name at the appropriate level
     else:
-        if field.value_type == Value.TYPE_WARD:
-            district_field = ContactField.get_location_field(org, Value.TYPE_DISTRICT)
+        if field.value_type == ContactField.TYPE_WARD:
+            district_field = ContactField.get_location_field(org, ContactField.TYPE_DISTRICT)
             district_value = contact.get_field_value(district_field)
             if district_value:
                 loc_value = org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value)
 
-        elif field.value_type == Value.TYPE_DISTRICT:
-            state_field = ContactField.get_location_field(org, Value.TYPE_STATE)
+        elif field.value_type == ContactField.TYPE_DISTRICT:
+            state_field = ContactField.get_location_field(org, ContactField.TYPE_STATE)
             if state_field:
                 state_value = contact.get_field_value(state_field)
                 if state_value:
                     loc_value = org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value)
 
-        elif field.value_type == Value.TYPE_STATE:
+        elif field.value_type == ContactField.TYPE_STATE:
             loc_value = org.parse_location(str_value, AdminBoundary.LEVEL_STATE)
 
         if loc_value is not None and len(loc_value) > 0:

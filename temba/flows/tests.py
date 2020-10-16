@@ -33,7 +33,6 @@ from temba.tickets.models import Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.uuid import uuid4
-from temba.values.constants import Value
 
 from .checks import mailroom_url
 from .models import (
@@ -1681,7 +1680,7 @@ class FlowTest(TembaTest):
         # create a campaign that contains this flow
         friends = self.create_group("Friends", [])
         poll_date = ContactField.get_or_create(
-            self.org, self.admin, "poll_date", "Poll Date", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "poll_date", "Poll Date", value_type=ContactField.TYPE_DATETIME
         )
 
         campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Favorite Poll"), friends)

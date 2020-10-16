@@ -437,6 +437,22 @@ class ContactField(SmartModel):
     FIELD_TYPE_USER = "U"
     FIELD_TYPE_CHOICES = ((FIELD_TYPE_SYSTEM, "System"), (FIELD_TYPE_USER, "User"))
 
+    TYPE_TEXT = "T"
+    TYPE_NUMBER = "N"
+    TYPE_DATETIME = "D"
+    TYPE_STATE = "S"
+    TYPE_DISTRICT = "I"
+    TYPE_WARD = "W"
+
+    TYPE_CHOICES = (
+        (TYPE_TEXT, _("Text")),
+        (TYPE_NUMBER, _("Number")),
+        (TYPE_DATETIME, _("Date & Time")),
+        (TYPE_STATE, _("State")),
+        (TYPE_DISTRICT, _("District")),
+        (TYPE_WARD, _("Ward")),
+    )
+
     KEY_ID = "id"
     KEY_NAME = "name"
     KEY_CREATED_ON = "created_on"
@@ -447,11 +463,11 @@ class ContactField(SmartModel):
     IMMUTABLE_FIELDS = (KEY_ID, KEY_CREATED_ON, KEY_LAST_SEEN_ON)
 
     SYSTEM_FIELDS = {
-        KEY_ID: dict(label="ID", value_type=Value.TYPE_NUMBER),
-        KEY_NAME: dict(label="Name", value_type=Value.TYPE_TEXT),
-        KEY_CREATED_ON: dict(label="Created On", value_type=Value.TYPE_DATETIME),
-        KEY_LANGUAGE: dict(label="Language", value_type=Value.TYPE_TEXT),
-        KEY_LAST_SEEN_ON: dict(label="Last Seen On", value_type=Value.TYPE_DATETIME),
+        KEY_ID: dict(label="ID", value_type=TYPE_NUMBER),
+        KEY_NAME: dict(label="Name", value_type=TYPE_TEXT),
+        KEY_CREATED_ON: dict(label="Created On", value_type=TYPE_DATETIME),
+        KEY_LANGUAGE: dict(label="Language", value_type=TYPE_TEXT),
+        KEY_LAST_SEEN_ON: dict(label="Last Seen On", value_type=TYPE_DATETIME),
     }
 
     EXPORT_KEY = "key"
@@ -459,12 +475,12 @@ class ContactField(SmartModel):
     EXPORT_TYPE = "type"
 
     GOFLOW_TYPES = {
-        Value.TYPE_TEXT: "text",
-        Value.TYPE_NUMBER: "number",
-        Value.TYPE_DATETIME: "datetime",
-        Value.TYPE_STATE: "state",
-        Value.TYPE_DISTRICT: "district",
-        Value.TYPE_WARD: "ward",
+        TYPE_TEXT: "text",
+        TYPE_NUMBER: "number",
+        TYPE_DATETIME: "datetime",
+        TYPE_STATE: "state",
+        TYPE_DISTRICT: "district",
+        TYPE_WARD: "ward",
     }
 
     uuid = models.UUIDField(unique=True, default=uuid4)
@@ -475,9 +491,8 @@ class ContactField(SmartModel):
 
     key = models.CharField(verbose_name=_("Key"), max_length=MAX_KEY_LEN)
 
-    value_type = models.CharField(
-        choices=Value.TYPE_CHOICES, max_length=1, default=Value.TYPE_TEXT, verbose_name="Field Type"
-    )
+    value_type = models.CharField(choices=TYPE_CHOICES, max_length=1, default=TYPE_TEXT, verbose_name="Field Type")
+
     show_in_table = models.BooleanField(
         verbose_name=_("Shown in Tables"), default=False, help_text=_("Featured field")
     )
@@ -580,7 +595,7 @@ class ContactField(SmartModel):
                 if value_type and field.value_type != value_type:
                     # no changing away from datetime if we have campaign events
                     if (
-                        field.value_type == Value.TYPE_DATETIME
+                        field.value_type == ContactField.TYPE_DATETIME
                         and field.campaign_events.filter(is_active=True).exists()
                     ):
                         raise ValueError("Cannot change field type for '%s' while it is used in campaigns." % key)
@@ -604,7 +619,7 @@ class ContactField(SmartModel):
                 label = cls.get_unique_label(org, label)
 
                 if not value_type:
-                    value_type = Value.TYPE_TEXT
+                    value_type = ContactField.TYPE_TEXT
 
                 if show_in_table is None:
                     show_in_table = False
@@ -944,18 +959,18 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if not json_value:
             return
 
-        if field.value_type == Value.TYPE_TEXT:
+        if field.value_type == ContactField.TYPE_TEXT:
             return json_value.get(Value.KEY_TEXT)
-        elif field.value_type == Value.TYPE_DATETIME:
+        elif field.value_type == ContactField.TYPE_DATETIME:
             return json_value.get(Value.KEY_DATETIME)
-        elif field.value_type == Value.TYPE_NUMBER:
+        elif field.value_type == ContactField.TYPE_NUMBER:
             dec_value = json_value.get(Value.KEY_NUMBER, json_value.get("decimal"))
             return format_number(Decimal(dec_value)) if dec_value is not None else None
-        elif field.value_type == Value.TYPE_STATE:
+        elif field.value_type == ContactField.TYPE_STATE:
             return json_value.get(Value.KEY_STATE)
-        elif field.value_type == Value.TYPE_DISTRICT:
+        elif field.value_type == ContactField.TYPE_DISTRICT:
             return json_value.get(Value.KEY_DISTRICT)
-        elif field.value_type == Value.TYPE_WARD:
+        elif field.value_type == ContactField.TYPE_WARD:
             return json_value.get(Value.KEY_WARD)
 
         raise ValueError("unknown contact field value type: %s", field.value_type)
@@ -970,13 +985,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             if string_value is None:
                 return None
 
-            if field.value_type == Value.TYPE_TEXT:
+            if field.value_type == ContactField.TYPE_TEXT:
                 return string_value
-            elif field.value_type == Value.TYPE_DATETIME:
+            elif field.value_type == ContactField.TYPE_DATETIME:
                 return iso8601.parse_date(string_value)
-            elif field.value_type == Value.TYPE_NUMBER:
+            elif field.value_type == ContactField.TYPE_NUMBER:
                 return Decimal(string_value)
-            elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD]:
+            elif field.value_type in [ContactField.TYPE_STATE, ContactField.TYPE_DISTRICT, ContactField.TYPE_WARD]:
                 return AdminBoundary.get_by_path(self.org, string_value)
 
         elif field.field_type == ContactField.FIELD_TYPE_SYSTEM:
@@ -1002,11 +1017,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if value is None:
             return ""
 
-        if field.value_type == Value.TYPE_DATETIME:
+        if field.value_type == ContactField.TYPE_DATETIME:
             return self.org.format_datetime(value)
-        elif field.value_type == Value.TYPE_NUMBER:
+        elif field.value_type == ContactField.TYPE_NUMBER:
             return format_number(value)
-        elif field.value_type in [Value.TYPE_STATE, Value.TYPE_DISTRICT, Value.TYPE_WARD] and value:
+        elif (
+            field.value_type in [ContactField.TYPE_STATE, ContactField.TYPE_DISTRICT, ContactField.TYPE_WARD] and value
+        ):
             return value.name
         else:
             return str(value)

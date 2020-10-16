@@ -37,7 +37,6 @@ from temba.msgs.models import Label
 from temba.orgs.models import Org
 from temba.utils import chunk_list
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
-from temba.values.constants import Value
 
 # maximum age in days of database content
 CONTENT_AGE = 3 * 365
@@ -70,12 +69,12 @@ CHANNELS = (
     {"name": "Twitter", "channel_type": "TWT", "scheme": "twitter", "address": "my_handle"},
 )
 FIELDS = (
-    {"key": "gender", "label": "Gender", "value_type": Value.TYPE_TEXT},
-    {"key": "age", "label": "Age", "value_type": Value.TYPE_NUMBER},
-    {"key": "joined", "label": "Joined On", "value_type": Value.TYPE_DATETIME},
-    {"key": "ward", "label": "Ward", "value_type": Value.TYPE_WARD},
-    {"key": "district", "label": "District", "value_type": Value.TYPE_DISTRICT},
-    {"key": "state", "label": "State", "value_type": Value.TYPE_STATE},
+    {"key": "gender", "label": "Gender", "value_type": ContactField.TYPE_TEXT},
+    {"key": "age", "label": "Age", "value_type": ContactField.TYPE_NUMBER},
+    {"key": "joined", "label": "Joined On", "value_type": ContactField.TYPE_DATETIME},
+    {"key": "ward", "label": "Ward", "value_type": ContactField.TYPE_WARD},
+    {"key": "district", "label": "District", "value_type": ContactField.TYPE_DISTRICT},
+    {"key": "state", "label": "State", "value_type": ContactField.TYPE_STATE},
 )
 GROUPS = (
     {"name": "Reporters", "query": None, "member": 0.95},  # member is either a probability or callable
