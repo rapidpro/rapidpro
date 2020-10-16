@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-15 17:25+0000\n"
+"POT-Creation-Date: 2020-10-15 20:16+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4153,43 +4153,6 @@ msgstr "Archivado"
 #| msgid "User Role"
 msgid "User delete"
 msgstr "Rol del usuario"
-
-msgid "The label for this field"
-msgstr "La etiqueta para este campo"
-
-msgid "The value that rules will be run against, if None defaults to @step.value"
-msgstr "Se verificará el valor de las reglas, si no hay valores por defecto para @step.value"
-
-msgid "The URL that will be called with the user's response before we run our rules"
-msgstr "El URL al que se llamará con la respuesta del usuario antes de correr nuestras propias reglas"
-
-msgid "How the webhook should be executed"
-msgstr "Cómo se deberá ejecutar el webhook"
-
-msgid "The JSON encoded actions for this action set"
-msgstr "Las acciones JSON codificadas para este grupo de acciones"
-
-#, fuzzy
-#| msgid "Configuration"
-msgid "Ruleset Configuration"
-msgstr "Configuración"
-
-#, fuzzy
-#| msgid "More Organization specific configuration"
-msgid "RuleSet type specific configuration"
-msgstr "Configuración más específica para su organización"
-
-msgid "When this ruleset was originally created"
-msgstr "Cuándo fue la primera vez que se creó este grupo de reglas"
-
-msgid "When this ruleset was last modified"
-msgstr "Cuándo fue la última vez que se modificó este grupo de reglas"
-
-msgid "When this action was originally created"
-msgstr "Cuándo fue la primera vez que se creó esta acción"
-
-msgid "When this action was last modified"
-msgstr "Cuándo fue la última vez que se modificó esta acción"
 
 msgid "The JSON flow definition"
 msgstr ""
@@ -12175,6 +12138,43 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "The label for this field"
+#~ msgstr "La etiqueta para este campo"
+
+#~ msgid "The value that rules will be run against, if None defaults to @step.value"
+#~ msgstr "Se verificará el valor de las reglas, si no hay valores por defecto para @step.value"
+
+#~ msgid "The URL that will be called with the user's response before we run our rules"
+#~ msgstr "El URL al que se llamará con la respuesta del usuario antes de correr nuestras propias reglas"
+
+#~ msgid "How the webhook should be executed"
+#~ msgstr "Cómo se deberá ejecutar el webhook"
+
+#~ msgid "The JSON encoded actions for this action set"
+#~ msgstr "Las acciones JSON codificadas para este grupo de acciones"
+
+#, fuzzy
+#~| msgid "Configuration"
+#~ msgid "Ruleset Configuration"
+#~ msgstr "Configuración"
+
+#, fuzzy
+#~| msgid "More Organization specific configuration"
+#~ msgid "RuleSet type specific configuration"
+#~ msgstr "Configuración más específica para su organización"
+
+#~ msgid "When this ruleset was originally created"
+#~ msgstr "Cuándo fue la primera vez que se creó este grupo de reglas"
+
+#~ msgid "When this ruleset was last modified"
+#~ msgstr "Cuándo fue la última vez que se modificó este grupo de reglas"
+
+#~ msgid "When this action was originally created"
+#~ msgstr "Cuándo fue la primera vez que se creó esta acción"
+
+#~ msgid "When this action was last modified"
+#~ msgstr "Cuándo fue la última vez que se modificó esta acción"
 
 #~ msgid "The type of node this flow starts with"
 #~ msgstr "El tipo de punto con el que empieza este flujo"

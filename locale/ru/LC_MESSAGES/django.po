@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-15 17:25+0000\n"
+"POT-Creation-Date: 2020-10-15 20:16+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3059,39 +3059,6 @@ msgstr "Удалить архив"
 
 msgid "User delete"
 msgstr "Удалить пользователя"
-
-msgid "The label for this field"
-msgstr "Метка для этого поля"
-
-msgid "The value that rules will be run against, if None defaults to @step.value"
-msgstr "Значение, по которому будут работать правила. Если «Нет», то задается значение по умолчанию @step.value"
-
-msgid "The URL that will be called with the user's response before we run our rules"
-msgstr "URL, который будет вызываться с ответом пользователя до того, как мы запустим наши правила"
-
-msgid "How the webhook should be executed"
-msgstr "Как должен исполняться вебхук"
-
-msgid "The JSON encoded actions for this action set"
-msgstr "Действия в кодировке JSON для этого набора действий"
-
-msgid "Ruleset Configuration"
-msgstr "Конфигурация набора правил"
-
-msgid "RuleSet type specific configuration"
-msgstr "Конфигурация, специфическая для типа набора правил"
-
-msgid "When this ruleset was originally created"
-msgstr "Когда данный набор правил был изначально создан"
-
-msgid "When this ruleset was last modified"
-msgstr "Когда данный набор правил был последний раз изменен"
-
-msgid "When this action was originally created"
-msgstr "Когда это действие было изначально создано"
-
-msgid "When this action was last modified"
-msgstr "Когда это действие было последний раз изменено"
 
 msgid "The JSON flow definition"
 msgstr "Определение потока JSON"
@@ -11111,6 +11078,39 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "The label for this field"
+#~ msgstr "Метка для этого поля"
+
+#~ msgid "The value that rules will be run against, if None defaults to @step.value"
+#~ msgstr "Значение, по которому будут работать правила. Если «Нет», то задается значение по умолчанию @step.value"
+
+#~ msgid "The URL that will be called with the user's response before we run our rules"
+#~ msgstr "URL, который будет вызываться с ответом пользователя до того, как мы запустим наши правила"
+
+#~ msgid "How the webhook should be executed"
+#~ msgstr "Как должен исполняться вебхук"
+
+#~ msgid "The JSON encoded actions for this action set"
+#~ msgstr "Действия в кодировке JSON для этого набора действий"
+
+#~ msgid "Ruleset Configuration"
+#~ msgstr "Конфигурация набора правил"
+
+#~ msgid "RuleSet type specific configuration"
+#~ msgstr "Конфигурация, специфическая для типа набора правил"
+
+#~ msgid "When this ruleset was originally created"
+#~ msgstr "Когда данный набор правил был изначально создан"
+
+#~ msgid "When this ruleset was last modified"
+#~ msgstr "Когда данный набор правил был последний раз изменен"
+
+#~ msgid "When this action was originally created"
+#~ msgstr "Когда это действие было изначально создано"
+
+#~ msgid "When this action was last modified"
+#~ msgstr "Когда это действие было последний раз изменено"
 
 #~ msgid "The type of node this flow starts with"
 #~ msgstr "Тип узла, с которого начинается данный поток"
