@@ -444,7 +444,7 @@ class FlowMigrationTest(TembaTest):
     @mock_mailroom
     def test_migrate_to_11_4(self, mr_mocks):
         flow_json = self.get_flow_json("migrate_to_11_4")
-        migrated = migrate_to_version_11_4(flow_json)
+        migrated = migrate_to_version_11_4(flow_json.copy())
 
         # gather up replies to check expressions were migrated
         replies = []
@@ -462,6 +462,12 @@ class FlowMigrationTest(TembaTest):
             ['@flow.response_1.text\n@step.value\n@step.value\n@flow.response_3\n@(CONCATENATE(step.value, "blerg"))']
             * 3,
         )
+
+        # check with broken action with None message text
+        flow_json["action_sets"][0]["actions"][0]["msg"] = {"eng": None}
+        migrated = migrate_to_version_11_4(flow_json.copy())
+
+        self.assertEqual("", migrated["action_sets"][0]["actions"][0]["msg"]["eng"])
 
     def test_migrate_to_11_3(self):
         flow_json = self.get_flow_json("migrate_to_11_3")

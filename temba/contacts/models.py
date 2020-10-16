@@ -2193,11 +2193,11 @@ class ContactImport(SmartModel):
 
         data = pyexcel.iget_array(file_stream=file, file_type=file_type)
         try:
-            headers = next(data)
+            headers = [str(h).strip() for h in next(data)]
         except StopIteration:
             raise ValidationError(_("Import file appears to be empty."))
 
-        if any([h.strip() == "" for h in headers]):
+        if any([h == "" for h in headers]):
             raise ValidationError(_("Import file contains an empty header."))
 
         mappings = cls._auto_mappings(org, headers)

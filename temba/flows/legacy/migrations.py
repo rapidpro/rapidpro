@@ -549,7 +549,7 @@ def migrate_to_version_11_4(json_flow, flow=None):
                     action["msg"] = replace_regex.sub(replace_with, msg)
                 else:
                     for lang, text in msg.items():
-                        msg[lang] = replace_regex.sub(replace_with, text)
+                        msg[lang] = replace_regex.sub(replace_with, text or "")
 
     return json_flow
 
