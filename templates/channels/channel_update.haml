@@ -69,7 +69,7 @@
       font-size: 16px;
       margin: 0 0 10px 0;
       display: block;
-      font-weight: 500;
+      font-weight: 700;
       text-decoration: none;
       color: #666;
     }
@@ -408,6 +408,9 @@
           $(this).addClass("hide");
         }
       });
+
+      $("input").removeAttr("required");
+      $("textarea").removeAttr("required");
 
     });
     {% endif %}
