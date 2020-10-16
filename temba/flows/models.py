@@ -4187,7 +4187,7 @@ class MergeFlowsTask(TembaModel):
 
                 # calculate the sum of all counts on each flow path
                 grouped_path_counts = [
-                    {"from_uuid": path["from_uuid"], "to_uuid": path["to_uuid"], "count": path["count"]} 
+                    {"from_uuid": path["from_uuid"], "to_uuid": path["to_uuid"], "count": path["count"]}
                     for path in self.source.path_counts.values("from_uuid", "to_uuid").annotate(count=Sum("count"))
                 ]
                 # transfer path counts from source flow to target flow
@@ -4260,7 +4260,9 @@ class MergeFlowsTask(TembaModel):
                 for result in source_metadata.get("results", []):
                     if result.get("key") in results_map:
                         results_map[result.get("key")]["node_uuids"] += result["node_uuids"]
-                        results_map[result.get("key")]["node_uuids"] = list(set(results_map[result.get("key")]["node_uuids"]))
+                        results_map[result.get("key")]["node_uuids"] = list(
+                            set(results_map[result.get("key")]["node_uuids"])
+                        )
                     else:
                         results_map[result.get("key")] = result
                 for result in results_map.values():

@@ -800,7 +800,9 @@ class MigrationTask(TembaModel):
             else:
                 repeat_days_of_week = schedule.repeat_days
 
-            if schedule.repeat_period != "O":
+            if not schedule.repeat_hour_of_day:
+                repeat_hour_of_day = None
+            elif schedule.repeat_period != "O":
                 now = datetime.utcnow().replace(minute=0, second=0, microsecond=0, tzinfo=pytz.utc)
                 tz = self.org.timezone
                 hour_time = now.replace(hour=schedule.repeat_hour_of_day)
