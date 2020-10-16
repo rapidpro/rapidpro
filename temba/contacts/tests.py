@@ -5348,10 +5348,10 @@ class ContactImportTest(TembaTest):
             ("uuid_only.csv", "Import files must contain columns besides UUID."),
         ]
 
-        for bad_file in bad_files:
-            with self.assertRaises(ValidationError) as e:
-                try_to_parse(bad_file[0])
-            self.assertEqual(bad_file[1], e.exception.messages[0])
+        for imp_file, imp_error in bad_files:
+            with self.assertRaises(ValidationError, msg=f"expected error in {imp_file}") as e:
+                try_to_parse(imp_file)
+            self.assertEqual(imp_error, e.exception.messages[0], f"error mismatch for {imp_file}")
 
     def test_extract_mappings(self):
         # try simple import in different formats
@@ -5384,8 +5384,7 @@ class ContactImportTest(TembaTest):
 
         imp = self.create_contact_import("media/test_imports/extra_fields_and_group.xlsx")
         self.assertEqual(
-            ["URN:Tel", "Name", "language", "Created On", "field: goats ", "Field:Sheep", "Group:Testers"],
-            imp.headers,
+            ["URN:Tel", "Name", "language", "Created On", "field: goats", "Field:Sheep", "Group:Testers"], imp.headers,
         )
         self.assertEqual(
             {
@@ -5393,9 +5392,21 @@ class ContactImportTest(TembaTest):
                 "Name": {"type": "attribute", "name": "name"},
                 "language": {"type": "attribute", "name": "language"},
                 "Created On": {"type": "ignore"},
-                "field: goats ": {"type": "field", "key": "goats", "name": "goats"},
+                "field: goats": {"type": "field", "key": "goats", "name": "goats"},
                 "Field:Sheep": {"type": "new_field", "key": "sheep", "name": "Sheep", "value_type": "T"},
                 "Group:Testers": {"type": "ignore"},
+            },
+            imp.mappings,
+        )
+
+        # a header can be a number but it will be ignored
+        imp = self.create_contact_import("media/test_imports/numerical_header.xlsx")
+        self.assertEqual(["URN:Tel", "Name", "123"], imp.headers)
+        self.assertEqual(
+            {
+                "URN:Tel": {"type": "scheme", "scheme": "tel"},
+                "Name": {"name": "name", "type": "attribute"},
+                "123": {"type": "ignore"},
             },
             imp.mappings,
         )
@@ -5854,7 +5865,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
                 "Name": {"type": "attribute", "name": "name"},
                 "language": {"type": "attribute", "name": "language"},
                 "Created On": {"type": "ignore"},
-                "field: goats ": {"type": "new_field", "key": "goats", "name": "Goats", "value_type": "N"},
+                "field: goats": {"type": "new_field", "key": "goats", "name": "Goats", "value_type": "N"},
                 "Field:Sheep": {"type": "ignore"},
                 "Group:Testers": {"type": "ignore"},
             },
