@@ -2277,7 +2277,7 @@ class ContactImport(SmartModel):
             elif header_prefix == "field" and header_name:
                 field_key = ContactField.make_key(header_name)
                 if field_key in existing_fields:
-                    mapping = {"type": "field", "key": field_key, "name": header_name}
+                    mapping = {"type": "field", "key": field_key, "name": existing_fields[field_key].label}
                 else:
                     # can be created or selected in next step
                     mapping = {"type": "new_field", "key": field_key, "name": header_name, "value_type": "T"}
