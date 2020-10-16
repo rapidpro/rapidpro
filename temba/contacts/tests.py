@@ -5399,7 +5399,7 @@ class ContactImportTest(TembaTest):
                 "Name": {"type": "attribute", "name": "name"},
                 "language": {"type": "attribute", "name": "language"},
                 "Created On": {"type": "ignore"},
-                "field: goats": {"type": "field", "key": "goats", "name": "goats"},
+                "field: goats": {"type": "field", "key": "goats", "name": "Goats"},
                 "Field:Sheep": {"type": "new_field", "key": "sheep", "name": "Sheep", "value_type": "T"},
                 "Group:Testers": {"type": "ignore"},
             },
@@ -5414,6 +5414,19 @@ class ContactImportTest(TembaTest):
                 "URN:Tel": {"type": "scheme", "scheme": "tel"},
                 "Name": {"name": "name", "type": "attribute"},
                 "123": {"type": "ignore"},
+            },
+            imp.mappings,
+        )
+
+        self.create_field("a_number", "A-Number", Value.TYPE_NUMBER)
+
+        imp = self.create_contact_import("media/test_imports/header_chars.xlsx")
+        self.assertEqual(["URN:Tel", "Name", "Field: A-Number"], imp.headers)
+        self.assertEqual(
+            {
+                "URN:Tel": {"type": "scheme", "scheme": "tel"},
+                "Name": {"type": "attribute", "name": "name"},
+                "Field: A-Number": {"type": "field", "key": "a_number", "name": "A-Number"},
             },
             imp.mappings,
         )

@@ -734,7 +734,7 @@ class APITest(TembaTest):
             url,
             None,
             {
-                "text": "Hi @contact.tel",  # will be migrated
+                "text": "Hi @(format_urn(urns.tel))",
                 "urns": ["twitter:franky"],
                 "contacts": [self.joe.uuid, self.frank.uuid],
                 "groups": [reporters.uuid],
@@ -760,17 +760,8 @@ class APITest(TembaTest):
         self.assertEqual({"base": "Hello", "fra": "Bonjour"}, broadcast.text)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
 
-        # create new broadcast with explicitly old expressions
-        response = self.postJSON(
-            url, None, {"text": "You are @contact.age", "contacts": [self.joe.uuid], "new_expressions": False}
-        )
-        broadcast = Broadcast.objects.get(id=response.json()["id"])
-        self.assertEqual({"base": "You are @fields.age"}, broadcast.text)
-
-        # create new broadcast with explicitly new expressions
-        response = self.postJSON(
-            url, None, {"text": "You are @fields.age", "contacts": [self.joe.uuid], "new_expressions": True}
-        )
+        # create new broadcast with an expression
+        response = self.postJSON(url, None, {"text": "You are @fields.age", "contacts": [self.joe.uuid]})
         broadcast = Broadcast.objects.get(id=response.json()["id"])
         self.assertEqual({"base": "You are @fields.age"}, broadcast.text)
 
@@ -1175,7 +1166,7 @@ class APITest(TembaTest):
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": "You are @contact.age",  # will be migrated
+                "message": "You are @fields.age",
             },
         )
         self.assertEqual(response.status_code, 201)
@@ -1189,26 +1180,6 @@ class APITest(TembaTest):
         self.assertEqual(event1.message, {"base": "You are @fields.age"})
         self.assertIsNotNone(event1.flow)
 
-        # a message event with an invalid expression on the message
-        response = self.postJSON(
-            url,
-            None,
-            {
-                "campaign": campaign1.uuid,
-                "relative_to": "registration",
-                "offset": 15,
-                "unit": "weeks",
-                "delivery_hour": -1,
-                "message": "You are @(@bad)",  # will fail migration
-            },
-        )
-
-        self.assertEqual(response.status_code, 201)
-        event1 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
-
-        # should just leave the bad expression as-is
-        self.assertEqual(event1.message, {"base": "You are @(@bad)"})
-
         # a message event with an empty message
         response = self.postJSON(
             url,
@@ -1219,7 +1190,7 @@ class APITest(TembaTest):
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": "",  # will migrate successfully to empty text
+                "message": "",
             },
         )
 
@@ -1236,7 +1207,6 @@ class APITest(TembaTest):
                 "unit": "days",
                 "delivery_hour": -1,
                 "message": "Nice unit of work @fields.code",
-                "new_expressions": True,
             },
         )
         self.assertEqual(response.status_code, 201)
@@ -1316,7 +1286,7 @@ class APITest(TembaTest):
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": {"base": "OK @contact.tel", "fra": "D'accord"},
+                "message": {"base": "OK @(format_urn(urns.tel))", "fra": "D'accord"},
             },
         )
         self.assertEqual(response.status_code, 200)

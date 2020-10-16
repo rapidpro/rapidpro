@@ -1,3 +1,10 @@
+v5.7.76
+----------
+ * Drop support for migrating legacy expressions on API endpoints
+ * Fix imports blowing up when header is numerical
+ * Fix 11.4 flow migration when given broken send action
+ * Drop RuleSet and ActionSet models
+
 v5.7.75
 ----------
  * Last tweaks before RuleSet and ActionSet can be dropped
