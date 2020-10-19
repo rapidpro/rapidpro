@@ -36,7 +36,6 @@ from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExport
 from temba.utils.models import JSONField as TembaJSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import truncate, unsnakify
 from temba.utils.urns import ParsedURN, parse_urn
-from temba.values.constants import Value
 
 from .search import SearchException, elastic, parse_query
 
@@ -453,6 +452,16 @@ class ContactField(SmartModel):
         (TYPE_WARD, _("Ward")),
     )
 
+    ENGINE_TYPES = {
+        TYPE_TEXT: "text",
+        TYPE_NUMBER: "number",
+        TYPE_DATETIME: "datetime",
+        TYPE_STATE: "state",
+        TYPE_DISTRICT: "district",
+        TYPE_WARD: "ward",
+    }
+
+    # fixed keys for system-fields
     KEY_ID = "id"
     KEY_NAME = "name"
     KEY_CREATED_ON = "created_on"
@@ -473,15 +482,6 @@ class ContactField(SmartModel):
     EXPORT_KEY = "key"
     EXPORT_NAME = "name"
     EXPORT_TYPE = "type"
-
-    GOFLOW_TYPES = {
-        TYPE_TEXT: "text",
-        TYPE_NUMBER: "number",
-        TYPE_DATETIME: "datetime",
-        TYPE_STATE: "state",
-        TYPE_DISTRICT: "district",
-        TYPE_WARD: "ward",
-    }
 
     uuid = models.UUIDField(unique=True, default=uuid4)
 
@@ -678,7 +678,7 @@ class ContactField(SmartModel):
         Import fields from a list of exported fields
         """
 
-        db_types = {value: key for key, value in ContactField.GOFLOW_TYPES.items()}
+        db_types = {value: key for key, value in ContactField.ENGINE_TYPES.items()}
 
         for field_def in field_defs:
             field_key = field_def.get(ContactField.EXPORT_KEY)
@@ -690,7 +690,7 @@ class ContactField(SmartModel):
         return {
             ContactField.EXPORT_KEY: self.key,
             ContactField.EXPORT_NAME: self.label,
-            ContactField.EXPORT_TYPE: ContactField.GOFLOW_TYPES[self.value_type],
+            ContactField.EXPORT_TYPE: ContactField.ENGINE_TYPES[self.value_type],
         }
 
     def release(self, user):
@@ -959,21 +959,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         if not json_value:
             return
 
-        if field.value_type == ContactField.TYPE_TEXT:
-            return json_value.get(Value.KEY_TEXT)
-        elif field.value_type == ContactField.TYPE_DATETIME:
-            return json_value.get(Value.KEY_DATETIME)
-        elif field.value_type == ContactField.TYPE_NUMBER:
-            dec_value = json_value.get(Value.KEY_NUMBER, json_value.get("decimal"))
-            return format_number(Decimal(dec_value)) if dec_value is not None else None
-        elif field.value_type == ContactField.TYPE_STATE:
-            return json_value.get(Value.KEY_STATE)
-        elif field.value_type == ContactField.TYPE_DISTRICT:
-            return json_value.get(Value.KEY_DISTRICT)
-        elif field.value_type == ContactField.TYPE_WARD:
-            return json_value.get(Value.KEY_WARD)
+        engine_type = ContactField.ENGINE_TYPES[field.value_type]
 
-        raise ValueError("unknown contact field value type: %s", field.value_type)
+        if field.value_type == ContactField.TYPE_NUMBER:
+            dec_value = json_value.get(engine_type, json_value.get("decimal"))
+            return format_number(Decimal(dec_value)) if dec_value is not None else None
+
+        return json_value.get(engine_type)
 
     def get_field_value(self, field):
         """

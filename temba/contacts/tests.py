@@ -3400,10 +3400,10 @@ class ContactTest(TembaTest):
         ContactField.user_fields.filter(key="state").update(value_type="Z")
         bad_field = ContactField.user_fields.get(key="state")
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             self.joe.get_field_serialized(bad_field)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             self.joe.get_field_value(bad_field)
 
     def test_date_field(self):

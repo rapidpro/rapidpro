@@ -19,7 +19,6 @@ from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
 from temba.tickets.models import Ticket
 from temba.utils import format_number, get_anonymous_user, json
-from temba.values.constants import Value
 
 event_units = {
     CampaignEvent.UNIT_MINUTES: "minutes",
@@ -438,24 +437,24 @@ def serialize_field_value(contact, field, value):
             loc_value = None
 
     # all fields have a text value
-    field_dict = {Value.KEY_TEXT: str_value}
+    field_dict = {"text": str_value}
 
     # set all the other fields that have a non-zero value
     if dt_value is not None:
-        field_dict[Value.KEY_DATETIME] = timezone.localtime(dt_value, org.timezone).isoformat()
+        field_dict["datetime"] = timezone.localtime(dt_value, org.timezone).isoformat()
 
     if num_value is not None:
-        field_dict[Value.KEY_NUMBER] = format_number(num_value)
+        field_dict["number"] = format_number(num_value)
 
     if loc_value:
         if loc_value.level == AdminBoundary.LEVEL_STATE:
-            field_dict[Value.KEY_STATE] = loc_value.path
+            field_dict["state"] = loc_value.path
         elif loc_value.level == AdminBoundary.LEVEL_DISTRICT:
-            field_dict[Value.KEY_DISTRICT] = loc_value.path
-            field_dict[Value.KEY_STATE] = AdminBoundary.strip_last_path(loc_value.path)
+            field_dict["district"] = loc_value.path
+            field_dict["state"] = AdminBoundary.strip_last_path(loc_value.path)
         elif loc_value.level == AdminBoundary.LEVEL_WARD:
-            field_dict[Value.KEY_WARD] = loc_value.path
-            field_dict[Value.KEY_DISTRICT] = AdminBoundary.strip_last_path(loc_value.path)
-            field_dict[Value.KEY_STATE] = AdminBoundary.strip_last_path(field_dict[Value.KEY_DISTRICT])
+            field_dict["ward"] = loc_value.path
+            field_dict["district"] = AdminBoundary.strip_last_path(loc_value.path)
+            field_dict["state"] = AdminBoundary.strip_last_path(field_dict["district"])
 
     return field_dict

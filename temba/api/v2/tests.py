@@ -40,7 +40,6 @@ from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import json
-from temba.values.constants import Value
 
 from . import fields
 from .serializers import format_datetime, normalize_extra
@@ -1346,7 +1345,7 @@ class APITest(TembaTest):
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         registration = ContactField.get_or_create(
-            self.org, self.admin, "registration", "Registration", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "registration", "Registration", value_type=ContactField.TYPE_DATETIME
         )
 
         campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)

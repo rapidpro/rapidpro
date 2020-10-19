@@ -267,7 +267,6 @@ INSTALLED_APPS = (
     "temba.campaigns",
     "temba.ivr",
     "temba.locations",
-    "temba.values",
     "temba.airtime",
     "temba.sql",
 )
