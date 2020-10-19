@@ -5418,7 +5418,7 @@ class ContactImportTest(TembaTest):
             imp.mappings,
         )
 
-        self.create_field("a_number", "A-Number", Value.TYPE_NUMBER)
+        self.create_field("a_number", "A-Number", ContactField.TYPE_NUMBER)
 
         imp = self.create_contact_import("media/test_imports/header_chars.xlsx")
         self.assertEqual(["URN:Tel", "Name", "Field: A-Number"], imp.headers)
