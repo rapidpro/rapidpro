@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-02 16:06+0000\n"
+"POT-Creation-Date: 2020-10-15 20:16+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2751,6 +2751,14 @@ msgid "Import file contains an empty header."
 msgstr ""
 
 #, python-format
+msgid "Import file contains duplicated contact UUID '%(uuid)s'."
+msgstr ""
+
+#, python-format
+msgid "Import file contains duplicated contact URN '%(urn)s'."
+msgstr ""
+
+#, python-format
 msgid "Import files can contain a maximum of %(max)d records."
 msgstr ""
 
@@ -3056,9 +3064,6 @@ msgstr "Etiquettes"
 msgid "Any labels on this flow"
 msgstr "Tout label sur ce flux"
 
-msgid "The type of node this flow starts with"
-msgstr "Le type de noeud par lequel ce flux commence"
-
 msgid "Whether this flow is archived"
 msgstr "Que ce flux est archivée"
 
@@ -3101,50 +3106,11 @@ msgstr "Supprimer l'archive"
 msgid "User delete"
 msgstr "Supprimer l'utilisateur"
 
-msgid "The label for this field"
-msgstr "Le label pour ce champ"
-
-msgid "The value that rules will be run against, if None defaults to @step.value"
-msgstr "Les valeurs par rapport auxquelles les règles vont être appliquées, si aucune seront par défaut @step.value"
-
-msgid "The URL that will be called with the user's response before we run our rules"
-msgstr "L'URL qui sera appelée avec la réponse de l'utilisateur avant  de gerer nos règles"
-
-msgid "How the webhook should be executed"
-msgstr "Comment le webhook doit être exécuté"
-
-msgid "The JSON encoded actions for this action set"
-msgstr "Le JSON codé pour cette action définis"
-
-msgid "Ruleset Configuration"
-msgstr "Configuration du jeu de règles"
-
-msgid "RuleSet type specific configuration"
-msgstr "Configuration spécifique au type de jeu de règles"
-
-msgid "When this ruleset was originally created"
-msgstr "Quand ce jeu de règles a été créé à l'origine"
-
-msgid "When this ruleset was last modified"
-msgstr "Quand ce jeu de règles a été mise à jour"
-
-msgid "When this action was originally created"
-msgstr "Lorsque cette action a été créé à l'origine"
-
-msgid "When this action was last modified"
-msgstr "Lorsque cette action a été mise à jour"
-
 msgid "The JSON flow definition"
 msgstr "La définition du flux JSON"
 
 msgid "Revision number for this definition"
 msgstr "Numéro de révision pour cette définition"
-
-msgid "Unsupported flow type"
-msgstr "Type de flux non pris en charge"
-
-msgid "Malformed flow, encountered non-localized definition"
-msgstr "Flux mal formé, définition non-traduite rencontrée"
 
 msgid "The flows to export"
 msgstr "Les flux d'exportation"
@@ -3306,70 +3272,6 @@ msgstr "Ajouter une étiquette"
 msgid "Remove"
 msgstr "Supprimer"
 
-msgid "Contact Name"
-msgstr " Nom du Contact"
-
-msgid "Contact Creation Date"
-msgstr "Date de création du contact"
-
-msgid "Contact First Name"
-msgstr "Prénom du Contact"
-
-msgid "Contact Groups"
-msgstr "Groupes de contact"
-
-msgid "Contact Language"
-msgstr "Langue du contact"
-
-msgid "Contact Email Address"
-msgstr "Adresse email du contact"
-
-msgid "Contact Phone"
-msgstr "Contact"
-
-msgid "Contact Phone - E164"
-msgstr "Contact téléphone-E164"
-
-msgid "Contact UUID"
-msgstr "UUID du contact"
-
-msgid "New Contact"
-msgstr "Nouveau contact"
-
-#, python-format
-msgid "Contact %s"
-msgstr "Contact %s"
-
-msgid "Current Date and Time"
-msgstr "Date et Heure actuelle"
-
-msgid "Current Date"
-msgstr "Date Actuelle"
-
-msgid "Tomorrow's Date"
-msgstr "Date de Demain"
-
-msgid "Yesterday's Date"
-msgstr "Date d'Hier"
-
-msgid "Sent to"
-msgstr "Envoyer à"
-
-msgid "Sent to URN display"
-msgstr "Envoyé à l'affichage URN"
-
-msgid "Sent to URN path"
-msgstr "Envoyé au chemin URN"
-
-msgid "Sent to URN type"
-msgstr "Envoyé au type URN"
-
-msgid "Sent to URN"
-msgstr "Envoyé à URN"
-
-msgid "All flow variables"
-msgstr "Toutes les variables du flux"
-
 msgid "Start Flow"
 msgstr "Lancer un Flux"
 
@@ -3495,9 +3397,6 @@ msgstr "Télécharger"
 #| msgid "Download Results"
 msgid "Download Flow Results"
 msgstr "Télécharger les résultats"
-
-msgid "Your flow contains an invalid loop. Please refresh your browser."
-msgstr "Votre flux contient une boucle non valide. Veuillez actualiser votre navigateur."
 
 msgid "Contacts & Groups"
 msgstr "Contacts & Groupes"
@@ -3658,10 +3557,6 @@ msgstr "La date du message le plus ancien à exporter"
 
 msgid "The date for the newest message to export"
 msgstr "La date du message le plus récent à exporter"
-
-#, python-format
-msgid "Contact Field: %(label)s"
-msgstr "Champ contact: %(label)s"
 
 msgid "Recipients"
 msgstr "Destinataires"
@@ -6944,23 +6839,27 @@ msgstr ""
 msgid "<div class='code mt-4'> Manage > API Usage > Callback API > Server Settings </div> <div class='mt-2'> Enter the Webhook URL below for the <div class='code inline py-1'>URL</div> field and the Verify Token in the <div class='code inline py-1'>Secret Key</div> field. </div> <div class='code mt-6'> Manage > API Usage > Callback API > Event Types </div> <div class='mt-2'> Check the option %(option)s </div>"
 msgstr ""
 
-msgid ""
-"\n"
-"    Your WhatsApp channel is now connected, you should be able to send and receive messages as normal.\n"
-"\n"
-"  "
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "    Your WhatsApp channel is now connected, you should be able to send and receive messages as normal.\n"
+#| "\n"
+#| "  "
+msgid "Your WhatsApp channel is now connected, you should be able to send and receive messages as normal."
 msgstr ""
 "\n"
 "    Votre canal WhatsApp est maintenant connecté, vous devriez pouvoir envoyer et recevoir des messages normalement.\n"
 "\n"
 "  "
 
-msgid ""
-"\n"
-"    In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh\n"
-"    the contacts on the WhatsApp application. This may take a few minutes.\n"
-"\n"
-"  "
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "    In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh\n"
+#| "    the contacts on the WhatsApp application. This may take a few minutes.\n"
+#| "\n"
+#| "  "
+msgid "In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh the contacts on the WhatsApp application. This may take a few minutes."
 msgstr ""
 "\n"
 "    Dans le cas d'une nouvelle installation WhatsApp ou du remplacement d'un canal WhatsApp existant, vous devrez peut-être actualiser\n"
@@ -6970,6 +6869,9 @@ msgstr ""
 
 msgid "WhatsApp Templates Events"
 msgstr "Événements des modèles WhatsApp"
+
+msgid "No syncs yet. Check back later."
+msgstr ""
 
 msgid "Templates"
 msgstr "Modèles"
@@ -11070,6 +10972,119 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "The label for this field"
+#~ msgstr "Le label pour ce champ"
+
+#~ msgid "The value that rules will be run against, if None defaults to @step.value"
+#~ msgstr "Les valeurs par rapport auxquelles les règles vont être appliquées, si aucune seront par défaut @step.value"
+
+#~ msgid "The URL that will be called with the user's response before we run our rules"
+#~ msgstr "L'URL qui sera appelée avec la réponse de l'utilisateur avant  de gerer nos règles"
+
+#~ msgid "How the webhook should be executed"
+#~ msgstr "Comment le webhook doit être exécuté"
+
+#~ msgid "The JSON encoded actions for this action set"
+#~ msgstr "Le JSON codé pour cette action définis"
+
+#~ msgid "Ruleset Configuration"
+#~ msgstr "Configuration du jeu de règles"
+
+#~ msgid "RuleSet type specific configuration"
+#~ msgstr "Configuration spécifique au type de jeu de règles"
+
+#~ msgid "When this ruleset was originally created"
+#~ msgstr "Quand ce jeu de règles a été créé à l'origine"
+
+#~ msgid "When this ruleset was last modified"
+#~ msgstr "Quand ce jeu de règles a été mise à jour"
+
+#~ msgid "When this action was originally created"
+#~ msgstr "Lorsque cette action a été créé à l'origine"
+
+#~ msgid "When this action was last modified"
+#~ msgstr "Lorsque cette action a été mise à jour"
+
+#~ msgid "The type of node this flow starts with"
+#~ msgstr "Le type de noeud par lequel ce flux commence"
+
+#~ msgid "Contact Name"
+#~ msgstr " Nom du Contact"
+
+#~ msgid "Contact Creation Date"
+#~ msgstr "Date de création du contact"
+
+#~ msgid "Contact First Name"
+#~ msgstr "Prénom du Contact"
+
+#~ msgid "Contact Groups"
+#~ msgstr "Groupes de contact"
+
+#~ msgid "Contact Language"
+#~ msgstr "Langue du contact"
+
+#~ msgid "Contact Email Address"
+#~ msgstr "Adresse email du contact"
+
+#~ msgid "Contact Phone"
+#~ msgstr "Contact"
+
+#~ msgid "Contact Phone - E164"
+#~ msgstr "Contact téléphone-E164"
+
+#~ msgid "Contact UUID"
+#~ msgstr "UUID du contact"
+
+#~ msgid "New Contact"
+#~ msgstr "Nouveau contact"
+
+#, python-format
+#~ msgid "Contact %s"
+#~ msgstr "Contact %s"
+
+#~ msgid "Current Date and Time"
+#~ msgstr "Date et Heure actuelle"
+
+#~ msgid "Current Date"
+#~ msgstr "Date Actuelle"
+
+#~ msgid "Tomorrow's Date"
+#~ msgstr "Date de Demain"
+
+#~ msgid "Yesterday's Date"
+#~ msgstr "Date d'Hier"
+
+#~ msgid "Sent to"
+#~ msgstr "Envoyer à"
+
+#~ msgid "Sent to URN display"
+#~ msgstr "Envoyé à l'affichage URN"
+
+#~ msgid "Sent to URN path"
+#~ msgstr "Envoyé au chemin URN"
+
+#~ msgid "Sent to URN type"
+#~ msgstr "Envoyé au type URN"
+
+#~ msgid "Sent to URN"
+#~ msgstr "Envoyé à URN"
+
+#~ msgid "All flow variables"
+#~ msgstr "Toutes les variables du flux"
+
+#, python-format
+#~ msgid "Contact Field: %(label)s"
+#~ msgstr "Champ contact: %(label)s"
+
+#~ msgid "Unsupported flow type"
+#~ msgstr "Type de flux non pris en charge"
+
+#~ msgid "Malformed flow, encountered non-localized definition"
+#~ msgstr "Flux mal formé, définition non-traduite rencontrée"
+
+#~ msgid "Your flow contains an invalid loop. Please refresh your browser."
+#~ msgstr "Votre flux contient une boucle non valide. Veuillez actualiser votre navigateur."
 
 #~ msgid "Revision History"
 #~ msgstr "Historique des révisions"

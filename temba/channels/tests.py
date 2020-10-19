@@ -26,7 +26,7 @@ from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN, Contact, Cont
 from temba.ivr.models import IVRCall
 from temba.msgs.models import IVR, PENDING, QUEUED, Broadcast, Msg
 from temba.orgs.models import Org
-from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest
+from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest, mock_mailroom
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
@@ -1223,7 +1223,8 @@ class ChannelTest(TembaTest):
         self.assertEqual(len(cmds[0]["to"]), 1)
         self.assertEqual(cmds[0]["to"][0]["phone"], "+250788383383")
 
-    def test_sync(self):
+    @mock_mailroom
+    def test_sync(self, mr_mocks):
         date = timezone.now()
         date = int(time.mktime(date.timetuple())) * 1000
 
@@ -1558,7 +1559,8 @@ class ChannelTest(TembaTest):
         self.assertIsNotNone(r0)
         self.assertEqual(r0["cmd"], "ack")
 
-    def test_inbox_duplication(self):
+    @mock_mailroom
+    def test_inbox_duplication(self, mr_mocks):
 
         # if the connection gets interrupted but some messages succeed, we want to make sure subsequent
         # syncs do not result in duplication of messages from the inbox
@@ -1714,7 +1716,8 @@ class SyncEventTest(SmartminTest):
             config={Channel.CONFIG_FCM_ID: "123"},
         )
 
-    def test_sync_event_model(self):
+    @mock_mailroom
+    def test_sync_event_model(self, mr_mocks):
         self.sync_event = SyncEvent.create(
             self.tel_channel,
             dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc="RW"),

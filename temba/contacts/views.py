@@ -56,7 +56,8 @@ from .models import (
     ContactURN,
     ExportContactsTask,
 )
-from .omnibox import omnibox_query, omnibox_results_to_dict
+from .search import SearchException, parse_query, search_contacts
+from .search.omnibox import omnibox_query, omnibox_results_to_dict
 from .tasks import export_contacts_task, release_group_task
 
 logger = logging.getLogger(__name__)
@@ -122,10 +123,8 @@ class ContactGroupForm(forms.ModelForm):
         return name
 
     def clean_query(self):
-        from temba.contacts.search import parse_query, SearchException
-
         try:
-            parsed = parse_query(self.org.id, self.cleaned_data["query"])
+            parsed = parse_query(self.org, self.cleaned_data["query"])
             if not parsed.metadata.allow_as_group:
                 raise forms.ValidationError(_('You cannot create a smart group based on "id" or "group".'))
 
@@ -242,8 +241,6 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
             )
 
     def get_queryset(self, **kwargs):
-        from temba.contacts.search import search_contacts, SearchException
-
         org = self.request.user.get_org()
         group = self.derive_group()
         self.search_error = None
@@ -270,7 +267,7 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
 
             try:
                 results = search_contacts(
-                    org.id, str(group.uuid), search_query, sort_on, offset, exclude_ids=exclude_ids
+                    org, search_query, group=group, sort=sort_on, offset=offset, exclude_ids=exclude_ids
                 )
                 self.parsed_query = results.query if len(results.query) > 0 else None
                 self.save_dynamic_search = results.metadata.allow_as_group
@@ -904,8 +901,6 @@ class ContactCRUDL(SmartCRUDL):
         template_name = "contacts/contact_list.haml"
 
         def get(self, request, *args, **kwargs):
-            from temba.contacts.search import search_contacts, SearchException
-
             org = self.request.user.get_org()
             query = self.request.GET.get("search", None)
             samples = int(self.request.GET.get("samples", 10))
@@ -914,7 +909,7 @@ class ContactCRUDL(SmartCRUDL):
                 return JsonResponse({"total": 0, "sample": [], "fields": {}})
 
             try:
-                results = search_contacts(org.id, org.cached_active_contacts_group.uuid, query, "-created_on")
+                results = search_contacts(org, query, group=org.cached_active_contacts_group, sort="-created_on")
                 summary = {
                     "total": results.total,
                     "query": results.query,
@@ -969,10 +964,8 @@ class ContactCRUDL(SmartCRUDL):
             has_contactgroup_create_perm = self.has_org_perm("contacts.contactgroup_create")
 
             if has_contactgroup_create_perm and valid_search_condition:
-                from temba.contacts.search import parse_query, SearchException
-
                 try:
-                    parsed = parse_query(self.org.id, search)
+                    parsed = parse_query(self.org, search)
                     if parsed.metadata.allow_as_group:
                         links.append(
                             dict(

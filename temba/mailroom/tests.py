@@ -10,7 +10,7 @@ from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowRun, FlowStart
 from temba.mailroom.client import ContactSpec, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
-from temba.tests import MockResponse, TembaTest, matchers
+from temba.tests import MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.utils import json
 
@@ -24,6 +24,25 @@ class MailroomClientTest(TembaTest):
             version = get_client().version()
 
         self.assertEqual("5.3.4", version)
+
+    def test_expression_migrate(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"migrated": "@fields.age"}')
+            migrated = get_client().expression_migrate("@contact.age")
+
+            self.assertEqual("@fields.age", migrated)
+
+            mock_post.assert_called_once_with(
+                "http://localhost:8090/mr/expression/migrate",
+                headers={"User-Agent": "Temba"},
+                json={"expression": "@contact.age"},
+            )
+
+            # in case of error just return original
+            mock_post.return_value = MockResponse(422, '{"error": "bad isn\'t a thing"}')
+            migrated = get_client().expression_migrate("@(bad)")
+
+            self.assertEqual("@(bad)", migrated)
 
     def test_flow_migrate(self):
         with patch("requests.post") as mock_post:
@@ -217,6 +236,20 @@ class MailroomClientTest(TembaTest):
         )
 
     @patch("requests.post")
+    def test_contact_resolve(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"contact": {"id": 1234}, "urn": {"id": 2345}}')
+
+        # try with empty contact spec
+        response = get_client().contact_resolve(self.org.id, 345, "tel:+1234567890")
+
+        self.assertEqual({"contact": {"id": 1234}, "urn": {"id": 2345}}, response)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/resolve",
+            headers={"User-Agent": "Temba"},
+            json={"org_id": self.org.id, "channel_id": 345, "urn": "tel:+1234567890"},
+        )
+
+    @patch("requests.post")
     def test_contact_search(self, mock_post):
         mock_post.return_value = MockResponse(
             200,
@@ -295,7 +328,7 @@ class MailroomClientTest(TembaTest):
             mock_post.return_value = MockResponse(400, '{"errors":["Bad request", "Doh!"]}')
 
             with self.assertRaises(MailroomException) as e:
-                get_client().flow_migrate(flow.as_json())
+                get_client().flow_migrate(flow.get_definition())
 
         self.assertEqual(
             e.exception.as_json(),
@@ -319,7 +352,8 @@ class MailroomQueueTest(TembaTest):
         r = get_redis_connection()
         r.execute_command("select", settings.REDIS_DB)
 
-    def test_queue_msg_handling(self):
+    @mock_mailroom(queue=False)
+    def test_queue_msg_handling(self, mr_mocks):
         with override_settings(TESTING=False):
             msg = Msg.create_relayer_incoming(self.org, self.channel, "tel:12065551212", "Hello World", timezone.now())
 
@@ -341,13 +375,14 @@ class MailroomQueueTest(TembaTest):
                     "urn_id": msg.contact.urns.get().id,
                     "text": "Hello World",
                     "attachments": None,
-                    "new_contact": True,
+                    "new_contact": False,
                 },
                 "queued_on": matchers.ISODate(),
             },
         )
 
-    def test_queue_mo_miss_event(self):
+    @mock_mailroom(queue=False)
+    def test_queue_mo_miss_event(self, mr_mocks):
         get_redis_connection("default").flushall()
         event = ChannelEvent.create_relayer_event(
             self.channel, "tel:12065551212", ChannelEvent.TYPE_CALL_OUT, timezone.now()
@@ -377,7 +412,7 @@ class MailroomQueueTest(TembaTest):
                     "event_type": "mo_miss",
                     "extra": None,
                     "id": event.id,
-                    "new_contact": True,
+                    "new_contact": False,
                     "org_id": event.contact.org.id,
                     "urn": "tel:+12065551515",
                     "urn_id": event.contact.urns.get().id,
@@ -396,11 +431,11 @@ class MailroomQueueTest(TembaTest):
             {"eng": "Welcome to mailroom!", "spa": "¡Bienvenidx a mailroom!"},
             groups=[bobs],
             contacts=[jim],
-            urns=[jim.urns.get()],
+            urns=["tel:+12065556666"],
             base_language="eng",
         )
 
-        bcast.send()
+        bcast.send_async()
 
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(
@@ -415,7 +450,7 @@ class MailroomQueueTest(TembaTest):
                     },
                     "template_state": "legacy",
                     "base_language": "eng",
-                    "urns": ["tel:+12065551212"],
+                    "urns": ["tel:+12065556666"],
                     "contact_ids": [jim.id],
                     "group_ids": [bobs.id],
                     "broadcast_id": bcast.id,
@@ -533,7 +568,7 @@ class MailroomQueueTest(TembaTest):
         jim = self.create_contact("Jim", phone="+12065551212")
 
         flow = self.get_flow("favorites")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[2]
 

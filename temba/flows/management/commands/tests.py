@@ -42,7 +42,7 @@ class RecalcNodeCountsTest(TembaTest):
             self.assertEqual(assert_count, sum(new_counts.values()))
 
         flow = self.get_flow("favorites_v13")
-        nodes = flow.as_json()["nodes"]
+        nodes = flow.get_definition()["nodes"]
 
         color_prompt = nodes[0]
         color_other = nodes[1]

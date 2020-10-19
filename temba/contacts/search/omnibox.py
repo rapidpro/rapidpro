@@ -7,9 +7,10 @@ from django.db.models.functions import Upper
 
 from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup, ContactGroupCount, ContactURN
-from temba.contacts.search import SearchException, search_contacts
 from temba.msgs.models import Label
 from temba.utils.models import IDSliceQuerySet
+
+from . import SearchException, search_contacts
 
 SEARCH_ALL_GROUPS = "g"
 SEARCH_STATIC_GROUPS = "s"
@@ -93,7 +94,7 @@ def omnibox_mixed_search(org, query, types):
 
     if SEARCH_CONTACTS in search_types:
         try:
-            search_results = search_contacts(org.id, org.cached_active_contacts_group.uuid, query, "name")
+            search_results = search_contacts(org, query, group=org.cached_active_contacts_group, sort="name")
             contacts = IDSliceQuerySet(Contact, search_results.contact_ids, 0, len(search_results.contact_ids))
             results += list(contacts[:per_type_limit])
             Contact.bulk_cache_initialize(org, contacts=results)
@@ -104,10 +105,12 @@ def omnibox_mixed_search(org, query, types):
     if SEARCH_URNS in search_types:
         if not org.is_anon and query and len(query) >= 3:
             try:
-                # build an ORed query of all sendable schemes
+                # build an OR'ed query of all sendable schemes
                 sendable_schemes = org.get_schemes(Channel.ROLE_SEND)
                 scheme_query = " OR ".join(f"{s} ~ {json.dumps(query)}" for s in sendable_schemes)
-                search_results = search_contacts(org.id, org.cached_active_contacts_group.uuid, scheme_query, "name")
+                search_results = search_contacts(
+                    org, scheme_query, group=org.cached_active_contacts_group, sort="name"
+                )
                 urns = ContactURN.objects.filter(
                     contact_id__in=search_results.contact_ids, scheme__in=sendable_schemes
                 )
@@ -122,7 +125,7 @@ def omnibox_serialize(org, groups, contacts, json_encode=False):
     """
     Shortcut for proper way to serialize a queryset of groups and contacts for omnibox component
     """
-    serialized = omnibox_results_to_dict(org, list(groups) + list(contacts), 2)
+    serialized = omnibox_results_to_dict(org, list(groups) + list(contacts), version="2")
 
     if json_encode:
         return [json.dumps(_) for _ in serialized]
@@ -130,16 +133,10 @@ def omnibox_serialize(org, groups, contacts, json_encode=False):
     return serialized
 
 
-def omnibox_deserialize(org, omnibox, user=None):
+def omnibox_deserialize(org, omnibox):
     group_ids = [item["id"] for item in omnibox if item["type"] == "group"]
     contact_ids = [item["id"] for item in omnibox if item["type"] == "contact"]
-    urn_specs = [item["id"] for item in omnibox if item["type"] == "urn"]
-
-    urns = []
-    if not org.is_anon:
-        for urn_spec in urn_specs:
-            contact, urn = Contact.get_or_create(org, urn_spec, user)
-            urns.append(urn)
+    urns = [item["id"] for item in omnibox if item["type"] == "urn"] if not org.is_anon else []
 
     return {
         "groups": ContactGroup.all_groups.filter(uuid__in=group_ids, org=org, is_active=True),
@@ -148,7 +145,7 @@ def omnibox_deserialize(org, omnibox, user=None):
     }
 
 
-def omnibox_results_to_dict(org, results, version="1"):
+def omnibox_results_to_dict(org, results, version: str = "1"):
     """
     Converts the result of a omnibox query (queryset of contacts, groups or URNs, or a list) into a dict {id, text}
     """

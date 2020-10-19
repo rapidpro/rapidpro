@@ -10,9 +10,8 @@ from django.utils import timezone
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
-from temba.contacts.models import TEL_SCHEME, Contact, ContactField, ContactURN
-from temba.contacts.omnibox import omnibox_serialize
-from temba.flows.legacy.expressions import get_function_listing
+from temba.contacts.models import TEL_SCHEME, ContactURN
+from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.msgs.models import (
     DELIVERED,
@@ -42,7 +41,6 @@ from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, TembaTest
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
-from temba.utils import json
 from temba.utils.uuid import uuid4
 
 from .tasks import retry_errored_messages, squash_msgcounts
@@ -264,54 +262,6 @@ class MsgTest(TembaTest):
         self.assertReleaseCount(INCOMING, HANDLED, Msg.VISIBILITY_ARCHIVED, INBOX, SystemLabel.TYPE_ARCHIVED)
         self.assertReleaseCount(INCOMING, HANDLED, Msg.VISIBILITY_VISIBLE, FLOW, SystemLabel.TYPE_FLOWS)
 
-    def test_send_message_auto_completion_processor(self):
-        outbox_url = reverse("msgs.msg_outbox")
-
-        # login in as manager, with contacts but without extra contactfields yet
-        self.login(self.admin)
-        completions = [
-            dict(name="contact", display="Contact Name"),
-            dict(name="contact.first_name", display="Contact First Name"),
-            dict(name="contact.groups", display="Contact Groups"),
-            dict(name="contact.language", display="Contact Language"),
-            dict(name="contact.name", display="Contact Name"),
-            dict(name="contact.tel", display="Contact Phone"),
-            dict(name="contact.tel_e164", display="Contact Phone - E164"),
-            dict(name="contact.uuid", display="Contact UUID"),
-            dict(name="date", display="Current Date and Time"),
-            dict(name="date.now", display="Current Date and Time"),
-            dict(name="date.today", display="Current Date"),
-            dict(name="date.tomorrow", display="Tomorrow's Date"),
-            dict(name="date.yesterday", display="Yesterday's Date"),
-        ]
-
-        response = self.client.get(outbox_url)
-
-        # check our completions JSON and functions JSON
-        self.assertEqual(response.context["completions"], json.dumps(completions))
-        self.assertEqual(response.context["function_completions"], json.dumps(get_function_listing()))
-
-        # add some contact fields
-        field = ContactField.get_or_create(self.org, self.admin, "cell", "Cell")
-        completions.append(dict(name="contact.%s" % str(field.key), display="Contact Field: Cell"))
-
-        field = ContactField.get_or_create(self.org, self.admin, "sector", "Sector")
-        completions.append(dict(name="contact.%s" % str(field.key), display="Contact Field: Sector"))
-
-        response = self.client.get(outbox_url)
-
-        # contact fields are included at the end in alphabetical order
-        self.assertEqual(response.context["completions"], json.dumps(completions))
-
-        # a Twitter channel
-        Channel.create(self.org, self.user, None, "TT")
-        completions.insert(-2, dict(name="contact.%s" % "twitter", display="Contact %s" % "Twitter handle"))
-        completions.insert(-2, dict(name="contact.%s" % "twitterid", display="Contact %s" % "Twitter ID"))
-
-        response = self.client.get(outbox_url)
-        # the Twitter URN scheme is included
-        self.assertEqual(response.context["completions"], json.dumps(completions))
-
     def test_broadcast_metadata(self):
         Channel.create(self.org, self.admin, None, channel_type="TT")
         contact1 = self.create_contact("Stephen", phone="+12078778899", language="fra")
@@ -358,7 +308,7 @@ class MsgTest(TembaTest):
 
         (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
 
-        with self.assertNumQueries(46):
+        with self.assertNumQueries(44):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
         self.assertEqual(1, response.context_data["folders"][3]["count"])  # Outbox
@@ -382,7 +332,7 @@ class MsgTest(TembaTest):
         broadcast4.schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
         broadcast4.save(update_fields=["schedule"])
 
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(41):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
         self.assertEqual(5, response.context_data["folders"][3]["count"])  # Outbox
@@ -432,7 +382,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit inbox page as a manager of the organization
-        with self.assertNumQueries(63):
+        with self.assertNumQueries(61):
             response = self.fetch_protected(inbox_url + "?refresh=10000", self.admin)
 
         # make sure that we embed refresh script if View.refresh is set
@@ -516,7 +466,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit archived page as a manager of the organization
-        with self.assertNumQueries(55):
+        with self.assertNumQueries(53):
             response = self.fetch_protected(archive_url, self.admin)
 
         self.assertEqual(response.context["object_list"].count(), 1)
@@ -598,7 +548,7 @@ class MsgTest(TembaTest):
         # org viewer can
         self.login(self.admin)
 
-        with self.assertNumQueries(43):
+        with self.assertNumQueries(41):
             response = self.client.get(url)
 
         self.assertEqual(set(response.context["object_list"]), {msg3, msg2, msg1})
@@ -663,7 +613,7 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit failed page as an administrator
-        with self.assertNumQueries(66):
+        with self.assertNumQueries(64):
             response = self.fetch_protected(failed_url, self.admin)
 
         self.assertEqual(response.context["object_list"].count(), 3)
@@ -2035,7 +1985,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual("I", broadcast1.status)
 
         with patch("temba.mailroom.queue_broadcast") as mock_queue_broadcast:
-            broadcast1.send()
+            broadcast1.send_async()
 
             mock_queue_broadcast.assert_called_once_with(broadcast1)
 
@@ -2067,7 +2017,7 @@ class BroadcastTest(TembaTest):
         self.assertEqual(0, Broadcast.objects.count())
         self.assertEqual(0, Schedule.objects.count())
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(AssertionError):
             Broadcast.create(self.org, self.user, "no recipients")
 
     @patch("temba.mailroom.queue_broadcast")
@@ -2097,10 +2047,7 @@ class BroadcastTest(TembaTest):
 
         # initialize a broadcast form based on a step uuid
         response = self.client.get(f"{send_url}?step_node=step")
-        fields = response.context["form"].fields
-        field_names = [_ for _ in fields]
-        self.assertIn("step_node", field_names)
-        self.assertNotIn("omnibox", field_names)
+        self.assertEqual(["text", "step_node", "loc"], list(response.context["form"].fields.keys()))
 
         # try with no channel
         omnibox = omnibox_serialize(self.org, [], [self.joe], True)
@@ -2168,7 +2115,9 @@ class BroadcastTest(TembaTest):
         )
 
         self.assertEqual(4, Broadcast.objects.all().count())
-        self.assertEqual(1, Contact.objects.filter(urns__path="2065551212").count())
+
+        bcast = Broadcast.objects.order_by("id").last()
+        self.assertEqual(["tel:2065551212"], bcast.raw_urns)
 
         # test missing senders
         response = self.client.post(send_url, {"text": "message content"}, follow=True)
@@ -2190,7 +2139,7 @@ class BroadcastTest(TembaTest):
 
         # give Joe a flow run that has stopped on a node
         flow = self.get_flow("color_v13")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[4]
         (
@@ -2213,15 +2162,20 @@ class BroadcastTest(TembaTest):
 
         self.assertRedirect(response, reverse("msgs.msg_inbox"))
 
-        response = self.client.post(send_url, payload, follow=True)
-
-        self.assertContains(response, "success")
-
         broadcast = Broadcast.objects.order_by("id").last()
         self.assertEqual(broadcast.text, {"base": "message content"})
         self.assertEqual(broadcast.groups.count(), 0)
-        self.assertEqual(broadcast.contacts.count(), 1)
-        self.assertIn(self.joe, broadcast.contacts.all())
+        self.assertEqual({self.joe}, set(broadcast.contacts.all()))
+
+        self.assertEqual(7, Broadcast.objects.count())
+
+        # if there are no contacts at that node, we don't actually create a broadcast
+        self.joe.runs.update(is_active=False)
+
+        response = self.client.post(send_url, payload, follow=True)
+        self.assertContains(response, "success")
+
+        self.assertEqual(7, Broadcast.objects.count())
 
     def test_message_parts(self):
         contact = self.create_contact("Matt", phone="+12067778811")
@@ -2290,18 +2244,16 @@ class BroadcastCRUDLTest(TembaTest):
         omnibox = omnibox_serialize(self.org, [just_joe], [self.frank], True)
         omnibox.append('{"type": "urn", "id": "tel:0780000001"}')
 
-        post_data = dict(omnibox=omnibox, text="Hey Joe, where you goin' with that gun in your hand?")
-        response = self.client.post(url, post_data)
-
-        # raw number means a new contact created
-        new_urn = ContactURN.objects.get(path="+250780000001")
-        Contact.objects.get(urns=new_urn)
+        response = self.client.post(
+            url, {"omnibox": omnibox, "text": "Hey Joe, where you goin' with that gun in your hand?"}
+        )
+        self.assertEqual(302, response.status_code)
 
         broadcast = Broadcast.objects.get()
-        self.assertEqual(broadcast.text, {"base": "Hey Joe, where you goin' with that gun in your hand?"})
-        self.assertEqual(set(broadcast.groups.all()), {just_joe})
-        self.assertEqual(set(broadcast.contacts.all()), {self.frank})
-        self.assertEqual(set(broadcast.urns.all()), {new_urn})
+        self.assertEqual({"base": "Hey Joe, where you goin' with that gun in your hand?"}, broadcast.text)
+        self.assertEqual({just_joe}, set(broadcast.groups.all()))
+        self.assertEqual({self.frank}, set(broadcast.contacts.all()))
+        self.assertEqual(["tel:0780000001"], broadcast.raw_urns)
 
     def test_update(self):
         self.login(self.editor)

@@ -1314,7 +1314,7 @@ class ChannelEvent(models.Model):
     def create_relayer_event(cls, channel, urn, event_type, occurred_on, extra=None):
         from temba.contacts.models import Contact
 
-        contact, contact_urn = Contact.get_or_create(channel.org, urn, channel, name=None, user=get_anonymous_user())
+        contact, contact_urn = Contact.resolve(channel, urn)
 
         event = cls.objects.create(
             org=channel.org,

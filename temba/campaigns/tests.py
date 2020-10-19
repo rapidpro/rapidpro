@@ -7,7 +7,7 @@ from django.core.exceptions import ValidationError
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.contacts.models import ContactField, ContactGroup
+from temba.contacts.models import ContactField
 from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org
@@ -39,6 +39,65 @@ class CampaignTest(TembaTest):
         self.planting_date = ContactField.get_or_create(
             self.org, self.admin, "planting_date", "Planting Date", value_type=Value.TYPE_DATETIME
         )
+
+    @mock_mailroom
+    def test_model(self, mr_mocks):
+        campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
+
+        flow = self.create_flow()
+
+        event1 = CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, self.planting_date, offset=1, unit="W", flow=flow, delivery_hour=13
+        )
+        event2 = CampaignEvent.create_message_event(
+            self.org, self.admin, campaign, self.planting_date, offset=3, unit="D", message="Hello", delivery_hour=9
+        )
+
+        self.assertEqual("Reminders", campaign.name)
+        self.assertEqual(f'Campaign[uuid={campaign.uuid}, name="Reminders"]', str(campaign))
+        self.assertEqual(f'Event[relative_to=planting_date, offset=1, flow="Color Flow"]', str(event1))
+        self.assertEqual([event1, event2], list(campaign.get_events()))
+
+        campaign.schedule_events_async()
+
+        # should have queued a scheduling task to mailroom for each event
+        self.assertEqual(
+            [
+                {
+                    "org_id": self.org.id,
+                    "type": "schedule_campaign_event",
+                    "queued_on": matchers.Datetime(),
+                    "task": {"campaign_event_id": event1.id, "org_id": self.org.id},
+                },
+                {
+                    "org_id": self.org.id,
+                    "type": "schedule_campaign_event",
+                    "queued_on": matchers.Datetime(),
+                    "task": {"campaign_event_id": event2.id, "org_id": self.org.id},
+                },
+            ],
+            mr_mocks.queued_batch_tasks,
+        )
+
+        campaign.recreate_events()
+
+        # existing events should be deactivated
+        event1.refresh_from_db()
+        event2.refresh_from_db()
+        self.assertFalse(event1.is_active)
+        self.assertFalse(event2.is_active)
+
+        # and clones created
+        new_event1, new_event2 = campaign.events.filter(is_active=True).order_by("id")
+
+        self.assertEqual(self.planting_date, new_event1.relative_to)
+        self.assertEqual("W", new_event1.unit)
+        self.assertEqual(1, new_event1.offset)
+        self.assertEqual(flow, new_event1.flow)
+        self.assertEqual(13, new_event1.delivery_hour)
+        self.assertEqual("D", new_event2.unit)
+        self.assertEqual(3, new_event2.offset)
+        self.assertEqual({"base": "Hello"}, new_event2.message)
 
     def test_get_unique_name(self):
         campaign1 = Campaign.create(
@@ -102,7 +161,7 @@ class CampaignTest(TembaTest):
         flow.refresh_from_db()
 
         self.assertNotEqual(flow.version_number, 3)
-        self.assertEqual(flow.version_number, Flow.FINAL_LEGACY_VERSION)
+        self.assertEqual(flow.version_number, Flow.CURRENT_SPEC_VERSION)
 
     def test_message_event(self):
         # create a campaign with a message event 1 day after planting date
@@ -121,7 +180,6 @@ class CampaignTest(TembaTest):
         )
 
         self.assertEqual(
-            event.flow.as_json(),
             {
                 "uuid": str(event.flow.uuid),
                 "name": event.flow.name,
@@ -129,7 +187,7 @@ class CampaignTest(TembaTest):
                 "revision": 1,
                 "language": "eng",
                 "type": "messaging",
-                "expire_after_minutes": 720,
+                "expire_after_minutes": 10080,
                 "localization": {},
                 "nodes": [
                     {
@@ -145,6 +203,7 @@ class CampaignTest(TembaTest):
                     }
                 ],
             },
+            event.flow.get_definition(),
         )
 
     def test_trim_event_fires(self):
@@ -269,17 +328,16 @@ class CampaignTest(TembaTest):
         self.assertTrue(event.flow.is_system)
         self.assertTrue(event.flow.base_language, "base")
 
-        flow_json = event.flow.as_json()
+        flow_json = event.flow.get_definition()
         action_uuid = flow_json["nodes"][0]["actions"][0]["uuid"]
 
         self.assertEqual(
-            flow_json,
             {
                 "uuid": str(event.flow.uuid),
                 "name": f"Single Message ({event.id})",
                 "spec_version": "13.0.0",
                 "revision": 1,
-                "expire_after_minutes": 720,
+                "expire_after_minutes": 10080,
                 "language": "base",
                 "type": "messaging",
                 "localization": {"spa": {action_uuid: {"text": ["hola"]}}},
@@ -291,6 +349,7 @@ class CampaignTest(TembaTest):
                     }
                 ],
             },
+            flow_json,
         )
 
         url = reverse("campaigns.campaignevent_update", args=[event.id])
@@ -365,7 +424,7 @@ class CampaignTest(TembaTest):
     @mock_mailroom
     def test_views(self, mr_mocks):
         # update the planting date for our contacts
-        self.set_contact_field(self.farmer1, "planting_date", "1/10/2020", legacy_handle=True)
+        self.set_contact_field(self.farmer1, "planting_date", "1/10/2020")
 
         # don't log in, try to create a new campaign
         response = self.client.get(reverse("campaigns.campaign_create"))
@@ -655,8 +714,8 @@ class CampaignTest(TembaTest):
         response = self.client.get(reverse("campaigns.campaign_list"))
         self.assertNotContains(response, "Planting Reminders")
 
-        # should have queued another scheduling task to mailroom
-        self.assertEqual(5, len(mr_mocks.queued_batch_tasks))
+        # should not have queued another scheduling task to mailroom since campaign is now archived
+        self.assertEqual(4, len(mr_mocks.queued_batch_tasks))
 
         # shouldn't have any active event fires
         self.assertFalse(EventFire.objects.filter(event__is_active=True).exists())
@@ -666,22 +725,17 @@ class CampaignTest(TembaTest):
         self.client.post(reverse("campaigns.campaign_archived"), post_data)
 
         # should have queued another scheduling task to mailroom
-        self.assertEqual(6, len(mr_mocks.queued_batch_tasks))
+        self.assertEqual(5, len(mr_mocks.queued_batch_tasks))
 
         # set a planting date on our other farmer
-        self.set_contact_field(self.farmer2, "planting_date", "1/6/2022", legacy_handle=True)
+        self.set_contact_field(self.farmer2, "planting_date", "1/6/2022")
 
         # should have an event fire now
         fires = EventFire.objects.filter(event__is_active=True)
         self.assertEqual(1, len(fires))
 
-        fire = fires[0]
-        self.assertEqual(2, fire.scheduled.day)
-        self.assertEqual(6, fire.scheduled.month)
-        self.assertEqual(2022, fire.scheduled.year)
-
         # setting a planting date on our outside contact has no effect
-        self.set_contact_field(self.nonfarmer, "planting_date", "1/7/2025", legacy_handle=True)
+        self.set_contact_field(self.nonfarmer, "planting_date", "1/7/2025")
         self.assertEqual(1, EventFire.objects.filter(event__is_active=True).count())
 
         planting_date_field = ContactField.get_by_key(self.org, "planting_date")
@@ -984,51 +1038,6 @@ class CampaignTest(TembaTest):
         ev4 = EventFire.objects.create(event=event3, contact=self.farmer1, scheduled=trim_date, fired=trim_date)
         self.assertIsNotNone(ev4.get_relative_to_value())
 
-    def test_campaignevent_calculate_scheduled_fire(self):
-        planting_date = timezone.now()
-        created_on = self.org.contactfields.get(key="created_on")
-        last_seen_on = self.org.contactfields.get(key="last_seen_on")
-
-        self.set_contact_field(self.farmer1, "planting_date", self.org.format_datetime(planting_date))
-
-        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
-
-        # create a reminder for our first planting event
-        event = CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, relative_to=self.planting_date, offset=3, unit="D", flow=self.reminder_flow
-        )
-
-        expected_result = (
-            (planting_date + timedelta(days=3)).replace(second=0, microsecond=0).astimezone(self.org.timezone)
-        )
-        self.assertEqual(event.calculate_scheduled_fire(self.farmer1), expected_result)
-
-        # create a reminder for our first planting event based on created_on
-        event = CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, relative_to=created_on, offset=5, unit="D", flow=self.reminder_flow
-        )
-
-        expected_result = (
-            (self.farmer1.created_on + timedelta(days=5))
-            .replace(second=0, microsecond=0)
-            .astimezone(self.org.timezone)
-        )
-        self.assertEqual(event.calculate_scheduled_fire(self.farmer1), expected_result)
-
-        # create a reminder based on last_seen_on
-        event = CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, relative_to=last_seen_on, offset=5, unit="D", flow=self.reminder_flow
-        )
-        self.assertIsNone(event.calculate_scheduled_fire(self.farmer1))
-
-        # give contact a last seen on value
-        now = timezone.now()
-        self.farmer1.last_seen_on = now
-        self.farmer1.save(update_fields=("last_seen_on",))
-
-        expected_result = (now + timedelta(days=5)).replace(second=0, microsecond=0).astimezone(self.org.timezone)
-        self.assertEqual(event.calculate_scheduled_fire(self.farmer1), expected_result)
-
     def test_import_created_on_event(self):
         campaign = Campaign.create(self.org, self.admin, "New contact reminders", self.farmers)
         created_on = ContactField.system_fields.get(org=self.org, key="created_on")
@@ -1062,98 +1071,6 @@ class CampaignTest(TembaTest):
 
         # should be able to change our field type now
         ContactField.get_or_create(self.org, self.admin, "planting_date", value_type=Value.TYPE_TEXT)
-
-    @mock_mailroom
-    def test_scheduling(self, mr_mocks):
-        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
-
-        self.assertEqual(str(campaign), f'Campaign[uuid={campaign.uuid}, name="Planting Reminders"]')
-
-        # create a reminder for our first planting event
-        planting_reminder = CampaignEvent.create_flow_event(
-            self.org,
-            self.admin,
-            campaign,
-            relative_to=self.planting_date,
-            offset=0,
-            unit="D",
-            flow=self.reminder_flow,
-            delivery_hour=17,
-        )
-
-        self.assertEqual(str(planting_reminder), 'Event[relative_to=planting_date, offset=0, flow="Reminder Flow"]')
-
-        # schedule our reminders
-        campaign.schedule_events_async()
-
-        # we should have queued a scheduling task to mailroom
-        self.assertEqual(
-            [
-                {
-                    "org_id": self.org.id,
-                    "type": "schedule_campaign_event",
-                    "queued_on": matchers.Datetime(),
-                    "task": {"campaign_event_id": planting_reminder.id, "org_id": self.org.id},
-                }
-            ],
-            mr_mocks.queued_batch_tasks,
-        )
-
-        # if any event fires already exist, scheduling will trigger cloning the event
-        EventFire.objects.create(event=planting_reminder, contact=self.farmer1, scheduled=timezone.now(), fired=None)
-
-        campaign.schedule_events_async()
-
-        planting_reminder.refresh_from_db()
-        self.assertFalse(planting_reminder.is_active)
-
-        planting_reminder_new = campaign.events.get(is_active=True)
-
-        # ok, set a planting date on one of our contacts
-        self.set_contact_field(self.farmer1, "planting_date", "05-10-2020 12:30:10", legacy_handle=True)
-
-        # should have one event now
-        fire = EventFire.objects.get(event__is_active=True)
-        self.assertEqual(5, fire.scheduled.day)
-        self.assertEqual(10, fire.scheduled.month)
-        self.assertEqual(2020, fire.scheduled.year)
-
-        # account for timezone difference, our org is in UTC+2
-        self.assertEqual(17 - 2, fire.scheduled.hour)
-
-        self.assertEqual(self.farmer1, fire.contact)
-
-        planting_reminder = campaign.get_events().first()
-        self.assertEqual(planting_reminder_new, fire.event)
-
-        self.assertIsNone(fire.fired)
-
-        # change the date of our date
-        self.set_contact_field(self.farmer1, "planting_date", "06-10-2020 12:30:10", legacy_handle=True)
-
-        EventFire.update_campaign_events_for_contact(campaign, self.farmer1)
-        fire = EventFire.objects.get()
-        self.assertEqual(6, fire.scheduled.day)
-        self.assertEqual(10, fire.scheduled.month)
-        self.assertEqual(2020, fire.scheduled.year)
-        self.assertEqual(self.farmer1, fire.contact)
-        self.assertEqual(planting_reminder, fire.event)
-
-        # set it to something invalid
-        self.set_contact_field(self.farmer1, "planting_date", "what?", legacy_handle=True)
-        EventFire.update_campaign_events_for_contact(campaign, self.farmer1)
-        self.assertFalse(EventFire.objects.all())
-
-        # now something valid again
-        self.set_contact_field(self.farmer1, "planting_date", "07-10-2020 12:30:10", legacy_handle=True)
-
-        EventFire.update_campaign_events_for_contact(campaign, self.farmer1)
-        fire = EventFire.objects.get()
-        self.assertEqual(7, fire.scheduled.day)
-        self.assertEqual(10, fire.scheduled.month)
-        self.assertEqual(2020, fire.scheduled.year)
-        self.assertEqual(self.farmer1, fire.contact)
-        self.assertEqual(planting_reminder, fire.event)
 
     def test_translations(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
@@ -1223,59 +1140,6 @@ class CampaignTest(TembaTest):
         campaign.refresh_from_db()
         self.assertFalse(campaign.is_archived)
         self.assertFalse(Flow.objects.filter(is_archived=True))
-
-    @mock_mailroom
-    def test_with_dynamic_group(self, mr_mocks):
-        # create a campaign on a dynamic group
-        self.create_field("gender", "Gender")
-
-        women = self.create_group("Women", query='gender="F"')
-        ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
-
-        campaign = Campaign.create(self.org, self.admin, "Planting Reminders for Women", women)
-        event = CampaignEvent.create_message_event(
-            self.org,
-            self.admin,
-            campaign,
-            relative_to=self.planting_date,
-            offset=0,
-            unit="D",
-            message={"eng": "hello"},
-            base_language="eng",
-        )
-
-        # create a contact not in the group, but with a field value
-        anna = self.create_contact("Anna", phone="+250788444444", fields={"planting_date": "09-10-2020 12:30"})
-
-        # no contacts in our dynamic group yet, so no event fires
-        self.assertEqual(EventFire.objects.filter(event=event).count(), 0)
-
-        # update contact so that they become part of the dynamic group
-        self.set_contact_field(anna, "gender", "f", legacy_handle=True)
-        self.assertEqual(set(women.contacts.all()), {anna})
-
-        # and who should now have an event fire for our campaign event
-        self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)
-
-        # change dynamic group query so anna is removed
-        women.update_query(query='gender="FEMALE"')
-        ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
-        anna.handle_update(fields=["gender"])
-
-        self.assertEqual(set(women.contacts.all()), set())
-
-        # check that her event fire is now removed
-        self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 0)
-
-        # but if query is reverted, her event fire should be recreated
-        women.update_query("gender=F")
-        ContactGroup.user_groups.filter(id=women.id).update(status=ContactGroup.STATUS_READY)
-        anna.handle_update(fields=["gender"])
-
-        self.assertEqual(set(women.contacts.all()), {anna})
-
-        # check that her event fire is now removed
-        self.assertEqual(EventFire.objects.filter(event=event, contact=anna).count(), 1)
 
     def test_model_as_export_def(self):
         field_created_on = self.org.contactfields.get(key="created_on")

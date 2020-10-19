@@ -83,6 +83,7 @@ class CampaignCRUDL(SmartCRUDL):
 
             # if our group changed, create our new fires
             if new_group != previous_group:
+                self.object.recreate_events()
                 self.object.schedule_events_async()
 
             response = self.render_to_response(
@@ -295,7 +296,9 @@ class CampaignEventForm(forms.ModelForm):
         queryset=Flow.objects.filter(is_active=True),
         required=False,
         empty_label=None,
-        widget=SelectWidget(attrs={"placeholder": _("Select a flow to start"), "widget_only": True}),
+        widget=SelectWidget(
+            attrs={"placeholder": _("Select a flow to start"), "widget_only": True, "searchable": True}
+        ),
     )
 
     relative_to = forms.ModelChoiceField(
@@ -678,7 +681,7 @@ class CampaignEventCRUDL(SmartCRUDL):
                 or prev.flow != obj.flow
                 or prev.start_mode != obj.start_mode
             ):
-                obj = obj.deactivate_and_copy()
+                obj = obj.recreate()
                 obj.schedule_async()
 
             return obj

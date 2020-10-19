@@ -657,14 +657,14 @@ class APITest(TembaTest):
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
 
-        bcast1 = Broadcast.create(self.org, self.admin, "Hello 1", urns=[self.frank.get_urn("twitter")])
+        bcast1 = Broadcast.create(self.org, self.admin, "Hello 1", urns=["twitter:franky"])
         bcast2 = Broadcast.create(self.org, self.admin, "Hello 2", contacts=[self.joe])
         bcast3 = Broadcast.create(self.org, self.admin, "Hello 3", contacts=[self.frank], status="S")
         bcast4 = Broadcast.create(
             self.org,
             self.admin,
             "Hello 4",
-            urns=[self.frank.get_urn("twitter")],
+            urns=["twitter:franky"],
             contacts=[self.joe],
             groups=[reporters],
             status="F",
@@ -679,6 +679,18 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(resp_json["next"], None)
         self.assertResultsById(response, [bcast4, bcast3, bcast2, bcast1])
+        self.assertEqual(
+            {
+                "id": bcast2.id,
+                "urns": [],
+                "contacts": [{"uuid": self.joe.uuid, "name": self.joe.name}],
+                "groups": [],
+                "text": {"base": "Hello 2"},
+                "status": "queued",
+                "created_on": format_datetime(bcast2.created_on),
+            },
+            resp_json["results"][2],
+        )
         self.assertEqual(
             {
                 "id": bcast4.id,
@@ -722,7 +734,7 @@ class APITest(TembaTest):
             url,
             None,
             {
-                "text": "Hi @contact.tel",  # will be migrated
+                "text": "Hi @(format_urn(urns.tel))",
                 "urns": ["twitter:franky"],
                 "contacts": [self.joe.uuid, self.frank.uuid],
                 "groups": [reporters.uuid],
@@ -732,7 +744,7 @@ class APITest(TembaTest):
 
         broadcast = Broadcast.objects.get(id=response.json()["id"])
         self.assertEqual({"base": "Hi @(format_urn(urns.tel))"}, broadcast.text)
-        self.assertEqual({"twitter:franky"}, set(broadcast.urns.values_list("identity", flat=True)))
+        self.assertEqual(["twitter:franky"], broadcast.raw_urns)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
         self.assertEqual({reporters}, set(broadcast.groups.all()))
         self.assertEqual(self.channel, broadcast.channel)
@@ -748,17 +760,8 @@ class APITest(TembaTest):
         self.assertEqual({"base": "Hello", "fra": "Bonjour"}, broadcast.text)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
 
-        # create new broadcast with explicitly old expressions
-        response = self.postJSON(
-            url, None, {"text": "You are @contact.age", "contacts": [self.joe.uuid], "new_expressions": False}
-        )
-        broadcast = Broadcast.objects.get(id=response.json()["id"])
-        self.assertEqual({"base": "You are @fields.age"}, broadcast.text)
-
-        # create new broadcast with explicitly new expressions
-        response = self.postJSON(
-            url, None, {"text": "You are @fields.age", "contacts": [self.joe.uuid], "new_expressions": True}
-        )
+        # create new broadcast with an expression
+        response = self.postJSON(url, None, {"text": "You are @fields.age", "contacts": [self.joe.uuid]})
         broadcast = Broadcast.objects.get(id=response.json()["id"])
         self.assertEqual({"base": "You are @fields.age"}, broadcast.text)
 
@@ -1163,7 +1166,7 @@ class APITest(TembaTest):
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": "You are @contact.age",  # will be migrated
+                "message": "You are @fields.age",
             },
         )
         self.assertEqual(response.status_code, 201)
@@ -1177,26 +1180,6 @@ class APITest(TembaTest):
         self.assertEqual(event1.message, {"base": "You are @fields.age"})
         self.assertIsNotNone(event1.flow)
 
-        # a message event with an invalid expression on the message
-        response = self.postJSON(
-            url,
-            None,
-            {
-                "campaign": campaign1.uuid,
-                "relative_to": "registration",
-                "offset": 15,
-                "unit": "weeks",
-                "delivery_hour": -1,
-                "message": "You are @(@bad)",  # will fail migration
-            },
-        )
-
-        self.assertEqual(response.status_code, 201)
-        event1 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
-
-        # should just leave the bad expression as-is
-        self.assertEqual(event1.message, {"base": "You are @(@bad)"})
-
         # a message event with an empty message
         response = self.postJSON(
             url,
@@ -1207,7 +1190,7 @@ class APITest(TembaTest):
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": "",  # will migrate successfully to empty text
+                "message": "",
             },
         )
 
@@ -1224,7 +1207,6 @@ class APITest(TembaTest):
                 "unit": "days",
                 "delivery_hour": -1,
                 "message": "Nice unit of work @fields.code",
-                "new_expressions": True,
             },
         )
         self.assertEqual(response.status_code, 201)
@@ -1304,7 +1286,7 @@ class APITest(TembaTest):
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": {"base": "OK @contact.tel", "fra": "D'accord"},
+                "message": {"base": "OK @(format_urn(urns.tel))", "fra": "D'accord"},
             },
         )
         self.assertEqual(response.status_code, 200)
@@ -1491,6 +1473,10 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
+        # create deleted channel
+        deleted = Channel.create(self.org, self.admin, None, "JC", name="Deleted", address="nyaruka", role="SR")
+        deleted.release()
+
         # create channel for other org
         Channel.create(self.org2, self.admin2, None, "TT", name="Twitter Channel", address="nyaruka", role="SR")
 
@@ -1652,7 +1638,7 @@ class APITest(TembaTest):
         self.assertResultsByUUID(response, [contact2])
 
         # filter by URN (which should be normalized)
-        response = self.fetchJSON(url, "urn=%s" % quote_plus("tel:+250-78-8000004"))
+        response = self.fetchJSON(url, "urn=%s" % quote_plus("tel:078-8000004"))
         self.assertResultsByUUID(response, [contact4])
 
         # error if URN can't be parsed
@@ -1777,13 +1763,13 @@ class APITest(TembaTest):
             None,
             {
                 "name": "Jim",
-                "language": "english",
+                "language": "xyz",
                 "urns": ["1234556789"],
                 "groups": ["59686b4e-14bc-4160-9376-b649b218c806"],
                 "fields": {"hmmm": "X"},
             },
         )
-        self.assertResponseError(response, "language", "Ensure this field has no more than 3 characters.")
+        self.assertResponseError(response, "language", "Not a valid ISO639-3 language code.")
         self.assertResponseError(response, "groups", "No such object: 59686b4e-14bc-4160-9376-b649b218c806")
         self.assertResponseError(response, "fields", "Invalid contact field key: hmmm")
 
@@ -1838,13 +1824,6 @@ class APITest(TembaTest):
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250784444444"})
         self.assertEqual(set(jean.user_groups.all()), set())
         self.assertEqual(jean.get_field_value(nickname), "Žan")
-
-        # invalid language values are ignored
-        response = self.postJSON(url, "uuid=%s" % jean.uuid, {"language": "xyz"})
-        self.assertEqual(response.status_code, 200)
-        jean.refresh_from_db()
-        self.assertEqual(jean.name, "Jean II")
-        self.assertIsNone(jean.language)
 
         # update by uuid and remove all fields
         response = self.postJSON(
@@ -2339,19 +2318,19 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        self.import_file("subflow", legacy=True)
+        self.import_file("subflow")
         flow = Flow.objects.filter(name="Parent Flow").first()
 
         # all flow dependencies and we should get the child flow
         response = self.fetchJSON(url, "flow=%s" % flow.uuid)
-        self.assertEqual({f["metadata"]["name"] for f in response.json()["flows"]}, {"Parent Flow", "Child Flow"})
+        self.assertEqual({f["name"] for f in response.json()["flows"]}, {"Parent Flow", "Child Flow"})
 
         # export just the parent flow
         response = self.fetchJSON(url, "flow=%s&dependencies=none" % flow.uuid)
-        self.assertEqual({f["metadata"]["name"] for f in response.json()["flows"]}, {"Parent Flow"})
+        self.assertEqual({f["name"] for f in response.json()["flows"]}, {"Parent Flow"})
 
         # import the clinic app which has campaigns
-        self.import_file("the_clinic", legacy=True)
+        self.import_file("the_clinic")
 
         # our catchall flow, all alone
         flow = Flow.objects.filter(name="Catch All").first()
@@ -2428,9 +2407,12 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        ContactField.get_or_create(self.org, self.admin, "nick_name", "Nick Name")
-        ContactField.get_or_create(self.org, self.admin, "registered", "Registered On", value_type=Value.TYPE_DATETIME)
-        ContactField.get_or_create(self.org2, self.admin2, "not_ours", "Something Else")
+        self.create_field("nick_name", "Nick Name")
+        self.create_field("registered", "Registered On", value_type=Value.TYPE_DATETIME)
+        self.create_field("not_ours", "Something Else", org=self.org2)
+
+        deleted = self.create_field("deleted", "Deleted")
+        deleted.release(self.admin)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
@@ -2485,6 +2467,10 @@ class APITest(TembaTest):
         self.assertEqual(age.label, "Real Age")
         self.assertEqual(age.value_type, "D")
 
+        # try to update with key of deleted field
+        response = self.postJSON(url, "key=deleted", {"label": "Something", "value_type": "text"})
+        self.assert404(response)
+
         # try to update with non-existent key
         response = self.postJSON(url, "key=not_ours", {"label": "Something", "value_type": "text"})
         self.assert404(response)
@@ -2507,9 +2493,9 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        survey = self.get_flow("media_survey", legacy=True)
-        color = self.get_flow("color", legacy=True)
-        archived = self.get_flow("favorites", legacy=True)
+        survey = self.get_flow("media_survey")
+        color = self.get_flow("color")
+        archived = self.get_flow("favorites")
         archived.archive()
 
         # add a campaign message flow that should be filtered out
@@ -2577,7 +2563,7 @@ class APITest(TembaTest):
                     "type": "message",
                     "archived": False,
                     "labels": [{"uuid": reporting.uuid, "name": "Reporting"}],
-                    "expires": 720,
+                    "expires": 10080,
                     "runs": {"active": 0, "completed": 1, "interrupted": 0, "expired": 0},
                     "results": [
                         {
@@ -2668,6 +2654,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertResultsByUUID(response, [color, survey])
 
+    @patch.object(Global, "MAX_ORG_GLOBALS", new=3)
     def test_globals(self):
         url = reverse("api.v2.globals")
         self.assertEndpointAccess(url)
@@ -2767,6 +2754,10 @@ class APITest(TembaTest):
         global1.refresh_from_db()
         self.assertEqual(global1.value, "Acme LLC")
 
+        # try to create a global with no name
+        response = self.postJSON(url, None, {"value": "yes"})
+        self.assertResponseError(response, "non_field_errors", "Name is required when creating new global.")
+
         # try to create a global with invalid name
         response = self.postJSON(url, None, {"name": "!!!#$%^"})
         self.assertResponseError(response, "name", "Name contains illegal characters.")
@@ -2782,7 +2773,6 @@ class APITest(TembaTest):
         # lets create a global via the API
         response = self.postJSON(url, None, {"name": "New Global", "value": "23464373"})
         self.assertEqual(response.status_code, 201)
-        print(response)
         global3 = Global.objects.get(key="new_global")
         self.assertEqual(
             response.json(),
@@ -2792,6 +2782,15 @@ class APITest(TembaTest):
                 "value": "23464373",
                 "modified_on": format_datetime(global3.modified_on),
             },
+        )
+
+        # try again now that we've hit the mocked limit of globals per org
+        response = self.postJSON(url, None, {"name": "Website URL", "value": "http://example.com"})
+        self.assertResponseError(
+            response,
+            "non_field_errors",
+            "This org has 3 globals and the limit is 3. "
+            "You must delete existing ones before you can create new ones.",
         )
 
     @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
@@ -3374,7 +3373,7 @@ class APITest(TembaTest):
         flow1 = self.get_flow("color_v13")
         flow2 = Flow.copy(flow1, self.user)
 
-        flow1_nodes = flow1.as_json()["nodes"]
+        flow1_nodes = flow1.get_definition()["nodes"]
         color_prompt = flow1_nodes[0]
         color_split = flow1_nodes[4]
         blue_reply = flow1_nodes[2]
@@ -3416,7 +3415,7 @@ class APITest(TembaTest):
         joe_run3 = MockSessionWriter(self.joe, flow2).wait().save().session.runs.get()
 
         # add a run for another org
-        flow3 = self.create_flow(org=self.org2, user=self.admin2)
+        flow3 = self.create_flow(org=self.org2)
         MockSessionWriter(self.hans, flow3).wait().save()
 
         # refresh runs which will have been modified by being interrupted

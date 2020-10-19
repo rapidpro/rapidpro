@@ -1,12 +1,12 @@
 import io
 import logging
 import time
-import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from itertools import chain, zip_longest
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
+from uuid import uuid4
 
 import iso8601
 import phonenumbers
@@ -31,12 +31,14 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
 from temba.orgs.models import Org, OrgLock
-from temba.utils import analytics, chunk_list, es, format_number, get_anonymous_user, on_transaction_commit
+from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.models import JSONField as TembaJSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import truncate, unsnakify
 from temba.utils.urns import ParsedURN, parse_urn
 from temba.values.constants import Value
+
+from .search import SearchException, elastic, parse_query
 
 logger = logging.getLogger(__name__)
 
@@ -465,7 +467,7 @@ class ContactField(SmartModel):
         Value.TYPE_WARD: "ward",
     }
 
-    uuid = models.UUIDField(unique=True, default=uuid.uuid4)
+    uuid = models.UUIDField(unique=True, default=uuid4)
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, verbose_name=_("Org"), related_name="contactfields")
 
@@ -788,6 +790,16 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         )
         return Contact.objects.get(id=response["contact"]["id"])
 
+    @classmethod
+    def resolve(cls, channel, urn):
+        """
+        Resolves a contact and URN from a channel interaction. Only used for relayer endpoints.
+        """
+        response = mailroom.get_client().contact_resolve(channel.org_id, channel.id, urn)
+        contact = Contact.objects.get(id=response["contact"]["id"])
+        contact_urn = ContactURN.objects.get(id=response["urn"]["id"])
+        return contact, contact_urn
+
     @property
     def anon_identifier(self):
         """
@@ -801,57 +813,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Define Contact.user_groups to only refer to user groups
         """
         return self.all_groups.filter(group_type=ContactGroup.TYPE_USER_DEFINED)
-
-    def as_json(self):
-        obj = dict(id=self.pk, name=str(self), uuid=self.uuid)
-
-        if not self.org.is_anon:
-            urns = []
-            for urn in self.urns.all():
-                urns.append(dict(scheme=urn.scheme, path=urn.path, priority=urn.priority))
-            obj["urns"] = urns
-
-        return obj
-
-    def as_search_json(self):
-        def urn_as_json(urn):
-            if self.org.is_anon:
-                return {"scheme": urn.scheme, "path": ContactURN.ANON_MASK}
-            return {"scheme": urn.scheme, "path": urn.path}
-
-        return {
-            "id": self.id,
-            "uuid": self.uuid,
-            "name": self.name,
-            "language": self.language,
-            "urns": [urn_as_json(u) for u in self.urns.all()],
-            "fields": self.fields if self.fields else {},
-            "created_on": self.created_on.isoformat(),
-            "last_seen_on": self.last_seen_on.isoformat() if self.last_seen_on else None,
-        }
-
-    @classmethod
-    def query_elasticsearch_for_ids(cls, org, query, group=None):
-        from temba.contacts import search
-
-        try:
-            group_uuid = group.uuid if group else ""
-            parsed = search.parse_query(org.id, query, group_uuid=group_uuid)
-            results = (
-                es.ModelESSearch(model=Contact, index="contacts")
-                .source(include=["id"])
-                .params(routing=org.id)
-                .using(es.ES)
-                .query(parsed.elastic_query)
-            )
-            matches = []
-            for r in results.scan():
-                matches.append(int(r.id))
-
-            return matches
-        except search.SearchException:
-            logger.error("Error evaluating query", exc_info=True)
-            raise  # reraise the exception
 
     def get_scheduled_messages(self):
         from temba.msgs.models import SystemLabel
@@ -1050,28 +1011,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         else:
             return str(value)
 
-    def handle_update(self, urns=(), fields=None, group=None, is_new=False):
-        """
-        Handles an update to a contact which can be one of
-          1. A change to one or more attributes
-          2. A change to the specified contact field
-          3. A manual change to a group membership
-        """
-        changed_groups = set([group]) if group else set()
-        if fields or urns or is_new:
-            # ensure dynamic groups are up to date
-            changed_groups.update(self.reevaluate_dynamic_groups(for_fields=fields, urns=urns))
-
-        # ensure our campaigns are up to date
-        from temba.campaigns.models import EventFire
-
-        if fields:
-            EventFire.update_events_for_contact_fields(contact=self, keys=fields)
-
-        if changed_groups:
-            # ensure our campaigns are up to date
-            EventFire.update_events_for_contact_groups(self, changed_groups)
-
     def update(self, name: str, language: str) -> List[modifiers.Modifier]:
         """
         Updates attributes of this contact
@@ -1163,55 +1102,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             return None
 
     @classmethod
-    def get_or_create(cls, org, urn, channel=None, name=None, auth=None, user=None, init_new=True):
-        """
-        Gets or creates a contact with the given URN
-        """
-
-        # if we don't have an org blow up, this is required
-        if not org:
-            raise ValueError("Attempt to create contact without org")
-
-        # get country from channel or org
-        if channel:
-            country = channel.country.code
-        else:
-            country = org.get_country_code()
-
-        # limit our contact name to 128 chars
-        if name:
-            name = name[:128]
-
-        normalized = URN.normalize(urn, country)
-        existing_urn = ContactURN.lookup(org, normalized, normalize=False, country_code=country)
-
-        if existing_urn and existing_urn.contact:
-            contact = existing_urn.contact
-            return contact, existing_urn
-        else:
-            kwargs = dict(org=org, name=name, created_by=user)
-            contact = Contact.objects.create(**kwargs)
-            contact.is_new = True
-            updated_attrs = list(kwargs.keys())
-
-            if existing_urn:
-                ContactURN.objects.filter(pk=existing_urn.pk).update(contact=contact)
-                urn_obj = existing_urn
-            else:
-                urn_obj = ContactURN.get_or_create(org, contact, normalized, channel=channel, auth=auth)
-
-            updated_urns = [urn]
-
-            # record contact creation in analytics
-            analytics.gauge("temba.contact_created")
-
-            # handle group and campaign updates
-            if init_new:
-                contact.handle_update(fields=updated_attrs, urns=updated_urns, is_new=True)
-
-            return contact, urn_obj
-
-    @classmethod
     def bulk_change_status(cls, user, contacts, status):
         cls.bulk_modify(user, contacts, [modifiers.Status(status=status)])
 
@@ -1291,21 +1181,26 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         with transaction.atomic():
             # prep our urns for deletion so our old path creates a new urn
             for urn in self.urns.all():
-                path = str(uuid.uuid4())
+                path = str(uuid4())
                 urn.identity = f"{DELETED_SCHEME}:{path}"
                 urn.path = path
                 urn.scheme = DELETED_SCHEME
                 urn.channel = None
                 urn.save(update_fields=("identity", "path", "scheme", "channel"))
 
-            # no group for you!
-            self.clear_all_groups(user)
+            # remove from all static and dynamic groups
+            for group in self.user_groups.all():
+                group.contacts.remove(self)
+
+            # delete any unfired campaign event fires
+            self.campaign_fires.filter(fired=None).delete()
 
             # now deactivate the contact itself
             self.is_active = False
             self.name = None
             self.fields = None
-            self.save(update_fields=("name", "is_active", "fields", "modified_on"))
+            self.modified_by = user
+            self.save(update_fields=("name", "is_active", "fields", "modified_by", "modified_on"))
 
         # if we are removing everything do so
         if full:
@@ -1414,50 +1309,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         else:
             # otherwise return highest priority of any scheme
             return urns[0] if urns else None
-
-    def reevaluate_dynamic_groups(self, for_fields=None, urns=()):
-        """
-        Re-evaluates this contacts membership of dynamic groups. If field is specified then re-evaluation is only
-        performed for those groups which reference that field.
-        :returns: the set of groups that were affected
-        """
-        from .search import evaluate_query
-
-        # inactive contacts can't be in dynamic groups
-        if self.status != Contact.STATUS_ACTIVE:  # pragma: no cover
-            return set()
-
-        # cache contact search json
-        contact_search_json = self.as_search_json()
-        user = get_anonymous_user()
-
-        affected_dynamic_groups = ContactGroup.get_user_groups(self.org, dynamic=True, ready_only=False)
-
-        # if we have fields and no urn changes, filter to just the groups that may have changed
-        if not urns and for_fields:
-            affected_dynamic_groups = affected_dynamic_groups.filter(query_fields__key__in=for_fields)
-
-        changed_set = set()
-
-        for dynamic_group in affected_dynamic_groups:
-            dynamic_group.org = self.org
-
-            try:
-                should_add = evaluate_query(self.org, dynamic_group.query, contact_json=contact_search_json)
-            except Exception as e:  # pragma: no cover
-                should_add = False
-                logger.error(f"Error evaluating query: {str(e)}", exc_info=True)
-
-            changed_set.update(dynamic_group._update_contacts(user, [self], add=should_add))
-
-        return changed_set
-
-    def clear_all_groups(self, user):
-        """
-        Removes this contact from all groups - static and dynamic.
-        """
-        for group in self.user_groups.all():
-            group.remove_contacts(user, [self])
 
     def get_display(self, org=None, formatted=True, short=False, for_expressions=False):
         """
@@ -1909,55 +1760,10 @@ class ContactGroup(TembaModel):
         # first character must be a word char
         return regex.match(r"\w", name[0], flags=regex.UNICODE)
 
-    def remove_contacts(self, user, contacts):
-        """
-        Forces removal of contacts from this group regardless of whether it is static or dynamic
-        """
-        if self.group_type != self.TYPE_USER_DEFINED:  # pragma: no cover
-            raise ValueError("Can't remove contacts from system groups")
-
-        return self._update_contacts(user, contacts, add=False)
-
-    def _update_contacts(self, user, contacts, add):
-        """
-        Adds or removes contacts from this group - used for both non-dynamic and dynamic groups
-        """
-        changed = set()
-        group_contacts = self.contacts.all()
-
-        for contact in contacts:
-            if add and (contact.status != Contact.STATUS_ACTIVE or not contact.is_active):  # pragma: no cover
-                raise ValueError("Blocked, stopped and deleted contacts can't be added to groups")
-
-            contact_changed = False
-
-            # if we are adding the contact to the group, and this contact is not in this group
-            if add:
-                if not group_contacts.filter(id=contact.id):
-                    self.contacts.add(contact)
-                    contact_changed = True
-            else:
-                if group_contacts.filter(id=contact.id):
-                    self.contacts.remove(contact)
-                    contact_changed = True
-
-            if contact_changed:
-                changed.add(contact.pk)
-                contact.handle_update(group=self)
-
-        if changed:
-            # update modified on in small batches to avoid long table lock, and having too many non-unique values for
-            # modified_on which is the primary ordering for the API
-            for batch in chunk_list(changed, 100):
-                Contact.objects.filter(org=self.org, pk__in=batch).update(modified_on=timezone.now())
-
-        return changed
-
     def update_query(self, query, reevaluate=True, parsed=None):
         """
         Updates the query for a dynamic group
         """
-        from temba.contacts.search import parse_query, SearchException
 
         if not self.is_dynamic:
             raise ValueError("Cannot update query on a non-smart group")
@@ -1966,7 +1772,7 @@ class ContactGroup(TembaModel):
 
         try:
             if not parsed:
-                parsed = parse_query(self.org_id, query)
+                parsed = parse_query(self.org, query)
 
             if not parsed.metadata.allow_as_group:
                 raise ValueError(f"Cannot use query '{query}' as a smart group")
@@ -2069,9 +1875,7 @@ class ContactGroup(TembaModel):
 
             parsed_query = None
             if group_query:
-                from .search import parse_query
-
-                parsed_query = parse_query(org.id, group_query)
+                parsed_query = parse_query(org, group_query)
                 for field_ref in parsed_query.metadata.fields:
                     ContactField.get_or_create(org, user, key=field_ref["key"])
 
@@ -2248,7 +2052,7 @@ class ExportContactsTask(BaseExportTask):
         include_group_memberships = bool(self.group_memberships.exists())
 
         if self.search:
-            contact_ids = Contact.query_elasticsearch_for_ids(self.org, self.search, group)
+            contact_ids = elastic.query_contact_ids(self.org, self.search, group=group)
         else:
             contact_ids = group.contacts.order_by("name", "id").values_list("id", flat=True)
 
@@ -2347,7 +2151,7 @@ class ExportContactsTask(BaseExportTask):
 
 def get_import_upload_path(instance: Any, filename: str):
     ext = Path(filename).suffix.lower()
-    return f"contact_imports/{instance.org_id}/{uuid.uuid4()}{ext}"
+    return f"contact_imports/{instance.org_id}/{uuid4()}{ext}"
 
 
 class ContactImport(SmartModel):
@@ -2389,18 +2193,36 @@ class ContactImport(SmartModel):
 
         data = pyexcel.iget_array(file_stream=file, file_type=file_type)
         try:
-            headers = next(data)
+            headers = [str(h).strip() for h in next(data)]
         except StopIteration:
             raise ValidationError(_("Import file appears to be empty."))
 
-        if any([h.strip() == "" for h in headers]):
+        if any([h == "" for h in headers]):
             raise ValidationError(_("Import file contains an empty header."))
 
         mappings = cls._auto_mappings(org, headers)
 
-        # iterate over rest of the rows to check if we exceed record limit
+        # iterate over rest of the rows to do row-level validation
+        seen_uuids = set()
+        seen_urns = set()
         num_records = 0
         for row in data:
+            record = cls._row_to_record(headers, row)
+            uuid, urns = cls._extract_uuid_and_urns(record, mappings)
+            if uuid:
+                if uuid in seen_uuids:
+                    raise ValidationError(
+                        _("Import file contains duplicated contact UUID '%(uuid)s'."), params={"uuid": uuid}
+                    )
+                seen_uuids.add(uuid)
+            for urn in urns:
+                if urn in seen_urns:
+                    raise ValidationError(
+                        _("Import file contains duplicated contact URN '%(urn)s'."), params={"urn": urn}
+                    )
+                seen_urns.add(urn)
+
+            # check if we exceed record limit
             num_records += 1
             if num_records > ContactImport.MAX_RECORDS:
                 raise ValidationError(
@@ -2414,6 +2236,21 @@ class ContactImport(SmartModel):
         file.seek(0)  # seek back to beginning so subsequent reads work
 
         return headers, mappings, num_records
+
+    @staticmethod
+    def _extract_uuid_and_urns(record, mappings) -> Tuple[str, List[str]]:
+        """
+        Extracts any UUIDs and URNs from the given record so they can be checked for uniqueness
+        """
+        uuid = ""
+        urns = []
+        for header, value in record.items():
+            mapping = mappings[header]
+            if mapping["type"] == "attribute" and mapping["name"] == "uuid":
+                uuid = value.lower()
+            elif mapping["type"] == "scheme" and value:
+                urns.append(URN.normalize(URN.from_parts(mapping["scheme"], value)))
+        return uuid, urns
 
     @classmethod
     def _auto_mappings(cls, org: Org, headers: List[str]) -> Dict:
@@ -2440,7 +2277,7 @@ class ContactImport(SmartModel):
             elif header_prefix == "field" and header_name:
                 field_key = ContactField.make_key(header_name)
                 if field_key in existing_fields:
-                    mapping = {"type": "field", "key": field_key, "name": header_name}
+                    mapping = {"type": "field", "key": field_key, "name": existing_fields[field_key].label}
                 else:
                     # can be created or selected in next step
                     mapping = {"type": "new_field", "key": field_key, "name": header_name, "value_type": "T"}
@@ -2524,10 +2361,8 @@ class ContactImport(SmartModel):
             batch_start = record_num
 
             for row in row_batch:
-                row = row[: len(self.headers)]  # ignore any columns beyond our headers
-
-                record = dict(zip_longest(self.headers, row, fillvalue=""))
-                spec = self._parse_record(record)
+                record = self._row_to_record(self.headers, row)
+                spec = self._record_to_spec(record)
                 batch_specs.append(spec)
                 record_num += 1
 
@@ -2620,7 +2455,20 @@ class ContactImport(SmartModel):
         prefix, name = (parts[0], parts[1]) if len(parts) >= 2 else ("", parts[0])
         return prefix.lower(), name
 
-    def _parse_record(self, record: Dict) -> Dict:
+    @staticmethod
+    def _row_to_record(headers, row):
+        """
+        Convert a row (array of values) to a record (dict of headers to values)
+        """
+
+        row = row[: len(headers)]  # ignore any columns beyond our headers
+        return dict(zip_longest(headers, row, fillvalue=""))
+
+    def _record_to_spec(self, record: Dict) -> Dict:
+        """
+        Convert a record (dict of headers to values) to a contact spec
+        """
+
         spec = {"groups": [str(self.group.uuid)]}
 
         for header, raw_value in record.items():

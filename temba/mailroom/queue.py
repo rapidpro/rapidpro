@@ -53,7 +53,7 @@ def queue_msg_handling(msg):
         "urn_id": msg.contact_urn_id,
         "text": msg.text,
         "attachments": msg.attachments,
-        "new_contact": getattr(msg.contact, "is_new", False),
+        "new_contact": False,  # only used by courier
     }
 
     _queue_handler_task(msg.org_id, msg.contact_id, ContactEvent.MSG, msg_task)
@@ -73,7 +73,7 @@ def queue_mo_miss_event(event):
         "urn": str(event.contact_urn),
         "urn_id": event.contact_urn_id,
         "extra": event.extra,
-        "new_contact": getattr(event.contact, "is_new", False),
+        "new_contact": False,  # only used by courier
     }
 
     _queue_handler_task(event.org_id, event.contact_id, ContactEvent.MO_MISS, event_task)
@@ -88,7 +88,7 @@ def queue_broadcast(broadcast):
         "translations": {lang: {"text": text} for lang, text in broadcast.text.items()},
         "template_state": broadcast.get_template_state(),
         "base_language": broadcast.base_language,
-        "urns": [u.urn for u in broadcast.urns.all()],
+        "urns": broadcast.raw_urns or [],
         "contact_ids": list(broadcast.contacts.values_list("id", flat=True)),
         "group_ids": list(broadcast.groups.values_list("id", flat=True)),
         "broadcast_id": broadcast.id,

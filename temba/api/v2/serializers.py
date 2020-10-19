@@ -42,10 +42,6 @@ def format_datetime(value):
     return json.encode_datetime(value, micros=True) if value else None
 
 
-def migrate_translations(translations):
-    return {lang: mailroom.get_client().expression_migrate(s) for lang, s in translations.items()}
-
-
 def normalize_extra(extra):
     """
     Normalizes a dict of extra passed to the flow start endpoint. We need to do this for backwards compatibility with
@@ -196,7 +192,7 @@ class BroadcastReadSerializer(ReadSerializer):
         if self.context["org"].is_anon:
             return None
         else:
-            return [str(urn) for urn in obj.urns.all()]
+            return obj.raw_urns or []
 
     class Meta:
         model = Broadcast
@@ -209,7 +205,6 @@ class BroadcastWriteSerializer(WriteSerializer):
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
     channel = fields.ChannelField(required=False)
-    new_expressions = serializers.BooleanField(required=False, default=False)
 
     def validate(self, data):
         if not (data.get("urns") or data.get("contacts") or data.get("groups")):
@@ -221,16 +216,8 @@ class BroadcastWriteSerializer(WriteSerializer):
         """
         Create a new broadcast to send out
         """
-        contact_urns = []
-        for urn in self.validated_data.get("urns", []):
-            # create contacts for URNs if necessary
-            __, contact_urn = Contact.get_or_create(self.context["org"], urn, user=self.context["user"])
-            contact_urns.append(contact_urn)
 
         text, base_language = self.validated_data["text"]
-
-        if not self.validated_data["new_expressions"]:
-            text = migrate_translations(text)
 
         # create the broadcast
         broadcast = Broadcast.create(
@@ -240,13 +227,13 @@ class BroadcastWriteSerializer(WriteSerializer):
             base_language=base_language,
             groups=self.validated_data.get("groups", []),
             contacts=self.validated_data.get("contacts", []),
-            urns=contact_urns,
+            urns=self.validated_data.get("urns", []),
             channel=self.validated_data.get("channel"),
             template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
         )
 
         # send it
-        on_transaction_commit(lambda: broadcast.send())
+        on_transaction_commit(lambda: broadcast.send_async())
 
         return broadcast
 
@@ -389,7 +376,7 @@ class CampaignEventWriteSerializer(WriteSerializer):
         if self.instance:
 
             # we dont update, we only create
-            self.instance = self.instance.deactivate_and_copy()
+            self.instance = self.instance.recreate()
 
             # we are being set to a flow
             if flow:
@@ -400,10 +387,6 @@ class CampaignEventWriteSerializer(WriteSerializer):
             # we are being set to a message
             else:
                 translations, base_language = message
-
-                if not self.validated_data["new_expressions"]:
-                    translations = migrate_translations(translations)
-
                 self.instance.message = translations
 
                 # if we aren't currently a message event, we need to create our hidden message flow
@@ -433,9 +416,6 @@ class CampaignEventWriteSerializer(WriteSerializer):
                 )
             else:
                 translations, base_language = message
-
-                if not self.validated_data["new_expressions"]:
-                    translations = migrate_translations(translations)
 
                 self.instance = CampaignEvent.create_message_event(
                     self.context["org"],
@@ -574,12 +554,7 @@ class ContactWriteSerializer(WriteSerializer):
 
     def validate_language(self, value):
         if value and not pycountry.languages.get(alpha_3=value):
-            # for backward compatibility we log and ignore junk values for now but eventually this should be an error
-            # raise serializers.ValidationError("Not a valid ISO639-3 language code.")
-            extra = {"org_id": self.context["org"].id, "org_name": self.context["org"].name, "value": value}
-            logger.error(f"API endpoint passed invalid language code", extra=extra)
-
-            value = None
+            raise serializers.ValidationError("Not a valid ISO639-3 language code.")
 
         return value
 
@@ -1084,6 +1059,18 @@ class GlobalWriteSerializer(WriteSerializer):
         if not Global.is_valid_key(key):
             raise serializers.ValidationError("Name creates Key that is invalid")
         return value
+
+    def validate(self, data):
+        if not self.instance and not data.get("name"):
+            raise serializers.ValidationError("Name is required when creating new global.")
+
+        globals_count = Global.objects.filter(org=self.context["org"], is_active=True).count()
+        if globals_count >= Global.MAX_ORG_GLOBALS:
+            raise serializers.ValidationError(
+                "This org has %s globals and the limit is %s. You must delete existing ones before you can "
+                "create new ones." % (globals_count, Global.MAX_ORG_GLOBALS)
+            )
+        return data
 
     def save(self):
         value = self.validated_data["value"]

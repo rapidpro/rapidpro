@@ -38,7 +38,6 @@ python-magic
 xlsxlite
 
 ########################## misc ##########################
-antlr4-python3-runtime
 celery[redis]
 colorama
 gunicorn
@@ -51,7 +50,6 @@ pycrypto
 python-dateutil==2.2
 pytz
 psycopg2-binary
-rapidpro-expressions
 redis<3.0  # see https://github.com/celery/celery/issues/4495
 requests
 simplejson

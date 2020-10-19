@@ -9,7 +9,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup, ContactURN
-from temba.contacts.omnibox import omnibox_deserialize, omnibox_serialize
+from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_serialize
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.msgs.views import ModalMixin
@@ -39,7 +39,7 @@ class BaseTriggerForm(forms.ModelForm):
         Flow.objects.filter(pk__lt=0),
         label=_("Flow"),
         required=True,
-        widget=SelectWidget(attrs={"placeholder": _("Select a flow")}),
+        widget=SelectWidget(attrs={"placeholder": _("Select a flow"), "searchable": True}),
     )
 
     def __init__(self, user, flows, *args, **kwargs):
@@ -252,7 +252,7 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
         Flow.objects.filter(pk__lt=0),
         label=_("Flow"),
         required=True,
-        widget=SelectWidget(attrs={"placeholder": _("Select a flow")}),
+        widget=SelectWidget(attrs={"placeholder": _("Select a flow"), "searchable": True}),
         empty_label=None,
     )
 

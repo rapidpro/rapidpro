@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-02 16:06+0000\n"
+"POT-Creation-Date: 2020-10-15 20:16+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3462,6 +3462,14 @@ msgid "Import file contains an empty header."
 msgstr ""
 
 #, python-format
+msgid "Import file contains duplicated contact UUID '%(uuid)s'."
+msgstr ""
+
+#, python-format
+msgid "Import file contains duplicated contact URN '%(urn)s'."
+msgstr ""
+
+#, python-format
 msgid "Import files can contain a maximum of %(max)d records."
 msgstr ""
 
@@ -3788,10 +3796,6 @@ msgstr "Rótulos"
 msgid "Any labels on this flow"
 msgstr "Quaisquer rótulos nesta mensagem"
 
-#, fuzzy
-msgid "The type of node this flow starts with"
-msgstr "O nó com que esse fluxo inicia"
-
 msgid "Whether this flow is archived"
 msgstr "Se esse fluxo for arquivado"
 
@@ -3847,57 +3851,12 @@ msgstr "Arquivado"
 msgid "User delete"
 msgstr "Função do Usuário"
 
-#, fuzzy
-msgid "The label for this field"
-msgstr "O nome para esse fluxo"
-
-#, fuzzy
-msgid "The value that rules will be run against, if None defaults to @step.value"
-msgstr "Os valores dos parâmetros serão executados novamente, se nenhum padrão @step.value"
-
-msgid "The URL that will be called with the user's response before we run our rules"
-msgstr "A URL que será chamada com a resposta do usuário antes de executarmos nossas regras"
-
-msgid "How the webhook should be executed"
-msgstr "Como o webhook deve ser executado"
-
-msgid "The JSON encoded actions for this action set"
-msgstr "O JSON codificou ações para este conjunto de ações"
-
-#, fuzzy
-#| msgid "Configuration"
-msgid "Ruleset Configuration"
-msgstr "Configuração"
-
-#, fuzzy
-#| msgid "More Organization specific configuration"
-msgid "RuleSet type specific configuration"
-msgstr "Obter mais configurações específicas da Organização"
-
-msgid "When this ruleset was originally created"
-msgstr "Quando este conjunto de regras foi originalmente criado"
-
-msgid "When this ruleset was last modified"
-msgstr "Quando este conjunto de regras foi modificado pela última vez"
-
-msgid "When this action was originally created"
-msgstr "Quando essa ação foi originalmente criada"
-
-msgid "When this action was last modified"
-msgstr "Quando essa ação foi modificada pela última vez"
-
 msgid "The JSON flow definition"
 msgstr ""
 
 #, fuzzy
 msgid "Revision number for this definition"
 msgstr "O número de telefone para esta chamada"
-
-msgid "Unsupported flow type"
-msgstr ""
-
-msgid "Malformed flow, encountered non-localized definition"
-msgstr ""
 
 msgid "The flows to export"
 msgstr "Os fluxos para exportar"
@@ -4069,83 +4028,6 @@ msgstr "Adicionar rótulo"
 msgid "Remove"
 msgstr "Remover"
 
-msgid "Contact Name"
-msgstr "Nome do contato"
-
-#, fuzzy
-#| msgid "Contact First Name"
-msgid "Contact Creation Date"
-msgstr "Primeiro nome do contato"
-
-msgid "Contact First Name"
-msgstr "Primeiro nome do contato"
-
-msgid "Contact Groups"
-msgstr "Grupos de contato"
-
-#, fuzzy
-msgid "Contact Language"
-msgstr "Linguagem"
-
-#, fuzzy
-#| msgid "Email Address"
-msgid "Contact Email Address"
-msgstr "Endereço de e-mail"
-
-msgid "Contact Phone"
-msgstr "Telefone do contato"
-
-msgid "Contact Phone - E164"
-msgstr "Telefone do contato - E164"
-
-#, fuzzy
-msgid "Contact UUID"
-msgstr "Nome do contato"
-
-#, fuzzy
-msgid "New Contact"
-msgstr "1 Contato"
-
-#, fuzzy, python-format
-#| msgid "Contacts"
-msgid "Contact %s"
-msgstr "Contatos"
-
-msgid "Current Date and Time"
-msgstr "Data e hora atual"
-
-msgid "Current Date"
-msgstr "Data atual"
-
-msgid "Tomorrow's Date"
-msgstr "Data de amanhã"
-
-msgid "Yesterday's Date"
-msgstr "Data de ontem"
-
-#, fuzzy
-msgid "Sent to"
-msgstr "Enviado"
-
-msgid "Sent to URN display"
-msgstr ""
-
-#, fuzzy
-msgid "Sent to URN path"
-msgstr "Enviado"
-
-#, fuzzy
-msgid "Sent to URN type"
-msgstr "Enviado"
-
-#, fuzzy
-msgid "Sent to URN"
-msgstr "Enviado"
-
-#, fuzzy
-msgid "All flow variables"
-msgstr "Nomeie a sua variável"
-
 #, fuzzy
 msgid "Start Flow"
 msgstr "Ação de iniciar o fluxo"
@@ -4282,9 +4164,6 @@ msgstr "Resultados ao vivo"
 #, fuzzy
 msgid "Download Flow Results"
 msgstr "Resultados ao vivo"
-
-msgid "Your flow contains an invalid loop. Please refresh your browser."
-msgstr ""
 
 #, fuzzy
 msgid "Contacts & Groups"
@@ -4469,10 +4348,6 @@ msgstr "O tipo dessa mensagem"
 #, fuzzy
 msgid "The date for the newest message to export"
 msgstr "O tipo dessa mensagem"
-
-#, python-format
-msgid "Contact Field: %(label)s"
-msgstr "Campo de contato: %(label)s"
 
 #, fuzzy
 msgid "Recipients"
@@ -7758,25 +7633,20 @@ msgstr ""
 msgid "<div class='code mt-4'> Manage > API Usage > Callback API > Server Settings </div> <div class='mt-2'> Enter the Webhook URL below for the <div class='code inline py-1'>URL</div> field and the Verify Token in the <div class='code inline py-1'>Secret Key</div> field. </div> <div class='code mt-6'> Manage > API Usage > Callback API > Event Types </div> <div class='mt-2'> Check the option %(option)s </div>"
 msgstr ""
 
-msgid ""
-"\n"
-"    Your WhatsApp channel is now connected, you should be able to send and receive messages as normal.\n"
-"\n"
-"  "
-msgstr ""
+#, fuzzy
+msgid "Your WhatsApp channel is now connected, you should be able to send and receive messages as normal."
+msgstr "Textit usa o seu telefone Android para enviar e receber mensagens."
 
-msgid ""
-"\n"
-"    In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh\n"
-"    the contacts on the WhatsApp application. This may take a few minutes.\n"
-"\n"
-"  "
+msgid "In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh the contacts on the WhatsApp application. This may take a few minutes."
 msgstr ""
 
 #, fuzzy
 #| msgid "Has Template Error"
 msgid "WhatsApp Templates Events"
 msgstr "Possui erro no modelo"
+
+msgid "No syncs yet. Check back later."
+msgstr ""
 
 #, fuzzy
 msgid "Templates"
@@ -11378,6 +11248,127 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "The label for this field"
+#~ msgstr "O nome para esse fluxo"
+
+#, fuzzy
+#~ msgid "The value that rules will be run against, if None defaults to @step.value"
+#~ msgstr "Os valores dos parâmetros serão executados novamente, se nenhum padrão @step.value"
+
+#~ msgid "The URL that will be called with the user's response before we run our rules"
+#~ msgstr "A URL que será chamada com a resposta do usuário antes de executarmos nossas regras"
+
+#~ msgid "How the webhook should be executed"
+#~ msgstr "Como o webhook deve ser executado"
+
+#~ msgid "The JSON encoded actions for this action set"
+#~ msgstr "O JSON codificou ações para este conjunto de ações"
+
+#, fuzzy
+#~| msgid "Configuration"
+#~ msgid "Ruleset Configuration"
+#~ msgstr "Configuração"
+
+#, fuzzy
+#~| msgid "More Organization specific configuration"
+#~ msgid "RuleSet type specific configuration"
+#~ msgstr "Obter mais configurações específicas da Organização"
+
+#~ msgid "When this ruleset was originally created"
+#~ msgstr "Quando este conjunto de regras foi originalmente criado"
+
+#~ msgid "When this ruleset was last modified"
+#~ msgstr "Quando este conjunto de regras foi modificado pela última vez"
+
+#~ msgid "When this action was originally created"
+#~ msgstr "Quando essa ação foi originalmente criada"
+
+#~ msgid "When this action was last modified"
+#~ msgstr "Quando essa ação foi modificada pela última vez"
+
+#, fuzzy
+#~ msgid "The type of node this flow starts with"
+#~ msgstr "O nó com que esse fluxo inicia"
+
+#~ msgid "Contact Name"
+#~ msgstr "Nome do contato"
+
+#, fuzzy
+#~| msgid "Contact First Name"
+#~ msgid "Contact Creation Date"
+#~ msgstr "Primeiro nome do contato"
+
+#~ msgid "Contact First Name"
+#~ msgstr "Primeiro nome do contato"
+
+#~ msgid "Contact Groups"
+#~ msgstr "Grupos de contato"
+
+#, fuzzy
+#~ msgid "Contact Language"
+#~ msgstr "Linguagem"
+
+#, fuzzy
+#~| msgid "Email Address"
+#~ msgid "Contact Email Address"
+#~ msgstr "Endereço de e-mail"
+
+#~ msgid "Contact Phone"
+#~ msgstr "Telefone do contato"
+
+#~ msgid "Contact Phone - E164"
+#~ msgstr "Telefone do contato - E164"
+
+#, fuzzy
+#~ msgid "Contact UUID"
+#~ msgstr "Nome do contato"
+
+#, fuzzy
+#~ msgid "New Contact"
+#~ msgstr "1 Contato"
+
+#, fuzzy, python-format
+#~| msgid "Contacts"
+#~ msgid "Contact %s"
+#~ msgstr "Contatos"
+
+#~ msgid "Current Date and Time"
+#~ msgstr "Data e hora atual"
+
+#~ msgid "Current Date"
+#~ msgstr "Data atual"
+
+#~ msgid "Tomorrow's Date"
+#~ msgstr "Data de amanhã"
+
+#~ msgid "Yesterday's Date"
+#~ msgstr "Data de ontem"
+
+#, fuzzy
+#~ msgid "Sent to"
+#~ msgstr "Enviado"
+
+#, fuzzy
+#~ msgid "Sent to URN path"
+#~ msgstr "Enviado"
+
+#, fuzzy
+#~ msgid "Sent to URN type"
+#~ msgstr "Enviado"
+
+#, fuzzy
+#~ msgid "Sent to URN"
+#~ msgstr "Enviado"
+
+#, fuzzy
+#~ msgid "All flow variables"
+#~ msgstr "Nomeie a sua variável"
+
+#, python-format
+#~ msgid "Contact Field: %(label)s"
+#~ msgstr "Campo de contato: %(label)s"
 
 #, fuzzy
 #~ msgid "Revision History"
