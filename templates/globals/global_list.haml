@@ -76,7 +76,7 @@
               %temba-modax{ id:'delete-{{obj.id}}', header:'{% trans "Delete Global" %}', endpoint:"{% url 'globals.global_delete' obj.id %}" }
               %temba-modax{ id:'uses-{{obj.id}}', header:'{% trans "Global Details" %}', endpoint:"{% url 'globals.global_detail' obj.id %}" }
 
-          %table.list.object-list.lined{class:"{% if org_perms.contacts.contact_update %}selectable{%endif%}"}
+          %table.list.object-list.lined.selectable{class:"{% if org_perms.contacts.contact_update %}selectable{%endif%}"}
             %tbody
               - for obj in object_list
                 %tr.hover-linked.update{onclick:"showUpdateGlobalModal({{obj.id}})"}
