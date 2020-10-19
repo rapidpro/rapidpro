@@ -5688,6 +5688,27 @@ class ContactImportTest(TembaTest):
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_flagged)
 
+    def test_data_types(self):
+        imp = self.create_contact_import("media/test_imports/data_formats.xlsx")
+        imp.start()
+        batch = imp.batches.get()
+        self.assertEqual(
+            [
+                {
+                    "uuid": "17c4388a-024f-4e67-937a-13be78a70766",
+                    "fields": {
+                        "a_number": "1234.5678",
+                        "a_date": "2020-10-19",
+                        "a_time": "13:17:00",
+                        "a_datetime": "2020-10-19T13:18:00+02:00",
+                        "price": "123.45",
+                    },
+                    "groups": [str(imp.group.uuid)],
+                }
+            ],
+            batch.specs,
+        )
+
     def test_parse_value(self):
         imp = self.create_contact_import("media/test_imports/simple.xlsx")
         kgl = pytz.timezone("Africa/Kigali")
