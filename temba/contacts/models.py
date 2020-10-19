@@ -2725,6 +2725,40 @@ class ContactGroup(TembaModel):
         # first character must be a word char
         return regex.match(r"\w", name[0], flags=regex.UNICODE)
 
+    def update_flows(self):
+        """
+        Update flow steps with the actual contact group name.
+        """
+        flows = self.dependent_flows.all()
+
+        def process_node(node):
+            data_updated = False
+            flow_types = {"add_contact_groups", "remove_contact_groups", "send_broadcast", "start_session"}
+            node_action_types = {action.get("type") for action in node.get("actions", [])}
+            action_type_match = bool(node_action_types and node_action_types.intersection(flow_types))
+            if action_type_match:
+                for action in node.get("actions", []):
+                    if action.get("type") in flow_types:
+                        for group in action.get("groups", []):
+                            if group.get("uuid") == self.uuid:
+                                group["name"] = self.name
+                                data_updated = True
+
+            router_type_match = node.get("router", {}).get("operand", "") == "@contact.groups"
+            if router_type_match:
+                categories = {category["uuid"]: category for category in node.get("router", {}).get("categories", [])}
+                for case in node.get("router", {}).get("cases", []):
+                    if case.get("type") == "has_group" and case.get("arguments", [""])[0] == self.uuid:
+                        case["arguments"][1] = self.name
+                        categories.get(case.get("category_uuid"), {})["name"] = self.name
+                        data_updated = True
+            return data_updated
+
+        for flow in flows:
+            flow_revision = flow.revisions.order_by("revision").last()
+            if any(list(map(process_node, flow_revision.definition.get("nodes", [])))):
+                flow_revision.save()
+
     def update_contacts(self, user, contacts, add):
         """
         Manually adds or removes contacts from a static group. Returns contact ids of contacts whose membership changed.
