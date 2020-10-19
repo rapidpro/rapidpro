@@ -22,6 +22,8 @@ RUN npm install && bower install --allow-root
 
 RUN python3.6 manage.py collectstatic --noinput
 
+RUN sed -i "/worker_connections\s/c\    worker_connections 2048;\n    use epoll;\n    multi_accept on;" /etc/nginx/nginx.conf
+RUN echo "worker_rlimit_nofile 65536;" >> /etc/nginx/nginx.conf
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 
 RUN rm -f /etc/nginx/sites-enabled/default
