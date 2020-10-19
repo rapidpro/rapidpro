@@ -24,7 +24,6 @@ from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT,
 from temba.orgs.models import Org
 from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
-from temba.values.constants import Value
 
 from .mailroom import create_contact_locally, update_field_locally
 
@@ -209,7 +208,7 @@ class TembaTestMixin:
     def create_label(self, name, org=None):
         return Label.get_or_create(org or self.org, self.user, name)
 
-    def create_field(self, key, label, value_type=Value.TYPE_TEXT, org=None):
+    def create_field(self, key, label, value_type=ContactField.TYPE_TEXT, org=None):
         return ContactField.user_fields.create(
             org=org or self.org,
             key=key,

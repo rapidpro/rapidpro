@@ -25,7 +25,6 @@ from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SE
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticketer
 from temba.utils import extract_constants, json, on_transaction_commit
-from temba.values.constants import Value
 
 from . import fields
 from .validators import UniqueForOrgValidator
@@ -56,7 +55,7 @@ def _normalize_extra(extra, count):
         return INVALID_EXTRA_KEY_CHARS.sub("_", key)[:255]
 
     if isinstance(extra, str):
-        return extra[: Value.MAX_VALUE_LEN], count + 1
+        return extra[:640], count + 1
 
     elif isinstance(extra, numbers.Number) or isinstance(extra, bool):
         return extra, count + 1
@@ -659,12 +658,19 @@ class ContactWriteSerializer(WriteSerializer):
 
 
 class ContactFieldReadSerializer(ReadSerializer):
-    VALUE_TYPES = extract_constants(Value.TYPE_CONFIG)
+    VALUE_TYPES = {
+        ContactField.TYPE_TEXT: "text",
+        ContactField.TYPE_NUMBER: "numeric",
+        ContactField.TYPE_DATETIME: "datetime",
+        ContactField.TYPE_STATE: "state",
+        ContactField.TYPE_DISTRICT: "district",
+        ContactField.TYPE_WARD: "ward",
+    }
 
     value_type = serializers.SerializerMethodField()
 
     def get_value_type(self, obj):
-        return self.VALUE_TYPES.get(obj.value_type)
+        return self.VALUE_TYPES[obj.value_type]
 
     class Meta:
         model = ContactField
@@ -672,7 +678,7 @@ class ContactFieldReadSerializer(ReadSerializer):
 
 
 class ContactFieldWriteSerializer(WriteSerializer):
-    VALUE_TYPES = extract_constants(Value.TYPE_CONFIG, reverse=True)
+    VALUE_TYPES = {v: k for k, v in ContactFieldReadSerializer.VALUE_TYPES.items()}
 
     label = serializers.CharField(
         required=True,
@@ -692,7 +698,7 @@ class ContactFieldWriteSerializer(WriteSerializer):
         return value
 
     def validate_value_type(self, value):
-        return self.VALUE_TYPES.get(value)
+        return self.VALUE_TYPES[value]
 
     def validate(self, data):
 

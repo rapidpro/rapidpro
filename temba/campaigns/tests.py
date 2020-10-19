@@ -12,7 +12,6 @@ from temba.flows.models import Flow, FlowRevision
 from temba.msgs.models import Msg
 from temba.orgs.models import Language, Org
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
-from temba.values.constants import Value
 
 from .models import Campaign, CampaignEvent, EventFire
 from .tasks import trim_event_fires_task
@@ -37,7 +36,7 @@ class CampaignTest(TembaTest):
 
         # create a contact field for our planting date
         self.planting_date = ContactField.get_or_create(
-            self.org, self.admin, "planting_date", "Planting Date", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "planting_date", "Planting Date", value_type=ContactField.TYPE_DATETIME
         )
 
     @mock_mailroom
@@ -1064,13 +1063,13 @@ class CampaignTest(TembaTest):
 
         # try changing our field type to something non-date, should throw
         with self.assertRaises(ValueError):
-            ContactField.get_or_create(self.org, self.admin, "planting_date", value_type=Value.TYPE_TEXT)
+            ContactField.get_or_create(self.org, self.admin, "planting_date", value_type=ContactField.TYPE_TEXT)
 
         # release our campaign event
         event.release()
 
         # should be able to change our field type now
-        ContactField.get_or_create(self.org, self.admin, "planting_date", value_type=Value.TYPE_TEXT)
+        ContactField.get_or_create(self.org, self.admin, "planting_date", value_type=ContactField.TYPE_TEXT)
 
     def test_translations(self):
         campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)

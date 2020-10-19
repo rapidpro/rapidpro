@@ -42,7 +42,6 @@ from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin
-from temba.values.constants import Value
 
 from .models import (
     TEL_SCHEME,
@@ -1547,7 +1546,7 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
             .annotate(type_count=Count("value_type"))
             .order_by("-type_count", "value_type")
         )
-        value_type_map = {vt[0]: vt[1] for vt in Value.TYPE_CONFIG}
+        value_type_map = {vt[0]: vt[1] for vt in ContactField.TYPE_CHOICES}
         types = [
             {
                 "label": value_type_map[type_cnt["value_type"]],
@@ -1885,9 +1884,9 @@ class ContactImportCRUDL(SmartCRUDL):
                         )
                         value_type_field = forms.ChoiceField(
                             label=" ",
-                            choices=Value.TYPE_CHOICES,
+                            choices=ContactField.TYPE_CHOICES,
                             required=True,
-                            initial=Value.TYPE_TEXT,
+                            initial=ContactField.TYPE_TEXT,
                             widget=SelectWidget(attrs={"widget_only": True}),
                         )
 
@@ -1913,7 +1912,7 @@ class ContactImportCRUDL(SmartCRUDL):
                     data[header] = {
                         "include": self.cleaned_data.get(f"column_{i}_include", True),
                         "name": self.cleaned_data.get(f"column_{i}_name", "").strip(),
-                        "value_type": self.cleaned_data.get(f"column_{i}_value_type", Value.TYPE_TEXT),
+                        "value_type": self.cleaned_data.get(f"column_{i}_value_type", ContactField.TYPE_TEXT),
                     }
                 return data
 

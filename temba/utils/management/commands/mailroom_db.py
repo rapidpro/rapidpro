@@ -22,7 +22,6 @@ from temba.msgs.models import Label
 from temba.orgs.models import Org
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticketer
-from temba.values.constants import Value
 
 # by default every user will have this password including the superuser
 USER_PASSWORD = "Arst1234"
@@ -97,19 +96,29 @@ ORG1 = dict(
         dict(name="Testers", uuid="5e9d8fab-5e7e-4f51-b533-261af5dea70d", size=10),
     ),
     fields=(
-        dict(key="gender", label="Gender", value_type=Value.TYPE_TEXT, uuid="3a5891e4-756e-4dc9-8e12-b7a766168824"),
-        dict(key="age", label="Age", value_type=Value.TYPE_NUMBER, uuid="903f51da-2717-47c7-a0d3-f2f32877013d"),
         dict(
-            key="joined", label="Joined", value_type=Value.TYPE_DATETIME, uuid="d83aae24-4bbf-49d0-ab85-6bfd201eac6d"
+            key="gender",
+            label="Gender",
+            value_type=ContactField.TYPE_TEXT,
+            uuid="3a5891e4-756e-4dc9-8e12-b7a766168824",
         ),
-        dict(key="ward", label="Ward", value_type=Value.TYPE_WARD, uuid="de6878c1-b174-4947-9a65-8910ebe7d10f"),
+        dict(key="age", label="Age", value_type=ContactField.TYPE_NUMBER, uuid="903f51da-2717-47c7-a0d3-f2f32877013d"),
+        dict(
+            key="joined",
+            label="Joined",
+            value_type=ContactField.TYPE_DATETIME,
+            uuid="d83aae24-4bbf-49d0-ab85-6bfd201eac6d",
+        ),
+        dict(key="ward", label="Ward", value_type=ContactField.TYPE_WARD, uuid="de6878c1-b174-4947-9a65-8910ebe7d10f"),
         dict(
             key="district",
             label="District",
-            value_type=Value.TYPE_DISTRICT,
+            value_type=ContactField.TYPE_DISTRICT,
             uuid="3ca3e36b-3d5a-42a4-b292-482282ce9a90",
         ),
-        dict(key="state", label="State", value_type=Value.TYPE_STATE, uuid="1dddea55-9a3b-449f-9d43-57772614ff50"),
+        dict(
+            key="state", label="State", value_type=ContactField.TYPE_STATE, uuid="1dddea55-9a3b-449f-9d43-57772614ff50"
+        ),
     ),
     contacts=(
         dict(

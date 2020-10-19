@@ -40,7 +40,6 @@ from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import json
-from temba.values.constants import Value
 
 from . import fields
 from .serializers import format_datetime, normalize_extra
@@ -179,7 +178,7 @@ class APITest(TembaTest):
     def test_serializer_fields(self):
         group = self.create_group("Customers")
         field_obj = ContactField.get_or_create(
-            self.org, self.admin, "registered", "Registered On", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "registered", "Registered On", value_type=ContactField.TYPE_DATETIME
         )
         flow = self.create_flow()
         campaign = Campaign.create(self.org, self.admin, "Reminders #1", group)
@@ -1015,7 +1014,7 @@ class APITest(TembaTest):
         flow = self.create_flow()
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         registration = ContactField.get_or_create(
-            self.org, self.admin, "registration", "Registration", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "registration", "Registration", value_type=ContactField.TYPE_DATETIME
         )
         field_created_on = self.org.contactfields.get(key="created_on")
 
@@ -1048,7 +1047,7 @@ class APITest(TembaTest):
 
         # create event for another org
         joined = ContactField.get_or_create(
-            self.org2, self.admin2, "joined", "Joined On", value_type=Value.TYPE_DATETIME
+            self.org2, self.admin2, "joined", "Joined On", value_type=ContactField.TYPE_DATETIME
         )
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
         spam = Campaign.create(self.org2, self.admin2, "Cool stuff", spammers)
@@ -1346,7 +1345,7 @@ class APITest(TembaTest):
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         registration = ContactField.get_or_create(
-            self.org, self.admin, "registration", "Registration", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "registration", "Registration", value_type=ContactField.TYPE_DATETIME
         )
 
         campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
@@ -1410,7 +1409,7 @@ class APITest(TembaTest):
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         registration = ContactField.get_or_create(
-            self.org, self.admin, "registration", "Registration", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "registration", "Registration", value_type=ContactField.TYPE_DATETIME
         )
 
         campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
@@ -1972,7 +1971,7 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         ContactField.get_or_create(self.org, self.admin, "string_field")
-        ContactField.get_or_create(self.org, self.admin, "number_field", value_type=Value.TYPE_NUMBER)
+        ContactField.get_or_create(self.org, self.admin, "number_field", value_type=ContactField.TYPE_NUMBER)
 
         # test create with a null chars \u0000
         response = self.postJSON(
@@ -2013,7 +2012,7 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        self.create_field("tag_activated_at", "Tag activation", Value.TYPE_DATETIME)
+        self.create_field("tag_activated_at", "Tag activation", ContactField.TYPE_DATETIME)
 
         # update contact with valid date format for the org - DD-MM-YYYY
         response = self.postJSON(url, "uuid=%s" % self.joe.uuid, {"fields": {"tag_activated_at": "31-12-2017"}})
@@ -2408,7 +2407,7 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         self.create_field("nick_name", "Nick Name")
-        self.create_field("registered", "Registered On", value_type=Value.TYPE_DATETIME)
+        self.create_field("registered", "Registered On", value_type=ContactField.TYPE_DATETIME)
         self.create_field("not_ours", "Something Else", org=self.org2)
 
         deleted = self.create_field("deleted", "Deleted")
