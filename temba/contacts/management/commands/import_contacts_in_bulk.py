@@ -40,7 +40,7 @@ class Command(BaseCommand):  # pragma: no cover
         urns_map = {}
 
         with open(filepath, newline="") as csvfile:
-            spamreader = csv.reader(csvfile, delimiter=",", quotechar="|")
+            spamreader = csv.reader(csvfile, delimiter=",")
 
             load_len = len(list(spamreader))
 

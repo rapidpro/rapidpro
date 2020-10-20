@@ -817,7 +817,7 @@ class MigrationTask(TembaModel):
                 created_by=self.created_by,
                 modified_by=self.created_by,
                 org=self.org,
-                repeat_period=schedule.repeat_period,
+                repeat_period=schedule.repeat_period or "O",
                 repeat_hour_of_day=repeat_hour_of_day,
                 repeat_minute_of_hour=schedule.repeat_minute_of_hour or 0,
                 repeat_day_of_month=schedule.repeat_day_of_month,

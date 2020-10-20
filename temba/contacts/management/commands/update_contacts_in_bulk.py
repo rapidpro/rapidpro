@@ -49,7 +49,7 @@ class Command(BaseCommand):  # pragma: no cover
             return _urn_string
 
         with open(filepath, newline="") as csvfile:
-            spamreader = csv.reader(csvfile, delimiter=",", quotechar="|")
+            spamreader = csv.reader(csvfile, delimiter=",")
 
             load_len = len(list(spamreader))
 
