@@ -66,7 +66,7 @@
 
             %form#search-form.mb-4(method="get" action="{% url 'campaigns.campaign_list'%}")
               %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}")
-            %table.list.lined{class:"{% if org_perms.campaigns.campaign_update%}selectable{%endif%}" }
+            %table.list.lined.selectable
               %tbody
                 -for obj in object_list
                   %tr.campaign.object-row.select-row{ data-object-id: "{{ obj.id }}", onrowclick:'gotoLink("{% url "campaigns.campaign_read" obj.id%}")'}

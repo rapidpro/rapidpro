@@ -169,7 +169,7 @@
                   %input(type='hidden' name='status' value='{{request.REQUEST.status}}')
 
             -block flow-list
-              %table.list.lined{class: '{% if org_perms.flows.flow_update %}selectable{% endif %}'}
+              %table.list.lined.selectable
                 -if object_list
                   %thead
                     %tr
@@ -187,6 +187,9 @@
                       -if org_perms.flows.flow_update
                         %td.checkbox.object-row-checkbox
                           %temba-checkbox{onclick:"handleRowSelection(this)"}
+                      -else
+                        %td.checkbox.object-row-checkbox
+                          &nbsp;
 
                       %td.w-full
                         .flex.flex-wrap.flex-end
@@ -199,10 +202,10 @@
                               {{ object.name }}
 
                       %td
-                          .whitespace-no-break.flex.items-center.ml-2.justify-end
-                            -for label in object.labels.all
-                              .lbl.linked.ml-2{ onclick:"goto(event)", data-id: '{{label.pk}}', href:"{% url 'flows.flow_filter' label.pk%}"}
-                                {{label.name}}
+                        .whitespace-no-break.flex.items-center.ml-2.justify-end
+                          -for label in object.labels.all
+                            .lbl.linked.ml-2{ onclick:"goto(event)", data-id: '{{label.pk}}', href:"{% url 'flows.flow_filter' label.pk%}"}
+                              {{label.name}}
 
                       %td
                         -if not object.is_archived
@@ -228,9 +231,7 @@
   {{ block.super }}
 
   :javascript
-
     {% if org_perms.flows.flow_update %}
-
       function handleAddLabelClicked() {
         document.getElementById("create-label-modal").open = true;
       }
