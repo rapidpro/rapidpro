@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-15 20:16+0000\n"
+"POT-Creation-Date: 2020-10-20 18:56+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2687,6 +2687,21 @@ msgstr "Identifiant Freshchat"
 msgid "VK identifier"
 msgstr "Identifiant VK"
 
+msgid "Text"
+msgstr "Texte"
+
+msgid "Date & Time"
+msgstr "Date & Heure"
+
+msgid "State"
+msgstr "Etat"
+
+msgid "District"
+msgstr "District"
+
+msgid "Ward"
+msgstr "Quartier"
+
 msgid "Label"
 msgstr "Etiquette"
 
@@ -4871,21 +4886,6 @@ msgstr ","
 msgid "An error occurred while making your changes. Please try again."
 msgstr "Une erreur s'est produite lors de la mise à jour de votre contact. Veuillez réessayer plus tard."
 
-msgid "Text"
-msgstr "Texte"
-
-msgid "Date & Time"
-msgstr "Date & Heure"
-
-msgid "State"
-msgstr "Etat"
-
-msgid "District"
-msgstr "District"
-
-msgid "Ward"
-msgstr "Quartier"
-
 msgid "HTTP Logs"
 msgstr "Journaux HTTP"
 
@@ -4895,6 +4895,12 @@ msgstr "Pas de données"
 #, python-format
 msgid "API v1 has been replaced by <a href=\"%(v2_url)s\">API v2</a>. Please migrate your applications accordingly."
 msgstr "L'API v1 a été remplacée par <a href=\"%(v2_url)s\">API v2</a>. Veuillez migrer vos applications en conséquence."
+
+msgid "Explorer"
+msgstr ""
+
+msgid "Log in to get your API Token"
+msgstr ""
 
 msgid "Query String Parameters"
 msgstr "Paramètres de chaîne de requête"
@@ -4910,6 +4916,9 @@ msgstr "Corps du Post"
 
 msgid "View Full Documentation"
 msgstr "Afficher la documentation complète"
+
+msgid "Log in to use the Explorer"
+msgstr ""
 
 #, fuzzy
 #| msgid "Webhook Log"

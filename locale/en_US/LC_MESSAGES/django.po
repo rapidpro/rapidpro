@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-15 20:16+0000\n"
+"POT-Creation-Date: 2020-10-20 18:56+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2353,6 +2353,21 @@ msgstr ""
 msgid "VK identifier"
 msgstr ""
 
+msgid "Text"
+msgstr ""
+
+msgid "Date & Time"
+msgstr ""
+
+msgid "State"
+msgstr ""
+
+msgid "District"
+msgstr ""
+
+msgid "Ward"
+msgstr ""
+
 msgid "Label"
 msgstr ""
 
@@ -4383,21 +4398,6 @@ msgstr ""
 msgid "An error occurred while making your changes. Please try again."
 msgstr ""
 
-msgid "Text"
-msgstr ""
-
-msgid "Date & Time"
-msgstr ""
-
-msgid "State"
-msgstr ""
-
-msgid "District"
-msgstr ""
-
-msgid "Ward"
-msgstr ""
-
 msgid "HTTP Logs"
 msgstr ""
 
@@ -4406,6 +4406,12 @@ msgstr ""
 
 #, python-format
 msgid "API v1 has been replaced by <a href=\"%(v2_url)s\">API v2</a>. Please migrate your applications accordingly."
+msgstr ""
+
+msgid "Explorer"
+msgstr ""
+
+msgid "Log in to get your API Token"
 msgstr ""
 
 msgid "Query String Parameters"
@@ -4421,6 +4427,9 @@ msgid "Post Body"
 msgstr ""
 
 msgid "View Full Documentation"
+msgstr ""
+
+msgid "Log in to use the Explorer"
 msgstr ""
 
 msgid "Webhook Calls"
