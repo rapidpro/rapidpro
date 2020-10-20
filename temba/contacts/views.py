@@ -1880,6 +1880,7 @@ class ContactGroupCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             obj = super().post_save(obj)
+            obj.update_flows()
 
             if obj.query and obj.query != self.prev_query:
                 obj.update_query(obj.query)
