@@ -1,3 +1,10 @@
+v5.7.77
+----------
+ * Fix styling on the API explorer page
+ * Fix list page selection for viewers
+ * Move contact field type constants to ContactField class
+ * Allow brand to be set by env variable
+
 v5.7.76
 ----------
  * Drop support for migrating legacy expressions on API endpoints
