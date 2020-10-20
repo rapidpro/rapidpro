@@ -10,35 +10,37 @@
   -block breadcrumbs
     %ul.breadcrumb.-mt-12.mb-12
       %li
-        %a{href:"{% url 'api.v2' %}"}
+        %a(href="{% url 'api.v2' %}")
           {{ brand.name }} API v2
         %span.divider &raquo;
 
       %li
-        %a.active{href:"{% url 'api.v2.explorer' %}"} Explorer
+        %a.active(href="{% url 'api.v2.explorer' %}")
+          -trans "Explorer"
 
       -if request.user.api_token
-        %li.pull-right{style:"color: #666"}
+        %li.pull-right(style="color: #666")
           API Token: {{ request.user.api_token }}
       -else
-        %li.pull-right Log in to get your API Token
+        %li.pull-right 
+          -trans "Log in to get your API Token"
 
-  .flex.justify-between.items-center.pb-1.mb-4{ style: "position: relative;" }
+  .flex.justify-between.items-center.pb-1.mb-4(style="position: relative;")
     %h1.page-title.leading-tight API Explorer
     .bg-white.px-4.py-2.border-primary.border.text-primary.font-medium.rounded-lg All operations work against live data
 
   - for endpoint in endpoints
     .card.mt-4.hover-box
-      .cursor-pointer.endpoint-title{ data-slug: "{{ endpoint.slug }}", data-method: "{{ endpoint.method }}" }
-        .endpoint-description{class: "md:hidden"}
+      .cursor-pointer.endpoint-title(data-slug="{{ endpoint.slug }}" data-method="{{ endpoint.method }}")
+        .endpoint-description(class="md:hidden")
           {{ endpoint.title }}
         .flex.items-center
-          .endpoint-method.font-mono.rounded-lg{ class:"method-{{ endpoint.method|lower }}" }= endpoint.method
+          .endpoint-method.font-mono.rounded-lg(class="method-{{ endpoint.method|lower }}") {{ endpoint.method }}
           .endpoint-url.flex-grow.font-mono {{ endpoint.url }}.json
           .endpoint-description.hidden{class: "md:block"}
             {{ endpoint.title }}
 
-      .endpoint.bg-white.border-t.mt-6{ class: "endpoint-{{ endpoint.method|lower }}" }
+      .endpoint.bg-white.border-t.mt-6(class="endpoint-{{ endpoint.method|lower }}")
         -if endpoint.params
           .title.my-4
             -trans "Query String Parameters"
@@ -46,7 +48,7 @@
             .tbody
               -for item in endpoint.params
                 %tr
-                  %td.field.text-right.font-medium.text-gray-600.px-4.py-2{ class:"{% if item.required %}field-required{% endif %}" }= item.name
+                  %td.field.text-right.font-medium.text-gray-600.px-4.py-2(class="{% if item.required %}field-required{% endif %}") {{ item.name }}
                   %td.font-light {{ item.help }}
                     -if item.required
                       (required)
@@ -59,7 +61,7 @@
             .tbody
               -for item in endpoint.fields
                 %tr
-                  %td.field.text-right.font-medium.text-gray-600.px-4.py-2{ class:"{% if item.required %}field-required{% endif %}" }= item.name
+                  %td.field.text-right.font-medium.text-gray-600.px-4.py-2(class="{% if item.required %}field-required{% endif %}")  {{ item.name }}
                   %td.font-light {{ item.help }}
                     -if item.required
                       (required)
@@ -69,25 +71,25 @@
         .request-form.rounded-lg.border.p-6.bg-gray-100.mt-4
           .request-header.font-mono.mb-4
             <b class="font-bold">{{ endpoint.method }}</b>
-            .whitespace-no-wrap.text-sm{class: "md:text-base md:inline"}
+            .whitespace-no-wrap.text-sm(class="md:text-base md:inline")
               {{brand.api_link}}{{ endpoint.url }}.json<span class="query-display"></span><br/>
             <b class="font-bold">Authorization:</b>
-            .whitespace-no-wrap.text-sm{class: "md:text-base md:inline"}
+            .whitespace-no-wrap.text-sm(class="md:text-base md:inline")
               Token {{ request.user.api_token }}
           -if endpoint.params
-            .form-group.mt-4.items-center{class: "md:flex"}
-              %label.control-label.self-start.pt-4.w-56.pr-6{class: "md:text-right"}
+            .form-group.mt-4.items-center(class="md:flex")
+              %label.control-label.self-start.pt-4.w-56.pr-6(class="md:text-right")
                 -trans "Query String"
               .flex-grow
-                %textarea.textinput.p-2.rounded.request-query{ id:"request-query-{{ endpoint.slug }}", rows:"1" }<
+                %textarea.textinput.p-2.rounded.request-query(id="request-query-{{ endpoint.slug }}" rows="1" )<
                   {{ endpoint.example.query }}
 
           -if endpoint.fields
-            .form-group.mt-4.items-center{class: "md:flex"}
-              %label.control-label.self-start.pt-4.w-56.pr-6{class: "md:text-right"}
+            .form-group.mt-4.items-center(class="md:flex")
+              %label.control-label.self-start.pt-4.w-56.pr-6(class="md:text-right")
                 -trans "Post Body"
               .flex-grow
-                %textarea.textinput.p-2.rounded.request-body{ id:"request-body-{{ endpoint.slug }}", rows:"5" }<
+                %textarea.textinput.p-2.rounded.request-body(id="request-body-{{ endpoint.slug }}" rows="5")<
                   {{ endpoint.example.body }}
 
         .request-buttons.flex.justify-between.items-center.mt-4.h-12
@@ -96,9 +98,10 @@
               -trans "View Full Documentation"
 
           -if user.api_token
-            .button-primary{ onclick:'javascript:onRequest("{{ endpoint.slug }}", "{{ endpoint.method }}", "{{ endpoint.url }}.json")' }= endpoint.method|upper
+            .button-primary(onclick='javascript:onRequest("{{ endpoint.slug }}", "{{ endpoint.method }}", "{{ endpoint.url }}.json")') {{ endpoint.method|upper }}
           -else
-            %span Log in to use the Explorer
+            %span
+              -trans "Log in to use the Explorer"
 
         %pre.prettyprint.result.mb-0.mt-4.p-4(id="result-{{ endpoint.slug }}" style="margin-bottom:0;" )
 

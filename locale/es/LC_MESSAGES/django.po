@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-15 20:16+0000\n"
+"POT-Creation-Date: 2020-10-20 18:56+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3692,6 +3692,27 @@ msgstr "ID externo"
 msgid "VK identifier"
 msgstr "ID externo"
 
+msgid "Text"
+msgstr "Texto"
+
+#, fuzzy
+#| msgid "Current Date and Time"
+msgid "Date & Time"
+msgstr "Fecha y hora actual"
+
+#, fuzzy
+#| msgid "Status"
+msgid "State"
+msgstr "Estátus"
+
+#, fuzzy
+#| msgid "has a district"
+msgid "District"
+msgstr "tiene un distrito"
+
+msgid "Ward"
+msgstr ""
+
 msgid "Label"
 msgstr "Etiquetar"
 
@@ -6118,27 +6139,6 @@ msgstr ","
 msgid "An error occurred while making your changes. Please try again."
 msgstr "Encontramos un error para retirar su transmisor, por favor, inténtelo nuevamente más tarde."
 
-msgid "Text"
-msgstr "Texto"
-
-#, fuzzy
-#| msgid "Current Date and Time"
-msgid "Date & Time"
-msgstr "Fecha y hora actual"
-
-#, fuzzy
-#| msgid "Status"
-msgid "State"
-msgstr "Estátus"
-
-#, fuzzy
-#| msgid "has a district"
-msgid "District"
-msgstr "tiene un distrito"
-
-msgid "Ward"
-msgstr ""
-
 msgid "HTTP Logs"
 msgstr ""
 
@@ -6149,6 +6149,12 @@ msgstr "Exportar datos"
 
 #, python-format
 msgid "API v1 has been replaced by <a href=\"%(v2_url)s\">API v2</a>. Please migrate your applications accordingly."
+msgstr ""
+
+msgid "Explorer"
+msgstr ""
+
+msgid "Log in to get your API Token"
 msgstr ""
 
 msgid "Query String Parameters"
@@ -6171,6 +6177,9 @@ msgstr "Campos de Contactos"
 #| msgid "API Documentation"
 msgid "View Full Documentation"
 msgstr "Documentación API"
+
+msgid "Log in to use the Explorer"
+msgstr ""
 
 #, fuzzy
 #| msgid "Webhook URL"
