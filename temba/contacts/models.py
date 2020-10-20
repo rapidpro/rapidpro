@@ -13,7 +13,6 @@ import phonenumbers
 import pyexcel
 import pytz
 import regex
-from smartmin.csv_imports.models import ImportTask
 from smartmin.models import SmartModel
 
 from django.conf import settings
@@ -97,7 +96,7 @@ HISTORY_INCLUDE_EVENTS = {
 }
 
 
-class URN(object):
+class URN:
     """
     Support class for URN strings. We differ from the strict definition of a URN (https://tools.ietf.org/html/rfc2141)
     in that:
@@ -485,23 +484,21 @@ class ContactField(SmartModel):
 
     uuid = models.UUIDField(unique=True, default=uuid4)
 
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, verbose_name=_("Org"), related_name="contactfields")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contactfields")
 
     label = models.CharField(verbose_name=_("Label"), max_length=MAX_LABEL_LEN)
 
-    key = models.CharField(verbose_name=_("Key"), max_length=MAX_KEY_LEN)
-
-    value_type = models.CharField(choices=TYPE_CHOICES, max_length=1, default=TYPE_TEXT, verbose_name="Field Type")
-
-    show_in_table = models.BooleanField(
-        verbose_name=_("Shown in Tables"), default=False, help_text=_("Featured field")
-    )
-
-    priority = models.PositiveIntegerField(default=0)
+    key = models.CharField(max_length=MAX_KEY_LEN)
 
     field_type = models.CharField(max_length=1, choices=FIELD_TYPE_CHOICES, default=FIELD_TYPE_USER)
 
-    # Model managers
+    value_type = models.CharField(choices=TYPE_CHOICES, max_length=1, default=TYPE_TEXT, verbose_name=_("Field Type"))
+
+    # how field is displayed in the UI
+    show_in_table = models.BooleanField(default=False)
+    priority = models.PositiveIntegerField(default=0)
+
+    # model managers
     all_fields = models.Manager()  # this is the default manager
     user_fields = UserContactFieldsManager()
     system_fields = SystemContactFieldsManager()
@@ -759,30 +756,22 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     FIRST_NAME = "first_name"
     LANGUAGE = "language"
     CREATED_ON = "created_on"
-    PHONE = "phone"
     UUID = "uuid"
-    CONTACT_UUID = "contact uuid"
     GROUPS = "groups"
     ID = "id"
-    CREATED_ON_TITLE = "created on"
 
     RESERVED_ATTRIBUTES = {
         ID,
         NAME,
         FIRST_NAME,
-        PHONE,
         LANGUAGE,
         GROUPS,
         UUID,
-        CONTACT_UUID,
         CREATED_ON,
-        CREATED_ON_TITLE,
         "created_by",
         "modified_by",
-        "org",
         "is",
         "has",
-        "tel_e164",
     }
 
     # can't create custom contact fields with these keys
@@ -1393,46 +1382,24 @@ class ContactURN(models.Model):
     ANON_MASK = "*" * 8  # Returned instead of URN values for anon orgs
     ANON_MASK_HTML = "•" * 8  # Pretty HTML version of anon mask
 
-    contact = models.ForeignKey(
-        Contact,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="urns",
-        help_text="The contact that this URN is for, can be null",
-    )
+    org = models.ForeignKey(Org, related_name="urns", on_delete=models.PROTECT)
+    contact = models.ForeignKey(Contact, on_delete=models.PROTECT, null=True, related_name="urns")
 
-    identity = models.CharField(
-        max_length=255,
-        help_text="The Universal Resource Name as a string, excluding display if present. ex: tel:+250788383383",
-    )
+    # the scheme and path which together should be unique
+    identity = models.CharField(max_length=255)
 
-    path = models.CharField(max_length=255, help_text="The path component of our URN. ex: +250788383383")
+    # individual parts of the URN
+    scheme = models.CharField(max_length=128)
+    path = models.CharField(max_length=255)
+    display = models.CharField(max_length=255, null=True)
 
-    display = models.CharField(max_length=255, null=True, help_text="The display component for this URN, if any")
+    priority = models.IntegerField(default=PRIORITY_STANDARD)
 
-    scheme = models.CharField(
-        max_length=128, help_text="The scheme for this URN, broken out for optimization reasons, ex: tel"
-    )
+    # the channel affinity of this URN
+    channel = models.ForeignKey(Channel, related_name="urns", on_delete=models.PROTECT, null=True)
 
-    org = models.ForeignKey(
-        Org, related_name="urns", on_delete=models.PROTECT, help_text="The organization for this URN, can be null"
-    )
-
-    priority = models.IntegerField(
-        default=PRIORITY_STANDARD, help_text="The priority of this URN for the contact it is associated with"
-    )
-
-    channel = models.ForeignKey(
-        Channel,
-        related_name="urns",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        help_text="The preferred channel for this URN",
-    )
-
-    auth = models.TextField(null=True, help_text=_("Any authentication information needed by this URN"))
+    # optional authentication information stored on this URN
+    auth = models.TextField(null=True)
 
     @classmethod
     def get_or_create(cls, org, contact, urn_as_string, channel=None, auth=None):
@@ -1604,34 +1571,21 @@ class ContactGroup(TembaModel):
     EXPORT_NAME = "name"
     EXPORT_QUERY = "query"
 
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="all_groups")
+
     name = models.CharField(
         verbose_name=_("Name"), max_length=MAX_NAME_LEN, help_text=_("The name of this contact group")
     )
 
-    group_type = models.CharField(
-        max_length=1,
-        choices=TYPE_CHOICES,
-        default=TYPE_USER_DEFINED,
-        help_text=_("What type of group it is, either user defined or one of our system groups"),
-    )
+    group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_USER_DEFINED)
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
 
-    contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name="all_groups")
+    contacts = models.ManyToManyField(Contact, related_name="all_groups")
 
-    org = models.ForeignKey(
-        Org,
-        on_delete=models.PROTECT,
-        related_name="all_groups",
-        verbose_name=_("Org"),
-        help_text=_("The organization this group is part of"),
-    )
-
-    import_task = models.ForeignKey(ImportTask, on_delete=models.PROTECT, null=True, blank=True)
-
-    query = models.TextField(null=True, help_text=_("The membership query for this group"))
-
-    query_fields = models.ManyToManyField(ContactField, verbose_name=_("Query Fields"))
+    # fields used by smart groups
+    query = models.TextField(null=True, verbose_name=_("Query"), help_text=_("The membership query for this group"))
+    query_fields = models.ManyToManyField(ContactField)
 
     # define some custom managers to do the filtering of user / system groups for us
     all_groups = models.Manager()
@@ -1706,11 +1660,11 @@ class ContactGroup(TembaModel):
             return cls.create_static(org, user, name)
 
     @classmethod
-    def create_static(cls, org, user, name, *, status=STATUS_READY, task=None):
+    def create_static(cls, org, user, name, *, status=STATUS_READY):
         """
         Creates a static group whose members will be manually added and removed
         """
-        return cls._create(org, user, name, status=status, task=task)
+        return cls._create(org, user, name, status=status)
 
     @classmethod
     def create_dynamic(cls, org, user, name, query, evaluate=True, parsed_query=None):
@@ -1725,7 +1679,7 @@ class ContactGroup(TembaModel):
         return group
 
     @classmethod
-    def _create(cls, org, user, name, status, task=None, query=None):
+    def _create(cls, org, user, name, status, query=None):
         full_group_name = cls.clean_name(name)
 
         if not cls.is_valid_name(full_group_name):
@@ -1741,13 +1695,7 @@ class ContactGroup(TembaModel):
             count += 1
 
         return cls.user_groups.create(
-            org=org,
-            name=full_group_name,
-            query=query,
-            status=status,
-            import_task=task,
-            created_by=user,
-            modified_by=user,
+            org=org, name=full_group_name, query=query, status=status, created_by=user, modified_by=user,
         )
 
     @classmethod

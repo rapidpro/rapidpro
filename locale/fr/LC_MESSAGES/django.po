@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-20 18:56+0000\n"
+"POT-Creation-Date: 2020-10-20 20:34+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2705,14 +2705,10 @@ msgstr "Quartier"
 msgid "Label"
 msgstr "Etiquette"
 
-msgid "Key"
-msgstr "Clé"
-
-msgid "Shown in Tables"
-msgstr "Indiqué dans les tableaux"
-
-msgid "Featured field"
-msgstr "Champ en vedette"
+#, fuzzy
+#| msgid "Field:Team"
+msgid "Field Type"
+msgstr "Field:Team"
 
 msgid "The name of this contact"
 msgstr "Le nom de ce contact"
@@ -2722,9 +2718,6 @@ msgstr "Langue"
 
 msgid "The preferred language for this contact"
 msgstr "La langue préférée pour ce contact"
-
-msgid "Any authentication information needed by this URN"
-msgstr "Toute information d'authentification requise par cet URN"
 
 msgid "Initializing"
 msgstr "Initialisation"
@@ -2738,20 +2731,11 @@ msgstr "Prêt"
 msgid "The name of this contact group"
 msgstr "Le nom de ce groupe de contact"
 
-msgid "What type of group it is, either user defined or one of our system groups"
-msgstr "De quel type de groupe il s'agit, soit défini par l'utilisateur ou par l'un de nos groupes système"
-
-msgid "Contacts"
-msgstr "Contacts"
-
-msgid "The organization this group is part of"
-msgstr "L'organisation de ce groupe fait partie de"
+msgid "Query"
+msgstr ""
 
 msgid "The membership query for this group"
 msgstr "La requête d'adhésion pour ce groupe"
-
-msgid "Query Fields"
-msgstr "Champs de requête"
 
 msgid "The unique group to export"
 msgstr "Le groupe unique à exporter"
@@ -2964,6 +2948,9 @@ msgstr "activer"
 
 msgid "Block"
 msgstr "Bloquer"
+
+msgid "Contacts"
+msgstr "Contacts"
 
 msgid "Save as Group"
 msgstr "Enregistrer en tant que groupe"
@@ -3486,6 +3473,9 @@ msgstr "Nom déjà utilisé"
 
 msgid "Flow Start Log"
 msgstr "Journal de démarrage du flux"
+
+msgid "Key"
+msgstr "Clé"
 
 #, python-format
 msgid "Cannot create a new global as limit is %(limit)s."
@@ -10981,6 +10971,24 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Shown in Tables"
+#~ msgstr "Indiqué dans les tableaux"
+
+#~ msgid "Featured field"
+#~ msgstr "Champ en vedette"
+
+#~ msgid "Any authentication information needed by this URN"
+#~ msgstr "Toute information d'authentification requise par cet URN"
+
+#~ msgid "What type of group it is, either user defined or one of our system groups"
+#~ msgstr "De quel type de groupe il s'agit, soit défini par l'utilisateur ou par l'un de nos groupes système"
+
+#~ msgid "The organization this group is part of"
+#~ msgstr "L'organisation de ce groupe fait partie de"
+
+#~ msgid "Query Fields"
+#~ msgstr "Champs de requête"
 
 #~ msgid "The label for this field"
 #~ msgstr "Le label pour ce champ"
