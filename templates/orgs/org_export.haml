@@ -30,15 +30,15 @@
         -for bucket in buckets
           .bucket.card
             .mb-6.justify-between.bleed-x.bleed-t.bg-gray-100
-              .flex.items-center.p-2
-                .title.-mt-4.flex-grow
+              .flex.items-center.py-2.px-8
+                .title.flex-grow
                   -trans "Group"
                   {{ forloop.counter|apnumber|capfirst }}
-                .button-light.select-section.px-3.py-2.text-base.-mt-6.bg-white
+                .button-light.select-section.px-3.py-2.text-base.bg-white
                   -trans "Select Group"
                   {{ forloop.counter|apnumber|capfirst }}
 
-            .exportables-grp.px-6
+            .exportables-grp.px-4
               -for exportable in bucket
                 -ifchanged exportable|verbose_name_plural|capfirst
                   %h4.flex
@@ -53,18 +53,18 @@
         -if singles
           .bucket.card
             .mb-6.justify-between.bleed-x.bleed-t.bg-gray-100
-              .flex.items-center.p-2
-                .title.-mt-4.flex-grow
+              .flex.items-center.py-2.px-8
+                .title.flex-grow
                   -if buckets
                     -trans "Everything Else"
                   -else
                     -trans "Flows and Campaigns"
 
                 -if buckets
-                  .button-light.select-section.px-3.py-2.text-base.-mt-6.bg-white
+                  .button-light.select-section.px-3.py-2.text-base.bg-white
                     -trans "Select Everthing Else"
 
-            .mb-12.exportables-grp
+            .mb-12.exportables-grp.px-4
               -for exportable in singles
                 -ifchanged exportable|verbose_name_plural|capfirst
                   %h4.flex
