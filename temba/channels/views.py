@@ -1752,6 +1752,11 @@ class ChannelCRUDL(SmartCRUDL):
             kwargs["object"] = self.object
             return kwargs
 
+        def derive_initial(self):
+            initial = super().derive_initial()
+            initial["role"] = [char for char in self.object.role]
+            return initial
+
         def pre_save(self, obj):
             for field in self.form.config_fields:
                 obj.config[field] = self.form.cleaned_data[field]

@@ -1,3 +1,7 @@
+v5.7.78
+----------
+ * Clean up models fields in contacts app
+
 v5.7.77
 ----------
  * Fix styling on the API explorer page

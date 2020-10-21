@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-20 18:56+0000\n"
+"POT-Creation-Date: 2020-10-21 20:01+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1135,6 +1135,21 @@ msgstr "Le contenu qui doit figurer dans la réponse pour que la demande soit co
 
 msgid "The URL we will POST to when sending messages, with variable substitutions"
 msgstr "L'URL vers laquelle nous allons effectuer une requête POST lors de l'envoi de messages, avec des substitutions de variables"
+
+#, fuzzy
+#| msgid "Receive URL"
+msgid "Receive"
+msgstr "URL reçu"
+
+#, fuzzy
+#| msgid "Send URL"
+msgid "Send"
+msgstr "Envoyer l'URL"
+
+#, fuzzy
+#| msgid "Channel Log"
+msgid "Channel Role"
+msgstr "Journal des canaux"
 
 msgid ""
 "Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf\n"

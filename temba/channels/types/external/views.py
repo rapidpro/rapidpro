@@ -5,10 +5,10 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, ContactURN
-from temba.utils.fields import ExternalURLField, SelectWidget
+from temba.utils.fields import ExternalURLField, SelectMultipleWidget, SelectWidget
 
 from ...models import Channel
-from ...views import ALL_COUNTRIES, ClaimViewMixin
+from ...views import ALL_COUNTRIES, ClaimViewMixin, UpdateTelChannelForm
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
@@ -225,3 +225,20 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         return super().form_valid(form)
+
+
+class UpdateForm(UpdateTelChannelForm):
+    role = forms.MultipleChoiceField(
+        choices=((Channel.ROLE_RECEIVE, _("Receive")), (Channel.ROLE_SEND, _("Send"))),
+        widget=SelectMultipleWidget(attrs={"widget_only": True}),
+        label=_("Channel Role"),
+        help_text=_("The roles this channel can fulfill"),
+    )
+
+    def clean_role(self):
+        return "".join(self.cleaned_data.get("role", []))
+
+    class Meta(UpdateTelChannelForm.Meta):
+        fields = "name", "alert_email", "role"
+        readonly = []
+        helps = {"address": _("Phone number of this device")}
