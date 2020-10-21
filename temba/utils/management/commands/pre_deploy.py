@@ -1,5 +1,3 @@
-from smartmin.csv_imports.models import ImportTask
-
 from django.core.management import BaseCommand
 from django.utils.timesince import timesince
 
@@ -13,7 +11,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         unfinished_tasks = {
-            "contact-import": ImportTask.objects.filter(task_status__in=(ImportTask.STARTED, ImportTask.RUNNING)),
             "contact-export": ExportContactsTask.get_unfinished(),
             "result-export": ExportFlowResultsTask.get_unfinished(),
             "message-export": ExportMessagesTask.get_unfinished(),

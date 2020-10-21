@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-20 18:56+0000\n"
+"POT-Creation-Date: 2020-10-20 20:34+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2659,14 +2659,10 @@ msgstr "Административный округ"
 msgid "Label"
 msgstr "Метка"
 
-msgid "Key"
-msgstr "Ключ"
-
-msgid "Shown in Tables"
-msgstr "Указано в Таблицах"
-
-msgid "Featured field"
-msgstr "Рекомендованное поле"
+#, fuzzy
+#| msgid "Field:Team"
+msgid "Field Type"
+msgstr "Поле:Команда"
 
 msgid "The name of this contact"
 msgstr "Название данного контакта"
@@ -2676,9 +2672,6 @@ msgstr "Язык"
 
 msgid "The preferred language for this contact"
 msgstr "Предпочитаемый язык для этого контакта"
-
-msgid "Any authentication information needed by this URN"
-msgstr "Любая аутентификационная информация, необходимая для этого URN"
 
 msgid "Initializing"
 msgstr "Инициализация"
@@ -2692,20 +2685,11 @@ msgstr "Готов"
 msgid "The name of this contact group"
 msgstr "Название данной группы контактов"
 
-msgid "What type of group it is, either user defined or one of our system groups"
-msgstr "Какой это тип группы, определена пользователем или одна из наших системных групп"
-
-msgid "Contacts"
-msgstr "Контакты"
-
-msgid "The organization this group is part of"
-msgstr "Организация, к которой принадлежит данная группа"
+msgid "Query"
+msgstr ""
 
 msgid "The membership query for this group"
 msgstr "Запрос членства для данной группы"
-
-msgid "Query Fields"
-msgstr "Поля запроса"
 
 msgid "The unique group to export"
 msgstr "Уникальная группа для экспорта"
@@ -2918,6 +2902,9 @@ msgstr "Активировать"
 
 msgid "Block"
 msgstr "Блокировать"
+
+msgid "Contacts"
+msgstr "Контакты"
 
 msgid "Save as Group"
 msgstr "Сохранить как Группу"
@@ -3440,6 +3427,9 @@ msgstr "Название уже используется"
 
 msgid "Flow Start Log"
 msgstr "Журнал запуска потока"
+
+msgid "Key"
+msgstr "Ключ"
 
 #, python-format
 msgid "Cannot create a new global as limit is %(limit)s."
@@ -11087,6 +11077,24 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Shown in Tables"
+#~ msgstr "Указано в Таблицах"
+
+#~ msgid "Featured field"
+#~ msgstr "Рекомендованное поле"
+
+#~ msgid "Any authentication information needed by this URN"
+#~ msgstr "Любая аутентификационная информация, необходимая для этого URN"
+
+#~ msgid "What type of group it is, either user defined or one of our system groups"
+#~ msgstr "Какой это тип группы, определена пользователем или одна из наших системных групп"
+
+#~ msgid "The organization this group is part of"
+#~ msgstr "Организация, к которой принадлежит данная группа"
+
+#~ msgid "Query Fields"
+#~ msgstr "Поля запроса"
 
 #~ msgid "The label for this field"
 #~ msgstr "Метка для этого поля"

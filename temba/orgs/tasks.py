@@ -1,7 +1,5 @@
 from datetime import timedelta
 
-from smartmin.csv_imports.models import ImportTask
-
 from django.conf import settings
 from django.utils import timezone
 
@@ -68,12 +66,6 @@ def squash_topupcredits():
 def resume_failed_tasks():
     now = timezone.now()
     window = now - timedelta(hours=1)
-
-    import_tasks = ImportTask.objects.filter(modified_on__lte=window).exclude(
-        task_status__in=[ImportTask.SUCCESS, ImportTask.FAILURE]
-    )
-    for import_task in import_tasks:
-        import_task.start()
 
     contact_exports = ExportContactsTask.objects.filter(modified_on__lte=window).exclude(
         status__in=[ExportContactsTask.STATUS_COMPLETE, ExportContactsTask.STATUS_FAILED]

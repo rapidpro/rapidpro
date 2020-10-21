@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-20 18:56+0000\n"
+"POT-Creation-Date: 2020-10-20 20:34+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3415,14 +3415,9 @@ msgstr ""
 msgid "Label"
 msgstr "Rótulo"
 
-msgid "Key"
-msgstr "Chave"
-
-msgid "Shown in Tables"
-msgstr ""
-
-msgid "Featured field"
-msgstr ""
+#, fuzzy
+msgid "Field Type"
+msgstr "Gerenciar campos"
 
 msgid "The name of this contact"
 msgstr "O nome deste contato"
@@ -3433,9 +3428,6 @@ msgstr "Linguagem"
 #, fuzzy
 msgid "The preferred language for this contact"
 msgstr "O nome deste contato"
-
-msgid "Any authentication information needed by this URN"
-msgstr ""
 
 msgid "Initializing"
 msgstr ""
@@ -3451,22 +3443,12 @@ msgstr ""
 msgid "The name of this contact group"
 msgstr "Nome para este grupo de contatos"
 
-msgid "What type of group it is, either user defined or one of our system groups"
+msgid "Query"
 msgstr ""
-
-msgid "Contacts"
-msgstr "Contatos"
-
-msgid "The organization this group is part of"
-msgstr "Organização da qual este grupo faz parte"
 
 #, fuzzy
 msgid "The membership query for this group"
 msgstr "Nome para este grupo de contatos"
-
-#, fuzzy
-msgid "Query Fields"
-msgstr "Gerenciar campos"
 
 #, fuzzy
 msgid "The unique group to export"
@@ -3688,6 +3670,9 @@ msgstr "Ativar"
 
 msgid "Block"
 msgstr ""
+
+msgid "Contacts"
+msgstr "Contatos"
 
 #, fuzzy
 msgid "Save as Group"
@@ -4272,6 +4257,9 @@ msgstr "Esse endereço de e-mail já está sendo usado"
 #| msgid "Flow Start"
 msgid "Flow Start Log"
 msgstr "Início do fluxo"
+
+msgid "Key"
+msgstr "Chave"
 
 #, python-format
 msgid "Cannot create a new global as limit is %(limit)s."
@@ -11257,6 +11245,13 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "The organization this group is part of"
+#~ msgstr "Organização da qual este grupo faz parte"
+
+#, fuzzy
+#~ msgid "Query Fields"
+#~ msgstr "Gerenciar campos"
 
 #, fuzzy
 #~ msgid "The label for this field"
