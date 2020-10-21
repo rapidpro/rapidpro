@@ -1501,7 +1501,7 @@ class OrgCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             org = self.get_object()
             context["org"] = org
-            context["org_users"] = self.org_users
+            context["org_users"] = self.org_users.order_by("-is_active")
             context["group_fields"] = self.fields_by_users
             context["invites"] = self.invites
             context["invites_fields"] = self.fields_by_invite
