@@ -5,7 +5,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, ContactURN
-from temba.utils.fields import ExternalURLField
+from temba.utils.fields import ExternalURLField, SelectWidget
 
 from ...models import Channel
 from ...views import ALL_COUNTRIES, ClaimViewMixin
@@ -47,6 +47,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             choices=ALL_COUNTRIES,
             label=_("Country"),
             required=False,
+            widget=SelectWidget(attrs={"searchable": True}),
             help_text=_("The country this phone number is used in"),
         )
 

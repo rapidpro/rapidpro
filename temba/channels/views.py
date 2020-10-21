@@ -44,6 +44,7 @@ from temba.msgs.views import InboxView
 from temba.orgs.models import Org
 from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json
+from temba.utils.fields import SelectWidget
 from temba.utils.http import http_headers
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import ComponentFormMixin
@@ -956,7 +957,10 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
 
     class Form(ClaimViewMixin.Form):
         country = forms.ChoiceField(
-            choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in")
+            choices=ALL_COUNTRIES,
+            widget=SelectWidget(attrs={"searchable": True}),
+            label=_("Country"),
+            help_text=_("The country this phone number is used in"),
         )
         number = forms.CharField(
             max_length=14,
