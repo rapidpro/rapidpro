@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-02 17:44+0000\n"
+"POT-Creation-Date: 2020-10-20 20:34+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2641,17 +2641,28 @@ msgstr "Идентификатор Freshchat"
 msgid "VK identifier"
 msgstr "Идентификатор VK"
 
+msgid "Text"
+msgstr "Текст"
+
+msgid "Date & Time"
+msgstr "Дата и Время"
+
+msgid "State"
+msgstr "Штат"
+
+msgid "District"
+msgstr "Район"
+
+msgid "Ward"
+msgstr "Административный округ"
+
 msgid "Label"
 msgstr "Метка"
 
-msgid "Key"
-msgstr "Ключ"
-
-msgid "Shown in Tables"
-msgstr "Указано в Таблицах"
-
-msgid "Featured field"
-msgstr "Рекомендованное поле"
+#, fuzzy
+#| msgid "Field:Team"
+msgid "Field Type"
+msgstr "Поле:Команда"
 
 msgid "The name of this contact"
 msgstr "Название данного контакта"
@@ -2661,9 +2672,6 @@ msgstr "Язык"
 
 msgid "The preferred language for this contact"
 msgstr "Предпочитаемый язык для этого контакта"
-
-msgid "Any authentication information needed by this URN"
-msgstr "Любая аутентификационная информация, необходимая для этого URN"
 
 msgid "Initializing"
 msgstr "Инициализация"
@@ -2677,20 +2685,11 @@ msgstr "Готов"
 msgid "The name of this contact group"
 msgstr "Название данной группы контактов"
 
-msgid "What type of group it is, either user defined or one of our system groups"
-msgstr "Какой это тип группы, определена пользователем или одна из наших системных групп"
-
-msgid "Contacts"
-msgstr "Контакты"
-
-msgid "The organization this group is part of"
-msgstr "Организация, к которой принадлежит данная группа"
+msgid "Query"
+msgstr ""
 
 msgid "The membership query for this group"
 msgstr "Запрос членства для данной группы"
-
-msgid "Query Fields"
-msgstr "Поля запроса"
 
 msgid "The unique group to export"
 msgstr "Уникальная группа для экспорта"
@@ -2904,6 +2903,9 @@ msgstr "Активировать"
 msgid "Block"
 msgstr "Блокировать"
 
+msgid "Contacts"
+msgstr "Контакты"
+
 msgid "Save as Group"
 msgstr "Сохранить как Группу"
 
@@ -3018,9 +3020,6 @@ msgstr "Метки"
 msgid "Any labels on this flow"
 msgstr "Любые метки по данному потоку"
 
-msgid "The type of node this flow starts with"
-msgstr "Тип узла, с которого начинается данный поток"
-
 msgid "Whether this flow is archived"
 msgstr "Архивируется ли данный поток"
 
@@ -3063,50 +3062,11 @@ msgstr "Удалить архив"
 msgid "User delete"
 msgstr "Удалить пользователя"
 
-msgid "The label for this field"
-msgstr "Метка для этого поля"
-
-msgid "The value that rules will be run against, if None defaults to @step.value"
-msgstr "Значение, по которому будут работать правила. Если «Нет», то задается значение по умолчанию @step.value"
-
-msgid "The URL that will be called with the user's response before we run our rules"
-msgstr "URL, который будет вызываться с ответом пользователя до того, как мы запустим наши правила"
-
-msgid "How the webhook should be executed"
-msgstr "Как должен исполняться вебхук"
-
-msgid "The JSON encoded actions for this action set"
-msgstr "Действия в кодировке JSON для этого набора действий"
-
-msgid "Ruleset Configuration"
-msgstr "Конфигурация набора правил"
-
-msgid "RuleSet type specific configuration"
-msgstr "Конфигурация, специфическая для типа набора правил"
-
-msgid "When this ruleset was originally created"
-msgstr "Когда данный набор правил был изначально создан"
-
-msgid "When this ruleset was last modified"
-msgstr "Когда данный набор правил был последний раз изменен"
-
-msgid "When this action was originally created"
-msgstr "Когда это действие было изначально создано"
-
-msgid "When this action was last modified"
-msgstr "Когда это действие было последний раз изменено"
-
 msgid "The JSON flow definition"
 msgstr "Определение потока JSON"
 
 msgid "Revision number for this definition"
 msgstr "Номер редакции для данного определения"
-
-msgid "Unsupported flow type"
-msgstr "Неподдерживаемый тип потока"
-
-msgid "Malformed flow, encountered non-localized definition"
-msgstr "Искаженный поток, встретилось нелокализованное определение"
 
 msgid "The flows to export"
 msgstr "Потоки для экспорта"
@@ -3268,70 +3228,6 @@ msgstr "Добавить метку"
 msgid "Remove"
 msgstr "Удалить"
 
-msgid "Contact Name"
-msgstr "Название Контакта"
-
-msgid "Contact Creation Date"
-msgstr "Дата Создания Контакта"
-
-msgid "Contact First Name"
-msgstr "Имя Контакта"
-
-msgid "Contact Groups"
-msgstr "Группы Контактов"
-
-msgid "Contact Language"
-msgstr "Язык Контакта"
-
-msgid "Contact Email Address"
-msgstr "Адрес электронной почты Контакта"
-
-msgid "Contact Phone"
-msgstr "Телефон Контакта"
-
-msgid "Contact Phone - E164"
-msgstr "Телефон Контакта - E164"
-
-msgid "Contact UUID"
-msgstr "UUID Контакта"
-
-msgid "New Contact"
-msgstr "Новый Контакт"
-
-#, python-format
-msgid "Contact %s"
-msgstr "Контакт %s"
-
-msgid "Current Date and Time"
-msgstr "Текущие дата и время"
-
-msgid "Current Date"
-msgstr "Текущая дата"
-
-msgid "Tomorrow's Date"
-msgstr "Завтрашняя дата"
-
-msgid "Yesterday's Date"
-msgstr "Вчерашняя дата"
-
-msgid "Sent to"
-msgstr "Отправлено на"
-
-msgid "Sent to URN display"
-msgstr "Отправлено на дисплей URN"
-
-msgid "Sent to URN path"
-msgstr "Отправлено на путь URN"
-
-msgid "Sent to URN type"
-msgstr "Отправлено на тип URN"
-
-msgid "Sent to URN"
-msgstr "Отправлено на URN"
-
-msgid "All flow variables"
-msgstr "Все переменные потока"
-
 msgid "Start Flow"
 msgstr "Начать поток"
 
@@ -3458,9 +3354,6 @@ msgstr "Скачать"
 msgid "Download Flow Results"
 msgstr "Скачать Результаты"
 
-msgid "Your flow contains an invalid loop. Please refresh your browser."
-msgstr "Ваш поток содержит недействительный цикл. Пожалуйста, обновите Ваш браузер."
-
 msgid "Contacts & Groups"
 msgstr "Контакты и Группы"
 
@@ -3534,6 +3427,9 @@ msgstr "Название уже используется"
 
 msgid "Flow Start Log"
 msgstr "Журнал запуска потока"
+
+msgid "Key"
+msgstr "Ключ"
 
 #, python-format
 msgid "Cannot create a new global as limit is %(limit)s."
@@ -3620,10 +3516,6 @@ msgstr "Дата самого старого сообщения для эксп�
 
 msgid "The date for the newest message to export"
 msgstr "Дата самого нового сообщения для экспорта"
-
-#, python-format
-msgid "Contact Field: %(label)s"
-msgstr "Поле Контакта: %(label)s"
 
 msgid "Recipients"
 msgstr "Получатели"
@@ -4995,21 +4887,6 @@ msgstr ", "
 msgid "An error occurred while making your changes. Please try again."
 msgstr "При обновлении Вашего контакта произошла ошибка. Пожалуйста, попробуйте позже."
 
-msgid "Text"
-msgstr "Текст"
-
-msgid "Date & Time"
-msgstr "Дата и Время"
-
-msgid "State"
-msgstr "Штат"
-
-msgid "District"
-msgstr "Район"
-
-msgid "Ward"
-msgstr "Административный округ"
-
 msgid "HTTP Logs"
 msgstr "Журналы HTTP"
 
@@ -5019,6 +4896,12 @@ msgstr "Нет данных"
 #, python-format
 msgid "API v1 has been replaced by <a href=\"%(v2_url)s\">API v2</a>. Please migrate your applications accordingly."
 msgstr "API v1 была заменена на <a href=\"%(v2_url)s\">API v2</a>. Пожалуйста, перенесите Ваши приложения соответственно."
+
+msgid "Explorer"
+msgstr ""
+
+msgid "Log in to get your API Token"
+msgstr ""
 
 msgid "Query String Parameters"
 msgstr "Параметры Строки Запроса"
@@ -5034,6 +4917,9 @@ msgstr "Тело Post"
 
 msgid "View Full Documentation"
 msgstr "Просмотреть документацию полностью"
+
+msgid "Log in to use the Explorer"
+msgstr ""
 
 #, fuzzy
 #| msgid "Webhook Log"
@@ -6956,23 +6842,27 @@ msgstr ""
 msgid "<div class='code mt-4'> Manage > API Usage > Callback API > Server Settings </div> <div class='mt-2'> Enter the Webhook URL below for the <div class='code inline py-1'>URL</div> field and the Verify Token in the <div class='code inline py-1'>Secret Key</div> field. </div> <div class='code mt-6'> Manage > API Usage > Callback API > Event Types </div> <div class='mt-2'> Check the option %(option)s </div>"
 msgstr ""
 
-msgid ""
-"\n"
-"    Your WhatsApp channel is now connected, you should be able to send and receive messages as normal.\n"
-"\n"
-"  "
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "    Your WhatsApp channel is now connected, you should be able to send and receive messages as normal.\n"
+#| "\n"
+#| "  "
+msgid "Your WhatsApp channel is now connected, you should be able to send and receive messages as normal."
 msgstr ""
 "\n"
 "    Теперь Ваш канал WhatsApp подключен, Вы можете отправлять и получать сообщения в нормальном режиме.\n"
 "\n"
 "  "
 
-msgid ""
-"\n"
-"    In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh\n"
-"    the contacts on the WhatsApp application. This may take a few minutes.\n"
-"\n"
-"  "
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "    In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh\n"
+#| "    the contacts on the WhatsApp application. This may take a few minutes.\n"
+#| "\n"
+#| "  "
+msgid "In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh the contacts on the WhatsApp application. This may take a few minutes."
 msgstr ""
 "\n"
 "    В случае новой установки WhatsApp или замены существующего канала WhatsApp Вам может потребоваться обновить \n"
@@ -6982,6 +6872,9 @@ msgstr ""
 
 msgid "WhatsApp Templates Events"
 msgstr "События Шаблонов WhatsApp "
+
+msgid "No syncs yet. Check back later."
+msgstr ""
 
 msgid "Templates"
 msgstr "Шаблоны"
@@ -11247,6 +11140,137 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Shown in Tables"
+#~ msgstr "Указано в Таблицах"
+
+#~ msgid "Featured field"
+#~ msgstr "Рекомендованное поле"
+
+#~ msgid "Any authentication information needed by this URN"
+#~ msgstr "Любая аутентификационная информация, необходимая для этого URN"
+
+#~ msgid "What type of group it is, either user defined or one of our system groups"
+#~ msgstr "Какой это тип группы, определена пользователем или одна из наших системных групп"
+
+#~ msgid "The organization this group is part of"
+#~ msgstr "Организация, к которой принадлежит данная группа"
+
+#~ msgid "Query Fields"
+#~ msgstr "Поля запроса"
+
+#~ msgid "The label for this field"
+#~ msgstr "Метка для этого поля"
+
+#~ msgid "The value that rules will be run against, if None defaults to @step.value"
+#~ msgstr "Значение, по которому будут работать правила. Если «Нет», то задается значение по умолчанию @step.value"
+
+#~ msgid "The URL that will be called with the user's response before we run our rules"
+#~ msgstr "URL, который будет вызываться с ответом пользователя до того, как мы запустим наши правила"
+
+#~ msgid "How the webhook should be executed"
+#~ msgstr "Как должен исполняться вебхук"
+
+#~ msgid "The JSON encoded actions for this action set"
+#~ msgstr "Действия в кодировке JSON для этого набора действий"
+
+#~ msgid "Ruleset Configuration"
+#~ msgstr "Конфигурация набора правил"
+
+#~ msgid "RuleSet type specific configuration"
+#~ msgstr "Конфигурация, специфическая для типа набора правил"
+
+#~ msgid "When this ruleset was originally created"
+#~ msgstr "Когда данный набор правил был изначально создан"
+
+#~ msgid "When this ruleset was last modified"
+#~ msgstr "Когда данный набор правил был последний раз изменен"
+
+#~ msgid "When this action was originally created"
+#~ msgstr "Когда это действие было изначально создано"
+
+#~ msgid "When this action was last modified"
+#~ msgstr "Когда это действие было последний раз изменено"
+
+#~ msgid "The type of node this flow starts with"
+#~ msgstr "Тип узла, с которого начинается данный поток"
+
+#~ msgid "Contact Name"
+#~ msgstr "Название Контакта"
+
+#~ msgid "Contact Creation Date"
+#~ msgstr "Дата Создания Контакта"
+
+#~ msgid "Contact First Name"
+#~ msgstr "Имя Контакта"
+
+#~ msgid "Contact Groups"
+#~ msgstr "Группы Контактов"
+
+#~ msgid "Contact Language"
+#~ msgstr "Язык Контакта"
+
+#~ msgid "Contact Email Address"
+#~ msgstr "Адрес электронной почты Контакта"
+
+#~ msgid "Contact Phone"
+#~ msgstr "Телефон Контакта"
+
+#~ msgid "Contact Phone - E164"
+#~ msgstr "Телефон Контакта - E164"
+
+#~ msgid "Contact UUID"
+#~ msgstr "UUID Контакта"
+
+#~ msgid "New Contact"
+#~ msgstr "Новый Контакт"
+
+#, python-format
+#~ msgid "Contact %s"
+#~ msgstr "Контакт %s"
+
+#~ msgid "Current Date and Time"
+#~ msgstr "Текущие дата и время"
+
+#~ msgid "Current Date"
+#~ msgstr "Текущая дата"
+
+#~ msgid "Tomorrow's Date"
+#~ msgstr "Завтрашняя дата"
+
+#~ msgid "Yesterday's Date"
+#~ msgstr "Вчерашняя дата"
+
+#~ msgid "Sent to"
+#~ msgstr "Отправлено на"
+
+#~ msgid "Sent to URN display"
+#~ msgstr "Отправлено на дисплей URN"
+
+#~ msgid "Sent to URN path"
+#~ msgstr "Отправлено на путь URN"
+
+#~ msgid "Sent to URN type"
+#~ msgstr "Отправлено на тип URN"
+
+#~ msgid "Sent to URN"
+#~ msgstr "Отправлено на URN"
+
+#~ msgid "All flow variables"
+#~ msgstr "Все переменные потока"
+
+#, python-format
+#~ msgid "Contact Field: %(label)s"
+#~ msgstr "Поле Контакта: %(label)s"
+
+#~ msgid "Unsupported flow type"
+#~ msgstr "Неподдерживаемый тип потока"
+
+#~ msgid "Malformed flow, encountered non-localized definition"
+#~ msgstr "Искаженный поток, встретилось нелокализованное определение"
+
+#~ msgid "Your flow contains an invalid loop. Please refresh your browser."
+#~ msgstr "Ваш поток содержит недействительный цикл. Пожалуйста, обновите Ваш браузер."
 
 #~ msgid "Revision History"
 #~ msgstr "История редактирования"

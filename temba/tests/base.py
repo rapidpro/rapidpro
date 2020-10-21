@@ -17,14 +17,13 @@ from django.utils import timezone
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactImport, ContactURN
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowSession, clear_flow_users
+from temba.flows.models import Flow, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Label, Msg
 from temba.orgs.models import Org
 from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
-from temba.values.constants import Value
 
 from .mailroom import create_contact_locally, update_field_locally
 
@@ -151,9 +150,9 @@ class TembaTestMixin:
         """
         shutil.rmtree("%s/%s" % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR), ignore_errors=True)
 
-    def import_file(self, filename, site="http://rapidpro.io", substitutions=None, legacy=False):
+    def import_file(self, filename, site="http://rapidpro.io", substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
-        self.org.import_app(data, self.admin, site=site, legacy=legacy)
+        self.org.import_app(data, self.admin, site=site)
 
     def get_import_json(self, filename, substitutions=None):
         handle = open("%s/test_flows/%s.json" % (settings.MEDIA_ROOT, filename), "r+")
@@ -167,13 +166,13 @@ class TembaTestMixin:
 
         return json.loads(data)
 
-    def get_flow(self, filename, substitutions=None, legacy=False):
+    def get_flow(self, filename, substitutions=None, name=None):
         now = timezone.now()
 
-        self.import_file(filename, substitutions=substitutions, legacy=legacy)
+        self.import_file(filename, substitutions=substitutions)
 
         imported_flows = Flow.objects.filter(org=self.org, saved_on__gt=now)
-        flow = imported_flows.order_by("id").last()
+        flow = imported_flows.filter(name=name).first() if name else imported_flows.order_by("id").last()
 
         assert flow, f"no flow imported from {filename}.json"
 
@@ -209,7 +208,7 @@ class TembaTestMixin:
     def create_label(self, name, org=None):
         return Label.get_or_create(org or self.org, self.user, name)
 
-    def create_field(self, key, label, value_type=Value.TYPE_TEXT, org=None):
+    def create_field(self, key, label, value_type=ContactField.TYPE_TEXT, org=None):
         return ContactField.user_fields.create(
             org=org or self.org,
             key=key,
@@ -369,42 +368,33 @@ class TembaTestMixin:
 
         return bcast
 
-    def create_flow(self, definition=None, **kwargs):
-        if "org" not in kwargs:
-            kwargs["org"] = self.org
-        if "user" not in kwargs:
-            kwargs["user"] = self.user
-        if "name" not in kwargs:
-            kwargs["name"] = "Color Flow"
+    def create_flow(self, name="Color Flow", flow_type=Flow.TYPE_MESSAGE, org=None):
+        org = org or self.org
+        flow = Flow.create(org, self.admin, name, flow_type=flow_type)
+        definition = {
+            "uuid": "fc8cfc80-c73c-4d96-82b6-c8ab4ecb1df6",
+            "name": name,
+            "type": Flow.GOFLOW_TYPES[flow_type],
+            "revision": 1,
+            "spec_version": "13.1.0",
+            "expire_after_minutes": Flow.DEFAULT_EXPIRES_AFTER,
+            "language": "eng",
+            "nodes": [
+                {
+                    "uuid": "f3d5ccd0-fee0-4955-bcb7-21613f049eae",
+                    "actions": [
+                        {"uuid": "f661e3f0-5148-4397-92ef-925629ad444d", "type": "send_msg", "text": "Hey everybody!"}
+                    ],
+                    "exits": [{"uuid": "72a3f1da-bde1-4549-a986-d35809807be8"}],
+                }
+            ],
+        }
 
-        flow = Flow.create(**kwargs)
-        if not definition:
-            # if definition isn't provided, generate simple single message flow
-            node_uuid = str(uuid4())
-            definition = {
-                "version": "10",
-                "flow_type": "F",
-                "base_language": "eng",
-                "entry": node_uuid,
-                "action_sets": [
-                    {
-                        "uuid": node_uuid,
-                        "x": 0,
-                        "y": 0,
-                        "actions": [
-                            {"msg": {"eng": "Hey everybody!"}, "media": {}, "send_all": False, "type": "reply"}
-                        ],
-                        "destination": None,
-                    }
-                ],
-                "rule_sets": [],
-            }
-
-        flow.version_number = definition["version"]
+        flow.version_number = definition["spec_version"]
         flow.save()
 
-        json_flow = FlowRevision.migrate_definition(definition, flow, to_version=Flow.FINAL_LEGACY_VERSION)
-        flow.update(json_flow)
+        json_flow = Flow.migrate_definition(definition, flow)
+        flow.save_revision(self.admin, json_flow)
 
         return flow
 
@@ -503,11 +493,8 @@ class TembaTestMixin:
             extra=extra,
         )
 
-    def set_contact_field(self, contact, key, value, legacy_handle=False):
+    def set_contact_field(self, contact, key, value):
         update_field_locally(self.admin, contact, key, value)
-
-        if legacy_handle:
-            contact.handle_update(fields=[key])
 
     def bulk_release(self, objs, delete=False, user=None):
         for obj in objs:

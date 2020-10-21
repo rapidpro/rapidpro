@@ -399,7 +399,7 @@ function disposeVideoPlayer(element) {
 
 function wireTableListeners() {
     var tds = document.querySelectorAll(
-        'table.selectable tr td:not(:first-child)'
+        'table.selectable tr td:not(.checkbox)'
     );
 
     for (var td of tds) {

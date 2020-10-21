@@ -170,7 +170,6 @@ TEMPLATES = [
                 "temba.context_processors.analytics",
                 "temba.orgs.context_processors.user_group_perms_processor",
                 "temba.channels.views.channel_status_processor",
-                "temba.msgs.views.send_message_auto_complete_processor",
                 "temba.orgs.context_processors.settings_includer",
                 "temba.orgs.context_processors.user_orgs_for_brand",
             ],
@@ -268,7 +267,6 @@ INSTALLED_APPS = (
     "temba.campaigns",
     "temba.ivr",
     "temba.locations",
-    "temba.values",
     "temba.airtime",
     "temba.sql",
 )
@@ -329,7 +327,7 @@ BRANDING = {
         "credits": _("Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."),
     }
 }
-DEFAULT_BRAND = "rapidpro.io"
+DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro.io")
 
 # -----------------------------------------------------------------------------------
 # Permission Management
@@ -444,7 +442,6 @@ PERMISSIONS = {
         "campaign",
         "category_counts",
         "change_language",
-        "completion",
         "copy",
         "editor",
         "editor_next",
@@ -454,7 +451,6 @@ PERMISSIONS = {
         "import_translation",
         "export_results",
         "filter",
-        "json",
         "recent_messages",
         "results",
         "revisions",
@@ -531,7 +527,6 @@ GROUP_PERMISSIONS = {
         "contacts.contact_break_anon",
         "contacts.contact_read",
         "flows.flow_editor",
-        "flows.flow_json",
         "flows.flow_revisions",
         "flows.flowrun_delete",
         "flows.flow_editor_next",
@@ -831,7 +826,6 @@ GROUP_PERMISSIONS = {
         "flows.flow_archived",
         "flows.flow_assets",
         "flows.flow_campaign",
-        "flows.flow_completion",
         "flows.flow_category_counts",
         "flows.flow_export",
         "flows.flow_export_results",
@@ -839,7 +833,6 @@ GROUP_PERMISSIONS = {
         "flows.flow_list",
         "flows.flow_editor",
         "flows.flow_editor_next",
-        "flows.flow_json",
         "flows.flow_recent_messages",
         "flows.flow_results",
         "flows.flow_revisions",
@@ -1191,7 +1184,6 @@ IP_ADDRESSES = ("172.16.10.10", "162.16.10.20")
 # Installs may choose how big they want their text messages and contact fields to be.
 # -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640
-VALUE_FIELD_SIZE = 640
 FLOW_START_PARAMS_SIZE = 256
 
 # -----------------------------------------------------------------------------------

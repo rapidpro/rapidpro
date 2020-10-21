@@ -15,7 +15,6 @@ from django.core.validators import ValidationError
 from django.db import connection
 from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
-from django.test import TestCase
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -25,7 +24,7 @@ from temba.api.models import WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import DELETED_SCHEME
-from temba.contacts.search import SearchException, SearchResults, evaluate_query, is_phonenumber, search_contacts
+from temba.contacts.search import SearchException, SearchResults, search_contacts
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowRun
 from temba.ivr.models import IVRCall
@@ -47,7 +46,6 @@ from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.dates import datetime_to_ms, datetime_to_str
-from temba.values.constants import Value
 
 from .models import (
     TEL_SCHEME,
@@ -61,7 +59,6 @@ from .models import (
     ContactURN,
     ExportContactsTask,
 )
-from .search import BoolCombination, Condition, ContactQuery, IsSetCondition, SinglePropCombination, legacy_parse_query
 from .tasks import check_elasticsearch_lag, squash_contactgroupcounts
 from .templatetags.contacts import contact_field, history_class, history_icon
 
@@ -204,7 +201,7 @@ class ContactCRUDLTest(TembaTest):
         self.assertIn(joe, survey_audience.contacts.all())
 
         self.assertEqual(
-            call(self.org.id, str(active_contacts.uuid), "Joe", "", offset=0, exclude_ids=[]),
+            call(self.org.id, group_uuid=str(active_contacts.uuid), query="Joe", sort="", offset=0, exclude_ids=[]),
             mr_mocks.calls["contact_search"][-1],
         )
 
@@ -213,7 +210,9 @@ class ContactCRUDLTest(TembaTest):
 
         # we re-run the search for the response, but exclude Joe
         self.assertEqual(
-            call(self.org.id, str(active_contacts.uuid), "Joe", "", offset=0, exclude_ids=[joe.id]),
+            call(
+                self.org.id, group_uuid=str(active_contacts.uuid), query="Joe", sort="", offset=0, exclude_ids=[joe.id]
+            ),
             mr_mocks.calls["contact_search"][-1],
         )
 
@@ -595,7 +594,7 @@ class ContactGroupTest(TembaTest):
 
     @mock_mailroom
     def test_create_dynamic(self, mr_mocks):
-        age = ContactField.get_or_create(self.org, self.admin, "age", value_type=Value.TYPE_NUMBER)
+        age = ContactField.get_or_create(self.org, self.admin, "age", value_type=ContactField.TYPE_NUMBER)
         gender = ContactField.get_or_create(self.org, self.admin, "gender", priority=10)
 
         # create a dynamic group using a query
@@ -642,12 +641,6 @@ class ContactGroupTest(TembaTest):
         # can't update query again while it is in this state
         with self.assertRaises(ValueError):
             group.update_query("age = 18")
-
-    @mock_mailroom
-    def test_query_elasticsearch_for_ids_bad_query(self, mr_mocks):
-        with self.assertRaises(SearchException):
-            mr_mocks.error("bad field <> error")
-            Contact.query_elasticsearch_for_ids(self.org, "bad_field <> error")
 
     def test_get_or_create(self):
         group = ContactGroup.get_or_create(self.org, self.user, " first ")
@@ -804,7 +797,7 @@ class ContactGroupTest(TembaTest):
 
         campaign = Campaign.create(self.org, self.admin, "Reminders", group)
         joined = ContactField.get_or_create(
-            self.org, self.admin, "joined", "Joined On", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "joined", "Joined On", value_type=ContactField.TYPE_DATETIME
         )
         event = CampaignEvent.create_message_event(self.org, self.admin, campaign, joined, 2, unit="D", message="Hi")
         EventFire.objects.create(event=event, contact=self.joe, scheduled=timezone.now() + timedelta(days=2))
@@ -1212,7 +1205,7 @@ class ContactTest(TembaTest):
         self.farmers = self.create_group("Farmers", [self.joe])
         self.reminder_flow = self.get_flow("color")
         self.planting_date = ContactField.get_or_create(
-            self.org, self.admin, "planting_date", "Planting Date", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "planting_date", "Planting Date", value_type=ContactField.TYPE_DATETIME
         )
         self.campaign = Campaign.create(self.org, self.admin, "Planting Reminders", self.farmers)
 
@@ -1317,7 +1310,7 @@ class ContactTest(TembaTest):
 
         self.create_broadcast(self.admin, "Test Broadcast", contacts=[contact])
 
-        flow_nodes = msg_flow.as_json()["nodes"]
+        flow_nodes = msg_flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[2]
         beer_prompt = flow_nodes[3]
@@ -1346,7 +1339,7 @@ class ContactTest(TembaTest):
 
         campaign = Campaign.create(self.org, self.admin, "Reminders", group)
         joined = ContactField.get_or_create(
-            self.org, self.admin, "joined", "Joined On", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "joined", "Joined On", value_type=ContactField.TYPE_DATETIME
         )
         event = CampaignEvent.create_message_event(self.org, self.admin, campaign, joined, 2, unit="D", message="Hi")
         EventFire.objects.create(event=event, contact=contact, scheduled=timezone.now() + timedelta(days=2))
@@ -1653,683 +1646,6 @@ class ContactTest(TembaTest):
             self.assertIsNone(self.frank.get_field_value(nick))
             self.assertIsNone(self.billy.get_field_value(nick))
 
-    def test_contact_search_evaluation_created_on_utc_rollover(self):
-        # org is in Africa/Kigali timezone: +02:00
-        self.joe.created_on = datetime(2019, 6, 8, 23, 14, 0, tzinfo=pytz.UTC)
-        self.joe.save(update_fields=("created_on",))
-
-        query_created_on = self.joe.created_on.astimezone(self.org.timezone).date().isoformat()
-
-        # date in org timezone is the 'next' day
-        self.assertEqual(query_created_on, "2019-06-09")
-
-        self.assertTrue(
-            evaluate_query(self.org, f'created_on = "{query_created_on}"', contact_json=self.joe.as_search_json())
-        )
-        query_created_on = (self.joe.created_on - timedelta(days=6)).astimezone(self.org.timezone).date().isoformat()
-        self.assertTrue(
-            evaluate_query(self.org, f'created_on > "{query_created_on}"', contact_json=self.joe.as_search_json())
-        )
-        self.assertTrue(
-            evaluate_query(self.org, f'created_on >= "{query_created_on}"', contact_json=self.joe.as_search_json())
-        )
-        query_created_on = (self.joe.created_on + timedelta(days=6)).astimezone(self.org.timezone).date().isoformat()
-        self.assertTrue(
-            evaluate_query(self.org, f'created_on < "{query_created_on}"', contact_json=self.joe.as_search_json())
-        )
-        self.assertTrue(
-            evaluate_query(self.org, f'created_on <= "{query_created_on}"', contact_json=self.joe.as_search_json())
-        )
-
-    @mock_mailroom
-    def test_contact_search_evaluation(self, mr_mocks):
-        self.setUpLocations()
-
-        ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type=Value.TYPE_TEXT)
-        ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type=Value.TYPE_NUMBER)
-        ContactField.get_or_create(self.org, self.admin, "joined", "Joined On", value_type=Value.TYPE_DATETIME)
-        ContactField.get_or_create(self.org, self.admin, "ward", "Ward", value_type=Value.TYPE_WARD)
-        ContactField.get_or_create(self.org, self.admin, "district", "District", value_type=Value.TYPE_DISTRICT)
-        ContactField.get_or_create(self.org, self.admin, "state", "State", value_type=Value.TYPE_STATE)
-
-        # test 'uuid' attribute
-        self.assertTrue(evaluate_query(self.org, f'uuid = "{self.joe.uuid}"', contact_json=self.joe.as_search_json()))
-        self.assertFalse(
-            evaluate_query(self.org, f'uuid = "{self.frank.uuid}"', contact_json=self.joe.as_search_json())
-        )
-        self.assertFalse(
-            evaluate_query(self.org, f'uuid != "{self.joe.uuid}"', contact_json=self.joe.as_search_json())
-        )
-        self.assertTrue(evaluate_query(self.org, 'uuid != "123456"', contact_json=self.joe.as_search_json()))
-
-        # uuid does not support `has` operator or set checks
-        self.assertRaises(
-            SearchException, evaluate_query, self.org, 'uuid ~ "123"', contact_json=self.joe.as_search_json()
-        )
-        self.assertRaises(
-            SearchException, evaluate_query, self.org, 'uuid = ""', contact_json=self.joe.as_search_json()
-        )
-        self.assertRaises(
-            SearchException, evaluate_query, self.org, 'uuid != ""', contact_json=self.joe.as_search_json()
-        )
-
-        # test 'name' attribute
-        self.assertTrue(evaluate_query(self.org, 'name = "Joe Blow"', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, "name = Joe", contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, "name ~ blow", contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'name = ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'name != ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'name != "Bob"', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'name != "Joe Blow"', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'name = ""', contact_json={}))
-        self.assertFalse(evaluate_query(self.org, 'name != ""', contact_json={}))
-        # nothing to compare
-        self.assertFalse(evaluate_query(self.org, "name = Joe", contact_json={}))
-
-        # 'voldemort' does not have any attributes, evaluates to True
-        self.assertTrue(evaluate_query(self.org, 'name != "Joe Blow"', contact_json=self.voldemort.as_search_json()))
-
-        # test 'language' attribute
-        self.joe.language = "eng"
-        self.joe.save(update_fields=("language",))
-        self.assertTrue(evaluate_query(self.org, 'language = "eng"', contact_json=self.joe.as_search_json()))
-
-        self.assertFalse(evaluate_query(self.org, 'language != "eng"', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'language != "ita"', contact_json=self.joe.as_search_json()))
-
-        self.assertFalse(evaluate_query(self.org, 'language = ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'language != ""', contact_json=self.joe.as_search_json()))
-
-        self.assertTrue(evaluate_query(self.org, 'language != "bla"', contact_json=self.voldemort.as_search_json()))
-
-        # language does not support `has` operator
-        self.assertRaises(
-            SearchException, evaluate_query, self.org, 'language ~ "eng"', contact_json=self.joe.as_search_json()
-        )
-
-        self.joe.language = None
-        self.joe.save(update_fields=("language",))
-
-        self.assertFalse(evaluate_query(self.org, 'language = "eng"', contact_json=self.joe.as_search_json()))
-
-        self.assertTrue(evaluate_query(self.org, 'language = ""', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'language != ""', contact_json=self.joe.as_search_json()))
-
-        # test 'created_on' attribute
-        self.assertRaises(
-            SearchException,
-            evaluate_query,
-            self.org,
-            'created_on = "this-is-not-a-date"',
-            contact_json=self.joe.as_search_json(),
-        )
-        self.assertRaises(
-            SearchException,
-            evaluate_query,
-            self.org,
-            'created_on ~ "2016-01-01"',
-            contact_json=self.joe.as_search_json(),
-        )
-        query_created_on = self.joe.created_on.astimezone(self.org.timezone).date().isoformat()
-        self.assertTrue(
-            evaluate_query(self.org, f'created_on = "{query_created_on}"', contact_json=self.joe.as_search_json())
-        )
-        query_created_on = (self.joe.created_on - timedelta(days=6)).astimezone(self.org.timezone).date().isoformat()
-        self.assertTrue(
-            evaluate_query(self.org, f'created_on > "{query_created_on}"', contact_json=self.joe.as_search_json())
-        )
-        self.assertTrue(
-            evaluate_query(self.org, f'created_on >= "{query_created_on}"', contact_json=self.joe.as_search_json())
-        )
-        query_created_on = (self.joe.created_on + timedelta(days=6)).astimezone(self.org.timezone).date().isoformat()
-        self.assertTrue(
-            evaluate_query(self.org, f'created_on < "{query_created_on}"', contact_json=self.joe.as_search_json())
-        )
-        self.assertTrue(
-            evaluate_query(self.org, f'created_on <= "{query_created_on}"', contact_json=self.joe.as_search_json())
-        )
-
-        # test 'last_seen_on' attribute
-        self.joe.last_seen_on = datetime(2020, 3, 17, 13, 0, 0, 0, pytz.UTC)
-        self.joe.save(update_fields=("last_seen_on",))
-
-        self.assertRaises(
-            SearchException,
-            evaluate_query,
-            self.org,
-            'last_seen_on = "this-is-not-a-date"',
-            contact_json=self.joe.as_search_json(),
-        )
-        self.assertRaises(
-            SearchException,
-            evaluate_query,
-            self.org,
-            'last_seen_on ~ "2016-01-01"',
-            contact_json=self.joe.as_search_json(),
-        )
-        query_last_seen_on = self.joe.last_seen_on.astimezone(self.org.timezone).date().isoformat()
-        self.assertTrue(
-            evaluate_query(self.org, f'last_seen_on = "{query_last_seen_on}"', contact_json=self.joe.as_search_json())
-        )
-        query_last_seen_on = (
-            (self.joe.last_seen_on - timedelta(days=6)).astimezone(self.org.timezone).date().isoformat()
-        )
-        self.assertTrue(
-            evaluate_query(self.org, f'last_seen_on > "{query_last_seen_on}"', contact_json=self.joe.as_search_json())
-        )
-        self.assertTrue(
-            evaluate_query(self.org, f'last_seen_on >= "{query_last_seen_on}"', contact_json=self.joe.as_search_json())
-        )
-        query_last_seen_on = (
-            (self.joe.last_seen_on + timedelta(days=6)).astimezone(self.org.timezone).date().isoformat()
-        )
-        self.assertTrue(
-            evaluate_query(self.org, f'last_seen_on < "{query_last_seen_on}"', contact_json=self.joe.as_search_json())
-        )
-        self.assertTrue(
-            evaluate_query(self.org, f'last_seen_on <= "{query_last_seen_on}"', contact_json=self.joe.as_search_json())
-        )
-        self.assertTrue(evaluate_query(self.org, f'last_seen_on != ""', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, f'last_seen_on = ""', contact_json=self.joe.as_search_json()))
-
-        self.joe.last_seen_on = None
-        self.joe.save(update_fields=("last_seen_on",))
-
-        self.assertFalse(
-            evaluate_query(self.org, f"last_seen_on = 2016-01-01", contact_json=self.joe.as_search_json())
-        )
-
-        # test TEXT field type
-        self.assertFalse(evaluate_query(self.org, 'gender != ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'gender = ""', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, "gender = male", contact_json=self.joe.as_search_json()))
-
-        self.set_contact_field(self.joe, "gender", "Male")
-        self.assertTrue(evaluate_query(self.org, "gender = male", contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, "gender = Female", contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'gender != ""', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'gender = ""', contact_json=self.joe.as_search_json()))
-
-        self.assertTrue(evaluate_query(self.org, "gender != female", contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, "gender != male", contact_json=self.joe.as_search_json()))
-
-        self.assertTrue(evaluate_query(self.org, "gender != female", contact_json=self.voldemort.as_search_json()))
-
-        # test DECIMAL field type
-        self.assertFalse(evaluate_query(self.org, 'age != ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'age = ""', contact_json=self.joe.as_search_json()))
-
-        self.set_contact_field(self.joe, "age", "cedevita is not a number")
-        self.assertFalse(evaluate_query(self.org, "age < 99", contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'age != ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'age = ""', contact_json=self.joe.as_search_json()))
-
-        self.set_contact_field(self.joe, "age", "18")
-        self.assertTrue(evaluate_query(self.org, 'age != ""', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'age = ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, "age = 18", contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, "age > 20", contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, "age >= 15", contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, "age <= 17", contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, "age < 20", contact_json=self.joe.as_search_json()))
-
-        self.assertRaises(
-            SearchException,
-            evaluate_query,
-            self.org,
-            'age < "cedevita is not a number"',
-            contact_json=self.joe.as_search_json(),
-        )
-
-        # test DATETIME field type
-        self.assertFalse(evaluate_query(self.org, 'joined != ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'joined = ""', contact_json=self.joe.as_search_json()))
-
-        self.set_contact_field(self.joe, "joined", "cedevita is not a datetime object")
-        self.assertFalse(evaluate_query(self.org, "joined < 01-04-2018", contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'joined != ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'joined = ""', contact_json=self.joe.as_search_json()))
-
-        self.set_contact_field(self.joe, "joined", "01-03-2018")
-        self.assertTrue(evaluate_query(self.org, 'joined != ""', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'joined = ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, "joined = 01-03-2018", contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, "joined > 01-04-2018", contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, "joined >= 01-03-2018", contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, "joined <= 28-02-2018", contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, "joined < 01-04-2018", contact_json=self.joe.as_search_json()))
-        self.assertRaises(
-            SearchException,
-            evaluate_query,
-            self.org,
-            'joined < "cedevita is not a datetime object"',
-            contact_json=self.joe.as_search_json(),
-        )
-
-        # test WARD field type
-        self.assertFalse(evaluate_query(self.org, 'ward != ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'ward = ""', contact_json=self.joe.as_search_json()))
-
-        self.set_contact_field(self.joe, "ward", "cedevita is not a ward")
-        self.assertFalse(evaluate_query(self.org, 'ward != ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'ward = ""', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'ward = "cedevita"', contact_json=self.joe.as_search_json()))
-
-        self.set_contact_field(self.joe, "ward", "Rwanda > Eastern Province > Rwamagana > Bukure")
-        self.assertTrue(evaluate_query(self.org, 'ward != ""', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'ward = ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'ward = "bUKuRE"', contact_json=self.joe.as_search_json()))
-
-        self.assertTrue(evaluate_query(self.org, 'ward != "Rwamagana"', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'ward != "Bukure"', contact_json=self.joe.as_search_json()))
-
-        self.assertTrue(evaluate_query(self.org, 'ward != "Rwamagana"', contact_json=self.voldemort.as_search_json()))
-
-        self.assertRaises(
-            SearchException, evaluate_query, self.org, 'ward ~ "ukur"', contact_json=self.joe.as_search_json()
-        )
-
-        self.assertFalse(
-            evaluate_query(self.org, 'ward = "cedevita is not a ward"', contact_json=self.joe.as_search_json())
-        )
-
-        # test DISTRICT field type
-        self.assertFalse(evaluate_query(self.org, 'district != ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'district = ""', contact_json=self.joe.as_search_json()))
-
-        self.set_contact_field(self.joe, "district", "cedevita is not a district")
-        self.assertFalse(evaluate_query(self.org, 'district != ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'district = ""', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'district = "cedevita"', contact_json=self.joe.as_search_json()))
-
-        self.set_contact_field(self.joe, "district", "Rwanda > Eastern Province > Rwamagana")
-        self.assertTrue(evaluate_query(self.org, 'district != ""', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'district = ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'district = "Rwamagana"', contact_json=self.joe.as_search_json()))
-
-        self.assertTrue(evaluate_query(self.org, 'district != "Bukure"', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'district != "Rwamagana"', contact_json=self.joe.as_search_json()))
-
-        self.assertTrue(
-            evaluate_query(self.org, 'district != "Rwamagana"', contact_json=self.voldemort.as_search_json())
-        )
-
-        self.assertFalse(
-            evaluate_query(self.org, 'district = "cedevita is not a district"', contact_json=self.joe.as_search_json())
-        )
-
-        # test STATE field type
-        self.assertFalse(evaluate_query(self.org, 'state != ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'state = ""', contact_json=self.joe.as_search_json()))
-
-        self.set_contact_field(self.joe, "state", "cedevita is not a state")
-        self.assertFalse(evaluate_query(self.org, 'state != ""', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'state = ""', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'state = "cedevita"', contact_json=self.joe.as_search_json()))
-
-        self.set_contact_field(self.joe, "state", "Rwanda > Eastern Province")
-        self.assertTrue(evaluate_query(self.org, 'state != ""', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'state = ""', contact_json=self.joe.as_search_json()))
-
-        self.assertTrue(
-            evaluate_query(self.org, 'state != "Western Province"', contact_json=self.joe.as_search_json())
-        )
-        self.assertFalse(
-            evaluate_query(self.org, 'state != "Eastern Province"', contact_json=self.joe.as_search_json())
-        )
-
-        self.assertTrue(
-            evaluate_query(self.org, 'state != "Western Province"', contact_json=self.voldemort.as_search_json())
-        )
-
-        self.assertRaises(
-            SearchException, evaluate_query, self.org, 'state ~ "stern"', contact_json=self.joe.as_search_json()
-        )
-
-        self.assertFalse(
-            evaluate_query(self.org, 'state = "cedevita is not a state"', contact_json=self.joe.as_search_json())
-        )
-
-        # URN is set
-        self.assertTrue(evaluate_query(self.org, 'tel != ""', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'twitter = ""', contact_json=self.joe.as_search_json()))
-
-        self.assertFalse(evaluate_query(self.org, 'tel != ""', contact_json=self.billy.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'twitter = ""', contact_json=self.billy.as_search_json()))
-
-        # add another tel URN
-        mods = self.joe.update_urns(["tel:+250781111999", "tel:+250781111111", "twitter:blow80"])
-        self.joe.modify(self.user, mods)
-
-        self.assertTrue(evaluate_query(self.org, "+250781111111", contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, "tel = +250781111999", contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, "tel has 278", contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'twitter = "blow80"', contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, 'twitter has "blow"', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'twitter has "joe"', contact_json=self.joe.as_search_json()))
-
-        # test 'urn' attribute
-        self.assertTrue(evaluate_query(self.org, "urn = +250781111111", contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, "urn = +250781111999", contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, "urn = blow80", contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, "urn = +250781111222", contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, "urn != +250781111111", contact_json=self.joe.as_search_json()))
-        self.assertTrue(evaluate_query(self.org, "urn != +250781111222", contact_json=self.joe.as_search_json()))
-
-        self.assertTrue(evaluate_query(self.org, "urn ~ 999", contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, "urn ~ 8888", contact_json=self.joe.as_search_json()))
-
-        self.assertTrue(evaluate_query(self.org, 'urn != ""', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, 'urn = ""', contact_json=self.joe.as_search_json()))
-
-        self.assertRaises(
-            SearchException, evaluate_query, self.org, 'urn > "x"', contact_json=self.joe.as_search_json()
-        )
-
-        self.assertTrue(
-            evaluate_query(self.org, "joined = 01-03-2018 AND age < 19", contact_json=self.joe.as_search_json())
-        )
-        self.assertFalse(
-            evaluate_query(self.org, "joined = 01-03-2018 AND age > 19", contact_json=self.joe.as_search_json())
-        )
-        self.assertTrue(
-            evaluate_query(
-                self.org, "joined = 01-03-2018 AND tel = +250781111111", contact_json=self.joe.as_search_json()
-            )
-        )
-        self.assertTrue(
-            evaluate_query(self.org, "joined = 01-03-2018 OR age > 19", contact_json=self.joe.as_search_json())
-        )
-        self.assertTrue(
-            evaluate_query(
-                self.org,
-                'joined = 01-03-2018 AND (age > 19 OR gender = "male")',
-                contact_json=self.joe.as_search_json(),
-            )
-        )
-
-        # values can contain quotes
-        self.set_contact_field(self.joe, "gender", 'M"F')
-        self.assertTrue(evaluate_query(self.org, r'gender = "M\"F"', contact_json=self.joe.as_search_json()))
-        self.assertFalse(evaluate_query(self.org, r'gender != "M\"F"', contact_json=self.joe.as_search_json()))
-        self.set_contact_field(self.joe, "gender", "male")
-
-        # non-existent field or attribute
-        self.assertRaises(
-            SearchException, evaluate_query, self.org, "credits > 10", contact_json=self.joe.as_search_json()
-        )
-
-        # unsupported text operator
-        self.assertRaises(
-            SearchException, evaluate_query, self.org, 'gender ~ "cedevita"', contact_json=self.joe.as_search_json()
-        )
-
-        # unsupported number operator
-        self.assertRaises(
-            SearchException, evaluate_query, self.org, "age ~ 13", contact_json=self.joe.as_search_json()
-        )
-
-        # unsupported date operator
-        self.assertRaises(
-            SearchException, evaluate_query, self.org, "joined ~ 01-03-2018", contact_json=self.joe.as_search_json()
-        )
-
-        # unsupported scheme operator
-        self.assertRaises(
-            SearchException, evaluate_query, self.org, 'tel > "cedevita"', contact_json=self.joe.as_search_json()
-        )
-
-        with AnonymousOrg(self.org):
-            self.joe.refresh_from_db()
-
-            self.assertTrue(evaluate_query(self.org, "gender = male", contact_json=self.joe.as_search_json()))
-            self.assertTrue(evaluate_query(self.org, "gender != female", contact_json=self.joe.as_search_json()))
-            self.assertTrue(evaluate_query(self.org, "age >= 15", contact_json=self.joe.as_search_json()))
-
-            # do not evaluate URN queries if org is anonymous
-            self.assertRaises(
-                SearchException,
-                evaluate_query,
-                self.org,
-                "tel = +250781111111",
-                contact_json=self.joe.as_search_json(),
-            )
-            self.assertRaises(
-                SearchException,
-                evaluate_query,
-                self.org,
-                "urn = +250781111111",
-                contact_json=self.joe.as_search_json(),
-            )
-            self.assertRaises(
-                SearchException,
-                evaluate_query,
-                self.org,
-                "joined = 01-03-2018 AND tel = +250781111111",
-                contact_json=self.joe.as_search_json(),
-            )
-
-            # URN existence checks allowed
-            self.assertFalse(evaluate_query(self.org, 'tel = ""', contact_json=self.joe.as_search_json()))
-            self.assertTrue(evaluate_query(self.org, 'tel != ""', contact_json=self.joe.as_search_json()))
-            self.assertFalse(evaluate_query(self.org, 'urn = ""', contact_json=self.joe.as_search_json()))
-            self.assertTrue(evaluate_query(self.org, 'urn != ""', contact_json=self.joe.as_search_json()))
-
-            # this will be parsed as search for contact id
-            self.assertRaises(
-                SearchException, evaluate_query, self.org, str(self.joe.pk), contact_json=self.joe.as_search_json()
-            )
-
-    def test_contact_search_parsing(self):
-        # implicit condition on name
-        self.assertEqual(legacy_parse_query("will"), ContactQuery(Condition("name", "~", "will")))
-        self.assertEqual(legacy_parse_query("1will2"), ContactQuery(Condition("name", "~", "1will2")))
-
-        self.assertEqual(legacy_parse_query("will").as_text(), 'name ~ "will"')
-        self.assertEqual(legacy_parse_query("1will2").as_text(), 'name ~ "1will2"')
-
-        # implicit condition on tel if value is all tel chars
-        self.assertEqual(legacy_parse_query("1234"), ContactQuery(Condition("tel", "~", "1234")))
-        self.assertEqual(legacy_parse_query("+12-34"), ContactQuery(Condition("tel", "~", "1234")))
-        self.assertEqual(legacy_parse_query("1234", as_anon=True), ContactQuery(Condition("id", "=", "1234")))
-        self.assertEqual(legacy_parse_query("+12-34", as_anon=True), ContactQuery(Condition("name", "~", "+12-34")))
-        self.assertEqual(legacy_parse_query("bob", as_anon=True), ContactQuery(Condition("name", "~", "bob")))
-
-        self.assertEqual(legacy_parse_query("1234").as_text(), "tel ~ 1234")
-        self.assertEqual(legacy_parse_query("+12-34").as_text(), "tel ~ 1234")
-
-        # boolean combinations of implicit conditions
-        self.assertEqual(
-            legacy_parse_query("will felix", optimize=False),
-            ContactQuery(
-                BoolCombination(BoolCombination.AND, Condition("name", "~", "will"), Condition("name", "~", "felix"))
-            ),
-        )
-        self.assertEqual(
-            legacy_parse_query("will felix"),
-            ContactQuery(
-                SinglePropCombination(
-                    "name", BoolCombination.AND, Condition("name", "~", "will"), Condition("name", "~", "felix")
-                )
-            ),
-        )
-        self.assertEqual(
-            legacy_parse_query("will and felix", optimize=False),
-            ContactQuery(
-                BoolCombination(BoolCombination.AND, Condition("name", "~", "will"), Condition("name", "~", "felix"))
-            ),
-        )
-        self.assertEqual(
-            legacy_parse_query("will or felix or matt", optimize=False),
-            ContactQuery(
-                BoolCombination(
-                    BoolCombination.OR,
-                    BoolCombination(
-                        BoolCombination.OR, Condition("name", "~", "will"), Condition("name", "~", "felix")
-                    ),
-                    Condition("name", "~", "matt"),
-                )
-            ),
-        )
-
-        # property conditions
-        self.assertEqual(legacy_parse_query("name=will"), ContactQuery(Condition("name", "=", "will")))
-        self.assertEqual(legacy_parse_query('name ~ "felix"'), ContactQuery(Condition("name", "~", "felix")))
-        self.assertEqual(legacy_parse_query('name != "felix"'), ContactQuery(Condition("name", "!=", "felix")))
-
-        # empty string conditions
-        self.assertEqual(legacy_parse_query('name is ""'), ContactQuery(IsSetCondition("name", "is")))
-        self.assertEqual(legacy_parse_query('name!=""'), ContactQuery(IsSetCondition("name", "!=")))
-
-        # boolean combinations of property conditions
-        self.assertEqual(
-            legacy_parse_query('name=will or name ~ "felix"', optimize=False),
-            ContactQuery(
-                BoolCombination(BoolCombination.OR, Condition("name", "=", "will"), Condition("name", "~", "felix"))
-            ),
-        )
-        self.assertEqual(
-            legacy_parse_query('name=will or name ~ "felix"'),
-            ContactQuery(
-                SinglePropCombination(
-                    "name", BoolCombination.OR, Condition("name", "=", "will"), Condition("name", "~", "felix")
-                )
-            ),
-        )
-
-        # mixture of simple and property conditions
-        self.assertEqual(
-            legacy_parse_query('will or name ~ "felix"'),
-            ContactQuery(
-                SinglePropCombination(
-                    "name", BoolCombination.OR, Condition("name", "~", "will"), Condition("name", "~", "felix")
-                )
-            ),
-        )
-
-        # optimization will merge conditions combined with the same op
-        self.assertEqual(
-            legacy_parse_query("will or felix or matt"),
-            ContactQuery(
-                SinglePropCombination(
-                    "name",
-                    BoolCombination.OR,
-                    Condition("name", "~", "will"),
-                    Condition("name", "~", "felix"),
-                    Condition("name", "~", "matt"),
-                )
-            ),
-        )
-
-        # but not conditions combined with different ops
-        self.assertEqual(
-            legacy_parse_query("will or felix and matt"),
-            ContactQuery(
-                BoolCombination(
-                    BoolCombination.OR,
-                    Condition("name", "~", "will"),
-                    SinglePropCombination(
-                        "name", BoolCombination.AND, Condition("name", "~", "felix"), Condition("name", "~", "matt")
-                    ),
-                )
-            ),
-        )
-
-        # optimization respects explicit precedence defined with parentheses
-        self.assertEqual(
-            legacy_parse_query("(will or felix) and matt"),
-            ContactQuery(
-                BoolCombination(
-                    BoolCombination.AND,
-                    SinglePropCombination(
-                        "name", BoolCombination.OR, Condition("name", "~", "will"), Condition("name", "~", "felix")
-                    ),
-                    Condition("name", "~", "matt"),
-                )
-            ),
-        )
-
-        # implicit ANDing of conditions
-        query = legacy_parse_query('will felix name ~ "matt"')
-        self.assertEqual(
-            query,
-            ContactQuery(
-                SinglePropCombination(
-                    "name",
-                    BoolCombination.AND,
-                    Condition("name", "~", "will"),
-                    Condition("name", "~", "felix"),
-                    Condition("name", "~", "matt"),
-                )
-            ),
-        )
-        self.assertEqual(query.as_text(), 'name ~ "will" AND name ~ "felix" AND name ~ "matt"')
-
-        self.assertEqual(
-            legacy_parse_query('will felix name ~ "matt"', optimize=False),
-            ContactQuery(
-                BoolCombination(
-                    BoolCombination.AND,
-                    BoolCombination(
-                        BoolCombination.AND, Condition("name", "~", "will"), Condition("name", "~", "felix")
-                    ),
-                    Condition("name", "~", "matt"),
-                )
-            ),
-        )
-
-        # boolean operator precedence is AND before OR, even when AND is implicit
-        self.assertEqual(
-            legacy_parse_query("will and felix or matt amber", optimize=False),
-            ContactQuery(
-                BoolCombination(
-                    BoolCombination.OR,
-                    BoolCombination(
-                        BoolCombination.AND, Condition("name", "~", "will"), Condition("name", "~", "felix")
-                    ),
-                    BoolCombination(
-                        BoolCombination.AND, Condition("name", "~", "matt"), Condition("name", "~", "amber")
-                    ),
-                )
-            ),
-        )
-
-        # boolean combinations can themselves be combined
-        query = legacy_parse_query('(Age < 18 and Gender = "male") or (Age > 18 and Gender = "female")')
-        self.assertEqual(
-            query,
-            ContactQuery(
-                BoolCombination(
-                    BoolCombination.OR,
-                    BoolCombination(
-                        BoolCombination.AND, Condition("age", "<", "18"), Condition("gender", "=", "male")
-                    ),
-                    BoolCombination(
-                        BoolCombination.AND, Condition("age", ">", "18"), Condition("gender", "=", "female")
-                    ),
-                )
-            ),
-        )
-        self.assertEqual(query.as_text(), '(age < 18 AND gender = "male") OR (age > 18 AND gender = "female")')
-
-        self.assertEqual(str(legacy_parse_query('Age < 18 and Gender = "male"')), "AND(age<18, gender=male)")
-        self.assertEqual(str(legacy_parse_query("Age > 18 and Age < 30")), "AND[age](>18, <30)")
-
-        # query with UTF-8 characters (non-ascii)
-        query = legacy_parse_query('district="Kayônza"')
-        self.assertEqual(query.as_text(), 'district = "Kayônza"')
-
-        # query that has @ sign
-        query = legacy_parse_query('email ~ "user@example.com"')
-        self.assertEqual(query.as_text(), 'email ~ "user@example.com"')
-
-        query = legacy_parse_query("email ~ user@example.com")
-        self.assertEqual(query.as_text(), 'email ~ "user@example.com"')
-
-        # escaped quotes
-        query = legacy_parse_query(r'name ~ "O\"Learly"')
-        self.assertEqual(query.as_text(), r'name ~ "O"Learly"')
-
     @mock_mailroom
     def test_omnibox(self, mr_mocks):
         # add a group with members and an empty group
@@ -2371,7 +1687,7 @@ class ContactTest(TembaTest):
 
         self.assertEqual([], omnibox_request("search=-123`213"))
 
-        with patch("temba.contacts.omnibox.search_contacts") as sc:
+        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(
                     query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
@@ -2393,7 +1709,7 @@ class ContactTest(TembaTest):
 
             self.assertEqual(expected_result, actual_result)
 
-        with patch("temba.contacts.omnibox.search_contacts") as sc:
+        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id]),
                 SearchResults(query="", total=2, contact_ids=[self.voldemort.id, self.frank.id],),
@@ -2415,7 +1731,7 @@ class ContactTest(TembaTest):
             ]
             self.assertEqual(expected_result, actual_result)
 
-        with patch("temba.contacts.omnibox.search_contacts") as sc:
+        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id]),
                 SearchResults(query="", total=0, contact_ids=[]),
@@ -2455,7 +1771,7 @@ class ContactTest(TembaTest):
             ],
         )
 
-        with patch("temba.contacts.omnibox.search_contacts") as sc:
+        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(
                     query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
@@ -2476,7 +1792,7 @@ class ContactTest(TembaTest):
             )
 
         # search for Frank by phone
-        with patch("temba.contacts.omnibox.search_contacts") as sc:
+        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(query="name ~ 222", total=0, contact_ids=[]),
                 SearchResults(query="urn ~ 222", total=1, contact_ids=[self.frank.id]),
@@ -2493,7 +1809,7 @@ class ContactTest(TembaTest):
         Channel.create(self.org, self.user, "RW", "EX", schemes=[TEL_SCHEME])
 
         # search for Joe - match on last name and twitter handle
-        with patch("temba.contacts.omnibox.search_contacts") as sc:
+        with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(query="name ~ blow", total=1, contact_ids=[self.joe.id]),
                 SearchResults(query="urn ~ blow", total=1, contact_ids=[self.joe.id]),
@@ -2539,7 +1855,7 @@ class ContactTest(TembaTest):
         )
 
         with AnonymousOrg(self.org):
-            with patch("temba.contacts.omnibox.search_contacts") as sc:
+            with patch("temba.contacts.search.omnibox.search_contacts") as sc:
                 sc.side_effect = [SearchResults(query="", total=1, contact_ids=[self.billy.id])]
                 self.assertEqual(
                     omnibox_request(""),
@@ -2555,7 +1871,7 @@ class ContactTest(TembaTest):
                 )
 
             # same search but with v2 format
-            with patch("temba.contacts.omnibox.search_contacts") as sc:
+            with patch("temba.contacts.search.omnibox.search_contacts") as sc:
                 sc.side_effect = [SearchResults(query="", total=1, contact_ids=[self.billy.id])]
                 self.assertEqual(
                     omnibox_request("", version="2"),
@@ -2623,7 +1939,7 @@ class ContactTest(TembaTest):
             )
 
             flow = self.get_flow("color_v13")
-            nodes = flow.as_json()["nodes"]
+            nodes = flow.get_definition()["nodes"]
             color_prompt = nodes[0]
             color_split = nodes[4]
 
@@ -2698,7 +2014,7 @@ class ContactTest(TembaTest):
             )
 
             # fetch our contact history
-            with self.assertNumQueries(69):
+            with self.assertNumQueries(67):
                 response = self.fetch_protected(url, self.admin)
 
             # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -2865,7 +2181,7 @@ class ContactTest(TembaTest):
 
     def test_history_session_events(self):
         flow = self.get_flow("color_v13")
-        nodes = flow.as_json()["nodes"]
+        nodes = flow.get_definition()["nodes"]
         (
             MockSessionWriter(self.joe, flow)
             .visit(nodes[0])
@@ -2948,7 +2264,7 @@ class ContactTest(TembaTest):
         msg = self.create_incoming_msg(contact, "Inbound message")
 
         flow = self.get_flow("color_v13")
-        nodes = flow.as_json()["nodes"]
+        nodes = flow.get_definition()["nodes"]
         color_prompt = nodes[0]
         color_split = nodes[4]
 
@@ -3148,9 +2464,11 @@ class ContactTest(TembaTest):
             )
 
         planters = self.create_group("Planters", query='planting_date != ""')
+        planters.contacts.add(self.joe)
 
         now = timezone.now()
-        self.set_contact_field(self.joe, "planting_date", (now + timedelta(days=1)).isoformat(), legacy_handle=True)
+        joe_planting_date = now + timedelta(days=1)
+        self.set_contact_field(self.joe, "planting_date", joe_planting_date.isoformat())
 
         # should have seven fires, one for each campaign event
         self.assertEqual(7, EventFire.objects.filter(event__is_active=True).count())
@@ -3350,7 +2668,7 @@ class ContactTest(TembaTest):
         self.assertEqual(0, results["total"])
 
         # if we query a field, it should show up in our field dict
-        age = self.create_field("age", "Age", Value.TYPE_NUMBER)
+        age = self.create_field("age", "Age", ContactField.TYPE_NUMBER)
 
         mr_mocks.contact_search("age>32", cleaned='age > 32"', contacts=[self.frank], fields=[age])
 
@@ -3553,7 +2871,9 @@ class ContactTest(TembaTest):
         self.assertEqual(len(self.joe_and_frank.contacts.all()), 0)
 
         # add an extra field to the org
-        ContactField.get_or_create(self.org, self.user, "state", label="Home state", value_type=Value.TYPE_STATE)
+        ContactField.get_or_create(
+            self.org, self.user, "state", label="Home state", value_type=ContactField.TYPE_STATE
+        )
         self.set_contact_field(self.joe, "state", " kiGali   citY ")  # should match "Kigali City"
 
         # check that the field appears on the update form
@@ -3736,7 +3056,7 @@ class ContactTest(TembaTest):
         self.assertContains(response, "Rwa-magana")
 
         # change our field to a text field
-        state.value_type = Value.TYPE_TEXT
+        state.value_type = ContactField.TYPE_TEXT
         state.save()
         self.set_contact_field(self.joe, "state", "Rwama Value")
 
@@ -4037,7 +3357,7 @@ class ContactTest(TembaTest):
 
         # we try a bit harder if we know it is a location field
         state_uuid = str(
-            ContactField.get_or_create(self.org, self.user, "state", "State", value_type=Value.TYPE_STATE).uuid
+            ContactField.get_or_create(self.org, self.user, "state", "State", value_type=ContactField.TYPE_STATE).uuid
         )
         self.set_contact_field(self.joe, "state", "i live in eastern province")
         self.joe.refresh_from_db()
@@ -4048,11 +3368,11 @@ class ContactTest(TembaTest):
         # ok, let's test our other boundary levels
         district_uuid = str(
             ContactField.get_or_create(
-                self.org, self.user, "district", "District", value_type=Value.TYPE_DISTRICT
+                self.org, self.user, "district", "District", value_type=ContactField.TYPE_DISTRICT
             ).uuid
         )
         ward_uuid = str(
-            ContactField.get_or_create(self.org, self.user, "ward", "Ward", value_type=Value.TYPE_WARD).uuid
+            ContactField.get_or_create(self.org, self.user, "ward", "Ward", value_type=ContactField.TYPE_WARD).uuid
         )
         self.set_contact_field(self.joe, "district", "gatsibo")
         self.set_contact_field(self.joe, "ward", "kageyo")
@@ -4080,16 +3400,16 @@ class ContactTest(TembaTest):
         ContactField.user_fields.filter(key="state").update(value_type="Z")
         bad_field = ContactField.user_fields.get(key="state")
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             self.joe.get_field_serialized(bad_field)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(KeyError):
             self.joe.get_field_value(bad_field)
 
     def test_date_field(self):
         # create a new date field
         birth_date = ContactField.get_or_create(
-            self.org, self.admin, "birth_date", label="Birth Date", value_type=Value.TYPE_TEXT
+            self.org, self.admin, "birth_date", label="Birth Date", value_type=ContactField.TYPE_TEXT
         )
 
         # set a field on our contact
@@ -4105,12 +3425,14 @@ class ContactTest(TembaTest):
         self.setUpLocations()
 
         registration_field = ContactField.get_or_create(
-            self.org, self.admin, "registration_date", "Registration Date", None, Value.TYPE_DATETIME
+            self.org, self.admin, "registration_date", "Registration Date", None, ContactField.TYPE_DATETIME
         )
 
-        weight_field = ContactField.get_or_create(self.org, self.admin, "weight", "Weight", None, Value.TYPE_NUMBER)
-        color_field = ContactField.get_or_create(self.org, self.admin, "color", "Color", None, Value.TYPE_TEXT)
-        state_field = ContactField.get_or_create(self.org, self.admin, "state", "State", None, Value.TYPE_STATE)
+        weight_field = ContactField.get_or_create(
+            self.org, self.admin, "weight", "Weight", None, ContactField.TYPE_NUMBER
+        )
+        color_field = ContactField.get_or_create(self.org, self.admin, "color", "Color", None, ContactField.TYPE_TEXT)
+        state_field = ContactField.get_or_create(self.org, self.admin, "state", "State", None, ContactField.TYPE_STATE)
 
         joe = Contact.objects.get(pk=self.joe.pk)
         joe.language = "eng"
@@ -4167,10 +3489,10 @@ class ContactTest(TembaTest):
         self.setUpLocations()
 
         district_field = ContactField.get_or_create(
-            self.org, self.admin, "district", "District", None, Value.TYPE_DISTRICT
+            self.org, self.admin, "district", "District", None, ContactField.TYPE_DISTRICT
         )
         not_state_field = ContactField.get_or_create(
-            self.org, self.admin, "not_state", "Not State", None, Value.TYPE_TEXT
+            self.org, self.admin, "not_state", "Not State", None, ContactField.TYPE_TEXT
         )
 
         # add duplicate district in different states
@@ -4185,7 +3507,7 @@ class ContactTest(TembaTest):
         # empty because it is ambiguous
         self.assertFalse(joe.get_field_value(district_field))
 
-        state_field = ContactField.get_or_create(self.org, self.admin, "state", "State", None, Value.TYPE_STATE)
+        state_field = ContactField.get_or_create(self.org, self.admin, "state", "State", None, ContactField.TYPE_STATE)
 
         self.set_contact_field(joe, "state", "Kigali city")
         self.assertEqual("Kigali City", joe.get_field_display(state_field))
@@ -4208,9 +3530,9 @@ class ContactTest(TembaTest):
         ward = AdminBoundary.create(osm_id="3710377", name="Bichi", level=3, parent=district)
         user1 = self.create_user("mcren")
 
-        ContactField.get_or_create(self.org, user1, "state", "State", None, Value.TYPE_STATE)
-        ContactField.get_or_create(self.org, user1, "district", "District", None, Value.TYPE_DISTRICT)
-        ward = ContactField.get_or_create(self.org, user1, "ward", "Ward", None, Value.TYPE_WARD)
+        ContactField.get_or_create(self.org, user1, "state", "State", None, ContactField.TYPE_STATE)
+        ContactField.get_or_create(self.org, user1, "district", "District", None, ContactField.TYPE_DISTRICT)
+        ward = ContactField.get_or_create(self.org, user1, "ward", "Ward", None, ContactField.TYPE_WARD)
 
         jemila = self.create_contact(
             name="Jemila Alley",
@@ -4218,83 +3540,6 @@ class ContactTest(TembaTest):
             fields={"state": "kano", "district": "bichi", "ward": "bichi"},
         )
         self.assertEqual(jemila.get_field_serialized(ward), "Rwanda > Kano > Bichi > Bichi")
-
-    @mock_mailroom
-    def test_update_handling(self, mr_mocks):
-        bob = self.create_contact("Bob", phone="111222")
-        bob.name = "Bob Marley"
-        bob.save(update_fields=("name",))
-
-        group = self.create_group("Customers", [])
-        nickname = self.create_field("nickname", "Nickname")
-
-        old_modified_on = bob.modified_on
-
-        mods = bob.update_static_groups([group]) + bob.update_fields({nickname: "Bobby"})
-
-        bob.modify(self.admin, mods)
-
-        self.assertTrue(bob.modified_on > old_modified_on)
-
-        # run all tests as 2/Jan/2014 03:04 AFT
-        tz = pytz.timezone("Asia/Kabul")
-
-        with patch.object(timezone, "now", return_value=tz.localize(datetime(2014, 1, 2, 3, 4, 5, 6))):
-            ContactField.get_or_create(self.org, self.admin, "age", "Age", value_type="N")
-            ContactField.get_or_create(self.org, self.admin, "gender", "Gender", value_type="T")
-            joined_field = ContactField.get_or_create(self.org, self.admin, "joined", "Join Date", value_type="D")
-
-            # create groups based on name or URN (checks that contacts are added correctly on contact create)
-            joes_group = self.create_group("People called Joe", query='twitter = "blow80"')
-            mtn_group = self.create_group("People with number containing '078'", query='tel has "078"')
-
-            self.mary = self.create_contact(
-                "Mary", phone="+250783333333", fields={"gender": "Female", "age": "21", "joined": "31/12/2013"}
-            )
-            self.annie = self.create_contact(
-                "Annie", phone="7879", fields={"gender": "Female", "age": "9", "joined": "31/12/2013"}
-            )
-            self.set_contact_field(self.joe, "gender", "Male")
-            self.set_contact_field(self.joe, "age", "25")
-            self.set_contact_field(self.joe, "joined", "1/1/2014")
-            self.set_contact_field(self.frank, "gender", "Male")
-            self.set_contact_field(self.frank, "age", "50")
-            self.set_contact_field(self.frank, "joined", "1/1/2014")
-
-            men_group = self.create_group("Boys", query='gender = "male" AND age >= 18')
-            women_group = self.create_group("Girls", query='gender = "female" AND age >= 18')
-
-            joe_flow = self.create_flow()
-            joes_campaign = Campaign.create(self.org, self.admin, "Joe Reminders", joes_group)
-            joes_event = CampaignEvent.create_flow_event(
-                self.org,
-                self.admin,
-                joes_campaign,
-                relative_to=joined_field,
-                offset=1,
-                unit="W",
-                flow=joe_flow,
-                delivery_hour=17,
-            )
-
-            for c in [self.frank, self.joe, self.mary]:
-                c.handle_update(is_new=True)
-
-            # check initial group members added correctly
-            self.assertEqual([self.frank, self.joe, self.mary], list(mtn_group.contacts.order_by("name")))
-            self.assertEqual([self.frank, self.joe], list(men_group.contacts.order_by("name")))
-            self.assertEqual([self.mary], list(women_group.contacts.order_by("name")))
-            self.assertEqual([self.joe], list(joes_group.contacts.order_by("name")))
-
-            # check event fire initialized correctly
-            joe_fires = EventFire.objects.filter(event=joes_event)
-            self.assertEqual(1, joe_fires.count())
-            self.assertEqual(self.joe, joe_fires.first().contact)
-
-            # Frank becomes Francine...
-            self.set_contact_field(self.frank, "gender", "Female", legacy_handle=True)
-            self.assertEqual([self.joe], list(men_group.contacts.order_by("name")))
-            self.assertEqual([self.frank, self.mary], list(women_group.contacts.order_by("name")))
 
 
 class ContactURNTest(TembaTest):
@@ -4371,28 +3616,30 @@ class ContactFieldTest(TembaTest):
         join_date = ContactField.get_or_create(self.org, self.admin, "join_date")
         self.assertEqual(join_date.key, "join_date")
         self.assertEqual(join_date.label, "Join Date")
-        self.assertEqual(join_date.value_type, Value.TYPE_TEXT)
-
-        another = ContactField.get_or_create(self.org, self.admin, "another", "My Label", value_type=Value.TYPE_NUMBER)
-        self.assertEqual(another.key, "another")
-        self.assertEqual(another.label, "My Label")
-        self.assertEqual(another.value_type, Value.TYPE_NUMBER)
+        self.assertEqual(join_date.value_type, ContactField.TYPE_TEXT)
 
         another = ContactField.get_or_create(
-            self.org, self.admin, "another", "Updated Label", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "another", "My Label", value_type=ContactField.TYPE_NUMBER
+        )
+        self.assertEqual(another.key, "another")
+        self.assertEqual(another.label, "My Label")
+        self.assertEqual(another.value_type, ContactField.TYPE_NUMBER)
+
+        another = ContactField.get_or_create(
+            self.org, self.admin, "another", "Updated Label", value_type=ContactField.TYPE_DATETIME
         )
         self.assertEqual(another.key, "another")
         self.assertEqual(another.label, "Updated Label")
-        self.assertEqual(another.value_type, Value.TYPE_DATETIME)
+        self.assertEqual(another.value_type, ContactField.TYPE_DATETIME)
 
         another = ContactField.get_or_create(
-            self.org, self.admin, "another", "Updated Label", show_in_table=True, value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "another", "Updated Label", show_in_table=True, value_type=ContactField.TYPE_DATETIME
         )
         self.assertTrue(another.show_in_table)
 
         for key in Contact.RESERVED_FIELD_KEYS:
             with self.assertRaises(ValueError):
-                ContactField.get_or_create(self.org, self.admin, key, key, value_type=Value.TYPE_TEXT)
+                ContactField.get_or_create(self.org, self.admin, key, key, value_type=ContactField.TYPE_TEXT)
 
         groups_field = ContactField.get_or_create(self.org, self.admin, "groups_field", "Groups Field")
         self.assertEqual(groups_field.key, "groups_field")
@@ -4491,7 +3738,7 @@ class ContactFieldTest(TembaTest):
         Contact.apply_action_block(self.admin, self.org.contacts.all())
 
         # make third a datetime
-        self.contactfield_3.value_type = Value.TYPE_DATETIME
+        self.contactfield_3.value_type = ContactField.TYPE_DATETIME
         self.contactfield_3.save()
 
         # start one of our contacts down it
@@ -4500,7 +3747,7 @@ class ContactFieldTest(TembaTest):
         )
 
         flow = self.get_flow("color_v13")
-        nodes = flow.as_json()["nodes"]
+        nodes = flow.get_definition()["nodes"]
         color_prompt = nodes[0]
         color_split = nodes[4]
 
@@ -4948,11 +4195,13 @@ class ContactFieldTest(TembaTest):
             assertImportExportedFile()
 
     def test_prepare_sort_field_struct(self):
-        ward = ContactField.get_or_create(self.org, self.admin, "ward", "Home Ward", value_type=Value.TYPE_WARD)
+        ward = ContactField.get_or_create(self.org, self.admin, "ward", "Home Ward", value_type=ContactField.TYPE_WARD)
         district = ContactField.get_or_create(
-            self.org, self.admin, "district", "Home District", value_type=Value.TYPE_DISTRICT
+            self.org, self.admin, "district", "Home District", value_type=ContactField.TYPE_DISTRICT
         )
-        state = ContactField.get_or_create(self.org, self.admin, "state", "Home Stat", value_type=Value.TYPE_STATE)
+        state = ContactField.get_or_create(
+            self.org, self.admin, "state", "Home Stat", value_type=ContactField.TYPE_STATE
+        )
 
         self.assertEqual(
             ContactListView.prepare_sort_field_struct(sort_on="created_on"),
@@ -5460,7 +4709,7 @@ class ContactFieldTest(TembaTest):
         self.login(self.admin)
         flow = self.get_flow("dependencies")
         dependant_field = ContactField.user_fields.filter(is_active=True, org=self.org, key="favorite_cat").get()
-        dependant_field.value_type = Value.TYPE_DATETIME
+        dependant_field.value_type = ContactField.TYPE_DATETIME
         dependant_field.save(update_fields=("value_type",))
 
         farmers = self.create_group("Farmers", [self.joe])
@@ -5782,24 +5031,6 @@ class URNTest(TembaTest):
         self.assertTrue(URN.validate("vk:12345678901234567"))
 
 
-class PhoneNumberTest(TestCase):
-    def test_is_phonenumber(self):
-        # these should match as phone numbers
-        self.assertEqual(is_phonenumber("+12345678901"), (True, "12345678901"))
-        self.assertEqual(is_phonenumber("+1-234-567-8901"), (True, "12345678901"))
-        self.assertEqual(is_phonenumber("+1 (234) 567-8901"), (True, "12345678901"))
-        self.assertEqual(is_phonenumber("+12345678901"), (True, "12345678901"))
-        self.assertEqual(is_phonenumber("+12 34 567 8901"), (True, "12345678901"))
-        self.assertEqual(is_phonenumber(" 234 567 8901 "), (True, "2345678901"))
-
-        # these should not be parsed as numbers
-        self.assertEqual(is_phonenumber("+12345678901 not a number"), (False, None))
-        self.assertEqual(is_phonenumber(""), (False, None))
-        self.assertEqual(is_phonenumber("AMAZONS"), (False, None))
-        self.assertEqual(is_phonenumber('name = "Jack"'), (False, None))
-        self.assertEqual(is_phonenumber('(social = "234-432-324")'), (False, None))
-
-
 class ESIntegrationTest(TembaNonAtomicTest):
     def test_ES_contacts_index(self):
         self.create_anonymous_user()
@@ -5879,7 +5110,7 @@ class ESIntegrationTest(TembaNonAtomicTest):
             self.create_contact(name, urns=urns, fields=fields)
 
         def q(query):
-            results = search_contacts(self.org.id, self.org.cached_active_contacts_group.uuid, query, None)
+            results = search_contacts(self.org, query, group=self.org.cached_active_contacts_group)
             return results.total
 
         db_config = connection.settings_dict
@@ -6124,10 +5355,10 @@ class ContactImportTest(TembaTest):
             ("uuid_only.csv", "Import files must contain columns besides UUID."),
         ]
 
-        for bad_file in bad_files:
-            with self.assertRaises(ValidationError) as e:
-                try_to_parse(bad_file[0])
-            self.assertEqual(bad_file[1], e.exception.messages[0])
+        for imp_file, imp_error in bad_files:
+            with self.assertRaises(ValidationError, msg=f"expected error in {imp_file}") as e:
+                try_to_parse(imp_file)
+            self.assertEqual(imp_error, e.exception.messages[0], f"error mismatch for {imp_file}")
 
     def test_extract_mappings(self):
         # try simple import in different formats
@@ -6156,12 +5387,11 @@ class ContactImportTest(TembaTest):
         self.assertEqual(["URN:Tel"], imp.headers)
         self.assertEqual({"URN:Tel": {"type": "scheme", "scheme": "tel"}}, imp.mappings)
 
-        self.create_field("goats", "Goats", Value.TYPE_NUMBER)
+        self.create_field("goats", "Goats", ContactField.TYPE_NUMBER)
 
         imp = self.create_contact_import("media/test_imports/extra_fields_and_group.xlsx")
         self.assertEqual(
-            ["URN:Tel", "Name", "language", "Created On", "field: goats ", "Field:Sheep", "Group:Testers"],
-            imp.headers,
+            ["URN:Tel", "Name", "language", "Created On", "field: goats", "Field:Sheep", "Group:Testers"], imp.headers,
         )
         self.assertEqual(
             {
@@ -6169,9 +5399,34 @@ class ContactImportTest(TembaTest):
                 "Name": {"type": "attribute", "name": "name"},
                 "language": {"type": "attribute", "name": "language"},
                 "Created On": {"type": "ignore"},
-                "field: goats ": {"type": "field", "key": "goats", "name": "goats"},
+                "field: goats": {"type": "field", "key": "goats", "name": "Goats"},
                 "Field:Sheep": {"type": "new_field", "key": "sheep", "name": "Sheep", "value_type": "T"},
                 "Group:Testers": {"type": "ignore"},
+            },
+            imp.mappings,
+        )
+
+        # a header can be a number but it will be ignored
+        imp = self.create_contact_import("media/test_imports/numerical_header.xlsx")
+        self.assertEqual(["URN:Tel", "Name", "123"], imp.headers)
+        self.assertEqual(
+            {
+                "URN:Tel": {"type": "scheme", "scheme": "tel"},
+                "Name": {"name": "name", "type": "attribute"},
+                "123": {"type": "ignore"},
+            },
+            imp.mappings,
+        )
+
+        self.create_field("a_number", "A-Number", ContactField.TYPE_NUMBER)
+
+        imp = self.create_contact_import("media/test_imports/header_chars.xlsx")
+        self.assertEqual(["URN:Tel", "Name", "Field: A-Number"], imp.headers)
+        self.assertEqual(
+            {
+                "URN:Tel": {"type": "scheme", "scheme": "tel"},
+                "Name": {"type": "attribute", "name": "name"},
+                "Field: A-Number": {"type": "field", "key": "a_number", "name": "A-Number"},
             },
             imp.mappings,
         )
@@ -6299,7 +5554,7 @@ class ContactImportTest(TembaTest):
 
     @mock_mailroom
     def test_batches_with_fields(self, mr_mocks):
-        self.create_field("goats", "Goats", Value.TYPE_NUMBER)
+        self.create_field("goats", "Goats", ContactField.TYPE_NUMBER)
 
         imp = self.create_contact_import("media/test_imports/extra_fields_and_group.xlsx")
         imp.start()
@@ -6433,6 +5688,27 @@ class ContactImportTest(TembaTest):
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_flagged)
 
+    def test_data_types(self):
+        imp = self.create_contact_import("media/test_imports/data_formats.xlsx")
+        imp.start()
+        batch = imp.batches.get()
+        self.assertEqual(
+            [
+                {
+                    "uuid": "17c4388a-024f-4e67-937a-13be78a70766",
+                    "fields": {
+                        "a_number": "1234.5678",
+                        "a_date": "2020-10-19",
+                        "a_time": "13:17:00",
+                        "a_datetime": "2020-10-19T13:18:00+02:00",
+                        "price": "123.45",
+                    },
+                    "groups": [str(imp.group.uuid)],
+                }
+            ],
+            batch.specs,
+        )
+
     def test_parse_value(self):
         imp = self.create_contact_import("media/test_imports/simple.xlsx")
         kgl = pytz.timezone("Africa/Kigali")
@@ -6526,7 +5802,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(read_url, response.url)
 
     def test_preview_with_mappings(self):
-        self.create_field("age", "Age", Value.TYPE_NUMBER)
+        self.create_field("age", "Age", ContactField.TYPE_NUMBER)
 
         imp = self.create_contact_import("media/test_imports/extra_fields_and_group.xlsx")
         preview_url = reverse("contacts.contactimport_preview", args=[imp.id])
@@ -6630,7 +5906,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
                 "Name": {"type": "attribute", "name": "name"},
                 "language": {"type": "attribute", "name": "language"},
                 "Created On": {"type": "ignore"},
-                "field: goats ": {"type": "new_field", "key": "goats", "name": "Goats", "value_type": "N"},
+                "field: goats": {"type": "new_field", "key": "goats", "name": "Goats", "value_type": "N"},
                 "Field:Sheep": {"type": "ignore"},
                 "Group:Testers": {"type": "ignore"},
             },

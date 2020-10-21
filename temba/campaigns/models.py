@@ -1,4 +1,3 @@
-from datetime import timedelta
 from typing import List
 
 from django.db import models
@@ -13,7 +12,6 @@ from temba.msgs.models import Msg
 from temba.orgs.models import Org
 from temba.utils import json, on_transaction_commit
 from temba.utils.models import TembaModel, TranslatableField
-from temba.values.constants import Value
 
 
 class Campaign(TembaModel):
@@ -351,7 +349,7 @@ class CampaignEvent(TembaModel):
         if campaign.org != org:
             raise ValueError("Org mismatch")
 
-        if relative_to.value_type != Value.TYPE_DATETIME:
+        if relative_to.value_type != ContactField.TYPE_DATETIME:
             raise ValueError(
                 f"Contact fields for CampaignEvents must have a datetime type, got {relative_to.value_type}."
             )
@@ -383,7 +381,7 @@ class CampaignEvent(TembaModel):
         if campaign.org != org:
             raise ValueError("Org mismatch")
 
-        if relative_to.value_type != Value.TYPE_DATETIME:
+        if relative_to.value_type != ContactField.TYPE_DATETIME:
             raise ValueError(
                 f"Contact fields for CampaignEvents must have a datetime type, got '{relative_to.value_type}'."
             )
@@ -466,56 +464,6 @@ class CampaignEvent(TembaModel):
     def schedule_async(self):
         on_transaction_commit(lambda: mailroom.queue_schedule_campaign_event(self))
 
-    def calculate_scheduled_fire_for_value(self, date_value, now):
-        tz = self.campaign.org.timezone
-
-        # nothing to base off of, nothing to fire
-        if not date_value:
-            return None
-
-        # field is no longer active? return
-        if not self.relative_to.is_active:  # pragma: no cover
-            return None
-
-        # convert to our timezone
-        date_value = date_value.astimezone(tz)
-
-        # if we got a date, floor to the minute
-        date_value = date_value.replace(second=0, microsecond=0)
-
-        # try to parse it to a datetime
-        try:
-            if self.unit == CampaignEvent.UNIT_MINUTES:  # pragma: needs cover
-                delta = timedelta(minutes=self.offset)
-            elif self.unit == CampaignEvent.UNIT_HOURS:  # pragma: needs cover
-                delta = timedelta(hours=self.offset)
-            elif self.unit == CampaignEvent.UNIT_DAYS:
-                delta = timedelta(days=self.offset)
-            elif self.unit == CampaignEvent.UNIT_WEEKS:
-                delta = timedelta(weeks=self.offset)
-
-            scheduled = date_value + delta
-
-            # normalize according to our timezone (puts us in the right DST timezone if our date changed)
-            if str(tz) != "UTC":
-                scheduled = tz.normalize(scheduled)
-
-            if self.delivery_hour != -1:
-                scheduled = scheduled.replace(hour=self.delivery_hour, minute=0, second=0, microsecond=0)
-
-            # if we've changed utcoffset (DST shift), tweak accordingly (this keeps us at the same hour of the day)
-            elif str(tz) != "UTC" and date_value.utcoffset() != scheduled.utcoffset():  # pragma: needs cover
-                scheduled = tz.normalize(date_value.utcoffset() - scheduled.utcoffset() + scheduled)
-
-            # ignore anything in the past
-            if scheduled > now:
-                return scheduled
-
-        except Exception:  # pragma: no cover
-            pass
-
-        return None  # pragma: no cover
-
     def recreate(self):
         """
         Cleaning up millions of event fires would be expensive so instead we treat campaign events as immutable objects
@@ -579,9 +527,6 @@ class CampaignEvent(TembaModel):
         # and ourselves
         self.delete()
 
-    def calculate_scheduled_fire(self, contact):
-        return self.calculate_scheduled_fire_for_value(contact.get_field_value(self.relative_to), timezone.now())
-
     def __str__(self):
         return f'Event[relative_to={self.relative_to.key}, offset={self.offset}, flow="{self.flow.name}"]'
 
@@ -614,69 +559,6 @@ class EventFire(Model):
     def get_relative_to_value(self):
         value = self.contact.get_field_value(self.event.relative_to)
         return value.replace(second=0, microsecond=0) if value else None
-
-    @classmethod
-    def update_events_for_contact_groups(cls, contact, groups):
-        """
-        Updates all the events for a contact, across all campaigns.
-        Should be called anytime a contact field or contact group membership changes.
-        """
-
-        # for each campaign that might affect us
-        for campaign in Campaign.objects.filter(
-            group__in=groups, org=contact.org, is_active=True, is_archived=False
-        ).distinct():
-            # update all the events for the campaign
-            EventFire.update_campaign_events_for_contact(campaign, contact)
-
-    @classmethod
-    def update_events_for_contact_fields(cls, contact, keys):
-        """
-        Updates all the events for a contact, across all campaigns.
-        Should be called anytime a contact field or contact group membership changes.
-        """
-        # make sure we consider immutable fields(created_on)
-        keys = list(keys)
-        keys.extend(list(ContactField.IMMUTABLE_FIELDS))
-
-        events = CampaignEvent.objects.filter(
-            campaign__group__in=contact.user_groups,
-            campaign__org=contact.org,
-            relative_to__key__in=keys,
-            campaign__is_archived=False,
-            is_active=True,
-        ).prefetch_related("relative_to")
-
-        for event in events:
-            # remove any unfired events, they will get recreated below
-            EventFire.objects.filter(event=event, contact=contact, fired=None).delete()
-
-            # calculate our scheduled date
-            scheduled = event.calculate_scheduled_fire(contact)
-
-            # and if we have a date, then schedule it
-            if scheduled:
-                EventFire.objects.create(event=event, contact=contact, scheduled=scheduled)
-
-    @classmethod
-    def update_campaign_events_for_contact(cls, campaign, contact):
-        """
-        Updates all the events for the passed in contact and campaign.
-        Should be called anytime a contact field or contact group membership changes.
-        """
-        # remove any unfired events, they will get recreated below
-        EventFire.objects.filter(event__campaign=campaign, contact=contact, fired=None).delete()
-
-        # if we aren't archived and still in our campaign's group
-        if not campaign.is_archived and contact.user_groups.filter(id__in=[campaign.group.id]).exists():
-            # then scheduled all our events
-            for event in campaign.get_events():
-                # calculate our scheduled date
-                scheduled = event.calculate_scheduled_fire(contact)
-
-                # and if we have a date, then schedule it
-                if scheduled:
-                    EventFire.objects.create(event=event, contact=contact, scheduled=scheduled)
 
     def __str__(self):  # pragma: no cover
         return f"EventFire[event={self.event.uuid}, contact={self.contact.uuid}, scheduled={self.scheduled}]"

@@ -12,7 +12,6 @@ import stripe
 import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
-from smartmin.csv_imports.models import ImportTask
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
@@ -41,8 +40,8 @@ from temba.contacts.models import (
     ContactURN,
     ExportContactsTask,
 )
-from temba.contacts.omnibox import omnibox_serialize
-from temba.flows.models import ActionSet, ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
+from temba.contacts.search.omnibox import omnibox_serialize
+from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
@@ -59,8 +58,6 @@ from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
-from temba.utils.uuid import uuid4
-from temba.values.constants import Value
 
 from .context_processors import GroupPermWrapper
 from .models import CreditAlert, Invitation, Language, Org, TopUp, TopUpCredits
@@ -290,7 +287,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
         # add some fields
         parent_field = self.create_field("age", "Parent Age", org=self.parent_org)
         parent_datetime_field = self.create_field(
-            "planting_date", "Planting Date", value_type=Value.TYPE_DATETIME, org=self.parent_org
+            "planting_date", "Planting Date", value_type=ContactField.TYPE_DATETIME, org=self.parent_org
         )
         child_field = self.create_field("age", "Child Age", org=self.child_org)
 
@@ -304,7 +301,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         # bring in some flows
         parent_flow = self.get_flow("color_v13")
-        flow_nodes = parent_flow.as_json()["nodes"]
+        flow_nodes = parent_flow.get_definition()["nodes"]
         (
             MockSessionWriter(parent_contact, parent_flow)
             .visit(flow_nodes[0])
@@ -2895,51 +2892,12 @@ class OrgTest(TembaTest):
     @patch("temba.msgs.tasks.export_messages_task.delay")
     @patch("temba.flows.tasks.export_flow_results_task.delay")
     @patch("temba.contacts.tasks.export_contacts_task.delay")
-    @patch("smartmin.csv_imports.models.ImportTask.start")
     def test_resume_failed_task(
-        self, mock_import_task, mock_export_contacts_task, mock_export_flow_results_task, mock_export_messages_task
+        self, mock_export_contacts_task, mock_export_flow_results_task, mock_export_messages_task
     ):
-        mock_import_task.return_value = None
         mock_export_contacts_task.return_value = None
         mock_export_flow_results_task.return_value = None
         mock_export_messages_task.return_value = None
-
-        filename = "sample_contacts.xls"
-        import_params = dict(
-            org_id=self.org.id, timezone=str(self.org.timezone), extra_fields=[], original_filename=filename
-        )
-
-        ImportTask.objects.create(
-            created_by=self.admin,
-            modified_by=self.admin,
-            csv_file="test_imports/" + filename,
-            model_class="Contact",
-            import_params=json.dumps(import_params),
-            import_log="",
-            task_id="A",
-            task_status=ImportTask.FAILURE,
-        )
-
-        ImportTask.objects.create(
-            created_by=self.admin,
-            modified_by=self.admin,
-            csv_file="test_imports/" + filename,
-            model_class="Contact",
-            import_params=json.dumps(import_params),
-            import_log="",
-            task_id="A",
-            task_status=ImportTask.SUCCESS,
-        )
-
-        ImportTask.objects.create(
-            created_by=self.admin,
-            modified_by=self.admin,
-            csv_file="test_imports/" + filename,
-            model_class="Contact",
-            import_params=json.dumps(import_params),
-            import_log="",
-            task_id="B",
-        )
 
         ExportMessagesTask.objects.create(
             org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportMessagesTask.STATUS_FAILED
@@ -2966,13 +2924,13 @@ class OrgTest(TembaTest):
         ExportContactsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
 
         two_hours_ago = timezone.now() - timedelta(hours=2)
-        ImportTask.objects.all().update(modified_on=two_hours_ago)
+
         ExportMessagesTask.objects.all().update(modified_on=two_hours_ago)
         ExportFlowResultsTask.objects.all().update(modified_on=two_hours_ago)
         ExportContactsTask.objects.all().update(modified_on=two_hours_ago)
 
         resume_failed_tasks()
-        mock_import_task.assert_called_once()
+
         mock_export_contacts_task.assert_called_once()
         mock_export_flow_results_task.assert_called_once()
         mock_export_messages_task.assert_called_once()
@@ -3447,9 +3405,10 @@ class OrgCRUDLTest(TembaTest):
             config={Channel.CONFIG_FCM_ID: "123"},
         )
 
-        self.org = Org.objects.get(pk=self.org.pk)
+        self.org = Org.objects.get(id=self.org.id)
         self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_SEND))
         self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
+        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))  # from cache
 
         # add a send/receive tel channel
         Channel.create(
@@ -3631,12 +3590,12 @@ class LanguageTest(TembaTest):
         self.assertFalse(self.org.languages.all())
 
         # search languages
-        response = self.client.get("%s?search=fra" % url)
+        response = self.client.get("%s?search=fra" % url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
         results = response.json()["results"]
         self.assertEqual(len(results), 7)
 
         # initial should do a match on code only
-        response = self.client.get("%s?initial=fra" % url)
+        response = self.client.get("%s?initial=fra" % url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
         results = response.json()["results"]
         self.assertEqual(len(results), 1)
 
@@ -3839,39 +3798,6 @@ class BulkExportTest(TembaTest):
         with self.assertRaises(ValueError):
             self.org.import_app({"version": "21415", "flows": []}, self.admin)
 
-    def test_get_dependencies(self):
-
-        # import a flow that triggers another flow
-        contact1 = self.create_contact("Marshawn", phone="+14255551212")
-        substitutions = dict(contact_id=contact1.id)
-        flow = self.get_flow("triggered", substitutions, legacy=True)
-
-        # read in the old version 8 raw json
-        old_json = self.get_import_json("triggered", substitutions)
-        old_actions = old_json["flows"][1]["action_sets"][0]["actions"]
-
-        # splice our actionset with old bits
-        actionset = flow.action_sets.all()[0]
-        actionset.actions = old_actions
-        actionset.save()
-
-        # fake our version number back to 8
-        flow.version_number = 8
-        flow.save()
-
-        # now make sure a call to get dependencies succeeds and shows our flow
-        triggeree = Flow.objects.filter(name="Triggeree").first()
-        self.assertIn(triggeree, flow.flow_dependencies.all())
-
-    def test_trigger_flow(self):
-        self.import_file("triggered_flow", legacy=True)
-
-        flow = Flow.objects.filter(name="Trigger a Flow", org=self.org).first()
-        definition = flow.as_json()
-        actions = definition[Flow.ACTION_SETS][0]["actions"]
-        self.assertEqual(1, len(actions))
-        self.assertEqual("Triggered Flow", actions[0]["flow"]["name"])
-
     def test_trigger_dependency(self):
         # tests the case of us doing an export of only a single flow (despite dependencies) and making sure we
         # don't include the triggers of our dependent flows (which weren't exported)
@@ -3906,38 +3832,6 @@ class BulkExportTest(TembaTest):
         self.assertIn("Parent Flow", group)
         self.assertIn("Child Flow", group)
 
-    def test_flow_export_dynamic_group(self):
-        from temba.flows.legacy import AddToGroupAction
-
-        flow = self.get_flow("favorites", legacy=True)
-
-        # get one of our flow actionsets, change it to an AddToGroupAction
-        actionset = ActionSet.objects.filter(flow=flow).order_by("y").first()
-
-        # replace the actions
-        actionset.actions = [
-            AddToGroupAction(str(uuid4()), [dict(uuid="123", name="Other Group"), "@contact.name"]).as_json()
-        ]
-        actionset.save()
-
-        # now let's export!
-        self.login(self.admin)
-        post_data = dict(flows=[flow.pk], campaigns=[])
-        response = self.client.post(reverse("orgs.org_export"), post_data)
-        exported = response.json()
-
-        # try to import the flow
-        flow.release()
-        response.json()
-
-        dep_mapping = {}
-        Flow.import_flows(self.org, self.admin, exported, dep_mapping)
-
-        # make sure the created flow has the same action set
-        flow = Flow.objects.filter(name="%s" % flow.name).first()
-        actionset = ActionSet.objects.filter(flow=flow).order_by("y").first()
-        self.assertIn("@contact.name", actionset.get_actions()[0].groups)
-
     def test_import_voice_flows_expiration_time(self):
         # all imported voice flows should have a max expiration time of 15 min
         self.get_flow("ivr")
@@ -3946,30 +3840,6 @@ class BulkExportTest(TembaTest):
         voice_flow = Flow.objects.get(flow_type=Flow.TYPE_VOICE)
         self.assertEqual(voice_flow.name, "IVR Flow")
         self.assertEqual(voice_flow.expires_after_minutes, 15)
-
-    def test_missing_flows_on_import(self):
-        # import a flow that starts a missing flow
-        self.import_file("start_missing_flow", legacy=True)
-
-        # the flow that kicks off our missing flow
-        flow = Flow.objects.get(name="Start Missing Flow")
-
-        # make sure our missing flow is indeed not there
-        self.assertIsNone(Flow.objects.filter(name="Missing Flow").first())
-
-        # these two actionsets only have a single action that starts the missing flow
-        # therefore they should not be created on import
-        self.assertIsNone(ActionSet.objects.filter(flow=flow, y=160, x=90).first())
-        self.assertIsNone(ActionSet.objects.filter(flow=flow, y=233, x=395).first())
-
-        # should have this actionset, but only one action now since one was removed
-        other_actionset = ActionSet.objects.filter(flow=flow, y=145, x=731).first()
-        self.assertEqual(1, len(other_actionset.get_actions()))
-
-        # now make sure it does the same thing from an actionset
-        self.import_file("start_missing_flow_from_actionset", legacy=True)
-        self.assertIsNotNone(Flow.objects.filter(name="Start Missing Flow").first())
-        self.assertIsNone(Flow.objects.filter(name="Missing Flow").first())
 
     def test_import(self):
 
@@ -4024,7 +3894,7 @@ class BulkExportTest(TembaTest):
         # base language for this flow is 'swa' despite our org languages being unset
         self.assertEqual(event.flow.base_language, "swa")
 
-        flow_def = event.flow.as_json()
+        flow_def = event.flow.get_definition()
         action = flow_def["nodes"][0]["actions"][0]
 
         self.assertEqual(action["text"], "hello")
@@ -4052,7 +3922,7 @@ class BulkExportTest(TembaTest):
         self.assertNotEqual(event.id, new_event.id)
 
     def test_import_mixed_flow_versions(self):
-        self.import_file("mixed_versions", legacy=True)
+        self.import_file("mixed_versions")
 
         group = ContactGroup.user_groups.get(name="Survey Audience")
 
@@ -4062,7 +3932,7 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(child.group_dependencies.all()), {group})
 
         parent = Flow.objects.get(name="Legacy Parent")
-        self.assertEqual(parent.version_number, Flow.FINAL_LEGACY_VERSION)
+        self.assertEqual(parent.version_number, Flow.CURRENT_SPEC_VERSION)
         self.assertEqual(set(parent.flow_dependencies.all()), {child})
         self.assertEqual(set(parent.group_dependencies.all()), set())
 
@@ -4107,24 +3977,6 @@ class BulkExportTest(TembaTest):
         self.import_file("parent_without_its_child")
         self.assertEqual(set(parent.flow_dependencies.all()), {child2})
 
-    def test_implicit_group_imports_legacy(self):
-        self.import_file("cataclysm_legacy", legacy=True)
-        flow = Flow.objects.get(name="Cataclysmic")
-
-        from temba.flows.legacy.tests import get_legacy_groups
-
-        definition_groups = get_legacy_groups(flow.as_json())
-
-        # we should have 5 groups
-        self.assertEqual(5, len(definition_groups))
-        self.assertEqual(5, ContactGroup.user_groups.all().count())
-
-        for uuid, name in definition_groups.items():
-            self.assertTrue(
-                ContactGroup.user_groups.filter(uuid=uuid, name=name).exists(),
-                msg="Group UUID mismatch for imported flow: %s [%s]" % (name, uuid),
-            )
-
     def validate_flow_dependencies(self, definition):
         flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
         deps = flow_info["dependencies"]
@@ -4158,7 +4010,7 @@ class BulkExportTest(TembaTest):
             self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
         flow = Flow.objects.get(name="Cataclysmic")
-        self.validate_flow_dependencies(flow.as_json())
+        self.validate_flow_dependencies(flow.get_definition())
 
         # we should have 5 groups (all static since we can only create static groups from group references)
         self.assertEqual(ContactGroup.user_groups.all().count(), 5)
@@ -4181,7 +4033,7 @@ class BulkExportTest(TembaTest):
         self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
         flow = Flow.objects.get(name="Cataclysmic")
-        self.validate_flow_dependencies(flow.as_json())
+        self.validate_flow_dependencies(flow.get_definition())
 
         # we should have 5 groups (2 dynamic)
         self.assertEqual(ContactGroup.user_groups.all().count(), 5)
@@ -4217,7 +4069,7 @@ class BulkExportTest(TembaTest):
         self.import_file("cataclysm")
 
         flow = Flow.objects.get(name="Cataclysmic")
-        self.validate_flow_dependencies(flow.as_json())
+        self.validate_flow_dependencies(flow.get_definition())
 
         # we should have 5 groups (2 dynamic)
         self.assertEqual(ContactGroup.user_groups.all().count(), 5)
@@ -4332,21 +4184,17 @@ class BulkExportTest(TembaTest):
             )
 
         # import all our bits
-        self.import_file("the_clinic", legacy=True)
+        self.import_file("the_clinic")
+
+        confirm_appointment = Flow.objects.get(name="Confirm Appointment")
+        self.assertEqual(10080, confirm_appointment.expires_after_minutes)
 
         # check that the right number of objects successfully imported for our app
         assert_object_counts()
 
         # let's update some stuff
-        confirm_appointment = Flow.objects.get(name="Confirm Appointment")
-        confirm_appointment.expires_after_minutes = 60
-        confirm_appointment.save()
-
-        action_set = confirm_appointment.action_sets.order_by("-y").first()
-        actions = action_set.actions
-        actions[0]["msg"]["base"] = "Thanks for nothing"
-        action_set.actions = actions
-        action_set.save()
+        confirm_appointment.expires_after_minutes = 360
+        confirm_appointment.save(update_fields=("expires_after_minutes",))
 
         trigger = Trigger.objects.filter(keyword="patient").first()
         trigger.flow = confirm_appointment
@@ -4358,16 +4206,11 @@ class BulkExportTest(TembaTest):
         message_flow.update_single_message_flow(self.admin, {"base": "No reminders for you!"}, base_language="base")
 
         # now reimport
-        self.import_file("the_clinic", legacy=True)
+        self.import_file("the_clinic")
 
         # our flow should get reset from the import
-        confirm_appointment = Flow.objects.get(pk=confirm_appointment.pk)
-        action_set = confirm_appointment.action_sets.order_by("-y").first()
-        actions = action_set.actions
-        self.assertEqual(
-            "Thanks, your appointment at The Clinic has been confirmed for @(format_date(contact.next_appointment)). See you then!",
-            actions[0]["msg"]["base"],
-        )
+        confirm_appointment.refresh_from_db()
+        self.assertEqual(10080, confirm_appointment.expires_after_minutes)
 
         # same with our trigger
         trigger = Trigger.objects.filter(keyword="patient").order_by("-created_on").first()
@@ -4384,7 +4227,7 @@ class BulkExportTest(TembaTest):
         )
 
         self.assertEqual(
-            message_flow.as_json()["nodes"][0]["actions"][0]["text"],
+            message_flow.get_definition()["nodes"][0]["actions"][0]["text"],
             "Hi there, just a quick reminder that you have an appointment at The Clinic at @(format_date(contact.next_appointment)). If you can't make it please call 1-888-THE-CLINIC.",
         )
 
@@ -4407,6 +4250,9 @@ class BulkExportTest(TembaTest):
         self.assertNotContains(
             response, "&quot;Appointment Schedule&quot;"
         )  # previous bug rendered campaign names incorrectly
+
+        confirm_appointment.expires_after_minutes = 60
+        confirm_appointment.save(update_fields=("expires_after_minutes",))
 
         # now let's export!
         post_data = dict(
