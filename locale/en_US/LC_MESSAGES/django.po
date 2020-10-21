@@ -2380,13 +2380,7 @@ msgstr ""
 msgid "Label"
 msgstr ""
 
-msgid "Key"
-msgstr ""
-
-msgid "Shown in Tables"
-msgstr ""
-
-msgid "Featured field"
+msgid "Field Type"
 msgstr ""
 
 msgid "The name of this contact"
@@ -2396,9 +2390,6 @@ msgid "Language"
 msgstr ""
 
 msgid "The preferred language for this contact"
-msgstr ""
-
-msgid "Any authentication information needed by this URN"
 msgstr ""
 
 msgid "Initializing"
@@ -2413,19 +2404,10 @@ msgstr ""
 msgid "The name of this contact group"
 msgstr ""
 
-msgid "What type of group it is, either user defined or one of our system groups"
-msgstr ""
-
-msgid "Contacts"
-msgstr ""
-
-msgid "The organization this group is part of"
+msgid "Query"
 msgstr ""
 
 msgid "The membership query for this group"
-msgstr ""
-
-msgid "Query Fields"
 msgstr ""
 
 msgid "The unique group to export"
@@ -2628,6 +2610,9 @@ msgid "Activate"
 msgstr ""
 
 msgid "Block"
+msgstr ""
+
+msgid "Contacts"
 msgstr ""
 
 msgid "Save as Group"
@@ -3121,6 +3106,9 @@ msgid "Name already used"
 msgstr ""
 
 msgid "Flow Start Log"
+msgstr ""
+
+msgid "Key"
 msgstr ""
 
 #, python-format

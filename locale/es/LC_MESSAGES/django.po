@@ -3731,14 +3731,10 @@ msgstr ""
 msgid "Label"
 msgstr "Etiquetar"
 
-msgid "Key"
-msgstr "Clave"
-
-msgid "Shown in Tables"
-msgstr "Mostrado en los cuadros"
-
-msgid "Featured field"
-msgstr ""
+#, fuzzy
+#| msgid "Query Fields"
+msgid "Field Type"
+msgstr "Campos de la solicitud"
 
 msgid "The name of this contact"
 msgstr "El nombre de este contacto"
@@ -3748,9 +3744,6 @@ msgstr "Idioma"
 
 msgid "The preferred language for this contact"
 msgstr "El idioma preferido para este contacto"
-
-msgid "Any authentication information needed by this URN"
-msgstr ""
 
 msgid "Initializing"
 msgstr "Inicializando"
@@ -3766,20 +3759,11 @@ msgstr ""
 msgid "The name of this contact group"
 msgstr "El nombre para este grupo de contactos"
 
-msgid "What type of group it is, either user defined or one of our system groups"
+msgid "Query"
 msgstr ""
-
-msgid "Contacts"
-msgstr "Contactos"
-
-msgid "The organization this group is part of"
-msgstr "La organización a la que pertenece este grupo"
 
 msgid "The membership query for this group"
 msgstr "La solicitud de membresía para este grupo"
-
-msgid "Query Fields"
-msgstr "Campos de la solicitud"
 
 msgid "The unique group to export"
 msgstr "El grupo único para exportar"
@@ -4004,6 +3988,9 @@ msgstr "Activar"
 
 msgid "Block"
 msgstr "Bloquear"
+
+msgid "Contacts"
+msgstr "Contactos"
 
 msgid "Save as Group"
 msgstr "Guardar como grupo"
@@ -4599,6 +4586,9 @@ msgstr "Nombre ya utilizado"
 #| msgid "Flow Start"
 msgid "Flow Start Log"
 msgstr "Inicio de Flujo"
+
+msgid "Key"
+msgstr "Clave"
 
 #, python-format
 msgid "Cannot create a new global as limit is %(limit)s."
@@ -12162,6 +12152,15 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Shown in Tables"
+#~ msgstr "Mostrado en los cuadros"
+
+#~ msgid "The organization this group is part of"
+#~ msgstr "La organización a la que pertenece este grupo"
+
+#~ msgid "Query Fields"
+#~ msgstr "Campos de la solicitud"
 
 #~ msgid "The label for this field"
 #~ msgstr "La etiqueta para este campo"
