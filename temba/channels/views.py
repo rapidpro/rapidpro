@@ -1333,6 +1333,11 @@ class ChannelCRUDL(SmartCRUDL):
                     links.append(
                         dict(title=_("Channel Log"), href=reverse("channels.channellog_list", args=[sender.uuid]))
                     )
+                elif Channel.ROLE_RECEIVE in channel.role:
+                    links.append(
+                        dict(title=_("Channel Log"), href=reverse("channels.channellog_list", args=[channel.uuid]))
+                    )
+
                 if caller and caller != sender:
                     links.append(
                         dict(
