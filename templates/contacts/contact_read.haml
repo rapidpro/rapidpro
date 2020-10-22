@@ -84,7 +84,18 @@
         %td.w-full
           .contact-field-value
             {% format_datetime contact.created_on %}
-            
+      %tr
+        %td
+          .whitespace-no-wrap.pr-24.contact-field
+            .contact-field-value.uppercase.tracking-wider.font-normal.text-xs
+              -trans "Last Seen On"
+        %td.w-full
+          .contact-field-value
+            -if contact.last_seen_on
+              {% format_datetime contact.last_seen_on %}
+            -else
+              {{ "--" }}
+
       -if contact_language
         %tr
           %td
