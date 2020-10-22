@@ -189,6 +189,25 @@
                                 %span.sort.icon.icon-arrow-down-2.sort-desc
                     %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
                       - if object_list
+                        -if sort_field == 'last_seen_on'
+                          -if sort_direction == 'desc'
+                            %a{href:"?sort_on=last_seen_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                              %div
+                                -trans "Last Seen On"
+                                %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                          -else
+                            %a{href:"?sort_on=-last_seen_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                              %div
+                                -trans "Last Seen On"
+                                %span.sort.icon.icon-arrow-up51.sort-desc.visible
+                        -else
+                          %a{href:"?sort_on=-last_seen_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                            %div
+                              -trans "Last Seen On"
+                              %span.sort.icon.icon-arrow-down-2.sort-desc
+
+                    %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
+                      - if object_list
                         -if sort_field == 'created_on'
                           -if sort_direction == 'desc'
                             %a{href:"?sort_on=created_on{% if search %}&search={{ search|escape }}{% endif %}"}
@@ -227,6 +246,12 @@
                           %td.field
                             {{ object|contact_field:field.key }}
 
+                      %td.value-received.field_received
+                        .whitespace-no-wrap
+                          -if object.last_seen_on
+                            {% format_datetime object.last_seen_on %}
+                          - else
+                            {{ "--" }}
                       %td.value-received.field_received
                         .whitespace-no-wrap
                           {% format_datetime object.created_on %}

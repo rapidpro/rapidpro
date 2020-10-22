@@ -209,6 +209,13 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
                 sort_direction,
                 {"field_type": "attribute", "sort_direction": sort_direction, "field_name": "created_on"},
             )
+        if sort_field == "last_seen_on":
+
+            return (
+                sort_field,
+                sort_direction,
+                {"field_type": "attribute", "sort_direction": sort_direction, "field_name": "last_seen_on"},
+            )
         else:
             try:
                 contact_sort_field = ContactField.user_fields.values("value_type", "uuid").get(uuid=sort_field)
