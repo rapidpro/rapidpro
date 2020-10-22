@@ -40,7 +40,6 @@ from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import json
-from temba.values.constants import Value
 
 from . import fields
 from .serializers import format_datetime, normalize_extra
@@ -179,7 +178,7 @@ class APITest(TembaTest):
     def test_serializer_fields(self):
         group = self.create_group("Customers")
         field_obj = ContactField.get_or_create(
-            self.org, self.admin, "registered", "Registered On", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "registered", "Registered On", value_type=ContactField.TYPE_DATETIME
         )
         flow = self.create_flow()
         campaign = Campaign.create(self.org, self.admin, "Reminders #1", group)
@@ -734,7 +733,7 @@ class APITest(TembaTest):
             url,
             None,
             {
-                "text": "Hi @contact.tel",  # will be migrated
+                "text": "Hi @(format_urn(urns.tel))",
                 "urns": ["twitter:franky"],
                 "contacts": [self.joe.uuid, self.frank.uuid],
                 "groups": [reporters.uuid],
@@ -760,17 +759,8 @@ class APITest(TembaTest):
         self.assertEqual({"base": "Hello", "fra": "Bonjour"}, broadcast.text)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
 
-        # create new broadcast with explicitly old expressions
-        response = self.postJSON(
-            url, None, {"text": "You are @contact.age", "contacts": [self.joe.uuid], "new_expressions": False}
-        )
-        broadcast = Broadcast.objects.get(id=response.json()["id"])
-        self.assertEqual({"base": "You are @fields.age"}, broadcast.text)
-
-        # create new broadcast with explicitly new expressions
-        response = self.postJSON(
-            url, None, {"text": "You are @fields.age", "contacts": [self.joe.uuid], "new_expressions": True}
-        )
+        # create new broadcast with an expression
+        response = self.postJSON(url, None, {"text": "You are @fields.age", "contacts": [self.joe.uuid]})
         broadcast = Broadcast.objects.get(id=response.json()["id"])
         self.assertEqual({"base": "You are @fields.age"}, broadcast.text)
 
@@ -1024,7 +1014,7 @@ class APITest(TembaTest):
         flow = self.create_flow()
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         registration = ContactField.get_or_create(
-            self.org, self.admin, "registration", "Registration", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "registration", "Registration", value_type=ContactField.TYPE_DATETIME
         )
         field_created_on = self.org.contactfields.get(key="created_on")
 
@@ -1057,7 +1047,7 @@ class APITest(TembaTest):
 
         # create event for another org
         joined = ContactField.get_or_create(
-            self.org2, self.admin2, "joined", "Joined On", value_type=Value.TYPE_DATETIME
+            self.org2, self.admin2, "joined", "Joined On", value_type=ContactField.TYPE_DATETIME
         )
         spammers = ContactGroup.get_or_create(self.org2, self.admin2, "Spammers")
         spam = Campaign.create(self.org2, self.admin2, "Cool stuff", spammers)
@@ -1175,7 +1165,7 @@ class APITest(TembaTest):
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": "You are @contact.age",  # will be migrated
+                "message": "You are @fields.age",
             },
         )
         self.assertEqual(response.status_code, 201)
@@ -1189,26 +1179,6 @@ class APITest(TembaTest):
         self.assertEqual(event1.message, {"base": "You are @fields.age"})
         self.assertIsNotNone(event1.flow)
 
-        # a message event with an invalid expression on the message
-        response = self.postJSON(
-            url,
-            None,
-            {
-                "campaign": campaign1.uuid,
-                "relative_to": "registration",
-                "offset": 15,
-                "unit": "weeks",
-                "delivery_hour": -1,
-                "message": "You are @(@bad)",  # will fail migration
-            },
-        )
-
-        self.assertEqual(response.status_code, 201)
-        event1 = CampaignEvent.objects.filter(campaign=campaign1).order_by("-id").first()
-
-        # should just leave the bad expression as-is
-        self.assertEqual(event1.message, {"base": "You are @(@bad)"})
-
         # a message event with an empty message
         response = self.postJSON(
             url,
@@ -1219,7 +1189,7 @@ class APITest(TembaTest):
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": "",  # will migrate successfully to empty text
+                "message": "",
             },
         )
 
@@ -1236,7 +1206,6 @@ class APITest(TembaTest):
                 "unit": "days",
                 "delivery_hour": -1,
                 "message": "Nice unit of work @fields.code",
-                "new_expressions": True,
             },
         )
         self.assertEqual(response.status_code, 201)
@@ -1316,7 +1285,7 @@ class APITest(TembaTest):
                 "offset": 15,
                 "unit": "weeks",
                 "delivery_hour": -1,
-                "message": {"base": "OK @contact.tel", "fra": "D'accord"},
+                "message": {"base": "OK @(format_urn(urns.tel))", "fra": "D'accord"},
             },
         )
         self.assertEqual(response.status_code, 200)
@@ -1376,7 +1345,7 @@ class APITest(TembaTest):
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         registration = ContactField.get_or_create(
-            self.org, self.admin, "registration", "Registration", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "registration", "Registration", value_type=ContactField.TYPE_DATETIME
         )
 
         campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
@@ -1440,7 +1409,7 @@ class APITest(TembaTest):
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
         registration = ContactField.get_or_create(
-            self.org, self.admin, "registration", "Registration", value_type=Value.TYPE_DATETIME
+            self.org, self.admin, "registration", "Registration", value_type=ContactField.TYPE_DATETIME
         )
 
         campaign1 = Campaign.create(self.org, self.admin, "Reminders", reporters)
@@ -1793,13 +1762,13 @@ class APITest(TembaTest):
             None,
             {
                 "name": "Jim",
-                "language": "english",
+                "language": "xyz",
                 "urns": ["1234556789"],
                 "groups": ["59686b4e-14bc-4160-9376-b649b218c806"],
                 "fields": {"hmmm": "X"},
             },
         )
-        self.assertResponseError(response, "language", "Ensure this field has no more than 3 characters.")
+        self.assertResponseError(response, "language", "Not a valid ISO639-3 language code.")
         self.assertResponseError(response, "groups", "No such object: 59686b4e-14bc-4160-9376-b649b218c806")
         self.assertResponseError(response, "fields", "Invalid contact field key: hmmm")
 
@@ -1854,13 +1823,6 @@ class APITest(TembaTest):
         self.assertEqual(set(jean.urns.values_list("identity", flat=True)), {"tel:+250784444444"})
         self.assertEqual(set(jean.user_groups.all()), set())
         self.assertEqual(jean.get_field_value(nickname), "Žan")
-
-        # invalid language values are ignored
-        response = self.postJSON(url, "uuid=%s" % jean.uuid, {"language": "xyz"})
-        self.assertEqual(response.status_code, 200)
-        jean.refresh_from_db()
-        self.assertEqual(jean.name, "Jean II")
-        self.assertIsNone(jean.language)
 
         # update by uuid and remove all fields
         response = self.postJSON(
@@ -2009,7 +1971,7 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         ContactField.get_or_create(self.org, self.admin, "string_field")
-        ContactField.get_or_create(self.org, self.admin, "number_field", value_type=Value.TYPE_NUMBER)
+        ContactField.get_or_create(self.org, self.admin, "number_field", value_type=ContactField.TYPE_NUMBER)
 
         # test create with a null chars \u0000
         response = self.postJSON(
@@ -2050,7 +2012,7 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        self.create_field("tag_activated_at", "Tag activation", Value.TYPE_DATETIME)
+        self.create_field("tag_activated_at", "Tag activation", ContactField.TYPE_DATETIME)
 
         # update contact with valid date format for the org - DD-MM-YYYY
         response = self.postJSON(url, "uuid=%s" % self.joe.uuid, {"fields": {"tag_activated_at": "31-12-2017"}})
@@ -2355,19 +2317,19 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        self.import_file("subflow", legacy=True)
+        self.import_file("subflow")
         flow = Flow.objects.filter(name="Parent Flow").first()
 
         # all flow dependencies and we should get the child flow
         response = self.fetchJSON(url, "flow=%s" % flow.uuid)
-        self.assertEqual({f["metadata"]["name"] for f in response.json()["flows"]}, {"Parent Flow", "Child Flow"})
+        self.assertEqual({f["name"] for f in response.json()["flows"]}, {"Parent Flow", "Child Flow"})
 
         # export just the parent flow
         response = self.fetchJSON(url, "flow=%s&dependencies=none" % flow.uuid)
-        self.assertEqual({f["metadata"]["name"] for f in response.json()["flows"]}, {"Parent Flow"})
+        self.assertEqual({f["name"] for f in response.json()["flows"]}, {"Parent Flow"})
 
         # import the clinic app which has campaigns
-        self.import_file("the_clinic", legacy=True)
+        self.import_file("the_clinic")
 
         # our catchall flow, all alone
         flow = Flow.objects.filter(name="Catch All").first()
@@ -2445,7 +2407,7 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         self.create_field("nick_name", "Nick Name")
-        self.create_field("registered", "Registered On", value_type=Value.TYPE_DATETIME)
+        self.create_field("registered", "Registered On", value_type=ContactField.TYPE_DATETIME)
         self.create_field("not_ours", "Something Else", org=self.org2)
 
         deleted = self.create_field("deleted", "Deleted")
@@ -2530,9 +2492,9 @@ class APITest(TembaTest):
 
         self.assertEndpointAccess(url)
 
-        survey = self.get_flow("media_survey", legacy=True)
-        color = self.get_flow("color", legacy=True)
-        archived = self.get_flow("favorites", legacy=True)
+        survey = self.get_flow("media_survey")
+        color = self.get_flow("color")
+        archived = self.get_flow("favorites")
         archived.archive()
 
         # add a campaign message flow that should be filtered out
@@ -2600,7 +2562,7 @@ class APITest(TembaTest):
                     "type": "message",
                     "archived": False,
                     "labels": [{"uuid": reporting.uuid, "name": "Reporting"}],
-                    "expires": 720,
+                    "expires": 10080,
                     "runs": {"active": 0, "completed": 1, "interrupted": 0, "expired": 0},
                     "results": [
                         {
@@ -3410,7 +3372,7 @@ class APITest(TembaTest):
         flow1 = self.get_flow("color_v13")
         flow2 = Flow.copy(flow1, self.user)
 
-        flow1_nodes = flow1.as_json()["nodes"]
+        flow1_nodes = flow1.get_definition()["nodes"]
         color_prompt = flow1_nodes[0]
         color_split = flow1_nodes[4]
         blue_reply = flow1_nodes[2]
@@ -3452,7 +3414,7 @@ class APITest(TembaTest):
         joe_run3 = MockSessionWriter(self.joe, flow2).wait().save().session.runs.get()
 
         # add a run for another org
-        flow3 = self.create_flow(org=self.org2, user=self.admin2)
+        flow3 = self.create_flow(org=self.org2)
         MockSessionWriter(self.hans, flow3).wait().save()
 
         # refresh runs which will have been modified by being interrupted

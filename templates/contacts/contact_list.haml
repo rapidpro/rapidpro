@@ -161,7 +161,7 @@
                     -plural
                       Found {{ results_count }} contacts matching <i>{{search}}</i>.
 
-              %table.list.object-list.lined{class:"{% if org_perms.contacts.contact_update %}selectable{%endif%}"}
+              %table.list.object-list.lined.selectable
                 - if object_list
                   %tr.contacts
                     -if org_perms.contacts.contact_update

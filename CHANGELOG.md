@@ -1,3 +1,58 @@
+v5.7.78
+----------
+ * Clean up models fields in contacts app
+
+v5.7.77
+----------
+ * Fix styling on the API explorer page
+ * Fix list page selection for viewers
+ * Move contact field type constants to ContactField class
+ * Allow brand to be set by env variable
+
+v5.7.76
+----------
+ * Drop support for migrating legacy expressions on API endpoints
+ * Fix imports blowing up when header is numerical
+ * Fix 11.4 flow migration when given broken send action
+ * Drop RuleSet and ActionSet models
+
+v5.7.75
+----------
+ * Last tweaks before RuleSet and ActionSet can be dropped
+ * Contact id treatment for details
+ * Update components to ship ajax header and use it in language endpoint
+ * Remove no longer needed legacy editor completion
+
+v5.7.74
+----------
+ * Remove legacy flow code
+ * WA channel tokens refresh catch errors for each channel independently
+
+v5.7.73
+----------
+ * Make flows searchable and clickable on triggers
+ * Make flows searchable on edit campaign event
+
+v5.7.72
+----------
+ * Fix editor whatsapp templates, refresh whatsapp channel pages
+ * Move omnibox module into temba.contacts.search
+
+v5.7.71
+----------
+ * Remove legacy contact searching
+ * Remove code for dynamic group reevaluation and campaign event scheduling
+
+v5.7.70
+----------
+ * Fix pdf selection
+
+v5.7.69
+----------
+ * Validate language codes passed to contact API endpoint
+ * Don't actually create a broadcast if sending to node but nobody is there
+ * Update to latest floweditor
+
 v5.7.67
 ----------
  * Fix globals endpoint so name is required

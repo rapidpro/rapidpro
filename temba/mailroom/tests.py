@@ -25,6 +25,25 @@ class MailroomClientTest(TembaTest):
 
         self.assertEqual("5.3.4", version)
 
+    def test_expression_migrate(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"migrated": "@fields.age"}')
+            migrated = get_client().expression_migrate("@contact.age")
+
+            self.assertEqual("@fields.age", migrated)
+
+            mock_post.assert_called_once_with(
+                "http://localhost:8090/mr/expression/migrate",
+                headers={"User-Agent": "Temba"},
+                json={"expression": "@contact.age"},
+            )
+
+            # in case of error just return original
+            mock_post.return_value = MockResponse(422, '{"error": "bad isn\'t a thing"}')
+            migrated = get_client().expression_migrate("@(bad)")
+
+            self.assertEqual("@(bad)", migrated)
+
     def test_flow_migrate(self):
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"name": "Migrated!"}')
@@ -309,7 +328,7 @@ class MailroomClientTest(TembaTest):
             mock_post.return_value = MockResponse(400, '{"errors":["Bad request", "Doh!"]}')
 
             with self.assertRaises(MailroomException) as e:
-                get_client().flow_migrate(flow.as_json())
+                get_client().flow_migrate(flow.get_definition())
 
         self.assertEqual(
             e.exception.as_json(),
@@ -549,7 +568,7 @@ class MailroomQueueTest(TembaTest):
         jim = self.create_contact("Jim", phone="+12065551212")
 
         flow = self.get_flow("favorites")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[2]
 

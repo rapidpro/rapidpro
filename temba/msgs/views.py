@@ -23,9 +23,8 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.contacts.models import TEL_SCHEME, ContactGroup, ContactURN
-from temba.contacts.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
-from temba.flows.legacy.expressions import get_function_listing
+from temba.contacts.models import ContactGroup
+from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
 from temba.formax import FormaxMixin
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, on_transaction_commit
@@ -43,45 +42,6 @@ from temba.utils.views import BulkActionMixin, ComponentFormMixin
 
 from .models import INITIALIZING, QUEUED, Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
 from .tasks import export_messages_task
-
-
-def send_message_auto_complete_processor(request):
-    """
-    Adds completions for the expression auto-completion to the request context
-    """
-    completions = []
-    user = request.user
-    org = None
-
-    if hasattr(user, "get_org"):
-        org = request.user.get_org()
-
-    if org:
-        completions.append(dict(name="contact", display=str(_("Contact Name"))))
-        completions.append(dict(name="contact.first_name", display=str(_("Contact First Name"))))
-        completions.append(dict(name="contact.groups", display=str(_("Contact Groups"))))
-        completions.append(dict(name="contact.language", display=str(_("Contact Language"))))
-        completions.append(dict(name="contact.name", display=str(_("Contact Name"))))
-        completions.append(dict(name="contact.tel", display=str(_("Contact Phone"))))
-        completions.append(dict(name="contact.tel_e164", display=str(_("Contact Phone - E164"))))
-        completions.append(dict(name="contact.uuid", display=str(_("Contact UUID"))))
-
-        completions.append(dict(name="date", display=str(_("Current Date and Time"))))
-        completions.append(dict(name="date.now", display=str(_("Current Date and Time"))))
-        completions.append(dict(name="date.today", display=str(_("Current Date"))))
-        completions.append(dict(name="date.tomorrow", display=str(_("Tomorrow's Date"))))
-        completions.append(dict(name="date.yesterday", display=str(_("Yesterday's Date"))))
-
-        for scheme, label in ContactURN.SCHEME_CHOICES:
-            if scheme != TEL_SCHEME and scheme in org.get_schemes(Channel.ROLE_SEND):
-                completions.append(dict(name="contact.%s" % scheme, display=str(_("Contact %s" % label))))
-
-        for field in org.contactfields(manager="user_fields").filter(is_active=True).order_by("label"):
-            display = str(_("Contact Field: %(label)s")) % {"label": field.label}
-            completions.append(dict(name="contact.%s" % str(field.key), display=display))
-
-    function_completions = get_function_listing()
-    return dict(completions=json.dumps(completions), function_completions=json.dumps(function_completions))
 
 
 class SendMessageForm(Form):
