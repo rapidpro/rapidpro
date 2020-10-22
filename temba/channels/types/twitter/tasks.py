@@ -50,7 +50,7 @@ def resolve_twitter_ids():
                         old_urn = screen_map[screen_name]
 
                         # create our new contact URN
-                        new_urn = ContactURN.get_or_create(old_urn.org, old_urn.contact, twitterid_urn)
+                        new_urn = ContactURN.get_or_create(old_urn.org, old_urn.contact, twitterid_urn, priority=50)
 
                         # if our new URN already existed for another contact and it is newer
                         # than our old contact, reassign it to the old contact

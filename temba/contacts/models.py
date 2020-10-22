@@ -1293,20 +1293,8 @@ class ContactURN(models.Model):
     SCHEMES_SUPPORTING_NEW_CONVERSATION = {URN.FACEBOOK_SCHEME, URN.VIBER_SCHEME, URN.TELEGRAM_SCHEME}
     SCHEMES_SUPPORTING_REFERRALS = {URN.FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
-    PRIORITY_LOWEST = 1
-    PRIORITY_STANDARD = 50
-    PRIORITY_HIGHEST = 99
-
-    PRIORITY_DEFAULTS = {
-        URN.TEL_SCHEME: PRIORITY_STANDARD,
-        URN.TWITTER_SCHEME: 90,
-        URN.TWITTERID_SCHEME: 90,
-        URN.FACEBOOK_SCHEME: 90,
-        URN.TELEGRAM_SCHEME: 90,
-        URN.VIBER_SCHEME: 90,
-        URN.FCM_SCHEME: 90,
-        URN.FRESHCHAT_SCHEME: 90,
-    }
+    # mailroom sets priorites like 1000, 999, ...
+    PRIORITY_HIGHEST = 1000
 
     ANON_MASK = "*" * 8  # Returned instead of URN values for anon orgs
     ANON_MASK_HTML = "•" * 8  # Pretty HTML version of anon mask
@@ -1322,7 +1310,7 @@ class ContactURN(models.Model):
     path = models.CharField(max_length=255)
     display = models.CharField(max_length=255, null=True)
 
-    priority = models.IntegerField(default=PRIORITY_STANDARD)
+    priority = models.IntegerField(default=PRIORITY_HIGHEST)
 
     # the channel affinity of this URN
     channel = models.ForeignKey(Channel, related_name="urns", on_delete=models.PROTECT, null=True)
@@ -1331,26 +1319,23 @@ class ContactURN(models.Model):
     auth = models.TextField(null=True)
 
     @classmethod
-    def get_or_create(cls, org, contact, urn_as_string, channel=None, auth=None):
+    def get_or_create(cls, org, contact, urn_as_string, channel=None, auth=None, priority=PRIORITY_HIGHEST):
         urn = cls.lookup(org, urn_as_string)
 
         # not found? create it
         if not urn:
             try:
                 with transaction.atomic():
-                    urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
+                    urn = cls.create(org, contact, urn_as_string, channel=channel, priority=priority, auth=auth)
             except IntegrityError:
                 urn = cls.lookup(org, urn_as_string)
 
         return urn
 
     @classmethod
-    def create(cls, org, contact, urn_as_string, channel=None, priority=None, auth=None):
+    def create(cls, org, contact, urn_as_string, channel=None, priority=PRIORITY_HIGHEST, auth=None):
         scheme, path, query, display = URN.to_parts(urn_as_string)
         urn_as_string = URN.from_parts(scheme, path)
-
-        if not priority:
-            priority = cls.PRIORITY_DEFAULTS.get(scheme, cls.PRIORITY_STANDARD)
 
         return cls.objects.create(
             org=org,

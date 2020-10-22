@@ -3543,14 +3543,14 @@ class ContactURNTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-    def test_create(self):
+    def test_get_or_create(self):
         urn = ContactURN.create(self.org, None, "tel:1234")
         self.assertEqual(urn.org, self.org)
         self.assertEqual(urn.contact, None)
         self.assertEqual(urn.identity, "tel:1234")
         self.assertEqual(urn.scheme, "tel")
         self.assertEqual(urn.path, "1234")
-        self.assertEqual(urn.priority, 50)
+        self.assertEqual(urn.priority, 1000)
 
         urn = ContactURN.get_or_create(self.org, None, "twitterid:12345#fooman")
         self.assertEqual("twitterid:12345", urn.identity)
