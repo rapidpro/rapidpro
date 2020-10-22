@@ -21,16 +21,7 @@ from django.utils import timezone
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.channels.models import Channel
-from temba.contacts.models import (
-    TEL_SCHEME,
-    TWITTER_SCHEME,
-    URN,
-    Contact,
-    ContactField,
-    ContactGroup,
-    ContactGroupCount,
-    ContactURN,
-)
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactGroupCount, ContactURN
 from temba.flows.models import Flow
 from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
@@ -634,7 +625,7 @@ class Command(BaseCommand):
                         org=org,
                         contact=c["object"],
                         priority=50,
-                        scheme=TEL_SCHEME,
+                        scheme=URN.TEL_SCHEME,
                         path=c["tel"],
                         identity=URN.from_tel(c["tel"]),
                     )
@@ -645,7 +636,7 @@ class Command(BaseCommand):
                         org=org,
                         contact=c["object"],
                         priority=50,
-                        scheme=TWITTER_SCHEME,
+                        scheme=URN.TWITTER_SCHEME,
                         path=c["twitter"],
                         identity=f"twitter:{c['twitter']}",
                     )

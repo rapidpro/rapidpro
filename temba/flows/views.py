@@ -35,7 +35,7 @@ from django.views.generic import FormView
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.contacts.models import FACEBOOK_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup, ContactURN
+from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.contacts.search import SearchException, parse_query
 from temba.contacts.search.omnibox import omnibox_deserialize
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
@@ -1061,11 +1061,11 @@ class FlowCRUDL(SmartCRUDL):
 
             feature_filters = []
 
-            facebook_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=FACEBOOK_SCHEME)
+            facebook_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
             if facebook_channel is not None:
                 feature_filters.append("facebook")
 
-            whatsapp_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
+            whatsapp_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
             if whatsapp_channel is not None:
                 feature_filters.append("whatsapp")
 
@@ -1414,7 +1414,7 @@ class FlowCRUDL(SmartCRUDL):
             extra_urns = forms.MultipleChoiceField(
                 required=False,
                 label=_("URNs"),
-                choices=ContactURN.SCHEME_CHOICES,
+                choices=URN.SCHEME_CHOICES,
                 widget=SelectMultipleWidget(
                     attrs={"placeholder": _("Optional: URNs in addition to the one used in the flow")}
                 ),
@@ -1980,7 +1980,7 @@ class FlowCRUDL(SmartCRUDL):
             warnings = []
 
             # facebook channels need to warn if no topic is set
-            facebook_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=FACEBOOK_SCHEME)
+            facebook_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
             if facebook_channel:
                 if not self.has_facebook_topic(flow):
                     warnings.append(
@@ -1990,7 +1990,7 @@ class FlowCRUDL(SmartCRUDL):
                     )
 
             # if we have a whatsapp channel
-            whatsapp_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
+            whatsapp_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
             if whatsapp_channel:
                 # check to see we are using templates
                 templates = flow.get_dependencies_metadata("template")

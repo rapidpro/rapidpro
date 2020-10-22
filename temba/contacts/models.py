@@ -40,44 +40,6 @@ from .search import SearchException, elastic, parse_query
 
 logger = logging.getLogger(__name__)
 
-DELETED_SCHEME = "deleted"
-EMAIL_SCHEME = "mailto"
-EXTERNAL_SCHEME = "ext"
-FACEBOOK_SCHEME = "facebook"
-JIOCHAT_SCHEME = "jiochat"
-LINE_SCHEME = "line"
-TEL_SCHEME = "tel"
-TELEGRAM_SCHEME = "telegram"
-TWILIO_SCHEME = "twilio"
-TWITTER_SCHEME = "twitter"
-TWITTERID_SCHEME = "twitterid"
-VIBER_SCHEME = "viber"
-VK_SCHEME = "vk"
-FCM_SCHEME = "fcm"
-WHATSAPP_SCHEME = "whatsapp"
-WECHAT_SCHEME = "wechat"
-FRESHCHAT_SCHEME = "freshchat"
-
-FACEBOOK_PATH_REF_PREFIX = "ref:"
-
-SCHEME_CONFIG = (
-    (TEL_SCHEME, _("Phone number")),
-    (FACEBOOK_SCHEME, _("Facebook identifier")),
-    (TWITTER_SCHEME, _("Twitter handle")),
-    (TWITTERID_SCHEME, _("Twitter ID")),
-    (VIBER_SCHEME, _("Viber identifier")),
-    (LINE_SCHEME, _("LINE identifier")),
-    (TELEGRAM_SCHEME, _("Telegram identifier")),
-    (EMAIL_SCHEME, _("Email address")),
-    (EXTERNAL_SCHEME, _("External identifier")),
-    (JIOCHAT_SCHEME, _("JioChat identifier")),
-    (WECHAT_SCHEME, _("WeChat identifier")),
-    (FCM_SCHEME, _("Firebase Cloud Messaging identifier")),
-    (WHATSAPP_SCHEME, _("WhatsApp identifier")),
-    (FRESHCHAT_SCHEME, _("Freshchat identifier")),
-    (VK_SCHEME, _("VK identifier")),
-)
-
 
 class URN:
     """
@@ -88,7 +50,45 @@ class URN:
         * No hex escaping in URN path
     """
 
-    VALID_SCHEMES = {s[0] for s in SCHEME_CONFIG}
+    DELETED_SCHEME = "deleted"
+    EMAIL_SCHEME = "mailto"
+    EXTERNAL_SCHEME = "ext"
+    FACEBOOK_SCHEME = "facebook"
+    JIOCHAT_SCHEME = "jiochat"
+    LINE_SCHEME = "line"
+    TEL_SCHEME = "tel"
+    TELEGRAM_SCHEME = "telegram"
+    TWILIO_SCHEME = "twilio"
+    TWITTER_SCHEME = "twitter"
+    TWITTERID_SCHEME = "twitterid"
+    VIBER_SCHEME = "viber"
+    VK_SCHEME = "vk"
+    FCM_SCHEME = "fcm"
+    WHATSAPP_SCHEME = "whatsapp"
+    WECHAT_SCHEME = "wechat"
+    FRESHCHAT_SCHEME = "freshchat"
+
+    SCHEME_CHOICES = (
+        (TEL_SCHEME, _("Phone number")),
+        (FACEBOOK_SCHEME, _("Facebook identifier")),
+        (TWITTER_SCHEME, _("Twitter handle")),
+        (TWITTERID_SCHEME, _("Twitter ID")),
+        (VIBER_SCHEME, _("Viber identifier")),
+        (LINE_SCHEME, _("LINE identifier")),
+        (TELEGRAM_SCHEME, _("Telegram identifier")),
+        (EMAIL_SCHEME, _("Email address")),
+        (EXTERNAL_SCHEME, _("External identifier")),
+        (JIOCHAT_SCHEME, _("JioChat identifier")),
+        (WECHAT_SCHEME, _("WeChat identifier")),
+        (FCM_SCHEME, _("Firebase Cloud Messaging identifier")),
+        (WHATSAPP_SCHEME, _("WhatsApp identifier")),
+        (FRESHCHAT_SCHEME, _("Freshchat identifier")),
+        (VK_SCHEME, _("VK identifier")),
+    )
+
+    VALID_SCHEMES = {s[0] for s in SCHEME_CHOICES}
+
+    FACEBOOK_PATH_REF_PREFIX = "ref:"
 
     def __init__(self):  # pragma: no cover
         raise ValueError("Class shouldn't be instantiated")
@@ -98,7 +98,7 @@ class URN:
         """
         Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
         """
-        if not scheme or (scheme not in cls.VALID_SCHEMES and scheme != DELETED_SCHEME):
+        if not scheme or (scheme not in cls.VALID_SCHEMES and scheme != cls.DELETED_SCHEME):
             raise ValueError("Invalid scheme component: '%s'" % scheme)
 
         if not path:
@@ -116,7 +116,7 @@ class URN:
         except ValueError:
             raise ValueError("URN strings must contain scheme and path components")
 
-        if parsed.scheme not in cls.VALID_SCHEMES and parsed.scheme != DELETED_SCHEME:
+        if parsed.scheme not in cls.VALID_SCHEMES and parsed.scheme != cls.DELETED_SCHEME:
             raise ValueError("URN contains an invalid scheme component: '%s'" % parsed.scheme)
 
         return parsed.scheme, parsed.path, parsed.query or None, parsed.fragment or None
@@ -128,10 +128,10 @@ class URN:
         """
         scheme, path, query, display = cls.to_parts(urn)
 
-        if scheme in [TEL_SCHEME, WHATSAPP_SCHEME] and formatted:
+        if scheme in [cls.TEL_SCHEME, cls.WHATSAPP_SCHEME] and formatted:
             try:
                 # whatsapp scheme is E164 without a leading +, add it so parsing works
-                if scheme == WHATSAPP_SCHEME:
+                if scheme == cls.WHATSAPP_SCHEME:
                     path = "+" + path
 
                 if path and path[0] == "+":
@@ -157,7 +157,7 @@ class URN:
         except ValueError:
             return False
 
-        if scheme == TEL_SCHEME:
+        if scheme == cls.TEL_SCHEME:
             try:
                 parsed = phonenumbers.parse(path, country_code)
                 return phonenumbers.is_possible_number(parsed)
@@ -165,18 +165,18 @@ class URN:
                 return False
 
         # validate twitter URNs look like handles
-        elif scheme == TWITTER_SCHEME:
+        elif scheme == cls.TWITTER_SCHEME:
             return regex.match(r"^[a-zA-Z0-9_]{1,15}$", path, regex.V0)
 
         # validate path is a number and display is a handle if present
-        elif scheme == TWITTERID_SCHEME:
+        elif scheme == cls.TWITTERID_SCHEME:
             valid = path.isdigit()
             if valid and display:
                 valid = regex.match(r"^[a-zA-Z0-9_]{1,15}$", display, regex.V0)
 
             return valid
 
-        elif scheme == EMAIL_SCHEME:
+        elif scheme == cls.EMAIL_SCHEME:
             try:
                 validate_email(path)
                 return True
@@ -184,7 +184,7 @@ class URN:
                 return False
 
         # facebook uses integer ids or temp ref ids
-        elif scheme == FACEBOOK_SCHEME:
+        elif scheme == cls.FACEBOOK_SCHEME:
             # we don't validate facebook refs since they come from the outside
             if URN.is_path_fb_ref(path):
                 return True
@@ -198,15 +198,15 @@ class URN:
                     return False
 
         # telegram and whatsapp use integer ids
-        elif scheme in [TELEGRAM_SCHEME, WHATSAPP_SCHEME]:
+        elif scheme in [cls.TELEGRAM_SCHEME, cls.WHATSAPP_SCHEME]:
             return regex.match(r"^[0-9]+$", path, regex.V0)
 
         # validate Viber URNS look right (this is a guess)
-        elif scheme == VIBER_SCHEME:  # pragma: needs cover
+        elif scheme == cls.VIBER_SCHEME:  # pragma: needs cover
             return regex.match(r"^[a-zA-Z0-9_=]{1,24}$", path, regex.V0)
 
         # validate Freshchat URNS look right (this is a guess)
-        elif scheme == FRESHCHAT_SCHEME:  # pragma: needs cover
+        elif scheme == cls.FRESHCHAT_SCHEME:  # pragma: needs cover
             return regex.match(
                 r"^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}/[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$",
                 path,
@@ -225,21 +225,21 @@ class URN:
 
         norm_path = str(path).strip()
 
-        if scheme == TEL_SCHEME:
+        if scheme == cls.TEL_SCHEME:
             norm_path, valid = cls.normalize_number(norm_path, country_code)
-        elif scheme == TWITTER_SCHEME:
+        elif scheme == cls.TWITTER_SCHEME:
             norm_path = norm_path.lower()
             if norm_path[0:1] == "@":  # strip @ prefix if provided
                 norm_path = norm_path[1:]
             norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
 
-        elif scheme == TWITTERID_SCHEME:
+        elif scheme == cls.TWITTERID_SCHEME:
             if display:
                 display = str(display).strip().lower()
                 if display and display[0] == "@":
                     display = display[1:]
 
-        elif scheme == EMAIL_SCHEME:
+        elif scheme == cls.EMAIL_SCHEME:
             norm_path = norm_path.lower()
 
         return cls.from_parts(scheme, norm_path, query, display)
@@ -287,15 +287,15 @@ class URN:
 
     @classmethod
     def is_path_fb_ref(cls, path):
-        return path.startswith(FACEBOOK_PATH_REF_PREFIX)
+        return path.startswith(cls.FACEBOOK_PATH_REF_PREFIX)
 
     @classmethod
     def from_tel(cls, path):
-        return cls.from_parts(TEL_SCHEME, path)
+        return cls.from_parts(cls.TEL_SCHEME, path)
 
     @classmethod
     def from_twitterid(cls, id, screen_name=None):
-        return cls.from_parts(TWITTERID_SCHEME, id, display=screen_name)
+        return cls.from_parts(cls.TWITTERID_SCHEME, id, display=screen_name)
 
 
 class UserContactFieldsQuerySet(models.QuerySet):
@@ -1117,9 +1117,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # prep our urns for deletion so our old path creates a new urn
             for urn in self.urns.all():
                 path = str(uuid4())
-                urn.identity = f"{DELETED_SCHEME}:{path}"
+                urn.identity = f"{URN.DELETED_SCHEME}:{path}"
                 urn.path = path
-                urn.scheme = DELETED_SCHEME
+                urn.scheme = URN.DELETED_SCHEME
                 urn.channel = None
                 urn.save(update_fields=("identity", "path", "scheme", "channel"))
 
@@ -1289,25 +1289,23 @@ class ContactURN(models.Model):
     A Universal Resource Name used to uniquely identify contacts, e.g. tel:+1234567890 or twitter:example
     """
 
-    SCHEME_CHOICES = SCHEME_CONFIG
-
     # schemes that support "new conversation" triggers
-    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME, TELEGRAM_SCHEME}
-    SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
+    SCHEMES_SUPPORTING_NEW_CONVERSATION = {URN.FACEBOOK_SCHEME, URN.VIBER_SCHEME, URN.TELEGRAM_SCHEME}
+    SCHEMES_SUPPORTING_REFERRALS = {URN.FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
     PRIORITY_LOWEST = 1
     PRIORITY_STANDARD = 50
     PRIORITY_HIGHEST = 99
 
     PRIORITY_DEFAULTS = {
-        TEL_SCHEME: PRIORITY_STANDARD,
-        TWITTER_SCHEME: 90,
-        TWITTERID_SCHEME: 90,
-        FACEBOOK_SCHEME: 90,
-        TELEGRAM_SCHEME: 90,
-        VIBER_SCHEME: 90,
-        FCM_SCHEME: 90,
-        FRESHCHAT_SCHEME: 90,
+        URN.TEL_SCHEME: PRIORITY_STANDARD,
+        URN.TWITTER_SCHEME: 90,
+        URN.TWITTERID_SCHEME: 90,
+        URN.FACEBOOK_SCHEME: 90,
+        URN.TELEGRAM_SCHEME: 90,
+        URN.VIBER_SCHEME: 90,
+        URN.FCM_SCHEME: 90,
+        URN.FRESHCHAT_SCHEME: 90,
     }
 
     ANON_MASK = "*" * 8  # Returned instead of URN values for anon orgs
@@ -1380,9 +1378,11 @@ class ContactURN(models.Model):
         existing = cls.objects.filter(org=org, identity=identity).select_related("contact").first()
 
         # is this a TWITTER scheme? check TWITTERID scheme by looking up by display
-        if scheme == TWITTER_SCHEME:
+        if scheme == URN.TWITTER_SCHEME:
             twitterid_urn = (
-                cls.objects.filter(org=org, scheme=TWITTERID_SCHEME, display=path).select_related("contact").first()
+                cls.objects.filter(org=org, scheme=URN.TWITTERID_SCHEME, display=path)
+                .select_related("contact")
+                .first()
             )
             if twitterid_urn:
                 return twitterid_urn
@@ -1888,7 +1888,7 @@ class ExportContactsTask(BaseExportTask):
 
         scheme_counts = dict()
         if not self.org.is_anon:
-            active_urn_schemes = [c[0] for c in ContactURN.SCHEME_CHOICES]
+            active_urn_schemes = [c[0] for c in URN.SCHEME_CHOICES]
 
             scheme_counts = {
                 scheme: ContactURN.objects.filter(org=self.org, scheme=scheme)

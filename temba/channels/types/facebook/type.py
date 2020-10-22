@@ -2,7 +2,7 @@ import requests
 
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import FACEBOOK_SCHEME
+from temba.contacts.models import URN
 from temba.triggers.models import Trigger
 
 from ...models import Channel, ChannelType
@@ -29,7 +29,7 @@ class FacebookType(ChannelType):
     )
     claim_view = ClaimView
 
-    schemes = [FACEBOOK_SCHEME]
+    schemes = [URN.FACEBOOK_SCHEME]
     max_length = 320
     attachment_support = True
     free_sending = True

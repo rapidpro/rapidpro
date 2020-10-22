@@ -4,7 +4,7 @@ from smartmin.views import SmartFormView
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 from ...models import Channel
 from ...views import ClaimViewMixin
@@ -65,7 +65,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             name="Click Mobile: %s" % data["number"],
             address=data["number"],
             config=config,
-            schemes=[TEL_SCHEME],
+            schemes=[URN.TEL_SCHEME],
         )
 
         return super().form_valid(form)

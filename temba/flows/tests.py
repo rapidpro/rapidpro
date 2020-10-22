@@ -21,7 +21,7 @@ from temba.api.models import Resthook
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
 from temba.classifiers.models import Classifier
-from temba.contacts.models import FACEBOOK_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup
+from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
 from temba.orgs.models import Language
@@ -202,7 +202,7 @@ class FlowTest(TembaTest):
         self.assertNotContains(response, "does not specify a Facebook topic")
 
         # change our channel to use a facebook scheme
-        self.channel.schemes = [FACEBOOK_SCHEME]
+        self.channel.schemes = [URN.FACEBOOK_SCHEME]
         self.channel.save()
 
         # should see a warning for no topic now
@@ -225,7 +225,7 @@ class FlowTest(TembaTest):
         self.assertNotContains(response, "affirmation")
 
         # change our channel to use a whatsapp scheme
-        self.channel.schemes = [WHATSAPP_SCHEME]
+        self.channel.schemes = [URN.WHATSAPP_SCHEME]
         self.channel.save()
 
         # clear dependencies, this will cause our flow to look like it isn't using templates
@@ -424,7 +424,7 @@ class FlowTest(TembaTest):
         self.assertEqual(["airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"]))
 
         # change our channel to use a whatsapp scheme
-        self.channel.schemes = [WHATSAPP_SCHEME]
+        self.channel.schemes = [URN.WHATSAPP_SCHEME]
         self.channel.save()
         response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertEqual(
@@ -432,7 +432,7 @@ class FlowTest(TembaTest):
         )
 
         # change our channel to use a facebook scheme
-        self.channel.schemes = [FACEBOOK_SCHEME]
+        self.channel.schemes = [URN.FACEBOOK_SCHEME]
         self.channel.save()
         response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
         self.assertEqual(

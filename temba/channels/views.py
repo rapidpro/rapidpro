@@ -38,7 +38,7 @@ from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
-from temba.contacts.models import TEL_SCHEME, URN
+from temba.contacts.models import URN
 from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org
@@ -814,7 +814,7 @@ def sync(request, channel_id):
                         # ignore these events on our side as they have no purpose and break a lot of our
                         # assumptions
                         if cmd["phone"] and call_tuple not in unique_calls:
-                            urn = URN.from_parts(TEL_SCHEME, cmd["phone"])
+                            urn = URN.from_tel(cmd["phone"])
                             try:
                                 ChannelEvent.create_relayer_event(
                                     channel, urn, cmd["type"], date, extra=dict(duration=duration)
@@ -1245,7 +1245,7 @@ class UpdateChannelForm(forms.ModelForm):
 
         self.config_fields = []
 
-        if TEL_SCHEME in self.object.schemes:
+        if URN.TEL_SCHEME in self.object.schemes:
             self.add_config_field(
                 Channel.CONFIG_ALLOW_INTERNATIONAL,
                 forms.BooleanField(required=False, help_text=_("Allow international sending")),
@@ -1750,7 +1750,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             # update our delegate channels with the new number
-            if not obj.parent and TEL_SCHEME in obj.schemes:
+            if not obj.parent and URN.TEL_SCHEME in obj.schemes:
                 e164_phone_number = None
                 try:
                     parsed = phonenumbers.parse(obj.address, None)

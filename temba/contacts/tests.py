@@ -23,7 +23,6 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.models import DELETED_SCHEME
 from temba.contacts.search import SearchException, SearchResults, search_contacts
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowRun
@@ -48,8 +47,6 @@ from temba.utils import json
 from temba.utils.dates import datetime_to_ms, datetime_to_str
 
 from .models import (
-    TEL_SCHEME,
-    TWITTER_SCHEME,
     URN,
     Contact,
     ContactField,
@@ -1360,7 +1357,7 @@ class ContactTest(TembaTest):
         self.assertEqual(2, contact.urns.all().count())
         for urn in contact.urns.all():
             uuid.UUID(urn.path, version=4)
-            self.assertEqual(DELETED_SCHEME, urn.scheme)
+            self.assertEqual(URN.DELETED_SCHEME, urn.scheme)
 
         # a new contact arrives with those urns
         new_contact = self.create_contact("URN Thief", urns=["tel:+12065552000", "twitter:tweettweet"])
@@ -1575,7 +1572,7 @@ class ContactTest(TembaTest):
         self.assertEqual("Wolfeschlegelstei...", mr_long_name.get_display(short=True))
         self.assertEqual("Billy Nophone", self.billy.get_display())
 
-        self.assertEqual("0781 111 111", self.joe.get_urn_display(scheme=TEL_SCHEME))
+        self.assertEqual("0781 111 111", self.joe.get_urn_display(scheme=URN.TEL_SCHEME))
         self.assertEqual("blow80", self.joe.get_urn_display(org=self.org, formatted=False))
         self.assertEqual("blow80", self.joe.get_urn_display())
         self.assertEqual("+250768383383", self.voldemort.get_urn_display(org=self.org, formatted=False))
@@ -1606,7 +1603,7 @@ class ContactTest(TembaTest):
             self.assertEqual(ContactURN.ANON_MASK, self.voldemort.get_urn_display())
             self.assertEqual(ContactURN.ANON_MASK, mr_long_name.get_urn_display())
             self.assertEqual("", self.billy.get_urn_display())
-            self.assertEqual("", self.billy.get_urn_display(scheme=TEL_SCHEME))
+            self.assertEqual("", self.billy.get_urn_display(scheme=URN.TEL_SCHEME))
 
             self.assertEqual("Joe Blow", str(self.joe))
             self.assertEqual("%010d" % self.voldemort.pk, str(self.voldemort))
@@ -1627,8 +1624,8 @@ class ContactTest(TembaTest):
         all = (self.joe, self.frank, self.billy)
         Contact.bulk_cache_initialize(self.org, all)
 
-        self.assertEqual([u.scheme for u in getattr(self.joe, "_urns_cache")], [TWITTER_SCHEME, TEL_SCHEME])
-        self.assertEqual([u.scheme for u in getattr(self.frank, "_urns_cache")], [TEL_SCHEME])
+        self.assertEqual([u.scheme for u in getattr(self.joe, "_urns_cache")], [URN.TWITTER_SCHEME, URN.TEL_SCHEME])
+        self.assertEqual([u.scheme for u in getattr(self.frank, "_urns_cache")], [URN.TEL_SCHEME])
         self.assertEqual(getattr(self.billy, "_urns_cache"), list())
 
         with self.assertNumQueries(0):
@@ -1661,10 +1658,10 @@ class ContactTest(TembaTest):
         unready.status = ContactGroup.STATUS_EVALUATING
         unready.save(update_fields=("status",))
 
-        joe_tel = self.joe.get_urn(TEL_SCHEME)
-        joe_twitter = self.joe.get_urn(TWITTER_SCHEME)
-        frank_tel = self.frank.get_urn(TEL_SCHEME)
-        voldemort_tel = self.voldemort.get_urn(TEL_SCHEME)
+        joe_tel = self.joe.get_urn(URN.TEL_SCHEME)
+        joe_twitter = self.joe.get_urn(URN.TWITTER_SCHEME)
+        frank_tel = self.frank.get_urn(URN.TEL_SCHEME)
+        voldemort_tel = self.voldemort.get_urn(URN.TEL_SCHEME)
 
         # Postgres will defer to strcoll for ordering which even for en_US.UTF-8 will return different results on OSX
         # and Ubuntu. To keep ordering consistent for this test, we don't let URNs start with +
@@ -1806,7 +1803,7 @@ class ContactTest(TembaTest):
         Channel.create(self.org, self.user, None, "TT")
 
         # add add an external channel so numbers get normalized
-        Channel.create(self.org, self.user, "RW", "EX", schemes=[TEL_SCHEME])
+        Channel.create(self.org, self.user, "RW", "EX", schemes=[URN.TEL_SCHEME])
 
         # search for Joe - match on last name and twitter handle
         with patch("temba.contacts.search.omnibox.search_contacts") as sc:
@@ -1830,7 +1827,7 @@ class ContactTest(TembaTest):
         )
 
         # lookup by URN ids
-        urn_query = "u=%d,%d" % (self.joe.get_urn(TWITTER_SCHEME).pk, self.frank.get_urn(TEL_SCHEME).pk)
+        urn_query = "u=%d,%d" % (self.joe.get_urn(URN.TWITTER_SCHEME).id, self.frank.get_urn(URN.TEL_SCHEME).id)
         self.assertEqual(
             omnibox_request(urn_query),
             [
@@ -1893,7 +1890,7 @@ class ContactTest(TembaTest):
         self.assertEqual(omnibox_request("c=%s,%s" % (self.joe.uuid, self.frank.uuid)), [])
 
         # but still lookup by URN ids
-        urn_query = "u=%d,%d" % (self.joe.get_urn(TWITTER_SCHEME).pk, self.frank.get_urn(TEL_SCHEME).pk)
+        urn_query = "u=%d,%d" % (self.joe.get_urn(URN.TWITTER_SCHEME).pk, self.frank.get_urn(URN.TEL_SCHEME).pk)
         self.assertEqual(
             omnibox_request(urn_query),
             [
@@ -1988,15 +1985,15 @@ class ContactTest(TembaTest):
 
             # create missed incoming and outgoing calls
             self.create_channel_event(
-                self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, extra={}
+                self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, extra={}
             )
             self.create_channel_event(
-                self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, extra={}
+                self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, extra={}
             )
 
             # and a referral event
             self.create_channel_event(
-                self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_NEW_CONVERSATION, extra={}
+                self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_NEW_CONVERSATION, extra={}
             )
 
             # try adding some failed calls
@@ -2916,7 +2913,7 @@ class ContactTest(TembaTest):
 
         # check that old URN is detached, new URN is attached, and Joe still exists
         self.joe = Contact.objects.get(pk=self.joe.id)
-        self.assertEqual(self.joe.get_urn_display(scheme=TEL_SCHEME), "0783 835 665")
+        self.assertEqual(self.joe.get_urn_display(scheme=URN.TEL_SCHEME), "0783 835 665")
         self.assertIsNone(
             self.joe.get_field_serialized(ContactField.get_by_key(self.org, "state"))
         )  # raw user input as location wasn't matched
@@ -3106,7 +3103,7 @@ class ContactTest(TembaTest):
 
         # try archive action
         event = self.create_channel_event(
-            self.channel, str(self.frank.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, extra={}
+            self.channel, str(self.frank.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, extra={}
         )
 
         self.client.post(blocked_url, {"action": "archive", "objects": self.frank.id})
@@ -3251,11 +3248,11 @@ class ContactTest(TembaTest):
         self.channel.country = "RW"
         self.channel.save()
 
-        normalized = contact3.get_urn(TEL_SCHEME).ensure_number_normalization(self.channel)
+        normalized = contact3.get_urn(URN.TEL_SCHEME).ensure_number_normalization(self.channel)
         self.assertEqual(normalized.path, "+250788111222")
 
         contact4 = self.create_contact(name=None, phone="0788333444")
-        normalized = contact4.get_urn(TEL_SCHEME).ensure_number_normalization(self.channel)
+        normalized = contact4.get_urn(URN.TEL_SCHEME).ensure_number_normalization(self.channel)
         self.assertEqual(normalized.path, "+250788333444")
 
         contact5 = self.create_contact(name="Jimmy", phone="+250788333555")
@@ -3271,8 +3268,8 @@ class ContactTest(TembaTest):
 
         # check twitter URN takes priority if you don't specify scheme
         self.assertEqual("twitter:jimmy_woot", str(contact5.get_urn()))
-        self.assertEqual("twitter:jimmy_woot", str(contact5.get_urn(schemes=[TWITTER_SCHEME])))
-        self.assertEqual("tel:+250788333666", str(contact5.get_urn(schemes=[TEL_SCHEME])))
+        self.assertEqual("twitter:jimmy_woot", str(contact5.get_urn(schemes=[URN.TWITTER_SCHEME])))
+        self.assertEqual("tel:+250788333666", str(contact5.get_urn(schemes=[URN.TEL_SCHEME])))
         self.assertIsNone(contact5.get_urn(schemes=["email"]))
         self.assertIsNone(contact5.get_urn(schemes=["facebook"]))
 

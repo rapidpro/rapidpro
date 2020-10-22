@@ -44,7 +44,6 @@ from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin
 
 from .models import (
-    TEL_SCHEME,
     URN,
     Contact,
     ContactField,
@@ -371,7 +370,7 @@ class ContactForm(forms.ModelForm):
                 first_urn = last_urn is None or urn.scheme != last_urn.scheme
 
                 urn_choice = None
-                for choice in ContactURN.SCHEME_CHOICES:
+                for choice in URN.SCHEME_CHOICES:
                     if choice[0] == urn.scheme:
                         urn_choice = choice
 
@@ -409,7 +408,7 @@ class ContactForm(forms.ModelForm):
                     return False
                 # validate but not with country as users are allowed to enter numbers before adding a channel
                 elif not URN.validate(normalized):
-                    if scheme == TEL_SCHEME:  # pragma: needs cover
+                    if scheme == URN.TEL_SCHEME:  # pragma: needs cover
                         self._errors[key] = self.error_class(
                             [_("Invalid number. Ensure number includes country code, e.g. +1-541-754-3010")]
                         )
@@ -1167,7 +1166,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["schemes"] = ContactURN.SCHEME_CHOICES
+            context["schemes"] = URN.SCHEME_CHOICES
             return context
 
         def form_valid(self, form):
@@ -1820,8 +1819,8 @@ class ContactImportCRUDL(SmartCRUDL):
 
             org = self.derive_org()
             schemes = org.get_schemes(role=Channel.ROLE_SEND)
-            schemes.add(TEL_SCHEME)  # always show tel
-            context["urn_scheme_config"] = [conf for conf in ContactURN.SCHEME_CHOICES if conf[0] in schemes]
+            schemes.add(URN.TEL_SCHEME)  # always show tel
+            context["urn_scheme_config"] = [conf for conf in URN.SCHEME_CHOICES if conf[0] in schemes]
             context["explicit_clear"] = ContactImport.EXPLICIT_CLEAR
             context["max_records"] = ContactImport.MAX_RECORDS
             return context
