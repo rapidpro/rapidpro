@@ -35,24 +35,17 @@
 
       $('#id_unit').on('change', toggleDeliveryHour);
 
-      var completions = {{completions|safe}};
-      var function_completions = {{function_completions|safe}};
-
-      $('#message-section textarea').each(function() {
+      $('#message-section rp-completion').each(function() {
 
         var ele = $(this);
 
         // give it a place holder
         ele.attr('placeholder', 'Hi @contact.name! This is just a friendly reminder to apply your fertilizer.');
 
-        // make it autocomplete
-        new AutoComplete(completions, function_completions).bind(ele);
-
         // add an sms counter
         parent = ele.parent().append('<div class="counter">0</div>');
         counter = parent.find('.counter');
         initMessageLengthCounter(this, counter);
-
       });
 
       $("#id_event_type").on('change', function() {
@@ -134,10 +127,10 @@
       max-height: 375px !important;
     }
 
-    .smartmin-form textarea {
+    .smartmin-form rp-completion {
       margin-top:5px;
       height: 180px;
-      width: 501px;
+      width: 515px;
     }
 
     .counter {

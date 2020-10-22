@@ -320,7 +320,8 @@ export default class Completion extends FormElement {
       const caret = leftSide.length + insertText.length;
 
       // set our value and our new caret
-      this.inputElement.value = leftSide + insertText + remaining;
+      this.value = leftSide + insertText + remaining;
+      this.inputElement.value = this.value;
       this.inputElement.setSelectionRange(caret, caret);
 
       // now scroll our text box if necessary
