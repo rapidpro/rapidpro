@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-20 20:34+0000\n"
+"POT-Creation-Date: 2020-10-22 12:11+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -4579,6 +4579,26 @@ msgstr ""
 #| msgid "The base URL for your WhatsApp enterprise installation"
 msgid "The URL for your RocketChat Tickets app"
 msgstr "Базовый URL для Вашей корпоративной установки WhatsApp "
+
+#, fuzzy
+#| msgid "Account Token"
+msgid "Admin Auth Token"
+msgstr "Токен Учетной записи"
+
+#, fuzzy
+#| msgid "The name of your bot"
+msgid "The admin user token of your RocketChat"
+msgstr "Название Вашего бота"
+
+#, fuzzy
+#| msgid "users"
+msgid "Admin User ID"
+msgstr "пользователи"
+
+#, fuzzy
+#| msgid "The name of your bot"
+msgid "The admin user ID of your RocketChat"
+msgstr "Название Вашего бота"
 
 msgid "Secret to be passed to RocketChat"
 msgstr ""
@@ -11035,6 +11055,9 @@ msgstr ""
 msgid "Save the changes, copy the app's URL and back to %(brand)s by pasting that URL on field below, so try connect."
 msgstr ""
 
+msgid "To get the required Auth Token and User ID go to <b>Profile > My account > Personal Access Tokens > Generate a token without 2FA</b>, save the tokens as it will not be displayed again once the pop-up is closed."
+msgstr ""
+
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."
 msgstr ""
 
@@ -11225,7 +11248,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "New Contact"
 #~ msgstr "Новый Контакт"
 
-#, python-format
 #~ msgid "Contact %s"
 #~ msgstr "Контакт %s"
 
@@ -11259,7 +11281,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "All flow variables"
 #~ msgstr "Все переменные потока"
 
-#, python-format
 #~ msgid "Contact Field: %(label)s"
 #~ msgstr "Поле Контакта: %(label)s"
 
@@ -11442,7 +11463,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Using a Local Number"
 #~ msgstr "Использование Местного Номера"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "    No matter where you are in the world, there's a way for you to use %(name)s with a local number.\n"
@@ -11454,7 +11474,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "  "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Using %(name)s with an Android Phone\n"
@@ -11466,7 +11485,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "        "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          The easiest and most popular way to deploy %(name)s is by using a cheap Android phone along with a local sim card. It's quite\n"
@@ -11493,7 +11512,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Buy an Android phone"
 #~ msgstr "Купить телефон Android"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        We always recommend that the phone you use for %(name)s be dedicated for that purpose. The good news\n"
@@ -11525,7 +11543,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "        так, чтобы передача данных была включена. Однако, если Вам удобнее полагаться на свое подключение Wi-Fi, то это тоже нормальный вариант. Мы также\n"
 #~ "        рекомендуем, чтобы учетная запись работала на тарифе с постоплатой, чтобы Вам не приходилось беспокоиться о том, что средства на телефоне закончатся."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Install the %(name)s app\n"
@@ -11567,7 +11584,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Once the app is installed it will give you a 6 digit claim code that you then"
 #~ msgstr "После того, как приложение будет установлено, оно выдаст Вам 6-значный код запроса, который Вы затем"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        And that's all there is to it. From then on, that phone will handle sending all the messages for your %(name)s account.\n"
@@ -11601,7 +11618,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "        либо Wi-Fi подключение, либо передача данных по GSM, но если Вы можете подключить и то, и другое, то это еще лучше. Телефон сам будет выбирать,\n"
 #~ "        какую сеть использовать, если одно соединение не работает должным образом."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          %(name)s with Android FAQ\n"
@@ -11616,7 +11632,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "What if I need to send a lot of messages?"
 #~ msgstr "Что если мне нужно отправлять много сообщений?"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          We encourage people to validate their ideas and experiment before focusing on scaling. Starting with Android\n"
@@ -11643,7 +11659,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "What happens if the battery dies?"
 #~ msgstr "Что произойдет, если аккумулятор сядет?"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Android phones are great because they have redundant network connections and a backup battery. So, if the office\n"
@@ -11679,7 +11694,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "          для направления на учетные записи сим. Это означает, что отправка текстовых сообщений или звонок на такой короткий код будут направляться на Ваш телефон Android. В\n"
 #~ "          некоторых случаях эти учетные записи на основе сим могут также иметь функцию возвратного биллинга."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Does the fee I pay to %(name)s include messaging fees?\n"
@@ -11688,7 +11702,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "          Включает ли плата, которую я плачу %(name)s, оплату за передачу сообщений?"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          No, the fee covers the use of the %(name)s platform. Any messaging rates imposed by your carrier apply.\n"
@@ -11700,7 +11713,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "        "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Will %(name)s work for my remote ICT4D project?\n"
@@ -11710,7 +11722,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "          Будет ли %(name)s работать для моего удаленного проекта ICT4D?\n"
 #~ "        "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          We understand that deploying SMS applications has traditionally been one of the trickiest parts when launching ICT4D projects.\n"
@@ -11740,7 +11751,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Connecting to Carriers"
 #~ msgstr "Подключение к операторам связи"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        For projects that need to send more than a few thousand messages an hour, it may be worth looking\n"
@@ -11795,7 +11806,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Non-Profit discount"
 #~ msgstr "Скидка для некоммерческих организаций"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        One of the biggest aggregators in the world, Twilio, recently announced <a href=\"http://twilio.org\">twilio.org</a> which promises a 25%% discount on messaging and voice\n"
@@ -11812,7 +11822,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Adding more aggregators"
 #~ msgstr "Добавление новых агрегаторов"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "      We're always extending our network of local aggregators. If you don't see an option for your country,\n"
@@ -12058,7 +12067,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "IGNORED"
 #~ msgstr "ИГНОРИРОВАНО"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "Create a contact "
 #~ msgid "Created %(create_count)s new contact"
 #~ msgid_plural "Created %(create_count)s new contacts"
@@ -12067,7 +12076,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgstr[2] "Создать контакт"
 #~ msgstr[3] "Создать контакт"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                          Updated %(update_count)s contact with an existing phone number\n"
@@ -12109,7 +12118,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Errors description"
 #~ msgstr "Описание"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                        Failed to import %(error_count)s contact due to missing or invalid phone number\n"
@@ -12159,7 +12168,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "                      "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  You can download\n"
@@ -12174,26 +12183,21 @@ msgstr "Найдено ${count} по ${query}"
 #~ "                  в качестве образца.\n"
 #~ "                "
 
-#, python-brace-format
 #~ msgid "The provided file has unrecognized headers. Columns \"{joined_unsupported_headers}\" should be removed or prepended with the prefix \"Field:\"."
 #~ msgstr "Предоставленный файл имеет нераспознанные заголовки. Столбцы \"{joined_unsupported_headers}\" должны быть удалены или дополнены префиксом \"Поле:\"."
 
-#, python-brace-format
 #~ msgid "The file you provided is missing a required header. At least one of \"{joined_possible_headers}\" or \"Contact UUID\" should be included."
 #~ msgstr "В предоставленном Вами файле отсутствует требуемый заголовок. Должен быть включен как минимум один из \"{joined_possible_headers}\" или \"Contact UUID\"."
 
 #~ msgid "The file you provided is missing a required header called \"Name\"."
 #~ msgstr "В предоставленном Вами файле отсутствует требуемый заголовок под названием \"Название\"."
 
-#, python-format
 #~ msgid "%s is an invalid name or is a reserved name for contact fields, field names should start with a letter."
 #~ msgstr "%s является недопустимым названием или является зарезервированным именем для полей контактов. Названия полей должны начинаться с буквы."
 
-#, python-format
 #~ msgid "%s should be used once"
 #~ msgstr "%s должно использоваться, когда"
 
-#, python-format
 #~ msgid "'%(label)s' contact field has '%(key)s' key which is reserved name. Column cannot be imported"
 #~ msgstr "'%(label)s' поля контактов содержит '%(key)s' ключ, который является зарезервированным названием. Столбец не может быть импортирован"
 
@@ -12202,7 +12206,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "You can import your contacts from an XLSX file you create in Excel."
 #~ msgstr "Вы можете импортировать свои контакты из XLS файла, который Вы создадите в Excel."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  You can download\n"
@@ -12217,7 +12221,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "                  в качестве образца.\n"
 #~ "                "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        Are you sure you want to delete everything for %(name)s? Everything will be gone and there is no going back.\n"
@@ -12400,7 +12403,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
 #~ msgstr "Вы также можете указать значения пользовательских полей контактов в файле XLS для столбцов с префиксом <i>Поле:</i>, например: <i>Поле:Команда</i>."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                          Created %(create_count)s new contact\n"
@@ -12643,7 +12645,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "No runs"
 #~ msgstr "Нет проходов"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                              %(run_count)s run\n"
@@ -12669,7 +12670,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "                              %(run_count)s проходов\n"
 #~ "                            "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                            %(completed_percentage)s%% completion\n"
@@ -12679,7 +12679,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "                            Завершено %(completed_percentage)s%%\n"
 #~ "                          "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                        %(count_comma)s recipient\n"
@@ -12705,7 +12704,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "                          %(count_comma)s получателям\n"
 #~ "                      "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -12717,7 +12715,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Write the message that will get sent when the scheduled time arrives"
 #~ msgstr "Напишите сообщение, которое будет отправлено, когда наступит запланированное время"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -12761,7 +12758,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "          </span>\n"
 #~ "      "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -12886,7 +12882,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "month"
 #~ msgstr "месяц"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          on the %(repeat_day_of_month)s\n"
@@ -12898,7 +12893,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "        "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          It will repeat <span class='attn'>%(repeat_period_display)s</span> at around the same time.\n"
@@ -12933,12 +12927,12 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "The archive we were rolled up into, if any"
 #~ msgstr "Архив, в который у нас прошло сворачивание, при наличии"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
 #~ msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
 #~ msgstr "%s используется внутри кампании. Для его архивации сначала удалите его из Ваших кампаний."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
 #~ msgid "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
 #~ msgstr "%s используются внутри кампании. Для их архивации сначала удалите их из Ваших кампаний."
@@ -12997,59 +12991,45 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Restore Triggers"
 #~ msgstr "Восстановить Триггеры"
 
-#, python-brace-format
 #~ msgid "Unrecognized field: '{prop}'"
 #~ msgstr "Нераспознанное поле: '{prop}'"
 
-#, python-brace-format
 #~ msgid "Unknown text comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор текста: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown number comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор номера: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unable to parse the date '{self.value}'"
 #~ msgstr "Невозможно разобрать дату '{self.value}'"
 
-#, python-brace-format
 #~ msgid "Unknown datetime comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор даты и времени: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown location type: '{field.value_type}'"
 #~ msgstr "Неизвестный тип местоположения: '{field.value_type}'"
 
-#, python-brace-format
 #~ msgid "Unsupported comparator '{self.comparator}' for location field"
 #~ msgstr "Неподдерживаемый компаратор '{self.comparator}' для поля местоположения"
 
-#, python-brace-format
 #~ msgid "Unrecognized contact field type '{field.value_type}'"
 #~ msgstr "Нераспознаваемый тип поля контактов '{field.value_type}'"
 
-#, python-brace-format
 #~ msgid "Unknown urn scheme comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор схемы urn: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown language comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор языка: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown created_on comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор created_on: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown name comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор названия: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "No support for attribute field: '{field}'"
 #~ msgstr "Не поддерживается поле атрибутов: '{field}'"
 
-#, python-brace-format
 #~ msgid "Unrecognized contact field type '{prop_type}'"
 #~ msgstr "Нераспознаваемый тип поля контактов '{prop_type}'"
 
@@ -13180,7 +13160,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Channel Alarms (low battery, loss of connectivity)"
 #~ msgstr "Оповещения Канала (низкий заряд батареи, потеря связи)"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"

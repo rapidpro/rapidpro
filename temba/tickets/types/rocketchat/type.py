@@ -16,6 +16,8 @@ class RocketChatType(TicketerType):
 
     CONFIG_BASE_URL = "base_url"
     CONFIG_SECRET = "secret"
+    CONFIG_ADMIN_AUTH_TOKEN = "admin_auth_token"
+    CONFIG_ADMIN_USER_ID = "admin_user_id"
 
     name = "RocketChat"
     slug = "rocketchat"

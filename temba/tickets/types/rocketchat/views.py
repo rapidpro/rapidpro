@@ -33,6 +33,10 @@ class ConnectView(BaseConnectView):
             ),
             help_text=_("The URL for your RocketChat Tickets app"),
         )
+        admin_auth_token = forms.CharField(
+            label=_("Admin Auth Token"), help_text=_("The admin user token of your RocketChat")
+        )
+        admin_user_id = forms.CharField(label=_("Admin User ID"), help_text=_("The admin user ID of your RocketChat"))
         secret = forms.CharField(
             label=_("Secret"), widget=forms.HiddenInput(), help_text=_("Secret to be passed to RocketChat")
         )
@@ -90,6 +94,8 @@ class ConnectView(BaseConnectView):
         config = {
             RocketChatType.CONFIG_BASE_URL: url,
             RocketChatType.CONFIG_SECRET: form.cleaned_data["secret"],
+            RocketChatType.CONFIG_ADMIN_AUTH_TOKEN: form.cleaned_data["admin_auth_token"],
+            RocketChatType.CONFIG_ADMIN_USER_ID: form.cleaned_data["admin_user_id"],
         }
 
         self.object = Ticketer(
@@ -106,7 +112,7 @@ class ConnectView(BaseConnectView):
         )
 
         try:
-            client = Client(**config)
+            client = Client(config[RocketChatType.CONFIG_BASE_URL], config[RocketChatType.CONFIG_SECRET])
             client.settings(self.request.build_absolute_uri("/"), self.object)
             self.request.session.pop(self.SESSION_KEY, None)
         except ClientError as err:

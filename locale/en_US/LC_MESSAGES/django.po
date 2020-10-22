@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-20 20:34+0000\n"
+"POT-Creation-Date: 2020-10-22 12:11+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4138,6 +4138,18 @@ msgid "Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b-5f8091899f7b"
 msgstr ""
 
 msgid "The URL for your RocketChat Tickets app"
+msgstr ""
+
+msgid "Admin Auth Token"
+msgstr ""
+
+msgid "The admin user token of your RocketChat"
+msgstr ""
+
+msgid "Admin User ID"
+msgstr ""
+
+msgid "The admin user ID of your RocketChat"
 msgstr ""
 
 msgid "Secret to be passed to RocketChat"
@@ -8415,6 +8427,9 @@ msgstr ""
 
 #, python-format
 msgid "Save the changes, copy the app's URL and back to %(brand)s by pasting that URL on field below, so try connect."
+msgstr ""
+
+msgid "To get the required Auth Token and User ID go to <b>Profile > My account > Personal Access Tokens > Generate a token without 2FA</b>, save the tokens as it will not be displayed again once the pop-up is closed."
 msgstr ""
 
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."

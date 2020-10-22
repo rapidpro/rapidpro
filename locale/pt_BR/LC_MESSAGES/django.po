@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-20 20:34+0000\n"
+"POT-Creation-Date: 2020-10-22 12:11+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -5498,6 +5498,25 @@ msgstr ""
 #| msgid "The URL for your RocketChat installation"
 msgid "The URL for your RocketChat Tickets app"
 msgstr "O URL da sua instalação do RocketChat"
+
+#, fuzzy
+msgid "Admin Auth Token"
+msgstr "Contas"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The admin user token of your RocketChat"
+msgstr "Nome da sua organização"
+
+#, fuzzy
+#| msgid "users"
+msgid "Admin User ID"
+msgstr "usuários"
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The admin user ID of your RocketChat"
+msgstr "Nome da sua organização"
 
 msgid "Secret to be passed to RocketChat"
 msgstr "Segredo a ser passado para o RocketChat"
@@ -11198,6 +11217,9 @@ msgstr ""
 msgid "Save the changes, copy the app's URL and back to %(brand)s by pasting that URL on field below, so try connect."
 msgstr ""
 
+msgid "To get the required Auth Token and User ID go to <b>Profile > My account > Personal Access Tokens > Generate a token without 2FA</b>, save the tokens as it will not be displayed again once the pop-up is closed."
+msgstr ""
+
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."
 msgstr ""
 
@@ -11396,7 +11418,7 @@ msgstr ""
 #~ msgid "New Contact"
 #~ msgstr "1 Contato"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "Contacts"
 #~ msgid "Contact %s"
 #~ msgstr "Contatos"
@@ -11433,7 +11455,6 @@ msgstr ""
 #~ msgid "All flow variables"
 #~ msgstr "Nomeie a sua variável"
 
-#, python-format
 #~ msgid "Contact Field: %(label)s"
 #~ msgstr "Campo de contato: %(label)s"
 
@@ -11588,7 +11609,6 @@ msgstr ""
 #~ msgid "Using a Local Number"
 #~ msgstr "Use um número local"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "    No matter where you are in the world, there's a way for you to use %(name)s with a local number.\n"
@@ -11598,7 +11618,6 @@ msgstr ""
 #~ "\n"
 #~ "Não importa onde você esteja no mundo, há uma maneira para você usar %(name)s com um número local."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Using %(name)s with an Android Phone\n"
@@ -11608,7 +11627,7 @@ msgstr ""
 #~ "\n"
 #~ "Use %(name)s com um telefone Android"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          The easiest and most popular way to deploy %(name)s is by using a cheap Android phone along with a local sim card. It's quite\n"
@@ -11633,7 +11652,7 @@ msgstr ""
 #~ msgid "Buy an Android phone"
 #~ msgstr "Compre um telefone Android"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        We always recommend that the phone you use for %(name)s be dedicated for that purpose. The good news\n"
@@ -11666,7 +11685,6 @@ msgstr ""
 #~ "\n"
 #~ "Talvez você já tenha um número local para usar, então basta colocá-lo em seu telefone Android. Caso contrário, você vai querer adquirir um cartão SIM de uma operadora local a sua escolha. Recomendamos configurar a conta para habilitar dados. No entanto, se você se sente confortável em utilizar em sua conexão Wi-Fi, tudo bem. Prefira utilizar uma conta com um plano pós-pago, assim você não precisa se preocupar em ficar sem crédito no telefone."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Install the %(name)s app\n"
@@ -11699,7 +11717,7 @@ msgstr ""
 #~ msgid "Once the app is installed it will give you a 6 digit claim code that you then"
 #~ msgstr "Assim que o aplicativo for instalado, ele lhe dará um código de requisição de 6 dígitos, em seguida você,"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        And that's all there is to it. From then on, that phone will handle sending all the messages for your %(name)s account.\n"
@@ -11730,7 +11748,6 @@ msgstr ""
 #~ "\n"
 #~ "Celulares com Android são ótimos, porque eles podem ser usados ​​mesmo nos ambientes mais difíceis. Você só precisa localizar um lugar no país em que você vai ter bateria e sinal telefônico bom. Você vai precisar de uma conexão de dados Wi-Fi ou GSM, mas se você tiver ambos, melhor ainda. Se uma conexão não está funcionando bem, o telefone escolherá de forma inteligente a rede que irá utilizar."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          %(name)s with Android FAQ\n"
@@ -11743,7 +11760,7 @@ msgstr ""
 #~ msgid "What if I need to send a lot of messages?"
 #~ msgstr "E se eu precisar de enviar muitas mensagens?"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          We encourage people to validate their ideas and experiment before focusing on scaling. Starting with Android\n"
@@ -11768,7 +11785,6 @@ msgstr ""
 #~ msgid "What happens if the battery dies?"
 #~ msgstr "O que acontece se a bateria acabar?"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Android phones are great because they have redundant network connections and a backup battery. So, if the office\n"
@@ -11803,7 +11819,6 @@ msgstr ""
 #~ "para apontar para contas SIM. Isso significa que mensagens ou ligações para o número curto se destinam ao seu telefone Android. Em  \n"
 #~ "alguns casos, essas contas baseadas em SIM também podem ter o faturamento reverso."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Does the fee I pay to %(name)s include messaging fees?\n"
@@ -11812,7 +11827,6 @@ msgstr ""
 #~ "\n"
 #~ "Será que a taxa que eu pago para o %(name)s incluem taxas de mensagens?"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          No, the fee covers the use of the %(name)s platform. Any messaging rates imposed by your carrier apply.\n"
@@ -11822,7 +11836,6 @@ msgstr ""
 #~ "\n"
 #~ "Não, a taxa cobre o uso da plataforma %(name)s. Outras taxas de mensagens impostas por sua operadora se aplicam."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Will %(name)s work for my remote ICT4D project?\n"
@@ -11831,7 +11844,6 @@ msgstr ""
 #~ "\n"
 #~ "Será que o %(name)s irá funcionar para o meu projeto remoto ICT4D?"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          We understand that deploying SMS applications has traditionally been one of the trickiest parts when launching ICT4D projects.\n"
@@ -11856,7 +11868,7 @@ msgstr ""
 #~ msgid "Connecting to Carriers"
 #~ msgstr "Conectando-se as Operadoras"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        For projects that need to send more than a few thousand messages an hour, it may be worth looking\n"
@@ -11904,7 +11916,6 @@ msgstr ""
 #~ msgid "Non-Profit discount"
 #~ msgstr "Desconto sem fins lucrativos"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        One of the biggest aggregators in the world, Twilio, recently announced <a href=\"http://twilio.org\">twilio.org</a> which promises a 25%% discount on messaging and voice\n"
@@ -11921,7 +11932,7 @@ msgstr ""
 #~ msgid "Adding more aggregators"
 #~ msgstr "Adicionando mais facilitadores"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "      We're always extending our network of local aggregators. If you don't see an option for your country,\n"
@@ -12165,13 +12176,13 @@ msgstr ""
 #~ msgid "You can import your contacts from an XLS file you create in Excel."
 #~ msgstr "Você pode importar seus contatos de um arquivo XLS criado no Excel."
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid "Created %(create_count)s new contact"
 #~ msgid_plural "Created %(create_count)s new contacts"
 #~ msgstr[0] "Criar grupo de contatos"
 #~ msgstr[1] "Criar grupo de contatos"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid "Updated %(update_count)s contact with an existing phone number"
 #~ msgid_plural "Updated %(update_count)s contacts with existing phone numbers"
 #~ msgstr[0] ""
@@ -12190,7 +12201,7 @@ msgstr ""
 #~ msgid "Errors description"
 #~ msgstr "Descrição"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid "Failed to import %(error_count)s contact due to missing or invalid phone number"
 #~ msgid_plural "Failed to import %(error_count)s contacts due to missing or invalid phone numbers"
 #~ msgstr[0] ""
@@ -12215,7 +12226,7 @@ msgstr ""
 #~ "\n"
 #~ "Nenhum contato importado, por favor, verifique se o seu arquivo contém as colunas \"Nome\" e \"Telefone\"."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  You can download\n"
@@ -12228,7 +12239,7 @@ msgstr ""
 #~ "Você pode fazer o download <a href='%(STATIC_URL)sexamples/contacts.xls'> deste modelo do Excel</a>\n"
 #~ "como uma amostra."
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #~| msgid "The file you provided is missing a required header called \"Phone\"."
 #~ msgid "The file you provided is missing a required header. At least one of \"{joined_possible_headers}\" or \"Contact UUID\" should be included."
 #~ msgstr "No arquivo fornecido está faltando um cabeçalho necessário chamado \"Telefone\"."
@@ -12236,7 +12247,7 @@ msgstr ""
 #~ msgid "The file you provided is missing a required header called \"Name\"."
 #~ msgstr "No arquivo fornecido está faltando um cabeçalho necessário chamado \"Nome\"."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "\"%s\" would be sent to %s"
 #~ msgid "%s should be used once"
 #~ msgstr "\"%s\" seria enviado para %s"
@@ -12246,7 +12257,7 @@ msgstr ""
 #~ msgid "You can import your contacts from an XLSX file you create in Excel."
 #~ msgstr "Você pode importar seus contatos de um arquivo XLS criado no Excel."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  You can download\n"
@@ -12398,7 +12409,7 @@ msgstr ""
 #~ msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
 #~ msgstr "Cada linha deve ter o número de telefone (incluindo o código do país) e o nome do contato, se disponível."
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                          Created %(create_count)s new contact\n"
@@ -12625,7 +12636,7 @@ msgstr ""
 #~ msgid "Unlabel"
 #~ msgstr "Remover rótulo"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                              %(run_count)s run\n"
@@ -12641,7 +12652,7 @@ msgstr ""
 #~ "\n"
 #~ "%(participant_count)s participante %(participant_count_plr)s, %(completed_count)s completos"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                            %(completed_percentage)s%% completion\n"
@@ -12650,7 +12661,7 @@ msgstr ""
 #~ "\n"
 #~ "%(new_contacts)s Nova Resposta %(new_contact_plr)s"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                        %(count_comma)s recipient\n"
@@ -12666,7 +12677,7 @@ msgstr ""
 #~ "\n"
 #~ "Distribuir para %(count_comma)s contatos"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -12678,7 +12689,7 @@ msgstr ""
 #~ msgid "Write the message that will get sent when the scheduled time arrives"
 #~ msgstr "Escrever a mensagem que será enviada quando chegar o momento agendado"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -12708,7 +12719,7 @@ msgstr ""
 #~ "contatos %(pluralizer)s\n"
 #~ "</span>"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -12836,7 +12847,6 @@ msgstr ""
 #~ msgid "month"
 #~ msgstr "mês"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          on the %(repeat_day_of_month)s\n"
@@ -12846,7 +12856,6 @@ msgstr ""
 #~ "\n"
 #~ "no %(repeat_day_of_month)s"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          It will repeat <span class='attn'>%(repeat_period_display)s</span> at around the same time.\n"
@@ -12940,12 +12949,12 @@ msgstr ""
 #~ msgid "Empty user access token!"
 #~ msgstr "Seu Token API é"
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #~| msgid "Invalid group or contact id"
 #~ msgid "Unable to parse the date '{self.value}'"
 #~ msgstr "Grupo ou id do contato inválido"
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #~| msgid "Unknown alert type: %(alert)s"
 #~ msgid "Unknown location type: '{field.value_type}'"
 #~ msgstr "Tipo de alerta desconhecido: %(alert)s"
@@ -13078,7 +13087,7 @@ msgstr ""
 #~ msgid "Channel Alarms (low battery, loss of connectivity)"
 #~ msgstr "Alarmes do Transmissor (bateria fraca, perda de conexão)"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
@@ -13164,7 +13173,7 @@ msgstr ""
 #~ "\n"
 #~ "%(sms_sent)s Enviadas"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"

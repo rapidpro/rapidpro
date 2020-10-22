@@ -121,7 +121,12 @@ class RocketChatViewTest(RocketChatMixin):
 
             mock_request.side_effect = side_effect
             choices = (c for c in self.secret)
-            data = {"secret": self.secret, "base_url": self.new_url("valid.com", path=f"/{self.app_id}")}
+            data = {
+                "secret": self.secret,
+                "base_url": self.new_url("valid.com", path=f"/{self.app_id}"),
+                "admin_auth_token": "abc123",
+                "admin_user_id": "123",
+            }
             response = self.client.post(self.connect_url, data=data)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(len(response.context["messages"]), 1)
@@ -177,7 +182,12 @@ class RocketChatViewTest(RocketChatMixin):
             for scheme in ["", "http", "https"]:
                 _ticketer: Ticketer = None
                 choices = (c for c in self.secret)
-                data = {"secret": self.secret, "base_url": self.new_url("valid.com", path=path, scheme=scheme)}
+                data = {
+                    "secret": self.secret,
+                    "base_url": self.new_url("valid.com", path=path, scheme=scheme),
+                    "admin_auth_token": "abc123",
+                    "admin_user_id": "123",
+                }
                 if toggle:
                     toggle = not toggle
                     domain = data["base_url"].replace("http://", "").replace("https://", "").split("/")[0]
@@ -203,38 +213,44 @@ class RocketChatViewTest(RocketChatMixin):
 
         self.client.force_login(self.admin)
 
+        base = {"admin_auth_token": "abc123", "admin_user_id": "123"}
+
         choices = (c for c in self.secret)
-        response = self.client.post(self.connect_url, {"base_url": self.secure_url})
+        response = self.client.post(self.connect_url, {**base, "base_url": self.secure_url})
         self.assertFormError(response, "form", None, "Invalid secret code.")  # Hidden field
 
         choices = (c for c in self.secret)
-        response = self.client.post(self.connect_url, {"secret": "", "base_url": self.secure_url})
+        response = self.client.post(self.connect_url, {**base, "secret": "", "base_url": self.secure_url})
         self.assertFormError(response, "form", None, "Invalid secret code.")  # Hidden field
 
         choices = (c for c in self.secret)
-        response = self.client.post(self.connect_url, {"secret": self.secret2, "base_url": self.secure_url})
+        response = self.client.post(self.connect_url, {**base, "secret": self.secret2, "base_url": self.secure_url})
         self.assertFormError(response, "form", None, "Secret code change detected.")  # Hidden field
 
         choices = (c for c in self.secret)
-        response = self.client.post(self.connect_url, {"secret": self.secret})
+        response = self.client.post(self.connect_url, {**base, "secret": self.secret})
         self.assertFormError(response, "form", "base_url", "This field is required.")
 
         choices = (c for c in self.secret)
-        response = self.client.post(self.connect_url, {"secret": self.secret, "base_url": ""})
+        response = self.client.post(self.connect_url, {**base, "secret": self.secret, "base_url": ""})
         self.assertFormError(response, "form", "base_url", "This field is required.")
 
         choices = (c for c in self.secret)
-        response = self.client.post(self.connect_url, data={"secret": self.secret, "base_url": "domain"})
+        response = self.client.post(self.connect_url, data={**base, "secret": self.secret, "base_url": "domain"})
         self.assertFormError(response, "form", "base_url", "Enter a valid URL.")
 
         choices = (c for c in self.secret)
-        response = self.client.post(self.connect_url, data={"secret": self.secret, "base_url": "domain.com"})
+        response = self.client.post(self.connect_url, data={**base, "secret": self.secret, "base_url": "domain.com"})
         self.assertFormError(response, "form", "base_url", f"Invalid URL: http://domain.com")
 
         for path in [f"", f"/", f"/path", f"/path{self.app_id}/"]:
             for scheme in ["", "http", "https"]:
                 choices = (c for c in self.secret)
-                data = {"secret": self.secret, "base_url": self.new_url("invalid.com", path=path, scheme=scheme)}
+                data = {
+                    **base,
+                    "secret": self.secret,
+                    "base_url": self.new_url("invalid.com", path=path, scheme=scheme),
+                }
                 response = self.client.post(self.connect_url, data=data)
 
                 url = data["base_url"]
@@ -243,7 +259,7 @@ class RocketChatViewTest(RocketChatMixin):
                 self.assertFormError(response, "form", "base_url", f"Invalid URL: {url}")
 
         choices = (c for c in self.secret)
-        data = {"secret": self.secret, "base_url": self.new_url("domain.com", path=f"/{self.app_id}")}
+        data = {**base, "secret": self.secret, "base_url": self.new_url("domain.com", path=f"/{self.app_id}")}
         self.new_ticketer({RocketChatType.CONFIG_BASE_URL: data["base_url"]})
         response = self.client.post(self.connect_url, data=data)
         self.assertFormError(
