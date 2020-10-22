@@ -1414,7 +1414,7 @@ class FlowCRUDL(SmartCRUDL):
             extra_urns = forms.MultipleChoiceField(
                 required=False,
                 label=_("URNs"),
-                choices=ContactURN.EXPORT_SCHEME_HEADERS,
+                choices=ContactURN.SCHEME_CHOICES,
                 widget=SelectMultipleWidget(
                     attrs={"placeholder": _("Optional: URNs in addition to the one used in the flow")}
                 ),

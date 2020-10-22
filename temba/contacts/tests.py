@@ -1905,7 +1905,7 @@ class ContactTest(TembaTest):
     def test_history(self):
 
         # use a max history size of 100
-        with patch("temba.contacts.models.MAX_HISTORY", 100):
+        with patch("temba.contacts.models.Contact.MAX_HISTORY", 100):
             url = reverse("contacts.contact_history", args=[self.joe.uuid])
 
             kurt = self.create_contact("Kurt", phone="123123")
@@ -2141,7 +2141,7 @@ class ContactTest(TembaTest):
             assertHistoryEvent(history[12], "flow_entered", FlowRun)
 
         # with a max history of one, we should see this event first
-        with patch("temba.contacts.models.MAX_HISTORY", 1):
+        with patch("temba.contacts.models.Contact.MAX_HISTORY", 1):
             # make our message event older than our planting reminder
             self.message_event.created_on = self.planting_reminder.created_on - timedelta(days=1)
             self.message_event.save()
@@ -4850,66 +4850,13 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
 
             self.assertContains(response, "You have reached the limit")
 
-    def test_json(self):
-        json_url = reverse("contacts.contactfield_json")
-
-        response = self.assertListFetch(json_url, allow_viewers=False, allow_editors=True)
-
-        self.assertEqual(
-            [
-                {"key": "name", "label": "Full name"},
-                {"key": "tel_e164", "label": "Phone number"},
-                {"key": "facebook", "label": "Facebook identifier"},
-                {"key": "twitter", "label": "Twitter handle"},
-                {"key": "twitterid", "label": "Twitter ID"},
-                {"key": "viber", "label": "Viber identifier"},
-                {"key": "line", "label": "LINE identifier"},
-                {"key": "telegram", "label": "Telegram identifier"},
-                {"key": "mailto", "label": "Email address"},
-                {"key": "ext", "label": "External identifier"},
-                {"key": "jiochat", "label": "JioChat identifier"},
-                {"key": "wechat", "label": "WeChat identifier"},
-                {"key": "fcm", "label": "Firebase Cloud Messaging identifier"},
-                {"key": "whatsapp", "label": "WhatsApp identifier"},
-                {"key": "freshchat", "label": "Freshchat identifier"},
-                {"key": "vk", "label": "VK identifier"},
-                {"key": "groups", "label": "Groups"},
-                {"id": self.age.id, "key": "age", "label": "Age"},
-                {"id": self.gender.id, "key": "gender", "label": "Gender"},
-                {"id": self.state.id, "key": "state", "label": "State"},
-            ],
-            response.json(),
-        )
-
 
 class URNTest(TembaTest):
-    def test_line_urn(self):
-        self.assertEqual("line:asdf", URN.from_line("asdf"))
-
-    def test_viber_urn(self):
-        self.assertEqual("viber:12345", URN.from_viber("12345"))
-
-    def test_fcm_urn(self):
-        self.assertEqual("fcm:12345", URN.from_fcm("12345"))
-
-    def test_facebook_urn(self):
-        self.assertEqual("facebook:ref:asdf", URN.from_facebook(URN.path_from_fb_ref("asdf")))
-        self.assertEqual("asdf", URN.fb_ref_from_path(URN.path_from_fb_ref("asdf")))
-        self.assertTrue(URN.validate(URN.from_facebook(URN.path_from_fb_ref("asdf"))))
-
-    def test_vk_urn(self):
-        self.assertEqual("vk:12345", URN.from_vk("12345"))
-
     def test_whatsapp_urn(self):
-        self.assertEqual("whatsapp:12065551212", URN.from_whatsapp("12065551212"))
         self.assertTrue(URN.validate("whatsapp:12065551212"))
         self.assertFalse(URN.validate("whatsapp:+12065551212"))
 
     def test_freshchat_urn(self):
-        self.assertEqual(
-            "freshchat:c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b",
-            URN.from_freshchat("c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b"),
-        )
         self.assertTrue(
             URN.validate("freshchat:c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b")
         )
@@ -4929,12 +4876,6 @@ class URNTest(TembaTest):
         )
 
         self.assertEqual(URN.from_tel("+12345"), "tel:+12345")
-        self.assertEqual(URN.from_twitter("abc_123"), "twitter:abc_123")
-        self.assertEqual(URN.from_email("a_b+c@d.com"), "mailto:a_b+c@d.com")
-        self.assertEqual(URN.from_facebook(12345), "facebook:12345")
-        self.assertEqual(URN.from_vk(12345), "vk:12345")
-        self.assertEqual(URN.from_telegram(12345), "telegram:12345")
-        self.assertEqual(URN.from_external("Aa0()+,-.:=@;$_!*'"), "ext:Aa0()+,-.:=@;$_!*'")
 
         self.assertRaises(ValueError, URN.from_parts, "", "12345")
         self.assertRaises(ValueError, URN.from_parts, "tel", "")

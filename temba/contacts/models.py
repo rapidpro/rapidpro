@@ -60,40 +60,23 @@ FRESHCHAT_SCHEME = "freshchat"
 
 FACEBOOK_PATH_REF_PREFIX = "ref:"
 
-# Scheme, Label, Export/Import Header, Context Key
-URN_SCHEME_CONFIG = (
-    (TEL_SCHEME, _("Phone number"), "tel_e164"),
-    (FACEBOOK_SCHEME, _("Facebook identifier"), FACEBOOK_SCHEME),
-    (TWITTER_SCHEME, _("Twitter handle"), TWITTER_SCHEME),
-    (TWITTERID_SCHEME, _("Twitter ID"), TWITTERID_SCHEME),
-    (VIBER_SCHEME, _("Viber identifier"), VIBER_SCHEME),
-    (LINE_SCHEME, _("LINE identifier"), LINE_SCHEME),
-    (TELEGRAM_SCHEME, _("Telegram identifier"), TELEGRAM_SCHEME),
-    (EMAIL_SCHEME, _("Email address"), EMAIL_SCHEME),
-    (EXTERNAL_SCHEME, _("External identifier"), EXTERNAL_SCHEME),
-    (JIOCHAT_SCHEME, _("JioChat identifier"), JIOCHAT_SCHEME),
-    (WECHAT_SCHEME, _("WeChat identifier"), WECHAT_SCHEME),
-    (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), FCM_SCHEME),
-    (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME),
-    (FRESHCHAT_SCHEME, _("Freshchat identifier"), FRESHCHAT_SCHEME),
-    (VK_SCHEME, _("VK identifier"), VK_SCHEME),
+SCHEME_CONFIG = (
+    (TEL_SCHEME, _("Phone number")),
+    (FACEBOOK_SCHEME, _("Facebook identifier")),
+    (TWITTER_SCHEME, _("Twitter handle")),
+    (TWITTERID_SCHEME, _("Twitter ID")),
+    (VIBER_SCHEME, _("Viber identifier")),
+    (LINE_SCHEME, _("LINE identifier")),
+    (TELEGRAM_SCHEME, _("Telegram identifier")),
+    (EMAIL_SCHEME, _("Email address")),
+    (EXTERNAL_SCHEME, _("External identifier")),
+    (JIOCHAT_SCHEME, _("JioChat identifier")),
+    (WECHAT_SCHEME, _("WeChat identifier")),
+    (FCM_SCHEME, _("Firebase Cloud Messaging identifier")),
+    (WHATSAPP_SCHEME, _("WhatsApp identifier")),
+    (FRESHCHAT_SCHEME, _("Freshchat identifier")),
+    (VK_SCHEME, _("VK identifier")),
 )
-
-# events from sessions to include in contact history
-HISTORY_INCLUDE_EVENTS = {
-    "contact_language_changed",
-    "contact_field_changed",
-    "contact_groups_changed",
-    "contact_name_changed",
-    "contact_urns_changed",
-    "email_created",  # no longer generated but exists in old sessions
-    "email_sent",
-    "error",
-    "failure",
-    "input_labels_added",
-    "run_result_changed",
-    "ticket_opened",
-}
 
 
 class URN:
@@ -105,8 +88,7 @@ class URN:
         * No hex escaping in URN path
     """
 
-    VALID_SCHEMES = {s[0] for s in URN_SCHEME_CONFIG}
-    IMPORT_HEADERS = {f"URN:{s[0]}" for s in URN_SCHEME_CONFIG}
+    VALID_SCHEMES = {s[0] for s in SCHEME_CONFIG}
 
     def __init__(self):  # pragma: no cover
         raise ValueError("Class shouldn't be instantiated")
@@ -304,78 +286,16 @@ class URN:
         return URN.from_parts(scheme, path)
 
     @classmethod
-    def fb_ref_from_path(cls, path):
-        return path[len(FACEBOOK_PATH_REF_PREFIX) :]
-
-    @classmethod
-    def path_from_fb_ref(cls, ref):
-        return FACEBOOK_PATH_REF_PREFIX + ref
-
-    @classmethod
     def is_path_fb_ref(cls, path):
         return path.startswith(FACEBOOK_PATH_REF_PREFIX)
-
-    # ==================== shortcut constructors ===========================
 
     @classmethod
     def from_tel(cls, path):
         return cls.from_parts(TEL_SCHEME, path)
 
     @classmethod
-    def from_twitter(cls, path):
-        return cls.from_parts(TWITTER_SCHEME, path)
-
-    @classmethod
     def from_twitterid(cls, id, screen_name=None):
         return cls.from_parts(TWITTERID_SCHEME, id, display=screen_name)
-
-    @classmethod
-    def from_email(cls, path):
-        return cls.from_parts(EMAIL_SCHEME, path)
-
-    @classmethod
-    def from_facebook(cls, path):
-        return cls.from_parts(FACEBOOK_SCHEME, path)
-
-    @classmethod
-    def from_vk(cls, path):
-        return cls.from_parts(VK_SCHEME, path)
-
-    @classmethod
-    def from_line(cls, path):
-        return cls.from_parts(LINE_SCHEME, path)
-
-    @classmethod
-    def from_telegram(cls, path):
-        return cls.from_parts(TELEGRAM_SCHEME, path)
-
-    @classmethod
-    def from_external(cls, path):
-        return cls.from_parts(EXTERNAL_SCHEME, path)
-
-    @classmethod
-    def from_viber(cls, path):
-        return cls.from_parts(VIBER_SCHEME, path)
-
-    @classmethod
-    def from_whatsapp(cls, path):
-        return cls.from_parts(WHATSAPP_SCHEME, path)
-
-    @classmethod
-    def from_fcm(cls, path):
-        return cls.from_parts(FCM_SCHEME, path)
-
-    @classmethod
-    def from_freshchat(cls, path):
-        return cls.from_parts(FRESHCHAT_SCHEME, path)
-
-    @classmethod
-    def from_jiochat(cls, path):
-        return cls.from_parts(JIOCHAT_SCHEME, path)
-
-    @classmethod
-    def from_wechat(cls, path):
-        return cls.from_parts(WECHAT_SCHEME, path)
 
 
 class UserContactFieldsQuerySet(models.QuerySet):
@@ -699,9 +619,6 @@ class ContactField(SmartModel):
         return "%s" % self.label
 
 
-MAX_HISTORY = 50
-
-
 class Contact(RequireUpdateFieldsMixin, TembaModel):
     """
     A contact represents an individual with which we can communicate and collect data
@@ -717,6 +634,24 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         (STATUS_STOPPED, "Stopped"),
         (STATUS_ARCHIVED, "Archived"),
     )
+
+    MAX_HISTORY = 50
+
+    # events from sessions to include in contact history
+    HISTORY_INCLUDE_EVENTS = {
+        "contact_language_changed",
+        "contact_field_changed",
+        "contact_groups_changed",
+        "contact_name_changed",
+        "contact_urns_changed",
+        "email_created",  # no longer generated but exists in old sessions
+        "email_sent",
+        "error",
+        "failure",
+        "input_labels_added",
+        "run_result_changed",
+        "ticket_opened",
+    }
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contacts")
 
@@ -841,12 +776,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from temba.ivr.models import IVRCall
         from temba.msgs.models import Msg, INCOMING, OUTGOING
 
+        limit = Contact.MAX_HISTORY
+
         msgs = list(
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
             .exclude(visibility=Msg.VISIBILITY_DELETED)
             .order_by("-created_on")
             .select_related("channel")
-            .prefetch_related("channel_logs")[:MAX_HISTORY]
+            .prefetch_related("channel_logs")[:limit]
         )
         msgs_in = filter(lambda m: m.direction == INCOMING, msgs)
         msgs_out = filter(lambda m: m.direction == OUTGOING, msgs)
@@ -856,7 +793,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.runs.filter(created_on__gte=after, created_on__lt=before)
             .exclude(flow__is_system=True)
             .order_by("-created_on")
-            .select_related("flow")[:MAX_HISTORY]
+            .select_related("flow")[:limit]
         )
 
         exited_runs = (
@@ -864,38 +801,38 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .exclude(flow__is_system=True)
             .exclude(exit_type=None)
             .order_by("-created_on")
-            .select_related("flow")[:MAX_HISTORY]
+            .select_related("flow")[:limit]
         )
 
         channel_events = (
             self.channel_events.filter(created_on__gte=after, created_on__lt=before)
             .order_by("-created_on")
-            .select_related("channel")[:MAX_HISTORY]
+            .select_related("channel")[:limit]
         )
 
         campaign_events = (
             self.campaign_fires.filter(fired__gte=after, fired__lt=before)
             .exclude(fired=None)
             .order_by("-fired")
-            .select_related("event__campaign")[:MAX_HISTORY]
+            .select_related("event__campaign")[:limit]
         )
 
         webhook_results = self.webhook_results.filter(created_on__gte=after, created_on__lt=before).order_by(
             "-created_on"
-        )[:MAX_HISTORY]
+        )[:limit]
 
         calls = (
             IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
             .filter(status__in=[IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED])
             .order_by("-created_on")
-            .select_related("channel")[:MAX_HISTORY]
+            .select_related("channel")[:limit]
         )
 
         transfers = self.airtime_transfers.filter(created_on__gte=after, created_on__lt=before).order_by(
             "-created_on"
-        )[:MAX_HISTORY]
+        )[:limit]
 
-        session_events = self.get_session_events(after, before, HISTORY_INCLUDE_EVENTS)
+        session_events = self.get_session_events(after, before, Contact.HISTORY_INCLUDE_EVENTS)
 
         # wrap items, chain and sort by time
         events = chain(
@@ -911,7 +848,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             session_events,
         )
 
-        return sorted(events, key=lambda i: i["created_on"], reverse=True)[:MAX_HISTORY]
+        return sorted(events, key=lambda i: i["created_on"], reverse=True)[:limit]
 
     def get_session_events(self, after, before, types):
         """
@@ -1352,17 +1289,11 @@ class ContactURN(models.Model):
     A Universal Resource Name used to uniquely identify contacts, e.g. tel:+1234567890 or twitter:example
     """
 
-    # schemes that we actually support
-    SCHEMES = [s[0] for s in URN_SCHEME_CONFIG]
-    SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
-    CONTEXT_KEYS_TO_SCHEME = {c[2]: c[0] for c in URN_SCHEME_CONFIG}
-    CONTEXT_KEYS_TO_LABEL = {c[2]: c[1] for c in URN_SCHEME_CONFIG}
+    SCHEME_CHOICES = SCHEME_CONFIG
 
     # schemes that support "new conversation" triggers
     SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME, TELEGRAM_SCHEME}
     SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
-
-    EXPORT_SCHEME_HEADERS = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
 
     PRIORITY_LOWEST = 1
     PRIORITY_STANDARD = 50
@@ -2246,7 +2177,6 @@ class ContactImport(SmartModel):
 
     @staticmethod
     def _validate_mappings(mappings: Dict):
-        valid_schemes = {c[0] for c in URN_SCHEME_CONFIG}
         non_ignored_mappings = []
 
         has_uuid, has_urn = False, False
@@ -2255,7 +2185,7 @@ class ContactImport(SmartModel):
                 has_uuid = True
             elif mapping["type"] == "scheme":
                 has_urn = True
-                if mapping["scheme"] not in valid_schemes:
+                if mapping["scheme"] not in URN.VALID_SCHEMES:
                     raise ValidationError(_("Header '%(header)s' is not a valid URN type."), params={"header": header})
             elif mapping["type"] == "new_field":
                 if not ContactField.is_valid_key(mapping["key"]):

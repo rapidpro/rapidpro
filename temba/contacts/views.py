@@ -46,7 +46,6 @@ from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixi
 from .models import (
     TEL_SCHEME,
     URN,
-    URN_SCHEME_CONFIG,
     Contact,
     ContactField,
     ContactGroup,
@@ -879,9 +878,7 @@ class ContactCRUDL(SmartCRUDL):
                 else:
                     after = max(after - timedelta(days=90), contact_creation)
 
-            from .models import MAX_HISTORY
-
-            if len(history) >= MAX_HISTORY:
+            if len(history) >= Contact.MAX_HISTORY:
                 after = history[-1]["created_on"]
 
             # check if there are more pages to fetch
@@ -1583,7 +1580,7 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
 
 class ContactFieldCRUDL(SmartCRUDL):
     model = ContactField
-    actions = ("list", "json", "create", "update", "update_priority", "delete", "featured", "filter_by_type", "detail")
+    actions = ("list", "create", "update", "update_priority", "delete", "featured", "filter_by_type", "detail")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         queryset = ContactField.user_fields
@@ -1764,32 +1761,6 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             return context
 
-    class Json(OrgPermsMixin, SmartListView):
-        paginate_by = None
-        queryset = ContactField.user_fields
-
-        def get_queryset(self, **kwargs):
-            qs = super().get_queryset(**kwargs)
-            qs = qs.filter(org=self.request.user.get_org(), is_active=True)
-            return qs
-
-        def render_to_response(self, context, **response_kwargs):
-            results = []
-            for obj in context["object_list"]:
-                result = dict(id=obj.pk, key=obj.key, label=obj.label)
-                results.append(result)
-
-            sorted_results = sorted(results, key=lambda k: k["label"].lower())
-
-            sorted_results.insert(0, dict(key="groups", label="Groups"))
-
-            for config in reversed(URN_SCHEME_CONFIG):
-                sorted_results.insert(0, dict(key=config[2], label=str(config[1])))
-
-            sorted_results.insert(0, dict(key="name", label="Full name"))
-
-            return HttpResponse(json.dumps(sorted_results), content_type="application/json")
-
 
 class ContactImportCRUDL(SmartCRUDL):
     model = ContactImport
@@ -1850,7 +1821,7 @@ class ContactImportCRUDL(SmartCRUDL):
             org = self.derive_org()
             schemes = org.get_schemes(role=Channel.ROLE_SEND)
             schemes.add(TEL_SCHEME)  # always show tel
-            context["urn_scheme_config"] = [conf for conf in URN_SCHEME_CONFIG if conf[0] in schemes]
+            context["urn_scheme_config"] = [conf for conf in ContactURN.SCHEME_CHOICES if conf[0] in schemes]
             context["explicit_clear"] = ContactImport.EXPLICIT_CLEAR
             context["max_records"] = ContactImport.MAX_RECORDS
             return context

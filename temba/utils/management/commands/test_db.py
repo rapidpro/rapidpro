@@ -647,7 +647,7 @@ class Command(BaseCommand):
                         priority=50,
                         scheme=TWITTER_SCHEME,
                         path=c["twitter"],
-                        identity=URN.from_twitter(c["twitter"]),
+                        identity=f"twitter:{c['twitter']}",
                     )
                 )
             for g in c["groups"]:
