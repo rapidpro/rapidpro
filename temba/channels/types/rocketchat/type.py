@@ -29,7 +29,7 @@ class RocketChatType(ChannelType):
     courier_url = r"^rc/(?P<uuid>[a-z0-9\-]+)/receive$"
 
     name = "Rocket.Chat"
-    icon = "icon-rocket-chat"
+    icon = "icon-rocketchat"
     show_config_page = False
 
     claim_blurb = _(
