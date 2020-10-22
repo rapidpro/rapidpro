@@ -1,6 +1,7 @@
 import logging
 from collections import OrderedDict
 from datetime import timedelta
+from typing import Dict, List
 
 from smartmin.views import (
     SmartCreateView,
@@ -1780,11 +1781,8 @@ class ContactImportCRUDL(SmartCRUDL):
             def clean_file(self):
                 file = self.cleaned_data["file"]
 
-                # try to parse the file saving the headers and mappings so we don't have to repeat parsing when
-                # saving the import
-                self.headers, self.mappings, self.num_records = ContactImport.try_to_parse(
-                    self.org, file.file, file.name
-                )
+                # try to parse the file saving the mappings so we don't have to repeat parsing when saving the import
+                self.mappings, self.num_records = ContactImport.try_to_parse(self.org, file.file, file.name)
 
                 return file
 
@@ -1829,7 +1827,6 @@ class ContactImportCRUDL(SmartCRUDL):
             obj = super().pre_save(obj)
             obj.org = self.get_user().get_org()
             obj.original_filename = self.form.cleaned_data["file"].name
-            obj.headers = self.form.headers
             obj.mappings = self.form.mappings
             obj.num_records = self.form.num_records
             return obj
@@ -1841,9 +1838,9 @@ class ContactImportCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
 
                 self.columns = []
-                for i, header in enumerate(self.instance.headers):
-                    mapping = self.instance.mappings[header]
-                    column = {"header": header, "mapping": mapping}
+                for i, item in enumerate(self.instance.mappings):
+                    mapping = item["mapping"]
+                    column = item.copy()
 
                     if mapping["type"] == "new_field":
                         include_field = forms.BooleanField(
@@ -1873,25 +1870,27 @@ class ContactImportCRUDL(SmartCRUDL):
 
                     self.columns.append(column)
 
-            def get_data_by_header(self):
+            def get_form_values(self) -> List[Dict]:
                 """
-                Gather form data into a map organized by import header
+                Gather form data into a list the same size as the mappings
                 """
-                data = {}
-                for i, header in enumerate(self.instance.headers):
-                    data[header] = {
-                        "include": self.cleaned_data.get(f"column_{i}_include", True),
-                        "name": self.cleaned_data.get(f"column_{i}_name", "").strip(),
-                        "value_type": self.cleaned_data.get(f"column_{i}_value_type", ContactField.TYPE_TEXT),
-                    }
+                data = []
+                for i in range(len(self.instance.mappings)):
+                    data.append(
+                        {
+                            "include": self.cleaned_data.get(f"column_{i}_include", True),
+                            "name": self.cleaned_data.get(f"column_{i}_name", "").strip(),
+                            "value_type": self.cleaned_data.get(f"column_{i}_value_type", ContactField.TYPE_TEXT),
+                        }
+                    )
                 return data
 
             def clean(self):
                 existing_field_keys = {f.key for f in self.org.contactfields.filter(is_active=True)}
                 used_field_keys = set()
-                data_by_header = self.get_data_by_header()
-                for header, data in data_by_header.items():
-                    mapping = self.instance.mappings[header]
+                form_values = self.get_form_values()
+                for data, item in zip(form_values, self.instance.mappings):
+                    header, mapping = item["header"], item["mapping"]
 
                     if mapping["type"] == "new_field" and data["include"]:
                         field_name = data["name"]
@@ -1948,12 +1947,11 @@ class ContactImportCRUDL(SmartCRUDL):
             return context
 
         def pre_save(self, obj):
-            data_by_header = self.form.get_data_by_header()
+            form_values = self.form.get_form_values()
 
             # rewrite mappings using values from form
-            for i, header in enumerate(obj.headers):
-                data = data_by_header[header]
-                mapping = obj.mappings[header]
+            for i, data in enumerate(form_values):
+                mapping = obj.mappings[i]["mapping"]
 
                 if not data["include"]:
                     mapping = ContactImport.MAPPING_IGNORE
@@ -1963,7 +1961,7 @@ class ContactImportCRUDL(SmartCRUDL):
                         mapping["name"] = data["name"]
                         mapping["value_type"] = data["value_type"]
 
-                obj.mappings[header] = mapping
+                obj.mappings[i]["mapping"] = mapping
             return obj
 
         def post_save(self, obj):
