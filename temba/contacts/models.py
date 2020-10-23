@@ -13,7 +13,6 @@ import phonenumbers
 import pyexcel
 import pytz
 import regex
-from smartmin.csv_imports.models import ImportTask
 from smartmin.models import SmartModel
 
 from django.conf import settings
@@ -41,63 +40,8 @@ from .search import SearchException, elastic, parse_query
 
 logger = logging.getLogger(__name__)
 
-DELETED_SCHEME = "deleted"
-EMAIL_SCHEME = "mailto"
-EXTERNAL_SCHEME = "ext"
-FACEBOOK_SCHEME = "facebook"
-JIOCHAT_SCHEME = "jiochat"
-LINE_SCHEME = "line"
-TEL_SCHEME = "tel"
-TELEGRAM_SCHEME = "telegram"
-TWILIO_SCHEME = "twilio"
-TWITTER_SCHEME = "twitter"
-TWITTERID_SCHEME = "twitterid"
-VIBER_SCHEME = "viber"
-VK_SCHEME = "vk"
-FCM_SCHEME = "fcm"
-WHATSAPP_SCHEME = "whatsapp"
-WECHAT_SCHEME = "wechat"
-FRESHCHAT_SCHEME = "freshchat"
 
-FACEBOOK_PATH_REF_PREFIX = "ref:"
-
-# Scheme, Label, Export/Import Header, Context Key
-URN_SCHEME_CONFIG = (
-    (TEL_SCHEME, _("Phone number"), "tel_e164"),
-    (FACEBOOK_SCHEME, _("Facebook identifier"), FACEBOOK_SCHEME),
-    (TWITTER_SCHEME, _("Twitter handle"), TWITTER_SCHEME),
-    (TWITTERID_SCHEME, _("Twitter ID"), TWITTERID_SCHEME),
-    (VIBER_SCHEME, _("Viber identifier"), VIBER_SCHEME),
-    (LINE_SCHEME, _("LINE identifier"), LINE_SCHEME),
-    (TELEGRAM_SCHEME, _("Telegram identifier"), TELEGRAM_SCHEME),
-    (EMAIL_SCHEME, _("Email address"), EMAIL_SCHEME),
-    (EXTERNAL_SCHEME, _("External identifier"), EXTERNAL_SCHEME),
-    (JIOCHAT_SCHEME, _("JioChat identifier"), JIOCHAT_SCHEME),
-    (WECHAT_SCHEME, _("WeChat identifier"), WECHAT_SCHEME),
-    (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), FCM_SCHEME),
-    (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME),
-    (FRESHCHAT_SCHEME, _("Freshchat identifier"), FRESHCHAT_SCHEME),
-    (VK_SCHEME, _("VK identifier"), VK_SCHEME),
-)
-
-# events from sessions to include in contact history
-HISTORY_INCLUDE_EVENTS = {
-    "contact_language_changed",
-    "contact_field_changed",
-    "contact_groups_changed",
-    "contact_name_changed",
-    "contact_urns_changed",
-    "email_created",  # no longer generated but exists in old sessions
-    "email_sent",
-    "error",
-    "failure",
-    "input_labels_added",
-    "run_result_changed",
-    "ticket_opened",
-}
-
-
-class URN(object):
+class URN:
     """
     Support class for URN strings. We differ from the strict definition of a URN (https://tools.ietf.org/html/rfc2141)
     in that:
@@ -106,8 +50,45 @@ class URN(object):
         * No hex escaping in URN path
     """
 
-    VALID_SCHEMES = {s[0] for s in URN_SCHEME_CONFIG}
-    IMPORT_HEADERS = {f"URN:{s[0]}" for s in URN_SCHEME_CONFIG}
+    DELETED_SCHEME = "deleted"
+    EMAIL_SCHEME = "mailto"
+    EXTERNAL_SCHEME = "ext"
+    FACEBOOK_SCHEME = "facebook"
+    JIOCHAT_SCHEME = "jiochat"
+    LINE_SCHEME = "line"
+    TEL_SCHEME = "tel"
+    TELEGRAM_SCHEME = "telegram"
+    TWILIO_SCHEME = "twilio"
+    TWITTER_SCHEME = "twitter"
+    TWITTERID_SCHEME = "twitterid"
+    VIBER_SCHEME = "viber"
+    VK_SCHEME = "vk"
+    FCM_SCHEME = "fcm"
+    WHATSAPP_SCHEME = "whatsapp"
+    WECHAT_SCHEME = "wechat"
+    FRESHCHAT_SCHEME = "freshchat"
+
+    SCHEME_CHOICES = (
+        (TEL_SCHEME, _("Phone number")),
+        (FACEBOOK_SCHEME, _("Facebook identifier")),
+        (TWITTER_SCHEME, _("Twitter handle")),
+        (TWITTERID_SCHEME, _("Twitter ID")),
+        (VIBER_SCHEME, _("Viber identifier")),
+        (LINE_SCHEME, _("LINE identifier")),
+        (TELEGRAM_SCHEME, _("Telegram identifier")),
+        (EMAIL_SCHEME, _("Email address")),
+        (EXTERNAL_SCHEME, _("External identifier")),
+        (JIOCHAT_SCHEME, _("JioChat identifier")),
+        (WECHAT_SCHEME, _("WeChat identifier")),
+        (FCM_SCHEME, _("Firebase Cloud Messaging identifier")),
+        (WHATSAPP_SCHEME, _("WhatsApp identifier")),
+        (FRESHCHAT_SCHEME, _("Freshchat identifier")),
+        (VK_SCHEME, _("VK identifier")),
+    )
+
+    VALID_SCHEMES = {s[0] for s in SCHEME_CHOICES}
+
+    FACEBOOK_PATH_REF_PREFIX = "ref:"
 
     def __init__(self):  # pragma: no cover
         raise ValueError("Class shouldn't be instantiated")
@@ -117,7 +98,7 @@ class URN(object):
         """
         Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
         """
-        if not scheme or (scheme not in cls.VALID_SCHEMES and scheme != DELETED_SCHEME):
+        if not scheme or (scheme not in cls.VALID_SCHEMES and scheme != cls.DELETED_SCHEME):
             raise ValueError("Invalid scheme component: '%s'" % scheme)
 
         if not path:
@@ -135,7 +116,7 @@ class URN(object):
         except ValueError:
             raise ValueError("URN strings must contain scheme and path components")
 
-        if parsed.scheme not in cls.VALID_SCHEMES and parsed.scheme != DELETED_SCHEME:
+        if parsed.scheme not in cls.VALID_SCHEMES and parsed.scheme != cls.DELETED_SCHEME:
             raise ValueError("URN contains an invalid scheme component: '%s'" % parsed.scheme)
 
         return parsed.scheme, parsed.path, parsed.query or None, parsed.fragment or None
@@ -147,10 +128,10 @@ class URN(object):
         """
         scheme, path, query, display = cls.to_parts(urn)
 
-        if scheme in [TEL_SCHEME, WHATSAPP_SCHEME] and formatted:
+        if scheme in [cls.TEL_SCHEME, cls.WHATSAPP_SCHEME] and formatted:
             try:
                 # whatsapp scheme is E164 without a leading +, add it so parsing works
-                if scheme == WHATSAPP_SCHEME:
+                if scheme == cls.WHATSAPP_SCHEME:
                     path = "+" + path
 
                 if path and path[0] == "+":
@@ -176,7 +157,7 @@ class URN(object):
         except ValueError:
             return False
 
-        if scheme == TEL_SCHEME:
+        if scheme == cls.TEL_SCHEME:
             try:
                 parsed = phonenumbers.parse(path, country_code)
                 return phonenumbers.is_possible_number(parsed)
@@ -184,18 +165,18 @@ class URN(object):
                 return False
 
         # validate twitter URNs look like handles
-        elif scheme == TWITTER_SCHEME:
+        elif scheme == cls.TWITTER_SCHEME:
             return regex.match(r"^[a-zA-Z0-9_]{1,15}$", path, regex.V0)
 
         # validate path is a number and display is a handle if present
-        elif scheme == TWITTERID_SCHEME:
+        elif scheme == cls.TWITTERID_SCHEME:
             valid = path.isdigit()
             if valid and display:
                 valid = regex.match(r"^[a-zA-Z0-9_]{1,15}$", display, regex.V0)
 
             return valid
 
-        elif scheme == EMAIL_SCHEME:
+        elif scheme == cls.EMAIL_SCHEME:
             try:
                 validate_email(path)
                 return True
@@ -203,7 +184,7 @@ class URN(object):
                 return False
 
         # facebook uses integer ids or temp ref ids
-        elif scheme == FACEBOOK_SCHEME:
+        elif scheme == cls.FACEBOOK_SCHEME:
             # we don't validate facebook refs since they come from the outside
             if URN.is_path_fb_ref(path):
                 return True
@@ -217,15 +198,15 @@ class URN(object):
                     return False
 
         # telegram and whatsapp use integer ids
-        elif scheme in [TELEGRAM_SCHEME, WHATSAPP_SCHEME]:
+        elif scheme in [cls.TELEGRAM_SCHEME, cls.WHATSAPP_SCHEME]:
             return regex.match(r"^[0-9]+$", path, regex.V0)
 
         # validate Viber URNS look right (this is a guess)
-        elif scheme == VIBER_SCHEME:  # pragma: needs cover
+        elif scheme == cls.VIBER_SCHEME:  # pragma: needs cover
             return regex.match(r"^[a-zA-Z0-9_=]{1,24}$", path, regex.V0)
 
         # validate Freshchat URNS look right (this is a guess)
-        elif scheme == FRESHCHAT_SCHEME:  # pragma: needs cover
+        elif scheme == cls.FRESHCHAT_SCHEME:  # pragma: needs cover
             return regex.match(
                 r"^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}/[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$",
                 path,
@@ -244,21 +225,21 @@ class URN(object):
 
         norm_path = str(path).strip()
 
-        if scheme == TEL_SCHEME:
+        if scheme == cls.TEL_SCHEME:
             norm_path, valid = cls.normalize_number(norm_path, country_code)
-        elif scheme == TWITTER_SCHEME:
+        elif scheme == cls.TWITTER_SCHEME:
             norm_path = norm_path.lower()
             if norm_path[0:1] == "@":  # strip @ prefix if provided
                 norm_path = norm_path[1:]
             norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
 
-        elif scheme == TWITTERID_SCHEME:
+        elif scheme == cls.TWITTERID_SCHEME:
             if display:
                 display = str(display).strip().lower()
                 if display and display[0] == "@":
                     display = display[1:]
 
-        elif scheme == EMAIL_SCHEME:
+        elif scheme == cls.EMAIL_SCHEME:
             norm_path = norm_path.lower()
 
         return cls.from_parts(scheme, norm_path, query, display)
@@ -305,78 +286,16 @@ class URN(object):
         return URN.from_parts(scheme, path)
 
     @classmethod
-    def fb_ref_from_path(cls, path):
-        return path[len(FACEBOOK_PATH_REF_PREFIX) :]
-
-    @classmethod
-    def path_from_fb_ref(cls, ref):
-        return FACEBOOK_PATH_REF_PREFIX + ref
-
-    @classmethod
     def is_path_fb_ref(cls, path):
-        return path.startswith(FACEBOOK_PATH_REF_PREFIX)
-
-    # ==================== shortcut constructors ===========================
+        return path.startswith(cls.FACEBOOK_PATH_REF_PREFIX)
 
     @classmethod
     def from_tel(cls, path):
-        return cls.from_parts(TEL_SCHEME, path)
-
-    @classmethod
-    def from_twitter(cls, path):
-        return cls.from_parts(TWITTER_SCHEME, path)
+        return cls.from_parts(cls.TEL_SCHEME, path)
 
     @classmethod
     def from_twitterid(cls, id, screen_name=None):
-        return cls.from_parts(TWITTERID_SCHEME, id, display=screen_name)
-
-    @classmethod
-    def from_email(cls, path):
-        return cls.from_parts(EMAIL_SCHEME, path)
-
-    @classmethod
-    def from_facebook(cls, path):
-        return cls.from_parts(FACEBOOK_SCHEME, path)
-
-    @classmethod
-    def from_vk(cls, path):
-        return cls.from_parts(VK_SCHEME, path)
-
-    @classmethod
-    def from_line(cls, path):
-        return cls.from_parts(LINE_SCHEME, path)
-
-    @classmethod
-    def from_telegram(cls, path):
-        return cls.from_parts(TELEGRAM_SCHEME, path)
-
-    @classmethod
-    def from_external(cls, path):
-        return cls.from_parts(EXTERNAL_SCHEME, path)
-
-    @classmethod
-    def from_viber(cls, path):
-        return cls.from_parts(VIBER_SCHEME, path)
-
-    @classmethod
-    def from_whatsapp(cls, path):
-        return cls.from_parts(WHATSAPP_SCHEME, path)
-
-    @classmethod
-    def from_fcm(cls, path):
-        return cls.from_parts(FCM_SCHEME, path)
-
-    @classmethod
-    def from_freshchat(cls, path):
-        return cls.from_parts(FRESHCHAT_SCHEME, path)
-
-    @classmethod
-    def from_jiochat(cls, path):
-        return cls.from_parts(JIOCHAT_SCHEME, path)
-
-    @classmethod
-    def from_wechat(cls, path):
-        return cls.from_parts(WECHAT_SCHEME, path)
+        return cls.from_parts(cls.TWITTERID_SCHEME, id, display=screen_name)
 
 
 class UserContactFieldsQuerySet(models.QuerySet):
@@ -485,23 +404,21 @@ class ContactField(SmartModel):
 
     uuid = models.UUIDField(unique=True, default=uuid4)
 
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, verbose_name=_("Org"), related_name="contactfields")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contactfields")
 
     label = models.CharField(verbose_name=_("Label"), max_length=MAX_LABEL_LEN)
 
-    key = models.CharField(verbose_name=_("Key"), max_length=MAX_KEY_LEN)
-
-    value_type = models.CharField(choices=TYPE_CHOICES, max_length=1, default=TYPE_TEXT, verbose_name="Field Type")
-
-    show_in_table = models.BooleanField(
-        verbose_name=_("Shown in Tables"), default=False, help_text=_("Featured field")
-    )
-
-    priority = models.PositiveIntegerField(default=0)
+    key = models.CharField(max_length=MAX_KEY_LEN)
 
     field_type = models.CharField(max_length=1, choices=FIELD_TYPE_CHOICES, default=FIELD_TYPE_USER)
 
-    # Model managers
+    value_type = models.CharField(choices=TYPE_CHOICES, max_length=1, default=TYPE_TEXT, verbose_name=_("Field Type"))
+
+    # how field is displayed in the UI
+    show_in_table = models.BooleanField(default=False)
+    priority = models.PositiveIntegerField(default=0)
+
+    # model managers
     all_fields = models.Manager()  # this is the default manager
     user_fields = UserContactFieldsManager()
     system_fields = SystemContactFieldsManager()
@@ -702,9 +619,6 @@ class ContactField(SmartModel):
         return "%s" % self.label
 
 
-MAX_HISTORY = 50
-
-
 class Contact(RequireUpdateFieldsMixin, TembaModel):
     """
     A contact represents an individual with which we can communicate and collect data
@@ -720,6 +634,24 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         (STATUS_STOPPED, "Stopped"),
         (STATUS_ARCHIVED, "Archived"),
     )
+
+    MAX_HISTORY = 50
+
+    # events from sessions to include in contact history
+    HISTORY_INCLUDE_EVENTS = {
+        "contact_language_changed",
+        "contact_field_changed",
+        "contact_groups_changed",
+        "contact_name_changed",
+        "contact_urns_changed",
+        "email_created",  # no longer generated but exists in old sessions
+        "email_sent",
+        "error",
+        "failure",
+        "input_labels_added",
+        "run_result_changed",
+        "ticket_opened",
+    }
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contacts")
 
@@ -759,30 +691,22 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     FIRST_NAME = "first_name"
     LANGUAGE = "language"
     CREATED_ON = "created_on"
-    PHONE = "phone"
     UUID = "uuid"
-    CONTACT_UUID = "contact uuid"
     GROUPS = "groups"
     ID = "id"
-    CREATED_ON_TITLE = "created on"
 
     RESERVED_ATTRIBUTES = {
         ID,
         NAME,
         FIRST_NAME,
-        PHONE,
         LANGUAGE,
         GROUPS,
         UUID,
-        CONTACT_UUID,
         CREATED_ON,
-        CREATED_ON_TITLE,
         "created_by",
         "modified_by",
-        "org",
         "is",
         "has",
-        "tel_e164",
     }
 
     # can't create custom contact fields with these keys
@@ -852,12 +776,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from temba.ivr.models import IVRCall
         from temba.msgs.models import Msg, INCOMING, OUTGOING
 
+        limit = Contact.MAX_HISTORY
+
         msgs = list(
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
             .exclude(visibility=Msg.VISIBILITY_DELETED)
             .order_by("-created_on")
             .select_related("channel")
-            .prefetch_related("channel_logs")[:MAX_HISTORY]
+            .prefetch_related("channel_logs")[:limit]
         )
         msgs_in = filter(lambda m: m.direction == INCOMING, msgs)
         msgs_out = filter(lambda m: m.direction == OUTGOING, msgs)
@@ -867,7 +793,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.runs.filter(created_on__gte=after, created_on__lt=before)
             .exclude(flow__is_system=True)
             .order_by("-created_on")
-            .select_related("flow")[:MAX_HISTORY]
+            .select_related("flow")[:limit]
         )
 
         exited_runs = (
@@ -875,38 +801,38 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .exclude(flow__is_system=True)
             .exclude(exit_type=None)
             .order_by("-created_on")
-            .select_related("flow")[:MAX_HISTORY]
+            .select_related("flow")[:limit]
         )
 
         channel_events = (
             self.channel_events.filter(created_on__gte=after, created_on__lt=before)
             .order_by("-created_on")
-            .select_related("channel")[:MAX_HISTORY]
+            .select_related("channel")[:limit]
         )
 
         campaign_events = (
             self.campaign_fires.filter(fired__gte=after, fired__lt=before)
             .exclude(fired=None)
             .order_by("-fired")
-            .select_related("event__campaign")[:MAX_HISTORY]
+            .select_related("event__campaign")[:limit]
         )
 
         webhook_results = self.webhook_results.filter(created_on__gte=after, created_on__lt=before).order_by(
             "-created_on"
-        )[:MAX_HISTORY]
+        )[:limit]
 
         calls = (
             IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
             .filter(status__in=[IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED])
             .order_by("-created_on")
-            .select_related("channel")[:MAX_HISTORY]
+            .select_related("channel")[:limit]
         )
 
         transfers = self.airtime_transfers.filter(created_on__gte=after, created_on__lt=before).order_by(
             "-created_on"
-        )[:MAX_HISTORY]
+        )[:limit]
 
-        session_events = self.get_session_events(after, before, HISTORY_INCLUDE_EVENTS)
+        session_events = self.get_session_events(after, before, Contact.HISTORY_INCLUDE_EVENTS)
 
         # wrap items, chain and sort by time
         events = chain(
@@ -922,7 +848,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             session_events,
         )
 
-        return sorted(events, key=lambda i: i["created_on"], reverse=True)[:MAX_HISTORY]
+        return sorted(events, key=lambda i: i["created_on"], reverse=True)[:limit]
 
     def get_session_events(self, after, before, types):
         """
@@ -1191,9 +1117,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # prep our urns for deletion so our old path creates a new urn
             for urn in self.urns.all():
                 path = str(uuid4())
-                urn.identity = f"{DELETED_SCHEME}:{path}"
+                urn.identity = f"{URN.DELETED_SCHEME}:{path}"
                 urn.path = path
-                urn.scheme = DELETED_SCHEME
+                urn.scheme = URN.DELETED_SCHEME
                 urn.channel = None
                 urn.save(update_fields=("identity", "path", "scheme", "channel"))
 
@@ -1363,98 +1289,53 @@ class ContactURN(models.Model):
     A Universal Resource Name used to uniquely identify contacts, e.g. tel:+1234567890 or twitter:example
     """
 
-    # schemes that we actually support
-    SCHEMES = [s[0] for s in URN_SCHEME_CONFIG]
-    SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
-    CONTEXT_KEYS_TO_SCHEME = {c[2]: c[0] for c in URN_SCHEME_CONFIG}
-    CONTEXT_KEYS_TO_LABEL = {c[2]: c[1] for c in URN_SCHEME_CONFIG}
-
     # schemes that support "new conversation" triggers
-    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME, TELEGRAM_SCHEME}
-    SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
+    SCHEMES_SUPPORTING_NEW_CONVERSATION = {URN.FACEBOOK_SCHEME, URN.VIBER_SCHEME, URN.TELEGRAM_SCHEME}
+    SCHEMES_SUPPORTING_REFERRALS = {URN.FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
-    EXPORT_SCHEME_HEADERS = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
-
-    PRIORITY_LOWEST = 1
-    PRIORITY_STANDARD = 50
-    PRIORITY_HIGHEST = 99
-
-    PRIORITY_DEFAULTS = {
-        TEL_SCHEME: PRIORITY_STANDARD,
-        TWITTER_SCHEME: 90,
-        TWITTERID_SCHEME: 90,
-        FACEBOOK_SCHEME: 90,
-        TELEGRAM_SCHEME: 90,
-        VIBER_SCHEME: 90,
-        FCM_SCHEME: 90,
-        FRESHCHAT_SCHEME: 90,
-    }
+    # mailroom sets priorites like 1000, 999, ...
+    PRIORITY_HIGHEST = 1000
 
     ANON_MASK = "*" * 8  # Returned instead of URN values for anon orgs
     ANON_MASK_HTML = "•" * 8  # Pretty HTML version of anon mask
 
-    contact = models.ForeignKey(
-        Contact,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name="urns",
-        help_text="The contact that this URN is for, can be null",
-    )
+    org = models.ForeignKey(Org, related_name="urns", on_delete=models.PROTECT)
+    contact = models.ForeignKey(Contact, on_delete=models.PROTECT, null=True, related_name="urns")
 
-    identity = models.CharField(
-        max_length=255,
-        help_text="The Universal Resource Name as a string, excluding display if present. ex: tel:+250788383383",
-    )
+    # the scheme and path which together should be unique
+    identity = models.CharField(max_length=255)
 
-    path = models.CharField(max_length=255, help_text="The path component of our URN. ex: +250788383383")
+    # individual parts of the URN
+    scheme = models.CharField(max_length=128)
+    path = models.CharField(max_length=255)
+    display = models.CharField(max_length=255, null=True)
 
-    display = models.CharField(max_length=255, null=True, help_text="The display component for this URN, if any")
+    priority = models.IntegerField(default=PRIORITY_HIGHEST)
 
-    scheme = models.CharField(
-        max_length=128, help_text="The scheme for this URN, broken out for optimization reasons, ex: tel"
-    )
+    # the channel affinity of this URN
+    channel = models.ForeignKey(Channel, related_name="urns", on_delete=models.PROTECT, null=True)
 
-    org = models.ForeignKey(
-        Org, related_name="urns", on_delete=models.PROTECT, help_text="The organization for this URN, can be null"
-    )
-
-    priority = models.IntegerField(
-        default=PRIORITY_STANDARD, help_text="The priority of this URN for the contact it is associated with"
-    )
-
-    channel = models.ForeignKey(
-        Channel,
-        related_name="urns",
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        help_text="The preferred channel for this URN",
-    )
-
-    auth = models.TextField(null=True, help_text=_("Any authentication information needed by this URN"))
+    # optional authentication information stored on this URN
+    auth = models.TextField(null=True)
 
     @classmethod
-    def get_or_create(cls, org, contact, urn_as_string, channel=None, auth=None):
+    def get_or_create(cls, org, contact, urn_as_string, channel=None, auth=None, priority=PRIORITY_HIGHEST):
         urn = cls.lookup(org, urn_as_string)
 
         # not found? create it
         if not urn:
             try:
                 with transaction.atomic():
-                    urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
+                    urn = cls.create(org, contact, urn_as_string, channel=channel, priority=priority, auth=auth)
             except IntegrityError:
                 urn = cls.lookup(org, urn_as_string)
 
         return urn
 
     @classmethod
-    def create(cls, org, contact, urn_as_string, channel=None, priority=None, auth=None):
+    def create(cls, org, contact, urn_as_string, channel=None, priority=PRIORITY_HIGHEST, auth=None):
         scheme, path, query, display = URN.to_parts(urn_as_string)
         urn_as_string = URN.from_parts(scheme, path)
-
-        if not priority:
-            priority = cls.PRIORITY_DEFAULTS.get(scheme, cls.PRIORITY_STANDARD)
 
         return cls.objects.create(
             org=org,
@@ -1482,9 +1363,11 @@ class ContactURN(models.Model):
         existing = cls.objects.filter(org=org, identity=identity).select_related("contact").first()
 
         # is this a TWITTER scheme? check TWITTERID scheme by looking up by display
-        if scheme == TWITTER_SCHEME:
+        if scheme == URN.TWITTER_SCHEME:
             twitterid_urn = (
-                cls.objects.filter(org=org, scheme=TWITTERID_SCHEME, display=path).select_related("contact").first()
+                cls.objects.filter(org=org, scheme=URN.TWITTERID_SCHEME, display=path)
+                .select_related("contact")
+                .first()
             )
             if twitterid_urn:
                 return twitterid_urn
@@ -1604,34 +1487,21 @@ class ContactGroup(TembaModel):
     EXPORT_NAME = "name"
     EXPORT_QUERY = "query"
 
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="all_groups")
+
     name = models.CharField(
         verbose_name=_("Name"), max_length=MAX_NAME_LEN, help_text=_("The name of this contact group")
     )
 
-    group_type = models.CharField(
-        max_length=1,
-        choices=TYPE_CHOICES,
-        default=TYPE_USER_DEFINED,
-        help_text=_("What type of group it is, either user defined or one of our system groups"),
-    )
+    group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_USER_DEFINED)
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_INITIALIZING)
 
-    contacts = models.ManyToManyField(Contact, verbose_name=_("Contacts"), related_name="all_groups")
+    contacts = models.ManyToManyField(Contact, related_name="all_groups")
 
-    org = models.ForeignKey(
-        Org,
-        on_delete=models.PROTECT,
-        related_name="all_groups",
-        verbose_name=_("Org"),
-        help_text=_("The organization this group is part of"),
-    )
-
-    import_task = models.ForeignKey(ImportTask, on_delete=models.PROTECT, null=True, blank=True)
-
-    query = models.TextField(null=True, help_text=_("The membership query for this group"))
-
-    query_fields = models.ManyToManyField(ContactField, verbose_name=_("Query Fields"))
+    # fields used by smart groups
+    query = models.TextField(null=True, verbose_name=_("Query"), help_text=_("The membership query for this group"))
+    query_fields = models.ManyToManyField(ContactField)
 
     # define some custom managers to do the filtering of user / system groups for us
     all_groups = models.Manager()
@@ -1706,11 +1576,11 @@ class ContactGroup(TembaModel):
             return cls.create_static(org, user, name)
 
     @classmethod
-    def create_static(cls, org, user, name, *, status=STATUS_READY, task=None):
+    def create_static(cls, org, user, name, *, status=STATUS_READY):
         """
         Creates a static group whose members will be manually added and removed
         """
-        return cls._create(org, user, name, status=status, task=task)
+        return cls._create(org, user, name, status=status)
 
     @classmethod
     def create_dynamic(cls, org, user, name, query, evaluate=True, parsed_query=None):
@@ -1725,7 +1595,7 @@ class ContactGroup(TembaModel):
         return group
 
     @classmethod
-    def _create(cls, org, user, name, status, task=None, query=None):
+    def _create(cls, org, user, name, status, query=None):
         full_group_name = cls.clean_name(name)
 
         if not cls.is_valid_name(full_group_name):
@@ -1741,13 +1611,7 @@ class ContactGroup(TembaModel):
             count += 1
 
         return cls.user_groups.create(
-            org=org,
-            name=full_group_name,
-            query=query,
-            status=status,
-            import_task=task,
-            created_by=user,
-            modified_by=user,
+            org=org, name=full_group_name, query=query, status=status, created_by=user, modified_by=user,
         )
 
     @classmethod
@@ -2009,7 +1873,7 @@ class ExportContactsTask(BaseExportTask):
 
         scheme_counts = dict()
         if not self.org.is_anon:
-            active_urn_schemes = [c[0] for c in ContactURN.SCHEME_CHOICES]
+            active_urn_schemes = [c[0] for c in URN.SCHEME_CHOICES]
 
             scheme_counts = {
                 scheme: ContactURN.objects.filter(org=self.org, scheme=scheme)
@@ -2298,7 +2162,6 @@ class ContactImport(SmartModel):
 
     @staticmethod
     def _validate_mappings(mappings: Dict):
-        valid_schemes = {c[0] for c in URN_SCHEME_CONFIG}
         non_ignored_mappings = []
 
         has_uuid, has_urn = False, False
@@ -2307,7 +2170,7 @@ class ContactImport(SmartModel):
                 has_uuid = True
             elif mapping["type"] == "scheme":
                 has_urn = True
-                if mapping["scheme"] not in valid_schemes:
+                if mapping["scheme"] not in URN.VALID_SCHEMES:
                     raise ValidationError(_("Header '%(header)s' is not a valid URN type."), params={"header": header})
             elif mapping["type"] == "new_field":
                 if not ContactField.is_valid_key(mapping["key"]):

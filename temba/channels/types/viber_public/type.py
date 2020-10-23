@@ -3,7 +3,7 @@ import requests
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import VIBER_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 from .views import ClaimView, UpdateForm
@@ -22,7 +22,7 @@ class ViberPublicType(ChannelType):
     name = "Viber"
     icon = "icon-viber"
 
-    schemes = [VIBER_SCHEME]
+    schemes = [URN.VIBER_SCHEME]
     max_length = 7000
     attachment_support = True
     free_sending = True

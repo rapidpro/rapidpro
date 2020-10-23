@@ -482,9 +482,9 @@ class Org(SmartModel):
         """
         If an org's telephone send channel is an Android device, let them add a bulk sender
         """
-        from temba.contacts.models import TEL_SCHEME
+        from temba.contacts.models import URN
 
-        send_channel = self.get_send_channel(TEL_SCHEME)
+        send_channel = self.get_send_channel(URN.TEL_SCHEME)
         return send_channel and send_channel.is_android()
 
     def can_add_caller(self):  # pragma: needs cover
@@ -524,9 +524,8 @@ class Org(SmartModel):
         return ContactGroup.all_groups.get(org=self, group_type=ContactGroup.TYPE_ACTIVE)
 
     def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
-        from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import Channel
-        from temba.contacts.models import ContactURN
+        from temba.contacts.models import URN, ContactURN
 
         if contact_urn:
             scheme = contact_urn.scheme
@@ -537,7 +536,7 @@ class Org(SmartModel):
                 if previous_sender:
                     return previous_sender
 
-            if scheme == TEL_SCHEME:
+            if scheme == URN.TEL_SCHEME:
                 path = contact_urn.path
 
                 # we don't have a channel for this contact yet, let's try to pick one from the same carrier
@@ -553,12 +552,12 @@ class Org(SmartModel):
                 channels = []
                 if country_code:
                     for c in self.channels.filter(is_active=True):
-                        if c.country == country_code and TEL_SCHEME in c.schemes:
+                        if c.country == country_code and URN.TEL_SCHEME in c.schemes:
                             channels.append(c)
 
                 # no country specific channel, try to find any channel at all
                 if not channels:
-                    channels = [c for c in self.channels.filter(is_active=True) if TEL_SCHEME in c.schemes]
+                    channels = [c for c in self.channels.filter(is_active=True) if URN.TEL_SCHEME in c.schemes]
 
                 # filter based on role and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
                 senders = []
@@ -605,16 +604,16 @@ class Org(SmartModel):
         return self.get_channel_for_role(Channel.ROLE_RECEIVE, scheme=scheme)
 
     def get_call_channel(self):
-        from temba.contacts.models import TEL_SCHEME
+        from temba.contacts.models import URN
         from temba.channels.models import Channel
 
-        return self.get_channel_for_role(Channel.ROLE_CALL, scheme=TEL_SCHEME)
+        return self.get_channel_for_role(Channel.ROLE_CALL, scheme=URN.TEL_SCHEME)
 
     def get_answer_channel(self):
-        from temba.contacts.models import TEL_SCHEME
+        from temba.contacts.models import URN
         from temba.channels.models import Channel
 
-        return self.get_channel_for_role(Channel.ROLE_ANSWER, scheme=TEL_SCHEME)
+        return self.get_channel_for_role(Channel.ROLE_ANSWER, scheme=URN.TEL_SCHEME)
 
     def get_schemes(self, role):
         """

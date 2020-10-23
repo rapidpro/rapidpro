@@ -2,7 +2,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import ChannelType
 from temba.channels.types.verboice.views import ClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 
 class VerboiceType(ChannelType):
@@ -19,7 +19,7 @@ class VerboiceType(ChannelType):
     claim_view = ClaimView
 
     max_length = 1600
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
 
     ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML
 

@@ -5,8 +5,9 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.channels.views import ALL_COUNTRIES, ClaimViewMixin
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 from temba.utils.fields import SelectWidget
+
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
@@ -39,7 +40,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             name=data["number"],
             address=data["number"],
             config=config,
-            schemes=[TEL_SCHEME],
+            schemes=[URN.TEL_SCHEME],
         )
 
         return super(ClaimViewMixin, self).form_valid(form)

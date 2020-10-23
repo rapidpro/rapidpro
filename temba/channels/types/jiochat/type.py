@@ -1,6 +1,6 @@
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import JIOCHAT_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 from .views import ClaimView
@@ -26,7 +26,7 @@ class JioChatType(ChannelType):
     )
     claim_view = ClaimView
 
-    schemes = [JIOCHAT_SCHEME]
+    schemes = [URN.JIOCHAT_SCHEME]
     max_length = 1600
     attachment_support = False
     free_sending = True
