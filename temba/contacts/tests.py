@@ -5284,7 +5284,6 @@ class ContactImportTest(TembaTest):
         bad_files = [
             ("empty.csv", "Import file doesn't contain any records."),
             ("empty_header.xls", "Import file contains an empty header."),
-            ("duplicate_header.xlsx", "Header 'name' is duplicated."),
             ("duplicate_urn.xlsx", "Import file contains duplicated contact URN 'tel:+250788382382'."),
             (
                 "duplicate_uuid.xlsx",
@@ -5306,69 +5305,79 @@ class ContactImportTest(TembaTest):
         for ext in ("csv", "xls", "xlsx"):
             imp = self.create_contact_import(f"media/test_imports/simple.{ext}")
             self.assertEqual(3, imp.num_records)
-            self.assertEqual(["URN:Tel", "name"], imp.headers)
             self.assertEqual(
-                {"URN:Tel": {"type": "scheme", "scheme": "tel"}, "name": {"type": "attribute", "name": "name"}},
+                [
+                    {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+                    {"header": "name", "mapping": {"type": "attribute", "name": "name"}},
+                ],
                 imp.mappings,
             )
 
         # try import with 2 URN types
         imp = self.create_contact_import("media/test_imports/twitter_and_phone.xls")
-        self.assertEqual(["URN:Tel", "name", "URN:Twitter"], imp.headers)
         self.assertEqual(
-            {
-                "URN:Tel": {"type": "scheme", "scheme": "tel"},
-                "name": {"type": "attribute", "name": "name"},
-                "URN:Twitter": {"type": "scheme", "scheme": "twitter"},
-            },
+            [
+                {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+                {"header": "name", "mapping": {"type": "attribute", "name": "name"}},
+                {"header": "URN:Twitter", "mapping": {"type": "scheme", "scheme": "twitter"}},
+            ],
+            imp.mappings,
+        )
+
+        # or with 3 URN columns
+        imp = self.create_contact_import("media/test_imports/multiple_tel_urns.xlsx")
+        self.assertEqual(
+            [
+                {"header": "Name", "mapping": {"type": "attribute", "name": "name"}},
+                {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+                {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+                {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+            ],
             imp.mappings,
         )
 
         imp = self.create_contact_import("media/test_imports/missing_name_header.xls")
-        self.assertEqual(["URN:Tel"], imp.headers)
-        self.assertEqual({"URN:Tel": {"type": "scheme", "scheme": "tel"}}, imp.mappings)
+        self.assertEqual([{"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}}], imp.mappings)
 
         self.create_field("goats", "Goats", ContactField.TYPE_NUMBER)
 
         imp = self.create_contact_import("media/test_imports/extra_fields_and_group.xlsx")
         self.assertEqual(
-            ["URN:Tel", "Name", "language", "Created On", "field: goats", "Field:Sheep", "Group:Testers"], imp.headers,
-        )
-        self.assertEqual(
-            {
-                "URN:Tel": {"type": "scheme", "scheme": "tel"},
-                "Name": {"type": "attribute", "name": "name"},
-                "language": {"type": "attribute", "name": "language"},
-                "Created On": {"type": "ignore"},
-                "field: goats": {"type": "field", "key": "goats", "name": "Goats"},
-                "Field:Sheep": {"type": "new_field", "key": "sheep", "name": "Sheep", "value_type": "T"},
-                "Group:Testers": {"type": "ignore"},
-            },
+            [
+                {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+                {"header": "Name", "mapping": {"type": "attribute", "name": "name"}},
+                {"header": "language", "mapping": {"type": "attribute", "name": "language"}},
+                {"header": "Created On", "mapping": {"type": "ignore"}},
+                {"header": "field: goats", "mapping": {"type": "field", "key": "goats", "name": "Goats"}},
+                {
+                    "header": "Field:Sheep",
+                    "mapping": {"type": "new_field", "key": "sheep", "name": "Sheep", "value_type": "T"},
+                },
+                {"header": "Group:Testers", "mapping": {"type": "ignore"}},
+            ],
             imp.mappings,
         )
 
         # a header can be a number but it will be ignored
         imp = self.create_contact_import("media/test_imports/numerical_header.xlsx")
-        self.assertEqual(["URN:Tel", "Name", "123"], imp.headers)
         self.assertEqual(
-            {
-                "URN:Tel": {"type": "scheme", "scheme": "tel"},
-                "Name": {"name": "name", "type": "attribute"},
-                "123": {"type": "ignore"},
-            },
+            [
+                {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+                {"header": "Name", "mapping": {"name": "name", "type": "attribute"}},
+                {"header": "123", "mapping": {"type": "ignore"}},
+            ],
             imp.mappings,
         )
 
         self.create_field("a_number", "A-Number", ContactField.TYPE_NUMBER)
 
         imp = self.create_contact_import("media/test_imports/header_chars.xlsx")
-        self.assertEqual(["URN:Tel", "Name", "Field: A-Number"], imp.headers)
         self.assertEqual(
-            {
-                "URN:Tel": {"type": "scheme", "scheme": "tel"},
-                "Name": {"type": "attribute", "name": "name"},
-                "Field: A-Number": {"type": "field", "key": "a_number", "name": "A-Number"},
-            },
+            [
+                {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+                {"header": "Name", "mapping": {"type": "attribute", "name": "name"}},
+                {"header": "Field: A-Number", "mapping": {"type": "field", "key": "a_number", "name": "A-Number"}},
+            ],
             imp.mappings,
         )
 
@@ -5572,6 +5581,24 @@ class ContactImportTest(TembaTest):
         )
 
     @mock_mailroom
+    def test_batches_with_multiple_tels(self, mr_mocks):
+        imp = self.create_contact_import("media/test_imports/multiple_tel_urns.xlsx")
+        imp.start()
+        batch = imp.batches.get()
+
+        self.assertEqual(
+            [
+                {
+                    "name": "Bob",
+                    "urns": ["tel:+250788382001", "tel:+250788382002", "tel:+250788382003"],
+                    "groups": [str(imp.group.uuid)],
+                },
+                {"name": "Jim", "urns": ["tel:+250788382004", "tel:+250788382005"], "groups": [str(imp.group.uuid)]},
+            ],
+            batch.specs,
+        )
+
+    @mock_mailroom
     def test_batches_from_csv(self, mr_mocks):
         imp = self.create_contact_import("media/test_imports/simple.csv")
         imp.start()
@@ -5664,7 +5691,7 @@ class ContactImportTest(TembaTest):
             (kgl.localize(datetime(2020, 9, 18, 15, 45, 30, 0)), "2020-09-18T15:45:30+02:00"),
         ]
         for test in tests:
-            self.assertEqual(test[1], imp._parse_value(test[0]))
+            self.assertEqual(test[1], imp._parse_value(test[0], tz=kgl))
 
     def test_default_group_name(self):
         tests = [
@@ -5842,15 +5869,18 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         # mappings will have been updated
         imp.refresh_from_db()
         self.assertEqual(
-            {
-                "URN:Tel": {"type": "scheme", "scheme": "tel"},
-                "Name": {"type": "attribute", "name": "name"},
-                "language": {"type": "attribute", "name": "language"},
-                "Created On": {"type": "ignore"},
-                "field: goats": {"type": "new_field", "key": "goats", "name": "Goats", "value_type": "N"},
-                "Field:Sheep": {"type": "ignore"},
-                "Group:Testers": {"type": "ignore"},
-            },
+            [
+                {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+                {"header": "Name", "mapping": {"type": "attribute", "name": "name"}},
+                {"header": "language", "mapping": {"type": "attribute", "name": "language"}},
+                {"header": "Created On", "mapping": {"type": "ignore"}},
+                {
+                    "header": "field: goats",
+                    "mapping": {"type": "new_field", "key": "goats", "name": "Goats", "value_type": "N"},
+                },
+                {"header": "Field:Sheep", "mapping": {"type": "ignore"}},
+                {"header": "Group:Testers", "mapping": {"type": "ignore"}},
+            ],
             imp.mappings,
         )
 

@@ -3,7 +3,7 @@ import logging
 import time
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from itertools import chain, zip_longest
+from itertools import chain
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
 from uuid import uuid4
@@ -2045,17 +2045,19 @@ class ContactImport(SmartModel):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contact_imports")
     file = models.FileField(upload_to=get_import_upload_path)
     original_filename = models.TextField()
-    headers = ArrayField(models.CharField(max_length=255))  # raw header values as ordered list
     mappings = JSONField()
     num_records = models.IntegerField()
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, null=True, related_name="imports")
     started_on = models.DateTimeField(null=True)
 
+    # no longer used
+    headers = ArrayField(models.CharField(max_length=255), null=True)
+
     @classmethod
-    def try_to_parse(cls, org: Org, file, filename: str) -> Tuple[List, Dict, int]:
+    def try_to_parse(cls, org: Org, file, filename: str) -> Tuple[List, int]:
         """
-        Tries to parse the given file stream as an import. If successful it returns the raw headers and the automatic
-        mappings. Otherwise raises a ValidationError.
+        Tries to parse the given file stream as an import. If successful it returns the automatic column mappings and
+        total number of records. Otherwise raises a ValidationError.
         """
 
         file_type = Path(filename).suffix[1:].lower()
@@ -2079,9 +2081,9 @@ class ContactImport(SmartModel):
         seen_uuids = set()
         seen_urns = set()
         num_records = 0
-        for row in data:
-            record = cls._row_to_record(headers, row)
-            uuid, urns = cls._extract_uuid_and_urns(record, mappings)
+        for raw_row in data:
+            row = cls._parse_row(raw_row, len(mappings))
+            uuid, urns = cls._extract_uuid_and_urns(row, mappings)
             if uuid:
                 if uuid in seen_uuids:
                     raise ValidationError(
@@ -2108,17 +2110,17 @@ class ContactImport(SmartModel):
 
         file.seek(0)  # seek back to beginning so subsequent reads work
 
-        return headers, mappings, num_records
+        return mappings, num_records
 
     @staticmethod
-    def _extract_uuid_and_urns(record, mappings) -> Tuple[str, List[str]]:
+    def _extract_uuid_and_urns(row, mappings) -> Tuple[str, List[str]]:
         """
-        Extracts any UUIDs and URNs from the given record so they can be checked for uniqueness
+        Extracts any UUIDs and URNs from the given row so they can be checked for uniqueness
         """
         uuid = ""
         urns = []
-        for header, value in record.items():
-            mapping = mappings[header]
+        for value, item in zip(row, mappings):
+            mapping = item["mapping"]
             if mapping["type"] == "attribute" and mapping["name"] == "uuid":
                 uuid = value.lower()
             elif mapping["type"] == "scheme" and value:
@@ -2126,13 +2128,13 @@ class ContactImport(SmartModel):
         return uuid, urns
 
     @classmethod
-    def _auto_mappings(cls, org: Org, headers: List[str]) -> Dict:
+    def _auto_mappings(cls, org: Org, headers: List[str]) -> List:
         """
         Automatic mappings for the given list of headers - users can customize these later
         """
         existing_fields = {f.key: f for f in org.contactfields.filter(is_active=True)}
 
-        mappings = {}
+        mappings = []
 
         for header in headers:
             header_prefix, header_name = cls._parse_header(header)
@@ -2155,17 +2157,19 @@ class ContactImport(SmartModel):
                     # can be created or selected in next step
                     mapping = {"type": "new_field", "key": field_key, "name": header_name, "value_type": "T"}
 
-            mappings[header] = mapping
+            mappings.append({"header": header, "mapping": mapping})
 
         cls._validate_mappings(mappings)
         return mappings
 
     @staticmethod
-    def _validate_mappings(mappings: Dict):
+    def _validate_mappings(mappings: List):
         non_ignored_mappings = []
 
         has_uuid, has_urn = False, False
-        for header, mapping in mappings.items():
+        for item in mappings:
+            header, mapping = item["header"], item["mapping"]
+
             if mapping["type"] == "attribute" and mapping["name"] == "uuid":
                 has_uuid = True
             elif mapping["type"] == "scheme":
@@ -2179,10 +2183,6 @@ class ContactImport(SmartModel):
                     )
 
             if mapping != ContactImport.MAPPING_IGNORE:
-                # if we're not ignoring this column, then it needs to mapped to something unique
-                if mapping in non_ignored_mappings:
-                    raise ValidationError(_("Header '%(header)s' is duplicated."), params={"header": header})
-
                 non_ignored_mappings.append(mapping)
 
         if not (has_uuid or has_urn):
@@ -2208,7 +2208,8 @@ class ContactImport(SmartModel):
         self.save(update_fields=("started_on",))
 
         # create new contact fields as necessary
-        for mapping in self.mappings.values():
+        for item in self.mappings:
+            mapping = item["mapping"]
             if mapping["type"] == "new_field":
                 ContactField.get_or_create(
                     self.org, self.created_by, mapping["key"], label=mapping["name"], value_type=mapping["value_type"],
@@ -2232,9 +2233,9 @@ class ContactImport(SmartModel):
             batch_specs = []
             batch_start = record_num
 
-            for row in row_batch:
-                record = self._row_to_record(self.headers, row)
-                spec = self._record_to_spec(record)
+            for raw_row in row_batch:
+                row = self._parse_row(raw_row, len(self.mappings), tz=self.org.timezone)
+                spec = self._row_to_spec(row)
                 batch_specs.append(spec)
                 record_num += 1
 
@@ -2327,25 +2328,15 @@ class ContactImport(SmartModel):
         prefix, name = (parts[0], parts[1]) if len(parts) >= 2 else ("", parts[0])
         return prefix.lower(), name
 
-    @staticmethod
-    def _row_to_record(headers, row):
-        """
-        Convert a row (array of values) to a record (dict of headers to values)
-        """
-
-        row = row[: len(headers)]  # ignore any columns beyond our headers
-        return dict(zip_longest(headers, row, fillvalue=""))
-
-    def _record_to_spec(self, record: Dict) -> Dict:
+    def _row_to_spec(self, row: List[str]) -> Dict:
         """
         Convert a record (dict of headers to values) to a contact spec
         """
 
         spec = {"groups": [str(self.group.uuid)]}
 
-        for header, raw_value in record.items():
-            mapping = self.mappings[header]
-            value = self._parse_value(raw_value)
+        for value, item in zip(row, self.mappings):
+            mapping = item["mapping"]
 
             if not value:  # blank values interpreted as leaving values unchanged
                 continue
@@ -2370,15 +2361,26 @@ class ContactImport(SmartModel):
 
         return spec
 
-    def _parse_value(self, value: Any) -> str:
+    @classmethod
+    def _parse_row(cls, row: List[str], size: int, tz=None) -> List[str]:
+        """
+        Parses the raw values in the given row, returning a new list with the given size
+        """
+        parsed = []
+        for i in range(size):
+            parsed.append(cls._parse_value(row[i], tz=tz) if i < len(row) else "")
+        return parsed
+
+    @staticmethod
+    def _parse_value(value: Any, tz=None) -> str:
         """
         Parses a record value into a string that can be serialized and understood by mailroom
         """
 
         if isinstance(value, datetime):
             # make naive datetime timezone-aware
-            if not value.tzinfo:
-                value = self.org.timezone.localize(value) if self.org.timezone else pytz.utc.localize(value)
+            if not value.tzinfo and tz:
+                value = tz.localize(value) if tz else pytz.utc.localize(value)
 
             return value.isoformat()
         elif isinstance(value, date):
