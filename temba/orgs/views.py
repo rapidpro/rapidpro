@@ -3421,7 +3421,7 @@ class TopUpCRUDL(SmartCRUDL):
 
         def save(self, obj):
             obj.org = Org.objects.get(pk=self.request.GET["org"])
-            return TopUp.create(self.request.user, price=obj.price, credits=obj.credits, org=obj.org)
+            return TopUp.create(self.request.user, price=obj.price, credits=obj.credits, org=obj.org, comment=obj.comment)
 
         def post_save(self, obj):
             obj = super().post_save(obj)
@@ -3466,6 +3466,8 @@ class TopUpCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
+            for obj in context["object_list"]:
+                obj.comment = obj.comment if obj.comment else "-"
             context["org"] = self.org
             return context
 
