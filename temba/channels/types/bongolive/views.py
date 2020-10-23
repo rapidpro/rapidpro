@@ -9,7 +9,6 @@ from temba.contacts.models import URN
 from temba.utils.fields import SelectWidget
 
 
-
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         country = forms.ChoiceField(
