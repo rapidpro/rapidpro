@@ -7,7 +7,6 @@ from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import URN
 from temba.utils.fields import ExternalURLField, SelectMultipleWidget, SelectWidget
 
-
 from ...models import Channel
 from ...views import ALL_COUNTRIES, ClaimViewMixin, UpdateTelChannelForm
 
