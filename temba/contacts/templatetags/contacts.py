@@ -3,41 +3,25 @@ from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
 from temba.campaigns.models import EventFire
-from temba.contacts.models import (
-    EMAIL_SCHEME,
-    EXTERNAL_SCHEME,
-    FACEBOOK_SCHEME,
-    FCM_SCHEME,
-    FRESHCHAT_SCHEME,
-    LINE_SCHEME,
-    TEL_SCHEME,
-    TELEGRAM_SCHEME,
-    TWILIO_SCHEME,
-    TWITTER_SCHEME,
-    TWITTERID_SCHEME,
-    URN,
-    WHATSAPP_SCHEME,
-    ContactField,
-    ContactURN,
-)
+from temba.contacts.models import URN, ContactField, ContactURN
 from temba.ivr.models import IVRCall
 from temba.msgs.models import ERRORED, FAILED
 
 register = template.Library()
 
 URN_SCHEME_ICONS = {
-    TEL_SCHEME: "icon-phone",
-    TWITTER_SCHEME: "icon-twitter",
-    TWITTERID_SCHEME: "icon-twitter",
-    TWILIO_SCHEME: "icon-twilio_original",
-    EMAIL_SCHEME: "icon-envelop",
-    FACEBOOK_SCHEME: "icon-facebook",
-    TELEGRAM_SCHEME: "icon-telegram",
-    LINE_SCHEME: "icon-line",
-    EXTERNAL_SCHEME: "icon-channel-external",
-    FCM_SCHEME: "icon-fcm",
-    FRESHCHAT_SCHEME: "icon-freshchat",
-    WHATSAPP_SCHEME: "icon-whatsapp",
+    URN.TEL_SCHEME: "icon-phone",
+    URN.TWITTER_SCHEME: "icon-twitter",
+    URN.TWITTERID_SCHEME: "icon-twitter",
+    URN.TWILIO_SCHEME: "icon-twilio_original",
+    URN.EMAIL_SCHEME: "icon-envelop",
+    URN.FACEBOOK_SCHEME: "icon-facebook",
+    URN.TELEGRAM_SCHEME: "icon-telegram",
+    URN.LINE_SCHEME: "icon-line",
+    URN.EXTERNAL_SCHEME: "icon-channel-external",
+    URN.FCM_SCHEME: "icon-fcm",
+    URN.FRESHCHAT_SCHEME: "icon-freshchat",
+    URN.WHATSAPP_SCHEME: "icon-whatsapp",
 }
 
 ACTIVITY_ICONS = {
