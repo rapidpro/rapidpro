@@ -4849,6 +4849,9 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
 
 
 class URNTest(TembaTest):
+    def test_facebook_urn(self):
+        self.assertTrue(URN.validate("facebook:ref:asdf"))
+
     def test_whatsapp_urn(self):
         self.assertTrue(URN.validate("whatsapp:12065551212"))
         self.assertFalse(URN.validate("whatsapp:+12065551212"))
