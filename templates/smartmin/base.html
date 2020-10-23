@@ -116,9 +116,15 @@ function refresh(onSuccess, forceReload){
   });
 }
 
+var latestScheduler = null;
 refreshTimeout = {{ refresh }};
 function scheduleRefresh() {
-    window.setTimeout(refresh, {{ refresh }});
+    latestScheduler = window.setTimeout(refresh, {{ refresh }});
+}
+
+function resetRefreshSchedule() {
+    window.clearTimeout(latestScheduler);
+    refreshTimeout = 0;
 }
 
 $(document).ready(function(){

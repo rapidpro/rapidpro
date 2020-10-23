@@ -49,7 +49,7 @@
         .span3.sidebox
           %div{style:"margin-bottom: 10px"}
             - if org_perms.msgs.broadcast_send
-              %button#send-message-button.btn.btn-primary(style="width: 100%")
+              %button#send-message-button.btn.btn-primary(style="width: 100%" endpoint="{% url 'msgs.broadcast_send' %}")
                 {% trans "Send Message"%}
 
           #sidebar-nav
@@ -248,13 +248,12 @@
       // when we click send, include any clicked messages in our modax request
       var sendEndpoint = "{% url 'msgs.broadcast_send' %}";
       var sendButton = document.querySelector("#send-message-button");
-      var sendModal = document.querySelector("#send-message-modal");
       sendButton.addEventListener('click', function(){
         var msgIds = getCheckedIds();
         if (msgIds.length > 0) {
-          sendModal.setAttribute("endpoint", sendEndpoint + '?m=' + msgIds);
+          sendButton.setAttribute("endpoint", sendEndpoint + '?m=' + msgIds);
         } else {
-          sendModal.setAttribute("endpoint", sendEndpoint);
+          sendButton.setAttribute("endpoint", sendEndpoint);
         }
       });
     }
@@ -277,9 +276,12 @@
     {% endif %}
 
     $('.page-content').on('click', "#send-message-button", function() {
-      var modal = new Modax("{% trans 'Send Message' %}", "{% url 'msgs.broadcast_send' %}");
+      var modal = new Modax("{% trans 'Send Message' %}", $(this).attr("endpoint"));
       modal.setIcon('icon-inbox');
-      modal.setListeners({onCompleted: function() { refresh(null, true);}});
+      modal.setListeners({onCompleted: function() { 
+        resetRefreshSchedule();
+        refresh(null, true);
+      }});
       modal.setRedirectOnSuccess(true);
       modal.show();
     });
