@@ -431,7 +431,12 @@ class CampaignEventForm(forms.ModelForm):
                 # otherwise, its just a normal language
                 initial = message.get(language.iso_code, "")
 
-            field = forms.CharField(widget=CompletionTextarea(attrs={"widget_only": True}), required=False, label=language.name, initial=initial)
+            field = forms.CharField(
+                widget=CompletionTextarea(attrs={"widget_only": True}),
+                required=False,
+                label=language.name,
+                initial=initial,
+            )
 
             self.fields[language.iso_code] = field
             field.language = dict(name=language.name, iso_code=language.iso_code)

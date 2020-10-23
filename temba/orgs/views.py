@@ -3421,7 +3421,9 @@ class TopUpCRUDL(SmartCRUDL):
 
         def save(self, obj):
             obj.org = Org.objects.get(pk=self.request.GET["org"])
-            return TopUp.create(self.request.user, price=obj.price, credits=obj.credits, org=obj.org, comment=obj.comment)
+            return TopUp.create(
+                self.request.user, price=obj.price, credits=obj.credits, org=obj.org, comment=obj.comment
+            )
 
         def post_save(self, obj):
             obj = super().post_save(obj)
