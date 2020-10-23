@@ -114,7 +114,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {"name": "/?:"},
-            form_errors={"name": "Can only contain letters, numbers and hypens.", "value": "This field is required."},
+            form_errors={"name": "Can only contain letters, numbers and hyphens.", "value": "This field is required."},
         )
 
         # try to submit with name that would become invalid key

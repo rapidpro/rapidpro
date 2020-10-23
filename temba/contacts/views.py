@@ -674,7 +674,7 @@ class ContactCRUDL(SmartCRUDL):
                         field_key = ContactField.make_key(field_label)
 
                         if not ContactField.is_valid_label(field_label):
-                            raise forms.ValidationError(_("Can only contain letters, numbers and hypens."))
+                            raise forms.ValidationError(_("Can only contain letters, numbers and hyphens."))
 
                         if not ContactField.is_valid_key(field_key):
                             raise forms.ValidationError(
@@ -1947,7 +1947,7 @@ class ContactFieldFormMixin:
         label = cleaned_data.get("label", "")
 
         if not ContactField.is_valid_label(label):
-            raise forms.ValidationError(_("Can only contain letters, numbers and hypens."))
+            raise forms.ValidationError(_("Can only contain letters, numbers and hyphens."))
 
         cf_exists = ContactField.user_fields.active_for_org(org=self.org).filter(label__iexact=label.lower()).exists()
 

@@ -2399,7 +2399,7 @@ class APITest(TembaTest):
 
         # try again with some invalid values
         response = self.postJSON(url, None, {"label": "!@#$%", "value_type": "video"})
-        self.assertResponseError(response, "label", "Can only contain letters, numbers and hypens.")
+        self.assertResponseError(response, "label", "Can only contain letters, numbers and hyphens.")
         self.assertResponseError(response, "value_type", '"video" is not a valid choice.')
 
         # try again with a label that would generate an invalid key

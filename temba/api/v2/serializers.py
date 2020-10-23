@@ -684,7 +684,7 @@ class ContactFieldWriteSerializer(WriteSerializer):
 
     def validate_label(self, value):
         if not ContactField.is_valid_label(value):
-            raise serializers.ValidationError("Can only contain letters, numbers and hypens.")
+            raise serializers.ValidationError("Can only contain letters, numbers and hyphens.")
 
         key = ContactField.make_key(value)
         if not ContactField.is_valid_key(key):

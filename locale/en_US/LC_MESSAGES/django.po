@@ -2488,7 +2488,7 @@ msgstr ""
 msgid "Export complete, you can find it here: %s (production users will get an email)"
 msgstr ""
 
-msgid "Can only contain letters, numbers and hypens."
+msgid "Can only contain letters, numbers and hyphens."
 msgstr ""
 
 #, python-format
@@ -5899,7 +5899,7 @@ msgstr ""
 
 msgid ""
 "\n"
-"                        No contacts imported, please make sure your have a channel connected.\n"
+"                        No contacts imported, please make sure you have a channel connected.\n"
 "\n"
 "                      "
 msgstr ""
