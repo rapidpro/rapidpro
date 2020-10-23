@@ -1,13 +1,11 @@
 from datetime import timedelta
 
-from smartmin.csv_imports.models import ImportTask
-
 from django.conf import settings
 from django.utils import timezone
 
 from celery.task import task
 
-from temba.contacts.models import TEL_SCHEME, ContactURN, ExportContactsTask
+from temba.contacts.models import URN, ContactURN, ExportContactsTask
 from temba.contacts.tasks import export_contacts_task
 from temba.flows.models import ExportFlowResultsTask
 from temba.flows.tasks import export_flow_results_task
@@ -54,7 +52,7 @@ def normalize_contact_tels_task(org_id):
     # do we have an org-level country code? if so, try to normalize any numbers not starting with +
     country_code = org.get_country_code()
     if country_code:
-        urns = ContactURN.objects.filter(org=org, scheme=TEL_SCHEME).exclude(path__startswith="+").iterator()
+        urns = ContactURN.objects.filter(org=org, scheme=URN.TEL_SCHEME).exclude(path__startswith="+").iterator()
         for urn in urns:
             urn.ensure_number_normalization(country_code)
 
@@ -68,12 +66,6 @@ def squash_topupcredits():
 def resume_failed_tasks():
     now = timezone.now()
     window = now - timedelta(hours=1)
-
-    import_tasks = ImportTask.objects.filter(modified_on__lte=window).exclude(
-        task_status__in=[ImportTask.SUCCESS, ImportTask.FAILURE]
-    )
-    for import_task in import_tasks:
-        import_task.start()
 
     contact_exports = ExportContactsTask.objects.filter(modified_on__lte=window).exclude(
         status__in=[ExportContactsTask.STATUS_COMPLETE, ExportContactsTask.STATUS_FAILED]

@@ -1,6 +1,8 @@
 import functools
 import re
 from collections import defaultdict
+from datetime import timedelta
+from functools import wraps
 from typing import Dict, List
 from unittest.mock import call, patch
 
@@ -9,12 +11,21 @@ from django.contrib.auth.models import User
 from django.db import connection
 from django.utils import timezone
 
+from temba.campaigns.models import CampaignEvent, EventFire
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
+from temba.locations.models import AdminBoundary
 from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
 from temba.tickets.models import Ticket
-from temba.utils import json
+from temba.utils import format_number, get_anonymous_user, json
+
+event_units = {
+    CampaignEvent.UNIT_MINUTES: "minutes",
+    CampaignEvent.UNIT_HOURS: "hours",
+    CampaignEvent.UNIT_DAYS: "days",
+    CampaignEvent.UNIT_WEEKS: "weeks",
+}
 
 
 class Mocks:
@@ -125,6 +136,23 @@ class TestClient(MailroomClient):
         return {c.id: {"contact": {}, "events": []} for c in contacts}
 
     @_client_method
+    def contact_resolve(self, org_id: int, channel_id: int, urn: str):
+        org = Org.objects.get(id=org_id)
+        user = get_anonymous_user()
+
+        contact_urn = ContactURN.lookup(org, urn)
+        if contact_urn:
+            contact = contact_urn.contact
+        else:
+            contact = create_contact_locally(org, user, name="", language="", urns=[urn], fields={}, group_uuids=[])
+            contact_urn = ContactURN.lookup(org, urn)
+
+        return {
+            "contact": {"id": contact.id, "uuid": str(contact.uuid), "name": contact.name},
+            "urn": {"id": contact_urn.id, "identity": contact_urn.identity},
+        }
+
+    @_client_method
     def parse_query(self, org_id, query, group_uuid=""):
         # if there's a mock for this query we use that
         mock = self.mocks._parse_query.get(query)
@@ -161,17 +189,36 @@ class TestClient(MailroomClient):
         return {"changed_ids": [t.id for t in tickets]}
 
 
-def mock_mailroom(f):
+def mock_mailroom(method=None, *, client=True, queue=True):
     """
     Convenience decorator to make a test method use a mocked version of the mailroom client
     """
 
-    def wrapped(instance, *args, **kwargs):
-        with patch("temba.mailroom.get_client") as mock_get_client, patch(
-            "temba.mailroom.queue._queue_batch_task"
-        ) as mock_queue_batch_task:
-            mocks = Mocks()
+    def actual_decorator(f):
+        @wraps(f)
+        def wrapper(instance, *args, **kwargs):
+            _wrap_test_method(f, client, queue, instance, *args, **kwargs)
+
+        return wrapper
+
+    return actual_decorator(method) if method else actual_decorator
+
+
+def _wrap_test_method(f, mock_client: bool, mock_queue: bool, instance, *args, **kwargs):
+    mocks = Mocks()
+
+    patch_get_client = None
+    patch_queue_batch_task = None
+
+    try:
+        if mock_client:
+            patch_get_client = patch("temba.mailroom.get_client")
+            mock_get_client = patch_get_client.start()
             mock_get_client.return_value = TestClient(mocks)
+
+        if mock_queue:
+            patch_queue_batch_task = patch("temba.mailroom.queue._queue_batch_task")
+            mock_queue_batch_task = patch_queue_batch_task.start()
 
             def queue_batch_task(org_id, task_type, task, priority):
                 mocks.queued_batch_tasks.append(
@@ -180,9 +227,12 @@ def mock_mailroom(f):
 
             mock_queue_batch_task.side_effect = queue_batch_task
 
-            return f(instance, mocks, *args, **kwargs)
-
-    return wrapped
+        return f(instance, mocks, *args, **kwargs)
+    finally:
+        if patch_get_client:
+            patch_get_client.stop()
+        if patch_queue_batch_task:
+            patch_queue_batch_task.stop()
 
 
 def apply_modifiers(org, user, contacts, modifiers: List):
@@ -231,7 +281,8 @@ def apply_modifiers(org, user, contacts, modifiers: List):
         contacts.update(modified_by=user, modified_on=timezone.now(), **fields)
         if clear_groups:
             for c in contacts:
-                Contact.objects.get(id=c.id).clear_all_groups(user)
+                for g in c.user_groups.all():
+                    g.contacts.remove(c)
 
 
 def create_contact_locally(org, user, name, language, urns, fields, group_uuids):
@@ -260,6 +311,7 @@ def update_fields_locally(user, contact, fields):
 
 
 def update_field_locally(user, contact, key, value, label=None):
+    org = contact.org
     field = ContactField.get_or_create(contact.org, user, key, label=label)
 
     field_uuid = str(field.uuid)
@@ -272,7 +324,7 @@ def update_field_locally(user, contact, key, value, label=None):
             del contact.fields[field_uuid]
 
     else:
-        field_dict = contact.serialize_field(field, value)
+        field_dict = serialize_field_value(contact, field, value)
 
         if contact.fields.get(field_uuid) != field_dict:
             contact.fields[field_uuid] = field_dict
@@ -288,6 +340,16 @@ def update_field_locally(user, contact, key, value, label=None):
                 "UPDATE contacts_contact SET fields = COALESCE(fields,'{}'::jsonb) || %s::jsonb WHERE id = %s",
                 [json.dumps({field_uuid: contact.fields[field_uuid]}), contact.id],
             )
+
+    # very simplified version of mailroom's campaign event scheduling
+    events = CampaignEvent.objects.filter(relative_to=field, campaign__group__in=contact.user_groups.all())
+    for event in events:
+        EventFire.objects.filter(contact=contact, event=event).delete()
+        date_value = org.parse_datetime(value)
+        if date_value:
+            scheduled = date_value + timedelta(**{event_units[event.unit]: event.offset})
+            if scheduled > timezone.now():
+                EventFire.objects.create(contact=contact, event=event, scheduled=scheduled)
 
 
 def update_urns_locally(contact, urns: List[str]):
@@ -336,3 +398,63 @@ def update_groups_locally(contact, group_uuids, add: bool):
             group.contacts.add(contact)
         else:
             group.contacts.remove(contact)
+
+
+def serialize_field_value(contact, field, value):
+    org = contact.org
+
+    # parse as all value data types
+    str_value = str(value)[:640]
+    dt_value = org.parse_datetime(value)
+    num_value = org.parse_number(value)
+    loc_value = None
+
+    # for locations, if it has a '>' then it is explicit, look it up that way
+    if AdminBoundary.PATH_SEPARATOR in str_value:
+        loc_value = contact.org.parse_location_path(str_value)
+
+    # otherwise, try to parse it as a name at the appropriate level
+    else:
+        if field.value_type == ContactField.TYPE_WARD:
+            district_field = ContactField.get_location_field(org, ContactField.TYPE_DISTRICT)
+            district_value = contact.get_field_value(district_field)
+            if district_value:
+                loc_value = org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value)
+
+        elif field.value_type == ContactField.TYPE_DISTRICT:
+            state_field = ContactField.get_location_field(org, ContactField.TYPE_STATE)
+            if state_field:
+                state_value = contact.get_field_value(state_field)
+                if state_value:
+                    loc_value = org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value)
+
+        elif field.value_type == ContactField.TYPE_STATE:
+            loc_value = org.parse_location(str_value, AdminBoundary.LEVEL_STATE)
+
+        if loc_value is not None and len(loc_value) > 0:
+            loc_value = loc_value[0]
+        else:
+            loc_value = None
+
+    # all fields have a text value
+    field_dict = {"text": str_value}
+
+    # set all the other fields that have a non-zero value
+    if dt_value is not None:
+        field_dict["datetime"] = timezone.localtime(dt_value, org.timezone).isoformat()
+
+    if num_value is not None:
+        field_dict["number"] = format_number(num_value)
+
+    if loc_value:
+        if loc_value.level == AdminBoundary.LEVEL_STATE:
+            field_dict["state"] = loc_value.path
+        elif loc_value.level == AdminBoundary.LEVEL_DISTRICT:
+            field_dict["district"] = loc_value.path
+            field_dict["state"] = AdminBoundary.strip_last_path(loc_value.path)
+        elif loc_value.level == AdminBoundary.LEVEL_WARD:
+            field_dict["ward"] = loc_value.path
+            field_dict["district"] = AdminBoundary.strip_last_path(loc_value.path)
+            field_dict["state"] = AdminBoundary.strip_last_path(field_dict["district"])
+
+    return field_dict

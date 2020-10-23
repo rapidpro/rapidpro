@@ -16,7 +16,6 @@
     .flex.mt-2
       .flex.flex-col
         .channel_type
-
             -if object.parent
               {{object.name}}
             -else
@@ -31,9 +30,6 @@
     .text-gray-500.text-base
       {{ object.get_country_display }}
 
-  
-
-
   -with object.get_delegate_channels as delegates
     -if delegates
       .channel-roles.mt-3
@@ -47,10 +43,6 @@
 
                 -if channel.is_delegate_caller
                   -trans "Voice calls"
-
-
-    -for link in object.get_type.extra_links
-      <a class="inline-block button-light px-4 py-2 mr-2" href="{% url link.name object.uuid %}">{{ link.link }}</a>
 
     .my-4.text-base
       -if delayed_sync_event or unsent_msgs_count
@@ -329,16 +321,6 @@
     <script src="{{ STATIC_URL }}bower/highcharts/highcharts.js"></script>
 
   :javascript
-
-    {% if org_perms.channels.channel_facebook_whitelist %}
-      $(".facebook-whitelist").live('click', function(){
-        var modal = new Modax('{{ _("Whitelist Domain")|escapejs }}','{% url "channels.channel_facebook_whitelist" object.uuid %}');
-        modal.setIcon('icon-facebook-official');
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-    {% endif %}
-
     {% if start_date %}
 
       $(function () {

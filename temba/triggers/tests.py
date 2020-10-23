@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup
-from temba.contacts.omnibox import omnibox_serialize
+from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
@@ -145,8 +145,8 @@ class TriggerTest(TembaTest):
         self.assertEqual(1, Trigger.objects.filter(keyword="startkeyword", is_archived=False).count())
         self.assertNotEqual(other_trigger, Trigger.objects.filter(keyword="startkeyword", is_archived=False)[0])
 
-        self.contact = self.create_contact("Eric", "+250788382382")
-        self.contact2 = self.create_contact("Nic", "+250788383383")
+        self.contact = self.create_contact("Eric", phone="+250788382382")
+        self.contact2 = self.create_contact("Nic", phone="+250788383383")
         group1 = self.create_group("first", [self.contact2])
         group2 = self.create_group("second", [self.contact])
         group3 = self.create_group("third", [self.contact, self.contact2])
@@ -207,7 +207,7 @@ class TriggerTest(TembaTest):
         self.assertIsNotNone(trigger)
 
         # now lets check that group specific call triggers work
-        mike = self.create_contact("Mike", "+17075551213")
+        mike = self.create_contact("Mike", phone="+17075551213")
         bassists = self.create_group("Bassists", [mike])
 
         # flow specific to our group
@@ -299,10 +299,10 @@ class TriggerTest(TembaTest):
         self.login(self.admin)
         flow = self.create_flow()
 
-        chester = self.create_contact("Chester", "+250788987654")
-        shinoda = self.create_contact("Shinoda", "+250234213455")
+        chester = self.create_contact("Chester", phone="+250788987654")
+        shinoda = self.create_contact("Shinoda", phone="+250234213455")
         linkin_park = self.create_group("Linkin Park", [chester, shinoda])
-        stromae = self.create_contact("Stromae", "+250788645323")
+        stromae = self.create_contact("Stromae", phone="+250788645323")
 
         now = timezone.now()
 
@@ -468,7 +468,7 @@ class TriggerTest(TembaTest):
 
         # did our group join flow get created?
         flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE, name="Join Chat")
-        flow_def = flow.as_json()
+        flow_def = flow.get_definition()
 
         self.assertEqual(len(flow_def["nodes"]), 1)
         self.assertEqual(len(flow_def["nodes"][0]["actions"]), 4)
@@ -537,7 +537,7 @@ class TriggerTest(TembaTest):
 
         # did our group join flow get created?
         flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE)
-        flow_def = flow.as_json()
+        flow_def = flow.get_definition()
 
         self.assertEqual(len(flow_def["nodes"]), 1)
         self.assertEqual(len(flow_def["nodes"][0]["actions"]), 2)

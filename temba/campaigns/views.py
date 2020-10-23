@@ -13,7 +13,6 @@ from temba.msgs.models import Msg
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget
 from temba.utils.views import BulkActionMixin
-from temba.values.constants import Value
 
 from .models import Campaign, CampaignEvent
 
@@ -52,7 +51,7 @@ class CampaignCRUDL(SmartCRUDL):
             else:
                 return queryset.filter(org=self.request.user.get_org())
 
-    class Update(OrgMixin, ModalMixin, SmartUpdateView):
+    class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
         fields = ("name", "group")
         success_message = ""
         form_class = UpdateCampaignForm
@@ -83,6 +82,7 @@ class CampaignCRUDL(SmartCRUDL):
 
             # if our group changed, create our new fires
             if new_group != previous_group:
+                self.object.recreate_events()
                 self.object.schedule_events_async()
 
             response = self.render_to_response(
@@ -295,7 +295,9 @@ class CampaignEventForm(forms.ModelForm):
         queryset=Flow.objects.filter(is_active=True),
         required=False,
         empty_label=None,
-        widget=SelectWidget(attrs={"placeholder": _("Select a flow to start"), "widget_only": True}),
+        widget=SelectWidget(
+            attrs={"placeholder": _("Select a flow to start"), "widget_only": True, "searchable": True}
+        ),
     )
 
     relative_to = forms.ModelChoiceField(
@@ -407,7 +409,7 @@ class CampaignEventForm(forms.ModelForm):
 
         relative_to = self.fields["relative_to"]
         relative_to.queryset = ContactField.all_fields.filter(
-            org=org, is_active=True, value_type=Value.TYPE_DATETIME
+            org=org, is_active=True, value_type=ContactField.TYPE_DATETIME
         ).order_by("label")
 
         flow = self.fields["flow_to_start"]
@@ -678,7 +680,7 @@ class CampaignEventCRUDL(SmartCRUDL):
                 or prev.flow != obj.flow
                 or prev.start_mode != obj.start_mode
             ):
-                obj = obj.deactivate_and_copy()
+                obj = obj.recreate()
                 obj.schedule_async()
 
             return obj
@@ -748,7 +750,7 @@ class CampaignEventCRUDL(SmartCRUDL):
 
             # default to our first date field
             initial["relative_to"] = ContactField.all_fields.filter(
-                org=self.request.user.get_org(), is_active=True, value_type=Value.TYPE_DATETIME
+                org=self.request.user.get_org(), is_active=True, value_type=ContactField.TYPE_DATETIME
             ).first()
 
             return initial

@@ -3,7 +3,6 @@ from unittest.mock import patch
 from django.urls import reverse
 
 from temba.channels.types.jiochat.tasks import refresh_jiochat_access_tokens
-from temba.contacts.models import URN
 from temba.tests import MockResponse, TembaTest
 
 from ...models import Channel, ChannelLog
@@ -48,7 +47,7 @@ class JioChatTypeTest(TembaTest):
         self.assertContains(response, reverse("courier.jc", args=[channel.uuid]))
         self.assertContains(response, channel.config[Channel.CONFIG_SECRET])
 
-        contact = self.create_contact("JioChat User", urn=URN.from_jiochat("1234"))
+        contact = self.create_contact("JioChat User", urns=["jiochat:1234"])
 
         # make sure we our jiochat channel satisfies as a send channel
         response = self.client.get(reverse("contacts.contact_read", args=[contact.uuid]))

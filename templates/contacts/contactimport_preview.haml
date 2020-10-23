@@ -1,0 +1,90 @@
+-extends "smartmin/update.html"
+-load smartmin temba i18n
+
+-block title
+  -trans "Preview Contact Import"
+
+-block content
+  -blocktrans trimmed with count=object.num_records
+    This import file contains <strong>{{ count }}</strong> records. Headers that didn't match existing fields
+    can be ignored or added as new custom fields by editing them below.
+
+  .card.w-full
+    %form.smartmin-form.horizontal-form(method="post" enctype="multipart/form-data")
+      -csrf_token
+      -if form.non_field_errors
+        %div.alert.alert-error.form-errors
+          {{ form.non_field_errors }}
+
+      -block fields
+        %fieldset
+          %table
+            -for column in form.columns
+              %tr.mapping.w-full.items-center
+                %td.mapping-include.p-1
+                  -if column.controls
+                    {% render_field column.controls.0 %}
+                  -elif column.mapping.type == "ignore"
+                    %fa-icon.far.fa-square.disabled-checkbox(size="16px" path-prefix="/sitestatic")
+                  -else
+                    %fa-icon.far.fa-check-square.disabled-checkbox(size="16px" path-prefix="/sitestatic")
+                %td.mapping-header.p-1.pr-4
+                  <b>{{ column.header }}</b>
+                %td.mapping-as.p-1
+                  -if column.mapping.type == "ignore"
+                    -trans "will be ignored"
+                  -else
+                    -trans "as"
+                    -if column.mapping.type == "new_field"
+                      -trans "new field"
+                      .name-control
+                        {% render_field column.controls.1 %}
+                      -trans "of type"
+                      .value-type-control
+                        {% render_field column.controls.2 %}
+                    -elif column.mapping.type == "field"
+                      -trans "field"
+                      %strong
+                        {{ column.mapping.name }}
+                    -elif column.mapping.type == "scheme"
+                      -blocktrans trimmed with scheme=column.mapping.scheme
+                        a <strong>{{ scheme }}</strong> URN
+                    -else
+                      %strong
+                        {{ column.mapping.name }}
+
+      .flex.mt-4
+        %input.button-primary(type="submit" value='{% trans "Import" %}')
+        .ml-4.button-light(onclick="javascript:history.go(-1)")
+          -trans "Cancel"
+
+
+-block extra-style
+  {{ block.super }}
+  :css
+    .page-content {
+      align-self: auto;
+      max-width: 1024px;
+    }
+    .mapping .disabled-checkbox {
+      --fa-icon-fill-color: #CCC;
+    }
+    .mapping .checkbox-label {
+      display: none;
+    }
+    .mapping .inline-block {
+      padding: 0 5px;
+    }
+    .mapping .control-group {
+      margin-bottom: 0;
+    }
+    .mapping .name-control {
+      display: inline-block;
+      width: 200px;
+      margin: 0 3px;
+    }
+    .mapping .value-type-control {
+      display: inline-block;
+      width: 120px;
+      margin: 0 3px;
+    }

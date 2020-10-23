@@ -3,7 +3,7 @@ import telegram
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import TELEGRAM_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 from .views import ClaimView
@@ -30,7 +30,7 @@ class TelegramType(ChannelType):
     )
     claim_view = ClaimView
 
-    schemes = [TELEGRAM_SCHEME]
+    schemes = [URN.TELEGRAM_SCHEME]
     max_length = 1600
     attachment_support = True
     free_sending = True

@@ -2,7 +2,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import ChannelType
 from temba.channels.types.zenvia.views import ClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 
 class ZenviaType(ChannelType):
@@ -22,7 +22,7 @@ class ZenviaType(ChannelType):
     )
     claim_view = ClaimView
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 150
 
     attachment_support = False

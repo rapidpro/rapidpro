@@ -7,7 +7,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.channels.types.whatsapp.views import ClaimView, RefreshView, SyncLogsView, TemplatesView
-from temba.contacts.models import WHATSAPP_SCHEME
+from temba.contacts.models import URN
 from temba.templates.models import TemplateTranslation
 
 from ...models import ChannelType
@@ -104,7 +104,7 @@ class WhatsAppType(ChannelType):
     A WhatsApp Channel Type
     """
 
-    extra_links = [dict(link=_("Message Templates"), name="channels.types.whatsapp.templates")]
+    extra_links = [dict(name=_("Message Templates"), link="channels.types.whatsapp.templates")]
 
     code = "WA"
     category = ChannelType.Category.SOCIAL_MEDIA
@@ -119,7 +119,7 @@ class WhatsAppType(ChannelType):
     )
     claim_view = ClaimView
 
-    schemes = [WHATSAPP_SCHEME]
+    schemes = [URN.WHATSAPP_SCHEME]
     max_length = 4096
     attachment_support = True
 

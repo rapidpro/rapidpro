@@ -21,8 +21,8 @@
       .lp-frame
 
         .left
-          -if org_perms.contacts.contact_import
-            .button-primary{ onclick:"goto(event)", href:"{% url 'contacts.contact_import' %}"}
+          -if org_perms.contacts.contactimport_create
+            .button-primary(onclick="goto(event)" href="{% url 'contacts.contactimport_create' %}")
               -trans "Import Contacts"
 
           .lp-nav.upper
@@ -161,7 +161,7 @@
                     -plural
                       Found {{ results_count }} contacts matching <i>{{search}}</i>.
 
-              %table.list.object-list.lined{class:"{% if org_perms.contacts.contact_update %}selectable{%endif%}"}
+              %table.list.object-list.lined.selectable
                 - if object_list
                   %tr.contacts
                     -if org_perms.contacts.contact_update

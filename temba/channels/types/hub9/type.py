@@ -1,7 +1,7 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.dartmedia.views import ClaimView
-from temba.contacts.models import EXTERNAL_SCHEME, TEL_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 
@@ -21,7 +21,7 @@ class Hub9Type(ChannelType):
     claim_blurb = _("""Easily add a two way number you have configured with Hub9 in Indonesia.""")
     claim_view = ClaimView
 
-    schemes = [TEL_SCHEME, EXTERNAL_SCHEME]
+    schemes = [URN.TEL_SCHEME, URN.EXTERNAL_SCHEME]
     max_length = 1600
     attachment_support = False
 
