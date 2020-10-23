@@ -22,7 +22,7 @@ from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
 
 from temba.channels.views import channel_status_processor
-from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN, Contact, ContactGroup, ContactURN
+from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
 from temba.msgs.models import IVR, PENDING, QUEUED, Broadcast, Msg
 from temba.orgs.models import Org
@@ -228,9 +228,9 @@ class ChannelTest(TembaTest):
         norm_c2 = Contact.objects.get(pk=contact2.pk)
         norm_c3 = Contact.objects.get(pk=contact3.pk)
 
-        self.assertEqual(norm_c1.get_urn(TEL_SCHEME).path, "+250788111222")
-        self.assertEqual(norm_c2.get_urn(TEL_SCHEME).path, "+250788333444")
-        self.assertEqual(norm_c3.get_urn(TEL_SCHEME).path, "+18006927753")
+        self.assertEqual(norm_c1.get_urn(URN.TEL_SCHEME).path, "+250788111222")
+        self.assertEqual(norm_c2.get_urn(URN.TEL_SCHEME).path, "+250788333444")
+        self.assertEqual(norm_c3.get_urn(URN.TEL_SCHEME).path, "+18006927753")
 
     def test_channel_create(self):
 
@@ -649,7 +649,7 @@ class ChannelTest(TembaTest):
 
         # change channel type to Twitter
         self.tel_channel.channel_type = "TWT"
-        self.tel_channel.schemes = [TWITTER_SCHEME]
+        self.tel_channel.schemes = [URN.TWITTER_SCHEME]
         self.tel_channel.address = "billy_bob"
         self.tel_channel.scheme = "twitter"
         self.tel_channel.config = {"handle_id": 12345, "oauth_token": "abcdef", "oauth_token_secret": "23456"}

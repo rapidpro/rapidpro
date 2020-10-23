@@ -7,7 +7,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import ChannelType
 from temba.channels.types.messangi.views import ClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 
 class MessangiType(ChannelType):
@@ -32,7 +32,7 @@ class MessangiType(ChannelType):
     )
     claim_view = ClaimView
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 150
 
     attachment_support = False

@@ -4,7 +4,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.twilio.views import ClaimView
 from temba.channels.views import TWILIO_SUPPORTED_COUNTRIES_CONFIG
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
 from ...models import ChannelType
@@ -28,7 +28,7 @@ class TwilioType(ChannelType):
     )
     claim_view = ClaimView
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 1600
 
     ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_TWIML

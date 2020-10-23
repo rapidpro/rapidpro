@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from celery.task import task
 
-from temba.contacts.models import TEL_SCHEME, ContactURN, ExportContactsTask
+from temba.contacts.models import URN, ContactURN, ExportContactsTask
 from temba.contacts.tasks import export_contacts_task
 from temba.flows.models import ExportFlowResultsTask
 from temba.flows.tasks import export_flow_results_task
@@ -52,7 +52,7 @@ def normalize_contact_tels_task(org_id):
     # do we have an org-level country code? if so, try to normalize any numbers not starting with +
     country_code = org.get_country_code()
     if country_code:
-        urns = ContactURN.objects.filter(org=org, scheme=TEL_SCHEME).exclude(path__startswith="+").iterator()
+        urns = ContactURN.objects.filter(org=org, scheme=URN.TEL_SCHEME).exclude(path__startswith="+").iterator()
         for urn in urns:
             urn.ensure_number_normalization(country_code)
 
