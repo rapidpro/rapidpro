@@ -3789,7 +3789,7 @@ msgstr "Exportación completa, puede encontrarla aquí: %s (los usuarios de prod
 
 #, fuzzy
 #| msgid "Field names can only contain letters, numbers, spaces and hypens"
-msgid "Can only contain letters, numbers and hypens."
+msgid "Can only contain letters, numbers and hyphens."
 msgstr "Los nombres en los campos solo pueden contener letras, números, espacios y guiones"
 
 #, python-format
@@ -8485,7 +8485,7 @@ msgstr ""
 #| "                            "
 msgid ""
 "\n"
-"                        No contacts imported, please make sure your have a channel connected.\n"
+"                        No contacts imported, please make sure you have a channel connected.\n"
 "\n"
 "                      "
 msgstr ""

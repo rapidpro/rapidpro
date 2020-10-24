@@ -2626,7 +2626,7 @@ class TopUp(SmartModel):
     )
 
     @classmethod
-    def create(cls, user, price, credits, stripe_charge=None, org=None, expires_on=None):
+    def create(cls, user, price, credits, stripe_charge=None, org=None, expires_on=None, comment=None):
         """
         Creates a new topup
         """
@@ -2642,6 +2642,7 @@ class TopUp(SmartModel):
             credits=credits,
             expires_on=expires_on,
             stripe_charge=stripe_charge,
+            comment=comment,
             created_by=user,
             modified_by=user,
         )
