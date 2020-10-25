@@ -34,7 +34,7 @@ class CreateGlobalForm(forms.ModelForm):
         name = self.cleaned_data["name"]
 
         if not Global.is_valid_name(name):
-            raise forms.ValidationError(_("Can only contain letters, numbers and hypens."))
+            raise forms.ValidationError(_("Can only contain letters, numbers and hyphens."))
 
         exists = self.org.globals.filter(is_active=True, name__iexact=name.lower()).exists()
 

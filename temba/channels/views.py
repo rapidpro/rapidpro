@@ -1461,11 +1461,7 @@ class UpdateWebChatForm(UpdateChannelForm):
 
         self.add_config_field(
             "welcome_msg_quick_replies",
-            forms.CharField(
-                required=False,
-                label=_("Welcome Message Quick Replies"),
-                widget=forms.TextInput(),
-            ),
+            forms.CharField(required=False, label=_("Welcome Message Quick Replies"), widget=forms.TextInput()),
             None,
         )
 

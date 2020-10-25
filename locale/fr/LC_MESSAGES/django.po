@@ -2778,7 +2778,7 @@ msgstr "Nous préparons votre export. Nous vous enverrons un e-mail à %s quand 
 msgid "Export complete, you can find it here: %s (production users will get an email)"
 msgstr "Exportation terminée, vous pouvez le trouver ici: %s (les utilisateurs de production recevront un e-mail)"
 
-msgid "Can only contain letters, numbers and hypens."
+msgid "Can only contain letters, numbers and hyphens."
 msgstr "Ne peut contenir que des lettres, des chiffres et des tirets."
 
 #, python-format
@@ -6606,7 +6606,7 @@ msgstr ""
 
 msgid ""
 "\n"
-"                        No contacts imported, please make sure your have a channel connected.\n"
+"                        No contacts imported, please make sure you have a channel connected.\n"
 "\n"
 "                      "
 msgstr ""

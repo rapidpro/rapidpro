@@ -13,7 +13,7 @@ from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import build_flow_parameters, flow_params_context
-from temba.utils.fields import InputWidget, SelectWidget
+from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget
 from temba.utils.views import BaseActionForm
 from temba.values.constants import Value
 
@@ -431,7 +431,12 @@ class CampaignEventForm(forms.ModelForm):
                 # otherwise, its just a normal language
                 initial = message.get(language.iso_code, "")
 
-            field = forms.CharField(widget=forms.Textarea, required=False, label=language.name, initial=initial)
+            field = forms.CharField(
+                widget=CompletionTextarea(attrs={"widget_only": True}),
+                required=False,
+                label=language.name,
+                initial=initial,
+            )
 
             self.fields[language.iso_code] = field
             field.language = dict(name=language.name, iso_code=language.iso_code)

@@ -1501,7 +1501,7 @@ class OrgCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             org = self.get_object()
             context["org"] = org
-            context["org_users"] = self.org_users
+            context["org_users"] = self.org_users.order_by("-is_active")
             context["group_fields"] = self.fields_by_users
             context["invites"] = self.invites
             context["invites_fields"] = self.fields_by_invite
@@ -2841,9 +2841,6 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_languages"):
                 formax.add_section("languages", reverse("orgs.org_languages"), icon="icon-language")
 
-            if self.has_org_perm("orgs.org_country"):
-                formax.add_section("country", reverse("orgs.org_country"), icon="icon-location2")
-
             if self.has_org_perm("orgs.org_smtp_server"):
                 formax.add_section("email", reverse("orgs.org_smtp_server"), icon="icon-envelop")
 
@@ -3424,7 +3421,9 @@ class TopUpCRUDL(SmartCRUDL):
 
         def save(self, obj):
             obj.org = Org.objects.get(pk=self.request.GET["org"])
-            return TopUp.create(self.request.user, price=obj.price, credits=obj.credits, org=obj.org)
+            return TopUp.create(
+                self.request.user, price=obj.price, credits=obj.credits, org=obj.org, comment=obj.comment
+            )
 
         def post_save(self, obj):
             obj = super().post_save(obj)
@@ -3469,6 +3468,8 @@ class TopUpCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
+            for obj in context["object_list"]:
+                obj.comment = obj.comment if obj.comment else "-"
             context["org"] = self.org
             return context
 
