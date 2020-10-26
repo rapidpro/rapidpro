@@ -249,4 +249,4 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # -----------------------------------------------------------------------------------
 # APPLICATION LOGS
 # -----------------------------------------------------------------------------------
-FLOW_SESSION_TRIM_DAYS = 14
+FLOW_SESSION_TRIM_DAYS = env.int("FLOW_SESSION_TRIM_DAYS", default=7)
