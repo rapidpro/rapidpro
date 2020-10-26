@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.models import Org
+from temba.utils.fields import SelectWidget
 
 from ...models import Channel
 from ...views import TWILIO_SUPPORTED_COUNTRIES, ClaimViewMixin
@@ -14,7 +15,9 @@ from ...views import TWILIO_SUPPORTED_COUNTRIES, ClaimViewMixin
 
 class ClaimView(ClaimViewMixin, SmartFormView):
     class TwilioMessagingServiceForm(ClaimViewMixin.Form):
-        country = forms.ChoiceField(choices=TWILIO_SUPPORTED_COUNTRIES)
+        country = forms.ChoiceField(
+            choices=TWILIO_SUPPORTED_COUNTRIES, widget=SelectWidget(attrs={"searchable": True}),
+        )
         messaging_service_sid = forms.CharField(
             label=_("Messaging Service SID"), help_text=_("The Twilio Messaging Service SID")
         )

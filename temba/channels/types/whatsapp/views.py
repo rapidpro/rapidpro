@@ -9,7 +9,7 @@ from temba.contacts.models import URN
 from temba.orgs.views import OrgPermsMixin
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
-from temba.utils.fields import ExternalURLField
+from temba.utils.fields import ExternalURLField, SelectWidget
 from temba.utils.views import PostOnlyMixin
 
 from ...models import Channel
@@ -110,7 +110,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         number = forms.CharField(help_text=_("Your enterprise WhatsApp number"))
         country = forms.ChoiceField(
-            choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in")
+            widget=SelectWidget(attrs={"searchable": True}),
+            choices=ALL_COUNTRIES,
+            label=_("Country"),
+            help_text=_("The country this phone number is used in"),
         )
         base_url = ExternalURLField(help_text=_("The base URL for your WhatsApp enterprise installation"))
         username = forms.CharField(

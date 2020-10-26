@@ -135,13 +135,22 @@ class ChannelTest(TembaTest):
         self.login(self.admin)
 
         channel_types = (
-            ("JN", Channel.DEFAULT_ROLE, "Channel Log"),
-            ("T", Channel.ROLE_CALL, "Call Log"),
-            ("T", Channel.ROLE_SEND + Channel.ROLE_CALL, "Channel Log"),
+            ("JN", Channel.DEFAULT_ROLE, None, "Channel Log"),
+            ("T", Channel.ROLE_CALL, None, "Call Log"),
+            ("T", Channel.ROLE_SEND + Channel.ROLE_CALL, None, "Channel Log"),
+            ("EX", Channel.ROLE_RECEIVE, ["tel"], "Channel Log"),
         )
 
-        for channel_type, channel_role, link_text in channel_types:
-            channel = Channel.create(self.org, self.user, None, channel_type, name="Test Channel", role=channel_role)
+        for channel_type, channel_role, channel_schemes, link_text in channel_types:
+            channel = Channel.create(
+                self.org,
+                self.user,
+                None,
+                channel_type,
+                name="Test Channel",
+                role=channel_role,
+                schemes=channel_schemes,
+            )
             response = self.client.get(reverse("channels.channel_read", args=[channel.uuid]))
             self.assertContains(response, link_text)
 
