@@ -19,6 +19,9 @@
 -block fields
   -if send_channel
     {{block.super}}
+    .fixed-wrapper(style="position:fixed;width:562px;margin-top:-38px")
+      %temba-charcount
+
   -else
     -blocktrans trimmed with name=brand.name
       To get started you need to add a channel to your workspace. A channel is a phone number or social network
