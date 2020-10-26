@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-23 15:18+0000\n"
+"POT-Creation-Date: 2020-10-26 20:00+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -226,9 +226,6 @@ msgstr ""
 msgid "XML - text/xml; charset=utf-8"
 msgstr ""
 
-msgid "Channel Type"
-msgstr "Tipo de transmisor"
-
 msgid "Name"
 msgstr "Nombre"
 
@@ -249,13 +246,6 @@ msgstr "País"
 #, fuzzy
 msgid "Country which this channel is for"
 msgstr "Para qué país es este número"
-
-msgid "Org"
-msgstr "Org"
-
-#, fuzzy
-msgid "Organization using this channel"
-msgstr "La organización que usa este transmisor"
 
 msgid "Claim Code"
 msgstr "Pedir código"
@@ -292,29 +282,6 @@ msgstr "Correo electrónico de alerta"
 
 msgid "We will send email alerts to this address if experiencing issues sending"
 msgstr "Le enviaremos alertas por correo electrónico a esta dirección si tiene problemas de envío"
-
-msgid "Config"
-msgstr "Configuración"
-
-msgid "Any channel specific configuration, used for the various aggregators"
-msgstr "Cualquier configuración específica al transmisor, usada para los diferentes agregadores"
-
-#, fuzzy
-#| msgid "The roles this channel can fulfill"
-msgid "The URN schemes this channel supports"
-msgstr "Las funciones que puede tener este transmisor"
-
-msgid "The roles this channel can fulfill"
-msgstr "Las funciones que puede tener este transmisor"
-
-msgid "The channel this channel is working on behalf of"
-msgstr "Este transmisor está trabajando en nombre de"
-
-msgid "Optional Data"
-msgstr ""
-
-msgid "Any channel specific state data"
-msgstr ""
 
 msgid "Maximum Transactions per Second"
 msgstr ""
@@ -410,178 +377,6 @@ msgstr "Restaurar activadores"
 msgid "Welcome Message"
 msgstr "Mensaje del flujo"
 
-#, fuzzy
-#| msgid "The org this message is connected to"
-msgid "The org this event is connected to"
-msgstr "La organización a la que está conectado este mensaje"
-
-msgid "Channel"
-msgstr "Transmisor"
-
-#, fuzzy
-#| msgid "The channel where this call took place"
-msgid "The channel on which this event took place"
-msgstr "El transmisor donde se realizó esta llamada"
-
-#, fuzzy
-#| msgid "Alert Type"
-msgid "Event Type"
-msgstr "Tipo de alerta"
-
-#, fuzzy
-#| msgid "The type of call"
-msgid "The type of event"
-msgstr "El tipo de llamada"
-
-msgid "Contact"
-msgstr "Contacto"
-
-#, fuzzy
-#| msgid "a unique code associated with this invitation"
-msgid "The contact associated with this event"
-msgstr "un código único asociado con esta invitación"
-
-msgid "URN"
-msgstr ""
-
-#, fuzzy
-#| msgid "a unique code associated with this invitation"
-msgid "The contact URN associated with this event"
-msgstr "un código único asociado con esta invitación"
-
-msgid "Extra"
-msgstr ""
-
-msgid "Any extra properties on this event as JSON"
-msgstr ""
-
-#, fuzzy
-#| msgid "Queued On"
-msgid "Occurred On"
-msgstr "Puesto en cola el"
-
-#, fuzzy
-#| msgid "When this call took place"
-msgid "When this event took place"
-msgstr "Cuando se realizó esta llamada"
-
-msgid "Created On"
-msgstr "Creado el"
-
-#, fuzzy
-#| msgid "When this message was created"
-msgid "When this event was created"
-msgstr "Cuando se creó este mensaje"
-
-#, fuzzy
-#| msgid "When this message was sent to the endpoint"
-msgid "The channel the message was sent on"
-msgstr "Cuando este mensaje se envió al endpoint"
-
-#, fuzzy
-msgid "The message that was sent"
-msgstr "El mensaje de texto real que se envió"
-
-#, fuzzy
-#| msgid "The name for this flow"
-msgid "The channel session for this log"
-msgstr "El nombre para este flujo"
-
-#, fuzzy
-#| msgid "The current status for this message"
-msgid "A description of the status of this message send"
-msgstr "El estátus actual para este mensaje"
-
-msgid "Whether an error was encountered when sending the message"
-msgstr ""
-
-#, fuzzy
-#| msgid "The groups to send the message to"
-msgid "The URL used when sending the message"
-msgstr "Los grupos a los que se envía este mensaje "
-
-#, fuzzy
-#| msgid "What HTTP method to use when calling the URL"
-msgid "The HTTP method used when sending the message"
-msgstr "Qué método de HTTP utiliza cuando llama al URL"
-
-#, fuzzy
-#| msgid "The URN of the contact delivering this message"
-msgid "The body of the request used when sending the message"
-msgstr "El URN del contacto que entrega este mensaje"
-
-#, fuzzy
-#| msgid "The URN of the contact delivering this message"
-msgid "The body of the response received when sending the message"
-msgstr "El URN del contacto que entrega este mensaje"
-
-#, fuzzy
-#| msgid "The groups to send the message to"
-msgid "The response code received when sending the message"
-msgstr "Los grupos a los que se envía este mensaje "
-
-#, fuzzy
-#| msgid "When this message was created"
-msgid "When this log message was logged"
-msgstr "Cuando se creó este mensaje"
-
-msgid "Time it took to process this request"
-msgstr ""
-
-msgid "The channel that synced to the server"
-msgstr "El transmisor que sincronizó para el servidor"
-
-msgid "Power Source"
-msgstr "Fuente de energía"
-
-msgid "The power source the device is using"
-msgstr "La fuente de energía que está utilizando el dispositivo"
-
-msgid "Power Status"
-msgstr "Estado de la energía"
-
-msgid "The power status. eg: Charging, Full or Discharging"
-msgstr "El estado de la energía. Por ejemplo: cargando, completa o descargándose"
-
-msgid "Power Level"
-msgstr "Nivel de energía"
-
-msgid "The power level of the battery"
-msgstr "El nivel de energía de la batería"
-
-msgid "Network Type"
-msgstr "Tipo de red"
-
-msgid "The data network type to which the channel is connected"
-msgstr "El tipo de red de datos al que está conectado el transmisor"
-
-msgid "Lifetime"
-msgstr "Vida útil"
-
-msgid "Pending Messages Count"
-msgstr "Conteo de mensajes pendientes"
-
-msgid "The number of messages on the channel in PENDING state"
-msgstr "El número de mensajes en el transmisor que se encuentran en estado pendiente"
-
-msgid "Retry Message Count"
-msgstr "Reintentar el conteo de mensajes"
-
-msgid "The number of messages on the channel in RETRY state"
-msgstr "El número de mensajes en el transmisor en estado REINTENTAR"
-
-msgid "Incoming Command Count"
-msgstr "Conteo de comandos entrantes"
-
-msgid "The number of commands that the channel gave us"
-msgstr "El número de comandos que nos dio el transmisor"
-
-msgid "Outgoing Command Count"
-msgstr "Conteo de comandos salientes"
-
-msgid "The number of commands that we gave the channel"
-msgstr "El número de comandos que nos dio el transmisor"
-
 msgid "Power"
 msgstr "Energía"
 
@@ -590,6 +385,9 @@ msgstr "Desconectado"
 
 msgid "SMS"
 msgstr "MENSAJE DE TEXTO"
+
+msgid "Channel"
+msgstr "Transmisor"
 
 msgid "The channel that this alert is for"
 msgstr "El transmisor para el que es esta alerta"
@@ -5004,6 +4802,9 @@ msgstr "Lo sentimos, no podemos recargar su tarjeta, por favor, inténtelo nueva
 msgid "Viewer"
 msgstr "Visitante"
 
+msgid "Org"
+msgstr "Org"
+
 msgid "The organization to which the account is invited to view"
 msgstr "La organización a la que esta cuenta está invitada a visitar"
 
@@ -6190,6 +5991,9 @@ msgstr "Eventos Webhook"
 #| msgid "Receive URL"
 msgid "Request Time"
 msgstr "Recibir URL"
+
+msgid "Contact"
+msgstr "Contacto"
 
 msgid "Took"
 msgstr ""
@@ -8325,6 +8129,9 @@ msgstr "Activar"
 
 msgid "External ID"
 msgstr "ID externo"
+
+msgid "Created On"
+msgstr "Creado el"
 
 msgid "No synced intents at this time."
 msgstr ""
@@ -12138,6 +11945,178 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Channel Type"
+#~ msgstr "Tipo de transmisor"
+
+#, fuzzy
+#~ msgid "Organization using this channel"
+#~ msgstr "La organización que usa este transmisor"
+
+#~ msgid "Config"
+#~ msgstr "Configuración"
+
+#~ msgid "Any channel specific configuration, used for the various aggregators"
+#~ msgstr "Cualquier configuración específica al transmisor, usada para los diferentes agregadores"
+
+#, fuzzy
+#~| msgid "The roles this channel can fulfill"
+#~ msgid "The URN schemes this channel supports"
+#~ msgstr "Las funciones que puede tener este transmisor"
+
+#~ msgid "The roles this channel can fulfill"
+#~ msgstr "Las funciones que puede tener este transmisor"
+
+#~ msgid "The channel this channel is working on behalf of"
+#~ msgstr "Este transmisor está trabajando en nombre de"
+
+#, fuzzy
+#~| msgid "The org this message is connected to"
+#~ msgid "The org this event is connected to"
+#~ msgstr "La organización a la que está conectado este mensaje"
+
+#, fuzzy
+#~| msgid "The channel where this call took place"
+#~ msgid "The channel on which this event took place"
+#~ msgstr "El transmisor donde se realizó esta llamada"
+
+#, fuzzy
+#~| msgid "Alert Type"
+#~ msgid "Event Type"
+#~ msgstr "Tipo de alerta"
+
+#, fuzzy
+#~| msgid "The type of call"
+#~ msgid "The type of event"
+#~ msgstr "El tipo de llamada"
+
+#, fuzzy
+#~| msgid "a unique code associated with this invitation"
+#~ msgid "The contact associated with this event"
+#~ msgstr "un código único asociado con esta invitación"
+
+#, fuzzy
+#~| msgid "a unique code associated with this invitation"
+#~ msgid "The contact URN associated with this event"
+#~ msgstr "un código único asociado con esta invitación"
+
+#, fuzzy
+#~| msgid "Queued On"
+#~ msgid "Occurred On"
+#~ msgstr "Puesto en cola el"
+
+#, fuzzy
+#~| msgid "When this call took place"
+#~ msgid "When this event took place"
+#~ msgstr "Cuando se realizó esta llamada"
+
+#, fuzzy
+#~| msgid "When this message was created"
+#~ msgid "When this event was created"
+#~ msgstr "Cuando se creó este mensaje"
+
+#, fuzzy
+#~| msgid "When this message was sent to the endpoint"
+#~ msgid "The channel the message was sent on"
+#~ msgstr "Cuando este mensaje se envió al endpoint"
+
+#, fuzzy
+#~ msgid "The message that was sent"
+#~ msgstr "El mensaje de texto real que se envió"
+
+#, fuzzy
+#~| msgid "The name for this flow"
+#~ msgid "The channel session for this log"
+#~ msgstr "El nombre para este flujo"
+
+#, fuzzy
+#~| msgid "The current status for this message"
+#~ msgid "A description of the status of this message send"
+#~ msgstr "El estátus actual para este mensaje"
+
+#, fuzzy
+#~| msgid "The groups to send the message to"
+#~ msgid "The URL used when sending the message"
+#~ msgstr "Los grupos a los que se envía este mensaje "
+
+#, fuzzy
+#~| msgid "What HTTP method to use when calling the URL"
+#~ msgid "The HTTP method used when sending the message"
+#~ msgstr "Qué método de HTTP utiliza cuando llama al URL"
+
+#, fuzzy
+#~| msgid "The URN of the contact delivering this message"
+#~ msgid "The body of the request used when sending the message"
+#~ msgstr "El URN del contacto que entrega este mensaje"
+
+#, fuzzy
+#~| msgid "The URN of the contact delivering this message"
+#~ msgid "The body of the response received when sending the message"
+#~ msgstr "El URN del contacto que entrega este mensaje"
+
+#, fuzzy
+#~| msgid "The groups to send the message to"
+#~ msgid "The response code received when sending the message"
+#~ msgstr "Los grupos a los que se envía este mensaje "
+
+#, fuzzy
+#~| msgid "When this message was created"
+#~ msgid "When this log message was logged"
+#~ msgstr "Cuando se creó este mensaje"
+
+#~ msgid "The channel that synced to the server"
+#~ msgstr "El transmisor que sincronizó para el servidor"
+
+#~ msgid "Power Source"
+#~ msgstr "Fuente de energía"
+
+#~ msgid "The power source the device is using"
+#~ msgstr "La fuente de energía que está utilizando el dispositivo"
+
+#~ msgid "Power Status"
+#~ msgstr "Estado de la energía"
+
+#~ msgid "The power status. eg: Charging, Full or Discharging"
+#~ msgstr "El estado de la energía. Por ejemplo: cargando, completa o descargándose"
+
+#~ msgid "Power Level"
+#~ msgstr "Nivel de energía"
+
+#~ msgid "The power level of the battery"
+#~ msgstr "El nivel de energía de la batería"
+
+#~ msgid "Network Type"
+#~ msgstr "Tipo de red"
+
+#~ msgid "The data network type to which the channel is connected"
+#~ msgstr "El tipo de red de datos al que está conectado el transmisor"
+
+#~ msgid "Lifetime"
+#~ msgstr "Vida útil"
+
+#~ msgid "Pending Messages Count"
+#~ msgstr "Conteo de mensajes pendientes"
+
+#~ msgid "The number of messages on the channel in PENDING state"
+#~ msgstr "El número de mensajes en el transmisor que se encuentran en estado pendiente"
+
+#~ msgid "Retry Message Count"
+#~ msgstr "Reintentar el conteo de mensajes"
+
+#~ msgid "The number of messages on the channel in RETRY state"
+#~ msgstr "El número de mensajes en el transmisor en estado REINTENTAR"
+
+#~ msgid "Incoming Command Count"
+#~ msgstr "Conteo de comandos entrantes"
+
+#~ msgid "The number of commands that the channel gave us"
+#~ msgstr "El número de comandos que nos dio el transmisor"
+
+#~ msgid "Outgoing Command Count"
+#~ msgstr "Conteo de comandos salientes"
+
+#~ msgid "The number of commands that we gave the channel"
+#~ msgstr "El número de comandos que nos dio el transmisor"
 
 #~ msgid "Shown in Tables"
 #~ msgstr "Mostrado en los cuadros"
