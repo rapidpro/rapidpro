@@ -239,4 +239,3 @@ class UpdateForm(UpdateTelChannelForm):
     class Meta(UpdateTelChannelForm.Meta):
         fields = "name", "alert_email", "role"
         readonly = []
-        helps = {"address": _("Phone number of this device")}
