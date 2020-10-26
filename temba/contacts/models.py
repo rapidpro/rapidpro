@@ -3,7 +3,7 @@ import logging
 import time
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from itertools import chain, zip_longest
+from itertools import chain
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
 from uuid import uuid4
@@ -40,61 +40,6 @@ from .search import SearchException, elastic, parse_query
 
 logger = logging.getLogger(__name__)
 
-DELETED_SCHEME = "deleted"
-EMAIL_SCHEME = "mailto"
-EXTERNAL_SCHEME = "ext"
-FACEBOOK_SCHEME = "facebook"
-JIOCHAT_SCHEME = "jiochat"
-LINE_SCHEME = "line"
-TEL_SCHEME = "tel"
-TELEGRAM_SCHEME = "telegram"
-TWILIO_SCHEME = "twilio"
-TWITTER_SCHEME = "twitter"
-TWITTERID_SCHEME = "twitterid"
-VIBER_SCHEME = "viber"
-VK_SCHEME = "vk"
-FCM_SCHEME = "fcm"
-WHATSAPP_SCHEME = "whatsapp"
-WECHAT_SCHEME = "wechat"
-FRESHCHAT_SCHEME = "freshchat"
-
-FACEBOOK_PATH_REF_PREFIX = "ref:"
-
-# Scheme, Label, Export/Import Header, Context Key
-URN_SCHEME_CONFIG = (
-    (TEL_SCHEME, _("Phone number"), "tel_e164"),
-    (FACEBOOK_SCHEME, _("Facebook identifier"), FACEBOOK_SCHEME),
-    (TWITTER_SCHEME, _("Twitter handle"), TWITTER_SCHEME),
-    (TWITTERID_SCHEME, _("Twitter ID"), TWITTERID_SCHEME),
-    (VIBER_SCHEME, _("Viber identifier"), VIBER_SCHEME),
-    (LINE_SCHEME, _("LINE identifier"), LINE_SCHEME),
-    (TELEGRAM_SCHEME, _("Telegram identifier"), TELEGRAM_SCHEME),
-    (EMAIL_SCHEME, _("Email address"), EMAIL_SCHEME),
-    (EXTERNAL_SCHEME, _("External identifier"), EXTERNAL_SCHEME),
-    (JIOCHAT_SCHEME, _("JioChat identifier"), JIOCHAT_SCHEME),
-    (WECHAT_SCHEME, _("WeChat identifier"), WECHAT_SCHEME),
-    (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), FCM_SCHEME),
-    (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME),
-    (FRESHCHAT_SCHEME, _("Freshchat identifier"), FRESHCHAT_SCHEME),
-    (VK_SCHEME, _("VK identifier"), VK_SCHEME),
-)
-
-# events from sessions to include in contact history
-HISTORY_INCLUDE_EVENTS = {
-    "contact_language_changed",
-    "contact_field_changed",
-    "contact_groups_changed",
-    "contact_name_changed",
-    "contact_urns_changed",
-    "email_created",  # no longer generated but exists in old sessions
-    "email_sent",
-    "error",
-    "failure",
-    "input_labels_added",
-    "run_result_changed",
-    "ticket_opened",
-}
-
 
 class URN:
     """
@@ -105,8 +50,45 @@ class URN:
         * No hex escaping in URN path
     """
 
-    VALID_SCHEMES = {s[0] for s in URN_SCHEME_CONFIG}
-    IMPORT_HEADERS = {f"URN:{s[0]}" for s in URN_SCHEME_CONFIG}
+    DELETED_SCHEME = "deleted"
+    EMAIL_SCHEME = "mailto"
+    EXTERNAL_SCHEME = "ext"
+    FACEBOOK_SCHEME = "facebook"
+    JIOCHAT_SCHEME = "jiochat"
+    LINE_SCHEME = "line"
+    TEL_SCHEME = "tel"
+    TELEGRAM_SCHEME = "telegram"
+    TWILIO_SCHEME = "twilio"
+    TWITTER_SCHEME = "twitter"
+    TWITTERID_SCHEME = "twitterid"
+    VIBER_SCHEME = "viber"
+    VK_SCHEME = "vk"
+    FCM_SCHEME = "fcm"
+    WHATSAPP_SCHEME = "whatsapp"
+    WECHAT_SCHEME = "wechat"
+    FRESHCHAT_SCHEME = "freshchat"
+
+    SCHEME_CHOICES = (
+        (TEL_SCHEME, _("Phone number")),
+        (FACEBOOK_SCHEME, _("Facebook identifier")),
+        (TWITTER_SCHEME, _("Twitter handle")),
+        (TWITTERID_SCHEME, _("Twitter ID")),
+        (VIBER_SCHEME, _("Viber identifier")),
+        (LINE_SCHEME, _("LINE identifier")),
+        (TELEGRAM_SCHEME, _("Telegram identifier")),
+        (EMAIL_SCHEME, _("Email address")),
+        (EXTERNAL_SCHEME, _("External identifier")),
+        (JIOCHAT_SCHEME, _("JioChat identifier")),
+        (WECHAT_SCHEME, _("WeChat identifier")),
+        (FCM_SCHEME, _("Firebase Cloud Messaging identifier")),
+        (WHATSAPP_SCHEME, _("WhatsApp identifier")),
+        (FRESHCHAT_SCHEME, _("Freshchat identifier")),
+        (VK_SCHEME, _("VK identifier")),
+    )
+
+    VALID_SCHEMES = {s[0] for s in SCHEME_CHOICES}
+
+    FACEBOOK_PATH_REF_PREFIX = "ref:"
 
     def __init__(self):  # pragma: no cover
         raise ValueError("Class shouldn't be instantiated")
@@ -116,7 +98,7 @@ class URN:
         """
         Formats a URN scheme and path as single URN string, e.g. tel:+250783835665
         """
-        if not scheme or (scheme not in cls.VALID_SCHEMES and scheme != DELETED_SCHEME):
+        if not scheme or (scheme not in cls.VALID_SCHEMES and scheme != cls.DELETED_SCHEME):
             raise ValueError("Invalid scheme component: '%s'" % scheme)
 
         if not path:
@@ -134,7 +116,7 @@ class URN:
         except ValueError:
             raise ValueError("URN strings must contain scheme and path components")
 
-        if parsed.scheme not in cls.VALID_SCHEMES and parsed.scheme != DELETED_SCHEME:
+        if parsed.scheme not in cls.VALID_SCHEMES and parsed.scheme != cls.DELETED_SCHEME:
             raise ValueError("URN contains an invalid scheme component: '%s'" % parsed.scheme)
 
         return parsed.scheme, parsed.path, parsed.query or None, parsed.fragment or None
@@ -146,10 +128,10 @@ class URN:
         """
         scheme, path, query, display = cls.to_parts(urn)
 
-        if scheme in [TEL_SCHEME, WHATSAPP_SCHEME] and formatted:
+        if scheme in [cls.TEL_SCHEME, cls.WHATSAPP_SCHEME] and formatted:
             try:
                 # whatsapp scheme is E164 without a leading +, add it so parsing works
-                if scheme == WHATSAPP_SCHEME:
+                if scheme == cls.WHATSAPP_SCHEME:
                     path = "+" + path
 
                 if path and path[0] == "+":
@@ -175,7 +157,7 @@ class URN:
         except ValueError:
             return False
 
-        if scheme == TEL_SCHEME:
+        if scheme == cls.TEL_SCHEME:
             try:
                 parsed = phonenumbers.parse(path, country_code)
                 return phonenumbers.is_possible_number(parsed)
@@ -183,18 +165,18 @@ class URN:
                 return False
 
         # validate twitter URNs look like handles
-        elif scheme == TWITTER_SCHEME:
+        elif scheme == cls.TWITTER_SCHEME:
             return regex.match(r"^[a-zA-Z0-9_]{1,15}$", path, regex.V0)
 
         # validate path is a number and display is a handle if present
-        elif scheme == TWITTERID_SCHEME:
+        elif scheme == cls.TWITTERID_SCHEME:
             valid = path.isdigit()
             if valid and display:
                 valid = regex.match(r"^[a-zA-Z0-9_]{1,15}$", display, regex.V0)
 
             return valid
 
-        elif scheme == EMAIL_SCHEME:
+        elif scheme == cls.EMAIL_SCHEME:
             try:
                 validate_email(path)
                 return True
@@ -202,7 +184,7 @@ class URN:
                 return False
 
         # facebook uses integer ids or temp ref ids
-        elif scheme == FACEBOOK_SCHEME:
+        elif scheme == cls.FACEBOOK_SCHEME:
             # we don't validate facebook refs since they come from the outside
             if URN.is_path_fb_ref(path):
                 return True
@@ -216,15 +198,15 @@ class URN:
                     return False
 
         # telegram and whatsapp use integer ids
-        elif scheme in [TELEGRAM_SCHEME, WHATSAPP_SCHEME]:
+        elif scheme in [cls.TELEGRAM_SCHEME, cls.WHATSAPP_SCHEME]:
             return regex.match(r"^[0-9]+$", path, regex.V0)
 
         # validate Viber URNS look right (this is a guess)
-        elif scheme == VIBER_SCHEME:  # pragma: needs cover
+        elif scheme == cls.VIBER_SCHEME:  # pragma: needs cover
             return regex.match(r"^[a-zA-Z0-9_=]{1,24}$", path, regex.V0)
 
         # validate Freshchat URNS look right (this is a guess)
-        elif scheme == FRESHCHAT_SCHEME:  # pragma: needs cover
+        elif scheme == cls.FRESHCHAT_SCHEME:  # pragma: needs cover
             return regex.match(
                 r"^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}/[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$",
                 path,
@@ -243,21 +225,21 @@ class URN:
 
         norm_path = str(path).strip()
 
-        if scheme == TEL_SCHEME:
+        if scheme == cls.TEL_SCHEME:
             norm_path, valid = cls.normalize_number(norm_path, country_code)
-        elif scheme == TWITTER_SCHEME:
+        elif scheme == cls.TWITTER_SCHEME:
             norm_path = norm_path.lower()
             if norm_path[0:1] == "@":  # strip @ prefix if provided
                 norm_path = norm_path[1:]
             norm_path = norm_path.lower()  # Twitter handles are case-insensitive, so we always store as lowercase
 
-        elif scheme == TWITTERID_SCHEME:
+        elif scheme == cls.TWITTERID_SCHEME:
             if display:
                 display = str(display).strip().lower()
                 if display and display[0] == "@":
                     display = display[1:]
 
-        elif scheme == EMAIL_SCHEME:
+        elif scheme == cls.EMAIL_SCHEME:
             norm_path = norm_path.lower()
 
         return cls.from_parts(scheme, norm_path, query, display)
@@ -304,78 +286,16 @@ class URN:
         return URN.from_parts(scheme, path)
 
     @classmethod
-    def fb_ref_from_path(cls, path):
-        return path[len(FACEBOOK_PATH_REF_PREFIX) :]
-
-    @classmethod
-    def path_from_fb_ref(cls, ref):
-        return FACEBOOK_PATH_REF_PREFIX + ref
-
-    @classmethod
     def is_path_fb_ref(cls, path):
-        return path.startswith(FACEBOOK_PATH_REF_PREFIX)
-
-    # ==================== shortcut constructors ===========================
+        return path.startswith(cls.FACEBOOK_PATH_REF_PREFIX)
 
     @classmethod
     def from_tel(cls, path):
-        return cls.from_parts(TEL_SCHEME, path)
-
-    @classmethod
-    def from_twitter(cls, path):
-        return cls.from_parts(TWITTER_SCHEME, path)
+        return cls.from_parts(cls.TEL_SCHEME, path)
 
     @classmethod
     def from_twitterid(cls, id, screen_name=None):
-        return cls.from_parts(TWITTERID_SCHEME, id, display=screen_name)
-
-    @classmethod
-    def from_email(cls, path):
-        return cls.from_parts(EMAIL_SCHEME, path)
-
-    @classmethod
-    def from_facebook(cls, path):
-        return cls.from_parts(FACEBOOK_SCHEME, path)
-
-    @classmethod
-    def from_vk(cls, path):
-        return cls.from_parts(VK_SCHEME, path)
-
-    @classmethod
-    def from_line(cls, path):
-        return cls.from_parts(LINE_SCHEME, path)
-
-    @classmethod
-    def from_telegram(cls, path):
-        return cls.from_parts(TELEGRAM_SCHEME, path)
-
-    @classmethod
-    def from_external(cls, path):
-        return cls.from_parts(EXTERNAL_SCHEME, path)
-
-    @classmethod
-    def from_viber(cls, path):
-        return cls.from_parts(VIBER_SCHEME, path)
-
-    @classmethod
-    def from_whatsapp(cls, path):
-        return cls.from_parts(WHATSAPP_SCHEME, path)
-
-    @classmethod
-    def from_fcm(cls, path):
-        return cls.from_parts(FCM_SCHEME, path)
-
-    @classmethod
-    def from_freshchat(cls, path):
-        return cls.from_parts(FRESHCHAT_SCHEME, path)
-
-    @classmethod
-    def from_jiochat(cls, path):
-        return cls.from_parts(JIOCHAT_SCHEME, path)
-
-    @classmethod
-    def from_wechat(cls, path):
-        return cls.from_parts(WECHAT_SCHEME, path)
+        return cls.from_parts(cls.TWITTERID_SCHEME, id, display=screen_name)
 
 
 class UserContactFieldsQuerySet(models.QuerySet):
@@ -699,9 +619,6 @@ class ContactField(SmartModel):
         return "%s" % self.label
 
 
-MAX_HISTORY = 50
-
-
 class Contact(RequireUpdateFieldsMixin, TembaModel):
     """
     A contact represents an individual with which we can communicate and collect data
@@ -717,6 +634,24 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         (STATUS_STOPPED, "Stopped"),
         (STATUS_ARCHIVED, "Archived"),
     )
+
+    MAX_HISTORY = 50
+
+    # events from sessions to include in contact history
+    HISTORY_INCLUDE_EVENTS = {
+        "contact_language_changed",
+        "contact_field_changed",
+        "contact_groups_changed",
+        "contact_name_changed",
+        "contact_urns_changed",
+        "email_created",  # no longer generated but exists in old sessions
+        "email_sent",
+        "error",
+        "failure",
+        "input_labels_added",
+        "run_result_changed",
+        "ticket_opened",
+    }
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contacts")
 
@@ -841,12 +776,14 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from temba.ivr.models import IVRCall
         from temba.msgs.models import Msg, INCOMING, OUTGOING
 
+        limit = Contact.MAX_HISTORY
+
         msgs = list(
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
             .exclude(visibility=Msg.VISIBILITY_DELETED)
             .order_by("-created_on")
             .select_related("channel")
-            .prefetch_related("channel_logs")[:MAX_HISTORY]
+            .prefetch_related("channel_logs")[:limit]
         )
         msgs_in = filter(lambda m: m.direction == INCOMING, msgs)
         msgs_out = filter(lambda m: m.direction == OUTGOING, msgs)
@@ -856,7 +793,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.runs.filter(created_on__gte=after, created_on__lt=before)
             .exclude(flow__is_system=True)
             .order_by("-created_on")
-            .select_related("flow")[:MAX_HISTORY]
+            .select_related("flow")[:limit]
         )
 
         exited_runs = (
@@ -864,38 +801,38 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .exclude(flow__is_system=True)
             .exclude(exit_type=None)
             .order_by("-created_on")
-            .select_related("flow")[:MAX_HISTORY]
+            .select_related("flow")[:limit]
         )
 
         channel_events = (
             self.channel_events.filter(created_on__gte=after, created_on__lt=before)
             .order_by("-created_on")
-            .select_related("channel")[:MAX_HISTORY]
+            .select_related("channel")[:limit]
         )
 
         campaign_events = (
             self.campaign_fires.filter(fired__gte=after, fired__lt=before)
             .exclude(fired=None)
             .order_by("-fired")
-            .select_related("event__campaign")[:MAX_HISTORY]
+            .select_related("event__campaign")[:limit]
         )
 
         webhook_results = self.webhook_results.filter(created_on__gte=after, created_on__lt=before).order_by(
             "-created_on"
-        )[:MAX_HISTORY]
+        )[:limit]
 
         calls = (
             IVRCall.objects.filter(contact=self, created_on__gte=after, created_on__lt=before)
             .filter(status__in=[IVRCall.BUSY, IVRCall.FAILED, IVRCall.NO_ANSWER, IVRCall.CANCELED, IVRCall.COMPLETED])
             .order_by("-created_on")
-            .select_related("channel")[:MAX_HISTORY]
+            .select_related("channel")[:limit]
         )
 
         transfers = self.airtime_transfers.filter(created_on__gte=after, created_on__lt=before).order_by(
             "-created_on"
-        )[:MAX_HISTORY]
+        )[:limit]
 
-        session_events = self.get_session_events(after, before, HISTORY_INCLUDE_EVENTS)
+        session_events = self.get_session_events(after, before, Contact.HISTORY_INCLUDE_EVENTS)
 
         # wrap items, chain and sort by time
         events = chain(
@@ -911,7 +848,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             session_events,
         )
 
-        return sorted(events, key=lambda i: i["created_on"], reverse=True)[:MAX_HISTORY]
+        return sorted(events, key=lambda i: i["created_on"], reverse=True)[:limit]
 
     def get_session_events(self, after, before, types):
         """
@@ -1180,9 +1117,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             # prep our urns for deletion so our old path creates a new urn
             for urn in self.urns.all():
                 path = str(uuid4())
-                urn.identity = f"{DELETED_SCHEME}:{path}"
+                urn.identity = f"{URN.DELETED_SCHEME}:{path}"
                 urn.path = path
-                urn.scheme = DELETED_SCHEME
+                urn.scheme = URN.DELETED_SCHEME
                 urn.channel = None
                 urn.save(update_fields=("identity", "path", "scheme", "channel"))
 
@@ -1352,32 +1289,12 @@ class ContactURN(models.Model):
     A Universal Resource Name used to uniquely identify contacts, e.g. tel:+1234567890 or twitter:example
     """
 
-    # schemes that we actually support
-    SCHEMES = [s[0] for s in URN_SCHEME_CONFIG]
-    SCHEME_CHOICES = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
-    CONTEXT_KEYS_TO_SCHEME = {c[2]: c[0] for c in URN_SCHEME_CONFIG}
-    CONTEXT_KEYS_TO_LABEL = {c[2]: c[1] for c in URN_SCHEME_CONFIG}
-
     # schemes that support "new conversation" triggers
-    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME, TELEGRAM_SCHEME}
-    SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
+    SCHEMES_SUPPORTING_NEW_CONVERSATION = {URN.FACEBOOK_SCHEME, URN.VIBER_SCHEME, URN.TELEGRAM_SCHEME}
+    SCHEMES_SUPPORTING_REFERRALS = {URN.FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
-    EXPORT_SCHEME_HEADERS = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
-
-    PRIORITY_LOWEST = 1
-    PRIORITY_STANDARD = 50
-    PRIORITY_HIGHEST = 99
-
-    PRIORITY_DEFAULTS = {
-        TEL_SCHEME: PRIORITY_STANDARD,
-        TWITTER_SCHEME: 90,
-        TWITTERID_SCHEME: 90,
-        FACEBOOK_SCHEME: 90,
-        TELEGRAM_SCHEME: 90,
-        VIBER_SCHEME: 90,
-        FCM_SCHEME: 90,
-        FRESHCHAT_SCHEME: 90,
-    }
+    # mailroom sets priorites like 1000, 999, ...
+    PRIORITY_HIGHEST = 1000
 
     ANON_MASK = "*" * 8  # Returned instead of URN values for anon orgs
     ANON_MASK_HTML = "•" * 8  # Pretty HTML version of anon mask
@@ -1393,7 +1310,7 @@ class ContactURN(models.Model):
     path = models.CharField(max_length=255)
     display = models.CharField(max_length=255, null=True)
 
-    priority = models.IntegerField(default=PRIORITY_STANDARD)
+    priority = models.IntegerField(default=PRIORITY_HIGHEST)
 
     # the channel affinity of this URN
     channel = models.ForeignKey(Channel, related_name="urns", on_delete=models.PROTECT, null=True)
@@ -1402,26 +1319,23 @@ class ContactURN(models.Model):
     auth = models.TextField(null=True)
 
     @classmethod
-    def get_or_create(cls, org, contact, urn_as_string, channel=None, auth=None):
+    def get_or_create(cls, org, contact, urn_as_string, channel=None, auth=None, priority=PRIORITY_HIGHEST):
         urn = cls.lookup(org, urn_as_string)
 
         # not found? create it
         if not urn:
             try:
                 with transaction.atomic():
-                    urn = cls.create(org, contact, urn_as_string, channel=channel, auth=auth)
+                    urn = cls.create(org, contact, urn_as_string, channel=channel, priority=priority, auth=auth)
             except IntegrityError:
                 urn = cls.lookup(org, urn_as_string)
 
         return urn
 
     @classmethod
-    def create(cls, org, contact, urn_as_string, channel=None, priority=None, auth=None):
+    def create(cls, org, contact, urn_as_string, channel=None, priority=PRIORITY_HIGHEST, auth=None):
         scheme, path, query, display = URN.to_parts(urn_as_string)
         urn_as_string = URN.from_parts(scheme, path)
-
-        if not priority:
-            priority = cls.PRIORITY_DEFAULTS.get(scheme, cls.PRIORITY_STANDARD)
 
         return cls.objects.create(
             org=org,
@@ -1449,9 +1363,11 @@ class ContactURN(models.Model):
         existing = cls.objects.filter(org=org, identity=identity).select_related("contact").first()
 
         # is this a TWITTER scheme? check TWITTERID scheme by looking up by display
-        if scheme == TWITTER_SCHEME:
+        if scheme == URN.TWITTER_SCHEME:
             twitterid_urn = (
-                cls.objects.filter(org=org, scheme=TWITTERID_SCHEME, display=path).select_related("contact").first()
+                cls.objects.filter(org=org, scheme=URN.TWITTERID_SCHEME, display=path)
+                .select_related("contact")
+                .first()
             )
             if twitterid_urn:
                 return twitterid_urn
@@ -1957,7 +1873,7 @@ class ExportContactsTask(BaseExportTask):
 
         scheme_counts = dict()
         if not self.org.is_anon:
-            active_urn_schemes = [c[0] for c in ContactURN.SCHEME_CHOICES]
+            active_urn_schemes = [c[0] for c in URN.SCHEME_CHOICES]
 
             scheme_counts = {
                 scheme: ContactURN.objects.filter(org=self.org, scheme=scheme)
@@ -2129,17 +2045,19 @@ class ContactImport(SmartModel):
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contact_imports")
     file = models.FileField(upload_to=get_import_upload_path)
     original_filename = models.TextField()
-    headers = ArrayField(models.CharField(max_length=255))  # raw header values as ordered list
     mappings = JSONField()
     num_records = models.IntegerField()
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, null=True, related_name="imports")
     started_on = models.DateTimeField(null=True)
 
+    # no longer used
+    headers = ArrayField(models.CharField(max_length=255), null=True)
+
     @classmethod
-    def try_to_parse(cls, org: Org, file, filename: str) -> Tuple[List, Dict, int]:
+    def try_to_parse(cls, org: Org, file, filename: str) -> Tuple[List, int]:
         """
-        Tries to parse the given file stream as an import. If successful it returns the raw headers and the automatic
-        mappings. Otherwise raises a ValidationError.
+        Tries to parse the given file stream as an import. If successful it returns the automatic column mappings and
+        total number of records. Otherwise raises a ValidationError.
         """
 
         file_type = Path(filename).suffix[1:].lower()
@@ -2163,9 +2081,9 @@ class ContactImport(SmartModel):
         seen_uuids = set()
         seen_urns = set()
         num_records = 0
-        for row in data:
-            record = cls._row_to_record(headers, row)
-            uuid, urns = cls._extract_uuid_and_urns(record, mappings)
+        for raw_row in data:
+            row = cls._parse_row(raw_row, len(mappings))
+            uuid, urns = cls._extract_uuid_and_urns(row, mappings)
             if uuid:
                 if uuid in seen_uuids:
                     raise ValidationError(
@@ -2192,17 +2110,17 @@ class ContactImport(SmartModel):
 
         file.seek(0)  # seek back to beginning so subsequent reads work
 
-        return headers, mappings, num_records
+        return mappings, num_records
 
     @staticmethod
-    def _extract_uuid_and_urns(record, mappings) -> Tuple[str, List[str]]:
+    def _extract_uuid_and_urns(row, mappings) -> Tuple[str, List[str]]:
         """
-        Extracts any UUIDs and URNs from the given record so they can be checked for uniqueness
+        Extracts any UUIDs and URNs from the given row so they can be checked for uniqueness
         """
         uuid = ""
         urns = []
-        for header, value in record.items():
-            mapping = mappings[header]
+        for value, item in zip(row, mappings):
+            mapping = item["mapping"]
             if mapping["type"] == "attribute" and mapping["name"] == "uuid":
                 uuid = value.lower()
             elif mapping["type"] == "scheme" and value:
@@ -2210,13 +2128,13 @@ class ContactImport(SmartModel):
         return uuid, urns
 
     @classmethod
-    def _auto_mappings(cls, org: Org, headers: List[str]) -> Dict:
+    def _auto_mappings(cls, org: Org, headers: List[str]) -> List:
         """
         Automatic mappings for the given list of headers - users can customize these later
         """
         existing_fields = {f.key: f for f in org.contactfields.filter(is_active=True)}
 
-        mappings = {}
+        mappings = []
 
         for header in headers:
             header_prefix, header_name = cls._parse_header(header)
@@ -2239,23 +2157,24 @@ class ContactImport(SmartModel):
                     # can be created or selected in next step
                     mapping = {"type": "new_field", "key": field_key, "name": header_name, "value_type": "T"}
 
-            mappings[header] = mapping
+            mappings.append({"header": header, "mapping": mapping})
 
         cls._validate_mappings(mappings)
         return mappings
 
     @staticmethod
-    def _validate_mappings(mappings: Dict):
-        valid_schemes = {c[0] for c in URN_SCHEME_CONFIG}
+    def _validate_mappings(mappings: List):
         non_ignored_mappings = []
 
         has_uuid, has_urn = False, False
-        for header, mapping in mappings.items():
+        for item in mappings:
+            header, mapping = item["header"], item["mapping"]
+
             if mapping["type"] == "attribute" and mapping["name"] == "uuid":
                 has_uuid = True
             elif mapping["type"] == "scheme":
                 has_urn = True
-                if mapping["scheme"] not in valid_schemes:
+                if mapping["scheme"] not in URN.VALID_SCHEMES:
                     raise ValidationError(_("Header '%(header)s' is not a valid URN type."), params={"header": header})
             elif mapping["type"] == "new_field":
                 if not ContactField.is_valid_key(mapping["key"]):
@@ -2264,10 +2183,6 @@ class ContactImport(SmartModel):
                     )
 
             if mapping != ContactImport.MAPPING_IGNORE:
-                # if we're not ignoring this column, then it needs to mapped to something unique
-                if mapping in non_ignored_mappings:
-                    raise ValidationError(_("Header '%(header)s' is duplicated."), params={"header": header})
-
                 non_ignored_mappings.append(mapping)
 
         if not (has_uuid or has_urn):
@@ -2293,7 +2208,8 @@ class ContactImport(SmartModel):
         self.save(update_fields=("started_on",))
 
         # create new contact fields as necessary
-        for mapping in self.mappings.values():
+        for item in self.mappings:
+            mapping = item["mapping"]
             if mapping["type"] == "new_field":
                 ContactField.get_or_create(
                     self.org, self.created_by, mapping["key"], label=mapping["name"], value_type=mapping["value_type"],
@@ -2317,9 +2233,9 @@ class ContactImport(SmartModel):
             batch_specs = []
             batch_start = record_num
 
-            for row in row_batch:
-                record = self._row_to_record(self.headers, row)
-                spec = self._record_to_spec(record)
+            for raw_row in row_batch:
+                row = self._parse_row(raw_row, len(self.mappings), tz=self.org.timezone)
+                spec = self._row_to_spec(row)
                 batch_specs.append(spec)
                 record_num += 1
 
@@ -2412,25 +2328,15 @@ class ContactImport(SmartModel):
         prefix, name = (parts[0], parts[1]) if len(parts) >= 2 else ("", parts[0])
         return prefix.lower(), name
 
-    @staticmethod
-    def _row_to_record(headers, row):
-        """
-        Convert a row (array of values) to a record (dict of headers to values)
-        """
-
-        row = row[: len(headers)]  # ignore any columns beyond our headers
-        return dict(zip_longest(headers, row, fillvalue=""))
-
-    def _record_to_spec(self, record: Dict) -> Dict:
+    def _row_to_spec(self, row: List[str]) -> Dict:
         """
         Convert a record (dict of headers to values) to a contact spec
         """
 
         spec = {"groups": [str(self.group.uuid)]}
 
-        for header, raw_value in record.items():
-            mapping = self.mappings[header]
-            value = self._parse_value(raw_value)
+        for value, item in zip(row, self.mappings):
+            mapping = item["mapping"]
 
             if not value:  # blank values interpreted as leaving values unchanged
                 continue
@@ -2455,15 +2361,26 @@ class ContactImport(SmartModel):
 
         return spec
 
-    def _parse_value(self, value: Any) -> str:
+    @classmethod
+    def _parse_row(cls, row: List[str], size: int, tz=None) -> List[str]:
+        """
+        Parses the raw values in the given row, returning a new list with the given size
+        """
+        parsed = []
+        for i in range(size):
+            parsed.append(cls._parse_value(row[i], tz=tz) if i < len(row) else "")
+        return parsed
+
+    @staticmethod
+    def _parse_value(value: Any, tz=None) -> str:
         """
         Parses a record value into a string that can be serialized and understood by mailroom
         """
 
         if isinstance(value, datetime):
             # make naive datetime timezone-aware
-            if not value.tzinfo:
-                value = self.org.timezone.localize(value) if self.org.timezone else pytz.utc.localize(value)
+            if not value.tzinfo and tz:
+                value = tz.localize(value) if tz else pytz.utc.localize(value)
 
             return value.isoformat()
         elif isinstance(value, date):

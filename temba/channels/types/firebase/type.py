@@ -1,6 +1,6 @@
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import FCM_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 from .views import ClaimView
@@ -25,7 +25,7 @@ class FirebaseCloudMessagingType(ChannelType):
     )
     claim_view = ClaimView
 
-    schemes = [FCM_SCHEME]
+    schemes = [URN.FCM_SCHEME]
     max_length = 10000
     attachment_support = False
     free_sending = True

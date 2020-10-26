@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-20 20:34+0000\n"
+"POT-Creation-Date: 2020-10-23 15:18+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2434,10 +2434,6 @@ msgstr ""
 
 #, python-format
 msgid "Header '%(header)s' is not a valid field name."
-msgstr ""
-
-#, python-format
-msgid "Header '%(header)s' is duplicated."
 msgstr ""
 
 msgid "Import files must contain either UUID or a URN header."
@@ -5904,6 +5900,9 @@ msgid "Search browsing is limited to 10k results. If you want to browse through 
 msgstr ""
 
 msgid "Details"
+msgstr ""
+
+msgid "Last Seen On"
 msgstr ""
 
 msgid "Contact Id"

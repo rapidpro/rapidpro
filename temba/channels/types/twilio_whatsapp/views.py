@@ -8,8 +8,9 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import WHATSAPP_SCHEME
+from temba.contacts.models import URN
 from temba.orgs.models import Org
+from temba.utils.fields import SelectWidget
 from temba.utils.uuid import uuid4
 
 from ...models import Channel
@@ -18,7 +19,7 @@ from ...views import ALL_COUNTRIES, TWILIO_SUPPORTED_COUNTRIES, BaseClaimNumberM
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
-        country = forms.ChoiceField(choices=ALL_COUNTRIES)
+        country = forms.ChoiceField(choices=ALL_COUNTRIES, widget=SelectWidget(attrs={"searchable": True}),)
         phone_number = forms.CharField(help_text=_("The phone number being added"))
 
         def clean_phone_number(self):
@@ -123,7 +124,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             role=role,
             config=config,
             uuid=channel_uuid,
-            schemes=[WHATSAPP_SCHEME],
+            schemes=[URN.WHATSAPP_SCHEME],
         )
 
         return channel

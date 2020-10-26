@@ -1,6 +1,6 @@
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 from .views import ClaimView
@@ -35,7 +35,7 @@ class WavyType(ChannelType):
 
     courier_url = r"^wv/(?P<uuid>[a-z0-9\-]+)/(?P<action>sent|delivered|receive)$"
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 160
     attachment_support = False
 

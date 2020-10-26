@@ -794,12 +794,12 @@ class Channel(TembaModel):
             return _("%s Channel" % self.get_channel_type_display())
 
     def get_address_display(self, e164=False):
-        from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, FACEBOOK_SCHEME
+        from temba.contacts.models import URN
 
         if not self.address:
             return ""
 
-        if self.address and TEL_SCHEME in self.schemes and self.country:
+        if self.address and URN.TEL_SCHEME in self.schemes and self.country:
             # assume that a number not starting with + is a short code and return as is
             if self.address[0] != "+":
                 return self.address
@@ -812,10 +812,10 @@ class Channel(TembaModel):
                 # the number may be alphanumeric in the case of short codes
                 pass
 
-        elif TWITTER_SCHEME in self.schemes:
+        elif URN.TWITTER_SCHEME in self.schemes:
             return "@%s" % self.address
 
-        elif FACEBOOK_SCHEME in self.schemes:
+        elif URN.FACEBOOK_SCHEME in self.schemes:
             return "%s (%s)" % (self.config.get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
 
         return self.address
@@ -911,10 +911,10 @@ class Channel(TembaModel):
 
         In the case of attachments, our cost is the number of attachments.
         """
-        from temba.contacts.models import TEL_SCHEME
+        from temba.contacts.models import URN
 
         cost = 1
-        if msg.contact_urn.scheme == TEL_SCHEME:
+        if msg.contact_urn.scheme == URN.TEL_SCHEME:
             cost = calculate_num_segments(msg.text)
 
         # if we have attachments then use that as our cost (MMS bundles text into the attachment, but only one per)

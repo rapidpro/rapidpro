@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-20 20:34+0000\n"
+"POT-Creation-Date: 2020-10-23 15:18+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2773,10 +2773,6 @@ msgstr "f'{val}' n'est pas un numéro valide"
 #| msgid "f'{val}' isn't a valid number"
 msgid "Header '%(header)s' is not a valid field name."
 msgstr "f'{val}' n'est pas un numéro valide"
-
-#, python-format
-msgid "Header '%(header)s' is duplicated."
-msgstr ""
 
 msgid "Import files must contain either UUID or a URN header."
 msgstr ""
@@ -7207,6 +7203,11 @@ msgstr "La navigation dans les recherches est limitée à 10 000 résultats. Si 
 
 msgid "Details"
 msgstr "Détails"
+
+#, fuzzy
+#| msgid "Last Seen"
+msgid "Last Seen On"
+msgstr "dernière visite"
 
 #, fuzzy
 #| msgid "Contact"

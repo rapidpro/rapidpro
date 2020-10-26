@@ -464,11 +464,10 @@ class TembaTestMixin:
 
     def create_contact_import(self, path):
         with open(path, "rb") as f:
-            headers, mappings, num_records = ContactImport.try_to_parse(self.org, f, path)
+            mappings, num_records = ContactImport.try_to_parse(self.org, f, path)
             return ContactImport.objects.create(
                 org=self.org,
                 file=SimpleUploadedFile(f.name, f.read()),
-                headers=headers,
                 mappings=mappings,
                 num_records=num_records,
                 created_by=self.admin,

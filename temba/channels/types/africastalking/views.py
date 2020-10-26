@@ -3,6 +3,8 @@ from smartmin.views import SmartFormView
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
+from temba.utils.fields import SelectWidget
+
 from ...models import Channel
 from ...views import ClaimViewMixin
 
@@ -23,7 +25,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 ("UG", _("Uganda")),
                 ("ZA", _("South Africa")),
                 ("ZM", _("Zambia")),
-            )
+            ),
+            widget=SelectWidget(attrs={"searchable": True}),
         )
         is_shared = forms.BooleanField(
             initial=False, required=False, help_text=_("Whether this short code is shared with others")

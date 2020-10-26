@@ -4,7 +4,7 @@ from django.forms import ValidationError
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import TWITTER_SCHEME, TWITTERID_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 from .client import TwitterClient
@@ -34,7 +34,7 @@ class TwitterType(ChannelType):
     claim_view = ClaimView
     update_form = UpdateForm
 
-    schemes = [TWITTER_SCHEME, TWITTERID_SCHEME]
+    schemes = [URN.TWITTER_SCHEME, URN.TWITTERID_SCHEME]
     show_config_page = False
     free_sending = True
     async_activation = False

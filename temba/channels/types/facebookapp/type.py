@@ -3,7 +3,7 @@ import requests
 from django.conf.urls import url
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import FACEBOOK_SCHEME
+from temba.contacts.models import URN
 
 from ...models import Channel, ChannelType
 from .views import ClaimView, RefreshToken
@@ -32,7 +32,7 @@ class FacebookAppType(ChannelType):
     )
     claim_view = ClaimView
 
-    schemes = [FACEBOOK_SCHEME]
+    schemes = [URN.FACEBOOK_SCHEME]
     max_length = 2000
     attachment_support = True
     free_sending = True
