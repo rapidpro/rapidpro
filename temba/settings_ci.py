@@ -1,10 +1,7 @@
 from .settings import *  # noqa
 
-# -----------------------------------------------------------------------------------
-# Mailroom - on Travis we start an instance at http://localhost:8090
-# -----------------------------------------------------------------------------------
-MAILROOM_URL = "http://localhost:8090"
-
+# instead of running tests against temba_test whictest framework creates, run against regular temba database so that
+# other components (i.e. mailroom) can be run against same database
 DATABASES = {
     "default": {
         "ENGINE": "django.contrib.gis.db.backends.postgis",
@@ -21,6 +18,3 @@ DATABASES = {
 }
 
 DATABASES["direct"] = DATABASES["default"]
-
-# Use a fast hasher to speed up tests.
-PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
