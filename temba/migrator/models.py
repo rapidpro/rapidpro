@@ -150,8 +150,11 @@ class MigrationTask(TembaModel):
             for channel in existing_channels:
                 channel.uuid = generate_uuid()
                 channel.secret = None
-                channel.save(update_fields=["uuid", "secret"])
-                channel.release(deactivate=False)
+                channel.parent = None
+                channel.is_active = False
+                channel.save(update_fields=["uuid", "secret", "is_active", "parent"])
+
+                Trigger.objects.filter(channel=channel, org=self.org).update(is_active=False)
 
             org_channels, channels_count = migrator.get_org_channels()
             if org_channels:
