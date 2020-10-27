@@ -1153,6 +1153,26 @@ msgstr ""
 "\n"
 "      "
 
+msgid "Activate your own enterprise WhatsApp account in Dialog 360 to communicate with your contacts. <a href=\"https://www.360dialog.com/\">Learn more about 360Dialog WhatsApp</a>"
+msgstr ""
+
+#, python-format
+msgid "Unable to register callbacks: %s"
+msgstr ""
+
+#, fuzzy
+#| msgid "The file name for our export"
+msgid "The base URL for your 360 Dialog WhatsApp enterprise installation"
+msgstr "El nombre del archivo para nuestra exportación"
+
+msgid "The 360 Dialog API key generated after account registration"
+msgstr ""
+
+#, fuzzy
+#| msgid "Please enter at least 8 characters"
+msgid "Please enter a valid phone number"
+msgstr "Por favor, ingrese 8 caracteres como mínimo"
+
 #, fuzzy
 msgid ""
 "If you are based in Uganda or DRC you can purchase a short\n"
@@ -2979,10 +2999,6 @@ msgstr "Mensaje"
 msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
 msgstr ""
 
-#, python-format
-msgid "Unable to register callbacks: %s"
-msgstr ""
-
 #, fuzzy, python-format
 #| msgid "Invalid group or contact id"
 msgid "Unable to configure channel: %s"
@@ -3030,11 +3046,6 @@ msgstr "El número de comandos que nos dio el transmisor"
 #| msgid "The file name for our export"
 msgid "The namespace for your WhatsApp templates"
 msgstr "El nombre del archivo para nuestra exportación"
-
-#, fuzzy
-#| msgid "Please enter at least 8 characters"
-msgid "Please enter a valid phone number"
-msgstr "Por favor, ingrese 8 caracteres como mínimo"
 
 msgid "Unable to check WhatsApp enterprise account, please check username and password"
 msgstr ""
@@ -7076,6 +7087,13 @@ msgstr ""
 "        enviar un mensaje a TextIt.\n"
 "\n"
 "      "
+
+#, fuzzy
+msgid ""
+"\n"
+"    Your 360Dialog WhatsApp channel is now connected, you should be able to send and receive messages as normal.\n"
+"  "
+msgstr "TextIt usa su teléfono Android para enviar y recibir mensajes."
 
 #, fuzzy, python-format
 #| msgid ""
@@ -12205,7 +12223,7 @@ msgstr ""
 #~ msgid "New Contact"
 #~ msgstr "1 Contacto"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "Contacts"
 #~ msgid "Contact %s"
 #~ msgstr "Contactos"
@@ -12243,7 +12261,6 @@ msgstr ""
 #~ msgid "All flow variables"
 #~ msgstr "Todas las variables del flujo"
 
-#, python-format
 #~ msgid "Contact Field: %(label)s"
 #~ msgstr "Campo de contacto: %(label)s"
 
@@ -12394,7 +12411,7 @@ msgstr ""
 #~ msgid "Using a Local Number"
 #~ msgstr "Con un número local"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          Install the %(name)s app\n"
@@ -12411,7 +12428,7 @@ msgstr ""
 #~ "\n"
 #~ "        "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          The easiest and most popular way to deploy %(name)s is by using a cheap Android phone along with a local sim card. It's quite\n"
@@ -12460,7 +12477,6 @@ msgstr ""
 #~ "\n"
 #~ "      "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Install the %(name)s app\n"
@@ -12524,7 +12540,7 @@ msgstr ""
 #~ "\n"
 #~ "      "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          Install the %(name)s app\n"
@@ -12544,7 +12560,7 @@ msgstr ""
 #~ msgid "What if I need to send a lot of messages?"
 #~ msgstr "¿Qué pasa si necesito enviar muchos mensajes?"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          We encourage people to validate their ideas and experiment before focusing on scaling. Starting with Android\n"
@@ -12573,7 +12589,6 @@ msgstr ""
 #~ msgid "What happens if the battery dies?"
 #~ msgstr "¿Qué sucede si la batería muere?"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Android phones are great because they have redundant network connections and a backup battery. So, if the office\n"
@@ -12613,7 +12628,7 @@ msgstr ""
 #~ "\n"
 #~ "        "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          Install the %(name)s app\n"
@@ -12629,7 +12644,6 @@ msgstr ""
 #~ "\n"
 #~ "        "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Will %(name)s work for my remote ICT4D project?\n"
@@ -12639,7 +12653,6 @@ msgstr ""
 #~ "          ¿Funcionará %(name)s para mi proyecto remoto ICT4D?\n"
 #~ "        "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          We understand that deploying SMS applications has traditionally been one of the trickiest parts when launching ICT4D projects.\n"
@@ -12658,7 +12671,7 @@ msgstr ""
 #~ msgid "Connecting to Carriers"
 #~ msgstr "Conectarse con los proveedores"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        For projects that need to send more than a few thousand messages an hour, it may be worth looking\n"
@@ -12712,7 +12725,6 @@ msgstr ""
 #~ msgid "Non-Profit discount"
 #~ msgstr "Descuento sin fines de lucro"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        One of the biggest aggregators in the world, Twilio, recently announced <a href=\"http://twilio.org\">twilio.org</a> which promises a 25%% discount on messaging and voice\n"
@@ -12731,7 +12743,7 @@ msgstr ""
 #~ msgid "Adding more aggregators"
 #~ msgstr "Añadir más agregadores"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "      We're always extending our network of local aggregators. If you don't see an option for your country,\n"
@@ -12969,14 +12981,14 @@ msgstr ""
 #~ msgid "You can import your contacts from an XLS file you create in Excel."
 #~ msgstr "Puede importar sus contactos de un archivo XLS que haya creado en Excel. "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "Create Contact"
 #~ msgid "Created %(create_count)s new contact"
 #~ msgid_plural "Created %(create_count)s new contacts"
 #~ msgstr[0] "Crear Contacto"
 #~ msgstr[1] "Crear Contacto"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                              %(completed_percentage)s%% completion\n"
@@ -13002,7 +13014,7 @@ msgstr ""
 #~ msgid "Errors description"
 #~ msgstr "Descripción"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                              %(completed_percentage)s%% completion\n"
@@ -13034,7 +13046,7 @@ msgstr ""
 #~ "                              %(completed_percentage)s%% completion\n"
 #~ "                            "
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #~| msgid "The file you provided is missing a required header called \"Phone\"."
 #~ msgid "The file you provided is missing a required header. At least one of \"{joined_possible_headers}\" or \"Contact UUID\" should be included."
 #~ msgstr "Al archivo que envió le falta un encabezado requerido llamado\"Teléfono\"."
@@ -13042,7 +13054,7 @@ msgstr ""
 #~ msgid "The file you provided is missing a required header called \"Name\"."
 #~ msgstr "Al archivo que envió le falta un encabezado requerido llamado \"Nombre\"."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "\"%s\" would be sent to %s"
 #~ msgid "%s should be used once"
 #~ msgstr "\"%s\" será enviado a %s"
@@ -13201,7 +13213,7 @@ msgstr ""
 #~ msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
 #~ msgstr "Cada fila deberá tener un número de teléfono (incluido el código del país) y el nombre del contacto, si lo tuviera."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                              %(completed_percentage)s%% completion\n"
@@ -13472,7 +13484,7 @@ msgstr ""
 #~ msgid "Unlabel"
 #~ msgstr "Retirar la etiqueta"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                              %(completed_percentage)s%% completion\n"
@@ -13494,7 +13506,7 @@ msgstr ""
 #~ "                              %(completed_percentage)s%% completion\n"
 #~ "                            "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                              %(completed_percentage)s%% completion\n"
@@ -13508,7 +13520,7 @@ msgstr ""
 #~ "                              %(completed_percentage)s%% completion\n"
 #~ "                            "
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                        %(count_comma)s recipient\n"
@@ -13528,7 +13540,7 @@ msgstr ""
 #~ "\n"
 #~ "         "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                              %(completed_percentage)s%% completion\n"
@@ -13545,7 +13557,7 @@ msgstr ""
 #~ msgid "Write the message that will get sent when the scheduled time arrives"
 #~ msgstr "Escribir el mensaje que será enviado a la hora programada"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -13571,7 +13583,7 @@ msgstr ""
 #~ "\n"
 #~ "         "
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -13698,7 +13710,6 @@ msgstr ""
 #~ msgid "month"
 #~ msgstr "mes"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          on the %(repeat_day_of_month)s\n"
@@ -13710,7 +13721,6 @@ msgstr ""
 #~ "\n"
 #~ "        "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          It will repeat <span class='attn'>%(repeat_period_display)s</span> at around the same time.\n"
@@ -13818,12 +13828,12 @@ msgstr ""
 #~ msgid "Empty user access token!"
 #~ msgstr "Token de acceso desde su repositorio"
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #~| msgid "Invalid group or contact id"
 #~ msgid "Unable to parse the date '{self.value}'"
 #~ msgstr "ID del grupo o contacto inválido "
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #~| msgid "Unknown alert type: %(alert)s"
 #~ msgid "Unknown location type: '{field.value_type}'"
 #~ msgstr "Tipo de alerta desconocido: %(alert)s"
@@ -13952,7 +13962,7 @@ msgstr ""
 #~ msgid "Channel Alarms (low battery, loss of connectivity)"
 #~ msgstr "Alarmas transmitidas (baja batería, pérdida de conexión)"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "    Your email address is <span class='attn'>%(email)s</span>.\n"
@@ -14063,7 +14073,7 @@ msgstr ""
 #~ "\n"
 #~ "        "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"
