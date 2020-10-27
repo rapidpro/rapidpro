@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-23 20:10+0000\n"
+"POT-Creation-Date: 2020-10-26 20:00+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -196,9 +196,6 @@ msgstr "JSON - application/json"
 msgid "XML - text/xml; charset=utf-8"
 msgstr "XML - text/xml; charset=utf-8"
 
-msgid "Channel Type"
-msgstr "Type de relayeur"
-
 msgid "Name"
 msgstr "Nom"
 
@@ -216,12 +213,6 @@ msgstr "Pays"
 
 msgid "Country which this channel is for"
 msgstr "Pays auquel ce canal est destiné"
-
-msgid "Org"
-msgstr "Org"
-
-msgid "Organization using this channel"
-msgstr "Organisation utilisant ce canal"
 
 msgid "Claim Code"
 msgstr "Code Claim"
@@ -258,27 +249,6 @@ msgstr "alerte Email"
 
 msgid "We will send email alerts to this address if experiencing issues sending"
 msgstr "Nous allons envoyer des alertes par e-mail à cette adresse si les questions sont en situation d'envoi"
-
-msgid "Config"
-msgstr "Configuration"
-
-msgid "Any channel specific configuration, used for the various aggregators"
-msgstr "Toute configuration spécifique de relayeur, utilisé pour les différents agrégateurs"
-
-msgid "The URN schemes this channel supports"
-msgstr "Les schémas URN que ce canal supporte"
-
-msgid "The roles this channel can fulfill"
-msgstr "Les rôles que ce relayeur peut jouer"
-
-msgid "The channel this channel is working on behalf of"
-msgstr "Le relayeur à la place duquel ce relayeur fonctionne"
-
-msgid "Optional Data"
-msgstr "Données facultatives"
-
-msgid "Any channel specific state data"
-msgstr "Toute donnée d'état spécifique à un canal"
 
 msgid "Maximum Transactions per Second"
 msgstr "Transactions maximales par seconde"
@@ -350,141 +320,6 @@ msgstr "Référence"
 msgid "Welcome Message"
 msgstr "Message de bienvenue"
 
-msgid "The org this event is connected to"
-msgstr "L'organisation à laquelle cet événement est connecté"
-
-msgid "Channel"
-msgstr "Channel"
-
-msgid "The channel on which this event took place"
-msgstr "Le canal sur lequel cet événement a eu lieu"
-
-msgid "Event Type"
-msgstr "Type d'événement"
-
-msgid "The type of event"
-msgstr "Le type d'événement"
-
-msgid "Contact"
-msgstr "Contact"
-
-msgid "The contact associated with this event"
-msgstr "Le contact associé à cet événement"
-
-msgid "URN"
-msgstr "URN"
-
-msgid "The contact URN associated with this event"
-msgstr "Le contact URN associé à cet événement"
-
-msgid "Extra"
-msgstr "Extra"
-
-msgid "Any extra properties on this event as JSON"
-msgstr "Toute propriété supplémentaire sur cet événement en tant que JSON"
-
-msgid "Occurred On"
-msgstr "S'est produit le"
-
-msgid "When this event took place"
-msgstr "Quand cet événement a eu lieu"
-
-msgid "Created On"
-msgstr "Créé le"
-
-msgid "When this event was created"
-msgstr "Quand cet événement a été créé"
-
-msgid "The channel the message was sent on"
-msgstr "Le canal sur lequel le message a été envoyé"
-
-msgid "The message that was sent"
-msgstr "Le message qui a été envoyé"
-
-msgid "The channel session for this log"
-msgstr "La session du canal pour ce journal"
-
-msgid "A description of the status of this message send"
-msgstr "Une description de l'état de ce message envoyé"
-
-msgid "Whether an error was encountered when sending the message"
-msgstr "Si une erreur s'est produite lors de l'envoi du message"
-
-msgid "The URL used when sending the message"
-msgstr "L'URL utilisée lors de l'envoi du message"
-
-msgid "The HTTP method used when sending the message"
-msgstr "La méthode HTTP utilisée lors de l'envoi du message"
-
-msgid "The body of the request used when sending the message"
-msgstr "Le corps de la requête utilisé lors de l'envoi du message"
-
-msgid "The body of the response received when sending the message"
-msgstr "Le corps de la réponse reçue lors de l'envoi du message"
-
-msgid "The response code received when sending the message"
-msgstr "Le code de réponse reçu lors de l'envoi du message"
-
-msgid "When this log message was logged"
-msgstr "Quand ce message de log a été enregistré"
-
-msgid "Time it took to process this request"
-msgstr "Temps requis pour le traitement de cette demande"
-
-msgid "The channel that synced to the server"
-msgstr "Le channel qui est synchronisé sur le serveur"
-
-msgid "Power Source"
-msgstr "Source d'alimentation"
-
-msgid "The power source the device is using"
-msgstr "La source d'énergie que l'appareil utilise"
-
-msgid "Power Status"
-msgstr "État de l'alimentation"
-
-msgid "The power status. eg: Charging, Full or Discharging"
-msgstr "L'état ​​de l'alimentation. par exemple: en charge, plein ou déchargé"
-
-msgid "Power Level"
-msgstr "Niveau de puissance"
-
-msgid "The power level of the battery"
-msgstr "Le niveau de puissance de la batterie "
-
-msgid "Network Type"
-msgstr "Type de réseau"
-
-msgid "The data network type to which the channel is connected"
-msgstr "Le type à qui le channel est connecté au réseau de données"
-
-msgid "Lifetime"
-msgstr "L'existence"
-
-msgid "Pending Messages Count"
-msgstr "Nombre de messages en attente"
-
-msgid "The number of messages on the channel in PENDING state"
-msgstr "Le nombre de messages sur le channel en état ​​d'ATTENTE"
-
-msgid "Retry Message Count"
-msgstr "Nombre de tentatives de message"
-
-msgid "The number of messages on the channel in RETRY state"
-msgstr "Le nombre de messages sur le channel en état de RÉESSAYAGE "
-
-msgid "Incoming Command Count"
-msgstr "Nombre de commande entrants"
-
-msgid "The number of commands that the channel gave us"
-msgstr "Le nombre de commandes que le channel nous a donné"
-
-msgid "Outgoing Command Count"
-msgstr "Nombre de commande sortant"
-
-msgid "The number of commands that we gave the channel"
-msgstr "Le nombre de commandes que nous avons donné le channel"
-
 msgid "Power"
 msgstr "Energie"
 
@@ -493,6 +328,9 @@ msgstr "Deconnecter"
 
 msgid "SMS"
 msgstr "SMS"
+
+msgid "Channel"
+msgstr "Channel"
 
 msgid "The channel that this alert is for"
 msgstr "Le channel de cette alerte est pour"
@@ -3872,6 +3710,9 @@ msgstr "Désolé, nous n'avons pas pu traiter votre paiement. Veuillez réessaye
 msgid "Viewer"
 msgstr "Spectateur"
 
+msgid "Org"
+msgstr "Org"
+
 msgid "The organization to which the account is invited to view"
 msgstr "L'organisation à laquelle le compte est invité à voir"
 
@@ -4942,6 +4783,9 @@ msgstr "Événements Webhook récents"
 #| msgid "Request URL"
 msgid "Request Time"
 msgstr "URL de demande"
+
+msgid "Contact"
+msgstr "Contact"
 
 msgid "Took"
 msgstr ""
@@ -6959,6 +6803,9 @@ msgstr "Intentions synchronisées"
 
 msgid "External ID"
 msgstr "ID externe"
+
+msgid "Created On"
+msgstr "Créé le"
 
 msgid "No synced intents at this time."
 msgstr "Aucune intention synchronisée pour le moment."
@@ -11001,6 +10848,159 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Channel Type"
+#~ msgstr "Type de relayeur"
+
+#~ msgid "Organization using this channel"
+#~ msgstr "Organisation utilisant ce canal"
+
+#~ msgid "Config"
+#~ msgstr "Configuration"
+
+#~ msgid "Any channel specific configuration, used for the various aggregators"
+#~ msgstr "Toute configuration spécifique de relayeur, utilisé pour les différents agrégateurs"
+
+#~ msgid "The URN schemes this channel supports"
+#~ msgstr "Les schémas URN que ce canal supporte"
+
+#~ msgid "The roles this channel can fulfill"
+#~ msgstr "Les rôles que ce relayeur peut jouer"
+
+#~ msgid "The channel this channel is working on behalf of"
+#~ msgstr "Le relayeur à la place duquel ce relayeur fonctionne"
+
+#~ msgid "Optional Data"
+#~ msgstr "Données facultatives"
+
+#~ msgid "Any channel specific state data"
+#~ msgstr "Toute donnée d'état spécifique à un canal"
+
+#~ msgid "The org this event is connected to"
+#~ msgstr "L'organisation à laquelle cet événement est connecté"
+
+#~ msgid "The channel on which this event took place"
+#~ msgstr "Le canal sur lequel cet événement a eu lieu"
+
+#~ msgid "Event Type"
+#~ msgstr "Type d'événement"
+
+#~ msgid "The type of event"
+#~ msgstr "Le type d'événement"
+
+#~ msgid "The contact associated with this event"
+#~ msgstr "Le contact associé à cet événement"
+
+#~ msgid "URN"
+#~ msgstr "URN"
+
+#~ msgid "The contact URN associated with this event"
+#~ msgstr "Le contact URN associé à cet événement"
+
+#~ msgid "Extra"
+#~ msgstr "Extra"
+
+#~ msgid "Any extra properties on this event as JSON"
+#~ msgstr "Toute propriété supplémentaire sur cet événement en tant que JSON"
+
+#~ msgid "Occurred On"
+#~ msgstr "S'est produit le"
+
+#~ msgid "When this event took place"
+#~ msgstr "Quand cet événement a eu lieu"
+
+#~ msgid "When this event was created"
+#~ msgstr "Quand cet événement a été créé"
+
+#~ msgid "The channel the message was sent on"
+#~ msgstr "Le canal sur lequel le message a été envoyé"
+
+#~ msgid "The message that was sent"
+#~ msgstr "Le message qui a été envoyé"
+
+#~ msgid "The channel session for this log"
+#~ msgstr "La session du canal pour ce journal"
+
+#~ msgid "A description of the status of this message send"
+#~ msgstr "Une description de l'état de ce message envoyé"
+
+#~ msgid "Whether an error was encountered when sending the message"
+#~ msgstr "Si une erreur s'est produite lors de l'envoi du message"
+
+#~ msgid "The URL used when sending the message"
+#~ msgstr "L'URL utilisée lors de l'envoi du message"
+
+#~ msgid "The HTTP method used when sending the message"
+#~ msgstr "La méthode HTTP utilisée lors de l'envoi du message"
+
+#~ msgid "The body of the request used when sending the message"
+#~ msgstr "Le corps de la requête utilisé lors de l'envoi du message"
+
+#~ msgid "The body of the response received when sending the message"
+#~ msgstr "Le corps de la réponse reçue lors de l'envoi du message"
+
+#~ msgid "The response code received when sending the message"
+#~ msgstr "Le code de réponse reçu lors de l'envoi du message"
+
+#~ msgid "When this log message was logged"
+#~ msgstr "Quand ce message de log a été enregistré"
+
+#~ msgid "Time it took to process this request"
+#~ msgstr "Temps requis pour le traitement de cette demande"
+
+#~ msgid "The channel that synced to the server"
+#~ msgstr "Le channel qui est synchronisé sur le serveur"
+
+#~ msgid "Power Source"
+#~ msgstr "Source d'alimentation"
+
+#~ msgid "The power source the device is using"
+#~ msgstr "La source d'énergie que l'appareil utilise"
+
+#~ msgid "Power Status"
+#~ msgstr "État de l'alimentation"
+
+#~ msgid "The power status. eg: Charging, Full or Discharging"
+#~ msgstr "L'état ​​de l'alimentation. par exemple: en charge, plein ou déchargé"
+
+#~ msgid "Power Level"
+#~ msgstr "Niveau de puissance"
+
+#~ msgid "The power level of the battery"
+#~ msgstr "Le niveau de puissance de la batterie "
+
+#~ msgid "Network Type"
+#~ msgstr "Type de réseau"
+
+#~ msgid "The data network type to which the channel is connected"
+#~ msgstr "Le type à qui le channel est connecté au réseau de données"
+
+#~ msgid "Lifetime"
+#~ msgstr "L'existence"
+
+#~ msgid "Pending Messages Count"
+#~ msgstr "Nombre de messages en attente"
+
+#~ msgid "The number of messages on the channel in PENDING state"
+#~ msgstr "Le nombre de messages sur le channel en état ​​d'ATTENTE"
+
+#~ msgid "Retry Message Count"
+#~ msgstr "Nombre de tentatives de message"
+
+#~ msgid "The number of messages on the channel in RETRY state"
+#~ msgstr "Le nombre de messages sur le channel en état de RÉESSAYAGE "
+
+#~ msgid "Incoming Command Count"
+#~ msgstr "Nombre de commande entrants"
+
+#~ msgid "The number of commands that the channel gave us"
+#~ msgstr "Le nombre de commandes que le channel nous a donné"
+
+#~ msgid "Outgoing Command Count"
+#~ msgstr "Nombre de commande sortant"
+
+#~ msgid "The number of commands that we gave the channel"
+#~ msgstr "Le nombre de commandes que nous avons donné le channel"
 
 #~ msgid "Shown in Tables"
 #~ msgstr "Indiqué dans les tableaux"

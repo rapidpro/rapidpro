@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-23 20:10+0000\n"
+"POT-Creation-Date: 2020-10-26 20:00+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -187,9 +187,6 @@ msgstr ""
 msgid "XML - text/xml; charset=utf-8"
 msgstr ""
 
-msgid "Channel Type"
-msgstr ""
-
 msgid "Name"
 msgstr ""
 
@@ -206,12 +203,6 @@ msgid "Country"
 msgstr ""
 
 msgid "Country which this channel is for"
-msgstr ""
-
-msgid "Org"
-msgstr ""
-
-msgid "Organization using this channel"
 msgstr ""
 
 msgid "Claim Code"
@@ -248,27 +239,6 @@ msgid "Alert Email"
 msgstr ""
 
 msgid "We will send email alerts to this address if experiencing issues sending"
-msgstr ""
-
-msgid "Config"
-msgstr ""
-
-msgid "Any channel specific configuration, used for the various aggregators"
-msgstr ""
-
-msgid "The URN schemes this channel supports"
-msgstr ""
-
-msgid "The roles this channel can fulfill"
-msgstr ""
-
-msgid "The channel this channel is working on behalf of"
-msgstr ""
-
-msgid "Optional Data"
-msgstr ""
-
-msgid "Any channel specific state data"
 msgstr ""
 
 msgid "Maximum Transactions per Second"
@@ -341,141 +311,6 @@ msgstr ""
 msgid "Welcome Message"
 msgstr ""
 
-msgid "The org this event is connected to"
-msgstr ""
-
-msgid "Channel"
-msgstr ""
-
-msgid "The channel on which this event took place"
-msgstr ""
-
-msgid "Event Type"
-msgstr ""
-
-msgid "The type of event"
-msgstr ""
-
-msgid "Contact"
-msgstr ""
-
-msgid "The contact associated with this event"
-msgstr ""
-
-msgid "URN"
-msgstr ""
-
-msgid "The contact URN associated with this event"
-msgstr ""
-
-msgid "Extra"
-msgstr ""
-
-msgid "Any extra properties on this event as JSON"
-msgstr ""
-
-msgid "Occurred On"
-msgstr ""
-
-msgid "When this event took place"
-msgstr ""
-
-msgid "Created On"
-msgstr ""
-
-msgid "When this event was created"
-msgstr ""
-
-msgid "The channel the message was sent on"
-msgstr ""
-
-msgid "The message that was sent"
-msgstr ""
-
-msgid "The channel session for this log"
-msgstr ""
-
-msgid "A description of the status of this message send"
-msgstr ""
-
-msgid "Whether an error was encountered when sending the message"
-msgstr ""
-
-msgid "The URL used when sending the message"
-msgstr ""
-
-msgid "The HTTP method used when sending the message"
-msgstr ""
-
-msgid "The body of the request used when sending the message"
-msgstr ""
-
-msgid "The body of the response received when sending the message"
-msgstr ""
-
-msgid "The response code received when sending the message"
-msgstr ""
-
-msgid "When this log message was logged"
-msgstr ""
-
-msgid "Time it took to process this request"
-msgstr ""
-
-msgid "The channel that synced to the server"
-msgstr ""
-
-msgid "Power Source"
-msgstr ""
-
-msgid "The power source the device is using"
-msgstr ""
-
-msgid "Power Status"
-msgstr ""
-
-msgid "The power status. eg: Charging, Full or Discharging"
-msgstr ""
-
-msgid "Power Level"
-msgstr ""
-
-msgid "The power level of the battery"
-msgstr ""
-
-msgid "Network Type"
-msgstr ""
-
-msgid "The data network type to which the channel is connected"
-msgstr ""
-
-msgid "Lifetime"
-msgstr ""
-
-msgid "Pending Messages Count"
-msgstr ""
-
-msgid "The number of messages on the channel in PENDING state"
-msgstr ""
-
-msgid "Retry Message Count"
-msgstr ""
-
-msgid "The number of messages on the channel in RETRY state"
-msgstr ""
-
-msgid "Incoming Command Count"
-msgstr ""
-
-msgid "The number of commands that the channel gave us"
-msgstr ""
-
-msgid "Outgoing Command Count"
-msgstr ""
-
-msgid "The number of commands that we gave the channel"
-msgstr ""
-
 msgid "Power"
 msgstr ""
 
@@ -483,6 +318,9 @@ msgid "Disconnected"
 msgstr ""
 
 msgid "SMS"
+msgstr ""
+
+msgid "Channel"
 msgstr ""
 
 msgid "The channel that this alert is for"
@@ -2015,6 +1853,10 @@ msgid "If you have an enterprise WhatsApp account, you can connect it to communi
 msgstr ""
 
 #, python-format
+msgid "Unable to register callbacks: %s"
+msgstr ""
+
+#, python-format
 msgid "Unable to configure channel: %s"
 msgstr ""
 
@@ -2022,6 +1864,9 @@ msgid "Contacts refresh begun, it may take a few minutes to complete."
 msgstr ""
 
 msgid "Sync Logs"
+msgstr ""
+
+msgid "Your enterprise WhatsApp number"
 msgstr ""
 
 msgid "The base URL for your WhatsApp enterprise installation"
@@ -2046,6 +1891,9 @@ msgid "The Facebook access token that will be used for syncing"
 msgstr ""
 
 msgid "The namespace for your WhatsApp templates"
+msgstr ""
+
+msgid "Please enter a valid phone number"
 msgstr ""
 
 msgid "Unable to check WhatsApp enterprise account, please check username and password"
@@ -3453,6 +3301,9 @@ msgstr ""
 msgid "Viewer"
 msgstr ""
 
+msgid "Org"
+msgstr ""
+
 msgid "The organization to which the account is invited to view"
 msgstr ""
 
@@ -4441,6 +4292,9 @@ msgid "Webhook Event"
 msgstr ""
 
 msgid "Request Time"
+msgstr ""
+
+msgid "Contact"
 msgstr ""
 
 msgid "Took"
@@ -5690,6 +5544,9 @@ msgid "Intent"
 msgstr ""
 
 msgid "External ID"
+msgstr ""
+
+msgid "Created On"
 msgstr ""
 
 msgid "No synced intents at this time."

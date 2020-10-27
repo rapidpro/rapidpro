@@ -1,3 +1,9 @@
+v5.7.79
+----------
+ * Rework imports to allow importing multiple URNs of same scheme
+ * Cleanup no longer used URN related functionality
+ * Show contact last seen on on contact read page
+
 v5.7.78
 ----------
  * Clean up models fields in contacts app

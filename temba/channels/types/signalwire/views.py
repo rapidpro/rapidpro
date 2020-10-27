@@ -6,6 +6,8 @@ from django import forms
 from django.forms import ValidationError
 from django.utils.translation import ugettext_lazy as _
 
+from temba.utils.fields import SelectWidget
+
 from ...models import Channel
 from ...views import ALL_COUNTRIES, ClaimViewMixin
 
@@ -14,6 +16,7 @@ class SignalWireClaimView(ClaimViewMixin, SmartFormView):
     class SignalWireForm(ClaimViewMixin.Form):
         country = forms.ChoiceField(
             choices=ALL_COUNTRIES,
+            widget=SelectWidget(attrs={"searchable": True}),
             label=_("Country"),
             help_text=_("The country this phone number is used in"),
             initial="US",
