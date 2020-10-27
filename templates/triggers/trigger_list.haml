@@ -104,7 +104,8 @@
                             -trans "Start"
                           -else
                             -trans "starts"
-                          %a{href:'{%url "flows.flow_editor" obj.flow.uuid %}'}= obj.flow
+                          .linked.inline(onclick="goto(event)" href='{%url "flows.flow_editor" obj.flow.uuid %}')<
+                            {{obj.flow}}
 
                           -if obj.schedule
                             -if obj.schedule.next_fire and not obj.is_archived

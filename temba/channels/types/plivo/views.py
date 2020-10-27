@@ -17,13 +17,14 @@ from temba.channels.views import (
     BaseClaimNumberMixin,
     ClaimViewMixin,
 )
+from temba.utils.fields import SelectWidget
 from temba.utils.http import http_headers
 from temba.utils.models import generate_uuid
 
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
-        country = forms.ChoiceField(choices=PLIVO_SUPPORTED_COUNTRIES)
+        country = forms.ChoiceField(choices=PLIVO_SUPPORTED_COUNTRIES, widget=SelectWidget(attrs={"searchable": True}))
         phone_number = forms.CharField(help_text=_("The phone number being added"))
 
         def clean_phone_number(self):

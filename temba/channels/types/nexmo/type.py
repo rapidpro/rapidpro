@@ -1,7 +1,7 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel, ChannelType
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
 from .views import ClaimView, UpdateForm
@@ -40,7 +40,7 @@ class NexmoType(ChannelType):
     claim_view = ClaimView
     update_form = UpdateForm
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 1600
     max_tps = 1
 

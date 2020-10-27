@@ -170,7 +170,6 @@ TEMPLATES = [
                 "temba.context_processors.analytics",
                 "temba.orgs.context_processors.user_group_perms_processor",
                 "temba.channels.views.channel_status_processor",
-                "temba.msgs.views.send_message_auto_complete_processor",
                 "temba.orgs.context_processors.settings_includer",
                 "temba.orgs.context_processors.user_orgs_for_brand",
             ],
@@ -268,7 +267,6 @@ INSTALLED_APPS = (
     "temba.campaigns",
     "temba.ivr",
     "temba.locations",
-    "temba.values",
     "temba.airtime",
     "temba.sql",
 )
@@ -329,7 +327,7 @@ BRANDING = {
         "credits": _("Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."),
     }
 }
-DEFAULT_BRAND = "rapidpro.io"
+DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro.io")
 
 # -----------------------------------------------------------------------------------
 # Permission Management
@@ -359,12 +357,10 @@ PERMISSIONS = {
         "block",
         "blocked",
         "break_anon",
-        "customize",
         "export",
         "stopped",
         "filter",
         "history",
-        "import",
         "omnibox",
         "restore",
         "search",
@@ -373,6 +369,7 @@ PERMISSIONS = {
     ),
     "contacts.contactfield": ("api", "json", "update_priority", "featured", "filter_by_type", "detail"),
     "contacts.contactgroup": ("api",),
+    "contacts.contactimport": ("preview",),
     "ivr.ivrcall": ("start",),
     "archives.archive": ("api", "run", "message"),
     "globals.global": ("api", "unused", "detail"),
@@ -445,7 +442,6 @@ PERMISSIONS = {
         "campaign",
         "category_counts",
         "change_language",
-        "completion",
         "copy",
         "editor",
         "editor_next",
@@ -455,7 +451,6 @@ PERMISSIONS = {
         "import_translation",
         "export_results",
         "filter",
-        "json",
         "recent_messages",
         "results",
         "revisions",
@@ -532,7 +527,6 @@ GROUP_PERMISSIONS = {
         "contacts.contact_break_anon",
         "contacts.contact_read",
         "flows.flow_editor",
-        "flows.flow_json",
         "flows.flow_revisions",
         "flows.flowrun_delete",
         "flows.flow_editor_next",
@@ -580,12 +574,10 @@ GROUP_PERMISSIONS = {
         "contacts.contact_block",
         "contacts.contact_blocked",
         "contacts.contact_create",
-        "contacts.contact_customize",
         "contacts.contact_delete",
         "contacts.contact_export",
         "contacts.contact_filter",
         "contacts.contact_history",
-        "contacts.contact_import",
         "contacts.contact_list",
         "contacts.contact_omnibox",
         "contacts.contact_read",
@@ -597,6 +589,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_update_fields_input",
         "contacts.contactfield.*",
         "contacts.contactgroup.*",
+        "contacts.contactimport.*",
         "csv_imports.importtask.*",
         "globals.global.*",
         "ivr.ivrcall.*",
@@ -713,12 +706,10 @@ GROUP_PERMISSIONS = {
         "contacts.contact_block",
         "contacts.contact_blocked",
         "contacts.contact_create",
-        "contacts.contact_customize",
         "contacts.contact_delete",
         "contacts.contact_export",
         "contacts.contact_filter",
         "contacts.contact_history",
-        "contacts.contact_import",
         "contacts.contact_list",
         "contacts.contact_omnibox",
         "contacts.contact_read",
@@ -730,6 +721,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_update_fields_input",
         "contacts.contactfield.*",
         "contacts.contactgroup.*",
+        "contacts.contactimport.*",
         "csv_imports.importtask.*",
         "ivr.ivrcall.*",
         "globals.global_api",
@@ -815,6 +807,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_stopped",
         "contacts.contactfield_api",
         "contacts.contactgroup_api",
+        "contacts.contactimport_read",
         "globals.global_api",
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",
@@ -833,7 +826,6 @@ GROUP_PERMISSIONS = {
         "flows.flow_archived",
         "flows.flow_assets",
         "flows.flow_campaign",
-        "flows.flow_completion",
         "flows.flow_category_counts",
         "flows.flow_export",
         "flows.flow_export_results",
@@ -841,7 +833,6 @@ GROUP_PERMISSIONS = {
         "flows.flow_list",
         "flows.flow_editor",
         "flows.flow_editor_next",
-        "flows.flow_json",
         "flows.flow_recent_messages",
         "flows.flow_results",
         "flows.flow_revisions",
@@ -937,6 +928,7 @@ CELERYBEAT_SCHEDULE = {
     "squash-flowcounts": {"task": "squash_flowcounts", "schedule": timedelta(seconds=60)},
     "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=60)},
     "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=60)},
+    "suspend-topup-orgs": {"task": "suspend_topup_orgs_task", "schedule": timedelta(hours=1)},
     "sync-classifier-intents": {"task": "sync_classifier_intents", "schedule": timedelta(seconds=300)},
     "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
     "track-org-channel-counts": {"task": "track_org_channel_counts", "schedule": crontab(hour=4, minute=0)},
@@ -1188,7 +1180,6 @@ IP_ADDRESSES = ("172.16.10.10", "162.16.10.20")
 # Installs may choose how big they want their text messages and contact fields to be.
 # -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640
-VALUE_FIELD_SIZE = 640
 FLOW_START_PARAMS_SIZE = 256
 
 # -----------------------------------------------------------------------------------

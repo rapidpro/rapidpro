@@ -23,9 +23,8 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.contacts.models import TEL_SCHEME, ContactGroup, ContactURN
-from temba.contacts.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
-from temba.flows.legacy.expressions import get_function_listing
+from temba.contacts.models import ContactGroup
+from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
 from temba.formax import FormaxMixin
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, on_transaction_commit
@@ -45,45 +44,6 @@ from .models import INITIALIZING, QUEUED, Broadcast, ExportMessagesTask, Label, 
 from .tasks import export_messages_task
 
 
-def send_message_auto_complete_processor(request):
-    """
-    Adds completions for the expression auto-completion to the request context
-    """
-    completions = []
-    user = request.user
-    org = None
-
-    if hasattr(user, "get_org"):
-        org = request.user.get_org()
-
-    if org:
-        completions.append(dict(name="contact", display=str(_("Contact Name"))))
-        completions.append(dict(name="contact.first_name", display=str(_("Contact First Name"))))
-        completions.append(dict(name="contact.groups", display=str(_("Contact Groups"))))
-        completions.append(dict(name="contact.language", display=str(_("Contact Language"))))
-        completions.append(dict(name="contact.name", display=str(_("Contact Name"))))
-        completions.append(dict(name="contact.tel", display=str(_("Contact Phone"))))
-        completions.append(dict(name="contact.tel_e164", display=str(_("Contact Phone - E164"))))
-        completions.append(dict(name="contact.uuid", display=str(_("Contact UUID"))))
-
-        completions.append(dict(name="date", display=str(_("Current Date and Time"))))
-        completions.append(dict(name="date.now", display=str(_("Current Date and Time"))))
-        completions.append(dict(name="date.today", display=str(_("Current Date"))))
-        completions.append(dict(name="date.tomorrow", display=str(_("Tomorrow's Date"))))
-        completions.append(dict(name="date.yesterday", display=str(_("Yesterday's Date"))))
-
-        for scheme, label in ContactURN.SCHEME_CHOICES:
-            if scheme != TEL_SCHEME and scheme in org.get_schemes(Channel.ROLE_SEND):
-                completions.append(dict(name="contact.%s" % scheme, display=str(_("Contact %s" % label))))
-
-        for field in org.contactfields(manager="user_fields").filter(is_active=True).order_by("label"):
-            display = str(_("Contact Field: %(label)s")) % {"label": field.label}
-            completions.append(dict(name="contact.%s" % str(field.key), display=display))
-
-    function_completions = get_function_listing()
-    return dict(completions=json.dumps(completions), function_completions=json.dumps(function_completions))
-
-
 class SendMessageForm(Form):
 
     omnibox = JSONField(
@@ -101,7 +61,9 @@ class SendMessageForm(Form):
     )
 
     text = forms.CharField(
-        widget=CompletionTextarea(attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True})
+        widget=CompletionTextarea(
+            attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True, "counter": "temba-charcount"}
+        )
     )
 
     schedule = forms.BooleanField(
@@ -132,11 +94,11 @@ class SendMessageForm(Form):
 
         if org.is_suspended:
             raise ValidationError(
-                _("Sorry, your account is currently suspended. To enable sending messages, please contact support.")
+                _("Sorry, your workspace is currently suspended. To enable sending messages, please contact support.")
             )
         if org.is_flagged:
             raise ValidationError(
-                _("Sorry, your account is currently flagged. To enable sending messages, please contact support.")
+                _("Sorry, your workspace is currently flagged. To enable sending messages, please contact support.")
             )
         return cleaned
 
@@ -318,7 +280,7 @@ class BroadcastCRUDL(SmartCRUDL):
         def derive_initial(self):
             org = self.object.org
             results = [*self.object.groups.all(), *self.object.contacts.all()]
-            selected = omnibox_results_to_dict(org, results, version=2)
+            selected = omnibox_results_to_dict(org, results, version="2")
             message = self.object.text[self.object.base_language]
             return dict(message=message, omnibox=selected)
 
@@ -328,7 +290,6 @@ class BroadcastCRUDL(SmartCRUDL):
             org = broadcast.org
 
             # save off our broadcast info
-            omnibox = form.cleaned_data["omnibox"]
             omnibox = omnibox_deserialize(org, self.form.cleaned_data["omnibox"])
 
             # set our new message
@@ -460,7 +421,7 @@ class BroadcastCRUDL(SmartCRUDL):
             return HttpResponseRedirect(self.get_success_url())
 
         def post_save(self, obj):
-            on_transaction_commit(lambda: obj.send())
+            on_transaction_commit(lambda: obj.send_async())
             return obj
 
         def get_form_kwargs(self):
