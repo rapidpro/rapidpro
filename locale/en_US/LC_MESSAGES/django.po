@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-27 20:13+0000\n"
+"POT-Creation-Date: 2020-10-27 20:40+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -692,6 +692,25 @@ msgid "Delivered URL"
 msgstr ""
 
 msgid "This endpoint should be called by Dart Media when a message has been to the final recipient. (delivery reports) You can set the delivery callback URL on your Dart Media account by contacting your sales agent."
+msgstr ""
+
+msgid "Activate your own enterprise WhatsApp account in Dialog 360 to communicate with your contacts. <a href=\"https://www.360dialog.com/\">Learn more about 360Dialog WhatsApp</a>"
+msgstr ""
+
+#, python-format
+msgid "Unable to register callbacks: %s"
+msgstr ""
+
+msgid "Your enterprise WhatsApp number"
+msgstr ""
+
+msgid "The base URL for your 360 Dialog WhatsApp enterprise installation"
+msgstr ""
+
+msgid "The 360 Dialog API key generated after account registration"
+msgstr ""
+
+msgid "Please enter a valid phone number"
 msgstr ""
 
 msgid "If you are based in Uganda or DRC you can purchase a short code from <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> and connect it in a few simple steps."
@@ -1748,10 +1767,6 @@ msgid "If you have an enterprise WhatsApp account, you can connect it to communi
 msgstr ""
 
 #, python-format
-msgid "Unable to register callbacks: %s"
-msgstr ""
-
-#, python-format
 msgid "Unable to configure channel: %s"
 msgstr ""
 
@@ -1759,9 +1774,6 @@ msgid "Contacts refresh begun, it may take a few minutes to complete."
 msgstr ""
 
 msgid "Sync Logs"
-msgstr ""
-
-msgid "Your enterprise WhatsApp number"
 msgstr ""
 
 msgid "The base URL for your WhatsApp enterprise installation"
@@ -1786,9 +1798,6 @@ msgid "The Facebook access token that will be used for syncing"
 msgstr ""
 
 msgid "The namespace for your WhatsApp templates"
-msgstr ""
-
-msgid "Please enter a valid phone number"
 msgstr ""
 
 msgid "Unable to check WhatsApp enterprise account, please check username and password"
@@ -4756,6 +4765,9 @@ msgstr ""
 msgid "After connecting your service we will provide URLs for the endpoints for Clickatell to call when they want to push a message to %(brand)s."
 msgstr ""
 
+msgid "Your 360Dialog WhatsApp channel is now connected, you should be able to send and receive messages as normal."
+msgstr ""
+
 #, python-format
 msgid "You can connect your <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> number to %(name)s using the fields below. You will first need to create a DMark Mobile account and receive a username and password from them to use below."
 msgstr ""
@@ -4830,66 +4842,29 @@ msgid "If this channel provides a way for contacts to opt out and stop receiving
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"      In order to connect your Facebook page to %(name)s you will need to\n"
-"      <a href=\"https://developer.facebook.com/\">create a new Facebook application</a> that\n"
-"      has messaging permissions.\n"
-"\n"
-"    "
+msgid "In order to connect your Facebook page to %(name)s you will need to <a href=\"https://developer.facebook.com/\">create a new Facebook application</a> that has messaging permissions."
 msgstr ""
 
-msgid ""
-"\n"
-"        On the Messenger section of your application, you can create a Page Access Token for the page you wish\n"
-"        to connect. Enter that Page Access Token below.\n"
-"      "
+msgid "On the Messenger section of your application, you can create a Page Access Token for the page you wish to connect. Enter that Page Access Token below."
 msgstr ""
 
-msgid ""
-"\n"
-"        To get your Facebook Page ID, go to your Facebook page and click the About tab in the left column.\n"
-"      "
+msgid "To get your Facebook Page ID, go to your Facebook page and click the About tab in the left column."
 msgstr ""
 
-msgid ""
-"\n"
-"        Until your Facebook application is approved by Facebook you will only be able to send and receive messages\n"
-"        with administrators of your application.\n"
-"\n"
-"      "
+msgid "Until your Facebook application is approved by Facebook you will only be able to send and receive messages with administrators of your application."
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"        When submitting your application for approval, make sure to include the %(messaging)s\n"
-"        and %(subscriptions)s permissions so that you are able to initiate conversations with your contacts.\n"
-"\n"
-"      "
+msgid "When submitting your application for approval, make sure to include the %(messaging)s and %(subscriptions)s permissions so that you are able to initiate conversations with your contacts."
 msgstr ""
 
-msgid ""
-"\n"
-"    To finish configuring your Facebook connection, you'll need to enter the following webhook URL and token on your application's\n"
-"    Messenger settings page. Make sure to check all boxes within the 'Webhooks' section to subscribe to incoming Facebook events and referral parameters in the following list.\n"
-"\n"
-"  "
+msgid "To finish configuring your Facebook connection, you'll need to enter the following webhook URL and token on your application's Messenger settings page. Make sure to check all boxes within the 'Webhooks' section to subscribe to incoming Facebook events and referral parameters in the following list."
 msgstr ""
 
 msgid "Referral Parmeters"
 msgstr ""
 
 msgid "Permissions"
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"      When submitting your application for approval, make sure to include the %(messaging)s\n"
-"      and %(subscriptions)s permissions so that you are able to initiate conversations with your contacts.\n"
-"\n"
-"    "
 msgstr ""
 
 msgid "Verify Token"
@@ -4928,26 +4903,14 @@ msgid "Reconnect Facebook page"
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"    You can to connect using a <a href=\"https://firebase.google.com/docs/cloud-messaging/\">\n"
-"    Firebase Cloud Messaging App</a> to your %(name)s workspace to automate sending notifications.\n"
-"  "
+msgid "You can to connect using a <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> Firebase Cloud Messaging App</a> to your %(name)s workspace to automate sending notifications."
 msgstr ""
 
-msgid ""
-"\n"
-"    You will need to create a new App on Firebase Console and get its key. To do so:\n"
-"  "
+msgid "You will need to create a new App on Firebase Console and get its key. To do so:"
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"      You can connect a <a href=\"https://www.freshworks.com/live-chat-software/\">FreshChat</a> Account to your %(name)s account\n"
-"      to automate sending and receiving messages via FreshChat. This will also support Apple Business Chat if it's been configured on your FreshChat account.\n"
-"\n"
-"    "
+msgid "You can connect a <a href=\"https://www.freshworks.com/live-chat-software/\">FreshChat</a> Account to your %(name)s account to automate sending and receiving messages via FreshChat. This will also support Apple Business Chat if it's been configured on your FreshChat account."
 msgstr ""
 
 msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook."
@@ -4971,19 +4934,10 @@ msgid "Each Message sent to the channel will have a URN that's in the format of 
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"    You can connect your <a href=\"http://www.globelabs.com.ph/\">Globe Labs</a> application to %(name)s using the fields below. You\n"
-"    will first need to create a Globe Labs application, then get approval from Globe Labs by sending an email\n"
-"    to <a href:\"mailto:api@globelabsbeta.com\">api@globelabsbeta.com</a>.\n"
-"\n"
-"  "
+msgid "You can connect your <a href=\"http://www.globelabs.com.ph/\">Globe Labs</a> application to %(name)s using the fields below. You will first need to create a Globe Labs application, then get approval from Globe Labs by sending an email to <a href:\"mailto:api@globelabsbeta.com\">api@globelabsbeta.com</a>."
 msgstr ""
 
-msgid ""
-"\n"
-"      With the approval from Globe Labs you will receive the passphrase to use below.\n"
-"    "
+msgid "With the approval from Globe Labs you will receive the passphrase to use below."
 msgstr ""
 
 msgid ""
@@ -5651,6 +5605,9 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
+msgid "Last Seen On"
+msgstr ""
+
 msgid "No matching contacts."
 msgstr ""
 
@@ -5661,9 +5618,6 @@ msgid "Search browsing is limited to 10k results. If you want to browse through 
 msgstr ""
 
 msgid "Details"
-msgstr ""
-
-msgid "Last Seen On"
 msgstr ""
 
 msgid "Contact Id"

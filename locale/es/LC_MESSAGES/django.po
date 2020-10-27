@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-27 20:13+0000\n"
+"POT-Creation-Date: 2020-10-27 20:40+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -1066,6 +1066,29 @@ msgstr ""
 "        Puede contactar a su agente de ventas para establecer el URL de devolución de llamadas sobre entrega en su cuenta Infobip.\n"
 "\n"
 "      "
+
+msgid "Activate your own enterprise WhatsApp account in Dialog 360 to communicate with your contacts. <a href=\"https://www.360dialog.com/\">Learn more about 360Dialog WhatsApp</a>"
+msgstr ""
+
+#, python-format
+msgid "Unable to register callbacks: %s"
+msgstr ""
+
+msgid "Your enterprise WhatsApp number"
+msgstr ""
+
+#, fuzzy
+#| msgid "The file name for our export"
+msgid "The base URL for your 360 Dialog WhatsApp enterprise installation"
+msgstr "El nombre del archivo para nuestra exportación"
+
+msgid "The 360 Dialog API key generated after account registration"
+msgstr ""
+
+#, fuzzy
+#| msgid "Please enter at least 8 characters"
+msgid "Please enter a valid phone number"
+msgstr "Por favor, ingrese 8 caracteres como mínimo"
 
 #, fuzzy
 msgid "If you are based in Uganda or DRC you can purchase a short code from <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> and connect it in a few simple steps."
@@ -2887,10 +2910,6 @@ msgstr "Mensaje"
 msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
 msgstr ""
 
-#, python-format
-msgid "Unable to register callbacks: %s"
-msgstr ""
-
 #, fuzzy, python-format
 #| msgid "Invalid group or contact id"
 msgid "Unable to configure channel: %s"
@@ -2903,9 +2922,6 @@ msgstr ""
 #| msgid "Synced on"
 msgid "Sync Logs"
 msgstr "Sincronizado el"
-
-msgid "Your enterprise WhatsApp number"
-msgstr ""
 
 msgid "The base URL for your WhatsApp enterprise installation"
 msgstr ""
@@ -2938,11 +2954,6 @@ msgstr "El número de comandos que nos dio el transmisor"
 #| msgid "The file name for our export"
 msgid "The namespace for your WhatsApp templates"
 msgstr "El nombre del archivo para nuestra exportación"
-
-#, fuzzy
-#| msgid "Please enter at least 8 characters"
-msgid "Please enter a valid phone number"
-msgstr "Por favor, ingrese 8 caracteres como mínimo"
 
 msgid "Unable to check WhatsApp enterprise account, please check username and password"
 msgstr ""
@@ -6985,6 +6996,10 @@ msgstr ""
 "\n"
 "      "
 
+#, fuzzy
+msgid "Your 360Dialog WhatsApp channel is now connected, you should be able to send and receive messages as normal."
+msgstr "TextIt usa su teléfono Android para enviar y recibir mensajes."
+
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
@@ -7166,26 +7181,13 @@ msgstr ""
 "      "
 
 #, python-format
-msgid ""
-"\n"
-"      In order to connect your Facebook page to %(name)s you will need to\n"
-"      <a href=\"https://developer.facebook.com/\">create a new Facebook application</a> that\n"
-"      has messaging permissions.\n"
-"\n"
-"    "
+msgid "In order to connect your Facebook page to %(name)s you will need to <a href=\"https://developer.facebook.com/\">create a new Facebook application</a> that has messaging permissions."
 msgstr ""
 
-msgid ""
-"\n"
-"        On the Messenger section of your application, you can create a Page Access Token for the page you wish\n"
-"        to connect. Enter that Page Access Token below.\n"
-"      "
+msgid "On the Messenger section of your application, you can create a Page Access Token for the page you wish to connect. Enter that Page Access Token below."
 msgstr ""
 
-msgid ""
-"\n"
-"        To get your Facebook Page ID, go to your Facebook page and click the About tab in the left column.\n"
-"      "
+msgid "To get your Facebook Page ID, go to your Facebook page and click the About tab in the left column."
 msgstr ""
 
 #, fuzzy
@@ -7195,12 +7197,7 @@ msgstr ""
 #| "        to your number will be charged according to their plan.\n"
 #| "\n"
 #| "      "
-msgid ""
-"\n"
-"        Until your Facebook application is approved by Facebook you will only be able to send and receive messages\n"
-"        with administrators of your application.\n"
-"\n"
-"      "
+msgid "Until your Facebook application is approved by Facebook you will only be able to send and receive messages with administrators of your application."
 msgstr ""
 "\n"
 "        Cuando pide un número podrá enviar y recibir mensajes inmediatamente. A los usuarios que envíen mensajes\n"
@@ -7209,20 +7206,10 @@ msgstr ""
 "      "
 
 #, python-format
-msgid ""
-"\n"
-"        When submitting your application for approval, make sure to include the %(messaging)s\n"
-"        and %(subscriptions)s permissions so that you are able to initiate conversations with your contacts.\n"
-"\n"
-"      "
+msgid "When submitting your application for approval, make sure to include the %(messaging)s and %(subscriptions)s permissions so that you are able to initiate conversations with your contacts."
 msgstr ""
 
-msgid ""
-"\n"
-"    To finish configuring your Facebook connection, you'll need to enter the following webhook URL and token on your application's\n"
-"    Messenger settings page. Make sure to check all boxes within the 'Webhooks' section to subscribe to incoming Facebook events and referral parameters in the following list.\n"
-"\n"
-"  "
+msgid "To finish configuring your Facebook connection, you'll need to enter the following webhook URL and token on your application's Messenger settings page. Make sure to check all boxes within the 'Webhooks' section to subscribe to incoming Facebook events and referral parameters in the following list."
 msgstr ""
 
 #, fuzzy
@@ -7231,15 +7218,6 @@ msgid "Referral Parmeters"
 msgstr "Restaurar activadores"
 
 msgid "Permissions"
-msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"      When submitting your application for approval, make sure to include the %(messaging)s\n"
-"      and %(subscriptions)s permissions so that you are able to initiate conversations with your contacts.\n"
-"\n"
-"    "
 msgstr ""
 
 msgid "Verify Token"
@@ -7302,11 +7280,7 @@ msgstr "El nombre del video"
 #| "        here.\n"
 #| "\n"
 #| "      "
-msgid ""
-"\n"
-"    You can to connect using a <a href=\"https://firebase.google.com/docs/cloud-messaging/\">\n"
-"    Firebase Cloud Messaging App</a> to your %(name)s workspace to automate sending notifications.\n"
-"  "
+msgid "You can to connect using a <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> Firebase Cloud Messaging App</a> to your %(name)s workspace to automate sending notifications."
 msgstr ""
 "\n"
 "        Puede conectar su número <a href=\"http://infobip.com\">Infobip</a> si ingresa su número, usuario y contraseña\n"
@@ -7314,10 +7288,7 @@ msgstr ""
 "\n"
 "      "
 
-msgid ""
-"\n"
-"    You will need to create a new App on Firebase Console and get its key. To do so:\n"
-"  "
+msgid "You will need to create a new App on Firebase Console and get its key. To do so:"
 msgstr ""
 
 #, fuzzy, python-format
@@ -7327,12 +7298,7 @@ msgstr ""
 #| "        here.\n"
 #| "\n"
 #| "      "
-msgid ""
-"\n"
-"      You can connect a <a href=\"https://www.freshworks.com/live-chat-software/\">FreshChat</a> Account to your %(name)s account\n"
-"      to automate sending and receiving messages via FreshChat. This will also support Apple Business Chat if it's been configured on your FreshChat account.\n"
-"\n"
-"    "
+msgid "You can connect a <a href=\"https://www.freshworks.com/live-chat-software/\">FreshChat</a> Account to your %(name)s account to automate sending and receiving messages via FreshChat. This will also support Apple Business Chat if it's been configured on your FreshChat account."
 msgstr ""
 "\n"
 "        Puede conectar su número <a href=\"http://infobip.com\">Infobip</a> si ingresa su número, usuario y contraseña\n"
@@ -7367,13 +7333,7 @@ msgstr ""
 #| "        here.\n"
 #| "\n"
 #| "      "
-msgid ""
-"\n"
-"    You can connect your <a href=\"http://www.globelabs.com.ph/\">Globe Labs</a> application to %(name)s using the fields below. You\n"
-"    will first need to create a Globe Labs application, then get approval from Globe Labs by sending an email\n"
-"    to <a href:\"mailto:api@globelabsbeta.com\">api@globelabsbeta.com</a>.\n"
-"\n"
-"  "
+msgid "You can connect your <a href=\"http://www.globelabs.com.ph/\">Globe Labs</a> application to %(name)s using the fields below. You will first need to create a Globe Labs application, then get approval from Globe Labs by sending an email to <a href:\"mailto:api@globelabsbeta.com\">api@globelabsbeta.com</a>."
 msgstr ""
 "\n"
 "        Puede conectar su número <a href=\"http://infobip.com\">Infobip</a> si ingresa su número, usuario y contraseña\n"
@@ -7381,10 +7341,7 @@ msgstr ""
 "\n"
 "      "
 
-msgid ""
-"\n"
-"      With the approval from Globe Labs you will receive the passphrase to use below.\n"
-"    "
+msgid "With the approval from Globe Labs you will receive the passphrase to use below."
 msgstr ""
 
 #, fuzzy
@@ -8405,6 +8362,11 @@ msgstr[1] ""
 "\n"
 "         "
 
+#, fuzzy
+#| msgid "Last Seen"
+msgid "Last Seen On"
+msgstr "Visualizado por última vez"
+
 msgid "No matching contacts."
 msgstr "Los contactos no corresponden."
 
@@ -8416,11 +8378,6 @@ msgstr ""
 
 msgid "Details"
 msgstr ""
-
-#, fuzzy
-#| msgid "Last Seen"
-msgid "Last Seen On"
-msgstr "Visualizado por última vez"
 
 #, fuzzy
 #| msgid "Contacts %d"
