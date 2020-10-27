@@ -11,7 +11,7 @@ from django.utils import timezone
 from celery.task import task
 
 from temba.channels.models import Channel
-from temba.contacts.models import WHATSAPP_SCHEME, ContactURN
+from temba.contacts.models import URN, Contact, ContactURN
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
 from temba.utils import chunk_list
@@ -36,7 +36,7 @@ def refresh_whatsapp_contacts(channel_id):
         # look up all whatsapp URNs for this channel
         wa_urns = (
             ContactURN.objects.filter(
-                org_id=channel.org_id, scheme=WHATSAPP_SCHEME, contact__is_stopped=False, contact__is_blocked=False
+                org_id=channel.org_id, scheme=URN.WHATSAPP_SCHEME, contact__status=Contact.STATUS_ACTIVE
             )
             .exclude(contact=None)
             .only("id", "path")
@@ -83,24 +83,27 @@ def refresh_whatsapp_tokens():
 
     with r.lock("refresh_whatsapp_tokens", 1800):
         # iterate across each of our whatsapp channels and get a new token
-        for channel in Channel.objects.filter(is_active=True, channel_type="WA"):
-            url = channel.config["base_url"] + "/v1/users/login"
+        for channel in Channel.objects.filter(is_active=True, channel_type="WA").order_by("id"):
+            try:
+                url = channel.config["base_url"] + "/v1/users/login"
 
-            start = timezone.now()
-            resp = requests.post(
-                url, auth=(channel.config[Channel.CONFIG_USERNAME], channel.config[Channel.CONFIG_PASSWORD])
-            )
-            elapsed = (timezone.now() - start).total_seconds() * 1000
+                start = timezone.now()
+                resp = requests.post(
+                    url, auth=(channel.config[Channel.CONFIG_USERNAME], channel.config[Channel.CONFIG_PASSWORD])
+                )
+                elapsed = (timezone.now() - start).total_seconds() * 1000
 
-            HTTPLog.create_from_response(
-                HTTPLog.WHATSAPP_TOKENS_SYNCED, url, resp, channel=channel, request_time=elapsed
-            )
+                HTTPLog.create_from_response(
+                    HTTPLog.WHATSAPP_TOKENS_SYNCED, url, resp, channel=channel, request_time=elapsed
+                )
 
-            if resp.status_code != 200:
-                continue
+                if resp.status_code != 200:
+                    continue
 
-            channel.config["auth_token"] = resp.json()["users"][0]["token"]
-            channel.save(update_fields=["config"])
+                channel.config["auth_token"] = resp.json()["users"][0]["token"]
+                channel.save(update_fields=["config"])
+            except Exception as e:
+                logger.error(f"Error refreshing whatsapp tokens: {str(e)}", exc_info=True)
 
 
 VARIABLE_RE = re.compile(r"{{(\d+)}}")
@@ -174,7 +177,6 @@ def refresh_whatsapp_templates():
                 for template in response.json()["data"]:
                     # if this is a status we don't know about
                     if template["status"] not in STATUS_MAPPING:
-                        logger.error(f"unknown whatsapp status: {template['status']}")
                         continue
 
                     status = STATUS_MAPPING[template["status"]]
@@ -184,11 +186,12 @@ def refresh_whatsapp_templates():
                     all_supported = True
                     for component in template["components"]:
                         if component["type"] not in ["HEADER", "BODY", "FOOTER"]:
-                            logger.error(f"unknown component type: {component}")
+                            continue
+
+                        if "text" not in component:
                             continue
 
                         if component["type"] in ["HEADER", "FOOTER"] and _calculate_variable_count(component["text"]):
-                            logger.error(f"unsupported component type wih variables: {component}")
                             all_supported = False
 
                         content_parts.append(component["text"])

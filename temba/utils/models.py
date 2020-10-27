@@ -53,6 +53,7 @@ class IDSliceQuerySet(models.query.RawQuerySet):
         else:
             super().__init__(f"""SELECT * FROM {model._meta.db_table} WHERE id < 0""", model)
 
+        self.model = model
         self.ids = ids
         self.total = total
         self.offset = offset
@@ -81,8 +82,28 @@ class IDSliceQuerySet(models.query.RawQuerySet):
         else:
             raise TypeError(f"__getitem__ index must be int, not {type(k)}")
 
+    def all(self):
+        return self
+
+    def none(self):
+        return IDSliceQuerySet(self.model, [], 0, 0)
+
     def count(self):
         return self.total
+
+    def filter(self, **kwargs):
+        ids = list(self.ids)
+
+        for k, v in kwargs.items():
+            if k == "pk":
+                ids = [i for i in ids if i == int(v)]
+            elif k == "pk__in":
+                v = {int(j) for j in v}  # django forms like passing around pks as strings
+                ids = [i for i in ids if i in v]
+            else:
+                raise ValueError(f"IDSliceQuerySet instances can only be filtered by pk, not {k}")
+
+        return IDSliceQuerySet(self.model, ids, offset=0, total=len(ids))
 
 
 def mapEStoDB(model, es_queryset, only_ids=False):  # pragma: no cover

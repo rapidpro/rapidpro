@@ -23,58 +23,25 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.contacts.fields import OmniboxField
-from temba.contacts.models import TEL_SCHEME, ContactGroup, ContactURN
-from temba.contacts.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
-from temba.flows.legacy.expressions import get_function_listing
+from temba.contacts.models import ContactGroup
+from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_query, omnibox_results_to_dict
 from temba.formax import FormaxMixin
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json, on_transaction_commit
-from temba.utils.fields import CheckboxWidget, CompletionTextarea, JSONField, OmniboxChoice
+from temba.utils.fields import (
+    CheckboxWidget,
+    CompletionTextarea,
+    InputWidget,
+    JSONField,
+    OmniboxChoice,
+    SelectMultipleWidget,
+    SelectWidget,
+)
 from temba.utils.models import patch_queryset_count
-from temba.utils.views import BulkActionMixin
+from temba.utils.views import BulkActionMixin, ComponentFormMixin
 
 from .models import INITIALIZING, QUEUED, Broadcast, ExportMessagesTask, Label, Msg, Schedule, SystemLabel
 from .tasks import export_messages_task
-
-
-def send_message_auto_complete_processor(request):
-    """
-    Adds completions for the expression auto-completion to the request context
-    """
-    completions = []
-    user = request.user
-    org = None
-
-    if hasattr(user, "get_org"):
-        org = request.user.get_org()
-
-    if org:
-        completions.append(dict(name="contact", display=str(_("Contact Name"))))
-        completions.append(dict(name="contact.first_name", display=str(_("Contact First Name"))))
-        completions.append(dict(name="contact.groups", display=str(_("Contact Groups"))))
-        completions.append(dict(name="contact.language", display=str(_("Contact Language"))))
-        completions.append(dict(name="contact.name", display=str(_("Contact Name"))))
-        completions.append(dict(name="contact.tel", display=str(_("Contact Phone"))))
-        completions.append(dict(name="contact.tel_e164", display=str(_("Contact Phone - E164"))))
-        completions.append(dict(name="contact.uuid", display=str(_("Contact UUID"))))
-
-        completions.append(dict(name="date", display=str(_("Current Date and Time"))))
-        completions.append(dict(name="date.now", display=str(_("Current Date and Time"))))
-        completions.append(dict(name="date.today", display=str(_("Current Date"))))
-        completions.append(dict(name="date.tomorrow", display=str(_("Tomorrow's Date"))))
-        completions.append(dict(name="date.yesterday", display=str(_("Yesterday's Date"))))
-
-        for scheme, label in ContactURN.SCHEME_CHOICES:
-            if scheme != TEL_SCHEME and scheme in org.get_schemes(Channel.ROLE_SEND):
-                completions.append(dict(name="contact.%s" % scheme, display=str(_("Contact %s" % label))))
-
-        for field in org.contactfields(manager="user_fields").filter(is_active=True).order_by("label"):
-            display = str(_("Contact Field: %(label)s")) % {"label": field.label}
-            completions.append(dict(name="contact.%s" % str(field.key), display=display))
-
-    function_completions = get_function_listing()
-    return dict(completions=json.dumps(completions), function_completions=json.dumps(function_completions))
 
 
 class SendMessageForm(Form):
@@ -94,7 +61,9 @@ class SendMessageForm(Form):
     )
 
     text = forms.CharField(
-        widget=CompletionTextarea(attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True})
+        widget=CompletionTextarea(
+            attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True, "counter": "temba-charcount"}
+        )
     )
 
     schedule = forms.BooleanField(
@@ -125,11 +94,11 @@ class SendMessageForm(Form):
 
         if org.is_suspended:
             raise ValidationError(
-                _("Sorry, your account is currently suspended. To enable sending messages, please contact support.")
+                _("Sorry, your workspace is currently suspended. To enable sending messages, please contact support.")
             )
         if org.is_flagged:
             raise ValidationError(
-                _("Sorry, your account is currently flagged. To enable sending messages, please contact support.")
+                _("Sorry, your workspace is currently flagged. To enable sending messages, please contact support.")
             )
         return cleaned
 
@@ -229,7 +198,11 @@ class InboxView(OrgPermsMixin, BulkActionMixin, SmartListView):
     def get_gear_links(self):
         links = []
         if self.allow_export and self.has_org_perm("msgs.msg_export"):
-            links.append(dict(title=_("Export"), href="#", js_class="msg-export-btn"))
+            links.append(
+                dict(
+                    id="export-messages", title=_("Export"), href=self.derive_export_url(), modax=_("Export Messages")
+                )
+            )
         return links
 
 
@@ -240,11 +213,19 @@ class BroadcastForm(forms.ModelForm):
         max_length=Broadcast.MAX_TEXT_LEN,
     )
 
-    omnibox = OmniboxField()
-
-    def __init__(self, user, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["omnibox"].set_user(user)
+    omnibox = JSONField(
+        label=_("Recipients"),
+        required=False,
+        help_text=_("The contacts to send the message to"),
+        widget=OmniboxChoice(
+            attrs={
+                "placeholder": _("Recipients, enter contacts or groups"),
+                "groups": True,
+                "contacts": True,
+                "urns": True,
+            }
+        ),
+    )
 
     def is_valid(self):
         valid = super().is_valid()
@@ -289,31 +270,27 @@ class BroadcastCRUDL(SmartCRUDL):
                     action="formax",
                 )
 
-    class Update(OrgObjPermsMixin, SmartUpdateView):
+    class Update(OrgObjPermsMixin, ComponentFormMixin, SmartUpdateView):
         form_class = BroadcastForm
         fields = ("message", "omnibox")
         field_config = {"restrict": {"label": ""}, "omnibox": {"label": ""}, "message": {"label": "", "help": ""}}
         success_message = ""
         success_url = "msgs.broadcast_schedule_list"
 
-        def get_form_kwargs(self):
-            args = super().get_form_kwargs()
-            args["user"] = self.request.user
-            return args
-
         def derive_initial(self):
-            selected = ["g-%s" % _.uuid for _ in self.object.groups.all()]
-            selected += ["c-%s" % _.uuid for _ in self.object.contacts.all()]
-            selected = ",".join(selected)
+            org = self.object.org
+            results = [*self.object.groups.all(), *self.object.contacts.all()]
+            selected = omnibox_results_to_dict(org, results, version="2")
             message = self.object.text[self.object.base_language]
             return dict(message=message, omnibox=selected)
 
         def save(self, *args, **kwargs):
             form = self.form
             broadcast = self.object
+            org = broadcast.org
 
             # save off our broadcast info
-            omnibox = form.cleaned_data["omnibox"]
+            omnibox = omnibox_deserialize(org, self.form.cleaned_data["omnibox"])
 
             # set our new message
             broadcast.text = {broadcast.base_language: form.cleaned_data["message"]}
@@ -444,7 +421,7 @@ class BroadcastCRUDL(SmartCRUDL):
             return HttpResponseRedirect(self.get_success_url())
 
         def post_save(self, obj):
-            on_transaction_commit(lambda: obj.send())
+            on_transaction_commit(lambda: obj.send_async())
             return obj
 
         def get_form_kwargs(self):
@@ -470,20 +447,32 @@ class TestMessageForm(forms.Form):
 
 class ExportForm(Form):
     LABEL_CHOICES = ((0, _("Just this label")), (1, _("All messages")))
+
     SYSTEM_LABEL_CHOICES = ((0, _("Just this folder")), (1, _("All messages")))
 
-    export_all = forms.ChoiceField(choices=(), label=_("Selection"), initial=0)
-
-    groups = forms.ModelMultipleChoiceField(
-        queryset=ContactGroup.user_groups.none(), required=False, label=_("Groups")
+    export_all = forms.ChoiceField(
+        choices=(), label=_("Selection"), initial=0, widget=SelectWidget(attrs={"widget_only": True})
     )
+
     start_date = forms.DateField(
         required=False,
-        help_text=_("The date for the oldest message to export. " "(Leave blank to export from the oldest message)."),
+        help_text=_("Leave blank for the oldest message"),
+        widget=InputWidget(attrs={"datepicker": True, "hide_label": True, "placeholder": _("Start Date")}),
     )
+
     end_date = forms.DateField(
         required=False,
-        help_text=_("The date for the latest message to export. " "(Leave blank to export up to the latest message)."),
+        help_text=_("Leave blank for the latest message"),
+        widget=InputWidget(attrs={"datepicker": True, "hide_label": True, "placeholder": _("End Date")}),
+    )
+
+    groups = forms.ModelMultipleChoiceField(
+        queryset=ContactGroup.user_groups.none(),
+        required=False,
+        label=_("Groups"),
+        widget=SelectMultipleWidget(
+            attrs={"widget_only": True, "placeholder": _("Optional: Choose groups to show in your export")}
+        ),
     )
 
     def __init__(self, user, label, *args, **kwargs):
@@ -702,7 +691,7 @@ class MsgCRUDL(SmartCRUDL):
 
     class Filter(InboxView):
         template_name = "msgs/msg_filter.haml"
-        bulk_actions = ("unlabel", "label")
+        bulk_actions = ("label",)
 
         def derive_title(self, *args, **kwargs):
             return self.derive_label().name
@@ -710,13 +699,36 @@ class MsgCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            edit_btn_cls = "folder-update-btn" if self.derive_label().is_folder() else "label-update-btn"
-
+            label = self.derive_label()
             if self.has_org_perm("msgs.msg_update"):
-                links.append(dict(title=_("Edit"), href="#", js_class=edit_btn_cls))
+                if label.is_folder():
+                    links.append(
+                        dict(
+                            id="update-label",
+                            title=_("Edit Folder"),
+                            href=reverse("msgs.label_update", args=[label.pk]),
+                            modax=_("Edit Folder"),
+                        )
+                    )
+                else:
+                    links.append(
+                        dict(
+                            id="update-label",
+                            title=_("Edit Label"),
+                            href=reverse("msgs.label_update", args=[label.pk]),
+                            modax=_("Edit Label"),
+                        )
+                    )
 
             if self.has_org_perm("msgs.msg_export"):
-                links.append(dict(title=_("Export"), href="#", js_class="msg-export-btn"))
+                links.append(
+                    dict(
+                        id="export-messages",
+                        title=_("Export"),
+                        href=self.derive_export_url(),
+                        modax=_("Export Messages"),
+                    )
+                )
 
             if self.has_org_perm("msgs.broadcast_send"):
                 links.append(
@@ -724,7 +736,15 @@ class MsgCRUDL(SmartCRUDL):
                 )
 
             if self.has_org_perm("msgs.label_delete"):
-                links.append(dict(title=_("Remove"), href="#", js_class="remove-label"))
+
+                links.append(
+                    dict(
+                        id="delete-label",
+                        title=_("Delete Label"),
+                        href=reverse("msgs.label_delete", args=[label.pk]),
+                        modax=_("Delete Label"),
+                    )
+                )
 
             return links
 
@@ -750,7 +770,7 @@ class BaseLabelForm(forms.ModelForm):
             raise forms.ValidationError(_("Name must not be blank or begin with punctuation"))
 
         existing_id = self.existing.pk if self.existing else None
-        if Label.all_objects.filter(org=self.org, name__iexact=name).exclude(pk=existing_id).exists():
+        if Label.all_objects.filter(org=self.org, name__iexact=name, is_active=True).exclude(pk=existing_id).exists():
             raise forms.ValidationError(_("Name must be unique"))
 
         labels_count = Label.all_objects.filter(org=self.org, is_active=True).count()
@@ -768,10 +788,17 @@ class BaseLabelForm(forms.ModelForm):
     class Meta:
         model = Label
         fields = "__all__"
+        widgets = {"name": InputWidget()}
 
 
 class LabelForm(BaseLabelForm):
-    folder = forms.ModelChoiceField(Label.folder_objects.none(), required=False, label=_("Folder"))
+    folder = forms.ModelChoiceField(
+        Label.folder_objects.none(),
+        required=False,
+        label=_("Folder"),
+        widget=SelectWidget(attrs={"placeholder": _("Optional: Parent Folder"), "widget_only": True}),
+    )
+
     messages = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, **kwargs):
@@ -780,11 +807,13 @@ class LabelForm(BaseLabelForm):
 
         super().__init__(*args, **kwargs)
 
-        self.fields["folder"].queryset = Label.folder_objects.filter(org=self.org)
+        self.fields["folder"].queryset = Label.folder_objects.filter(org=self.org, is_active=True)
 
 
 class FolderForm(BaseLabelForm):
-    name = forms.CharField(label=_("Name"), help_text=_("The name of this folder"))
+    name = forms.CharField(
+        label=_("Name"), help_text=_("Choose a name for your folder"), widget=InputWidget(attrs={"widget_only": False})
+    )
 
     def __init__(self, *args, **kwargs):
         self.org = kwargs.pop("org")
@@ -810,7 +839,7 @@ class LabelCRUDL(SmartCRUDL):
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "folder", "messages")
-        success_url = "@msgs.msg_inbox"
+        success_url = "hide"
         form_class = LabelForm
         success_message = ""
         submit_button_name = _("Create")
@@ -826,7 +855,6 @@ class LabelCRUDL(SmartCRUDL):
 
         def post_save(self, obj, *args, **kwargs):
             obj = super().post_save(obj, *args, **kwargs)
-
             if self.form.cleaned_data["messages"]:  # pragma: needs cover
                 msg_ids = [int(m) for m in self.form.cleaned_data["messages"].split(",") if m.isdigit()]
                 messages = Msg.objects.filter(org=obj.org, pk__in=msg_ids)
@@ -870,13 +898,23 @@ class LabelCRUDL(SmartCRUDL):
         def derive_fields(self):
             return ("name",) if self.get_object().is_folder() else ("name", "folder")
 
-    class Delete(OrgObjPermsMixin, SmartDeleteView):
+    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+        success_url = "@msgs.msg_inbox"
         redirect_url = "@msgs.msg_inbox"
         cancel_url = "@msgs.msg_inbox"
         success_message = ""
+        fields = ("uuid",)
+        submit_button_name = _("Delete")
 
         def post(self, request, *args, **kwargs):
-            label = self.get_object()
-            label.release(self.request.user)
+            self.object = self.get_object()
 
-            return HttpResponseRedirect(self.get_redirect_url())
+            try:
+                self.object.release(self.request.user)
+                response = HttpResponse()
+                response["Temba-Success"] = self.get_success_url()
+                return response
+            except ValueError as e:  # pragma: needs cover
+                context = self.get_context_data(error=str(e))
+                del context["form"]
+                return self.render_to_response(context)

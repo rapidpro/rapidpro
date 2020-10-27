@@ -89,24 +89,21 @@
     {% endlessblock %}
 
 -block title
-
+  -trans "Mastering Flows"
 
 -block content
-  %h1#watch_videos
-    -trans "Mastering Flows"
-
+    
   -if perms.public.video_create or request.user.is_superuser
-    .manage
-      %a.btn.btn-primary{href:'{% url "public.video_create"%}'}
+    .text-right.-mt-12.mb-12
+      .inline.button-primary(href='{% url "public.video_create"%}' onclick="goto(event)")
         -trans "Add Video"
 
-  %p.instructions
-    -blocktrans with brand=brand.name
-      To make sure you get the most out of {{brand}}, we've put together a bunch of short videos to guide you through
-      some of the most powerful features. Each of these videos are only a couple minutes, but they will help you
-      build complex flows without a lot of effort.
+  -blocktrans with brand=brand.name
+    To make sure you get the most out of {{brand}}, we've put together a bunch of short videos to guide you through
+    some of the most powerful features. Each of these videos are only a couple minutes, but they will help you
+    build complex flows without a lot of effort.
 
-  %p.instructions
+  .mt-2
     -blocktrans
       You don't have to, but it's best if these are watched in order since they build on each other as you go.
 

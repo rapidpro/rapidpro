@@ -5,85 +5,83 @@
 
 -block title-icon
 
--block title-text
-  .title-text
-    %h1
-      -trans "Claim phone number"
+-block title
+  -trans "Connect a Phone Number"
 
 -block content
-  .row
-    .span9
-      - block claim-numbers-description
-        -blocktrans trimmed
-          Once you claim a number you will immediately be able to send and receive messages. Contacts who send messages
-          to your number will be charged according to their plan.
+  - block claim-numbers-description
+    -blocktrans trimmed
+      Once you connect a number you will immediately be able to send and receive messages. Contacts who send messages
+      to your number will be charged according to their plan.
 
-      - block account-trial-warning
+  - block account-trial-warning
 
-      - block numbers-search-form
-        %form#search-form
-          .country
-            .country-label
-              -trans "Country"
+  - block numbers-search-form
+    .card.mt-6
+      %form#search-form
+        .flex.items-end
+          .country.w-64.mr-3
             -block country-select
-              %select#country{ name:"country" }
-                - for country in search_countries
-                  %option{ value:"{{country.key}}" }
-                    {{country.label}}
-  
-          .area-code
-            .area-label
-              -trans "Pattern"
+              %temba-select#country(name="country" label='{{_("Country")|escapejs}}')
+                -for country in search_countries
+                  %temba-option(name="{{country.label}}" value="{{country.key}}")
+
+          .area-code.w-32.mr-3
             -block search-pattern
-              %input#area-code{ type:"text", maxlength:"3", name:"area_code" }
-            %input.btn.btn-primary{ type:"submit", value:"{% trans 'Search' %}" }
-  
+              %temba-textinput#area-code(type="text" maxlength="3" name="area_code" label='{{_("Pattern")}}')
+            
+          %input.button-primary{ type:"submit", value:"{% trans 'Search' %}" }
+
       .twilio-numbers-title
 
-      #throbber{ style: "display:none;" }
-        %img{ src: "{{ STATIC_URL }}/images/loader-circles.gif" }
-      #results
+      #throbber.my-6{ style: "display:none;" }
+        %temba-loading
+      #results.my-6
 
 
-      -if form.errors
-        -if form.errors.upgrade
-          :javascript
-            document.location.href = '{% url 'orgs.org_upgrade_plan' %}?from=twilio'
-        -else
-          .error{ style: "padding: 5px" }
-            {{ form.errors.phone_number }}
 
-      .error{ style: "display:none;margin-top:10px;" }
-        -if error
-          {{ error }}
+  -if form.errors
+    -if form.errors.upgrade
+      :javascript
+        document.location.href = '{% url 'orgs.org_upgrade_plan' %}?from=twilio'
+    -else
+      .alert-error.my-4
+        {{ form.errors.phone_number }}
 
-      -if account_numbers
-        #account-numbers
-          .numbers-title
-            Add an existing supported number to your workspace
-          -for number in account_numbers
-            .{class:"{% if number.country in supported_country_iso_codes or number.number|length <= 6 %}phone-number{% else %}unsupported-phone-number{% endif %}", data-number:"{{ number.number}}", data-country:"{{ number.country}}" }
-              %span.number
-                {{ number.number }}
-              (<span class="country">{{ number.country }}</span>)
-              .support-status
-                - if number.country in supported_country_iso_codes or number.number|length <= 6
-                  - trans "Supported"
-                - else
-                  - trans "Unsupported"
+  #claim-message.alert-warning{ style: "display:none;margin-top:10px;" }
+    -if error
+      {{ error }}
 
-      %form#claim-form{ style: "display:none;", method:"POST", action:"{{ claim_url }}" }
-        {% csrf_token %}
-        %input#claim-country{ type:"text", name:"country" }
-        %input#phone-number{ type:"text", name:"phone_number" }
+  -if account_numbers
+    #account-numbers.card.mt-3.mb-3
+      .title
+        -trans "Existing Numbers"
+      .mb-3
+        -trans "Select a number you already own to connect it to your account."
+      -for number in account_numbers
+        - if number.country in supported_country_iso_codes or number.number|length <= 6
+          .lbl.mt-3.mr-2.linked{class:"phone-number", data-number:"{{ number.number}}", data-country:"{{ number.country}}" }
+            {{ number.number }}
+            (<span class="country">{{ number.country }}</span>)
+        - else
+          .lbl.mt-3.mr-2{class:"unsupported-number", data-number:"{{ number.number}}", data-country:"{{ number.country}}" }
+            {{ number.number }}
+            -trans "(Unsupported)"
+
+  %form#claim-form{ style: "display:none;", method:"POST", action:"{{ claim_url }}" }
+    {% csrf_token %}
+    %input#claim-country{ type:"text", name:"country" }
+    %input#phone-number{ type:"text", name:"phone_number" }
 
 -block extra-script
   {{ block.super }}
 
   :javascript
     $("#results").on('click', ".phone-number", function(e){
+        var country = document.querySelector("#country").values[0].value;
+
         $("#phone-number").val($(this).data("number"));
-        $("#claim-country").val($("#country").val());
+        $("#claim-country").val(country);
         $("#claim-form").submit();
     });
 
@@ -94,10 +92,10 @@
     });
 
     function searchNumbers(e){
-      var area_code = $("#area-code").val();
-      var country = $("#country").val();
+      var area_code = document.querySelector('#area-code').value;      
+      var country = document.querySelector("#country").values[0].value;
 
-      $(".error").hide();
+      $("#claim-message").hide();
       $("#results").empty();
       $("#throbber").show();
 
@@ -111,20 +109,20 @@
           if (data.length > 0){
             $("#claim-country").val(country);
             for (var i=0; i < data.length; i++){
-              $("#results").append("<div class='phone-number' data-number='" + data[i] + "'>" + data[i] + "</div>");
+              $("#results").append("<div class='lbl phone-number mt-3 mr-2 linked' data-number='" + data[i] + "'>" + data[i] + "</div>");
             }
             $("#results").show();
           } else if ('error' in data) {
-            $(".error").text(data['error']);
-            $(".error").show();
+            $("#claim-message").text(data['error']);
+            $("#claim-message").show();
           } else {
-            $(".error").text("{% trans 'Sorry, no numbers found, please enter another pattern and try again.' %}");
-            $(".error").show();
+            $("#claim-message").text("{% trans 'Sorry, no numbers found, please enter another pattern and try again.' %}");
+            $("#claim-message").show();
           }
         },
         failure: function(req){
            $("#throbber").hide();
-           $(".error").show();
+           $("#claim-message").show();
         }
       });
 
@@ -133,109 +131,5 @@
     }
 
     $(function(){
-      $("#area-code").focus();
       $("#search-form").on('submit', searchNumbers);
-      select2div('#country')
     });
-
--block extra-less
-  -compress css inline
-    {% lessblock %}
-      :plain
-        .numbers-title {
-          font-weight: 600;
-        }
-
-        #account-numbers {
-          margin-top: 20px;
-        }
-
-        .country {
-          display:inline-block;
-        }
-
-        .area-code {
-          display:inline-block;
-          margin-left:15px;
-        }
-
-
-        .country-label {
-         display:block;
-         margin-bottom:7px;
-        }
-
-        .area-label {
-          margin-bottom:7px;
-        }
-
-        #area-code {
-          width: 75px;
-          margin-bottom: 0px;
-          text-align: center;
-          margin-right:15px;
-        }
-
-        .phone-number,
-        .unsupported-phone-number {
-          display: inline-block;
-          font-size: 16px;
-          padding: 8px;
-          border: 1px solid #ccc;
-          margin: 5px;
-        }
-
-        .unsupported-phone-number {
-          background: #ccc;
-        }
-
-        .support-status {
-          font-size: 10px;
-          line-height: 10px;
-        }
-
-        .error {
-          padding: 5px;
-        }
-
-        .phone-number:hover {
-          border: 1px solid #237ab3;
-          background-color: #2980b9;
-          background-image: -webkit-linear-gradient(top, #2980b9, #1970a9);
-          background: -moz-linear-gradient(top, #2980b9, #1970a9);
-          color: #ffffff;
-          cursor: pointer;
-        }
-
-        .unsupported-phone-number:hover {
-          cursor: default;
-        }
-
-        .unsupported-phone-number:hover > .support-status {
-          color: red;
-        }
-
-        #search-form {
-          display: block;
-          margin-top:20px;
-          padding-bottom:10px;
-        }
-
-        .title-icon .glyph {
-          font-size: 45px;
-          margin-top: 25px;
-        }
-
-        .title-icon + .title-text {
-          margin-left: 55px;
-        }
-
-        .account-trial-warning {
-          font-size: 16px;
-          max-width: 525px;
-          padding: 5px;
-          margin: 10px 0px;
-          background-color: @color-alert-warning;
-        }
-
-    {% endlessblock %}

@@ -1,7 +1,7 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.twilio_whatsapp.views import ClaimView
-from temba.contacts.models import WHATSAPP_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 
@@ -25,7 +25,7 @@ class TwilioWhatsappType(ChannelType):
 
     claim_view = ClaimView
 
-    schemes = [WHATSAPP_SCHEME]
+    schemes = [URN.WHATSAPP_SCHEME]
     max_length = 1600
 
     configuration_blurb = _(

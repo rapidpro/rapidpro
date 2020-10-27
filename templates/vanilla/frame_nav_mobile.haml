@@ -1,0 +1,9 @@
+#nav.flex.flex-row.items-stretch.pl-4.pb-4.-mt-4
+
+  -for nav_item in nav
+    -include "vanilla/partials/nav_item_mobile.html"
+
+  -for nav_item in nav_overflow
+    -include "vanilla/partials/nav_item_mobile.html"
+
+  .nav-item.flex-grow

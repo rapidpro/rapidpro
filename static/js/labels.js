@@ -23,9 +23,7 @@ function getLabeledIds(labelId) {
     var labeled = $(".lbl[data-id='" + labelId + "']");
     for (var i = 0; i < labeled.length; i++) {
         var id = parseInt(
-            $(labeled[i])
-                .parents('.object-row')
-                .data('object-id')
+            $(labeled[i]).parents('.object-row').data('object-id')
         );
         objectRowsIds.push(id);
     }
@@ -50,7 +48,9 @@ function runActionOnObjectRows(action) {
     jQuery.ajaxSettings.traditional = true;
     fetchPJAXContent('', '#pjax', {
         postData: { objects: objectIds, action: action, pjax: 'true' },
-        forceReload: true
+        onSuccess: function (data, textStatus) {
+            wireTableListeners();
+        },
     });
 }
 
@@ -65,9 +65,26 @@ function unlabelObjectRows(labelId) {
             label: labelId,
             add: addLabel,
             action: 'unlabel',
-            pjax: 'true'
+            pjax: 'true',
         },
-        forceReload: true
+    });
+}
+
+function postLabelChanges(smsIds, labelId, addLabel, number, onError) {
+    fetchPJAXContent('', '#pjax', {
+        postData: {
+            objects: smsIds,
+            label: labelId,
+            add: addLabel,
+            action: 'label',
+            pjax: 'true',
+            number: number,
+        },
+        onSuccess: function (data, textStatus) {
+            recheckIds();
+            wireTableListeners();
+        },
+        onError: onError,
     });
 }
 
@@ -128,16 +145,18 @@ function labelObjectRows(labelId, forceRemove) {
 function recheckIds() {
     if (lastChecked && lastChecked.length > 0) {
         for (var i = 0; i < lastChecked.length; i++) {
-            $(".object-row[data-object-id='" + lastChecked[i] + "']").addClass(
-                'checked'
-            );
+            var row = $(".object-row[data-object-id='" + lastChecked[i] + "']");
+            row.addClass('checked');
+            row.find('temba-checkbox').attr('checked', true);
         }
         $('.search-details').hide();
         $('.list-buttons-container').addClass('visible');
+        $('.page-title').hide();
         updateLabelMenu();
     } else {
         $('.search-details').show();
         $('.list-buttons-container').removeClass('visible');
+        $('.page-title').show();
     }
 }
 
@@ -207,60 +226,94 @@ function updateLabelMenu() {
     }
 }
 
-$(document).on('click', 'td.object-row-checkbox', function(e) {
-    e.stopPropagation();
-    e.preventDefault();
+function handleRowSelection(checkbox) {
+    var row = checkbox.parentElement.parentElement.classList;
+    var listButtons = document.querySelector('.list-buttons-container')
+        .classList;
+    var pageTitle = document.querySelector('.page-title').classList;
 
-    $('.list-buttons-container').addClass('visible');
+    if (checkbox.checked) {
+        row.add('checked');
+    } else {
+        row.remove('checked');
+    }
 
-    var row = $(this).parent('tr');
-    if (row.hasClass('checked')) {
+    if (document.querySelector('tr.checked')) {
+        listButtons.add('visible');
+        pageTitle.add('hidden');
+    } else {
+        listButtons.remove('visible');
+        pageTitle.remove('hidden');
+    }
+
+    updateLabelMenu();
+}
+
+function handleRowSelections(row) {
+    var row = $(row).parent('tr');
+
+    // noop if the row doesn't have a checkbox
+    var checkbox = row.find('temba-checkbox');
+    if (checkbox.length == 0) {
+        return;
+    }
+
+    if (checkbox.attr('checked')) {
         row.removeClass('checked');
+
         var checks = $('.object-row.checked');
         if (checks.length == 0) {
             $('.list-buttons-container').removeClass('visible');
+            $('.page-title').show();
+        } else {
+            $('.list-buttons-container').addClass('visible');
         }
     } else {
+        $('.list-buttons-container').addClass('visible');
         row.addClass('checked');
+        $('.page-title').hide();
     }
     updateLabelMenu();
-    return false;
-});
+}
 
-$(document).ready(function() {
-    $('.page-content').on('click', '.object-btn-label', function() {
+function wireActionHandlers() {
+    $('.page-content').on('click', '.object-btn-label', function () {
         labelObjectRows($(this).data('id'));
     });
 
     if ($('.object-btn-unlabel').length > 0) {
         if (current_label_id) {
-            $('.page-content').on('click', '.object-btn-unlabel', function() {
+            $('.page-content').on('click', '.object-btn-unlabel', function () {
                 labelObjectRows(current_label_id, true);
             });
         }
     }
 
-    $('.page-content').on('click', '.object-btn-restore', function() {
+    $('.page-content').on('click', '.object-btn-restore', function () {
         runActionOnObjectRows('restore');
     });
 
-    $('.page-content').on('click', '.object-btn-archive', function() {
+    $('.page-content').on('click', '.object-btn-archive', function () {
         runActionOnObjectRows('archive');
     });
 
-    $('.page-content').on('click', '.object-btn-delete', function() {
+    $('.page-content').on('click', '.object-btn-delete', function () {
         runActionOnObjectRows('delete');
     });
 
-    $('.page-content').on('click', '.object-btn-resend', function() {
+    $('.page-content').on('click', '.object-btn-resend', function () {
         runActionOnObjectRows('resend');
     });
 
-    $('.page-content').on('click', '.object-btn-close', function() {
+    $('.page-content').on('click', '.object-btn-close', function () {
         runActionOnObjectRows('close');
     });
 
-    $('.page-content').on('click', '.object-btn-reopen', function() {
+    $('.page-content').on('click', '.object-btn-reopen', function () {
         runActionOnObjectRows('reopen');
     });
+}
+
+$(document).ready(function () {
+    wireActionHandlers();
 });

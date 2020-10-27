@@ -1,19 +1,11 @@
 -extends "smartmin/list.html"
--load smartmin sms temba compress
+-load smartmin sms temba compress humanize
 -load i18n
+
 -block page-title
   -trans "Triggers"
-  
--block title-icon
-  .title-icon
-    %span.glyph.icon-feed
 
 -block page-top
-  {% render as page_top %}
-    {{block.super}}
-  {% endrender %}
-  -if org_has_triggers
-    {{page_top}}
 
 -block top-form
   - if view.search_fields
@@ -30,159 +22,121 @@
 
     #pjax
       -block pjax
-        .row-fluid
-          .span3.sidebox
-            %div{style:"margin-bottom: 10px"}
-              - if org_perms.triggers.trigger_create
-                %a.btn.btn-primary.btn-block.create_trigger.new-trigger{href:"{% url 'triggers.trigger_create' %}"}
-                  -trans "Create Trigger"
+        .lp-frame
+          .left
+            .flex.flex-col
+              -if org_perms.triggers.trigger_create
+                .w-64.mr-5
+                  .button-primary{onclick:"goto(event)", href:"{% url 'triggers.trigger_create' %}"}
+                    -trans "Create Trigger"
+            
+            .lp-nav.upper
+              -for folder in folders
+                .lp-nav-item{'class': '{% if folder.url == request_url %}font-normal{% endif %}' }
+                  .name{onclick:"goto(event)", href:'{{folder.url}}'}
+                    {{folder.label}}
+                  .count{onclick:"goto(event)", href:'{{folder.url}}'}
+                    {{ folder.count | intcomma }}      
+                
+          .right
+            .flex.w-full.items-end.mb-4
+              -block action-buttons
+                -if org_perms.triggers.trigger_update
+                  .action-buttons.list-buttons-container.h-full.mr-2.flex-grow
+                    .list-buttons.flex.items-center.-mx-2.h-full
+                        -if 'restore' in actions
+                          .button-action.object-btn-restore
+                            .-mt-1.mr-2.glyph.icon-checkmark
+                            -trans "Activate"
 
-            #sidebar-nav
-              %ul.nav.nav-list.level1
-                %li.nav-header
-                  -trans "Triggers"
-                - for folder in folders
-                  %li{'class':"{% if folder.url == request_url %}active{% endif %}" }
-                    %a{'href':'{{folder.url}}'}
-                      {{ folder.label }} ({{ folder.count }})
+                        -if 'archive' in actions
+                          .button-action.object-btn-archive
+                            .-mt-1.mr-2.glyph.icon-box
+                            -trans "Archive"
+              .flex-grow.ml-2.items-center
+                -block title-text
+                  .page-title.leading-tight
+                    {{title}}
+              .gear-links
+                -include "gear_links_include.haml"
 
-          -block trigger-list
-            .span9
-              - block buttons
-                .pull-right
-                  -block buttons-right
+            %form#search-form.mb-4(method="get")
+              %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+              -if request.REQUEST.status
+                %input(type='hidden' name='status' value='{{request.REQUEST.status}}')
 
-                - if org_perms.triggers.trigger_update
-                  .list-buttons-container
-                    .list-buttons
-                      -if 'restore' in actions
-                        %span.btn-group
-                          %a.object-btn-restore{'href':'#'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Activate" %}'}
-                              .glyph.icon-feed
+            -block trigger-list
+                %table.list.trigger-list.lined{class: '{% if org_perms.flows.flow_update %}selectable{% endif %}'}
+                  %tbody
+                    -for obj in object_list
+                      %tr.trigger.object-row{ data-object-id: "{{ obj.id }}", onrowclick:"updateTrigger(event, {{obj.id}})" }
+                        - if org_perms.triggers.trigger_update
+                          %td.trigger.checkbox.object-row-checkbox
+                            %temba-checkbox{onclick:"handleRowSelection(this)"}
+                        %td.w-full
+                          -if obj.trigger_type == 'K'
+                            -trans "The keyword"
+                            %b
+                              {{obj.keyword}}
+                          -elif obj.trigger_type == 'M'
+                            -trans "A missed call"
+                          -elif obj.trigger_type == 'C'
+                            -trans "An uncaught message"
+                          -elif obj.trigger_type == 'V'
+                            -trans "An inbound call"
+                          -elif obj.trigger_type == 'N'
+                            -trans "A new conversation"
+                            -if obj.channel
+                              -trans "on"
+                              %b
+                                %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
 
-                      -if 'archive' in actions
-                        %span.btn-group
-                          %a.object-btn-archive{'href':'#'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Archive" %}'}
-                              .glyph.icon-box
+                          -elif obj.trigger_type == 'R'
+                            -trans "The referrer id"
+                            %b
+                              {{obj.referrer_id}}
+                            -if obj.channel
+                              -trans "on the channel"
+                              .linked.inline{onclick:"goto(event)", href:'{%url "channels.channel_read" obj.channel.uuid %}'}
+                                {{obj.channel}}
 
-              %table.list-table.trigger-list.object-list.table.table-condensed{style: '{% if not org_perms.triggers.trigger_update %}margin-top:10px{% endif %}'}
-                %tbody
-                  -for obj in object_list
-                    %tr.trigger.object-row{ data-object-id: "{{ obj.id }}" }
-                      - if org_perms.triggers.trigger_update
-                        %td.trigger.checkbox.object-row-checkbox
-                          .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
-                      %td
-                        -if obj.trigger_type == 'K'
-                          -trans "The keyword"
-                          %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                            - if org_perms.triggers.trigger_update
-                              %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}= obj.keyword
-                            - else
-                              =obj.keyword
-                        -elif obj.trigger_type == 'M'
-                          A
-                          %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                            - if org_perms.triggers.trigger_update
-                              %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
-                                -trans "missed call"
-                            - else
-                              -trans "missed call"
-
-                        -elif obj.trigger_type == 'C'
-                          An
-                          %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                            - if org_perms.triggers.trigger_update
-                              %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
-                                -trans "uncaught message"
-                            - else
-                              -trans "uncaught message"
-
-                        -elif obj.trigger_type == 'V'
-                          An
-                          %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                            - if org_perms.triggers.trigger_update
-                              %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
-                                -trans "inbound call"
-                            - else
-                              -trans "inbound call"
-
-                        -elif obj.trigger_type == 'N'
-                          A new
-                          %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                            - if org_perms.triggers.trigger_update
-                              %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
-                                -trans "conversation"
-                            - else
-                              -trans "conversation"
-                          -if obj.channel
-                            on
-                            %span.attn
-                              %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
-
-                        -elif obj.trigger_type == 'R'
-                          The referrer id
-                          %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                            - if org_perms.triggers.trigger_update
-                              %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
-                                "{{obj.referrer_id}}"
-                            - else
-                              "{{obj.referrer_id}}"
-                          -if obj.channel
-                            on
-                            %span.attn
-                              %a{href:'{%url "channels.channel_read" obj.channel.uuid %}'}= obj.channel
-
-                        -if obj.schedule
-                          -trans "The"
-                        -else
-                          -trans "starts the"
-                        %span.attn
-                          %a{href:'{%url "flows.flow_editor" obj.flow.uuid %}'}= obj.flow
-                        -trans "flow"
-
-                        -if obj.schedule
-                          -if obj.schedule.next_fire and not obj.is_archived
-                            %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                              - if org_perms.triggers.trigger_update
-                                %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}><
-                                  {{ obj.schedule.get_display }}
-                              - else
-                                {{ obj.schedule.get_display }}
+                          -if obj.schedule
+                            -trans "Start"
                           -else
-                            -trans "is"
-                            %span.attn{style:"{% if not org_perms.triggers.trigger_update %}font-weight:bold;{% endif %}"}
-                              - if org_perms.triggers.trigger_update
-                                %a.update-trigger{data-object-id:"{{ obj.id }}", href:"#"}
-                                  -trans "not scheduled"
-                              - else
-                                -trans "not scheduled"
+                            -trans "starts"
+                          .linked.inline(onclick="goto(event)" href='{%url "flows.flow_editor" obj.flow.uuid %}')<
+                            {{obj.flow}}
 
-                      %td{ width: "250px" }
-                        -include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all
+                          -if obj.schedule
+                            -if obj.schedule.next_fire and not obj.is_archived
+                              {{ obj.schedule.get_display }}
+                            -else
+                              -trans "is not scheduled"
 
-                    - empty
-                      %tr.empty_list
-                        %td{colspan:3}
-                          -trans "No matching triggers."
+                        %td{onclick:"handleRowSelection(this)", width: "250px" }
+                          -include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all
 
-                - block extra-rows
+                      -empty
+                        %tr.empty_list
+                          %td{colspan:3}
+                            -trans "No matching triggers."
 
-              - block paginator
-                - if object_list.count
-                  .paginator
-                    - include "smartmin/sidebar_pagination.haml"
+                  -block extra-rows
 
+                -block paginator
+                  -include "includes/pagination.haml"
+  
+  %temba-modax#update-trigger
 -block extra-script
   {{ block.super }}
 
   :javascript
-    $(document).on('click', '.update-trigger', function(e){
-       var modal = new Modax('{{ _("Update Trigger")|escapejs }}', '/trigger/update/' + $(this).data("object-id") + '/');
-       modal.setIcon('icon-feed');
-       modal.setRedirectOnSuccess(true);
-       modal.show();
-    });
+    function updateTrigger(event, id) {
+      event.preventDefault();
+      event.stopPropagation();
+      var modal = document.querySelector("#update-trigger");
+      modal.endpoint = '/trigger/update/' + id + '/';
+      modal.header = '{{ _("Update Trigger")|escapejs }}';
+      modal.open = true;
+    }
     

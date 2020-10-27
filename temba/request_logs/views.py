@@ -1,6 +1,7 @@
 from smartmin.views import SmartCRUDL, SmartListView, SmartReadView, smart_url
 
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from django.utils.functional import cached_property
 from django.utils.translation import ugettext_lazy as _
 
@@ -67,6 +68,18 @@ class HTTPLogCRUDL(SmartCRUDL):
 
     class Read(OrgObjPermsMixin, SmartReadView):
         fields = ("description", "created_on")
+
+        def get_gear_links(self):
+            links = []
+            if self.get_object().classifier:
+                links.append(
+                    dict(
+                        title=_("Classifier Log"),
+                        style="button-light",
+                        href=reverse("request_logs.httplog_classifier", args=[self.get_object().classifier.uuid]),
+                    )
+                )
+            return links
 
         @property
         def permission(self):

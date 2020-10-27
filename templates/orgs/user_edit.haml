@@ -2,37 +2,27 @@
 -load smartmin
 -load i18n
 
--block form-span
-  span8
-
 -block fields
-  .field.formax-vertical
-    {% render_field 'first_name' %}
 
-  .field.formax-vertical
-    {% render_field 'last_name' %}
+  .mb-4
+    .field.formax-vertical
+      {% render_field 'first_name' %}
 
-  .field.formax-vertical
-    {% render_field 'email' %}
+    .field.formax-vertical
+      {% render_field 'last_name' %}
 
-  .field.formax-vertical
-    {% render_field 'current_password' %}
+    .field.formax-vertical
+      {% render_field 'email' %}
 
-  .field.formax-vertical
-    {% render_field 'new_password' %}
+    .field.formax-vertical
+      {% render_field 'current_password' %}
 
-  .field.formax-vertical
-    {% render_field 'language' %}
+    .field.formax-vertical
+      {% render_field 'new_password' %}
 
-  %br
-
+    .field.formax-vertical
+      {% render_field 'language' %}
+  
 -block summary
   -blocktrans with email=user.username
-    Your email address is <span class='attn'>{{email}}</span>.
-
--block extra-script
-  {{block.super}}
-  :javascript
-    $(document).ready(function() {
-      select2div('#id_language');
-    });
+    Your email address is <b>{{email}}</b>.

@@ -1,0 +1,29 @@
+-extends 'smartmin/users/user_recover.html'
+-load i18n
+
+-block title
+  -trans "Reset Password"
+-block fields
+
+  -trans "Pick a new password and enter it below. A good password will be at least eight characters long and have a mixture of upper and lower case letters."
+  
+  -for field, errors in form.errors.items
+    -if field == '__all__'
+      .alert-error.mt-4
+        {{ errors }}
+  
+  .w-128.mt-6.mb-6
+
+    %temba-textinput(label="New Password" password="true" name="new_password" required="" placeholder='{{_("New password")|escapejs}}')
+  
+    -if form.new_password.errors
+      .alert-error.mt-2.mb-4
+        {{form.new_password.errors}}
+    
+    .mt-4
+      %temba-textinput(label="Confirmation" password="true" name="confirm_new_password" required="" placeholder='{{_("Confirm new password")|escapejs}}')
+
+    -if form.confirm_new_password.errors
+      .alert-error.mt-2.mb-4
+        {{form.confirm_new_password.errors}}
+    

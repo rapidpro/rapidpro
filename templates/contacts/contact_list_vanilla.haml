@@ -1,0 +1,138 @@
+-extends "vanilla/frame.html"
+-load smartmin sms contacts temba
+-load i18n humanize compress
+
+-block extra-style
+  {{block.super}}
+  -compress css
+    {% lessblock %}
+      :plain
+
+    {% endlessblock %}
+
+-block submenu
+  .w-full
+    -for folder in folders
+      %a.linked{'href':'{{folder.url}}'}
+        .leading-normal{'class':'{% if request.path == folder.url %}text-primary font-normal{% endif %}'}
+          .flex.items-center.flex-wrap
+            .name.whitespace-no-wrap.flex-grow
+              {{folder.label}}
+            .text-right.whitespace-no-wrap.px-2.text-sm
+              {{ folder.count | intcomma }}
+
+
+    .font-normal.uppercase.tracking-wider.mt-6.text-xs.text-gray-500.mb-1
+      Smart Groups
+
+    -for group in groups
+      -if group.is_dynamic
+        %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
+          .leading-normal{'class':'{% if current_group.id == group.pk %}text-primary font-normal{% endif %}'}
+            .flex.items-center.flex-wrap
+              .name.whitespace-no-wrap.flex-grow
+                {{group.label}}
+              .text-right.whitespace-no-wrap.px-2.text-sm
+                {{ group.count | intcomma }}
+
+
+    .font-normal.uppercase.tracking-wider.mt-6.text-xs.text-gray-500.mb-1
+      Groups
+
+
+    -for group in groups
+      -if not group.is_dynamic
+        %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
+          .leading-normal{'class':'{% if current_group.id == group.pk %}text-primary font-normal{% endif %}'}
+            .flex.items-center.flex-wrap
+              .name.whitespace-no-wrap.flex-grow
+                {{group.label}}
+              .text-right.whitespace-no-wrap.px-2.text-sm
+                -if group.count == 0
+                  .text-gray-400
+                    0
+                -else
+                  {{ group.count | intcomma }}
+
+    // .pt-2
+    // %temba-omnibox{placeholder:"More Groups", endpoint:"/contact/omnibox/?v=2", groups:"true"}
+
+
+-block frame-body
+
+  .pt-4.text-gray-500
+    .flex.flex-row
+      .flex-grow
+        .-my-0
+          %form{method:'get'}
+            %temba-textinput{'type':'text', 'placeholder':'{% trans "Search" %}', 'name':"search", 'value':"{{search}}"}
+      .buttons.pl-4.py-1
+        .flex
+          .button-primary
+            Import Contacts
+          .button.bg-gray-300.ml-2
+            .icn-menu  
+    .rounded-lg.my-4.shadow.overflow-x-auto
+      %table.min-w-full.text-gray-600.relative
+        %thead
+          %th.px-6.py-3.px-6.pt-4.border-b.border-gray-200.w-full.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
+            Name
+          %th.py-3.pt-4.px-6.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
+            Contact
+          -for field in contact_fields
+            -if field.show_in_table
+              %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider.whitespace-no-wrap.text-center
+                {{ field.label }}
+          %th.py-3.px-6.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider.whitespace-no-wrap.text-right.pr-6
+            - if object_list
+              -trans "Created On"
+        %tbody.bg-white
+          %tr
+          - for object in contacts
+            %tr.contact.select-row.object-row{'class':'{% cycle row1 row2 %}', 'data-uuid': '{{object.uuid}}', 'data-object-id':'{{object.id}}'}
+              %td.pl-6.py-3.border-b.border-gray-200
+                {{ object|name:user_org }}
+              %td.border-b.border-gray-200.px-6
+                %nobr
+                  {{ object|urn:user_org }}
+
+              -for field in contact_fields
+                -if field.show_in_table
+                  %td.field.text-center.border-b.border-gray-200.px-6.whitespace-no-wrap
+                    {{ object|contact_field:field.key }}
+
+              %td.value-received.field_received.border-b.border-gray-200.text-right.px-6.whitespace-no-wrap
+                {% format_datetime object.created_on %}
+
+              // This is needed for action buttons
+              %td.hidden
+                .value-labels
+                  %nobr
+                    - for group in object.all_groups.all
+                      - if group.group_type == 'U'
+                        %span.label.label-info.lbl{ data-id: '{{group.id}}'}
+                          %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
+                            {{group.name}}
+
+          -empty
+            %tr
+              %td{colspan:3}
+                -trans "No matching contacts."
+              -for field in contact_fields
+                -if field.show_in_table
+                  %td.field
+              %td
+
+
+    .paginator
+      - include "vanilla/partials/pagination.haml"
+
+    -# are we using ES, and are we on the last page of the pagination and
+    - if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000
+      %div
+        %p.span3
+
+        %p.span6.pagination-notification
+          -trans "Search browsing is limited to 10k results. If you want to browse through all of the results, please save this search as a group."
+
+        %p.span3

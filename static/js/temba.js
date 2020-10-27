@@ -1,6 +1,38 @@
 // handle lack of console on IE
 if (typeof console == 'undefined') {
-    this.console = { log: function(msg) {} };
+    this.console = { log: function (msg) {} };
+}
+
+function goto(event, ele) {
+    if (!ele) {
+        ele = event.target;
+    }
+
+    event.stopPropagation();
+    if (ele.setActive) {
+        ele.setActive();
+    }
+    var href = ele.getAttribute('href');
+    if (href) {
+        if (event.metaKey) {
+            window.open(href, '_blank');
+        } else {
+            document.location.href = href;
+        }
+    }
+}
+
+function gotoLink(href) {
+    document.location.href = href;
+}
+
+function setCookie(name, value, path) {
+    if (!path) {
+        path = '/';
+    }
+    var now = new Date();
+    now.setTime(now.getTime() + 60 * 1000 * 60 * 24 * 30);
+    document.cookie = `${name}=${value};expires=${now.toUTCString()};path=${path}`;
 }
 
 function getCookie(name) {
@@ -28,15 +60,15 @@ function csrfSafeMethod(method) {
 }
 $.ajaxSetup({
     crossDomain: false, // obviates need for sameOrigin test
-    beforeSend: function(xhr, settings) {
+    beforeSend: function (xhr, settings) {
         if (!csrfSafeMethod(settings.type)) {
             xhr.setRequestHeader('X-CSRFToken', csrftoken);
         }
-    }
+    },
 });
 
-$(document).ready(function() {
-    $('iframe').each(function() {
+$(document).ready(function () {
+    $('iframe').each(function () {
         /*fix youtube z-index*/
         var url = $(this).attr('src');
         if (url.indexOf('youtube.com') >= 0) {
@@ -49,14 +81,10 @@ $(document).ready(function() {
     });
 
     $('ul.nav li.dropdown').hover(
-        function() {
-            $(this)
-                .find('.dropdown-menu')
-                .stop(true, true)
-                .delay(200)
-                .fadeIn();
+        function () {
+            $(this).find('.dropdown-menu').stop(true, true).delay(200).fadeIn();
         },
-        function() {
+        function () {
             $(this)
                 .find('.dropdown-menu')
                 .stop(true, true)
@@ -86,12 +114,12 @@ bindRefreshBlock();
 var dropDownOpen = false;
 
 function bindRefreshBlock() {
-    $('[data-toggle=dropdown]').on('focus', function() {
+    $('[data-toggle=dropdown]').on('focus', function () {
         dropDownOpen = true;
         hideTooltip();
     });
 
-    $('[data-toggle=dropdown]').on('blur', function() {
+    $('[data-toggle=dropdown]').on('blur', function () {
         // defer to if we have checked items to block refresh
         dropDownOpen = false;
         hideTooltip();
@@ -101,10 +129,15 @@ function bindRefreshBlock() {
 /**
  * Listen for thes start of pjax refreshes and block them if appropriate
  */
-document.addEventListener('rp-refresh-begin', function() {
+document.addEventListener('temba-refresh-begin', function () {
     var checkedIds = getCheckedIds().length > 0;
     let openedModals = false;
     var modals = document.querySelectorAll('temba-modax');
+    var activeElement = document.activeElement.tagName;
+    var openMenu = !!document.querySelector('.gear-menu.open');
+    var selection = !!window.getSelection().toString();
+
+    var focused = activeElement == 'TEMBA-TEXTINPUT';
 
     for (var modal of modals) {
         if (modal.open) {
@@ -114,10 +147,16 @@ document.addEventListener('rp-refresh-begin', function() {
     }
 
     var pjaxElement = document.querySelector('#pjax');
+
     if (pjaxElement) {
         pjaxElement.setAttribute(
             'data-no-pjax',
-            dropDownOpen || checkedIds || openedModals
+            dropDownOpen ||
+                checkedIds ||
+                openedModals ||
+                focused ||
+                openMenu ||
+                selection
         );
     }
 });
@@ -146,7 +185,7 @@ function update_schedule() {}
 
 function updateDailySelection() {
     var selected = 0;
-    $('.btn-group > .btn').each(function() {
+    $('.btn-group > .btn').each(function () {
         if ($(this).hasClass('active')) {
             selected += parseInt($(this).attr('value'));
         }
@@ -251,7 +290,7 @@ function initMessageLengthCounter(textarea, counter) {
 
 function toggle_section() {
     var shrink;
-    $('.form-section').each(function() {
+    $('.form-section').each(function () {
         var visible = $(this);
         if (visible.find('.expanded').is(':visible')) {
             hide_section(visible);
@@ -285,7 +324,7 @@ function hide_section(section) {
         .animate(
             { 'font-size': '35px', width: '40px', height: '40px' },
             200,
-            function() {
+            function () {
                 // section.removeClass('expanded');
             }
         );
@@ -300,7 +339,7 @@ function expand_section(section) {
         .animate(
             { 'font-size': '80px', width: '100px', height: '100px' },
             200,
-            function() {
+            function () {
                 // section.addClass('expanded');
             }
         );
@@ -345,9 +384,9 @@ function initializeVideoPlayer(element) {
             vjsdownload: {
                 beforeElement: 'playbackRateMenuButton',
                 textControl: 'Download',
-                name: 'downloadButton'
-            }
-        }
+                name: 'downloadButton',
+            },
+        },
     });
 }
 
@@ -357,3 +396,66 @@ function disposeVideoPlayer(element) {
         player.dispose();
     }
 }
+
+function wireTableListeners() {
+    var tds = document.querySelectorAll(
+        'table.selectable tr td:not(.checkbox)'
+    );
+
+    for (var td of tds) {
+        td.addEventListener('mouseenter', function () {
+            var tr = this.parentElement;
+            tr.classList.add('hovered');
+        });
+
+        td.addEventListener('mouseleave', function () {
+            var tr = this.parentElement;
+            tr.classList.remove('hovered');
+        });
+
+        td.addEventListener('click', function () {
+            var tr = this.parentElement;
+            eval(tr.getAttribute('onrowclick'));
+        });
+    }
+}
+
+function stopEvent(event) {
+    event.stopPropagation();
+    event.preventDefault();
+}
+
+document.addEventListener('temba-refresh-complete', function () {
+    wireTableListeners();
+});
+
+// wire up our toggle tables
+document.addEventListener('DOMContentLoaded', function () {
+    wireTableListeners();
+    document
+        .querySelectorAll('table.list.toggle > thead')
+        .forEach(function (ele) {
+            var table = ele.parentElement;
+            var classes = table.classList;
+            var stateful = classes.contains('stateful');
+
+            // read in our cookie if we are stateful
+            if (stateful) {
+                if (getCookie('rp-table-expanded-' + table.id) == 'true') {
+                    classes.add('expanded');
+                }
+            }
+
+            ele.addEventListener('click', function () {
+                classes.toggle('expanded');
+
+                // set a cookie
+                if (stateful) {
+                    setCookie(
+                        'rp-table-expanded-' + table.id,
+                        classes.contains('expanded')
+                    );
+                }
+            });
+        });
+});

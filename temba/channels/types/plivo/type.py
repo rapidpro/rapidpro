@@ -4,7 +4,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel, ChannelType
 from temba.channels.types.plivo.views import ClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 from temba.utils.http import http_headers
 
 
@@ -28,7 +28,7 @@ class PlivoType(ChannelType):
 
     show_config_page = False
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 1600
 
     def deactivate(self, channel):

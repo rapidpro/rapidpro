@@ -16,7 +16,13 @@ from .tasks import (
     refresh_whatsapp_templates,
     refresh_whatsapp_tokens,
 )
-from .type import CONFIG_FB_BUSINESS_ID, CONFIG_FB_TEMPLATE_LIST_DOMAIN, WhatsAppType
+from .type import (
+    CONFIG_FB_ACCESS_TOKEN,
+    CONFIG_FB_BUSINESS_ID,
+    CONFIG_FB_NAMESPACE,
+    CONFIG_FB_TEMPLATE_LIST_DOMAIN,
+    WhatsAppType,
+)
 
 
 class WhatsAppTypeTest(TembaTest):
@@ -144,7 +150,7 @@ class WhatsAppTypeTest(TembaTest):
         with patch("requests.post") as mock_post:
             mock_post.side_effect = [MockResponse(200, '{ "error": false }')]
             self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_CONTACTS_REFRESHED, is_error=False))
-            self.create_contact("Joe", urn="whatsapp:250788382382")
+            self.create_contact("Joe", urns=["whatsapp:250788382382"])
             self.client.post(refresh_url)
 
             self.assertEqual(mock_post.call_args_list[0][1]["json"]["contacts"], ["+250788382382"])
@@ -155,23 +161,6 @@ class WhatsAppTypeTest(TembaTest):
             self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_CONTACTS_REFRESHED, is_error=True))
             refresh_whatsapp_contacts(channel.id)
             self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_CONTACTS_REFRESHED, is_error=True))
-
-        # and fetching new tokens
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc345"}]}')
-            self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=False))
-            refresh_whatsapp_tokens()
-            self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=False))
-            channel.refresh_from_db()
-            self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
-
-        with patch("requests.post") as mock_post:
-            mock_post.side_effect = [MockResponse(400, '{ "error": true }')]
-            self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=True))
-            refresh_whatsapp_tokens()
-            self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=True))
-            channel.refresh_from_db()
-            self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
 
         with patch("requests.get") as mock_get:
             mock_get.side_effect = [
@@ -274,7 +263,22 @@ class WhatsAppTypeTest(TembaTest):
                 "category": "ISSUE_RESOLUTION",
                 "id": "9014"
               },
-
+              {
+                "name": "missing_text_component",
+                "components" : [
+                  {
+                    "type": "HEADER",
+                    "format": "IMAGE",
+                    "example": {
+                      "header_handle": ["FOO"]
+                    }
+                  }
+                ],
+                "language": "en",
+                "status": "APPROVED",
+                "category": "ISSUE_RESOLUTION",
+                "id": "1235"
+              },
               {
                 "name": "invalid_component",
                 "components": [
@@ -374,6 +378,75 @@ class WhatsAppTypeTest(TembaTest):
 
         # all our templates should be inactive now
         self.assertEqual(6, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
+
+    def test_refresh_tokens(self):
+        Channel.objects.all().delete()
+
+        channel = Channel.create(
+            self.org,
+            self.admin,
+            "US",
+            "WA",
+            name="WhatsApp: 1234",
+            address="1234",
+            config={
+                Channel.CONFIG_BASE_URL: "https://nyaruka.com/whatsapp",
+                Channel.CONFIG_USERNAME: "temba",
+                Channel.CONFIG_PASSWORD: "tembapasswd",
+                Channel.CONFIG_AUTH_TOKEN: "authtoken123",
+                CONFIG_FB_BUSINESS_ID: "1234",
+                CONFIG_FB_ACCESS_TOKEN: "token123",
+                CONFIG_FB_NAMESPACE: "my-custom-app",
+                CONFIG_FB_TEMPLATE_LIST_DOMAIN: "graph.facebook.com",
+            },
+            tps=45,
+        )
+
+        channel2 = Channel.create(
+            self.org,
+            self.admin,
+            "US",
+            "WA",
+            name="WhatsApp: 1235",
+            address="1235",
+            config={
+                Channel.CONFIG_BASE_URL: "https://nyaruka.com/whatsapp",
+                Channel.CONFIG_USERNAME: "temba",
+                Channel.CONFIG_PASSWORD: "tembapasswd",
+                Channel.CONFIG_AUTH_TOKEN: "authtoken123",
+                CONFIG_FB_BUSINESS_ID: "1234",
+                CONFIG_FB_ACCESS_TOKEN: "token123",
+                CONFIG_FB_NAMESPACE: "my-custom-app",
+                CONFIG_FB_TEMPLATE_LIST_DOMAIN: "graph.facebook.com",
+            },
+            tps=45,
+        )
+
+        # and fetching new tokens
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc345"}]}')
+            self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=False))
+            refresh_whatsapp_tokens()
+            self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=False))
+            channel.refresh_from_db()
+            self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
+
+        with patch("requests.post") as mock_post:
+            mock_post.side_effect = [MockResponse(400, '{ "error": true }')]
+            self.assertFalse(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=True))
+            refresh_whatsapp_tokens()
+            self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TOKENS_SYNCED, is_error=True))
+            channel.refresh_from_db()
+            self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
+
+        with patch("requests.post") as mock_post:
+            mock_post.side_effect = [MockResponse(200, ""), MockResponse(200, '{"users": [{"token": "abc098"}]}')]
+            refresh_whatsapp_tokens()
+
+            channel.refresh_from_db()
+            channel2.refresh_from_db()
+            self.assertEqual("abc345", channel.config[Channel.CONFIG_AUTH_TOKEN])
+            self.assertEqual("abc098", channel2.config[Channel.CONFIG_AUTH_TOKEN])
 
     def test_claim_self_hosted_templates(self):
         Channel.objects.all().delete()

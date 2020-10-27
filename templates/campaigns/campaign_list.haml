@@ -1,7 +1,8 @@
 -extends "smartmin/list.html"
--load smartmin sms temba compress i18n
+-load smartmin sms temba compress i18n humanize
 
 -block extra-style
+  {{block.super}}
   :css
     temba-button {
       display: block;
@@ -12,101 +13,86 @@
 
 -block title-icon
   .title-icon
-    %span.glyph.icon-instant
+    %span.glyph.icon-campaign
 
 -block page-top
-  {% render as page_top %}
-    {{block.super}}
-  {% endrender %}
-  {{page_top}}
 
 -block content
     #pjax
       -block pjax
-        .row-fluid
-          .span3.sidebox
-            %div{style:"margin-bottom: 10px"}
-              - if org_perms.campaigns.campaign_create
-                %temba-modax{ header:"Create Campaign", endpoint:"/campaign/create/" }
-                  %temba-button{ name:"Create Campaign", primary: 'true' }
 
-            #sidebar-nav
-              %ul.nav.nav-list.level1
-                %li.nav-header Campaigns
-                - for folder in folders
-                  %li{'class':"{% if folder.url == request_url %}active{% endif %}" }
-                    %a{'href':'{{folder.url}}'}
-                      {{ folder.label }} ({{ folder.count }})
+        .lp-frame
 
-          -block campaign-list
-            .span9
-              - block buttons
-                .pull-right
-                  -block buttons-right
+          .left
 
-                - if org_perms.campaigns.campaign_update
-                  .list-buttons-container
-                    .list-buttons
+            .flex.flex-col
+              -if org_perms.flows.flow_create
+                .w-64.mr-5
+                  %temba-modax{ header:"Create Campaign", endpoint:"/campaign/create/" }
+                    .button-primary
+                      -trans "Create Campaign"
+              
+              .lp-nav.upper
+                -for folder in folders
+                  .lp-nav-item{'class': '{% if folder.url == request_url %}font-normal{% endif %}' }
+                    .name{onclick:"goto(event)", href:'{{folder.url}}'}
+                      {{folder.label}}
+                    .count{onclick:"goto(event)", href:'{{folder.url}}'}
+                      {{ folder.count | intcomma }}
+
+          .right
+
+            .flex.w-full.items-end.mb-4
+              -block action-buttons
+                -if org_perms.campaigns.campaign_update
+                  .action-buttons.list-buttons-container.h-full.mr-2.flex-grow
+                    .list-buttons.flex.items-center.-mx-2.h-full
                       -if 'restore' in actions
-                        %span.btn-group
-                          %a.object-btn-restore{'href':'#'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'Activate'}
-                              .glyph.icon-instant
+                        .button-action.object-btn-restore
+                          .-mt-1.mr-2.glyph.icon-checkmark
+                          -trans "Activate"
 
                       -if 'archive' in actions
-                        %span.btn-group
-                          %a.object-btn-archive{'href':'#'}
-                            %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'Archive'}
-                              .glyph.icon-box
+                        .button-action.object-btn-archive
+                          .-mt-1.mr-2.glyph.icon-box
+                          -trans "Archive"
 
-              %table.list-table.campaign-list.object-list.table.table-condensed{style: '{% if not org_perms.campaigns.campaign_update %}margin-top:10px{% endif %}'}
-                <tbody>
-                {% for obj in object_list %}
-                  %tr.campaign.object-row{ data-object-id: "{{ obj.id }}" }
+              .flex-grow.ml-2.items-center
+                -block title-text
+                  .page-title.leading-tight
+                    {{title}}
+              .gear-links
+                -include "gear_links_include.haml"
+
+            %form#search-form.mb-4(method="get" action="{% url 'campaigns.campaign_list'%}")
+              %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+            %table.list.lined.selectable
+              %tbody
+                -for obj in object_list
+                  %tr.campaign.object-row.select-row{ data-object-id: "{{ obj.id }}", onrowclick:'gotoLink("{% url "campaigns.campaign_read" obj.id%}")'}
                     - if org_perms.campaigns.campaign_update
                       %td.campaign.checkbox.object-row-checkbox
-                        .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
-                    %td= obj.name
+                        %temba-checkbox{onclick:"handleRowSelection(this)"}
+                    %td.w-full
+                      {{obj.name}}
 
-                    %td
-                      {{ obj.group.name }}
+                    %td.whitespace-no-wrap
+                      %span.linked{onclick:'goto(event)', href:"{% url 'contacts.contact_filter' obj.group.uuid%}"}
+                        {{ obj.group.name }}
 
-                    %td
-                      .pull-right
-                        {{ obj.get_events|length }} event{{ obj.get_events|length|pluralize }}
+                    %td.whitespace-no-wrap
+                      {{ obj.get_events|length }} event{{ obj.get_events|length|pluralize }}
 
-                  {% empty %}
-                  <tr class="empty_list">
-                    <td colspan=3>No matching campaigns.</td>
-                  </tr>
-                {% endfor %}
+                - empty
+                  %tr.empty_list
+                    %td{ colspan:'99' }
+                      -trans "No matching campaigns"
 
-                {% block extra-rows %}
-                {% endblock extra-rows %}
-                </tbody>
-
-              - block paginator
-                - if object_list.count
-                  .paginator
-                    - include "smartmin/sidebar_pagination.haml"
-
--block extra-script
-  {{ block.super }}
-
-  :javascript
-    $('.object-row').live('mouseover', function(){
-      url = '/campaign/read/' + $(this).data('object-id') + '/';
-
-      $(this).find('td').not(':first-child').each(function(){
-        $(this).attr('onClick', "document.location.href=url;");
-      });
-    });
-
-    {% if org_perms.campaigns.campaign_update %}
-      $(document).on('click', '.update-campaign', function(e){
-         var modal = new Modax('{{_("Update Campaign")|escapejs }}', '/campaign/update/' + $(this).data("object-id") + '/');
-         modal.setIcon('icon-feed');
-         modal.setRedirectOnSuccess(true);
-         modal.show();
-      });
-    {% endif %}
+                - block extra-rows
+            
+            .flex.flex-col.mx-4.mt-3.mb-16
+              .flex.flex-wrap
+                .text-gray-700
+                  -include "includes/results_count.html"
+                .flex-grow
+                  -include "includes/pages.html"
