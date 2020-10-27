@@ -2,11 +2,11 @@
 -load i18n compress temba
 
 -block pre-form
-    %p#fb-status
-      -if error_connect
-        - trans "Error with token, you need to reconnect the Facebook page by clicking the button below"
-      -else
-        - trans "Everything looks good. No need to reconnect"
+  %p#fb-status
+    -if error_connect
+      - trans "Error with token, you need to reconnect the Facebook page by clicking the button below"
+    -else
+      - trans "Everything looks good. No need to reconnect"
 
 -block form
   .mt-4.card
