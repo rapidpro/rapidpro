@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-26 20:00+0000\n"
+"POT-Creation-Date: 2020-10-27 19:09+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1853,10 +1853,6 @@ msgid "If you have an enterprise WhatsApp account, you can connect it to communi
 msgstr ""
 
 #, python-format
-msgid "Unable to register callbacks: %s"
-msgstr ""
-
-#, python-format
 msgid "Unable to configure channel: %s"
 msgstr ""
 
@@ -1864,9 +1860,6 @@ msgid "Contacts refresh begun, it may take a few minutes to complete."
 msgstr ""
 
 msgid "Sync Logs"
-msgstr ""
-
-msgid "Your enterprise WhatsApp number"
 msgstr ""
 
 msgid "The base URL for your WhatsApp enterprise installation"
@@ -1891,9 +1884,6 @@ msgid "The Facebook access token that will be used for syncing"
 msgstr ""
 
 msgid "The namespace for your WhatsApp templates"
-msgstr ""
-
-msgid "Please enter a valid phone number"
 msgstr ""
 
 msgid "Unable to check WhatsApp enterprise account, please check username and password"

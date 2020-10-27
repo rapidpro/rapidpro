@@ -1160,9 +1160,6 @@ msgstr ""
 msgid "Unable to register callbacks: %s"
 msgstr ""
 
-msgid "Your enterprise WhatsApp number"
-msgstr ""
-
 #, fuzzy
 #| msgid "The file name for our export"
 msgid "The base URL for your 360 Dialog WhatsApp enterprise installation"
@@ -3002,10 +2999,6 @@ msgstr "Mensaje"
 msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
 msgstr ""
 
-#, python-format
-msgid "Unable to register callbacks: %s"
-msgstr ""
-
 #, fuzzy, python-format
 #| msgid "Invalid group or contact id"
 msgid "Unable to configure channel: %s"
@@ -3053,11 +3046,6 @@ msgstr "El número de comandos que nos dio el transmisor"
 #| msgid "The file name for our export"
 msgid "The namespace for your WhatsApp templates"
 msgstr "El nombre del archivo para nuestra exportación"
-
-#, fuzzy
-#| msgid "Please enter at least 8 characters"
-msgid "Please enter a valid phone number"
-msgstr "Por favor, ingrese 8 caracteres como mínimo"
 
 msgid "Unable to check WhatsApp enterprise account, please check username and password"
 msgstr ""
