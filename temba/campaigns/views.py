@@ -459,7 +459,7 @@ class CampaignEventForm(forms.ModelForm):
         # add our default language, we'll insert it at the front of the list
         if base_language and base_language not in self.fields:
             field = forms.CharField(
-                widget=forms.Textarea, required=False, label=_("Default"), initial=message.get(base_language)
+                widget=CompletionTextarea(attrs={"widget_only": True}), required=False, label=_("Default"), initial=message.get(base_language)
             )
 
             self.fields[base_language] = field
