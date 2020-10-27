@@ -22,16 +22,12 @@ class ArabiaCellType(ChannelType):
 
     claim_view = ClaimView
     claim_blurb = _(
-        """
-        If you have an <a href="https://www.arabiacell.com/">ArabiaCell</a> number,
-        you can quickly connect it using their APIs.
-        """
+        """If you have an <a href="https://www.arabiacell.com/">ArabiaCell</a> number, """
+        "you can quickly connect it using their APIs."
     )
 
     configuration_blurb = _(
-        """
-        To finish connecting your channel, you need to have ArabiaCell configure the URL below for your shortcode.
-        """
+        "To finish connecting your channel, you need to have ArabiaCell configure the URL below for your shortcode."
     )
 
     configuration_urls = (

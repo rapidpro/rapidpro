@@ -45,16 +45,12 @@ class BurstSMSType(ChannelType):
     }
 
     claim_blurb = _(
-        """
-        If you have a <a href="https://www.burstsms.com.au/">BurstSMS</a> number,
-        you can quickly connect it using their APIs.
-        """
+        """If you have a <a href="https://www.burstsms.com.au/">BurstSMS</a> number, """
+        "you can quickly connect it using their APIs."
     )
 
     configuration_blurb = _(
-        """
-        To finish connecting your channel, you need to set your callback URLs below for your number.
-        """
+        "To finish connecting your channel, you need to set your callback URLs below for your number."
     )
 
     configuration_urls = (

@@ -24,16 +24,12 @@ class BongoLiveType(ChannelType):
 
     claim_view = ClaimView
     claim_blurb = _(
-        """
-        If you have an <a href="https://www.bongolive.co.tz/">Bongo Live</a> number,
-        you can quickly connect it using their APIs.
-        """
+        """If you have an <a href="https://www.bongolive.co.tz/">Bongo Live</a> number, """
+        "you can quickly connect it using their APIs."
     )
 
     configuration_blurb = _(
-        """
-        To finish connecting your channel, you need to have Bongo Live configure the URLs below for your shortcode.
-        """
+        "To finish connecting your channel, you need to have Bongo Live configure the URLs below for your shortcode."
     )
 
     configuration_urls = (
