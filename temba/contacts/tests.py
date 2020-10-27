@@ -4211,6 +4211,24 @@ class ContactFieldTest(TembaTest):
         )
 
         self.assertEqual(
+            ContactListView.prepare_sort_field_struct(sort_on="last_seen_on"),
+            (
+                "last_seen_on",
+                "asc",
+                {"field_type": "attribute", "sort_direction": "asc", "field_name": "last_seen_on"},
+            ),
+        )
+
+        self.assertEqual(
+            ContactListView.prepare_sort_field_struct(sort_on="-last_seen_on"),
+            (
+                "last_seen_on",
+                "desc",
+                {"field_type": "attribute", "sort_direction": "desc", "field_name": "last_seen_on"},
+            ),
+        )
+
+        self.assertEqual(
             ContactListView.prepare_sort_field_struct(sort_on="{}".format(str(self.contactfield_1.uuid))),
             (
                 str(self.contactfield_1.uuid),
@@ -5230,6 +5248,29 @@ class ESIntegrationTest(TembaNonAtomicTest):
                 "ward": "Rwanda > Eastern Province > Rwamagana > Bukure",
             },
         )
+
+        now = timezone.now()
+        next_two_days = timezone.now() + timezone.timedelta(days=2)
+
+        self.create_contact(name="James", urns=["tel:+250188382999"], last_seen_on=next_two_days)
+        self.create_contact(name="Chris", urns=["tel:+250188382888"], last_seen_on=now)
+
+        # new contacts were created, execute the rp-indexer again
+        result = subprocess.run(
+            ["./rp-indexer", "-elastic-url", settings.ELASTICSEARCH_URL, "-db", database_url, "-rebuild"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        self.assertEqual(result.returncode, 0, "Command failed: %s\n\n%s" % (result.stdout, result.stderr))
+
+        # give ES some time to publish the results
+        time.sleep(5)
+
+        response = self.client.get("%s?sort_on=%s" % (url, "last_seen_on"))
+        self.assertEqual(response.context["object_list"][0].name, "Chris")  # oldest contact last seen
+
+        response = self.client.get("%s?sort_on=-%s" % (url, "last_seen_on"))
+        self.assertEqual(response.context["object_list"][0].name, "James")  # recent contact last seen
 
         # create a dynamic group on age
         self.login(self.admin)
