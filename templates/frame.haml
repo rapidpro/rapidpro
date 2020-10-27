@@ -6,9 +6,8 @@
 {% endblock %}
   %head
     %title
-      {% block page-title %}
-        {{ brand.name }} - Visually build interactive SMS Applications
-      {% endblock %}
+      -block page-title
+        {{ brand.name }}
 
     %meta{charset:"utf-8"}
     %meta{name:"viewport", content:"width=device-width, initial-scale=1.0"}
