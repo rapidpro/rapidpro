@@ -20,9 +20,9 @@ class DMarkType(ChannelType):
     courier_url = r"^dk/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
 
     claim_blurb = _(
-        "If you are based in Uganda or DRC you can purchase a short code from "
-        """<a href="http://dmarkmobile.com/">DMark Mobile</a> and connect it in a few simple steps."""
-    )
+        "If you are based in Uganda or DRC you can purchase a short code from %(link)s and connect it in a few simple "
+        "steps."
+    ) % {"link": '<a href="http://dmarkmobile.com/">DMark Mobile</a>'}
     claim_view = ClaimView
 
     schemes = [URN.TEL_SCHEME]

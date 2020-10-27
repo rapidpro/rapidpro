@@ -20,9 +20,9 @@ class ClickatellType(ChannelType):
     icon = "icon-channel-clickatell"
 
     claim_blurb = _(
-        """Connect your <a href="http://clickatell.com/">Clickatell</a> number, we'll walk you through the steps """
-        "necessary to get your Clickatell connection working in a few minutes."
-    )
+        "Connect your %(link)s number, we'll walk you through the steps necessary to get your Clickatell connection "
+        "working in a few minutes."
+    ) % {"link": '<a href="http://clickatell.com/">Clickatell</a>'}
     claim_view = ClaimView
 
     schemes = [URN.TEL_SCHEME]

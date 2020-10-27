@@ -25,8 +25,8 @@ class Dialog360Type(ChannelType):
     icon = "icon-whatsapp"
 
     claim_blurb = _(
-        """Activate your own enterprise WhatsApp account in Dialog 360 to communicate with your contacts. <a href="https://www.360dialog.com/">Learn more about 360Dialog WhatsApp</a>"""
-    )
+        "Activate your own enterprise WhatsApp account in %(link)s to communicate with your contacts. "
+    ) % {"link": '<a href="https://www.360dialog.com/">360Dialog</a>'}
     claim_view = ClaimView
 
     schemes = [URN.WHATSAPP_SCHEME]
@@ -47,4 +47,4 @@ class Dialog360Type(ChannelType):
         )
 
         if resp.status_code != 200:
-            raise ValidationError(_("Unable to register callbacks: %s", resp.content))
+            raise ValidationError(_("Unable to register callbacks: %(resp)s"), params={"resp": resp.content})

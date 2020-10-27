@@ -114,9 +114,7 @@ class WhatsAppType(ChannelType):
     name = "WhatsApp"
     icon = "icon-whatsapp"
 
-    claim_blurb = _(
-        """If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"""
-    )
+    claim_blurb = _("If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts")
     claim_view = ClaimView
 
     schemes = [URN.WHATSAPP_SCHEME]

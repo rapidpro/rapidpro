@@ -21,8 +21,9 @@ class NovoType(ChannelType):
     name = "Novo"
 
     claim_blurb = _(
-        """If you are based in Trinidad & Tobago, you can purchase a short code from <a href="http://www.novotechnologyinc.com/">Novo</a> and connect it in a few simple steps."""
-    )
+        "If you are based in Trinidad & Tobago, you can purchase a short code from %(link)s and connect it in a few "
+        "simple steps."
+    ) % {"link": '<a href="http://www.novotechnologyinc.com/">Novo</a>'}
     claim_view = ClaimView
 
     schemes = [URN.TEL_SCHEME]

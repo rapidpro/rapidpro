@@ -19,7 +19,7 @@ class TelesomType(ChannelType):
     name = "Telesom"
 
     claim_blurb = _(
-        """If you are based in Somalia, you can integrate with Telesom to send and receive messages on your shortcode."""
+        "If you are based in Somalia, you can integrate with Telesom to send and receive messages on your shortcode."
     )
     claim_view = ClaimView
 
@@ -28,7 +28,8 @@ class TelesomType(ChannelType):
     attachment_support = False
 
     configuration_blurb = _(
-        """To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL for incoming messages to {{ channel.address }}."""
+        "To finish configuring your Telesom connection you'll need to provide Telesom with the following delivery URL "
+        "for incoming messages to {{ channel.address }}."
     )
 
     configuration_urls = (

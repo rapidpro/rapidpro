@@ -18,9 +18,9 @@ class DartMediaType(ChannelType):
 
     name = "DartMedia"
 
-    claim_blurb = _(
-        """Easily add a two way number you have configured with <a href="http://dartmedia.biz/">Dart Media</a> in Indonesia."""
-    )
+    claim_blurb = _("Easily add a two way number you have configured with %(link)s in Indonesia.") % {
+        "link": '<a href="http://dartmedia.biz/">Dart Media</a>'
+    }
     claim_view = ClaimView
 
     schemes = [URN.TEL_SCHEME, URN.EXTERNAL_SCHEME]
