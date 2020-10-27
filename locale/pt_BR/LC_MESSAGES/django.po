@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-26 20:00+0000\n"
+"POT-Creation-Date: 2020-10-27 19:46+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -541,9 +541,6 @@ msgstr "O seu nome de usuário do Africa's Talking"
 
 msgid "Your api key, should be 64 characters"
 msgstr "Sua chave da api deve ter 64 caracteres"
-
-msgid "No org for this user, cannot claim"
-msgstr "Nenhuma organização para este usuário, não pode requisitar"
 
 msgid "The claim code from your Android phone"
 msgstr "O código de requisição do seu telefone Android"
@@ -11053,6 +11050,9 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "No org for this user, cannot claim"
+#~ msgstr "Nenhuma organização para este usuário, não pode requisitar"
 
 #~ msgid "Channel Type"
 #~ msgstr "Tipo do transmissor"

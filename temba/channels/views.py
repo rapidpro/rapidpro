@@ -1031,9 +1031,6 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         org = self.request.user.get_org()
 
-        if not org:  # pragma: no cover
-            raise Exception("No org for this user, cannot claim")
-
         data = form.cleaned_data
         extra_config = self.get_channel_config(org, data)
         self.object = Channel.add_authenticated_external_channel(

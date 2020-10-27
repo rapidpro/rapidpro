@@ -177,7 +177,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             org,
             user,
             country,
-            "NX",
+            self.channel_type,
             name=phone,
             address=phone_number,
             role=role,

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-26 20:00+0000\n"
+"POT-Creation-Date: 2020-10-27 19:46+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -456,9 +456,6 @@ msgstr "Ваше имя пользователя в Africa's Talking"
 
 msgid "Your api key, should be 64 characters"
 msgstr "Ваш ключ api, должен содержать 64 символа"
-
-msgid "No org for this user, cannot claim"
-msgstr "Нет организации для этого пользователя, невозможно запросить"
 
 msgid "The claim code from your Android phone"
 msgstr "Код запроса с Вашего телефона Android "
@@ -10925,6 +10922,9 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "No org for this user, cannot claim"
+#~ msgstr "Нет организации для этого пользователя, невозможно запросить"
 
 #~ msgid "Channel Type"
 #~ msgstr "Тип канала"

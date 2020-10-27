@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-26 20:00+0000\n"
+"POT-Creation-Date: 2020-10-27 19:46+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -457,9 +457,6 @@ msgstr "Votre nom d'utilisateur sur Africa's Talking"
 
 msgid "Your api key, should be 64 characters"
 msgstr "Votre clé API, devrait être de 64 caractères"
-
-msgid "No org for this user, cannot claim"
-msgstr "Pas org pour cet utilisateur, ne peut avoir un claim"
 
 msgid "The claim code from your Android phone"
 msgstr "Le code de claim à partir de votre téléphone Android"
@@ -10819,6 +10816,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "No org for this user, cannot claim"
+#~ msgstr "Pas org pour cet utilisateur, ne peut avoir un claim"
 
 #~ msgid "Channel Type"
 #~ msgstr "Type de relayeur"

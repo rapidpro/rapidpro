@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-26 20:00+0000\n"
+"POT-Creation-Date: 2020-10-27 19:46+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -431,9 +431,6 @@ msgid "Your username on Africa's Talking"
 msgstr ""
 
 msgid "Your api key, should be 64 characters"
-msgstr ""
-
-msgid "No org for this user, cannot claim"
 msgstr ""
 
 msgid "The claim code from your Android phone"
