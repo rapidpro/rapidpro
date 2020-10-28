@@ -69,9 +69,9 @@ class SignalWireType(ChannelType):
     name = "SignalWire"
     icon = "icon-signalwire"
 
-    claim_blurb = _(
-        """Easily add a two way number you have with <a href="http://www.signalwire.com/">SignalWire</a> using their APIs."""
-    )
+    claim_blurb = _("Easily add a two way number you have with %(link)s using their APIs.") % {
+        "link": '<a href="http://www.signalwire.com/">SignalWire</a>'
+    }
     claim_view = SignalWireClaimView
 
     schemes = [URN.TEL_SCHEME]
@@ -81,11 +81,7 @@ class SignalWireType(ChannelType):
 
     async_activation = False
 
-    configuration_blurb = _(
-        """
-        Your SignalWire channel is now connected.
-        """
-    )
+    configuration_blurb = _("Your SignalWire channel is now connected.")
 
     configuration_urls = (
         dict(

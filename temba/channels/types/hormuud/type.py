@@ -20,9 +20,8 @@ class HormuudType(ChannelType):
     slug = "hormuud"
 
     claim_blurb = _(
-        """If you are based in Somalia, you can get a number from
-        <a href="http://www.hormuud.com/">Hormuud</a> and connect it in a few simple steps."""
-    )
+        "If you are based in Somalia, you can get a number from %(link)s and connect it in a few simple steps."
+    ) % {"link": '<a href="http://www.hormuud.com/">Hormuud</a>'}
     claim_view = AuthenticatedExternalCallbackClaimView
 
     schemes = [URN.TEL_SCHEME]
@@ -30,9 +29,8 @@ class HormuudType(ChannelType):
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your connection you'll need to notify Hormuud of the following URL for incoming (MO) messages
-        """
+        "To finish configuring your connection you'll need to notify Hormuud of the following URL for incoming "
+        "(MO) messages."
     )
 
     configuration_urls = (

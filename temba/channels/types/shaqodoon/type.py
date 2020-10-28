@@ -19,8 +19,7 @@ class ShaqodoonType(ChannelType):
     name = "Shaqodoon"
 
     claim_blurb = _(
-        """If you are based in Somalia, you can integrate with Shaqodoon to send
-                       and receive messages on your shortcode."""
+        "If you are based in Somalia, you can integrate with Shaqodoon to send and receive messages on your shortcode."
     )
     claim_view = ClaimView
 
@@ -29,10 +28,8 @@ class ShaqodoonType(ChannelType):
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your Shaqodoon connection you'll need to provide Shaqodoon with the following delivery
-        URL for incoming messages to {{ channel.address }}.
-        """
+        "To finish configuring your Shaqodoon connection you'll need to provide Shaqodoon with the following delivery "
+        "URL for incoming messages to {{ channel.address }}."
     )
 
     configuration_urls = (

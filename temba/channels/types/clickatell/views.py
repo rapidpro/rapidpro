@@ -47,12 +47,14 @@ class ClaimView(AuthenticatedExternalClaimView):
     def form_valid(self, form):
         org = self.request.user.get_org()
 
-        if not org:  # pragma: no cover
-            raise Exception(_("No org for this user, cannot claim"))
-
         data = form.cleaned_data
         self.object = Channel.add_config_external_channel(
-            org, self.request.user, data["country"], data["number"], "CT", {Channel.CONFIG_API_KEY: data["api_key"]}
+            org,
+            self.request.user,
+            data["country"],
+            data["number"],
+            self.channel_type,
+            {Channel.CONFIG_API_KEY: data["api_key"]},
         )
 
         return super(AuthenticatedExternalClaimView, self).form_valid(form)

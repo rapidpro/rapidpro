@@ -27,17 +27,12 @@ class MtargetType(ChannelType):
     attachment_support = False
 
     claim_view = ClaimView
-    claim_blurb = _(
-        """
-        If you have an <a href="https://www.mtarget.fr/">Mtarget</a> account,
-        you can quickly connect it using their APIs.
-        """
-    )
+    claim_blurb = _("If you have an %(link)s account, you can quickly connect it using their APIs.") % {
+        "link": '<a href="https://www.mtarget.fr/">Mtarget</a>'
+    }
 
     configuration_blurb = _(
-        """
-        To finish connecting your channel, you need to have Mtarget configure the URLs below for your Service ID.
-        """
+        "To finish connecting your channel, you need to have Mtarget configure the URLs below for your Service ID."
     )
 
     configuration_urls = (

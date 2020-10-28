@@ -104,5 +104,7 @@ class SignalWireClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
         }
 
-        self.object = Channel.create(org, user, country, "SW", name=name, address=address, config=config, role=role)
+        self.object = Channel.create(
+            org, user, country, self.channel_type, name=name, address=address, config=config, role=role
+        )
         return super().form_valid(form)

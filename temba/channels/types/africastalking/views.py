@@ -40,9 +40,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         user = self.request.user
         org = user.get_org()
 
-        if not org:  # pragma: no cover
-            raise Exception(_("No org for this user, cannot claim"))
-
         data = form.cleaned_data
 
         config = dict(username=data["username"], api_key=data["api_key"], is_shared=data["is_shared"])
@@ -51,7 +48,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             org,
             user,
             data["country"],
-            "AT",
+            self.channel_type,
             name="Africa's Talking: %s" % data["shortcode"],
             address=data["shortcode"],
             config=config,
