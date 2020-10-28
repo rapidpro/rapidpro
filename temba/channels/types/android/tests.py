@@ -14,7 +14,8 @@ class AndroidTypeTest(TembaTest):
     def test_claim(self):
         # remove our explicit country so it needs to be derived from channels
         self.org.country = None
-        self.org.save()
+        self.org.timezone = "UTC"
+        self.org.save(update_fields=("country", "timezone"))
 
         Channel.objects.all().delete()
 
