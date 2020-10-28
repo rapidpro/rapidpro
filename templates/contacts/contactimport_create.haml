@@ -12,25 +12,25 @@
     %table#example.list.my-6
       %tr
         %th
-          -trans "URN:Tel"
+          URN:Tel
         %th
-          -trans "Name"
+          Name
         %th
-          -trans "Field:Team"
+          Field:Team
       %tr
         %td
-          -trans "+12025550199"
+          +12025550199
         %td
-          -trans "John Smith"
+          John Smith
         %td
-          -trans "Managers"
+          Managers
       %tr
         %td
-          -trans "+14045550178"
+          +14045550178
         %td
-          -trans "Mary Green"
+          Mary Green
         %td
-          -trans "Advisors"
+          Advisors
 
     .title
       -trans "Supported Fields"
@@ -42,32 +42,34 @@
         %th.whitespace-no-wrap
           -trans "Column Header"
         %th.whitespace-no-wrap
-          -trans "Imported as"
+          -trans "Imported As"
         %th.whitespace-no-wrap
           -trans "Details"
       %tr
         %td.whitespace-no-wrap
-          -trans "Name"
+          Name
         %td.whitespace-no-wrap
           -trans "Contact name"
         %td
       %tr
         %td.whitespace-no-wrap
-          -trans "Language"
+          Language
         %td.whitespace-no-wrap
           -trans "Contact language"
         %td
           -blocktrans trimmed
             Only valid <a href="https://en.wikipedia.org/wiki/ISO_639-3" target="_new">ISO639-3</a> codes supported.
 
-      -for conf in urn_scheme_config
+      -for scheme in urn_schemes
         %tr
           %td
-            URN:{{conf.0}}
+            URN:{{scheme.0}}
           %td
-            {{conf.1}}
+            {{scheme.1}}
           %td
-
+            -if scheme.0 == 'tel' and org_country
+              -blocktrans trimmed with country=org_country.name
+                Numbers without a country code will be treated as local numbers in {{ country }}.
       %tr
         %td.whitespace-no-wrap
           Field:<i>custom_field</i>

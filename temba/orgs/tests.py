@@ -666,7 +666,7 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse("orgs.org_home"))
         self.assertContains(response, "Backup tokens can be used")
 
-    def test_country(self):
+    def test_country_view(self):
         self.setUpLocations()
 
         country_url = reverse("orgs.org_country")
@@ -680,34 +680,43 @@ class OrgTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # save with Rwanda as a country
-        response = self.client.post(country_url, dict(country=AdminBoundary.objects.get(name="Rwanda").pk))
+        self.client.post(country_url, dict(country=AdminBoundary.objects.get(name="Rwanda").pk))
 
         # assert it has changed
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual("Rwanda", str(org.country))
-        self.assertEqual("RW", org.get_country_code())
+        self.org.refresh_from_db()
+        self.assertEqual("Rwanda", str(self.org.country))
+        self.assertEqual("RW", self.org.default_country_code)
 
-        # set our admin boundary name to something invalid
-        org.country.name = "Fantasia"
-        org.country.save()
+    def test_default_country(self):
+        # if country boundary is set and name is valid country, that has priority
+        self.org.country = AdminBoundary.create(osm_id="171496", name="Ecuador", level=0)
+        self.org.timezone = "Africa/Nairobi"
+        self.org.save(update_fields=("country", "timezone"))
 
-        # getting our country code show now back down to our channel
-        self.assertEqual("RW", org.get_country_code())
+        self.assertEqual("EC", self.org.default_country.alpha_2)
 
-        # clear it out
-        self.client.post(country_url, dict(country=""))
+        del self.org.default_country
 
-        # assert it has been
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertFalse(org.country)
-        self.assertEqual("RW", org.get_country_code())
+        # if country name isn't valid, we'll try timezone
+        self.org.country.name = "Fantasia"
+        self.org.country.save(update_fields=("name",))
 
-        # remove all our channels so we no longer have a backdown
-        org.channels.all().delete()
-        org = Org.objects.get(pk=self.org.pk)
+        self.assertEqual("KE", self.org.default_country.alpha_2)
 
-        # now really don't have a clue of our country code
-        self.assertIsNone(org.get_country_code())
+        del self.org.default_country
+
+        # not all timezones have countries in which case we look at channels
+        self.org.timezone = "UTC"
+        self.org.save(update_fields=("timezone",))
+
+        self.assertEqual("RW", self.org.default_country.alpha_2)
+
+        del self.org.default_country
+
+        # but if we don't have any channels.. no more backdowns
+        self.org.channels.all().delete()
+
+        self.assertIsNone(self.org.default_country)
 
     def test_user_update(self):
         update_url = reverse("orgs.user_edit")

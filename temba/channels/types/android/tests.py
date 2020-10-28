@@ -261,12 +261,12 @@ class AndroidTypeTest(TembaTest):
         android2.save()
 
         # our country is RW
-        self.assertEqual(self.org.get_country_code(), "RW")
+        self.assertEqual(self.org.default_country_code, "RW")
 
         # remove nexmo
         nexmo.release()
 
-        self.assertEqual(self.org.get_country_code(), "RW")
+        self.assertEqual(self.org.default_country_code, "RW")
 
         # register another device with country as US
         reg_data = dict(
@@ -314,7 +314,7 @@ class AndroidTypeTest(TembaTest):
         self.assertEqual(us_channel, channel)
 
         self.org = Org.objects.get(id=self.org.id)
-        self.assertIsNone(self.org.get_country_code())
+        self.assertEqual("", self.org.default_country_code)
 
         # yet another registration in rwanda
         reg_data = dict(
