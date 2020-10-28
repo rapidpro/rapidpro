@@ -124,9 +124,6 @@ class WhatsAppType(ChannelType):
     def is_available_to(self, user):
         return user.groups.filter(name="Beta")
 
-    def send(self, channel, msg, text):  # pragma: no cover
-        raise Exception("Sending WhatsApp messages is only possible via Courier")
-
     def get_urls(self):
         return [
             self.get_claim_url(),

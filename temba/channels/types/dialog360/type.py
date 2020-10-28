@@ -33,9 +33,6 @@ class Dialog360Type(ChannelType):
     max_length = 4096
     attachment_support = True
 
-    def send(self, channel, msg, text):  # pragma: no cover
-        raise Exception("Sending WhatsApp messages is only possible via Courier")
-
     def activate(self, channel):
         domain = channel.org.get_brand_domain()
         headers = {"D360-API-KEY": channel.config[Channel.CONFIG_AUTH_TOKEN], "Content-Type": "application/json"}
