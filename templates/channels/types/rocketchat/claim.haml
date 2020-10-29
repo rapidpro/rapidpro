@@ -11,16 +11,16 @@
   %ol.instructions
     %li
       -blocktrans trimmed
-        On your RocketChat, go to <i>Administration > Omnichannel</i> and enable it.
+        On your RocketChat, go to <i>Administration &gt; Omnichannel</i> and enable it.
     %li
       -blocktrans trimmed
-        Add a new user with the "bot" role (<i>Administration > Users > <b>"New"</b></i>)
+        Add a new user with the "bot" role (<i>Administration &gt; Users &gt; <b>"New"</b></i>)
     %li
       -blocktrans trimmed with brand=brand.name
-        Install the app <b> {{ brand }} Channel Integration </b> (<i>Administration > Marketplace </i>)
+        Install the app <b> {{ brand }} Channel Integration </b> (<i>Administration &gt; Marketplace </i>)
     %li
       -blocktrans trimmed with brand=brand.name
-        Open the app details, at <i>Administration > Apps > <b> {{ brand }} Channel Integration</b></i>, and in its settings section put the following token on the <b>App's Secret</b> field: <code>{{ secret }}</code>
+        Open the app details, at <i>Administration &gt; Apps &gt; <b> {{ brand }} Channel Integration</b></i>, and in its settings section put the following token on the <b>App's Secret</b> field: <code>{{ secret }}</code>
 
     %li
       -blocktrans trimmed with brand=brand.name
@@ -28,7 +28,7 @@
 
     %li
       -blocktrans trimmed
-        To get the required Auth Token and User ID go to <b>Profile > My account > Personal Access Tokens > Generate a token without 2FA</b>, save the tokens as it will not be displayed again once the pop-up is closed.
+        To get the required Auth Token and User ID go to <b>Profile &gt; My account &gt; Personal Access Tokens &gt; Generate a token without 2FA</b>, save the tokens as it will not be displayed again once the pop-up is closed.
 
 -block extra-style
   {{ block.super }}
