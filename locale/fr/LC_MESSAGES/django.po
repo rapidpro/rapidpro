@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-29 21:56+0000\n"
+"POT-Creation-Date: 2020-10-29 23:10+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1787,6 +1787,81 @@ msgstr "Code court"
 msgid "There was a problem updating that number, please try again."
 msgstr "Un problème est survenu lors de la mise à jour de ce numéro. Veuillez réessayer."
 
+msgid "Connection to RocketChat is taking too long."
+msgstr ""
+
+msgid "Unable to configure. Connection to RocketChat is taking too long."
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid ""
+#| "Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\" target=\"_blank\"> Firebase Cloud\n"
+#| "    Messaging Channel</a> to send and receive messages. Your users will need an App to send and receive messages."
+msgid "Add a %(link)s bot to send and receive messages to Rocket.Chat users. "
+msgstr ""
+"Ajouter un <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> canal Firebase\n"
+"    Cloud Messaging</a> pour envoyer et recevoir des messages. Vos utilisateurs auront besoin d'une application pour envoyer et recevoir des messages."
+
+msgid "Setup your RocketChat first to be able to integrate."
+msgstr ""
+
+msgid "Ex.: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
+msgstr ""
+
+msgid "The URL for your RocketChat Channnel app"
+msgstr ""
+
+#, fuzzy
+#| msgid "Username"
+msgid "Bot Username"
+msgstr "Nom d'utilisateur"
+
+#, fuzzy
+#| msgid "The name of your bot"
+msgid "The username of your RocketChat bot"
+msgstr "Le nom de votre bot"
+
+#, fuzzy
+#| msgid "Account Token"
+msgid "Admin Auth Token"
+msgstr "Jeton de compte"
+
+#, fuzzy
+#| msgid "The name of your bot"
+msgid "The admin user token of your RocketChat"
+msgstr "Le nom de votre bot"
+
+#, fuzzy
+#| msgid "users"
+msgid "Admin User ID"
+msgstr "utilisateurs"
+
+#, fuzzy
+#| msgid "The name of your bot"
+msgid "The admin user ID of your RocketChat"
+msgstr "Le nom de votre bot"
+
+msgid "Secret to be passed to RocketChat"
+msgstr ""
+
+msgid "Invalid secret code."
+msgstr ""
+
+msgid "Secret code change detected."
+msgstr ""
+
+#, python-format
+msgid "Invalid URL %(base_url)s"
+msgstr ""
+
+msgid "There is already a channel configured for this URL."
+msgstr ""
+
+#, fuzzy
+#| msgid "Configuration"
+msgid "Configuration has failed"
+msgstr "Configuration"
+
 #, fuzzy
 #| msgid "If you are based in Somalia, you can integrate with Telesom to send and receive messages on your shortcode."
 msgid "If you are based in Somalia, you can integrate with Shaqodoon to send and receive messages on your shortcode."
@@ -2650,6 +2725,11 @@ msgstr "Identifiant Freshchat"
 
 msgid "VK identifier"
 msgstr "Identifiant VK"
+
+#, fuzzy
+#| msgid "WeChat identifier"
+msgid "RocketChat identifier"
+msgstr "Identifiant WeChat"
 
 msgid "Text"
 msgstr "Texte"
@@ -6278,6 +6358,33 @@ msgstr ""
 "\n"
 "      Utiliser ce jeton comme autorisation lors de l'envoi de messages entrants\n"
 "    "
+
+msgid ""
+"\n"
+"      Instructions:\n"
+"    "
+msgstr ""
+
+msgid "On your RocketChat, go to <i>Administration &gt; Omnichannel</i> and enable it."
+msgstr ""
+
+msgid "Add a new user with the \"bot\" role (<i>Administration &gt; Users &gt; <b>\"New\"</b></i>)"
+msgstr ""
+
+#, python-format
+msgid "Install the app <b> %(brand)s Channel Integration </b> (<i>Administration &gt; Marketplace </i>)"
+msgstr ""
+
+#, python-format
+msgid "Open the app details, at <i>Administration &gt; Apps &gt; <b> %(brand)s Channel Integration</b></i>, and in its settings section put the following token on the <b>App's Secret</b> field: <code>%(secret)s</code>"
+msgstr ""
+
+#, python-format
+msgid "Save the changes, copy the app's URL and back to %(brand)s by pasting that URL on field below, so try connect."
+msgstr ""
+
+msgid "To get the required Auth Token and User ID go to <b>Profile &gt; My account &gt; Personal Access Tokens &gt; Generate a token without 2FA</b>, save the tokens as it will not be displayed again once the pop-up is closed."
+msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""
@@ -10166,7 +10273,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ "        Vous avez connecté un compte d'essai Twilio soumis à certaines restrictions.\n"
 #~ "      "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -10183,7 +10290,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "                "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -10199,7 +10306,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "                "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "              Used by %(num_flows)s flow:\n"
@@ -10217,7 +10323,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ "              Utilisé par %(num_flows)s flux:\n"
 #~ "              "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        To get started you need to add a channel to your account. A channel is a phone number or social network\n"
@@ -10610,7 +10716,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Add menu:"
 #~ msgstr "Ajouter un menu:"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
@@ -10831,7 +10937,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "    auprès de <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> et le connecter\n"
 #~ "    en quelques étapes simples."
 
-#, python-format
 #~ msgid "Unable to update call to action: %s"
 #~ msgstr "Impossible de mettre à jour l'appel à l'action: %s"
 
@@ -10924,7 +11029,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ "        Votre canal SignalWire est maintenant connecté.\n"
 #~ "        "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          When submitting your application for approval, make sure to include the <code>pages_messaging</code>\n"
@@ -11181,7 +11286,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "New Contact"
 #~ msgstr "Nouveau contact"
 
-#, python-format
 #~ msgid "Contact %s"
 #~ msgstr "Contact %s"
 
@@ -11215,7 +11319,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "All flow variables"
 #~ msgstr "Toutes les variables du flux"
 
-#, python-format
 #~ msgid "Contact Field: %(label)s"
 #~ msgstr "Champ contact: %(label)s"
 
@@ -11400,7 +11503,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Using a Local Number"
 #~ msgstr "Utilisation d'un numéro local"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "    No matter where you are in the world, there's a way for you to use %(name)s with a local number.\n"
@@ -11410,7 +11512,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "Ou que vous soyez dans le mone, il y a une facon pour vous d'utiliser %(name)s avec un numéro local."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Using %(name)s with an Android Phone\n"
@@ -11420,7 +11521,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "Utiliser %(name)s avec un téléphone Android"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          The easiest and most popular way to deploy %(name)s is by using a cheap Android phone along with a local sim card. It's quite\n"
@@ -11444,7 +11545,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Buy an Android phone"
 #~ msgstr "Acheter un téléphone Android"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        We always recommend that the phone you use for %(name)s be dedicated for that purpose. The good news\n"
@@ -11478,7 +11578,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "de façon à permettre la transmission de données. Vous pouvez également vous fier à votre connexion Wi-Fi, si vous le voulez. Nous encourageons aussi\n"
 #~ "l'établissement d'un compte post payé pour que vous ne craigniez pas que votre téléphone n'ai plus de crédit."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Install the %(name)s app\n"
@@ -11515,7 +11614,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Once the app is installed it will give you a 6 digit claim code that you then"
 #~ msgstr "Une fois l'application installée, il vous donnera un code claim de 6 chiffres que vous devez alors"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        And that's all there is to it. From then on, that phone will handle sending all the messages for your %(name)s account.\n"
@@ -11549,7 +11648,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "d'une connexion Wi-Fi ou GSM, ou encore mieux, des deux si possible. The téléphone saura détecter\n"
 #~ "quel réseau utiliser si l'une des connexions ne marche pas bien."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          %(name)s with Android FAQ\n"
@@ -11562,7 +11660,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "What if I need to send a lot of messages?"
 #~ msgstr "Que faire si j'ai besoin d'envoyer beaucoup de messages?"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          We encourage people to validate their ideas and experiment before focusing on scaling. Starting with Android\n"
@@ -11588,7 +11686,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "What happens if the battery dies?"
 #~ msgstr "Qu'advient-il si la batterie meurt?"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Android phones are great because they have redundant network connections and a backup battery. So, if the office\n"
@@ -11619,7 +11716,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "Quoi que ces caractéristiques soient généralement vues comme uniques aux comptes SMPP, les opérateurs permettent dans certains pays que les codes courts s'orientent vers des cartes sim. Ce qui veut dire qu'envoyer des textes ou appeler ces codes courts  sera orienté vers votre téléphone Android. Dans certains cas ces comptes sim peuvent également être de facturation inverse."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Does the fee I pay to %(name)s include messaging fees?\n"
@@ -11628,7 +11724,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "Est-ce que les frais que je paye à %(name)s inclus ceux de la messagerie?"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          No, the fee covers the use of the %(name)s platform. Any messaging rates imposed by your carrier apply.\n"
@@ -11638,7 +11733,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "Non, les frais couvrent l'utilisation de la plateforme %(name)s. Tous frais de messagerie imposés par votre opérateur sont applicables. "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Will %(name)s work for my remote ICT4D project?\n"
@@ -11647,7 +11741,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "Est ce que %(name)s va fonctionner pour mon project ICT4D à distance?"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          We understand that deploying SMS applications has traditionally been one of the trickiest parts when launching ICT4D projects.\n"
@@ -11674,7 +11767,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Connecting to Carriers"
 #~ msgstr "Connexion aux opérateurs"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        For projects that need to send more than a few thousand messages an hour, it may be worth looking\n"
@@ -11724,7 +11817,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Non-Profit discount"
 #~ msgstr "Escompte à but non lucratif"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        One of the biggest aggregators in the world, Twilio, recently announced <a href=\"http://twilio.org\">twilio.org</a> which promises a 25%% discount on messaging and voice\n"
@@ -11739,7 +11831,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Adding more aggregators"
 #~ msgstr "Ajout de plusieurs agrégateurs"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "      We're always extending our network of local aggregators. If you don't see an option for your country,\n"
@@ -11985,14 +12076,14 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "IGNORED"
 #~ msgstr "IGNORÉ"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "Create a contact "
 #~ msgid "Created %(create_count)s new contact"
 #~ msgid_plural "Created %(create_count)s new contacts"
 #~ msgstr[0] "Créer un contact"
 #~ msgstr[1] "Créer un contact"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                          Updated %(update_count)s contact with an existing phone number\n"
@@ -12024,7 +12115,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Errors description"
 #~ msgstr "Description"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                        Failed to import %(error_count)s contact due to missing or invalid phone number\n"
@@ -12064,7 +12155,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "                      "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  You can download\n"
@@ -12078,26 +12169,21 @@ msgstr "${count} trouvé pour ${query}"
 #~ "<a href='%(STATIC_URL)sexamples/contacts.xls'> Ce model de fichier excel</a>\n"
 #~ "comme un echantillon"
 
-#, python-brace-format
 #~ msgid "The provided file has unrecognized headers. Columns \"{joined_unsupported_headers}\" should be removed or prepended with the prefix \"Field:\"."
 #~ msgstr "Le fichier fourni a des en-têtes non reconnus. Les colonnes \"{joined_unsupported_headers}\" doivent être supprimées ou précédées du préfixe \"Field:\"."
 
-#, python-brace-format
 #~ msgid "The file you provided is missing a required header. At least one of \"{joined_possible_headers}\" or \"Contact UUID\" should be included."
 #~ msgstr "Le fichier que vous avez fourni ne contient pas l'en-tête requis. Au moins un de \"{joined_possible_headers}\" ou \"UUID de contact\" doit être inclus."
 
 #~ msgid "The file you provided is missing a required header called \"Name\"."
 #~ msgstr "Le fichier que vous avez fournie est manquant d'une entête requis appelé \"Nom\"."
 
-#, python-format
 #~ msgid "%s is an invalid name or is a reserved name for contact fields, field names should start with a letter."
 #~ msgstr "%s est un nom invalide ou un nom réservé pour les champs de contact, les noms de champs doivent commencer par une lettre."
 
-#, python-format
 #~ msgid "%s should be used once"
 #~ msgstr "%s devrait être utilisé une fois"
 
-#, python-format
 #~ msgid "'%(label)s' contact field has '%(key)s' key which is reserved name. Column cannot be imported"
 #~ msgstr "Le champ de contact '%(label)s' a la clé '%(key)s' qui est un nom réservé. La colonne ne peut pas être importée"
 
@@ -12106,7 +12192,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "You can import your contacts from an XLSX file you create in Excel."
 #~ msgstr "Vous pouvez importer vos contacts à partir d'un fichier XLS que vous créez dans Excel."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  You can download\n"
@@ -12120,7 +12206,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "<a href='%(STATIC_URL)sexamples/contacts.xls'> Ce model de fichier excel</a>\n"
 #~ "comme un echantillon"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        Are you sure you want to delete everything for %(name)s? Everything will be gone and there is no going back.\n"
@@ -12310,7 +12395,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
 #~ msgstr "Vous pouvez également inclure des valeurs de champs de contact personnalisées dans le fichier XLS pour les colonnes avec le préfixe <i>Field:</i>, par exemple: <i>Field:Team</i>."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                          Created %(create_count)s new contact\n"
@@ -12543,7 +12627,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "No runs"
 #~ msgstr "Aucune exécution"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                              %(run_count)s run\n"
@@ -12561,7 +12644,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "                              %(run_count)s exécutions\n"
 #~ "                            "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                            %(completed_percentage)s%% completion\n"
@@ -12571,7 +12653,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "                              %(completed_percentage)s%% terminé\n"
 #~ "                            "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                        %(count_comma)s recipient\n"
@@ -12589,7 +12670,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "                          %(count_comma)s destinataires\n"
 #~ "                      "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -12602,7 +12682,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Write the message that will get sent when the scheduled time arrives"
 #~ msgstr "Écrivez le message qui sera envoyé lorsque  l'heure prévue arrive"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -12632,7 +12711,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "          </span>\n"
 #~ "      "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -12757,7 +12835,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "month"
 #~ msgstr "Mois"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          on the %(repeat_day_of_month)s\n"
@@ -12767,7 +12844,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "le %(repeat_day_of_month)s"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          It will repeat <span class='attn'>%(repeat_period_display)s</span> at around the same time.\n"
@@ -12798,12 +12874,12 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "The archive we were rolled up into, if any"
 #~ msgstr "Les archives dans lesquelles nous avons été rassemblées, le cas échéant"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
 #~ msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
 #~ msgstr "%s est utilisé dans une campagne. Pour l'archiver, commencez par le supprimer de vos campagnes."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
 #~ msgid "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
 #~ msgstr "%s sont utilisés dans une campagne. Pour les archiver, commencez par les supprimer de vos campagnes."
@@ -12872,59 +12948,45 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Empty user access token!"
 #~ msgstr "Jeton d'accès au serveur de votre application"
 
-#, python-brace-format
 #~ msgid "Unrecognized field: '{prop}'"
 #~ msgstr "Champ non reconnu: '{prop}'"
 
-#, python-brace-format
 #~ msgid "Unknown text comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de texte inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown number comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de nombre inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unable to parse the date '{self.value}'"
 #~ msgstr "Impossible d'analyser la date '{self.value}'"
 
-#, python-brace-format
 #~ msgid "Unknown datetime comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de date/heure inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown location type: '{field.value_type}'"
 #~ msgstr "Type d'emplacement inconnu: '{field.value_type}'"
 
-#, python-brace-format
 #~ msgid "Unsupported comparator '{self.comparator}' for location field"
 #~ msgstr "Comparateur non pris en charge '{self.comparator}' pour le champ de localisation"
 
-#, python-brace-format
 #~ msgid "Unrecognized contact field type '{field.value_type}'"
 #~ msgstr "Type de champ de contact non reconnu '{field.value_type}'"
 
-#, python-brace-format
 #~ msgid "Unknown urn scheme comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de schéma URN inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown language comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de langue inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown created_on comparator: '{self.comparator}'"
 #~ msgstr "Comparateur created_on inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown name comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de nom inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "No support for attribute field: '{field}'"
 #~ msgstr "Pas de support pour le champ d'attribut: '{field}'"
 
-#, python-brace-format
 #~ msgid "Unrecognized contact field type '{prop_type}'"
 #~ msgstr "Type de champ de contact non reconnu '{prop_type}'"
 
@@ -13055,7 +13117,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Channel Alarms (low battery, loss of connectivity)"
 #~ msgstr "Channel alarmes (batterie faible, perte de connectivité)"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
