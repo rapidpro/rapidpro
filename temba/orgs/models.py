@@ -877,7 +877,7 @@ class Org(SmartModel):
         return None
 
     def get_language_codes(self):
-        return get_cacheable_attr(self, "_language_codes", lambda: {lan.iso_code for lan in self.languages.all()})
+        return get_cacheable_attr(self, "_language_codes", lambda: {l.iso_code for l in self.languages.all()})
 
     def set_languages(self, user, iso_codes, primary):
         """
