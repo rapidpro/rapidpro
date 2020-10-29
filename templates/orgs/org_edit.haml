@@ -14,10 +14,10 @@
 -block summary
   .flex.items-center
     .text.flex-grow.mr-4
-      -blocktrans with org=object.name
+      -blocktrans trimmed with org=object.name
         Your workspace is <b>{{org}}</b>
 
-      -blocktrans with timezone=object.timezone
+      -blocktrans trimmed with timezone=object.timezone
         which is in the <b>{{timezone}}</b> timezone.
 
       -if object.is_multi_org and sub_orgs
