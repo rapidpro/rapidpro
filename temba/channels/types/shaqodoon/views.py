@@ -32,16 +32,13 @@ class ClaimView(AuthenticatedExternalClaimView):
     def form_valid(self, form):
         org = self.request.user.get_org()
 
-        if not org:  # pragma: no cover
-            raise Exception(_("No org for this user, cannot claim"))
-
         data = form.cleaned_data
         self.object = Channel.add_config_external_channel(
             org,
             self.request.user,
             "SO",
             data["number"],
-            "SQ",
+            self.channel_type,
             dict(send_url=data["url"], username=data["username"], password=data["password"]),
         )
 

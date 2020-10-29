@@ -33,18 +33,11 @@ class ViberPublicType(ChannelType):
     update_form = UpdateForm
 
     claim_blurb = _(
-        """
-        Connect a <a href="http://viber.com/en/">Viber</a> public channel to send and receive messages to
-        Viber users for free. Your users will need an Android, Windows or iOS device and a Viber account to send and receive
-        messages.
-        """
-    )
+        "Connect a %(link)s public channel to send and receive messages to Viber users for free. Your users will need "
+        "an Android, Windows or iOS device and a Viber account to send and receive messages."
+    ) % {"link": '<a href="http://viber.com/en/">Viber</a>'}
 
-    configuration_blurb = _(
-        """
-        Your Viber channel is connected. If needed the webhook endpoints are listed below.
-        """
-    )
+    configuration_blurb = _("Your Viber channel is connected. If needed the webhook endpoints are listed below.")
 
     configuration_urls = (
         dict(label=_("Webhook URL"), url="https://{{ channel.callback_domain }}{% url 'courier.vp' channel.uuid %}"),

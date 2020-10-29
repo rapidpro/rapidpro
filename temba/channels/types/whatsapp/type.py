@@ -114,9 +114,7 @@ class WhatsAppType(ChannelType):
     name = "WhatsApp"
     icon = "icon-whatsapp"
 
-    claim_blurb = _(
-        """If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"""
-    )
+    claim_blurb = _("If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts")
     claim_view = ClaimView
 
     schemes = [URN.WHATSAPP_SCHEME]
@@ -125,9 +123,6 @@ class WhatsAppType(ChannelType):
 
     def is_available_to(self, user):
         return user.groups.filter(name="Beta")
-
-    def send(self, channel, msg, text):  # pragma: no cover
-        raise Exception("Sending WhatsApp messages is only possible via Courier")
 
     def get_urls(self):
         return [

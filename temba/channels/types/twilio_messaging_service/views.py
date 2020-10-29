@@ -35,10 +35,12 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         try:
             self.client = org.get_twilio_client()
             if not self.client:
-                return HttpResponseRedirect(reverse("orgs.org_twilio_connect"))
+                return HttpResponseRedirect(
+                    f'{reverse("orgs.org_twilio_connect")}?claim_type={self.channel_type.slug}'
+                )
             self.account = self.client.api.account.fetch()
         except TwilioRestException:
-            return HttpResponseRedirect(reverse("orgs.org_twilio_connect"))
+            return HttpResponseRedirect(f'{reverse("orgs.org_twilio_connect")}?claim_type={self.channel_type.slug}')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -48,9 +50,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         user = self.request.user
         org = user.get_org()
-
-        if not org:  # pragma: no cover
-            raise Exception(_("No org for this user, cannot claim"))
 
         data = form.cleaned_data
 
@@ -63,7 +62,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         }
 
         self.object = Channel.create(
-            org, user, data["country"], "TMS", name=data["messaging_service_sid"], address=None, config=config
+            org,
+            user,
+            data["country"],
+            self.channel_type,
+            name=data["messaging_service_sid"],
+            address=None,
+            config=config,
         )
 
         return super().form_valid(form)

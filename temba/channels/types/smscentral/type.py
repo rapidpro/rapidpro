@@ -19,9 +19,9 @@ class SMSCentralType(ChannelType):
     name = "SMSCentral"
     icon = "icon-channel-external"
 
-    claim_blurb = _(
-        """Easily add a two way number you have configured with <a href="http://smscentral.com.np/">SMSCentral</a> using their APIs."""
-    )
+    claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
+        "link": '<a href="http://smscentral.com.np/">SMSCentral</a>'
+    }
     claim_view = AuthenticatedExternalClaimView
 
     schemes = [URN.TEL_SCHEME]
@@ -31,9 +31,7 @@ class SMSCentralType(ChannelType):
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your SMSCentral connection you'll need to notify SMSCentral of the following URL.
-        """
+        "To finish configuring your SMSCentral connection you'll need to notify SMSCentral of the following URL."
     )
 
     configuration_urls = (

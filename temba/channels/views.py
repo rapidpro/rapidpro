@@ -1031,9 +1031,6 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         org = self.request.user.get_org()
 
-        if not org:  # pragma: no cover
-            raise Exception("No org for this user, cannot claim")
-
         data = form.cleaned_data
         extra_config = self.get_channel_config(org, data)
         self.object = Channel.add_authenticated_external_channel(
@@ -1751,6 +1748,11 @@ class ChannelCRUDL(SmartCRUDL):
             kwargs = super().get_form_kwargs()
             kwargs["object"] = self.object
             return kwargs
+
+        def derive_initial(self):
+            initial = super().derive_initial()
+            initial["role"] = [char for char in self.object.role]
+            return initial
 
         def pre_save(self, obj):
             for field in self.form.config_fields:

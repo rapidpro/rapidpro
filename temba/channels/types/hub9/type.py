@@ -18,7 +18,7 @@ class Hub9Type(ChannelType):
 
     name = "Hub9"
 
-    claim_blurb = _("""Easily add a two way number you have configured with Hub9 in Indonesia.""")
+    claim_blurb = _("Easily add a two way number you have configured with Hub9 in Indonesia.")
     claim_view = ClaimView
 
     schemes = [URN.TEL_SCHEME, URN.EXTERNAL_SCHEME]
@@ -28,9 +28,7 @@ class Hub9Type(ChannelType):
     show_public_addresses = True
 
     configuration_blurb = _(
-        """
-        To finish configuring your Hub9 connection you'll need to provide them with the following details.
-        """
+        "To finish configuring your Hub9 connection you'll need to provide them with the following details."
     )
 
     configuration_urls = (
@@ -38,20 +36,17 @@ class Hub9Type(ChannelType):
             label=_("Received URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.h9' channel.uuid 'receive' %}",
             description=_(
-                """
-                This endpoint should be called by Hub9 when new messages are received to your number.
-                You can set the receive URL on your Hub9 account by contacting your sales agent.
-                """
+                "This endpoint should be called by Hub9 when new messages are received to your number. "
+                "You can set the receive URL on your Hub9 account by contacting your sales agent."
             ),
         ),
         dict(
             label=_("Delivered URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.h9' channel.uuid 'delivered' %}",
             description=_(
-                """
-                This endpoint should be called by Hub9 when a message has been to the final recipient. (delivery reports)
-                You can set the delivery callback URL on your Hub9 account by contacting your sales agent.
-                """
+                "This endpoint should be called by Hub9 when a message has been to the final recipient. "
+                "(delivery reports) You can set the delivery callback URL on your Hub9 account by contacting your "
+                "sales agent."
             ),
         ),
     )
