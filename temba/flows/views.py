@@ -537,6 +537,7 @@ class FlowCRUDL(SmartCRUDL):
         "flow_parameters",
         "export_pdf",
         "merge_flows",
+        "merging_flows_table",
     )
 
     model = Flow
@@ -3177,6 +3178,36 @@ class FlowCRUDL(SmartCRUDL):
             )
 
             return HttpResponseRedirect(reverse("flows.flow_list"))
+
+    class MergingFlowsTable(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+        """
+        Intercooler helper which renders rows of merging flow tasks to be embedded in an existing table with infinite scrolling
+        """
+
+        paginate_by = 50
+
+        def get_context_data(self, *args, **kwargs):
+            context = super().get_context_data(*args, **kwargs)
+            flow = self.get_object()
+            merging_tasks = MergeFlowsTask.objects.filter(target=flow).order_by('create_on')
+
+            # paginate
+            modified_on = self.request.GET.get("modified_on", None)
+            if modified_on:
+                uuid = self.request.GET["uuid"]
+
+                modified_on = iso8601.parse_date(modified_on)
+                merging_tasks = merging_tasks.filter(modified_on__lte=modified_on).exclude(uuid=uuid)
+
+            # we grab one more than our page to denote whether there's more to get
+            merging_tasks = list(merging_tasks.order_by("-modified_on")[: self.paginate_by + 1])
+            context["more"] = len(merging_tasks) > self.paginate_by
+            merging_tasks = merging_tasks[: self.paginate_by]
+
+            context["merging_tasks"] = merging_tasks
+            context["start_date"] = flow.org.get_delete_date(archive_type=Archive.TYPE_FLOWRUN)
+            context["paginate_by"] = self.paginate_by
+            return context
 
 
 # this is just for adhoc testing of the preprocess url

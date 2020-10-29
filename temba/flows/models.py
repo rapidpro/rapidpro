@@ -4088,6 +4088,17 @@ class FlowImagesExportAssetStore(BaseExportAssetStore):
 
 
 class MergeFlowsTask(TembaModel):
+    STATUS_ACTIVE = "A"
+    STATUS_PROCESSING = "P"
+    STATUS_COMPLETED = "C"
+    STATUS_FAILED = "F"
+    STATUS_CHOICES = (
+        (STATUS_ACTIVE, "Active"),
+        (STATUS_PROCESSING, "Processing"),
+        (STATUS_COMPLETED, "Completed"),
+        (STATUS_FAILED, "Failed"),
+    )
+    
     source = models.ForeignKey("Flow", on_delete=models.CASCADE, related_name="merge_targets")
     target = models.ForeignKey("Flow", on_delete=models.CASCADE, related_name="merge_sources")
     merge_name = models.CharField(max_length=64, help_text=_("New name for target flow that contain merged data."))
@@ -4097,7 +4108,13 @@ class MergeFlowsTask(TembaModel):
     email_subject = "%s: Flow Merging Finished"
     email_template = "flows/email/flow_merging_result"
 
+    status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+    created_on = models.DateTimeField(auto_now_add=True)
+    modified_on = models.DateTimeField(auto_now=True)
+
     def process_merging(self):
+        self.status = self.STATUS_PROCESSING
+        self.save()
         try:
             with transaction.atomic():
                 backup_metadata = {}
@@ -4280,6 +4297,7 @@ class MergeFlowsTask(TembaModel):
                     self.source.is_archived = True
                     self.source.save(update_fields=["is_archived"])
                 self.merging_metadata.update(backup_metadata)
+                self.status = self.STATUS_COMPLETED
                 self.save()
 
                 org = self.target.org
@@ -4297,6 +4315,8 @@ class MergeFlowsTask(TembaModel):
                 )
         except Exception as e:
             logger.error(str(e), exc_info=True)
+            self.status = self.STATUS_FAILED
+            self.save()
             org = self.target.org
             branding = org.get_branding()
             email_subject = "%s: Flow Merging Failed"
