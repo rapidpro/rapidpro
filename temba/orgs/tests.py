@@ -4446,7 +4446,17 @@ class CreditAlertTest(TembaTest):
         # create another expiring topup, newer than the most recent one
         TopUp.create(self.admin, 1000, 9876, expires_on=timezone.now() + timedelta(days=25), org=self.org)
 
+        # set the org to not use topups
+        Org.objects.filter(id=self.org.id).update(uses_topups=False)
+
         # recheck the expiration
+        check_topup_expiration_task()
+
+        # no alert since we don't use topups
+        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=CreditAlert.TYPE_EXPIRING))
+
+        # switch batch and recalculate again
+        Org.objects.filter(id=self.org.id).update(uses_topups=True)
         check_topup_expiration_task()
 
         # expiring credit alert created and email sent
