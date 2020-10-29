@@ -359,7 +359,7 @@ def update_field_locally(user, contact, key, value, label=None):
 
 
 def update_urns_locally(contact, urns: List[str]):
-    country = contact.org.get_country_code()
+    country = contact.org.default_country_code
     priority = ContactURN.PRIORITY_HIGHEST
 
     urns_created = []  # new URNs created

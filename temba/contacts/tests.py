@@ -5443,9 +5443,9 @@ class ContactImportTest(TembaTest):
         self.assertEqual(3, batches[0].record_end)
         self.assertEqual(
             [
-                {"name": "Eric Newcomer", "urns": ["tel:250788382382"], "groups": [str(imp.group.uuid)]},
-                {"name": "NIC POTTIER", "urns": ["tel:250(78) 8 383 383"], "groups": [str(imp.group.uuid)]},
-                {"name": "jen newcomer", "urns": ["tel:250788383385"], "groups": [str(imp.group.uuid)]},
+                {"name": "Eric Newcomer", "urns": ["tel:+250788382382"], "groups": [str(imp.group.uuid)]},
+                {"name": "NIC POTTIER", "urns": ["tel:+250788383383"], "groups": [str(imp.group.uuid)]},
+                {"name": "jen newcomer", "urns": ["tel:+250788383385"], "groups": [str(imp.group.uuid)]},
             ],
             batches[0].specs,
         )
@@ -5647,9 +5647,9 @@ class ContactImportTest(TembaTest):
 
         self.assertEqual(
             [
-                {"name": "Eric Newcomer", "urns": ["tel:250788382382"], "groups": [str(imp.group.uuid)]},
-                {"name": "NIC POTTIER", "urns": ["tel:250(78) 8 383 383"], "groups": [str(imp.group.uuid)]},
-                {"name": "jen newcomer", "urns": ["tel:250788383385"], "groups": [str(imp.group.uuid)]},
+                {"name": "Eric Newcomer", "urns": ["tel:+250788382382"], "groups": [str(imp.group.uuid)]},
+                {"name": "NIC POTTIER", "urns": ["tel:+250788383383"], "groups": [str(imp.group.uuid)]},
+                {"name": "jen newcomer", "urns": ["tel:+250788383385"], "groups": [str(imp.group.uuid)]},
             ],
             batch.specs,
         )

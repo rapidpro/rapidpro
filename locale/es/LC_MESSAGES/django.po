@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-27 22:13+0000\n"
+"POT-Creation-Date: 2020-10-28 20:57+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -8249,34 +8249,6 @@ msgstr "Mostrar Contactos"
 msgid "You can import contacts from an Excel spreadsheet or comma separated values file."
 msgstr "Puede importar sus contactos de un archivo XLS que haya creado en Excel. "
 
-msgid "URN:Tel"
-msgstr ""
-
-#, fuzzy
-#| msgid "Query Fields"
-msgid "Field:Team"
-msgstr "Campos de la solicitud"
-
-msgid "+12025550199"
-msgstr ""
-
-msgid "John Smith"
-msgstr ""
-
-#, fuzzy
-#| msgid "Managers,"
-msgid "Managers"
-msgstr "Directores,"
-
-msgid "+14045550178"
-msgstr ""
-
-msgid "Mary Green"
-msgstr ""
-
-msgid "Advisors"
-msgstr ""
-
 #, fuzzy
 #| msgid "Query Fields"
 msgid "Supported Fields"
@@ -8292,7 +8264,7 @@ msgstr "columna como"
 
 #, fuzzy
 #| msgid "Import"
-msgid "Imported as"
+msgid "Imported As"
 msgstr "Importar"
 
 #, fuzzy
@@ -8306,6 +8278,10 @@ msgid "Contact language"
 msgstr "Establecer idioma"
 
 msgid "Only valid <a href=\"https://en.wikipedia.org/wiki/ISO_639-3\" target=\"_new\">ISO639-3</a> codes supported."
+msgstr ""
+
+#, python-format
+msgid "Numbers without a country code will be treated as local numbers in %(country)s."
 msgstr ""
 
 msgid "If fields don't exist you will have the option to create them or ignore them."
@@ -11507,6 +11483,16 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Query Fields"
+#~ msgid "Field:Team"
+#~ msgstr "Campos de la solicitud"
+
+#, fuzzy
+#~| msgid "Managers,"
+#~ msgid "Managers"
+#~ msgstr "Directores,"
 
 #, fuzzy
 #~| msgid "Connect your Kannel instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."

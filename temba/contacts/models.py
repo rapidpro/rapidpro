@@ -2352,7 +2352,8 @@ class ContactImport(SmartModel):
                 scheme = mapping["scheme"]
                 if "urns" not in spec:
                     spec["urns"] = []
-                spec["urns"].append(URN.from_parts(scheme, value))
+                urn = URN.normalize(URN.from_parts(scheme, value), country_code=self.org.default_country_code)
+                spec["urns"].append(urn)
             elif mapping["type"] in ("field", "new_field"):
                 if "fields" not in spec:
                     spec["fields"] = {}
