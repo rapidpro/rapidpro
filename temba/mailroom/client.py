@@ -170,7 +170,6 @@ class MailroomClient:
             "sort": sort,
             "offset": offset,
         }
-
         return self._request("contact/search", payload)
 
     def parse_query(self, org_id, query, group_uuid=""):

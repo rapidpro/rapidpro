@@ -1,13 +1,9 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.yo.views import ClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
-
-YO_API_URL_1 = "http://smgw1.yo.co.ug:9100/sendsms"
-YO_API_URL_2 = "http://41.220.12.201:9100/sendsms"
-YO_API_URL_3 = "http://164.40.148.210:9100/sendsms"
 
 
 class YoType(ChannelType):
@@ -23,22 +19,17 @@ class YoType(ChannelType):
     name = "YO!"
     slug = "yo"
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 1600
     attachment_support = False
 
     claim_view = ClaimView
     claim_blurb = _(
-        """
-        If you are based in Uganda, you can integrate with <a href="http://www.yo.co.ug/">Yo!</a> to send
-        and receive messages on your shortcode.
-        """
-    )
+        "If you are based in Uganda, you can integrate with %(link)s to send and receive messages on your shortcode."
+    ) % {"link": '<a href="http://www.yo.co.ug/">Yo!</a>'}
 
     configuration_blurb = _(
-        """
-        To finish configuring your Yo! connection you'll need to notify Yo! of the following inbound SMS URL.
-        """
+        "To finish configuring your Yo! connection you'll need to notify Yo! of the following inbound SMS URL."
     )
 
     configuration_urls = (
@@ -50,10 +41,6 @@ class YoType(ChannelType):
             ),
         ),
     )
-
-    YO_API_URL_1 = "http://smgw1.yo.co.ug:9100/sendsms"
-    YO_API_URL_2 = "http://41.220.12.201:9100/sendsms"
-    YO_API_URL_3 = "http://164.40.148.210:9100/sendsms"
 
     def is_available_to(self, user):
         org = user.get_org()

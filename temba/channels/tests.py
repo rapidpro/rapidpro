@@ -22,11 +22,11 @@ from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
 
 from temba.channels.views import channel_status_processor
-from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, URN, Contact, ContactGroup, ContactURN
+from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
 from temba.msgs.models import IVR, PENDING, QUEUED, Broadcast, Msg
 from temba.orgs.models import Org
-from temba.tests import AnonymousOrg, MigrationTest, MockResponse, TembaTest, mock_mailroom
+from temba.tests import AnonymousOrg, MockResponse, TembaTest, mock_mailroom
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
@@ -135,13 +135,22 @@ class ChannelTest(TembaTest):
         self.login(self.admin)
 
         channel_types = (
-            ("JN", Channel.DEFAULT_ROLE, "Channel Log"),
-            ("T", Channel.ROLE_CALL, "Call Log"),
-            ("T", Channel.ROLE_SEND + Channel.ROLE_CALL, "Channel Log"),
+            ("JN", Channel.DEFAULT_ROLE, None, "Channel Log"),
+            ("T", Channel.ROLE_CALL, None, "Call Log"),
+            ("T", Channel.ROLE_SEND + Channel.ROLE_CALL, None, "Channel Log"),
+            ("EX", Channel.ROLE_RECEIVE, ["tel"], "Channel Log"),
         )
 
-        for channel_type, channel_role, link_text in channel_types:
-            channel = Channel.create(self.org, self.user, None, channel_type, name="Test Channel", role=channel_role)
+        for channel_type, channel_role, channel_schemes, link_text in channel_types:
+            channel = Channel.create(
+                self.org,
+                self.user,
+                None,
+                channel_type,
+                name="Test Channel",
+                role=channel_role,
+                schemes=channel_schemes,
+            )
             response = self.client.get(reverse("channels.channel_read", args=[channel.uuid]))
             self.assertContains(response, link_text)
 
@@ -219,9 +228,9 @@ class ChannelTest(TembaTest):
         norm_c2 = Contact.objects.get(pk=contact2.pk)
         norm_c3 = Contact.objects.get(pk=contact3.pk)
 
-        self.assertEqual(norm_c1.get_urn(TEL_SCHEME).path, "+250788111222")
-        self.assertEqual(norm_c2.get_urn(TEL_SCHEME).path, "+250788333444")
-        self.assertEqual(norm_c3.get_urn(TEL_SCHEME).path, "+18006927753")
+        self.assertEqual(norm_c1.get_urn(URN.TEL_SCHEME).path, "+250788111222")
+        self.assertEqual(norm_c2.get_urn(URN.TEL_SCHEME).path, "+250788333444")
+        self.assertEqual(norm_c3.get_urn(URN.TEL_SCHEME).path, "+18006927753")
 
     def test_channel_create(self):
 
@@ -640,7 +649,7 @@ class ChannelTest(TembaTest):
 
         # change channel type to Twitter
         self.tel_channel.channel_type = "TWT"
-        self.tel_channel.schemes = [TWITTER_SCHEME]
+        self.tel_channel.schemes = [URN.TWITTER_SCHEME]
         self.tel_channel.address = "billy_bob"
         self.tel_channel.scheme = "twitter"
         self.tel_channel.config = {"handle_id": 12345, "oauth_token": "abcdef", "oauth_token_secret": "23456"}
@@ -1111,16 +1120,7 @@ class ChannelTest(TembaTest):
 
         post_data = dict(
             cmds=[
-                dict(
-                    cmd="status",
-                    org_id="-1",
-                    p_lvl=84,
-                    net="WIFI",
-                    p_sts="STATUS_CHARGING",
-                    p_src="USB",
-                    pending=[],
-                    retry=[],
-                )
+                dict(cmd="status", org_id="-1", p_lvl=84, net="WIFI", p_sts="CHA", p_src="USB", pending=[], retry=[],)
             ]
         )
 
@@ -2877,20 +2877,3 @@ class CourierTest(TembaTest):
         response = self.client.get(reverse("courier.t", args=[self.channel.uuid, "receive"]))
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.content, b"this URL should be mapped to a Courier instance")
-
-
-class PopulateAllowInternationalTest(MigrationTest):
-    app = "channels"
-    migrate_from = "0121_auto_20191112_1938"
-    migrate_to = "0122_populate_allow_international"
-
-    def setUpBeforeMigration(self, apps):
-        # create a non-tel channel
-        self.channel2 = Channel.create(self.org, self.user, None, "FB", name="Test FB Channel")
-
-    def test_migration(self):
-        self.channel.refresh_from_db()
-        self.channel2.refresh_from_db()
-
-        self.assertEqual({"FCM_ID": "123", "allow_international": True}, self.channel.config)
-        self.assertEqual({}, self.channel2.config)

@@ -179,7 +179,7 @@ class TwitterTypeTest(TembaTest):
         self.assertEqual("therealjoe", new_urn.display)
         self.assertEqual("twitterid:123456#therealjoe", new_urn.urn)
 
-        old_fred = self.create_contact("old fred", urns=[URN.from_twitter("fred")])
+        old_fred = self.create_contact("old fred", urns=["twitter:fred"])
         new_fred = self.create_contact("new fred", urns=[URN.from_twitterid("12345", screen_name="fred")])
 
         mock_lookup_user.return_value = [dict(screen_name="fred", id="12345")]

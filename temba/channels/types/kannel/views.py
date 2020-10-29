@@ -3,7 +3,7 @@ from smartmin.views import SmartFormView
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
-from temba.utils.fields import ExternalURLField
+from temba.utils.fields import ExternalURLField, SelectWidget
 from temba.utils.uuid import uuid4
 
 from ...models import Channel
@@ -19,7 +19,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             help_text=_("The phone number or short code you are connecting"),
         )
         country = forms.ChoiceField(
-            choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in")
+            choices=ALL_COUNTRIES,
+            widget=SelectWidget(attrs={"searchable": True}),
+            label=_("Country"),
+            help_text=_("The country this phone number is used in"),
         )
         url = ExternalURLField(
             max_length=1024,

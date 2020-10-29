@@ -1,7 +1,7 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.views import AuthenticatedExternalClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 
@@ -56,7 +56,7 @@ class ClickSendType(ChannelType):
         "US/Pacific",
     ]
     category = ChannelType.Category.PHONE
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 1224
     attachment_support = False
 
@@ -69,17 +69,12 @@ class ClickSendType(ChannelType):
         "form_blurb": _("You can connect your ClickSend number by entering the settings below."),
     }
 
-    claim_blurb = _(
-        """
-        If you have a <a href="https://www.clicksend.com/">ClickSend</a> number,
-        you can quickly connect it using their APIs.
-        """
-    )
+    claim_blurb = _("If you have a %(link)s number, you can quickly connect it using their APIs.") % {
+        "link": '<a href="https://www.clicksend.com/">ClickSend</a>'
+    }
 
     configuration_blurb = _(
-        """
-        To finish connecting your channel, you need to set your inbound SMS URL below for your number.
-        """
+        "To finish connecting your channel, you need to set your inbound SMS URL below for your number."
     )
 
     configuration_urls = (
@@ -87,9 +82,9 @@ class ClickSendType(ChannelType):
             label=_("Receive URL"),
             url="https://{{channel.callback_domain}}/c/cs/{{channel.uuid}}/receive",
             description=_(
-                "This URL should be called by ClickSend when new messages are received."
+                "This URL should be called by ClickSend when new messages are received. "
                 "On your ClickSend dashboard, you can set this URL by going to SMS, then Settings, "
-                "then the Inbound SMS Settings menu."
+                "then the Inbound SMS Settings menu. "
                 "Add a new rule, select action URL, and use the URL above, then click save."
             ),
         ),
