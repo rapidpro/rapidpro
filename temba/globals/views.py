@@ -3,7 +3,6 @@ from gettext import gettext as _
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartListView, SmartReadView, SmartUpdateView
 
 from django import forms
-from django.conf import settings
 from django.http import HttpResponse
 from django.urls import reverse
 
@@ -23,10 +22,9 @@ class CreateGlobalForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
-        if self.org.globals.filter(is_active=True).count() >= settings.MAX_ACTIVE_GLOBALS_PER_ORG:
+        if self.org.globals.filter(is_active=True).count() >= Global.MAX_ORG_GLOBALS:
             raise forms.ValidationError(
-                _("Cannot create a new global as limit is %(limit)s."),
-                params={"limit": settings.MAX_ACTIVE_GLOBALS_PER_ORG},
+                _("Cannot create a new global as limit is %(limit)s."), params={"limit": Global.MAX_ORG_GLOBALS},
             )
 
         return cleaned_data
