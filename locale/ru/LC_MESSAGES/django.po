@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-29 09:45+0000\n"
+"POT-Creation-Date: 2020-10-29 19:01+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -7280,30 +7280,6 @@ msgstr "Показать Контакты"
 msgid "You can import contacts from an Excel spreadsheet or comma separated values file."
 msgstr "Вы можете импортировать свои контакты из XLS файла, который Вы создадите в Excel."
 
-msgid "URN:Tel"
-msgstr "URN:Tel"
-
-msgid "Field:Team"
-msgstr "Поле:Команда"
-
-msgid "+12025550199"
-msgstr ""
-
-msgid "John Smith"
-msgstr ""
-
-msgid "Managers"
-msgstr "Менеджеры"
-
-msgid "+14045550178"
-msgstr ""
-
-msgid "Mary Green"
-msgstr ""
-
-msgid "Advisors"
-msgstr "Консультанты"
-
 #, fuzzy
 #| msgid "Supported"
 msgid "Supported Fields"
@@ -7315,7 +7291,9 @@ msgstr ""
 msgid "Column Header"
 msgstr "Заголовок столбца"
 
-msgid "Imported as"
+#, fuzzy
+#| msgid "Imported as"
+msgid "Imported As"
 msgstr "Импортировано как"
 
 msgid "Contact name"
@@ -7325,6 +7303,10 @@ msgid "Contact language"
 msgstr "Язык Контакта"
 
 msgid "Only valid <a href=\"https://en.wikipedia.org/wiki/ISO_639-3\" target=\"_new\">ISO639-3</a> codes supported."
+msgstr ""
+
+#, python-format
+msgid "Numbers without a country code will be treated as local numbers in %(country)s."
 msgstr ""
 
 msgid "If fields don't exist you will have the option to create them or ignore them."
@@ -11010,6 +10992,18 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "URN:Tel"
+#~ msgstr "URN:Tel"
+
+#~ msgid "Field:Team"
+#~ msgstr "Поле:Команда"
+
+#~ msgid "Managers"
+#~ msgstr "Менеджеры"
+
+#~ msgid "Advisors"
+#~ msgstr "Консультанты"
 
 #~ msgid "Connect your <a href=\"https://junebug.praekelt.org/\">Junebug</a> instance that you have already set up and configured."
 #~ msgstr "Подключите Ваш экземпляр класса <a href=\"https://junebug.praekelt.org/\">Junebug</a>, который Вы уже создали и настроили."

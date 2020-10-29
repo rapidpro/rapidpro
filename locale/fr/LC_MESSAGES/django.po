@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-29 09:45+0000\n"
+"POT-Creation-Date: 2020-10-29 19:01+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -7280,30 +7280,6 @@ msgstr "Afficher les contacts"
 msgid "You can import contacts from an Excel spreadsheet or comma separated values file."
 msgstr "Vous pouvez importer vos contacts à partir d'un fichier XLS que vous créez dans Excel."
 
-msgid "URN:Tel"
-msgstr "URN:Tel"
-
-msgid "Field:Team"
-msgstr "Field:Team"
-
-msgid "+12025550199"
-msgstr ""
-
-msgid "John Smith"
-msgstr ""
-
-msgid "Managers"
-msgstr "Gestionnaires"
-
-msgid "+14045550178"
-msgstr ""
-
-msgid "Mary Green"
-msgstr ""
-
-msgid "Advisors"
-msgstr "Conseillers"
-
 #, fuzzy
 #| msgid "Supported"
 msgid "Supported Fields"
@@ -7315,7 +7291,9 @@ msgstr ""
 msgid "Column Header"
 msgstr "En-tête de colonne"
 
-msgid "Imported as"
+#, fuzzy
+#| msgid "Imported as"
+msgid "Imported As"
 msgstr "Importé en tant que"
 
 msgid "Contact name"
@@ -7325,6 +7303,10 @@ msgid "Contact language"
 msgstr "Langue du contact"
 
 msgid "Only valid <a href=\"https://en.wikipedia.org/wiki/ISO_639-3\" target=\"_new\">ISO639-3</a> codes supported."
+msgstr ""
+
+#, python-format
+msgid "Numbers without a country code will be treated as local numbers in %(country)s."
 msgstr ""
 
 msgid "If fields don't exist you will have the option to create them or ignore them."
@@ -10896,6 +10878,18 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "URN:Tel"
+#~ msgstr "URN:Tel"
+
+#~ msgid "Field:Team"
+#~ msgstr "Field:Team"
+
+#~ msgid "Managers"
+#~ msgstr "Gestionnaires"
+
+#~ msgid "Advisors"
+#~ msgstr "Conseillers"
 
 #~ msgid "Connect your <a href=\"https://junebug.praekelt.org/\">Junebug</a> instance that you have already set up and configured."
 #~ msgstr "Connectez votre instance <a href=\"https://junebug.praekelt.org/\">Junebug</a> que vous avez déjà installée et configurée."

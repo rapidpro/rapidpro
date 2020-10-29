@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-29 09:45+0000\n"
+"POT-Creation-Date: 2020-10-29 19:01+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5560,30 +5560,6 @@ msgstr ""
 msgid "You can import contacts from an Excel spreadsheet or comma separated values file."
 msgstr ""
 
-msgid "URN:Tel"
-msgstr ""
-
-msgid "Field:Team"
-msgstr ""
-
-msgid "+12025550199"
-msgstr ""
-
-msgid "John Smith"
-msgstr ""
-
-msgid "Managers"
-msgstr ""
-
-msgid "+14045550178"
-msgstr ""
-
-msgid "Mary Green"
-msgstr ""
-
-msgid "Advisors"
-msgstr ""
-
 msgid "Supported Fields"
 msgstr ""
 
@@ -5593,7 +5569,7 @@ msgstr ""
 msgid "Column Header"
 msgstr ""
 
-msgid "Imported as"
+msgid "Imported As"
 msgstr ""
 
 msgid "Contact name"
@@ -5603,6 +5579,10 @@ msgid "Contact language"
 msgstr ""
 
 msgid "Only valid <a href=\"https://en.wikipedia.org/wiki/ISO_639-3\" target=\"_new\">ISO639-3</a> codes supported."
+msgstr ""
+
+#, python-format
+msgid "Numbers without a country code will be treated as local numbers in %(country)s."
 msgstr ""
 
 msgid "If fields don't exist you will have the option to create them or ignore them."

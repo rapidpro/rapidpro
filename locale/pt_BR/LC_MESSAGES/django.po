@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-29 09:45+0000\n"
+"POT-Creation-Date: 2020-10-29 19:01+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -7586,33 +7586,6 @@ msgstr "Mostrar contatos"
 msgid "You can import contacts from an Excel spreadsheet or comma separated values file."
 msgstr "Você pode importar seus contatos de um arquivo XLS criado no Excel."
 
-msgid "URN:Tel"
-msgstr ""
-
-#, fuzzy
-msgid "Field:Team"
-msgstr "Gerenciar campos"
-
-msgid "+12025550199"
-msgstr ""
-
-msgid "John Smith"
-msgstr ""
-
-#, fuzzy
-#| msgid "Managers,"
-msgid "Managers"
-msgstr "Gerentes,"
-
-msgid "+14045550178"
-msgstr ""
-
-msgid "Mary Green"
-msgstr ""
-
-msgid "Advisors"
-msgstr ""
-
 #, fuzzy
 msgid "Supported Fields"
 msgstr "Gerenciar campos"
@@ -7625,7 +7598,7 @@ msgstr ""
 
 #, fuzzy
 #| msgid "Import"
-msgid "Imported as"
+msgid "Imported As"
 msgstr "Importar"
 
 #, fuzzy
@@ -7638,6 +7611,10 @@ msgid "Contact language"
 msgstr "Linguagem"
 
 msgid "Only valid <a href=\"https://en.wikipedia.org/wiki/ISO_639-3\" target=\"_new\">ISO639-3</a> codes supported."
+msgstr ""
+
+#, python-format
+msgid "Numbers without a country code will be treated as local numbers in %(country)s."
 msgstr ""
 
 msgid "If fields don't exist you will have the option to create them or ignore them."
@@ -10646,6 +10623,15 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Field:Team"
+#~ msgstr "Gerenciar campos"
+
+#, fuzzy
+#~| msgid "Managers,"
+#~ msgid "Managers"
+#~ msgstr "Gerentes,"
 
 #, fuzzy
 #~| msgid ""
