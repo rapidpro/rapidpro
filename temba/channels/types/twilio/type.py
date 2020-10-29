@@ -23,9 +23,9 @@ class TwilioType(ChannelType):
 
     name = "Twilio"
     icon = "icon-channel-twilio"
-    claim_blurb = _(
-        """Easily add a two way number you have configured with <a href="https://www.twilio.com/">Twilio</a> using their APIs."""
-    )
+    claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
+        "link": '<a href="https://www.twilio.com/">Twilio</a>'
+    }
     claim_view = ClaimView
 
     schemes = [URN.TEL_SCHEME]

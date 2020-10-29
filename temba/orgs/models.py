@@ -43,6 +43,7 @@ from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import generate_token, random_string
+from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -850,28 +851,45 @@ class Org(SmartModel):
             return self.config.get(Org.CONFIG_CHATBASE_API_KEY), self.config.get(Org.CONFIG_CHATBASE_VERSION)
         return None, None
 
-    def get_country_code(self):
+    @property
+    def default_country_code(self) -> str:
         """
-        Gets the 2-digit country code, e.g. RW, US
+        Gets the default country as a 2-digit country code, e.g. RW, US
         """
-        return get_cacheable_attr(self, "_country_code", lambda: self.calculate_country_code())
 
-    def calculate_country_code(self):
-        # first try the actual country field
+        return self.default_country.alpha_2 if self.default_country else ""
+
+    @cached_property
+    def default_country(self):
+        """
+        Gets the default country as a pycountry country for this org
+        """
+
+        # first try the country boundary field
         if self.country:
-            try:
-                country = pycountry.countries.get(name=self.country.name)
-                if country:
-                    return country.alpha_2
-            except KeyError:  # pragma: no cover
-                # pycountry blows up if we pass it a country name it doesn't know
-                pass
+            country = pycountry.countries.get(name=self.country.name)
+            if country:
+                return country
 
-        # if that isn't set and we only have have one country set for our channels, use that
-        countries = self.channels.filter(is_active=True).exclude(country=None).order_by("country")
-        countries = countries.distinct("country").values_list("country", flat=True)
-        if len(countries) == 1:
-            return countries[0]
+        # next up try timezone
+        code = timezone_to_country_code(self.timezone)
+        if code:
+            country = pycountry.countries.get(alpha_2=code)
+            if country:
+                return country
+
+        # if that didn't work (not all timezones have a country) look for channels with countries
+        codes = (
+            self.channels.filter(is_active=True)
+            .exclude(country=None)
+            .order_by("country")
+            .distinct("country")
+            .values_list("country", flat=True)
+        )
+        if len(codes) == 1:
+            country = pycountry.countries.get(alpha_2=codes[0])
+            if country:
+                return country
 
         return None
 
@@ -1968,7 +1986,7 @@ class Org(SmartModel):
             "timezone": str(self.timezone),
             "default_language": self.primary_language.iso_code if self.primary_language else None,
             "allowed_languages": list(self.get_language_codes()),
-            "default_country": self.get_country_code(),
+            "default_country": self.default_country_code,
             "redaction_policy": "urns" if self.is_anon else "none",
         }
 

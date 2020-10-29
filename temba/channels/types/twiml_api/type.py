@@ -41,22 +41,20 @@ class TwimlAPIType(ChannelType):
 
     claim_view = ClaimView
     claim_blurb = _(
-        """
-        Connect to a service that speaks TwiML. You can use this to connect to TwiML compatible services outside of Twilio.
-        """
+        "Connect to a service that speaks TwiML. You can use this to connect to TwiML compatible services outside of "
+        "Twilio."
     )
 
     configuration_blurb = _(
-        """
-        To finish configuring your TwiML REST API channel you'll need to add the following URL in your TwiML REST API instance.
-        """
+        "To finish configuring your TwiML REST API channel you'll need to add the following URL in your TwiML REST API "
+        "instance."
     )
 
     configuration_urls = (
         dict(
             label=_("TwiML REST API Host"),
             url="{{ channel.config.send_url }}",
-            description=_("The endpoint which will receive Twilio API requests for this channel"),
+            description=_("The endpoint which will receive Twilio API requests for this channel."),
         ),
         dict(
             label="",

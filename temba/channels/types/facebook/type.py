@@ -23,9 +23,9 @@ class FacebookType(ChannelType):
     icon = "icon-facebook-official"
 
     claim_blurb = _(
-        """Add a <a href="http://facebook.com">Facebook</a> bot to send and receive messages on behalf
-    of one of your Facebook pages for free. You will need to create a Facebook application on their
-    <a href="http://developers.facebook.com">developers</a> site first."""
+        """Add a <a href="http://facebook.com">Facebook</a> bot to send and receive messages on behalf """
+        """of one of your Facebook pages for free. You will need to create a Facebook application on their """
+        """<a href="http://developers.facebook.com">developers</a> site first."""
     )
     claim_view = ClaimView
 
@@ -68,4 +68,4 @@ class FacebookType(ChannelType):
         )
 
         if response.status_code != 200:  # pragma: no cover
-            raise Exception(_("Unable to update call to action: %s" % response.text))
+            raise Exception("Unable to update call to action: %s" % response.text)

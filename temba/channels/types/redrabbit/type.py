@@ -16,9 +16,9 @@ class RedRabbitType(ChannelType):
 
     name = "Red Rabbit"
 
-    claim_blurb = _(
-        """Easily add a two way number you have configured with <a href="http://www.redrabbitsms.com/">Red Rabbit</a> using their APIs."""
-    )
+    claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
+        "link": '<a href="http://www.redrabbitsms.com/">Red Rabbit</a>'
+    }
 
     claim_view = AuthenticatedExternalClaimView
 

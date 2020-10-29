@@ -60,16 +60,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         org = self.request.user.get_org()
 
-        if not org:  # pragma: no cover
-            raise Exception(_("No org for this user, cannot claim"))
-
         data = form.cleaned_data
         self.object = Channel.add_config_external_channel(
             org,
             self.request.user,
             data["country"],
             data["number"],
-            "VB",
+            self.channel_type,
             dict(username=data["username"], password=data["password"], channel=data["channel"]),
             role=Channel.ROLE_CALL + Channel.ROLE_ANSWER,
         )
