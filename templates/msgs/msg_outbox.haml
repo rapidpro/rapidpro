@@ -20,7 +20,7 @@
                     - plural
                       {{counter}} recipients
                 -else
-                  -blocktrans
+                  -blocktrans trimmed
                     {{recipient_counts.groups}} groups, {{recipient_counts.contacts}} contacts, {{recipient_counts.urns}} urns
 
           %td.value-text.field_text.wrapped
@@ -38,14 +38,14 @@
               .hover-linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
                 {{ object.contact|short_name:user_org }}
           %td.w-full
-              {% get_value object 'text' %}
+            {% get_value object 'text' %}
 
-              - if 'label' in actions
-                .value-labels
-                  - for label in object.labels.all
-                    %span.label.label-info.lbl{ data-id: '{{label.id}}' }
-                      %a{href:"{% url 'msgs.msg_filter' label.uuid %}"}
-                        {{label.name}}
+            - if 'label' in actions
+              .value-labels
+                - for label in object.labels.all
+                  %span.label.label-info.lbl{ data-id: '{{label.id}}' }
+                    %a{href:"{% url 'msgs.msg_filter' label.uuid %}"}
+                      {{label.name}}
 
             -if object.attachments
               .value-attachments{ style:"margin-top: 5px" }

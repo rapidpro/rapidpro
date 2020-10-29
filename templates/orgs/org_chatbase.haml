@@ -17,7 +17,7 @@
 -block pre-form
   -if not object.get_chatbase_credentials.0
     .mb-4
-      -blocktrans
+      -blocktrans trimmed
         Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences
         and better understand your users. 
         To signup for an account, visit
@@ -46,7 +46,7 @@
       .title
         -trans "Disconnect Chatbase"
       .body
-        -blocktrans
+        -blocktrans trimmed
           This will disconnect your Chatbase account. Are you sure you want to proceed?
     %a#disconnect-chatbase-form.posterize{href:'{% url "orgs.org_chatbase" %}?disconnect=true'}
 

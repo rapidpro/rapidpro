@@ -61,9 +61,9 @@
           {{ topup.comment }}
         -else
           -if topup.price|default_if_none:-1 == -1
-            -blocktrans with brand.name as brand
+            -blocktrans trimmed with brand.name as brand
               Thank you for supporting {{ brand }}.
 
           -elif topup.price == 0
-            -blocktrans with brand.name as brand
+            -blocktrans trimmed with brand.name as brand
               Complementary credits, thanks for trying {{ brand }}.
