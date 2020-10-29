@@ -987,7 +987,7 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
      * **device** - information about the device if this is an Android channel:
         * **name** - the name of the device (string).
         * **power_level** - the power level of the device (int).
-        * **power_status** - the power status, either ```STATUS_DISCHARGING``` or ```STATUS_CHARGING``` (string).
+        * **power_status** - the power status, either ```CHA``` (charging) or ```DIS``` (discharging) (string).
         * **power_source** - the source of power as reported by Android (string).
         * **network_type** - the type of network the device is connected to as reported by Android (string).
      * **last_seen** - the datetime when this channel was last seen (datetime).

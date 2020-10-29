@@ -28,8 +28,8 @@ class MessangiType(ChannelType):
     name = "Messangi"
 
     claim_blurb = _(
-        """If you are based in Jamaica, you can purchase a short code from <a href="http://www.messangi.com/">Messangi</a> and connect it in a few simple steps."""
-    )
+        "If you are based in Jamaica, you can purchase a short code from %(link)s and connect it in a few simple steps."
+    ) % {"link": '<a href="http://www.messangi.com/">Messangi</a>'}
     claim_view = ClaimView
 
     schemes = [URN.TEL_SCHEME]
@@ -38,9 +38,8 @@ class MessangiType(ChannelType):
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your Messangi connection you'll need to set the following callback URLs on your Messangi account.
-        """
+        "To finish configuring your Messangi connection you'll need to set the following callback URLs on your Messangi"
+        " account."
     )
 
     configuration_urls = (
@@ -54,6 +53,3 @@ class MessangiType(ChannelType):
     def is_available_to(self, user):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ["America/Jamaica"]
-
-    def send(self, channel, msg, text):  # pragma: no cover
-        raise Exception("Sending Messangi messages is only possible via Courier")

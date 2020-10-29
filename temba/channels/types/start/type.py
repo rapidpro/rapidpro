@@ -18,9 +18,9 @@ class StartType(ChannelType):
 
     name = "Start Mobile"
 
-    claim_blurb = _(
-        """Easily add a two way number you have configured with <a href="https://bulk.startmobile.ua/">Start Mobile</a> using their APIs."""
-    )
+    claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
+        "link": '<a href="https://bulk.startmobile.ua/">Start Mobile</a>'
+    }
     claim_view = AuthenticatedExternalClaimView
 
     schemes = [URN.TEL_SCHEME]
@@ -29,9 +29,7 @@ class StartType(ChannelType):
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your Start connection you'll need to notify Start of the following receiving URL.
-        """
+        "To finish configuring your Start connection you'll need to notify Start of the following receiving URL."
     )
 
     configuration_urls = (

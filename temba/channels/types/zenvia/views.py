@@ -20,13 +20,16 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         data = form.cleaned_data
         org = user.get_org()
 
-        if not org:  # pragma: no cover
-            raise Exception(_("No org for this user, cannot claim"))
-
         config = {Channel.CONFIG_USERNAME: data["username"], Channel.CONFIG_PASSWORD: data["password"]}
 
         self.object = Channel.create(
-            org, user, "BR", "ZV", name="Zenvia: %s" % data["shortcode"], address=data["shortcode"], config=config
+            org,
+            user,
+            "BR",
+            self.channel_type,
+            name="Zenvia: %s" % data["shortcode"],
+            address=data["shortcode"],
+            config=config,
         )
 
         return super().form_valid(form)

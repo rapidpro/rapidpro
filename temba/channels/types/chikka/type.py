@@ -19,8 +19,8 @@ class ChikkaType(ChannelType):
     name = "Chikka"
 
     claim_blurb = _(
-        """If you are based in the Phillipines, you can integrate with Chikka to send
-                       and receive messages on your shortcode."""
+        "If you are based in the Phillipines, you can integrate with Chikka to send and receive "
+        "messages on your shortcode."
     )
     claim_view = ClaimView
 
@@ -29,9 +29,8 @@ class ChikkaType(ChannelType):
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your Chikka connection you need to set the following URLs in your Chikka account API settings.
-        """
+        "To finish configuring your Chikka connection you need to set the following URLs in your "
+        "Chikka account API settings."
     )
 
     configuration_urls = (

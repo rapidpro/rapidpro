@@ -18,7 +18,7 @@ class ExternalType(ChannelType):
     name = "External API"
     icon = "icon-power-cord"
 
-    claim_blurb = _("""Use our pluggable API to connect an external service you already have.""")
+    claim_blurb = _("Use our pluggable API to connect an external service you already have.")
     claim_view = ClaimView
 
     update_form = UpdateForm

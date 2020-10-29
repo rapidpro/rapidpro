@@ -19,8 +19,8 @@ class GlobeType(ChannelType):
     name = "Globe Labs"
 
     claim_blurb = _(
-        """If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send
-                       and receive messages on your shortcode."""
+        "If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send and "
+        "receive messages on your shortcode."
     )
     claim_view = ClaimView
 
@@ -29,9 +29,8 @@ class GlobeType(ChannelType):
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your application configuration page.
-        """
+        "To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your "
+        "application configuration page."
     )
 
     configuration_urls = (

@@ -88,7 +88,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             address = number
             name = number
 
-        self.object = Channel.create(org, user, country, "TW", name=name, address=address, config=config, role=role)
+        self.object = Channel.create(
+            org, user, country, self.channel_type, name=name, address=address, config=config, role=role
+        )
 
         if not data.get("account_sid", None):
             config[Channel.CONFIG_ACCOUNT_SID] = f"{self.request.branding['name'].lower()}_{self.object.pk}"

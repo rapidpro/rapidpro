@@ -285,7 +285,7 @@ def apply_modifiers(org, user, contacts, modifiers: List):
                     g.contacts.remove(c)
 
 
-def create_contact_locally(org, user, name, language, urns, fields, group_uuids):
+def create_contact_locally(org, user, name, language, urns, fields, group_uuids, last_seen_on=None):
     orphaned_urns = {}
 
     for urn in urns:
@@ -297,7 +297,13 @@ def create_contact_locally(org, user, name, language, urns, fields, group_uuids)
                 orphaned_urns[urn] = existing
 
     contact = Contact.objects.create(
-        org=org, name=name, language=language, created_by=user, modified_by=user, created_on=timezone.now(),
+        org=org,
+        name=name,
+        language=language,
+        created_by=user,
+        modified_by=user,
+        created_on=timezone.now(),
+        last_seen_on=last_seen_on,
     )
     update_urns_locally(contact, urns)
     update_fields_locally(user, contact, fields)

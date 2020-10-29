@@ -25,10 +25,9 @@ class VKType(ChannelType):
     icon = "icon-vk"
 
     claim_blurb = _(
-        """Add a <a href="https://vk.com/">VK</a> bot to send and receive messages on behalf of a VK community
-        for free. You will need to create an access token for your community first.
-        """
-    )
+        "Add a %(link)s bot to send and receive messages on behalf of a VK community for free. You will need to create "
+        "an access token for your community first."
+    ) % {"link": '<a href="https://vk.com/">VK</a>'}
     claim_view = ClaimView
 
     schemes = [URN.VK_SCHEME]

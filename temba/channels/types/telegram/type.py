@@ -24,10 +24,9 @@ class TelegramType(ChannelType):
     show_config_page = False
 
     claim_blurb = _(
-        """Add a <a href="https://telegram.org">Telegram</a> bot to send and receive messages to Telegram
-    users for free. Your users will need an Android, Windows or iOS device and a Telegram account to send and receive
-    messages."""
-    )
+        "Add a %(link)s bot to send and receive messages to Telegram users for free. Your users will need an Android, "
+        "Windows or iOS device and a Telegram account to send and receive messages."
+    ) % {"link": '<a href="https://telegram.org">Telegram</a>'}
     claim_view = ClaimView
 
     schemes = [URN.TELEGRAM_SCHEME]

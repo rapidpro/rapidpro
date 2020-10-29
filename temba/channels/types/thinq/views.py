@@ -34,9 +34,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         user = self.request.user
         org = user.get_org()
 
-        if not org:  # pragma: no cover
-            raise Exception(_("No org for this user, cannot claim"))
-
         data = form.cleaned_data
 
         config = {
