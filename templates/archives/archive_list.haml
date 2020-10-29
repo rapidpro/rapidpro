@@ -1,17 +1,17 @@
-- extends "smartmin/list.html"
-- load smartmin sms temba compress i18n humanize
+-extends "smartmin/list.html"
+-load smartmin sms temba compress i18n humanize
 
 
 
 
-- block page-title
-  - trans "Archives"
+-block page-title
+  -trans "Archives"
 
-- block title-icon
+-block title-icon
   .title-icon
     %span.glyph.icon-box
 
-- block summary
+-block summary
   -if archive_count
     {% blocktrans trimmed with counter=archive_count|intcomma count num=archive_count  %}
     You have {{ counter }} archive
@@ -27,7 +27,7 @@
   -else
     -trans "You do not have any message or run archives yet."
 
-- block page-top
+-block page-top
   {% render as page_top %}
     {{block.super}}
   {% endrender %}
@@ -35,14 +35,14 @@
 
 
 
-- block content
+-block content
   %ul.flex.mb-2.border-b
-    - for type in archive_types
-      - if type.0 == selected
+    -for type in archive_types
+      -if type.0 == selected
         %li
           .-mb-px.bg-white.inline-block.border-l.border-t.border-r.rounded-t.py-2.px-4.font-semibold.cursor-text.no-underline
             {{ type.1 }}
-      - else
+      -else
         %li
           %a.bg-white.inline-block.py-2.px-4.font-semibold(href="/archive/{{type.0}}/" class="hover:no-underline")
             {{ type.1 }}
@@ -60,7 +60,7 @@
           -trans "Period"
         %th
 
-      - for archive in object_list
+      -for archive in object_list
         %tr.archive-row
           %td
             .hover-linked(onclick="goto(event)" href="{% url 'archives.archive_read' archive.id %}")
@@ -86,8 +86,8 @@
       see a list of all archives.
 
 
-  - block paginator
-    - if object_list.count
+  -block paginator
+    -if object_list.count
       -include "includes/pagination.haml"
 
 
