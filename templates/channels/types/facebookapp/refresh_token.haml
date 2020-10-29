@@ -1,21 +1,14 @@
 -extends "channels/channel_claim_form.html"
 -load i18n compress temba
 
--block title
-  .medium-help.float-left.icon-facebook-official
-
-  %h2.font_normalize.header-margin
-    {{ title }}
-
 -block modal
   
   %p#fb-status
     -if error_connect
-      - trans "Error with token, you need to reconnect the Facebook page by clicking the button below"
+      -trans "Error with token, you need to reconnect the Facebook page by clicking the button below"
     -else
-      - trans "Everything looks good. No need to reconnect"
-  
-  
+      -trans "Everything looks good. No need to reconnect"
+
   #fb-channel-error(style="display:none;")
     %p
       -trans "Error reconnecting Facebook page. Please retry"

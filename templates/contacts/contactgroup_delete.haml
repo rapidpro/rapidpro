@@ -1,15 +1,14 @@
-{% extends "smartmin/delete_confirm.html" %}
+-extends 'includes/modal.haml'
 -load i18n temba
 
 -block modal
-  {{block.super}}
 
   -with flows=object.dependent_flows.all
 
     -if flows or triggers or campaigns
-      -blocktrans trimmed with group_name=object.name
-        Sorry, {{group_name}} cannot be deleted quite yet.
-      %p
+      .mb-2
+        -blocktrans trimmed with group_name=object.name
+          Sorry, <span class="named">{{group_name}}</span> cannot be deleted yet.
 
       -if triggers
         -url 'triggers.trigger_list' as triggers_url
@@ -51,21 +50,21 @@
           campaigns.
 
       :javascript
-        $(".modal-footer .btn.primary").hide();
-        $(".modal-footer .btn.secondary").text("Ok");
-        
-    -else
-      :javascript
-        $(".modal-footer .btn.primary").show();
-        $(".modal-footer .btn.secondary").text("Cancel");
+        var modax = document.querySelector("temba-modax[open=true]");
+        if(modax) {
+          modax.cancelName = "Ok";
+          modax.noSubmit = true;
+        }
 
+    -else
       -blocktrans trimmed
-        You are about to delete
-        %span.group_name
-          {{object}}.
+        .mb-2
+          You are about to delete
+          %span.named
+            {{object}}.
+
         No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?
 
-  :css
-    .group_name {
-      font-weight: 400;
-    }
+      .hidden
+        %form(method="POST")
+          %input(type="submit" value="{{submit_button_name}}")

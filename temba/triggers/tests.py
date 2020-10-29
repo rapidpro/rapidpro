@@ -1,4 +1,3 @@
-import time
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -8,11 +7,12 @@ from django.utils import timezone
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup
-from temba.contacts.omnibox import omnibox_serialize
+from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
 from temba.tests import MockResponse, TembaTest
+from temba.utils.dates import datetime_to_str
 
 from .models import Trigger
 from .views import DefaultTriggerForm, RegisterTriggerForm
@@ -145,8 +145,8 @@ class TriggerTest(TembaTest):
         self.assertEqual(1, Trigger.objects.filter(keyword="startkeyword", is_archived=False).count())
         self.assertNotEqual(other_trigger, Trigger.objects.filter(keyword="startkeyword", is_archived=False)[0])
 
-        self.contact = self.create_contact("Eric", "+250788382382")
-        self.contact2 = self.create_contact("Nic", "+250788383383")
+        self.contact = self.create_contact("Eric", phone="+250788382382")
+        self.contact2 = self.create_contact("Nic", phone="+250788383383")
         group1 = self.create_group("first", [self.contact2])
         group2 = self.create_group("second", [self.contact])
         group3 = self.create_group("third", [self.contact, self.contact2])
@@ -207,7 +207,7 @@ class TriggerTest(TembaTest):
         self.assertIsNotNone(trigger)
 
         # now lets check that group specific call triggers work
-        mike = self.create_contact("Mike", "+17075551213")
+        mike = self.create_contact("Mike", phone="+17075551213")
         bassists = self.create_group("Bassists", [mike])
 
         # flow specific to our group
@@ -299,16 +299,14 @@ class TriggerTest(TembaTest):
         self.login(self.admin)
         flow = self.create_flow()
 
-        chester = self.create_contact("Chester", "+250788987654")
-        shinoda = self.create_contact("Shinoda", "+250234213455")
+        chester = self.create_contact("Chester", phone="+250788987654")
+        shinoda = self.create_contact("Shinoda", phone="+250234213455")
         linkin_park = self.create_group("Linkin Park", [chester, shinoda])
-        stromae = self.create_contact("Stromae", "+250788645323")
+        stromae = self.create_contact("Stromae", phone="+250788645323")
 
         now = timezone.now()
-        now_stamp = time.mktime(now.timetuple())
 
         tommorrow = now + timedelta(days=1)
-        tommorrow_stamp = time.mktime(tommorrow.timetuple())
 
         omnibox_selection = omnibox_serialize(flow.org, [linkin_park], [stromae], True)
 
@@ -319,7 +317,7 @@ class TriggerTest(TembaTest):
                 "omnibox": omnibox_selection,
                 "repeat_period": "D",
                 "start": "later",
-                "start_datetime_value": str(tommorrow_stamp),
+                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
@@ -345,7 +343,12 @@ class TriggerTest(TembaTest):
         # this time provide a flow but leave out omnibox..
         response = self.client.post(
             reverse("triggers.trigger_schedule"),
-            {"flow": flow.id, "repeat_period": "D", "start": "later", "start_datetime_value": str(tommorrow_stamp)},
+            {
+                "flow": flow.id,
+                "repeat_period": "D",
+                "start": "later",
+                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
+            },
         )
         self.assertEqual(list(response.context["form"].errors.keys()), ["omnibox"])
         self.assertFalse(Trigger.objects.all())
@@ -359,7 +362,7 @@ class TriggerTest(TembaTest):
                 "omnibox": omnibox_selection,
                 "repeat_period": "D",
                 "start": "later",
-                "start_datetime_value": str(tommorrow_stamp),
+                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
@@ -372,7 +375,7 @@ class TriggerTest(TembaTest):
                 "omnibox": omnibox_selection,
                 "repeat_period": "D",
                 "start": "later",
-                "start_datetime_value": str(tommorrow_stamp),
+                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
@@ -394,7 +397,7 @@ class TriggerTest(TembaTest):
                 "omnibox": omnibox_selection,
                 "repeat_period": "O",
                 "start": "later",
-                "start_datetime_value": str(now_stamp),
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
@@ -408,7 +411,7 @@ class TriggerTest(TembaTest):
                 "omnibox": omnibox_serialize(flow.org, [linkin_park], [shinoda], True),
                 "repeat_period": "D",
                 "start": "later",
-                "start_datetime_value": str(now_stamp),
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
@@ -428,7 +431,7 @@ class TriggerTest(TembaTest):
                 "omnibox": omnibox_selection,
                 "repeat_period": "W",
                 "start": "later",
-                "start_datetime_value": str(now_stamp),
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
@@ -443,11 +446,13 @@ class TriggerTest(TembaTest):
                 "repeat_period": "W",
                 "repeat_days_of_week": "X",
                 "start": "later",
-                "start_datetime_value": str(now_stamp),
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
-        self.assertFormError(response, "form", "repeat_days_of_week", "X is not a valid day of the week")
+        self.assertFormError(
+            response, "form", "repeat_days_of_week", "Select a valid choice. X is not one of the available choices."
+        )
 
     def test_join_group_trigger(self):
         self.login(self.admin)
@@ -463,7 +468,7 @@ class TriggerTest(TembaTest):
 
         # did our group join flow get created?
         flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE, name="Join Chat")
-        flow_def = flow.as_json()
+        flow_def = flow.get_definition()
 
         self.assertEqual(len(flow_def["nodes"]), 1)
         self.assertEqual(len(flow_def["nodes"][0]["actions"]), 4)
@@ -532,7 +537,7 @@ class TriggerTest(TembaTest):
 
         # did our group join flow get created?
         flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE)
-        flow_def = flow.as_json()
+        flow_def = flow.get_definition()
 
         self.assertEqual(len(flow_def["nodes"]), 1)
         self.assertEqual(len(flow_def["nodes"][0]["actions"]), 2)

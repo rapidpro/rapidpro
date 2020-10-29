@@ -1,6 +1,6 @@
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 from .views import ClaimView
@@ -16,22 +16,17 @@ class ArabiaCellType(ChannelType):
     available_timezones = ["Asia/Amman"]
     recommended_timezones = ["Asia/Amman"]
     category = ChannelType.Category.PHONE
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 1530
     attachment_support = False
 
     claim_view = ClaimView
-    claim_blurb = _(
-        """
-        If you have an <a href="https://www.arabiacell.com/">ArabiaCell</a> number,
-        you can quickly connect it using their APIs.
-        """
-    )
+    claim_blurb = _("If you have an %(link)s number, you can quickly connect it using their APIs.") % {
+        "link": '<a href="https://www.arabiacell.com/">ArabiaCell</a>'
+    }
 
     configuration_blurb = _(
-        """
-        To finish connecting your channel, you need to have ArabiaCell configure the URL below for your shortcode.
-        """
+        "To finish connecting your channel, you need to have ArabiaCell configure the URL below for your shortcode."
     )
 
     configuration_urls = (

@@ -66,22 +66,3 @@
       });
       {% endif %}
     {% endif %}
-
-    {% if org_perms.flows.flowlabel_update %}
-    $(".page-content").on('click', ".label-update-btn", function() {
-      var modal = new Modax('{{ _("Update Label")|escapejs }}', '{% url "flows.flowlabel_update" current_label.pk %}')
-      modal.setIcon('icon-tag');
-      modal.setListeners({
-        onFormLoaded: function() {
-          if ($('#id_parent').find('option').length > 1) {
-            select2div('#id_parent');
-          } else {
-            $('#id_parent').parents('.control-group').hide();
-          }
-        },
-        onSuccess: function() { location.reload(); }
-      })
-      modal.show();
-      return false;
-    });
-    {% endif %}

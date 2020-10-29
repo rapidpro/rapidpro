@@ -3,11 +3,3 @@
 
 -block summary
   -trans "Start a flow after a missed call."
-
-
--block extra-script
-  {{block.super}}
-  %script
-    $(document).ready(function() {
-      select2div("#id_missed_call_flow", "520px", '{{ _("Flow to start")|escapejs }}');
-    });

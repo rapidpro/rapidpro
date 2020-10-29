@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import Dict, List, NamedTuple
 
 import requests
 
@@ -38,6 +38,18 @@ class FlowValidationException(MailroomException):
 
     def __str__(self):
         return self.message
+
+
+class ContactSpec(NamedTuple):
+    """
+    Describes a contact to be created
+    """
+
+    name: str
+    language: str
+    urns: List[str]
+    fields: Dict[str, str]
+    groups: List[str]
 
 
 class MailroomClient:
@@ -121,6 +133,15 @@ class MailroomClient:
     def sim_resume(self, payload):
         return self._request("sim/resume", payload)
 
+    def contact_create(self, org_id: int, user_id: int, contact: ContactSpec):
+        payload = {
+            "org_id": org_id,
+            "user_id": user_id,
+            "contact": contact._asdict(),
+        }
+
+        return self._request("contact/create", payload)
+
     def contact_modify(self, org_id, user_id, contact_ids, modifiers: List[Modifier]):
         payload = {
             "org_id": org_id,
@@ -131,9 +152,24 @@ class MailroomClient:
 
         return self._request("contact/modify", payload)
 
-    def contact_search(self, org_id, group_uuid, query, sort, offset=0):
-        payload = {"org_id": org_id, "group_uuid": group_uuid, "query": query, "sort": sort, "offset": offset}
+    def contact_resolve(self, org_id: int, channel_id: int, urn: str):
+        payload = {
+            "org_id": org_id,
+            "channel_id": channel_id,
+            "urn": urn,
+        }
 
+        return self._request("contact/resolve", payload)
+
+    def contact_search(self, org_id, group_uuid, query, sort, offset=0, exclude_ids=()):
+        payload = {
+            "org_id": org_id,
+            "group_uuid": group_uuid,
+            "exclude_ids": exclude_ids,
+            "query": query,
+            "sort": sort,
+            "offset": offset,
+        }
         return self._request("contact/search", payload)
 
     def parse_query(self, org_id, query, group_uuid=""):

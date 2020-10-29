@@ -1,7 +1,7 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.views import AuthenticatedExternalCallbackClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 
@@ -18,19 +18,18 @@ class InfobipType(ChannelType):
 
     name = "Infobip"
 
-    claim_blurb = _(
-        """Easily add a two way number you have configured with <a href="http://infobip.com">Infobip</a> using their APIs."""
-    )
+    claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
+        "link": '<a href="http://infobip.com">Infobip</a>'
+    }
     claim_view = AuthenticatedExternalCallbackClaimView
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 1600
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your Infobip connection you'll need to set the following callback URLs on the Infobip website under your account.
-        """
+        "To finish configuring your Infobip connection you'll need to set the following callback URLs on the Infobip "
+        "website under your account."
     )
 
     configuration_urls = (
@@ -38,20 +37,17 @@ class InfobipType(ChannelType):
             label=_("Received URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.ib' channel.uuid 'receive' %}",
             description=_(
-                """
-                This endpoint should be called with a POST by Infobip when new messages are received to your number.
-                You can set the receive URL on your Infobip account by contacting your sales agent.
-                """
+                "This endpoint should be called with a POST by Infobip when new messages are received to your number. "
+                "You can set the receive URL on your Infobip account by contacting your sales agent."
             ),
         ),
         dict(
             label=_("Delivered URL"),
             url="https://{{ channel.callback_domain }}{% url 'courier.ib' channel.uuid 'delivered' %}",
             description=_(
-                """
-                This endpoint should be called with a POST by Infobip when a message has been to the final recipient. (delivery reports)
-                You can set the delivery callback URL on your Infobip account by contacting your sales agent.
-                """
+                "This endpoint should be called with a POST by Infobip when a message has been to the final recipient. "
+                "(delivery reports) You can set the delivery callback URL on your Infobip account by contacting your "
+                "sales agent."
             ),
         ),
     )

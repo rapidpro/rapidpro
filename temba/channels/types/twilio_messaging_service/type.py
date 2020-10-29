@@ -2,7 +2,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.twilio_messaging_service.views import ClaimView
 from temba.channels.views import TWILIO_SUPPORTED_COUNTRIES_CONFIG
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
 from ...models import ChannelType
@@ -24,15 +24,12 @@ class TwilioMessagingServiceType(ChannelType):
 
     claim_view = ClaimView
     claim_blurb = _(
-        """
-        You can connect a messaging service from your Twilio account to benefit from <a href="https://www.twilio.com/copilot">Twilio Copilot features</a></br>
-        """
-    )
+        "You can connect a messaging service from your Twilio account to benefit from %(link)s features."
+    ) % {"link": '<a href="https://www.twilio.com/copilot">Twilio Copilot</a>'}
 
     configuration_blurb = _(
-        """
-        To finish configuring your Twilio Messaging Service connection you'll need to add the following URL in your Messaging Service Inbound Settings.
-        """
+        "To finish configuring your Twilio Messaging Service connection you'll need to add the following URL in your "
+        "Messaging Service Inbound Settings."
     )
 
     configuration_urls = (
@@ -45,7 +42,7 @@ class TwilioMessagingServiceType(ChannelType):
         ),
     )
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 1600
 
     attachment_support = True

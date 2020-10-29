@@ -1,6 +1,6 @@
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import FCM_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 from .views import ClaimView
@@ -20,21 +20,19 @@ class FirebaseCloudMessagingType(ChannelType):
     icon = "icon-fcm"
 
     claim_blurb = _(
-        """Add a <a href="https://firebase.google.com/docs/cloud-messaging/"> Firebase Cloud
-    Messaging Channel</a> to send and receive messages. Your users will need an App to send and receive messages."""
-    )
+        "Add a %(link)s channel to send and receive messages. Your users will need an App to send and receive messages."
+    ) % {"link": '<a href="https://firebase.google.com/docs/cloud-messaging/">Firebase Cloud Messaging</a>'}
     claim_view = ClaimView
 
-    schemes = [FCM_SCHEME]
+    schemes = [URN.FCM_SCHEME]
     max_length = 10000
     attachment_support = False
     free_sending = True
     quick_reply_text_size = 36
 
     configuration_blurb = _(
-        """
-        To use your Firebase Cloud Messaging channel you'll have to POST to the following URLs with the parameters below.
-        """
+        "To use your Firebase Cloud Messaging channel you'll have to POST to the following URLs with the "
+        "parameters below."
     )
 
     configuration_urls = (
@@ -42,7 +40,8 @@ class FirebaseCloudMessagingType(ChannelType):
             label=_("Contact Register"),
             url="https://{{ channel.callback_domain }}{% url 'courier.fcm' channel.uuid 'register' %}",
             description=_(
-                "To register contacts, POST to the following URL with the parameters urn, fcm_token and optionally name."
+                "To register contacts, POST to the following URL with the parameters urn, "
+                "fcm_token and optionally name."
             ),
         ),
         dict(

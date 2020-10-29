@@ -3,41 +3,25 @@ from django.utils.safestring import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
 from temba.campaigns.models import EventFire
-from temba.contacts.models import (
-    EMAIL_SCHEME,
-    EXTERNAL_SCHEME,
-    FACEBOOK_SCHEME,
-    FCM_SCHEME,
-    FRESHCHAT_SCHEME,
-    LINE_SCHEME,
-    TEL_SCHEME,
-    TELEGRAM_SCHEME,
-    TWILIO_SCHEME,
-    TWITTER_SCHEME,
-    TWITTERID_SCHEME,
-    URN,
-    WHATSAPP_SCHEME,
-    ContactField,
-    ContactURN,
-)
+from temba.contacts.models import URN, ContactField, ContactURN
 from temba.ivr.models import IVRCall
 from temba.msgs.models import ERRORED, FAILED
 
 register = template.Library()
 
 URN_SCHEME_ICONS = {
-    TEL_SCHEME: "icon-mobile-2",
-    TWITTER_SCHEME: "icon-twitter",
-    TWITTERID_SCHEME: "icon-twitter",
-    TWILIO_SCHEME: "icon-twilio_original",
-    EMAIL_SCHEME: "icon-envelop",
-    FACEBOOK_SCHEME: "icon-facebook",
-    TELEGRAM_SCHEME: "icon-telegram",
-    LINE_SCHEME: "icon-line",
-    EXTERNAL_SCHEME: "icon-channel-external",
-    FCM_SCHEME: "icon-fcm",
-    FRESHCHAT_SCHEME: "icon-freshchat",
-    WHATSAPP_SCHEME: "icon-whatsapp",
+    URN.TEL_SCHEME: "icon-phone",
+    URN.TWITTER_SCHEME: "icon-twitter",
+    URN.TWITTERID_SCHEME: "icon-twitter",
+    URN.TWILIO_SCHEME: "icon-twilio_original",
+    URN.EMAIL_SCHEME: "icon-envelop",
+    URN.FACEBOOK_SCHEME: "icon-facebook",
+    URN.TELEGRAM_SCHEME: "icon-telegram",
+    URN.LINE_SCHEME: "icon-line",
+    URN.EXTERNAL_SCHEME: "icon-channel-external",
+    URN.FCM_SCHEME: "icon-fcm",
+    URN.FRESHCHAT_SCHEME: "icon-freshchat",
+    URN.WHATSAPP_SCHEME: "icon-whatsapp",
 }
 
 ACTIVITY_ICONS = {
@@ -50,13 +34,13 @@ ACTIVITY_ICONS = {
     "contact_field_changed": "icon-pencil",
     "contact_groups_changed": "icon-users",
     "contact_language_changed": "icon-language",
-    "contact_name_changed": "icon-vcard",
+    "contact_name_changed": "icon-contact",
     "contact_urns_changed": "icon-address-book",
     "email_created": "icon-envelop",
     "email_sent": "icon-envelop",
     "error": "icon-warning",
     "failure": "icon-warning",
-    "flow_entered": "icon-tree-2",
+    "flow_entered": "icon-flow",
     "flow_exited:expired": "icon-clock",
     "flow_exited:interrupted": "icon-cancel-circle",
     "flow_exited:completed": "icon-checkmark",
@@ -128,7 +112,7 @@ def urn(contact, org):
 
 
 @register.filter
-def format_contact(contact, org):
+def format_contact(contact, org):  # pragma: needs cover
     return contact.get_display(org=org)
 
 

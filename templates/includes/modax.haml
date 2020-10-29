@@ -1,0 +1,16 @@
+-extends 'includes/modal.html'
+-load i18n temba smartmin
+
+-block modal
+  -block pre-form
+
+  -for field, errors in form.errors.items
+    -if field == '__all__'
+      {{ errors }}  
+
+  %form(method="POST")
+    -block fields
+      -for field in form.fields
+        -render_field field
+    .hidden
+        %input(type="submit" value="{{submit_button_name}}")

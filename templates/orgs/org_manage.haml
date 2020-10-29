@@ -3,125 +3,80 @@
 -load compress temba smartmin humanize
 -load i18n
 
--block extra-less
+-block extra-style
   {{block.super}}
-  -compress css
-    {% lessblock %}
-      :plain
-        .service {
-          margin-top:5px;
-        }
 
-        .num-credits {
-          text-align:right;
+  :css
+    .org-timezone, .owner-email {
+      font-size: 80%;
+    }
 
-          a {
-            color: #333;
-            font-size:22px;
-            font-weight:100;
-          }
-        }
+    .plan-name {
+      text-transform: uppercase;
+      font-size: 80%;
+    }
 
-        .used-pct {
-          text-align:right;
-          font-size:18px;
-          color: #aaa;
-          &.used-warning {
-            color: @flat-mutedorange;
-          }
+    .used-pct {
+      font-size: 80%;
+    }
 
-          &.used-alert {
-            color: @flat-mutedred;
-          }
-        }
+    #header-owner {
+      
+    }
 
-        .flagged {
-          color: @flat-mutedred;
-        }
+    .field_created_on {
+      white-space: nowrap;
+      width: 64px;
+    }
 
-        .table td {
-          vertical-align:middle
-        }
+    .field_service {
+      width: 40px;
+    }
 
-        .value-owner {
-          width:280px;
-        }
-
-        .owner {
-          display:inline;
-        }
-
-        .service {
-          width: 50px;
-          margin-right:20px;
-        }
-
-        .owner-email {
-          font-size:11px;
-          line-height:11px;
-
-        }
-
-        .owner-name {
-        }
-
-        .org-timezone {
-          font-size: 11px;
-          line-height:11px;
-        }
-
-        .quick {
-          padding: 5px;
-        }
-
-        .quick-searches {
-          margin-bottom: 20px;
-          background: @flat-white + #090909;
-          padding:10px;
-          .rounded-corners(5px);
-        }
-
-    {% endlessblock %}
-
--block extra-script
-  {{block.super}}
+-block title
+  -trans "Workspaces"
 
 -block pre-table
-  .quick-searches
-    -if search == ""
-      %span.quick
-        All
-    -else
-      %a.quick(href='?search=')
-        All
-    |&nbsp;
-    -if anon_query
-      %span.quick
-        Anonymous
-    -else
-      %a.quick(href='?anon=1')
-        Anonymous
-    |&nbsp;
-    -if flagged_query
-      %span.quick
-        Flagged
-    -else
-      %a.quick(href='?flagged=1')
-        Flagged
-    |&nbsp;
-    -if suspended_query
-      %span.quick
-        Suspended
-    -else
-      %a.quick(href='?suspended=1')
-        Suspended
-
-    -for s in searches
-      |
-      -if search == s
-        %span.quick
-          {{ s }}
+  .flex.mb-4.items-center
+    .bg-gray-100.px-4.py-2.rounded-lg.inline-block.mr-4.self-center.-mb-1
+      -if search == ""
+        .font-normal.inline-block.px-1
+          All
       -else
-        %a.quick(href='?search={{s}}')
-          {{ s }}
+        %a.inline-block.px-1(href='?search=')<
+          All
+      \ | 
+      -if anon_query
+        .font-normal.inline-block.px-1
+          Anonymous
+      -else
+        %a.inline-block.px-1(href='?anon=1')<
+          Anonymous
+      \ | 
+      -if flagged_query
+        .font-normal.inline-block.px-1
+          Flagged
+      -else
+        %a.inline-block.px-1(href='?flagged=1')<
+          Flagged
+      \ | 
+      -if suspended_query
+        .font-normal.inline-block.px-1
+          Suspended
+      -else
+        %a.inline-block.px-1(href='?suspended=1')<
+          Suspended
 
+      -for s in searches
+        |
+        -if search == s
+          .font-normal.inline-block.px-1
+            {{ s }}
+        -else
+          %a.inline-block.px-1(href='?search={{s}}')
+            {{ s }}
+
+    .search-box.flex-grow
+      %form#search-form(method='get')
+        {% csrf_token %}
+        %temba-textinput(name='search' value='{{search}}')

@@ -1,6 +1,6 @@
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import VK_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 from .views import ClaimView
@@ -25,13 +25,12 @@ class VKType(ChannelType):
     icon = "icon-vk"
 
     claim_blurb = _(
-        """Add a <a href="https://vk.com/">VK</a> bot to send and receive messages on behalf of a VK community
-        for free. You will need to create an access token for your community first.
-        """
-    )
+        "Add a %(link)s bot to send and receive messages on behalf of a VK community for free. You will need to create "
+        "an access token for your community first."
+    ) % {"link": '<a href="https://vk.com/">VK</a>'}
     claim_view = ClaimView
 
-    schemes = [VK_SCHEME]
+    schemes = [URN.VK_SCHEME]
     max_length = 320
     attachment_support = True
     free_sending = True

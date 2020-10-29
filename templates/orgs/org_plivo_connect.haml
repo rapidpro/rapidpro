@@ -2,25 +2,16 @@
 
 -load compress temba i18n
 
--block title-icon
-  .title-icon
-    %span.glyph.icon-plivo
-
--block title-text
-  .title-text
-    %h1
-      -trans "Connect Plivo"
+-block title
+  -trans "Connect Plivo"
 
 -block pre-form
-  .connect-help
-    %p
-      -trans "To connect your Plivo Account you will need to provide us your Plivo AUTH ID and AUTH TOKEN."
-
-    %p
-      -trans "Both values can be found on your"
-      <a target="plivo" href="https://manage.plivo.com/dashboard/">
-      -trans "Plivo Dashboard"
-      </a>
+  -trans "To connect your Plivo Account you will need to provide us your Plivo AUTH ID and AUTH TOKEN."
+  .mt-1.mb-4
+    -trans "Both values can be found on your"
+    <a target="plivo" href="https://manage.plivo.com/dashboard/">
+    -trans "Plivo Dashboard"
+    </a>
 
 -block extra-script
   {{block.super}}
@@ -28,17 +19,3 @@
     $(document).ready(function() {
       $("form.smartmin-form").attr('autocomplete', 'off');
     });
--block extra-less
-  -compress css inline
-    {% lessblock %}
-      :plain
-        .connect-help {
-          margin-bottom: 25px;
-          width: 600;
-        }
-
-        a:hover {
-          text-decoration: none;
-        }
-
-    {% endlessblock %}

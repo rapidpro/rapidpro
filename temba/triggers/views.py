@@ -5,13 +5,11 @@ from django import forms
 from django.db.models import Min
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
-from django.utils import timezone
-from django.utils.timezone import get_current_timezone_name
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup, ContactURN
-from temba.contacts.omnibox import omnibox_deserialize, omnibox_serialize
+from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_serialize
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.msgs.views import ModalMixin
@@ -19,8 +17,15 @@ from temba.orgs.views import OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
 from temba.utils import analytics, json
-from temba.utils.fields import CompletionTextarea, JSONField, OmniboxChoice, SelectWidget
-from temba.utils.views import BulkActionMixin
+from temba.utils.fields import (
+    CompletionTextarea,
+    InputWidget,
+    JSONField,
+    OmniboxChoice,
+    SelectMultipleWidget,
+    SelectWidget,
+)
+from temba.utils.views import BulkActionMixin, ComponentFormMixin
 
 from .models import Trigger
 
@@ -30,7 +35,12 @@ class BaseTriggerForm(forms.ModelForm):
     Base form for creating different trigger types
     """
 
-    flow = forms.ModelChoiceField(Flow.objects.filter(pk__lt=0), label=_("Flow"), required=True)
+    flow = forms.ModelChoiceField(
+        Flow.objects.filter(pk__lt=0),
+        label=_("Flow"),
+        required=True,
+        widget=SelectWidget(attrs={"placeholder": _("Select a flow"), "searchable": True}),
+    )
 
     def __init__(self, user, flows, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -92,16 +102,16 @@ class DefaultTriggerForm(BaseTriggerForm):
 class GroupBasedTriggerForm(BaseTriggerForm):
 
     groups = forms.ModelMultipleChoiceField(
-        queryset=ContactGroup.user_groups.filter(pk__lt=0), required=False, label=_("Only Groups")
+        queryset=ContactGroup.user_groups.filter(pk__lt=0),
+        required=False,
+        widget=SelectMultipleWidget(
+            attrs={"widget_only": True, "placeholder": _("Optional: Trigger only applies to these groups")}
+        ),
     )
 
     def __init__(self, user, flows, *args, **kwargs):
         super().__init__(user, flows, *args, **kwargs)
-
         self.fields["groups"].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
-        self.fields["groups"].help_text = _(
-            "Only apply this trigger to contacts in these groups. (leave empty to apply to all contacts)"
-        )
 
     def get_existing_triggers(self, cleaned_data):
         groups = cleaned_data.get("groups", [])
@@ -164,6 +174,7 @@ class KeywordTriggerForm(GroupBasedTriggerForm):
 
     class Meta(BaseTriggerForm.Meta):
         fields = ("keyword", "match_type", "flow", "groups")
+        widgets = {"keyword": InputWidget(), "match_type": SelectWidget()}
 
 
 class RegisterTriggerForm(BaseTriggerForm):
@@ -184,13 +195,16 @@ class RegisterTriggerForm(BaseTriggerForm):
 
             return super().clean(value)
 
-    keyword = forms.CharField(max_length=16, required=True, help_text=_("The first word of the message text"))
+    keyword = forms.CharField(
+        max_length=16, required=True, help_text=_("The first word of the message text"), widget=InputWidget()
+    )
 
     action_join_group = AddNewGroupChoiceField(
         ContactGroup.user_groups.filter(pk__lt=0),
         required=True,
         label=_("Group to Join"),
         help_text=_("The group the contact will join when they send the above keyword"),
+        widget=SelectWidget(),
     )
 
     response = forms.CharField(
@@ -217,15 +231,28 @@ class RegisterTriggerForm(BaseTriggerForm):
 
 
 class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
-    repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES, label="Repeat", required=False)
-    repeat_days_of_week = forms.CharField(required=False)
-    start = forms.ChoiceField(choices=(("stop", "Stop Schedule"), ("later", "Schedule for later")))
-    start_datetime_value = forms.IntegerField(required=False)
+    repeat_period = forms.ChoiceField(
+        choices=Schedule.REPEAT_CHOICES, label="Repeat", required=False, widget=SelectWidget()
+    )
+
+    repeat_days_of_week = forms.MultipleChoiceField(
+        choices=Schedule.REPEAT_DAYS_CHOICES,
+        label="Repeat Days",
+        required=False,
+        widget=SelectMultipleWidget(attrs=({"placeholder": _("Select days to repeat on")})),
+    )
+
+    start_datetime = forms.DateTimeField(
+        required=False,
+        label=_("Start Time"),
+        widget=InputWidget(attrs={"datetimepicker": True, "placeholder": "Select a time to start the flow"}),
+    )
+
     flow = forms.ModelChoiceField(
         Flow.objects.filter(pk__lt=0),
         label=_("Flow"),
         required=True,
-        widget=SelectWidget(attrs={"placeholder": _("Select a flow")}),
+        widget=SelectWidget(attrs={"placeholder": _("Select a flow"), "searchable": True}),
         empty_label=None,
     )
 
@@ -241,16 +268,21 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
     def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
-        flows = Flow.get_triggerable_flows(user.get_org())
+        org = user.get_org()
+        flows = Flow.get_triggerable_flows(org)
 
+        self.fields["start_datetime"].help_text = _("%s Time Zone" % org.timezone)
         self.fields["flow"].queryset = flows
+
+    def clean_repeat_days_of_week(self):
+        return "".join(self.cleaned_data["repeat_days_of_week"])
 
     def clean_omnibox(self):
         return omnibox_deserialize(self.user.get_org(), self.cleaned_data["omnibox"])
 
     class Meta:
         model = Trigger
-        fields = ("flow", "omnibox", "repeat_period", "repeat_days_of_week", "start", "start_datetime_value")
+        fields = ("flow", "omnibox", "repeat_period", "repeat_days_of_week", "start_datetime")
 
 
 class InboundCallTriggerForm(GroupBasedTriggerForm):
@@ -394,7 +426,7 @@ class TriggerCRUDL(SmartCRUDL):
 
             add_section("trigger-catchall", "triggers.trigger_catchall", "icon-bubble")
 
-    class Update(ModalMixin, OrgMixin, SmartUpdateView):
+    class Update(ModalMixin, ComponentFormMixin, OrgMixin, SmartUpdateView):
         success_message = ""
         trigger_forms = {
             Trigger.TYPE_KEYWORD: KeywordTriggerForm,
@@ -414,8 +446,6 @@ class TriggerCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             if self.get_object().schedule:
                 context["days"] = self.get_object().schedule.repeat_days_of_week or ""
-            context["user_tz"] = get_current_timezone_name()
-            context["user_tz_offset"] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
             return context
 
         def form_invalid(self, form):
@@ -432,7 +462,18 @@ class TriggerCRUDL(SmartCRUDL):
             if trigger_type == Trigger.TYPE_SCHEDULE:
                 repeat_period = trigger.schedule.repeat_period
                 omnibox = omnibox_serialize(trigger.org, trigger.groups.all(), trigger.contacts.all())
-                return dict(repeat_period=repeat_period, omnibox=omnibox)
+
+                repeat_days_of_week = []
+                if trigger.schedule.repeat_days_of_week:  # pragma: needs cover
+                    repeat_days_of_week = list(trigger.schedule.repeat_days_of_week)
+
+                return dict(
+                    repeat_period=repeat_period,
+                    omnibox=omnibox,
+                    start_datetime=trigger.schedule.next_fire,
+                    repeat_days_of_week=repeat_days_of_week,
+                )
+            return super().derive_initial()
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -446,9 +487,11 @@ class TriggerCRUDL(SmartCRUDL):
             if trigger_type == Trigger.TYPE_SCHEDULE:
                 schedule = trigger.schedule
 
+                form.cleaned_data.get("repeat_days_of_week")
+
                 # update our schedule
                 schedule.update_schedule(
-                    form.get_start_time(schedule.org.timezone),
+                    form.cleaned_data.get("start_datetime"),
                     form.cleaned_data.get("repeat_period"),
                     form.cleaned_data.get("repeat_days_of_week"),
                 )
@@ -533,7 +576,7 @@ class TriggerCRUDL(SmartCRUDL):
         def get_queryset(self, *args, **kwargs):
             return super().get_queryset(*args, **kwargs).filter(is_active=True, is_archived=True)
 
-    class CreateTrigger(OrgPermsMixin, SmartCreateView):
+    class CreateTrigger(OrgPermsMixin, ComponentFormMixin, SmartCreateView):
         success_url = "@triggers.trigger_list"
         success_message = ""
 
@@ -626,8 +669,6 @@ class TriggerCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["user_tz"] = get_current_timezone_name()
-            context["user_tz_offset"] = int(timezone.localtime(timezone.now()).utcoffset().total_seconds() // 60)
             return context
 
         def form_invalid(self, form):
@@ -641,7 +682,7 @@ class TriggerCRUDL(SmartCRUDL):
         def form_valid(self, form):
             analytics.track(self.request.user.username, "temba.trigger_created", dict(type="schedule"))
             org = self.request.user.get_org()
-            start_time = form.get_start_time(org.timezone)
+            start_time = form.cleaned_data["start_datetime"]
 
             schedule = Schedule.create_schedule(
                 org,

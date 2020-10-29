@@ -4,82 +4,81 @@
 -load i18n tz
 
 -block title
-  .medium-help.float-left{class:'{{object|channel_icon}}'}
+  .flex.items-start.flex-col
+    .name
+      -if object.parent
+        {{object.parent.name}}
+      -else
+        {{ object.name }}
 
-  %h2.font_normalize.header-margin.title
-    -if object.name
-      {{ object.get_channel_type_display }} - {{ object.name }}
-    -else
-      {{ object.get_channel_type_display }}
-      -trans "Channel"
-
-    .number
-      {{ object.get_address_display }}
-      -if object.get_country_display
-        ({{ object.get_country_display }})
-
-      -if object.channel_type == 'A'
-        \- {{ channel.device }}
-        -if channel.os
-          (v{{channel.os}})
-
-    .channel-roles
-      -for channel in object.get_delegate_channels
-
-        %a{href:"{% url 'channels.channel_read' channel.uuid%}"}
-          .icon{class:'{{ channel|channel_icon }}'}
-
-          -if channel.is_delegate_sender
-            -trans "Bulk sending enabled"
-
-          -if channel.is_delegate_caller
-            -trans "Voice calls enabled"
-
-      -if object.get_type.show_config_page
-        <a class="btn btn-tiny" href="{% url 'channels.channel_configuration' channel.uuid %}">{%trans "Settings"%}</a>
-
-
-      -if not channel.is_android
-        -with channel.get_sender as sender and channel.get_caller as caller
-          -if sender
-            <a class="btn btn-tiny" href="{% url 'channels.channellog_list' sender.uuid %}">{%trans "Channel Log"%}</a>
-          - if caller and caller != sender
-            <a class="btn btn-tiny" href="{% url 'channels.channellog_list' caller.uuid %}?sessions=1">{%trans "Call Log"%}</a>
-
-      -for link in object.get_type.extra_links
-        <a class="btn btn-tiny" href="{% url link.name object.uuid %}">{{ link.link }}</a>
-
-      .notice
-        -if delayed_sync_event or unsent_msgs_count
-          .icon.icon-warning.errored
-          -if delayed_sync_event
-            %span.errored
-              -trans "Last synced"
-              -if last_sync
-                -blocktrans trimmed with last_sync.created_on|timesince as last_sync
-                  {{ last_sync }} ago
-              -else
-                -trans "Never"
-          -else
-            -if object.channel_type == 'A'
-              -trans "Last synced"
-              -if last_sync
-                -blocktrans trimmed with last_sync.created_on|timesince as last_sync
-                  {{ last_sync }} ago
-              -else
-                -trans "Never"
+-block subtitle
+  -if object.get_channel_type_display != object.name
+    .flex.mt-2
+      .flex.flex-col
+        .channel_type
+            -if object.parent
+              {{object.name}}
             -else
-              -trans "Activated"
-              {{ object.created_on }}
+              {{object.get_channel_type_display}}
+              -trans "Channel"
 
-          -if unsent_msgs_count
-            %a.errored{href:"{% url 'msgs.msg_failed' %}"}
-              = unsent_msgs_count
-              {% blocktrans trimmed count unsent_msgs_count=unsent_msgs_count %}
-                unsent message
-              {% plural %}
-                unsent messages
-              {% endblocktrans %}
+  -if object.name != object.get_address_display
+    .text-gray-500.text-base
+      {{object.get_address_display}}
+
+  -if object.get_country_display
+    .text-gray-500.text-base
+      {{ object.get_country_display }}
+
+  -with object.get_delegate_channels as delegates
+    -if delegates
+      .channel-roles.mt-3
+        -for channel in delegates
+          .lbl.linked(onclick="goto(event, this)" href="{% url 'channels.channel_read' channel.uuid%}")
+            .flex.items-center
+              .text-base{class:'{{ channel|channel_icon }}'}
+              .name.mx-1
+                -if channel.is_delegate_sender
+                  -trans "Bulk sending"
+
+                -if channel.is_delegate_caller
+                  -trans "Voice calls"
+
+    .my-4.text-base
+      -if delayed_sync_event or unsent_msgs_count
+        .flex.items-center.text-error
+          .mr-1
+            .icon-warning.text-error.text-lg.mt-1
+          .message             
+            -if delayed_sync_event
+              .inline-block.ml-2
+                -if last_sync
+                  -trans "Last synced"
+                  -blocktrans trimmed with last_sync.created_on|timesince as last_sync
+                    {{ last_sync }} ago
+                -else
+                  -trans "Not synced yet"
+
+            -if unsent_msgs_count
+              .text-error.text-base.inline-block.ml-2(onclick="goto(event)" href="{% url 'msgs.msg_failed' %}")
+                = unsent_msgs_count|intcomma
+                {% blocktrans trimmed count unsent_msgs_count=unsent_msgs_count %}
+                  unsent message
+                {% plural %}
+                  unsent messages
+                {% endblocktrans %}
+
+      -else
+        -if object.channel_type == 'A'
+          -if last_sync
+            -trans "Last synced"
+            -blocktrans trimmed with last_sync.created_on|timesince as last_sync
+              {{ last_sync }} ago
+          -else
+            -trans "Not synced yet"
+        -else
+          -trans "Activated"
+          {{ object.created_on }}
 
 
 -block top-form
@@ -94,40 +93,21 @@
 
   -with object.get_sender as sender and object.get_caller as caller
 
-
-    -if object.channel_type == 'A'
-      .pull-right
-
-        -if not caller.is_delegate_caller and object.org.is_connected_to_twilio
-          %a.btn.btn-secondary.org-button.posterize{href:"{% url 'channels.channel_create_caller' %}?channel={{object.pk}}"}
-            -trans "Enable Voice"
-
-        -if not sender.is_delegate_sender
-          %a.btn.btn-secondary.org-button{href:'{% url "channels.channel_bulk_sender_options" %}?channel={{object.pk}}'}
-            -trans "Enable Bulk Sending"
-
+    -if object.channel_type == 'A'      
       .device
         -if channel.name
-          {{ channel.name }} -
-        {{ channel.device }}
+          {{ channel.name }}
+        -if channel.device != channel.name
+          \- {{ channel.device }}
         -if channel.os
-          (v{{channel.os}})
+          .inline-block
+            (v{{channel.os}})
         %span.number
           {{ channel.get_address_display }}
 
-      -if unsent_msgs_count
-        <span class='errored'>
-          = unsent_msgs_count
-          {% blocktrans trimmed count unsent_msgs_count=unsent_msgs_count %}
-            unsent messages
-          {% plural %}
-            unsent message
-          {% endblocktrans %}
-        </span>
-
       -if last_sync
         -if delayed_syncevents
-          <span class='errored'>
+          <span class='text-error'>
         -else
           <span>
 
@@ -152,113 +132,107 @@
       {{ object.created_on }}
 
     -for channel in object.get_delegate_channels
-      .icon{class:'{{ channel|channel_icon }}'}
+      .ml-1{class:'{{ channel|channel_icon }}'}
 
       -if channel.is_delegate_sender
-        -trans "Bulk sending enabled"
+        -trans "Bulk sending"
 
       -if channel.is_delegate_caller
-        -trans "Voice calls enabled"
+        -trans "Voice calls"
+  
+    -if object.channel_type == 'A'      
+      -if unsent_msgs_count
+        .text-error
+          {{unsent_msgs_count|intcomma}}
+          {% blocktrans trimmed count unsent_msgs_count=unsent_msgs_count %}
+            unsent message
+          {% plural %}
+            unsent messages
+          {% endblocktrans %}
 
--block post-fields
+-block content
   -block charts-zone
     -if start_date
-      .row
-        .span2.strong-min-170
-          -if object.channel_type == 'A'
+      -if object.channel_type == 'A'
 
-            %table.table.table-bordered
+        -if last_sync
+          .sync-summary.mb-4
+            .flex.text-gray-600
+              .i-status.w-12.py-1.px-2
+                -ifequal last_sync.network_type "WIFI"
+                  .icon-connection.-mt-1{style:"font-size: 16px"}
+                -else
+                  .icon-radio{style:"font-size: 16px"}
+
+              .perc
+                -for net in network_share
+                  -if net.0 == last_sync.network_type
+                    {{ net.1 }}%
+              
+              .t-status.px-2
+                -trans "ON"
+                = last_sync.network_type
+
+
+            .flex.text-gray-600
+              .i-status.w-12.px-3
+                -if last_sync.power_level < 20
+                  .mini-status.icon-battery-empty
+                -elif last_sync.power_level >= 20 and last_sync.power_level <= 80
+                  .mini-status.icon-battery-half
+                -else
+                  .mini-status.icon-battery-full.rotate
+              
+              .t-status
+                {{last_sync.power_level}}%
+
+              .plugged.px-2
+                -if last_sync.power_status == 'UNK'
+                  -trans "UNKNOWN"
+                -if last_sync.power_status == 'DIS'
+                  -trans "DISCHARGING"
+                -if last_sync.power_status == 'CHA'
+                  -trans "CHARGING"
+                -if last_sync.power_status == 'FUL'
+                  -trans "FULLY CHARGED"
+
+
+
+      -else
+
+        -if msg_count or ivr_count or channel.get_error_log_count
+          %table.list.lined
+            %thead
+              %tr
+                %th
+                  -trans "Messages"
+                
+                -if ivr_count
+                  %th
+                    -trans "IVR Messages"
+                %th
+                  -trans "Recent Errors"
+                
+            %tbody
+              
               %tr
                 %td
-                  -if last_sync
-                    %h2{style:"padding:0px 5px;"}
-                      -if last_sync.power_level < 20
-                        .mini-status.icon-battery-empty.rotate
-                      -elif last_sync.power_level >= 20 and last_sync.power_level <= 80
-                        .mini-status.icon-battery-half.rotate
-                      -else
-                        .mini-status.icon-battery-full.rotate
-
-                      .pull-right
-                        -if last_sync.power_level == 100
-                          %span.smaller {{last_sync.power_level}}%
-                        -else
-                          {{last_sync.power_level}}%
-
-                    %h5.weight-200.font_normalize{style:"padding-right:5px;text-align: right"}
-                      -if last_sync.power_status == 'UNK'
-                        -trans "UNKNOWN"
-                      -if last_sync.power_status == 'DIS'
-                        -trans "DISCHARGING"
-                      -if last_sync.power_status == 'CHA'
-                        -trans "CHARGING"
-                      -if last_sync.power_status == 'FUL'
-                        -trans "FULLY CHARGED"
-
-              %tr
-                %td
-                  -if last_sync
-                    %h2{style:"padding:0px 5px;"}
-                      -ifequal last_sync.network_type "WIFI"
-                        .glyph.icon-connection{style:"font-size: 24px"}
-                      -else
-                        .glyph.icon-radio{style:"font-size: 24px"}
-
-                      -for net in network_share
-                        -if net.0 == last_sync.network_type
-                          -if net.1 == 100
-                            %span.pull-right.smaller {{ net.1 }}%
-                          -else
-                            .pull-right {{ net.1 }}%
-
-                    %h5.weight-200.font_normalize{style:"padding-right:5px;text-align: right"}
-                      -trans "ON"
-                      = last_sync.network_type
-
-              -if network_share|length > 1
-                %tr
-                  %td
-                    %h4.weight-200{style:"padding:0px 5px;"}
-                      -for net in network_share
-                        -if not net.0 == last_sync.network_type
-                          .font_normalize
-                          -ifequal net.0 "WIFI"
-                            .glyph.icon-connection
-                            .pull-right {{net.1}}%
-                          -else
-                            .glyph.icon-radio &nbsp;{{net.0}}
-                            .pull-right {{net.1}}%
-
-          -else
-
-            %table.table.table-bordered
-              %tr
-                %td
-                  %h4
-                    -trans "Messages"
                   {{ msg_count|intcomma }}
 
-              -if ivr_count
-                %tr
+                -if ivr_count
                   %td
-                    %h4
-                      -trans "IVR Messages"
                     {{ ivr_count|intcomma }}
-              %tr
                 %td
-                  %h4
-                    -trans "Recent Errors"
                   {{ channel.get_error_log_count|intcomma }}
 
-        .span10.strong-max-750
-          %div#chart1
-          -if ivr_count
-            .minutes-disclaimer
-              In many cases operators round up to the nearest minute for billing. Minutes shown here are only a usage guideline.
+      .card.pt-8
+        %div#channel-chart
 
-  .row
-    .span12
-      %table.list-table.table.table-bordered.table-striped.table-condensed.message-stats-table
+      -if ivr_count
+        .minutes-disclaimer
+          In many cases operators round up to the nearest minute for billing. Minutes shown here are only a usage guideline.
+
+      %table.list.lined
         %thead
           %tr
             %th
@@ -288,361 +262,167 @@
                   = month_data.outgoing_ivr_count|intcomma
 
   -if object.channel_type == 'A'
-    %div.row
-      %div.span12
-        %table.list-table.table.table-bordered.table-striped.table-condensed
-          %thead
-            %tr
-              %th
-                -trans "Synced on"
-              %th.align-center
-                -trans "Incoming"
-              %th.align-center
-                -trans "Outgoing"
-              %th.align-center
-                -trans "Pending"
-              %th.align-center
-                -trans "Retry"
-              %th.align-center
-                -trans "Battery"
-              %th.align-center
-                -trans "Network"
-          %tbody
-            - for sync_event in latest_sync_events
-              %tr
-                %td
-                  = sync_event.created_on
-                %td.align-center
-                  = sync_event.incoming_command_count
-                %td.align-center
-                  = sync_event.outgoing_command_count
-                %td.align-center
-                  = sync_event.pending_message_count
-                %td.align-center
-                  = sync_event.retry_message_count
-                %td.align-center
-                  -if sync_event.power_status == 'CHA'
-                    .glyph.icon-battery-charging
-                  -else
-                    -if sync_event.power_level < 20
-                      .glyph.icon-battery-empty
-                    -elif sync_event.power_level >= 20 and sync_event.power_level <= 80
-                      .glyph.icon-battery-half
-                    -else
-                      .glyph.icon-battery-full
+    %table.list.lined.mt-4
+      %thead
+        %tr
+          %th
+            -trans "Synced on"
+          %th.align-center
+            -trans "Incoming"
+          %th.align-center
+            -trans "Outgoing"
+          %th.align-center
+            -trans "Pending"
+          %th.align-center
+            -trans "Retry"
+          %th.align-center
+            -trans "Battery"
+          %th.align-center
+            -trans "Network"
+      %tbody
+        - for sync_event in latest_sync_events
+          %tr
+            %td
+              = sync_event.created_on
+            %td.align-center
+              = sync_event.incoming_command_count
+            %td.align-center
+              = sync_event.outgoing_command_count
+            %td.align-center
+              = sync_event.pending_message_count
+            %td.align-center
+              = sync_event.retry_message_count
+            %td.align-center
+              -if sync_event.power_status == 'CHA'
+                .glyph.icon-battery-charging
+              -else
+                -if sync_event.power_level < 20
+                  .glyph.icon-battery-empty
+                -elif sync_event.power_level >= 20 and sync_event.power_level <= 80
+                  .glyph.icon-battery-half
+                -else
+                  .glyph.icon-battery-full
 
-                  &nbsp;{{ sync_event.power_level }}%
-                %td.align-center
-                  - if sync_event.network_type == 'WIFI'
-                    .glyph.icon-connection
-                  -else
-                    .glyph.icon-radio
-                  -if sync_event.network_type == 'NONE' or sync_event.network_type == 'UNKNOWN'
-                    -trans "&nbsp;&nbsp;OTHER"
-                  -else
-                    &nbsp;&nbsp;{{ sync_event.network_type }}
+              &nbsp;{{ sync_event.power_level }}%
+            %td.align-center
+              - if sync_event.network_type == 'WIFI'
+                .glyph.icon-connection
+              -else
+                .glyph.icon-radio
+              -if sync_event.network_type == 'NONE' or sync_event.network_type == 'UNKNOWN'
+                -trans "&nbsp;&nbsp;OTHER"
+              -else
+                &nbsp;&nbsp;{{ sync_event.network_type }}
 
--block post-content
-  - if org_perms.channels.channel_delete
-    .deletion.hide
-      .title
-        -trans "Remove Channel"
-      .body
-        %p
-          {% if object.dependent_flows.count == 0 %}
-          -trans "Are you sure you want to remove this channel from your workspace?"
-          .number.text-center
-            {{ object.get_channel_type_display }} {{ object.get_address_display|default:'' }}
-          {% else %}
-          - trans "This channel cannot be removed because it in use."
-          .number.text-center
-            {{ object.get_channel_type_display }} {{ object.get_address_display|default:'' }}
-          {% endif %}
-
-        %p
-          {% if object.dependent_flows.count == 0 %}
-            -trans "Once it is removed, it will be gone forever. There is no way to undo this operation."
-          {% else %}
-            {% blocktrans trimmed count num_flows=object.dependent_flows.count %}
-            Used by {{num_flows}} flow:
-            {% plural %}
-            Used by {{num_flows}} flows:
-            {% endblocktrans %}
-
-          %ul
-          - for flow in object.dependent_flows.all
-            %li
-              %a{href:"{% url 'flows.flow_editor' flow.uuid %}"}
-                {{ flow.name }}
-
-          {% endif %}
-
-    %a#deletion-form.posterize{href:'{% url "channels.channel_delete" object.pk %}'}
-
-    .remove-sender.hide
-      .title
-        -trans "Disable Bulk Sending"
-      .body
-        .text-center
-          %p
-            {% trans "Are you sure you want to remove bulk sending for this number?" %}
-            .number
-              {{ object.get_channel_type_display }} {{ object.get_address_display }}
-
-    -if object.get_sender
-      %a#remove-sender-form.posterize{href:'{% url "channels.channel_delete" object.get_sender.pk %}'}
-
-    -with object.get_caller as caller
-      -if caller
-        .remove-caller.hide
-          .title
-            -trans "Disable Voice Calls"
-          .body
-            .text-center
-              %p
-                {% trans "Are you sure you want to remove voice calling for this number?" %}
-                .number
-                  {{ object.get_channel_type_display }} {{ object.get_address_display }}
-
-        %a#remove-caller-form.posterize{href:'{% url "channels.channel_delete" caller.pk %}'}
-
-
--block extra-less
-  -compress css inline
-    {% lessblock %}
-      :plain
-        a.errored:hover {
-          color:@flat-darkred;
-        }
-
-        .title {
-          .channel-roles {
-            font-size:14px;
-            margin-top:0px;
-            padding:0px;
-            line-height:14px;
-          }
-        }
-    {% endlessblock %}
-
--block extra-style
-  :css
-
-    .channel-roles a,
-    .channel-roles a:hover,
-    .channel-roles a:active,
-    .channel-roles a:visited {
-      text-decoration: none;
-      color: rgb(102,102,102);
-    }
-
-    @media(min-width: 768px) and (max-width: 1200px) {
-      .span2.strong-min-170 {
-        min-width: 170px;
-      }
-
-      .span10.strong-max-750 {
-        max-width: 750px;
-      }
-    }
-
-    .minutes-disclaimer {
-      width: 100%;
-      text-align: center;
-      font-size:13px;
-    }
-
-    .icon {
-      margin-left:5px;
-      margin-right:5px;
-    }
-
-    .notice {
-      margin-top:10px;
-    }
-
-    .device .number {
-      padding-left:5px;
-    }
-
-    .title .number {
-      font-size:20px;
-    }
-
-    td.align-center {
-      width: 100px;
-    }
-
-    h2 .smaller {
-      font-size: 32px;
-    }
-
-    .mini-status {
-        line-height: 1;
-        font-size: 40px;
-        margin-top: 30px;
-        margin-left: -10px;
-        text-decoration: none;
-    }
-
-    #gear-container {
-      float:right;
-    }
-
-    .message-stats-table thead tr th {
-      text-align: center;
-    }
-
-    .message-stats-table tbody tr td {
-      text-align: right;
-    }
-
-{% block extra-script %}
+-block extra-script
   {{block.super}}
 
--if start_date
-  <script src="{{ STATIC_URL }}bower/highcharts/highcharts.js"></script>
+  -if start_date
+    <script src="{{ STATIC_URL }}bower/highcharts/highcharts.js"></script>
 
-:javascript
+  :javascript
+    {% if start_date %}
 
-  {% if org_perms.channels.channel_delete %}
-    $(".remove-channel").live('click', function(){
-      modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
-      modal.addClass('alert');
+      $(function () {
+        var chart;
+        $(document).ready(function() {
+            chart = new Highcharts.Chart({
+                credits: {
+                    enabled: false
+                },
+                colors: ['#80b9fb',
+                        '#2980b9',
+                        '#CD76F0',
+                        '#8e44ad',
+                        '#633077'],
+                chart: {
+                    renderTo: 'channel-chart',
+                    zoomType: 'x',
+                    type: 'column'
+                },
+                title: {
+                    text: null
+                },
+                xAxis: {
+                    type: 'datetime',
+                    min: Date.UTC({{start_date|date:'Y'}}, {{start_date|date:'m'|add:-1}}, {{start_date|date:'d'}}),
+                    max: Date.UTC({{end_date|date:'Y'}}, {{end_date|date:'m'|add:-1}}, {{end_date|date:'d'}}),
+                    dateTimeLabelFormats:
+                    {
+                      millisecond: '%H:%M:%S.%L',
+                      second: '%H:%M:%S',
+                      minute: '%H:%M',
+                      hour: '%H:%M',
+                      day: '%b %e',
+                      week: '%e. %b',
+                      month: '%b \'%y',
+                      year: '%Y'
+                    },
 
-      {% if object.dependent_flows.count == 0 %}
-          modal.setListeners({onPrimary: function(){
-            $('#deletion-form').click();
-          }}, false);
-          modal.setPrimaryButton('{{ _("Remove")|escapejs }}');
-
-      {% else %}
-          modal.setListeners({onPrimary: function(){
-            modal.dismiss();
-          }}, false);
-          modal.setPrimaryButton('{{ _("Ok")|escapejs }}');
-      {% endif %}
-
-      modal.show();
-      });
-
-    $(".remove-sender").live('click', function(){ removalConfirmation("remove-sender", '{{ _("Disable Bulk Sending")|escapejs }}')});
-    $(".remove-caller").live('click', function(){ removalConfirmation("remove-caller", '{{ _("Disable Voice Calling")|escapejs }}')});
-
-  {% endif %}
-
-  {% if org_perms.channels.channel_facebook_whitelist %}
-    $(".facebook-whitelist").live('click', function(){
-      var modal = new Modax('{{ _("Whitelist Domain")|escapejs }}','{% url "channels.channel_facebook_whitelist" object.uuid %}');
-      modal.setIcon('icon-facebook-official');
-      modal.setRedirectOnSuccess(true);
-      modal.show();
-    });
-  {% endif %}
-
-  {% if start_date %}
-
-    $(function () {
-      var chart;
-      $(document).ready(function() {
-          chart = new Highcharts.Chart({
-              credits: {
-                  enabled: false
-              },
-              colors: ['#80b9fb',
-                       '#2980b9',
-                       '#CD76F0',
-                       '#8e44ad',
-                       '#633077'],
-              chart: {
-                  renderTo: 'chart1',
-                  zoomType: 'x',
-                  type: 'column'
-              },
-              title: {
-                  text: null
-              },
-              xAxis: {
-                  type: 'datetime',
-                  min: Date.UTC({{start_date|date:'Y'}}, {{start_date|date:'m'|add:-1}}, {{start_date|date:'d'}}),
-                  max: Date.UTC({{end_date|date:'Y'}}, {{end_date|date:'m'|add:-1}}, {{end_date|date:'d'}}),
-                  dateTimeLabelFormats:
+                },
+                yAxis: [{
+                    title: {
+                        text: '{{ _("Minutes")|escapejs }}'
+                    },
+                    opposite: false,
+                    min: 0,
+                    allowDecimals: false
+                    {% if not has_messages %}
+                    , max: 10
+                    {% endif %}
+                },{
+                    title: {
+                        text: '{{ _("Messages")|escapejs }}'
+                    },
+                    opposite: true,
+                    min: 0,
+                    allowDecimals: false
+                    {% if not has_messages %}
+                    , max: 10
+                    {% endif %}
+                }],
+                plotOptions: {
+                series: {
+                  pointPadding: .1,
+                  groupPadding: .1,
+                  stacking: 'normal'
+                }
+                },
+                tooltip: {
+                    formatter: function() {
+                            return '<b>'+ this.series.name + '</b>: ' + this.y +'<br/>'+
+                            Highcharts.dateFormat('%b %e, %Y', this.x);
+                    }
+                },
+                series: [
+                  {% for msg_stat in message_stats %}
                   {
-                    millisecond: '%H:%M:%S.%L',
-                    second: '%H:%M:%S',
-                    minute: '%H:%M',
-                    hour: '%H:%M',
-                    day: '%b %e',
-                    week: '%e. %b',
-                    month: '%b \'%y',
-                    year: '%Y'
-                  },
-
-              },
-              yAxis: [{
-                  title: {
-                      text: '{{ _("Minutes")|escapejs }}'
-                  },
-                  opposite: false,
-                  min: 0,
-                  allowDecimals: false
-                  {% if not has_messages %}
-                  , max: 10
-                  {% endif %}
-              },{
-                  title: {
-                      text: '{{ _("Messages")|escapejs }}'
-                  },
-                  opposite: true,
-                  min: 0,
-                  allowDecimals: false
-                  {% if not has_messages %}
-                  , max: 10
-                  {% endif %}
-              }],
-              plotOptions: {
-              series: {
-                pointPadding: .1,
-                groupPadding: .1,
-                stacking: 'normal'
-              }
-              },
-              tooltip: {
-                  formatter: function() {
-                          return '<b>'+ this.series.name + '</b>: ' + this.y +'<br/>'+
-                          Highcharts.dateFormat('%b %e, %Y', this.x);
+                    yAxis:1,
+                    name: '{{msg_stat.name|safe}}',
+                    data: [
+                    {% for elt in msg_stat.data %}[Date.UTC({{elt.date|date:'Y'}}, {{elt.date|date:'m'|add:-1}}, {{elt.date|date:'d'}}), {{elt.count}}]{% if not forloop.last %},
+                    {% endif %}{% endfor %}
+                    ]
                   }
-              },
-              series: [
-                {% for msg_stat in message_stats %}
-                {
-                  yAxis:1,
-                  name: '{{msg_stat.name|safe}}',
-                  data: [
-                  {% for elt in msg_stat.data %}[Date.UTC({{elt.date|date:'Y'}}, {{elt.date|date:'m'|add:-1}}, {{elt.date|date:'d'}}), {{elt.count}}]{% if not forloop.last %},
-                  {% endif %}{% endfor %}
-                  ]
-                }
-                {% if not forloop.last %},{% endif %}
-                {% empty %}
-                  {}
-                {% endfor %}
-                {% if ivr_count %}
-                ,{
-                  type: 'spline',
-                  name: 'Minutes',
-                  yAxis:0,
-                  data: [
-                  {% for point in call_duration %}[Date.UTC({{point.date|date:'Y'}}, {{point.date|date:'m'|add:-1}}, {{point.date|date:'d'}}), Math.floor(100 * ({{point.duration}} / 60)) / 100]{% if not forloop.last %},
-                  {% endif %}{% endfor %}
-                  ]
-                }
+                  {% if not forloop.last %},{% endif %}
+                  {% empty %}
+                    {}
+                  {% endfor %}
+                  {% if ivr_count %}
+                  ,{
+                    type: 'spline',
+                    name: 'Minutes',
+                    yAxis:0,
+                    data: [
+                    {% for point in call_duration %}[Date.UTC({{point.date|date:'Y'}}, {{point.date|date:'m'|add:-1}}, {{point.date|date:'d'}}), Math.floor(100 * ({{point.duration}} / 60)) / 100]{% if not forloop.last %},
+                    {% endif %}{% endfor %}
+                    ]
+                  }
 
-                {% endif %}
-              ]
+                  {% endif %}
+                ]
+            });
           });
-        });
 
-    });
-  {% endif %}
-{% endblock %}
+      });
+    {% endif %}

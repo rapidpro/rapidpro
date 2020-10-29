@@ -2,7 +2,7 @@ import requests
 
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import FACEBOOK_SCHEME
+from temba.contacts.models import URN
 from temba.triggers.models import Trigger
 
 from ...models import Channel, ChannelType
@@ -23,13 +23,13 @@ class FacebookType(ChannelType):
     icon = "icon-facebook-official"
 
     claim_blurb = _(
-        """Add a <a href="http://facebook.com">Facebook</a> bot to send and receive messages on behalf
-    of one of your Facebook pages for free. You will need to create a Facebook application on their
-    <a href="http://developers.facebook.com">developers</a> site first."""
+        """Add a <a href="http://facebook.com">Facebook</a> bot to send and receive messages on behalf """
+        """of one of your Facebook pages for free. You will need to create a Facebook application on their """
+        """<a href="http://developers.facebook.com">developers</a> site first."""
     )
     claim_view = ClaimView
 
-    schemes = [FACEBOOK_SCHEME]
+    schemes = [URN.FACEBOOK_SCHEME]
     max_length = 320
     attachment_support = True
     free_sending = True
@@ -71,4 +71,4 @@ class FacebookType(ChannelType):
         )
 
         if response.status_code != 200:  # pragma: no cover
-            raise Exception(_("Unable to update call to action: %s" % response.text))
+            raise Exception("Unable to update call to action: %s" % response.text)

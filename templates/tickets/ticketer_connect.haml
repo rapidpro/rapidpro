@@ -1,80 +1,41 @@
 -extends "smartmin/base.html"
 -load i18n compress temba
 
--block page-top
-  .row
-    .span12
-      %h2
-        -trans "Connect a Ticketing Service"
-      .instructions
-        %p
-          -blocktrans trimmed
-            Ticketing Services let a human agent take over communication for a contact. In a flow you can open a new
-            ticket for a contact and from that point until the ticket is closed all incoming messages from the contact
-            will be forwarded to the service and all replies from the service will be sent back to the contact.
+-block title
+  -trans "Connect a Ticketing Service"
 
-        %p
-          -blocktrans trimmed
-            Select the ticketing service you want to connect below to get started.
 
 -block content
+
+  -blocktrans trimmed
+    Ticketing Services let a human agent take over communication for a contact. In a flow you can open a new
+    ticket for a contact and from that point until the ticket is closed all incoming messages from the contact
+    will be forwarded to the service and all replies from the service will be sent back to the contact.
+
+  .my-6
+    -blocktrans trimmed
+      Select the ticketing service you want to connect below to get started.
+
   .ticketer-options
     -for ticketer_type in ticketer_types
-      .ticketer-row
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-connect(href="{% url 'tickets.types.'|add:ticketer_type.slug|add:'.connect' %}")
-              .btn-container
-                .ticketer-glyph(class="{{ ticketer_type.icon }}")
-                %p.ticketer-text
-                  {{ ticketer_type.name }}
-          .span8
-            .ticketer-description
-              {% include ticketer_type.get_connect_blurb %}
+      .card.link(onclick="goto(event, this)" href="{% url 'tickets.types.'|add:ticketer_type.slug|add:'.connect' %}")
+        .relative
+          .text-base.absolute.text-gray-100.bg-icon(class="{{ ticketer_type.icon }}")
+        
+        .flex.flex-col.mx-20.relative
+          .title
+            {{ ticketer_type.name }}
+
+          .mt-2
+            {% include ticketer_type.get_connect_blurb %}
+
     -empty
-      -trans "No ticketing services are available."
+      .alert-warning
+        -trans "No ticketing services are available."
 
 -block extra-style
   :css
-    .ticketer-options{
-      padding-top: 1em;
-    }
-
-    .ticketer-row {
-      clear: both;
-      margin-bottom: 10px;
-    }
-
-    .ticketer-row .span8 {
-      margin-left: 0;
-    }
-
-    .ticketer-description {
-      padding: 25px 40px;
-      height: 50px;
-      width: 95%;
-      background: #f5f5f5;
-      font-size: 16px;
-    }
-
-    .ticketer-text {
-      margin-top: 10px;
-    }
-
-    .ticketer-glyph {
-      line-height: 40px;
-      text-decoration: none;
-      font-size: 40px;
-      display: inline;
-      padding-bottom: 10px;
-    }
-
-    .btn-connect {
-      padding: 10px 10px;
-      width: 95%;
-      height: 78px;
-    }
-
-    .btn-container {
-      margin-right: 10px;
+    .bg-icon {
+      font-size: 90px;
+      transform: translate(-45px, 10px) rotate(-15deg);
     }
