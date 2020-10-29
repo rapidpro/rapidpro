@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-29 20:04+0000\n"
+"POT-Creation-Date: 2020-10-29 20:05+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -1118,6 +1118,24 @@ msgstr "O token secreto que este transmissor deve usar ao assinar os pedidos."
 #, fuzzy
 msgid "The URL we will POST to when sending messages, with variable substitutions"
 msgstr "A URL que o Textit irá postar quando enviar mensagens"
+
+#, fuzzy
+#| msgid "Receive URL"
+msgid "Receive"
+msgstr "URL de recebimento"
+
+#, fuzzy
+#| msgid "Send URL"
+msgid "Send"
+msgstr "Enviar URL"
+
+#, fuzzy
+#| msgid "Channel"
+msgid "Channel Role"
+msgstr "Transmissor"
+
+msgid "The roles this channel can fulfill"
+msgstr "As funções que este transmissor pode completar"
 
 msgid "Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf of one of your Facebook pages for free. You will need to create a Facebook application on their <a href=\"http://developers.facebook.com\">developers</a> site first."
 msgstr ""
@@ -10983,9 +11001,6 @@ msgstr ""
 #, fuzzy
 #~| msgid "The roles this channel can fulfill"
 #~ msgid "The URN schemes this channel supports"
-#~ msgstr "As funções que este transmissor pode completar"
-
-#~ msgid "The roles this channel can fulfill"
 #~ msgstr "As funções que este transmissor pode completar"
 
 #~ msgid "The channel this channel is working on behalf of"

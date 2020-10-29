@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-29 20:04+0000\n"
+"POT-Creation-Date: 2020-10-29 20:05+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1006,6 +1006,24 @@ msgstr "Контент, который должен присутствовать
 
 msgid "The URL we will POST to when sending messages, with variable substitutions"
 msgstr "URL, который мы будем выполнять POST при отправке сообщений, с подстановкой переменных"
+
+#, fuzzy
+#| msgid "Receive URL"
+msgid "Receive"
+msgstr "URL Получения"
+
+#, fuzzy
+#| msgid "Send URL"
+msgid "Send"
+msgstr "URL Отправки"
+
+#, fuzzy
+#| msgid "Channel Log"
+msgid "Channel Role"
+msgstr "Журнал Канала"
+
+msgid "The roles this channel can fulfill"
+msgstr "Функции, которые может выполнять данный канал"
 
 #, fuzzy
 #| msgid ""
@@ -11270,9 +11288,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "The URN schemes this channel supports"
 #~ msgstr "Схемы URN, которые поддерживает этот канал"
-
-#~ msgid "The roles this channel can fulfill"
-#~ msgstr "Функции, которые может выполнять данный канал"
 
 #~ msgid "The channel this channel is working on behalf of"
 #~ msgstr "Канал, от имени которого работает этот канал"

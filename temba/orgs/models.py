@@ -2583,7 +2583,7 @@ class CreditAlert(SmartModel):
         from temba.msgs.models import Msg
 
         # all active orgs in the last hour
-        active_orgs = Msg.objects.filter(created_on__gte=timezone.now() - timedelta(hours=1))
+        active_orgs = Msg.objects.filter(created_on__gte=timezone.now() - timedelta(hours=1), org__uses_topups=True)
         active_orgs = active_orgs.order_by("org").distinct("org")
 
         for msg in active_orgs:
@@ -2607,7 +2607,7 @@ class CreditAlert(SmartModel):
 
         # get the ids of the last to expire topup, with credits, for each org
         final_topups = (
-            TopUp.objects.filter(is_active=True, org__is_active=True, credits__gt=0)
+            TopUp.objects.filter(is_active=True, org__is_active=True, org__uses_topups=True, credits__gt=0)
             .order_by("org_id", "-expires_on")
             .distinct("org_id")
             .values_list("id", flat=True)

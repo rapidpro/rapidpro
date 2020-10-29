@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-29 20:04+0000\n"
+"POT-Creation-Date: 2020-10-29 20:05+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -794,6 +794,18 @@ msgid "The content that must be in the response to consider the request successf
 msgstr ""
 
 msgid "The URL we will POST to when sending messages, with variable substitutions"
+msgstr ""
+
+msgid "Receive"
+msgstr ""
+
+msgid "Send"
+msgstr ""
+
+msgid "Channel Role"
+msgstr ""
+
+msgid "The roles this channel can fulfill"
 msgstr ""
 
 msgid "Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf of one of your Facebook pages for free. You will need to create a Facebook application on their <a href=\"http://developers.facebook.com\">developers</a> site first."
