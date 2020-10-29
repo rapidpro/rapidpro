@@ -1,11 +1,10 @@
 -extends "frame.html"
-
 -load i18n
 
 -block content
 
   %p
-    -blocktrans with org.name as org and brand.name as brandname
+    -blocktrans trimmed with org.name as org and brand.name as brandname
       To get started submitting surveys for {{ org }}, download the {{ brandname }} Surveyor app from
       Google Play. After you install the Surveyor app on your Android phone, simply login with the same
       email address you use to login to {{ brandname }}.
