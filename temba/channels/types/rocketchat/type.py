@@ -3,7 +3,7 @@ import re
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import ROCKETCHAT_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 from .views import ClaimView
@@ -36,7 +36,7 @@ class RocketChatType(ChannelType):
         "link":'<a href="https://rocket.chat/">Rocket.Chat</a>'
         }
     claim_view = ClaimView
-    schemes = [ROCKETCHAT_SCHEME]
+    schemes = [URN.ROCKETCHAT_SCHEME]
 
     @staticmethod
     def callback_url(channel, domain=None):
