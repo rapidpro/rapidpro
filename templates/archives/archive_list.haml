@@ -33,20 +33,22 @@
   {% endrender %}
   {{page_top}}
 
--block top-form
-  - block search-form
-    - for type in archive_types
-      - if type.0 == selected
-        {{ type.1 }}
-      - else
-        %a{href:'/archive/{{type.0}}/'}<
-          {{type.1}}
-      - if not forloop.last
-        |
+
 
 - block content
+  %ul.flex.mb-2.border-b
+    - for type in archive_types
+      - if type.0 == selected
+        %li
+          .-mb-px.bg-white.inline-block.border-l.border-t.border-r.rounded-t.py-2.px-4.font-semibold.cursor-text.no-underline
+            {{ type.1 }}
+      - else
+        %li
+          %a.bg-white.inline-block.py-2.px-4.font-semibold(href="/archive/{{type.0}}/" class="hover:no-underline")
+            {{ type.1 }}
+
   -if object_list
-    %table.archives.list.light.lined
+    %table.archives.list.lined
       %thead
         %th.name
           -trans "File"
@@ -91,6 +93,11 @@
 
 -block extra-style
   :css
+    .page-content {
+        align-self: auto;
+        max-width: 1024px;
+    }
+
     .title-icon {
       margin-bottom: -5px;
     }
