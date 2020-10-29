@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-29 15:35+0000\n"
+"POT-Creation-Date: 2020-10-29 21:30+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1016,6 +1016,24 @@ msgstr "Le contenu qui doit figurer dans la réponse pour que la demande soit co
 
 msgid "The URL we will POST to when sending messages, with variable substitutions"
 msgstr "L'URL vers laquelle nous allons effectuer une requête POST lors de l'envoi de messages, avec des substitutions de variables"
+
+#, fuzzy
+#| msgid "Receive URL"
+msgid "Receive"
+msgstr "URL reçu"
+
+#, fuzzy
+#| msgid "Send URL"
+msgid "Send"
+msgstr "Envoyer l'URL"
+
+#, fuzzy
+#| msgid "Channel Log"
+msgid "Channel Role"
+msgstr "Journal des canaux"
+
+msgid "The roles this channel can fulfill"
+msgstr "Les rôles que ce relayeur peut jouer"
 
 #, fuzzy
 #| msgid ""
@@ -4511,6 +4529,11 @@ msgstr "Espanol"
 msgid "Russian"
 msgstr "Russe"
 
+#, fuzzy
+#| msgid "Visually build nationally scalable mobile applications from anywhere in the world."
+msgid "Visually build nationally scalable mobile applications"
+msgstr "Créez visuellement des applications mobiles évolutives à l'échelle nationale, partout dans le monde."
+
 msgid "Visually build nationally scalable mobile applications from anywhere in the world."
 msgstr "Créez visuellement des applications mobiles évolutives à l'échelle nationale, partout dans le monde."
 
@@ -6196,11 +6219,7 @@ msgstr ""
 #| "              Configure \"Callback URL\" in the channel page (the same page which get the information Channel Secret and Channel Access Token) by clicking on the \"Edit\" button, filling the field \"webhook URL\" and pressing on the \"Save\" button.\n"
 #| "\n"
 #| "            "
-msgid ""
-"\n"
-"    Configure \"Callback URL\" in the channel page (the same page which get the information Channel Secret and Channel Access Token) by clicking on the \"Edit\" button, filling the field \"webhook URL\" and pressing on the \"Save\" button.\n"
-"\n"
-"  "
+msgid "Configure \"Callback URL\" in the channel page (the same page which get the information Channel Secret and Channel Access Token) by clicking on the \"Edit\" button, filling the field \"webhook URL\" and pressing on the \"Save\" button."
 msgstr ""
 "\n"
 "              Configurez \"URL de rappel\" dans la page du canal (la même page contenant les informations sur le secret du canal et le jeton d'accès au canal) en cliquant sur le bouton \"Modifier\", en renseignant le champ \"URL du Webhook\" et en cliquant sur le bouton \"Enregistrer\".\n"
@@ -11036,9 +11055,6 @@ msgstr "${count} trouvé pour ${query}"
 
 #~ msgid "The URN schemes this channel supports"
 #~ msgstr "Les schémas URN que ce canal supporte"
-
-#~ msgid "The roles this channel can fulfill"
-#~ msgstr "Les rôles que ce relayeur peut jouer"
 
 #~ msgid "The channel this channel is working on behalf of"
 #~ msgstr "Le relayeur à la place duquel ce relayeur fonctionne"

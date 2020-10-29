@@ -2,7 +2,7 @@ from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 
 from ...models import Channel, ChannelType
-from .views import ClaimView
+from .views import ClaimView, UpdateForm
 
 
 class ExternalType(ChannelType):
@@ -20,6 +20,8 @@ class ExternalType(ChannelType):
 
     claim_blurb = _("Use our pluggable API to connect an external service you already have.")
     claim_view = ClaimView
+
+    update_form = UpdateForm
 
     schemes = None  # can be any scheme
     max_length = 160

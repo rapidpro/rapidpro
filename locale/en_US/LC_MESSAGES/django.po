@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-29 15:35+0000\n"
+"POT-Creation-Date: 2020-10-29 21:30+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -794,6 +794,18 @@ msgid "The content that must be in the response to consider the request successf
 msgstr ""
 
 msgid "The URL we will POST to when sending messages, with variable substitutions"
+msgstr ""
+
+msgid "Receive"
+msgstr ""
+
+msgid "Send"
+msgstr ""
+
+msgid "Channel Role"
+msgstr ""
+
+msgid "The roles this channel can fulfill"
 msgstr ""
 
 msgid "Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf of one of your Facebook pages for free. You will need to create a Facebook application on their <a href=\"http://developers.facebook.com\">developers</a> site first."
@@ -3646,6 +3658,9 @@ msgstr ""
 msgid "Russian"
 msgstr ""
 
+msgid "Visually build nationally scalable mobile applications"
+msgstr ""
+
 msgid "Visually build nationally scalable mobile applications from anywhere in the world."
 msgstr ""
 
@@ -4823,11 +4838,7 @@ msgstr ""
 msgid "Step One"
 msgstr ""
 
-msgid ""
-"\n"
-"    Configure \"Callback URL\" in the channel page (the same page which get the information Channel Secret and Channel Access Token) by clicking on the \"Edit\" button, filling the field \"webhook URL\" and pressing on the \"Save\" button.\n"
-"\n"
-"  "
+msgid "Configure \"Callback URL\" in the channel page (the same page which get the information Channel Secret and Channel Access Token) by clicking on the \"Edit\" button, filling the field \"webhook URL\" and pressing on the \"Save\" button."
 msgstr ""
 
 msgid "Step Two"
