@@ -19,9 +19,9 @@ class FreshChatType(ChannelType):
     name = "FreshChat"
     icon = "icon-freshchat"
 
-    claim_blurb = _(
-        """Connect your approved <a href="https://www.freshworks.com/live-chat-software/">FreshChat</a> Channel"""
-    )
+    claim_blurb = _("Connect your approved %(link)s channel") % {
+        "link": '<a href="https://www.freshworks.com/live-chat-software/">FreshChat</a>'
+    }
     claim_view = ClaimView
 
     schemes = [URN.FRESHCHAT_SCHEME]
@@ -29,9 +29,8 @@ class FreshChatType(ChannelType):
     free_sending = True
 
     configuration_blurb = _(
-        """
-        To use your FreshChat channel you'll have to configure the FreshChat server to direct messages to the url below.
-        """
+        "To use your FreshChat channel you'll have to configure the FreshChat server to direct "
+        "messages to the url below."
     )
 
     configuration_urls = (

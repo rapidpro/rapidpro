@@ -209,6 +209,13 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
                 sort_direction,
                 {"field_type": "attribute", "sort_direction": sort_direction, "field_name": "created_on"},
             )
+        if sort_field == "last_seen_on":
+
+            return (
+                sort_field,
+                sort_direction,
+                {"field_type": "attribute", "sort_direction": sort_direction, "field_name": "last_seen_on"},
+            )
         else:
             try:
                 contact_sort_field = ContactField.user_fields.values("value_type", "uuid").get(uuid=sort_field)
@@ -397,7 +404,7 @@ class ContactForm(forms.ModelForm):
         self.fields = OrderedDict(list(self.fields.items()) + extra_fields)
 
     def clean(self):
-        country = self.org.get_country_code()
+        country = self.org.default_country_code
 
         def validate_urn(key, scheme, path):
             try:
@@ -1818,9 +1825,10 @@ class ContactImportCRUDL(SmartCRUDL):
             org = self.derive_org()
             schemes = org.get_schemes(role=Channel.ROLE_SEND)
             schemes.add(URN.TEL_SCHEME)  # always show tel
-            context["urn_scheme_config"] = [conf for conf in URN.SCHEME_CHOICES if conf[0] in schemes]
+            context["urn_schemes"] = [conf for conf in URN.SCHEME_CHOICES if conf[0] in schemes]
             context["explicit_clear"] = ContactImport.EXPLICIT_CLEAR
             context["max_records"] = ContactImport.MAX_RECORDS
+            context["org_country"] = self.org.default_country
             return context
 
         def pre_save(self, obj):

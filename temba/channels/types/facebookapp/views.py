@@ -100,7 +100,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         org = self.request.user.get_org()
 
-        name = form.cleaned_data["page_name"]
         page_id = form.cleaned_data["page_id"]
         page_access_token = form.cleaned_data["page_access_token"]
         name = form.cleaned_data["name"]

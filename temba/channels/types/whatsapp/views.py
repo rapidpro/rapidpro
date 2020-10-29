@@ -194,9 +194,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         user = self.request.user
         org = user.get_org()
 
-        if not org:  # pragma: no cover
-            raise Exception(_("No org for this user, cannot claim"))
-
         data = form.cleaned_data
 
         config = {
@@ -214,7 +211,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             org,
             user,
             data["country"],
-            "WA",
+            self.channel_type,
             name="WhatsApp: %s" % data["number"],
             address=data["number"],
             config=config,

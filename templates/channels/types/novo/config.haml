@@ -1,6 +1,6 @@
 -load i18n
 
--blocktrans
+-blocktrans trimmed
   To finish configuring your Novo connection you'll need to set the following callback URLs on your
   Novo account.
 
@@ -13,7 +13,7 @@
     https://{{ channel.callback_domain }}{% url 'courier.nv' channel.uuid 'receive' %}
 
   .mt-2
-    -blocktrans
+    -blocktrans trimmed
       When a new message is received by your service, it should notify us with a POST to the following URL, passing
       the following parameters: 'from' and 'text'.
 
@@ -34,5 +34,5 @@
     {{ channel.config.secret }}
 
   .mt-2
-    -blocktrans
+    -blocktrans trimmed
       Use this Token as Authorization when sending incoming messages

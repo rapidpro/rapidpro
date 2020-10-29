@@ -52,7 +52,7 @@ class ClaimView(AuthenticatedExternalClaimView):
             data["number"],
             data["username"],
             data["password"],
-            "JN",
+            self.channel_type,
             data.get("url"),
             role=Channel.DEFAULT_ROLE,
             extra_config=config,

@@ -35,7 +35,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             org=org,
             user=self.request.user,
             country=data["country"],
-            channel_type="BL",
+            channel_type=self.channel_type,
             name=data["number"],
             address=data["number"],
             config=config,

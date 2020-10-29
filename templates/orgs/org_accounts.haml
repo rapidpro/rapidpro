@@ -17,7 +17,7 @@
 -block pre-form
 
   .mb-2
-    -blocktrans
+    -blocktrans trimmed
       Your workspace can have logins with various roles. You can use the Manage Logins page
       to view all existing logins or to add new logins to your workspace.
   
@@ -28,7 +28,7 @@
   .mt-8
 
   .mb-3
-    -blocktrans with org=org.name brand=brand.name 
+    -blocktrans trimmed with org=org.name brand=brand.name
       If you use the {{ brand }} Surveyor application to run flows offline, we recommend enabling
       users to create accounts from within the Android application. Setting a Surveyor password will
       allow anybody with that password to join {{org}} as a surveyor.
@@ -38,22 +38,22 @@
   %b= object.name
   -trans "has"
 
-  -blocktrans count org.administrators.count as accounts
+  -blocktrans trimmed count org.administrators.count as accounts
     {{accounts}} Administrator,
     -plural
       {{accounts}} Administrators,
 
-  -blocktrans count org.editors.count as accounts
+  -blocktrans trimmed count org.editors.count as accounts
     {{accounts}} Editor,
     -plural
       {{accounts}} Editors,
 
-  -blocktrans count org.viewers.count as accounts
+  -blocktrans trimmed count org.viewers.count as accounts
     {{accounts}} Viewer,
     -plural
       {{accounts}} Viewers,
 
-  -blocktrans count org.surveyors.count as accounts
+  -blocktrans trimmed count org.surveyors.count as accounts
     {{accounts}} Surveyor.
     -plural
       {{accounts}} Surveyors.

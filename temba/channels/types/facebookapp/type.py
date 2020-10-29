@@ -27,9 +27,9 @@ class FacebookAppType(ChannelType):
     show_config_page = False
 
     claim_blurb = _(
-        """Add a <a href="http://facebook.com">Facebook</a> bot to send and receive messages on behalf
-    of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect"""
-    )
+        "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will "
+        "need to connect your page by logging into your Facebook and checking the Facebook page to connect."
+    ) % {"link": '<a href="http://facebook.com">Facebook</a>'}
     claim_view = ClaimView
 
     schemes = [URN.FACEBOOK_SCHEME]

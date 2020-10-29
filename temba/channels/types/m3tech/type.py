@@ -18,9 +18,9 @@ class M3TechType(ChannelType):
 
     name = "M3 Tech"
 
-    claim_blurb = _(
-        """Easily add a two way number you have configured with <a href="http://m3techservice.com">M3 Tech</a> using their APIs."""
-    )
+    claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
+        "link": '<a href="http://m3techservice.com">M3 Tech</a>'
+    }
     claim_view = AuthenticatedExternalClaimView
 
     schemes = [URN.TEL_SCHEME]
@@ -28,9 +28,7 @@ class M3TechType(ChannelType):
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your connection you'll need to notify M3Tech of the following callback URLs:
-        """
+        "To finish configuring your connection you'll need to notify M3Tech of the following callback URLs."
     )
 
     configuration_urls = (

@@ -323,6 +323,7 @@ BRANDING = {
         "tiers": dict(multi_user=0, multi_org=0),
         "bundles": [],
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
+        "title": _("Visually build nationally scalable mobile applications"),
         "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
         "credits": _("Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."),
     }
@@ -1059,6 +1060,7 @@ TICKETER_TYPES = ["temba.tickets.types.mailgun.MailgunType", "temba.tickets.type
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",
+    "temba.channels.types.dialog360.Dialog360Type",
     "temba.channels.types.twilio.TwilioType",
     "temba.channels.types.twilio_whatsapp.TwilioWhatsappType",
     "temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType",

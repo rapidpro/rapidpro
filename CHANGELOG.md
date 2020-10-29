@@ -1,3 +1,20 @@
+v5.7.81
+----------
+ * Add page title to brand so that its configurable
+ * Dont send alert emails for orgs that aren't using topups
+ * Consider timezone when infering org default country and display on import create page
+ * Add page titles to fields and flows
+ * Allow changing EX channels role on UI
+
+v5.7.80
+----------
+ * Add contact last seen on to list contacts views
+ * Cleanup channel model fields
+ * Add charcount to send message dialog
+ * Show channel logs link for receive only channels
+ * Fix export flow page styles
+ * Allow searching for countries on channel claim views
+
 v5.7.79
 ----------
  * Rework imports to allow importing multiple URNs of same scheme
