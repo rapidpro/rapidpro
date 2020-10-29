@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-28 20:57+0000\n"
+"POT-Creation-Date: 2020-10-29 20:04+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -4510,6 +4510,11 @@ msgstr "Espanol"
 
 msgid "Russian"
 msgstr "Russe"
+
+#, fuzzy
+#| msgid "Visually build nationally scalable mobile applications from anywhere in the world."
+msgid "Visually build nationally scalable mobile applications"
+msgstr "Créez visuellement des applications mobiles évolutives à l'échelle nationale, partout dans le monde."
 
 msgid "Visually build nationally scalable mobile applications from anywhere in the world."
 msgstr "Créez visuellement des applications mobiles évolutives à l'échelle nationale, partout dans le monde."

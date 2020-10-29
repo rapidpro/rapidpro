@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-28 20:57+0000\n"
+"POT-Creation-Date: 2020-10-29 20:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3644,6 +3644,9 @@ msgid "Spanish"
 msgstr ""
 
 msgid "Russian"
+msgstr ""
+
+msgid "Visually build nationally scalable mobile applications"
 msgstr ""
 
 msgid "Visually build nationally scalable mobile applications from anywhere in the world."

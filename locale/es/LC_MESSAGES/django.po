@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-28 20:57+0000\n"
+"POT-Creation-Date: 2020-10-29 20:04+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5181,6 +5181,10 @@ msgstr ""
 
 msgid "Russian"
 msgstr ""
+
+#, fuzzy
+msgid "Visually build nationally scalable mobile applications"
+msgstr "Aplicaciones de mensajería visualmente interactivas en cualquier lugar del mundo."
 
 #, fuzzy
 msgid "Visually build nationally scalable mobile applications from anywhere in the world."
