@@ -4,8 +4,8 @@ from django import forms
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, ContactURN
-from temba.utils.fields import ExternalURLField
+from temba.contacts.models import URN
+from temba.utils.fields import ExternalURLField, SelectWidget
 
 from ...models import Channel
 from ...views import ALL_COUNTRIES, ClaimViewMixin
@@ -14,9 +14,7 @@ from ...views import ALL_COUNTRIES, ClaimViewMixin
 class ClaimView(ClaimViewMixin, SmartFormView):
     class ClaimForm(ClaimViewMixin.Form):
         scheme = forms.ChoiceField(
-            choices=ContactURN.SCHEME_CHOICES,
-            label=_("URN Type"),
-            help_text=_("The type of URNs handled by this channel"),
+            choices=URN.SCHEME_CHOICES, label=_("URN Type"), help_text=_("The type of URNs handled by this channel"),
         )
 
         number = forms.CharField(
@@ -47,6 +45,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             choices=ALL_COUNTRIES,
             label=_("Country"),
             required=False,
+            widget=SelectWidget(attrs={"searchable": True}),
             help_text=_("The country this phone number is used in"),
         )
 
@@ -178,18 +177,18 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         if self.request.GET.get("role", None) == "S":  # pragma: needs cover
             # get our existing channel
-            receive = org.get_receive_channel(TEL_SCHEME)
+            receive = org.get_receive_channel(URN.TEL_SCHEME)
             role = Channel.ROLE_SEND
-            scheme = TEL_SCHEME
+            scheme = URN.TEL_SCHEME
             address = receive.address
             country = receive.country
         else:
             role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE
             scheme = data["scheme"]
-            if scheme == TEL_SCHEME:
+            if scheme == URN.TEL_SCHEME:
                 address = data["number"]
                 country = data["country"]
-            elif scheme == TWITTER_SCHEME:  # pragma: needs cover
+            elif scheme == URN.TWITTER_SCHEME:  # pragma: needs cover
                 address = data["handle"]
                 country = None
             else:  # pragma: needs cover

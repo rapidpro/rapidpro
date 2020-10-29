@@ -2,7 +2,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import ChannelType
 from temba.channels.types.novo.views import ClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 
 class NovoType(ChannelType):
@@ -21,11 +21,12 @@ class NovoType(ChannelType):
     name = "Novo"
 
     claim_blurb = _(
-        """If you are based in Trinidad & Tobago, you can purchase a short code from <a href="http://www.novotechnologyinc.com/">Novo</a> and connect it in a few simple steps."""
-    )
+        "If you are based in Trinidad & Tobago, you can purchase a short code from %(link)s and connect it in a few "
+        "simple steps."
+    ) % {"link": '<a href="http://www.novotechnologyinc.com/">Novo</a>'}
     claim_view = ClaimView
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 160
 
     attachment_support = False

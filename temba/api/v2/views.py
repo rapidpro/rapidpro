@@ -987,7 +987,7 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
      * **device** - information about the device if this is an Android channel:
         * **name** - the name of the device (string).
         * **power_level** - the power level of the device (int).
-        * **power_status** - the power status, either ```STATUS_DISCHARGING``` or ```STATUS_CHARGING``` (string).
+        * **power_status** - the power status, either ```CHA``` (charging) or ```DIS``` (discharging) (string).
         * **power_source** - the source of power as reported by Android (string).
         * **network_type** - the type of network the device is connected to as reported by Android (string).
      * **last_seen** - the datetime when this channel was last seen (datetime).
@@ -3504,7 +3504,7 @@ class WorkspaceEndpoint(BaseAPIView):
         data = {
             "uuid": str(org.uuid),
             "name": org.name,
-            "country": org.get_country_code(),
+            "country": org.default_country_code,
             "languages": [l.iso_code for l in org.languages.order_by("iso_code")],
             "primary_language": org.primary_language.iso_code if org.primary_language else None,
             "timezone": str(org.timezone),

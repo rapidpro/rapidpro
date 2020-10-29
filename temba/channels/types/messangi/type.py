@@ -7,7 +7,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import ChannelType
 from temba.channels.types.messangi.views import ClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 
 class MessangiType(ChannelType):
@@ -28,19 +28,18 @@ class MessangiType(ChannelType):
     name = "Messangi"
 
     claim_blurb = _(
-        """If you are based in Jamaica, you can purchase a short code from <a href="http://www.messangi.com/">Messangi</a> and connect it in a few simple steps."""
-    )
+        "If you are based in Jamaica, you can purchase a short code from %(link)s and connect it in a few simple steps."
+    ) % {"link": '<a href="http://www.messangi.com/">Messangi</a>'}
     claim_view = ClaimView
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 150
 
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your Messangi connection you'll need to set the following callback URLs on your Messangi account.
-        """
+        "To finish configuring your Messangi connection you'll need to set the following callback URLs on your Messangi"
+        " account."
     )
 
     configuration_urls = (
@@ -54,6 +53,3 @@ class MessangiType(ChannelType):
     def is_available_to(self, user):
         org = user.get_org()
         return org.timezone and six.text_type(org.timezone) in ["America/Jamaica"]
-
-    def send(self, channel, msg, text):  # pragma: no cover
-        raise Exception("Sending Messangi messages is only possible via Courier")

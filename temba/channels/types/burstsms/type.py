@@ -1,7 +1,7 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.views import AuthenticatedExternalClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 
@@ -31,7 +31,7 @@ class BurstSMSType(ChannelType):
     ]
     recommended_timezones = available_timezones
     category = ChannelType.Category.PHONE
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 613
     attachment_support = False
 
@@ -44,17 +44,12 @@ class BurstSMSType(ChannelType):
         "form_blurb": _("You can connect your BurstSMS number by entering the settings below."),
     }
 
-    claim_blurb = _(
-        """
-        If you have a <a href="https://www.burstsms.com.au/">BurstSMS</a> number,
-        you can quickly connect it using their APIs.
-        """
-    )
+    claim_blurb = _("If you have a %(link)s number, you can quickly connect it using their APIs.") % {
+        "link": '<a href="https://www.burstsms.com.au/">BurstSMS</a>'
+    }
 
     configuration_blurb = _(
-        """
-        To finish connecting your channel, you need to set your callback URLs below for your number.
-        """
+        "To finish connecting your channel, you need to set your callback URLs below for your number."
     )
 
     configuration_urls = (

@@ -1,7 +1,7 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.views import AuthenticatedExternalClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 
@@ -19,21 +19,19 @@ class SMSCentralType(ChannelType):
     name = "SMSCentral"
     icon = "icon-channel-external"
 
-    claim_blurb = _(
-        """Easily add a two way number you have configured with <a href="http://smscentral.com.np/">SMSCentral</a> using their APIs."""
-    )
+    claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
+        "link": '<a href="http://smscentral.com.np/">SMSCentral</a>'
+    }
     claim_view = AuthenticatedExternalClaimView
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 1600
     max_tps = 1
 
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your SMSCentral connection you'll need to notify SMSCentral of the following URL.
-        """
+        "To finish configuring your SMSCentral connection you'll need to notify SMSCentral of the following URL."
     )
 
     configuration_urls = (

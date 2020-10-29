@@ -12,7 +12,6 @@ import stripe
 import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
-from smartmin.csv_imports.models import ImportTask
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
@@ -31,16 +30,7 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Alert, Channel, SyncEvent
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.wit import WitType
-from temba.contacts.models import (
-    TEL_SCHEME,
-    TWITTER_SCHEME,
-    TWITTERID_SCHEME,
-    Contact,
-    ContactField,
-    ContactGroup,
-    ContactURN,
-    ExportContactsTask,
-)
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN, ExportContactsTask
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
@@ -676,7 +666,7 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse("orgs.org_home"))
         self.assertContains(response, "Backup tokens can be used")
 
-    def test_country(self):
+    def test_country_view(self):
         self.setUpLocations()
 
         country_url = reverse("orgs.org_country")
@@ -690,34 +680,43 @@ class OrgTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # save with Rwanda as a country
-        response = self.client.post(country_url, dict(country=AdminBoundary.objects.get(name="Rwanda").pk))
+        self.client.post(country_url, dict(country=AdminBoundary.objects.get(name="Rwanda").pk))
 
         # assert it has changed
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual("Rwanda", str(org.country))
-        self.assertEqual("RW", org.get_country_code())
+        self.org.refresh_from_db()
+        self.assertEqual("Rwanda", str(self.org.country))
+        self.assertEqual("RW", self.org.default_country_code)
 
-        # set our admin boundary name to something invalid
-        org.country.name = "Fantasia"
-        org.country.save()
+    def test_default_country(self):
+        # if country boundary is set and name is valid country, that has priority
+        self.org.country = AdminBoundary.create(osm_id="171496", name="Ecuador", level=0)
+        self.org.timezone = "Africa/Nairobi"
+        self.org.save(update_fields=("country", "timezone"))
 
-        # getting our country code show now back down to our channel
-        self.assertEqual("RW", org.get_country_code())
+        self.assertEqual("EC", self.org.default_country.alpha_2)
 
-        # clear it out
-        self.client.post(country_url, dict(country=""))
+        del self.org.default_country
 
-        # assert it has been
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertFalse(org.country)
-        self.assertEqual("RW", org.get_country_code())
+        # if country name isn't valid, we'll try timezone
+        self.org.country.name = "Fantasia"
+        self.org.country.save(update_fields=("name",))
 
-        # remove all our channels so we no longer have a backdown
-        org.channels.all().delete()
-        org = Org.objects.get(pk=self.org.pk)
+        self.assertEqual("KE", self.org.default_country.alpha_2)
 
-        # now really don't have a clue of our country code
-        self.assertIsNone(org.get_country_code())
+        del self.org.default_country
+
+        # not all timezones have countries in which case we look at channels
+        self.org.timezone = "UTC"
+        self.org.save(update_fields=("timezone",))
+
+        self.assertEqual("RW", self.org.default_country.alpha_2)
+
+        del self.org.default_country
+
+        # but if we don't have any channels.. no more backdowns
+        self.org.channels.all().delete()
+
+        self.assertIsNone(self.org.default_country)
 
     def test_user_update(self):
         update_url = reverse("orgs.user_edit")
@@ -2893,51 +2892,12 @@ class OrgTest(TembaTest):
     @patch("temba.msgs.tasks.export_messages_task.delay")
     @patch("temba.flows.tasks.export_flow_results_task.delay")
     @patch("temba.contacts.tasks.export_contacts_task.delay")
-    @patch("smartmin.csv_imports.models.ImportTask.start")
     def test_resume_failed_task(
-        self, mock_import_task, mock_export_contacts_task, mock_export_flow_results_task, mock_export_messages_task
+        self, mock_export_contacts_task, mock_export_flow_results_task, mock_export_messages_task
     ):
-        mock_import_task.return_value = None
         mock_export_contacts_task.return_value = None
         mock_export_flow_results_task.return_value = None
         mock_export_messages_task.return_value = None
-
-        filename = "sample_contacts.xls"
-        import_params = dict(
-            org_id=self.org.id, timezone=str(self.org.timezone), extra_fields=[], original_filename=filename
-        )
-
-        ImportTask.objects.create(
-            created_by=self.admin,
-            modified_by=self.admin,
-            csv_file="test_imports/" + filename,
-            model_class="Contact",
-            import_params=json.dumps(import_params),
-            import_log="",
-            task_id="A",
-            task_status=ImportTask.FAILURE,
-        )
-
-        ImportTask.objects.create(
-            created_by=self.admin,
-            modified_by=self.admin,
-            csv_file="test_imports/" + filename,
-            model_class="Contact",
-            import_params=json.dumps(import_params),
-            import_log="",
-            task_id="A",
-            task_status=ImportTask.SUCCESS,
-        )
-
-        ImportTask.objects.create(
-            created_by=self.admin,
-            modified_by=self.admin,
-            csv_file="test_imports/" + filename,
-            model_class="Contact",
-            import_params=json.dumps(import_params),
-            import_log="",
-            task_id="B",
-        )
 
         ExportMessagesTask.objects.create(
             org=self.org, created_by=self.admin, modified_by=self.admin, status=ExportMessagesTask.STATUS_FAILED
@@ -2964,13 +2924,13 @@ class OrgTest(TembaTest):
         ExportContactsTask.objects.create(org=self.org, created_by=self.admin, modified_by=self.admin)
 
         two_hours_ago = timezone.now() - timedelta(hours=2)
-        ImportTask.objects.all().update(modified_on=two_hours_ago)
+
         ExportMessagesTask.objects.all().update(modified_on=two_hours_ago)
         ExportFlowResultsTask.objects.all().update(modified_on=two_hours_ago)
         ExportContactsTask.objects.all().update(modified_on=two_hours_ago)
 
         resume_failed_tasks()
-        mock_import_task.assert_called_once()
+
         mock_export_contacts_task.assert_called_once()
         mock_export_flow_results_task.assert_called_once()
         mock_export_messages_task.assert_called_once()
@@ -3447,8 +3407,8 @@ class OrgCRUDLTest(TembaTest):
 
         self.org = Org.objects.get(id=self.org.id)
         self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_SEND))
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))  # from cache
+        self.assertEqual({URN.TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
+        self.assertEqual({URN.TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))  # from cache
 
         # add a send/receive tel channel
         Channel.create(
@@ -3463,14 +3423,18 @@ class OrgCRUDLTest(TembaTest):
             config={Channel.CONFIG_FCM_ID: "456"},
         )
         self.org = Org.objects.get(pk=self.org.id)
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
+        self.assertEqual({URN.TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual({URN.TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a twitter channel
         Channel.create(self.org, self.user, None, "TT", "Twitter")
         self.org = Org.objects.get(pk=self.org.id)
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
+        self.assertEqual(
+            {URN.TEL_SCHEME, URN.TWITTER_SCHEME, URN.TWITTERID_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND)
+        )
+        self.assertEqual(
+            {URN.TEL_SCHEME, URN.TWITTER_SCHEME, URN.TWITTERID_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE)
+        )
 
     def test_login_case_not_sensitive(self):
         login_url = reverse("users.user_login")

@@ -23,7 +23,6 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
-from temba.contacts.models import DELETED_SCHEME
 from temba.contacts.search import SearchException, SearchResults, search_contacts
 from temba.contacts.views import ContactListView
 from temba.flows.models import Flow, FlowRun
@@ -48,8 +47,6 @@ from temba.utils import json
 from temba.utils.dates import datetime_to_ms, datetime_to_str
 
 from .models import (
-    TEL_SCHEME,
-    TWITTER_SCHEME,
     URN,
     Contact,
     ContactField,
@@ -1360,7 +1357,7 @@ class ContactTest(TembaTest):
         self.assertEqual(2, contact.urns.all().count())
         for urn in contact.urns.all():
             uuid.UUID(urn.path, version=4)
-            self.assertEqual(DELETED_SCHEME, urn.scheme)
+            self.assertEqual(URN.DELETED_SCHEME, urn.scheme)
 
         # a new contact arrives with those urns
         new_contact = self.create_contact("URN Thief", urns=["tel:+12065552000", "twitter:tweettweet"])
@@ -1575,7 +1572,7 @@ class ContactTest(TembaTest):
         self.assertEqual("Wolfeschlegelstei...", mr_long_name.get_display(short=True))
         self.assertEqual("Billy Nophone", self.billy.get_display())
 
-        self.assertEqual("0781 111 111", self.joe.get_urn_display(scheme=TEL_SCHEME))
+        self.assertEqual("0781 111 111", self.joe.get_urn_display(scheme=URN.TEL_SCHEME))
         self.assertEqual("blow80", self.joe.get_urn_display(org=self.org, formatted=False))
         self.assertEqual("blow80", self.joe.get_urn_display())
         self.assertEqual("+250768383383", self.voldemort.get_urn_display(org=self.org, formatted=False))
@@ -1606,7 +1603,7 @@ class ContactTest(TembaTest):
             self.assertEqual(ContactURN.ANON_MASK, self.voldemort.get_urn_display())
             self.assertEqual(ContactURN.ANON_MASK, mr_long_name.get_urn_display())
             self.assertEqual("", self.billy.get_urn_display())
-            self.assertEqual("", self.billy.get_urn_display(scheme=TEL_SCHEME))
+            self.assertEqual("", self.billy.get_urn_display(scheme=URN.TEL_SCHEME))
 
             self.assertEqual("Joe Blow", str(self.joe))
             self.assertEqual("%010d" % self.voldemort.pk, str(self.voldemort))
@@ -1627,8 +1624,8 @@ class ContactTest(TembaTest):
         all = (self.joe, self.frank, self.billy)
         Contact.bulk_cache_initialize(self.org, all)
 
-        self.assertEqual([u.scheme for u in getattr(self.joe, "_urns_cache")], [TWITTER_SCHEME, TEL_SCHEME])
-        self.assertEqual([u.scheme for u in getattr(self.frank, "_urns_cache")], [TEL_SCHEME])
+        self.assertEqual([u.scheme for u in getattr(self.joe, "_urns_cache")], [URN.TWITTER_SCHEME, URN.TEL_SCHEME])
+        self.assertEqual([u.scheme for u in getattr(self.frank, "_urns_cache")], [URN.TEL_SCHEME])
         self.assertEqual(getattr(self.billy, "_urns_cache"), list())
 
         with self.assertNumQueries(0):
@@ -1661,10 +1658,10 @@ class ContactTest(TembaTest):
         unready.status = ContactGroup.STATUS_EVALUATING
         unready.save(update_fields=("status",))
 
-        joe_tel = self.joe.get_urn(TEL_SCHEME)
-        joe_twitter = self.joe.get_urn(TWITTER_SCHEME)
-        frank_tel = self.frank.get_urn(TEL_SCHEME)
-        voldemort_tel = self.voldemort.get_urn(TEL_SCHEME)
+        joe_tel = self.joe.get_urn(URN.TEL_SCHEME)
+        joe_twitter = self.joe.get_urn(URN.TWITTER_SCHEME)
+        frank_tel = self.frank.get_urn(URN.TEL_SCHEME)
+        voldemort_tel = self.voldemort.get_urn(URN.TEL_SCHEME)
 
         # Postgres will defer to strcoll for ordering which even for en_US.UTF-8 will return different results on OSX
         # and Ubuntu. To keep ordering consistent for this test, we don't let URNs start with +
@@ -1806,7 +1803,7 @@ class ContactTest(TembaTest):
         Channel.create(self.org, self.user, None, "TT")
 
         # add add an external channel so numbers get normalized
-        Channel.create(self.org, self.user, "RW", "EX", schemes=[TEL_SCHEME])
+        Channel.create(self.org, self.user, "RW", "EX", schemes=[URN.TEL_SCHEME])
 
         # search for Joe - match on last name and twitter handle
         with patch("temba.contacts.search.omnibox.search_contacts") as sc:
@@ -1830,7 +1827,7 @@ class ContactTest(TembaTest):
         )
 
         # lookup by URN ids
-        urn_query = "u=%d,%d" % (self.joe.get_urn(TWITTER_SCHEME).pk, self.frank.get_urn(TEL_SCHEME).pk)
+        urn_query = "u=%d,%d" % (self.joe.get_urn(URN.TWITTER_SCHEME).id, self.frank.get_urn(URN.TEL_SCHEME).id)
         self.assertEqual(
             omnibox_request(urn_query),
             [
@@ -1893,7 +1890,7 @@ class ContactTest(TembaTest):
         self.assertEqual(omnibox_request("c=%s,%s" % (self.joe.uuid, self.frank.uuid)), [])
 
         # but still lookup by URN ids
-        urn_query = "u=%d,%d" % (self.joe.get_urn(TWITTER_SCHEME).pk, self.frank.get_urn(TEL_SCHEME).pk)
+        urn_query = "u=%d,%d" % (self.joe.get_urn(URN.TWITTER_SCHEME).pk, self.frank.get_urn(URN.TEL_SCHEME).pk)
         self.assertEqual(
             omnibox_request(urn_query),
             [
@@ -1905,7 +1902,7 @@ class ContactTest(TembaTest):
     def test_history(self):
 
         # use a max history size of 100
-        with patch("temba.contacts.models.MAX_HISTORY", 100):
+        with patch("temba.contacts.models.Contact.MAX_HISTORY", 100):
             url = reverse("contacts.contact_history", args=[self.joe.uuid])
 
             kurt = self.create_contact("Kurt", phone="123123")
@@ -1988,15 +1985,15 @@ class ContactTest(TembaTest):
 
             # create missed incoming and outgoing calls
             self.create_channel_event(
-                self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, extra={}
+                self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, extra={}
             )
             self.create_channel_event(
-                self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, extra={}
+                self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, extra={}
             )
 
             # and a referral event
             self.create_channel_event(
-                self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_NEW_CONVERSATION, extra={}
+                self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_NEW_CONVERSATION, extra={}
             )
 
             # try adding some failed calls
@@ -2141,7 +2138,7 @@ class ContactTest(TembaTest):
             assertHistoryEvent(history[12], "flow_entered", FlowRun)
 
         # with a max history of one, we should see this event first
-        with patch("temba.contacts.models.MAX_HISTORY", 1):
+        with patch("temba.contacts.models.Contact.MAX_HISTORY", 1):
             # make our message event older than our planting reminder
             self.message_event.created_on = self.planting_reminder.created_on - timedelta(days=1)
             self.message_event.save()
@@ -2916,7 +2913,7 @@ class ContactTest(TembaTest):
 
         # check that old URN is detached, new URN is attached, and Joe still exists
         self.joe = Contact.objects.get(pk=self.joe.id)
-        self.assertEqual(self.joe.get_urn_display(scheme=TEL_SCHEME), "0783 835 665")
+        self.assertEqual(self.joe.get_urn_display(scheme=URN.TEL_SCHEME), "0783 835 665")
         self.assertIsNone(
             self.joe.get_field_serialized(ContactField.get_by_key(self.org, "state"))
         )  # raw user input as location wasn't matched
@@ -3106,7 +3103,7 @@ class ContactTest(TembaTest):
 
         # try archive action
         event = self.create_channel_event(
-            self.channel, str(self.frank.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, extra={}
+            self.channel, str(self.frank.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, extra={}
         )
 
         self.client.post(blocked_url, {"action": "archive", "objects": self.frank.id})
@@ -3251,11 +3248,11 @@ class ContactTest(TembaTest):
         self.channel.country = "RW"
         self.channel.save()
 
-        normalized = contact3.get_urn(TEL_SCHEME).ensure_number_normalization(self.channel)
+        normalized = contact3.get_urn(URN.TEL_SCHEME).ensure_number_normalization(self.channel)
         self.assertEqual(normalized.path, "+250788111222")
 
         contact4 = self.create_contact(name=None, phone="0788333444")
-        normalized = contact4.get_urn(TEL_SCHEME).ensure_number_normalization(self.channel)
+        normalized = contact4.get_urn(URN.TEL_SCHEME).ensure_number_normalization(self.channel)
         self.assertEqual(normalized.path, "+250788333444")
 
         contact5 = self.create_contact(name="Jimmy", phone="+250788333555")
@@ -3271,8 +3268,8 @@ class ContactTest(TembaTest):
 
         # check twitter URN takes priority if you don't specify scheme
         self.assertEqual("twitter:jimmy_woot", str(contact5.get_urn()))
-        self.assertEqual("twitter:jimmy_woot", str(contact5.get_urn(schemes=[TWITTER_SCHEME])))
-        self.assertEqual("tel:+250788333666", str(contact5.get_urn(schemes=[TEL_SCHEME])))
+        self.assertEqual("twitter:jimmy_woot", str(contact5.get_urn(schemes=[URN.TWITTER_SCHEME])))
+        self.assertEqual("tel:+250788333666", str(contact5.get_urn(schemes=[URN.TEL_SCHEME])))
         self.assertIsNone(contact5.get_urn(schemes=["email"]))
         self.assertIsNone(contact5.get_urn(schemes=["facebook"]))
 
@@ -3546,14 +3543,14 @@ class ContactURNTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-    def test_create(self):
+    def test_get_or_create(self):
         urn = ContactURN.create(self.org, None, "tel:1234")
         self.assertEqual(urn.org, self.org)
         self.assertEqual(urn.contact, None)
         self.assertEqual(urn.identity, "tel:1234")
         self.assertEqual(urn.scheme, "tel")
         self.assertEqual(urn.path, "1234")
-        self.assertEqual(urn.priority, 50)
+        self.assertEqual(urn.priority, 1000)
 
         urn = ContactURN.get_or_create(self.org, None, "twitterid:12345#fooman")
         self.assertEqual("twitterid:12345", urn.identity)
@@ -4214,6 +4211,24 @@ class ContactFieldTest(TembaTest):
         )
 
         self.assertEqual(
+            ContactListView.prepare_sort_field_struct(sort_on="last_seen_on"),
+            (
+                "last_seen_on",
+                "asc",
+                {"field_type": "attribute", "sort_direction": "asc", "field_name": "last_seen_on"},
+            ),
+        )
+
+        self.assertEqual(
+            ContactListView.prepare_sort_field_struct(sort_on="-last_seen_on"),
+            (
+                "last_seen_on",
+                "desc",
+                {"field_type": "attribute", "sort_direction": "desc", "field_name": "last_seen_on"},
+            ),
+        )
+
+        self.assertEqual(
             ContactListView.prepare_sort_field_struct(sort_on="{}".format(str(self.contactfield_1.uuid))),
             (
                 str(self.contactfield_1.uuid),
@@ -4850,66 +4865,16 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
 
             self.assertContains(response, "You have reached the limit")
 
-    def test_json(self):
-        json_url = reverse("contacts.contactfield_json")
-
-        response = self.assertListFetch(json_url, allow_viewers=False, allow_editors=True)
-
-        self.assertEqual(
-            [
-                {"key": "name", "label": "Full name"},
-                {"key": "tel_e164", "label": "Phone number"},
-                {"key": "facebook", "label": "Facebook identifier"},
-                {"key": "twitter", "label": "Twitter handle"},
-                {"key": "twitterid", "label": "Twitter ID"},
-                {"key": "viber", "label": "Viber identifier"},
-                {"key": "line", "label": "LINE identifier"},
-                {"key": "telegram", "label": "Telegram identifier"},
-                {"key": "mailto", "label": "Email address"},
-                {"key": "ext", "label": "External identifier"},
-                {"key": "jiochat", "label": "JioChat identifier"},
-                {"key": "wechat", "label": "WeChat identifier"},
-                {"key": "fcm", "label": "Firebase Cloud Messaging identifier"},
-                {"key": "whatsapp", "label": "WhatsApp identifier"},
-                {"key": "freshchat", "label": "Freshchat identifier"},
-                {"key": "vk", "label": "VK identifier"},
-                {"key": "groups", "label": "Groups"},
-                {"id": self.age.id, "key": "age", "label": "Age"},
-                {"id": self.gender.id, "key": "gender", "label": "Gender"},
-                {"id": self.state.id, "key": "state", "label": "State"},
-            ],
-            response.json(),
-        )
-
 
 class URNTest(TembaTest):
-    def test_line_urn(self):
-        self.assertEqual("line:asdf", URN.from_line("asdf"))
-
-    def test_viber_urn(self):
-        self.assertEqual("viber:12345", URN.from_viber("12345"))
-
-    def test_fcm_urn(self):
-        self.assertEqual("fcm:12345", URN.from_fcm("12345"))
-
     def test_facebook_urn(self):
-        self.assertEqual("facebook:ref:asdf", URN.from_facebook(URN.path_from_fb_ref("asdf")))
-        self.assertEqual("asdf", URN.fb_ref_from_path(URN.path_from_fb_ref("asdf")))
-        self.assertTrue(URN.validate(URN.from_facebook(URN.path_from_fb_ref("asdf"))))
-
-    def test_vk_urn(self):
-        self.assertEqual("vk:12345", URN.from_vk("12345"))
+        self.assertTrue(URN.validate("facebook:ref:asdf"))
 
     def test_whatsapp_urn(self):
-        self.assertEqual("whatsapp:12065551212", URN.from_whatsapp("12065551212"))
         self.assertTrue(URN.validate("whatsapp:12065551212"))
         self.assertFalse(URN.validate("whatsapp:+12065551212"))
 
     def test_freshchat_urn(self):
-        self.assertEqual(
-            "freshchat:c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b",
-            URN.from_freshchat("c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b"),
-        )
         self.assertTrue(
             URN.validate("freshchat:c0534f78-b6e9-4f79-8853-11cedfc1f35b/c0534f78-b6e9-4f79-8853-11cedfc1f35b")
         )
@@ -4929,12 +4894,6 @@ class URNTest(TembaTest):
         )
 
         self.assertEqual(URN.from_tel("+12345"), "tel:+12345")
-        self.assertEqual(URN.from_twitter("abc_123"), "twitter:abc_123")
-        self.assertEqual(URN.from_email("a_b+c@d.com"), "mailto:a_b+c@d.com")
-        self.assertEqual(URN.from_facebook(12345), "facebook:12345")
-        self.assertEqual(URN.from_vk(12345), "vk:12345")
-        self.assertEqual(URN.from_telegram(12345), "telegram:12345")
-        self.assertEqual(URN.from_external("Aa0()+,-.:=@;$_!*'"), "ext:Aa0()+,-.:=@;$_!*'")
 
         self.assertRaises(ValueError, URN.from_parts, "", "12345")
         self.assertRaises(ValueError, URN.from_parts, "tel", "")
@@ -5290,6 +5249,29 @@ class ESIntegrationTest(TembaNonAtomicTest):
             },
         )
 
+        now = timezone.now()
+        next_two_days = timezone.now() + timezone.timedelta(days=2)
+
+        self.create_contact(name="James", urns=["tel:+250188382999"], last_seen_on=next_two_days)
+        self.create_contact(name="Chris", urns=["tel:+250188382888"], last_seen_on=now)
+
+        # new contacts were created, execute the rp-indexer again
+        result = subprocess.run(
+            ["./rp-indexer", "-elastic-url", settings.ELASTICSEARCH_URL, "-db", database_url, "-rebuild"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        self.assertEqual(result.returncode, 0, "Command failed: %s\n\n%s" % (result.stdout, result.stderr))
+
+        # give ES some time to publish the results
+        time.sleep(5)
+
+        response = self.client.get("%s?sort_on=%s" % (url, "last_seen_on"))
+        self.assertEqual(response.context["object_list"][0].name, "Chris")  # oldest contact last seen
+
+        response = self.client.get("%s?sort_on=-%s" % (url, "last_seen_on"))
+        self.assertEqual(response.context["object_list"][0].name, "James")  # recent contact last seen
+
         # create a dynamic group on age
         self.login(self.admin)
         url = reverse("contacts.contactgroup_create")
@@ -5343,7 +5325,6 @@ class ContactImportTest(TembaTest):
         bad_files = [
             ("empty.csv", "Import file doesn't contain any records."),
             ("empty_header.xls", "Import file contains an empty header."),
-            ("duplicate_header.xlsx", "Header 'name' is duplicated."),
             ("duplicate_urn.xlsx", "Import file contains duplicated contact URN 'tel:+250788382382'."),
             (
                 "duplicate_uuid.xlsx",
@@ -5365,69 +5346,79 @@ class ContactImportTest(TembaTest):
         for ext in ("csv", "xls", "xlsx"):
             imp = self.create_contact_import(f"media/test_imports/simple.{ext}")
             self.assertEqual(3, imp.num_records)
-            self.assertEqual(["URN:Tel", "name"], imp.headers)
             self.assertEqual(
-                {"URN:Tel": {"type": "scheme", "scheme": "tel"}, "name": {"type": "attribute", "name": "name"}},
+                [
+                    {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+                    {"header": "name", "mapping": {"type": "attribute", "name": "name"}},
+                ],
                 imp.mappings,
             )
 
         # try import with 2 URN types
         imp = self.create_contact_import("media/test_imports/twitter_and_phone.xls")
-        self.assertEqual(["URN:Tel", "name", "URN:Twitter"], imp.headers)
         self.assertEqual(
-            {
-                "URN:Tel": {"type": "scheme", "scheme": "tel"},
-                "name": {"type": "attribute", "name": "name"},
-                "URN:Twitter": {"type": "scheme", "scheme": "twitter"},
-            },
+            [
+                {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+                {"header": "name", "mapping": {"type": "attribute", "name": "name"}},
+                {"header": "URN:Twitter", "mapping": {"type": "scheme", "scheme": "twitter"}},
+            ],
+            imp.mappings,
+        )
+
+        # or with 3 URN columns
+        imp = self.create_contact_import("media/test_imports/multiple_tel_urns.xlsx")
+        self.assertEqual(
+            [
+                {"header": "Name", "mapping": {"type": "attribute", "name": "name"}},
+                {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+                {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+                {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+            ],
             imp.mappings,
         )
 
         imp = self.create_contact_import("media/test_imports/missing_name_header.xls")
-        self.assertEqual(["URN:Tel"], imp.headers)
-        self.assertEqual({"URN:Tel": {"type": "scheme", "scheme": "tel"}}, imp.mappings)
+        self.assertEqual([{"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}}], imp.mappings)
 
         self.create_field("goats", "Goats", ContactField.TYPE_NUMBER)
 
         imp = self.create_contact_import("media/test_imports/extra_fields_and_group.xlsx")
         self.assertEqual(
-            ["URN:Tel", "Name", "language", "Created On", "field: goats", "Field:Sheep", "Group:Testers"], imp.headers,
-        )
-        self.assertEqual(
-            {
-                "URN:Tel": {"type": "scheme", "scheme": "tel"},
-                "Name": {"type": "attribute", "name": "name"},
-                "language": {"type": "attribute", "name": "language"},
-                "Created On": {"type": "ignore"},
-                "field: goats": {"type": "field", "key": "goats", "name": "Goats"},
-                "Field:Sheep": {"type": "new_field", "key": "sheep", "name": "Sheep", "value_type": "T"},
-                "Group:Testers": {"type": "ignore"},
-            },
+            [
+                {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+                {"header": "Name", "mapping": {"type": "attribute", "name": "name"}},
+                {"header": "language", "mapping": {"type": "attribute", "name": "language"}},
+                {"header": "Created On", "mapping": {"type": "ignore"}},
+                {"header": "field: goats", "mapping": {"type": "field", "key": "goats", "name": "Goats"}},
+                {
+                    "header": "Field:Sheep",
+                    "mapping": {"type": "new_field", "key": "sheep", "name": "Sheep", "value_type": "T"},
+                },
+                {"header": "Group:Testers", "mapping": {"type": "ignore"}},
+            ],
             imp.mappings,
         )
 
         # a header can be a number but it will be ignored
         imp = self.create_contact_import("media/test_imports/numerical_header.xlsx")
-        self.assertEqual(["URN:Tel", "Name", "123"], imp.headers)
         self.assertEqual(
-            {
-                "URN:Tel": {"type": "scheme", "scheme": "tel"},
-                "Name": {"name": "name", "type": "attribute"},
-                "123": {"type": "ignore"},
-            },
+            [
+                {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+                {"header": "Name", "mapping": {"name": "name", "type": "attribute"}},
+                {"header": "123", "mapping": {"type": "ignore"}},
+            ],
             imp.mappings,
         )
 
         self.create_field("a_number", "A-Number", ContactField.TYPE_NUMBER)
 
         imp = self.create_contact_import("media/test_imports/header_chars.xlsx")
-        self.assertEqual(["URN:Tel", "Name", "Field: A-Number"], imp.headers)
         self.assertEqual(
-            {
-                "URN:Tel": {"type": "scheme", "scheme": "tel"},
-                "Name": {"type": "attribute", "name": "name"},
-                "Field: A-Number": {"type": "field", "key": "a_number", "name": "A-Number"},
-            },
+            [
+                {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+                {"header": "Name", "mapping": {"type": "attribute", "name": "name"}},
+                {"header": "Field: A-Number", "mapping": {"type": "field", "key": "a_number", "name": "A-Number"}},
+            ],
             imp.mappings,
         )
 
@@ -5452,9 +5443,9 @@ class ContactImportTest(TembaTest):
         self.assertEqual(3, batches[0].record_end)
         self.assertEqual(
             [
-                {"name": "Eric Newcomer", "urns": ["tel:250788382382"], "groups": [str(imp.group.uuid)]},
-                {"name": "NIC POTTIER", "urns": ["tel:250(78) 8 383 383"], "groups": [str(imp.group.uuid)]},
-                {"name": "jen newcomer", "urns": ["tel:250788383385"], "groups": [str(imp.group.uuid)]},
+                {"name": "Eric Newcomer", "urns": ["tel:+250788382382"], "groups": [str(imp.group.uuid)]},
+                {"name": "NIC POTTIER", "urns": ["tel:+250788383383"], "groups": [str(imp.group.uuid)]},
+                {"name": "jen newcomer", "urns": ["tel:+250788383385"], "groups": [str(imp.group.uuid)]},
             ],
             batches[0].specs,
         )
@@ -5631,6 +5622,24 @@ class ContactImportTest(TembaTest):
         )
 
     @mock_mailroom
+    def test_batches_with_multiple_tels(self, mr_mocks):
+        imp = self.create_contact_import("media/test_imports/multiple_tel_urns.xlsx")
+        imp.start()
+        batch = imp.batches.get()
+
+        self.assertEqual(
+            [
+                {
+                    "name": "Bob",
+                    "urns": ["tel:+250788382001", "tel:+250788382002", "tel:+250788382003"],
+                    "groups": [str(imp.group.uuid)],
+                },
+                {"name": "Jim", "urns": ["tel:+250788382004", "tel:+250788382005"], "groups": [str(imp.group.uuid)]},
+            ],
+            batch.specs,
+        )
+
+    @mock_mailroom
     def test_batches_from_csv(self, mr_mocks):
         imp = self.create_contact_import("media/test_imports/simple.csv")
         imp.start()
@@ -5638,9 +5647,9 @@ class ContactImportTest(TembaTest):
 
         self.assertEqual(
             [
-                {"name": "Eric Newcomer", "urns": ["tel:250788382382"], "groups": [str(imp.group.uuid)]},
-                {"name": "NIC POTTIER", "urns": ["tel:250(78) 8 383 383"], "groups": [str(imp.group.uuid)]},
-                {"name": "jen newcomer", "urns": ["tel:250788383385"], "groups": [str(imp.group.uuid)]},
+                {"name": "Eric Newcomer", "urns": ["tel:+250788382382"], "groups": [str(imp.group.uuid)]},
+                {"name": "NIC POTTIER", "urns": ["tel:+250788383383"], "groups": [str(imp.group.uuid)]},
+                {"name": "jen newcomer", "urns": ["tel:+250788383385"], "groups": [str(imp.group.uuid)]},
             ],
             batch.specs,
         )
@@ -5723,7 +5732,7 @@ class ContactImportTest(TembaTest):
             (kgl.localize(datetime(2020, 9, 18, 15, 45, 30, 0)), "2020-09-18T15:45:30+02:00"),
         ]
         for test in tests:
-            self.assertEqual(test[1], imp._parse_value(test[0]))
+            self.assertEqual(test[1], imp._parse_value(test[0], tz=kgl))
 
     def test_default_group_name(self):
         tests = [
@@ -5901,15 +5910,18 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         # mappings will have been updated
         imp.refresh_from_db()
         self.assertEqual(
-            {
-                "URN:Tel": {"type": "scheme", "scheme": "tel"},
-                "Name": {"type": "attribute", "name": "name"},
-                "language": {"type": "attribute", "name": "language"},
-                "Created On": {"type": "ignore"},
-                "field: goats": {"type": "new_field", "key": "goats", "name": "Goats", "value_type": "N"},
-                "Field:Sheep": {"type": "ignore"},
-                "Group:Testers": {"type": "ignore"},
-            },
+            [
+                {"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}},
+                {"header": "Name", "mapping": {"type": "attribute", "name": "name"}},
+                {"header": "language", "mapping": {"type": "attribute", "name": "language"}},
+                {"header": "Created On", "mapping": {"type": "ignore"}},
+                {
+                    "header": "field: goats",
+                    "mapping": {"type": "new_field", "key": "goats", "name": "Goats", "value_type": "N"},
+                },
+                {"header": "Field:Sheep", "mapping": {"type": "ignore"}},
+                {"header": "Group:Testers", "mapping": {"type": "ignore"}},
+            ],
             imp.mappings,
         )
 

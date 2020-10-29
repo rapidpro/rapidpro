@@ -1,3 +1,29 @@
+v5.7.80
+----------
+ * Add contact last seen on to list contacts views
+ * Cleanup channel model fields
+ * Add charcount to send message dialog
+ * Show channel logs link for receive only channels
+ * Fix export flow page styles
+ * Allow searching for countries on channel claim views
+
+v5.7.79
+----------
+ * Rework imports to allow importing multiple URNs of same scheme
+ * Cleanup no longer used URN related functionality
+ * Show contact last seen on on contact read page
+
+v5.7.78
+----------
+ * Clean up models fields in contacts app
+
+v5.7.77
+----------
+ * Fix styling on the API explorer page
+ * Fix list page selection for viewers
+ * Move contact field type constants to ContactField class
+ * Allow brand to be set by env variable
+
 v5.7.76
 ----------
  * Drop support for migrating legacy expressions on API endpoints
