@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-15 21:00+0000\n"
+"POT-Creation-Date: 2020-10-30 17:49+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1342,6 +1342,24 @@ msgstr ""
 msgid "The token Junebug should use to authenticate"
 msgstr ""
 
+msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+msgstr ""
+
+msgid "Your enterprise WhatsApp number"
+msgstr ""
+
+msgid "Account SID"
+msgstr ""
+
+msgid "Your Kaleyra Account SID"
+msgstr ""
+
+msgid "Your Kaleyra API Key"
+msgstr ""
+
+msgid "Please enter a valid phone number"
+msgstr ""
+
 msgid ""
 "Connect your <a href=\"http://www.kannel.org/\">Kannel</a> instance, we'll walk you through\n"
 "                       the steps necessary to get your SMSC connection working in a few minutes."
@@ -2009,9 +2027,6 @@ msgstr ""
 msgid "Sync Logs"
 msgstr ""
 
-msgid "Your enterprise WhatsApp number"
-msgstr ""
-
 msgid "The base URL for your WhatsApp enterprise installation"
 msgstr ""
 
@@ -2034,9 +2049,6 @@ msgid "The Facebook access token that will be used for syncing"
 msgstr ""
 
 msgid "The namespace for your WhatsApp templates"
-msgstr ""
-
-msgid "Please enter a valid phone number"
 msgstr ""
 
 msgid "Unable to check WhatsApp enterprise account, please check username and password"
@@ -4148,9 +4160,6 @@ msgstr ""
 
 #, python-format
 msgid "Connecting to your DT One account failed with error text: %s"
-msgstr ""
-
-msgid "Account SID"
 msgstr ""
 
 msgid "Account Token"

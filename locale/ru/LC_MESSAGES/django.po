@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-15 21:00+0000\n"
+"POT-Creation-Date: 2020-10-30 17:49+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1521,6 +1521,30 @@ msgstr "Пароль, который будет использоваться д�
 msgid "The token Junebug should use to authenticate"
 msgstr "Токен, который Junebug должен использовать для аутентификации"
 
+#, fuzzy
+#| msgid "If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio WhatsApp</a>"
+msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+msgstr "Если у Вас имеется Twilio для номера WhatsApp, Вы можете его подключить для общения с Вашими контактами WhatsApp. <a href=\"https://www.twilio.com/whatsapp/\">Узнайте подробнее о Twilio WhatsApp</a>"
+
+msgid "Your enterprise WhatsApp number"
+msgstr "Ваш корпоративный номер WhatsApp "
+
+msgid "Account SID"
+msgstr "SID Учетной записи"
+
+#, fuzzy
+#| msgid "Your Twilio Account SID"
+msgid "Your Kaleyra Account SID"
+msgstr "SID Вашей учетной записи Twilio "
+
+#, fuzzy
+#| msgid "Your Nexmo API key"
+msgid "Your Kaleyra API Key"
+msgstr "Ваш ключ API Nexmo "
+
+msgid "Please enter a valid phone number"
+msgstr "Пожалуйста, введите действительный номер телефона"
+
 msgid ""
 "Connect your <a href=\"http://www.kannel.org/\">Kannel</a> instance, we'll walk you through\n"
 "                       the steps necessary to get your SMSC connection working in a few minutes."
@@ -2278,9 +2302,6 @@ msgstr "Обновление контактов началось, может п�
 msgid "Sync Logs"
 msgstr "Журналы синхронизации"
 
-msgid "Your enterprise WhatsApp number"
-msgstr "Ваш корпоративный номер WhatsApp "
-
 msgid "The base URL for your WhatsApp enterprise installation"
 msgstr "Базовый URL для Вашей корпоративной установки WhatsApp "
 
@@ -2304,9 +2325,6 @@ msgstr "Токен доступа Facebook, который будет испол
 
 msgid "The namespace for your WhatsApp templates"
 msgstr "Область имен для Ваших шаблонов WhatsApp "
-
-msgid "Please enter a valid phone number"
-msgstr "Пожалуйста, введите действительный номер телефона"
 
 msgid "Unable to check WhatsApp enterprise account, please check username and password"
 msgstr "Невозможно проверить корпоративный счет WhatsApp, пожалуйста, проверьте имя пользователя и пароль"
@@ -4557,9 +4575,6 @@ msgstr "Ключ и секрет API Вашей учетной записи DT O
 #, python-format
 msgid "Connecting to your DT One account failed with error text: %s"
 msgstr "Подключение к Вашей учетной записи DT On не удалось. Текст ошибки: %s"
-
-msgid "Account SID"
-msgstr "SID Учетной записи"
 
 msgid "Account Token"
 msgstr "Токен Учетной записи"
@@ -11944,7 +11959,6 @@ msgstr "Ввести запрос"
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        Are you sure you want to delete everything for %(name)s? Everything will be gone and there is no going back.\n"
@@ -12130,7 +12144,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
 #~ msgstr "Вы также можете указать значения пользовательских полей контактов в файле XLS для столбцов с префиксом <i>Поле:</i>, например: <i>Поле:Команда</i>."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                          Created %(create_count)s new contact\n"
@@ -12376,7 +12389,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "No runs"
 #~ msgstr "Нет проходов"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                              %(run_count)s run\n"
@@ -12402,7 +12414,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "                              %(run_count)s проходов\n"
 #~ "                            "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                            %(completed_percentage)s%% completion\n"
@@ -12412,7 +12423,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "                            Завершено %(completed_percentage)s%%\n"
 #~ "                          "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                        %(count_comma)s recipient\n"
@@ -12438,7 +12448,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "                          %(count_comma)s получателям\n"
 #~ "                      "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -12450,7 +12459,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Write the message that will get sent when the scheduled time arrives"
 #~ msgstr "Напишите сообщение, которое будет отправлено, когда наступит запланированное время"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -12494,7 +12502,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "          </span>\n"
 #~ "      "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -12619,7 +12626,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "month"
 #~ msgstr "месяц"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          on the %(repeat_day_of_month)s\n"
@@ -12631,7 +12637,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "        "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          It will repeat <span class='attn'>%(repeat_period_display)s</span> at around the same time.\n"
@@ -12666,12 +12671,12 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "The archive we were rolled up into, if any"
 #~ msgstr "Архив, в который у нас прошло сворачивание, при наличии"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
 #~ msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
 #~ msgstr "%s используется внутри кампании. Для его архивации сначала удалите его из Ваших кампаний."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
 #~ msgid "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
 #~ msgstr "%s используются внутри кампании. Для их архивации сначала удалите их из Ваших кампаний."
@@ -12730,59 +12735,45 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Restore Triggers"
 #~ msgstr "Восстановить Триггеры"
 
-#, python-brace-format
 #~ msgid "Unrecognized field: '{prop}'"
 #~ msgstr "Нераспознанное поле: '{prop}'"
 
-#, python-brace-format
 #~ msgid "Unknown text comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор текста: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown number comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор номера: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unable to parse the date '{self.value}'"
 #~ msgstr "Невозможно разобрать дату '{self.value}'"
 
-#, python-brace-format
 #~ msgid "Unknown datetime comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор даты и времени: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown location type: '{field.value_type}'"
 #~ msgstr "Неизвестный тип местоположения: '{field.value_type}'"
 
-#, python-brace-format
 #~ msgid "Unsupported comparator '{self.comparator}' for location field"
 #~ msgstr "Неподдерживаемый компаратор '{self.comparator}' для поля местоположения"
 
-#, python-brace-format
 #~ msgid "Unrecognized contact field type '{field.value_type}'"
 #~ msgstr "Нераспознаваемый тип поля контактов '{field.value_type}'"
 
-#, python-brace-format
 #~ msgid "Unknown urn scheme comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор схемы urn: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown language comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор языка: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown created_on comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор created_on: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown name comparator: '{self.comparator}'"
 #~ msgstr "Неизвестный компаратор названия: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "No support for attribute field: '{field}'"
 #~ msgstr "Не поддерживается поле атрибутов: '{field}'"
 
-#, python-brace-format
 #~ msgid "Unrecognized contact field type '{prop_type}'"
 #~ msgstr "Нераспознаваемый тип поля контактов '{prop_type}'"
 
@@ -12913,7 +12904,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Channel Alarms (low battery, loss of connectivity)"
 #~ msgstr "Оповещения Канала (низкий заряд батареи, потеря связи)"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"

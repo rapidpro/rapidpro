@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-09-15 21:00+0000\n"
+"POT-Creation-Date: 2020-10-30 17:49+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -1883,6 +1883,32 @@ msgstr ""
 msgid "The token Junebug should use to authenticate"
 msgstr "O token que será usado para requisitar este transmissor"
 
+msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+msgstr ""
+
+msgid "Your enterprise WhatsApp number"
+msgstr ""
+
+#, fuzzy
+#| msgid "Account:"
+msgid "Account SID"
+msgstr "Conta:"
+
+#, fuzzy
+#| msgid "Your Twilio Account SID"
+msgid "Your Kaleyra Account SID"
+msgstr "Seu SID da conta Twilio"
+
+#, fuzzy
+#| msgid "Your Nexmo API key"
+msgid "Your Kaleyra API Key"
+msgstr "Sua chave da API Nexmo"
+
+#, fuzzy
+#| msgid "Please enter at least 8 characters"
+msgid "Please enter a valid phone number"
+msgstr "Por favor, insira pelo menos 8 caracteres"
+
 msgid ""
 "Connect your <a href=\"http://www.kannel.org/\">Kannel</a> instance, we'll walk you through\n"
 "                       the steps necessary to get your SMSC connection working in a few minutes."
@@ -2915,9 +2941,6 @@ msgstr ""
 msgid "Sync Logs"
 msgstr "Sincronizado em"
 
-msgid "Your enterprise WhatsApp number"
-msgstr ""
-
 msgid "The base URL for your WhatsApp enterprise installation"
 msgstr ""
 
@@ -2947,11 +2970,6 @@ msgstr "O número de comandos enviados ao transmissor"
 #| msgid "The file name for our export"
 msgid "The namespace for your WhatsApp templates"
 msgstr "O nome do arquivo para nossa exportação"
-
-#, fuzzy
-#| msgid "Please enter at least 8 characters"
-msgid "Please enter a valid phone number"
-msgstr "Por favor, insira pelo menos 8 caracteres"
 
 msgid "Unable to check WhatsApp enterprise account, please check username and password"
 msgstr ""
@@ -5517,11 +5535,6 @@ msgstr "Sua chave e segredo da API Nexmo estão inválidos. Por favor verifique-
 #, python-format
 msgid "Connecting to your DT One account failed with error text: %s"
 msgstr ""
-
-#, fuzzy
-#| msgid "Account:"
-msgid "Account SID"
-msgstr "Conta:"
 
 #, fuzzy
 msgid "Account Token"
@@ -12242,7 +12255,7 @@ msgstr ""
 #~ msgid "Each row should have the phone number as <i>URN:tel</i> (including country code) and the name of the contact if available."
 #~ msgstr "Cada linha deve ter o número de telefone (incluindo o código do país) e o nome do contato, se disponível."
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                          Created %(create_count)s new contact\n"
@@ -12469,7 +12482,7 @@ msgstr ""
 #~ msgid "Unlabel"
 #~ msgstr "Remover rótulo"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                              %(run_count)s run\n"
@@ -12485,7 +12498,7 @@ msgstr ""
 #~ "\n"
 #~ "%(participant_count)s participante %(participant_count_plr)s, %(completed_count)s completos"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                            %(completed_percentage)s%% completion\n"
@@ -12494,7 +12507,7 @@ msgstr ""
 #~ "\n"
 #~ "%(new_contacts)s Nova Resposta %(new_contact_plr)s"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                        %(count_comma)s recipient\n"
@@ -12510,7 +12523,7 @@ msgstr ""
 #~ "\n"
 #~ "Distribuir para %(count_comma)s contatos"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -12522,7 +12535,7 @@ msgstr ""
 #~ msgid "Write the message that will get sent when the scheduled time arrives"
 #~ msgstr "Escrever a mensagem que será enviada quando chegar o momento agendado"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -12552,7 +12565,7 @@ msgstr ""
 #~ "contatos %(pluralizer)s\n"
 #~ "</span>"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -12680,7 +12693,6 @@ msgstr ""
 #~ msgid "month"
 #~ msgstr "mês"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          on the %(repeat_day_of_month)s\n"
@@ -12690,7 +12702,6 @@ msgstr ""
 #~ "\n"
 #~ "no %(repeat_day_of_month)s"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          It will repeat <span class='attn'>%(repeat_period_display)s</span> at around the same time.\n"
@@ -12784,12 +12795,12 @@ msgstr ""
 #~ msgid "Empty user access token!"
 #~ msgstr "Seu Token API é"
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #~| msgid "Invalid group or contact id"
 #~ msgid "Unable to parse the date '{self.value}'"
 #~ msgstr "Grupo ou id do contato inválido"
 
-#, fuzzy, python-brace-format
+#, fuzzy
 #~| msgid "Unknown alert type: %(alert)s"
 #~ msgid "Unknown location type: '{field.value_type}'"
 #~ msgstr "Tipo de alerta desconhecido: %(alert)s"
@@ -12922,7 +12933,7 @@ msgstr ""
 #~ msgid "Channel Alarms (low battery, loss of connectivity)"
 #~ msgstr "Alarmes do Transmissor (bateria fraca, perda de conexão)"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
@@ -13008,7 +13019,7 @@ msgstr ""
 #~ "\n"
 #~ "%(sms_sent)s Enviadas"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        You can connect your <a href=\"http://infobip.com\">Infobip</a> number by entering your number, username and password\n"
