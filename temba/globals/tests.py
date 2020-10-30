@@ -1,5 +1,4 @@
-from unittest.mock import patch
-
+from django.test.utils import override_settings
 from django.urls import reverse
 
 from temba.tests import CRUDLTestMixin, TembaTest
@@ -105,7 +104,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertListFetch(unused_url, allow_viewers=False, allow_editors=False, context_objects=[self.global2])
 
-    @patch.object(Global, "MAX_ACTIVE_GLOBALS_PER_ORG", new=4)
+    @override_settings(MAX_ACTIVE_GLOBALS_PER_ORG=4)
     def test_create(self):
         create_url = reverse("globals.global_create")
 

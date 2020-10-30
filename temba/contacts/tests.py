@@ -15,6 +15,7 @@ from django.core.validators import ValidationError
 from django.db import connection
 from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
+from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -983,7 +984,7 @@ class ContactGroupCRUDLTest(TembaTest):
 
         self.other_org_group = self.create_group("Customers", contacts=[], org=self.org2)
 
-    @patch.object(ContactGroup, "MAX_ACTIVE_CONTACTGROUPS_PER_ORG", new=10)
+    @override_settings(MAX_ACTIVE_CONTACTGROUPS_PER_ORG=10)
     @mock_mailroom
     def test_create(self, mr_mocks):
         url = reverse("contacts.contactgroup_create")
@@ -1024,7 +1025,7 @@ class ContactGroupCRUDLTest(TembaTest):
 
         self.bulk_release(ContactGroup.user_groups.all())
 
-        for i in range(ContactGroup.MAX_ACTIVE_CONTACTGROUPS_PER_ORG):
+        for i in range(settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG):
             ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)
 
         response = self.client.post(url, dict(name="People"))
@@ -1033,10 +1034,10 @@ class ContactGroupCRUDLTest(TembaTest):
 
         self.bulk_release(ContactGroup.user_groups.all())
 
-        for i in range(ContactGroup.MAX_ACTIVE_CONTACTGROUPS_PER_ORG):
+        for i in range(settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG):
             ContactGroup.create_static(self.org, self.admin, "group%d" % i)
 
-        self.assertEqual(ContactGroup.user_groups.all().count(), ContactGroup.MAX_ACTIVE_CONTACTGROUPS_PER_ORG)
+        self.assertEqual(ContactGroup.user_groups.all().count(), settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG)
         response = self.client.post(url, dict(name="People"))
         self.assertFormError(
             response,
@@ -4515,7 +4516,7 @@ class ContactFieldTest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertFormError(response, "form", None, "Can't be a reserved word")
 
-        with patch.object(ContactField, "MAX_ACTIVE_CONTACTFIELDS_PER_ORG", new=2):
+        with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=2):
             # a valid form, but ORG has reached max active fields limit
             post_data = {"label": "teefilter", "value_type": "T"}
 
@@ -4854,12 +4855,12 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, "You have reached the limit")
         self.assertNotContains(response, "You are approaching the limit")
 
-        with patch.object(ContactField, "MAX_ACTIVE_CONTACTFIELDS_PER_ORG", new=10):
+        with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=10):
             response = self.requestView(list_url, self.admin)
 
             self.assertContains(response, "You are approaching the limit")
 
-        with patch.object(ContactField, "MAX_ACTIVE_CONTACTFIELDS_PER_ORG", new=3):
+        with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=3):
             response = self.requestView(list_url, self.admin)
 
             self.assertContains(response, "You have reached the limit")
@@ -5761,7 +5762,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # try uploading when we've already reached our group limit
         self.create_group("Testers", contacts=[])
-        with patch("temba.contacts.models.ContactGroup.MAX_ACTIVE_CONTACTGROUPS_PER_ORG", 1):
+        with override_settings(MAX_ACTIVE_CONTACTGROUPS_PER_ORG=1):
             response = self.client.post(create_url, {"file": upload("media/test_imports/simple.xlsx")})
             self.assertFormError(
                 response,

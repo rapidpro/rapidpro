@@ -356,15 +356,13 @@ class Org(SmartModel):
         )
 
     def get_limit(self, limit_type):
-        from temba.contacts.models import ContactField, ContactGroup
-        from temba.globals.models import Global
 
         if limit_type == Org.LIMIT_FIELDS:
-            return ContactField.MAX_ACTIVE_CONTACTFIELDS_PER_ORG
+            return settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG
         if limit_type == Org.LIMIT_GROUPS:
-            return ContactGroup.MAX_ACTIVE_CONTACTGROUPS_PER_ORG
+            return settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG
         if limit_type == Org.LIMIT_GLOBALS:
-            return Global.MAX_ACTIVE_GLOBALS_PER_ORG
+            return settings.MAX_ACTIVE_GLOBALS_PER_ORG
 
         raise ValueError("Invalid org limit type")
 
