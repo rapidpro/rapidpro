@@ -4,31 +4,29 @@ from django.db import migrations, models
 
 
 def update_status(apps, schema_editor):
-    MergeFlowsTask = apps.get_model('flows', 'MergeFlowsTask')
-    MergeFlowsTask.objects.update(status='C')
+    MergeFlowsTask = apps.get_model("flows", "MergeFlowsTask")
+    MergeFlowsTask.objects.update(status="C")
 
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0232_mergeflowstask'),
-    ]
+    dependencies = [("flows", "0232_mergeflowstask")]
 
     operations = [
         migrations.AddField(
-            model_name='mergeflowstask',
-            name='status',
-            field=models.CharField(choices=[('A', 'Active'), ('P', 'Processing'), ('C', 'Completed'), ('F', 'Failed')], default='A', max_length=1),
+            model_name="mergeflowstask",
+            name="status",
+            field=models.CharField(
+                choices=[("A", "Active"), ("P", "Processing"), ("C", "Completed"), ("F", "Failed")],
+                default="A",
+                max_length=1,
+            ),
         ),
         migrations.AlterField(
-            model_name='mergeflowstask',
-            name='created_on',
-            field=models.DateTimeField(auto_now_add=True),
+            model_name="mergeflowstask", name="created_on", field=models.DateTimeField(auto_now_add=True)
         ),
         migrations.AlterField(
-            model_name='mergeflowstask',
-            name='modified_on',
-            field=models.DateTimeField(auto_now=True),
+            model_name="mergeflowstask", name="modified_on", field=models.DateTimeField(auto_now=True)
         ),
-        migrations.RunPython(update_status)
+        migrations.RunPython(update_status),
     ]

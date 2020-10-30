@@ -3189,7 +3189,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
             flow = self.get_object()
-            merging_tasks = MergeFlowsTask.objects.filter(target=flow).order_by('create_on')
+            merging_tasks = MergeFlowsTask.objects.filter(target=flow).order_by("create_on")
 
             # paginate
             modified_on = self.request.GET.get("modified_on", None)
