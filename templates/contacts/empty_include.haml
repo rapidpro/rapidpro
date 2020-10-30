@@ -11,5 +11,5 @@
 
   .mt-2
     {% url 'contacts.contactimport_create' as contact_import_url %}
-    -blocktrans trimmed
-      To get started you can %a{href:'{{contact_import_url}}'} import contacts from a file you create in Excel.
+    -blocktrans trimmed with url=contact_import_url
+      To get started you can <a href="{{ url }}">import</a> contacts from a file you create in Excel.
