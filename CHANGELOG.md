@@ -1,3 +1,12 @@
+v5.7.83
+----------
+ * Fix broken import link on empty contacts page
+ * Use consistent approach for limits on org
+ * Globals UI should limit creation of globals to org limit
+ * Fix archives list styles and add tabs for message and run archives
+ * Restyle the Facebook app channel claim pages
+ * Switch to use FBA type by default
+
 v5.7.82
 ----------
  * Don't blow up if import contains invalid URNs but pass values on to mailroom

@@ -51,6 +51,9 @@ class FacebookType(ChannelType):
         if trigger.trigger_type == Trigger.TYPE_NEW_CONVERSATION:
             self._set_call_to_action(trigger.channel, None)
 
+    def is_available_to(self, user):
+        return False
+
     @staticmethod
     def _set_call_to_action(channel, payload):
         # register for get_started events
