@@ -5622,6 +5622,21 @@ class ContactImportTest(TembaTest):
         )
 
     @mock_mailroom
+    def test_batches_with_invalid_urn(self, mr_mocks):
+        imp = self.create_contact_import("media/test_imports/invalid_urn.xlsx")
+        imp.start()
+        batch = imp.batches.get()
+
+        # invalid looking urns still passed to mailroom to decide how to handle them
+        self.assertEqual(
+            [
+                {"name": "Eric Newcomer", "urns": ["tel:+%3F"], "groups": [str(imp.group.uuid)]},
+                {"name": "Nic Pottier", "urns": ["tel:2345678901234567890"], "groups": [str(imp.group.uuid)]},
+            ],
+            batch.specs,
+        )
+
+    @mock_mailroom
     def test_batches_with_multiple_tels(self, mr_mocks):
         imp = self.create_contact_import("media/test_imports/multiple_tel_urns.xlsx")
         imp.start()
