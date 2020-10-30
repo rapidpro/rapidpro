@@ -28,7 +28,7 @@
         .title
           -trans "Disconnect Twilio"
         .body
-          -blocktrans
+          -blocktrans trimmed
             Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?
       %a#disconnect-twilio-form.posterize{href:'{% url "orgs.org_twilio_account" %}?disconnect=true'}
 

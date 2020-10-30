@@ -1147,9 +1147,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     # when this run will expire
     expires_on = models.DateTimeField(null=True)
 
-    # next wait timeout in this run (if any)
-    timeout_on = models.DateTimeField(null=True)
-
     # true if the contact has responded in this run
     responded = models.BooleanField(default=False)
 

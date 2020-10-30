@@ -92,7 +92,7 @@ class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
             raise InvalidQueryError("URN lookups not allowed for anonymous organizations")
 
         try:
-            return URN.identity(URN.normalize(value, country_code=org.get_country_code()))
+            return URN.identity(URN.normalize(value, country_code=org.default_country_code))
         except ValueError:
             raise InvalidQueryError("Invalid URN: %s" % value)
 

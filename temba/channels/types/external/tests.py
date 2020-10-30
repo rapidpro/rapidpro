@@ -162,3 +162,47 @@ class ExternalTypeTest(TembaTest):
         self.assertEqual("SENT", channel.config[ExternalType.CONFIG_MT_RESPONSE_CHECK])
         self.assertEqual(channel.role, "S")
         self.assertEqual(channel.parent, self.channel)
+
+    def test_update(self):
+        channel = Channel.create(
+            self.org,
+            self.user,
+            None,
+            "EX",
+            name="EX 12345",
+            address="12345",
+            role="SR",
+            schemes=["tel"],
+            config={
+                Channel.CONFIG_SEND_URL: "https://example.com/send",
+                ExternalType.CONFIG_SEND_METHOD: "POST",
+                ExternalType.CONFIG_CONTENT_TYPE: "json",
+                ExternalType.CONFIG_MAX_LENGTH: 160,
+                Channel.CONFIG_ENCODING: Channel.ENCODING_DEFAULT,
+            },
+        )
+        update_url = reverse("channels.channel_update", args=[channel.id])
+
+        self.login(self.admin)
+        response = self.client.get(update_url)
+        self.assertEqual(
+            ["name", "alert_email", "role", "allow_international", "loc"],
+            list(response.context["form"].fields.keys()),
+        )
+
+        post_data = dict(name="Receiver 1234", role=["R"], alert_email="alert@example.com")
+        response = self.client.post(update_url, post_data)
+
+        channel = Channel.objects.filter(pk=channel.pk).first()
+        self.assertEqual(channel.role, "R")
+        self.assertEqual(channel.name, "Receiver 1234")
+        self.assertEqual(channel.alert_email, "alert@example.com")
+
+        post_data = dict(name="Channel 1234", role=["R", "S"], alert_email="")
+
+        response = self.client.post(update_url, post_data)
+
+        channel = Channel.objects.filter(pk=channel.pk).first()
+        self.assertEqual(channel.role, "RS")
+        self.assertEqual(channel.name, "Channel 1234")
+        self.assertIsNone(channel.alert_email)

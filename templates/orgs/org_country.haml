@@ -1,6 +1,5 @@
 -extends 'smartmin/form.html'
--load smartmin
--load i18n
+-load smartmin i18n
 
 -block fields
   {% render_field 'country' %}
@@ -9,7 +8,7 @@
   -if object.country
     .flex.items-center
       .flex-grow.mr-4
-        -blocktrans with country=object.country
+        -blocktrans trimmed with country=object.country
           Responses to location questions must be in <b>{{country}}</b>.
 
       .buttons

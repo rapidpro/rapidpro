@@ -11,7 +11,7 @@
   -if object.is_connected_to_dtone
     .flex.items-center
       .flex-grow.mr-4
-        -blocktrans with login=dtone_account_login
+        -blocktrans trimmed with login=dtone_account_login
           Connected to DT One account <b>{{ login }}</b>.
       .buttons
         .button-light(onclick="goto(event)" href='{% url "airtime.airtimetransfer_list" %}')
@@ -22,7 +22,7 @@
 -block pre-form
   .mb-4
     -if not object.is_connected_to_dtone
-      -blocktrans
+      -blocktrans trimmed
         Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected
         you can transfer airtime credit within your Flows. To signup for an account, visit
       <a target='_new' href='https://www.dtone.com/'>DT One</a>.
@@ -56,7 +56,7 @@
       .title
         -trans "Disconnect DT One"
       .body
-        -blocktrans
+        -blocktrans trimmed
           This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?
     
     #disconnect-dtone-form{href:'{% url "orgs.org_dtone_account" %}?disconnect=true'}

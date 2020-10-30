@@ -42,13 +42,13 @@
     {{ channel.config.secret }}
 
   .subtitle.mt-4
-      -trans "Webhook URL"
+    -trans "Webhook URL"
 
   .code
     https://{{ channel.callback_domain }}{% url 'courier.fb' channel.uuid %}
 
   .mt-4
-    -blocktrans
+    -blocktrans trimmed
       It may take up to ten minutes for a new webhook to take effect after being set on your Facebook application. Remember,
       until your Facebook application is approved by Facebook you will only be able to send and receive messages
       with administrators of your application.

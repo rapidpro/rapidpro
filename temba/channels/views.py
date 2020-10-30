@@ -1749,6 +1749,11 @@ class ChannelCRUDL(SmartCRUDL):
             kwargs["object"] = self.object
             return kwargs
 
+        def derive_initial(self):
+            initial = super().derive_initial()
+            initial["role"] = [char for char in self.object.role]
+            return initial
+
         def pre_save(self, obj):
             for field in self.form.config_fields:
                 obj.config[field] = self.form.cleaned_data[field]
@@ -1919,6 +1924,9 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Channels")
         fields = ("name", "address", "last_seen")
         search_fields = ("name", "address", "org__created_by__email")
+
+        def lookup_field_link(self, context, field, obj):
+            return reverse("channels.channel_read", args=[obj.uuid])
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)

@@ -15,12 +15,12 @@
     }
 
 -block title
-  -blocktrans with name=object.name
+  -blocktrans trimmed with name=object.name
     Aliases for {{ name }}
 
 -block content
   .my-4
-    -blocktrans with brand=brand.name
+    -blocktrans trimmed with brand=brand.name
       Often certain regions are known by more than one name. In {{ brand }}, we call these alternate names for
       regions, aliases.
     

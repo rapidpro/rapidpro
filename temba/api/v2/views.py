@@ -3504,7 +3504,7 @@ class WorkspaceEndpoint(BaseAPIView):
         data = {
             "uuid": str(org.uuid),
             "name": org.name,
-            "country": org.get_country_code(),
+            "country": org.default_country_code,
             "languages": [l.iso_code for l in org.languages.order_by("iso_code")],
             "primary_language": org.primary_language.iso_code if org.primary_language else None,
             "timezone": str(org.timezone),

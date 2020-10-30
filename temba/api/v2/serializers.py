@@ -22,6 +22,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.mailroom import modifiers
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
+from temba.orgs.models import Org
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticketer
 from temba.utils import extract_constants, json, on_transaction_commit
@@ -701,13 +702,15 @@ class ContactFieldWriteSerializer(WriteSerializer):
         return self.VALUE_TYPES[value]
 
     def validate(self, data):
+        org = self.context["org"]
+        org_active_fields_limit = org.get_limit(Org.LIMIT_FIELDS)
 
-        field_count = ContactField.user_fields.count_active_for_org(org=self.context["org"])
-        if not self.instance and field_count >= settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG:
+        field_count = ContactField.user_fields.count_active_for_org(org=org)
+        if not self.instance and field_count >= org_active_fields_limit:
             raise serializers.ValidationError(
                 "This org has %s contact fields and the limit is %s. "
                 "You must delete existing ones before you can "
-                "create new ones." % (field_count, settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG)
+                "create new ones." % (field_count, org_active_fields_limit)
             )
 
         return data
@@ -755,12 +758,15 @@ class ContactGroupWriteSerializer(WriteSerializer):
         return value
 
     def validate(self, data):
+        org = self.context["org"]
+        org_active_groups_limit = org.get_limit(Org.LIMIT_GROUPS)
+
         group_count = ContactGroup.user_groups.filter(org=self.context["org"]).count()
-        if group_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+        if group_count >= org_active_groups_limit:
             raise serializers.ValidationError(
                 "This org has %s groups and the limit is %s. "
                 "You must delete existing ones before you can "
-                "create new ones." % (group_count, ContactGroup.MAX_ORG_CONTACTGROUPS)
+                "create new ones." % (group_count, org_active_groups_limit)
             )
         return data
 
@@ -1070,11 +1076,14 @@ class GlobalWriteSerializer(WriteSerializer):
         if not self.instance and not data.get("name"):
             raise serializers.ValidationError("Name is required when creating new global.")
 
-        globals_count = Global.objects.filter(org=self.context["org"], is_active=True).count()
-        if globals_count >= Global.MAX_ORG_GLOBALS:
+        org = self.context["org"]
+        globals_count = Global.objects.filter(org=org, is_active=True).count()
+        org_active_globals_limit = org.get_limit(Org.LIMIT_GLOBALS)
+
+        if globals_count >= org_active_globals_limit:
             raise serializers.ValidationError(
                 "This org has %s globals and the limit is %s. You must delete existing ones before you can "
-                "create new ones." % (globals_count, Global.MAX_ORG_GLOBALS)
+                "create new ones." % (globals_count, org_active_globals_limit)
             )
         return data
 

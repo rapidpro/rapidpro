@@ -36,6 +36,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
 from temba.msgs.views import SendMessageForm
+from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
@@ -108,13 +109,15 @@ class ContactGroupForm(forms.ModelForm):
         if not ContactGroup.is_valid_name(name):
             raise forms.ValidationError(_("Group name must not be blank or begin with + or -"))
 
+        org_active_group_limit = self.org.get_limit(Org.LIMIT_GROUPS)
+
         groups_count = ContactGroup.user_groups.filter(org=self.org).count()
-        if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+        if groups_count >= org_active_group_limit:
             raise forms.ValidationError(
                 _(
                     "This org has %(count)d groups and the limit is %(limit)d. "
                     "You must delete existing ones before you can "
-                    "create new ones." % dict(count=groups_count, limit=ContactGroup.MAX_ORG_CONTACTGROUPS)
+                    "create new ones." % dict(count=groups_count, limit=org_active_group_limit)
                 )
             )
 
@@ -404,7 +407,7 @@ class ContactForm(forms.ModelForm):
         self.fields = OrderedDict(list(self.fields.items()) + extra_fields)
 
     def clean(self):
-        country = self.org.get_country_code()
+        country = self.org.default_country_code
 
         def validate_urn(key, scheme, path):
             try:
@@ -1491,12 +1494,12 @@ class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
 
     def clean(self):
         super().clean()
+        org_active_fields_limit = self.org.get_limit(Org.LIMIT_FIELDS)
 
         field_count = ContactField.user_fields.count_active_for_org(org=self.org)
-        if field_count >= settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG:
+        if field_count >= org_active_fields_limit:
             raise forms.ValidationError(
-                _(f"Cannot create a new field as limit is %(limit)s."),
-                params={"limit": settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG},
+                _(f"Cannot create a new field as limit is %(limit)s."), params={"limit": org_active_fields_limit},
             )
 
     class Meta:
@@ -1541,7 +1544,9 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
 
     def _get_static_context_data(self, **kwargs):
 
-        active_user_fields = self.queryset.filter(org=self.request.user.get_org(), is_active=True)
+        org = self.request.user.get_org()
+        org_active_fields_limit = org.get_limit(Org.LIMIT_FIELDS)
+        active_user_fields = self.queryset.filter(org=org, is_active=True)
         all_count = active_user_fields.count()
         featured_count = active_user_fields.filter(show_in_table=True).count()
 
@@ -1563,7 +1568,7 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
 
         return {
             "total_count": all_count,
-            "total_limit": settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG,
+            "total_limit": org_active_fields_limit,
             "cf_categories": [
                 {"label": "All", "count": all_count, "url": reverse("contacts.contactfield_list")},
                 {"label": "Featured", "count": featured_count, "url": reverse("contacts.contactfield_featured")},
@@ -1795,13 +1800,15 @@ class ContactImportCRUDL(SmartCRUDL):
 
             def clean(self):
                 groups_count = ContactGroup.user_groups.filter(org=self.org).count()
-                if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+
+                org_active_groups_limit = self.org.get_limit(Org.LIMIT_GROUPS)
+                if groups_count >= org_active_groups_limit:
                     raise forms.ValidationError(
                         _(
                             "This workspace has reached the limit of %(count)d groups. "
                             "You must delete existing ones before you can perform an import."
                         ),
-                        params={"count": ContactGroup.MAX_ORG_CONTACTGROUPS},
+                        params={"count": org_active_groups_limit},
                     )
 
                 return self.cleaned_data
@@ -1825,9 +1832,10 @@ class ContactImportCRUDL(SmartCRUDL):
             org = self.derive_org()
             schemes = org.get_schemes(role=Channel.ROLE_SEND)
             schemes.add(URN.TEL_SCHEME)  # always show tel
-            context["urn_scheme_config"] = [conf for conf in URN.SCHEME_CHOICES if conf[0] in schemes]
+            context["urn_schemes"] = [conf for conf in URN.SCHEME_CHOICES if conf[0] in schemes]
             context["explicit_clear"] = ContactImport.EXPLICIT_CLEAR
             context["max_records"] = ContactImport.MAX_RECORDS
+            context["org_country"] = self.org.default_country
             return context
 
         def pre_save(self, obj):
