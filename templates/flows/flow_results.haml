@@ -606,6 +606,11 @@
       %a{href: '#links', data-toggle:'tab'}
         -trans "Links"
 
+    - if flow.merge_sources.all
+      %li
+        %a{href: '#flows', data-toggle:'tab'}
+          -trans "Combined Flows"
+
   .tab-content
     #overview.tab-pane.active
       .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
@@ -682,6 +687,23 @@
       - else
         .text-center
           -trans "No clicked links yet"
+
+    - if flow.merge_sources.all
+      #flows.tab-pane
+          %table
+              %tr
+                %td.header
+                  .details
+                    .text
+                      -trans "Flow"
+                %td.header
+                  .details
+                    .text
+                      -trans "Task Status"
+                %td.header
+
+              %tbody{id:"transfered_flows"}
+                %tr{ic-append-from:"/flow/merging_flows_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#transfered_flows", ic-indicator:"#indicator"}
 
 
   #indicator{style:"display:none"}

@@ -1,0 +1,23 @@
+-load humanize smartmin temba i18n tz
+
+-for task in merging_tasks
+  <tr
+    {% if forloop.last and more %}
+      ic-append-from="/flow/merging_flows_table/{{object.id}}/?modified_on={{link.modified_on|utc|date:'Y-m-d\TH:i:s.u'|urlencode}}&uuid={{task.uuid}}"
+      ic-trigger-on="scrolled-into-view"
+      ic-target="#transfered_flows"
+      ic-indicator="#indicator"
+    {% endif %}
+  >
+    %td
+      %a(href="{% url 'flows.flow_editor_next' task.source.uuid %}")
+        = task.source
+    %td
+      = task.get_status_display
+    %td.created_on
+      %span.time
+        %span.short
+          = task.created_on|gmail_time
+        %span.long(style="display: none;")
+          = task.created_on
+  </tr>
