@@ -4347,9 +4347,9 @@ msgid "Privacy Policy"
 msgstr "Политика конфиденциальности"
 
 #, fuzzy
-#| msgid "Contact field uses"
+#| msgid "Contact Fields"
 msgid "Content Guidelines"
-msgstr "Использование поля контактов"
+msgstr "Поля Контактов"
 
 msgid "Terms of Service"
 msgstr "Условия оказания услуг"
@@ -5749,7 +5749,25 @@ msgstr ""
 "\n"
 "    "
 
-msgid "You can connect your Facebook page's Messenger account, click below to get started."
+#, python-format
+msgid "You can connect your Facebook page to %(name)s in just a few simple steps."
+msgstr ""
+
+msgid "Click on the button below to get started."
+msgstr ""
+
+msgid "Select the user you want to log in as."
+msgstr ""
+
+msgid "Select all the pages you want to grant us permissions for."
+msgstr ""
+
+#, fuzzy
+#| msgid "%(brand)s uses your Android phone to send and receive messages on your behalf."
+msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
+msgstr "%(brand)s использует Ваш телефон Android для отправки и получения сообщений от Вашего имени."
+
+msgid "Finally, select the page you want to add as a channel."
 msgstr ""
 
 #, fuzzy
@@ -12317,33 +12335,26 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "        "
 
+#~ msgid "All Contacts"
+#~ msgstr "Все Контакты"
+
 #~ msgid "Unblock"
 #~ msgstr "Разблокировать"
 
 #~ msgid "Unstop"
 #~ msgstr "Запустить"
 
-#~ msgid "Contact blocked"
-#~ msgstr "Контакт заблокирован"
-
-#, fuzzy
-#~| msgid "Contact unstopped"
-#~ msgid "Contact restored"
-#~ msgstr "Контакт запущен"
-
-#, fuzzy
-#~| msgid "Contact Fields"
-#~ msgid "Contact archived"
-#~ msgstr "Поля Контактов"
-
-#~ msgid "All Contacts"
-#~ msgstr "Все Контакты"
-
 #~ msgid "Delete Contact"
 #~ msgstr "Удалить Контакт"
 
+#~ msgid "Contact blocked"
+#~ msgstr "Контакт заблокирован"
+
 #~ msgid "Contact unblocked"
 #~ msgstr "Контакт разблокирован"
+
+#~ msgid "Contact unstopped"
+#~ msgstr "Контакт запущен"
 
 #~ msgid "Recent Channel Events"
 #~ msgstr "Последние События Канала"
@@ -12352,9 +12363,9 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgstr "Канал:"
 
 #, fuzzy
-#~| msgid "%(brand)s uses your Android phone to send and receive messages on your behalf."
-#~ msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
-#~ msgstr "%(brand)s использует Ваш телефон Android для отправки и получения сообщений от Вашего имени."
+#~| msgid "Select your Organization"
+#~ msgid "Add Workspace"
+#~ msgstr "Выберите свою Организацию"
 
 #~ msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
 #~ msgstr "Новый редактор предоставляет новые эффективные функции и лучшую производительность, но, пожалуйста, имейте ввиду, что это действие нельзя отменить."

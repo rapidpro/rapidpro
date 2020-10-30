@@ -4385,9 +4385,9 @@ msgid "Privacy Policy"
 msgstr "Politique de confidentialité"
 
 #, fuzzy
-#| msgid "Contact field uses"
+#| msgid "Contact Fields"
 msgid "Content Guidelines"
-msgstr "Utilisation du champ de contact"
+msgstr "Champs de contact"
 
 msgid "Terms of Service"
 msgstr "Conditions d'utilisation"
@@ -5771,8 +5771,28 @@ msgstr ""
 "\n"
 "        "
 
-msgid "You can connect your Facebook page's Messenger account, click below to get started."
+#, python-format
+msgid "You can connect your Facebook page to %(name)s in just a few simple steps."
 msgstr ""
+
+msgid "Click on the button below to get started."
+msgstr ""
+
+msgid "Select the user you want to log in as."
+msgstr ""
+
+msgid "Select all the pages you want to grant us permissions for."
+msgstr ""
+
+#, fuzzy
+#| msgid "%(brand)s uses your Android phone to send and receive messages on your behalf."
+msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
+msgstr "%(brand)s utilise votre téléphone Android pour envoyer et recevoir des messages en votre nom."
+
+#, fuzzy
+#| msgid "Click here to add a message"
+msgid "Finally, select the page you want to add as a channel."
+msgstr "Cliquez ici pour ajouter un message"
 
 #, fuzzy
 #| msgid "The name of the Facebook page"
@@ -12151,33 +12171,26 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "        "
 
+#~ msgid "All Contacts"
+#~ msgstr "Tous les contacts"
+
 #~ msgid "Unblock"
 #~ msgstr "Débloquer"
 
 #~ msgid "Unstop"
 #~ msgstr "Débloquer"
 
-#~ msgid "Contact blocked"
-#~ msgstr "Contact bloqué"
-
-#, fuzzy
-#~| msgid "Contact unstopped"
-#~ msgid "Contact restored"
-#~ msgstr "Contact non arrêté"
-
-#, fuzzy
-#~| msgid "Contact Fields"
-#~ msgid "Contact archived"
-#~ msgstr "Champs de contact"
-
-#~ msgid "All Contacts"
-#~ msgstr "Tous les contacts"
-
 #~ msgid "Delete Contact"
 #~ msgstr "Supprimer le contact"
 
+#~ msgid "Contact blocked"
+#~ msgstr "Contact bloqué"
+
 #~ msgid "Contact unblocked"
 #~ msgstr "Contact débloqué"
+
+#~ msgid "Contact unstopped"
+#~ msgstr "Contact non arrêté"
 
 #~ msgid "Recent Channel Events"
 #~ msgstr "Channel récents événements"
@@ -12186,14 +12199,9 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgstr "Canal:"
 
 #, fuzzy
-#~| msgid "%(brand)s uses your Android phone to send and receive messages on your behalf."
-#~ msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
-#~ msgstr "%(brand)s utilise votre téléphone Android pour envoyer et recevoir des messages en votre nom."
-
-#, fuzzy
-#~| msgid "Click here to add a message"
-#~ msgid "Finally, select the page you want to add as a channel."
-#~ msgstr "Cliquez ici pour ajouter un message"
+#~| msgid "Select your Organization"
+#~ msgid "Add Workspace"
+#~ msgstr "Choisissez votre Organisation"
 
 #~ msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
 #~ msgstr "Le nouvel éditeur fournit de nouvelles fonctionnalités puissantes et de meilleures performances, mais veuillez noter que cela ne peut pas être annulé."

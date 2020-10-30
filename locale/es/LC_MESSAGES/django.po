@@ -5041,9 +5041,9 @@ msgid "Privacy Policy"
 msgstr "Política de privacidad"
 
 #, fuzzy
-#| msgid "Contact Field: %(label)s"
+#| msgid "Manage Contact Fields"
 msgid "Content Guidelines"
-msgstr "Campo de contacto: %(label)s"
+msgstr "Manejar Campos de Contactos"
 
 msgid "Terms of Service"
 msgstr ""
@@ -6957,8 +6957,27 @@ msgstr ""
 "\n"
 "      "
 
-msgid "You can connect your Facebook page's Messenger account, click below to get started."
+#, python-format
+msgid "You can connect your Facebook page to %(name)s in just a few simple steps."
 msgstr ""
+
+msgid "Click on the button below to get started."
+msgstr ""
+
+msgid "Select the user you want to log in as."
+msgstr ""
+
+msgid "Select all the pages you want to grant us permissions for."
+msgstr ""
+
+#, fuzzy
+msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
+msgstr "TextIt usa su teléfono Android para enviar y recibir mensajes."
+
+#, fuzzy
+#| msgid "Click here to send a message"
+msgid "Finally, select the page you want to add as a channel."
+msgstr "Haga clic aquí para enviar un mensaje"
 
 #, fuzzy
 #| msgid "The name of the video"
@@ -12576,30 +12595,25 @@ msgstr ""
 #~ msgid "You can import your contacts from an XLSX file you create in Excel."
 #~ msgstr "Puede importar sus contactos de un archivo XLS que haya creado en Excel. "
 
+#~ msgid "All Contacts"
+#~ msgstr "Todos los contactos"
+
 #~ msgid "Unblock"
 #~ msgstr "Desbloquear"
+
+#~ msgid "Delete Contact"
+#~ msgstr "Borrar contacto"
 
 #, fuzzy
 #~ msgid "Contact blocked"
 #~ msgstr "Teléfono del contacto"
 
 #, fuzzy
-#~ msgid "Contact restored"
+#~ msgid "Contact unblocked"
 #~ msgstr "Teléfono del contacto"
 
 #, fuzzy
-#~| msgid "Manage Contact Fields"
-#~ msgid "Contact archived"
-#~ msgstr "Manejar Campos de Contactos"
-
-#~ msgid "All Contacts"
-#~ msgstr "Todos los contactos"
-
-#~ msgid "Delete Contact"
-#~ msgstr "Borrar contacto"
-
-#, fuzzy
-#~ msgid "Contact unblocked"
+#~ msgid "Contact unstopped"
 #~ msgstr "Teléfono del contacto"
 
 #~ msgid "Recent Channel Events"
@@ -12611,13 +12625,9 @@ msgstr ""
 #~ msgstr "Transmisor:"
 
 #, fuzzy
-#~ msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
-#~ msgstr "TextIt usa su teléfono Android para enviar y recibir mensajes."
-
-#, fuzzy
-#~| msgid "Click here to send a message"
-#~ msgid "Finally, select the page you want to add as a channel."
-#~ msgstr "Haga clic aquí para enviar un mensaje"
+#~| msgid "Select your Organization"
+#~ msgid "Add Workspace"
+#~ msgstr "Elija su Organización"
 
 #, fuzzy
 #~| msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."

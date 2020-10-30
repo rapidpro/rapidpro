@@ -4720,9 +4720,9 @@ msgid "Privacy Policy"
 msgstr "Textit - Política de Privacidade"
 
 #, fuzzy
-#| msgid "Contact Field: %(label)s"
+#| msgid "Manage Contact Fields"
 msgid "Content Guidelines"
-msgstr "Campo de contato: %(label)s"
+msgstr "Configurar campo de contatos"
 
 msgid "Terms of Service"
 msgstr ""
@@ -6386,8 +6386,27 @@ msgstr ""
 "\n"
 "Assim que você solicitar um número, você imediatamente será capaz de enviar e receber mensagens. Os usuários que enviarem mensagens ao seu número serão cobrados de acordo com os planos deles. "
 
-msgid "You can connect your Facebook page's Messenger account, click below to get started."
+#, python-format
+msgid "You can connect your Facebook page to %(name)s in just a few simple steps."
 msgstr ""
+
+msgid "Click on the button below to get started."
+msgstr ""
+
+msgid "Select the user you want to log in as."
+msgstr ""
+
+msgid "Select all the pages you want to grant us permissions for."
+msgstr ""
+
+#, fuzzy
+msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
+msgstr "Textit usa o seu telefone Android para enviar e receber mensagens."
+
+#, fuzzy
+#| msgid "Click here to send a message"
+msgid "Finally, select the page you want to add as a channel."
+msgstr "Clique aqui para enviar uma mensagem"
 
 #, fuzzy
 #| msgid "The name of the video"
@@ -11637,19 +11656,6 @@ msgstr ""
 #~ "como uma amostra."
 
 #, fuzzy
-#~ msgid "Contact blocked"
-#~ msgstr "Telefone do contato"
-
-#, fuzzy
-#~ msgid "Contact restored"
-#~ msgstr "Telefone do contato"
-
-#, fuzzy
-#~| msgid "Manage Contact Fields"
-#~ msgid "Contact archived"
-#~ msgstr "Configurar campo de contatos"
-
-#, fuzzy
 #~ msgid "All Contacts"
 #~ msgstr "Contatos"
 
@@ -11658,7 +11664,15 @@ msgstr ""
 #~ msgstr "Criar contatos"
 
 #, fuzzy
+#~ msgid "Contact blocked"
+#~ msgstr "Telefone do contato"
+
+#, fuzzy
 #~ msgid "Contact unblocked"
+#~ msgstr "Telefone do contato"
+
+#, fuzzy
+#~ msgid "Contact unstopped"
 #~ msgstr "Telefone do contato"
 
 #~ msgid "Recent Channel Events"
@@ -11670,13 +11684,8 @@ msgstr ""
 #~ msgstr "Transmissor:"
 
 #, fuzzy
-#~ msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
-#~ msgstr "Textit usa o seu telefone Android para enviar e receber mensagens."
-
-#, fuzzy
-#~| msgid "Click here to send a message"
-#~ msgid "Finally, select the page you want to add as a channel."
-#~ msgstr "Clique aqui para enviar uma mensagem"
+#~ msgid "Add Workspace"
+#~ msgstr "Crie sua Organização"
 
 #, fuzzy
 #~| msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
