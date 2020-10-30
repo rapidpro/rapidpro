@@ -4305,7 +4305,7 @@ class MergeFlowsTask(TembaModel):
     def run(self):
         from .tasks import merge_flows_task
 
-        merge_flows_task.delay(self.uuid)
+        merge_flows_task.apply_async([self.uuid], queue="flows")
 
 
 class FlowStart(models.Model):
