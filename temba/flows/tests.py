@@ -307,61 +307,6 @@ class FlowTest(TembaTest):
         flow.refresh_from_db()
         self.assertTrue(flow.is_archived)
 
-    def test_flows_select2(self):
-        self.login(self.admin)
-
-        msg = Flow.create(
-            self.org,
-            self.admin,
-            Flow.get_unique_name(self.org, "Message Flow"),
-            base_language="base",
-            flow_type=Flow.TYPE_MESSAGE,
-        )
-        survey = Flow.create(
-            self.org,
-            self.admin,
-            Flow.get_unique_name(self.org, "Surveyor Flow"),
-            base_language="base",
-            flow_type=Flow.TYPE_SURVEY,
-        )
-        ivr = Flow.create(
-            self.org,
-            self.admin,
-            Flow.get_unique_name(self.org, "IVR Flow"),
-            base_language="base",
-            flow_type=Flow.TYPE_VOICE,
-        )
-
-        # all flow types
-        response = self.client.get("%s?_format=select2" % reverse("flows.flow_list"))
-        self.assertContains(response, ivr.name)
-        self.assertContains(response, survey.name)
-        self.assertContains(response, msg.name)
-
-        # only surveyor flows
-        response = self.client.get("%s?_format=select2&flow_type=S" % reverse("flows.flow_list"))
-        self.assertContains(response, survey.name)
-        self.assertNotContains(response, ivr.name)
-        self.assertNotContains(response, msg.name)
-
-        # only voice flows
-        response = self.client.get("%s?_format=select2&flow_type=V" % reverse("flows.flow_list"))
-        self.assertContains(response, ivr.name)
-        self.assertNotContains(response, survey.name)
-        self.assertNotContains(response, msg.name)
-
-        # only text flows
-        response = self.client.get("%s?_format=select2&flow_type=M" % reverse("flows.flow_list"))
-        self.assertContains(response, msg.name)
-        self.assertNotContains(response, survey.name)
-        self.assertNotContains(response, ivr.name)
-
-        # two at a time
-        response = self.client.get("%s?_format=select2&flow_type=V&flow_type=M" % reverse("flows.flow_list"))
-        self.assertContains(response, ivr.name)
-        self.assertContains(response, msg.name)
-        self.assertNotContains(response, survey.name)
-
     def test_editor(self):
         flow = self.get_flow("color")
 
@@ -2473,50 +2418,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("flows.flow_activity", args=[flow.uuid]))
 
         self.assertEqual(404, response.status_code)
-
-    def test_select2_response(self):
-        self.login(self.admin)
-
-        self.get_flow("color_v13")
-        self.get_flow("favorites_v13")
-
-        url = f"{reverse('flows.flow_list')}?_format=select2&search="
-        response = self.client.get(url, content_type="application/json")
-
-        self.assertEqual(200, response.status_code)
-
-        json_payload = response.json()
-
-        self.assertEqual(2, len(json_payload["results"]))
-        self.assertEqual(["Favorites", "Colors"], [res["text"] for res in json_payload["results"]])
-
-    def test_select2_response_with_exclude_flow(self):
-        self.login(self.admin)
-
-        color = self.get_flow("color_v13")
-        self.get_flow("favorites_v13")
-
-        # empty exclude_flow_uuid
-        url = f"{reverse('flows.flow_list')}?_format=select2&search=&exclude_flow_uuid="
-        response = self.client.get(url, content_type="application/json")
-
-        self.assertEqual(200, response.status_code)
-
-        json_payload = response.json()
-
-        self.assertEqual(2, len(json_payload["results"]))
-        self.assertEqual(["Favorites", "Colors"], [res["text"] for res in json_payload["results"]])
-
-        # valid flow uuid
-        url = f"{reverse('flows.flow_list')}?_format=select2&search=&exclude_flow_uuid={color.uuid}"
-        response = self.client.get(url, content_type="application/json")
-
-        self.assertEqual(200, response.status_code)
-
-        json_payload = response.json()
-
-        self.assertEqual(1, len(json_payload["results"]))
-        self.assertEqual(["Favorites"], [res["text"] for res in json_payload["results"]])
 
     @mock_mailroom
     def test_broadcast(self, mr_mocks):

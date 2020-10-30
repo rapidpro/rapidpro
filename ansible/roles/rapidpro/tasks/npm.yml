@@ -12,4 +12,3 @@
   npm: name={{ item }} global=yes
   with_items:
     - less
-    - coffee-script

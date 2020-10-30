@@ -60,7 +60,7 @@ jobs:
         pip install -r pip-freeze.txt
         pip install codecov flake8
         npm install
-        sudo npm install -g coffee-script less
+        sudo npm install -g less
         ln -s ${{ github.workspace }}/temba/settings.py.dev ${{ github.workspace }}/temba/settings.py
         ./manage.py migrate
         # fetch and extract rp-indexer

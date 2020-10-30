@@ -4,19 +4,8 @@ from urllib import parse
 
 from django import forms
 from django.core.validators import URLValidator
-from django.forms import ValidationError, widgets
+from django.forms import ValidationError
 from django.utils.translation import ugettext_lazy as _
-
-
-class Select2Field(forms.Field):
-    default_error_messages = {}
-    widget = widgets.TextInput(attrs={"class": "select2_field", "style": "width:520px"})
-
-    def __init__(self, **kwargs):  # pragma: needs cover
-        super().__init__(**kwargs)
-
-    def to_python(self, value):  # pragma: needs cover
-        return value
 
 
 class JSONField(forms.Field):
