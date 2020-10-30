@@ -1452,7 +1452,6 @@ class ContactGroup(TembaModel):
     """
 
     MAX_NAME_LEN = 64
-    MAX_ORG_CONTACTGROUPS = 250
 
     TYPE_ACTIVE = "A"
     TYPE_BLOCKED = "B"
@@ -2124,7 +2123,12 @@ class ContactImport(SmartModel):
             if mapping["type"] == "attribute" and mapping["name"] == "uuid":
                 uuid = value.lower()
             elif mapping["type"] == "scheme" and value:
-                urns.append(URN.normalize(URN.from_parts(mapping["scheme"], value)))
+                urn = URN.from_parts(mapping["scheme"], value)
+                try:
+                    urn = URN.normalize(urn)
+                except ValueError:
+                    pass
+                urns.append(urn)
         return uuid, urns
 
     @classmethod
@@ -2350,10 +2354,16 @@ class ContactImport(SmartModel):
                 spec[attribute] = value
             elif mapping["type"] == "scheme":
                 scheme = mapping["scheme"]
-                if "urns" not in spec:
-                    spec["urns"] = []
-                urn = URN.normalize(URN.from_parts(scheme, value), country_code=self.org.default_country_code)
-                spec["urns"].append(urn)
+                if value:
+                    if "urns" not in spec:
+                        spec["urns"] = []
+                    urn = URN.from_parts(scheme, value)
+                    try:
+                        urn = URN.normalize(urn, country_code=self.org.default_country_code)
+                    except ValueError:
+                        pass
+                    spec["urns"].append(urn)
+
             elif mapping["type"] in ("field", "new_field"):
                 if "fields" not in spec:
                     spec["fields"] = {}

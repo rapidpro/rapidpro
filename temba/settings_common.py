@@ -46,7 +46,7 @@ FLOW_FROM_EMAIL = "no-reply@temba.io"
 # HTTP Headers using for outgoing requests to other services
 OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
 
-STORAGE_URL = None  # may be local /media or AWS S3
+STORAGE_URL = None  # may be an absolute URL to /media (like http://localhost:8000/media) or AWS S3
 STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
 
 # -----------------------------------------------------------------------------------
@@ -323,6 +323,7 @@ BRANDING = {
         "tiers": dict(multi_user=0, multi_org=0),
         "bundles": [],
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
+        "title": _("Visually build nationally scalable mobile applications"),
         "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
         "credits": _("Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."),
     }
@@ -1219,6 +1220,8 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 # ElasticSearch configuration (URL RFC-1738)
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 
+
 # Maximum active objects are org can have
-MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
-MAX_ACTIVE_GLOBALS_PER_ORG = 255
+MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 250
+MAX_ACTIVE_CONTACTGROUPS_PER_ORG = 250
+MAX_ACTIVE_GLOBALS_PER_ORG = 250

@@ -1967,6 +1967,30 @@ class OrgTest(TembaTest):
                     self.org.refresh_from_db()
                     self.assertFalse(self.org.is_connected_to_twilio())
 
+                    response = self.client.post(
+                        f'{reverse("orgs.org_twilio_connect")}?claim_type=twilio', post_data, follow=True
+                    )
+                    self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio.claim"))
+
+                    response = self.client.post(
+                        f'{reverse("orgs.org_twilio_connect")}?claim_type=twilio_messaging_service',
+                        post_data,
+                        follow=True,
+                    )
+                    self.assertEqual(
+                        response.request["PATH_INFO"], reverse("channels.types.twilio_messaging_service.claim")
+                    )
+
+                    response = self.client.post(
+                        f'{reverse("orgs.org_twilio_connect")}?claim_type=twilio_whatsapp', post_data, follow=True
+                    )
+                    self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio_whatsapp.claim"))
+
+                    response = self.client.post(
+                        f'{reverse("orgs.org_twilio_connect")}?claim_type=unknown', post_data, follow=True
+                    )
+                    self.assertEqual(response.request["PATH_INFO"], reverse("channels.channel_claim"))
+
     def test_has_airtime_transfers(self):
         AirtimeTransfer.objects.filter(org=self.org).delete()
         self.assertFalse(self.org.has_airtime_transfers())
@@ -2635,6 +2659,14 @@ class OrgTest(TembaTest):
         self.assertIsNotNone(self.org.create_sub_org("Sub Org B"))
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
+
+    def test_org_get_limit(self):
+        self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 250)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 250)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)
+
+        with self.assertRaises(ValueError):
+            self.org.get_limit("unknown")
 
     def test_sub_orgs_management(self):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
