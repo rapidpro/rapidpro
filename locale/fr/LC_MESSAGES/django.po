@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-30 19:14+0000\n"
+"POT-Creation-Date: 2020-10-30 21:24+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -7253,12 +7253,6 @@ msgstr ""
 "      à partir d'un fichier créé dans Excel.\n"
 "    "
 
-msgid "Are you sure you want to remove"
-msgstr "Etes-vous sûr que vous voulez supprimer"
-
-msgid "Once it is removed, it will be gone forever."
-msgstr "Une fois qu'il est supprimé, il sera perdu à jamais."
-
 msgid "Your export for the following flows is ready."
 msgstr "Votre exportation pour les flux suivants est prêt."
 
@@ -7558,9 +7552,6 @@ msgstr "Exportation des résultats du flux"
 
 msgid "No matching flows."
 msgstr "Aucun flux correspondant"
-
-msgid "Create a message keyword to allow people to join a group."
-msgstr "Créez un mot-clé de message pour permettre aux personnes de rejoindre un groupe."
 
 msgid "Overview"
 msgstr "Vue d'ensemble"
@@ -8021,15 +8012,6 @@ msgstr "(Envoi)"
 
 msgid "No matching messages."
 msgstr "Aucun message correspondant."
-
-msgid "Loading recipients.."
-msgstr "Chargement bénéficiaires .."
-
-msgid "recipients at this point in the flow"
-msgstr "destinataires à ce stade du flux"
-
-msgid "Sending.."
-msgstr "Envoi .."
 
 #, fuzzy
 #| msgid "Your organization is configured to use a single language."
@@ -8931,12 +8913,6 @@ msgstr "Si vous avez des flux ou des campagnes portant les mêmes noms ou les m�
 
 msgid "Do not proceed unless you are willing to replace your existing flows and campaigns."
 msgstr "Ne procédez pas à moins que vous ne souhaitiez remplacer vos flux et campagnes existants."
-
-msgid "Add guest viewers to"
-msgstr "Ajouter des utilisateurs invités a"
-
-msgid "Enter emails of people to invite"
-msgstr "Entrez les courriels de personnes à inviter"
 
 #, fuzzy, python-format
 #| msgid "You have been invited to join"
@@ -10176,6 +10152,30 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Are you sure you want to remove"
+#~ msgstr "Etes-vous sûr que vous voulez supprimer"
+
+#~ msgid "Once it is removed, it will be gone forever."
+#~ msgstr "Une fois qu'il est supprimé, il sera perdu à jamais."
+
+#~ msgid "Create a message keyword to allow people to join a group."
+#~ msgstr "Créez un mot-clé de message pour permettre aux personnes de rejoindre un groupe."
+
+#~ msgid "Loading recipients.."
+#~ msgstr "Chargement bénéficiaires .."
+
+#~ msgid "recipients at this point in the flow"
+#~ msgstr "destinataires à ce stade du flux"
+
+#~ msgid "Sending.."
+#~ msgstr "Envoi .."
+
+#~ msgid "Add guest viewers to"
+#~ msgstr "Ajouter des utilisateurs invités a"
+
+#~ msgid "Enter emails of people to invite"
+#~ msgstr "Entrez les courriels de personnes à inviter"
 
 #~ msgid ""
 #~ "\n"

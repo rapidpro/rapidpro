@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-30 19:14+0000\n"
+"POT-Creation-Date: 2020-10-30 21:24+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -7264,12 +7264,6 @@ msgstr ""
 "      из файла, который Вы создали в Excel.\n"
 "    "
 
-msgid "Are you sure you want to remove"
-msgstr "Вы действительно хотите удалить "
-
-msgid "Once it is removed, it will be gone forever."
-msgstr "После удаления, это исчезнет навсегда. "
-
 msgid "Your export for the following flows is ready."
 msgstr "Ваш экспорт по следующим потокам готов."
 
@@ -7591,9 +7585,6 @@ msgstr "Экспортировать Результаты Потока"
 
 msgid "No matching flows."
 msgstr "Нет соответствующих потоков"
-
-msgid "Create a message keyword to allow people to join a group."
-msgstr "Создать ключевое слово сообщения, чтобы люди могли присоединяться к группе."
 
 msgid "Overview"
 msgstr "Обзор"
@@ -8100,15 +8091,6 @@ msgstr "(отправляется)"
 
 msgid "No matching messages."
 msgstr "Нет соответствующих сообщений."
-
-msgid "Loading recipients.."
-msgstr "Загрузка получателей.."
-
-msgid "recipients at this point in the flow"
-msgstr "получателей в данный момент в потоке"
-
-msgid "Sending.."
-msgstr "Отправка..."
 
 #, fuzzy
 #| msgid "Your organization is configured to use a single language."
@@ -9051,12 +9033,6 @@ msgstr "Если у Вас есть потоки или кампании с та
 
 msgid "Do not proceed unless you are willing to replace your existing flows and campaigns."
 msgstr "Не продолжайте, если Вы не хотите заменить свои существующие потоки и кампании."
-
-msgid "Add guest viewers to"
-msgstr "Добавить гостевых абонентов в "
-
-msgid "Enter emails of people to invite"
-msgstr "Введите адреса электронной почты лиц, которые будут приглашаться"
 
 #, fuzzy, python-format
 #| msgid "You have been invited to join"
@@ -10307,6 +10283,30 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Are you sure you want to remove"
+#~ msgstr "Вы действительно хотите удалить "
+
+#~ msgid "Once it is removed, it will be gone forever."
+#~ msgstr "После удаления, это исчезнет навсегда. "
+
+#~ msgid "Create a message keyword to allow people to join a group."
+#~ msgstr "Создать ключевое слово сообщения, чтобы люди могли присоединяться к группе."
+
+#~ msgid "Loading recipients.."
+#~ msgstr "Загрузка получателей.."
+
+#~ msgid "recipients at this point in the flow"
+#~ msgstr "получателей в данный момент в потоке"
+
+#~ msgid "Sending.."
+#~ msgstr "Отправка..."
+
+#~ msgid "Add guest viewers to"
+#~ msgstr "Добавить гостевых абонентов в "
+
+#~ msgid "Enter emails of people to invite"
+#~ msgstr "Введите адреса электронной почты лиц, которые будут приглашаться"
 
 #~ msgid ""
 #~ "\n"
