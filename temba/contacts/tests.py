@@ -984,7 +984,7 @@ class ContactGroupCRUDLTest(TembaTest):
 
         self.other_org_group = self.create_group("Customers", contacts=[], org=self.org2)
 
-    @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
+    @override_settings(MAX_ACTIVE_CONTACTGROUPS_PER_ORG=10)
     @mock_mailroom
     def test_create(self, mr_mocks):
         url = reverse("contacts.contactgroup_create")
@@ -1025,7 +1025,7 @@ class ContactGroupCRUDLTest(TembaTest):
 
         self.bulk_release(ContactGroup.user_groups.all())
 
-        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+        for i in range(settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG):
             ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)
 
         response = self.client.post(url, dict(name="People"))
@@ -1034,10 +1034,10 @@ class ContactGroupCRUDLTest(TembaTest):
 
         self.bulk_release(ContactGroup.user_groups.all())
 
-        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+        for i in range(settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG):
             ContactGroup.create_static(self.org, self.admin, "group%d" % i)
 
-        self.assertEqual(ContactGroup.user_groups.all().count(), ContactGroup.MAX_ORG_CONTACTGROUPS)
+        self.assertEqual(ContactGroup.user_groups.all().count(), settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG)
         response = self.client.post(url, dict(name="People"))
         self.assertFormError(
             response,
@@ -4851,7 +4851,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             list_url, allow_viewers=False, allow_editors=True, context_objects=[self.age, self.gender, self.state]
         )
         self.assertEqual(3, response.context["total_count"])
-        self.assertEqual(255, response.context["total_limit"])
+        self.assertEqual(250, response.context["total_limit"])
         self.assertNotContains(response, "You have reached the limit")
         self.assertNotContains(response, "You are approaching the limit")
 
@@ -5777,7 +5777,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # try uploading when we've already reached our group limit
         self.create_group("Testers", contacts=[])
-        with patch("temba.contacts.models.ContactGroup.MAX_ORG_CONTACTGROUPS", 1):
+        with override_settings(MAX_ACTIVE_CONTACTGROUPS_PER_ORG=1):
             response = self.client.post(create_url, {"file": upload("media/test_imports/simple.xlsx")})
             self.assertFormError(
                 response,
