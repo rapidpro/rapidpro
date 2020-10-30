@@ -4225,36 +4225,38 @@ class MergeFlowsTask(TembaModel):
                 FlowCategoryCount.objects.bulk_update(category_counts, ["node_uuid", "flow"])
 
                 # move exit counts (responsible for completion chart and data on flow list page)
+                exit_counts = []
                 exits = self.source.exit_counts.all().exclude(exit_type__isnull=True)
                 for source_exit in exits:
                     target_exit = self.target.exit_counts.filter(exit_type=source_exit.exit_type).first()
                     if target_exit:
                         target_exit.count += source_exit.count
-                        target_exit.save(update_fields=["count"])
+                        exit_counts.append(target_exit)
                     else:
                         self.target.exit_counts.create(exit_type=source_exit.exit_type, count=source_exit.count)
                     source_exit.count = 0
-                    source_exit.save(update_fields=["count"])
+                    exit_counts.append(source_exit)
+                FlowRunCount.objects.bulk_update(exit_counts, ["count"])
 
                 # move flow metadata
-                waiting_exits = source_metadata.get("waiting_exit_uuids", [])
-                waiting_exit_uuids = [*target_metadata.get("waiting_exit_uuids", []), *waiting_exits]
-                for index, exit_uuid in enumerate(waiting_exit_uuids):
-                    waiting_exit_uuids[index] = origin_exit_uuids.get(exit_uuid, exit_uuid)
+                source_waiting_exits = []
+                for exit_uuid in source_metadata.get("waiting_exit_uuids", []):
+                    source_waiting_exits.append(origin_exit_uuids.get(exit_uuid, exit_uuid))
+                waiting_exit_uuids = list(set([*target_metadata.get("waiting_exit_uuids", []), *source_waiting_exits]))
                 self.target.metadata["waiting_exit_uuids"] = list(set(waiting_exit_uuids))
 
                 results_map = {result.get("key"): result for result in target_metadata.get("results", [])}
                 for result in source_metadata.get("results", []):
+                    for index, node_uuid in enumerate(result.get("node_uuids", [])):
+                        result["node_uuids"][index] = origin_node_uuids.get(node_uuid, node_uuid)
+
                     if result.get("key") in results_map:
-                        results_map[result.get("key")]["node_uuids"] += result["node_uuids"]
                         results_map[result.get("key")]["node_uuids"] = list(
-                            set(results_map[result.get("key")]["node_uuids"])
+                            set((*result["node_uuids"], *results_map[result.get("key")]["node_uuids"]))
                         )
                     else:
                         results_map[result.get("key")] = result
-                for result in results_map.values():
-                    for index, node_uuid in enumerate(result.get("node_uuids", [])):
-                        result["node_uuids"][index] = origin_node_uuids.get(node_uuid, node_uuid)
+
                 self.target.metadata["results"] = list(results_map.values())
                 self.merging_metadata["previous_target_name"] = self.target.name
                 self.target.name = self.merge_name
