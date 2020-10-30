@@ -6,6 +6,7 @@ from django import forms
 from django.http import HttpResponse
 from django.urls import reverse
 
+from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
 
@@ -22,9 +23,10 @@ class CreateGlobalForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
-        if self.org.globals.filter(is_active=True).count() >= Global.MAX_ORG_GLOBALS:
+        org_active_globals_limit = self.org.get_limit(Org.LIMIT_GLOBALS)
+        if self.org.globals.filter(is_active=True).count() >= org_active_globals_limit:
             raise forms.ValidationError(
-                _("Cannot create a new global as limit is %(limit)s."), params={"limit": Global.MAX_ORG_GLOBALS},
+                _("Cannot create a new global as limit is %(limit)s."), params={"limit": org_active_globals_limit},
             )
 
         return cleaned_data

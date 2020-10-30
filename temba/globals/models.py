@@ -15,7 +15,7 @@ class Global(SmartModel):
     A global is a constant value that can be used in templates in flows and messages.
     """
 
-    MAX_ORG_GLOBALS = 250
+    MAX_ACTIVE_GLOBALS_PER_ORG = 250
     MAX_KEY_LEN = 36
     MAX_NAME_LEN = 36
     MAX_VALUE_LEN = 640

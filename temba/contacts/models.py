@@ -348,6 +348,8 @@ class ContactField(SmartModel):
     Represents a type of field that can be put on Contacts.
     """
 
+    MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 250
+
     MAX_KEY_LEN = 36
     MAX_LABEL_LEN = 36
 
@@ -1452,7 +1454,7 @@ class ContactGroup(TembaModel):
     """
 
     MAX_NAME_LEN = 64
-    MAX_ORG_CONTACTGROUPS = 250
+    MAX_ACTIVE_CONTACTGROUPS_PER_ORG = 250
 
     TYPE_ACTIVE = "A"
     TYPE_BLOCKED = "B"

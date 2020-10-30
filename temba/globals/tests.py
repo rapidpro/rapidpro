@@ -105,7 +105,7 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertListFetch(unused_url, allow_viewers=False, allow_editors=False, context_objects=[self.global2])
 
-    @patch.object(Global, "MAX_ORG_GLOBALS", new=4)
+    @patch.object(Global, "MAX_ACTIVE_GLOBALS_PER_ORG", new=4)
     def test_create(self):
         create_url = reverse("globals.global_create")
 

@@ -121,6 +121,10 @@ class Org(SmartModel):
     EARLIEST_IMPORT_VERSION = "3"
     CURRENT_EXPORT_VERSION = "13"
 
+    LIMIT_FIELDS = "limit_fields"
+    LIMIT_GLOBALS = "limit_globals"
+    LIMIT_GROUPS = "limit_groups"
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     name = models.CharField(verbose_name=_("Name"), max_length=128)
@@ -350,6 +354,19 @@ class Org(SmartModel):
             ORG_ACTIVE_TOPUP_KEY % self.pk,
             *active_topup_keys,
         )
+
+    def get_limit(self, limit_type):
+        from temba.contacts.models import ContactField, ContactGroup
+        from temba.globals.models import Global
+
+        if limit_type == Org.LIMIT_FIELDS:
+            return ContactField.MAX_ACTIVE_CONTACTFIELDS_PER_ORG
+        if limit_type == Org.LIMIT_GROUPS:
+            return ContactGroup.MAX_ACTIVE_CONTACTGROUPS_PER_ORG
+        if limit_type == Org.LIMIT_GLOBALS:
+            return Global.MAX_ACTIVE_GLOBALS_PER_ORG
+
+        raise ValueError("Invalid org limit type")
 
     def flag(self):
         self.is_flagged = True
