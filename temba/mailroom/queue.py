@@ -70,9 +70,9 @@ def queue_mo_miss_event(event):
         "org_id": event.org_id,
         "channel_id": event.channel_id,
         "contact_id": event.contact_id,
-        "urn": str(event.contact_urn),
         "urn_id": event.contact_urn_id,
         "extra": event.extra,
+        "occurred_on": event.occurred_on,
         "new_contact": False,  # only used by courier
     }
 
