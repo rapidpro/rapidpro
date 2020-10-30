@@ -4,6 +4,7 @@ from smartmin.views import SmartCRUDL, SmartListView, SmartReadView
 
 from django.db.models import Sum
 from django.http import HttpResponseRedirect
+from django.urls import reverse
 
 from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 
@@ -21,6 +22,21 @@ class ArchiveCRUDL(SmartCRUDL):
         fields = ("url", "start_date", "period", "record_count", "size")
         default_order = ("-start_date", "-period", "archive_type")
         paginate_by = 250
+
+        def get_gear_links(self):
+            links = []
+
+            archive_type = self.get_archive_type()
+            for choice in Archive.TYPE_CHOICES:
+                if archive_type != choice[0]:
+                    links.append(
+                        dict(
+                            title=f"{choice[1]} {_('Archives')}",
+                            style="button-light",
+                            href=f"{reverse(f'archives.archive_{choice[0]}')}",
+                        )
+                    )
+            return links
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)
