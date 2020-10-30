@@ -1925,6 +1925,9 @@ class ChannelCRUDL(SmartCRUDL):
         fields = ("name", "address", "last_seen")
         search_fields = ("name", "address", "org__created_by__email")
 
+        def lookup_field_link(self, context, field, obj):
+            return reverse("channels.channel_read", args=[obj.uuid])
+
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)
 
