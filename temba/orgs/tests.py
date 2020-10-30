@@ -2228,6 +2228,12 @@ class OrgTest(TembaTest):
         response = self.client.post(resthook_url, dict(resthook="Mother-Registration"))
         self.assertTrue(response.context["form"].errors)
 
+        # hit our list page used by select2, checking it lists our resthook
+        response = self.client.get(reverse("api.resthook_list") + "?_format=select2")
+        results = response.json()["results"]
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], dict(text="mother-registration", id="mother-registration"))
+
         # add a subscriber
         subscriber = resthook.add_subscriber("http://foo", self.admin)
 

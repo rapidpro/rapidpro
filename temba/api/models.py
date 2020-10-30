@@ -116,6 +116,9 @@ class Resthook(SmartModel):
         self.modified_by = user
         self.save(update_fields=["is_active", "modified_on", "modified_by"])
 
+    def as_select2(self):
+        return dict(text=self.slug, id=self.slug)
+
     def __str__(self):  # pragma: needs cover
         return str(self.slug)
 
