@@ -1,3 +1,7 @@
+v5.7.86
+----------
+ * Add RocketChat channels (beta-only for now)
+
 v5.7.85
 ----------
  * Add back jquery-migrate and remove debug
