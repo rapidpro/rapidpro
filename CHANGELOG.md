@@ -1,3 +1,7 @@
+v5.7.85
+----------
+ * Add back jquery-migrate and remove debug
+
 v5.7.84
 ----------
  * Remove select2, coffeescript, jquery plugins
