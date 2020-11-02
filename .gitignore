@@ -25,11 +25,6 @@ node_modules
 parser.out
 screenshots
 sitestatic
-static/coffee/analytics.js
-static/coffee/flows.js
-static/coffee/simulator.js
-static/coffee/temba.js
-static/coffee/formax.js
 static/javascripts/
 temba/settings.py
 temba/smartmin

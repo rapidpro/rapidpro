@@ -1014,12 +1014,11 @@ REST_HANDLE_EXCEPTIONS = not TESTING
 # -----------------------------------------------------------------------------------
 
 if TESTING:
-    # if only testing, disable coffeescript and less compilation
+    # if only testing, disable less compilation
     COMPRESS_PRECOMPILERS = ()
 else:
     COMPRESS_PRECOMPILERS = (
         ("text/less", 'lessc --include-path="%s" {infile} {outfile}' % os.path.join(PROJECT_DIR, "../static", "less")),
-        ("text/coffeescript", "coffee --compile --stdio"),
     )
 
 COMPRESS_ENABLED = False

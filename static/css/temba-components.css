@@ -19,7 +19,6 @@ html {
 
   --select-input-height: inherit;
 
-  /* Old style matching, squared off, borded inputs, select2 colors */
   --curvature: 6px;
   --curvature-widget: 6px;
   --color-focus: #a4cafe;

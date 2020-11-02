@@ -488,9 +488,6 @@ class Flow(TembaModel):
             except FlowException:  # pragma: no cover
                 pass
 
-    def as_select2(self):
-        return dict(id=self.uuid, text=self.name)
-
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]
         counts = (

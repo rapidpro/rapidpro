@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-30 19:14+0000\n"
+"POT-Creation-Date: 2020-10-30 21:24+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -8186,12 +8186,6 @@ msgstr ""
 "\n"
 "    "
 
-msgid "Are you sure you want to remove"
-msgstr "¿Está seguro de que desea retirarlo?"
-
-msgid "Once it is removed, it will be gone forever."
-msgstr "Una vez que lo retire, no podrá recuperarlo"
-
 msgid "Your export for the following flows is ready."
 msgstr "Su exportación para los siguientes flujos está lista."
 
@@ -8453,10 +8447,6 @@ msgstr "Exportar flujo"
 
 msgid "No matching flows."
 msgstr "Sin flujos que correspondan."
-
-#, fuzzy
-msgid "Create a message keyword to allow people to join a group."
-msgstr "Crear una palabre clave de mensajería para que las personas participen en un grupo."
 
 #, fuzzy
 #| msgid "Device"
@@ -8952,17 +8942,6 @@ msgstr "Pendiente"
 
 msgid "No matching messages."
 msgstr "Ningún mensaje corresponde."
-
-msgid "Loading recipients.."
-msgstr "Cargando destinatarios.."
-
-#, fuzzy
-#| msgid "When the user left this step in the flow"
-msgid "recipients at this point in the flow"
-msgstr "Cuando el usuario salió de este paso en el flujo"
-
-msgid "Sending.."
-msgstr "Enviando.."
 
 #, fuzzy
 #| msgid "Your organization is configured to use a single language."
@@ -9511,12 +9490,6 @@ msgstr "Si tiene flujos o campañas cuyo nombre es igual al de los que está imp
 
 msgid "Do not proceed unless you are willing to replace your existing flows and campaigns."
 msgstr "No continúe, a no ser que desee reemplazar sus flujos y campañas actuales."
-
-msgid "Add guest viewers to"
-msgstr "Agrege visitantes a"
-
-msgid "Enter emails of people to invite"
-msgstr "Ingrese las direcciones de correo electrónico de las personas que desee invitar"
 
 #, fuzzy, python-format
 #| msgid "You have been invited to join"
@@ -10698,6 +10671,33 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Are you sure you want to remove"
+#~ msgstr "¿Está seguro de que desea retirarlo?"
+
+#~ msgid "Once it is removed, it will be gone forever."
+#~ msgstr "Una vez que lo retire, no podrá recuperarlo"
+
+#, fuzzy
+#~ msgid "Create a message keyword to allow people to join a group."
+#~ msgstr "Crear una palabre clave de mensajería para que las personas participen en un grupo."
+
+#~ msgid "Loading recipients.."
+#~ msgstr "Cargando destinatarios.."
+
+#, fuzzy
+#~| msgid "When the user left this step in the flow"
+#~ msgid "recipients at this point in the flow"
+#~ msgstr "Cuando el usuario salió de este paso en el flujo"
+
+#~ msgid "Sending.."
+#~ msgstr "Enviando.."
+
+#~ msgid "Add guest viewers to"
+#~ msgstr "Agrege visitantes a"
+
+#~ msgid "Enter emails of people to invite"
+#~ msgstr "Ingrese las direcciones de correo electrónico de las personas que desee invitar"
 
 #, fuzzy, python-format
 #~ msgid ""

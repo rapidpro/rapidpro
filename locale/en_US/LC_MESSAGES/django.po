@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-30 19:14+0000\n"
+"POT-Creation-Date: 2020-10-30 21:24+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5453,12 +5453,6 @@ msgstr ""
 msgid "To get started you can <a href=\"%(url)s\">import</a> contacts from a file you create in Excel."
 msgstr ""
 
-msgid "Are you sure you want to remove"
-msgstr ""
-
-msgid "Once it is removed, it will be gone forever."
-msgstr ""
-
 msgid "Your export for the following flows is ready."
 msgstr ""
 
@@ -5635,9 +5629,6 @@ msgid "Export Results"
 msgstr ""
 
 msgid "No matching flows."
-msgstr ""
-
-msgid "Create a message keyword to allow people to join a group."
 msgstr ""
 
 msgid "Overview"
@@ -5954,15 +5945,6 @@ msgid "(sending)"
 msgstr ""
 
 msgid "No matching messages."
-msgstr ""
-
-msgid "Loading recipients.."
-msgstr ""
-
-msgid "recipients at this point in the flow"
-msgstr ""
-
-msgid "Sending.."
 msgstr ""
 
 msgid "Your workspace is suspended and no longer processing messages."
@@ -6407,12 +6389,6 @@ msgid "If you have flows or campaigns with the same names or UUIDs as the ones y
 msgstr ""
 
 msgid "Do not proceed unless you are willing to replace your existing flows and campaigns."
-msgstr ""
-
-msgid "Add guest viewers to"
-msgstr ""
-
-msgid "Enter emails of people to invite"
 msgstr ""
 
 #, python-format

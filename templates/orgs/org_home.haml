@@ -26,7 +26,7 @@
 
 -block extra-script
   {{ block.super }}
-  // make sure that this view have djangojs gettext view to process translations in js or coffee
+  // make sure that this view have djangojs gettext view to process translations in js
   <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
   :javascript
 
