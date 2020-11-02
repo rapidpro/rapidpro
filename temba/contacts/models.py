@@ -85,7 +85,7 @@ class URN:
         (WHATSAPP_SCHEME, _("WhatsApp identifier")),
         (FRESHCHAT_SCHEME, _("Freshchat identifier")),
         (VK_SCHEME, _("VK identifier")),
-        (ROCKETCHAT_SCHEME, _("RocketChat identifier"), ROCKETCHAT_SCHEME),
+        (ROCKETCHAT_SCHEME, _("RocketChat identifier")),
     )
 
     VALID_SCHEMES = {s[0] for s in SCHEME_CHOICES}
