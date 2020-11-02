@@ -1,3 +1,7 @@
+v5.7.84
+----------
+ * Remove select2, coffeescript, jquery plugins
+
 v5.7.83
 ----------
  * Fix broken import link on empty contacts page
