@@ -1,3 +1,7 @@
+v5.7.87
+----------
+ * Cleanup Rocket.Chat UI
+
 v5.7.86
 ----------
  * Add RocketChat channels (beta-only for now)
