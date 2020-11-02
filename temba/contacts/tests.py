@@ -3800,7 +3800,7 @@ class ContactFieldTest(TembaTest):
             self.create_contact_import(path)
 
         # no group specified, so will default to 'Active'
-        with self.assertNumQueries(49):
+        with self.assertNumQueries(50):
             export = request_export()
             self.assertExcelSheet(
                 export[0],

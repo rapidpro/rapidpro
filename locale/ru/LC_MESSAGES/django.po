@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-30 21:24+0000\n"
+"POT-Creation-Date: 2020-11-02 19:19+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1761,6 +1761,81 @@ msgstr "Короткий код"
 msgid "There was a problem updating that number, please try again."
 msgstr "Возникла проблема при обновлении того номера, попробуйте снова."
 
+msgid "Connection to RocketChat is taking too long."
+msgstr ""
+
+msgid "Unable to configure. Connection to RocketChat is taking too long."
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid ""
+#| "Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> Firebase Cloud\n"
+#| "    Messaging Channel</a> to send and receive messages. Your users will need an App to send and receive messages."
+msgid "Add a %(link)s bot to send and receive messages to Rocket.Chat users. "
+msgstr ""
+"Добавьте <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> Канал Firebase Cloud\n"
+"    Messaging</a> для отправки и получения сообщений. Вашим пользователям потребуется Приложение для отправки и получения сообщений."
+
+msgid "Setup your RocketChat first to be able to integrate."
+msgstr ""
+
+msgid "Ex.: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
+msgstr ""
+
+msgid "The URL for your RocketChat Channnel app"
+msgstr ""
+
+#, fuzzy
+#| msgid "Username"
+msgid "Bot Username"
+msgstr "Имя пользователя"
+
+#, fuzzy
+#| msgid "The name of your bot"
+msgid "The username of your RocketChat bot"
+msgstr "Название Вашего бота"
+
+#, fuzzy
+#| msgid "Account Token"
+msgid "Admin Auth Token"
+msgstr "Токен Учетной записи"
+
+#, fuzzy
+#| msgid "The name of your bot"
+msgid "The admin user token of your RocketChat"
+msgstr "Название Вашего бота"
+
+#, fuzzy
+#| msgid "users"
+msgid "Admin User ID"
+msgstr "пользователи"
+
+#, fuzzy
+#| msgid "The name of your bot"
+msgid "The admin user ID of your RocketChat"
+msgstr "Название Вашего бота"
+
+msgid "Secret to be passed to RocketChat"
+msgstr ""
+
+msgid "Invalid secret code."
+msgstr ""
+
+msgid "Secret code change detected."
+msgstr ""
+
+#, python-format
+msgid "Invalid URL %(base_url)s"
+msgstr ""
+
+msgid "There is already a channel configured for this URL."
+msgstr ""
+
+#, fuzzy
+#| msgid "Configuration"
+msgid "Configuration has failed"
+msgstr "Конфигурация"
+
 #, fuzzy
 #| msgid "If you are based in Somalia, you can integrate with Telesom to send and receive messages on your shortcode."
 msgid "If you are based in Somalia, you can integrate with Shaqodoon to send and receive messages on your shortcode."
@@ -2612,6 +2687,11 @@ msgstr "Идентификатор Freshchat"
 
 msgid "VK identifier"
 msgstr "Идентификатор VK"
+
+#, fuzzy
+#| msgid "WeChat identifier"
+msgid "RocketChat identifier"
+msgstr "Идентификатор WeChat"
 
 msgid "Text"
 msgstr "Текст"
@@ -6275,6 +6355,32 @@ msgstr ""
 "\n"
 "      Используйте этот Токен для Авторизации при отправке входящих сообщений\n"
 "    "
+
+#, fuzzy
+#| msgid "Other Interactions"
+msgid "Instructions:"
+msgstr "Прочие взаимодействия"
+
+msgid "On your RocketChat, go to <i>Administration &gt; Omnichannel</i> and enable it."
+msgstr ""
+
+msgid "Add a new user with the \"bot\" role (<i>Administration &gt; Users &gt; <b>\"New\"</b></i>)"
+msgstr ""
+
+#, python-format
+msgid "Install the app <b> %(brand)s Channel Integration </b> (<i>Administration &gt; Marketplace </i>)"
+msgstr ""
+
+#, python-format
+msgid "Open the app details, at <i>Administration &gt; Apps &gt; <b> %(brand)s Channel Integration</b></i>, and in its settings section put the following token on the <b>App's Secret</b> field: <code>%(secret)s</code>"
+msgstr ""
+
+#, python-format
+msgid "Save the changes, copy the app's URL and back to %(brand)s by pasting that URL on field below, so try connect."
+msgstr ""
+
+msgid "To get the required Auth Token and User ID go to <b>Profile &gt; My account &gt; Personal Access Tokens &gt; Generate a token without 2FA</b>, save the tokens as it will not be displayed again once the pop-up is closed."
+msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""
