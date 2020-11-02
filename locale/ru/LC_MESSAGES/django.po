@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-02 19:19+0000\n"
+"POT-Creation-Date: 2020-11-02 23:09+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1771,18 +1771,18 @@ msgstr ""
 #| msgid ""
 #| "Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> Firebase Cloud\n"
 #| "    Messaging Channel</a> to send and receive messages. Your users will need an App to send and receive messages."
-msgid "Add a %(link)s bot to send and receive messages to Rocket.Chat users. "
+msgid "Add a %(link)s bot to send and receive messages to Rocket.Chat users."
 msgstr ""
 "Добавьте <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> Канал Firebase Cloud\n"
 "    Messaging</a> для отправки и получения сообщений. Вашим пользователям потребуется Приложение для отправки и получения сообщений."
 
-msgid "Setup your RocketChat first to be able to integrate."
+msgid "Setup your Rocket.Chat first to be able to integrate."
 msgstr ""
 
 msgid "Ex.: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
 msgstr ""
 
-msgid "The URL for your RocketChat Channnel app"
+msgid "URL of the Rocket.Chat Integration app"
 msgstr ""
 
 #, fuzzy
@@ -1792,17 +1792,7 @@ msgstr "Имя пользователя"
 
 #, fuzzy
 #| msgid "The name of your bot"
-msgid "The username of your RocketChat bot"
-msgstr "Название Вашего бота"
-
-#, fuzzy
-#| msgid "Account Token"
-msgid "Admin Auth Token"
-msgstr "Токен Учетной записи"
-
-#, fuzzy
-#| msgid "The name of your bot"
-msgid "The admin user token of your RocketChat"
+msgid "Username of your bot user"
 msgstr "Название Вашего бота"
 
 #, fuzzy
@@ -1810,12 +1800,20 @@ msgstr "Название Вашего бота"
 msgid "Admin User ID"
 msgstr "пользователи"
 
-#, fuzzy
-#| msgid "The name of your bot"
-msgid "The admin user ID of your RocketChat"
-msgstr "Название Вашего бота"
+msgid "User ID of an administrator user"
+msgstr ""
 
-msgid "Secret to be passed to RocketChat"
+#, fuzzy
+#| msgid "Account Token"
+msgid "Admin Auth Token"
+msgstr "Токен Учетной записи"
+
+#, fuzzy
+#| msgid "The Authentication token for your Telegram Bot"
+msgid "Authentication token of an administrator user"
+msgstr "Токен аутентификации для Вашего бота Telegram "
+
+msgid "Secret to be passed to Rocket.Chat"
 msgstr ""
 
 msgid "Invalid secret code."
@@ -6356,30 +6354,24 @@ msgstr ""
 "      Используйте этот Токен для Авторизации при отправке входящих сообщений\n"
 "    "
 
-#, fuzzy
-#| msgid "Other Interactions"
-msgid "Instructions:"
-msgstr "Прочие взаимодействия"
-
-msgid "On your RocketChat, go to <i>Administration &gt; Omnichannel</i> and enable it."
+msgid "In your Rocket.Chat instance, go to <i>Administration</i> &gt; <i>Omnichannel</i> and enable it."
 msgstr ""
 
-msgid "Add a new user with the \"bot\" role (<i>Administration &gt; Users &gt; <b>\"New\"</b></i>)"
+msgid "Add a new user with the \"bot\" role (<i>Administration</i> &gt; <i>Users</i> &gt; <i>New</i>)"
 msgstr ""
 
 #, python-format
-msgid "Install the app <b> %(brand)s Channel Integration </b> (<i>Administration &gt; Marketplace </i>)"
+msgid "Install the app <b>%(brand)s Channel Integration</b> from the <i>Marketplace</i>."
 msgstr ""
 
 #, python-format
-msgid "Open the app details, at <i>Administration &gt; Apps &gt; <b> %(brand)s Channel Integration</b></i>, and in its settings section put the following token on the <b>App's Secret</b> field: <code>%(secret)s</code>"
+msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel Integration</i>, and in its settings section put the following token in the <i>App's Secret</i> field: <code>%(secret)s</code>"
 msgstr ""
 
-#, python-format
-msgid "Save the changes, copy the app's URL and back to %(brand)s by pasting that URL on field below, so try connect."
+msgid "Save the changes. Copy the app's URL and paste in the URL field below."
 msgstr ""
 
-msgid "To get the required Auth Token and User ID go to <b>Profile &gt; My account &gt; Personal Access Tokens &gt; Generate a token without 2FA</b>, save the tokens as it will not be displayed again once the pop-up is closed."
+msgid "You will also need a Auth Token and User ID which you can generate at <i>Profile</i> &gt; <i>My account</i> &gt; <i>Personal Access Tokens</i>. Ensure that <i>Ignore Two Factor Authentication</i> is checked."
 msgstr ""
 
 #, fuzzy, python-format
@@ -10389,6 +10381,26 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, fuzzy
+#~| msgid "The name of your bot"
+#~ msgid "The username of your RocketChat bot"
+#~ msgstr "Название Вашего бота"
+
+#, fuzzy
+#~| msgid "The name of your bot"
+#~ msgid "The admin user token of your RocketChat"
+#~ msgstr "Название Вашего бота"
+
+#, fuzzy
+#~| msgid "The name of your bot"
+#~ msgid "The admin user ID of your RocketChat"
+#~ msgstr "Название Вашего бота"
+
+#, fuzzy
+#~| msgid "Other Interactions"
+#~ msgid "Instructions:"
+#~ msgstr "Прочие взаимодействия"
 
 #~ msgid "Are you sure you want to remove"
 #~ msgstr "Вы действительно хотите удалить "

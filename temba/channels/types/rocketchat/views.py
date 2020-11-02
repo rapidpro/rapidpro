@@ -25,7 +25,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     SESSION_KEY = "_channel_rocketchat_secret"
 
     _secret = None
-    form_blurb = _("Setup your RocketChat first to be able to integrate.")
+    form_blurb = _("Setup your Rocket.Chat first to be able to integrate.")
 
     class Form(ClaimViewMixin.Form):
         base_url = ExternalURLField(
@@ -37,15 +37,15 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                     )
                 }
             ),
-            help_text=_("The URL for your RocketChat Channnel app"),
+            help_text=_("URL of the Rocket.Chat Integration app"),
         )
-        bot_username = forms.CharField(label=_("Bot Username"), help_text=_("The username of your RocketChat bot"))
+        bot_username = forms.CharField(label=_("Bot Username"), help_text=_("Username of your bot user"))
+        admin_user_id = forms.CharField(label=_("Admin User ID"), help_text=_("User ID of an administrator user"))
         admin_auth_token = forms.CharField(
-            label=_("Admin Auth Token"), help_text=_("The admin user token of your RocketChat")
+            label=_("Admin Auth Token"), help_text=_("Authentication token of an administrator user")
         )
-        admin_user_id = forms.CharField(label=_("Admin User ID"), help_text=_("The admin user ID of your RocketChat"))
         secret = forms.CharField(
-            label=_("Secret"), widget=forms.HiddenInput(), help_text=_("Secret to be passed to RocketChat"),
+            label=_("Secret"), widget=forms.HiddenInput(), help_text=_("Secret to be passed to Rocket.Chat"),
         )
 
         def clean(self):

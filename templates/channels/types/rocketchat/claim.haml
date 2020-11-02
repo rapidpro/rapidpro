@@ -2,72 +2,57 @@
 -load i18n compress temba
 
 -block pre-form
-  %h4.form_blurb
-    {{ form_blurb }}
-  
-  %h4
-    -blocktrans trimmed
-      Instructions:
-  %ol.instructions
-    %li
+  -blocktrans trimmed with name=brand.name
+    You can connect your Facebook page to {{name}} in just a few simple steps.
+
+  %ol.list-decimal.ml-5.mt-3
+    %li.list-decimal
       -blocktrans trimmed
-        On your RocketChat, go to <i>Administration &gt; Omnichannel</i> and enable it.
-    %li
+        In your Rocket.Chat instance, go to <i>Administration</i> &gt; <i>Omnichannel</i> and enable it.
+    %li.list-decimal
       -blocktrans trimmed
-        Add a new user with the "bot" role (<i>Administration &gt; Users &gt; <b>"New"</b></i>)
-    %li
+        Add a new user with the "bot" role (<i>Administration</i> &gt; <i>Users</i> &gt; <i>New</i>)
+    %li.list-decimal
       -blocktrans trimmed with brand=brand.name
-        Install the app <b> {{ brand }} Channel Integration </b> (<i>Administration &gt; Marketplace </i>)
-    %li
+        Install the app <b>{{ brand }} Channel Integration</b> from the <i>Marketplace</i>.
+    %li.list-decimal
       -blocktrans trimmed with brand=brand.name
-        Open the app details, at <i>Administration &gt; Apps &gt; <b> {{ brand }} Channel Integration</b></i>, and in its settings section put the following token on the <b>App's Secret</b> field: <code>{{ secret }}</code>
-
-    %li
+        Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>{{ brand }} Channel Integration</i>, and in
+        its settings section put the following token in the <i>App's Secret</i> field: <code>{{ secret }}</code>
+    %li.list-decimal
       -blocktrans trimmed with brand=brand.name
-        Save the changes, copy the app's URL and back to {{ brand }} by pasting that URL on field below, so try connect.
-
-    %li
+        Save the changes. Copy the app's URL and paste in the URL field below.
+    %li.list-decimal
       -blocktrans trimmed
-        To get the required Auth Token and User ID go to <b>Profile &gt; My account &gt; Personal Access Tokens &gt; Generate a token without 2FA</b>, save the tokens as it will not be displayed again once the pop-up is closed.
+        You will also need a Auth Token and User ID which you can generate at <i>Profile</i> &gt; <i>My account</i> &gt;
+        <i>Personal Access Tokens</i>. Ensure that <i>Ignore Two Factor Authentication</i> is checked.
 
--block extra-style
-  {{ block.super }}
-
-  :css
-    ol.instructions {
-      padding-top: 1em;
-    }
-    ol.instructions li {
-      list-style-type: decimal;
-      margin-top: 0.3em;
-    }
 
 -block extra-script
   {{ block.super }}
-  -compress js
-    :javascript
-      function processURI(input) {
-        let value = input.val();
-        if (value != null) {
-          let uri = value.match(/https?:\/\/[^ "]+\/[0-9a-fA-F]{8}(?:\-[0-9a-fA-F]{4}){3}\-[0-9a-fA-F]{12}/);
-          if (uri != null) {
-            if (value !== uri[0]){
-              input.val(uri[0]);
-            }
-            return uri[0];
+  :javascript
+    function processURI(input) {
+      var value = input.val();
+      if (value != null) {
+        var uri = value.match(/https?:\/\/[^ "]+\/[0-9a-fA-F]{8}(?:\-[0-9a-fA-F]{4}){3}\-[0-9a-fA-F]{12}/);
+        if (uri != null) {
+          if (value !== uri[0]){
+            input.val(uri[0]);
           }
+          return uri[0];
         }
-        return null;
       }
+      return null;
+    }
 
-      $("#{{ form.base_url.id_for_label }}").on("change", function() {
-        processURI($(this));
-      }).parents("form").on("submit", function(event) {
-        let input = $("#{{ form.base_url.id_for_label }}");
-        let uri = processURI(input);
-        if (uri == null) {
-          input.parents(".control-group").addClass("error")
-          input.val("");
-          event.preventDefault();
-        }
-      });
+    $("#{{ form.base_url.id_for_label }}").on("change", function() {
+      processURI($(this));
+    }).parents("form").on("submit", function(event) {
+      var input = $("#{{ form.base_url.id_for_label }}");
+      var uri = processURI(input);
+      if (uri == null) {
+        input.parents(".control-group").addClass("error")
+        input.val("");
+        event.preventDefault();
+      }
+    });

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-02 19:19+0000\n"
+"POT-Creation-Date: 2020-11-02 23:09+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -1884,16 +1884,16 @@ msgid "Unable to configure. Connection to RocketChat is taking too long."
 msgstr ""
 
 #, python-format
-msgid "Add a %(link)s bot to send and receive messages to Rocket.Chat users. "
+msgid "Add a %(link)s bot to send and receive messages to Rocket.Chat users."
 msgstr ""
 
-msgid "Setup your RocketChat first to be able to integrate."
+msgid "Setup your Rocket.Chat first to be able to integrate."
 msgstr ""
 
 msgid "Ex.: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
 msgstr ""
 
-msgid "The URL for your RocketChat Channnel app"
+msgid "URL of the Rocket.Chat Integration app"
 msgstr ""
 
 #, fuzzy
@@ -1903,16 +1903,7 @@ msgstr "Nome de usuário"
 
 #, fuzzy
 #| msgid "The name of your organization"
-msgid "The username of your RocketChat bot"
-msgstr "Nome da sua organização"
-
-#, fuzzy
-msgid "Admin Auth Token"
-msgstr "Contas"
-
-#, fuzzy
-#| msgid "The name of your organization"
-msgid "The admin user token of your RocketChat"
+msgid "Username of your bot user"
 msgstr "Nome da sua organização"
 
 #, fuzzy
@@ -1920,12 +1911,17 @@ msgstr "Nome da sua organização"
 msgid "Admin User ID"
 msgstr "usuários"
 
-#, fuzzy
-#| msgid "The name of your organization"
-msgid "The admin user ID of your RocketChat"
-msgstr "Nome da sua organização"
+msgid "User ID of an administrator user"
+msgstr ""
 
-msgid "Secret to be passed to RocketChat"
+#, fuzzy
+msgid "Admin Auth Token"
+msgstr "Contas"
+
+msgid "Authentication token of an administrator user"
+msgstr ""
+
+msgid "Secret to be passed to Rocket.Chat"
 msgstr ""
 
 msgid "Invalid secret code."
@@ -6760,30 +6756,24 @@ msgstr ""
 msgid "Use this Token as Authorization when sending incoming messages"
 msgstr ""
 
-#, fuzzy
-#| msgid "Android integration"
-msgid "Instructions:"
-msgstr "Integração com Android"
-
-msgid "On your RocketChat, go to <i>Administration &gt; Omnichannel</i> and enable it."
+msgid "In your Rocket.Chat instance, go to <i>Administration</i> &gt; <i>Omnichannel</i> and enable it."
 msgstr ""
 
-msgid "Add a new user with the \"bot\" role (<i>Administration &gt; Users &gt; <b>\"New\"</b></i>)"
+msgid "Add a new user with the \"bot\" role (<i>Administration</i> &gt; <i>Users</i> &gt; <i>New</i>)"
 msgstr ""
 
 #, python-format
-msgid "Install the app <b> %(brand)s Channel Integration </b> (<i>Administration &gt; Marketplace </i>)"
+msgid "Install the app <b>%(brand)s Channel Integration</b> from the <i>Marketplace</i>."
 msgstr ""
 
 #, python-format
-msgid "Open the app details, at <i>Administration &gt; Apps &gt; <b> %(brand)s Channel Integration</b></i>, and in its settings section put the following token on the <b>App's Secret</b> field: <code>%(secret)s</code>"
+msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel Integration</i>, and in its settings section put the following token in the <i>App's Secret</i> field: <code>%(secret)s</code>"
 msgstr ""
 
-#, python-format
-msgid "Save the changes, copy the app's URL and back to %(brand)s by pasting that URL on field below, so try connect."
+msgid "Save the changes. Copy the app's URL and paste in the URL field below."
 msgstr ""
 
-msgid "To get the required Auth Token and User ID go to <b>Profile &gt; My account &gt; Personal Access Tokens &gt; Generate a token without 2FA</b>, save the tokens as it will not be displayed again once the pop-up is closed."
+msgid "You will also need a Auth Token and User ID which you can generate at <i>Profile</i> &gt; <i>My account</i> &gt; <i>Personal Access Tokens</i>. Ensure that <i>Ignore Two Factor Authentication</i> is checked."
 msgstr ""
 
 #, fuzzy, python-format
@@ -9900,6 +9890,26 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "The name of your organization"
+#~ msgid "The username of your RocketChat bot"
+#~ msgstr "Nome da sua organização"
+
+#, fuzzy
+#~| msgid "The name of your organization"
+#~ msgid "The admin user token of your RocketChat"
+#~ msgstr "Nome da sua organização"
+
+#, fuzzy
+#~| msgid "The name of your organization"
+#~ msgid "The admin user ID of your RocketChat"
+#~ msgstr "Nome da sua organização"
+
+#, fuzzy
+#~| msgid "Android integration"
+#~ msgid "Instructions:"
+#~ msgstr "Integração com Android"
 
 #~ msgid "Are you sure you want to remove"
 #~ msgstr "Você tem certeza que deseja excluir"
