@@ -22,7 +22,9 @@ class ClaimView(AuthenticatedExternalCallbackClaimView):
             help_text=_("The short code or phone number you are connecting."),
         )
         url = ExternalURLField(
-            label=_("URL"), help_text=_("The URL for the Jasmin server send path. ex: https://jasmin.gateway.io/send")
+            widget=forms.URLInput(attrs={"placeholder": _("Ex: https://jasmin.gateway.io/send")}),
+            label=_("URL"),
+            help_text=_("The URL for the Jasmin server send path"),
         )
         username = forms.CharField(
             label=_("Username"), help_text=_("The username to be used to authenticate to Jasmin")

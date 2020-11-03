@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-02 23:09+0000\n"
+"POT-Creation-Date: 2020-11-03 19:26+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1001,10 +1001,13 @@ msgstr ""
 msgid "The short code or phone number you are connecting."
 msgstr ""
 
+msgid "Ex: https://jasmin.gateway.io/send"
+msgstr ""
+
 msgid "URL"
 msgstr ""
 
-msgid "The URL for the Jasmin server send path. ex: https://jasmin.gateway.io/send"
+msgid "The URL for the Jasmin server send path"
 msgstr ""
 
 msgid "The username to be used to authenticate to Jasmin"
@@ -4212,6 +4215,9 @@ msgstr ""
 msgid "API Channels"
 msgstr ""
 
+msgid "Enter your credentials to add your number."
+msgstr ""
+
 msgid "Connect a Phone Number"
 msgstr ""
 
@@ -4931,6 +4937,10 @@ msgstr ""
 msgid "Use this Token as Authorization when sending incoming messages"
 msgstr ""
 
+#, python-format
+msgid "You can connect Rocket.Chat to %(name)s in a few simple steps."
+msgstr ""
+
 msgid "In your Rocket.Chat instance, go to <i>Administration</i> &gt; <i>Omnichannel</i> and enable it."
 msgstr ""
 
@@ -4942,10 +4952,10 @@ msgid "Install the app <b>%(brand)s Channel Integration</b> from the <i>Marketpl
 msgstr ""
 
 #, python-format
-msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel Integration</i>, and in its settings section put the following token in the <i>App's Secret</i> field: <code>%(secret)s</code>"
+msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel Integration</i>, and in its settings section put the following token in the <i>App's Secret</i> field: <div class=\"code\">%(secret)s</div>"
 msgstr ""
 
-msgid "Save the changes. Copy the app's URL and paste in the URL field below."
+msgid "Save the changes. Copy the app's URL and paste it in the URL field. It should end with a long ID, for example: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
 msgstr ""
 
 msgid "You will also need a Auth Token and User ID which you can generate at <i>Profile</i> &gt; <i>My account</i> &gt; <i>Personal Access Tokens</i>. Ensure that <i>Ignore Two Factor Authentication</i> is checked."

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-02 23:09+0000\n"
+"POT-Creation-Date: 2020-11-03 19:26+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -1619,10 +1619,13 @@ msgstr ""
 msgid "The short code or phone number you are connecting."
 msgstr "El número de teléfono o código abreviado al que se está conectando"
 
+msgid "Ex: https://jasmin.gateway.io/send"
+msgstr ""
+
 msgid "URL"
 msgstr ""
 
-msgid "The URL for the Jasmin server send path. ex: https://jasmin.gateway.io/send"
+msgid "The URL for the Jasmin server send path"
 msgstr ""
 
 #, fuzzy
@@ -5967,6 +5970,9 @@ msgstr ""
 msgid "API Channels"
 msgstr "Transmisor"
 
+msgid "Enter your credentials to add your number."
+msgstr ""
+
 #, fuzzy
 #| msgid "Add a Phone Number"
 msgid "Connect a Phone Number"
@@ -7356,6 +7362,16 @@ msgstr ""
 msgid "Use this Token as Authorization when sending incoming messages"
 msgstr ""
 
+#, fuzzy, python-format
+msgid "You can connect Rocket.Chat to %(name)s in a few simple steps."
+msgstr ""
+"\n"
+"                  Si vive en Kenia, puede comprar un código abreviado\n"
+"                  de %(link_start)sAfrica's Talking%(link_end)s y conectarlo a TextIt\n"
+"                  con solo unos simples pasos.\n"
+"\n"
+"                "
+
 msgid "In your Rocket.Chat instance, go to <i>Administration</i> &gt; <i>Omnichannel</i> and enable it."
 msgstr ""
 
@@ -7367,10 +7383,10 @@ msgid "Install the app <b>%(brand)s Channel Integration</b> from the <i>Marketpl
 msgstr ""
 
 #, python-format
-msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel Integration</i>, and in its settings section put the following token in the <i>App's Secret</i> field: <code>%(secret)s</code>"
+msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel Integration</i>, and in its settings section put the following token in the <i>App's Secret</i> field: <div class=\"code\">%(secret)s</div>"
 msgstr ""
 
-msgid "Save the changes. Copy the app's URL and paste in the URL field below."
+msgid "Save the changes. Copy the app's URL and paste it in the URL field. It should end with a long ID, for example: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
 msgstr ""
 
 msgid "You will also need a Auth Token and User ID which you can generate at <i>Profile</i> &gt; <i>My account</i> &gt; <i>Personal Access Tokens</i>. Ensure that <i>Ignore Two Factor Authentication</i> is checked."
