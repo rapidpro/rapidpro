@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-02 23:09+0000\n"
+"POT-Creation-Date: 2020-11-03 19:26+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1383,10 +1383,17 @@ msgstr "    Эта конечная точка будет вызываться J
 msgid "The short code or phone number you are connecting."
 msgstr "Короткий код или номер телефона, который Вы подключаете."
 
+#, fuzzy
+#| msgid "The URL for the Jasmin server send path. ex: https://jasmin.gateway.io/send"
+msgid "Ex: https://jasmin.gateway.io/send"
+msgstr "Адрес URL для пути отправки сервера Jasmin, например https://jasmin.gateway.io/send"
+
 msgid "URL"
 msgstr "URL"
 
-msgid "The URL for the Jasmin server send path. ex: https://jasmin.gateway.io/send"
+#, fuzzy
+#| msgid "The URL for the Jasmin server send path. ex: https://jasmin.gateway.io/send"
+msgid "The URL for the Jasmin server send path"
 msgstr "Адрес URL для пути отправки сервера Jasmin, например https://jasmin.gateway.io/send"
 
 msgid "The username to be used to authenticate to Jasmin"
@@ -5119,6 +5126,9 @@ msgstr "Работает в любой стране и использует та
 msgid "API Channels"
 msgstr "Каналы API"
 
+msgid "Enter your credentials to add your number."
+msgstr ""
+
 #, fuzzy
 #| msgid "Phone Number"
 msgid "Connect a Phone Number"
@@ -6354,6 +6364,19 @@ msgstr ""
 "      Используйте этот Токен для Авторизации при отправке входящих сообщений\n"
 "    "
 
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "        You can purchase a short code from <a href=\"http://africastalking.com\">Africa's Talking</a>\n"
+#| "        and connect it in a few simple steps.\n"
+#| "        "
+msgid "You can connect Rocket.Chat to %(name)s in a few simple steps."
+msgstr ""
+"\n"
+"        Вы можете приобрести короткий код у <a href=\"http://africastalking.com\">Africa's Talking</a>\n"
+"        и подключить его, выполнив несколько простых шагов.\n"
+"        "
+
 msgid "In your Rocket.Chat instance, go to <i>Administration</i> &gt; <i>Omnichannel</i> and enable it."
 msgstr ""
 
@@ -6365,10 +6388,10 @@ msgid "Install the app <b>%(brand)s Channel Integration</b> from the <i>Marketpl
 msgstr ""
 
 #, python-format
-msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel Integration</i>, and in its settings section put the following token in the <i>App's Secret</i> field: <code>%(secret)s</code>"
+msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel Integration</i>, and in its settings section put the following token in the <i>App's Secret</i> field: <div class=\"code\">%(secret)s</div>"
 msgstr ""
 
-msgid "Save the changes. Copy the app's URL and paste in the URL field below."
+msgid "Save the changes. Copy the app's URL and paste it in the URL field. It should end with a long ID, for example: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
 msgstr ""
 
 msgid "You will also need a Auth Token and User ID which you can generate at <i>Profile</i> &gt; <i>My account</i> &gt; <i>Personal Access Tokens</i>. Ensure that <i>Ignore Two Factor Authentication</i> is checked."

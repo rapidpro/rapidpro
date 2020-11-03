@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-02 23:09+0000\n"
+"POT-Creation-Date: 2020-11-03 19:26+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1401,10 +1401,17 @@ msgstr "Jasmin appelle ce noeud final lorsque de nouveaux messages sont reçus s
 msgid "The short code or phone number you are connecting."
 msgstr "Le numéro abrégé ou le numéro de téléphone auquel vous vous connectez."
 
+#, fuzzy
+#| msgid "The URL for the Jasmin server send path. ex: https://jasmin.gateway.io/send"
+msgid "Ex: https://jasmin.gateway.io/send"
+msgstr "L'URL du chemin d'envoi du serveur Jasmin. ex: https://jasmin.gateway.io/send"
+
 msgid "URL"
 msgstr "URL"
 
-msgid "The URL for the Jasmin server send path. ex: https://jasmin.gateway.io/send"
+#, fuzzy
+#| msgid "The URL for the Jasmin server send path. ex: https://jasmin.gateway.io/send"
+msgid "The URL for the Jasmin server send path"
 msgstr "L'URL du chemin d'envoi du serveur Jasmin. ex: https://jasmin.gateway.io/send"
 
 msgid "The username to be used to authenticate to Jasmin"
@@ -5137,6 +5144,9 @@ msgstr "Fonctionne dans n'importe quel pays et utilise le forfait de téléphoni
 msgid "API Channels"
 msgstr "Canaux API"
 
+msgid "Enter your credentials to add your number."
+msgstr ""
+
 #, fuzzy
 #| msgid "Phone Number"
 msgid "Connect a Phone Number"
@@ -6377,6 +6387,19 @@ msgstr ""
 "      Utiliser ce jeton comme autorisation lors de l'envoi de messages entrants\n"
 "    "
 
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "        You can purchase a short code from <a href=\"http://africastalking.com\">Africa's Talking</a>\n"
+#| "        and connect it in a few simple steps.\n"
+#| "        "
+msgid "You can connect Rocket.Chat to %(name)s in a few simple steps."
+msgstr ""
+"\n"
+"        Vous pouvez acheter un code court auprès de <a href=\"http://africastalking.com\">Africa's Talking</a>\n"
+"        et connectez-le en quelques étapes simples.\n"
+"        "
+
 msgid "In your Rocket.Chat instance, go to <i>Administration</i> &gt; <i>Omnichannel</i> and enable it."
 msgstr ""
 
@@ -6388,10 +6411,10 @@ msgid "Install the app <b>%(brand)s Channel Integration</b> from the <i>Marketpl
 msgstr ""
 
 #, python-format
-msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel Integration</i>, and in its settings section put the following token in the <i>App's Secret</i> field: <code>%(secret)s</code>"
+msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel Integration</i>, and in its settings section put the following token in the <i>App's Secret</i> field: <div class=\"code\">%(secret)s</div>"
 msgstr ""
 
-msgid "Save the changes. Copy the app's URL and paste in the URL field below."
+msgid "Save the changes. Copy the app's URL and paste it in the URL field. It should end with a long ID, for example: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
 msgstr ""
 
 msgid "You will also need a Auth Token and User ID which you can generate at <i>Profile</i> &gt; <i>My account</i> &gt; <i>Personal Access Tokens</i>. Ensure that <i>Ignore Two Factor Authentication</i> is checked."
