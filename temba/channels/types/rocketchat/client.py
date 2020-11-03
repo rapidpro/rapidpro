@@ -14,7 +14,7 @@ class ClientError(Exception):
 
 
 class Client:
-    def __init__(self, base_url: str, bot_username: str, secret: str):
+    def __init__(self, base_url: str, secret: str):
         self.base_url = base_url.rstrip("/")
         self.secret = secret
 
@@ -37,12 +37,10 @@ class Client:
     def put(self, url, timeout_msg=None, **kwargs):
         return self._request("put", url, timeout_msg, **kwargs)
 
-    def settings(self, domain, channel):
-        from .type import RocketChatType
-
+    def settings(self, webhook_url: str, bot_username: str):
         payload = {
-            "webhook": {"url": RocketChatType.callback_url(channel, domain)},
-            "bot": {"username": channel.config["bot_username"]},
+            "webhook": {"url": webhook_url},
+            "bot": {"username": bot_username},
         }
 
         response = self.put(

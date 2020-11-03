@@ -1,9 +1,11 @@
 import re
+from urllib.parse import urlparse
 
 from smartmin.views import SmartFormView
 
 from django import forms
 from django.contrib import messages
+from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.utils.fields import ExternalURLField
@@ -94,7 +96,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         return initial
 
     def form_valid(self, form):
-        from .type import RocketChatType, RE_HOST
+        from .type import RocketChatType
 
         base_url = form.cleaned_data["base_url"]
         bot_username = form.cleaned_data["bot_username"]
@@ -109,26 +111,23 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             RocketChatType.CONFIG_SECRET: secret,
         }
 
+        rc_host = urlparse(base_url).netloc
+
         self.object = Channel(
             uuid=uuid4(),
             org=self.org,
             channel_type=RocketChatType.code,
             config=config,
-            name=truncate(
-                f"{RocketChatType.name}: {RE_HOST.search(base_url).group('domain')}",
-                Channel._meta.get_field("name").max_length,
-            ),
+            name=truncate(f"{RocketChatType.name}: {rc_host}", Channel._meta.get_field("name").max_length),
             created_by=self.request.user,
             modified_by=self.request.user,
         )
 
+        client = Client(config[RocketChatType.CONFIG_BASE_URL], config[RocketChatType.CONFIG_SECRET])
+        webhook_url = "https://" + self.object.callback_domain + reverse("courier.rc", args=[self.object.uuid])
+
         try:
-            client = Client(
-                config[RocketChatType.CONFIG_BASE_URL],
-                config[RocketChatType.CONFIG_BOT_USERNAME],
-                config[RocketChatType.CONFIG_SECRET],
-            )
-            client.settings(self.request.build_absolute_uri("/"), self.object)
+            client.settings(webhook_url, bot_username)
         except ClientError as err:
             messages.error(self.request, err.msg if err.msg else _("Configuration has failed"))
             return super().get(self.request, *self.args, **self.kwargs)

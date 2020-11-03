@@ -65,19 +65,18 @@ class ClientTest(RocketChatMixin):
     def test_settings_success(self, mock_request):
         mock_request.return_value = MockResponse(204, {})
         try:
-            Client(self.secure_url, self.bot_username, self.secret).settings(self.domain, self.new_channel())
+            Client(self.secure_url, self.secret).settings("http://temba.io/c/1234-5678", "test-bot")
         except ClientError:
             self.fail("The status 204 should not raise exceptions")
 
     def test_settings_fail(self):
-        channel = self.new_channel()
         for status in range(200, 599):
             if status == 204:
                 continue
             with patch("requests.put") as mock_request:
                 mock_request.return_value = MockResponse(status, {})
                 with self.assertRaises(ClientError, msg=f"The status{status} must be invalid"):
-                    Client(self.secure_url, self.bot_username, self.secret).settings(self.domain, channel)
+                    Client(self.secure_url, self.secret).settings("http://temba.io/c/1234-5678", "test-bot")
 
     @patch("requests.put")
     def test_settings_exceptions(self, mock_request):
@@ -87,28 +86,8 @@ class ClientTest(RocketChatMixin):
                 raise err
 
             mock_request.side_effect = side_effect
-            channel = self.new_channel()
             with self.assertRaises(ClientError):
-                Client(self.secure_url, self.bot_username, self.secret).settings(self.domain, channel)
-
-
-class RocketChatTypeTest(RocketChatMixin):
-    @patch("temba.orgs.models.Org.get_brand_domain")
-    def test_callback_url(self, mock_brand_domain):
-        channel = self.new_channel()
-        domains = [("https://", "test.domain.com"), ("", "http://test.domain.com"), ("", "https://test.domain.com")]
-        for scheme, domain in domains:
-            mock_brand_domain.return_value = domain
-            self.assertEqual(
-                RocketChatType.callback_url(channel), f"{scheme}{domain}{reverse('courier.rc', args=[channel.uuid])}"
-            )
-
-    @patch("temba.orgs.models.Org.get_brand_domain")
-    def test_calllback_url_exception(self, mock_brand_domain):
-        mock_brand_domain.return_value = ""
-        channel = self.new_channel()
-        with self.assertRaises(ValueError):
-            RocketChatType.callback_url(channel)
+                Client(self.secure_url, self.secret).settings("http://temba.io/c/1234-5678", "test-bot")
 
 
 class RocketChatViewTest(RocketChatMixin):
@@ -154,10 +133,8 @@ class RocketChatViewTest(RocketChatMixin):
     @patch("socket.gethostbyname")
     @patch("random.choice")
     def submit_form(self, data, mock_choices, mock_socket):
-
         choices = (c for c in self.secret)
         mock_choices.side_effect = lambda letters: next(choices)
-        mock_socket.return_value = "192.168.123.45"  # Fake IP
 
         self.client.force_login(self.admin)
 
@@ -195,37 +172,25 @@ class RocketChatViewTest(RocketChatMixin):
 
     @patch("temba.channels.types.rocketchat.client.Client.settings")
     def test_form_valid(self, mock_settings):
-        def settings_effect(domain, channel):
-            nonlocal _channel
-            _channel = channel
-
-        mock_settings.side_effect = settings_effect
-
-        toggle = True
         max_length = Channel._meta.get_field("name").max_length
         for p in ["/{}", "/{}/", "/{}/path", "/path/{}/"]:
             path = p.format(self.app_id)
-            for scheme in ["", "http", "https"]:
-                _channel: Channel = None
-                data = self.new_form_data(path, scheme)
+            data = self.new_form_data(path, "https")
 
-                if toggle:
-                    toggle = not toggle
-                    domain = data["base_url"].replace("http://", "").replace("https://", "").split("/")[0]
-                    data["base_url"] = f"{'x' * (max_length-len(domain))}-{data['base_url']}"
-                response = self.submit_form(data)
+            response = self.submit_form(data)
 
-                self.assertEqual(response.status_code, 302)
-                self.assertIsInstance(_channel, Channel, msg=f"Data: {data}")
-                self.assertEqual(_channel.channel_type, RocketChatType.code)
-                self.assertRedirect(response, reverse("channels.channel_read", args=[_channel.uuid]))
+            self.assertEqual(response.status_code, 302)
 
-                domain = data["base_url"].replace("http://", "").replace("https://", "").split("/")[0]
-                expected = f"{RocketChatType.name}: {domain}"
-                if len(expected) > max_length:
-                    expected = f"{expected[:max_length-3]}..."
-                self.assertEqual(_channel.name, expected, f"\nExpected: {expected}\nGot: {_channel.name}")
-                self.assertFalse(_channel.config[RocketChatType.CONFIG_BASE_URL].endswith("/"))
+            channel = Channel.objects.order_by("id").last()
+
+            self.assertRedirect(response, reverse("channels.channel_read", args=[channel.uuid]))
+
+            domain = data["base_url"].replace("http://", "").replace("https://", "").split("/")[0]
+            expected = f"{RocketChatType.name}: {domain}"
+            if len(expected) > max_length:
+                expected = f"{expected[:max_length-3]}..."
+            self.assertEqual(channel.name, expected)
+            self.assertFalse(channel.config[RocketChatType.CONFIG_BASE_URL].endswith("/"))
 
     @patch("temba.channels.types.rocketchat.client.Client.settings")
     def test_form_invalid_base_url(self, mock_settings):

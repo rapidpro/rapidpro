@@ -1,14 +1,9 @@
-import re
-
-from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import URN
 
 from ...models import ChannelType
 from .views import ClaimView
-
-RE_HOST = re.compile(r"(?:(?P<scheme>https?)://)?(?P<domain>[^ \"'/]+)")
 
 
 class RocketChatType(ChannelType):
@@ -40,14 +35,3 @@ class RocketChatType(ChannelType):
 
     def is_available_to(self, user):
         return user.is_beta()
-
-    @staticmethod
-    def callback_url(channel, domain=None):
-        if not domain:
-            domain = RE_HOST.search(channel.org.get_brand_domain() or "")
-            domain = domain and domain.group() or ""
-        search = RE_HOST.search(domain)
-        if not search:
-            raise ValueError("Could not identify the hostname.")
-        scheme, domain = search.groups()
-        return f"{scheme or 'https'}://{domain}{reverse('courier.rc', args=[channel.uuid])}"
