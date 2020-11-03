@@ -1,3 +1,8 @@
+v5.7.89
+----------
+ * Improve Rocket.Chat claim page
+ * Add Rocket.Chat icon
+
 v5.7.87
 ----------
  * Cleanup Rocket.Chat UI
