@@ -1,3 +1,7 @@
+v5.7.90
+----------
+ * Update rocket.chat icon in correct font
+
 v5.7.89
 ----------
  * Improve Rocket.Chat claim page
