@@ -29,9 +29,9 @@ class ComponentFormMixin(View):
         if isinstance(field.widget, (forms.widgets.Textarea,)):
             attrs["textarea"] = True
             field.widget = InputWidget(attrs=attrs)
-        elif isinstance(field.widget, (forms.widgets.PasswordInput,)):
+        elif isinstance(field.widget, (forms.widgets.PasswordInput,)):  # pragma: needs cover
             attrs["password"] = True
-            field.widget = InputWidget(attrs=attrs)  # pragma: needs cover
+            field.widget = InputWidget(attrs=attrs)
         elif isinstance(
             field.widget,
             (forms.widgets.TextInput, forms.widgets.EmailInput, forms.widgets.URLInput, forms.widgets.NumberInput),
