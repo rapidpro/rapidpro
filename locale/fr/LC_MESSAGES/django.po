@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-03 19:26+0000\n"
+"POT-Creation-Date: 2020-11-04 21:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -6407,7 +6407,7 @@ msgid "Add a new user with the \"bot\" role (<i>Administration</i> &gt; <i>Users
 msgstr ""
 
 #, python-format
-msgid "Install the app <b>%(brand)s Channel Integration</b> from the <i>Marketplace</i>."
+msgid "Install the app <b>%(brand)s Channel</b> from the <i>Marketplace</i>."
 msgstr ""
 
 #, python-format

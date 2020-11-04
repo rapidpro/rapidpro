@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-03 19:26+0000\n"
+"POT-Creation-Date: 2020-11-04 21:07+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -7379,7 +7379,7 @@ msgid "Add a new user with the \"bot\" role (<i>Administration</i> &gt; <i>Users
 msgstr ""
 
 #, python-format
-msgid "Install the app <b>%(brand)s Channel Integration</b> from the <i>Marketplace</i>."
+msgid "Install the app <b>%(brand)s Channel</b> from the <i>Marketplace</i>."
 msgstr ""
 
 #, python-format
