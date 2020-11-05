@@ -1,3 +1,7 @@
+v5.7.91
+----------
+ * Add Rocket.Chat ticketers
+
 v5.7.90
 ----------
  * Update rocket.chat icon in correct font
