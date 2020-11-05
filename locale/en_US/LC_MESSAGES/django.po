@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-04 21:07+0000\n"
+"POT-Creation-Date: 2020-11-05 17:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1289,13 +1289,10 @@ msgstr ""
 msgid "Add a %(link)s bot to send and receive messages to Rocket.Chat users."
 msgstr ""
 
-msgid "Setup your Rocket.Chat first to be able to integrate."
-msgstr ""
-
 msgid "Ex.: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
 msgstr ""
 
-msgid "URL of the Rocket.Chat Integration app"
+msgid "URL of the Rocket.Chat Channel app"
 msgstr ""
 
 msgid "Bot Username"
@@ -3763,6 +3760,20 @@ msgstr ""
 msgid "Verify your email address for tickets"
 msgstr ""
 
+#, python-format
+msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket servicethrough its omnichannel feature."
+msgstr ""
+
+msgid "URL of the Rocket.Chat Tickets app"
+msgstr ""
+
+#, python-format
+msgid "Invalid URL: %(base_url)s"
+msgstr ""
+
+msgid "There is already a ticketing service configured for this URL."
+msgstr ""
+
 msgid "<a href=\"https://www.zendesk.com/\">Zendesk</a> is one of the most popular customer service systems around. You can use it to manage all the tickets created on your account."
 msgstr ""
 
@@ -4952,7 +4963,7 @@ msgid "Install the app <b>%(brand)s Channel</b> from the <i>Marketplace</i>."
 msgstr ""
 
 #, python-format
-msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel Integration</i>, and in its settings section put the following token in the <i>App's Secret</i> field: <div class=\"code\">%(secret)s</div>"
+msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel</i>, and in its settings section put the following token in the <i>App Secret</i> field: <div class=\"code\">%(secret)s</div>"
 msgstr ""
 
 msgid "Save the changes. Copy the app's URL and paste it in the URL field. It should end with a long ID, for example: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
@@ -7206,6 +7217,14 @@ msgstr ""
 
 #, python-format
 msgid "Your verification code is %(code)s to continue adding an email-based ticketing service."
+msgstr ""
+
+#, python-format
+msgid "Install the app <b>%(brand)s Tickets</b> from the <i>Marketplace</i>."
+msgstr ""
+
+#, python-format
+msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Tickets</i>, and in its settings section put the following token in the <i>App Secret</i> field: <div class=\"code\">%(secret)s</div>"
 msgstr ""
 
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."

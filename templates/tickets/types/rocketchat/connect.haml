@@ -1,4 +1,4 @@
--extends "channels/channel_claim_form.html"
+-extends "tickets/ticketer_connect_form.html"
 -load i18n compress temba
 
 -block pre-form
@@ -10,14 +10,11 @@
       -blocktrans trimmed
         In your Rocket.Chat instance, go to <i>Administration</i> &gt; <i>Omnichannel</i> and enable it.
     %li.list-decimal.my-2
-      -blocktrans trimmed
-        Add a new user with the "bot" role (<i>Administration</i> &gt; <i>Users</i> &gt; <i>New</i>)
+      -blocktrans trimmed with brand=brand.name
+        Install the app <b>{{ brand }} Tickets</b> from the <i>Marketplace</i>.
     %li.list-decimal.my-2
       -blocktrans trimmed with brand=brand.name
-        Install the app <b>{{ brand }} Channel</b> from the <i>Marketplace</i>.
-    %li.list-decimal.my-2
-      -blocktrans trimmed with brand=brand.name
-        Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>{{ brand }} Channel</i>, and in
+        Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>{{ brand }} Tickets</i>, and in
         its settings section put the following token in the <i>App Secret</i> field: <div class="code">{{ secret }}</div>
     %li.list-decimal.my-2
       -blocktrans trimmed with brand=brand.name
@@ -27,7 +24,6 @@
       -blocktrans trimmed
         You will also need a Auth Token and User ID which you can generate at <i>Profile</i> &gt; <i>My account</i> &gt;
         <i>Personal Access Tokens</i>. Ensure that <i>Ignore Two Factor Authentication</i> is checked.
-
 
 -block extra-script
   {{ block.super }}

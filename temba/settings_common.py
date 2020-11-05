@@ -1054,7 +1054,11 @@ CLASSIFIER_TYPES = [
     "temba.classifiers.types.bothub.BothubType",
 ]
 
-TICKETER_TYPES = ["temba.tickets.types.mailgun.MailgunType", "temba.tickets.types.zendesk.ZendeskType"]
+TICKETER_TYPES = [
+    "temba.tickets.types.mailgun.MailgunType",
+    "temba.tickets.types.zendesk.ZendeskType",
+    "temba.tickets.types.rocketchat.RocketChatType",
+]
 
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",

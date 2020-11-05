@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-04 21:07+0000\n"
+"POT-Creation-Date: 2020-11-05 17:06+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -364,17 +364,9 @@ msgid "Next Attempt"
 msgstr "Tentative Suivant"
 
 #, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "        You can purchase a short code from <a href=\"http://africastalking.com\">Africa's Talking</a>\n"
-#| "        and connect it in a few simple steps.\n"
-#| "        "
+#| msgid "If you are based in Jamaica, you can purchase a short code from <a href=\"http://www.messangi.com/\">Messangi</a> and connect it in a few simple steps."
 msgid "You can purchase a short code from %(link)s and connect it in a few simple steps."
-msgstr ""
-"\n"
-"        Vous pouvez acheter un code court auprès de <a href=\"http://africastalking.com\">Africa's Talking</a>\n"
-"        et connectez-le en quelques étapes simples.\n"
-"        "
+msgstr "Si vous êtes basé en Jamaique, vous pouvez acheter un code court à <a href=\"http://www.messangi.com/\">Messangi</a> et le connecter en quelques simples étapes."
 
 #, fuzzy
 #| msgid ""
@@ -1250,39 +1242,39 @@ msgstr "Ajoutez facilement un numéro à double sens que vous avez configuré av
 #, fuzzy
 #| msgid ""
 #| "\n"
-#| "        To finish configuring your Dart Media connection you'll need to provide them with the following details.\n"
+#| "        To finish configuring your Hub9 connection you'll need to provide them with the following details.\n"
 #| "        "
 msgid "To finish configuring your Hub9 connection you'll need to provide them with the following details."
 msgstr ""
 "\n"
-"        Pour terminer la configuration de votre connexion Dart Media, vous devez leur fournir les détails suivants.\n"
+"        Pour terminer la configuration de votre connexion Hub9, vous devez leur fournir les détails suivants.\n"
 "        "
 
 #, fuzzy
 #| msgid ""
 #| "\n"
-#| "                This endpoint should be called by Dart Media when new messages are received to your number.\n"
-#| "                You can set the receive URL on your Dart Media account by contacting your sales agent.\n"
+#| "                This endpoint should be called by Hub9 when new messages are received to your number.\n"
+#| "                You can set the receive URL on your Hub9 account by contacting your sales agent.\n"
 #| "                "
 msgid "This endpoint should be called by Hub9 when new messages are received to your number. You can set the receive URL on your Hub9 account by contacting your sales agent."
 msgstr ""
 "\n"
-"                Ce terminal doit être appelé par Dart Media lorsque de nouveaux messages sont reçus sur votre numéro.\n"
-"                Vous pouvez définir l'URL de réception sur votre compte Dart Media en contactant votre agent commercial.\n"
+"                Ce point de chute doit être appelé par Hub9 quand de nouveaux messages sont reçus pour votre numéro.\n"
+"                Vous pouvez configurer l'URL de réception sur votre compte Hub9 en contactant votre agent de vente.\n"
 "                "
 
 #, fuzzy
 #| msgid ""
 #| "\n"
-#| "                This endpoint should be called by Dart Media when a message has been to the final recipient. (delivery reports)\n"
-#| "                You can set the delivery callback URL on your Dart Media account by contacting your sales agent.\n"
+#| "                This endpoint should be called by Hub9 when a message has been to the final recipient. (delivery reports)\n"
+#| "                You can set the delivery callback URL on your Hub9 account by contacting your sales agent.\n"
 #| "                "
 msgid "This endpoint should be called by Hub9 when a message has been to the final recipient. (delivery reports) You can set the delivery callback URL on your Hub9 account by contacting your sales agent."
 msgstr ""
 "\n"
-"                Dart Media doit appeler ce noeud final lorsqu'un message a été envoyé au destinataire final. (rapports de livraison)\n"
-"                Vous pouvez définir l'URL de rappel de livraison sur votre compte Dart Media en contactant votre agent commercial.\n"
-"                "
+"        Hub9 doit appeler ce noeud final lorsqu'un message a été envoyé au destinataire final. (rapports de livraison) \n"
+"        Vous pouvez définir l'URL de rappel de livraison sur votre compte Hub9 en contactant votre agent commercial.\n"
+"  "
 
 #, fuzzy, python-format
 #| msgid ""
@@ -1347,27 +1339,27 @@ msgstr ""
 #, fuzzy
 #| msgid ""
 #| "\n"
-#| "                This endpoint should be called by Dart Media when new messages are received to your number.\n"
-#| "                You can set the receive URL on your Dart Media account by contacting your sales agent.\n"
+#| "                This endpoint should be called with a POST by Infobip when new messages are received to your number.\n"
+#| "                You can set the receive URL on your Infobip account by contacting your sales agent.\n"
 #| "                "
 msgid "This endpoint should be called with a POST by Infobip when new messages are received to your number. You can set the receive URL on your Infobip account by contacting your sales agent."
 msgstr ""
 "\n"
-"                Ce terminal doit être appelé par Dart Media lorsque de nouveaux messages sont reçus sur votre numéro.\n"
-"                Vous pouvez définir l'URL de réception sur votre compte Dart Media en contactant votre agent commercial.\n"
+"                Ce noeud final doit être appelé avec un POST par Infobip lorsque de nouveaux messages sont reçus sur votre numéro.\n"
+"                Vous pouvez définir l'URL de réception sur votre compte Infobip en contactant votre agent commercial.\n"
 "                "
 
 #, fuzzy
 #| msgid ""
 #| "\n"
-#| "                This endpoint should be called by Dart Media when a message has been to the final recipient. (delivery reports)\n"
-#| "                You can set the delivery callback URL on your Dart Media account by contacting your sales agent.\n"
+#| "                This endpoint should be called with a POST by Infobip when a message has been to the final recipient. (delivery reports)\n"
+#| "                You can set the delivery callback URL on your Infobip account by contacting your sales agent.\n"
 #| "                "
 msgid "This endpoint should be called with a POST by Infobip when a message has been to the final recipient. (delivery reports) You can set the delivery callback URL on your Infobip account by contacting your sales agent."
 msgstr ""
 "\n"
-"                Dart Media doit appeler ce noeud final lorsqu'un message a été envoyé au destinataire final. (rapports de livraison)\n"
-"                Vous pouvez définir l'URL de rappel de livraison sur votre compte Dart Media en contactant votre agent commercial.\n"
+"                Ce noeud final doit être appelé avec un POST par Infobip lorsqu'un message a été envoyé au destinataire final. (rapports de livraison)\n"
+"                Vous pouvez définir l'URL de rappel de livraison sur votre compte Infobip en contactant votre agent commercial.\n"
 "                "
 
 #, fuzzy, python-format
@@ -1455,13 +1447,9 @@ msgid "The JioChat App secret"
 msgstr "Le secret de l'application JioChat"
 
 #, fuzzy, python-format
-#| msgid ""
-#| "Connect your <a href=\"http://www.jasminsms.com/\">Jasmin</a> instance that you have\n"
-#| "                       already connected to an SMSC."
+#| msgid "Connect your <a href=\"https://junebug.praekelt.org/\">Junebug</a> instance that you have already set up and configured."
 msgid "Connect your %(link)s instance that you have already set up and configured."
-msgstr ""
-"Connectez votre instance <a href=\"http://www.jasminsms.com/\">Jasmin</a> que vous avez\n"
-"                       déjà connecté à un SMSC."
+msgstr "Connectez votre instance <a href=\"https://junebug.praekelt.org/\">Junebug</a> que vous avez déjà installée et configurée."
 
 #, fuzzy
 #| msgid ""
@@ -1493,12 +1481,12 @@ msgstr "Le jeton que Junebug devrait utiliser pour s'authentifier"
 
 #, fuzzy, python-format
 #| msgid ""
-#| "Connect your <a href=\"http://clickatell.com/\">Clickatell</a> number, we'll walk you\n"
-#| "                           through the steps necessary to get your Clickatell connection working in a few minutes."
+#| "Connect your <a href=\"http://www.kannel.org/\">Kannel</a> instance, we'll walk you through\n"
+#| "                       the steps necessary to get your SMSC connection working in a few minutes."
 msgid "Connect your %(link)s instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."
 msgstr ""
-"Connectez votre numéro <a href=\"http://clickatell.com/\">Clickatell</a> , nous vous accompagnerons\n"
-"                           à travers les étapes nécessaires pour que votre connexion Clickatell fonctionne en quelques minutes."
+"Connectez votre instance <a href=\"http://www.kannel.org/\">Kannel</a> , nous vous guiderons à travers\n"
+"                       les étapes nécessaires pour que votre connexion SMSC fonctionne en quelques minutes."
 
 msgid "The phone number or short code you are connecting"
 msgstr "Le pays ce numéro de téléphone est utilisé dans"
@@ -1671,13 +1659,13 @@ msgstr "L'identifiant d'instance fourni par Messangi"
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
-#| "        If you have a <a href=\"https://www.clicksend.com/\">ClickSend</a> number,\n"
+#| "        If you have an <a href=\"https://www.mtarget.fr/\">Mtarget</a> account,\n"
 #| "        you can quickly connect it using their APIs.\n"
 #| "        "
 msgid "If you have an %(link)s account, you can quickly connect it using their APIs."
 msgstr ""
 "\n"
-"        Si vous avez un numéro <a href=\"https://www.clicksend.com/\">ClickSend</a> ,\n"
+"        Si vous avez un compte <a href=\"https://www.mtarget.fr/\">Mtarget</a>,\n"
 "        vous pouvez le connecter rapidement en utilisant leurs APIs.\n"
 "        "
 
@@ -1800,23 +1788,17 @@ msgstr ""
 msgid "Unable to configure. Connection to RocketChat is taking too long."
 msgstr ""
 
-#, fuzzy, python-format
-#| msgid ""
-#| "Add a <a href=\"https://firebase.google.com/docs/cloud-messaging/\" target=\"_blank\"> Firebase Cloud\n"
-#| "    Messaging Channel</a> to send and receive messages. Your users will need an App to send and receive messages."
+#, python-format
 msgid "Add a %(link)s bot to send and receive messages to Rocket.Chat users."
-msgstr ""
-"Ajouter un <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> canal Firebase\n"
-"    Cloud Messaging</a> pour envoyer et recevoir des messages. Vos utilisateurs auront besoin d'une application pour envoyer et recevoir des messages."
-
-msgid "Setup your Rocket.Chat first to be able to integrate."
 msgstr ""
 
 msgid "Ex.: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
 msgstr ""
 
-msgid "URL of the Rocket.Chat Integration app"
-msgstr ""
+#, fuzzy
+#| msgid "The base URL for your WhatsApp enterprise installation"
+msgid "URL of the Rocket.Chat Channel app"
+msgstr "L'URL de base de votre installation d'entreprise WhatsApp"
 
 #, fuzzy
 #| msgid "Username"
@@ -4470,9 +4452,9 @@ msgid "Privacy Policy"
 msgstr "Politique de confidentialité"
 
 #, fuzzy
-#| msgid "Contact Fields"
+#| msgid "Contact field uses"
 msgid "Content Guidelines"
-msgstr "Champs de contact"
+msgstr "Utilisation du champ de contact"
 
 msgid "Terms of Service"
 msgstr "Conditions d'utilisation"
@@ -4657,6 +4639,22 @@ msgid "New tickets and replies will be sent to the email address that you config
 msgstr ""
 
 msgid "Verify your email address for tickets"
+msgstr ""
+
+#, python-format
+msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket servicethrough its omnichannel feature."
+msgstr ""
+
+#, fuzzy
+#| msgid "The base URL for your WhatsApp enterprise installation"
+msgid "URL of the Rocket.Chat Tickets app"
+msgstr "L'URL de base de votre installation d'entreprise WhatsApp"
+
+#, python-format
+msgid "Invalid URL: %(base_url)s"
+msgstr ""
+
+msgid "There is already a ticketing service configured for this URL."
 msgstr ""
 
 msgid "<a href=\"https://www.zendesk.com/\">Zendesk</a> is one of the most popular customer service systems around. You can use it to manage all the tickets created on your account."
@@ -5866,11 +5864,15 @@ msgstr ""
 msgid "Click on the button below to get started."
 msgstr ""
 
+#, fuzzy
+#| msgid "Click here to add a message"
 msgid "Select the user you want to log in as."
-msgstr ""
+msgstr "Cliquez ici pour ajouter un message"
 
+#, fuzzy
+#| msgid "Click here to add a message"
 msgid "Select all the pages you want to grant us permissions for."
-msgstr ""
+msgstr "Cliquez ici pour ajouter un message"
 
 #, fuzzy
 #| msgid "%(brand)s uses your Android phone to send and receive messages on your behalf."
@@ -6387,18 +6389,9 @@ msgstr ""
 "      Utiliser ce jeton comme autorisation lors de l'envoi de messages entrants\n"
 "    "
 
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "        You can purchase a short code from <a href=\"http://africastalking.com\">Africa's Talking</a>\n"
-#| "        and connect it in a few simple steps.\n"
-#| "        "
+#, python-format
 msgid "You can connect Rocket.Chat to %(name)s in a few simple steps."
 msgstr ""
-"\n"
-"        Vous pouvez acheter un code court auprès de <a href=\"http://africastalking.com\">Africa's Talking</a>\n"
-"        et connectez-le en quelques étapes simples.\n"
-"        "
 
 msgid "In your Rocket.Chat instance, go to <i>Administration</i> &gt; <i>Omnichannel</i> and enable it."
 msgstr ""
@@ -6411,7 +6404,7 @@ msgid "Install the app <b>%(brand)s Channel</b> from the <i>Marketplace</i>."
 msgstr ""
 
 #, python-format
-msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel Integration</i>, and in its settings section put the following token in the <i>App's Secret</i> field: <div class=\"code\">%(secret)s</div>"
+msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel</i>, and in its settings section put the following token in the <i>App Secret</i> field: <div class=\"code\">%(secret)s</div>"
 msgstr ""
 
 msgid "Save the changes. Copy the app's URL and paste it in the URL field. It should end with a long ID, for example: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
@@ -10168,6 +10161,14 @@ msgstr ""
 msgid "Your verification code is %(code)s to continue adding an email-based ticketing service."
 msgstr ""
 
+#, python-format
+msgid "Install the app <b>%(brand)s Tickets</b> from the <i>Marketplace</i>."
+msgstr ""
+
+#, python-format
+msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Tickets</i>, and in its settings section put the following token in the <i>App Secret</i> field: <div class=\"code\">%(secret)s</div>"
+msgstr ""
+
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."
 msgstr ""
 
@@ -10275,48 +10276,410 @@ msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
 #, fuzzy
+#~| msgid "The base URL for your WhatsApp enterprise installation"
+#~ msgid "The URL for your RocketChat Tickets app"
+#~ msgstr "L'URL de base de votre installation d'entreprise WhatsApp"
+
+#, fuzzy
 #~| msgid "The name of your bot"
-#~ msgid "The username of your RocketChat bot"
+#~ msgid "The admin user token of your Rocket.Chat"
 #~ msgstr "Le nom de votre bot"
 
 #, fuzzy
 #~| msgid "The name of your bot"
-#~ msgid "The admin user token of your RocketChat"
+#~ msgid "The admin user ID of your Rocket.Chat"
 #~ msgstr "Le nom de votre bot"
 
-#, fuzzy
-#~| msgid "The name of your bot"
-#~ msgid "The admin user ID of your RocketChat"
-#~ msgstr "Le nom de votre bot"
+#~ msgid "Channel Type"
+#~ msgstr "Type de relayeur"
+
+#~ msgid "Organization using this channel"
+#~ msgstr "Organisation utilisant ce canal"
+
+#~ msgid "Config"
+#~ msgstr "Configuration"
+
+#~ msgid "Any channel specific configuration, used for the various aggregators"
+#~ msgstr "Toute configuration spécifique de relayeur, utilisé pour les différents agrégateurs"
+
+#~ msgid "The URN schemes this channel supports"
+#~ msgstr "Les schémas URN que ce canal supporte"
+
+#~ msgid "The channel this channel is working on behalf of"
+#~ msgstr "Le relayeur à la place duquel ce relayeur fonctionne"
+
+#~ msgid "Optional Data"
+#~ msgstr "Données facultatives"
+
+#~ msgid "Any channel specific state data"
+#~ msgstr "Toute donnée d'état spécifique à un canal"
+
+#~ msgid "The org this event is connected to"
+#~ msgstr "L'organisation à laquelle cet événement est connecté"
+
+#~ msgid "The channel on which this event took place"
+#~ msgstr "Le canal sur lequel cet événement a eu lieu"
+
+#~ msgid "Event Type"
+#~ msgstr "Type d'événement"
+
+#~ msgid "The type of event"
+#~ msgstr "Le type d'événement"
+
+#~ msgid "The contact associated with this event"
+#~ msgstr "Le contact associé à cet événement"
+
+#~ msgid "URN"
+#~ msgstr "URN"
+
+#~ msgid "The contact URN associated with this event"
+#~ msgstr "Le contact URN associé à cet événement"
+
+#~ msgid "Extra"
+#~ msgstr "Extra"
+
+#~ msgid "Any extra properties on this event as JSON"
+#~ msgstr "Toute propriété supplémentaire sur cet événement en tant que JSON"
+
+#~ msgid "Occurred On"
+#~ msgstr "S'est produit le"
+
+#~ msgid "When this event took place"
+#~ msgstr "Quand cet événement a eu lieu"
+
+#~ msgid "When this event was created"
+#~ msgstr "Quand cet événement a été créé"
+
+#~ msgid "The channel the message was sent on"
+#~ msgstr "Le canal sur lequel le message a été envoyé"
+
+#~ msgid "The message that was sent"
+#~ msgstr "Le message qui a été envoyé"
+
+#~ msgid "The channel session for this log"
+#~ msgstr "La session du canal pour ce journal"
+
+#~ msgid "A description of the status of this message send"
+#~ msgstr "Une description de l'état de ce message envoyé"
+
+#~ msgid "Whether an error was encountered when sending the message"
+#~ msgstr "Si une erreur s'est produite lors de l'envoi du message"
+
+#~ msgid "The URL used when sending the message"
+#~ msgstr "L'URL utilisée lors de l'envoi du message"
+
+#~ msgid "The HTTP method used when sending the message"
+#~ msgstr "La méthode HTTP utilisée lors de l'envoi du message"
+
+#~ msgid "The body of the request used when sending the message"
+#~ msgstr "Le corps de la requête utilisé lors de l'envoi du message"
+
+#~ msgid "The body of the response received when sending the message"
+#~ msgstr "Le corps de la réponse reçue lors de l'envoi du message"
+
+#~ msgid "The response code received when sending the message"
+#~ msgstr "Le code de réponse reçu lors de l'envoi du message"
+
+#~ msgid "When this log message was logged"
+#~ msgstr "Quand ce message de log a été enregistré"
+
+#~ msgid "Time it took to process this request"
+#~ msgstr "Temps requis pour le traitement de cette demande"
+
+#~ msgid "The channel that synced to the server"
+#~ msgstr "Le channel qui est synchronisé sur le serveur"
+
+#~ msgid "Power Source"
+#~ msgstr "Source d'alimentation"
+
+#~ msgid "The power source the device is using"
+#~ msgstr "La source d'énergie que l'appareil utilise"
+
+#~ msgid "Power Status"
+#~ msgstr "État de l'alimentation"
+
+#~ msgid "The power status. eg: Charging, Full or Discharging"
+#~ msgstr "L'état ​​de l'alimentation. par exemple: en charge, plein ou déchargé"
+
+#~ msgid "Power Level"
+#~ msgstr "Niveau de puissance"
+
+#~ msgid "The power level of the battery"
+#~ msgstr "Le niveau de puissance de la batterie "
+
+#~ msgid "Network Type"
+#~ msgstr "Type de réseau"
+
+#~ msgid "The data network type to which the channel is connected"
+#~ msgstr "Le type à qui le channel est connecté au réseau de données"
+
+#~ msgid "Lifetime"
+#~ msgstr "L'existence"
+
+#~ msgid "Pending Messages Count"
+#~ msgstr "Nombre de messages en attente"
+
+#~ msgid "The number of messages on the channel in PENDING state"
+#~ msgstr "Le nombre de messages sur le channel en état ​​d'ATTENTE"
+
+#~ msgid "Retry Message Count"
+#~ msgstr "Nombre de tentatives de message"
+
+#~ msgid "The number of messages on the channel in RETRY state"
+#~ msgstr "Le nombre de messages sur le channel en état de RÉESSAYAGE "
+
+#~ msgid "Incoming Command Count"
+#~ msgstr "Nombre de commande entrants"
+
+#~ msgid "The number of commands that the channel gave us"
+#~ msgstr "Le nombre de commandes que le channel nous a donné"
+
+#~ msgid "Outgoing Command Count"
+#~ msgstr "Nombre de commande sortant"
+
+#~ msgid "The number of commands that we gave the channel"
+#~ msgstr "Le nombre de commandes que nous avons donné le channel"
+
+#~ msgid ""
+#~ "\n"
+#~ "        You can purchase a short code from <a href=\"http://africastalking.com\">Africa's Talking</a>\n"
+#~ "        and connect it in a few simple steps.\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "        Vous pouvez acheter un code court auprès de <a href=\"http://africastalking.com\">Africa's Talking</a>\n"
+#~ "        et connectez-le en quelques étapes simples.\n"
+#~ "        "
+
+#~ msgid "No org for this user, cannot claim"
+#~ msgstr "Pas org pour cet utilisateur, ne peut avoir un claim"
+
+#~ msgid ""
+#~ "\n"
+#~ "        If you have an <a href=\"https://www.arabiacell.com/\">ArabiaCell</a> number,\n"
+#~ "        you can quickly connect it using their APIs.\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "        Si vous avez un numéro <a href=\"https://www.arabiacell.com/\">ArabiaCell</a>,\n"
+#~ "        vous pouvez le connecter rapidement en utilisant leurs APIs.\n"
+#~ "        "
+
+#~ msgid "Easily add a two way number you have configured with <a href=\"http://blackmyna.com\">Blackmyna</a> using their APIs."
+#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez configuré avec <a href=\"http://blackmyna.com\">Blackmyna</a> à l'aide de leurs API."
+
+#~ msgid ""
+#~ "\n"
+#~ "        If you have an <a href=\"https://www.bongolive.co.tz/\">Bongo Live</a> number,\n"
+#~ "        you can quickly connect it using their APIs.\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "        Si vous avez un numéro <a href=\"https://www.bongolive.co.tz/\">Bongo Live</a>,\n"
+#~ "        vous pouvez le connecter rapidement en utilisant leurs APIs.\n"
+#~ "        "
+
+#~ msgid ""
+#~ "\n"
+#~ "        If you have a <a href=\"https://www.burstsms.com.au/\">BurstSMS</a> number,\n"
+#~ "        you can quickly connect it using their APIs.\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "        Si vous avez un numéro <a href=\"https://www.burstsms.com.au/\">BurstSMS</a>,\n"
+#~ "        vous pouvez le connecter rapidement en utilisant leurs APIs.\n"
+#~ "        "
+
+#~ msgid "Easily add a two way number you have configured with <a href=\"http://dartmedia.biz/\">Dart Media</a> in Indonesia."
+#~ msgstr "Ajoutez facilement un numéro à deux chiffres que vous avez configuré avec <a href=\"http://dartmedia.biz/\">Dart Media</a> en Indonésie."
+
+#~ msgid ""
+#~ "If you are based in Uganda or DRC you can purchase a short\n"
+#~ "    code from <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> and connect it\n"
+#~ "    in a few simple steps."
+#~ msgstr ""
+#~ "Si vous résidez en Ouganda ou en RDC, vous pouvez acheter un code court\n"
+#~ "    auprès de <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> et le connecter\n"
+#~ "    en quelques étapes simples."
+
+#, python-format
+#~ msgid "Unable to update call to action: %s"
+#~ msgstr "Impossible de mettre à jour l'appel à l'action: %s"
+
+#~ msgid "Connect your approved <a href=\"https://www.freshworks.com/live-chat-software/\">FreshChat</a> Channel"
+#~ msgstr "Connectez votre chaîne <a href=\"https://www.freshworks.com/live-chat-software/\">FreshChat</a> approuvée"
+
+#~ msgid ""
+#~ "If you are based in France, you can purchase a number from High Connexion\n"
+#~ "                  <a href=\"http://www.highconnexion.com/en/\">High Connection</a> and connect it in a few simple steps."
+#~ msgstr ""
+#~ "Si vous êtes basé en France, vous pouvez acheter un numéro auprès de High Connexion\n"
+#~ "                  <a href=\"http://www.highconnexion.com/en/\">High Connection</a> et le connecter en quelques étapes simples."
+
+#~ msgid ""
+#~ "If you are based in Somalia, you can get a number from\n"
+#~ "        <a href=\"http://www.hormuud.com/\">Hormuud</a> and connect it in a few simple steps."
+#~ msgstr ""
+#~ "Si vous êtes basé en Somalie, vous pouvez obtenir un numéro auprès de\n"
+#~ "        <a href=\"http://www.hormuud.com/\">Hormuud</a> et le connecter en quelques étapes simples."
+
+#~ msgid "Easily add a two way number you have configured with <a href=\"http://infobip.com\">Infobip</a> using their APIs."
+#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez configuré avec <a href=\"http://infobip.com\">Infobip</a> à l'aide de leurs API."
+
+#~ msgid "Easily add a two way number you have configured with <a href=\"http://m3techservice.com\">M3 Tech</a> using their APIs."
+#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez configuré avec <a href=\"http://m3techservice.com\">M3 Tech</a> à l'aide de leurs API."
+
+#~ msgid "Easily add a two way number you have configured with <a href=\"http://macrokiosk.com/\">Macrokiosk</a> using their APIs."
+#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez configuré avec <a href=\"http://macrokiosk.com/\">Macrokiosk</a> à l'aide de leurs APIs."
+
+#~ msgid "Easily add a two way number you have configured with <a href=\"https://www.mblox.com/\">Mblox</a> using their APIs."
+#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez configuré avec <a href=\"https://www.mblox.com/\">Mblox</a> à l'aide de leurs APIs."
+
+#~ msgid "If you are based in Jamaica, you can purchase a short code from <a href=\"http://www.messangi.com/\">Messangi</a> and connect it in a few simple steps."
+#~ msgstr "Si vous êtes basé en Jamaique, vous pouvez acheter un code court à <a href=\"http://www.messangi.com/\">Messangi</a> et le connecter en quelques simples étapes."
+
+#~ msgid "Easily add a two way number you have configured with <a href=\"https://www.nexmo.com/\">Nexmo</a> using their APIs."
+#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez configuré avec <a href=\"https://www.nexmo.com/\">Nexmo</a> à l'aide de leurs APIs."
+
+#~ msgid "If you are based in Trinidad & Tobago, you can purchase a short code from <a href=\"http://www.novotechnologyinc.com/\">Novo</a> and connect it in a few simple steps."
+#~ msgstr "Si vous êtes basé à Trinité-et-Tobago, vous pouvez acheter un code court à <a href=\"http://www.novotechnologyinc.com/\">Novo</a> et le connecter en quelques simples étapes."
+
+#~ msgid "If you are based in Uzbekistan, you can purchase a short code from <a href=\"http://playmobile.uz/\">Play Mobile</a> and connect it in a few simple steps."
+#~ msgstr "Si vous êtes basé en Ouzbekistan, vous pouvez acheter un code court à <a href=\"http://playmobile.uz/\">Play Mobile</a> et le connecter en quelques simples étapes."
+
+#~ msgid "Easily add a two way number you have configured with <a href=\"https://www.plivo.com/\">Plivo</a> using their APIs."
+#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez configuré avec <a href=\"http://infobip.com\">Plivo</a> à l'aide de leurs API."
+
+#~ msgid "Easily add a two way number you have configured with <a href=\"http://www.redrabbitsms.com/\">Red Rabbit</a> using their APIs."
+#~ msgstr "Ajoutez facilement un numéro à double sens que vous avez configuré avec <a href=\"http://www.redrabbitsms.com/\">Red Rabbit</a> à l'aide de leurs APIs."
+
+#~ msgid ""
+#~ "If you are based in Somalia, you can integrate with Shaqodoon to send\n"
+#~ "                       and receive messages on your shortcode."
+#~ msgstr ""
+#~ "Si vous êtes basé en Somalie, vous pouvez intégrer Shaqodoon pour envoyer\n"
+#~ "                       et recevoir des messages sur votre code court."
+
+#~ msgid "Easily add a two way number you have with <a href=\"http://www.signalwire.com/\">SignalWire</a> using their APIs."
+#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez avec <a href=\"http://www.signalwire.com/\">SignalWire</a> à l'aide de leurs APIs."
+
+#~ msgid ""
+#~ "\n"
+#~ "        Your SignalWire channel is now connected.\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "        Votre canal SignalWire est maintenant connecté.\n"
+#~ "        "
+
+#~ msgid "Easily add a two way number you have configured with <a href=\"http://smscentral.com.np/\">SMSCentral</a> using their APIs."
+#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez configuré avec <a href=\"http://smscentral.com.np/\">SMSCentral</a> à l'aide de leurs APIs."
+
+#~ msgid "Easily add a two way number you have configured with <a href=\"https://bulk.startmobile.ua/\">Start Mobile</a> using their APIs."
+#~ msgstr "Ajoutez facilement un numéro à double sens que vous avez configuré avec <a href=\"https://bulk.startmobile.ua/\">Start Mobile</a> à l'aide leurs APIs."
+
+#~ msgid "Easily add a two way number you have configured with <a href=\"https://www.twilio.com/\">Twilio</a> using their APIs."
+#~ msgstr "Ajoutez facilement un numéro à double sens que vous avez configuré avec <a href=\"https://www.twilio.com/\">Twilio</a> à l'aide de leurs APIs."
+
+#~ msgid "If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio WhatsApp</a>"
+#~ msgstr "Si vous avez un numéro Twilio pour WhatsApp, vous pouvez le connecter pour communiquer avec vos contacts WhatsApp. <a href=\"https://www.twilio.com/whatsapp/\">En savoir plus sur Twilio WhatsApp</a>"
+
+#~ msgid ""
+#~ "\n"
+#~ "        If you have an <a href=\"https://wavy.global/en/\">Movile/Wavy</a> number,\n"
+#~ "        you can quickly connect it using their APIs.\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "        Si vous avez un numéro <a href=\"https://wavy.global/en/\">Movile/Wavy</a> ,\n"
+#~ "        vous pouvez le connecter rapidement en utilisant leurs APIs.\n"
+#~ "        "
+
+#~ msgid ""
+#~ "\n"
+#~ "        If you are based in Uganda, you can integrate with <a href=\"http://www.yo.co.ug/\">Yo!</a> to send\n"
+#~ "        and receive messages on your shortcode.\n"
+#~ "        "
+#~ msgstr ""
+#~ "\n"
+#~ "        Si vous êtes basé en Ouganda, vous pouvez intégrer Yo! <a href=\"http://www.yo.co.ug/\">Yo!</a> pour envoyer\n"
+#~ "        et recevoir des messages sur votre code court.\n"
+#~ "        "
+
+#~ msgid "If you are based in Brazil, you can purchase a short code from <a href=\"http://www.zenvia.com.br/\">Zenvia</a> and connect it in a few simple steps."
+#~ msgstr "Si vous êtes basé au Brésil, vous pouvez acheter un code court à <a href=\"http://www.zenvia.com.br/\">Zenvia</a> et le connecter en quelques simples étapes."
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "          When submitting your application for approval, make sure to include the <code>pages_messaging</code>\n"
+#~| "          and <code>pages_messaging_subscriptions</code> permissions so that you are able to initiate conversations with your contacts.\n"
+#~| "\n"
+#~| "        "
+#~ msgid ""
+#~ "\n"
+#~ "        When submitting your application for approval, make sure to include the %(messaging)s\n"
+#~ "        and %(subscriptions)s permissions so that you are able to initiate conversations with your contacts.\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "          Lorsque vous soumettez votre demande pour approbation, veillez à inclure les autorisations <code>pages_messaging</code>\n"
+#~ "          et <code>pages_messaging_subscriptions</code> afin de pouvoir engager des conversations avec vos contacts.\n"
+#~ "\n"
+#~ "        "
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "        After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
+#~| "        to push a message to %(brand)s.\n"
+#~| "\n"
+#~| "      "
+#~ msgid ""
+#~ "\n"
+#~ "      After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
+#~ "      to push a message to %(brand)s.\n"
+#~ "\n"
+#~ "    "
+#~ msgstr ""
+#~ "\n"
+#~ "        Après avoir connecté votre service, nous fournirons les adresses URLs des ordinateurs d'extrémité sur lesquels InfoBip peut appeler lorsqu'il\n"
+#~ "        souhaite envoyer un message à %(brand)s.\n"
+#~ "      "
 
 #, fuzzy
-#~| msgid "Other Interactions"
-#~ msgid "Instructions:"
-#~ msgstr "Autres interactions"
+#~| msgid ""
+#~| "\n"
+#~| "            Set your bot:\n"
+#~| "\n"
+#~| "          "
+#~ msgid ""
+#~ "\n"
+#~ "        Set your bot:\n"
+#~ "\n"
+#~ "      "
+#~ msgstr ""
+#~ "\n"
+#~ "            Définissez votre bot:\n"
+#~ "\n"
+#~ "          "
 
-#~ msgid "Are you sure you want to remove"
-#~ msgstr "Etes-vous sûr que vous voulez supprimer"
-
-#~ msgid "Once it is removed, it will be gone forever."
-#~ msgstr "Une fois qu'il est supprimé, il sera perdu à jamais."
-
-#~ msgid "Create a message keyword to allow people to join a group."
-#~ msgstr "Créez un mot-clé de message pour permettre aux personnes de rejoindre un groupe."
-
-#~ msgid "Loading recipients.."
-#~ msgstr "Chargement bénéficiaires .."
-
-#~ msgid "recipients at this point in the flow"
-#~ msgstr "destinataires à ce stade du flux"
-
-#~ msgid "Sending.."
-#~ msgstr "Envoi .."
-
-#~ msgid "Add guest viewers to"
-#~ msgstr "Ajouter des utilisateurs invités a"
-
-#~ msgid "Enter emails of people to invite"
-#~ msgstr "Entrez les courriels de personnes à inviter"
+#, fuzzy
+#~| msgid ""
+#~| "\n"
+#~| "        You can connect your number by entering your credentials here.\n"
+#~| "\n"
+#~| "      "
+#~ msgid ""
+#~ "\n"
+#~ "    You can connect your number by entering your credentials here.\n"
+#~ "  "
+#~ msgstr ""
+#~ "\n"
+#~ "        Vous pouvez connecter votre numéro en entrant vos identifiants ici.\n"
+#~ "\n"
+#~ "      "
 
 #~ msgid ""
 #~ "\n"
@@ -10326,6 +10689,27 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "        Vous avez connecté un compte d'essai Twilio soumis à certaines restrictions.\n"
 #~ "      "
+
+#~ msgid "URN:Tel"
+#~ msgstr "URN:Tel"
+
+#~ msgid "Field:Team"
+#~ msgstr "Field:Team"
+
+#~ msgid "Managers"
+#~ msgstr "Gestionnaires"
+
+#~ msgid "Advisors"
+#~ msgstr "Conseillers"
+
+#~ msgid "Are you sure you want to remove"
+#~ msgstr "Etes-vous sûr que vous voulez supprimer"
+
+#~ msgid "Once it is removed, it will be gone forever."
+#~ msgstr "Une fois qu'il est supprimé, il sera perdu à jamais."
+
+#~ msgid "Create a message keyword to allow people to join a group."
+#~ msgstr "Créez un mot-clé de message pour permettre aux personnes de rejoindre un groupe."
 
 #, fuzzy, python-format
 #~| msgid ""
@@ -10404,6 +10788,15 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ " "
 
+#~ msgid "Loading recipients.."
+#~ msgstr "Chargement bénéficiaires .."
+
+#~ msgid "recipients at this point in the flow"
+#~ msgstr "destinataires à ce stade du flux"
+
+#~ msgid "Sending.."
+#~ msgstr "Envoi .."
+
 #~ msgid ""
 #~ "\n"
 #~ "      Your download should start automatically. If it doesn't start in a few seconds, use the button below to download.\n"
@@ -10412,6 +10805,12 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "      Votre téléchargement devrait démarrer automatiquement. S'il ne démarre pas dans quelques secondes, utilisez le bouton ci-dessous pour télécharger.\n"
 #~ "    "
+
+#~ msgid "Add guest viewers to"
+#~ msgstr "Ajouter des utilisateurs invités a"
+
+#~ msgid "Enter emails of people to invite"
+#~ msgstr "Entrez les courriels de personnes à inviter"
 
 #~ msgid ""
 #~ "\n"
@@ -10771,493 +11170,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Add menu:"
 #~ msgstr "Ajouter un menu:"
 
-#, fuzzy, python-format
-#~| msgid ""
-#~| "\n"
-#~| "        After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
-#~| "        to push a message to %(brand)s.\n"
-#~| "\n"
-#~| "      "
-#~ msgid ""
-#~ "\n"
-#~ "      After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
-#~ "      to push a message to %(brand)s.\n"
-#~ "\n"
-#~ "    "
-#~ msgstr ""
-#~ "\n"
-#~ "        Après avoir connecté votre service, nous fournirons les adresses URLs des ordinateurs d'extrémité sur lesquels InfoBip peut appeler lorsqu'il\n"
-#~ "        souhaite envoyer un message à %(brand)s.\n"
-#~ "      "
-
-#, fuzzy
-#~| msgid ""
-#~| "\n"
-#~| "            Set your bot:\n"
-#~| "\n"
-#~| "          "
-#~ msgid ""
-#~ "\n"
-#~ "        Set your bot:\n"
-#~ "\n"
-#~ "      "
-#~ msgstr ""
-#~ "\n"
-#~ "            Définissez votre bot:\n"
-#~ "\n"
-#~ "          "
-
-#, fuzzy
-#~| msgid ""
-#~| "\n"
-#~| "        You can connect your number by entering your credentials here.\n"
-#~| "\n"
-#~| "      "
-#~ msgid ""
-#~ "\n"
-#~ "    You can connect your number by entering your credentials here.\n"
-#~ "  "
-#~ msgstr ""
-#~ "\n"
-#~ "        Vous pouvez connecter votre numéro en entrant vos identifiants ici.\n"
-#~ "\n"
-#~ "      "
-
-#~ msgid "URN:Tel"
-#~ msgstr "URN:Tel"
-
-#~ msgid "Field:Team"
-#~ msgstr "Field:Team"
-
-#~ msgid "Managers"
-#~ msgstr "Gestionnaires"
-
-#~ msgid "Advisors"
-#~ msgstr "Conseillers"
-
-#~ msgid "Connect your <a href=\"https://junebug.praekelt.org/\">Junebug</a> instance that you have already set up and configured."
-#~ msgstr "Connectez votre instance <a href=\"https://junebug.praekelt.org/\">Junebug</a> que vous avez déjà installée et configurée."
-
-#, fuzzy
-#~| msgid ""
-#~| "Connect your <a href=\"http://www.kannel.org/\">Kannel</a> instance, we'll walk you through\n"
-#~| "                       the steps necessary to get your SMSC connection working in a few minutes."
-#~ msgid "Connect your <a href=\"http://www.kannel.org/\">Kannel</a> instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."
-#~ msgstr ""
-#~ "Connectez votre instance <a href=\"http://www.kannel.org/\">Kannel</a> , nous vous guiderons à travers\n"
-#~ "                       les étapes nécessaires pour que votre connexion SMSC fonctionne en quelques minutes."
-
-#~ msgid "Easily add a two way number you have configured with <a href=\"http://m3techservice.com\">M3 Tech</a> using their APIs."
-#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez configuré avec <a href=\"http://m3techservice.com\">M3 Tech</a> à l'aide de leurs API."
-
-#~ msgid "Easily add a two way number you have configured with <a href=\"http://macrokiosk.com/\">Macrokiosk</a> using their APIs."
-#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez configuré avec <a href=\"http://macrokiosk.com/\">Macrokiosk</a> à l'aide de leurs APIs."
-
-#~ msgid "Easily add a two way number you have configured with <a href=\"https://www.mblox.com/\">Mblox</a> using their APIs."
-#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez configuré avec <a href=\"https://www.mblox.com/\">Mblox</a> à l'aide de leurs APIs."
-
-#~ msgid "If you are based in Jamaica, you can purchase a short code from <a href=\"http://www.messangi.com/\">Messangi</a> and connect it in a few simple steps."
-#~ msgstr "Si vous êtes basé en Jamaique, vous pouvez acheter un code court à <a href=\"http://www.messangi.com/\">Messangi</a> et le connecter en quelques simples étapes."
-
-#, fuzzy
-#~| msgid ""
-#~| "\n"
-#~| "        If you have an <a href=\"https://www.mtarget.fr/\">Mtarget</a> account,\n"
-#~| "        you can quickly connect it using their APIs.\n"
-#~| "        "
-#~ msgid "If you have an <a href=\"https://www.mtarget.fr/\">Mtarget</a> account, you can quickly connect it using their APIs."
-#~ msgstr ""
-#~ "\n"
-#~ "        Si vous avez un compte <a href=\"https://www.mtarget.fr/\">Mtarget</a>,\n"
-#~ "        vous pouvez le connecter rapidement en utilisant leurs APIs.\n"
-#~ "        "
-
-#~ msgid "Easily add a two way number you have configured with <a href=\"https://www.nexmo.com/\">Nexmo</a> using their APIs."
-#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez configuré avec <a href=\"https://www.nexmo.com/\">Nexmo</a> à l'aide de leurs APIs."
-
-#~ msgid "If you are based in Trinidad & Tobago, you can purchase a short code from <a href=\"http://www.novotechnologyinc.com/\">Novo</a> and connect it in a few simple steps."
-#~ msgstr "Si vous êtes basé à Trinité-et-Tobago, vous pouvez acheter un code court à <a href=\"http://www.novotechnologyinc.com/\">Novo</a> et le connecter en quelques simples étapes."
-
-#~ msgid "If you are based in Uzbekistan, you can purchase a short code from <a href=\"http://playmobile.uz/\">Play Mobile</a> and connect it in a few simple steps."
-#~ msgstr "Si vous êtes basé en Ouzbekistan, vous pouvez acheter un code court à <a href=\"http://playmobile.uz/\">Play Mobile</a> et le connecter en quelques simples étapes."
-
-#~ msgid "Easily add a two way number you have configured with <a href=\"https://www.plivo.com/\">Plivo</a> using their APIs."
-#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez configuré avec <a href=\"http://infobip.com\">Plivo</a> à l'aide de leurs API."
-
-#~ msgid "Easily add a two way number you have configured with <a href=\"http://www.redrabbitsms.com/\">Red Rabbit</a> using their APIs."
-#~ msgstr "Ajoutez facilement un numéro à double sens que vous avez configuré avec <a href=\"http://www.redrabbitsms.com/\">Red Rabbit</a> à l'aide de leurs APIs."
-
-#~ msgid "Easily add a two way number you have with <a href=\"http://www.signalwire.com/\">SignalWire</a> using their APIs."
-#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez avec <a href=\"http://www.signalwire.com/\">SignalWire</a> à l'aide de leurs APIs."
-
-#~ msgid "Easily add a two way number you have configured with <a href=\"http://smscentral.com.np/\">SMSCentral</a> using their APIs."
-#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez configuré avec <a href=\"http://smscentral.com.np/\">SMSCentral</a> à l'aide de leurs APIs."
-
-#~ msgid "Easily add a two way number you have configured with <a href=\"https://bulk.startmobile.ua/\">Start Mobile</a> using their APIs."
-#~ msgstr "Ajoutez facilement un numéro à double sens que vous avez configuré avec <a href=\"https://bulk.startmobile.ua/\">Start Mobile</a> à l'aide leurs APIs."
-
-#~ msgid "Easily add a two way number you have configured with <a href=\"https://www.twilio.com/\">Twilio</a> using their APIs."
-#~ msgstr "Ajoutez facilement un numéro à double sens que vous avez configuré avec <a href=\"https://www.twilio.com/\">Twilio</a> à l'aide de leurs APIs."
-
-#~ msgid "If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio WhatsApp</a>"
-#~ msgstr "Si vous avez un numéro Twilio pour WhatsApp, vous pouvez le connecter pour communiquer avec vos contacts WhatsApp. <a href=\"https://www.twilio.com/whatsapp/\">En savoir plus sur Twilio WhatsApp</a>"
-
-#, fuzzy
-#~| msgid ""
-#~| "\n"
-#~| "        If you have an <a href=\"https://wavy.global/en/\">Movile/Wavy</a> number,\n"
-#~| "        you can quickly connect it using their APIs.\n"
-#~| "        "
-#~ msgid "If you have an <a href=\"https://wavy.global/en/\">Movile/Wavy</a> number, you can quickly connect it using their APIs."
-#~ msgstr ""
-#~ "\n"
-#~ "        Si vous avez un numéro <a href=\"https://wavy.global/en/\">Movile/Wavy</a> ,\n"
-#~ "        vous pouvez le connecter rapidement en utilisant leurs APIs.\n"
-#~ "        "
-
-#, fuzzy
-#~| msgid ""
-#~| "\n"
-#~| "        If you are based in Uganda, you can integrate with <a href=\"http://www.yo.co.ug/\">Yo!</a> to send\n"
-#~| "        and receive messages on your shortcode.\n"
-#~| "        "
-#~ msgid "If you are based in Uganda, you can integrate with <a href=\"http://www.yo.co.ug/\">Yo!</a> to send and receive messages on your shortcode."
-#~ msgstr ""
-#~ "\n"
-#~ "        Si vous êtes basé en Ouganda, vous pouvez intégrer Yo! <a href=\"http://www.yo.co.ug/\">Yo!</a> pour envoyer\n"
-#~ "        et recevoir des messages sur votre code court.\n"
-#~ "        "
-
-#~ msgid "If you are based in Brazil, you can purchase a short code from <a href=\"http://www.zenvia.com.br/\">Zenvia</a> and connect it in a few simple steps."
-#~ msgstr "Si vous êtes basé au Brésil, vous pouvez acheter un code court à <a href=\"http://www.zenvia.com.br/\">Zenvia</a> et le connecter en quelques simples étapes."
-
-#, fuzzy
-#~| msgid ""
-#~| "\n"
-#~| "        If you have an <a href=\"https://www.arabiacell.com/\">ArabiaCell</a> number,\n"
-#~| "        you can quickly connect it using their APIs.\n"
-#~| "        "
-#~ msgid "If you have an <a href=\"https://www.arabiacell.com/\">ArabiaCell</a> number, you can quickly connect it using their APIs."
-#~ msgstr ""
-#~ "\n"
-#~ "        Si vous avez un numéro <a href=\"https://www.arabiacell.com/\">ArabiaCell</a>,\n"
-#~ "        vous pouvez le connecter rapidement en utilisant leurs APIs.\n"
-#~ "        "
-
-#~ msgid "Easily add a two way number you have configured with <a href=\"http://blackmyna.com\">Blackmyna</a> using their APIs."
-#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez configuré avec <a href=\"http://blackmyna.com\">Blackmyna</a> à l'aide de leurs API."
-
-#, fuzzy
-#~| msgid ""
-#~| "\n"
-#~| "        If you have an <a href=\"https://www.bongolive.co.tz/\">Bongo Live</a> number,\n"
-#~| "        you can quickly connect it using their APIs.\n"
-#~| "        "
-#~ msgid "If you have an <a href=\"https://www.bongolive.co.tz/\">Bongo Live</a> number, you can quickly connect it using their APIs."
-#~ msgstr ""
-#~ "\n"
-#~ "        Si vous avez un numéro <a href=\"https://www.bongolive.co.tz/\">Bongo Live</a>,\n"
-#~ "        vous pouvez le connecter rapidement en utilisant leurs APIs.\n"
-#~ "        "
-
-#, fuzzy
-#~| msgid ""
-#~| "\n"
-#~| "        If you have a <a href=\"https://www.burstsms.com.au/\">BurstSMS</a> number,\n"
-#~| "        you can quickly connect it using their APIs.\n"
-#~| "        "
-#~ msgid "If you have a <a href=\"https://www.burstsms.com.au/\">BurstSMS</a> number, you can quickly connect it using their APIs."
-#~ msgstr ""
-#~ "\n"
-#~ "        Si vous avez un numéro <a href=\"https://www.burstsms.com.au/\">BurstSMS</a>,\n"
-#~ "        vous pouvez le connecter rapidement en utilisant leurs APIs.\n"
-#~ "        "
-
-#~ msgid "Easily add a two way number you have configured with <a href=\"http://dartmedia.biz/\">Dart Media</a> in Indonesia."
-#~ msgstr "Ajoutez facilement un numéro à deux chiffres que vous avez configuré avec <a href=\"http://dartmedia.biz/\">Dart Media</a> en Indonésie."
-
-#, fuzzy
-#~| msgid "If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio WhatsApp</a>"
-#~ msgid "Activate your own enterprise WhatsApp account in Dialog 360 to communicate with your contacts. <a href=\"https://www.360dialog.com/\">Learn more about 360Dialog WhatsApp</a>"
-#~ msgstr "Si vous avez un numéro Twilio pour WhatsApp, vous pouvez le connecter pour communiquer avec vos contacts WhatsApp. <a href=\"https://www.twilio.com/whatsapp/\">En savoir plus sur Twilio WhatsApp</a>"
-
-#, fuzzy
-#~| msgid ""
-#~| "If you are based in Uganda or DRC you can purchase a short\n"
-#~| "    code from <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> and connect it\n"
-#~| "    in a few simple steps."
-#~ msgid "If you are based in Uganda or DRC you can purchase a short code from <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> and connect it in a few simple steps."
-#~ msgstr ""
-#~ "Si vous résidez en Ouganda ou en RDC, vous pouvez acheter un code court\n"
-#~ "    auprès de <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> et le connecter\n"
-#~ "    en quelques étapes simples."
-
-#, python-format
-#~ msgid "Unable to update call to action: %s"
-#~ msgstr "Impossible de mettre à jour l'appel à l'action: %s"
-
-#~ msgid "Connect your approved <a href=\"https://www.freshworks.com/live-chat-software/\">FreshChat</a> Channel"
-#~ msgstr "Connectez votre chaîne <a href=\"https://www.freshworks.com/live-chat-software/\">FreshChat</a> approuvée"
-
-#~ msgid ""
-#~ "If you are based in France, you can purchase a number from High Connexion\n"
-#~ "                  <a href=\"http://www.highconnexion.com/en/\">High Connection</a> and connect it in a few simple steps."
-#~ msgstr ""
-#~ "Si vous êtes basé en France, vous pouvez acheter un numéro auprès de High Connexion\n"
-#~ "                  <a href=\"http://www.highconnexion.com/en/\">High Connection</a> et le connecter en quelques étapes simples."
-
-#~ msgid ""
-#~ "If you are based in Somalia, you can get a number from\n"
-#~ "        <a href=\"http://www.hormuud.com/\">Hormuud</a> and connect it in a few simple steps."
-#~ msgstr ""
-#~ "Si vous êtes basé en Somalie, vous pouvez obtenir un numéro auprès de\n"
-#~ "        <a href=\"http://www.hormuud.com/\">Hormuud</a> et le connecter en quelques étapes simples."
-
-#~ msgid ""
-#~ "\n"
-#~ "        To finish configuring your Hub9 connection you'll need to provide them with the following details.\n"
-#~ "        "
-#~ msgstr ""
-#~ "\n"
-#~ "        Pour terminer la configuration de votre connexion Hub9, vous devez leur fournir les détails suivants.\n"
-#~ "        "
-
-#~ msgid ""
-#~ "\n"
-#~ "                This endpoint should be called by Hub9 when new messages are received to your number.\n"
-#~ "                You can set the receive URL on your Hub9 account by contacting your sales agent.\n"
-#~ "                "
-#~ msgstr ""
-#~ "\n"
-#~ "                Ce point de chute doit être appelé par Hub9 quand de nouveaux messages sont reçus pour votre numéro.\n"
-#~ "                Vous pouvez configurer l'URL de réception sur votre compte Hub9 en contactant votre agent de vente.\n"
-#~ "                "
-
-#~ msgid ""
-#~ "\n"
-#~ "                This endpoint should be called by Hub9 when a message has been to the final recipient. (delivery reports)\n"
-#~ "                You can set the delivery callback URL on your Hub9 account by contacting your sales agent.\n"
-#~ "                "
-#~ msgstr ""
-#~ "\n"
-#~ "        Hub9 doit appeler ce noeud final lorsqu'un message a été envoyé au destinataire final. (rapports de livraison) \n"
-#~ "        Vous pouvez définir l'URL de rappel de livraison sur votre compte Hub9 en contactant votre agent commercial.\n"
-#~ "  "
-
-#~ msgid "Easily add a two way number you have configured with <a href=\"http://infobip.com\">Infobip</a> using their APIs."
-#~ msgstr "Ajoutez facilement un numéro à deux sens que vous avez configuré avec <a href=\"http://infobip.com\">Infobip</a> à l'aide de leurs API."
-
-#~ msgid ""
-#~ "\n"
-#~ "                This endpoint should be called with a POST by Infobip when new messages are received to your number.\n"
-#~ "                You can set the receive URL on your Infobip account by contacting your sales agent.\n"
-#~ "                "
-#~ msgstr ""
-#~ "\n"
-#~ "                Ce noeud final doit être appelé avec un POST par Infobip lorsque de nouveaux messages sont reçus sur votre numéro.\n"
-#~ "                Vous pouvez définir l'URL de réception sur votre compte Infobip en contactant votre agent commercial.\n"
-#~ "                "
-
-#~ msgid ""
-#~ "\n"
-#~ "                This endpoint should be called with a POST by Infobip when a message has been to the final recipient. (delivery reports)\n"
-#~ "                You can set the delivery callback URL on your Infobip account by contacting your sales agent.\n"
-#~ "                "
-#~ msgstr ""
-#~ "\n"
-#~ "                Ce noeud final doit être appelé avec un POST par Infobip lorsqu'un message a été envoyé au destinataire final. (rapports de livraison)\n"
-#~ "                Vous pouvez définir l'URL de rappel de livraison sur votre compte Infobip en contactant votre agent commercial.\n"
-#~ "                "
-
-#~ msgid ""
-#~ "If you are based in Somalia, you can integrate with Shaqodoon to send\n"
-#~ "                       and receive messages on your shortcode."
-#~ msgstr ""
-#~ "Si vous êtes basé en Somalie, vous pouvez intégrer Shaqodoon pour envoyer\n"
-#~ "                       et recevoir des messages sur votre code court."
-
-#~ msgid ""
-#~ "\n"
-#~ "        Your SignalWire channel is now connected.\n"
-#~ "        "
-#~ msgstr ""
-#~ "\n"
-#~ "        Votre canal SignalWire est maintenant connecté.\n"
-#~ "        "
-
-#, fuzzy, python-format
-#~| msgid ""
-#~| "\n"
-#~| "          When submitting your application for approval, make sure to include the <code>pages_messaging</code>\n"
-#~| "          and <code>pages_messaging_subscriptions</code> permissions so that you are able to initiate conversations with your contacts.\n"
-#~| "\n"
-#~| "        "
-#~ msgid ""
-#~ "\n"
-#~ "        When submitting your application for approval, make sure to include the %(messaging)s\n"
-#~ "        and %(subscriptions)s permissions so that you are able to initiate conversations with your contacts.\n"
-#~ "\n"
-#~ "      "
-#~ msgstr ""
-#~ "\n"
-#~ "          Lorsque vous soumettez votre demande pour approbation, veillez à inclure les autorisations <code>pages_messaging</code>\n"
-#~ "          et <code>pages_messaging_subscriptions</code> afin de pouvoir engager des conversations avec vos contacts.\n"
-#~ "\n"
-#~ "        "
-
-#~ msgid "No org for this user, cannot claim"
-#~ msgstr "Pas org pour cet utilisateur, ne peut avoir un claim"
-
-#~ msgid "Channel Type"
-#~ msgstr "Type de relayeur"
-
-#~ msgid "Organization using this channel"
-#~ msgstr "Organisation utilisant ce canal"
-
-#~ msgid "Config"
-#~ msgstr "Configuration"
-
-#~ msgid "Any channel specific configuration, used for the various aggregators"
-#~ msgstr "Toute configuration spécifique de relayeur, utilisé pour les différents agrégateurs"
-
-#~ msgid "The URN schemes this channel supports"
-#~ msgstr "Les schémas URN que ce canal supporte"
-
-#~ msgid "The channel this channel is working on behalf of"
-#~ msgstr "Le relayeur à la place duquel ce relayeur fonctionne"
-
-#~ msgid "Optional Data"
-#~ msgstr "Données facultatives"
-
-#~ msgid "Any channel specific state data"
-#~ msgstr "Toute donnée d'état spécifique à un canal"
-
-#~ msgid "The org this event is connected to"
-#~ msgstr "L'organisation à laquelle cet événement est connecté"
-
-#~ msgid "The channel on which this event took place"
-#~ msgstr "Le canal sur lequel cet événement a eu lieu"
-
-#~ msgid "Event Type"
-#~ msgstr "Type d'événement"
-
-#~ msgid "The type of event"
-#~ msgstr "Le type d'événement"
-
-#~ msgid "The contact associated with this event"
-#~ msgstr "Le contact associé à cet événement"
-
-#~ msgid "URN"
-#~ msgstr "URN"
-
-#~ msgid "The contact URN associated with this event"
-#~ msgstr "Le contact URN associé à cet événement"
-
-#~ msgid "Extra"
-#~ msgstr "Extra"
-
-#~ msgid "Any extra properties on this event as JSON"
-#~ msgstr "Toute propriété supplémentaire sur cet événement en tant que JSON"
-
-#~ msgid "Occurred On"
-#~ msgstr "S'est produit le"
-
-#~ msgid "When this event took place"
-#~ msgstr "Quand cet événement a eu lieu"
-
-#~ msgid "When this event was created"
-#~ msgstr "Quand cet événement a été créé"
-
-#~ msgid "The channel the message was sent on"
-#~ msgstr "Le canal sur lequel le message a été envoyé"
-
-#~ msgid "The message that was sent"
-#~ msgstr "Le message qui a été envoyé"
-
-#~ msgid "The channel session for this log"
-#~ msgstr "La session du canal pour ce journal"
-
-#~ msgid "A description of the status of this message send"
-#~ msgstr "Une description de l'état de ce message envoyé"
-
-#~ msgid "Whether an error was encountered when sending the message"
-#~ msgstr "Si une erreur s'est produite lors de l'envoi du message"
-
-#~ msgid "The URL used when sending the message"
-#~ msgstr "L'URL utilisée lors de l'envoi du message"
-
-#~ msgid "The HTTP method used when sending the message"
-#~ msgstr "La méthode HTTP utilisée lors de l'envoi du message"
-
-#~ msgid "The body of the request used when sending the message"
-#~ msgstr "Le corps de la requête utilisé lors de l'envoi du message"
-
-#~ msgid "The body of the response received when sending the message"
-#~ msgstr "Le corps de la réponse reçue lors de l'envoi du message"
-
-#~ msgid "The response code received when sending the message"
-#~ msgstr "Le code de réponse reçu lors de l'envoi du message"
-
-#~ msgid "When this log message was logged"
-#~ msgstr "Quand ce message de log a été enregistré"
-
-#~ msgid "Time it took to process this request"
-#~ msgstr "Temps requis pour le traitement de cette demande"
-
-#~ msgid "The channel that synced to the server"
-#~ msgstr "Le channel qui est synchronisé sur le serveur"
-
-#~ msgid "Power Source"
-#~ msgstr "Source d'alimentation"
-
-#~ msgid "The power source the device is using"
-#~ msgstr "La source d'énergie que l'appareil utilise"
-
-#~ msgid "Power Status"
-#~ msgstr "État de l'alimentation"
-
-#~ msgid "The power status. eg: Charging, Full or Discharging"
-#~ msgstr "L'état ​​de l'alimentation. par exemple: en charge, plein ou déchargé"
-
-#~ msgid "Power Level"
-#~ msgstr "Niveau de puissance"
-
-#~ msgid "The power level of the battery"
-#~ msgstr "Le niveau de puissance de la batterie "
-
-#~ msgid "Network Type"
-#~ msgstr "Type de réseau"
-
-#~ msgid "The data network type to which the channel is connected"
-#~ msgstr "Le type à qui le channel est connecté au réseau de données"
-
-#~ msgid "Lifetime"
-#~ msgstr "L'existence"
-
-#~ msgid "Pending Messages Count"
-#~ msgstr "Nombre de messages en attente"
-
-#~ msgid "The number of messages on the channel in PENDING state"
-#~ msgstr "Le nombre de messages sur le channel en état ​​d'ATTENTE"
-
-#~ msgid "Retry Message Count"
-#~ msgstr "Nombre de tentatives de message"
-
-#~ msgid "The number of messages on the channel in RETRY state"
-#~ msgstr "Le nombre de messages sur le channel en état de RÉESSAYAGE "
-
-#~ msgid "Incoming Command Count"
-#~ msgstr "Nombre de commande entrants"
-
-#~ msgid "The number of commands that the channel gave us"
-#~ msgstr "Le nombre de commandes que le channel nous a donné"
-
-#~ msgid "Outgoing Command Count"
-#~ msgstr "Nombre de commande sortant"
-
-#~ msgid "The number of commands that we gave the channel"
-#~ msgstr "Le nombre de commandes que nous avons donné le channel"
-
 #~ msgid "Shown in Tables"
 #~ msgstr "Indiqué dans les tableaux"
 
@@ -11342,7 +11254,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "New Contact"
 #~ msgstr "Nouveau contact"
 
-#, python-format
 #~ msgid "Contact %s"
 #~ msgstr "Contact %s"
 
@@ -11376,7 +11287,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "All flow variables"
 #~ msgstr "Toutes les variables du flux"
 
-#, python-format
 #~ msgid "Contact Field: %(label)s"
 #~ msgstr "Champ contact: %(label)s"
 
@@ -11561,7 +11471,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Using a Local Number"
 #~ msgstr "Utilisation d'un numéro local"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "    No matter where you are in the world, there's a way for you to use %(name)s with a local number.\n"
@@ -11571,7 +11480,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "Ou que vous soyez dans le mone, il y a une facon pour vous d'utiliser %(name)s avec un numéro local."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Using %(name)s with an Android Phone\n"
@@ -11581,7 +11489,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "Utiliser %(name)s avec un téléphone Android"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          The easiest and most popular way to deploy %(name)s is by using a cheap Android phone along with a local sim card. It's quite\n"
@@ -11605,7 +11513,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Buy an Android phone"
 #~ msgstr "Acheter un téléphone Android"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        We always recommend that the phone you use for %(name)s be dedicated for that purpose. The good news\n"
@@ -11639,7 +11546,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "de façon à permettre la transmission de données. Vous pouvez également vous fier à votre connexion Wi-Fi, si vous le voulez. Nous encourageons aussi\n"
 #~ "l'établissement d'un compte post payé pour que vous ne craigniez pas que votre téléphone n'ai plus de crédit."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Install the %(name)s app\n"
@@ -11676,7 +11582,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Once the app is installed it will give you a 6 digit claim code that you then"
 #~ msgstr "Une fois l'application installée, il vous donnera un code claim de 6 chiffres que vous devez alors"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        And that's all there is to it. From then on, that phone will handle sending all the messages for your %(name)s account.\n"
@@ -11710,7 +11616,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "d'une connexion Wi-Fi ou GSM, ou encore mieux, des deux si possible. The téléphone saura détecter\n"
 #~ "quel réseau utiliser si l'une des connexions ne marche pas bien."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          %(name)s with Android FAQ\n"
@@ -11723,7 +11628,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "What if I need to send a lot of messages?"
 #~ msgstr "Que faire si j'ai besoin d'envoyer beaucoup de messages?"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          We encourage people to validate their ideas and experiment before focusing on scaling. Starting with Android\n"
@@ -11749,7 +11654,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "What happens if the battery dies?"
 #~ msgstr "Qu'advient-il si la batterie meurt?"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Android phones are great because they have redundant network connections and a backup battery. So, if the office\n"
@@ -11780,7 +11684,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "Quoi que ces caractéristiques soient généralement vues comme uniques aux comptes SMPP, les opérateurs permettent dans certains pays que les codes courts s'orientent vers des cartes sim. Ce qui veut dire qu'envoyer des textes ou appeler ces codes courts  sera orienté vers votre téléphone Android. Dans certains cas ces comptes sim peuvent également être de facturation inverse."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Does the fee I pay to %(name)s include messaging fees?\n"
@@ -11789,7 +11692,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "Est-ce que les frais que je paye à %(name)s inclus ceux de la messagerie?"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          No, the fee covers the use of the %(name)s platform. Any messaging rates imposed by your carrier apply.\n"
@@ -11799,7 +11701,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "Non, les frais couvrent l'utilisation de la plateforme %(name)s. Tous frais de messagerie imposés par votre opérateur sont applicables. "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          Will %(name)s work for my remote ICT4D project?\n"
@@ -11808,7 +11709,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "Est ce que %(name)s va fonctionner pour mon project ICT4D à distance?"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          We understand that deploying SMS applications has traditionally been one of the trickiest parts when launching ICT4D projects.\n"
@@ -11835,7 +11735,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Connecting to Carriers"
 #~ msgstr "Connexion aux opérateurs"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        For projects that need to send more than a few thousand messages an hour, it may be worth looking\n"
@@ -11885,7 +11785,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Non-Profit discount"
 #~ msgstr "Escompte à but non lucratif"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        One of the biggest aggregators in the world, Twilio, recently announced <a href=\"http://twilio.org\">twilio.org</a> which promises a 25%% discount on messaging and voice\n"
@@ -11900,7 +11799,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Adding more aggregators"
 #~ msgstr "Ajout de plusieurs agrégateurs"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "      We're always extending our network of local aggregators. If you don't see an option for your country,\n"
@@ -12146,14 +12044,14 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "IGNORED"
 #~ msgstr "IGNORÉ"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "Create a contact "
 #~ msgid "Created %(create_count)s new contact"
 #~ msgid_plural "Created %(create_count)s new contacts"
 #~ msgstr[0] "Créer un contact"
 #~ msgstr[1] "Créer un contact"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                          Updated %(update_count)s contact with an existing phone number\n"
@@ -12185,7 +12083,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Errors description"
 #~ msgstr "Description"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                        Failed to import %(error_count)s contact due to missing or invalid phone number\n"
@@ -12225,7 +12123,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "                      "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  You can download\n"
@@ -12239,26 +12137,21 @@ msgstr "${count} trouvé pour ${query}"
 #~ "<a href='%(STATIC_URL)sexamples/contacts.xls'> Ce model de fichier excel</a>\n"
 #~ "comme un echantillon"
 
-#, python-brace-format
 #~ msgid "The provided file has unrecognized headers. Columns \"{joined_unsupported_headers}\" should be removed or prepended with the prefix \"Field:\"."
 #~ msgstr "Le fichier fourni a des en-têtes non reconnus. Les colonnes \"{joined_unsupported_headers}\" doivent être supprimées ou précédées du préfixe \"Field:\"."
 
-#, python-brace-format
 #~ msgid "The file you provided is missing a required header. At least one of \"{joined_possible_headers}\" or \"Contact UUID\" should be included."
 #~ msgstr "Le fichier que vous avez fourni ne contient pas l'en-tête requis. Au moins un de \"{joined_possible_headers}\" ou \"UUID de contact\" doit être inclus."
 
 #~ msgid "The file you provided is missing a required header called \"Name\"."
 #~ msgstr "Le fichier que vous avez fournie est manquant d'une entête requis appelé \"Nom\"."
 
-#, python-format
 #~ msgid "%s is an invalid name or is a reserved name for contact fields, field names should start with a letter."
 #~ msgstr "%s est un nom invalide ou un nom réservé pour les champs de contact, les noms de champs doivent commencer par une lettre."
 
-#, python-format
 #~ msgid "%s should be used once"
 #~ msgstr "%s devrait être utilisé une fois"
 
-#, python-format
 #~ msgid "'%(label)s' contact field has '%(key)s' key which is reserved name. Column cannot be imported"
 #~ msgstr "Le champ de contact '%(label)s' a la clé '%(key)s' qui est un nom réservé. La colonne ne peut pas être importée"
 
@@ -12267,7 +12160,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "You can import your contacts from an XLSX file you create in Excel."
 #~ msgstr "Vous pouvez importer vos contacts à partir d'un fichier XLS que vous créez dans Excel."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  You can download\n"
@@ -12281,7 +12174,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "<a href='%(STATIC_URL)sexamples/contacts.xls'> Ce model de fichier excel</a>\n"
 #~ "comme un echantillon"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        Are you sure you want to delete everything for %(name)s? Everything will be gone and there is no going back.\n"
@@ -12312,37 +12204,39 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "        "
 
-#~ msgid "All Contacts"
-#~ msgstr "Tous les contacts"
-
 #~ msgid "Unblock"
 #~ msgstr "Débloquer"
 
 #~ msgid "Unstop"
 #~ msgstr "Débloquer"
 
-#~ msgid "Delete Contact"
-#~ msgstr "Supprimer le contact"
-
 #~ msgid "Contact blocked"
 #~ msgstr "Contact bloqué"
 
+#, fuzzy
+#~| msgid "Contact unstopped"
+#~ msgid "Contact restored"
+#~ msgstr "Contact non arrêté"
+
+#, fuzzy
+#~| msgid "Contact Fields"
+#~ msgid "Contact archived"
+#~ msgstr "Champs de contact"
+
+#~ msgid "All Contacts"
+#~ msgstr "Tous les contacts"
+
+#~ msgid "Delete Contact"
+#~ msgstr "Supprimer le contact"
+
 #~ msgid "Contact unblocked"
 #~ msgstr "Contact débloqué"
-
-#~ msgid "Contact unstopped"
-#~ msgstr "Contact non arrêté"
 
 #~ msgid "Recent Channel Events"
 #~ msgstr "Channel récents événements"
 
 #~ msgid "Channel: "
 #~ msgstr "Canal:"
-
-#, fuzzy
-#~| msgid "Select your Organization"
-#~ msgid "Add Workspace"
-#~ msgstr "Choisissez votre Organisation"
 
 #~ msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
 #~ msgstr "Le nouvel éditeur fournit de nouvelles fonctionnalités puissantes et de meilleures performances, mais veuillez noter que cela ne peut pas être annulé."
@@ -12459,7 +12353,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "You can also include custom contact fields values in XLS file for columns with the prefix <i>Field:</i>, for example: <i>Field:Team</i>."
 #~ msgstr "Vous pouvez également inclure des valeurs de champs de contact personnalisées dans le fichier XLS pour les colonnes avec le préfixe <i>Field:</i>, par exemple: <i>Field:Team</i>."
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                          Created %(create_count)s new contact\n"
@@ -12692,7 +12585,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "No runs"
 #~ msgstr "Aucune exécution"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                              %(run_count)s run\n"
@@ -12710,7 +12602,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "                              %(run_count)s exécutions\n"
 #~ "                            "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                            %(completed_percentage)s%% completion\n"
@@ -12720,7 +12611,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "                              %(completed_percentage)s%% terminé\n"
 #~ "                            "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                        %(count_comma)s recipient\n"
@@ -12738,7 +12628,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "                          %(count_comma)s destinataires\n"
 #~ "                      "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                        %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -12751,7 +12640,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Write the message that will get sent when the scheduled time arrives"
 #~ msgstr "Écrivez le message qui sera envoyé lorsque  l'heure prévue arrive"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -12781,7 +12669,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "          </span>\n"
 #~ "      "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        The message will be sent to\n"
@@ -12906,7 +12793,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "month"
 #~ msgstr "Mois"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          on the %(repeat_day_of_month)s\n"
@@ -12916,7 +12802,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "le %(repeat_day_of_month)s"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "          It will repeat <span class='attn'>%(repeat_period_display)s</span> at around the same time.\n"
@@ -12947,12 +12832,12 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "The archive we were rolled up into, if any"
 #~ msgstr "Les archives dans lesquelles nous avons été rassemblées, le cas échéant"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "%s is used inside a campaign. To archive it, first remove it from your campaigns."
 #~ msgid "%(flow)s is used inside a campaign. To archive it, first remove it from your campaigns."
 #~ msgstr "%s est utilisé dans une campagne. Pour l'archiver, commencez par le supprimer de vos campagnes."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "%s are used inside a campaign. To archive them, first remove them from your campaigns."
 #~ msgid "%(flows)s are used inside a campaign. To archive them, first remove them from your campaigns."
 #~ msgstr "%s sont utilisés dans une campagne. Pour les archiver, commencez par les supprimer de vos campagnes."
@@ -13021,59 +12906,45 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Empty user access token!"
 #~ msgstr "Jeton d'accès au serveur de votre application"
 
-#, python-brace-format
 #~ msgid "Unrecognized field: '{prop}'"
 #~ msgstr "Champ non reconnu: '{prop}'"
 
-#, python-brace-format
 #~ msgid "Unknown text comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de texte inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown number comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de nombre inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unable to parse the date '{self.value}'"
 #~ msgstr "Impossible d'analyser la date '{self.value}'"
 
-#, python-brace-format
 #~ msgid "Unknown datetime comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de date/heure inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown location type: '{field.value_type}'"
 #~ msgstr "Type d'emplacement inconnu: '{field.value_type}'"
 
-#, python-brace-format
 #~ msgid "Unsupported comparator '{self.comparator}' for location field"
 #~ msgstr "Comparateur non pris en charge '{self.comparator}' pour le champ de localisation"
 
-#, python-brace-format
 #~ msgid "Unrecognized contact field type '{field.value_type}'"
 #~ msgstr "Type de champ de contact non reconnu '{field.value_type}'"
 
-#, python-brace-format
 #~ msgid "Unknown urn scheme comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de schéma URN inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown language comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de langue inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown created_on comparator: '{self.comparator}'"
 #~ msgstr "Comparateur created_on inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "Unknown name comparator: '{self.comparator}'"
 #~ msgstr "Comparateur de nom inconnu: '{self.comparator}'"
 
-#, python-brace-format
 #~ msgid "No support for attribute field: '{field}'"
 #~ msgstr "Pas de support pour le champ d'attribut: '{field}'"
 
-#, python-brace-format
 #~ msgid "Unrecognized contact field type '{prop_type}'"
 #~ msgstr "Type de champ de contact non reconnu '{prop_type}'"
 
@@ -13204,7 +13075,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Channel Alarms (low battery, loss of connectivity)"
 #~ msgstr "Channel alarmes (batterie faible, perte de connectivité)"
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "    Your API Token is <span class=\"attn\">%(token)s</span>.\n"
