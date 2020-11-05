@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-05 16:55+0000\n"
+"POT-Creation-Date: 2020-11-05 17:06+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -1911,17 +1911,12 @@ msgstr "Não foi possível configurar. Conexão com o RocketChat está demorando
 msgid "Add a %(link)s bot to send and receive messages to Rocket.Chat users."
 msgstr ""
 
-#, fuzzy
-#| msgid "Setup your RocketChat first to be able to integrate."
-msgid "Setup your Rocket.Chat first to be able to integrate."
-msgstr "Configure seu RocketChat primeiro para poder integrar."
-
 msgid "Ex.: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
 msgstr ""
 
 #, fuzzy
 #| msgid "The URL for your RocketChat installation"
-msgid "URL of the Rocket.Chat Integration app"
+msgid "URL of the Rocket.Chat Channel app"
 msgstr "O URL da sua instalação do RocketChat"
 
 #, fuzzy
@@ -5031,23 +5026,10 @@ msgstr "Seu endereço de e-mail é "
 msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket servicethrough its omnichannel feature."
 msgstr ""
 
-msgid "Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b-5f8091899f7b"
-msgstr ""
-
 #, fuzzy
 #| msgid "The URL for your RocketChat installation"
-msgid "The URL for your RocketChat Tickets app"
+msgid "URL of the Rocket.Chat Tickets app"
 msgstr "O URL da sua instalação do RocketChat"
-
-#, fuzzy
-#| msgid "The name of your organization"
-msgid "The admin user token of your Rocket.Chat"
-msgstr "Nome da sua organização"
-
-#, fuzzy
-#| msgid "The name of your organization"
-msgid "The admin user ID of your Rocket.Chat"
-msgstr "Nome da sua organização"
 
 #, python-format
 msgid "Invalid URL: %(base_url)s"
@@ -9968,6 +9950,26 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Setup your RocketChat first to be able to integrate."
+#~ msgid "Setup your Rocket.Chat first to be able to integrate."
+#~ msgstr "Configure seu RocketChat primeiro para poder integrar."
+
+#, fuzzy
+#~| msgid "The URL for your RocketChat installation"
+#~ msgid "The URL for your RocketChat Tickets app"
+#~ msgstr "O URL da sua instalação do RocketChat"
+
+#, fuzzy
+#~| msgid "The name of your organization"
+#~ msgid "The admin user token of your Rocket.Chat"
+#~ msgstr "Nome da sua organização"
+
+#, fuzzy
+#~| msgid "The name of your organization"
+#~ msgid "The admin user ID of your Rocket.Chat"
+#~ msgstr "Nome da sua organização"
 
 #~ msgid "<a href=\"https://rocket.chat/\">RocketChat</a> is the ultimate free open source solution for team communications. Its omnichannel feature allows you to integrate RocketChat as a ticket service."
 #~ msgstr "<a href=\"https://rocket.chat/\">RocketChat</a> é a melhor solução gratuita de código aberto para comunicação de equipes. Seu recurso omnichannel permite integrar o RocketChat como um serviço de ticket."

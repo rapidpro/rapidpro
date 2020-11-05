@@ -27,7 +27,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     SESSION_KEY = "_channel_rocketchat_secret"
 
     _secret = None
-    form_blurb = _("Setup your Rocket.Chat first to be able to integrate.")
 
     class Form(ClaimViewMixin.Form):
         base_url = ExternalURLField(
@@ -39,7 +38,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                     )
                 }
             ),
-            help_text=_("URL of the Rocket.Chat Integration app"),
+            help_text=_("URL of the Rocket.Chat Channel app"),
         )
         bot_username = forms.CharField(label=_("Bot Username"), help_text=_("Username of your bot user"))
         admin_user_id = forms.CharField(label=_("Admin User ID"), help_text=_("User ID of an administrator user"))

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-05 16:55+0000\n"
+"POT-Creation-Date: 2020-11-05 17:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1289,13 +1289,10 @@ msgstr ""
 msgid "Add a %(link)s bot to send and receive messages to Rocket.Chat users."
 msgstr ""
 
-msgid "Setup your Rocket.Chat first to be able to integrate."
-msgstr ""
-
 msgid "Ex.: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
 msgstr ""
 
-msgid "URL of the Rocket.Chat Integration app"
+msgid "URL of the Rocket.Chat Channel app"
 msgstr ""
 
 msgid "Bot Username"
@@ -3767,16 +3764,7 @@ msgstr ""
 msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket servicethrough its omnichannel feature."
 msgstr ""
 
-msgid "Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b-5f8091899f7b"
-msgstr ""
-
-msgid "The URL for your RocketChat Tickets app"
-msgstr ""
-
-msgid "The admin user token of your Rocket.Chat"
-msgstr ""
-
-msgid "The admin user ID of your Rocket.Chat"
+msgid "URL of the Rocket.Chat Tickets app"
 msgstr ""
 
 #, python-format

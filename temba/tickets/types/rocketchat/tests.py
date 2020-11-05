@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from requests.exceptions import Timeout
 
+from django.contrib.auth.models import Group
 from django.urls import reverse
 
 from temba.tests import MockResponse, TembaTest
@@ -14,6 +15,15 @@ from temba.utils.text import random_string
 from .client import Client, ClientError
 from .type import RocketChatType
 from .views import SECRET_LENGTH, ConnectView
+
+
+class RocketChatTypeTest(TembaTest):
+    def test_is_available_to(self):
+        self.assertFalse(RocketChatType().is_available_to(self.admin))
+
+        Group.objects.get(name="Beta").user_set.add(self.admin)
+
+        self.assertTrue(RocketChatType().is_available_to(self.admin))
 
 
 class RocketChatMixin(TembaTest):

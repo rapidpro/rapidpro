@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-05 16:55+0000\n"
+"POT-Creation-Date: 2020-11-05 17:06+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -2112,13 +2112,10 @@ msgstr ""
 msgid "Add a %(link)s bot to send and receive messages to Rocket.Chat users."
 msgstr ""
 
-msgid "Setup your Rocket.Chat first to be able to integrate."
-msgstr ""
-
 msgid "Ex.: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
 msgstr ""
 
-msgid "URL of the Rocket.Chat Integration app"
+msgid "URL of the Rocket.Chat Channel app"
 msgstr ""
 
 #, fuzzy
@@ -5342,21 +5339,8 @@ msgstr "Su dirección de correo electrónico"
 msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket servicethrough its omnichannel feature."
 msgstr ""
 
-msgid "Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b-5f8091899f7b"
+msgid "URL of the Rocket.Chat Tickets app"
 msgstr ""
-
-msgid "The URL for your RocketChat Tickets app"
-msgstr ""
-
-#, fuzzy
-#| msgid "The name of your organization"
-msgid "The admin user token of your Rocket.Chat"
-msgstr "El nombre de su organización"
-
-#, fuzzy
-#| msgid "The name of your organization"
-msgid "The admin user ID of your Rocket.Chat"
-msgstr "El nombre de su organización"
 
 #, python-format
 msgid "Invalid URL: %(base_url)s"
@@ -10826,6 +10810,16 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "The name of your organization"
+#~ msgid "The admin user token of your Rocket.Chat"
+#~ msgstr "El nombre de su organización"
+
+#, fuzzy
+#~| msgid "The name of your organization"
+#~ msgid "The admin user ID of your Rocket.Chat"
+#~ msgstr "El nombre de su organización"
 
 #~ msgid "Channel Type"
 #~ msgstr "Tipo de transmisor"

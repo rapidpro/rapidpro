@@ -26,22 +26,25 @@ class ConnectView(BaseConnectView):
     SESSION_KEY = "_ticketer_rocketchat_secret"
 
     _secret = None
-    form_blurb = _("Setup your Rocket.Chat first to be able to integrate.")
 
     class Form(BaseConnectView.Form):
         base_url = ExternalURLField(
             label=_("URL"),
             widget=forms.URLInput(
-                attrs={"placeholder": _("Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b-5f8091899f7b")}
+                attrs={
+                    "placeholder": _(
+                        "Ex.: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
+                    )
+                }
             ),
-            help_text=_("The URL for your RocketChat Tickets app"),
+            help_text=_("URL of the Rocket.Chat Tickets app"),
         )
+        admin_user_id = forms.CharField(label=_("Admin User ID"), help_text=_("User ID of an administrator user"))
         admin_auth_token = forms.CharField(
-            label=_("Admin Auth Token"), help_text=_("The admin user token of your Rocket.Chat")
+            label=_("Admin Auth Token"), help_text=_("Authentication token of an administrator user")
         )
-        admin_user_id = forms.CharField(label=_("Admin User ID"), help_text=_("The admin user ID of your Rocket.Chat"))
         secret = forms.CharField(
-            label=_("Secret"), widget=forms.HiddenInput(), help_text=_("Secret to be passed to Rocket.Chat")
+            label=_("Secret"), widget=forms.HiddenInput(), help_text=_("Secret to be passed to Rocket.Chat"),
         )
 
         def clean(self):
