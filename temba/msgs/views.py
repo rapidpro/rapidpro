@@ -61,7 +61,9 @@ class SendMessageForm(Form):
     )
 
     text = forms.CharField(
-        widget=CompletionTextarea(attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True})
+        widget=CompletionTextarea(
+            attrs={"placeholder": _("Hi @contact.name!"), "widget_only": True, "counter": "temba-charcount"}
+        )
     )
 
     schedule = forms.BooleanField(

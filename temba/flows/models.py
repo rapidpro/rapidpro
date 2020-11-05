@@ -488,9 +488,6 @@ class Flow(TembaModel):
             except FlowException:  # pragma: no cover
                 pass
 
-    def as_select2(self):
-        return dict(id=self.uuid, text=self.name)
-
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]
         counts = (
@@ -1146,9 +1143,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     # when this run will expire
     expires_on = models.DateTimeField(null=True)
-
-    # next wait timeout in this run (if any)
-    timeout_on = models.DateTimeField(null=True)
 
     # true if the contact has responded in this run
     responded = models.BooleanField(default=False)

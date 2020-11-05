@@ -3,6 +3,8 @@ from smartmin.views import SmartFormView
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
+from temba.utils.fields import SelectWidget
+
 from ...models import Channel
 from ...views import ClaimViewMixin
 
@@ -23,7 +25,8 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 ("UG", _("Uganda")),
                 ("ZA", _("South Africa")),
                 ("ZM", _("Zambia")),
-            )
+            ),
+            widget=SelectWidget(attrs={"searchable": True}),
         )
         is_shared = forms.BooleanField(
             initial=False, required=False, help_text=_("Whether this short code is shared with others")
@@ -37,9 +40,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         user = self.request.user
         org = user.get_org()
 
-        if not org:  # pragma: no cover
-            raise Exception(_("No org for this user, cannot claim"))
-
         data = form.cleaned_data
 
         config = dict(username=data["username"], api_key=data["api_key"], is_shared=data["is_shared"])
@@ -48,7 +48,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             org,
             user,
             data["country"],
-            "AT",
+            self.channel_type,
             name="Africa's Talking: %s" % data["shortcode"],
             address=data["shortcode"],
             config=config,

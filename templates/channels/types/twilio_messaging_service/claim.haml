@@ -2,11 +2,11 @@
 -load i18n
 
 -block pre-form
-  -blocktrans
+  -blocktrans trimmed
     You can add your Twilio Messaging SID as a channel. You can get your messaging Service SID
     or create a new messaging service from <a href="https://www.twilio.com/user/account/messaging/services">Twilio Console</a>.
 
   .mt-2
-    -blocktrans with brand.name as brand
+    -blocktrans trimmed with brand.name as brand
       After adding your Twilio Messaging Service SID we will provide you with the URL endpoint for Twilio to call
       when they want to push a message to {{ brand }}.

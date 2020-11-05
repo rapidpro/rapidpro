@@ -4,7 +4,7 @@ from smartmin.views import SmartFormView
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
-from temba.utils.fields import ExternalURLField
+from temba.utils.fields import ExternalURLField, SelectWidget
 from temba.utils.uuid import uuid4
 
 from ...models import Channel
@@ -19,7 +19,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             (Channel.ROLE_SEND + Channel.ROLE_RECEIVE + Channel.ROLE_CALL + Channel.ROLE_ANSWER, _("Both")),
         )
         country = forms.ChoiceField(
-            choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in")
+            choices=ALL_COUNTRIES,
+            widget=SelectWidget(attrs={"searchable": True}),
+            label=_("Country"),
+            help_text=_("The country this phone number is used in"),
         )
         number = forms.CharField(
             max_length=14,
@@ -85,7 +88,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             address = number
             name = number
 
-        self.object = Channel.create(org, user, country, "TW", name=name, address=address, config=config, role=role)
+        self.object = Channel.create(
+            org, user, country, self.channel_type, name=name, address=address, config=config, role=role
+        )
 
         if not data.get("account_sid", None):
             config[Channel.CONFIG_ACCOUNT_SID] = f"{self.request.branding['name'].lower()}_{self.object.pk}"

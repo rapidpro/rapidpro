@@ -1,0 +1,96 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    name: Test
+    env:
+      python_version: '3.6.x'
+      redis_version: '5'
+      node_version: '10'
+      elastic_version: '6.8.5'
+      rpindexer_version: '5.7.2'
+      mailroom_version: '5.7.40'
+      DJANGO_SETTINGS_MODULE: temba.settings_ci
+    strategy:
+      matrix:
+        pg_version: ['10', '11']
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v1
+
+    - name: Install PostgreSQL
+      uses: nyaruka/postgis-action@master
+      with:
+        postgresql version: ${{ matrix.pg_version }}
+
+    - name: Install Linux packages
+      run: sudo apt install -y --no-install-recommends postgresql-client libgdal-dev gettext
+
+    - name: Install Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ env.python_version }}
+
+    - name: Install Redis
+      uses: zhulik/redis-action@v1.0.0
+      with:
+        redis version: ${{ env.redis_version }}
+
+    - name: Install ElasticSearch
+      uses: nyaruka/elasticsearch-action@master
+      with:
+        elastic version: ${{ env.elastic_version }}
+
+    - name: Install Node
+      uses: actions/setup-node@v1
+      with:
+        node-version: ${{ env.node_version }}
+
+    - name: Initialize database
+      run: |
+        psql -h localhost -U postgres -c "CREATE USER temba PASSWORD 'temba';"
+        psql -h localhost -U postgres -c "ALTER ROLE temba WITH SUPERUSER;"
+        psql -h localhost -U postgres -c "CREATE DATABASE temba;"
+
+    - name: Initialize environment
+      run: |
+        echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+        pip install --upgrade pip
+        pip install -r pip-freeze.txt
+        pip install codecov flake8
+        npm install
+        sudo npm install -g less
+        ln -s ${{ github.workspace }}/temba/settings.py.dev ${{ github.workspace }}/temba/settings.py
+        ./manage.py migrate
+        # fetch and extract rp-indexer
+        wget https://github.com/nyaruka/rp-indexer/releases/download/v${{ env.rpindexer_version }}/rp-indexer_${{ env.rpindexer_version }}_linux_amd64.tar.gz
+        tar -xvf rp-indexer_${{ env.rpindexer_version }}_linux_amd64.tar.gz rp-indexer
+        # fetch, extract and start mailroom
+        wget https://github.com/nyaruka/mailroom/releases/download/v${{ env.mailroom_version }}/mailroom_${{ env.mailroom_version }}_linux_amd64.tar.gz
+        tar -xvf mailroom_${{ env.mailroom_version }}_linux_amd64.tar.gz mailroom
+        ./mailroom -db=postgres://temba:temba@localhost:5432/temba?sslmode=disable -redis=redis://localhost:6379/10 -log-level=info > mailroom.log &
+
+    - name: Run pre-test checks
+      run: |
+        # test that everything is well formatted, no missing migrations etc
+        ./code_check.py --debug $([[ "$BRANCH_NAME" == "translations_django-po" ]] && echo "--skip-compilemessages")
+        # check we can collect and compress all static files
+        ./manage.py collectstatic --noinput --verbosity=0
+        ./manage.py compress --extension=".haml" --settings=temba.settings_compress
+
+    - name: Run tests
+      run: |
+        coverage run manage.py test --keepdb --noinput --verbosity=2
+        coverage report -i
+        coverage report -i --rcfile .coveragerc_todo
+
+    - name: Mailroom log
+      if: failure()
+      run: cat mailroom.log
+
+    - name: Upload coverage
+      if: success()
+      uses: codecov/codecov-action@v1
+      with:
+        fail_ci_if_error: true

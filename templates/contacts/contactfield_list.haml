@@ -1,6 +1,8 @@
 -extends "smartmin/base.html"
 -load smartmin i18n humanize
 
+-block page-title
+  -trans "Custom Fields"
 
 -block page-top
 
@@ -20,28 +22,28 @@
 
       .lp-frame.mt-0
         .left
-            .flex.flex-col
-              -if org_perms.contacts.contactfield_create
-                .w-64.mr-5
-                  %temba-modax#create-field-modal{ header:'{% trans "Create Field" %}', endpoint:"{% url 'contacts.contactfield_create' %}"}
-                    .button-primary.mb-3
-                      - trans "Create Field"
+          .flex.flex-col
+            -if org_perms.contacts.contactfield_create
+              .w-64.mr-5
+                %temba-modax#create-field-modal{ header:'{% trans "Create Field" %}', endpoint:"{% url 'contacts.contactfield_create' %}"}
+                  .button-primary.mb-3
+                    - trans "Create Field"
 
-              .lp-nav.upper
-                -for category in cf_categories
-                  .lp-nav-item{'class': '{% if request.path == category.url %}font-normal{% endif %}' }
-                    .name{onclick:"goto(event)", href:'{{category.url}}'}
-                      {{category.label}}
-                    .count{onclick:"goto(event)", href:'{{category.url}}'}
-                      {{category.count|intcomma}}
-              
-              .lp-nav.lower
-                -for category in cf_types
-                  .lp-nav-item{'class': '{% if selected_value_type == category.value_type %}font-normal{% endif %}' }
-                    .name{onclick:"goto(event)", href:'{{category.url}}'}
-                      {{category.label}}
-                    .count{onclick:"goto(event)", href:'{{category.url}}'}
-                      {{category.count|intcomma}}
+            .lp-nav.upper
+              -for category in cf_categories
+                .lp-nav-item{'class': '{% if request.path == category.url %}font-normal{% endif %}' }
+                  .name{onclick:"goto(event)", href:'{{category.url}}'}
+                    {{category.label}}
+                  .count{onclick:"goto(event)", href:'{{category.url}}'}
+                    {{category.count|intcomma}}
+
+            .lp-nav.lower
+              -for category in cf_types
+                .lp-nav-item{'class': '{% if selected_value_type == category.value_type %}font-normal{% endif %}' }
+                  .name{onclick:"goto(event)", href:'{{category.url}}'}
+                    {{category.label}}
+                  .count{onclick:"goto(event)", href:'{{category.url}}'}
+                    {{category.count|intcomma}}
 
         .right
           -if view.search_fields

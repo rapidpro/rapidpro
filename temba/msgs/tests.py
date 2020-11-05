@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
-from temba.contacts.models import TEL_SCHEME, ContactURN
+from temba.contacts.models import URN, ContactURN
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.msgs.models import (
@@ -2265,7 +2265,6 @@ class BroadcastCRUDLTest(TembaTest):
         response = self.client.get(url)
         self.assertEqual(list(response.context["form"].fields.keys()), ["message", "omnibox", "loc"])
 
-        # updates still use select2 omnibox
         omnibox = omnibox_serialize(self.org, [], [self.frank], True)
         response = self.client.post(url, dict(message="Dinner reminder", omnibox=omnibox))
         self.assertEqual(response.status_code, 302)
@@ -2900,21 +2899,23 @@ class TagsTest(TembaTest):
         # default cause is pending sent
         self.assertHasClass(as_icon(None), "icon-bubble-dots-2 green")
 
-        in_call = self.create_channel_event(self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN)
+        in_call = self.create_channel_event(
+            self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN
+        )
         self.assertHasClass(as_icon(in_call), "icon-call-incoming green")
 
         in_miss = self.create_channel_event(
-            self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED
+            self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED
         )
         self.assertHasClass(as_icon(in_miss), "icon-call-incoming red")
 
         out_call = self.create_channel_event(
-            self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT
+            self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT
         )
         self.assertHasClass(as_icon(out_call), "icon-call-outgoing green")
 
         out_miss = self.create_channel_event(
-            self.channel, str(self.joe.get_urn(TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED
+            self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED
         )
         self.assertHasClass(as_icon(out_miss), "icon-call-outgoing red")
 

@@ -29,7 +29,7 @@
       .title
         -trans "Disconnect Nexmo"
       .body
-        -blocktrans
+        -blocktrans trimmed
           Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?
     %a#disconnect-nexmo-form.posterize{href:'{% url "orgs.org_nexmo_account" %}?disconnect=true'}
 

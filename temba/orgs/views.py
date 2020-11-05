@@ -767,9 +767,22 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = TwilioConnectForm
         submit_button_name = "Save"
-        success_url = "@channels.types.twilio.claim"
         field_config = dict(account_sid=dict(label=""), account_token=dict(label=""))
         success_message = "Twilio Account successfully connected."
+
+        def get_success_url(self):
+            claim_type = self.request.GET.get("claim_type", "twilio")
+
+            if claim_type == "twilio_messaging_service":
+                return reverse("channels.types.twilio_messaging_service.claim")
+
+            if claim_type == "twilio_whatsapp":
+                return reverse("channels.types.twilio_whatsapp.claim")
+
+            if claim_type == "twilio":
+                return reverse("channels.types.twilio.claim")
+
+            return reverse("channels.channel_claim")
 
         def form_valid(self, form):
             account_sid = form.cleaned_data["account_sid"]

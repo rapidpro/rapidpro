@@ -183,7 +183,9 @@ class TembaTestMixin:
         data = self.get_import_json(filename, substitutions=substitutions)
         return data["flows"][0]
 
-    def create_contact(self, name=None, *, language=None, phone=None, urns=None, fields=None, org=None, user=None):
+    def create_contact(
+        self, name=None, *, language=None, phone=None, urns=None, fields=None, org=None, user=None, last_seen_on=None
+    ):
         """
         Create a new contact
         """
@@ -192,7 +194,9 @@ class TembaTestMixin:
         user = user or self.user
         urns = [URN.from_tel(phone)] if phone else urns
 
-        return create_contact_locally(org, user, name, language, urns or [], fields or {}, group_uuids=[])
+        return create_contact_locally(
+            org, user, name, language, urns or [], fields or {}, group_uuids=[], last_seen_on=last_seen_on
+        )
 
     def create_group(self, name, contacts=(), query=None, org=None):
         assert not (contacts and query), "can't provide contact list for a smart group"
@@ -464,11 +468,10 @@ class TembaTestMixin:
 
     def create_contact_import(self, path):
         with open(path, "rb") as f:
-            headers, mappings, num_records = ContactImport.try_to_parse(self.org, f, path)
+            mappings, num_records = ContactImport.try_to_parse(self.org, f, path)
             return ContactImport.objects.create(
                 org=self.org,
                 file=SimpleUploadedFile(f.name, f.read()),
-                headers=headers,
                 mappings=mappings,
                 num_records=num_records,
                 created_by=self.admin,

@@ -7,7 +7,7 @@
   -if error
     .alert-text.mb-4
       .title
-        -blocktrans with name=object.name
+        -blocktrans trimmed with name=object.name
           Uh oh, we couldn't delete {{name}}.
       .message
         {{error}}

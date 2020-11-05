@@ -3,8 +3,9 @@ html input {
 }
 
 html {
-  --font-family: 'Roboto', Helvetica, Arial, sans-serif;
 
+  
+  --font-family: 'Roboto', Helvetica, Arial, sans-serif;
   --primary-rgb: 35, 135, 202;
   --secondary-rgb: 140, 51, 140;
   --tertiary-rgb: 135, 202, 35;
@@ -18,7 +19,6 @@ html {
 
   --select-input-height: inherit;
 
-  /* Old style matching, squared off, borded inputs, select2 colors */
   --curvature: 6px;
   --curvature-widget: 6px;
   --color-focus: #a4cafe;
@@ -31,6 +31,8 @@ html {
 
   --widget-box-shadow-focused: 0 0 0 3px rgba(164, 202, 254, .45);
   --widget-box-shadow-focused-error: 0 0 0 3px rgba(var(--error-rgb), 0.3);
+
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
 
   /* page text, borders, widgets */
   --color-text: #555;
@@ -90,6 +92,8 @@ html {
 
   --header-bg: var(--color-primary-dark);
 
+  --temba-textinput-padding: 9px;
+  --temba-textinput-font-size: var(--font-size);
 
   font-size: var(--font-size);
   font-weight: 300;

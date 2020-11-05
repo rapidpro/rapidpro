@@ -1,7 +1,7 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.globe.views import ClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 
@@ -19,19 +19,18 @@ class GlobeType(ChannelType):
     name = "Globe Labs"
 
     claim_blurb = _(
-        """If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send
-                       and receive messages on your shortcode."""
+        "If you are based in the Phillipines, you can integrate {{ brand.name }} with Globe Labs to send and "
+        "receive messages on your shortcode."
     )
     claim_view = ClaimView
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 160
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your application configuration page.
-        """
+        "To finish configuring your Globe Labs connection you'll need to set the following notify URI for SMS on your "
+        "application configuration page."
     )
 
     configuration_urls = (

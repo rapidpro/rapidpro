@@ -1,7 +1,7 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.views import AuthenticatedExternalCallbackClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 
@@ -20,19 +20,17 @@ class HormuudType(ChannelType):
     slug = "hormuud"
 
     claim_blurb = _(
-        """If you are based in Somalia, you can get a number from
-        <a href="http://www.hormuud.com/">Hormuud</a> and connect it in a few simple steps."""
-    )
+        "If you are based in Somalia, you can get a number from %(link)s and connect it in a few simple steps."
+    ) % {"link": '<a href="http://www.hormuud.com/">Hormuud</a>'}
     claim_view = AuthenticatedExternalCallbackClaimView
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 160
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your connection you'll need to notify Hormuud of the following URL for incoming (MO) messages
-        """
+        "To finish configuring your connection you'll need to notify Hormuud of the following URL for incoming "
+        "(MO) messages."
     )
 
     configuration_urls = (

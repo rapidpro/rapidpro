@@ -30,16 +30,7 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Alert, Channel, SyncEvent
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.wit import WitType
-from temba.contacts.models import (
-    TEL_SCHEME,
-    TWITTER_SCHEME,
-    TWITTERID_SCHEME,
-    Contact,
-    ContactField,
-    ContactGroup,
-    ContactURN,
-    ExportContactsTask,
-)
+from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN, ExportContactsTask
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
@@ -675,7 +666,7 @@ class OrgTest(TembaTest):
         response = self.client.get(reverse("orgs.org_home"))
         self.assertContains(response, "Backup tokens can be used")
 
-    def test_country(self):
+    def test_country_view(self):
         self.setUpLocations()
 
         country_url = reverse("orgs.org_country")
@@ -689,34 +680,43 @@ class OrgTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # save with Rwanda as a country
-        response = self.client.post(country_url, dict(country=AdminBoundary.objects.get(name="Rwanda").pk))
+        self.client.post(country_url, dict(country=AdminBoundary.objects.get(name="Rwanda").pk))
 
         # assert it has changed
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual("Rwanda", str(org.country))
-        self.assertEqual("RW", org.get_country_code())
+        self.org.refresh_from_db()
+        self.assertEqual("Rwanda", str(self.org.country))
+        self.assertEqual("RW", self.org.default_country_code)
 
-        # set our admin boundary name to something invalid
-        org.country.name = "Fantasia"
-        org.country.save()
+    def test_default_country(self):
+        # if country boundary is set and name is valid country, that has priority
+        self.org.country = AdminBoundary.create(osm_id="171496", name="Ecuador", level=0)
+        self.org.timezone = "Africa/Nairobi"
+        self.org.save(update_fields=("country", "timezone"))
 
-        # getting our country code show now back down to our channel
-        self.assertEqual("RW", org.get_country_code())
+        self.assertEqual("EC", self.org.default_country.alpha_2)
 
-        # clear it out
-        self.client.post(country_url, dict(country=""))
+        del self.org.default_country
 
-        # assert it has been
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertFalse(org.country)
-        self.assertEqual("RW", org.get_country_code())
+        # if country name isn't valid, we'll try timezone
+        self.org.country.name = "Fantasia"
+        self.org.country.save(update_fields=("name",))
 
-        # remove all our channels so we no longer have a backdown
-        org.channels.all().delete()
-        org = Org.objects.get(pk=self.org.pk)
+        self.assertEqual("KE", self.org.default_country.alpha_2)
 
-        # now really don't have a clue of our country code
-        self.assertIsNone(org.get_country_code())
+        del self.org.default_country
+
+        # not all timezones have countries in which case we look at channels
+        self.org.timezone = "UTC"
+        self.org.save(update_fields=("timezone",))
+
+        self.assertEqual("RW", self.org.default_country.alpha_2)
+
+        del self.org.default_country
+
+        # but if we don't have any channels.. no more backdowns
+        self.org.channels.all().delete()
+
+        self.assertIsNone(self.org.default_country)
 
     def test_user_update(self):
         update_url = reverse("orgs.user_edit")
@@ -1967,6 +1967,30 @@ class OrgTest(TembaTest):
                     self.org.refresh_from_db()
                     self.assertFalse(self.org.is_connected_to_twilio())
 
+                    response = self.client.post(
+                        f'{reverse("orgs.org_twilio_connect")}?claim_type=twilio', post_data, follow=True
+                    )
+                    self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio.claim"))
+
+                    response = self.client.post(
+                        f'{reverse("orgs.org_twilio_connect")}?claim_type=twilio_messaging_service',
+                        post_data,
+                        follow=True,
+                    )
+                    self.assertEqual(
+                        response.request["PATH_INFO"], reverse("channels.types.twilio_messaging_service.claim")
+                    )
+
+                    response = self.client.post(
+                        f'{reverse("orgs.org_twilio_connect")}?claim_type=twilio_whatsapp', post_data, follow=True
+                    )
+                    self.assertEqual(response.request["PATH_INFO"], reverse("channels.types.twilio_whatsapp.claim"))
+
+                    response = self.client.post(
+                        f'{reverse("orgs.org_twilio_connect")}?claim_type=unknown', post_data, follow=True
+                    )
+                    self.assertEqual(response.request["PATH_INFO"], reverse("channels.channel_claim"))
+
     def test_has_airtime_transfers(self):
         AirtimeTransfer.objects.filter(org=self.org).delete()
         self.assertFalse(self.org.has_airtime_transfers())
@@ -2635,6 +2659,14 @@ class OrgTest(TembaTest):
         self.assertIsNotNone(self.org.create_sub_org("Sub Org B"))
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
+
+    def test_org_get_limit(self):
+        self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 250)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 250)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)
+
+        with self.assertRaises(ValueError):
+            self.org.get_limit("unknown")
 
     def test_sub_orgs_management(self):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
@@ -3407,8 +3439,8 @@ class OrgCRUDLTest(TembaTest):
 
         self.org = Org.objects.get(id=self.org.id)
         self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_SEND))
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))  # from cache
+        self.assertEqual({URN.TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
+        self.assertEqual({URN.TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))  # from cache
 
         # add a send/receive tel channel
         Channel.create(
@@ -3423,14 +3455,18 @@ class OrgCRUDLTest(TembaTest):
             config={Channel.CONFIG_FCM_ID: "456"},
         )
         self.org = Org.objects.get(pk=self.org.id)
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
-        self.assertEqual({TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
+        self.assertEqual({URN.TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
+        self.assertEqual({URN.TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a twitter channel
         Channel.create(self.org, self.user, None, "TT", "Twitter")
         self.org = Org.objects.get(pk=self.org.id)
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
-        self.assertEqual({TEL_SCHEME, TWITTER_SCHEME, TWITTERID_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
+        self.assertEqual(
+            {URN.TEL_SCHEME, URN.TWITTER_SCHEME, URN.TWITTERID_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND)
+        )
+        self.assertEqual(
+            {URN.TEL_SCHEME, URN.TWITTER_SCHEME, URN.TWITTERID_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE)
+        )
 
     def test_login_case_not_sensitive(self):
         login_url = reverse("users.user_login")
@@ -4406,7 +4442,17 @@ class CreditAlertTest(TembaTest):
         # create another expiring topup, newer than the most recent one
         TopUp.create(self.admin, 1000, 9876, expires_on=timezone.now() + timedelta(days=25), org=self.org)
 
+        # set the org to not use topups
+        Org.objects.filter(id=self.org.id).update(uses_topups=False)
+
         # recheck the expiration
+        check_topup_expiration_task()
+
+        # no alert since we don't use topups
+        self.assertFalse(CreditAlert.objects.filter(org=self.org, alert_type=CreditAlert.TYPE_EXPIRING))
+
+        # switch batch and recalculate again
+        Org.objects.filter(id=self.org.id).update(uses_topups=True)
         check_topup_expiration_task()
 
         # expiring credit alert created and email sent

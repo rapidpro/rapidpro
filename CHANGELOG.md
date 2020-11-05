@@ -1,3 +1,70 @@
+v5.7.90
+----------
+ * Update rocket.chat icon in correct font
+
+v5.7.89
+----------
+ * Improve Rocket.Chat claim page
+ * Add Rocket.Chat icon
+
+v5.7.87
+----------
+ * Cleanup Rocket.Chat UI
+
+v5.7.86
+----------
+ * Add RocketChat channels (beta-only for now)
+
+v5.7.85
+----------
+ * Add back jquery-migrate and remove debug
+
+v5.7.84
+----------
+ * Remove select2, coffeescript, jquery plugins
+
+v5.7.83
+----------
+ * Fix broken import link on empty contacts page
+ * Use consistent approach for limits on org
+ * Globals UI should limit creation of globals to org limit
+ * Fix archives list styles and add tabs for message and run archives
+ * Restyle the Facebook app channel claim pages
+ * Switch to use FBA type by default
+
+v5.7.82
+----------
+ * Don't blow up if import contains invalid URNs but pass values on to mailroom
+ * Update to version of editor with some small styling tweaks
+ * Include occurred_on with mo_miss events queued to mailroom
+ * Adjust Twilio connect to redirect properly to the original claim page
+ * Remove no longer used FlowRun.timeout_on and drop two unused indexes
+ * Cleanup more localized strings with trimmed
+ * Fix 404 error in channel list
+
+v5.7.81
+----------
+ * Add page title to brand so that its configurable
+ * Dont send alert emails for orgs that aren't using topups
+ * Consider timezone when infering org default country and display on import create page
+ * Add page titles to fields and flows
+ * Allow changing EX channels role on UI
+
+v5.7.80
+----------
+ * Add contact last seen on to list contacts views
+ * Cleanup channel model fields
+ * Add charcount to send message dialog
+ * Show channel logs link for receive only channels
+ * Fix export flow page styles
+ * Allow searching for countries on channel claim views
+
+v5.7.79
+----------
+ * Rework imports to allow importing multiple URNs of same scheme
+ * Cleanup no longer used URN related functionality
+ * Show contact last seen on on contact read page
+
 v5.7.78
 ----------
  * Clean up models fields in contacts app

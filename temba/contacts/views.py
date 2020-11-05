@@ -1,6 +1,7 @@
 import logging
 from collections import OrderedDict
 from datetime import timedelta
+from typing import Dict, List
 
 from smartmin.views import (
     SmartCreateView,
@@ -35,6 +36,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
 from temba.msgs.views import SendMessageForm
+from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
@@ -44,9 +46,7 @@ from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin
 
 from .models import (
-    TEL_SCHEME,
     URN,
-    URN_SCHEME_CONFIG,
     Contact,
     ContactField,
     ContactGroup,
@@ -109,13 +109,15 @@ class ContactGroupForm(forms.ModelForm):
         if not ContactGroup.is_valid_name(name):
             raise forms.ValidationError(_("Group name must not be blank or begin with + or -"))
 
+        org_active_group_limit = self.org.get_limit(Org.LIMIT_GROUPS)
+
         groups_count = ContactGroup.user_groups.filter(org=self.org).count()
-        if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+        if groups_count >= org_active_group_limit:
             raise forms.ValidationError(
                 _(
                     "This org has %(count)d groups and the limit is %(limit)d. "
                     "You must delete existing ones before you can "
-                    "create new ones." % dict(count=groups_count, limit=ContactGroup.MAX_ORG_CONTACTGROUPS)
+                    "create new ones." % dict(count=groups_count, limit=org_active_group_limit)
                 )
             )
 
@@ -209,6 +211,13 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
                 sort_field,
                 sort_direction,
                 {"field_type": "attribute", "sort_direction": sort_direction, "field_name": "created_on"},
+            )
+        if sort_field == "last_seen_on":
+
+            return (
+                sort_field,
+                sort_direction,
+                {"field_type": "attribute", "sort_direction": sort_direction, "field_name": "last_seen_on"},
             )
         else:
             try:
@@ -372,7 +381,7 @@ class ContactForm(forms.ModelForm):
                 first_urn = last_urn is None or urn.scheme != last_urn.scheme
 
                 urn_choice = None
-                for choice in ContactURN.SCHEME_CHOICES:
+                for choice in URN.SCHEME_CHOICES:
                     if choice[0] == urn.scheme:
                         urn_choice = choice
 
@@ -398,7 +407,7 @@ class ContactForm(forms.ModelForm):
         self.fields = OrderedDict(list(self.fields.items()) + extra_fields)
 
     def clean(self):
-        country = self.org.get_country_code()
+        country = self.org.default_country_code
 
         def validate_urn(key, scheme, path):
             try:
@@ -410,7 +419,7 @@ class ContactForm(forms.ModelForm):
                     return False
                 # validate but not with country as users are allowed to enter numbers before adding a channel
                 elif not URN.validate(normalized):
-                    if scheme == TEL_SCHEME:  # pragma: needs cover
+                    if scheme == URN.TEL_SCHEME:  # pragma: needs cover
                         self._errors[key] = self.error_class(
                             [_("Invalid number. Ensure number includes country code, e.g. +1-541-754-3010")]
                         )
@@ -879,9 +888,7 @@ class ContactCRUDL(SmartCRUDL):
                 else:
                     after = max(after - timedelta(days=90), contact_creation)
 
-            from .models import MAX_HISTORY
-
-            if len(history) >= MAX_HISTORY:
+            if len(history) >= Contact.MAX_HISTORY:
                 after = history[-1]["created_on"]
 
             # check if there are more pages to fetch
@@ -1170,7 +1177,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["schemes"] = ContactURN.SCHEME_CHOICES
+            context["schemes"] = URN.SCHEME_CHOICES
             return context
 
         def form_valid(self, form):
@@ -1487,12 +1494,12 @@ class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
 
     def clean(self):
         super().clean()
+        org_active_fields_limit = self.org.get_limit(Org.LIMIT_FIELDS)
 
         field_count = ContactField.user_fields.count_active_for_org(org=self.org)
-        if field_count >= settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG:
+        if field_count >= org_active_fields_limit:
             raise forms.ValidationError(
-                _(f"Cannot create a new field as limit is %(limit)s."),
-                params={"limit": settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG},
+                _(f"Cannot create a new field as limit is %(limit)s."), params={"limit": org_active_fields_limit},
             )
 
     class Meta:
@@ -1537,7 +1544,9 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
 
     def _get_static_context_data(self, **kwargs):
 
-        active_user_fields = self.queryset.filter(org=self.request.user.get_org(), is_active=True)
+        org = self.request.user.get_org()
+        org_active_fields_limit = org.get_limit(Org.LIMIT_FIELDS)
+        active_user_fields = self.queryset.filter(org=org, is_active=True)
         all_count = active_user_fields.count()
         featured_count = active_user_fields.filter(show_in_table=True).count()
 
@@ -1559,7 +1568,7 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
 
         return {
             "total_count": all_count,
-            "total_limit": settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG,
+            "total_limit": org_active_fields_limit,
             "cf_categories": [
                 {"label": "All", "count": all_count, "url": reverse("contacts.contactfield_list")},
                 {"label": "Featured", "count": featured_count, "url": reverse("contacts.contactfield_featured")},
@@ -1583,7 +1592,7 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
 
 class ContactFieldCRUDL(SmartCRUDL):
     model = ContactField
-    actions = ("list", "json", "create", "update", "update_priority", "delete", "featured", "filter_by_type", "detail")
+    actions = ("list", "create", "update", "update_priority", "delete", "featured", "filter_by_type", "detail")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         queryset = ContactField.user_fields
@@ -1764,32 +1773,6 @@ class ContactFieldCRUDL(SmartCRUDL):
 
             return context
 
-    class Json(OrgPermsMixin, SmartListView):
-        paginate_by = None
-        queryset = ContactField.user_fields
-
-        def get_queryset(self, **kwargs):
-            qs = super().get_queryset(**kwargs)
-            qs = qs.filter(org=self.request.user.get_org(), is_active=True)
-            return qs
-
-        def render_to_response(self, context, **response_kwargs):
-            results = []
-            for obj in context["object_list"]:
-                result = dict(id=obj.pk, key=obj.key, label=obj.label)
-                results.append(result)
-
-            sorted_results = sorted(results, key=lambda k: k["label"].lower())
-
-            sorted_results.insert(0, dict(key="groups", label="Groups"))
-
-            for config in reversed(URN_SCHEME_CONFIG):
-                sorted_results.insert(0, dict(key=config[2], label=str(config[1])))
-
-            sorted_results.insert(0, dict(key="name", label="Full name"))
-
-            return HttpResponse(json.dumps(sorted_results), content_type="application/json")
-
 
 class ContactImportCRUDL(SmartCRUDL):
     model = ContactImport
@@ -1810,23 +1793,22 @@ class ContactImportCRUDL(SmartCRUDL):
             def clean_file(self):
                 file = self.cleaned_data["file"]
 
-                # try to parse the file saving the headers and mappings so we don't have to repeat parsing when
-                # saving the import
-                self.headers, self.mappings, self.num_records = ContactImport.try_to_parse(
-                    self.org, file.file, file.name
-                )
+                # try to parse the file saving the mappings so we don't have to repeat parsing when saving the import
+                self.mappings, self.num_records = ContactImport.try_to_parse(self.org, file.file, file.name)
 
                 return file
 
             def clean(self):
                 groups_count = ContactGroup.user_groups.filter(org=self.org).count()
-                if groups_count >= ContactGroup.MAX_ORG_CONTACTGROUPS:
+
+                org_active_groups_limit = self.org.get_limit(Org.LIMIT_GROUPS)
+                if groups_count >= org_active_groups_limit:
                     raise forms.ValidationError(
                         _(
                             "This workspace has reached the limit of %(count)d groups. "
                             "You must delete existing ones before you can perform an import."
                         ),
-                        params={"count": ContactGroup.MAX_ORG_CONTACTGROUPS},
+                        params={"count": org_active_groups_limit},
                     )
 
                 return self.cleaned_data
@@ -1849,17 +1831,17 @@ class ContactImportCRUDL(SmartCRUDL):
 
             org = self.derive_org()
             schemes = org.get_schemes(role=Channel.ROLE_SEND)
-            schemes.add(TEL_SCHEME)  # always show tel
-            context["urn_scheme_config"] = [conf for conf in URN_SCHEME_CONFIG if conf[0] in schemes]
+            schemes.add(URN.TEL_SCHEME)  # always show tel
+            context["urn_schemes"] = [conf for conf in URN.SCHEME_CHOICES if conf[0] in schemes]
             context["explicit_clear"] = ContactImport.EXPLICIT_CLEAR
             context["max_records"] = ContactImport.MAX_RECORDS
+            context["org_country"] = self.org.default_country
             return context
 
         def pre_save(self, obj):
             obj = super().pre_save(obj)
             obj.org = self.get_user().get_org()
             obj.original_filename = self.form.cleaned_data["file"].name
-            obj.headers = self.form.headers
             obj.mappings = self.form.mappings
             obj.num_records = self.form.num_records
             return obj
@@ -1871,9 +1853,9 @@ class ContactImportCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
 
                 self.columns = []
-                for i, header in enumerate(self.instance.headers):
-                    mapping = self.instance.mappings[header]
-                    column = {"header": header, "mapping": mapping}
+                for i, item in enumerate(self.instance.mappings):
+                    mapping = item["mapping"]
+                    column = item.copy()
 
                     if mapping["type"] == "new_field":
                         include_field = forms.BooleanField(
@@ -1903,25 +1885,27 @@ class ContactImportCRUDL(SmartCRUDL):
 
                     self.columns.append(column)
 
-            def get_data_by_header(self):
+            def get_form_values(self) -> List[Dict]:
                 """
-                Gather form data into a map organized by import header
+                Gather form data into a list the same size as the mappings
                 """
-                data = {}
-                for i, header in enumerate(self.instance.headers):
-                    data[header] = {
-                        "include": self.cleaned_data.get(f"column_{i}_include", True),
-                        "name": self.cleaned_data.get(f"column_{i}_name", "").strip(),
-                        "value_type": self.cleaned_data.get(f"column_{i}_value_type", ContactField.TYPE_TEXT),
-                    }
+                data = []
+                for i in range(len(self.instance.mappings)):
+                    data.append(
+                        {
+                            "include": self.cleaned_data.get(f"column_{i}_include", True),
+                            "name": self.cleaned_data.get(f"column_{i}_name", "").strip(),
+                            "value_type": self.cleaned_data.get(f"column_{i}_value_type", ContactField.TYPE_TEXT),
+                        }
+                    )
                 return data
 
             def clean(self):
                 existing_field_keys = {f.key for f in self.org.contactfields.filter(is_active=True)}
                 used_field_keys = set()
-                data_by_header = self.get_data_by_header()
-                for header, data in data_by_header.items():
-                    mapping = self.instance.mappings[header]
+                form_values = self.get_form_values()
+                for data, item in zip(form_values, self.instance.mappings):
+                    header, mapping = item["header"], item["mapping"]
 
                     if mapping["type"] == "new_field" and data["include"]:
                         field_name = data["name"]
@@ -1978,12 +1962,11 @@ class ContactImportCRUDL(SmartCRUDL):
             return context
 
         def pre_save(self, obj):
-            data_by_header = self.form.get_data_by_header()
+            form_values = self.form.get_form_values()
 
             # rewrite mappings using values from form
-            for i, header in enumerate(obj.headers):
-                data = data_by_header[header]
-                mapping = obj.mappings[header]
+            for i, data in enumerate(form_values):
+                mapping = obj.mappings[i]["mapping"]
 
                 if not data["include"]:
                     mapping = ContactImport.MAPPING_IGNORE
@@ -1993,7 +1976,7 @@ class ContactImportCRUDL(SmartCRUDL):
                         mapping["name"] = data["name"]
                         mapping["value_type"] = data["value_type"]
 
-                obj.mappings[header] = mapping
+                obj.mappings[i]["mapping"] = mapping
             return obj
 
         def post_save(self, obj):
