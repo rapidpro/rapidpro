@@ -29,9 +29,9 @@
   {{ block.super }}
   :javascript
     function processURI(input) {
-      let value = input.val();
+      var value = input.val();
       if (value != null) {
-        let uri = value.match(/https?:\/\/[^ "]+\/[0-9a-fA-F]{8}(?:\-[0-9a-fA-F]{4}){3}\-[0-9a-fA-F]{12}/);
+        var uri = value.match(/https?:\/\/[^ "]+\/[0-9a-fA-F]{8}(?:\-[0-9a-fA-F]{4}){3}\-[0-9a-fA-F]{12}/);
         if (uri != null) {
           if (value !== uri[0]){
             input.val(uri[0]);
@@ -45,8 +45,8 @@
     $("#{{ form.base_url.id_for_label }}").on("change", function() {
       processURI($(this));
     }).parents("form").on("submit", function(event) {
-      let input = $("#{{ form.base_url.id_for_label }}");
-      let uri = processURI(input);
+      var input = $("#{{ form.base_url.id_for_label }}");
+      var uri = processURI(input);
       if (uri == null) {
         input.parents(".control-group").addClass("error")
         input.val("");
