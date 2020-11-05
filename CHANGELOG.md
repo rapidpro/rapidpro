@@ -1,3 +1,7 @@
+v6.0.0
+----------
+ * Add Rocket.Chat ticketer to test database
+
 v5.7.91
 ----------
  * Add Rocket.Chat ticketers
