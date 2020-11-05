@@ -23,26 +23,20 @@ class Client:
         kwargs["Content-Type"] = f"application/json"
         return kwargs
 
-    def _request(self, method, url, timeout_msg=None, **kwargs):
+    def _request(self, method, url, **kwargs):
         kwargs["headers"] = self.headers(**(kwargs.get("headers") or {}))
         kwargs.setdefault("timeout", 30)
         try:
             return getattr(requests, method)(url, **kwargs)
         except Timeout as err:
-            raise ClientError(timeout_msg or _("Connection to RocketChat is taking too long.")) from err
+            raise ClientError(_("Connection to RocketChat is taking too long.")) from err
         except Exception as err:
             raise ClientError() from err
 
-    def put(self, url, timeout_msg=None, **kwargs):
-        return self._request("put", url, timeout_msg, **kwargs)
+    def put(self, url, **kwargs):
+        return self._request("put", url, **kwargs)
 
-    def settings(self, domain, ticketer):
-        from .type import RocketChatType
-
-        response = self.put(
-            f"{self.base_url}/settings",
-            _("Unable to configure. Connection to RocketChat is taking too long."),
-            data=json.dumps({"webhook": {"url": RocketChatType.callback_url(ticketer, domain)}}),
-        )
+    def settings(self, webhook_url: str):
+        response = self.put(f"{self.base_url}/settings", data=json.dumps({"webhook": {"url": webhook_url}}),)
         if response.status_code != 204:
             raise ClientError(response=response)

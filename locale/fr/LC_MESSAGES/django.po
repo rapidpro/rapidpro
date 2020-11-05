@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-05 15:57+0000\n"
+"POT-Creation-Date: 2020-11-05 16:55+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -4644,10 +4644,8 @@ msgstr ""
 msgid "Verify your email address for tickets"
 msgstr ""
 
-msgid "<a href=\"https://rocket.chat/\">RocketChat</a> is the ultimate free open source solution for team communications. Its omnichannel feature allows you to integrate RocketChat as a ticket service."
-msgstr ""
-
-msgid "Setup your RocketChat first to be able to integrate."
+#, python-format
+msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket servicethrough its omnichannel feature."
 msgstr ""
 
 msgid "Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b-5f8091899f7b"
@@ -4660,16 +4658,13 @@ msgstr "L'URL de base de votre installation d'entreprise WhatsApp"
 
 #, fuzzy
 #| msgid "The name of your bot"
-msgid "The admin user token of your RocketChat"
+msgid "The admin user token of your Rocket.Chat"
 msgstr "Le nom de votre bot"
 
 #, fuzzy
 #| msgid "The name of your bot"
-msgid "The admin user ID of your RocketChat"
+msgid "The admin user ID of your Rocket.Chat"
 msgstr "Le nom de votre bot"
-
-msgid "Secret to be passed to RocketChat"
-msgstr ""
 
 #, python-format
 msgid "Invalid URL: %(base_url)s"
@@ -6425,7 +6420,7 @@ msgid "Install the app <b>%(brand)s Channel</b> from the <i>Marketplace</i>."
 msgstr ""
 
 #, python-format
-msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel Integration</i>, and in its settings section put the following token in the <i>App's Secret</i> field: <div class=\"code\">%(secret)s</div>"
+msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel</i>, and in its settings section put the following token in the <i>App Secret</i> field: <div class=\"code\">%(secret)s</div>"
 msgstr ""
 
 msgid "Save the changes. Copy the app's URL and paste it in the URL field. It should end with a long ID, for example: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
@@ -10183,28 +10178,11 @@ msgid "Your verification code is %(code)s to continue adding an email-based tick
 msgstr ""
 
 #, python-format
-msgid "You will need to enable Omnichannel and setup a %(brand)s Tickets app on your RocketChat. To do so:"
-msgstr ""
-
-msgid "On your RocketChat, go to <b>Administration > Omnichannel</b> and enable the Omnichannel."
+msgid "Install the app <b>%(brand)s Tickets</b> from the <i>Marketplace</i>."
 msgstr ""
 
 #, python-format
-msgid "Install your %(brand)s Tickets app from marketplace."
-msgstr ""
-
-msgid "Open the app details, at <b>Administration > Apps > app</b>, and in its settings section put the following token on the <b>App's Secret</b> field:"
-msgstr ""
-
-#, python-format
-msgid "Your new secret: <code>%(secret)s</code>."
-msgstr ""
-
-#, python-format
-msgid "Save the changes, copy the app's URL and back to %(brand)s by pasting that URL on field below, so try connect."
-msgstr ""
-
-msgid "To get the required Auth Token and User ID go to <b>Profile > My account > Personal Access Tokens > Generate a token without 2FA</b>, save the tokens as it will not be displayed again once the pop-up is closed."
+msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Tickets</i>, and in its settings section put the following token in the <i>App Secret</i> field: <div class=\"code\">%(secret)s</div>"
 msgstr ""
 
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."

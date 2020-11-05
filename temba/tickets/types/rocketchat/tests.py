@@ -29,7 +29,7 @@ class RocketChatMixin(TembaTest):
         self.secure_url = self.new_url(self.domain, path=f"/{self.app_id}", scheme="https", unique=False)
 
     @staticmethod
-    def new_url(domain, path=None, scheme="http", unique=True):
+    def new_url(domain, path=None, scheme="https", unique=True):
         url = f"{domain}{path or ''}"
         if unique:
             unique = re.sub(r"[^\da-zA-Z]", "", token_urlsafe(10))
@@ -49,19 +49,18 @@ class ClientTest(RocketChatMixin):
     def test_settings_success(self, mock_request):
         mock_request.return_value = MockResponse(204, {})
         try:
-            Client(self.secure_url, self.secret).settings(self.domain, self.new_ticketer())
+            Client(self.secure_url, self.secret).settings("http://temba.io/mr/tickets/1234-5678")
         except ClientError:
             self.fail("The status 204 should not raise exceptions")
 
     def test_settings_fail(self):
-        ticketer = self.new_ticketer()
         for status in range(200, 599):
             if status == 204:
                 continue
             with patch("requests.put") as mock_request:
                 mock_request.return_value = MockResponse(status, {})
                 with self.assertRaises(ClientError, msg=f"The status {status} must be invalid"):
-                    Client(self.secure_url, self.secret).settings(self.domain, ticketer)
+                    Client(self.secure_url, self.secret).settings("http://temba.io/mr/tickets/1234-5678")
 
     @patch("requests.put")
     def test_settings_exceptions(self, mock_request):
@@ -71,41 +70,8 @@ class ClientTest(RocketChatMixin):
                 raise err
 
             mock_request.side_effect = side_effect
-            ticketer = self.new_ticketer()
             with self.assertRaises(ClientError):
-                Client(self.secure_url, self.secret).settings(self.domain, ticketer)
-
-
-class RocketChatTypeTest(RocketChatMixin):
-    @patch("temba.orgs.models.Org.get_brand_domain")
-    def test_callback_url(self, mock_brand_domain):
-        ticketer = self.new_ticketer()
-        domains = [("https://", "test.domain.com"), ("", "http://test.domain.com"), ("", "https://test.domain.com")]
-        for scheme, domain in domains:
-            mock_brand_domain.return_value = domain
-            self.assertEqual(
-                RocketChatType.callback_url(ticketer),
-                f"{scheme}{domain}/mr/tickets/types/rocketchat/event_callback/{ticketer.uuid}",
-            )
-
-        mock_brand_domain.return_value = "test.domain.com"
-        domains = [
-            ("https://", "req.domain.com"),
-            ("", "http://req.domain.com"),
-            ("", "https://requestreq.domain.com"),
-        ]
-        for scheme, domain in domains:
-            self.assertEqual(
-                RocketChatType.callback_url(ticketer, domain),
-                f"{scheme}{domain}/mr/tickets/types/rocketchat/event_callback/{ticketer.uuid}",
-            )
-
-    @patch("temba.orgs.models.Org.get_brand_domain")
-    def test_callback_url_exception(self, mock_brand_domain):
-        mock_brand_domain.return_value = ""
-        ticketer = self.new_ticketer()
-        with self.assertRaises(ValueError):
-            RocketChatType.callback_url(ticketer)
+                Client(self.secure_url, self.secret).settings("http://temba.io/mr/tickets/1234-5678")
 
 
 class RocketChatViewTest(RocketChatMixin):
@@ -166,43 +132,35 @@ class RocketChatViewTest(RocketChatMixin):
     @patch("socket.gethostbyname")
     @patch("random.choice")
     def test_form_valid(self, mock_choices, mock_socket, mock_settings):
-        def settings_effect(domain, ticketer):
-            nonlocal _ticketer
-            _ticketer = ticketer
-
         choices = (c for c in self.secret)
         mock_choices.side_effect = lambda letters: next(choices)
-        mock_settings.side_effect = settings_effect
         mock_socket.return_value = "192.55.123.1"  # Fake IP
 
         self.client.force_login(self.admin)
-        toggle = True
+
         max_length = Ticketer._meta.get_field("name").max_length
         for path in [f"/{self.app_id}", f"/{self.app_id}/", f"/{self.app_id}/path", f"/path/{self.app_id}/"]:
-            for scheme in ["", "http", "https"]:
-                _ticketer: Ticketer = None
-                choices = (c for c in self.secret)
-                data = {
-                    "secret": self.secret,
-                    "base_url": self.new_url("valid.com", path=path, scheme=scheme),
-                    "admin_auth_token": "abc123",
-                    "admin_user_id": "123",
-                }
-                if toggle:
-                    toggle = not toggle
-                    domain = data["base_url"].replace("http://", "").replace("https://", "").split("/")[0]
-                    data["base_url"] = f"{'x' * (max_length - len(domain))}-{data['base_url']}"
-                response = self.client.post(self.connect_url, data=data)
-                self.assertIsInstance(_ticketer, Ticketer, msg=f"Data: {data}")
-                self.assertEqual(_ticketer.ticketer_type, RocketChatType.slug)
-                self.assertRedirect(response, reverse("tickets.ticket_filter", args=[_ticketer.uuid]))
+            choices = (c for c in self.secret)
+            data = {
+                "secret": self.secret,
+                "base_url": self.new_url("valid.com", path=path, scheme="https"),
+                "admin_auth_token": "abc123",
+                "admin_user_id": "123",
+            }
+            response = self.client.post(self.connect_url, data=data)
 
-                domain = data["base_url"].replace("http://", "").replace("https://", "").split("/")[0]
-                expected = f"{RocketChatType.name}: {domain}"
-                if len(expected) > max_length:
-                    expected = f"{expected[:max_length - 3]}..."
-                self.assertEqual(_ticketer.name, expected, f"\nExpected: {expected}\nGot: {_ticketer.name}")
-                self.assertFalse(_ticketer.config[RocketChatType.CONFIG_BASE_URL].endswith("/"))
+            self.assertEqual(response.status_code, 302)
+
+            ticketer = Ticketer.objects.order_by("id").last()
+
+            self.assertRedirect(response, reverse("tickets.ticket_filter", args=[ticketer.uuid]))
+
+            domain = data["base_url"].replace("http://", "").replace("https://", "").split("/")[0]
+            expected = f"{RocketChatType.name}: {domain}"
+            if len(expected) > max_length:
+                expected = f"{expected[:max_length - 3]}..."
+            self.assertEqual(ticketer.name, expected)
+            self.assertFalse(ticketer.config[RocketChatType.CONFIG_BASE_URL].endswith("/"))
 
     @patch("temba.tickets.types.rocketchat.client.Client.settings")
     @patch("socket.gethostbyname")
@@ -272,8 +230,5 @@ class RocketChatViewTest(RocketChatMixin):
     def test_settings_exception(self, mock_request, mock_choices, mock_socket):
         mock_socket.return_value = "192.55.123.1"  # Fake IP
         self.check_exceptions(
-            mock_choices,
-            mock_request,
-            "Unable to configure. Connection to RocketChat is taking too long.",
-            "Configuration has failed",
+            mock_choices, mock_request, "Connection to RocketChat is taking too long.", "Configuration has failed",
         )

@@ -32,9 +32,6 @@ class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
 
         super().__init__()
 
-    def get_gear_links(self):
-        return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"),)]
-
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs["request"] = self.request

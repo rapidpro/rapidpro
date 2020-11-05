@@ -1,4 +1,5 @@
 import re
+from urllib.parse import urlparse
 
 from django import forms
 from django.contrib import messages
@@ -12,6 +13,8 @@ from temba.utils.uuid import uuid4
 
 from .client import Client, ClientError
 
+WEBHOOK_URL_TEMPLATE = "https://{domain}/mr/tickets/types/rocketchat/event_callback/{uuid}"
+
 UUID_PATTERN = r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}"
 RE_UUID = re.compile(UUID_PATTERN)
 RE_BASE_URL = re.compile(rf"https?://[^ \"]+/{UUID_PATTERN}")
@@ -23,22 +26,22 @@ class ConnectView(BaseConnectView):
     SESSION_KEY = "_ticketer_rocketchat_secret"
 
     _secret = None
-    form_blurb = _("Setup your RocketChat first to be able to integrate.")
+    form_blurb = _("Setup your Rocket.Chat first to be able to integrate.")
 
     class Form(BaseConnectView.Form):
         base_url = ExternalURLField(
             label=_("URL"),
             widget=forms.URLInput(
-                attrs={"placeholder": _("Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b" "-5f8091899f7b")}
+                attrs={"placeholder": _("Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b-5f8091899f7b")}
             ),
             help_text=_("The URL for your RocketChat Tickets app"),
         )
         admin_auth_token = forms.CharField(
-            label=_("Admin Auth Token"), help_text=_("The admin user token of your RocketChat")
+            label=_("Admin Auth Token"), help_text=_("The admin user token of your Rocket.Chat")
         )
-        admin_user_id = forms.CharField(label=_("Admin User ID"), help_text=_("The admin user ID of your RocketChat"))
+        admin_user_id = forms.CharField(label=_("Admin User ID"), help_text=_("The admin user ID of your Rocket.Chat"))
         secret = forms.CharField(
-            label=_("Secret"), widget=forms.HiddenInput(), help_text=_("Secret to be passed to RocketChat")
+            label=_("Secret"), widget=forms.HiddenInput(), help_text=_("Secret to be passed to Rocket.Chat")
         )
 
         def clean(self):
@@ -88,32 +91,33 @@ class ConnectView(BaseConnectView):
         return initial
 
     def form_valid(self, form):
-        from .type import RocketChatType, RE_HOST
+        from .type import RocketChatType
 
-        url = form.cleaned_data["base_url"]
+        base_url = form.cleaned_data["base_url"]
         config = {
-            RocketChatType.CONFIG_BASE_URL: url,
+            RocketChatType.CONFIG_BASE_URL: base_url,
             RocketChatType.CONFIG_SECRET: form.cleaned_data["secret"],
             RocketChatType.CONFIG_ADMIN_AUTH_TOKEN: form.cleaned_data["admin_auth_token"],
             RocketChatType.CONFIG_ADMIN_USER_ID: form.cleaned_data["admin_user_id"],
         }
+
+        rc_host = urlparse(base_url).netloc
 
         self.object = Ticketer(
             uuid=uuid4(),
             org=self.org,
             ticketer_type=RocketChatType.slug,
             config=config,
-            name=truncate(
-                f"{RocketChatType.name}: {RE_HOST.search(url).group('domain')}",
-                Ticketer._meta.get_field("name").max_length,
-            ),
+            name=truncate(f"{RocketChatType.name}: {rc_host}", Ticketer._meta.get_field("name").max_length),
             created_by=self.request.user,
             modified_by=self.request.user,
         )
 
+        client = Client(config[RocketChatType.CONFIG_BASE_URL], config[RocketChatType.CONFIG_SECRET])
+        webhook_url = WEBHOOK_URL_TEMPLATE.format(domain=self.object.org.get_brand_domain(), uuid=self.object.uuid)
+
         try:
-            client = Client(config[RocketChatType.CONFIG_BASE_URL], config[RocketChatType.CONFIG_SECRET])
-            client.settings(self.request.build_absolute_uri("/"), self.object)
+            client.settings(webhook_url)
             self.request.session.pop(self.SESSION_KEY, None)
         except ClientError as err:
             messages.error(self.request, err.msg if err.msg else _("Configuration has failed"))

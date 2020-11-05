@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-05 15:57+0000\n"
+"POT-Creation-Date: 2020-11-05 16:55+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -5027,11 +5027,9 @@ msgstr ""
 msgid "Verify your email address for tickets"
 msgstr "Seu endereço de e-mail é "
 
-msgid "<a href=\"https://rocket.chat/\">RocketChat</a> is the ultimate free open source solution for team communications. Its omnichannel feature allows you to integrate RocketChat as a ticket service."
-msgstr "<a href=\"https://rocket.chat/\">RocketChat</a> é a melhor solução gratuita de código aberto para comunicação de equipes. Seu recurso omnichannel permite integrar o RocketChat como um serviço de ticket."
-
-msgid "Setup your RocketChat first to be able to integrate."
-msgstr "Configure seu RocketChat primeiro para poder integrar."
+#, python-format
+msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket servicethrough its omnichannel feature."
+msgstr ""
 
 msgid "Ex.: http://my.rocket.chat/29542a4b-5a89-4f27-872b-5f8091899f7b"
 msgstr ""
@@ -5043,16 +5041,13 @@ msgstr "O URL da sua instalação do RocketChat"
 
 #, fuzzy
 #| msgid "The name of your organization"
-msgid "The admin user token of your RocketChat"
+msgid "The admin user token of your Rocket.Chat"
 msgstr "Nome da sua organização"
 
 #, fuzzy
 #| msgid "The name of your organization"
-msgid "The admin user ID of your RocketChat"
+msgid "The admin user ID of your Rocket.Chat"
 msgstr "Nome da sua organização"
-
-msgid "Secret to be passed to RocketChat"
-msgstr "Segredo a ser passado para o RocketChat"
 
 #, python-format
 msgid "Invalid URL: %(base_url)s"
@@ -6842,7 +6837,7 @@ msgid "Install the app <b>%(brand)s Channel</b> from the <i>Marketplace</i>."
 msgstr ""
 
 #, python-format
-msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel Integration</i>, and in its settings section put the following token in the <i>App's Secret</i> field: <div class=\"code\">%(secret)s</div>"
+msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel</i>, and in its settings section put the following token in the <i>App Secret</i> field: <div class=\"code\">%(secret)s</div>"
 msgstr ""
 
 msgid "Save the changes. Copy the app's URL and paste it in the URL field. It should end with a long ID, for example: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
@@ -9856,28 +9851,11 @@ msgid "Your verification code is %(code)s to continue adding an email-based tick
 msgstr ""
 
 #, python-format
-msgid "You will need to enable Omnichannel and setup a %(brand)s Tickets app on your RocketChat. To do so:"
-msgstr ""
-
-msgid "On your RocketChat, go to <b>Administration > Omnichannel</b> and enable the Omnichannel."
+msgid "Install the app <b>%(brand)s Tickets</b> from the <i>Marketplace</i>."
 msgstr ""
 
 #, python-format
-msgid "Install your %(brand)s Tickets app from marketplace."
-msgstr ""
-
-msgid "Open the app details, at <b>Administration > Apps > app</b>, and in its settings section put the following token on the <b>App's Secret</b> field:"
-msgstr ""
-
-#, python-format
-msgid "Your new secret: <code>%(secret)s</code>."
-msgstr ""
-
-#, python-format
-msgid "Save the changes, copy the app's URL and back to %(brand)s by pasting that URL on field below, so try connect."
-msgstr ""
-
-msgid "To get the required Auth Token and User ID go to <b>Profile > My account > Personal Access Tokens > Generate a token without 2FA</b>, save the tokens as it will not be displayed again once the pop-up is closed."
+msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Tickets</i>, and in its settings section put the following token in the <i>App Secret</i> field: <div class=\"code\">%(secret)s</div>"
 msgstr ""
 
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."
@@ -9990,6 +9968,15 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "<a href=\"https://rocket.chat/\">RocketChat</a> is the ultimate free open source solution for team communications. Its omnichannel feature allows you to integrate RocketChat as a ticket service."
+#~ msgstr "<a href=\"https://rocket.chat/\">RocketChat</a> é a melhor solução gratuita de código aberto para comunicação de equipes. Seu recurso omnichannel permite integrar o RocketChat como um serviço de ticket."
+
+#~ msgid "Setup your RocketChat first to be able to integrate."
+#~ msgstr "Configure seu RocketChat primeiro para poder integrar."
+
+#~ msgid "Secret to be passed to RocketChat"
+#~ msgstr "Segredo a ser passado para o RocketChat"
 
 #~ msgid "Channel Type"
 #~ msgstr "Tipo do transmissor"
