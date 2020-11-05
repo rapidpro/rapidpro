@@ -244,6 +244,17 @@ ORG1 = dict(
                 subdomain="nyaruka", oauth_token="754845822", secret="sesame", push_id="1234-abcd", push_token="523562"
             ),
         ),
+        dict(
+            uuid="6c50665f-b4ff-4e37-9625-bc464fe6a999",
+            name="Rocket.Chat",
+            ticketer_type="rocketchat",
+            config=dict(
+                base_url="https://temba.rocket.chat/apps/public/1234",
+                secret="123456789",
+                admin_auth_token="1234",
+                admin_user_id="ADMIN346",
+            ),
+        ),
     ),
 )
 
