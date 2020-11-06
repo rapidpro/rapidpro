@@ -329,11 +329,11 @@ class Migrator(object):
 
     def get_org_flows(self) -> (list, int):
         count = self.get_count(
-            "flows_flow", condition=f"org_id = {self.org_id} AND is_archived = false AND is_active = true"
+            "flows_flow", condition=f"org_id = {self.org_id} AND is_archived = false"
         )
         return (
             self.get_results_paginated(
-                query_string=f"SELECT * FROM public.flows_flow WHERE org_id = {self.org_id} AND is_archived = false AND is_active = true ORDER BY id ASC",
+                query_string=f"SELECT * FROM public.flows_flow WHERE org_id = {self.org_id} AND is_archived = false ORDER BY id ASC",
                 count=count,
             ),
             count,

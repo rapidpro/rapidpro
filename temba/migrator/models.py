@@ -299,9 +299,12 @@ class MigrationTask(TembaModel):
             logger.info("---------------- Flows ----------------")
             logger.info("[STARTED] Flows migration")
 
+            inactive_flows = []
             org_flows, flows_count = migrator.get_org_flows()
             if org_flows:
-                self.add_flows(logger=logger, flows=org_flows, migrator=migrator, count=flows_count)
+                self.add_flows(
+                    logger=logger, flows=org_flows, migrator=migrator, count=flows_count, inactive_flows=inactive_flows
+                )
 
             logger.info("[COMPLETED] Flows migration")
             logger.info("")
@@ -395,6 +398,10 @@ class MigrationTask(TembaModel):
             self.add_parse_data(logger=logger, collections=org_lookups, collection_type="lookups")
 
             logger.info("[COMPLETED] Parse Data migration")
+            logger.info("")
+
+            logger.info("UUIDs of the flows inactivated (deleted) on 1.0:")
+            logger.info(inactive_flows)
             logger.info("")
 
             end = timezone.now()
@@ -1095,12 +1102,17 @@ class MigrationTask(TembaModel):
                 model=MigrationAssociation.MODEL_FLOW_LABEL,
             )
 
-    def add_flows(self, logger, flows, migrator, count):
+    def add_flows(self, logger, flows, migrator, count, inactive_flows):
         for idx, flow in enumerate(flows, start=1):
             logger.info(f">>> [{idx}/{count}] Flow: {flow.uuid} - {flow.name}")
 
             if flow.flow_type == "U":
                 logger.info(f">>> This flow was skipped because it is an USSD flow type: {flow.name}")
+                continue
+
+            if not flow.is_active:
+                logger.info(f">>> This flow was skipped because it is not active on 1.0: {flow.name}")
+                inactive_flows.append(flow.uuid)
                 continue
 
             new_flow = Flow.objects.filter(uuid=flow.uuid).only("id").first()
