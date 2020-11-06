@@ -668,6 +668,7 @@ class OrgCRUDL(SmartCRUDL):
                     for trigger in json_data["triggers"]:
                         if trigger.get("trigger_type") == "K":
                             filter_params = {
+                                "org": self.org,
                                 "keyword": trigger.get("keyword", ""),
                                 "is_active": True,
                                 "is_archived": False,
@@ -682,6 +683,22 @@ class OrgCRUDL(SmartCRUDL):
                         else:
                             triggers.append(trigger)
                     json_data["triggers"] = triggers
+                    data = json.dumps(json_data)
+
+                if json_data.get("links", []):
+                    links = []
+                    processed_links = {}
+                    for link in json_data["links"]:
+                        full_link = f"{link.get('name')} {link.get('destination')}"
+                        filter_params = {
+                            "org": self.org,
+                            "name": link.get("name"),
+                            "destination": link.get("destination"),
+                            "is_archived": False,
+                        }
+                        if not Link.objects.filter(**filter_params).exists() and not full_link in processed_links:
+                            links.append(link)
+                    json_data["links"] = links
                     data = json.dumps(json_data)
 
                 return data
