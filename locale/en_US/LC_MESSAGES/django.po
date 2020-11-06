@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-29 21:56+0000\n"
+"POT-Creation-Date: 2020-11-05 17:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1001,10 +1001,13 @@ msgstr ""
 msgid "The short code or phone number you are connecting."
 msgstr ""
 
+msgid "Ex: https://jasmin.gateway.io/send"
+msgstr ""
+
 msgid "URL"
 msgstr ""
 
-msgid "The URL for the Jasmin server send path. ex: https://jasmin.gateway.io/send"
+msgid "The URL for the Jasmin server send path"
 msgstr ""
 
 msgid "The username to be used to authenticate to Jasmin"
@@ -1274,6 +1277,59 @@ msgid "Shortcode"
 msgstr ""
 
 msgid "There was a problem updating that number, please try again."
+msgstr ""
+
+msgid "Connection to RocketChat is taking too long."
+msgstr ""
+
+msgid "Unable to configure. Connection to RocketChat is taking too long."
+msgstr ""
+
+#, python-format
+msgid "Add a %(link)s bot to send and receive messages to Rocket.Chat users."
+msgstr ""
+
+msgid "Ex.: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
+msgstr ""
+
+msgid "URL of the Rocket.Chat Channel app"
+msgstr ""
+
+msgid "Bot Username"
+msgstr ""
+
+msgid "Username of your bot user"
+msgstr ""
+
+msgid "Admin User ID"
+msgstr ""
+
+msgid "User ID of an administrator user"
+msgstr ""
+
+msgid "Admin Auth Token"
+msgstr ""
+
+msgid "Authentication token of an administrator user"
+msgstr ""
+
+msgid "Secret to be passed to Rocket.Chat"
+msgstr ""
+
+msgid "Invalid secret code."
+msgstr ""
+
+msgid "Secret code change detected."
+msgstr ""
+
+#, python-format
+msgid "Invalid URL %(base_url)s"
+msgstr ""
+
+msgid "There is already a channel configured for this URL."
+msgstr ""
+
+msgid "Configuration has failed"
 msgstr ""
 
 msgid "If you are based in Somalia, you can integrate with Shaqodoon to send and receive messages on your shortcode."
@@ -1928,6 +1984,9 @@ msgid "Freshchat identifier"
 msgstr ""
 
 msgid "VK identifier"
+msgstr ""
+
+msgid "RocketChat identifier"
 msgstr ""
 
 msgid "Text"
@@ -3701,6 +3760,20 @@ msgstr ""
 msgid "Verify your email address for tickets"
 msgstr ""
 
+#, python-format
+msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket servicethrough its omnichannel feature."
+msgstr ""
+
+msgid "URL of the Rocket.Chat Tickets app"
+msgstr ""
+
+#, python-format
+msgid "Invalid URL: %(base_url)s"
+msgstr ""
+
+msgid "There is already a ticketing service configured for this URL."
+msgstr ""
+
 msgid "<a href=\"https://www.zendesk.com/\">Zendesk</a> is one of the most popular customer service systems around. You can use it to manage all the tickets created on your account."
 msgstr ""
 
@@ -4151,6 +4224,9 @@ msgid "Works in any country and uses the cell phone plan you already have. You j
 msgstr ""
 
 msgid "API Channels"
+msgstr ""
+
+msgid "Enter your credentials to add your number."
 msgstr ""
 
 msgid "Connect a Phone Number"
@@ -4692,7 +4768,23 @@ msgstr ""
 msgid "It may take up to ten minutes for a new webhook to take effect after being set on your Facebook application. Remember, until your Facebook application is approved by Facebook you will only be able to send and receive messages with administrators of your application."
 msgstr ""
 
-msgid "You can connect your Facebook page's Messenger account, click below to get started."
+#, python-format
+msgid "You can connect your Facebook page to %(name)s in just a few simple steps."
+msgstr ""
+
+msgid "Click on the button below to get started."
+msgstr ""
+
+msgid "Select the user you want to log in as."
+msgstr ""
+
+msgid "Select all the pages you want to grant us permissions for."
+msgstr ""
+
+msgid "Approve the permissions, these are required for us to send and receive messages on your behalf."
+msgstr ""
+
+msgid "Finally, select the page you want to add as a channel."
 msgstr ""
 
 msgid "Add Facebook Page"
@@ -4854,6 +4946,30 @@ msgid "When a new message is received by your service, it should notify us with 
 msgstr ""
 
 msgid "Use this Token as Authorization when sending incoming messages"
+msgstr ""
+
+#, python-format
+msgid "You can connect Rocket.Chat to %(name)s in a few simple steps."
+msgstr ""
+
+msgid "In your Rocket.Chat instance, go to <i>Administration</i> &gt; <i>Omnichannel</i> and enable it."
+msgstr ""
+
+msgid "Add a new user with the \"bot\" role (<i>Administration</i> &gt; <i>Users</i> &gt; <i>New</i>)"
+msgstr ""
+
+#, python-format
+msgid "Install the app <b>%(brand)s Channel</b> from the <i>Marketplace</i>."
+msgstr ""
+
+#, python-format
+msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Channel</i>, and in its settings section put the following token in the <i>App Secret</i> field: <div class=\"code\">%(secret)s</div>"
+msgstr ""
+
+msgid "Save the changes. Copy the app's URL and paste it in the URL field. It should end with a long ID, for example: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4"
+msgstr ""
+
+msgid "You will also need a Auth Token and User ID which you can generate at <i>Profile</i> &gt; <i>My account</i> &gt; <i>Personal Access Tokens</i>. Ensure that <i>Ignore Two Factor Authentication</i> is checked."
 msgstr ""
 
 #, python-format
@@ -5434,13 +5550,7 @@ msgid "Contacts will automatically be added here as you communicate with them us
 msgstr ""
 
 #, python-format
-msgid "To get started you can %%a{href:'%(contact_import_url)s'} import contacts from a file you create in Excel."
-msgstr ""
-
-msgid "Are you sure you want to remove"
-msgstr ""
-
-msgid "Once it is removed, it will be gone forever."
+msgid "To get started you can <a href=\"%(url)s\">import</a> contacts from a file you create in Excel."
 msgstr ""
 
 msgid "Your export for the following flows is ready."
@@ -5619,9 +5729,6 @@ msgid "Export Results"
 msgstr ""
 
 msgid "No matching flows."
-msgstr ""
-
-msgid "Create a message keyword to allow people to join a group."
 msgstr ""
 
 msgid "Overview"
@@ -5938,15 +6045,6 @@ msgid "(sending)"
 msgstr ""
 
 msgid "No matching messages."
-msgstr ""
-
-msgid "Loading recipients.."
-msgstr ""
-
-msgid "recipients at this point in the flow"
-msgstr ""
-
-msgid "Sending.."
 msgstr ""
 
 msgid "Your workspace is suspended and no longer processing messages."
@@ -6391,12 +6489,6 @@ msgid "If you have flows or campaigns with the same names or UUIDs as the ones y
 msgstr ""
 
 msgid "Do not proceed unless you are willing to replace your existing flows and campaigns."
-msgstr ""
-
-msgid "Add guest viewers to"
-msgstr ""
-
-msgid "Enter emails of people to invite"
 msgstr ""
 
 #, python-format
@@ -7125,6 +7217,14 @@ msgstr ""
 
 #, python-format
 msgid "Your verification code is %(code)s to continue adding an email-based ticketing service."
+msgstr ""
+
+#, python-format
+msgid "Install the app <b>%(brand)s Tickets</b> from the <i>Marketplace</i>."
+msgstr ""
+
+#, python-format
+msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(brand)s Tickets</i>, and in its settings section put the following token in the <i>App Secret</i> field: <div class=\"code\">%(secret)s</div>"
 msgstr ""
 
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."

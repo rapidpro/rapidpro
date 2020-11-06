@@ -1,3 +1,55 @@
+v6.0.0
+----------
+ * Add Rocket.Chat ticketer to test database
+
+v5.7.91
+----------
+ * Add Rocket.Chat ticketers
+
+v5.7.90
+----------
+ * Update rocket.chat icon in correct font
+
+v5.7.89
+----------
+ * Improve Rocket.Chat claim page
+ * Add Rocket.Chat icon
+
+v5.7.87
+----------
+ * Cleanup Rocket.Chat UI
+
+v5.7.86
+----------
+ * Add RocketChat channels (beta-only for now)
+
+v5.7.85
+----------
+ * Add back jquery-migrate and remove debug
+
+v5.7.84
+----------
+ * Remove select2, coffeescript, jquery plugins
+
+v5.7.83
+----------
+ * Fix broken import link on empty contacts page
+ * Use consistent approach for limits on org
+ * Globals UI should limit creation of globals to org limit
+ * Fix archives list styles and add tabs for message and run archives
+ * Restyle the Facebook app channel claim pages
+ * Switch to use FBA type by default
+
+v5.7.82
+----------
+ * Don't blow up if import contains invalid URNs but pass values on to mailroom
+ * Update to version of editor with some small styling tweaks
+ * Include occurred_on with mo_miss events queued to mailroom
+ * Adjust Twilio connect to redirect properly to the original claim page
+ * Remove no longer used FlowRun.timeout_on and drop two unused indexes
+ * Cleanup more localized strings with trimmed
+ * Fix 404 error in channel list
+
 v5.7.81
 ----------
  * Add page title to brand so that its configurable

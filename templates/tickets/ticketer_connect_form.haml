@@ -1,12 +1,12 @@
 -extends "smartmin/form.html"
+-load smartmin
 
 -block title
   {{ title }}
 
 -block pre-form
-  .mb-6
-    {{ form_blurb }}
+  {{ form_blurb }}
 
--block fields
-  .w-128
-    {{block.super}}
+-block form
+  .card
+    {{ block.super }}

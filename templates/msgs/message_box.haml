@@ -175,7 +175,7 @@
                 %tbody
                   -for object in object_list
                     %tr.sms.object-row{id: 'id-row-{{object.id}}', data-object-id:'{{ object.id }}',
-                                  data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', data-sender-select2:'{{object.contact|short_name:user_org}}', onrowclick:'handleRowClick("{{object.contact.uuid}}")'}
+                                  data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', onrowclick:'handleRowClick("{{object.contact.uuid}}")'}
                       -if actions
                         - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
                           %td.checkbox.sms.object-row-check

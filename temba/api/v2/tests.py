@@ -2653,7 +2653,7 @@ class APITest(TembaTest):
         response = self.fetchJSON(url)
         self.assertResultsByUUID(response, [color, survey])
 
-    @patch.object(Global, "MAX_ORG_GLOBALS", new=3)
+    @override_settings(MAX_ACTIVE_GLOBALS_PER_ORG=3)
     def test_globals(self):
         url = reverse("api.v2.globals")
         self.assertEndpointAccess(url)
@@ -2792,7 +2792,7 @@ class APITest(TembaTest):
             "You must delete existing ones before you can create new ones.",
         )
 
-    @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
+    @override_settings(MAX_ACTIVE_CONTACTGROUPS_PER_ORG=10)
     @mock_mailroom
     def test_groups(self, mr_mocks):
         url = reverse("api.v2.groups")
@@ -2911,7 +2911,7 @@ class APITest(TembaTest):
 
         self.bulk_release(ContactGroup.user_groups.all())
 
-        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+        for i in range(settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG):
             ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)
 
         response = self.postJSON(url, None, {"name": "Reporters"})
@@ -2919,7 +2919,7 @@ class APITest(TembaTest):
 
         ContactGroup.user_groups.all().delete()
 
-        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+        for i in range(settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG):
             ContactGroup.create_static(self.org, self.admin, "group%d" % i)
 
         response = self.postJSON(url, None, {"name": "Reporters"})

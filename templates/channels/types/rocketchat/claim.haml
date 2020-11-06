@@ -1,0 +1,59 @@
+-extends "channels/channel_claim_form.html"
+-load i18n compress temba
+
+-block pre-form
+  -blocktrans trimmed with name=brand.name
+    You can connect Rocket.Chat to {{name}} in a few simple steps.
+
+  %ol.list-decimal.ml-5.mt-3
+    %li.list-decimal.my-2
+      -blocktrans trimmed
+        In your Rocket.Chat instance, go to <i>Administration</i> &gt; <i>Omnichannel</i> and enable it.
+    %li.list-decimal.my-2
+      -blocktrans trimmed
+        Add a new user with the "bot" role (<i>Administration</i> &gt; <i>Users</i> &gt; <i>New</i>)
+    %li.list-decimal.my-2
+      -blocktrans trimmed with brand=brand.name
+        Install the app <b>{{ brand }} Channel</b> from the <i>Marketplace</i>.
+    %li.list-decimal.my-2
+      -blocktrans trimmed with brand=brand.name
+        Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>{{ brand }} Channel</i>, and in
+        its settings section put the following token in the <i>App Secret</i> field: <div class="code">{{ secret }}</div>
+    %li.list-decimal.my-2
+      -blocktrans trimmed with brand=brand.name
+        Save the changes. Copy the app's URL and paste it in the URL field. It should end with a long ID,
+        for example: https://my.rocket.chat/api/apps/public/51c5cebe-b8e4-48ae-89d3-2b7746019cc4
+    %li.list-decimal.my-2
+      -blocktrans trimmed
+        You will also need a Auth Token and User ID which you can generate at <i>Profile</i> &gt; <i>My account</i> &gt;
+        <i>Personal Access Tokens</i>. Ensure that <i>Ignore Two Factor Authentication</i> is checked.
+
+
+-block extra-script
+  {{ block.super }}
+  :javascript
+    function processURI(input) {
+      var value = input.val();
+      if (value != null) {
+        var uri = value.match(/https?:\/\/[^ "]+\/[0-9a-fA-F]{8}(?:\-[0-9a-fA-F]{4}){3}\-[0-9a-fA-F]{12}/);
+        if (uri != null) {
+          if (value !== uri[0]){
+            input.val(uri[0]);
+          }
+          return uri[0];
+        }
+      }
+      return null;
+    }
+
+    $("#{{ form.base_url.id_for_label }}").on("change", function() {
+      processURI($(this));
+    }).parents("form").on("submit", function(event) {
+      var input = $("#{{ form.base_url.id_for_label }}");
+      var uri = processURI(input);
+      if (uri == null) {
+        input.parents(".control-group").addClass("error")
+        input.val("");
+        event.preventDefault();
+      }
+    });

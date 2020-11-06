@@ -984,7 +984,7 @@ class ContactGroupCRUDLTest(TembaTest):
 
         self.other_org_group = self.create_group("Customers", contacts=[], org=self.org2)
 
-    @patch.object(ContactGroup, "MAX_ORG_CONTACTGROUPS", new=10)
+    @override_settings(MAX_ACTIVE_CONTACTGROUPS_PER_ORG=10)
     @mock_mailroom
     def test_create(self, mr_mocks):
         url = reverse("contacts.contactgroup_create")
@@ -1025,7 +1025,7 @@ class ContactGroupCRUDLTest(TembaTest):
 
         self.bulk_release(ContactGroup.user_groups.all())
 
-        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+        for i in range(settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG):
             ContactGroup.create_static(self.org2, self.admin2, "group%d" % i)
 
         response = self.client.post(url, dict(name="People"))
@@ -1034,10 +1034,10 @@ class ContactGroupCRUDLTest(TembaTest):
 
         self.bulk_release(ContactGroup.user_groups.all())
 
-        for i in range(ContactGroup.MAX_ORG_CONTACTGROUPS):
+        for i in range(settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG):
             ContactGroup.create_static(self.org, self.admin, "group%d" % i)
 
-        self.assertEqual(ContactGroup.user_groups.all().count(), ContactGroup.MAX_ORG_CONTACTGROUPS)
+        self.assertEqual(ContactGroup.user_groups.all().count(), settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG)
         response = self.client.post(url, dict(name="People"))
         self.assertFormError(
             response,
@@ -3800,7 +3800,7 @@ class ContactFieldTest(TembaTest):
             self.create_contact_import(path)
 
         # no group specified, so will default to 'Active'
-        with self.assertNumQueries(49):
+        with self.assertNumQueries(50):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -3853,7 +3853,7 @@ class ContactFieldTest(TembaTest):
         # change the order of the fields
         self.contactfield_2.priority = 15
         self.contactfield_2.save()
-        with self.assertNumQueries(49):
+        with self.assertNumQueries(50):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -3911,7 +3911,7 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, "tel:+12062233445")
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(49):
+        with self.assertNumQueries(50):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -3996,7 +3996,7 @@ class ContactFieldTest(TembaTest):
         assertImportExportedFile()
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(50):
+        with self.assertNumQueries(51):
             self.assertExcelSheet(
                 request_export("?g=%s" % group.uuid)[0],
                 [
@@ -4061,7 +4061,7 @@ class ContactFieldTest(TembaTest):
                 log_info_threshold.return_value = 1
 
                 with ESMockWithScroll(data=mock_es_data):
-                    with self.assertNumQueries(51):
+                    with self.assertNumQueries(52):
                         self.assertExcelSheet(
                             request_export("?s=name+has+adam+or+name+has+deng")[0],
                             [
@@ -4120,7 +4120,7 @@ class ContactFieldTest(TembaTest):
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(50):
+            with self.assertNumQueries(51):
                 self.assertExcelSheet(
                     request_export("?g=%s&s=Hagg" % group.uuid)[0],
                     [
@@ -4851,7 +4851,7 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
             list_url, allow_viewers=False, allow_editors=True, context_objects=[self.age, self.gender, self.state]
         )
         self.assertEqual(3, response.context["total_count"])
-        self.assertEqual(255, response.context["total_limit"])
+        self.assertEqual(250, response.context["total_limit"])
         self.assertNotContains(response, "You have reached the limit")
         self.assertNotContains(response, "You are approaching the limit")
 
@@ -5622,6 +5622,21 @@ class ContactImportTest(TembaTest):
         )
 
     @mock_mailroom
+    def test_batches_with_invalid_urn(self, mr_mocks):
+        imp = self.create_contact_import("media/test_imports/invalid_urn.xlsx")
+        imp.start()
+        batch = imp.batches.get()
+
+        # invalid looking urns still passed to mailroom to decide how to handle them
+        self.assertEqual(
+            [
+                {"name": "Eric Newcomer", "urns": ["tel:+%3F"], "groups": [str(imp.group.uuid)]},
+                {"name": "Nic Pottier", "urns": ["tel:2345678901234567890"], "groups": [str(imp.group.uuid)]},
+            ],
+            batch.specs,
+        )
+
+    @mock_mailroom
     def test_batches_with_multiple_tels(self, mr_mocks):
         imp = self.create_contact_import("media/test_imports/multiple_tel_urns.xlsx")
         imp.start()
@@ -5762,7 +5777,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # try uploading when we've already reached our group limit
         self.create_group("Testers", contacts=[])
-        with patch("temba.contacts.models.ContactGroup.MAX_ORG_CONTACTGROUPS", 1):
+        with override_settings(MAX_ACTIVE_CONTACTGROUPS_PER_ORG=1):
             response = self.client.post(create_url, {"file": upload("media/test_imports/simple.xlsx")})
             self.assertFormError(
                 response,

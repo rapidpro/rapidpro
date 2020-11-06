@@ -42,13 +42,13 @@ class ClientTest(TembaTest):
 
 
 class ZendeskTypeTest(TembaTest):
-    def test_is_available(self):
+    def test_is_available_to(self):
         with override_settings(ZENDESK_CLIENT_ID="", ZENDESK_CLIENT_SECRET=""):
-            self.assertFalse(ZendeskType().is_available())
+            self.assertFalse(ZendeskType().is_available_to(self.admin))
         with override_settings(ZENDESK_CLIENT_ID="temba", ZENDESK_CLIENT_SECRET=""):
-            self.assertFalse(ZendeskType().is_available())
+            self.assertFalse(ZendeskType().is_available_to(self.admin))
         with override_settings(ZENDESK_CLIENT_ID="temba", ZENDESK_CLIENT_SECRET="sesame"):
-            self.assertTrue(ZendeskType().is_available())
+            self.assertTrue(ZendeskType().is_available_to(self.admin))
 
     @override_settings(ZENDESK_CLIENT_ID="temba", ZENDESK_CLIENT_SECRET="sesame")
     @patch("temba.tickets.types.zendesk.views.random_string")

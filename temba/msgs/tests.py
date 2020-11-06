@@ -2265,7 +2265,6 @@ class BroadcastCRUDLTest(TembaTest):
         response = self.client.get(url)
         self.assertEqual(list(response.context["form"].fields.keys()), ["message", "omnibox", "loc"])
 
-        # updates still use select2 omnibox
         omnibox = omnibox_serialize(self.org, [], [self.frank], True)
         response = self.client.post(url, dict(message="Dinner reminder", omnibox=omnibox))
         self.assertEqual(response.status_code, 302)

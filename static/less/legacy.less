@@ -1117,10 +1117,6 @@ form.smartmin-form {
     margin-bottom: 9px;
   }
 
-  .select2-container {
-    margin-bottom: 5px;
-  }
-
   ul.errorlist {
     margin: 0;
 
@@ -1295,164 +1291,6 @@ input[type='text'].search-query {
 // buttons at the top of the list
 .message-buttons {
   margin-bottom: 0px;
-}
-
-// *******************************
-// Select2, Omnibox
-// *******************************
-
-#omni {
-
-  #omni-select2 {
-    margin-top: 30px;
-  }
-
-  #loading {
-    font-size: 14px;
-    border: 1px solid @color-bg-lightgrey;
-    padding: 10px 0;
-    color: @color-font-lightestgrey;
-    margin-top: 30px;
-    background-image: url('../images/loader-bars.gif');
-    background-repeat: no-repeat;
-    background-position: 97% 50%;
-
-    &:after {
-      content: 'Loading recipients..';
-      padding-left: 10px;
-    }
-  }
-}
-
-.select2-container-multi .select2-choices .select2-search-field input.select2-active {
-  background: #fff url('../images/loader-bars.gif?asdfasdf') no-repeat 100% !important;
-  box-shadow: none;
-}
-
-.select2tag {
-  width: 50%;
-}
-
-.select2-match {
-  text-decoration: underline;
-}
-
-// the input box inside, which guides the height of the unselected
-.select2-container-multi .select2-choices .select2-search-field input {
-  margin: 0 0;
-  font-family: sans-serif;
-  font-size: 14px;
-  height: 20px;
-  width: 100%;
-  padding: 8px 4px;
-}
-
-// the item buttons that are selected
-.select2-container-multi .select2-choices .select2-search-choice {
-  margin-top: 6px;
-  margin-bottom: -2px;
-  line-height: 14px;
-  font-size: 14px;
-  height: 16px;
-  color: #333;
-  cursor: default;
-}
-
-.select2-container-multi .select2-choices {
-  position: static;
-}
-
-.select2-container .select2-choice .select2-arrow {
-  .rounded-corners(0);
-}
-
-.select2-choices,
-.select2-results {
-  .omni-option:before {
-    font-family: temba;
-    color: #999;
-    font-size: 14px;
-    margin-right: 5px;
-  }
-
-  .omni-group:before {
-    content: "\e03c";
-  }
-
-  .omni-contact:before {
-    content: "\e03b";
-  }
-
-  .omni-tel:before {
-    content: "\e04a";
-  }
-
-  .omni-twitter:before {
-    content: "\e007";
-  }
-
-  .omni-telegram:before {
-    content: "\e900";
-    padding-top: 5px;
-  }
-}
-
-.select2-temba-field,
-.select2-temba-user-group-field {
-  width: 520px;
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
-  border-radius: 0px;
-  -webkit-border-radius: 0px;
-  margin-bottom: 5px;
-}
-
-.controls .select2-temba-field input:focus {
-  box-shadow: none !important;
-}
-
-.select2-no-search {
-  .select2-search {
-    display: none;
-  }
-}
-
-.select2-container .select2-choice {
-  border-radius: 0px;
-  -webkit-border-radius: 0px;
-  -moz-border-radius: 0px;
-  padding: 3px 5px;
-  background: #FFFFFF;
-  overflow: inherit;
-  font-weight: 200;
-
-  div {
-    width: 20px;
-    padding: 2px 5px;
-    border-radius: 0px;
-    -webkit-border-radius: 0px;
-    -moz-border-radius: 0px;
-    background-color: @color-bg-lightgrey;
-    background-image: none;
-  }
-}
-
-.select2-container {
-  font-size: 14px;
-}
-
-.select2-highlighted {
-  .omni-option:before {
-    color: #eee;
-  }
-}
-
-.select2-container .select2-choice .select2-arrow b {
-  margin-top: 3px;
-  margin-left: 3px;
-}
-
-.select2-container .select2-choice .select2-arrow {
-  width: 23px;
 }
 
 #send-message {
@@ -1896,13 +1734,6 @@ background: #624e87;
     }
   }
 
-  .select2-container {
-    /* Headsup this is select2 the style for width is inline this is the only way for now. */
-    // width: 520px !important;
-    width: 520px;
-    margin-bottom: 5px;
-  }
-
   .loader {
     display: none;
     width: 270px;
@@ -2078,11 +1909,6 @@ input[type='radio'] {
       box-shadow: none;
     }
   }
-}
-
-.select2-container.error {
-  background-color: #fff;
-  padding: 0px;
 }
 
 .login {
@@ -2474,10 +2300,6 @@ span.label a {
     margin-top: 2px;
   }
 
-}
-
-.select2-hidden-accessible {
-  display: none;
 }
 
 .wrapped {

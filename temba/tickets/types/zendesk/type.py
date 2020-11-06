@@ -27,7 +27,7 @@ class ZendeskType(TicketerType):
         "You can use it to manage all the tickets created on your account."
     )
 
-    def is_available(self):
+    def is_available_to(self, user):
         return bool(settings.ZENDESK_CLIENT_ID and settings.ZENDESK_CLIENT_SECRET)
 
     def get_urls(self):

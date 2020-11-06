@@ -2660,6 +2660,14 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
 
+    def test_org_get_limit(self):
+        self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 250)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 250)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)
+
+        with self.assertRaises(ValueError):
+            self.org.get_limit("unknown")
+
     def test_sub_orgs_management(self):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
         self.org.reset_capabilities()

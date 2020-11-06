@@ -1014,12 +1014,11 @@ REST_HANDLE_EXCEPTIONS = not TESTING
 # -----------------------------------------------------------------------------------
 
 if TESTING:
-    # if only testing, disable coffeescript and less compilation
+    # if only testing, disable less compilation
     COMPRESS_PRECOMPILERS = ()
 else:
     COMPRESS_PRECOMPILERS = (
         ("text/less", 'lessc --include-path="%s" {infile} {outfile}' % os.path.join(PROJECT_DIR, "../static", "less")),
-        ("text/coffeescript", "coffee --compile --stdio"),
     )
 
 COMPRESS_ENABLED = False
@@ -1055,7 +1054,11 @@ CLASSIFIER_TYPES = [
     "temba.classifiers.types.bothub.BothubType",
 ]
 
-TICKETER_TYPES = ["temba.tickets.types.mailgun.MailgunType", "temba.tickets.types.zendesk.ZendeskType"]
+TICKETER_TYPES = [
+    "temba.tickets.types.mailgun.MailgunType",
+    "temba.tickets.types.zendesk.ZendeskType",
+    "temba.tickets.types.rocketchat.RocketChatType",
+]
 
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
@@ -1118,6 +1121,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia.ZenviaType",
     "temba.channels.types.android.AndroidType",
+    "temba.channels.types.rocketchat.RocketChatType",
 ]
 
 # -----------------------------------------------------------------------------------
@@ -1220,6 +1224,8 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 # ElasticSearch configuration (URL RFC-1738)
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 
+
 # Maximum active objects are org can have
-MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
-MAX_ACTIVE_GLOBALS_PER_ORG = 255
+MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 250
+MAX_ACTIVE_CONTACTGROUPS_PER_ORG = 250
+MAX_ACTIVE_GLOBALS_PER_ORG = 250
