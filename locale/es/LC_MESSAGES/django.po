@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-30 17:49+0000\n"
+"POT-Creation-Date: 2020-11-09 12:19+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -2057,6 +2057,16 @@ msgstr "El nombre de usuario que usará para autenticar para Kannel, si lo deja 
 
 msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
 msgstr ""
+
+#, fuzzy
+#| msgid "To finish configuring your Zenvia connection you'll need to set the following callback URLs on your Zenvia account."
+msgid "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra account."
+msgstr "Para terminar de configurar su conexión Zenvia tendra que establecer los siguientes URLs de devolución de llamadas en su cuenta Zenvia."
+
+#, fuzzy
+#| msgid "To receive incoming messages, you need to set the receive URL for your Zenvia account."
+msgid "To receive incoming messages, you need to set the receive URL for your Kaleyra account."
+msgstr "Para recibir mensajes entrantes, tiene que establecer el URL para recibir para su cuenta Zenvia."
 
 msgid "Your enterprise WhatsApp number"
 msgstr ""

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-30 17:49+0000\n"
+"POT-Creation-Date: 2020-11-09 12:19+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1525,6 +1525,23 @@ msgstr "Токен, который Junebug должен использовать
 #| msgid "If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio WhatsApp</a>"
 msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
 msgstr "Если у Вас имеется Twilio для номера WhatsApp, Вы можете его подключить для общения с Вашими контактами WhatsApp. <a href=\"https://www.twilio.com/whatsapp/\">Узнайте подробнее о Twilio WhatsApp</a>"
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "    To finish configuring your Novo connection you'll need to set the following callback URLs on your\n"
+#| "    Novo account.\n"
+#| "\n"
+#| "  "
+msgid "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra account."
+msgstr ""
+"\n"
+"    Для завершения настройки Вашего соединения Novo Вам потребуется установить следующие адреса URL обратного вызова в Вашей учетной записи Novo."
+
+#, fuzzy
+#| msgid "To receive incoming messages, you need to set the receive URL for your Zenvia account."
+msgid "To receive incoming messages, you need to set the receive URL for your Kaleyra account."
+msgstr "Для получения входящих сообщений Вам потребуется установить адрес URL получения в Вашей учетной записи Zenvia."
 
 msgid "Your enterprise WhatsApp number"
 msgstr "Ваш корпоративный номер WhatsApp "

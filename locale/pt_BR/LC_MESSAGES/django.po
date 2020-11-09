@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-30 17:49+0000\n"
+"POT-Creation-Date: 2020-11-09 12:19+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -1885,6 +1885,16 @@ msgstr "O token que será usado para requisitar este transmissor"
 
 msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
 msgstr ""
+
+#, fuzzy
+#| msgid "To finish configuring your Zenvia connection you'll need to set the following callback URLs on your Zenvia account."
+msgid "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra account."
+msgstr "Para finalizar a configuração de sua conexão com a Take.net você precisa definir as seguintes URLs de retorno de chamada em sua conta Take.net."
+
+#, fuzzy
+#| msgid "To receive incoming messages, you need to set the receive URL for your Zenvia account."
+msgid "To receive incoming messages, you need to set the receive URL for your Kaleyra account."
+msgstr "Para receber mensagens, você precisa definir a URL de recebimento para a sua conta Take.net"
 
 msgid "Your enterprise WhatsApp number"
 msgstr ""
