@@ -16,9 +16,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         account_sid = forms.CharField(label=_("Account SID"), help_text=_("Your Kaleyra Account SID"))
         api_key = forms.CharField(label=_("API Key"), help_text=_("Your Kaleyra API Key"))
 
-        def clean(self):
+        def clean_number(self):
             # check that our phone number looks sane
-            number, valid = URN.normalize_number(self.cleaned_data["number"], self.cleaned_data["country"])
+            number, valid = URN.normalize_number(self.data["number"], self.data["country"])
             if not valid:
                 raise forms.ValidationError(_("Please enter a valid phone number"))
             self.cleaned_data["number"] = number
