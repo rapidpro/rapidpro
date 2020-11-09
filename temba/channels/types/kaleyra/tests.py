@@ -4,7 +4,6 @@ from temba.tests import TembaTest
 from temba.utils.text import random_string
 
 from ...models import Channel
-from .views import ClaimView
 
 
 class KaleyraViewTest(TembaTest):
