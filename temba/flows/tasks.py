@@ -185,3 +185,9 @@ def merge_flows_task(uuid):
     task = MergeFlowsTask.objects.filter(uuid=uuid).first()
     if task:
         task.process_merging()
+
+
+@nonoverlapping_task(track_started=True, name="start_active_merge_flows")
+def start_active_merge_flows():
+    for task in MergeFlowsTask.objects.filter(status=MergeFlowsTask.STATUS_ACTIVE):
+        task.process_merging()

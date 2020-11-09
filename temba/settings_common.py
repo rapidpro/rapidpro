@@ -945,6 +945,10 @@ CELERYBEAT_SCHEDULE = {
         "task": "delete_flowimage_downloaded_files",
         "schedule": crontab(hour=4, minute=0),
     },
+    "start-active-mergeflow-tasks": {
+        "task": "start_active_merge_flows",
+        "schedule": timedelta(minutes=10),
+    }
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
