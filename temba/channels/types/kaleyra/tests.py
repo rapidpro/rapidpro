@@ -2,6 +2,7 @@ from django.urls import reverse
 
 from temba.tests import TembaTest
 from temba.utils.text import random_string
+from temba.contacts.models import URN
 
 from ...models import Channel
 
@@ -39,6 +40,12 @@ class KaleyraViewTest(TembaTest):
         post_data = self.valid_form
         response = self.submit_form(post_data)
         channel = Channel.objects.order_by("id").last()
+        
+        normalized_number, _ = URN.normalize_number(post_data["number"], post_data["country"])
+        self.assertEqual(channel.address, normalized_number)
+        self.assertEqual(channel.country, post_data["country"])
+        self.assertEqual(channel.config["api_key"], post_data["api_key"])
+        self.assertEqual(channel.config["account_sid"], post_data["account_sid"])
 
         self.assertEqual(302, response.status_code)
         self.assertRedirect(response, reverse("channels.channel_configuration", args=[channel.uuid]))

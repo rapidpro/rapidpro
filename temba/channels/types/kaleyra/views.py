@@ -21,7 +21,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             number, valid = URN.normalize_number(self.data["number"], self.data["country"])
             if not valid:
                 raise forms.ValidationError(_("Please enter a valid phone number"))
-            self.cleaned_data["number"] = number
+            return number
 
     form_class = Form
 
