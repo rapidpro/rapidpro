@@ -4113,6 +4113,10 @@ class MergeFlowsTask(TembaModel):
     modified_on = models.DateTimeField(auto_now=True)
 
     def process_merging(self):
+        if self.status != self.STATUS_ACTIVE:
+            # interupt execution if merging was processed by another celery task
+            return
+
         self.status = self.STATUS_PROCESSING
         self.save(update_fields=["status"])
         try:
