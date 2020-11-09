@@ -271,6 +271,7 @@ INSTALLED_APPS = (
     "temba.values",
     "temba.airtime",
     "temba.sql",
+    "temba.two_factor",
 )
 
 # the last installed app that uses smartmin permissions
@@ -1068,6 +1069,7 @@ TICKETER_TYPES = ["temba.tickets.types.mailgun.MailgunType", "temba.tickets.type
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",
+    "temba.channels.types.dialog360.Dialog360Type",
     "temba.channels.types.twilio.TwilioType",
     "temba.channels.types.twilio_whatsapp.TwilioWhatsappType",
     "temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType",
