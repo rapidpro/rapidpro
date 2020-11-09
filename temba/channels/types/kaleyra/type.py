@@ -29,3 +29,16 @@ class KaleyraType(ChannelType):
     schemes = [WHATSAPP_SCHEME]
     max_length = 4096
     attachment_support = True
+
+    configuration_blurb = _(
+        "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra "
+        "account."
+    )
+
+    configuration_urls = (
+        dict(
+            label=_("Receive URL"),
+            url="https://{{ channel.callback_domain }}{% url 'courier.kwa' channel.uuid 'receive' %}",
+            description=_("To receive incoming messages, you need to set the receive URL for your Kaleyra account."),
+        ),
+    )
