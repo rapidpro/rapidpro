@@ -1237,27 +1237,6 @@ class MigrationTask(TembaModel):
                     count=item.count,
                 )
 
-            # Removing flow node count relationships before importing again
-            new_flow.node_counts.all().delete()
-
-            node_count = migrator.get_flow_node_count(flow_id=flow.id)
-            for item in node_count:
-                FlowNodeCount.objects.create(flow=new_flow, node_uuid=item.node_uuid, count=item.count)
-
-            # Removing flow path count relationships before importing again
-            new_flow.path_counts.all().delete()
-
-            path_count = migrator.get_flow_path_count(flow_id=flow.id)
-            for item in path_count:
-                FlowPathCount.objects.create(
-                    flow=new_flow,
-                    from_uuid=item.from_uuid,
-                    to_uuid=item.to_uuid,
-                    period=item.period,
-                    count=item.count,
-                    is_squashed=item.is_squashed,
-                )
-
             # Removing flow actionsets before importing again
             new_flow.action_sets.all().delete()
 
