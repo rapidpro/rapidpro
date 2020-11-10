@@ -2138,7 +2138,12 @@ class ContactImport(SmartModel):
         """
         Automatic mappings for the given list of headers - users can customize these later
         """
-        existing_fields = {f.key: f for f in org.contactfields.filter(is_active=True)}
+
+        fields_by_key = {}
+        fields_by_label = {}
+        for f in org.contactfields.filter(is_active=True):
+            fields_by_key[f.key] = f
+            fields_by_label[f.label.lower()] = f
 
         mappings = []
 
@@ -2157,8 +2162,14 @@ class ContactImport(SmartModel):
                 mapping = {"type": "scheme", "scheme": header_name.lower()}
             elif header_prefix == "field" and header_name:
                 field_key = ContactField.make_key(header_name)
-                if field_key in existing_fields:
-                    mapping = {"type": "field", "key": field_key, "name": existing_fields[field_key].label}
+
+                # try to match by field label, then by key
+                field = fields_by_label.get(header_name.lower())
+                if not field:
+                    field = fields_by_key.get(field_key)
+
+                if field:
+                    mapping = {"type": "field", "key": field.key, "name": field.label}
                 else:
                     # can be created or selected in next step
                     mapping = {"type": "new_field", "key": field_key, "name": header_name, "value_type": "T"}
