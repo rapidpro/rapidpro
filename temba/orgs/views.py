@@ -696,7 +696,7 @@ class OrgCRUDL(SmartCRUDL):
                             "destination": link.get("destination"),
                             "is_archived": False,
                         }
-                        if not Link.objects.filter(**filter_params).exists() and not full_link in processed_links:
+                        if not Link.objects.filter(**filter_params).exists() and full_link not in processed_links:
                             links.append(link)
                     json_data["links"] = links
                     data = json.dumps(json_data)
