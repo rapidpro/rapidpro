@@ -2,7 +2,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import ChannelType
 from temba.channels.types.kaleyra.views import ClaimView
-from temba.contacts.models import WHATSAPP_SCHEME
+from temba.contacts.models import URN
 
 CONFIG_ACCOUNT_SID = "account_sid"
 CONFIG_API_KEY = "api_key"
@@ -26,7 +26,7 @@ class KaleyraType(ChannelType):
     )
     claim_view = ClaimView
 
-    schemes = [WHATSAPP_SCHEME]
+    schemes = [URN.WHATSAPP_SCHEME]
     max_length = 4096
     attachment_support = True
 
