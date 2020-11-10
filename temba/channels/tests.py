@@ -295,9 +295,13 @@ class ChannelTest(TembaTest):
         response = self.fetch_protected(reverse("channels.channel_delete", args=[self.tel_channel.pk]), self.user)
         self.assertContains(response, "Test Channel")
 
-        response = self.client.post(
-            reverse("channels.channel_delete", args=[self.tel_channel.pk]), post_data=dict(remove=True)
+        response = self.fetch_protected(
+            reverse("channels.channel_delete", args=[self.tel_channel.pk]),
+            post_data=dict(remove=True),
+            user=self.superuser,
+            failOnFormValidation=False,
         )
+
         self.assertEqual(reverse("orgs.org_home"), response.get("temba-success"))
 
         msg = Msg.objects.get(pk=msg.pk)
@@ -348,7 +352,13 @@ class ChannelTest(TembaTest):
         response = self.fetch_protected(reverse("channels.channel_delete", args=[channel.pk]), self.superuser)
         self.assertContains(response, "Test Channel")
 
-        response = self.client.post(reverse("channels.channel_delete", args=[channel.pk]), post_data=dict(remove=True))
+        response = self.fetch_protected(
+            reverse("channels.channel_delete", args=[channel.pk]),
+            post_data=dict(remove=True),
+            user=self.superuser,
+            failOnFormValidation=False,
+        )
+
         self.assertEqual(reverse("orgs.org_home"), response.get("temba-success"))
 
         # create a channel
@@ -370,7 +380,13 @@ class ChannelTest(TembaTest):
 
         self.assertTrue(Trigger.objects.filter(channel=channel, is_active=True))
 
-        response = self.client.post(reverse("channels.channel_delete", args=[channel.pk]), post_data=dict(remove=True))
+        response = self.fetch_protected(
+            reverse("channels.channel_delete", args=[channel.pk]),
+            post_data=dict(remove=True),
+            user=self.superuser,
+            failOnFormValidation=False,
+        )
+
         self.assertEqual(reverse("orgs.org_home"), response.get("temba-success"))
 
         # channel trigger should have be removed
