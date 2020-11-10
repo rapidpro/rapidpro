@@ -28,8 +28,6 @@ from temba.flows.models import (
     FlowRun,
     FlowStart,
     FlowCategoryCount,
-    FlowNodeCount,
-    FlowPathCount,
     FlowRevision,
     FlowImage,
     ActionSet,
