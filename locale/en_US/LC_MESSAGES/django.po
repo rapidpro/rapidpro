@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-05 17:06+0000\n"
+"POT-Creation-Date: 2020-11-10 21:07+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1055,6 +1055,27 @@ msgid "The password to be used to authenticate to Junebug"
 msgstr ""
 
 msgid "The token Junebug should use to authenticate"
+msgstr ""
+
+msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+msgstr ""
+
+msgid "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra account."
+msgstr ""
+
+msgid "To receive incoming messages, you need to set the receive URL for your Kaleyra account."
+msgstr ""
+
+msgid "Account SID"
+msgstr ""
+
+msgid "Your Kaleyra Account SID"
+msgstr ""
+
+msgid "Your Kaleyra API Key"
+msgstr ""
+
+msgid "No org for this user, cannot claim"
 msgstr ""
 
 #, python-format
@@ -3520,9 +3541,6 @@ msgstr ""
 
 #, python-format
 msgid "Connecting to your DT One account failed with error text: %s"
-msgstr ""
-
-msgid "Account SID"
 msgstr ""
 
 msgid "Account Token"

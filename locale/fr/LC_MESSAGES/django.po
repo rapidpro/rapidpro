@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-05 17:06+0000\n"
+"POT-Creation-Date: 2020-11-10 21:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1478,6 +1478,43 @@ msgstr "Le mot de passe à utiliser pour s'authentifier auprès de Junebug"
 
 msgid "The token Junebug should use to authenticate"
 msgstr "Le jeton que Junebug devrait utiliser pour s'authentifier"
+
+#, fuzzy
+#| msgid "If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio WhatsApp</a>"
+msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+msgstr "Si vous avez un numéro Twilio pour WhatsApp, vous pouvez le connecter pour communiquer avec vos contacts WhatsApp. <a href=\"https://www.twilio.com/whatsapp/\">En savoir plus sur Twilio WhatsApp</a>"
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your Zenvia connection you'll need to set the following callback URLs on your Zenvia account.\n"
+#| "        "
+msgid "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra account."
+msgstr ""
+"\n"
+"        Pour finir de configurer votre connection Zenvia vous devrez établir les URLs de rappels suivants dans votre compte Zenvia.\n"
+"        "
+
+#, fuzzy
+#| msgid "To receive incoming messages, you need to set the receive URL for your Zenvia account."
+msgid "To receive incoming messages, you need to set the receive URL for your Kaleyra account."
+msgstr "Pour recevoir des messages entrants, vous devez définir l'URL de réception pour votre compte de Zenvia."
+
+msgid "Account SID"
+msgstr "Compte SID"
+
+#, fuzzy
+#| msgid "Your Twilio Account SID"
+msgid "Your Kaleyra Account SID"
+msgstr "Votre compte Twilio SID"
+
+#, fuzzy
+#| msgid "Your Nexmo API key"
+msgid "Your Kaleyra API Key"
+msgstr "Votre clé API Nexmo"
+
+msgid "No org for this user, cannot claim"
+msgstr "Pas org pour cet utilisateur, ne peut avoir un claim"
 
 #, fuzzy, python-format
 #| msgid ""
@@ -4377,9 +4414,6 @@ msgstr "Votre clé API et votre secret DT One semblent invalides. Veuillez les v
 #, python-format
 msgid "Connecting to your DT One account failed with error text: %s"
 msgstr "La connexion à votre compte DT One a échoué avec un texte d'erreur: %s"
-
-msgid "Account SID"
-msgstr "Compte SID"
 
 msgid "Account Token"
 msgstr "Jeton de compte"
@@ -10451,9 +10485,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "        et connectez-le en quelques étapes simples.\n"
 #~ "        "
 
-#~ msgid "No org for this user, cannot claim"
-#~ msgstr "Pas org pour cet utilisateur, ne peut avoir un claim"
-
 #~ msgid ""
 #~ "\n"
 #~ "        If you have an <a href=\"https://www.arabiacell.com/\">ArabiaCell</a> number,\n"
@@ -10502,7 +10533,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "    auprès de <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> et le connecter\n"
 #~ "    en quelques étapes simples."
 
-#, python-format
 #~ msgid "Unable to update call to action: %s"
 #~ msgstr "Impossible de mettre à jour l'appel à l'action: %s"
 
@@ -10581,9 +10611,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Easily add a two way number you have configured with <a href=\"https://www.twilio.com/\">Twilio</a> using their APIs."
 #~ msgstr "Ajoutez facilement un numéro à double sens que vous avez configuré avec <a href=\"https://www.twilio.com/\">Twilio</a> à l'aide de leurs APIs."
 
-#~ msgid "If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio WhatsApp</a>"
-#~ msgstr "Si vous avez un numéro Twilio pour WhatsApp, vous pouvez le connecter pour communiquer avec vos contacts WhatsApp. <a href=\"https://www.twilio.com/whatsapp/\">En savoir plus sur Twilio WhatsApp</a>"
-
 #~ msgid ""
 #~ "\n"
 #~ "        If you have an <a href=\"https://wavy.global/en/\">Movile/Wavy</a> number,\n"
@@ -10609,7 +10636,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "If you are based in Brazil, you can purchase a short code from <a href=\"http://www.zenvia.com.br/\">Zenvia</a> and connect it in a few simple steps."
 #~ msgstr "Si vous êtes basé au Brésil, vous pouvez acheter un code court à <a href=\"http://www.zenvia.com.br/\">Zenvia</a> et le connecter en quelques simples étapes."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          When submitting your application for approval, make sure to include the <code>pages_messaging</code>\n"
@@ -10629,7 +10656,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "        "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
@@ -10711,7 +10738,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Create a message keyword to allow people to join a group."
 #~ msgstr "Créez un mot-clé de message pour permettre aux personnes de rejoindre un groupe."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -10728,7 +10755,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "                "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -10744,7 +10771,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "                "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "              Used by %(num_flows)s flow:\n"
@@ -10762,7 +10788,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ "              Utilisé par %(num_flows)s flux:\n"
 #~ "              "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        To get started you need to add a channel to your account. A channel is a phone number or social network\n"
