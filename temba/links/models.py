@@ -181,6 +181,36 @@ class Link(TembaModel):
                     break
         return issues
 
+    def update_flows(self):
+        from temba.flows.models import FlowRevision
+
+        revisions = []
+        raw_query = FlowRevision.objects.raw(
+            "SELECT * FROM flows_flowrevision "
+            "LEFT JOIN (SELECT flow_id, MAX(revision) as latest_revision FROM flows_flowrevision GROUP BY flow_id) as latest_revisions "
+            "ON flows_flowrevision.flow_id=latest_revisions.flow_id "
+            "WHERE flows_flowrevision.revision=latest_revisions.latest_revision AND "
+            "flows_flowrevision.definition::text LIKE %s;",
+            [f"%{self.uuid}%"],
+        )
+
+        def update_node(node):
+            updated = False
+            if str(self.uuid) not in str(node):
+                return False
+            for action in node.get("actions", []):
+                if action.get("type") == "call_shorten_url" and action.get("shorten_url", {}).get("id") == str(
+                    self.uuid
+                ):
+                    action["shorten_url"]["text"] = self.name
+                    updated = True
+            return updated
+
+        for revision in raw_query:
+            if any(list(map(update_node, revision.definition.get("nodes", [])))):
+                revisions.append(revision)
+        FlowRevision.objects.bulk_update(revisions, ["definition"])
+
     def __str__(self):
         return self.name
 

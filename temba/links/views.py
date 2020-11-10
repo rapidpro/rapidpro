@@ -250,6 +250,7 @@ class LinkCRUDL(SmartCRUDL):
             return obj
 
         def post_save(self, obj):
+            obj.update_flows()
             return obj
 
     class Export(OrgObjPermsMixin, SmartReadView):
