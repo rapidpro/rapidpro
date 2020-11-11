@@ -3226,6 +3226,24 @@ class OrgCRUDLTest(TembaTest):
         # not the logged in user at the signup time
         self.assertFalse(org.get_org_admins().filter(pk=self.user.pk))
 
+    @override_settings(HOSTNAME="no-topups.org")
+    def test_no_topup_signup(self):
+        signup_url = reverse("orgs.org_signup")
+        post_data = dict(
+            first_name="Eugene",
+            last_name="Rwagasore",
+            email="test@foo.org",
+            password="Password123",
+            name="No Topups",
+            timezone="Africa/Kigali",
+        )
+        response = self.client.post(signup_url, post_data)
+        self.assertEqual(response.status_code, 302)
+
+        org = Org.objects.get(name="No Topups")
+        self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
+        self.assertFalse(org.uses_topups)
+
     def test_org_signup(self):
         signup_url = reverse("orgs.org_signup")
 
@@ -3287,6 +3305,7 @@ class OrgCRUDLTest(TembaTest):
         org = Org.objects.get(name="Relieves World")
         self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
         self.assertEqual(str(org), "Relieves World")
+        self.assertTrue(org.uses_topups)
 
         # of which our user is an administrator
         self.assertTrue(org.get_org_admins().filter(pk=user.pk))
