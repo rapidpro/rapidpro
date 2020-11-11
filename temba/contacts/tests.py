@@ -5380,7 +5380,7 @@ class ContactImportTest(TembaTest):
         imp = self.create_contact_import("media/test_imports/missing_name_header.xls")
         self.assertEqual([{"header": "URN:Tel", "mapping": {"type": "scheme", "scheme": "tel"}}], imp.mappings)
 
-        self.create_field("goats", "Goats", ContactField.TYPE_NUMBER)
+        self.create_field("goats", "Num Goats", ContactField.TYPE_NUMBER)
 
         imp = self.create_contact_import("media/test_imports/extra_fields_and_group.xlsx")
         self.assertEqual(
@@ -5389,7 +5389,10 @@ class ContactImportTest(TembaTest):
                 {"header": "Name", "mapping": {"type": "attribute", "name": "name"}},
                 {"header": "language", "mapping": {"type": "attribute", "name": "language"}},
                 {"header": "Created On", "mapping": {"type": "ignore"}},
-                {"header": "field: goats", "mapping": {"type": "field", "key": "goats", "name": "Goats"}},
+                {
+                    "header": "field: goats",
+                    "mapping": {"type": "field", "key": "goats", "name": "Num Goats"},  # matched by key
+                },
                 {
                     "header": "Field:Sheep",
                     "mapping": {"type": "new_field", "key": "sheep", "name": "Sheep", "value_type": "T"},
@@ -5397,6 +5400,19 @@ class ContactImportTest(TembaTest):
                 {"header": "Group:Testers", "mapping": {"type": "ignore"}},
             ],
             imp.mappings,
+        )
+
+        # it's possible for field keys and labels to be out of sync, in which case we match by label first because
+        # that's how we export contacts
+        self.create_field("num_goats", "Goats", ContactField.TYPE_NUMBER)
+
+        imp = self.create_contact_import("media/test_imports/extra_fields_and_group.xlsx")
+        self.assertEqual(
+            {
+                "header": "field: goats",
+                "mapping": {"type": "field", "key": "num_goats", "name": "Goats"},  # matched by label
+            },
+            imp.mappings[4],
         )
 
         # a header can be a number but it will be ignored

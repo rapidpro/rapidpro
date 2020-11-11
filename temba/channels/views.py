@@ -1694,7 +1694,9 @@ class ChannelCRUDL(SmartCRUDL):
                 else:
                     messages.info(request, _("Your channel has been removed."))
 
-                return HttpResponseRedirect(self.get_success_url())
+                response = HttpResponse()
+                response["Temba-Success"] = self.get_success_url()
+                return response
 
             except TwilioRestException as e:
                 messages.error(
@@ -1704,7 +1706,10 @@ class ChannelCRUDL(SmartCRUDL):
                         % e.code
                     ),
                 )
-                return HttpResponseRedirect(reverse("orgs.org_home"))
+
+                response = HttpResponse()
+                response["Temba-Success"] = self.get_success_url()
+                return response
 
             except ValueError as e:
                 logger.error("Error removing a channel", exc_info=True)

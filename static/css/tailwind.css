@@ -1943,11 +1943,8 @@ table.list.selectable tbody tr td {
 
 table.list.selectable tbody tr.hovered td {
           background: rgba(var(--selection-light-rgb), .4);
+          cursor: pointer;
         }
-
-table.list.selectable tbody tr.hovered td:not(:first-child) {
-            cursor: pointer;
-          }
 
 table.list.selectable tbody td:hover temba-checkbox {
           --color-text: #999;
