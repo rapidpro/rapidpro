@@ -30,6 +30,7 @@ def _calculate_variable_count(content):
     return count
 
 
+@task(track_started=True, name="refresh_360_templates")
 def refresh_360_templates():
 
     r = get_redis_connection()
