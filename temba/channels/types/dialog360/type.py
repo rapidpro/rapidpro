@@ -7,6 +7,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.channels.models import Channel
 from temba.channels.types.dialog360.views import ClaimView
 from temba.contacts.models import URN
+from temba.templates.models import TemplateTranslation
 
 from ...models import ChannelType
 
