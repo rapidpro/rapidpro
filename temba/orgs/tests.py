@@ -3226,7 +3226,7 @@ class OrgCRUDLTest(TembaTest):
         # not the logged in user at the signup time
         self.assertFalse(org.get_org_admins().filter(pk=self.user.pk))
 
-    @override_settings(HOSTNAME="no-topups.org")
+    @override_settings(DEFAULT_BRAND="no-topups.org")
     def test_no_topup_signup(self):
         signup_url = reverse("orgs.org_signup")
         post_data = dict(

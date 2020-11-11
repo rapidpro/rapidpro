@@ -51,7 +51,7 @@ custom3["domain"] = "no-topups.org"
 custom3["email"] = "join@no-topups.org"
 custom3["support_email"] = "support@no-topups.org"
 custom3["allow_signups"] = True
-custom3["welcome_topup"] = 1000
+custom3["welcome_topup"] = 0
 custom3["default_plan"] = "trial"
 BRANDING["no-topups.org"] = custom3
 
