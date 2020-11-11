@@ -1,14 +1,17 @@
 import logging
 import re
-import requests
 
+import requests
 from django_redis import get_redis_connection
+from requests import RequestException
+
 from django.utils import timezone
+
 from celery.task import task
+
 from temba.channels.models import Channel
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
-from requests import RequestException
 
 from .type import LANGUAGE_MAPPING, STATUS_MAPPING
 
@@ -89,7 +92,7 @@ def refresh_360_templates():
                     if not content_parts or not all_supported:
                         continue
 
-                    content = "\n\n".join(component_parts)
+                    content = "\n\n".join(content_parts)
                     variable_count = _calculate_variable_count(content)
 
                     language, country = LANGUAGE_MAPPING.get(template["language"], (None, None))
