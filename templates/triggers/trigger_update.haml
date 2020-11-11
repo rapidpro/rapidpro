@@ -4,13 +4,8 @@
 
 -block fields
   %script{src:"{{ STATIC_URL }}js/temba.js"}
-
-  -for field, errors in form.errors.items
-    -if field == '__all__'
-      {{ errors }}  
   
   -if object.schedule
-
     :css
       #schedule-options #start-datetime {
         margin-top:10px;
@@ -19,9 +14,9 @@
       }
 
     #trigger_flow  
-      - render_field 'flow'
+      -render_field 'flow'
     #trigger_omnibox
-      - render_field 'omnibox'
+      -render_field 'omnibox'
     #schedule-options
       -render_field 'start_datetime'
     #recurrence{class:'{% if not object.schedule.next_fire %}hidden{%endif%}'}
