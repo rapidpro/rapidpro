@@ -530,15 +530,10 @@ table.list {
         }
       }
 
-
       tr.hovered {
         td {
           background: rgba(var(--selection-light-rgb), .4);
-
-
-          &:not(:first-child) {
-            @apply cursor-pointer;
-          }
+          @apply cursor-pointer;
         }
       }
 
@@ -561,8 +556,6 @@ table.list {
 
     }
   }
-
-
 }
 
 .gear-links {
