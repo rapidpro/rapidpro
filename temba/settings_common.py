@@ -924,6 +924,7 @@ CELERYBEAT_SCHEDULE = {
     "refresh-wechat-access-tokens": {"task": "refresh_wechat_access_tokens", "schedule": timedelta(seconds=3600)},
     "refresh-whatsapp-tokens": {"task": "refresh_whatsapp_tokens", "schedule": timedelta(hours=24)},
     "refresh-whatsapp-templates": {"task": "refresh_whatsapp_templates", "schedule": timedelta(seconds=900)},
+    "refresh_360_templates": {"task": "refresh_whatsapp_templates", "schedule": timedelta(seconds=900)},
     "squash-channelcounts": {"task": "squash_channelcounts", "schedule": timedelta(seconds=60)},
     "squash-contactgroupcounts": {"task": "squash_contactgroupcounts", "schedule": timedelta(seconds=60)},
     "squash-flowcounts": {"task": "squash_flowcounts", "schedule": timedelta(seconds=60)},
