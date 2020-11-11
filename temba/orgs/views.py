@@ -700,7 +700,9 @@ class OrgCRUDL(SmartCRUDL):
                         }
                         if full_link in processed_links:
                             uuid_of_processed_link = processed_links[full_link]
-                            modified_link_uuids[link["uuid"]] = modified_link_uuids.get(uuid_of_processed_link, uuid_of_processed_link)
+                            modified_link_uuids[link["uuid"]] = modified_link_uuids.get(
+                                uuid_of_processed_link, uuid_of_processed_link
+                            )
                         elif Link.objects.exclude(org=self.org).filter(uuid=link["uuid"]).exists():
                             new_uuid = str(uuid4())
                             while new_uuid in str(data):
