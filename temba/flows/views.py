@@ -3087,6 +3087,21 @@ class FlowCRUDL(SmartCRUDL):
                     % ", ".join(not_unique_results)
                 ]
 
+            # to avoid issues when transfer data from source flow we need to check whether
+            # our flows is not used by other task, and whether they can be changed asynchronously
+            validation_query = {
+                "source__in": [source, target],
+                "status__in": [MergeFlowsTask.STATUS_ACTIVE, MergeFlowsTask.STATUS_PROCESSING],
+            }
+            if MergeFlowsTask.objects.filter(**validation_query).exists():
+                context["prevent_merge"] = True
+                context["warnings"] = [
+                    _(
+                        "There are other tasks that are trying to combine some of these flows. "
+                        "Please wait until those tasks are completed and try to combine the flows again."
+                    )
+                ]
+
             return self.render_to_response(context)
 
         def post(self, request, *args, **kwargs):

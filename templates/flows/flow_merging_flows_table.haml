@@ -14,6 +14,12 @@
         = task.source
     %td
       = task.get_status_display
+    %td.modified_on
+      %span.time
+        %span.short
+          = task.modified_on|gmail_time
+        %span.long(style="display: none;")
+          = task.modified_on
     %td.created_on
       %span.time
         %span.short

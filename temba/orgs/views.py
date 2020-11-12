@@ -9,6 +9,7 @@ from decimal import Decimal
 from email.utils import parseaddr
 from functools import cmp_to_key
 from urllib.parse import parse_qs, unquote, urlparse
+from uuid import uuid4
 
 import pytz
 import requests
@@ -688,6 +689,7 @@ class OrgCRUDL(SmartCRUDL):
                 if json_data.get("links", []):
                     links = []
                     processed_links = {}
+                    modified_link_uuids = {}
                     for link in json_data["links"]:
                         full_link = f"{link.get('name')} {link.get('destination')}"
                         filter_params = {
@@ -696,10 +698,23 @@ class OrgCRUDL(SmartCRUDL):
                             "destination": link.get("destination"),
                             "is_archived": False,
                         }
+                        if full_link in processed_links:
+                            uuid_of_processed_link = processed_links[full_link]
+                            modified_link_uuids[link["uuid"]] = modified_link_uuids.get(
+                                uuid_of_processed_link, uuid_of_processed_link
+                            )
+                        elif Link.objects.exclude(org=self.org).filter(uuid=link["uuid"]).exists():
+                            new_uuid = str(uuid4())
+                            while new_uuid in str(data):
+                                new_uuid = str(uuid4())
+                            modified_link_uuids[link["uuid"]] = new_uuid
                         if not Link.objects.filter(**filter_params).exists() and full_link not in processed_links:
+                            processed_links[full_link] = link["uuid"]
                             links.append(link)
                     json_data["links"] = links
                     data = json.dumps(json_data)
+                    for origin_link_uuid, new_link_uuid in modified_link_uuids.items():
+                        data = data.replace(origin_link_uuid, new_link_uuid)
 
                 return data
 
