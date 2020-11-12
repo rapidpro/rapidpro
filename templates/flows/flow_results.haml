@@ -701,6 +701,10 @@
                     .text
                       -trans "Task Status"
                 %td.header
+                  .details
+                    %div(style="min-width: 152px;")
+                      -trans "Last Modified"
+                %td.header
 
               %tbody{id:"transfered_flows"}
                 %tr{ic-append-from:"/flow/merging_flows_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#transfered_flows", ic-indicator:"#indicator"}
