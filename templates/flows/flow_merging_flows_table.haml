@@ -8,6 +8,7 @@
       ic-target="#transfered_flows"
       ic-indicator="#indicator"
     {% endif %}
+    id="{{task.uuid}}"
   >
     %td
       %a(href="{% url 'flows.flow_editor_next' task.source.uuid %}")
