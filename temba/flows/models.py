@@ -4242,19 +4242,23 @@ class MergeFlowsTask(TembaModel):
                 logger.info("Mergeflow Task ({0}): Category counts transfered ({1} rows).".format(self.uuid, len(category_counts)))
 
                 # move exit counts (responsible for completion chart and data on flow list page)
-                exit_counts = []
-                exits = self.source.exit_counts.all().exclude(exit_type__isnull=True)
-                for source_exit in exits:
-                    target_exit = self.target.exit_counts.filter(exit_type=source_exit.exit_type).first()
-                    if target_exit:
-                        target_exit.count += source_exit.count
-                        exit_counts.append(target_exit)
-                    else:
-                        self.target.exit_counts.create(exit_type=source_exit.exit_type, count=source_exit.count)
-                    source_exit.count = 0
-                    exit_counts.append(source_exit)
-                FlowRunCount.objects.bulk_update(exit_counts, ["count"])
-                logger.info("Mergeflow Task ({0}): Exit counts transfered ({1} rows).".format(self.uuid, len(exit_counts)))
+                exit_counts = self.source.exit_counts.exclude(exit_type__isnull=True).values("exit_type").annotate(count=Sum('count'))
+                equalized_exit_counts = []
+                for exit_count in exit_counts:
+                    equalized_exit_counts.extend([
+                        FlowRunCount(
+                            flow=self.source,
+                            exit_type=exit_count.get("exit_type", None),
+                            count=(0 - exit_count.get("count", 0)),
+                        ),
+                        FlowRunCount(
+                            flow=self.target,
+                            exit_type=exit_count.get("exit_type", None),
+                            count=exit_count.get("count", 0),
+                        )
+                    ])
+                FlowRunCount.objects.bulk_create(equalized_exit_counts)
+                logger.info("Mergeflow Task ({0}): Exit counts transfered.".format(self.uuid))
 
                 # move flow metadata
                 source_waiting_exits = []
