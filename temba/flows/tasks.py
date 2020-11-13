@@ -180,7 +180,14 @@ def delete_flowimage_downloaded_files():
     print("> Garbage collection finished in %0.3fs for %s file(s)" % (time.time() - start, counter_files))
 
 
-@task(track_started=True, name="merge_flows")
+def merge_flow_failed(self, exc, task_id, args, kwargs, einfo):
+    task_ = MergeFlowsTask.objects.filter(uuid=args[0]).first()
+    if task_:
+        task_.status = MergeFlowsTask.STATUS_FAILED
+        task_.save()
+
+
+@task(track_started=True, name="merge_flows", on_failure=merge_flow_failed)
 def merge_flows_task(uuid):
     task_ = MergeFlowsTask.objects.filter(uuid=uuid).first()
     if task_:

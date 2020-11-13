@@ -31,6 +31,7 @@ from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
+from django.core.paginator import Paginator
 from django.db import connection as db_connection, models, transaction
 from django.db.models import Max, Q, Sum
 
@@ -4121,6 +4122,7 @@ class MergeFlowsTask(TembaModel):
         self.save(update_fields=["status"])
         try:
             with transaction.atomic():
+                logger.info("Mergeflow Task ({0}): Merging started.")
                 uuids_metadata = self.merging_metadata or {}
                 origin_node_uuids = uuids_metadata.get("origin_node_uuids", {})
                 origin_exit_uuids = uuids_metadata.get("origin_exit_uuids", {})
@@ -4130,10 +4132,12 @@ class MergeFlowsTask(TembaModel):
                 # move flow images data
                 images = self.source.flow_images.all()
                 images.update(flow=self.target)
+                logger.info("Mergeflow Task ({0}): Images transfered ({1} rows).".format(self.uuid, len(images)))
 
                 # move trackable links
                 links = self.source.related_links.all()
                 links.update(related_flow=self.target)
+                logger.info("Mergeflow Task ({0}): Links transfered ({1} rows).".format(self.uuid, len(links)))
 
                 # move campaigns from source to target
                 from temba.campaigns.models import CampaignEvent
@@ -4142,38 +4146,59 @@ class MergeFlowsTask(TembaModel):
                     is_active=True, flow=self.source, campaign__org=self.target.org, campaign__is_archived=False
                 )
                 campaigns.update(flow=self.target)
+                logger.info("Mergeflow Task ({0}): Campaigns transfered ({1} rows).".format(self.uuid, len(campaigns)))
 
                 # move triggers from source to target
                 from temba.triggers.models import Trigger
 
                 triggers = Trigger.objects.filter(flow=self.source)
                 triggers.update(flow=self.target)
+                logger.info("Mergeflow Task ({0}): Triggers transfered ({1} rows).".format(self.uuid, len(triggers)))
 
                 # move flow starts from source to target
                 flow_starts = self.source.starts.all().exclude(
                     runs__status__in=[FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING]
                 )
                 flow_starts.update(flow=self.target)
+                logger.info(
+                    "Mergeflow Task ({0}): Flow strarts transfered ({1} rows).".format(self.uuid, len(flow_starts))
+                )
 
                 # move runs from source to target
-                runs = self.source.runs.all().exclude(status__in=[FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING])
-                run_sessions = []
-                for run in runs:
-                    run.flow = self.target
-                    run.current_node_uuid = origin_node_uuids.get(str(run.current_node_uuid), run.current_node_uuid)
+                all_runs = (
+                    self.source.runs.all()
+                    .exclude(status__in=[FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING])
+                    .order_by("uuid")
+                )
+                runs_paginator = Paginator(all_runs, 1000)
+                for page in runs_paginator.page_range:
+                    runs = runs_paginator.page(page)
+                    run_sessions = []
+                    for run in runs:
+                        run.flow = self.target
+                        run.current_node_uuid = origin_node_uuids.get(
+                            str(run.current_node_uuid), run.current_node_uuid
+                        )
 
-                    path_recent_runs = run.recent_runs.all()
-                    for recent_run in path_recent_runs:
-                        recent_run.from_uuid = origin_exit_uuids.get(str(recent_run.from_uuid), recent_run.from_uuid)
-                        recent_run.to_uuid = origin_node_uuids.get(str(recent_run.to_uuid), recent_run.to_uuid)
-                    FlowPathRecentRun.objects.bulk_update(path_recent_runs, ["from_uuid", "to_uuid"])
+                        path_recent_runs = run.recent_runs.all()
+                        for recent_run in path_recent_runs:
+                            recent_run.from_uuid = origin_exit_uuids.get(
+                                str(recent_run.from_uuid), recent_run.from_uuid
+                            )
+                            recent_run.to_uuid = origin_node_uuids.get(str(recent_run.to_uuid), recent_run.to_uuid)
+                        FlowPathRecentRun.objects.bulk_update(path_recent_runs, ["from_uuid", "to_uuid"])
 
-                    if run.session and run.session.current_flow == self.source:
-                        session = run.session
-                        session.current_flow = self.target
-                        run_sessions.append(session)
-                FlowRun.objects.bulk_update(runs, ["flow", "current_node_uuid"])
-                FlowSession.objects.bulk_update(run_sessions, ["current_flow"])
+                        if run.session and run.session.current_flow == self.source:
+                            session = run.session
+                            session.current_flow = self.target
+                            run_sessions.append(session)
+                    FlowRun.objects.bulk_update(runs, ["flow", "current_node_uuid"])
+                    FlowSession.objects.bulk_update(run_sessions, ["current_flow"])
+                    logger.info(
+                        "Mergeflow Task ({0}): Transfered {1} page of flow runs ({2} rows).".format(
+                            self.uuid, page, len(runs)
+                        )
+                    )
 
                 # move analytics data
                 active_pathes = {}
@@ -4186,40 +4211,32 @@ class MergeFlowsTask(TembaModel):
                         active_pathes[exit_uuid] = active_pathes.get(exit_uuid, 0) + 1
 
                 # move path counts (responsible for numbers on action connections that display messages count)
-                path_counts = self.source.path_counts.all()
-
-                # calculate the sum of all counts on each flow path
-                grouped_path_counts = [
-                    {"from_uuid": path["from_uuid"], "to_uuid": path["to_uuid"], "count": path["count"]}
-                    for path in self.source.path_counts.values("from_uuid", "to_uuid").annotate(count=Sum("count"))
-                ]
-                # transfer path counts from source flow to target flow
-                for path_count in path_counts:
-                    path_count.from_uuid = origin_exit_uuids.get(str(path_count.from_uuid), path_count.from_uuid)
-                    path_count.to_uuid = origin_node_uuids.get(str(path_count.to_uuid), path_count.to_uuid)
-                    path_count.flow = self.target
-                FlowPathCount.objects.bulk_update(path_counts, ["from_uuid", "to_uuid", "flow"])
-
-                # equalize path count for active runs
-                for path_count in grouped_path_counts:
+                equalized_path_counts = []
+                for path_count in self.source.path_counts.values("from_uuid", "to_uuid").annotate(count=Sum("count")):
                     need_to_skip = active_pathes.get(str(path_count["from_uuid"]), 0)
-                    if need_to_skip == 0:
-                        continue
-
-                    self.target.path_counts.create(
-                        from_uuid=origin_exit_uuids.get(str(path_count["from_uuid"]), path_count["from_uuid"]),
-                        to_uuid=origin_node_uuids.get(str(path_count["to_uuid"]), path_count["to_uuid"]),
-                        count=-need_to_skip,
-                        period=timezone.now(),
+                    trasfered_count = path_count.get("count", 0) - need_to_skip
+                    equalized_path_counts.extend(
+                        [
+                            FlowPathCount(
+                                flow=self.source,
+                                from_uuid=path_count["from_uuid"],
+                                to_uuid=path_count["to_uuid"],
+                                count=-trasfered_count,
+                                period=timezone.now(),
+                            ),
+                            FlowPathCount(
+                                flow=self.target,
+                                from_uuid=origin_exit_uuids.get(str(path_count["from_uuid"]), path_count["from_uuid"]),
+                                to_uuid=origin_node_uuids.get(str(path_count["to_uuid"]), path_count["to_uuid"]),
+                                count=trasfered_count,
+                                period=timezone.now(),
+                            ),
+                        ]
                     )
-                    self.source.path_counts.create(
-                        from_uuid=path_count["from_uuid"],
-                        to_uuid=path_count["to_uuid"],
-                        count=need_to_skip,
-                        period=timezone.now(),
-                    )
+                FlowPathCount.objects.bulk_create(equalized_path_counts)
+                logger.info("Mergeflow Task ({0}): Path counts transfered.".format(self.uuid))
 
-                # transfer category counts from source flow
+                # transfer category counts from source flow (responsible for charts on analytics page)
                 category_counts = self.source.category_counts.all()
                 for category_count in category_counts:
                     category_count.node_uuid = origin_node_uuids.get(
@@ -4227,20 +4244,36 @@ class MergeFlowsTask(TembaModel):
                     )
                     category_count.flow = self.target
                 FlowCategoryCount.objects.bulk_update(category_counts, ["node_uuid", "flow"])
+                logger.info(
+                    "Mergeflow Task ({0}): Category counts transfered ({1} rows).".format(
+                        self.uuid, len(category_counts)
+                    )
+                )
 
                 # move exit counts (responsible for completion chart and data on flow list page)
-                exit_counts = []
-                exits = self.source.exit_counts.all().exclude(exit_type__isnull=True)
-                for source_exit in exits:
-                    target_exit = self.target.exit_counts.filter(exit_type=source_exit.exit_type).first()
-                    if target_exit:
-                        target_exit.count += source_exit.count
-                        exit_counts.append(target_exit)
-                    else:
-                        self.target.exit_counts.create(exit_type=source_exit.exit_type, count=source_exit.count)
-                    source_exit.count = 0
-                    exit_counts.append(source_exit)
-                FlowRunCount.objects.bulk_update(exit_counts, ["count"])
+                exit_counts = (
+                    self.source.exit_counts.exclude(exit_type__isnull=True)
+                    .values("exit_type")
+                    .annotate(count=Sum("count"))
+                )
+                equalized_exit_counts = []
+                for exit_count in exit_counts:
+                    equalized_exit_counts.extend(
+                        [
+                            FlowRunCount(
+                                flow=self.source,
+                                exit_type=exit_count.get("exit_type", None),
+                                count=(0 - exit_count.get("count", 0)),
+                            ),
+                            FlowRunCount(
+                                flow=self.target,
+                                exit_type=exit_count.get("exit_type", None),
+                                count=exit_count.get("count", 0),
+                            ),
+                        ]
+                    )
+                FlowRunCount.objects.bulk_create(equalized_exit_counts)
+                logger.info("Mergeflow Task ({0}): Exit counts transfered.".format(self.uuid))
 
                 # move flow metadata
                 source_waiting_exits = []
@@ -4265,6 +4298,7 @@ class MergeFlowsTask(TembaModel):
                 self.merging_metadata["previous_target_name"] = self.target.name
                 self.target.name = self.merge_name
                 self.target.save(update_fields=["name", "metadata"])
+                logger.info("Mergeflow Task ({0}): Metadata transfered.".format(self.uuid))
 
                 # archive source
                 active_runs_exists = self.source.runs.filter(
