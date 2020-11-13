@@ -869,6 +869,9 @@ class MigrationTask(TembaModel):
                 else None
             )
 
+            if broadcast.status == "Q":
+                broadcast.status = "S"
+
             new_broadcast_obj = Broadcast.objects.create(
                 org=self.org,
                 channel=new_channel_obj,
