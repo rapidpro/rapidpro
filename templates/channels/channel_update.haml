@@ -87,6 +87,11 @@
       display: none;
     }
 
+    .ccl-tooltip {
+      margin: 2px 0 0 10px;
+      font-size: 15px;
+    }
+
 {% block extra-script %}
 <script src="{{ STATIC_URL }}js/jscolor.js"></script>
 {% if object.channel_type == "WCH" %}
@@ -287,6 +292,18 @@
       }
     }
 
+    function buildLanguageTooltip(el) {
+      var label = el[0];
+      var tooltip = document.createElement("i");
+      tooltip.className = "icon-nav-help-inverted ccl-tooltip";
+      tooltip.setAttribute("data-toggle", "tooltip");
+      tooltip.setAttribute("data-trigger", "hover");
+      tooltip.setAttribute("data-delay", "200");
+      tooltip.setAttribute("data-placement", "top");
+      tooltip.setAttribute("data-original-title", "Note: translation is only available for languages that are compatible with web browsers.");
+      label.append(tooltip);
+    }
+
     // adding languages to the form
     {% if object.channel_type == "WCH" %}
     $(document).ready(function() {
@@ -401,12 +418,16 @@
         if (index !== 0) {
           $(this).addClass("hide");
         }
+
+        buildLanguageTooltip($(this).find("label"));
       });
 
       $.each($("div[class^='control-group field_inputtext_placeholder_']"), function (index) {
         if (index !== 0) {
           $(this).addClass("hide");
         }
+
+        buildLanguageTooltip($(this).find("label"));
       });
 
       $("input").removeAttr("required");
