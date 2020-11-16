@@ -5685,6 +5685,20 @@ class ContactImportTest(TembaTest):
             batch.specs,
         )
 
+        # check that we correctly detect different encodings
+        enc_tests = [
+            ("utf16-le", "Drazen"),
+            ("utf16-be", "Drazen"),
+            ("iso-8859-1", "Dràzen"),
+            ("iso-8859-5", "Dѓazзn"),
+        ]
+
+        for test in enc_tests:
+            imp = self.create_contact_import(f"media/test_imports/encoding_{test[0]}.csv")
+            imp.start()
+            batch = imp.batches.get()
+            self.assertEqual(test[1], batch.specs[0]["name"])
+
     @mock_mailroom
     def test_detect_spamminess(self, mr_mocks):
         imp = self.create_contact_import("media/test_imports/sequential_tels.xls")
