@@ -68,7 +68,7 @@ def refresh_360_templates():
                     continue
 
                 seen = []
-                for template in response.json()["data"]["waba_templates"]:
+                for template in response.json()["waba_templates"]:
                     if template["status"] not in STATUS_MAPPING:
                         continue
 
@@ -108,11 +108,12 @@ def refresh_360_templates():
                         content=content,
                         variable_count=variable_count,
                         status=status,
+                        external_id=None,
                     )
 
                     seen.append(translation)
 
-                TemplateTranslation.trim(channel.seen)
+                TemplateTranslation.trim(channel, seen)
 
             except RequestException as e:
                 HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)
