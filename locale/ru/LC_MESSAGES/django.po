@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-09 21:08+0000\n"
+"POT-Creation-Date: 2020-11-16 21:04+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -907,6 +907,14 @@ msgstr ""
 
 msgid "Please enter a valid phone number"
 msgstr "Пожалуйста, введите действительный номер телефона"
+
+#, fuzzy
+#| msgid "Sync Logs"
+msgid "Sync logs"
+msgstr "Журналы синхронизации"
+
+msgid "Message Templates"
+msgstr "Шаблоны сообщения"
 
 #, fuzzy, python-format
 #| msgid "If you are based in Jamaica, you can purchase a short code from <a href=\"http://www.messangi.com/\">Messangi</a> and connect it in a few simple steps."
@@ -2295,9 +2303,6 @@ msgstr "ID приложения WeChat "
 
 msgid "The WeChat App secret"
 msgstr "Секрет приложения WeChat "
-
-msgid "Message Templates"
-msgstr "Шаблоны сообщения"
 
 msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
 msgstr "Если у Вас есть корпоративная учетная запись WhatsApp, Вы можете подключить ее для общения с Вашими контактами"
@@ -5728,6 +5733,25 @@ msgstr ""
 "\n"
 "  "
 
+#, fuzzy
+#| msgid "WhatsApp Templates Events"
+msgid "360dialog Templates Events"
+msgstr "События Шаблонов WhatsApp "
+
+msgid "No syncs yet. Check back later."
+msgstr ""
+
+msgid "Templates"
+msgstr "Шаблоны"
+
+#, fuzzy
+#| msgid "Templates are synced from your WhatsApp account every 15 minutes."
+msgid "Templates are synced from your 360dialog account every 15 minutes."
+msgstr "Шаблоны синхронизируются с Вашей учетной записью WhatsApp каждые 15 минут."
+
+msgid "No synced templates at this time."
+msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
 #, python-format
 msgid "You can connect your <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> number to %(name)s using the fields below. You will first need to create a DMark Mobile account and receive a username and password from them to use below."
 msgstr "Вы можете подключить свой номер <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> к %(name)s с помощью полей ниже. Сначала Вам нужно будет создать учетную запись DMark Mobile и получить от них имя пользователя и пароль для использования ниже."
@@ -6756,17 +6780,8 @@ msgstr ""
 msgid "WhatsApp Templates Events"
 msgstr "События Шаблонов WhatsApp "
 
-msgid "No syncs yet. Check back later."
-msgstr ""
-
-msgid "Templates"
-msgstr "Шаблоны"
-
 msgid "Templates are synced from your WhatsApp account every 15 minutes."
 msgstr "Шаблоны синхронизируются с Вашей учетной записью WhatsApp каждые 15 минут."
-
-msgid "No synced templates at this time."
-msgstr "На данный момент синхронизированные шаблоны отсутствуют."
 
 msgid "Connect a Classifier"
 msgstr "Подключить Классификатор"
@@ -10673,7 +10688,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "    код у <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> и подключить его,\n"
 #~ "    выполнив несколько простых шагов."
 
-#, python-format
 #~ msgid "Unable to update call to action: %s"
 #~ msgstr "Невозможно обновить вызов действия: %s"
 
@@ -10778,7 +10792,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "If you are based in Brazil, you can purchase a short code from <a href=\"http://www.zenvia.com.br/\">Zenvia</a> and connect it in a few simple steps."
 #~ msgstr "Если Вы находитесь в Бразилии, вы можете приобрести короткий код у <a href=\"http://www.zenvia.com.br/\">Zenvia</a> и подключить его, выполнив несколько простых шагов."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          When submitting your application for approval, make sure to include the <code>pages_messaging</code>\n"
@@ -10798,7 +10812,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "        "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
@@ -10877,7 +10891,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Create a message keyword to allow people to join a group."
 #~ msgstr "Создать ключевое слово сообщения, чтобы люди могли присоединяться к группе."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -10894,7 +10908,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "                "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -10910,7 +10924,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "                "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "              Used by %(num_flows)s flow:\n"
@@ -10936,7 +10949,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "              Используется %(num_flows)s потоками:\n"
 #~ "              "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        To get started you need to add a channel to your account. A channel is a phone number or social network\n"

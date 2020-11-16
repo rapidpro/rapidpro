@@ -6,9 +6,9 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import URN
 from temba.orgs.views import OrgPermsMixin
-from temba.utils.fields import ExternalURLField
-from temba.templates.models import TemplateTranslation
 from temba.request_logs.models import HTTPLog
+from temba.templates.models import TemplateTranslation
+from temba.utils.fields import ExternalURLField
 
 from ...models import Channel
 from ...views import ALL_COUNTRIES, ClaimViewMixin
@@ -118,7 +118,7 @@ class SyncLogsView(OrgPermsMixin, SmartReadView):
 
         # include all our http sync logs as well
         context["sync_logs"] = (
-            HTTPLog.objects.filter(log_type__in=[HTTPLog.WHATSAPP_TEMPLATES_SYNCED,], channel=self.object,)
+            HTTPLog.objects.filter(log_type__in=[HTTPLog.WHATSAPP_TEMPLATES_SYNCED], channel=self.object)
             .order_by("-created_on")
             .prefetch_related("channel")
         )

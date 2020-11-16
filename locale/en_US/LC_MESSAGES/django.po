@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-09 21:08+0000\n"
+"POT-Creation-Date: 2020-11-16 21:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -712,6 +712,12 @@ msgid "The 360 Dialog API key generated after account registration"
 msgstr ""
 
 msgid "Please enter a valid phone number"
+msgstr ""
+
+msgid "Sync logs"
+msgstr ""
+
+msgid "Message Templates"
 msgstr ""
 
 #, python-format
@@ -1634,9 +1640,6 @@ msgid "The WeChat App ID"
 msgstr ""
 
 msgid "The WeChat App secret"
-msgstr ""
-
-msgid "Message Templates"
 msgstr ""
 
 msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
@@ -4692,6 +4695,21 @@ msgstr ""
 msgid "Your 360Dialog WhatsApp channel is now connected, you should be able to send and receive messages as normal."
 msgstr ""
 
+msgid "360dialog Templates Events"
+msgstr ""
+
+msgid "No syncs yet. Check back later."
+msgstr ""
+
+msgid "Templates"
+msgstr ""
+
+msgid "Templates are synced from your 360dialog account every 15 minutes."
+msgstr ""
+
+msgid "No synced templates at this time."
+msgstr ""
+
 #, python-format
 msgid "You can connect your <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> number to %(name)s using the fields below. You will first need to create a DMark Mobile account and receive a username and password from them to use below."
 msgstr ""
@@ -5097,16 +5115,7 @@ msgstr ""
 msgid "WhatsApp Templates Events"
 msgstr ""
 
-msgid "No syncs yet. Check back later."
-msgstr ""
-
-msgid "Templates"
-msgstr ""
-
 msgid "Templates are synced from your WhatsApp account every 15 minutes."
-msgstr ""
-
-msgid "No synced templates at this time."
 msgstr ""
 
 msgid "Connect a Classifier"

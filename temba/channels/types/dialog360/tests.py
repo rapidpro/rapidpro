@@ -3,12 +3,12 @@ from unittest.mock import patch
 from django.forms import ValidationError
 from django.urls import reverse
 
-from temba.tests import MockResponse, TembaTest
 from temba.templates.models import Template, TemplateTranslation
+from temba.tests import MockResponse, TembaTest
 
 from ...models import Channel
-from .type import Dialog360Type
 from .tasks import refresh_360_templates
+from .type import Dialog360Type
 
 
 class Dialog360TypeTest(TembaTest):
@@ -237,7 +237,7 @@ class Dialog360TypeTest(TembaTest):
             refresh_360_templates()
             mock_get.assert_called_with(
                 "https://ilhasoft.com.br/whatsapp/v1/configs/templates",
-                {"D360-Api-Key": channel.config[Channel.CONFIG_AUTH_TOKEN], "Content-Type": "application/json",},
+                {"D360-Api-Key": channel.config[Channel.CONFIG_AUTH_TOKEN], "Content-Type": "application/json"},
             )
 
             # should have 4 templates

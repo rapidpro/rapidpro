@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-09 21:08+0000\n"
+"POT-Creation-Date: 2020-11-16 21:04+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -1098,6 +1098,15 @@ msgstr ""
 #| msgid "Please enter at least 8 characters"
 msgid "Please enter a valid phone number"
 msgstr "Por favor, ingrese 8 caracteres como mínimo"
+
+#, fuzzy
+#| msgid "Synced on"
+msgid "Sync logs"
+msgstr "Sincronizado el"
+
+#, fuzzy
+msgid "Message Templates"
+msgstr "Mensaje"
 
 #, fuzzy, python-format
 msgid "If you are based in Uganda or DRC you can purchase a short code from %(link)s and connect it in a few simple steps."
@@ -2704,10 +2713,6 @@ msgstr ""
 
 msgid "The WeChat App secret"
 msgstr ""
-
-#, fuzzy
-msgid "Message Templates"
-msgstr "Mensaje"
 
 msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
 msgstr ""
@@ -6875,6 +6880,26 @@ msgstr ""
 msgid "Your 360Dialog WhatsApp channel is now connected, you should be able to send and receive messages as normal."
 msgstr "TextIt usa su teléfono Android para enviar y recibir mensajes."
 
+#, fuzzy
+#| msgid "Has Template Error"
+msgid "360dialog Templates Events"
+msgstr "Tiene un error en la plantilla"
+
+msgid "No syncs yet. Check back later."
+msgstr ""
+
+#, fuzzy
+msgid "Templates"
+msgstr "Mensaje"
+
+#, fuzzy
+#| msgid "The file name for our export"
+msgid "Templates are synced from your 360dialog account every 15 minutes."
+msgstr "El nombre del archivo para nuestra exportación"
+
+msgid "No synced templates at this time."
+msgstr ""
+
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
@@ -7632,20 +7657,10 @@ msgstr ""
 msgid "WhatsApp Templates Events"
 msgstr "Tiene un error en la plantilla"
 
-msgid "No syncs yet. Check back later."
-msgstr ""
-
-#, fuzzy
-msgid "Templates"
-msgstr "Mensaje"
-
 #, fuzzy
 #| msgid "The file name for our export"
 msgid "Templates are synced from your WhatsApp account every 15 minutes."
 msgstr "El nombre del archivo para nuestra exportación"
-
-msgid "No synced templates at this time."
-msgstr ""
 
 #, fuzzy
 #| msgid "Connect Vumi"
@@ -11356,7 +11371,7 @@ msgstr ""
 #~ "\n"
 #~ "                "
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "      After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
@@ -11420,7 +11435,7 @@ msgstr ""
 #~ msgid "Create a message keyword to allow people to join a group."
 #~ msgstr "Crear una palabre clave de mensajería para que las personas participen en un grupo."
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                    %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -11432,7 +11447,7 @@ msgstr ""
 #~ "\n"
 #~ "         "
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                    %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -11443,7 +11458,7 @@ msgstr ""
 #~ "\n"
 #~ "         "
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "              Used by %(num_flows)s flow:\n"
@@ -11461,7 +11476,7 @@ msgstr ""
 #~ "                Llamada saliente (%(duration)s seconds)\n"
 #~ "              "
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "        To get started you need to add a channel to your workspace. A channel is a phone number or social network\n"

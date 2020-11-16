@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-09 21:08+0000\n"
+"POT-Creation-Date: 2020-11-16 21:04+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -917,6 +917,14 @@ msgstr ""
 
 msgid "Please enter a valid phone number"
 msgstr "s'il vous plaît entrer un numéro de téléphone valide"
+
+#, fuzzy
+#| msgid "Sync Logs"
+msgid "Sync logs"
+msgstr "Journaux de synchronisation"
+
+msgid "Message Templates"
+msgstr "Modèles de message"
 
 #, fuzzy, python-format
 #| msgid "If you are based in Jamaica, you can purchase a short code from <a href=\"http://www.messangi.com/\">Messangi</a> and connect it in a few simple steps."
@@ -2332,9 +2340,6 @@ msgstr "L'ID de l'application WeChat"
 
 msgid "The WeChat App secret"
 msgstr "Le secret de l'application WeChat"
-
-msgid "Message Templates"
-msgstr "Modèles de message"
 
 msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
 msgstr "Si vous avez un compte d'entreprise WhatsApp, vous pouvez le connecter pour communiquer avec vos contacts."
@@ -5729,6 +5734,25 @@ msgstr ""
 "\n"
 "  "
 
+#, fuzzy
+#| msgid "WhatsApp Templates Events"
+msgid "360dialog Templates Events"
+msgstr "Événements des modèles WhatsApp"
+
+msgid "No syncs yet. Check back later."
+msgstr ""
+
+msgid "Templates"
+msgstr "Modèles"
+
+#, fuzzy
+#| msgid "Templates are synced from your WhatsApp account every 15 minutes."
+msgid "Templates are synced from your 360dialog account every 15 minutes."
+msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toutes les 15 minutes."
+
+msgid "No synced templates at this time."
+msgstr "Aucun modèle synchronisé pour le moment."
+
 #, python-format
 msgid "You can connect your <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> number to %(name)s using the fields below. You will first need to create a DMark Mobile account and receive a username and password from them to use below."
 msgstr "Vous pouvez connecter votre numéro <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> à %(name)s en utilisant les champs ci-dessous. Vous devrez d'abord créer un compte DMark Mobile et recevoir d'eux un nom d'utilisateur et un mot de passe à utiliser ci-dessous."
@@ -6769,17 +6793,8 @@ msgstr ""
 msgid "WhatsApp Templates Events"
 msgstr "Événements des modèles WhatsApp"
 
-msgid "No syncs yet. Check back later."
-msgstr ""
-
-msgid "Templates"
-msgstr "Modèles"
-
 msgid "Templates are synced from your WhatsApp account every 15 minutes."
 msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toutes les 15 minutes."
-
-msgid "No synced templates at this time."
-msgstr "Aucun modèle synchronisé pour le moment."
 
 msgid "Connect a Classifier"
 msgstr "Connecter un classificateur"
@@ -10539,7 +10554,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "    auprès de <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> et le connecter\n"
 #~ "    en quelques étapes simples."
 
-#, python-format
 #~ msgid "Unable to update call to action: %s"
 #~ msgstr "Impossible de mettre à jour l'appel à l'action: %s"
 
@@ -10646,7 +10660,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "If you are based in Brazil, you can purchase a short code from <a href=\"http://www.zenvia.com.br/\">Zenvia</a> and connect it in a few simple steps."
 #~ msgstr "Si vous êtes basé au Brésil, vous pouvez acheter un code court à <a href=\"http://www.zenvia.com.br/\">Zenvia</a> et le connecter en quelques simples étapes."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          When submitting your application for approval, make sure to include the <code>pages_messaging</code>\n"
@@ -10666,7 +10680,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "        "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
@@ -10748,7 +10762,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Create a message keyword to allow people to join a group."
 #~ msgstr "Créez un mot-clé de message pour permettre aux personnes de rejoindre un groupe."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -10765,7 +10779,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "                "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -10781,7 +10795,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ "\n"
 #~ "                "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "              Used by %(num_flows)s flow:\n"
@@ -10799,7 +10812,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ "              Utilisé par %(num_flows)s flux:\n"
 #~ "              "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        To get started you need to add a channel to your account. A channel is a phone number or social network\n"
