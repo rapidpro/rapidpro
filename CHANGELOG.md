@@ -1,3 +1,9 @@
+v6.0.2
+----------
+ * Fix broken ticket re-open button
+ * Missing updated Fr MO file from previous merge
+ * Apply translations in fr
+
 v6.0.1
 ----------
  * Fix orgs being suspended due to invalid topup cache
