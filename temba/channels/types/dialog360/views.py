@@ -61,6 +61,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         return super().form_valid(form)
 
+
 class TemplatesView(OrgPermsMixin, SmartReadView):
     """
     Displays a simple table of all the templates synced on this dialog360 Channel
@@ -73,7 +74,9 @@ class TemplatesView(OrgPermsMixin, SmartReadView):
     template_name = "channels/types/dialog360/templates.html"
 
     def get_gear_links(self):
-        return [dict(title=_("Sync logs"), href=reverse("channels.types.dialog360.sync_logs",args=[self.object.uuid]))]
+        return [
+            dict(title=_("Sync logs"), href=reverse("channels.types.dialog360.sync_logs", args=[self.object.uuid]))
+        ]
 
     def get_queryset(self):
         queryset = super().get_queryset()
@@ -115,12 +118,7 @@ class SyncLogsView(OrgPermsMixin, SmartReadView):
 
         # include all our http sync logs as well
         context["sync_logs"] = (
-            HTTPLog.objects.filter(
-                log_type__in=[
-                    HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
-                ],
-                channel=self.object,
-            )
+            HTTPLog.objects.filter(log_type__in=[HTTPLog.WHATSAPP_TEMPLATES_SYNCED,], channel=self.object,)
             .order_by("-created_on")
             .prefetch_related("channel")
         )

@@ -253,7 +253,6 @@ class Dialog360TypeTest(TembaTest):
             self.assertContains(response, "Hello")
             self.assertContains(response, reverse("channels.types.dialog360.sync_logs", args=[channel.uuid]))
 
-
         # deactivate our channel
         with self.settings(IS_PROD=True):
             channel.release()
