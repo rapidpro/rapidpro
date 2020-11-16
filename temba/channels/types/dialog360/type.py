@@ -1,11 +1,12 @@
 import requests
 
+from django.conf.urls import url
 from django.forms import ValidationError
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
-from temba.channels.types.dialog360.views import ClaimView
+from temba.channels.types.dialog360.views import ClaimView, SyncLogsView, TemplatesView
 from temba.contacts.models import URN
 from temba.templates.models import TemplateTranslation
 
@@ -109,6 +110,13 @@ class Dialog360Type(ChannelType):
     schemes = [URN.WHATSAPP_SCHEME]
     max_length = 4096
     attachment_support = True
+
+    def get_urls(self):
+        return [
+            self.get_claim_url(),
+            url(r"^(?P<uuid>[a-z0-9\-]+)/templates$", TemplatesView.as_view(), name="templates"),
+            url(r"^(?P<uuid>[a-z0-9\-]+)/sync_logs$", SyncLogsView.as_view(), name="sync_logs"),
+        ]
 
     def activate(self, channel):
         domain = channel.org.get_brand_domain()
