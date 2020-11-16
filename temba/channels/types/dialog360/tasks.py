@@ -100,6 +100,8 @@ def refresh_360_templates():
                         status = TemplateTranslation.STATUS_UNSUPPORTED_LANGUAGE
                         language = template["language"]
 
+                    # dialog360 API does not returns template ids
+                    external_id = f"{template['language']}/{template['name']}"
                     translation = TemplateTranslation.get_or_create(
                         channel=channel,
                         name=template["name"],
@@ -108,7 +110,7 @@ def refresh_360_templates():
                         content=content,
                         variable_count=variable_count,
                         status=status,
-                        external_id=None,
+                        external_id=external_id,
                     )
 
                     seen.append(translation)
