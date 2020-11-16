@@ -7,6 +7,7 @@ from temba.contacts.models import URN
 from temba.orgs.views import OrgPermsMixin
 from temba.utils.fields import ExternalURLField
 from temba.templates.models import TemplateTranslation
+from temba.request_logs.models import HTTPLog
 
 from ...models import Channel
 from ...views import ALL_COUNTRIES, ClaimViewMixin
@@ -82,4 +83,44 @@ class TemplatesView(OrgPermsMixin, SmartReadView):
 
         # include all our templates as well
         context["translations"] = TemplateTranslation.objects.filter(channel=self.object).order_by("template__name")
+        return context
+
+
+class SyncLogsView(OrgPermsMixin, SmartReadView):
+    """
+    Displays a simple table of 360dialog Templates Synced requests for this channel
+    """
+
+    model = Channel
+    fields = ()
+    permission = "channels.channel_read"
+    slug_url_kwarg = "uuid"
+    template_name = "channels/types/dialog360/sync_logs.html"
+
+    def get_gear_links(self):
+        return [
+            dict(
+                title=_("Message Templates"),
+                href=reverse("channels.types.dialog360.templates", args=[self.object.uuid]),
+            )
+        ]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset.filter(org=self.get_user().get_org())
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # include all our http sync logs as well
+        context["sync_logs"] = (
+            HTTPLog.objects.filter(
+                log_type__in=[
+                    HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
+                ],
+                channel=self.object,
+            )
+            .order_by("-created_on")
+            .prefetch_related("channel")
+        )
         return context
