@@ -1,10 +1,12 @@
-from smartmin.views import SmartFormView
+from smartmin.views import SmartFormView, SmartReadView
 
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import URN
+from temba.orgs.views import OrgPermsMixin
 from temba.utils.fields import ExternalURLField
+from temba.templates.models import TemplateTranslation
 
 from ...models import Channel
 from ...views import ALL_COUNTRIES, ClaimViewMixin
@@ -56,3 +58,28 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         return super().form_valid(form)
+
+class TemplatesView(OrgPermsMixin, SmartReadView):
+    """
+    Displays a simple table of all the templates synced on this dialog360 Channel
+    """
+
+    model = Channel
+    fields = ()
+    permission = "channels.channel_read"
+    slug_url_kwarg = "uuid"
+    template_name = "channels/types/dialog360/templates.html"
+
+    def get_gear_links(self):
+        return [dict(title=_("Sync logs"), href=reverse("channels.types.dialog360.sync_logs",args=[self.object.uuid]))]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset.filter(org=self.get_user().get_org())
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # include all our templates as well
+        context["translations"] = TemplateTranslation.objects.filter(channel=self.object).order_by("template__name")
+        return context
