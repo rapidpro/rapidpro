@@ -1,9 +1,9 @@
 import copy
 import datetime
+import io
 import os
 from collections import OrderedDict
 from decimal import Decimal
-from io import StringIO
 from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
@@ -67,7 +67,16 @@ from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import IDSliceQuerySet, JSONAsTextField, patch_queryset_count
 from .templatetags.temba import short_datetime
-from .text import clean_string, decode_base64, generate_token, random_string, slugify_with, truncate, unsnakify
+from .text import (
+    clean_string,
+    decode_base64,
+    decode_stream,
+    generate_token,
+    random_string,
+    slugify_with,
+    truncate,
+    unsnakify,
+)
 from .timezones import TimeZoneFormField, timezone_to_country_code
 
 
@@ -187,6 +196,13 @@ class InitTest(TembaTest):
         rs = random_string(1000)
         self.assertEqual(1000, len(rs))
         self.assertFalse("1" in rs or "I" in rs or "0" in rs or "O" in rs)
+
+    def test_decode_stream(self):
+        self.assertEqual("", decode_stream(io.BytesIO(b"")).read())
+        self.assertEqual("hello", decode_stream(io.BytesIO(b"hello")).read())
+        self.assertEqual("hello👋", decode_stream(io.BytesIO(b"hello\xf0\x9f\x91\x8b")).read())  # UTF-8
+        self.assertEqual("hello", decode_stream(io.BytesIO(b"\xff\xfeh\x00e\x00l\x00l\x00o\x00")).read())  # UTF-16
+        self.assertEqual("hèllo", decode_stream(io.BytesIO(b"h\xe8llo")).read())  # ISO8859-1
 
     def test_percentage(self):
         self.assertEqual(0, percentage(0, 100))
@@ -1172,7 +1188,7 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
 
 class PreDeployTest(TembaTest):
     def test_command(self):
-        buffer = StringIO()
+        buffer = io.StringIO()
         call_command("pre_deploy", stdout=buffer)
 
         self.assertEqual("", buffer.getvalue())
@@ -1180,7 +1196,7 @@ class PreDeployTest(TembaTest):
         ExportContactsTask.create(self.org, self.admin)
         ExportContactsTask.create(self.org, self.admin)
 
-        buffer = StringIO()
+        buffer = io.StringIO()
         call_command("pre_deploy", stdout=buffer)
 
         self.assertEqual(
