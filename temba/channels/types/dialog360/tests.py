@@ -237,7 +237,10 @@ class Dialog360TypeTest(TembaTest):
             refresh_360_templates()
             mock_get.assert_called_with(
                 "https://ilhasoft.com.br/whatsapp/v1/configs/templates",
-                {"D360-Api-Key": channel.config[Channel.CONFIG_AUTH_TOKEN], "Content-Type": "application/json"},
+                headers={
+                    "D360-Api-Key": channel.config[Channel.CONFIG_AUTH_TOKEN],
+                    "Content-Type": "application/json",
+                },
             )
 
             # should have 4 templates
