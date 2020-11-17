@@ -57,7 +57,7 @@ def refresh_360_templates():
                     "Content-Type": "application/json",
                 }
 
-                response = requests.get(url, headers)
+                response = requests.get(url, headers=headers)
                 elapsed = (timezone.now() - start).total_seconds() * 1000
 
                 HTTPLog.create_from_response(
