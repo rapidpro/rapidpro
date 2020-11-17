@@ -5690,9 +5690,7 @@ class ContactImportTest(TembaTest):
             ("utf16-le", "Drazen"),
             ("utf16-be", "Drazen"),
             ("iso-8859-1", "Dràzen"),
-            ("iso-8859-5", "Dѓazзn"),
         ]
-
         for test in enc_tests:
             imp = self.create_contact_import(f"media/test_imports/encoding_{test[0]}.csv")
             imp.start()

@@ -163,7 +163,8 @@ def decode_stream(f):
     """
     Detects the character encoding of the given byte stream and returns as text stream
     """
-    data = f.read(1024)
+
+    data = f.read()
     f.seek(0)
 
     encoding = chardet.detect(data)["encoding"]
