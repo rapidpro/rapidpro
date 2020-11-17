@@ -1,6 +1,5 @@
 from datetime import timedelta
 
-from django.conf import settings
 from django.utils import timezone
 
 from celery.task import task
@@ -96,8 +95,10 @@ def update_org_activity(now=None):
 )
 def suspend_topup_orgs_task():
     # for every org on a topup plan that isn't suspended, check they have credits, if not, suspend them
-    for org in Org.objects.filter(plan=settings.TOPUP_PLAN, is_active=True, is_suspended=False):
+    for org in Org.objects.filter(uses_topups=True, is_active=True, is_suspended=False):
         if org.get_credits_remaining() <= 0:
-            org.is_suspended = True
-            org.plan_end = timezone.now()
-            org.save(update_fields=["is_suspended", "plan_end"])
+            org.clear_credit_cache()
+            if org.get_credits_remaining() <= 0:
+                org.is_suspended = True
+                org.plan_end = timezone.now()
+                org.save(update_fields=["is_suspended", "plan_end"])
