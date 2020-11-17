@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-09 21:08+0000\n"
+"POT-Creation-Date: 2020-11-17 20:55+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -6629,7 +6629,8 @@ msgstr ""
 "\n"
 "Você pode conectar seu número <a href=\"http://infobip.com\">Infobip</a> inserindo aqui o seu número, nome de usuário e senha."
 
-msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook."
+#, python-format
+msgid "Each message sent to the channel will have a URN in the format %(format)s where the channel UUID is the FreshChat channel's UUID."
 msgstr ""
 
 msgid "In the FreshChat web interface, under Settings, API Tokens, select Generate Token. Once the token is created you'll enter it below."
@@ -6639,14 +6640,10 @@ msgid "Under Settings again, select Webhooks and copy the Public Key and paste i
 msgstr ""
 
 #, python-format
-msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat Message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\">FreshChat API</a>."
+msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\">FreshChat API</a>."
 msgstr ""
 
 msgid "Once you press Submit below with all the information configured, the confirmation page will give you the URL to use for the FreshChat Webhooks. Enter this URL on the Settings page, under Webhooks where the Public Key was copied from before."
-msgstr ""
-
-#, python-format
-msgid "Each Message sent to the channel will have a URN that's in the format of %(uuid)s where the channel uuid is the FreshChat Message Channels uuid."
 msgstr ""
 
 #, fuzzy, python-format
@@ -6741,7 +6738,7 @@ msgstr ""
 #| "            Of course, just contact us and we can put together a package to suit your needs.\n"
 #| "\n"
 #| "          "
-msgid "Activate the permission to login via web application in the \"Settings > Account > Allow login\""
+msgid "Activate the permission to login via web application in the <i>Settings</i> &gt; <i>Account</i> &gt; <i>Allow login</i>"
 msgstr ""
 "\n"
 "Claro, basta contactar-nos e podemos montar um pacote para atender às suas necessidades. "
@@ -6752,7 +6749,7 @@ msgstr ""
 #| "            Of course, just contact us and we can put together a package to suit your needs.\n"
 #| "\n"
 #| "          "
-msgid "Register your email and password via the application \"Settings > Account > Email Account\""
+msgid "Register your email and password via the application <i>Settings</i> &gt; <i>Account</i> &gt; <i>Email Account</i>"
 msgstr ""
 "\n"
 "Claro, basta contactar-nos e podemos montar um pacote para atender às suas necessidades. "
@@ -6768,11 +6765,11 @@ msgstr ""
 "\n"
 "Claro, basta contactar-nos e podemos montar um pacote para atender às suas necessidades. "
 
-msgid "In <a href=\"https://business.line.me/en/\">LINE Business Center</a>, select \"Messaging API\" in the \"Services\""
+msgid "In <a href=\"https://business.line.me/en/\">LINE Business Center</a>, select <i>Messaging API</i> in <i>Services</i>"
 msgstr ""
 
 #, fuzzy
-msgid "Select \"Start using Messaging API\""
+msgid "Select <i>Start using Messaging API</i>"
 msgstr ""
 "\n"
 "%(sms_sent)s Enviadas"
@@ -6784,20 +6781,20 @@ msgstr "O nome deste contato"
 msgid "Note: At this time you must create a LINE business account and some information, for example, address, phone, etc., will be requested."
 msgstr ""
 
-msgid "After the creation process of the LINE business account, you will see the page to add a new channel of communication \"Messaging API.\" Enter the name and select the appropriate category and click OK."
+msgid "After the creation process of the LINE business account, you will see the page to add a new channel of communication <i>Messaging API</i>. Enter the name and select the appropriate category and click OK."
 msgstr ""
 
-msgid "In the next step, click the \"LINE @ Manager\" and it will redirect you to the API activation page."
+msgid "In the next step, click the <i>LINE @ Manager</i> and it will redirect you to the API activation page."
 msgstr ""
 
 #, fuzzy
-msgid "Click \"Enable API\" and confirm. (By doing so, the status of your API will be \"Valid\")"
+msgid "Click \"Enable API\" and confirm. (By doing so, the status of your API will be <i>Valid</i>)"
 msgstr ""
 "\n"
 "%(sms_sent)s Enviadas"
 
 #, fuzzy
-msgid "Enable the option to allow the use of Webhooks and click \"Save.\""
+msgid "Enable the option to allow the use of Webhooks and click <i>Save</i>."
 msgstr ""
 "\n"
 "%(sms_sent)s Enviadas"
@@ -6810,11 +6807,11 @@ msgstr "Nome da sua organização"
 msgid "Click on the menu \"Accounts\" at the top of the page at the link <a href=\"https://business.line.me\">https://business.line.me</a>"
 msgstr ""
 
-msgid "In the communication channel of your choice, click on the \"LINE Developers\" button, accept the terms, and it will direct you to a page with the information needed to fill out in the form below (Channel ID, Channel Name, Channel Secret and Channel Access Token)."
+msgid "In the communication channel of your choice, click on the <i>LINE Developers</i> button, accept the terms, and it will direct you to a page with the information needed to fill out in the form below (Channel ID, Channel Name, Channel Secret and Channel Access Token)."
 msgstr ""
 
 #, fuzzy
-msgid "Note: To generate the Channel Access Token click on \"Issue\" button"
+msgid "Note: To generate the Channel Access Token click on <i>Issue</i> button"
 msgstr ""
 "\n"
 "Na página do aplicativo Textit, toque no botão \"Instalar\"."
@@ -6895,7 +6892,7 @@ msgstr ""
 msgid "You will need to <a href=\"https://core.telegram.org/bots#create-a-new-bot\">create a new Telegram bot</a> and get its Authentication Token. To do so:"
 msgstr ""
 
-msgid "Start a new chat with the <a href=\"https://telegram.me/botfather\">BotFather</a>. You can do so on your device by searching for \"botfather\" and starting a new chat.</li>"
+msgid "Start a new chat with the <a href=\"https://telegram.me/botfather\">BotFather</a>. You can do so on your device by searching for \"botfather\" and starting a new chat."
 msgstr ""
 
 msgid "In your @botfather chat, type in the command <code>/newbot</code>. Follow the instructions to name your bot and choose a username for it."
