@@ -1,3 +1,8 @@
+v6.0.3
+----------
+ * Update to components v0.8.6, bugfix release
+ * Handle CSV imports in encodings other than UTF8
+
 v6.0.2
 ----------
  * Fix broken ticket re-open button
