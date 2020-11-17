@@ -94,6 +94,8 @@ class Dialog360Type(ChannelType):
     A 360 Dialog Channel Type
     """
 
+    extra_links = [dict(name=_("Message Templates"), link="channels.types.dialog360.templates")]
+
     code = "D3"
     category = ChannelType.Category.SOCIAL_MEDIA
 
