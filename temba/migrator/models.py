@@ -629,9 +629,6 @@ class MigrationTask(TembaModel):
             if not new_channel_obj:
                 continue
 
-            # Removing all logs of this channel before importing the new ones to avoid duplicated
-            new_channel_obj.logs.all().delete()
-
             for idx, channel_log in enumerate(channel_logs, start=1):
                 description = (
                     f"{channel_log.description[:30]}..."
