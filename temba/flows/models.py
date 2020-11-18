@@ -4168,7 +4168,7 @@ class MergeFlowsTask(TembaModel):
                     return (
                         self.source.runs.all()
                         .exclude(status__in=[FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING])
-                        .order_by("uuid")[:1000]
+                        .order_by("uuid")[:20000]
                     )
 
                 chunk = 1
