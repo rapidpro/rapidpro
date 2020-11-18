@@ -47,7 +47,7 @@ actions_names = {
 }
 
 
-def get_name_of_flow_step(node, default=""):
+def get_flow_step_name(node, default=""):
     if "router" not in node:
         action_type = node["actions"][0]["type"]
         action_type = "set_contact_field" if "set_contact" in action_type else action_type
@@ -71,6 +71,34 @@ def get_name_of_flow_step(node, default=""):
                 return actions_names.get("split_by_groups", {}).get("name", default)
             elif "scheme" in node["router"]["operand"]:
                 return actions_names.get("split_by_scheme", {}).get("name", default)
+    return default
+
+
+def get_flow_step_type(node, default=""):
+    node = node if type(node) is dict else node.data
+    if "router" not in node:
+        action_type = node["actions"][0]["type"]
+        action_type = "set_contact_field" if "set_contact" in action_type else action_type
+        return action_type
+    else:
+        if node["router"]["type"] == "random":
+            return "split_by_random"
+        elif "wait" in node["router"]:
+            return "wait_for_response"
+        elif node["actions"]:
+            action_type = node["actions"][0]["type"]
+            return action_type
+        else:
+            if node["router"]["operand"].endswith(".name"):
+                return "split_by_name"
+            elif node["router"]["operand"].endswith(".result"):
+                return "split_by_run_result"
+            elif node["router"]["operand"].endswith(".text"):
+                return "split_by_expression"
+            elif node["router"]["operand"].endswith(".groups"):
+                return "split_by_groups"
+            elif "scheme" in node["router"]["operand"]:
+                return "split_by_scheme"
     return default
 
 

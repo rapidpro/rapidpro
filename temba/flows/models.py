@@ -31,7 +31,6 @@ from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
-from django.core.paginator import Paginator
 from django.db import connection as db_connection, models, transaction
 from django.db.models import Max, Q, Sum
 
@@ -4165,14 +4164,16 @@ class MergeFlowsTask(TembaModel):
                 )
 
                 # move runs from source to target
-                all_runs = (
-                    self.source.runs.all()
-                    .exclude(status__in=[FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING])
-                    .order_by("uuid")
-                )
-                runs_paginator = Paginator(all_runs, 1000)
-                for page in runs_paginator.page_range:
-                    runs = runs_paginator.page(page)
+                def next_flow_runs_chunk():
+                    return (
+                        self.source.runs.all()
+                        .exclude(status__in=[FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING])
+                        .order_by("uuid")[:20000]
+                    )
+
+                chunk = 1
+                runs = next_flow_runs_chunk()
+                while runs:
                     run_sessions = []
                     for run in runs:
                         run.flow = self.target
@@ -4180,6 +4181,7 @@ class MergeFlowsTask(TembaModel):
                             str(run.current_node_uuid), run.current_node_uuid
                         )
 
+                        # responsible for messages that displays on flow editor when you hover on messages count
                         path_recent_runs = run.recent_runs.all()
                         for recent_run in path_recent_runs:
                             recent_run.from_uuid = origin_exit_uuids.get(
@@ -4196,9 +4198,12 @@ class MergeFlowsTask(TembaModel):
                     FlowSession.objects.bulk_update(run_sessions, ["current_flow"])
                     logger.info(
                         "Mergeflow Task ({0}): Transfered {1} page of flow runs ({2} rows).".format(
-                            self.uuid, page, len(runs)
+                            self.uuid, chunk, len(runs)
                         )
                     )
+                    # load next page
+                    chunk += 1
+                    runs = next_flow_runs_chunk()
 
                 # move analytics data
                 active_pathes = {}
