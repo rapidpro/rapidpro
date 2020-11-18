@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-18 21:45+0000\n"
+"POT-Creation-Date: 2020-11-18 22:23+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5357,7 +5357,7 @@ msgid "<b>%(name)s</b> cannot be deleted since it is currently in use."
 msgstr ""
 
 #, python-format
-msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
+msgid "Are you sure you want to delete <b>%(name)s</b>? No way to undo this operation."
 msgstr ""
 
 msgid "Used in the flow"
@@ -5775,9 +5775,6 @@ msgstr ""
 msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
 msgstr ""
 
-msgid "Once deleted, this label will be gone forever. There is no way to undo this operation."
-msgstr ""
-
 #, python-format
 msgid "was started by %(user)s for"
 msgstr ""
@@ -5810,9 +5807,6 @@ msgid "No flow starts"
 msgstr ""
 
 msgid "Are you sure you want to continue? This cannot be undone."
-msgstr ""
-
-msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
 msgstr ""
 
 msgid "No related flows."
@@ -5996,9 +5990,6 @@ msgstr ""
 
 #, python-format
 msgid "Uh oh, we couldn't delete %(name)s."
-msgstr ""
-
-msgid "Are you sure you want to delete"
 msgstr ""
 
 msgid "Numeric Value:"
