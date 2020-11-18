@@ -4,9 +4,7 @@
 -block modal
   -if object.get_usage_count
     -blocktrans trimmed with name=object.name
-      <b>{{name}}</b> cannot be deleted since it is currently in use. Usage %summary:
-    -trans "Flows:"
-    {{ object.get_usage_count }}
+      <b>{{name}}</b> cannot be deleted since it is currently in use.
 
   -else
     -blocktrans trimmed with name=object.name
@@ -18,8 +16,3 @@
     .hidden
       %form(method="POST")
         %input(type="submit" value="{% trans 'Delete' %}")
-
-
-
-
-
