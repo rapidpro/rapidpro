@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-09 21:08+0000\n"
+"POT-Creation-Date: 2020-11-18 21:42+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2540,7 +2540,7 @@ msgstr ""
 msgid "Edit Label"
 msgstr ""
 
-msgid "Remove"
+msgid "Delete Label"
 msgstr ""
 
 msgid "Start Flow"
@@ -2919,9 +2919,6 @@ msgid "Edit Folder"
 msgstr ""
 
 msgid "Send All"
-msgstr ""
-
-msgid "Delete Label"
 msgstr ""
 
 msgid "Name must not be blank or begin with punctuation"
@@ -5775,6 +5772,13 @@ msgid "Ask a series of questions to collect data from your contacts."
 msgstr ""
 
 #, python-format
+msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
+msgstr ""
+
+msgid "Once deleted, this label will be gone forever. There is no way to undo this operation."
+msgstr ""
+
+#, python-format
 msgid "was started by %(user)s for"
 msgstr ""
 
@@ -6531,6 +6535,9 @@ msgid "Logins"
 msgstr ""
 
 msgid "Admins"
+msgstr ""
+
+msgid "Remove"
 msgstr ""
 
 msgid "You must have at least one administator"
