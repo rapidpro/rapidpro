@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-09 21:08+0000\n"
+"POT-Creation-Date: 2020-11-18 20:33+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -7815,19 +7815,8 @@ msgstr "Поток для запуска"
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "Вы действительно хотите удалить эту метку?"
 
-#, fuzzy, python-format
-#| msgid "cannot be deleted because it is in use. Usage summary:"
-msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
-msgstr "невозможно удалить, потому что используется. Сводная информация по использованию:"
-
-msgid "Flows:"
-msgstr "Потоки:"
-
 msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
 msgstr "После удаления этот глобальный объект исчезнет навсегда. Способа отменить эту операцию не существует."
-
-msgid "No related flows."
-msgstr "Нет связанных потоков."
 
 #, python-format
 msgid "You have <b>%(counter)s global</b> configured"
@@ -10447,6 +10436,17 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, fuzzy, python-format
+#~| msgid "cannot be deleted because it is in use. Usage summary:"
+#~ msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
+#~ msgstr "невозможно удалить, потому что используется. Сводная информация по использованию:"
+
+#~ msgid "Flows:"
+#~ msgstr "Потоки:"
+
+#~ msgid "No related flows."
+#~ msgstr "Нет связанных потоков."
 
 #, fuzzy
 #~| msgid "The base URL for your WhatsApp enterprise installation"

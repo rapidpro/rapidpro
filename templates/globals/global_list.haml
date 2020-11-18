@@ -1,16 +1,16 @@
-- extends "smartmin/list.html"
-- load smartmin sms temba compress i18n humanize
+-extends "smartmin/list.html"
+-load smartmin temba i18n humanize
 
-- block page-title
-  - trans "Manage Globals"
+-block page-title
+  -trans "Manage Globals"
 
-- block title-icon
+-block title-icon
   .title-icon
     %span.glyph.icon-global
 
 -block page-top
 
-- block summary
+-block summary
   -if global_count
     {% blocktrans trimmed with counter=global_count|intcomma count num=global_count  %}
     You have <b>{{ counter }} global</b> configured
@@ -21,8 +21,8 @@
     -trans "You do not have any globals configured."
 
 -block top-form
-  - if view.search_fields
-    - block search-form
+  -if view.search_fields
+    -block search-form
       %form
         %input.input-medium.search-query(type="text" placeholder="Search" name="search" value="{{ search }}")
 
@@ -85,30 +85,31 @@
                   %td(style="font-family: monospace; font-size: 12px;")
                     @globals.{{ obj.key }}
                   %td
-                    {{ obj.value }}
-                  %td.dependencies
-                    .text-right
-                      - with usage_count=obj.get_usage_count
-                        - if usage_count
-                          .dependencies(onClick='event.stopPropagation(); showDetailGlobalModal({{ obj.id }}, "{{ obj.name }}");')
-                            {% blocktrans trimmed count counter=usage_count %}
-                              {{counter}} Use
-                            {% plural %}
-                              {{counter}} Uses
-                            {% endblocktrans %}
+                    {{ obj.value|truncatechars:300 }}
+                  %td.w-12
+                    .flex.text-center
+                      -with usage_count=obj.get_usage_count
+                        -if usage_count
+                          .uses(onclick='event.stopPropagation(); showDetailGlobalModal({{ obj.id }}, "{{ obj.name }}");')
+                            .lbl.linked
+                              {% blocktrans trimmed count counter=usage_count %}
+                                {{counter}} Use
+                              {% plural %}
+                                {{counter}} Uses
+                              {% endblocktrans %}
 
                   %td.w-10
                     -if org_perms.globals.global_delete
                       .pl-2.pt-1.delete-link.linked.text-gray-400{style:"visibility:hidden", onclick:"event.stopPropagation(); showDeleteGlobalModal({{obj.id}});"}
                         %span.icon-close
-              - empty
+              -empty
                 %tr.empty_list
                   %td(colspan='99')
                     -trans "No globals"
           .flex.flex-col.mb-16
             -include "includes/pagination.haml"
 
-- block extra-script
+-block extra-script
   {{ block.super }}
   <script>
     function showUpdateGlobalModal(id) {

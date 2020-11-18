@@ -1057,7 +1057,7 @@ class GlobalReadSerializer(ReadSerializer):
 
 
 class GlobalWriteSerializer(WriteSerializer):
-    value = serializers.CharField(required=True)
+    value = serializers.CharField(required=True, max_length=Global.MAX_VALUE_LEN)
     name = serializers.CharField(
         required=False,
         max_length=Global.MAX_NAME_LEN,

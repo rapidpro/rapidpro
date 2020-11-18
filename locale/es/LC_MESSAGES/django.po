@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-09 21:08+0000\n"
+"POT-Creation-Date: 2020-11-18 20:33+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -8704,24 +8704,10 @@ msgstr "Flujo para empezar"
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "¿Está seguro de que desea borrar este contacto?"
 
-#, python-format
-msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
-msgstr ""
-
-#, fuzzy
-#| msgid "Flows"
-msgid "Flows:"
-msgstr "Flujos"
-
 #, fuzzy
 #| msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
 msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
 msgstr "Una vez borrados, no podrá recuperarlos. No puede deshacer esta operación. "
-
-#, fuzzy
-#| msgid "No matching flows."
-msgid "No related flows."
-msgstr "Sin flujos que correspondan."
 
 #, fuzzy, python-format
 msgid "You have <b>%(counter)s global</b> configured"
@@ -10845,6 +10831,16 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Flows"
+#~ msgid "Flows:"
+#~ msgstr "Flujos"
+
+#, fuzzy
+#~| msgid "No matching flows."
+#~ msgid "No related flows."
+#~ msgstr "Sin flujos que correspondan."
 
 #, fuzzy
 #~| msgid "The name of your organization"
