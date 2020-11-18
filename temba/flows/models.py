@@ -3851,8 +3851,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
         # secondly get runs from database
         runs = FlowRun.objects.filter(flow__in=flows).order_by("modified_on")
-        if last_modified_on:
-            runs = runs.filter(modified_on__gt=last_modified_on)
+
         if responded_only:
             runs = runs.filter(responded=True)
         run_ids = array(str("l"), runs.values_list("id", flat=True))
