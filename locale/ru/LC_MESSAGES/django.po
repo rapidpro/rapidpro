@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-18 20:52+0000\n"
+"POT-Creation-Date: 2020-11-18 21:37+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -7473,9 +7473,6 @@ msgstr ""
 "\n"
 "Вы можете скачать свои результаты потоков %(brand)s, нажав на следующую ссылку:\n"
 
-msgid "What is a Flow?"
-msgstr "Что такое Поток?"
-
 #, fuzzy
 #| msgid ""
 #| "\n"
@@ -7505,9 +7502,6 @@ msgstr ""
 "        создавать очень личный и интересный опыт для Ваших пользователей.\n"
 "\n"
 "      "
-
-msgid "Create Flow"
-msgstr "Создать Поток"
 
 msgid "No results yet"
 msgstr "Пока результатов нет"
@@ -7723,6 +7717,9 @@ msgstr "Вернуться"
 
 msgid "Create Label"
 msgstr "Создать Метку"
+
+msgid "Create Flow"
+msgstr "Создать Поток"
 
 #, fuzzy
 #| msgid "Webhook Log"
@@ -10439,6 +10436,9 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "What is a Flow?"
+#~ msgstr "Что такое Поток?"
 
 #, fuzzy, python-format
 #~| msgid "cannot be deleted because it is in use. Usage summary:"

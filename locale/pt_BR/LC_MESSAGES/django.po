@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-18 20:52+0000\n"
+"POT-Creation-Date: 2020-11-18 21:37+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -7715,9 +7715,6 @@ msgid ""
 "You can download your %(brand)s flow results by clicking on the following link:\n"
 msgstr ""
 
-msgid "What is a Flow?"
-msgstr "O que é um fluxo?"
-
 #, fuzzy
 #| msgid ""
 #| "\n"
@@ -7734,9 +7731,6 @@ msgid "A flow gives you the power to model complex interactions by simply drawin
 msgstr ""
 "\n"
 "Um fluxo lhe permite modelar interações complexas, simplesmente desenhando um fluxograma. Com a interface arrasta-e-solta do Textit , você pode facilmente construir ramificações baseadas em como as pessoas respondem às suas mensagens. Isto significa que é fácil criar experiências altamente pessoais e cativantes para os seus usuários ."
-
-msgid "Create Flow"
-msgstr "Criar fluxo"
 
 #, fuzzy
 #| msgid "No messages yet"
@@ -7916,6 +7910,9 @@ msgstr ""
 
 msgid "Create Label"
 msgstr "Criar rótulo"
+
+msgid "Create Flow"
+msgstr "Criar fluxo"
 
 #, fuzzy
 #| msgid "Webhook URL"
@@ -9974,6 +9971,9 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "What is a Flow?"
+#~ msgstr "O que é um fluxo?"
 
 #, fuzzy
 #~| msgid "Flows"

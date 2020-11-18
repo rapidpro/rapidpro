@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-18 20:52+0000\n"
+"POT-Creation-Date: 2020-11-18 21:37+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -8381,9 +8381,6 @@ msgid ""
 "You can download your %(brand)s flow results by clicking on the following link:\n"
 msgstr ""
 
-msgid "What is a Flow?"
-msgstr "¿Qué es un flujo?"
-
 #, fuzzy
 #| msgid ""
 #| "\n"
@@ -8406,9 +8403,6 @@ msgstr ""
 "        crear experiencias altamente personales e interesantes para sus usuarios.\n"
 "\n"
 "      "
-
-msgid "Create Flow"
-msgstr "Crear Flujos"
 
 #, fuzzy
 #| msgid "No messages yet"
@@ -8595,6 +8589,9 @@ msgstr ""
 
 msgid "Create Label"
 msgstr "Crear etiqueta"
+
+msgid "Create Flow"
+msgstr "Crear Flujos"
 
 #, fuzzy
 #| msgid "Webhook URL"
@@ -10836,6 +10833,9 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "What is a Flow?"
+#~ msgstr "¿Qué es un flujo?"
 
 #, fuzzy
 #~| msgid "Flows"

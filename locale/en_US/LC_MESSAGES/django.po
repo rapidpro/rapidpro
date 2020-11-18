@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-18 20:52+0000\n"
+"POT-Creation-Date: 2020-11-18 21:37+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5593,17 +5593,11 @@ msgid ""
 "You can download your %(brand)s flow results by clicking on the following link:\n"
 msgstr ""
 
-msgid "What is a Flow?"
-msgstr ""
-
 msgid "Flows let you easily pose a set of questions to a group of users. When you send people through a flow over SMS, it is natural just like any other conversation."
 msgstr ""
 
 #, python-format
 msgid "A flow gives you the power to model complex interactions by simply drawing a flowchart. With %(brand)s's drag-and-drop interface, you can easily build branches based on how people respond to your messages. This means it's easy to create highly personal and engaging experiences for your users."
-msgstr ""
-
-msgid "Create Flow"
 msgstr ""
 
 msgid "No results yet"
@@ -5735,6 +5729,9 @@ msgid "Back"
 msgstr ""
 
 msgid "Create Label"
+msgstr ""
+
+msgid "Create Flow"
 msgstr ""
 
 msgid "Webhook Call Log"

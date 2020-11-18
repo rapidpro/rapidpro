@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-18 20:52+0000\n"
+"POT-Creation-Date: 2020-11-18 21:37+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -5685,18 +5685,12 @@ msgstr ""
 "\n"
 "Vous pouvez télécharger vos résultats de flux %(brand)s en cliquant sur le lien suivant:\n"
 
-msgid "What is a Flow?"
-msgstr "Qu'est-ce qu'un flux?"
-
 msgid "Flows let you easily pose a set of questions to a group of users. When you send people through a flow over SMS, it is natural just like any other conversation."
 msgstr "Les flux vous permettent de poser facilement une série de questions à un groupe d'utilisateurs. Lorsque vous envoyez des personnes via un flux par SMS, c'est naturel comme toute autre conversation."
 
 #, python-format
 msgid "A flow gives you the power to model complex interactions by simply drawing a flowchart. With %(brand)s's drag-and-drop interface, you can easily build branches based on how people respond to your messages. This means it's easy to create highly personal and engaging experiences for your users."
 msgstr "Un flux vous donne le pouvoir de modéliser des interactions complexes en dessinant simplement un organigramme. Avec l'interface glisser-déposer de %(brand)s vous pouvez facilement créer des branches en fonction de la façon dont les gens répondent à vos messages. Cela signifie qu'il est facile de créer des expériences hautement personnelles et engageantes pour vos utilisateurs."
-
-msgid "Create Flow"
-msgstr "créer un flux"
 
 msgid "No results yet"
 msgstr "Aucun résultat pour le moment"
@@ -5850,6 +5844,9 @@ msgstr "Retour"
 
 msgid "Create Label"
 msgstr "Créer un libellé"
+
+msgid "Create Flow"
+msgstr "créer un flux"
 
 msgid "Webhook Call Log"
 msgstr "Journal des appels Webhook"
@@ -7751,6 +7748,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "What is a Flow?"
+#~ msgstr "Qu'est-ce qu'un flux?"
 
 #, python-format
 #~ msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
