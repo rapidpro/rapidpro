@@ -3,7 +3,7 @@ import math
 from collections import OrderedDict, Counter, defaultdict
 from jellyfish import jaro_distance
 
-from .test_data import get_name_of_flow_step, get_flow_step_type
+from .test_data import get_flow_step_name, get_flow_step_type
 
 
 def all_equal(iterable):
@@ -373,7 +373,7 @@ class GraphDifferenceMap:
     def flow_step_matching(self):
         source_grouped_steps = group_by(self.left_graph.nodes_map.values(), key=get_flow_step_type)
         destination_grouped_steps = group_by(self.right_graph.nodes_map.values(), key=get_flow_step_type)
-        
+
         for s_group, s_steps in source_grouped_steps.items():
             d_steps = destination_grouped_steps.get(s_group)
             already_matched = {}
@@ -397,23 +397,23 @@ class GraphDifferenceMap:
                     for d_step in matches:
                         new_match = (s_step, d_step)
                         best_matches_tab[new_match] = self.calculate_matching_coeficient(*new_match)
-            
+
             for d_step, s_step in already_matched.items():
                 self.create_diff_node_for_matched_nodes_pair((s_step, d_step))
-                pass
 
             to_be_processed = list(dict(best_matches_tab.keys()))
             for s_step in to_be_processed:
-                filtered = filter(lambda x: x[0][0].uuid == s_step.uuid, best_matches_tab.items())
-                best_match, *_ = max(filtered, key=lambda x: x[1])
-                self.create_diff_node_for_matched_nodes_pair(best_match)
-                # remove other matches for pair of nodes
-                best_matches_tab = dict(
-                    filter(
-                        lambda x: x[0][0].uuid != best_match[0].uuid and x[0][1].uuid != best_match[1].uuid,
-                        best_matches_tab.items()
+                filtered = list(filter(lambda x: x[0][0].uuid == s_step.uuid, best_matches_tab.items()))
+                if filtered:
+                    best_match, *_ = max(filtered, key=lambda x: x[1])
+                    self.create_diff_node_for_matched_nodes_pair(best_match)
+                    # remove other matches for pair of nodes
+                    best_matches_tab = dict(
+                        filter(
+                            lambda x: x[0][0].uuid != best_match[0].uuid and x[0][1].uuid != best_match[1].uuid,
+                            best_matches_tab.items(),
+                        )
                     )
-                )
         # add all nodes that are not matched to difference map
         self.create_diff_nodes_for_unmatched_nodes()
 
@@ -423,7 +423,7 @@ class GraphDifferenceMap:
             if node == node_:
                 matches.append(node_)
         return matches
-    
+
     def calculate_matching_coeficient(self, s_node, d_node):
         coefficient = 0.0
         if s_node.parent and d_node.parent and s_node.parent == d_node.parent:
@@ -442,9 +442,10 @@ class GraphDifferenceMap:
         s_position = self.left_graph.resource.get("_ui", {}).get("nodes", {}).get(s_node.uuid, {}).get("position", {})
         d_position = self.right_graph.resource.get("_ui", {}).get("nodes", {}).get(d_node.uuid, {}).get("position", {})
         if s_position and d_position:
-            distance = math.sqrt((s_position["top"] - d_position["top"])**2 + (s_position["left"] - d_position["left"])**2)
+            distance = math.sqrt(
+                (s_position["top"] - d_position["top"]) ** 2 + (s_position["left"] - d_position["left"]) ** 2
+            )
         return distance
-
 
     def create_diff_node_for_matched_nodes_pair(self, matched_pair, parent=None):
         left, right = matched_pair
@@ -541,7 +542,7 @@ class GraphDifferenceMap:
                 if conflict["conflict_type"] == NodeConflictTypes.ACTION_CONFLICT
                 else "Flow step (Router)"
             )
-            flow_step_name = get_name_of_flow_step(node.data, default=flow_step_name) if node else flow_step_name
+            flow_step_name = get_flow_step_name(node.data, default=flow_step_name) if node else flow_step_name
             field_name = f"With {' '.join(conflict['field'].lower().split('_'))} set as "
             field_value = (
                 conflict["left_action"][conflict["field"]]
@@ -628,10 +629,13 @@ class GraphDifferenceMap:
     def prepare_definition(self):
         nodes = [node.get_definition() for node in self.diff_nodes_map.values()]
         self.definition["nodes"] = nodes
-    
+
     def calculate_max_distance(self):
         max_top, max_left = 0, 0
-        for node in [*self.left_graph.resource.get("_ui", {}).get("nodes", {}).values(), *self.right_graph.resource.get("_ui", {}).get("nodes", {}).values()]:
+        for node in [
+            *self.left_graph.resource.get("_ui", {}).get("nodes", {}).values(),
+            *self.right_graph.resource.get("_ui", {}).get("nodes", {}).values(),
+        ]:
             position = node.get("position", {})
             if position.get("top", max_top) > max_top:
                 max_top = position["top"]

@@ -1,4 +1,4 @@
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 
 actions_names = {
     "add_contact_groups": {"description": "Add the contact to a group", "name": "Add to Group"},
@@ -47,7 +47,7 @@ actions_names = {
 }
 
 
-def get_name_of_flow_step(node, default=""):
+def get_flow_step_name(node, default=""):
     if "router" not in node:
         action_type = node["actions"][0]["type"]
         action_type = "set_contact_field" if "set_contact" in action_type else action_type
