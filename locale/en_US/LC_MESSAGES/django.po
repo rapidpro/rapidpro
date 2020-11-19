@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-18 22:23+0000\n"
+"POT-Creation-Date: 2020-11-19 08:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5357,7 +5357,7 @@ msgid "<b>%(name)s</b> cannot be deleted since it is currently in use."
 msgstr ""
 
 #, python-format
-msgid "Are you sure you want to delete <b>%(name)s</b>? No way to undo this operation."
+msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
 msgstr ""
 
 msgid "Used in the flow"

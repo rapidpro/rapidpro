@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-18 22:23+0000\n"
+"POT-Creation-Date: 2020-11-19 08:15+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -5441,9 +5441,9 @@ msgid "<b>%(name)s</b> cannot be deleted since it is currently in use."
 msgstr "<b>%(name)s</b> ne peut pas être supprimé car il est actuellement utilisé."
 
 #, fuzzy, python-format
-#| msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
-msgid "Are you sure you want to delete <b>%(name)s</b>? No way to undo this operation."
-msgstr "Voulez-vous vraiment supprimer <b>%(name)s</b>? Ça ne peut pas être annulé."
+#| msgid "Are you sure you want to continue? This cannot be undone."
+msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
+msgstr "Es-tu sur de vouloir continuer? Ça ne peut pas être annulé."
 
 msgid "Used in the flow"
 msgid_plural "Used in the flows"
@@ -7751,6 +7751,11 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy, python-format
+#~| msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
+#~ msgid "Are you sure you want to delete <b>%(name)s</b>? No way to undo this operation."
+#~ msgstr "Voulez-vous vraiment supprimer <b>%(name)s</b>? Ça ne peut pas être annulé."
 
 #, fuzzy
 #~| msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
