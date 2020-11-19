@@ -208,8 +208,9 @@
                           .value-labels
                             %nobr
                               - for group in object.user_groups.all
-                                %span.label.label-info.lbl
-                                  {{ group.name }}
+                                %a{'href': "{% url 'contacts.contact_filter' group.uuid %}", 'style': "text-decoration: none;"}
+                                  %span.label.label-info.lbl
+                                    {{ group.name }}
 
                         %td.value-phone.field_phone
                           %nobr
