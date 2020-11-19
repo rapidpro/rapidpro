@@ -437,6 +437,30 @@ class Migrator(object):
             query_string=f"SELECT * FROM public.flows_flowrun WHERE flow_id = {flow_id} ORDER BY id ASC", count=count
         )
 
+    def get_flow_run_events(self, flow_run_id) -> list:
+        count_query = self.make_query_one(
+            query_string=f"SELECT count(ffs.*) FROM public.flows_flowstep as ffs INNER JOIN public.flows_flowrun as ffr "
+                         f"ON (ffs.run_id = ffr.id) INNER JOIN public.flows_flowstep_messages as ffsm "
+                         f"ON (ffs.id = ffsm.flowstep_id) INNER JOIN public.msgs_msg as mm "
+                         f"ON (ffsm.msg_id = mm.id) INNER JOIN public.contacts_contact as cc "
+                         f"ON (mm.contact_id = cc.id) INNER JOIN public.contacts_contacturn as ccu "
+                         f"ON (cc.id = ccu.contact_id) INNER JOIN public.channels_channel as cch "
+                         f"ON (mm.channel_id = cch.id) WHERE ffr.id = {flow_run_id}"
+        )
+        return self.get_results_paginated(
+                query_string=f"SELECT ffs.arrived_on, ffs.step_uuid, mm.uuid as msg_uuid, mm.text as msg_text, mm.direction as msg_direction, "
+                             f"cc.name as contact_name, cc.uuid as contact_uuid, ccu.path as urn_path, "
+                             f"ccu.scheme as urn_scheme, cch.uuid as channel_uuid, cch.name as channel_name "
+                             f"FROM public.flows_flowstep as ffs INNER JOIN public.flows_flowrun as ffr "
+                             f"ON (ffs.run_id = ffr.id) INNER JOIN public.flows_flowstep_messages as ffsm "
+                             f"ON (ffs.id = ffsm.flowstep_id) INNER JOIN public.msgs_msg as mm "
+                             f"ON (ffsm.msg_id = mm.id) INNER JOIN public.contacts_contact as cc "
+                             f"ON (mm.contact_id = cc.id) INNER JOIN public.contacts_contacturn as ccu "
+                             f"ON (cc.id = ccu.contact_id) INNER JOIN public.channels_channel as cch "
+                             f"ON (mm.channel_id = cch.id) WHERE ffr.id = {flow_run_id}",
+                count=count_query.count,
+        )
+
     def get_org_resthooks(self) -> (list, int):
         count = self.get_count("api_resthook", condition=f"org_id = {self.org_id} AND is_active = true")
         return (
