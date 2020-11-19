@@ -1,7 +1,9 @@
-from collections import OrderedDict, Counter
+import math
+
+from collections import OrderedDict, Counter, defaultdict
 from jellyfish import jaro_distance
 
-from .test_data import get_name_of_flow_step
+from .test_data import get_flow_step_name, get_flow_step_type
 
 
 def all_equal(iterable):
@@ -14,6 +16,13 @@ def has_result(node_data):
         action["result_name"] for action in node_data.get("actions", []) if action.get("result_name")
     ]
     return result_name or (action_result_names[0] if action_result_names else None)
+
+
+def group_by(iterable, key):
+    result_dict = defaultdict(list)
+    for item in iterable:
+        result_dict[key(item)].append(item)
+    return result_dict
 
 
 class NodeConflictTypes:
@@ -94,8 +103,27 @@ class Node:
                             return True
                     return False
 
+                if self_actions and self_actions[0]["type"] == "call_webhook":
+                    for self_action, other_action in get_action_pairs_for_comparing("call_webhook"):
+                        if self_action["result_name"] == other_action["result_name"]:
+                            return True
+                    return False
+
+                if self_actions and self_actions[0]["type"] == "call_lookup":
+                    for self_action, other_action in get_action_pairs_for_comparing("call_lookup"):
+                        if self_action["result_name"] == other_action["result_name"]:
+                            return True
+                    return False
+
+                if self_actions and self_actions[0]["type"] == "call_giftcard":
+                    for self_action, other_action in get_action_pairs_for_comparing("call_giftcard"):
+                        if self_action["result_name"] == other_action["result_name"]:
+                            return True
+                    return False
+
                 if self_router["type"] == "switch":
-                    if not all(map(compare_router_params, ("operand", "result_name"))):
+                    params_to_check = ["operand", "result_name"] if self_router.get("result_name") else ["operand"]
+                    if not all(map(compare_router_params, params_to_check)):
                         return False
 
             def check_send_message():
@@ -342,44 +370,82 @@ class GraphDifferenceMap:
         self.definition = OrderedDict(**_right.resource)
         self.conflicts = {}
 
-    def match_flow_steps(self):
-        matched_pairs = self.find_matching_nodes()
-        matched_pair = matched_pairs.pop(0) if matched_pairs else None
-        ignored_pairs = []
+    def flow_step_matching(self):
+        source_grouped_steps = group_by(self.left_graph.nodes_map.values(), key=get_flow_step_type)
+        destination_grouped_steps = group_by(self.right_graph.nodes_map.values(), key=get_flow_step_type)
 
-        # add all nodes that are matching to difference map
-        while matched_pair:
-            had_parents = matched_pair[0].parent and matched_pair[1].parent
-            parents_match = had_parents and matched_pair[0].parent == matched_pair[1].parent
-            children_pairs, had_children = self.find_matching_children(*matched_pair, ignored_pairs)
+        for s_group, s_steps in source_grouped_steps.items():
+            d_steps = destination_grouped_steps.get(s_group)
+            already_matched = {}
+            best_matches_tab = {}
+            for s_step in s_steps:
+                matches = self.find_matches_in_group(s_step, d_steps)
+                if not matches:
+                    continue
+                elif len(matches) == 1:
+                    if matches[0] in already_matched:
+                        new_match, previous_match = (s_step, matches[0]), (already_matched[matches[0]], matches[0])
+                        best_matches_tab[new_match] = self.calculate_matching_coeficient(*new_match)
+                        best_matches_tab[previous_match] = self.calculate_matching_coeficient(*previous_match)
+                        del already_matched[matches[0]]
+                    elif any([d_steps == matches[0] for _, d_step in best_matches_tab.keys()]):
+                        new_match = (s_step, matches[0])
+                        best_matches_tab[new_match] = self.calculate_matching_coeficient(*new_match)
+                    else:
+                        already_matched[matches[0]] = s_step
+                else:
+                    for d_step in matches:
+                        new_match = (s_step, d_step)
+                        best_matches_tab[new_match] = self.calculate_matching_coeficient(*new_match)
 
-            if had_parents and parents_match:
-                parents_pair = (matched_pair[0].parent, matched_pair[1].parent)
-                parent_node = self.create_diff_node_for_matched_nodes_pair(parents_pair)
-                node = self.create_diff_node_for_matched_nodes_pair(matched_pair)
-                node.set_parent(parent_node)
-                self.create_diff_nodes_edge(parent_node.uuid, node.uuid)
-                self.mark_nodes_as_matched(parents_pair, matched_pairs, ignored_pairs)
-                self.mark_nodes_as_matched(matched_pair, matched_pairs, ignored_pairs)
+            for d_step, s_step in already_matched.items():
+                self.create_diff_node_for_matched_nodes_pair((s_step, d_step))
 
-            if had_children and children_pairs:
-                node = self.create_diff_node_for_matched_nodes_pair(matched_pair)
-                self.mark_nodes_as_matched(matched_pair, matched_pairs, ignored_pairs)
-                for children_pair in children_pairs:
-                    child = self.create_diff_node_for_matched_nodes_pair(children_pair, parent=node)
-                    node.children.append(child)
-                    self.create_diff_nodes_edge(node.uuid, child.uuid)
-                    self.mark_nodes_as_matched(children_pair, matched_pairs, ignored_pairs)
-
-            if not had_children and not had_parents:
-                node = self.create_diff_node_for_matched_nodes_pair(matched_pair)
-                self.mark_nodes_as_matched(matched_pair, matched_pairs, ignored_pairs)
-            else:
-                ignored_pairs.append(matched_pair)
-            matched_pair = matched_pairs.pop(0) if matched_pairs else None
-
-        # add all nodes that are not matching to difference map
+            to_be_processed = list(dict(best_matches_tab.keys()))
+            for s_step in to_be_processed:
+                filtered = list(filter(lambda x: x[0][0].uuid == s_step.uuid, best_matches_tab.items()))
+                if filtered:
+                    best_match, *_ = max(filtered, key=lambda x: x[1])
+                    self.create_diff_node_for_matched_nodes_pair(best_match)
+                    # remove other matches for pair of nodes
+                    best_matches_tab = dict(
+                        filter(
+                            lambda x: x[0][0].uuid != best_match[0].uuid and x[0][1].uuid != best_match[1].uuid,
+                            best_matches_tab.items(),
+                        )
+                    )
+        # add all nodes that are not matched to difference map
         self.create_diff_nodes_for_unmatched_nodes()
+
+    def find_matches_in_group(self, node, nodes):
+        matches = []
+        for node_ in nodes or []:
+            if node == node_:
+                matches.append(node_)
+        return matches
+
+    def calculate_matching_coeficient(self, s_node, d_node):
+        coefficient = 0.0
+        if s_node.parent and d_node.parent and s_node.parent == d_node.parent:
+            coefficient += 1.0
+
+        matched_children, _ = self.find_matching_children(s_node, d_node)
+        coefficient += len(matched_children)
+
+        if self.max_distance:
+            coefficient -= self.get_distance(s_node, d_node) / self.max_distance
+
+        return coefficient
+
+    def get_distance(self, s_node, d_node):
+        distance = float("inf")
+        s_position = self.left_graph.resource.get("_ui", {}).get("nodes", {}).get(s_node.uuid, {}).get("position", {})
+        d_position = self.right_graph.resource.get("_ui", {}).get("nodes", {}).get(d_node.uuid, {}).get("position", {})
+        if s_position and d_position:
+            distance = math.sqrt(
+                (s_position["top"] - d_position["top"]) ** 2 + (s_position["left"] - d_position["left"]) ** 2
+            )
+        return distance
 
     def create_diff_node_for_matched_nodes_pair(self, matched_pair, parent=None):
         left, right = matched_pair
@@ -452,40 +518,6 @@ class GraphDifferenceMap:
     def create_diff_nodes_edge(self, from_node, to_node):
         self.diff_nodes_edges[from_node] = {*self.diff_nodes_edges.get(from_node, set()), to_node}
 
-    def mark_nodes_as_matched(self, matched_pair, matched_pairs=None, ignored_pairs=None):
-        left, right = matched_pair
-        need_to_remove_from_matched_pairs = []
-        if left:
-            if left.uuid in self.unmatched_nodes_in_left:
-                self.unmatched_nodes_in_left.remove(left.uuid)
-            need_to_remove_from_matched_pairs += filter(
-                lambda node_pair: node_pair[0].uuid == left.uuid, matched_pairs or []
-            )
-        if right:
-            if right.uuid in self.unmatched_nodes_in_right:
-                self.unmatched_nodes_in_right.remove(right.uuid)
-            need_to_remove_from_matched_pairs += filter(
-                lambda node_pair: node_pair[1].uuid == right.uuid, matched_pairs or []
-            )
-
-        ignored_pairs.extend(need_to_remove_from_matched_pairs)
-        for item in set(need_to_remove_from_matched_pairs):
-            if item in matched_pairs:
-                matched_pairs.remove(item)
-
-    def find_matching_nodes(self, ignore=None):
-        pairs = []
-        if ignore is None or type(ignore) not in (list, tuple):
-            ignore = []
-
-        for uuid_a, node_a in self.left_graph.nodes_map.items():
-            for uuid_b, node_b in self.right_graph.nodes_map.items():
-                # here we using comarator `__eq__` to define that some node from first flow
-                # is equal to node from another
-                if node_a == node_b and (uuid_a, uuid_b) not in ignore:
-                    pairs.append((node_a, node_b))
-        return pairs
-
     def find_matching_children(self, node_a: Node, node_b: Node, ignored_pairs=None):
         pairs = []
         for sub_node_a in node_a.children:
@@ -510,7 +542,7 @@ class GraphDifferenceMap:
                 if conflict["conflict_type"] == NodeConflictTypes.ACTION_CONFLICT
                 else "Flow step (Router)"
             )
-            flow_step_name = get_name_of_flow_step(node.data, default=flow_step_name) if node else flow_step_name
+            flow_step_name = get_flow_step_name(node.data, default=flow_step_name) if node else flow_step_name
             field_name = f"With {' '.join(conflict['field'].lower().split('_'))} set as "
             field_value = (
                 conflict["left_action"][conflict["field"]]
@@ -598,8 +630,22 @@ class GraphDifferenceMap:
         nodes = [node.get_definition() for node in self.diff_nodes_map.values()]
         self.definition["nodes"] = nodes
 
+    def calculate_max_distance(self):
+        max_top, max_left = 0, 0
+        for node in [
+            *self.left_graph.resource.get("_ui", {}).get("nodes", {}).values(),
+            *self.right_graph.resource.get("_ui", {}).get("nodes", {}).values(),
+        ]:
+            position = node.get("position", {})
+            if position.get("top", max_top) > max_top:
+                max_top = position["top"]
+            if position.get("left", max_left) > max_left:
+                max_left = position["left"]
+        self.max_distance = math.sqrt(max_top ** 2 + max_left ** 2)
+
     def compare_graphs(self):
-        self.match_flow_steps()
+        self.calculate_max_distance()
+        self.flow_step_matching()
         self.delete_unmatched_source_nodes()
         self.match_flow_step_exits()
         self.prepare_definition()
