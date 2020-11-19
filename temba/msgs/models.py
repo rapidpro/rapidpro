@@ -1697,6 +1697,8 @@ class ExportMessagesTask(BaseExportTask):
             messages = messages.filter(contact__all_groups__in=self.groups.all())
 
         messages = messages.order_by("created_on")
+        if last_created_on:
+            messages = messages.filter(created_on__gt=last_created_on)
 
         all_message_ids = array(str("l"), messages.values_list("id", flat=True))
 
