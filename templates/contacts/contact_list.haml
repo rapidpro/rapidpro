@@ -205,6 +205,11 @@
 
                         %td.value-text.field_name
                           {{ object|name:user_org }}
+                          .value-labels
+                            %nobr
+                              - for group in object.user_groups.all
+                                %span.label.label-info.lbl
+                                  {{ group.name }}
 
                         %td.value-phone.field_phone
                           %nobr
