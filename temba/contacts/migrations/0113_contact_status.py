@@ -15,18 +15,9 @@ class Migration(migrations.Migration):
             name="status",
             field=models.CharField(
                 choices=[("A", "Active"), ("B", "Blocked"), ("S", "Stopped"), ("V", "Archived")],
-                max_length=1,
-                null=True,
-            ),
-        ),
-        migrations.AlterField(
-            model_name="contact",
-            name="status",
-            field=models.CharField(
-                choices=[("A", "Active"), ("B", "Blocked"), ("S", "Stopped"), ("V", "Archived")],
                 default="A",
                 max_length=1,
                 null=True,
             ),
-        ),
+        )
     ]

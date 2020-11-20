@@ -120,4 +120,4 @@ class Migration(migrations.Migration):
         ("contacts", "0110_populate_last_seen_on"),
     ]
 
-    operations = [migrations.RunPython(populate_last_seen_on, reverse)]
+    operations = []
