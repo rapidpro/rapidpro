@@ -2204,6 +2204,7 @@ class FlowStartCRUDL(SmartCRUDL):
         title = _("Flow Start Log")
         ordering = ("-created_on",)
         select_related = ("flow", "created_by")
+        paginate_by = 25
 
         def get_gear_links(self):
             return [dict(title=_("Flows"), style="button-light", href=reverse("flows.flow_list"),)]
