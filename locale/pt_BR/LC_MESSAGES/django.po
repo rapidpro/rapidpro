@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-05 17:06+0000\n"
+"POT-Creation-Date: 2020-11-19 08:15+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3566,8 +3566,10 @@ msgstr ""
 msgid "Edit Label"
 msgstr "Adicionar rótulo"
 
-msgid "Remove"
-msgstr "Remover"
+#, fuzzy
+#| msgid "Create Label"
+msgid "Delete Label"
+msgstr "Criar rótulo"
 
 #, fuzzy
 msgid "Start Flow"
@@ -4024,11 +4026,6 @@ msgstr "Atualizar campos"
 
 msgid "Send All"
 msgstr "Enviar todas"
-
-#, fuzzy
-#| msgid "Create Label"
-msgid "Delete Label"
-msgstr "Criar rótulo"
 
 msgid "Name must not be blank or begin with punctuation"
 msgstr ""
@@ -5694,6 +5691,39 @@ msgstr "Endereço de e-mail"
 msgid "Additionally you will need to make sure the following IP addresses are whitelisted"
 msgstr ""
 
+#, python-format
+msgid ""
+"\n"
+"        There is an active flow using this channel. It cannot be deleted until it is removed from the\n"
+"\n"
+"      "
+msgid_plural ""
+"\n"
+"        There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
+"\n"
+"      "
+msgstr[0] ""
+msgstr[1] ""
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "                  "
+msgid ""
+"\n"
+"        flow.\n"
+"      "
+msgid_plural ""
+"\n"
+"        flows.\n"
+"      "
+msgstr[0] ""
+"\n"
+"%"
+msgstr[1] ""
+"\n"
+"%"
+
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
@@ -5705,6 +5735,25 @@ msgstr ""
 #| "\n"
 #| "          "
 msgid "You are about to disable bulk sending for <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
+msgstr ""
+"\n"
+"Em vez de usar o seu telefone Android para enviar mensagens, você pode usar a sua \n"
+"<a class='nexmo-account' href='#'>\n"
+"Conta Nexmo \n"
+"</ a> \n"
+"para enviar mensagens para mais de 200 países."
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "            Instead of using your Android phone to send messages, you can use your\n"
+#| "            <a class='nexmo-account' href='#'>\n"
+#| "              Nexmo Account\n"
+#| "            </a>\n"
+#| "            to send messages to over 200 countries.\n"
+#| "\n"
+#| "          "
+msgid "You are about to delete the channel <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
 msgstr ""
 "\n"
 "Em vez de usar o seu telefone Android para enviar mensagens, você pode usar a sua \n"
@@ -7764,25 +7813,6 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#, fuzzy
-#| msgid ""
-#| "\n"
-#| "                  "
-msgid ""
-"\n"
-"        flow.\n"
-"      "
-msgid_plural ""
-"\n"
-"        flows.\n"
-"      "
-msgstr[0] ""
-"\n"
-"%"
-msgstr[1] ""
-"\n"
-"%"
-
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
@@ -7938,6 +7968,10 @@ msgstr ""
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr "Fazer uma série de perguntas para coletar informações de seus contatos."
 
+#, python-format
+msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
+msgstr ""
+
 #, fuzzy, python-format
 msgid "was started by %(user)s for"
 msgstr "iniciou este fluxo"
@@ -7981,19 +8015,6 @@ msgstr "Fluxo para iniciar"
 #, fuzzy
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
-
-#, python-format
-msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
-msgstr ""
-
-#, fuzzy
-#| msgid "Flows"
-msgid "Flows:"
-msgstr "Fluxos"
-
-#, fuzzy
-msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
-msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
 
 #, fuzzy
 #| msgid "No matching flows."
@@ -8246,11 +8267,6 @@ msgid "Uh oh, we couldn't delete %(name)s."
 msgstr ""
 "\n"
 "Instalar o %(name)s app"
-
-#, fuzzy
-#| msgid "Are you sure you want to remove"
-msgid "Are you sure you want to delete"
-msgstr "Você tem certeza que deseja excluir"
 
 msgid "Numeric Value:"
 msgstr "Valor numérico:"
@@ -8881,6 +8897,9 @@ msgstr ""
 
 msgid "Admins"
 msgstr "Administradores"
+
+msgid "Remove"
+msgstr "Remover"
 
 msgid "You must have at least one administator"
 msgstr "Você deve ter pelo menos um administator"
@@ -9950,6 +9969,28 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy, python-format
+#~ msgid "Are you sure you want to delete <b>%(name)s</b>? No way to undo this operation."
+#~ msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
+
+#, fuzzy
+#~ msgid "Once deleted, this label will be gone forever. There is no way to undo this operation."
+#~ msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
+
+#, fuzzy
+#~ msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
+#~ msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
+
+#, fuzzy
+#~| msgid "Are you sure you want to remove"
+#~ msgid "Are you sure you want to delete"
+#~ msgstr "Você tem certeza que deseja excluir"
+
+#, fuzzy
+#~| msgid "Flows"
+#~ msgid "Flows:"
+#~ msgstr "Fluxos"
 
 #, fuzzy
 #~| msgid "Setup your RocketChat first to be able to integrate."

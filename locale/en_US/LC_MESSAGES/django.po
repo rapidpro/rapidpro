@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-05 17:06+0000\n"
+"POT-Creation-Date: 2020-11-19 08:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2540,7 +2540,7 @@ msgstr ""
 msgid "Edit Label"
 msgstr ""
 
-msgid "Remove"
+msgid "Delete Label"
 msgstr ""
 
 msgid "Start Flow"
@@ -2919,9 +2919,6 @@ msgid "Edit Folder"
 msgstr ""
 
 msgid "Send All"
-msgstr ""
-
-msgid "Delete Label"
 msgstr ""
 
 msgid "Name must not be blank or begin with punctuation"
@@ -4254,7 +4251,36 @@ msgid "Additionally you will need to make sure the following IP addresses are wh
 msgstr ""
 
 #, python-format
+msgid ""
+"\n"
+"        There is an active flow using this channel. It cannot be deleted until it is removed from the\n"
+"\n"
+"      "
+msgid_plural ""
+"\n"
+"        There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
+"\n"
+"      "
+msgstr[0] ""
+msgstr[1] ""
+
+msgid ""
+"\n"
+"        flow.\n"
+"      "
+msgid_plural ""
+"\n"
+"        flows.\n"
+"      "
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
 msgid "You are about to disable bulk sending for <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
+msgstr ""
+
+#, python-format
+msgid "You are about to delete the channel <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
 msgstr ""
 
 msgid "Bulk sending"
@@ -5641,17 +5667,6 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-msgid ""
-"\n"
-"        flow.\n"
-"      "
-msgid_plural ""
-"\n"
-"        flows.\n"
-"      "
-msgstr[0] ""
-msgstr[1] ""
-
 #, python-format
 msgid ""
 "\n"
@@ -5757,6 +5772,10 @@ msgid "Ask a series of questions to collect data from your contacts."
 msgstr ""
 
 #, python-format
+msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
+msgstr ""
+
+#, python-format
 msgid "was started by %(user)s for"
 msgstr ""
 
@@ -5788,16 +5807,6 @@ msgid "No flow starts"
 msgstr ""
 
 msgid "Are you sure you want to continue? This cannot be undone."
-msgstr ""
-
-#, python-format
-msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
-msgstr ""
-
-msgid "Flows:"
-msgstr ""
-
-msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
 msgstr ""
 
 msgid "No related flows."
@@ -5981,9 +5990,6 @@ msgstr ""
 
 #, python-format
 msgid "Uh oh, we couldn't delete %(name)s."
-msgstr ""
-
-msgid "Are you sure you want to delete"
 msgstr ""
 
 msgid "Numeric Value:"
@@ -6513,6 +6519,9 @@ msgid "Logins"
 msgstr ""
 
 msgid "Admins"
+msgstr ""
+
+msgid "Remove"
 msgstr ""
 
 msgid "You must have at least one administator"

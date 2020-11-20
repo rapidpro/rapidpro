@@ -296,9 +296,13 @@ class ChannelTest(TembaTest):
         self.assertContains(response, "Test Channel")
 
         response = self.fetch_protected(
-            reverse("channels.channel_delete", args=[self.tel_channel.pk]), post_data=dict(remove=True), user=self.user
+            reverse("channels.channel_delete", args=[self.tel_channel.pk]),
+            post_data=dict(remove=True),
+            user=self.superuser,
+            failOnFormValidation=False,
         )
-        self.assertRedirect(response, reverse("orgs.org_home"))
+
+        self.assertEqual(reverse("orgs.org_home"), response.get("temba-success"))
 
         msg = Msg.objects.get(pk=msg.pk)
         self.assertIsNotNone(msg.channel)
@@ -349,9 +353,13 @@ class ChannelTest(TembaTest):
         self.assertContains(response, "Test Channel")
 
         response = self.fetch_protected(
-            reverse("channels.channel_delete", args=[channel.pk]), post_data=dict(remove=True), user=self.superuser
+            reverse("channels.channel_delete", args=[channel.pk]),
+            post_data=dict(remove=True),
+            user=self.superuser,
+            failOnFormValidation=False,
         )
-        self.assertRedirect(response, reverse("orgs.org_home"))
+
+        self.assertEqual(reverse("orgs.org_home"), response.get("temba-success"))
 
         # create a channel
         channel = Channel.create(
@@ -373,10 +381,13 @@ class ChannelTest(TembaTest):
         self.assertTrue(Trigger.objects.filter(channel=channel, is_active=True))
 
         response = self.fetch_protected(
-            reverse("channels.channel_delete", args=[channel.pk]), post_data=dict(remove=True), user=self.superuser
+            reverse("channels.channel_delete", args=[channel.pk]),
+            post_data=dict(remove=True),
+            user=self.superuser,
+            failOnFormValidation=False,
         )
 
-        self.assertRedirect(response, reverse("orgs.org_home"))
+        self.assertEqual(reverse("orgs.org_home"), response.get("temba-success"))
 
         # channel trigger should have be removed
         self.assertFalse(Trigger.objects.filter(channel=channel, is_active=True))

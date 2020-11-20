@@ -283,6 +283,7 @@ class Org(SmartModel):
             slug = Org.get_unique_slug(name)
 
             brand = settings.BRANDING[self.brand]
+            plan = brand.get("default_plan", settings.DEFAULT_PLAN)
 
             org = Org.objects.create(
                 name=name,
@@ -292,7 +293,7 @@ class Org(SmartModel):
                 slug=slug,
                 created_by=created_by,
                 modified_by=created_by,
-                plan=brand.get("default_plan", settings.DEFAULT_PLAN),
+                plan=plan,
                 is_multi_user=self.is_multi_user,
                 is_multi_org=self.is_multi_org,
             )
@@ -1126,9 +1127,14 @@ class Org(SmartModel):
     def has_nexmo_number(self):  # pragma: needs cover
         return self.channels.filter(channel_type="NX")
 
-    def create_welcome_topup(self, topup_size=None):
+    def init_topups(self, topup_size=None):
         if topup_size:
             return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
+
+        # set whether we use topups based on our plan
+        self.uses_topups = self.plan == settings.TOPUP_PLAN
+        self.save(update_fields=["uses_topups"])
+
         return None
 
     def create_sample_flows(self, api_url):
@@ -1741,7 +1747,8 @@ class Org(SmartModel):
 
             ContactGroup.create_system_groups(self)
             ContactField.create_system_fields(self)
-            self.create_welcome_topup(topup_size)
+
+            self.init_topups(topup_size)
             self.update_capabilities()
 
         # outside of the transaction as it's going to call out to mailroom for flow validation

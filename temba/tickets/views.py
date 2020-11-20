@@ -2,7 +2,7 @@ from smartmin.views import SmartCRUDL, SmartDeleteView, SmartFormView, SmartList
 
 from django import forms
 from django.contrib import messages
-from django.http import HttpResponseRedirect
+from django.http import HttpResponse
 from django.urls import reverse
 from django.utils.functional import cached_property
 from django.utils.html import mark_safe
@@ -167,7 +167,9 @@ class TicketerCRUDL(SmartCRUDL):
             service.release()
 
             messages.info(request, _("Your ticketing service has been deleted."))
-            return HttpResponseRedirect(self.get_success_url())
+            response = HttpResponse()
+            response["Temba-Success"] = self.get_success_url()
+            return response
 
     class Connect(OrgPermsMixin, SmartTemplateView):
         def get_gear_links(self):
