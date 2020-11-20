@@ -154,9 +154,10 @@ class MigrationTask(TembaModel):
 
                 Trigger.objects.filter(channel=channel, org=self.org).update(is_active=False)
 
+            channels_removed = []
             org_channels, channels_count = migrator.get_org_channels()
             if org_channels:
-                self.add_channels(logger=logger, channels=org_channels, migrator=migrator, count=channels_count)
+                self.add_channels(logger=logger, channels=org_channels, migrator=migrator, count=channels_count, channels_removed=channels_removed)
 
             logger.info("[COMPLETED] Channels migration")
             logger.info("")
@@ -398,8 +399,19 @@ class MigrationTask(TembaModel):
             logger.info("[COMPLETED] Parse Data migration")
             logger.info("")
 
-            logger.info("UUIDs of the flows inactivated (deleted) on 1.0:")
+            logger.info("UUIDs of the flows inactivated/deleted on 1.0:")
             logger.info(inactive_flows)
+            logger.info("")
+
+            logger.info("UUIDs of the channel inactivated/deleted on 1.0:")
+            logger.info(channels_removed)
+            logger.info("")
+
+            default_flows = Flow.objects.filter(org=self.org, name__in=["Sample Opt-in Flow", "Sample Flow - Order Status Checker", "Sample Flow - Simple Poll", "Sample Flow - Satisfaction Survey"]).order_by("created_on").values("uuid")[:4]
+            v2_default_flows = [item.get("uuid") for item in default_flows]
+
+            logger.info("UUIDs of the default flows of this 2.0 organization:")
+            logger.info(v2_default_flows)
             logger.info("")
 
             end = timezone.now()
@@ -505,9 +517,13 @@ class MigrationTask(TembaModel):
                 model=MigrationAssociation.MODEL_ORG_LANGUAGE,
             )
 
-    def add_channels(self, logger, channels, migrator, count):
+    def add_channels(self, logger, channels, migrator, count, channels_removed):
         for idx, channel in enumerate(channels, start=1):
             logger.info(f">>> [{idx}/{count}] Channel: {channel.id} - {channel.name}")
+
+            if not channel.is_active:
+                channels_removed.append(channel.uuid)
+                continue
 
             channel_type = channel.channel_type
 

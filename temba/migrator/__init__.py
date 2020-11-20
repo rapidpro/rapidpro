@@ -124,10 +124,10 @@ class Migrator(object):
         )
 
     def get_org_channels(self) -> (list, int):
-        channels_count = self.get_count("channels_channel", condition=f"org_id = {self.org_id} AND is_active = true")
+        channels_count = self.get_count("channels_channel", condition=f"org_id = {self.org_id}")
         return (
             self.get_results_paginated(
-                query_string=f"SELECT * FROM public.channels_channel WHERE org_id = {self.org_id} AND is_active = true ORDER BY id ASC",
+                query_string=f"SELECT * FROM public.channels_channel WHERE org_id = {self.org_id} ORDER BY id ASC",
                 count=channels_count,
             ),
             channels_count,
