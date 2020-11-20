@@ -206,9 +206,13 @@
                         %td.value-text.field_name
                           {{ object|name:user_org }}
                           .value-labels
-                            %nobr
+                            %nobr.group_labels
                               - for group in object.user_groups.all
-                                %a{'href': "{% url 'contacts.contact_filter' group.uuid %}", 'style': "text-decoration: none;"}
+                                %a{
+                                  'href': "{% url 'contacts.contact_filter' group.uuid %}",
+                                  'class': "{% if not forloop.first %}hidden_group{% endif %}",
+                                  'style': "text-decoration: none;"
+                                }
                                   %span.label.label-info.lbl
                                     {{ group.name }}
 
@@ -335,6 +339,15 @@
       background: #ecf0f1;
       padding: 10px;
     }
+    
+    .group_labels > .hidden_group {
+      display: none;
+    }
+
+    .group_labels:hover > .hidden_group {
+      display: block;
+    }
+
 
 
 -block extra-script
