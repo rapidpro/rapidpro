@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-18 20:52+0000\n"
+"POT-Creation-Date: 2020-11-19 08:15+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3259,8 +3259,10 @@ msgstr ""
 msgid "Edit Label"
 msgstr "Добавить метку"
 
-msgid "Remove"
-msgstr "Удалить"
+#, fuzzy
+#| msgid "Create Label"
+msgid "Delete Label"
+msgstr "Создать Метку"
 
 msgid "Start Flow"
 msgstr "Начать поток"
@@ -3669,11 +3671,6 @@ msgstr "Обновить Папку"
 
 msgid "Send All"
 msgstr "Отправить Все"
-
-#, fuzzy
-#| msgid "Create Label"
-msgid "Delete Label"
-msgstr "Создать Метку"
 
 msgid "Name must not be blank or begin with punctuation"
 msgstr "Название не должно быть пустым или начинаться с пунктуационных знаков"
@@ -7143,9 +7140,9 @@ msgid "<b>%(name)s</b> cannot be deleted since it is currently in use."
 msgstr ""
 
 #, fuzzy, python-format
-#| msgid "Are you sure you want to delete this contact?"
+#| msgid "Are you sure you want to remove this label?"
 msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
-msgstr "Вы действительно хотите удалить этот контакт?"
+msgstr "Вы действительно хотите удалить эту метку?"
 
 #, fuzzy
 #| msgid "contacts not in other flows"
@@ -7775,6 +7772,11 @@ msgstr ""
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr "Задайте ряд вопросов, чтобы собрать данные у Ваших контактов."
 
+#, fuzzy, python-format
+#| msgid "cannot be deleted because it is in use. Usage summary:"
+msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
+msgstr "невозможно удалить, потому что используется. Сводная информация по использованию:"
+
 #, python-format
 msgid "was started by %(user)s for"
 msgstr "было запущено %(user)s для"
@@ -7814,9 +7816,6 @@ msgstr "Поток для запуска"
 #| msgid "Are you sure you want to remove this label?"
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "Вы действительно хотите удалить эту метку?"
-
-msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
-msgstr "После удаления этот глобальный объект исчезнет навсегда. Способа отменить эту операцию не существует."
 
 msgid "No related flows."
 msgstr "Нет связанных потоков."
@@ -8146,11 +8145,6 @@ msgid "Uh oh, we couldn't delete %(name)s."
 msgstr ""
 "\n"
 "            Название изменено на <b>%(name)s</b>"
-
-#, fuzzy
-#| msgid "Are you sure you want to remove"
-msgid "Are you sure you want to delete"
-msgstr "Вы действительно хотите удалить "
 
 msgid "Numeric Value:"
 msgstr "Числовое значение:"
@@ -9224,6 +9218,9 @@ msgstr "Логин"
 
 msgid "Admins"
 msgstr "Администраторы"
+
+msgid "Remove"
+msgstr "Удалить"
 
 msgid "You must have at least one administator"
 msgstr "У Вас должен быть хотя бы один администратор"
@@ -10439,6 +10436,24 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, fuzzy, python-format
+#~| msgid "Are you sure you want to delete this contact?"
+#~ msgid "Are you sure you want to delete <b>%(name)s</b>? No way to undo this operation."
+#~ msgstr "Вы действительно хотите удалить этот контакт?"
+
+#, fuzzy
+#~| msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
+#~ msgid "Once deleted, this label will be gone forever. There is no way to undo this operation."
+#~ msgstr "После удаления этот глобальный объект исчезнет навсегда. Способа отменить эту операцию не существует."
+
+#~ msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
+#~ msgstr "После удаления этот глобальный объект исчезнет навсегда. Способа отменить эту операцию не существует."
+
+#, fuzzy
+#~| msgid "Are you sure you want to remove"
+#~ msgid "Are you sure you want to delete"
+#~ msgstr "Вы действительно хотите удалить "
 
 #, fuzzy, python-format
 #~| msgid "cannot be deleted because it is in use. Usage summary:"
