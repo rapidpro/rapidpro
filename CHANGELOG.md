@@ -1,3 +1,7 @@
+v6.0.5
+----------
+ * Adjust contact icon color in recipient lists
+
 v6.0.4
 ----------
  * Fix recipients contacts and urns UI labels
