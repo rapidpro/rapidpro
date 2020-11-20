@@ -945,7 +945,14 @@ class FlowCRUDL(SmartCRUDL):
                 )
 
             if self.has_org_perm("flows.flow_delete"):
-                links.append(dict(title=_("Remove"), href="#", js_class="remove-label"))
+                links.append(
+                    dict(
+                        id="delete-label",
+                        title=_("Delete Label"),
+                        href=f"{reverse('flows.flowlabel_delete', args=[label.pk])}",
+                        modax=_("Delete Label"),
+                    )
+                )
 
             return links
 
@@ -2134,9 +2141,11 @@ class FlowLabelCRUDL(SmartCRUDL):
     actions = ("create", "update", "delete")
 
     class Delete(OrgObjPermsMixin, SmartDeleteView):
+        success_url = "@flows.flow_list"
         redirect_url = "@flows.flow_list"
         cancel_url = "@flows.flow_list"
         success_message = ""
+        submit_button_name = _("Delete")
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = FlowLabelForm

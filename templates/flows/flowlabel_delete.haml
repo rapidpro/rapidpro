@@ -2,9 +2,9 @@
 -load i18n temba smartmin
 
 -block modal
-  -if object.get_usage_count
+  -if object.children.all
     -blocktrans trimmed with name=object.name
-      <b>{{name}}</b> cannot be deleted since it is currently in use.
+      <b>{{name}}</b> cannot be deleted since it is a parent to other labels.
 
   -else
     -blocktrans trimmed with name=object.name

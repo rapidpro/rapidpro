@@ -40,29 +40,3 @@
         %p
           -trans "You cannot remove a label which has child labels. Please remove all children first."
 
--block extra-script
-  {{ block.super }}
-
-  :javascript
-        
-    {% if org_perms.flows.flowlabel_delete %}
-      {% if not current_label.children.all %}
-      $(".remove-label").live('click', function(){
-        modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
-        modal.addClass('alert');
-        modal.setListeners({onPrimary: function(){
-          $('#delete-form').click();
-        }}, false);
-        modal.setPrimaryButton('{{ _("Remove")|escapejs }}');
-        modal.show();
-      });
-      {% else %}
-      $(".remove-label").live('click', function(){
-        modal = new Modal($('.deletion-fail > .title').html(), $('.deletion-fail > .body').html());
-        modal.addClass('alert');
-        modal.setListeners(function(){}, true);
-        modal.setPrimaryButton('{{ _("Ok")|escapejs }}');
-        modal.show();
-      });
-      {% endif %}
-    {% endif %}
