@@ -63,5 +63,6 @@ class Migration(migrations.Migration):
     dependencies = [
         ("contacts", "0113_contact_status"),
     ]
-    sql = "UPDATE contacts_contact SET status = CASE WHEN is_stopped = true THEN 'S' WHEN is_stopped = false AND is_blocked = true THEN 'B' END"
-    operations = [migrations.RunSQL(sql)]
+
+    operations = []
+
