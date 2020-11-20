@@ -1482,6 +1482,26 @@ class MigrationTask(TembaModel):
                         if "node_uuid" not in rp:
                             rp["node_uuid"] = generate_uuid()
 
+                flow_steps = migrator.get_flow_run_events(flow_run_id=item.id)
+                flow_run_events = []
+                for step in flow_steps:
+                    scheme = "ext" if step.urn_scheme == "ws" else step.urn_scheme
+                    event = {
+                        "msg": {
+                            "urn": f"{scheme}:{step.urn_path}",
+                            "text": f"{step.msg_text}",
+                            "uuid": f"{step.msg_uuid}",
+                            "channel": {
+                                "name": f"{step.channel_name}",
+                                "uuid": f"{step.channel_uuid}"
+                            }
+                        },
+                        "type": "msg_created" if step.msg_direction == "O" else "msg_received",
+                        "step_uuid": f"{step.step_uuid}",
+                        "created_on": f"{step.arrived_on}"
+                    }
+                    flow_run_events.append(event)
+
                 new_flow_run = FlowRun.objects.create(
                     uuid=item.uuid,
                     org=self.org,
@@ -1502,6 +1522,7 @@ class MigrationTask(TembaModel):
                     path=run_path,
                     is_active=item.is_active,
                     exit_type=item.exit_type,
+                    events=flow_run_events,
                 )
 
                 MigrationAssociation.create(
