@@ -5,13 +5,11 @@
       {{ group.name }}
   
   -for contact in contacts
-    .item.contact
+    .item.contact.lbl.linked.ml-2(onclick="goto(event)" href="{% url 'contacts.contact_read' contact.uuid %}")
       .icon.icon-user
-      %a(href="{% url 'contacts.contact_read' contact.uuid %}")
-        {{ contact.get_display }}
+      {{ contact.get_display }}
 
   -if query
-    .item.query
+    .item.query.lbl.linked.ml-2(onclick="goto(event)" href="{% url 'contacts.contact_list' %}?search={{ query|urlencode }}")
       .icon.icon-filter
-      %a(href="{% url 'contacts.contact_list' %}?search={{ query|urlencode }}")
-        {{ query }}
+      {{ query }}
