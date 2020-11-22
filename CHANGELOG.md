@@ -1,3 +1,7 @@
+v6.0.6
+----------
+ * Fix for textarea init
+
 v6.0.5
 ----------
  * Adjust contact icon color in recipient lists
