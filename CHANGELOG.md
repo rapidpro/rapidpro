@@ -1,3 +1,9 @@
+v6.0.7
+----------
+ * Fix choose org page
+ * Fix recipient search
+ * Fix run deletion
+
 v6.0.6
 ----------
  * Fix for textarea init
