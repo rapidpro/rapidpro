@@ -1426,13 +1426,18 @@ class MigrationTask(TembaModel):
             flow_starts = migrator.get_flow_starts(flow_id=flow.id)
 
             for item in flow_starts:
+                try:
+                    extra = json.loads(item.extra)
+                except:
+                    extra = dict()
+
                 new_flow_start = FlowStart.objects.create(
                     uuid=item.uuid,
                     flow=new_flow,
                     restart_participants=item.restart_participants,
                     include_active=item.include_active,
                     status=item.status,
-                    extra=json.loads(item.extra) if item.extra else dict(),
+                    extra=extra,
                     created_by=self.created_by,
                     created_on=item.created_on,
                     is_active=item.is_active,
