@@ -544,6 +544,9 @@ class MigrationTask(TembaModel):
             if isinstance(channel_type, str):
                 channel_type = Channel.get_type_from_code(channel_type)
 
+            if channel_type.code == "EX":
+                channel_type.schemes = channel.schemes
+
             schemes = channel_type.schemes
 
             new_channel = Channel.objects.create(
