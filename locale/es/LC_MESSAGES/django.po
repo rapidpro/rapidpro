@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-23 18:08+0000\n"
+"POT-Creation-Date: 2020-11-24 22:08+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4673,6 +4673,11 @@ msgstr "name@domain.com"
 msgid "The timezone for your workspace"
 msgstr "La zona horaria en la que se encuentra su organización"
 
+#, fuzzy
+#| msgid "Please enter at least 8 characters"
+msgid "At least eight characters or more"
+msgstr "Por favor, ingrese 8 caracteres como mínimo"
+
 msgid "Workspace"
 msgstr ""
 
@@ -4684,9 +4689,6 @@ msgstr ""
 
 msgid "That email address is already used"
 msgstr "Esta dirección de correo electrónico ya ha sido usada"
-
-msgid "Passwords must contain at least 8 letters."
-msgstr "Las contraseñas deben contener como mínimo 8 letras."
 
 #, fuzzy
 msgid "The first name of the workspace administrator"
@@ -4705,7 +4707,7 @@ msgid "The timezone for the workspace"
 msgstr "La zona horaria en la que se encuentra su organización"
 
 #, fuzzy
-msgid "Their password, at least eight letters please. (leave blank for existing users)"
+msgid "Their password, at least eight letters please. (leave blank for existing login)"
 msgstr "Su contraseña, como mínimo ocho letras por favor"
 
 #, fuzzy
@@ -4720,9 +4722,8 @@ msgstr "El número de créditos comprados en esta recarga"
 msgid "Login already exists, please do not include password."
 msgstr ""
 
-#, fuzzy
-msgid "Password must be at least 8 characters long"
-msgstr "Las contraseñas deben tener como mínimo 8 letras."
+msgid "Password required for new login."
+msgstr ""
 
 #, python-brace-format
 msgid "Deleted user {username}"
@@ -10839,6 +10840,13 @@ msgstr "Ingrese el código de pedido"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#~ msgid "Passwords must contain at least 8 letters."
+#~ msgstr "Las contraseñas deben contener como mínimo 8 letras."
+
+#, fuzzy
+#~ msgid "Password must be at least 8 characters long"
+#~ msgstr "Las contraseñas deben tener como mínimo 8 letras."
+
 #, fuzzy, python-format
 #~| msgid "Are you sure you want to delete this contact?"
 #~ msgid "Are you sure you want to delete <b>%(name)s</b>? No way to undo this operation."
@@ -12808,11 +12816,6 @@ msgstr ""
 #~| msgid "UUID"
 #~ msgid "ID"
 #~ msgstr "UUID"
-
-#, fuzzy
-#~| msgid "Please enter at least 8 characters"
-#~ msgid "At least eight characters"
-#~ msgstr "Por favor, ingrese 8 caracteres como mínimo"
 
 #~ msgid "Hold up!"
 #~ msgstr "¡Espere!"

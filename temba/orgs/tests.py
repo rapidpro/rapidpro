@@ -1385,8 +1385,11 @@ class OrgTest(TembaTest):
         admin_create_login_url = reverse("orgs.org_create_login", args=[surveyor_invite.secret])
         self.client.logout()
 
-        post_data = dict(first_name="Surveyor", last_name="User", email="surveyor@gmail.com", password="password")
-        response = self.client.post(admin_create_login_url, post_data, follow=True)
+        response = self.client.post(
+            admin_create_login_url,
+            {"first_name": "Surveyor", "last_name": "User", "email": "surveyor@gmail.com", "password": "HeyThere123"},
+            follow=True,
+        )
         self.assertEqual(200, response.status_code)
 
         # as a surveyor we should have been rerouted
@@ -1395,12 +1398,12 @@ class OrgTest(TembaTest):
 
         # make sure we are a surveyor
         new_invited_user = User.objects.get(email="surveyor@gmail.com")
-        self.assertTrue(new_invited_user in self.org.surveyors.all())
+        self.assertIn(new_invited_user, self.org.surveyors.all())
 
         # if we login, we should be rerouted too
         self.client.logout()
         response = self.client.post(
-            "/users/login/", {"username": "surveyor@gmail.com", "password": "password"}, follow=True
+            "/users/login/", {"username": "surveyor@gmail.com", "password": "HeyThere123"}, follow=True
         )
         self.assertEqual(200, response.status_code)
         self.assertEqual(reverse("orgs.org_surveyor"), response._request.path)
@@ -1466,7 +1469,9 @@ class OrgTest(TembaTest):
             surveyor_password="nyaruka",
         )
         response = self.client.post(url, post_data)
-        self.assertContains(response, "Passwords must contain at least 8 letters")
+        self.assertFormError(
+            response, "form", "password", "This password is too short. It must contain at least 8 characters."
+        )
 
         # finally make sure our login works
         success = self.client.login(username="beastmode@seahawks.com", password="beastmode24")
@@ -3183,7 +3188,9 @@ class OrgCRUDLTest(TembaTest):
             password="no_pass",
         )
         response = self.client.post(grant_url, post_data)
-        self.assertFormError(response, "form", None, "Password must be at least 8 characters long")
+        self.assertFormError(
+            response, "form", None, "This password is too short. It must contain at least 8 characters."
+        )
 
     @patch("temba.orgs.views.OrgCRUDL.Signup.pre_process")
     def test_new_signup_with_user_logged_in(self, mock_pre_process):
@@ -3196,16 +3203,17 @@ class OrgCRUDLTest(TembaTest):
         response = self.client.get(signup_url)
         self.assertEqual(response.status_code, 200)
 
-        post_data = dict(
-            first_name="Kellan",
-            last_name="Alexander",
-            email="kellan@example.com",
-            password="HeyThere",
-            name="AlexCom",
-            timezone="Africa/Kigali",
+        response = self.client.post(
+            signup_url,
+            {
+                "first_name": "Kellan",
+                "last_name": "Alexander",
+                "email": "kellan@example.com",
+                "password": "HeyThere123",
+                "name": "AlexCom",
+                "timezone": "Africa/Kigali",
+            },
         )
-
-        response = self.client.post(signup_url, post_data)
         self.assertEqual(response.status_code, 302)
 
         # should have a new user
@@ -3213,7 +3221,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(user.first_name, "Kellan")
         self.assertEqual(user.last_name, "Alexander")
         self.assertEqual(user.email, "kellan@example.com")
-        self.assertTrue(user.check_password("HeyThere"))
+        self.assertTrue(user.check_password("HeyThere123"))
         self.assertTrue(user.api_token)  # should be able to generate an API token
 
         # should have a new org
@@ -3229,15 +3237,17 @@ class OrgCRUDLTest(TembaTest):
     @override_settings(DEFAULT_BRAND="no-topups.org")
     def test_no_topup_signup(self):
         signup_url = reverse("orgs.org_signup")
-        post_data = dict(
-            first_name="Eugene",
-            last_name="Rwagasore",
-            email="test@foo.org",
-            password="Password123",
-            name="No Topups",
-            timezone="Africa/Kigali",
+        response = self.client.post(
+            signup_url,
+            {
+                "first_name": "Eugene",
+                "last_name": "Rwagasore",
+                "email": "test@foo.org",
+                "password": "HeyThere123",
+                "name": "No Topups",
+                "timezone": "Africa/Kigali",
+            },
         )
-        response = self.client.post(signup_url, post_data)
         self.assertEqual(response.status_code, 302)
 
         org = Org.objects.get(name="No Topups")
@@ -3279,7 +3289,20 @@ class OrgCRUDLTest(TembaTest):
         )
         response = self.client.post(signup_url, post_data)
         self.assertFormError(response, "form", "email", "Enter a valid email address.")
-        self.assertFormError(response, "form", "password", "Passwords must contain at least 8 letters.")
+        self.assertFormError(
+            response, "form", "password", "This password is too short. It must contain at least 8 characters."
+        )
+
+        # submit with password that is too common
+        post_data["email"] = "eugene@temba.io"
+        post_data["password"] = "password"
+        response = self.client.post(signup_url, post_data)
+        self.assertFormError(response, "form", "password", "This password is too common.")
+
+        # submit with password that is all numerical
+        post_data["password"] = "3464357358532"
+        response = self.client.post(signup_url, post_data)
+        self.assertFormError(response, "form", "password", "This password is entirely numeric.")
 
         # submit with valid data (long email)
         post_data = dict(

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-23 18:08+0000\n"
+"POT-Creation-Date: 2020-11-24 22:08+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3212,6 +3212,9 @@ msgstr "name@domain.com"
 msgid "The timezone for your workspace"
 msgstr "Le fuseau horaire de votre espace de travail"
 
+msgid "At least eight characters or more"
+msgstr ""
+
 msgid "Workspace"
 msgstr "Espace de travail"
 
@@ -3223,9 +3226,6 @@ msgstr "Ma société, Inc."
 
 msgid "That email address is already used"
 msgstr "Cette adresse email est déjà utilisée"
-
-msgid "Passwords must contain at least 8 letters."
-msgstr "Les mots de passe doivent contenir au moins 8 caractères."
 
 msgid "The first name of the workspace administrator"
 msgstr "Le prénom de l'administrateur de l'espace de travail"
@@ -3239,7 +3239,9 @@ msgstr "Leurs adresses email"
 msgid "The timezone for the workspace"
 msgstr "Le fuseau horaire de l'espace de travail"
 
-msgid "Their password, at least eight letters please. (leave blank for existing users)"
+#, fuzzy
+#| msgid "Their password, at least eight letters please. (leave blank for existing users)"
+msgid "Their password, at least eight letters please. (leave blank for existing login)"
 msgstr "Leur mot de passe, au moins huit lettres s'il vous plaît. (laissez vide pour les utilisateurs existants)"
 
 msgid "The name of the new workspace"
@@ -3251,8 +3253,8 @@ msgstr "Le nombre initial de crédits accordés à cet espace de travail"
 msgid "Login already exists, please do not include password."
 msgstr "La connexion existe déjà, veuillez ne pas inclure le mot de passe."
 
-msgid "Password must be at least 8 characters long"
-msgstr "Le mot de passe doit comporter au moins 8 caractères"
+msgid "Password required for new login."
+msgstr ""
 
 #, python-brace-format
 msgid "Deleted user {username}"
@@ -7759,6 +7761,12 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Passwords must contain at least 8 letters."
+#~ msgstr "Les mots de passe doivent contenir au moins 8 caractères."
+
+#~ msgid "Password must be at least 8 characters long"
+#~ msgstr "Le mot de passe doit comporter au moins 8 caractères"
 
 #, fuzzy, python-format
 #~| msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."

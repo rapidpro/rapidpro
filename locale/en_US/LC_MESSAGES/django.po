@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-23 18:08+0000\n"
+"POT-Creation-Date: 2020-11-24 22:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3207,6 +3207,9 @@ msgstr ""
 msgid "The timezone for your workspace"
 msgstr ""
 
+msgid "At least eight characters or more"
+msgstr ""
+
 msgid "Workspace"
 msgstr ""
 
@@ -3217,9 +3220,6 @@ msgid "My Company, Inc."
 msgstr ""
 
 msgid "That email address is already used"
-msgstr ""
-
-msgid "Passwords must contain at least 8 letters."
 msgstr ""
 
 msgid "The first name of the workspace administrator"
@@ -3234,7 +3234,7 @@ msgstr ""
 msgid "The timezone for the workspace"
 msgstr ""
 
-msgid "Their password, at least eight letters please. (leave blank for existing users)"
+msgid "Their password, at least eight letters please. (leave blank for existing login)"
 msgstr ""
 
 msgid "The name of the new workspace"
@@ -3246,7 +3246,7 @@ msgstr ""
 msgid "Login already exists, please do not include password."
 msgstr ""
 
-msgid "Password must be at least 8 characters long"
+msgid "Password required for new login."
 msgstr ""
 
 #, python-brace-format
