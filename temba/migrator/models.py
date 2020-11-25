@@ -1141,6 +1141,8 @@ class MigrationTask(TembaModel):
 
             logger.info(f">>> [{idx}/{count}] Msg: {msg.uuid} - [{msg_direction}] {msg_text}")
 
+            self_migration_task = MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+
             (
                 response_to_id,
                 channel_id,
@@ -1155,7 +1157,7 @@ class MigrationTask(TembaModel):
                 contact_urn_id=msg.contact_urn_id,
                 broadcast_id=msg.broadcast_id,
                 topup_id=msg.topup_id,
-                migration_task_id=self.id,
+                migration_task_id=self_migration_task.id,
             )
 
             if not contact_id:
