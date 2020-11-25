@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-19 08:15+0000\n"
+"POT-Creation-Date: 2020-11-23 18:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5744,6 +5744,12 @@ msgid "Export Results"
 msgstr ""
 
 msgid "No matching flows."
+msgstr ""
+
+msgid "Delete Run"
+msgstr ""
+
+msgid "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
 msgstr ""
 
 msgid "Overview"
