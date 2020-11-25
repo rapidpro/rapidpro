@@ -978,49 +978,25 @@ class MigrationTask(TembaModel):
             )
 
     def add_msgs(self, logger, msgs, migrator, count):
+        all_msgs = []
         for idx, msg in enumerate(msgs, start=1):
             msg_text = f"{msg.text[:30]}..." if len(msg.text) > 30 else msg.text
             msg_direction = "Incoming" if msg.direction == "I" else "Outgoing"
 
             logger.info(f">>> [{idx}/{count}] Msg: {msg.uuid} - [{msg_direction}] {msg_text}")
 
-            response_to = None
-            if msg.response_to_id:
-                new_msg_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_MSG, old_id=msg.response_to_id
-                )
-                response_to = new_msg_obj
-
-            new_channel_obj = None
-            if msg.channel_id:
-                new_channel_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CHANNEL, old_id=msg.channel_id
-                )
-
-            new_contact_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_CONTACT, old_id=msg.contact_id
+            (response_to_id, channel_id, contact_id, contact_urn_id, broadcast_id, topup_id) = migrator.get_msg_relationships(
+                response_to_id=msg.response_to_id,
+                channel_id=msg.channel_id,
+                contact_id=msg.contact_id,
+                contact_urn_id=msg.contact_urn_id,
+                broadcast_id=msg.broadcast_id,
+                topup_id=msg.topup_id,
+                migration_task_id=self.id
             )
 
-            if not new_contact_obj:
+            if not contact_id:
                 continue
-
-            new_contact_urn_obj = None
-            if msg.contact_urn_id:
-                new_contact_urn_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_URN, old_id=msg.contact_urn_id
-                )
-
-            new_broadcast_obj = None
-            if msg.broadcast_id:
-                new_broadcast_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_MSG_BROADCAST, old_id=msg.broadcast_id
-                )
-
-            new_topup_obj = None
-            if msg.topup_id:
-                new_topup_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_ORG_TOPUP, old_id=msg.topup_id
-                )
 
             attachments = msg.attachments
             if attachments:
@@ -1047,13 +1023,13 @@ class MigrationTask(TembaModel):
                         logger.warning(f"Image was not UPLOADED to S3: {url}. Reason: {str(e)}")
                         pass
 
-            new_msg = Msg.objects.create(
+            new_msg = Msg(
                 uuid=msg.uuid,
                 org=self.org,
-                channel=new_channel_obj,
-                contact=new_contact_obj,
-                contact_urn=new_contact_urn_obj,
-                broadcast=new_broadcast_obj,
+                channel_id=channel_id,
+                contact_id=contact_id,
+                contact_urn_id=contact_urn_id,
+                broadcast_id=broadcast_id,
                 text=msg.text,
                 high_priority=msg.high_priority,
                 created_on=msg.created_on,
@@ -1062,33 +1038,26 @@ class MigrationTask(TembaModel):
                 queued_on=msg.queued_on,
                 direction=msg.direction,
                 status=msg.status,
-                response_to=response_to,
+                response_to_id=response_to_id,
                 visibility=msg.visibility,
                 msg_type=msg.msg_type,
                 msg_count=msg.msg_count,
                 error_count=msg.error_count,
                 next_attempt=msg.next_attempt,
                 external_id=msg.external_id,
-                topup=new_topup_obj,
+                topup_id=topup_id,
                 attachments=attachments,
                 metadata=json.loads(msg.metadata) if msg.metadata else dict(),
             )
 
-            if new_msg.uuid != msg.uuid:
-                new_msg.uuid = msg.uuid
-                new_msg.save(update_fields=["uuid"])
+            all_msgs.append(new_msg)
 
-            MigrationAssociation.create(
-                migration_task=self, old_id=msg.id, new_id=new_msg.id, model=MigrationAssociation.MODEL_MSG
-            )
+            if len(all_msgs) >= 1000:
+                Msg.objects.bulk_create(all_msgs)
+                all_msgs = []
 
-            msg_labels = migrator.get_msg_labels(msg_id=msg.id)
-            for item in msg_labels:
-                new_label_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_MSG_LABEL, old_id=item.label_id
-                )
-                if new_label_obj:
-                    new_msg.labels.add(new_label_obj)
+        if len(all_msgs) > 0:
+            Msg.objects.bulk_create(all_msgs)
 
     def add_flow_labels(self, logger, labels, count):
         for idx, label in enumerate(labels, start=1):

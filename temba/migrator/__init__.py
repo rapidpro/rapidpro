@@ -1,4 +1,4 @@
-from django.db import connections
+from django.db import connections, connection
 from django.conf import settings
 
 
@@ -25,6 +25,14 @@ class MigratorObject:
         self.surveyor_password = None
         self.parent_id = None
         self.primary_language_id = None
+
+        # Msg
+        self.channel_id = None
+        self.contact_id = None
+        self.broadcast_id = None
+        self.topup_id = None
+        self.contact_urn_id = None
+        self.response_to_id = None
 
         self.__dict__.update(entries)
 
@@ -62,6 +70,11 @@ class Migrator(object):
         with connections[settings.DB_MIGRATION].cursor() as cursor:
             cursor.execute(query_string)
             return self.dictfetchone(cursor)
+
+    def make_query_one_local(self, query_string) -> MigratorObject:
+        cursor = connection.cursor()
+        cursor.execute(query_string)
+        return self.dictfetchone(cursor)
 
     def get_count(self, table_name, condition=None):
         if condition:
@@ -565,3 +578,32 @@ class Migrator(object):
             query_string=f"SELECT * FROM public.links_linkcontacts WHERE link_id = {link_id} ORDER BY id ASC",
             count=count,
         )
+
+    def get_msg_relationships(self, response_to_id, channel_id, contact_id, contact_urn_id, broadcast_id, topup_id, migration_task_id):
+        response_to_id = "null" if not response_to_id else response_to_id
+        channel_id = "null" if not channel_id else channel_id
+        contact_id = "null" if not contact_id else contact_id
+        contact_urn_id = "null" if not contact_urn_id else contact_urn_id
+        broadcast_id = "null" if not broadcast_id else broadcast_id
+        topup_id = "null" if not topup_id else topup_id
+
+        query_string = f"SELECT new_id as contact_id,"\
+                       f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {channel_id} AND model = 'channels_channel') as channel_id,"\
+                       f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {response_to_id} AND model = 'msgs_msg') as response_to_id,"\
+                       f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {contact_urn_id} AND model = 'contacts_contacturn') as contact_urn_id,"\
+                       f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {broadcast_id} AND model = 'msgs_broadcast') as broadcast_id,"\
+                       f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {topup_id} AND model = 'orgs_topups') as topup_id "\
+                       f"FROM public.migrator_migrationassociation "\
+                       f"WHERE old_id = {contact_id} AND model = 'contacts_contact' AND migration_task_id = {migration_task_id}"
+
+        obj = self.make_query_one_local(query_string=query_string)
+
+        response_to_id = obj.response_to_id if hasattr(obj, "response_to_id") else None
+        channel_id = obj.channel_id if hasattr(obj, "channel_id") else None
+        contact_id = obj.contact_id if hasattr(obj, "contact_id") else None
+        contact_urn_id = obj.contact_urn_id if hasattr(obj, "contact_urn_id") else None
+        broadcast_id = obj.broadcast_id if hasattr(obj, "broadcast_id") else None
+        topup_id = obj.topup_id if hasattr(obj, "topup_id") else None
+
+        return response_to_id, channel_id, contact_id, contact_urn_id, broadcast_id, topup_id
+
