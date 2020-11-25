@@ -1,4 +1,4 @@
-from django.db import connections
+from django.db import connections, connection
 from django.conf import settings
 
 
@@ -25,6 +25,14 @@ class MigratorObject:
         self.surveyor_password = None
         self.parent_id = None
         self.primary_language_id = None
+
+        # Msg
+        self.channel_id = None
+        self.contact_id = None
+        self.broadcast_id = None
+        self.topup_id = None
+        self.contact_urn_id = None
+        self.response_to_id = None
 
         self.__dict__.update(entries)
 
@@ -62,6 +70,11 @@ class Migrator(object):
         with connections[settings.DB_MIGRATION].cursor() as cursor:
             cursor.execute(query_string)
             return self.dictfetchone(cursor)
+
+    def make_query_one_local(self, query_string) -> MigratorObject:
+        cursor = connection.cursor()
+        cursor.execute(query_string)
+        return self.dictfetchone(cursor)
 
     def get_count(self, table_name, condition=None):
         if condition:
@@ -124,10 +137,10 @@ class Migrator(object):
         )
 
     def get_org_channels(self) -> (list, int):
-        channels_count = self.get_count("channels_channel", condition=f"org_id = {self.org_id} AND is_active = true")
+        channels_count = self.get_count("channels_channel", condition=f"org_id = {self.org_id}")
         return (
             self.get_results_paginated(
-                query_string=f"SELECT * FROM public.channels_channel WHERE org_id = {self.org_id} AND is_active = true ORDER BY id ASC",
+                query_string=f"SELECT * FROM public.channels_channel WHERE org_id = {self.org_id} ORDER BY id ASC",
                 count=channels_count,
             ),
             channels_count,
@@ -440,25 +453,25 @@ class Migrator(object):
     def get_flow_run_events(self, flow_run_id) -> list:
         count_query = self.make_query_one(
             query_string=f"SELECT count(ffs.*) FROM public.flows_flowstep as ffs INNER JOIN public.flows_flowrun as ffr "
-                         f"ON (ffs.run_id = ffr.id) INNER JOIN public.flows_flowstep_messages as ffsm "
-                         f"ON (ffs.id = ffsm.flowstep_id) INNER JOIN public.msgs_msg as mm "
-                         f"ON (ffsm.msg_id = mm.id) INNER JOIN public.contacts_contact as cc "
-                         f"ON (mm.contact_id = cc.id) INNER JOIN public.contacts_contacturn as ccu "
-                         f"ON (cc.id = ccu.contact_id) INNER JOIN public.channels_channel as cch "
-                         f"ON (mm.channel_id = cch.id) WHERE ffr.id = {flow_run_id}"
+            f"ON (ffs.run_id = ffr.id) INNER JOIN public.flows_flowstep_messages as ffsm "
+            f"ON (ffs.id = ffsm.flowstep_id) INNER JOIN public.msgs_msg as mm "
+            f"ON (ffsm.msg_id = mm.id) INNER JOIN public.contacts_contact as cc "
+            f"ON (mm.contact_id = cc.id) INNER JOIN public.contacts_contacturn as ccu "
+            f"ON (cc.id = ccu.contact_id) INNER JOIN public.channels_channel as cch "
+            f"ON (mm.channel_id = cch.id) WHERE ffr.id = {flow_run_id}"
         )
         return self.get_results_paginated(
-                query_string=f"SELECT ffs.arrived_on, ffs.step_uuid, mm.uuid as msg_uuid, mm.text as msg_text, mm.direction as msg_direction, "
-                             f"cc.name as contact_name, cc.uuid as contact_uuid, ccu.path as urn_path, "
-                             f"ccu.scheme as urn_scheme, cch.uuid as channel_uuid, cch.name as channel_name "
-                             f"FROM public.flows_flowstep as ffs INNER JOIN public.flows_flowrun as ffr "
-                             f"ON (ffs.run_id = ffr.id) INNER JOIN public.flows_flowstep_messages as ffsm "
-                             f"ON (ffs.id = ffsm.flowstep_id) INNER JOIN public.msgs_msg as mm "
-                             f"ON (ffsm.msg_id = mm.id) INNER JOIN public.contacts_contact as cc "
-                             f"ON (mm.contact_id = cc.id) INNER JOIN public.contacts_contacturn as ccu "
-                             f"ON (cc.id = ccu.contact_id) INNER JOIN public.channels_channel as cch "
-                             f"ON (mm.channel_id = cch.id) WHERE ffr.id = {flow_run_id}",
-                count=count_query.count,
+            query_string=f"SELECT ffs.arrived_on, ffs.step_uuid, mm.uuid as msg_uuid, mm.text as msg_text, mm.direction as msg_direction, "
+            f"cc.name as contact_name, cc.uuid as contact_uuid, ccu.path as urn_path, "
+            f"ccu.scheme as urn_scheme, cch.uuid as channel_uuid, cch.name as channel_name "
+            f"FROM public.flows_flowstep as ffs INNER JOIN public.flows_flowrun as ffr "
+            f"ON (ffs.run_id = ffr.id) INNER JOIN public.flows_flowstep_messages as ffsm "
+            f"ON (ffs.id = ffsm.flowstep_id) INNER JOIN public.msgs_msg as mm "
+            f"ON (ffsm.msg_id = mm.id) INNER JOIN public.contacts_contact as cc "
+            f"ON (mm.contact_id = cc.id) INNER JOIN public.contacts_contacturn as ccu "
+            f"ON (cc.id = ccu.contact_id) INNER JOIN public.channels_channel as cch "
+            f"ON (mm.channel_id = cch.id) WHERE ffr.id = {flow_run_id}",
+            count=count_query.count,
         )
 
     def get_org_resthooks(self) -> (list, int):
@@ -565,3 +578,35 @@ class Migrator(object):
             query_string=f"SELECT * FROM public.links_linkcontacts WHERE link_id = {link_id} ORDER BY id ASC",
             count=count,
         )
+
+    def get_msg_relationships(
+        self, response_to_id, channel_id, contact_id, contact_urn_id, broadcast_id, topup_id, migration_task_id
+    ):
+        response_to_id = "null" if not response_to_id else response_to_id
+        channel_id = "null" if not channel_id else channel_id
+        contact_id = "null" if not contact_id else contact_id
+        contact_urn_id = "null" if not contact_urn_id else contact_urn_id
+        broadcast_id = "null" if not broadcast_id else broadcast_id
+        topup_id = "null" if not topup_id else topup_id
+
+        query_string = (
+            f"SELECT new_id as contact_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {channel_id} AND model = 'channels_channel' AND migration_task_id = {migration_task_id}) as channel_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {response_to_id} AND model = 'msgs_msg' AND migration_task_id = {migration_task_id}) as response_to_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {contact_urn_id} AND model = 'contacts_contacturn' AND migration_task_id = {migration_task_id}) as contact_urn_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {broadcast_id} AND model = 'msgs_broadcast' AND migration_task_id = {migration_task_id}) as broadcast_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {topup_id} AND model = 'orgs_topups' AND migration_task_id = {migration_task_id}) as topup_id "
+            f"FROM public.migrator_migrationassociation "
+            f"WHERE old_id = {contact_id} AND model = 'contacts_contact' AND migration_task_id = {migration_task_id}"
+        )
+
+        obj = self.make_query_one_local(query_string=query_string)
+
+        response_to_id = obj.response_to_id if hasattr(obj, "response_to_id") else None
+        channel_id = obj.channel_id if hasattr(obj, "channel_id") else None
+        contact_id = obj.contact_id if hasattr(obj, "contact_id") else None
+        contact_urn_id = obj.contact_urn_id if hasattr(obj, "contact_urn_id") else None
+        broadcast_id = obj.broadcast_id if hasattr(obj, "broadcast_id") else None
+        topup_id = obj.topup_id if hasattr(obj, "topup_id") else None
+
+        return response_to_id, channel_id, contact_id, contact_urn_id, broadcast_id, topup_id
