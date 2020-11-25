@@ -453,25 +453,25 @@ class Migrator(object):
     def get_flow_run_events(self, flow_run_id) -> list:
         count_query = self.make_query_one(
             query_string=f"SELECT count(ffs.*) FROM public.flows_flowstep as ffs INNER JOIN public.flows_flowrun as ffr "
-                         f"ON (ffs.run_id = ffr.id) INNER JOIN public.flows_flowstep_messages as ffsm "
-                         f"ON (ffs.id = ffsm.flowstep_id) INNER JOIN public.msgs_msg as mm "
-                         f"ON (ffsm.msg_id = mm.id) INNER JOIN public.contacts_contact as cc "
-                         f"ON (mm.contact_id = cc.id) INNER JOIN public.contacts_contacturn as ccu "
-                         f"ON (cc.id = ccu.contact_id) INNER JOIN public.channels_channel as cch "
-                         f"ON (mm.channel_id = cch.id) WHERE ffr.id = {flow_run_id}"
+            f"ON (ffs.run_id = ffr.id) INNER JOIN public.flows_flowstep_messages as ffsm "
+            f"ON (ffs.id = ffsm.flowstep_id) INNER JOIN public.msgs_msg as mm "
+            f"ON (ffsm.msg_id = mm.id) INNER JOIN public.contacts_contact as cc "
+            f"ON (mm.contact_id = cc.id) INNER JOIN public.contacts_contacturn as ccu "
+            f"ON (cc.id = ccu.contact_id) INNER JOIN public.channels_channel as cch "
+            f"ON (mm.channel_id = cch.id) WHERE ffr.id = {flow_run_id}"
         )
         return self.get_results_paginated(
-                query_string=f"SELECT ffs.arrived_on, ffs.step_uuid, mm.uuid as msg_uuid, mm.text as msg_text, mm.direction as msg_direction, "
-                             f"cc.name as contact_name, cc.uuid as contact_uuid, ccu.path as urn_path, "
-                             f"ccu.scheme as urn_scheme, cch.uuid as channel_uuid, cch.name as channel_name "
-                             f"FROM public.flows_flowstep as ffs INNER JOIN public.flows_flowrun as ffr "
-                             f"ON (ffs.run_id = ffr.id) INNER JOIN public.flows_flowstep_messages as ffsm "
-                             f"ON (ffs.id = ffsm.flowstep_id) INNER JOIN public.msgs_msg as mm "
-                             f"ON (ffsm.msg_id = mm.id) INNER JOIN public.contacts_contact as cc "
-                             f"ON (mm.contact_id = cc.id) INNER JOIN public.contacts_contacturn as ccu "
-                             f"ON (cc.id = ccu.contact_id) INNER JOIN public.channels_channel as cch "
-                             f"ON (mm.channel_id = cch.id) WHERE ffr.id = {flow_run_id}",
-                count=count_query.count,
+            query_string=f"SELECT ffs.arrived_on, ffs.step_uuid, mm.uuid as msg_uuid, mm.text as msg_text, mm.direction as msg_direction, "
+            f"cc.name as contact_name, cc.uuid as contact_uuid, ccu.path as urn_path, "
+            f"ccu.scheme as urn_scheme, cch.uuid as channel_uuid, cch.name as channel_name "
+            f"FROM public.flows_flowstep as ffs INNER JOIN public.flows_flowrun as ffr "
+            f"ON (ffs.run_id = ffr.id) INNER JOIN public.flows_flowstep_messages as ffsm "
+            f"ON (ffs.id = ffsm.flowstep_id) INNER JOIN public.msgs_msg as mm "
+            f"ON (ffsm.msg_id = mm.id) INNER JOIN public.contacts_contact as cc "
+            f"ON (mm.contact_id = cc.id) INNER JOIN public.contacts_contacturn as ccu "
+            f"ON (cc.id = ccu.contact_id) INNER JOIN public.channels_channel as cch "
+            f"ON (mm.channel_id = cch.id) WHERE ffr.id = {flow_run_id}",
+            count=count_query.count,
         )
 
     def get_org_resthooks(self) -> (list, int):
@@ -579,7 +579,9 @@ class Migrator(object):
             count=count,
         )
 
-    def get_msg_relationships(self, response_to_id, channel_id, contact_id, contact_urn_id, broadcast_id, topup_id, migration_task_id):
+    def get_msg_relationships(
+        self, response_to_id, channel_id, contact_id, contact_urn_id, broadcast_id, topup_id, migration_task_id
+    ):
         response_to_id = "null" if not response_to_id else response_to_id
         channel_id = "null" if not channel_id else channel_id
         contact_id = "null" if not contact_id else contact_id
@@ -587,14 +589,16 @@ class Migrator(object):
         broadcast_id = "null" if not broadcast_id else broadcast_id
         topup_id = "null" if not topup_id else topup_id
 
-        query_string = f"SELECT new_id as contact_id,"\
-                       f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {channel_id} AND model = 'channels_channel') as channel_id,"\
-                       f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {response_to_id} AND model = 'msgs_msg') as response_to_id,"\
-                       f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {contact_urn_id} AND model = 'contacts_contacturn') as contact_urn_id,"\
-                       f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {broadcast_id} AND model = 'msgs_broadcast') as broadcast_id,"\
-                       f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {topup_id} AND model = 'orgs_topups') as topup_id "\
-                       f"FROM public.migrator_migrationassociation "\
-                       f"WHERE old_id = {contact_id} AND model = 'contacts_contact' AND migration_task_id = {migration_task_id}"
+        query_string = (
+            f"SELECT new_id as contact_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {channel_id} AND model = 'channels_channel' AND migration_task_id = {migration_task_id}) as channel_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {response_to_id} AND model = 'msgs_msg' AND migration_task_id = {migration_task_id}) as response_to_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {contact_urn_id} AND model = 'contacts_contacturn' AND migration_task_id = {migration_task_id}) as contact_urn_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {broadcast_id} AND model = 'msgs_broadcast' AND migration_task_id = {migration_task_id}) as broadcast_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {topup_id} AND model = 'orgs_topups' AND migration_task_id = {migration_task_id}) as topup_id "
+            f"FROM public.migrator_migrationassociation "
+            f"WHERE old_id = {contact_id} AND model = 'contacts_contact' AND migration_task_id = {migration_task_id}"
+        )
 
         obj = self.make_query_one_local(query_string=query_string)
 
@@ -606,4 +610,3 @@ class Migrator(object):
         topup_id = obj.topup_id if hasattr(obj, "topup_id") else None
 
         return response_to_id, channel_id, contact_id, contact_urn_id, broadcast_id, topup_id
-

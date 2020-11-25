@@ -67,9 +67,20 @@ class MigrationTask(TembaModel):
 
     status = models.CharField(max_length=1, default=STATUS_PENDING, choices=STATUS_CHOICES)
 
+    start_from = models.IntegerField(default=0, null=True, help_text="Step to start from")
+
+    migration_related_uuid = models.CharField(max_length=100, help_text="The UUID of the related migration", null=True)
+
     @classmethod
-    def create(cls, org, user, migration_org):
-        return cls.objects.create(org=org, migration_org=migration_org, created_by=user, modified_by=user)
+    def create(cls, org, user, migration_org, start_from, migration_related_uuid):
+        return cls.objects.create(
+            org=org,
+            migration_org=migration_org,
+            created_by=user,
+            modified_by=user,
+            start_from=start_from,
+            migration_related_uuid=migration_related_uuid,
+        )
 
     def update_status(self, status):
         self.status = status
@@ -91,313 +102,356 @@ class MigrationTask(TembaModel):
         migrator = Migrator(org_id=self.migration_org)
 
         try:
-            logger.info("---------------- Organization ----------------")
-            logger.info("[STARTED] Organization data migration")
-
             org_data = migrator.get_org()
             if not org_data:
                 logger.info("[ERROR] No organization data found")
                 self.update_status(self.STATUS_FAILED)
                 return
 
-            self.update_org(org_data)
-            logger.info("[COMPLETED] Organization data migration")
-            logger.info("")
-
-            logger.info("---------------- TopUps ----------------")
-            logger.info("[STARTED] TopUps migration")
-
-            # Inactivating all org topups before importing the ones from Live server
-            TopUp.objects.filter(is_active=True, org=self.org).update(is_active=False)
-
-            org_topups, topup_count = migrator.get_org_topups()
-            if org_topups:
-                self.add_topups(logger=logger, topups=org_topups, migrator=migrator, count=topup_count)
-
-            logger.info("[COMPLETED] TopUps migration")
-            logger.info("")
-
-            logger.info("---------------- Languages ----------------")
-            logger.info("[STARTED] Languages migration")
-
-            # Inactivating all org languages before importing the ones from Live server
-            self.org.primary_language = None
-            self.org.save(update_fields=["primary_language"])
-
-            Language.objects.filter(is_active=True, org=self.org).delete()
-
-            org_languages, languages_count = migrator.get_org_languages()
-            if org_languages:
-                self.add_languages(logger=logger, languages=org_languages, count=languages_count)
-
-                if org_data.primary_language_id:
-                    org_primary_language = MigrationAssociation.get_new_object(
-                        model=MigrationAssociation.MODEL_ORG_LANGUAGE, old_id=org_data.primary_language_id
-                    )
-                    self.org.primary_language = org_primary_language
-                    self.org.save(update_fields=["primary_language"])
-
-            logger.info("[COMPLETED] Languages migration")
-            logger.info("")
-
-            logger.info("---------------- Channels ----------------")
-            logger.info("[STARTED] Channels migration")
-
-            # Inactivating all org channels before importing the ones from Live server
-            existing_channels = Channel.objects.filter(org=self.org)
-            for channel in existing_channels:
-                channel.uuid = generate_uuid()
-                channel.secret = None
-                channel.parent = None
-                channel.is_active = False
-                channel.save(update_fields=["uuid", "secret", "is_active", "parent"])
-
-                Trigger.objects.filter(channel=channel, org=self.org).update(is_active=False)
-
-            channels_removed = []
-            org_channels, channels_count = migrator.get_org_channels()
-            if org_channels:
-                self.add_channels(logger=logger, channels=org_channels, migrator=migrator, count=channels_count, channels_removed=channels_removed)
-
-            logger.info("[COMPLETED] Channels migration")
-            logger.info("")
-
-            logger.info("---------------- Contact Fields ----------------")
-            logger.info("[STARTED] Contact Fields migration")
-
-            org_contact_fields, fields_count = migrator.get_org_contact_fields()
-            if org_contact_fields:
-                self.add_contact_fields(logger=logger, fields=org_contact_fields, count=fields_count)
-
-            logger.info("[COMPLETED] Contact Fields migration")
-            logger.info("")
-
-            logger.info("---------------- Contacts ----------------")
-            logger.info("[STARTED] Contacts migration")
-
-            org_contacts, contacts_count = migrator.get_org_contacts()
-            if org_contacts:
-                self.add_contacts(logger=logger, contacts=org_contacts, migrator=migrator, count=contacts_count)
-
-            logger.info("[COMPLETED] Contacts migration")
-            logger.info("")
-
-            logger.info("---------------- Contact Groups ----------------")
-            logger.info("[STARTED] Contact Groups migration")
-
-            # Releasing current contact groups
-            contact_groups = ContactGroup.user_groups.filter(org=self.org).only("id", "uuid").order_by("id")
-            for contact_group in contact_groups:
-                contact_group.release()
-                contact_group.uuid = generate_uuid()
-                contact_group.save(update_fields=["uuid"])
-
-            org_contact_groups, contact_groups_count = migrator.get_org_contact_groups()
-            if org_contact_groups:
-                self.add_contact_groups(
-                    logger=logger, groups=org_contact_groups, migrator=migrator, count=contact_groups_count
-                )
-
-            logger.info("[COMPLETED] Contact Groups migration")
-            logger.info("")
-
-            logger.info("---------------- Channel Events ----------------")
-            logger.info("[STARTED] Channel Events migration")
-
-            # Removing all channel events before importing them from live server
-            ChannelEvent.objects.filter(org=self.org).delete()
-
-            org_channel_events, channel_events_count = migrator.get_org_channel_events()
-            if org_channel_events:
-                self.add_channel_events(logger=logger, channel_events=org_channel_events, count=channel_events_count)
-
-            logger.info("[COMPLETED] Channel Events migration")
-            logger.info("")
-
-            logger.info("---------------- Schedules ----------------")
-            logger.info("[STARTED] Schedules migration")
-
-            # Inactivating all schedules before the migration as we can re-run the script to re-import the schedules
-            Schedule.objects.filter(org=self.org, is_active=True).update(is_active=False)
-
-            org_trigger_schedules, trigger_schedules_count = migrator.get_org_trigger_schedules()
-            if org_trigger_schedules:
-                self.add_schedules(logger=logger, schedules=org_trigger_schedules, count=trigger_schedules_count)
-
-            logger.info("[COMPLETED] Trigger schedules migration")
-            logger.info("[STARTED] Broadcast schedules migration")
-
-            org_broadcast_schedules, broadcast_schedules_count = migrator.get_org_broadcast_schedules()
-            if org_broadcast_schedules:
-                self.add_schedules(logger=logger, schedules=org_broadcast_schedules, count=broadcast_schedules_count)
-
-            logger.info("[COMPLETED] Schedules migration")
-            logger.info("")
-
-            logger.info("---------------- Msg Broadcasts ----------------")
-            logger.info("[STARTED] Msg Broadcasts migration")
-
-            Broadcast.objects.filter(org=self.org, is_active=True).update(is_active=False)
-
-            org_msg_broadcasts, msg_broadcast_count = migrator.get_org_msg_broadcasts()
-            if org_msg_broadcasts:
-                self.add_msg_broadcasts(
-                    logger=logger, msg_broadcasts=org_msg_broadcasts, migrator=migrator, count=msg_broadcast_count
-                )
-
-            logger.info("[COMPLETED] Msg Broadcasts migration")
-            logger.info("")
-
-            logger.info("---------------- Msg Labels ----------------")
-            logger.info("[STARTED] Msg Labels migration")
-
-            org_msg_folders, folders_count = migrator.get_org_msg_labels(label_type="F")
-            if org_msg_folders:
-                self.add_msg_folders(logger=logger, folders=org_msg_folders, count=folders_count)
-
-            org_msg_labels, labels_count = migrator.get_org_msg_labels(label_type="L")
-            if org_msg_labels:
-                self.add_msg_labels(logger=logger, labels=org_msg_labels, count=labels_count)
-
-            logger.info("[COMPLETED] Msg Labels migration")
-            logger.info("")
-
-            logger.info("---------------- Msgs ----------------")
-            logger.info("[STARTED] Msgs migration")
-
-            all_org_msgs = Msg.objects.filter(org=self.org).only("id").order_by("id")
-            for msg in all_org_msgs:
-                msg.release(delete_reason=None)
-
-            org_msgs, msgs_count = migrator.get_org_msgs()
-            if org_msgs:
-                self.add_msgs(logger=logger, msgs=org_msgs, migrator=migrator, count=msgs_count)
-
-            logger.info("[COMPLETED] Msgs migration")
-            logger.info("")
-
-            logger.info("---------------- Channel Logs ----------------")
-            logger.info("[STARTED] Channel Logs migration")
-
-            if org_channels:
-                self.add_channel_logs(logger=logger, channels=org_channels, migrator=migrator)
-
-            logger.info("[COMPLETED] Channel Logs migration")
-            logger.info("")
-
-            logger.info("---------------- Flow Labels ----------------")
-            logger.info("[STARTED] Flow Labels migration")
-
-            org_flow_labels, flow_labels_count = migrator.get_org_flow_labels()
-            if org_flow_labels:
-                self.add_flow_labels(logger=logger, labels=org_flow_labels, count=flow_labels_count)
-
-            logger.info("[COMPLETED] Flow Labels migration")
-            logger.info("")
-
-            logger.info("---------------- Flows ----------------")
-            logger.info("[STARTED] Flows migration")
-
             inactive_flows = []
-            org_flows, flows_count = migrator.get_org_flows()
-            if org_flows:
-                self.add_flows(
-                    logger=logger, flows=org_flows, migrator=migrator, count=flows_count, inactive_flows=inactive_flows
-                )
+            channels_removed = []
 
-            logger.info("[COMPLETED] Flows migration")
-            logger.info("")
+            if self.start_from == 0:
+                logger.info("---------------- Organization ----------------")
+                logger.info("[STARTED] Organization data migration")
 
-            logger.info("---------------- Resthooks ----------------")
-            logger.info("[STARTED] Resthooks migration")
+                self.update_org(org_data)
+                logger.info("[COMPLETED] Organization data migration")
+                logger.info("")
 
-            all_org_resthooks = Resthook.objects.filter(org=self.org).only("id").order_by("id")
-            for rh in all_org_resthooks:
-                rh.release(user=self.created_by)
+                logger.info("---------------- TopUps ----------------")
+                logger.info("[STARTED] TopUps migration")
 
-            org_resthooks, resthooks_count = migrator.get_org_resthooks()
-            if org_resthooks:
-                self.add_resthooks(logger=logger, resthooks=org_resthooks, migrator=migrator, count=resthooks_count)
+                # Inactivating all org topups before importing the ones from Live server
+                TopUp.objects.filter(is_active=True, org=self.org).update(is_active=False)
 
-            logger.info("[COMPLETED] Resthooks migration")
-            logger.info("")
+                org_topups, topup_count = migrator.get_org_topups()
+                if org_topups:
+                    self.add_topups(logger=logger, topups=org_topups, migrator=migrator, count=topup_count)
 
-            logger.info("---------------- Webhook Events ----------------")
-            logger.info("[STARTED] Webhooks migration")
+                logger.info("[COMPLETED] TopUps migration")
+                logger.info("")
 
-            # Releasing webhook logs before migrate them
-            all_org_webhook_events = WebHookEvent.objects.filter(org=self.org).only("id").order_by("id")
-            for we in all_org_webhook_events:
-                we.release()
+                logger.info("---------------- Languages ----------------")
+                logger.info("[STARTED] Languages migration")
 
-            all_webhook_event_results = WebHookResult.objects.filter(org=self.org).only("id").order_by("id")
-            for wer in all_webhook_event_results:
-                wer.release()
+                # Inactivating all org languages before importing the ones from Live server
+                self.org.primary_language = None
+                self.org.save(update_fields=["primary_language"])
 
-            org_webhook_events, webhook_events_count = migrator.get_org_webhook_events()
-            if org_webhook_events:
-                self.add_webhook_events(
-                    logger=logger, webhook_events=org_webhook_events, migrator=migrator, count=webhook_events_count
-                )
+                Language.objects.filter(is_active=True, org=self.org).delete()
 
-            logger.info("[COMPLETED] Webhook Events migration")
-            logger.info("")
+                org_languages, languages_count = migrator.get_org_languages()
+                if org_languages:
+                    self.add_languages(logger=logger, languages=org_languages, count=languages_count)
 
-            logger.info("---------------- Campaigns ----------------")
-            logger.info("[STARTED] Campaigns migration")
+                    if org_data.primary_language_id:
+                        org_primary_language = MigrationAssociation.get_new_object(
+                            model=MigrationAssociation.MODEL_ORG_LANGUAGE,
+                            old_id=org_data.primary_language_id,
+                            migration_task_uuid=self.migration_related_uuid
+                            if self.migration_related_uuid
+                            else self.uuid,
+                        )
+                        self.org.primary_language = org_primary_language
+                        self.org.save(update_fields=["primary_language"])
 
-            org_campaigns, campaigns_count = migrator.get_org_campaigns()
-            if org_campaigns:
-                self.add_campaigns(logger=logger, campaigns=org_campaigns, migrator=migrator, count=campaigns_count)
+                logger.info("[COMPLETED] Languages migration")
+                logger.info("")
 
-            logger.info("[COMPLETED] Campaigns migration")
-            logger.info("")
+            org_channels = []
+            if self.start_from <= 1:
+                logger.info("---------------- Channels ----------------")
+                logger.info("[STARTED] Channels migration")
 
-            logger.info("---------------- Triggers ----------------")
-            logger.info("[STARTED] Triggers migration")
+                # Inactivating all org channels before importing the ones from Live server
+                existing_channels = Channel.objects.filter(org=self.org)
+                for channel in existing_channels:
+                    channel.uuid = generate_uuid()
+                    channel.secret = None
+                    channel.parent = None
+                    channel.is_active = False
+                    channel.save(update_fields=["uuid", "secret", "is_active", "parent"])
 
-            # Releasing triggers before importing them from live server
-            triggers = Trigger.objects.filter(org=self.org, is_active=True)
-            for t in triggers:
-                t.release()
+                    Trigger.objects.filter(channel=channel, org=self.org).update(is_active=False)
 
-            org_triggers, triggers_count = migrator.get_org_triggers()
-            if org_triggers:
-                self.add_triggers(logger=logger, triggers=org_triggers, migrator=migrator, count=triggers_count)
+                org_channels, channels_count = migrator.get_org_channels()
+                if org_channels:
+                    self.add_channels(
+                        logger=logger,
+                        channels=org_channels,
+                        migrator=migrator,
+                        count=channels_count,
+                        channels_removed=channels_removed,
+                    )
 
-            logger.info("[COMPLETED] Triggers migration")
-            logger.info("")
+                logger.info("[COMPLETED] Channels migration")
+                logger.info("")
 
-            logger.info("---------------- Trackable Links ----------------")
-            logger.info("[STARTED] Trackable Links migration")
+            if self.start_from <= 2:
+                logger.info("---------------- Contact Fields ----------------")
+                logger.info("[STARTED] Contact Fields migration")
 
-            # Releasing links from this org before importing them from live server
-            Link.objects.filter(org=self.org).delete()
+                org_contact_fields, fields_count = migrator.get_org_contact_fields()
+                if org_contact_fields:
+                    self.add_contact_fields(logger=logger, fields=org_contact_fields, count=fields_count)
 
-            org_links, links_count = migrator.get_org_links()
-            if org_links:
-                self.add_links(logger=logger, links=org_links, migrator=migrator, count=links_count)
+                logger.info("[COMPLETED] Contact Fields migration")
+                logger.info("")
 
-            logger.info("[COMPLETED] Trackable Links migration")
-            logger.info("")
+            if self.start_from <= 3:
+                logger.info("---------------- Contacts ----------------")
+                logger.info("[STARTED] Contacts migration")
 
-            logger.info("---------------- Parse Data ----------------")
-            logger.info("[STARTED] Parse Data migration")
+                org_contacts, contacts_count = migrator.get_org_contacts()
+                if org_contacts:
+                    self.add_contacts(logger=logger, contacts=org_contacts, migrator=migrator, count=contacts_count)
 
-            org_config = json.loads(org_data.config) if org_data.config else dict()
+                logger.info("[COMPLETED] Contacts migration")
+                logger.info("")
 
-            logger.info(">>> Gift Card (You will receive an email for each collection imported)")
+            if self.start_from <= 4:
+                logger.info("---------------- Contact Groups ----------------")
+                logger.info("[STARTED] Contact Groups migration")
 
-            org_giftcards = org_config.get("GIFTCARDS", [])
-            self.add_parse_data(logger=logger, collections=org_giftcards, collection_type="giftcards")
+                # Releasing current contact groups
+                contact_groups = ContactGroup.user_groups.filter(org=self.org).only("id", "uuid").order_by("id")
+                for contact_group in contact_groups:
+                    contact_group.release()
+                    contact_group.uuid = generate_uuid()
+                    contact_group.save(update_fields=["uuid"])
 
-            logger.info(">>> Lookup (You will receive an email for each collection imported)")
+                org_contact_groups, contact_groups_count = migrator.get_org_contact_groups()
+                if org_contact_groups:
+                    self.add_contact_groups(
+                        logger=logger, groups=org_contact_groups, migrator=migrator, count=contact_groups_count
+                    )
 
-            org_lookups = org_config.get("LOOKUPS", [])
-            self.add_parse_data(logger=logger, collections=org_lookups, collection_type="lookups")
+                logger.info("[COMPLETED] Contact Groups migration")
+                logger.info("")
 
-            logger.info("[COMPLETED] Parse Data migration")
-            logger.info("")
+            if self.start_from <= 5:
+                logger.info("---------------- Channel Events ----------------")
+                logger.info("[STARTED] Channel Events migration")
+
+                # Removing all channel events before importing them from live server
+                ChannelEvent.objects.filter(org=self.org).delete()
+
+                org_channel_events, channel_events_count = migrator.get_org_channel_events()
+                if org_channel_events:
+                    self.add_channel_events(
+                        logger=logger, channel_events=org_channel_events, count=channel_events_count
+                    )
+
+                logger.info("[COMPLETED] Channel Events migration")
+                logger.info("")
+
+            if self.start_from <= 6:
+                logger.info("---------------- Schedules ----------------")
+                logger.info("[STARTED] Schedules migration")
+
+                # Inactivating all schedules before the migration as we can re-run the script to re-import the schedules
+                Schedule.objects.filter(org=self.org, is_active=True).update(is_active=False)
+
+                org_trigger_schedules, trigger_schedules_count = migrator.get_org_trigger_schedules()
+                if org_trigger_schedules:
+                    self.add_schedules(logger=logger, schedules=org_trigger_schedules, count=trigger_schedules_count)
+
+                logger.info("[COMPLETED] Trigger schedules migration")
+                logger.info("[STARTED] Broadcast schedules migration")
+
+                org_broadcast_schedules, broadcast_schedules_count = migrator.get_org_broadcast_schedules()
+                if org_broadcast_schedules:
+                    self.add_schedules(
+                        logger=logger, schedules=org_broadcast_schedules, count=broadcast_schedules_count
+                    )
+
+                logger.info("[COMPLETED] Schedules migration")
+                logger.info("")
+
+            if self.start_from <= 7:
+                logger.info("---------------- Msg Broadcasts ----------------")
+                logger.info("[STARTED] Msg Broadcasts migration")
+
+                Broadcast.objects.filter(org=self.org, is_active=True).update(is_active=False)
+
+                org_msg_broadcasts, msg_broadcast_count = migrator.get_org_msg_broadcasts()
+                if org_msg_broadcasts:
+                    self.add_msg_broadcasts(
+                        logger=logger, msg_broadcasts=org_msg_broadcasts, migrator=migrator, count=msg_broadcast_count
+                    )
+
+                logger.info("[COMPLETED] Msg Broadcasts migration")
+                logger.info("")
+
+            if self.start_from <= 8:
+                logger.info("---------------- Msg Labels ----------------")
+                logger.info("[STARTED] Msg Labels migration")
+
+                org_msg_folders, folders_count = migrator.get_org_msg_labels(label_type="F")
+                if org_msg_folders:
+                    self.add_msg_folders(logger=logger, folders=org_msg_folders, count=folders_count)
+
+                org_msg_labels, labels_count = migrator.get_org_msg_labels(label_type="L")
+                if org_msg_labels:
+                    self.add_msg_labels(logger=logger, labels=org_msg_labels, count=labels_count)
+
+                logger.info("[COMPLETED] Msg Labels migration")
+                logger.info("")
+
+            if self.start_from <= 9:
+                logger.info("---------------- Msgs ----------------")
+                logger.info("[STARTED] Msgs migration")
+
+                all_org_msgs = Msg.objects.filter(org=self.org).only("id").order_by("id")
+                for msg in all_org_msgs:
+                    msg.release(delete_reason=None)
+
+                org_msgs, msgs_count = migrator.get_org_msgs()
+                if org_msgs:
+                    self.add_msgs(logger=logger, msgs=org_msgs, migrator=migrator, count=msgs_count)
+
+                logger.info("[COMPLETED] Msgs migration")
+                logger.info("")
+
+            if self.start_from <= 1:
+                logger.info("---------------- Channel Logs ----------------")
+                logger.info("[STARTED] Channel Logs migration")
+
+                if org_channels:
+                    self.add_channel_logs(logger=logger, channels=org_channels, migrator=migrator)
+
+                logger.info("[COMPLETED] Channel Logs migration")
+                logger.info("")
+
+            if self.start_from <= 10:
+                logger.info("---------------- Flow Labels ----------------")
+                logger.info("[STARTED] Flow Labels migration")
+
+                org_flow_labels, flow_labels_count = migrator.get_org_flow_labels()
+                if org_flow_labels:
+                    self.add_flow_labels(logger=logger, labels=org_flow_labels, count=flow_labels_count)
+
+                logger.info("[COMPLETED] Flow Labels migration")
+                logger.info("")
+
+            if self.start_from <= 11:
+                logger.info("---------------- Flows ----------------")
+                logger.info("[STARTED] Flows migration")
+
+                org_flows, flows_count = migrator.get_org_flows()
+                if org_flows:
+                    self.add_flows(
+                        logger=logger,
+                        flows=org_flows,
+                        migrator=migrator,
+                        count=flows_count,
+                        inactive_flows=inactive_flows,
+                    )
+
+                logger.info("[COMPLETED] Flows migration")
+                logger.info("")
+
+            if self.start_from <= 12:
+                logger.info("---------------- Resthooks ----------------")
+                logger.info("[STARTED] Resthooks migration")
+
+                all_org_resthooks = Resthook.objects.filter(org=self.org).only("id").order_by("id")
+                for rh in all_org_resthooks:
+                    rh.release(user=self.created_by)
+
+                org_resthooks, resthooks_count = migrator.get_org_resthooks()
+                if org_resthooks:
+                    self.add_resthooks(
+                        logger=logger, resthooks=org_resthooks, migrator=migrator, count=resthooks_count
+                    )
+
+                logger.info("[COMPLETED] Resthooks migration")
+                logger.info("")
+
+            if self.start_from <= 13:
+                logger.info("---------------- Webhook Events ----------------")
+                logger.info("[STARTED] Webhooks migration")
+
+                # Releasing webhook logs before migrate them
+                all_org_webhook_events = WebHookEvent.objects.filter(org=self.org).only("id").order_by("id")
+                for we in all_org_webhook_events:
+                    we.release()
+
+                all_webhook_event_results = WebHookResult.objects.filter(org=self.org).only("id").order_by("id")
+                for wer in all_webhook_event_results:
+                    wer.release()
+
+                org_webhook_events, webhook_events_count = migrator.get_org_webhook_events()
+                if org_webhook_events:
+                    self.add_webhook_events(
+                        logger=logger, webhook_events=org_webhook_events, migrator=migrator, count=webhook_events_count
+                    )
+
+                logger.info("[COMPLETED] Webhook Events migration")
+                logger.info("")
+
+            if self.start_from <= 14:
+                logger.info("---------------- Campaigns ----------------")
+                logger.info("[STARTED] Campaigns migration")
+
+                org_campaigns, campaigns_count = migrator.get_org_campaigns()
+                if org_campaigns:
+                    self.add_campaigns(
+                        logger=logger, campaigns=org_campaigns, migrator=migrator, count=campaigns_count
+                    )
+
+                logger.info("[COMPLETED] Campaigns migration")
+                logger.info("")
+
+            if self.start_from <= 15:
+                logger.info("---------------- Triggers ----------------")
+                logger.info("[STARTED] Triggers migration")
+
+                # Releasing triggers before importing them from live server
+                triggers = Trigger.objects.filter(org=self.org, is_active=True)
+                for t in triggers:
+                    t.release()
+
+                org_triggers, triggers_count = migrator.get_org_triggers()
+                if org_triggers:
+                    self.add_triggers(logger=logger, triggers=org_triggers, migrator=migrator, count=triggers_count)
+
+                logger.info("[COMPLETED] Triggers migration")
+                logger.info("")
+
+            if self.start_from <= 16:
+                logger.info("---------------- Trackable Links ----------------")
+                logger.info("[STARTED] Trackable Links migration")
+
+                # Releasing links from this org before importing them from live server
+                Link.objects.filter(org=self.org).delete()
+
+                org_links, links_count = migrator.get_org_links()
+                if org_links:
+                    self.add_links(logger=logger, links=org_links, migrator=migrator, count=links_count)
+
+                logger.info("[COMPLETED] Trackable Links migration")
+                logger.info("")
+
+            if self.start_from <= 17:
+                logger.info("---------------- Parse Data ----------------")
+                logger.info("[STARTED] Parse Data migration")
+
+                org_config = json.loads(org_data.config) if org_data.config else dict()
+
+                logger.info(">>> Gift Card (You will receive an email for each collection imported)")
+
+                org_giftcards = org_config.get("GIFTCARDS", [])
+                self.add_parse_data(logger=logger, collections=org_giftcards, collection_type="giftcards")
+
+                logger.info(">>> Lookup (You will receive an email for each collection imported)")
+
+                org_lookups = org_config.get("LOOKUPS", [])
+                self.add_parse_data(logger=logger, collections=org_lookups, collection_type="lookups")
+
+                logger.info("[COMPLETED] Parse Data migration")
+                logger.info("")
 
             logger.info("UUIDs of the flows inactivated/deleted on 1.0:")
             logger.info(inactive_flows)
@@ -407,7 +461,19 @@ class MigrationTask(TembaModel):
             logger.info(channels_removed)
             logger.info("")
 
-            default_flows = Flow.objects.filter(org=self.org, name__in=["Sample Opt-in Flow", "Sample Flow - Order Status Checker", "Sample Flow - Simple Poll", "Sample Flow - Satisfaction Survey"]).order_by("created_on").values("uuid")[:4]
+            default_flows = (
+                Flow.objects.filter(
+                    org=self.org,
+                    name__in=[
+                        "Sample Opt-in Flow",
+                        "Sample Flow - Order Status Checker",
+                        "Sample Flow - Simple Poll",
+                        "Sample Flow - Satisfaction Survey",
+                    ],
+                )
+                .order_by("created_on")
+                .values("uuid")[:4]
+            )
             v2_default_flows = [item.get("uuid") for item in default_flows]
 
             logger.info("UUIDs of the default flows of this 2.0 organization:")
@@ -425,7 +491,8 @@ class MigrationTask(TembaModel):
             logger.error(f"[ERROR] {str(e)}", exc_info=True)
             self.update_status(self.STATUS_FAILED)
         finally:
-            self.remove_association()
+            # self.remove_association()
+            pass
 
     def update_org(self, org_data):
         self.org.plan = org_data.plan
@@ -455,7 +522,9 @@ class MigrationTask(TembaModel):
 
         if org_data.parent_id:
             new_org_parent_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_ORG, old_id=org_data.parent_id
+                model=MigrationAssociation.MODEL_ORG,
+                old_id=org_data.parent_id,
+                migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
             )
             if new_org_parent_obj:
                 self.org.parent = new_org_parent_obj
@@ -474,8 +543,14 @@ class MigrationTask(TembaModel):
             ]
         )
 
+        self_migration_task = (
+            MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+        )
         MigrationAssociation.create(
-            migration_task=self, old_id=org_data.id, new_id=self.org.id, model=MigrationAssociation.MODEL_ORG
+            migration_task=self_migration_task,
+            old_id=org_data.id,
+            new_id=self.org.id,
+            model=MigrationAssociation.MODEL_ORG,
         )
 
     def add_topups(self, logger, topups, migrator, count):
@@ -492,8 +567,14 @@ class MigrationTask(TembaModel):
             new_topup.modified_on = topup.modified_on
             new_topup.save(update_fields=["created_on", "modified_on"])
 
+            self_migration_task = (
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+            )
             MigrationAssociation.create(
-                migration_task=self, old_id=topup.id, new_id=new_topup.id, model=MigrationAssociation.MODEL_ORG_TOPUP
+                migration_task=self_migration_task,
+                old_id=topup.id,
+                new_id=new_topup.id,
+                model=MigrationAssociation.MODEL_ORG_TOPUP,
             )
 
             org_topup_credits = migrator.get_org_topups_credit(topup_id=topup.id)
@@ -510,8 +591,12 @@ class MigrationTask(TembaModel):
                 org=self.org, user=self.created_by, name=language.name, iso_code=language.iso_code
             )
 
+            self_migration_task = (
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+            )
+
             MigrationAssociation.create(
-                migration_task=self,
+                migration_task=self_migration_task,
                 old_id=language.id,
                 new_id=new_language.id,
                 model=MigrationAssociation.MODEL_ORG_LANGUAGE,
@@ -573,8 +658,15 @@ class MigrationTask(TembaModel):
                 tps=settings.COURIER_DEFAULT_TPS,
             )
 
+            self_migration_task = (
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+            )
+
             MigrationAssociation.create(
-                migration_task=self, old_id=channel.id, new_id=new_channel.id, model=MigrationAssociation.MODEL_CHANNEL
+                migration_task=self_migration_task,
+                old_id=channel.id,
+                new_id=new_channel.id,
+                model=MigrationAssociation.MODEL_CHANNEL,
             )
 
             # Trying to remove channel counting to avoid discrepancy on messages number on org dashboard page
@@ -609,18 +701,24 @@ class MigrationTask(TembaModel):
             logger.info(f">>> [{idx}/{count}] Channel Event: {event.id} - {event.event_type}")
 
             new_contact_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_CONTACT, old_id=event.contact_id
+                model=MigrationAssociation.MODEL_CONTACT,
+                old_id=event.contact_id,
+                migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
             )
 
             if not new_contact_obj:
                 continue
 
             new_contact_urn_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_CONTACT_URN, old_id=event.contact_urn_id
+                model=MigrationAssociation.MODEL_CONTACT_URN,
+                old_id=event.contact_urn_id,
+                migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
             )
 
             new_channel_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_CHANNEL, old_id=event.channel_id
+                model=MigrationAssociation.MODEL_CHANNEL,
+                old_id=event.channel_id,
+                migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
             )
 
             if not new_channel_obj:
@@ -642,7 +740,9 @@ class MigrationTask(TembaModel):
             channel_logs, channel_logs_count = migrator.get_channel_logs(channel_id=channel.id)
 
             new_channel_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_CHANNEL, old_id=channel.id
+                model=MigrationAssociation.MODEL_CHANNEL,
+                old_id=channel.id,
+                migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
             )
 
             if not new_channel_obj:
@@ -659,7 +759,9 @@ class MigrationTask(TembaModel):
                 new_msg_obj = None
                 if channel_log.msg_id:
                     new_msg_obj = MigrationAssociation.get_new_object(
-                        model=MigrationAssociation.MODEL_MSG, old_id=channel_log.msg_id
+                        model=MigrationAssociation.MODEL_MSG,
+                        old_id=channel_log.msg_id,
+                        migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                     )
 
                 new_channel_log = ChannelLog.objects.create(
@@ -701,8 +803,12 @@ class MigrationTask(TembaModel):
                 new_contact_field.uuid = field.uuid
                 new_contact_field.save(update_fields=["uuid"])
 
+            self_migration_task = (
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+            )
+
             MigrationAssociation.create(
-                migration_task=self,
+                migration_task=self_migration_task,
                 old_id=field.id,
                 new_id=new_contact_field.id,
                 model=MigrationAssociation.MODEL_CONTACT_FIELD,
@@ -740,8 +846,12 @@ class MigrationTask(TembaModel):
                 handle_update=True,
             )
 
+            self_migration_task = (
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+            )
+
             MigrationAssociation.create(
-                migration_task=self,
+                migration_task=self_migration_task,
                 old_id=contact.id,
                 new_id=existing_contact.id,
                 model=MigrationAssociation.MODEL_CONTACT,
@@ -750,7 +860,9 @@ class MigrationTask(TembaModel):
             values = migrator.get_values_value(contact_id=contact.id)
             for item in values:
                 new_field_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_FIELD, old_id=item.contact_field_id
+                    model=MigrationAssociation.MODEL_CONTACT_FIELD,
+                    old_id=item.contact_field_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
                 if new_field_obj:
                     existing_contact.set_field(user=self.created_by, key=new_field_obj.key, value=item.string_value)
@@ -758,7 +870,9 @@ class MigrationTask(TembaModel):
             urns = migrator.get_contact_urns(contact_id=contact.id)
             for item in urns:
                 new_channel_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CHANNEL, old_id=item.channel_id
+                    model=MigrationAssociation.MODEL_CHANNEL,
+                    old_id=item.channel_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
 
                 identity = str(item.identity)
@@ -773,8 +887,14 @@ class MigrationTask(TembaModel):
                     auth=item.auth,
                 )
 
+                self_migration_task = (
+                    MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                    if self.migration_related_uuid
+                    else self
+                )
+
                 MigrationAssociation.create(
-                    migration_task=self,
+                    migration_task=self_migration_task,
                     old_id=item.id,
                     new_id=new_urn.id,
                     model=MigrationAssociation.MODEL_CONTACT_URN,
@@ -793,8 +913,12 @@ class MigrationTask(TembaModel):
                 contact_group.uuid = group.uuid
                 contact_group.save(update_fields=["uuid"])
 
+            self_migration_task = (
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+            )
+
             MigrationAssociation.create(
-                migration_task=self,
+                migration_task=self_migration_task,
                 old_id=group.id,
                 new_id=contact_group.id,
                 model=MigrationAssociation.MODEL_CONTACT_GROUP,
@@ -803,7 +927,9 @@ class MigrationTask(TembaModel):
             contactgroup_contacts = migrator.get_contactgroups_contacts(contactgroup_id=group.id)
             for item in contactgroup_contacts:
                 new_contact_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT, old_id=item.contact_id
+                    model=MigrationAssociation.MODEL_CONTACT,
+                    old_id=item.contact_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
                 if new_contact_obj and not contact_group.is_dynamic:
                     contact_group.update_contacts(user=self.created_by, contacts=[new_contact_obj], add=True)
@@ -850,8 +976,12 @@ class MigrationTask(TembaModel):
                 last_fire=schedule.last_fire,
             )
 
+            self_migration_task = (
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+            )
+
             MigrationAssociation.create(
-                migration_task=self,
+                migration_task=self_migration_task,
                 old_id=schedule.id,
                 new_id=new_schedule_obj.id,
                 model=MigrationAssociation.MODEL_SCHEDULE,
@@ -863,7 +993,9 @@ class MigrationTask(TembaModel):
 
             new_channel_obj = (
                 MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CHANNEL, old_id=broadcast.channel_id
+                    model=MigrationAssociation.MODEL_CHANNEL,
+                    old_id=broadcast.channel_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
                 if broadcast.channel_id
                 else None
@@ -871,7 +1003,9 @@ class MigrationTask(TembaModel):
 
             new_schedule_obj = (
                 MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_SCHEDULE, old_id=broadcast.schedule_id
+                    model=MigrationAssociation.MODEL_SCHEDULE,
+                    old_id=broadcast.schedule_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
                 if broadcast.schedule_id
                 else None
@@ -879,7 +1013,9 @@ class MigrationTask(TembaModel):
 
             new_broadcast_parent_obj = (
                 MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_MSG_BROADCAST, old_id=broadcast.parent_id
+                    model=MigrationAssociation.MODEL_MSG_BROADCAST,
+                    old_id=broadcast.parent_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
                 if broadcast.parent_id
                 else None
@@ -906,8 +1042,12 @@ class MigrationTask(TembaModel):
                 metadata=json.loads(broadcast.metadata) if broadcast.metadata else dict(),
             )
 
+            self_migration_task = (
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+            )
+
             MigrationAssociation.create(
-                migration_task=self,
+                migration_task=self_migration_task,
                 old_id=broadcast.id,
                 new_id=new_broadcast_obj.id,
                 model=MigrationAssociation.MODEL_MSG_BROADCAST,
@@ -916,7 +1056,9 @@ class MigrationTask(TembaModel):
             broadcast_contacts = migrator.get_msg_broadcast_contacts(broadcast_id=broadcast.id)
             for item in broadcast_contacts:
                 new_contact_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT, old_id=item.contact_id
+                    model=MigrationAssociation.MODEL_CONTACT,
+                    old_id=item.contact_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
                 if new_contact_obj:
                     new_broadcast_obj.contacts.add(new_contact_obj)
@@ -924,7 +1066,9 @@ class MigrationTask(TembaModel):
             broadcast_groups = migrator.get_msg_broadcast_groups(broadcast_id=broadcast.id)
             for item in broadcast_groups:
                 new_group_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_GROUP, old_id=item.contactgroup_id
+                    model=MigrationAssociation.MODEL_CONTACT_GROUP,
+                    old_id=item.contactgroup_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
                 if new_group_obj:
                     new_broadcast_obj.groups.add(new_group_obj)
@@ -932,7 +1076,9 @@ class MigrationTask(TembaModel):
             broadcast_urns = migrator.get_msg_broadcast_urns(broadcast_id=broadcast.id)
             for item in broadcast_urns:
                 new_urn_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_URN, old_id=item.contacturn_id
+                    model=MigrationAssociation.MODEL_CONTACT_URN,
+                    old_id=item.contacturn_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
                 if new_urn_obj:
                     new_broadcast_obj.urns.add(new_urn_obj)
@@ -946,8 +1092,12 @@ class MigrationTask(TembaModel):
                 new_msg_folder.uuid = folder.uuid
                 new_msg_folder.save(update_fields=["uuid"])
 
+            self_migration_task = (
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+            )
+
             MigrationAssociation.create(
-                migration_task=self,
+                migration_task=self_migration_task,
                 old_id=folder.id,
                 new_id=new_msg_folder.id,
                 model=MigrationAssociation.MODEL_MSG_LABEL,
@@ -965,13 +1115,19 @@ class MigrationTask(TembaModel):
 
             if label.folder_id:
                 new_folder_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_MSG_LABEL, old_id=label.folder_id
+                    model=MigrationAssociation.MODEL_MSG_LABEL,
+                    old_id=label.folder_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
                 new_msg_label.folder = new_folder_obj
                 new_msg_label.save(update_fields=["folder"])
 
+            self_migration_task = (
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+            )
+
             MigrationAssociation.create(
-                migration_task=self,
+                migration_task=self_migration_task,
                 old_id=label.id,
                 new_id=new_msg_label.id,
                 model=MigrationAssociation.MODEL_MSG_LABEL,
@@ -985,14 +1141,21 @@ class MigrationTask(TembaModel):
 
             logger.info(f">>> [{idx}/{count}] Msg: {msg.uuid} - [{msg_direction}] {msg_text}")
 
-            (response_to_id, channel_id, contact_id, contact_urn_id, broadcast_id, topup_id) = migrator.get_msg_relationships(
+            (
+                response_to_id,
+                channel_id,
+                contact_id,
+                contact_urn_id,
+                broadcast_id,
+                topup_id,
+            ) = migrator.get_msg_relationships(
                 response_to_id=msg.response_to_id,
                 channel_id=msg.channel_id,
                 contact_id=msg.contact_id,
                 contact_urn_id=msg.contact_urn_id,
                 broadcast_id=msg.broadcast_id,
                 topup_id=msg.topup_id,
-                migration_task_id=self.id
+                migration_task_id=self.id,
             )
 
             if not contact_id:
@@ -1052,7 +1215,7 @@ class MigrationTask(TembaModel):
 
             all_msgs.append(new_msg)
 
-            if len(all_msgs) >= 1000:
+            if len(all_msgs) >= 5000:
                 Msg.objects.bulk_create(all_msgs)
                 all_msgs = []
 
@@ -1076,13 +1239,19 @@ class MigrationTask(TembaModel):
 
             if label.parent_id:
                 new_flow_label_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_FLOW_LABEL, old_id=label.parent_id
+                    model=MigrationAssociation.MODEL_FLOW_LABEL,
+                    old_id=label.parent_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
                 new_flow_label.parent = new_flow_label_obj
                 new_flow_label.save(update_fields=["parent"])
 
+            self_migration_task = (
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+            )
+
             MigrationAssociation.create(
-                migration_task=self,
+                migration_task=self_migration_task,
                 old_id=label.id,
                 new_id=new_flow_label.id,
                 model=MigrationAssociation.MODEL_FLOW_LABEL,
@@ -1175,8 +1344,15 @@ class MigrationTask(TembaModel):
 
                 new_flow.save(update_fields=["metadata"])
 
+            self_migration_task = (
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+            )
+
             MigrationAssociation.create(
-                migration_task=self, old_id=flow.id, new_id=new_flow.id, model=MigrationAssociation.MODEL_FLOW
+                migration_task=self_migration_task,
+                old_id=flow.id,
+                new_id=new_flow.id,
+                model=MigrationAssociation.MODEL_FLOW,
             )
 
             # Removing field dependencies before importing again
@@ -1185,7 +1361,9 @@ class MigrationTask(TembaModel):
             field_dependencies = migrator.get_flow_fields_dependencies(flow_id=flow.id)
             for item in field_dependencies:
                 new_field_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_FIELD, old_id=item.contactfield_id
+                    model=MigrationAssociation.MODEL_CONTACT_FIELD,
+                    old_id=item.contactfield_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
                 if new_field_obj:
                     new_flow.field_dependencies.add(new_field_obj)
@@ -1196,7 +1374,9 @@ class MigrationTask(TembaModel):
             group_dependencies = migrator.get_flow_group_dependencies(flow_id=flow.id)
             for item in group_dependencies:
                 new_group_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_GROUP, old_id=item.contactgroup_id
+                    model=MigrationAssociation.MODEL_CONTACT_GROUP,
+                    old_id=item.contactgroup_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
                 if new_group_obj:
                     new_flow.group_dependencies.add(new_group_obj)
@@ -1204,7 +1384,9 @@ class MigrationTask(TembaModel):
             flow_labels = migrator.get_flow_labels(flow_id=flow.id)
             for item in flow_labels:
                 new_label_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_FLOW_LABEL, old_id=item.flowlabel_id
+                    model=MigrationAssociation.MODEL_FLOW_LABEL,
+                    old_id=item.flowlabel_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
                 if new_label_obj:
                     new_flow.labels.add(new_label_obj)
@@ -1340,7 +1522,9 @@ class MigrationTask(TembaModel):
 
             for item in flow_images:
                 new_contact_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT, old_id=item.contact_id
+                    model=MigrationAssociation.MODEL_CONTACT,
+                    old_id=item.contact_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
 
                 if not new_contact_obj:
@@ -1397,7 +1581,7 @@ class MigrationTask(TembaModel):
             for item in flow_starts:
                 try:
                     extra = json.loads(item.extra)
-                except:
+                except Exception:
                     extra = dict()
 
                 new_flow_start = FlowStart.objects.create(
@@ -1415,8 +1599,14 @@ class MigrationTask(TembaModel):
                     contact_count=item.contact_count,
                 )
 
+                self_migration_task = (
+                    MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                    if self.migration_related_uuid
+                    else self
+                )
+
                 MigrationAssociation.create(
-                    migration_task=self,
+                    migration_task=self_migration_task,
                     old_id=item.id,
                     new_id=new_flow_start.id,
                     model=MigrationAssociation.MODEL_FLOW_START,
@@ -1425,7 +1615,9 @@ class MigrationTask(TembaModel):
                 flow_start_contacts = migrator.get_flow_start_contacts(flowstart_id=item.id)
                 for fsc in flow_start_contacts:
                     new_contact_obj = MigrationAssociation.get_new_object(
-                        model=MigrationAssociation.MODEL_CONTACT, old_id=fsc.contact_id
+                        model=MigrationAssociation.MODEL_CONTACT,
+                        old_id=fsc.contact_id,
+                        migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                     )
                     if new_contact_obj:
                         new_flow_start.contacts.add(new_contact_obj)
@@ -1433,7 +1625,9 @@ class MigrationTask(TembaModel):
                 flow_start_groups = migrator.get_flow_start_groups(flowstart_id=item.id)
                 for fsg in flow_start_groups:
                     new_group_obj = MigrationAssociation.get_new_object(
-                        model=MigrationAssociation.MODEL_CONTACT_GROUP, old_id=fsg.contactgroup_id
+                        model=MigrationAssociation.MODEL_CONTACT_GROUP,
+                        old_id=fsg.contactgroup_id,
+                        migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                     )
                     if new_group_obj:
                         new_flow_start.groups.add(new_group_obj)
@@ -1446,7 +1640,9 @@ class MigrationTask(TembaModel):
             flow_runs = migrator.get_flow_runs(flow_id=flow.id)
             for item in flow_runs:
                 new_contact_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT, old_id=item.contact_id
+                    model=MigrationAssociation.MODEL_CONTACT,
+                    old_id=item.contact_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
 
                 if not new_contact_obj:
@@ -1455,13 +1651,17 @@ class MigrationTask(TembaModel):
                 new_start_obj = None
                 if item.start_id:
                     new_start_obj = MigrationAssociation.get_new_object(
-                        model=MigrationAssociation.MODEL_FLOW_START, old_id=item.start_id
+                        model=MigrationAssociation.MODEL_FLOW_START,
+                        old_id=item.start_id,
+                        migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                     )
 
                 new_parent_obj = None
                 if item.parent_id:
                     new_parent_obj = MigrationAssociation.get_new_object(
-                        model=MigrationAssociation.MODEL_FLOW_RUN, old_id=item.parent_id
+                        model=MigrationAssociation.MODEL_FLOW_RUN,
+                        old_id=item.parent_id,
+                        migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                     )
 
                 run_path = dict()
@@ -1484,14 +1684,11 @@ class MigrationTask(TembaModel):
                             "urn": f"{scheme}:{step.urn_path}",
                             "text": f"{step.msg_text}",
                             "uuid": f"{step.msg_uuid}",
-                            "channel": {
-                                "name": f"{step.channel_name}",
-                                "uuid": f"{step.channel_uuid}"
-                            }
+                            "channel": {"name": f"{step.channel_name}", "uuid": f"{step.channel_uuid}"},
                         },
                         "type": "msg_created" if step.msg_direction == "O" else "msg_received",
                         "step_uuid": f"{step.step_uuid}",
-                        "created_on": f"{step.arrived_on}"
+                        "created_on": f"{step.arrived_on}",
                     }
                     flow_run_events.append(event)
 
@@ -1518,8 +1715,14 @@ class MigrationTask(TembaModel):
                     events=flow_run_events,
                 )
 
+                self_migration_task = (
+                    MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                    if self.migration_related_uuid
+                    else self
+                )
+
                 MigrationAssociation.create(
-                    migration_task=self,
+                    migration_task=self_migration_task,
                     old_id=item.id,
                     new_id=new_flow_run.id,
                     model=MigrationAssociation.MODEL_FLOW_RUN,
@@ -1527,11 +1730,17 @@ class MigrationTask(TembaModel):
 
     def add_flow_flow_dependencies(self, flows, migrator):
         for flow in flows:
-            new_flow_obj = MigrationAssociation.get_new_object(model=MigrationAssociation.MODEL_FLOW, old_id=flow.id)
+            new_flow_obj = MigrationAssociation.get_new_object(
+                model=MigrationAssociation.MODEL_FLOW,
+                old_id=flow.id,
+                migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
+            )
             flow_dependencies = migrator.get_flow_flow_dependencies(flow_id=flow.id)
             for item in flow_dependencies:
                 new_to_flow_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_FLOW, old_id=item.to_flow_id
+                    model=MigrationAssociation.MODEL_FLOW,
+                    old_id=item.to_flow_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
                 if new_flow_obj and new_to_flow_obj:
                     new_flow_obj.flow_dependencies.add(new_to_flow_obj)
@@ -1541,7 +1750,9 @@ class MigrationTask(TembaModel):
             logger.info(f">>> [{idx}/{count}] Campaign: {campaign.uuid} - {campaign.name}")
 
             new_group_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_CONTACT_GROUP, old_id=campaign.group_id
+                model=MigrationAssociation.MODEL_CONTACT_GROUP,
+                old_id=campaign.group_id,
+                migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
             )
 
             if not new_group_obj:
@@ -1577,8 +1788,12 @@ class MigrationTask(TembaModel):
                 new_campaign.is_archived = False
                 new_campaign.save(update_fields=["is_archived"])
 
+            self_migration_task = (
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+            )
+
             MigrationAssociation.create(
-                migration_task=self,
+                migration_task=self_migration_task,
                 old_id=campaign.id,
                 new_id=new_campaign.id,
                 model=MigrationAssociation.MODEL_CAMPAIGN,
@@ -1587,11 +1802,15 @@ class MigrationTask(TembaModel):
             campaign_events = migrator.get_campaign_events(campaign_id=campaign.id)
             for campaign_event in campaign_events:
                 new_contact_field_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_FIELD, old_id=campaign_event.relative_to_id
+                    model=MigrationAssociation.MODEL_CONTACT_FIELD,
+                    old_id=campaign_event.relative_to_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
 
                 new_flow_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_FLOW, old_id=campaign_event.flow_id
+                    model=MigrationAssociation.MODEL_FLOW,
+                    old_id=campaign_event.flow_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
 
                 if not new_contact_field_obj or not new_flow_obj:
@@ -1628,7 +1847,9 @@ class MigrationTask(TembaModel):
                 event_fires = migrator.get_event_fires(event_id=campaign_event.id)
                 for event_fire in event_fires:
                     new_contact_obj = MigrationAssociation.get_new_object(
-                        model=MigrationAssociation.MODEL_CONTACT, old_id=event_fire.contact_id
+                        model=MigrationAssociation.MODEL_CONTACT,
+                        old_id=event_fire.contact_id,
+                        migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                     )
 
                     if not new_contact_obj:
@@ -1646,7 +1867,9 @@ class MigrationTask(TembaModel):
             logger.info(f">>> [{idx}/{count}] Trigger: {trigger.id}")
 
             new_flow_obj = MigrationAssociation.get_new_object(
-                model=MigrationAssociation.MODEL_FLOW, old_id=trigger.flow_id
+                model=MigrationAssociation.MODEL_FLOW,
+                old_id=trigger.flow_id,
+                migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
             )
 
             if not new_flow_obj:
@@ -1655,13 +1878,17 @@ class MigrationTask(TembaModel):
             new_schedule_obj = None
             if trigger.schedule_id:
                 new_schedule_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_SCHEDULE, old_id=trigger.schedule_id
+                    model=MigrationAssociation.MODEL_SCHEDULE,
+                    old_id=trigger.schedule_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
 
             new_channel_obj = None
             if trigger.channel_id:
                 new_channel_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CHANNEL, old_id=trigger.channel_id
+                    model=MigrationAssociation.MODEL_CHANNEL,
+                    old_id=trigger.channel_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
 
             new_trigger = Trigger.objects.create(
@@ -1680,14 +1907,23 @@ class MigrationTask(TembaModel):
                 modified_on=trigger.modified_on,
             )
 
+            self_migration_task = (
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+            )
+
             MigrationAssociation.create(
-                migration_task=self, old_id=trigger.id, new_id=new_trigger.id, model=MigrationAssociation.MODEL_TRIGGER
+                migration_task=self_migration_task,
+                old_id=trigger.id,
+                new_id=new_trigger.id,
+                model=MigrationAssociation.MODEL_TRIGGER,
             )
 
             trigger_contacts = migrator.get_trigger_contacts(trigger_id=trigger.id)
             for item in trigger_contacts:
                 new_contact_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT, old_id=item.contact_id
+                    model=MigrationAssociation.MODEL_CONTACT,
+                    old_id=item.contact_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
                 if new_contact_obj:
                     new_trigger.contacts.add(new_contact_obj)
@@ -1695,7 +1931,9 @@ class MigrationTask(TembaModel):
             trigger_groups = migrator.get_trigger_groups(trigger_id=trigger.id)
             for item in trigger_groups:
                 new_group_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT_GROUP, old_id=item.contactgroup_id
+                    model=MigrationAssociation.MODEL_CONTACT_GROUP,
+                    old_id=item.contactgroup_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
                 if new_group_obj:
                     new_trigger.groups.add(new_group_obj)
@@ -1718,7 +1956,9 @@ class MigrationTask(TembaModel):
             link_contacts = migrator.get_link_contacts(link_id=link.id)
             for item in link_contacts:
                 new_contact_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_CONTACT, old_id=item.contact_id
+                    model=MigrationAssociation.MODEL_CONTACT,
+                    old_id=item.contact_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
 
                 if not new_contact_obj:
@@ -1745,8 +1985,12 @@ class MigrationTask(TembaModel):
                 modified_on=resthook.modified_on,
             )
 
+            self_migration_task = (
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+            )
+
             MigrationAssociation.create(
-                migration_task=self,
+                migration_task=self_migration_task,
                 old_id=resthook.id,
                 new_id=new_resthook.id,
                 model=MigrationAssociation.MODEL_RESTHOOK,
@@ -1770,7 +2014,9 @@ class MigrationTask(TembaModel):
             new_resthook_obj = None
             if event.resthook_id:
                 new_resthook_obj = MigrationAssociation.get_new_object(
-                    model=MigrationAssociation.MODEL_RESTHOOK, old_id=event.resthook_id
+                    model=MigrationAssociation.MODEL_RESTHOOK,
+                    old_id=event.resthook_id,
+                    migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                 )
 
             if not new_resthook_obj:
@@ -1789,7 +2035,9 @@ class MigrationTask(TembaModel):
                 new_contact_obj = None
                 if item.contact_id:
                     new_contact_obj = MigrationAssociation.get_new_object(
-                        model=MigrationAssociation.MODEL_CONTACT, old_id=item.contact_id
+                        model=MigrationAssociation.MODEL_CONTACT,
+                        old_id=item.contact_id,
+                        migration_task_uuid=self.migration_related_uuid if self.migration_related_uuid else self.uuid,
                     )
                 WebHookResult.objects.create(
                     org=self.org,
@@ -2058,9 +2306,9 @@ class MigrationAssociation(models.Model):
         )
 
     @classmethod
-    def get_new_object(cls, model, old_id):
+    def get_new_object(cls, model, old_id, migration_task_uuid):
         obj = (
-            MigrationAssociation.objects.filter(old_id=old_id, model=model)
+            MigrationAssociation.objects.filter(old_id=old_id, model=model, migration_task__uuid=migration_task_uuid)
             .only("new_id", "migration_task__org")
             .select_related("migration_task")
             .order_by("-id")
