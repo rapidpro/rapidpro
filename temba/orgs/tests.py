@@ -3165,32 +3165,49 @@ class OrgCRUDLTest(TembaTest):
         self.login(self.admin)
 
         # user with email Administrator@nyaruka.com already exists and we set a password
-        post_data = dict(
-            email="Administrator@nyaruka.com",
-            first_name="John",
-            last_name="Carmack",
-            name="Oculus",
-            timezone="Africa/Kigali",
-            credits="100000",
-            password="dukenukem",
+        response = self.client.post(
+            grant_url,
+            {
+                "email": "Administrator@nyaruka.com",
+                "first_name": "John",
+                "last_name": "Carmack",
+                "name": "Oculus",
+                "timezone": "Africa/Kigali",
+                "credits": "100000",
+                "password": "password",
+            },
         )
-        response = self.client.post(grant_url, post_data)
         self.assertFormError(response, "form", None, "Login already exists, please do not include password.")
 
+        # try to create a new user with empty password
+        response = self.client.post(
+            grant_url,
+            {
+                "email": "a_new_user@nyaruka.com",
+                "first_name": "John",
+                "last_name": "Carmack",
+                "name": "Oculus",
+                "timezone": "Africa/Kigali",
+                "credits": "100000",
+                "password": "",
+            },
+        )
+        self.assertFormError(response, "form", None, "Password required for new login.")
+
         # try to create a new user with invalid password
-        post_data = dict(
-            email="a_new_user@nyaruka.com",
-            first_name="John",
-            last_name="Carmack",
-            name="Oculus",
-            timezone="Africa/Kigali",
-            credits="100000",
-            password="no_pass",
+        response = self.client.post(
+            grant_url,
+            {
+                "email": "a_new_user@nyaruka.com",
+                "first_name": "John",
+                "last_name": "Carmack",
+                "name": "Oculus",
+                "timezone": "Africa/Kigali",
+                "credits": "100000",
+                "password": "password",
+            },
         )
-        response = self.client.post(grant_url, post_data)
-        self.assertFormError(
-            response, "form", None, "This password is too short. It must contain at least 8 characters."
-        )
+        self.assertFormError(response, "form", None, "This password is too common.")
 
     @patch("temba.orgs.views.OrgCRUDL.Signup.pre_process")
     def test_new_signup_with_user_logged_in(self, mock_pre_process):
