@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-18 21:37+0000\n"
+"POT-Creation-Date: 2020-11-26 19:49+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3566,8 +3566,10 @@ msgstr ""
 msgid "Edit Label"
 msgstr "Adicionar rótulo"
 
-msgid "Remove"
-msgstr "Remover"
+#, fuzzy
+#| msgid "Create Label"
+msgid "Delete Label"
+msgstr "Criar rótulo"
 
 #, fuzzy
 msgid "Start Flow"
@@ -4024,11 +4026,6 @@ msgstr "Atualizar campos"
 
 msgid "Send All"
 msgstr "Enviar todas"
-
-#, fuzzy
-#| msgid "Create Label"
-msgid "Delete Label"
-msgstr "Criar rótulo"
 
 msgid "Name must not be blank or begin with punctuation"
 msgstr ""
@@ -7838,11 +7835,6 @@ msgstr ""
 "para enviar mensagens para mais de 200 países."
 
 #, fuzzy
-#| msgid "Language"
-msgid "Change Language"
-msgstr "Linguagem"
-
-#, fuzzy
 #| msgid ""
 #| "\n"
 #| "          This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.\n"
@@ -7852,6 +7844,11 @@ msgid "This flow is in the process of being sent, this message will disappear on
 msgstr ""
 "\n"
 "Este fluxo está em processo de envio, esta mensagem irá desaparecer assim que todos os contatos tenham sido adicionados ao fluxo."
+
+#, fuzzy
+#| msgid "Language"
+msgid "Change Language"
+msgstr "Linguagem"
 
 #, python-format
 msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the workspace, communication with that contact will default to <b>%(language)s</b>."
@@ -7932,6 +7929,14 @@ msgid "No matching flows."
 msgstr "Não há fluxos correspondentes"
 
 #, fuzzy
+#| msgid "Delete"
+msgid "Delete Run"
+msgstr "Deletar"
+
+msgid "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
+msgstr ""
+
+#, fuzzy
 #| msgid "Device"
 msgid "Overview"
 msgstr "Dispositivo"
@@ -7967,6 +7972,10 @@ msgstr ""
 
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr "Fazer uma série de perguntas para coletar informações de seus contatos."
+
+#, python-format
+msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
+msgstr ""
 
 #, fuzzy, python-format
 msgid "was started by %(user)s for"
@@ -8011,10 +8020,6 @@ msgstr "Fluxo para iniciar"
 #, fuzzy
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
-
-#, fuzzy
-msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
-msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
 
 #, fuzzy
 #| msgid "No matching flows."
@@ -8267,11 +8272,6 @@ msgid "Uh oh, we couldn't delete %(name)s."
 msgstr ""
 "\n"
 "Instalar o %(name)s app"
-
-#, fuzzy
-#| msgid "Are you sure you want to remove"
-msgid "Are you sure you want to delete"
-msgstr "Você tem certeza que deseja excluir"
 
 msgid "Numeric Value:"
 msgstr "Valor numérico:"
@@ -8902,6 +8902,9 @@ msgstr ""
 
 msgid "Admins"
 msgstr "Administradores"
+
+msgid "Remove"
+msgstr "Remover"
 
 msgid "You must have at least one administator"
 msgstr "Você deve ter pelo menos um administator"
@@ -9971,6 +9974,15 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
+#~ msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
+
+#, fuzzy
+#~| msgid "Are you sure you want to remove"
+#~ msgid "Are you sure you want to delete"
+#~ msgstr "Você tem certeza que deseja excluir"
 
 #~ msgid "What is a Flow?"
 #~ msgstr "O que é um fluxo?"

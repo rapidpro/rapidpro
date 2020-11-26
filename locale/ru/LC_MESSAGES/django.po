@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-18 21:37+0000\n"
+"POT-Creation-Date: 2020-11-26 19:49+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3259,8 +3259,10 @@ msgstr ""
 msgid "Edit Label"
 msgstr "Добавить метку"
 
-msgid "Remove"
-msgstr "Удалить"
+#, fuzzy
+#| msgid "Create Label"
+msgid "Delete Label"
+msgstr "Создать Метку"
 
 msgid "Start Flow"
 msgstr "Начать поток"
@@ -3669,11 +3671,6 @@ msgstr "Обновить Папку"
 
 msgid "Send All"
 msgstr "Отправить Все"
-
-#, fuzzy
-#| msgid "Create Label"
-msgid "Delete Label"
-msgstr "Создать Метку"
 
 msgid "Name must not be blank or begin with punctuation"
 msgstr "Название не должно быть пустым или начинаться с пунктуационных знаков"
@@ -7649,13 +7646,13 @@ msgstr ""
 "\n"
 "            "
 
+msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
+msgstr "Этот поток находится в процессе осуществления отправки, это сообщение исчезнет после того, ​​как все контакты будут добавлены в поток."
+
 #, fuzzy
 #| msgid "Base Language"
 msgid "Change Language"
 msgstr "Основной язык"
-
-msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
-msgstr "Этот поток находится в процессе осуществления отправки, это сообщение исчезнет после того, ​​как все контакты будут добавлены в поток."
 
 #, python-format
 msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the workspace, communication with that contact will default to <b>%(language)s</b>."
@@ -7739,6 +7736,14 @@ msgstr "Экспортировать Результаты Потока"
 msgid "No matching flows."
 msgstr "Нет соответствующих потоков"
 
+#, fuzzy
+#| msgid "Delete "
+msgid "Delete Run"
+msgstr "Удалить"
+
+msgid "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
+msgstr ""
+
 msgid "Overview"
 msgstr "Обзор"
 
@@ -7771,6 +7776,11 @@ msgstr ""
 
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr "Задайте ряд вопросов, чтобы собрать данные у Ваших контактов."
+
+#, fuzzy, python-format
+#| msgid "cannot be deleted because it is in use. Usage summary:"
+msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
+msgstr "невозможно удалить, потому что используется. Сводная информация по использованию:"
 
 #, python-format
 msgid "was started by %(user)s for"
@@ -7811,9 +7821,6 @@ msgstr "Поток для запуска"
 #| msgid "Are you sure you want to remove this label?"
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "Вы действительно хотите удалить эту метку?"
-
-msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
-msgstr "После удаления этот глобальный объект исчезнет навсегда. Способа отменить эту операцию не существует."
 
 msgid "No related flows."
 msgstr "Нет связанных потоков."
@@ -8143,11 +8150,6 @@ msgid "Uh oh, we couldn't delete %(name)s."
 msgstr ""
 "\n"
 "            Название изменено на <b>%(name)s</b>"
-
-#, fuzzy
-#| msgid "Are you sure you want to remove"
-msgid "Are you sure you want to delete"
-msgstr "Вы действительно хотите удалить "
 
 msgid "Numeric Value:"
 msgstr "Числовое значение:"
@@ -9221,6 +9223,9 @@ msgstr "Логин"
 
 msgid "Admins"
 msgstr "Администраторы"
+
+msgid "Remove"
+msgstr "Удалить"
 
 msgid "You must have at least one administator"
 msgstr "У Вас должен быть хотя бы один администратор"
@@ -10437,13 +10442,16 @@ msgstr "Ввести запрос"
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
+#~ msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
+#~ msgstr "После удаления этот глобальный объект исчезнет навсегда. Способа отменить эту операцию не существует."
+
+#, fuzzy
+#~| msgid "Are you sure you want to remove"
+#~ msgid "Are you sure you want to delete"
+#~ msgstr "Вы действительно хотите удалить "
+
 #~ msgid "What is a Flow?"
 #~ msgstr "Что такое Поток?"
-
-#, fuzzy, python-format
-#~| msgid "cannot be deleted because it is in use. Usage summary:"
-#~ msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
-#~ msgstr "невозможно удалить, потому что используется. Сводная информация по использованию:"
 
 #~ msgid "Flows:"
 #~ msgstr "Потоки:"
