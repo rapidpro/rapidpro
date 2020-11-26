@@ -72,7 +72,8 @@ class GlobalTest(TembaTest):
     def test_is_valid_name(self):
         self.assertTrue(Global.is_valid_name("Age"))
         self.assertTrue(Global.is_valid_name("Age Now 2"))
-        self.assertFalse(Global.is_valid_name("Age_Now"))  # can't have punctuation
+        self.assertFalse(Global.is_valid_name("Age>Now"))  # can't have punctuation
+        self.assertTrue(Global.is_valid_name("API_KEY-2"))  # except underscores and hypens
         self.assertFalse(Global.is_valid_name("âge"))  # a-z only
 
 
