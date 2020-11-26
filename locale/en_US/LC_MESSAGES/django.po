@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-17 20:55+0000\n"
+"POT-Creation-Date: 2020-11-26 21:46+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2540,7 +2540,7 @@ msgstr ""
 msgid "Edit Label"
 msgstr ""
 
-msgid "Remove"
+msgid "Delete Label"
 msgstr ""
 
 msgid "Start Flow"
@@ -2919,9 +2919,6 @@ msgid "Edit Folder"
 msgstr ""
 
 msgid "Send All"
-msgstr ""
-
-msgid "Delete Label"
 msgstr ""
 
 msgid "Name must not be blank or begin with punctuation"
@@ -5590,17 +5587,11 @@ msgid ""
 "You can download your %(brand)s flow results by clicking on the following link:\n"
 msgstr ""
 
-msgid "What is a Flow?"
-msgstr ""
-
 msgid "Flows let you easily pose a set of questions to a group of users. When you send people through a flow over SMS, it is natural just like any other conversation."
 msgstr ""
 
 #, python-format
 msgid "A flow gives you the power to model complex interactions by simply drawing a flowchart. With %(brand)s's drag-and-drop interface, you can easily build branches based on how people respond to your messages. This means it's easy to create highly personal and engaging experiences for your users."
-msgstr ""
-
-msgid "Create Flow"
 msgstr ""
 
 msgid "No results yet"
@@ -5679,10 +5670,10 @@ msgid ""
 "      "
 msgstr ""
 
-msgid "Change Language"
+msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
 msgstr ""
 
-msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
+msgid "Change Language"
 msgstr ""
 
 #, python-format
@@ -5734,6 +5725,9 @@ msgstr ""
 msgid "Create Label"
 msgstr ""
 
+msgid "Create Flow"
+msgstr ""
+
 msgid "Webhook Call Log"
 msgstr ""
 
@@ -5744,6 +5738,12 @@ msgid "Export Results"
 msgstr ""
 
 msgid "No matching flows."
+msgstr ""
+
+msgid "Delete Run"
+msgstr ""
+
+msgid "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
 msgstr ""
 
 msgid "Overview"
@@ -5769,6 +5769,10 @@ msgid "Any runs prior to %(start)s can be found in your"
 msgstr ""
 
 msgid "Ask a series of questions to collect data from your contacts."
+msgstr ""
+
+#, python-format
+msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
 msgstr ""
 
 #, python-format
@@ -5803,16 +5807,6 @@ msgid "No flow starts"
 msgstr ""
 
 msgid "Are you sure you want to continue? This cannot be undone."
-msgstr ""
-
-#, python-format
-msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
-msgstr ""
-
-msgid "Flows:"
-msgstr ""
-
-msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
 msgstr ""
 
 msgid "No related flows."
@@ -5996,9 +5990,6 @@ msgstr ""
 
 #, python-format
 msgid "Uh oh, we couldn't delete %(name)s."
-msgstr ""
-
-msgid "Are you sure you want to delete"
 msgstr ""
 
 msgid "Numeric Value:"
@@ -6528,6 +6519,9 @@ msgid "Logins"
 msgstr ""
 
 msgid "Admins"
+msgstr ""
+
+msgid "Remove"
 msgstr ""
 
 msgid "You must have at least one administator"

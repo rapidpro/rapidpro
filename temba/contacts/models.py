@@ -1,4 +1,3 @@
-import io
 import logging
 import time
 from datetime import date, datetime, timedelta
@@ -33,7 +32,7 @@ from temba.orgs.models import Org, OrgLock
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.models import JSONField as TembaJSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
-from temba.utils.text import truncate, unsnakify
+from temba.utils.text import decode_stream, truncate, unsnakify
 from temba.utils.urns import ParsedURN, parse_urn
 
 from .search import SearchException, elastic, parse_query
@@ -1874,29 +1873,32 @@ class ExportContactsTask(BaseExportTask):
 
         scheme_counts = dict()
         if not self.org.is_anon:
-            active_urn_schemes = [c[0] for c in URN.SCHEME_CHOICES]
+            schemes_in_use = sorted(list(self.org.urns.order_by().values_list("scheme", flat=True).distinct()))
+            scheme_contact_max = {}
 
-            scheme_counts = {
-                scheme: ContactURN.objects.filter(org=self.org, scheme=scheme)
-                .exclude(contact=None)
-                .values("contact")
-                .annotate(count=Count("contact"))
-                .aggregate(Max("count"))["count__max"]
-                for scheme in active_urn_schemes
-            }
+            # for each scheme used by this org, calculate the max number of URNs owned by a single contact
+            for scheme in schemes_in_use:
+                scheme_contact_max[scheme] = (
+                    self.org.urns.filter(scheme=scheme)
+                    .exclude(contact=None)
+                    .values("contact")
+                    .annotate(count=Count("contact"))
+                    .aggregate(Max("count"))["count__max"]
+                )
 
-            schemes = list(scheme_counts.keys())
-            schemes.sort()
-
-            for scheme in schemes:
-                count = scheme_counts[scheme]
-                if count is not None:
-                    for i in range(count):
-                        field_dict = dict(
-                            label=f"URN:{scheme.capitalize()}", key=None, id=0, field=None, urn_scheme=scheme
+            for scheme in schemes_in_use:
+                contact_max = scheme_contact_max.get(scheme, 0)
+                for i in range(contact_max):
+                    fields.append(
+                        dict(
+                            label=f"URN:{scheme.capitalize()}",
+                            key=None,
+                            id=0,
+                            field=None,
+                            urn_scheme=scheme,
+                            position=i,
                         )
-                        field_dict["position"] = i
-                        fields.append(field_dict)
+                    )
 
         contact_fields_list = (
             ContactField.user_fields.active_for_org(org=self.org).select_related("org").order_by("-priority", "pk")
@@ -2065,7 +2067,7 @@ class ContactImport(SmartModel):
 
         # CSV reader expects str stream so wrap file
         if file_type == "csv":
-            file = io.TextIOWrapper(file)
+            file = decode_stream(file)
 
         data = pyexcel.iget_array(file_stream=file, file_type=file_type)
         try:
@@ -2238,7 +2240,7 @@ class ContactImport(SmartModel):
 
         # CSV reader expects str stream so wrap file
         file_type = self._get_file_type()
-        file = io.TextIOWrapper(self.file) if file_type == "csv" else self.file
+        file = decode_stream(self.file) if file_type == "csv" else self.file
 
         # parse each row, creating batch tasks for mailroom
         data = pyexcel.iget_array(file_stream=file, file_type=file_type, start_row=1)

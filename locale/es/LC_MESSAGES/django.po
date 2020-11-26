@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-17 20:55+0000\n"
+"POT-Creation-Date: 2020-11-26 21:46+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3861,8 +3861,10 @@ msgstr ""
 msgid "Edit Label"
 msgstr "Agregar etiqueta"
 
-msgid "Remove"
-msgstr "Retirar"
+#, fuzzy
+#| msgid "Create Label"
+msgid "Delete Label"
+msgstr "Crear etiqueta"
 
 msgid "Start Flow"
 msgstr "Empezar flujo"
@@ -4326,11 +4328,6 @@ msgstr "Actualizar campos"
 
 msgid "Send All"
 msgstr "Enviar todos"
-
-#, fuzzy
-#| msgid "Create Label"
-msgid "Delete Label"
-msgstr "Crear etiqueta"
 
 msgid "Name must not be blank or begin with punctuation"
 msgstr ""
@@ -8378,9 +8375,6 @@ msgid ""
 "You can download your %(brand)s flow results by clicking on the following link:\n"
 msgstr ""
 
-msgid "What is a Flow?"
-msgstr "¿Qué es un flujo?"
-
 #, fuzzy
 #| msgid ""
 #| "\n"
@@ -8403,9 +8397,6 @@ msgstr ""
 "        crear experiencias altamente personales e interesantes para sus usuarios.\n"
 "\n"
 "      "
-
-msgid "Create Flow"
-msgstr "Crear Flujos"
 
 #, fuzzy
 #| msgid "No messages yet"
@@ -8516,13 +8507,13 @@ msgstr ""
 "\n"
 "          "
 
+msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
+msgstr ""
+
 #, fuzzy
 #| msgid "Language"
 msgid "Change Language"
 msgstr "Idioma"
-
-msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
-msgstr ""
 
 #, python-format
 msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the workspace, communication with that contact will default to <b>%(language)s</b>."
@@ -8593,6 +8584,9 @@ msgstr ""
 msgid "Create Label"
 msgstr "Crear etiqueta"
 
+msgid "Create Flow"
+msgstr "Crear Flujos"
+
 #, fuzzy
 #| msgid "Webhook URL"
 msgid "Webhook Call Log"
@@ -8610,6 +8604,14 @@ msgstr "Exportar flujo"
 
 msgid "No matching flows."
 msgstr "Sin flujos que correspondan."
+
+#, fuzzy
+#| msgid "Delete"
+msgid "Delete Run"
+msgstr "Borrar"
+
+msgid "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
+msgstr ""
 
 #, fuzzy
 #| msgid "Device"
@@ -8649,6 +8651,10 @@ msgstr ""
 
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr "Haga una serie de preguntas para obtener los datos de sus contactos."
+
+#, python-format
+msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
+msgstr ""
 
 #, fuzzy, python-format
 #| msgid "has started this flow."
@@ -8700,20 +8706,6 @@ msgstr "Flujo para empezar"
 #| msgid "Are you sure you want to delete this contact?"
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "¿Está seguro de que desea borrar este contacto?"
-
-#, python-format
-msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
-msgstr ""
-
-#, fuzzy
-#| msgid "Flows"
-msgid "Flows:"
-msgstr "Flujos"
-
-#, fuzzy
-#| msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
-msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
-msgstr "Una vez borrados, no podrá recuperarlos. No puede deshacer esta operación. "
 
 #, fuzzy
 #| msgid "No matching flows."
@@ -8995,11 +8987,6 @@ msgstr ""
 "          Instalar el %(name)s app\n"
 "\n"
 "        "
-
-#, fuzzy
-#| msgid "Are you sure you want to remove"
-msgid "Are you sure you want to delete"
-msgstr "¿Está seguro de que desea retirarlo?"
 
 msgid "Numeric Value:"
 msgstr "Valor numérico:"
@@ -9698,6 +9685,9 @@ msgstr ""
 
 msgid "Admins"
 msgstr "Administradores"
+
+msgid "Remove"
+msgstr "Retirar"
 
 msgid "You must have at least one administator"
 msgstr "Debe tener al menos un administrador"
@@ -10842,6 +10832,24 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "What is a Flow?"
+#~ msgstr "¿Qué es un flujo?"
+
+#, fuzzy
+#~| msgid "Flows"
+#~ msgid "Flows:"
+#~ msgstr "Flujos"
+
+#, fuzzy
+#~| msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
+#~ msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
+#~ msgstr "Una vez borrados, no podrá recuperarlos. No puede deshacer esta operación. "
+
+#, fuzzy
+#~| msgid "Are you sure you want to remove"
+#~ msgid "Are you sure you want to delete"
+#~ msgstr "¿Está seguro de que desea retirarlo?"
 
 #, fuzzy
 #~| msgid "The name of your organization"

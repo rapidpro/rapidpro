@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-17 20:55+0000\n"
+"POT-Creation-Date: 2020-11-26 21:46+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2545,8 +2545,8 @@ msgstr "Les flux suivants sont toujours utilisés par les campagnes et n'ont don
 msgid "Edit Label"
 msgstr "Modifier l'étiquette"
 
-msgid "Remove"
-msgstr "Supprimer"
+msgid "Delete Label"
+msgstr "Supprimer l'étiquette"
 
 msgid "Start Flow"
 msgstr "Lancer un Flux"
@@ -2925,9 +2925,6 @@ msgstr "Modifier le dossier"
 
 msgid "Send All"
 msgstr "Envoyer tout"
-
-msgid "Delete Label"
-msgstr "Supprimer l'étiquette"
 
 msgid "Name must not be blank or begin with punctuation"
 msgstr "Le nom ne doit pas être vide ou commencer par une ponctuation"
@@ -5706,18 +5703,12 @@ msgstr ""
 "\n"
 "Vous pouvez télécharger vos résultats de flux %(brand)s en cliquant sur le lien suivant:\n"
 
-msgid "What is a Flow?"
-msgstr "Qu'est-ce qu'un flux?"
-
 msgid "Flows let you easily pose a set of questions to a group of users. When you send people through a flow over SMS, it is natural just like any other conversation."
 msgstr "Les flux vous permettent de poser facilement une série de questions à un groupe d'utilisateurs. Lorsque vous envoyez des personnes via un flux par SMS, c'est naturel comme toute autre conversation."
 
 #, python-format
 msgid "A flow gives you the power to model complex interactions by simply drawing a flowchart. With %(brand)s's drag-and-drop interface, you can easily build branches based on how people respond to your messages. This means it's easy to create highly personal and engaging experiences for your users."
 msgstr "Un flux vous donne le pouvoir de modéliser des interactions complexes en dessinant simplement un organigramme. Avec l'interface glisser-déposer de %(brand)s vous pouvez facilement créer des branches en fonction de la façon dont les gens répondent à vos messages. Cela signifie qu'il est facile de créer des expériences hautement personnelles et engageantes pour vos utilisateurs."
-
-msgid "Create Flow"
-msgstr "créer un flux"
 
 msgid "No results yet"
 msgstr "Aucun résultat pour le moment"
@@ -5817,11 +5808,11 @@ msgstr ""
 "\n"
 "      "
 
-msgid "Change Language"
-msgstr "Changer de langue"
-
 msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
 msgstr "Ce flux est en cours d'envoi, ce message disparaîtra une fois que tous les contacts auront été ajoutés au flux."
+
+msgid "Change Language"
+msgstr "Changer de langue"
 
 #, python-format
 msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the workspace, communication with that contact will default to <b>%(language)s</b>."
@@ -5872,6 +5863,9 @@ msgstr "Retour"
 msgid "Create Label"
 msgstr "Créer un libellé"
 
+msgid "Create Flow"
+msgstr "créer un flux"
+
 msgid "Webhook Call Log"
 msgstr "Journal des appels Webhook"
 
@@ -5883,6 +5877,14 @@ msgstr "Exporter les résultats"
 
 msgid "No matching flows."
 msgstr "Aucun flux correspondant"
+
+#, fuzzy
+#| msgid "Delete "
+msgid "Delete Run"
+msgstr "Supprimer"
+
+msgid "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
+msgstr ""
 
 msgid "Overview"
 msgstr "Vue d'ensemble"
@@ -5908,6 +5910,11 @@ msgstr "Toutes les exécutions antérieures à %(start)s peuvent être trouvées
 
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr "Poser une série de questions visant à recueillir les données de vos contacts."
+
+#, fuzzy, python-format
+#| msgid "<b>%(name)s</b> cannot be deleted since it is currently in use."
+msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
+msgstr "<b>%(name)s</b> ne peut pas être supprimé car il est actuellement utilisé."
 
 #, python-format
 msgid "was started by %(user)s for"
@@ -5942,16 +5949,6 @@ msgstr "Aucun flux ne démarre"
 
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "Es-tu sur de vouloir continuer? Ça ne peut pas être annulé."
-
-#, python-format
-msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
-msgstr "<b>%(name)s</b> ne peut pas être supprimé car il est actuellement utilisé. Résumé de l'utilisation %%:"
-
-msgid "Flows:"
-msgstr "Flux:"
-
-msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
-msgstr "Une fois supprimé, ce global sera définitivement perdu. Il n'y a aucun moyen d'annuler cette opération."
 
 msgid "No related flows."
 msgstr "Aucun flux associé."
@@ -6151,9 +6148,6 @@ msgstr "%(name)s garde également une trace des appels reçus sur votre canal af
 #, python-format
 msgid "Uh oh, we couldn't delete %(name)s."
 msgstr "Uh oh, nous n'avons pas pu supprimer %(name)s."
-
-msgid "Are you sure you want to delete"
-msgstr "Etes-vous sûr que vous voulez supprimer"
 
 msgid "Numeric Value:"
 msgstr "Valeur numérique:"
@@ -6833,6 +6827,9 @@ msgstr "Connexions"
 
 msgid "Admins"
 msgstr "Admins"
+
+msgid "Remove"
+msgstr "Supprimer"
 
 msgid "You must have at least one administator"
 msgstr "Vous devez avoir au moins un administateur"
@@ -7779,6 +7776,22 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "What is a Flow?"
+#~ msgstr "Qu'est-ce qu'un flux?"
+
+#, python-format
+#~ msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
+#~ msgstr "<b>%(name)s</b> ne peut pas être supprimé car il est actuellement utilisé. Résumé de l'utilisation %%:"
+
+#~ msgid "Flows:"
+#~ msgstr "Flux:"
+
+#~ msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
+#~ msgstr "Une fois supprimé, ce global sera définitivement perdu. Il n'y a aucun moyen d'annuler cette opération."
+
+#~ msgid "Are you sure you want to delete"
+#~ msgstr "Etes-vous sûr que vous voulez supprimer"
 
 #~ msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook."
 #~ msgstr "Vous devrez avoir un compte FreshChat, obtenir un jeton d'authentification et configurer un webhook."
