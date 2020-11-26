@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-23 18:08+0000\n"
+"POT-Creation-Date: 2020-11-26 19:49+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -7712,9 +7712,6 @@ msgid ""
 "You can download your %(brand)s flow results by clicking on the following link:\n"
 msgstr ""
 
-msgid "What is a Flow?"
-msgstr "O que é um fluxo?"
-
 #, fuzzy
 #| msgid ""
 #| "\n"
@@ -7731,9 +7728,6 @@ msgid "A flow gives you the power to model complex interactions by simply drawin
 msgstr ""
 "\n"
 "Um fluxo lhe permite modelar interações complexas, simplesmente desenhando um fluxograma. Com a interface arrasta-e-solta do Textit , você pode facilmente construir ramificações baseadas em como as pessoas respondem às suas mensagens. Isto significa que é fácil criar experiências altamente pessoais e cativantes para os seus usuários ."
-
-msgid "Create Flow"
-msgstr "Criar fluxo"
 
 #, fuzzy
 #| msgid "No messages yet"
@@ -7841,11 +7835,6 @@ msgstr ""
 "para enviar mensagens para mais de 200 países."
 
 #, fuzzy
-#| msgid "Language"
-msgid "Change Language"
-msgstr "Linguagem"
-
-#, fuzzy
 #| msgid ""
 #| "\n"
 #| "          This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow.\n"
@@ -7855,6 +7844,11 @@ msgid "This flow is in the process of being sent, this message will disappear on
 msgstr ""
 "\n"
 "Este fluxo está em processo de envio, esta mensagem irá desaparecer assim que todos os contatos tenham sido adicionados ao fluxo."
+
+#, fuzzy
+#| msgid "Language"
+msgid "Change Language"
+msgstr "Linguagem"
 
 #, python-format
 msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the workspace, communication with that contact will default to <b>%(language)s</b>."
@@ -7913,6 +7907,9 @@ msgstr ""
 
 msgid "Create Label"
 msgstr "Criar rótulo"
+
+msgid "Create Flow"
+msgstr "Criar fluxo"
 
 #, fuzzy
 #| msgid "Webhook URL"
@@ -9978,14 +9975,6 @@ msgstr "Insira o seu código de requisição"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
-#, fuzzy, python-format
-#~ msgid "Are you sure you want to delete <b>%(name)s</b>? No way to undo this operation."
-#~ msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
-
-#, fuzzy
-#~ msgid "Once deleted, this label will be gone forever. There is no way to undo this operation."
-#~ msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
-
 #, fuzzy
 #~ msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
 #~ msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
@@ -9994,6 +9983,9 @@ msgstr ""
 #~| msgid "Are you sure you want to remove"
 #~ msgid "Are you sure you want to delete"
 #~ msgstr "Você tem certeza que deseja excluir"
+
+#~ msgid "What is a Flow?"
+#~ msgstr "O que é um fluxo?"
 
 #, fuzzy
 #~| msgid "Flows"

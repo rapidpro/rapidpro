@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-23 18:08+0000\n"
+"POT-Creation-Date: 2020-11-26 19:49+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -5440,10 +5440,9 @@ msgstr "Ces contacts se sont retirés et vous ne pouvez plus leur envoyer de mes
 msgid "<b>%(name)s</b> cannot be deleted since it is currently in use."
 msgstr "<b>%(name)s</b> ne peut pas être supprimé car il est actuellement utilisé."
 
-#, fuzzy, python-format
-#| msgid "Are you sure you want to continue? This cannot be undone."
+#, python-format
 msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
-msgstr "Es-tu sur de vouloir continuer? Ça ne peut pas être annulé."
+msgstr "Voulez-vous vraiment supprimer <b>%(name)s</b>? Ça ne peut pas être annulé."
 
 msgid "Used in the flow"
 msgid_plural "Used in the flows"
@@ -5683,18 +5682,12 @@ msgstr ""
 "\n"
 "Vous pouvez télécharger vos résultats de flux %(brand)s en cliquant sur le lien suivant:\n"
 
-msgid "What is a Flow?"
-msgstr "Qu'est-ce qu'un flux?"
-
 msgid "Flows let you easily pose a set of questions to a group of users. When you send people through a flow over SMS, it is natural just like any other conversation."
 msgstr "Les flux vous permettent de poser facilement une série de questions à un groupe d'utilisateurs. Lorsque vous envoyez des personnes via un flux par SMS, c'est naturel comme toute autre conversation."
 
 #, python-format
 msgid "A flow gives you the power to model complex interactions by simply drawing a flowchart. With %(brand)s's drag-and-drop interface, you can easily build branches based on how people respond to your messages. This means it's easy to create highly personal and engaging experiences for your users."
 msgstr "Un flux vous donne le pouvoir de modéliser des interactions complexes en dessinant simplement un organigramme. Avec l'interface glisser-déposer de %(brand)s vous pouvez facilement créer des branches en fonction de la façon dont les gens répondent à vos messages. Cela signifie qu'il est facile de créer des expériences hautement personnelles et engageantes pour vos utilisateurs."
-
-msgid "Create Flow"
-msgstr "créer un flux"
 
 msgid "No results yet"
 msgstr "Aucun résultat pour le moment"
@@ -5794,11 +5787,11 @@ msgstr ""
 "\n"
 "      "
 
-msgid "Change Language"
-msgstr "Changer de langue"
-
 msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
 msgstr "Ce flux est en cours d'envoi, ce message disparaîtra une fois que tous les contacts auront été ajoutés au flux."
+
+msgid "Change Language"
+msgstr "Changer de langue"
 
 #, python-format
 msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the workspace, communication with that contact will default to <b>%(language)s</b>."
@@ -5848,6 +5841,9 @@ msgstr "Retour"
 
 msgid "Create Label"
 msgstr "Créer un libellé"
+
+msgid "Create Flow"
+msgstr "créer un flux"
 
 msgid "Webhook Call Log"
 msgstr "Journal des appels Webhook"
@@ -7760,21 +7756,14 @@ msgstr "Entrez une requête"
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
-#, fuzzy, python-format
-#~| msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
-#~ msgid "Are you sure you want to delete <b>%(name)s</b>? No way to undo this operation."
-#~ msgstr "Voulez-vous vraiment supprimer <b>%(name)s</b>? Ça ne peut pas être annulé."
-
-#, fuzzy
-#~| msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
-#~ msgid "Once deleted, this label will be gone forever. There is no way to undo this operation."
-#~ msgstr "Une fois supprimé, ce global sera définitivement perdu. Il n'y a aucun moyen d'annuler cette opération."
-
 #~ msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
 #~ msgstr "Une fois supprimé, ce global sera définitivement perdu. Il n'y a aucun moyen d'annuler cette opération."
 
 #~ msgid "Are you sure you want to delete"
 #~ msgstr "Etes-vous sûr que vous voulez supprimer"
+
+#~ msgid "What is a Flow?"
+#~ msgstr "Qu'est-ce qu'un flux?"
 
 #, python-format
 #~ msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
