@@ -25,7 +25,9 @@ jobs:
         postgresql version: ${{ matrix.pg_version }}
 
     - name: Install Linux packages
-      run: sudo apt install -y --no-install-recommends postgresql-client libgdal-dev gettext
+      run: |
+        sudo apt update
+        sudo apt install -y --no-install-recommends libgdal-dev gettext
 
     - name: Install Python
       uses: actions/setup-python@v1
