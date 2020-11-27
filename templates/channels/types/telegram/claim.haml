@@ -11,11 +11,11 @@
     You will need to <a href="https://core.telegram.org/bots#create-a-new-bot">create a new Telegram bot</a> and
     get its Authentication Token. To do so:
 
-  %ol.telegram-steps.card
+  %ol.steps.card
     %li
       -blocktrans trimmed
         Start a new chat with the <a href="https://telegram.me/botfather">BotFather</a>. You can do so on your
-        device by searching for "botfather" and starting a new chat.</li>
+        device by searching for "botfather" and starting a new chat.
 
     %li
       -blocktrans trimmed
@@ -26,13 +26,3 @@
       -blocktrans trimmed
         Once you have created your bot, @botfather will provide you with the authentication token to use your bot.
         Enter that token below.
-
--block extra-style
-  {{ block.super }}
-
-  :css
-    ol.telegram-steps li {
-      list-style: decimal;
-      margin-left: 20px;
-      padding: 5px;
-    }

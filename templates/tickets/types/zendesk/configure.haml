@@ -14,7 +14,7 @@
   -blocktrans trimmed
     To complete connecting your account here to your Zendesk account you need to complete the following steps.
 
-  %ol.instructions
+  %ol.steps.card
     %li
       -blocktrans trimmed with brand=brand.name
         Install the {{ brand }} app into your Zendesk account from the <a href="{{ market_url }}">marketplace</a>.
@@ -31,12 +31,4 @@
   :css
     .ticketer-name {
       font-size: 16pt;
-    }
-
-    ol.instructions {
-      padding-top: 1em;
-    }
-    ol.instructions li {
-      list-style-type: decimal;
-      margin-top: 0.3em;
     }
