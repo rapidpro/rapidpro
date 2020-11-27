@@ -59,7 +59,7 @@ class Global(SmartModel):
 
     @classmethod
     def is_valid_name(cls, name):
-        return regex.match(r"^[A-Za-z0-9\- ]+$", name, regex.V0) and len(name) <= cls.MAX_NAME_LEN
+        return regex.match(r"^[A-Za-z0-9_\- ]+$", name, regex.V0) and len(name) <= cls.MAX_NAME_LEN
 
     @classmethod
     def annotate_usage(cls, queryset):

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-18 20:33+0000\n"
+"POT-Creation-Date: 2020-11-27 17:23+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3861,8 +3861,10 @@ msgstr ""
 msgid "Edit Label"
 msgstr "Agregar etiqueta"
 
-msgid "Remove"
-msgstr "Retirar"
+#, fuzzy
+#| msgid "Create Label"
+msgid "Delete Label"
+msgstr "Crear etiqueta"
 
 msgid "Start Flow"
 msgstr "Empezar flujo"
@@ -4326,11 +4328,6 @@ msgstr "Actualizar campos"
 
 msgid "Send All"
 msgstr "Enviar todos"
-
-#, fuzzy
-#| msgid "Create Label"
-msgid "Delete Label"
-msgstr "Crear etiqueta"
 
 msgid "Name must not be blank or begin with punctuation"
 msgstr ""
@@ -7196,7 +7193,8 @@ msgstr ""
 "\n"
 "      "
 
-msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook."
+#, python-format
+msgid "Each message sent to the channel will have a URN in the format %(format)s where the channel UUID is the FreshChat channel's UUID."
 msgstr ""
 
 msgid "In the FreshChat web interface, under Settings, API Tokens, select Generate Token. Once the token is created you'll enter it below."
@@ -7206,14 +7204,10 @@ msgid "Under Settings again, select Webhooks and copy the Public Key and paste i
 msgstr ""
 
 #, python-format
-msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat Message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\">FreshChat API</a>."
+msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\">FreshChat API</a>."
 msgstr ""
 
 msgid "Once you press Submit below with all the information configured, the confirmation page will give you the URL to use for the FreshChat Webhooks. Enter this URL on the Settings page, under Webhooks where the Public Key was copied from before."
-msgstr ""
-
-#, python-format
-msgid "Each Message sent to the channel will have a URN that's in the format of %(uuid)s where the channel uuid is the FreshChat Message Channels uuid."
 msgstr ""
 
 #, fuzzy, python-format
@@ -7315,7 +7309,7 @@ msgstr ""
 "         "
 
 #, fuzzy
-msgid "Activate the permission to login via web application in the \"Settings > Account > Allow login\""
+msgid "Activate the permission to login via web application in the <i>Settings</i> &gt; <i>Account</i> &gt; <i>Allow login</i>"
 msgstr ""
 "\n"
 "                En la página de la aplicación TextIt presione el botón \"Install\".\n"
@@ -7323,7 +7317,7 @@ msgstr ""
 "         "
 
 #, fuzzy
-msgid "Register your email and password via the application \"Settings > Account > Email Account\""
+msgid "Register your email and password via the application <i>Settings</i> &gt; <i>Account</i> &gt; <i>Email Account</i>"
 msgstr ""
 "\n"
 "                En la página de la aplicación TextIt presione el botón \"Install\".\n"
@@ -7338,11 +7332,11 @@ msgstr ""
 "\n"
 "         "
 
-msgid "In <a href=\"https://business.line.me/en/\">LINE Business Center</a>, select \"Messaging API\" in the \"Services\""
+msgid "In <a href=\"https://business.line.me/en/\">LINE Business Center</a>, select <i>Messaging API</i> in <i>Services</i>"
 msgstr ""
 
 #, fuzzy
-msgid "Select \"Start using Messaging API\""
+msgid "Select <i>Start using Messaging API</i>"
 msgstr ""
 "\n"
 "                    %(sms_failed)s Error\n"
@@ -7356,14 +7350,14 @@ msgstr "Establecer el idioma preferido para el contacto."
 msgid "Note: At this time you must create a LINE business account and some information, for example, address, phone, etc., will be requested."
 msgstr ""
 
-msgid "After the creation process of the LINE business account, you will see the page to add a new channel of communication \"Messaging API.\" Enter the name and select the appropriate category and click OK."
+msgid "After the creation process of the LINE business account, you will see the page to add a new channel of communication <i>Messaging API</i>. Enter the name and select the appropriate category and click OK."
 msgstr ""
 
-msgid "In the next step, click the \"LINE @ Manager\" and it will redirect you to the API activation page."
+msgid "In the next step, click the <i>LINE @ Manager</i> and it will redirect you to the API activation page."
 msgstr ""
 
 #, fuzzy
-msgid "Click \"Enable API\" and confirm. (By doing so, the status of your API will be \"Valid\")"
+msgid "Click \"Enable API\" and confirm. (By doing so, the status of your API will be <i>Valid</i>)"
 msgstr ""
 "\n"
 "                    %(sms_failed)s Error\n"
@@ -7371,7 +7365,7 @@ msgstr ""
 "         "
 
 #, fuzzy
-msgid "Enable the option to allow the use of Webhooks and click \"Save.\""
+msgid "Enable the option to allow the use of Webhooks and click <i>Save</i>."
 msgstr ""
 "\n"
 "                    %(sms_failed)s Error\n"
@@ -7386,11 +7380,11 @@ msgstr "El nombre de su organización"
 msgid "Click on the menu \"Accounts\" at the top of the page at the link <a href=\"https://business.line.me\">https://business.line.me</a>"
 msgstr ""
 
-msgid "In the communication channel of your choice, click on the \"LINE Developers\" button, accept the terms, and it will direct you to a page with the information needed to fill out in the form below (Channel ID, Channel Name, Channel Secret and Channel Access Token)."
+msgid "In the communication channel of your choice, click on the <i>LINE Developers</i> button, accept the terms, and it will direct you to a page with the information needed to fill out in the form below (Channel ID, Channel Name, Channel Secret and Channel Access Token)."
 msgstr ""
 
 #, fuzzy
-msgid "Note: To generate the Channel Access Token click on \"Issue\" button"
+msgid "Note: To generate the Channel Access Token click on <i>Issue</i> button"
 msgstr ""
 "\n"
 "                En la página de la aplicación TextIt presione el botón \"Install\".\n"
@@ -7487,7 +7481,7 @@ msgstr ""
 msgid "You will need to <a href=\"https://core.telegram.org/bots#create-a-new-bot\">create a new Telegram bot</a> and get its Authentication Token. To do so:"
 msgstr ""
 
-msgid "Start a new chat with the <a href=\"https://telegram.me/botfather\">BotFather</a>. You can do so on your device by searching for \"botfather\" and starting a new chat.</li>"
+msgid "Start a new chat with the <a href=\"https://telegram.me/botfather\">BotFather</a>. You can do so on your device by searching for \"botfather\" and starting a new chat."
 msgstr ""
 
 msgid "In your @botfather chat, type in the command <code>/newbot</code>. Follow the instructions to name your bot and choose a username for it."
@@ -8381,9 +8375,6 @@ msgid ""
 "You can download your %(brand)s flow results by clicking on the following link:\n"
 msgstr ""
 
-msgid "What is a Flow?"
-msgstr "¿Qué es un flujo?"
-
 #, fuzzy
 #| msgid ""
 #| "\n"
@@ -8406,9 +8397,6 @@ msgstr ""
 "        crear experiencias altamente personales e interesantes para sus usuarios.\n"
 "\n"
 "      "
-
-msgid "Create Flow"
-msgstr "Crear Flujos"
 
 #, fuzzy
 #| msgid "No messages yet"
@@ -8519,13 +8507,13 @@ msgstr ""
 "\n"
 "          "
 
+msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
+msgstr ""
+
 #, fuzzy
 #| msgid "Language"
 msgid "Change Language"
 msgstr "Idioma"
-
-msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
-msgstr ""
 
 #, python-format
 msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the workspace, communication with that contact will default to <b>%(language)s</b>."
@@ -8596,6 +8584,9 @@ msgstr ""
 msgid "Create Label"
 msgstr "Crear etiqueta"
 
+msgid "Create Flow"
+msgstr "Crear Flujos"
+
 #, fuzzy
 #| msgid "Webhook URL"
 msgid "Webhook Call Log"
@@ -8613,6 +8604,14 @@ msgstr "Exportar flujo"
 
 msgid "No matching flows."
 msgstr "Sin flujos que correspondan."
+
+#, fuzzy
+#| msgid "Delete"
+msgid "Delete Run"
+msgstr "Borrar"
+
+msgid "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
+msgstr ""
 
 #, fuzzy
 #| msgid "Device"
@@ -8652,6 +8651,10 @@ msgstr ""
 
 msgid "Ask a series of questions to collect data from your contacts."
 msgstr "Haga una serie de preguntas para obtener los datos de sus contactos."
+
+#, python-format
+msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
+msgstr ""
 
 #, fuzzy, python-format
 #| msgid "has started this flow."
@@ -8703,11 +8706,6 @@ msgstr "Flujo para empezar"
 #| msgid "Are you sure you want to delete this contact?"
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "¿Está seguro de que desea borrar este contacto?"
-
-#, fuzzy
-#| msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
-msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
-msgstr "Una vez borrados, no podrá recuperarlos. No puede deshacer esta operación. "
 
 #, fuzzy, python-format
 msgid "You have <b>%(counter)s global</b> configured"
@@ -8984,11 +8982,6 @@ msgstr ""
 "          Instalar el %(name)s app\n"
 "\n"
 "        "
-
-#, fuzzy
-#| msgid "Are you sure you want to remove"
-msgid "Are you sure you want to delete"
-msgstr "¿Está seguro de que desea retirarlo?"
 
 msgid "Numeric Value:"
 msgstr "Valor numérico:"
@@ -9687,6 +9680,9 @@ msgstr ""
 
 msgid "Admins"
 msgstr "Administradores"
+
+msgid "Remove"
+msgstr "Retirar"
 
 msgid "You must have at least one administator"
 msgstr "Debe tener al menos un administrador"
@@ -10831,6 +10827,19 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "What is a Flow?"
+#~ msgstr "¿Qué es un flujo?"
+
+#, fuzzy
+#~| msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
+#~ msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
+#~ msgstr "Una vez borrados, no podrá recuperarlos. No puede deshacer esta operación. "
+
+#, fuzzy
+#~| msgid "Are you sure you want to remove"
+#~ msgid "Are you sure you want to delete"
+#~ msgstr "¿Está seguro de que desea retirarlo?"
 
 #, fuzzy
 #~| msgid "Flows"
