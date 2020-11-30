@@ -1,3 +1,11 @@
+v6.1.0
+----------
+ * Hide editor language dialog blurb until needed to prevent flashing
+ * Fix broken flows list page if org has no flows
+ * Allow underscores in global names
+ * Improve calculating of URN columns for exports so tests don't break every time we add new URN schemes
+ * Make instruction lists on channel claim pages more consistent
+
 v6.0.7
 ----------
  * Fix choose org page
