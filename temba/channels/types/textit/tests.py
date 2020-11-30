@@ -34,7 +34,7 @@ class TextItTypeTest(TembaTest):
             self.assertTrue(response.context["form"].errors)
 
         # channel that isn't active yet
-        with patch("requests.get") as mock_post:
+        with patch("requests.get") as mock_get:
             mock_get.side_effect = [
                 MockResponse(
                     200, '{ "name": "SubsRus", "address": "+12065551212", "country": "US", "status": "requested" }'
