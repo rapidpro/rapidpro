@@ -13,12 +13,12 @@ from ...models import ChannelType
 from .views import ClaimView
 
 
-class TextItType(ChannelType):
+class TextItWhatsAppType(ChannelType):
     """
     Type for TextIt WhatsApp Service
     """
 
-    code = "TX"
+    code = "TXW"
 
     # uncommment when we launch
     # category = ChannelType.Category.SOCIAL_MEDIA
@@ -59,5 +59,5 @@ class TextItType(ChannelType):
 
     def activate(self, channel):
         domain = channel.org.get_brand_domain()
-        webhook_url = "https://" + domain + reverse("courier.tx", args=[channel.uuid, "receive"])
+        webhook_url = "https://" + domain + reverse("courier.txw", args=[channel.uuid, "receive"])
         self.update_webhook(channel, webhook_url)

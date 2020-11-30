@@ -6,14 +6,14 @@ from django.urls import reverse
 from temba.tests import MockResponse, TembaTest
 
 from ...models import Channel
-from .type import TextItType
+from .type import TextItWhatsAppType
 
 
-class TextItTypeTest(TembaTest):
+class TextItWhatsappTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
-        url = reverse("channels.types.textit.claim")
+        url = reverse("channels.types.textit_whatsapp.claim")
         self.login(self.admin)
 
         # make sure textit is on the claim page (not yet)
@@ -63,7 +63,7 @@ class TextItTypeTest(TembaTest):
 
         self.assertEqual("+12065551212", channel.address)
         self.assertEqual("US", channel.country)
-        self.assertEqual("TX", channel.channel_type)
+        self.assertEqual("TXW", channel.channel_type)
         self.assertEqual("SubsRus: (206) 555-1212", channel.name)
         self.assertEqual(10, channel.tps)
         self.assertTrue(channel.get_type().has_attachment_support(channel))
@@ -72,18 +72,18 @@ class TextItTypeTest(TembaTest):
         with patch("requests.post") as mock_post:
             url = "https://%s%s" % (
                 channel.org.get_brand_domain(),
-                reverse("courier.tx", args=[channel.uuid, "receive"]),
+                reverse("courier.txw", args=[channel.uuid, "receive"]),
             )
             mock_post.side_effect = [MockResponse(200, '{ "url": "%s" }' % url)]
 
-            TextItType().activate(channel)
+            TextItWhatsAppType().activate(channel)
             self.assertEqual(mock_post.call_args_list[0][1]["json"]["url"], url)
 
         with patch("requests.post") as mock_post:
             mock_post.side_effect = [MockResponse(400, '{ "meta": { "success": false } }')]
 
             try:
-                TextItType().activate(channel)
+                TextItWhatsAppType().activate(channel)
                 self.fail("Should have thrown error activating channel")
             except ValidationError:
                 pass
@@ -91,5 +91,5 @@ class TextItTypeTest(TembaTest):
         # deactivate our channel
         with patch("requests.post") as mock_post:
             mock_post.side_effect = [MockResponse(200, '{"url": "" }')]
-            TextItType().deactivate(channel)
+            TextItWhatsAppType().deactivate(channel)
             self.assertEqual(mock_post.call_args_list[0][1]["json"]["url"], "")
