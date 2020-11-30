@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-26 21:46+0000\n"
+"POT-Creation-Date: 2020-11-30 20:21+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1419,6 +1419,26 @@ msgstr "Pour terminer la configuration de votre connexion Telesom, vous devrez f
 
 msgid "The private key provided to use their API"
 msgstr "La clé privée fournie pour utiliser leur API"
+
+#, fuzzy, python-format
+#| msgid "Activate your own enterprise WhatsApp account in %(link)s to communicate with your contacts. "
+msgid "Easily use your own Enterprise WhatsApp account using %(link)s to communicate with your contacts. "
+msgstr "Activez votre propre compte WhatsApp d'entreprise dans %(link)s pour communiquer avec vos contacts."
+
+#, fuzzy
+#| msgid "Endpoint"
+msgid "API Endpoint"
+msgstr "Point de terminaison"
+
+#, fuzzy
+#| msgid "The endpoint URL for your LUIS app"
+msgid "The API endpoint for your TextIt WhatsApp number"
+msgstr "L'URL du point de terminaison de votre application LUIS"
+
+#, fuzzy
+#| msgid "The namespace for your WhatsApp templates"
+msgid "The access token for your TextIt WhatsApp number"
+msgstr "L'espace de noms pour vos modèles WhatsApp"
 
 #, python-format
 msgid "If you have a number with %(link)s you can connect it in a few easy steps to automate your SMS numbers."
@@ -5111,6 +5131,9 @@ msgstr "Dans votre chat @botfather, saisissez la commande <code>/newbot</code>. 
 
 msgid "Once you have created your bot, @botfather will provide you with the authentication token to use your bot. Enter that token below."
 msgstr "Une fois que vous avez créé votre bot, @botfather vous fournira le jeton d'authentification pour utiliser votre bot. Entrez ce jeton ci-dessous."
+
+msgid "You can quickly connect TextIt WhatsApp numbers by entering the credentials below. You can find the API endpoint and access token by visiting your TextIt WhatsApp account page."
+msgstr ""
 
 msgid "You have connected a Twilio Trial Account which has some restrictions."
 msgstr "Vous avez connecté un compte d'essai Twilio qui comporte certaines restrictions."
