@@ -1887,7 +1887,7 @@ class ExportContactsTask(BaseExportTask):
                 )
 
             for scheme in schemes_in_use:
-                contact_max = scheme_contact_max.get(scheme, 0)
+                contact_max = scheme_contact_max.get(scheme) or 0
                 for i in range(contact_max):
                     fields.append(
                         dict(
