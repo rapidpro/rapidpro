@@ -1,3 +1,7 @@
+v6.1.1
+----------
+ * Fix contact exports when orgs have orphaned URNs in schemes they don't currently use
+
 v6.1.0
 ----------
  * Hide editor language dialog blurb until needed to prevent flashing
