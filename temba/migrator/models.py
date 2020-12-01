@@ -236,14 +236,18 @@ class MigrationTask(TembaModel):
                 logger.info("---------------- Contact Groups ----------------")
                 logger.info("[STARTED] Contact Groups migration")
 
-                # Releasing current contact groups
-                contact_groups = ContactGroup.user_groups.filter(org=self.org).only("id", "uuid").order_by("id")
-                for contact_group in contact_groups:
-                    contact_group.release()
-                    contact_group.uuid = generate_uuid()
-                    contact_group.save(update_fields=["uuid"])
+                if not self.start_date:
+                    # Releasing current contact groups
+                    contact_groups = ContactGroup.user_groups.filter(org=self.org).only("id", "uuid").order_by("id")
+                    for contact_group in contact_groups:
+                        contact_group.release()
+                        contact_group.uuid = generate_uuid()
+                        contact_group.save(update_fields=["uuid"])
 
-                org_contact_groups, contact_groups_count = migrator.get_org_contact_groups()
+                org_contact_groups, contact_groups_count = migrator.get_org_contact_groups(
+                    start_date=start_date_string,
+                    end_date=end_date_string
+                )
                 if org_contact_groups:
                     self.add_contact_groups(
                         logger=logger, groups=org_contact_groups, migrator=migrator, count=contact_groups_count
