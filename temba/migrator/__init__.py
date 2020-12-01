@@ -185,11 +185,8 @@ class Migrator(object):
         count = self.get_count("contacts_contact", condition=condition_string)
         return self.get_results_paginated(query_string=query_string, count=count), count
 
-    def get_values_value(self, contact_id, start_date=None, end_date=None) -> list:
-        condition_string = f"""
-            org_id = {self.org_id} AND contact_id = {contact_id} AND contact_field_id IS NOT NULL
-            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
-        """
+    def get_values_value(self, contact_id) -> list:
+        condition_string = f"org_id = {self.org_id} AND contact_id = {contact_id} AND contact_field_id IS NOT NULL"
         query_string = f"SELECT * FROM public.values_value WHERE {condition_string} ORDER BY id ASC"
         count = self.get_count("values_value", condition=condition_string)
         return self.get_results_paginated(query_string=query_string, count=count)
