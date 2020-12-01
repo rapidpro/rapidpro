@@ -31,6 +31,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import Group, User
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError
@@ -253,8 +254,9 @@ class OrgSignupForm(forms.ModelForm):
     timezone = TimeZoneFormField(help_text=_("The timezone for your workspace"), widget=forms.widgets.HiddenInput())
 
     password = forms.CharField(
-        help_text="At least eight characters or more",
         widget=InputWidget(attrs={"hide_label": True, "password": True, "placeholder": _("Password")},),
+        validators=[validate_password],
+        help_text=_("At least eight characters or more"),
     )
 
     name = forms.CharField(
@@ -277,13 +279,6 @@ class OrgSignupForm(forms.ModelForm):
 
         return email.lower()
 
-    def clean_password(self):
-        password = self.cleaned_data["password"]
-        if password:
-            if not len(password) >= 8:
-                raise forms.ValidationError(_("Passwords must contain at least 8 letters."))
-        return password
-
     class Meta:
         model = Org
         fields = "__all__"
@@ -305,7 +300,7 @@ class OrgGrantForm(forms.ModelForm):
     password = forms.CharField(
         widget=forms.PasswordInput,
         required=False,
-        help_text=_("Their password, at least eight letters please. (leave blank for existing users)"),
+        help_text=_("Their password, at least eight letters please. (leave blank for existing login)"),
     )
     name = forms.CharField(label=_("Workspace"), help_text=_("The name of the new workspace"))
     credits = forms.ChoiceField(choices=(), help_text=_("The initial number of credits granted to this workspace"))
@@ -337,9 +332,11 @@ class OrgGrantForm(forms.ModelForm):
             if user:
                 if password:
                     raise ValidationError(_("Login already exists, please do not include password."))
+            else:
+                if not password:
+                    raise ValidationError(_("Password required for new login."))
 
-            elif not password or len(password) < 8:
-                raise ValidationError(_("Password must be at least 8 characters long"))
+                validate_password(password)
 
         return data
 
@@ -2075,6 +2072,8 @@ class OrgCRUDL(SmartCRUDL):
             )
             password = forms.CharField(
                 widget=forms.PasswordInput(attrs={"placeholder": "Password"}),
+                required=True,
+                validators=[validate_password],
                 help_text=_("Your password, at least eight letters please"),
             )
 
@@ -2088,13 +2087,6 @@ class OrgCRUDL(SmartCRUDL):
                         raise forms.ValidationError(_("That email address is already used"))
 
                 return email.lower()
-
-            def clean_password(self):
-                password = self.cleaned_data["password"]
-                if password:
-                    if not len(password) >= 8:
-                        raise forms.ValidationError(_("Passwords must contain at least 8 letters."))
-                return password
 
         permission = None
         form_class = PasswordForm
