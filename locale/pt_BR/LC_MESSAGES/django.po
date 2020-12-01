@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-30 20:21+0000\n"
+"POT-Creation-Date: 2020-12-01 16:43+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4382,6 +4382,11 @@ msgstr "name@domain.com"
 msgid "The timezone for your workspace"
 msgstr "O fuso horário para"
 
+#, fuzzy
+#| msgid "Please enter at least 8 characters"
+msgid "At least eight characters or more"
+msgstr "Por favor, insira pelo menos 8 caracteres"
+
 msgid "Workspace"
 msgstr ""
 
@@ -4393,9 +4398,6 @@ msgstr ""
 
 msgid "That email address is already used"
 msgstr "Esse endereço de e-mail já está sendo usado"
-
-msgid "Passwords must contain at least 8 letters."
-msgstr "Senhas devem conter pelo menos 8 letras"
 
 #, fuzzy
 msgid "The first name of the workspace administrator"
@@ -4415,7 +4417,7 @@ msgid "The timezone for the workspace"
 msgstr "O fuso horário para"
 
 #, fuzzy
-msgid "Their password, at least eight letters please. (leave blank for existing users)"
+msgid "Their password, at least eight letters please. (leave blank for existing login)"
 msgstr "Por favor, a sua senha deve ter no mínimo oito letras."
 
 #, fuzzy
@@ -4430,9 +4432,8 @@ msgstr "A quantidade de créditos comprados nesta recarga."
 msgid "Login already exists, please do not include password."
 msgstr ""
 
-#, fuzzy
-msgid "Password must be at least 8 characters long"
-msgstr "Senhas devem ter pelo menos 8 letras"
+msgid "Password required for new login."
+msgstr ""
 
 #, python-brace-format
 msgid "Deleted user {username}"
@@ -9995,10 +9996,20 @@ msgstr ""
 #~ msgid "What is a Flow?"
 #~ msgstr "O que é um fluxo?"
 
+#~ msgid "Passwords must contain at least 8 letters."
+#~ msgstr "Senhas devem conter pelo menos 8 letras"
+
 #, fuzzy
-#~| msgid "Flows"
-#~ msgid "Flows:"
-#~ msgstr "Fluxos"
+#~ msgid "Password must be at least 8 characters long"
+#~ msgstr "Senhas devem ter pelo menos 8 letras"
+
+#, fuzzy, python-format
+#~ msgid "Are you sure you want to delete <b>%(name)s</b>? No way to undo this operation."
+#~ msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
+
+#, fuzzy
+#~ msgid "Once deleted, this label will be gone forever. There is no way to undo this operation."
+#~ msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
 
 #, fuzzy
 #~ msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
@@ -10008,6 +10019,11 @@ msgstr ""
 #~| msgid "Are you sure you want to remove"
 #~ msgid "Are you sure you want to delete"
 #~ msgstr "Você tem certeza que deseja excluir"
+
+#, fuzzy
+#~| msgid "Flows"
+#~ msgid "Flows:"
+#~ msgstr "Fluxos"
 
 #, fuzzy
 #~| msgid "Setup your RocketChat first to be able to integrate."
@@ -11913,11 +11929,6 @@ msgstr ""
 #~| msgid "UUID"
 #~ msgid "ID"
 #~ msgstr "UUID"
-
-#, fuzzy
-#~| msgid "Please enter at least 8 characters"
-#~ msgid "At least eight characters"
-#~ msgstr "Por favor, insira pelo menos 8 caracteres"
 
 #~ msgid "Hold up!"
 #~ msgstr "Segure-se!"
