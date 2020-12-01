@@ -5,7 +5,7 @@ import requests
 
 from datetime import datetime
 
-from django.db import models
+from django.db import models, IntegrityError
 from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -114,6 +114,12 @@ class MigrationTask(TembaModel):
                 self.update_status(self.STATUS_FAILED)
                 return
 
+            start_date_string = None
+            end_date_string = None
+            if self.start_date and self.end_date:
+                start_date_string = self.start_date.strftime("%Y-%m-%d %H:%M:%S")
+                end_date_string = self.end_date.strftime("%Y-%m-%d %H:%M:%S")
+
             inactive_flows = []
             channels_removed = []
 
@@ -170,18 +176,22 @@ class MigrationTask(TembaModel):
                 logger.info("---------------- Channels ----------------")
                 logger.info("[STARTED] Channels migration")
 
-                # Inactivating all org channels before importing the ones from Live server
-                existing_channels = Channel.objects.filter(org=self.org)
-                for channel in existing_channels:
-                    channel.uuid = generate_uuid()
-                    channel.secret = None
-                    channel.parent = None
-                    channel.is_active = False
-                    channel.save(update_fields=["uuid", "secret", "is_active", "parent"])
+                if not self.start_date:
+                    # Inactivating all org channels before importing the ones from Live server
+                    existing_channels = Channel.objects.filter(org=self.org)
+                    for channel in existing_channels:
+                        channel.uuid = generate_uuid()
+                        channel.secret = None
+                        channel.parent = None
+                        channel.is_active = False
+                        channel.save(update_fields=["uuid", "secret", "is_active", "parent"])
 
-                    Trigger.objects.filter(channel=channel, org=self.org).update(is_active=False)
+                        Trigger.objects.filter(channel=channel, org=self.org).update(is_active=False)
 
-                org_channels, channels_count = migrator.get_org_channels()
+                org_channels, channels_count = migrator.get_org_channels(
+                    start_date=start_date_string,
+                    end_date=end_date_string
+                )
                 if org_channels:
                     self.add_channels(
                         logger=logger,
@@ -646,69 +656,72 @@ class MigrationTask(TembaModel):
 
             schemes = channel_type.schemes
 
-            new_channel = Channel.objects.create(
-                created_on=channel.created_on,
-                modified_on=channel.modified_on,
-                org=self.org,
-                created_by=self.created_by,
-                modified_by=self.created_by,
-                country=channel.country,
-                channel_type=channel_type.code,
-                name=channel.name or channel.address,
-                address=channel.address,
-                config=channel_config,
-                role=channel.role,
-                schemes=schemes,
-                uuid=channel.uuid,
-                claim_code=channel.claim_code,
-                secret=channel.secret,
-                last_seen=channel.last_seen,
-                device=channel.device,
-                os=channel.os,
-                alert_email=channel.alert_email,
-                bod=channel.bod,
-                tps=settings.COURIER_DEFAULT_TPS,
-            )
+            try:
+                new_channel = Channel.objects.create(
+                    created_on=channel.created_on,
+                    modified_on=channel.modified_on,
+                    org=self.org,
+                    created_by=self.created_by,
+                    modified_by=self.created_by,
+                    country=channel.country,
+                    channel_type=channel_type.code,
+                    name=channel.name or channel.address,
+                    address=channel.address,
+                    config=channel_config,
+                    role=channel.role,
+                    schemes=schemes,
+                    uuid=channel.uuid,
+                    claim_code=channel.claim_code,
+                    secret=channel.secret,
+                    last_seen=channel.last_seen,
+                    device=channel.device,
+                    os=channel.os,
+                    alert_email=channel.alert_email,
+                    bod=channel.bod,
+                    tps=settings.COURIER_DEFAULT_TPS,
+                )
 
-            self_migration_task = (
-                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
-                if self.migration_related_uuid
-                else self
-            )
+                self_migration_task = (
+                    MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                    if self.migration_related_uuid
+                    else self
+                )
 
-            MigrationAssociation.create(
-                migration_task=self_migration_task,
-                old_id=channel.id,
-                new_id=new_channel.id,
-                model=MigrationAssociation.MODEL_CHANNEL,
-            )
+                MigrationAssociation.create(
+                    migration_task=self_migration_task,
+                    old_id=channel.id,
+                    new_id=new_channel.id,
+                    model=MigrationAssociation.MODEL_CHANNEL,
+                )
 
-            # Trying to remove channel counting to avoid discrepancy on messages number on org dashboard page
-            # We do not need to migrate ChannelCount because it is triggered automatically when a msg is inserted
-            old_channels = Channel.objects.filter(
-                org=self.org, address=channel.address, channel_type=channel_type.code
-            )
-            for old_channel in old_channels:
-                ChannelCount.objects.filter(channel=old_channel).delete()
+                # Trying to remove channel counting to avoid discrepancy on messages number on org dashboard page
+                # We do not need to migrate ChannelCount because it is triggered automatically when a msg is inserted
+                old_channels = Channel.objects.filter(
+                    org=self.org, address=channel.address, channel_type=channel_type.code
+                )
+                for old_channel in old_channels:
+                    ChannelCount.objects.filter(channel=old_channel).delete()
 
-            # If the channel is an Android channel it will migrate the sync events
-            if channel_type.code == "A":
-                channel_syncevents = migrator.get_channel_syncevents(channel_id=channel.id)
-                for channel_syncevent in channel_syncevents:
-                    SyncEvent.objects.create(
-                        created_by=self.created_by,
-                        modified_by=self.created_by,
-                        channel=new_channel,
-                        power_source=channel_syncevent.power_source,
-                        power_status=channel_syncevent.power_status,
-                        power_level=channel_syncevent.power_level,
-                        network_type=channel_syncevent.network_type,
-                        lifetime=channel_syncevent.lifetime,
-                        pending_message_count=channel_syncevent.pending_message_count,
-                        retry_message_count=channel_syncevent.retry_message_count,
-                        incoming_command_count=channel_syncevent.incoming_command_count,
-                        outgoing_command_count=channel_syncevent.outgoing_command_count,
-                    )
+                # If the channel is an Android channel it will migrate the sync events
+                if channel_type.code == "A":
+                    channel_syncevents = migrator.get_channel_syncevents(channel_id=channel.id)
+                    for channel_syncevent in channel_syncevents:
+                        SyncEvent.objects.create(
+                            created_by=self.created_by,
+                            modified_by=self.created_by,
+                            channel=new_channel,
+                            power_source=channel_syncevent.power_source,
+                            power_status=channel_syncevent.power_status,
+                            power_level=channel_syncevent.power_level,
+                            network_type=channel_syncevent.network_type,
+                            lifetime=channel_syncevent.lifetime,
+                            pending_message_count=channel_syncevent.pending_message_count,
+                            retry_message_count=channel_syncevent.retry_message_count,
+                            incoming_command_count=channel_syncevent.incoming_command_count,
+                            outgoing_command_count=channel_syncevent.outgoing_command_count,
+                        )
+            except IntegrityError:
+                logger.info("!!! Already migrated")
 
     def add_channel_events(self, logger, channel_events, count):
         for idx, event in enumerate(channel_events, start=1):

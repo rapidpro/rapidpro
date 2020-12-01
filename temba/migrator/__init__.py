@@ -136,11 +136,16 @@ class Migrator(object):
             languages_count,
         )
 
-    def get_org_channels(self) -> (list, int):
+    def get_org_channels(self, start_date=None, end_date=None) -> (list, int):
         channels_count = self.get_count("channels_channel", condition=f"org_id = {self.org_id}")
+        query_string = f"""
+            SELECT * FROM public.channels_channel WHERE org_id = {self.org_id}
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+            ORDER BY id ASC
+        """
         return (
             self.get_results_paginated(
-                query_string=f"SELECT * FROM public.channels_channel WHERE org_id = {self.org_id} ORDER BY id ASC",
+                query_string=query_string,
                 count=channels_count,
             ),
             channels_count,
@@ -591,13 +596,14 @@ class Migrator(object):
 
         query_string = (
             f"SELECT new_id as contact_id,"
-            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {channel_id} AND model = 'channels_channel' AND migration_task_id = {migration_task_id}) as channel_id,"
-            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {response_to_id} AND model = 'msgs_msg' AND migration_task_id = {migration_task_id}) as response_to_id,"
-            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {contact_urn_id} AND model = 'contacts_contacturn' AND migration_task_id = {migration_task_id}) as contact_urn_id,"
-            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {broadcast_id} AND model = 'msgs_broadcast' AND migration_task_id = {migration_task_id}) as broadcast_id,"
-            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {topup_id} AND model = 'orgs_topups' AND migration_task_id = {migration_task_id}) as topup_id "
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {channel_id} AND model = 'channels_channel' AND migration_task_id = {migration_task_id} ORDER BY id DESC LIMIT 1) as channel_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {response_to_id} AND model = 'msgs_msg' AND migration_task_id = {migration_task_id} ORDER BY id DESC LIMIT 1) as response_to_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {contact_urn_id} AND model = 'contacts_contacturn' AND migration_task_id = {migration_task_id} ORDER BY id DESC LIMIT 1) as contact_urn_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {broadcast_id} AND model = 'msgs_broadcast' AND migration_task_id = {migration_task_id} ORDER BY id DESC LIMIT 1) as broadcast_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {topup_id} AND model = 'orgs_topups' AND migration_task_id = {migration_task_id} ORDER BY id DESC LIMIT 1) as topup_id "
             f"FROM public.migrator_migrationassociation "
-            f"WHERE old_id = {contact_id} AND model = 'contacts_contact' AND migration_task_id = {migration_task_id}"
+            f"WHERE old_id = {contact_id} AND model = 'contacts_contact' AND migration_task_id = {migration_task_id} "
+            f"ORDER BY id DESC LIMIT 1"
         )
 
         obj = self.make_query_one_local(query_string=query_string)

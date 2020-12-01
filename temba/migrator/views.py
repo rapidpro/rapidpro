@@ -158,6 +158,9 @@ class MigrateCRUDL(SmartCRUDL):
                 if start_date and not end_date:
                     raise ValidationError(_("You should add an end date since you provided a start date"))
 
+                if not end_date:
+                    return end_date
+
                 end_date = datetime.strptime(end_date, "%m-%d-%Y %H:%M")
                 end_date = timezone(str(org.timezone)).localize(end_date)
 
@@ -188,8 +191,8 @@ class MigrateCRUDL(SmartCRUDL):
                     migration_org=form.cleaned_data.get("org"),
                     start_from=int(form.cleaned_data.get("start_from")),
                     migration_related_uuid=migration_related_uuid if migration_related_uuid else None,
-                    start_date=date_start,
-                    end_date=end_date,
+                    start_date=date_start if date_start else None,
+                    end_date=end_date if end_date else None,
                 )
                 on_transaction_commit(lambda: start_migration.delay(migration_task.id))
             except Exception as e:
