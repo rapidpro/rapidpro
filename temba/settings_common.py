@@ -874,6 +874,13 @@ LOGOUT_REDIRECT_URL = "/"
 
 AUTHENTICATION_BACKENDS = ("smartmin.backends.CaseInsensitiveBackend",)
 
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
 ANONYMOUS_USER_NAME = "AnonymousUser"
 
 # -----------------------------------------------------------------------------------
@@ -1063,6 +1070,7 @@ TICKETER_TYPES = [
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",
+    "temba.channels.types.textit_whatsapp.TextItWhatsAppType",
     "temba.channels.types.dialog360.Dialog360Type",
     "temba.channels.types.twilio.TwilioType",
     "temba.channels.types.twilio_whatsapp.TwilioWhatsappType",

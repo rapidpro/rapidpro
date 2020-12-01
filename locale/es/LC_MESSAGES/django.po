@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-27 17:23+0000\n"
+"POT-Creation-Date: 2020-12-01 20:53+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -2334,6 +2334,23 @@ msgstr ""
 #, fuzzy
 msgid "The private key provided to use their API"
 msgstr "El nombre de usuario otorgado por el proveedor para usar su API"
+
+#, python-format
+msgid "Easily use your own Enterprise WhatsApp account using %(link)s to communicate with your contacts. "
+msgstr ""
+
+msgid "API Endpoint"
+msgstr ""
+
+#, fuzzy
+#| msgid "The name of your organization"
+msgid "The API endpoint for your TextIt WhatsApp number"
+msgstr "El nombre de su organización"
+
+#, fuzzy
+#| msgid "The file name for our export"
+msgid "The access token for your TextIt WhatsApp number"
+msgstr "El nombre del archivo para nuestra exportación"
 
 #, fuzzy, python-format
 msgid "If you have a number with %(link)s you can connect it in a few easy steps to automate your SMS numbers."
@@ -4673,6 +4690,11 @@ msgstr "name@domain.com"
 msgid "The timezone for your workspace"
 msgstr "La zona horaria en la que se encuentra su organización"
 
+#, fuzzy
+#| msgid "Please enter at least 8 characters"
+msgid "At least eight characters or more"
+msgstr "Por favor, ingrese 8 caracteres como mínimo"
+
 msgid "Workspace"
 msgstr ""
 
@@ -4684,9 +4706,6 @@ msgstr ""
 
 msgid "That email address is already used"
 msgstr "Esta dirección de correo electrónico ya ha sido usada"
-
-msgid "Passwords must contain at least 8 letters."
-msgstr "Las contraseñas deben contener como mínimo 8 letras."
 
 #, fuzzy
 msgid "The first name of the workspace administrator"
@@ -4705,7 +4724,7 @@ msgid "The timezone for the workspace"
 msgstr "La zona horaria en la que se encuentra su organización"
 
 #, fuzzy
-msgid "Their password, at least eight letters please. (leave blank for existing users)"
+msgid "Their password, at least eight letters please. (leave blank for existing login)"
 msgstr "Su contraseña, como mínimo ocho letras por favor"
 
 #, fuzzy
@@ -4720,9 +4739,8 @@ msgstr "El número de créditos comprados en esta recarga"
 msgid "Login already exists, please do not include password."
 msgstr ""
 
-#, fuzzy
-msgid "Password must be at least 8 characters long"
-msgstr "Las contraseñas deben tener como mínimo 8 letras."
+msgid "Password required for new login."
+msgstr ""
 
 #, python-brace-format
 msgid "Deleted user {username}"
@@ -7503,6 +7521,9 @@ msgstr ""
 "\n"
 "\n"
 "          "
+
+msgid "You can quickly connect TextIt WhatsApp numbers by entering the credentials below. You can find the API endpoint and access token by visiting your TextIt WhatsApp account page."
+msgstr ""
 
 msgid "You have connected a Twilio Trial Account which has some restrictions."
 msgstr ""
@@ -10828,6 +10849,13 @@ msgstr "Ingrese el código de pedido"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#~ msgid "Passwords must contain at least 8 letters."
+#~ msgstr "Las contraseñas deben contener como mínimo 8 letras."
+
+#, fuzzy
+#~ msgid "Password must be at least 8 characters long"
+#~ msgstr "Las contraseñas deben tener como mínimo 8 letras."
+
 #~ msgid "What is a Flow?"
 #~ msgstr "¿Qué es un flujo?"
 
@@ -12795,11 +12823,6 @@ msgstr ""
 #~| msgid "UUID"
 #~ msgid "ID"
 #~ msgstr "UUID"
-
-#, fuzzy
-#~| msgid "Please enter at least 8 characters"
-#~ msgid "At least eight characters"
-#~ msgstr "Por favor, ingrese 8 caracteres como mínimo"
 
 #~ msgid "Hold up!"
 #~ msgstr "¡Espere!"

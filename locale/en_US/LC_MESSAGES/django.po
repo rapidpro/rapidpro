@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-27 17:23+0000\n"
+"POT-Creation-Date: 2020-12-01 20:53+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1413,6 +1413,19 @@ msgid "To finish configuring your Telesom connection you'll need to provide Tele
 msgstr ""
 
 msgid "The private key provided to use their API"
+msgstr ""
+
+#, python-format
+msgid "Easily use your own Enterprise WhatsApp account using %(link)s to communicate with your contacts. "
+msgstr ""
+
+msgid "API Endpoint"
+msgstr ""
+
+msgid "The API endpoint for your TextIt WhatsApp number"
+msgstr ""
+
+msgid "The access token for your TextIt WhatsApp number"
 msgstr ""
 
 #, python-format
@@ -3207,6 +3220,9 @@ msgstr ""
 msgid "The timezone for your workspace"
 msgstr ""
 
+msgid "At least eight characters or more"
+msgstr ""
+
 msgid "Workspace"
 msgstr ""
 
@@ -3217,9 +3233,6 @@ msgid "My Company, Inc."
 msgstr ""
 
 msgid "That email address is already used"
-msgstr ""
-
-msgid "Passwords must contain at least 8 letters."
 msgstr ""
 
 msgid "The first name of the workspace administrator"
@@ -3234,7 +3247,7 @@ msgstr ""
 msgid "The timezone for the workspace"
 msgstr ""
 
-msgid "Their password, at least eight letters please. (leave blank for existing users)"
+msgid "Their password, at least eight letters please. (leave blank for existing login)"
 msgstr ""
 
 msgid "The name of the new workspace"
@@ -3246,7 +3259,7 @@ msgstr ""
 msgid "Login already exists, please do not include password."
 msgstr ""
 
-msgid "Password must be at least 8 characters long"
+msgid "Password required for new login."
 msgstr ""
 
 #, python-brace-format
@@ -5009,6 +5022,9 @@ msgid "In your @botfather chat, type in the command <code>/newbot</code>. Follow
 msgstr ""
 
 msgid "Once you have created your bot, @botfather will provide you with the authentication token to use your bot. Enter that token below."
+msgstr ""
+
+msgid "You can quickly connect TextIt WhatsApp numbers by entering the credentials below. You can find the API endpoint and access token by visiting your TextIt WhatsApp account page."
 msgstr ""
 
 msgid "You have connected a Twilio Trial Account which has some restrictions."
