@@ -137,7 +137,10 @@ class Migrator(object):
         )
 
     def get_org_channels(self, start_date=None, end_date=None) -> (list, int):
-        channels_count = self.get_count("channels_channel", condition=f"org_id = {self.org_id}")
+        condition_string = f"""
+            org_id = {self.org_id} {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        channels_count = self.get_count("channels_channel", condition=condition_string)
         query_string = f"""
             SELECT * FROM public.channels_channel WHERE org_id = {self.org_id}
             {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
