@@ -208,7 +208,10 @@ class MigrationTask(TembaModel):
                 logger.info("---------------- Contact Fields ----------------")
                 logger.info("[STARTED] Contact Fields migration")
 
-                org_contact_fields, fields_count = migrator.get_org_contact_fields()
+                org_contact_fields, fields_count = migrator.get_org_contact_fields(
+                    start_date=start_date_string,
+                    end_date=end_date_string,
+                )
                 if org_contact_fields:
                     self.add_contact_fields(logger=logger, fields=org_contact_fields, count=fields_count)
 

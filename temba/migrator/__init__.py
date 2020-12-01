@@ -178,11 +178,19 @@ class Migrator(object):
             count,
         )
 
-    def get_org_contact_fields(self) -> (list, int):
-        count = self.get_count("contacts_contactfield", condition=f"org_id = {self.org_id} AND is_active = true")
+    def get_org_contact_fields(self, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            org_id = {self.org_id} AND is_active = true {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"""
+            SELECT * FROM public.contacts_contactfield WHERE org_id = {self.org_id} AND is_active = true
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+            ORDER BY id ASC
+        """
+        count = self.get_count("contacts_contactfield", condition=condition_string)
         return (
             self.get_results_paginated(
-                query_string=f"SELECT * FROM public.contacts_contactfield WHERE org_id = {self.org_id} AND is_active = true ORDER BY id ASC",
+                query_string=query_string,
                 count=count,
             ),
             count,
