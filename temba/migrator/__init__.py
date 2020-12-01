@@ -141,18 +141,8 @@ class Migrator(object):
             org_id = {self.org_id} {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
         """
         channels_count = self.get_count("channels_channel", condition=condition_string)
-        query_string = f"""
-            SELECT * FROM public.channels_channel WHERE org_id = {self.org_id}
-            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
-            ORDER BY id ASC
-        """
-        return (
-            self.get_results_paginated(
-                query_string=query_string,
-                count=channels_count,
-            ),
-            channels_count,
-        )
+        query_string = f"SELECT * FROM public.channels_channel WHERE {condition_string} ORDER BY id ASC"
+        return self.get_results_paginated(query_string=query_string, count=channels_count), channels_count
 
     def get_channels_count(self, channel_id) -> list:
         channels_count = self.get_count("channels_channelcount", condition=f"channel_id = {channel_id}")
@@ -182,19 +172,9 @@ class Migrator(object):
         condition_string = f"""
             org_id = {self.org_id} AND is_active = true {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
         """
-        query_string = f"""
-            SELECT * FROM public.contacts_contactfield WHERE org_id = {self.org_id} AND is_active = true
-            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
-            ORDER BY id ASC
-        """
+        query_string = f"SELECT * FROM public.contacts_contactfield WHERE {condition_string} ORDER BY id ASC"
         count = self.get_count("contacts_contactfield", condition=condition_string)
-        return (
-            self.get_results_paginated(
-                query_string=query_string,
-                count=count,
-            ),
-            count,
-        )
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
     def get_org_contacts(self, start_date=None, end_date=None) -> (list, int):
         condition_string = f"""
