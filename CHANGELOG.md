@@ -1,3 +1,7 @@
+v6.1.2
+----------
+ * Add TextIt WhatsApp channel type
+
 v6.1.1
 ----------
  * Fix contact exports when orgs have orphaned URNs in schemes they don't currently use
