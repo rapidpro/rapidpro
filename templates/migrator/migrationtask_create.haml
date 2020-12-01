@@ -15,8 +15,12 @@
     %h1 Start migration
 
 -block extra-script
+  %script{src:"{{ STATIC_URL }}js/jquery.mask.min.js"}
+
   :javascript
     (function($) {
+      $('#id_start_date').mask('00-00-0000 00:00');
+      $('#id_end_date').mask('00-00-0000 00:00');
       $("#id_org").select2({
         width: "350px",
         containerCssClass: "select2-temba-field",

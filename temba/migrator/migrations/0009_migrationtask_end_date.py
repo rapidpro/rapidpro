@@ -5,14 +5,10 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('migrator', '0008_migrationtask_start_date'),
-    ]
+    dependencies = [("migrator", "0008_migrationtask_start_date")]
 
     operations = [
         migrations.AddField(
-            model_name='migrationtask',
-            name='end_date',
-            field=models.DateField(null=True, verbose_name='End date'),
-        ),
+            model_name="migrationtask", name="end_date", field=models.DateField(null=True, verbose_name="End date")
+        )
     ]

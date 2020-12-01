@@ -71,8 +71,12 @@ class MigrationTask(TembaModel):
 
     migration_related_uuid = models.CharField(max_length=100, help_text="The UUID of the related migration", null=True)
 
+    start_date = models.DateTimeField(verbose_name="Start date", null=True)
+
+    end_date = models.DateTimeField(verbose_name="End date", null=True)
+
     @classmethod
-    def create(cls, org, user, migration_org, start_from, migration_related_uuid):
+    def create(cls, org, user, migration_org, start_from, migration_related_uuid, start_date, end_date):
         return cls.objects.create(
             org=org,
             migration_org=migration_org,
@@ -80,6 +84,8 @@ class MigrationTask(TembaModel):
             modified_by=user,
             start_from=start_from,
             migration_related_uuid=migration_related_uuid,
+            start_date=start_date,
+            end_date=end_date,
         )
 
     def update_status(self, status):
@@ -544,7 +550,9 @@ class MigrationTask(TembaModel):
         )
 
         self_migration_task = (
-            MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+            MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+            if self.migration_related_uuid
+            else self
         )
         MigrationAssociation.create(
             migration_task=self_migration_task,
@@ -568,7 +576,9 @@ class MigrationTask(TembaModel):
             new_topup.save(update_fields=["created_on", "modified_on"])
 
             self_migration_task = (
-                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                if self.migration_related_uuid
+                else self
             )
             MigrationAssociation.create(
                 migration_task=self_migration_task,
@@ -592,7 +602,9 @@ class MigrationTask(TembaModel):
             )
 
             self_migration_task = (
-                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                if self.migration_related_uuid
+                else self
             )
 
             MigrationAssociation.create(
@@ -659,7 +671,9 @@ class MigrationTask(TembaModel):
             )
 
             self_migration_task = (
-                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                if self.migration_related_uuid
+                else self
             )
 
             MigrationAssociation.create(
@@ -804,7 +818,9 @@ class MigrationTask(TembaModel):
                 new_contact_field.save(update_fields=["uuid"])
 
             self_migration_task = (
-                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                if self.migration_related_uuid
+                else self
             )
 
             MigrationAssociation.create(
@@ -847,7 +863,9 @@ class MigrationTask(TembaModel):
             )
 
             self_migration_task = (
-                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                if self.migration_related_uuid
+                else self
             )
 
             MigrationAssociation.create(
@@ -914,7 +932,9 @@ class MigrationTask(TembaModel):
                 contact_group.save(update_fields=["uuid"])
 
             self_migration_task = (
-                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                if self.migration_related_uuid
+                else self
             )
 
             MigrationAssociation.create(
@@ -977,7 +997,9 @@ class MigrationTask(TembaModel):
             )
 
             self_migration_task = (
-                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                if self.migration_related_uuid
+                else self
             )
 
             MigrationAssociation.create(
@@ -1043,7 +1065,9 @@ class MigrationTask(TembaModel):
             )
 
             self_migration_task = (
-                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                if self.migration_related_uuid
+                else self
             )
 
             MigrationAssociation.create(
@@ -1093,7 +1117,9 @@ class MigrationTask(TembaModel):
                 new_msg_folder.save(update_fields=["uuid"])
 
             self_migration_task = (
-                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                if self.migration_related_uuid
+                else self
             )
 
             MigrationAssociation.create(
@@ -1123,7 +1149,9 @@ class MigrationTask(TembaModel):
                 new_msg_label.save(update_fields=["folder"])
 
             self_migration_task = (
-                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                if self.migration_related_uuid
+                else self
             )
 
             MigrationAssociation.create(
@@ -1141,7 +1169,11 @@ class MigrationTask(TembaModel):
 
             logger.info(f">>> [{idx}/{count}] Msg: {msg.uuid} - [{msg_direction}] {msg_text}")
 
-            self_migration_task = MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+            self_migration_task = (
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                if self.migration_related_uuid
+                else self
+            )
 
             (
                 response_to_id,
@@ -1249,7 +1281,9 @@ class MigrationTask(TembaModel):
                 new_flow_label.save(update_fields=["parent"])
 
             self_migration_task = (
-                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                if self.migration_related_uuid
+                else self
             )
 
             MigrationAssociation.create(
@@ -1347,7 +1381,9 @@ class MigrationTask(TembaModel):
                 new_flow.save(update_fields=["metadata"])
 
             self_migration_task = (
-                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                if self.migration_related_uuid
+                else self
             )
 
             MigrationAssociation.create(
@@ -1791,7 +1827,9 @@ class MigrationTask(TembaModel):
                 new_campaign.save(update_fields=["is_archived"])
 
             self_migration_task = (
-                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                if self.migration_related_uuid
+                else self
             )
 
             MigrationAssociation.create(
@@ -1910,7 +1948,9 @@ class MigrationTask(TembaModel):
             )
 
             self_migration_task = (
-                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                if self.migration_related_uuid
+                else self
             )
 
             MigrationAssociation.create(
@@ -1988,7 +2028,9 @@ class MigrationTask(TembaModel):
             )
 
             self_migration_task = (
-                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first() if self.migration_related_uuid else self
+                MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
+                if self.migration_related_uuid
+                else self
             )
 
             MigrationAssociation.create(

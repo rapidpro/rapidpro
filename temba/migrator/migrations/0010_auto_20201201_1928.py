@@ -5,19 +5,15 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('migrator', '0009_migrationtask_end_date'),
-    ]
+    dependencies = [("migrator", "0009_migrationtask_end_date")]
 
     operations = [
         migrations.AlterField(
-            model_name='migrationtask',
-            name='end_date',
-            field=models.DateTimeField(null=True, verbose_name='End date'),
+            model_name="migrationtask", name="end_date", field=models.DateTimeField(null=True, verbose_name="End date")
         ),
         migrations.AlterField(
-            model_name='migrationtask',
-            name='start_date',
-            field=models.DateTimeField(null=True, verbose_name='Start date'),
+            model_name="migrationtask",
+            name="start_date",
+            field=models.DateTimeField(null=True, verbose_name="Start date"),
         ),
     ]
