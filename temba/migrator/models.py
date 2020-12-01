@@ -260,10 +260,14 @@ class MigrationTask(TembaModel):
                 logger.info("---------------- Channel Events ----------------")
                 logger.info("[STARTED] Channel Events migration")
 
-                # Removing all channel events before importing them from live server
-                ChannelEvent.objects.filter(org=self.org).delete()
+                if not self.start_date:
+                    # Removing all channel events before importing them from live server
+                    ChannelEvent.objects.filter(org=self.org).delete()
 
-                org_channel_events, channel_events_count = migrator.get_org_channel_events()
+                org_channel_events, channel_events_count = migrator.get_org_channel_events(
+                    start_date=start_date_string,
+                    end_date=end_date_string
+                )
                 if org_channel_events:
                     self.add_channel_events(
                         logger=logger, channel_events=org_channel_events, count=channel_events_count

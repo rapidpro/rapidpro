@@ -216,15 +216,14 @@ class Migrator(object):
             count=count,
         )
 
-    def get_org_channel_events(self) -> (list, int):
-        count = self.get_count("channels_channelevent", condition=f"org_id = {self.org_id}")
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.channels_channelevent WHERE org_id = {self.org_id} ORDER BY id ASC",
-                count=count,
-            ),
-            count,
-        )
+    def get_org_channel_events(self, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            org_id = {self.org_id} 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.channels_channelevent WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("channels_channelevent", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
     def get_org_trigger_schedules(self) -> (list, int):
         count_query = self.make_query_one(
