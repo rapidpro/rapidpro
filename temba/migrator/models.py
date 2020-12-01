@@ -222,9 +222,19 @@ class MigrationTask(TembaModel):
                 logger.info("---------------- Contacts ----------------")
                 logger.info("[STARTED] Contacts migration")
 
-                org_contacts, contacts_count = migrator.get_org_contacts()
+                org_contacts, contacts_count = migrator.get_org_contacts(
+                    start_date=start_date_string,
+                    end_date=end_date_string,
+                )
                 if org_contacts:
-                    self.add_contacts(logger=logger, contacts=org_contacts, migrator=migrator, count=contacts_count)
+                    self.add_contacts(
+                        logger=logger,
+                        contacts=org_contacts,
+                        migrator=migrator,
+                        count=contacts_count,
+                        start_date=start_date_string,
+                        end_date=end_date_string,
+                    )
 
                 logger.info("[COMPLETED] Contacts migration")
                 logger.info("")
@@ -846,7 +856,7 @@ class MigrationTask(TembaModel):
                 model=MigrationAssociation.MODEL_CONTACT_FIELD,
             )
 
-    def add_contacts(self, logger, contacts, migrator, count):
+    def add_contacts(self, logger, contacts, migrator, count, start_date=None, end_date=None):
         for idx, contact in enumerate(contacts, start=1):
             logger.info(f">>> [{idx}/{count}] Contact: {contact.uuid} - {contact.name}")
 
@@ -891,7 +901,7 @@ class MigrationTask(TembaModel):
                 model=MigrationAssociation.MODEL_CONTACT,
             )
 
-            values = migrator.get_values_value(contact_id=contact.id)
+            values = migrator.get_values_value(contact_id=contact.id, start_date=start_date, end_date=end_date)
             for item in values:
                 new_field_obj = MigrationAssociation.get_new_object(
                     model=MigrationAssociation.MODEL_CONTACT_FIELD,

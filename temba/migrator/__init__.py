@@ -196,27 +196,23 @@ class Migrator(object):
             count,
         )
 
-    def get_org_contacts(self) -> (list, int):
-        count = self.get_count(
-            "contacts_contact", condition=f"org_id = {self.org_id} AND is_test = false AND is_active = true"
-        )
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.contacts_contact WHERE org_id = {self.org_id} AND is_test = false  AND is_active = true ORDER BY id ASC",
-                count=count,
-            ),
-            count,
-        )
+    def get_org_contacts(self, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            org_id = {self.org_id} AND is_test = false AND is_active = true 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.contacts_contact WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("contacts_contact", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
-    def get_values_value(self, contact_id) -> list:
-        count = self.get_count(
-            "values_value",
-            condition=f"org_id = {self.org_id} AND contact_id = {contact_id} AND contact_field_id IS NOT NULL",
-        )
-        return self.get_results_paginated(
-            query_string=f"SELECT * FROM public.values_value WHERE org_id = {self.org_id} AND contact_id = {contact_id} AND contact_field_id IS NOT NULL ORDER BY id ASC",
-            count=count,
-        )
+    def get_values_value(self, contact_id, start_date=None, end_date=None) -> list:
+        condition_string = f"""
+            org_id = {self.org_id} AND contact_id = {contact_id} AND contact_field_id IS NOT NULL
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.values_value WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("values_value", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count)
 
     def get_contact_urns(self, contact_id) -> list:
         count = self.get_count(
