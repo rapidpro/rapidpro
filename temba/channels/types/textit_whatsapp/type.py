@@ -23,7 +23,7 @@ class TextItWhatsAppType(ChannelType):
     # uncommment when we launch
     # category = ChannelType.Category.SOCIAL_MEDIA
 
-    courier_url = r"^tx/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
+    courier_url = r"^txw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
 
     name = "TextIt WhatsApp"
     icon = "icon-whatsapp"
