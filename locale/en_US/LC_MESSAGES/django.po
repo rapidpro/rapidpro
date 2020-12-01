@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-26 21:46+0000\n"
+"POT-Creation-Date: 2020-11-30 20:21+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1413,6 +1413,19 @@ msgid "To finish configuring your Telesom connection you'll need to provide Tele
 msgstr ""
 
 msgid "The private key provided to use their API"
+msgstr ""
+
+#, python-format
+msgid "Easily use your own Enterprise WhatsApp account using %(link)s to communicate with your contacts. "
+msgstr ""
+
+msgid "API Endpoint"
+msgstr ""
+
+msgid "The API endpoint for your TextIt WhatsApp number"
+msgstr ""
+
+msgid "The access token for your TextIt WhatsApp number"
 msgstr ""
 
 #, python-format
@@ -5009,6 +5022,9 @@ msgid "In your @botfather chat, type in the command <code>/newbot</code>. Follow
 msgstr ""
 
 msgid "Once you have created your bot, @botfather will provide you with the authentication token to use your bot. Enter that token below."
+msgstr ""
+
+msgid "You can quickly connect TextIt WhatsApp numbers by entering the credentials below. You can find the API endpoint and access token by visiting your TextIt WhatsApp account page."
 msgstr ""
 
 msgid "You have connected a Twilio Trial Account which has some restrictions."

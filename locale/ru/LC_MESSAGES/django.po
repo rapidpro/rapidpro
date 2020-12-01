@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-26 21:46+0000\n"
+"POT-Creation-Date: 2020-11-30 20:21+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1939,6 +1939,26 @@ msgstr "Для завершения настройки Вашего подклю
 
 msgid "The private key provided to use their API"
 msgstr "Частный ключ, предоставленный для использования их API"
+
+#, fuzzy, python-format
+#| msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
+msgid "Easily use your own Enterprise WhatsApp account using %(link)s to communicate with your contacts. "
+msgstr "Если у Вас есть корпоративная учетная запись WhatsApp, Вы можете подключить ее для общения с Вашими контактами"
+
+#, fuzzy
+#| msgid "Endpoint"
+msgid "API Endpoint"
+msgstr "Конечная точка"
+
+#, fuzzy
+#| msgid "The endpoint URL for your LUIS app"
+msgid "The API endpoint for your TextIt WhatsApp number"
+msgstr "URL конечной точки для Вашего приложения LUIS"
+
+#, fuzzy
+#| msgid "The namespace for your WhatsApp templates"
+msgid "The access token for your TextIt WhatsApp number"
+msgstr "Область имен для Ваших шаблонов WhatsApp "
 
 #, fuzzy, python-format
 #| msgid ""
@@ -6534,6 +6554,9 @@ msgstr ""
 "            Введите указанный токен ниже.\n"
 "\n"
 "          "
+
+msgid "You can quickly connect TextIt WhatsApp numbers by entering the credentials below. You can find the API endpoint and access token by visiting your TextIt WhatsApp account page."
+msgstr ""
 
 msgid "You have connected a Twilio Trial Account which has some restrictions."
 msgstr "Вы подключили Пробную версию учетной записи Twilio, у которой есть некоторые ограничения."
