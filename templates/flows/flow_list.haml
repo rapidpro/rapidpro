@@ -21,7 +21,7 @@
             -if org_perms.flows.flow_create
               .w-64.mr-5
                 %temba-modax#create-flow-modal{ header:'{% trans "Create Flow" %}', endpoint:"{% url 'flows.flow_create' %}" }
-                  .button-primary
+                  .button-primary.block
                     -trans "Create Flow"
 
           .lp-nav.upper
@@ -80,11 +80,11 @@
 
           .flex-grow
             -if org_perms.flows.flowstart_list
-              .button-light.mt-3(onclick="goto(event)" href="{% url 'flows.flowstart_list' %}")
+              .button-light.block.mt-3(onclick="goto(event)" href="{% url 'flows.flowstart_list' %}")
                 -trans "Flow Start Log"
 
             -if org_perms.api.webhookresult_list
-              .mt-3.button-light.mt-3(onclick="goto(event)" href="{% url 'api.webhookresult_list' %}")
+              .mt-3.button-light.block.mt-3(onclick="goto(event)" href="{% url 'api.webhookresult_list' %}")
                 -trans "Webhook Call Log"
 
         .right

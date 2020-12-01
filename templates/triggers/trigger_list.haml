@@ -27,7 +27,7 @@
             .flex.flex-col
               -if org_perms.triggers.trigger_create
                 .w-64.mr-5
-                  .button-primary{onclick:"goto(event)", href:"{% url 'triggers.trigger_create' %}"}
+                  .button-primary.block(onclick="goto(event)" href="{% url 'triggers.trigger_create' %}")
                     -trans "Create Trigger"
             
             .lp-nav.upper
