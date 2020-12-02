@@ -111,7 +111,7 @@ docs/_build/
 
 # PyBuilder
 target/
-textit
+/textit
 
 # Vagrant/Ansible
 .vagrant/

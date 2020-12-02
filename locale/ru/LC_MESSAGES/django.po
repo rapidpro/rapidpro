@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-23 18:08+0000\n"
+"POT-Creation-Date: 2020-12-01 16:43+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1939,6 +1939,26 @@ msgstr "Для завершения настройки Вашего подклю
 
 msgid "The private key provided to use their API"
 msgstr "Частный ключ, предоставленный для использования их API"
+
+#, fuzzy, python-format
+#| msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
+msgid "Easily use your own Enterprise WhatsApp account using %(link)s to communicate with your contacts. "
+msgstr "Если у Вас есть корпоративная учетная запись WhatsApp, Вы можете подключить ее для общения с Вашими контактами"
+
+#, fuzzy
+#| msgid "Endpoint"
+msgid "API Endpoint"
+msgstr "Конечная точка"
+
+#, fuzzy
+#| msgid "The endpoint URL for your LUIS app"
+msgid "The API endpoint for your TextIt WhatsApp number"
+msgstr "URL конечной точки для Вашего приложения LUIS"
+
+#, fuzzy
+#| msgid "The namespace for your WhatsApp templates"
+msgid "The access token for your TextIt WhatsApp number"
+msgstr "Область имен для Ваших шаблонов WhatsApp "
 
 #, fuzzy, python-format
 #| msgid ""
@@ -3984,6 +4004,11 @@ msgstr "name@domain.com"
 msgid "The timezone for your workspace"
 msgstr "В каком часовом поясе находится Ваша организация"
 
+#, fuzzy
+#| msgid "Please enter at least 8 characters"
+msgid "At least eight characters or more"
+msgstr "Пожалуйста, введите не менее 8 символов"
+
 msgid "Workspace"
 msgstr ""
 
@@ -3995,9 +4020,6 @@ msgstr ""
 
 msgid "That email address is already used"
 msgstr "Такой адрес электронной почты уже используется"
-
-msgid "Passwords must contain at least 8 letters."
-msgstr "Пароль должен содержать не менее 8 букв"
 
 #, fuzzy
 #| msgid "The first name of the organization administrator"
@@ -4017,7 +4039,9 @@ msgstr "Их адрес электронной почты"
 msgid "The timezone for the workspace"
 msgstr "В каком часовом поясе находится организация"
 
-msgid "Their password, at least eight letters please. (leave blank for existing users)"
+#, fuzzy
+#| msgid "Their password, at least eight letters please. (leave blank for existing users)"
+msgid "Their password, at least eight letters please. (leave blank for existing login)"
 msgstr "Их пароль, пожалуйста, укажите не менее восьми букв. (Оставьте пустым для существующих пользователей)"
 
 #, fuzzy
@@ -4035,8 +4059,8 @@ msgstr "Первоначальное количество кредитов, пр
 msgid "Login already exists, please do not include password."
 msgstr "Пользователь уже существует, пожалуйста, не указывайте пароль."
 
-msgid "Password must be at least 8 characters long"
-msgstr "Пароль должен быть длиной не менее 8 символов "
+msgid "Password required for new login."
+msgstr ""
 
 #, python-brace-format
 msgid "Deleted user {username}"
@@ -5998,10 +6022,10 @@ msgstr ""
 "        чтобы автоматизировать отправку и получение сообщений через FreshChat. Это также обеспечит поддержку Apple Business Chat, если он был настроен в Вашей учетной записи FreshChat.\n"
 "      "
 
-#, fuzzy
-#| msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook. To do so:"
-msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook."
-msgstr "Вам потребуется наличие учетной записи FreshChat, а также необходимо получить токен аутентификации и настроить вебхук. Для этого:"
+#, fuzzy, python-format
+#| msgid "Each Message sent to the channel will have a URN that's in the format of <code>channel-uuid/user-uuid</code> where the channel uuid is the FreshChat Message Channels uuid."
+msgid "Each message sent to the channel will have a URN in the format %(format)s where the channel UUID is the FreshChat channel's UUID."
+msgstr "Каждое Сообщение, отправляемое на канал, будет иметь URN в формате <code>channel-uuid/user-uuid</code>, где uuid канала это uuid каналов сообщений FreshChat."
 
 msgid "In the FreshChat web interface, under Settings, API Tokens, select Generate Token. Once the token is created you'll enter it below."
 msgstr "В веб-интерфейсе FreshChat в разделе «Настройки», «Токены API», выберите «Генерировать Токен». Как только токен будет создан, Вы введете его ниже."
@@ -6009,17 +6033,13 @@ msgstr "В веб-интерфейсе FreshChat в разделе «Настр�
 msgid "Under Settings again, select Webhooks and copy the Public Key and paste it below. This assures all webhook request from FreshChat will be authenticated."
 msgstr "Снова в разделе «Настройки» выберите «Вебхуки» и скопируйте Открытый Ключ и вставьте его ниже. Это гарантирует, что все запросы вебхука от FreshChat будут аутентифицированы."
 
-#, python-format
-msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat Message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\">FreshChat API</a>."
+#, fuzzy, python-format
+#| msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat Message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\">FreshChat API</a>."
+msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\">FreshChat API</a>."
 msgstr "Наконец, Вам потребуется UUID Агента, который %(name)s будет использовать при отправке сообщения FreshChat. Это можно сделать через <a href=\"https://developers.freshchat.com/api/#agent\">FreshChat API</a>."
 
 msgid "Once you press Submit below with all the information configured, the confirmation page will give you the URL to use for the FreshChat Webhooks. Enter this URL on the Settings page, under Webhooks where the Public Key was copied from before."
 msgstr "После того, как Вы нажмете кнопку «Отправить» ниже со всей настроенной информацией, на странице подтверждения Вам будет выдан адрес URL, который нужно использовать для вебхуков FreshChat. Введите этот адрес URL на странице «Настройки» в разделе «Вебхуки», откуда ранее был скопирован Открытый Ключ."
-
-#, fuzzy, python-format
-#| msgid "Each Message sent to the channel will have a URN that's in the format of <code>channel-uuid/user-uuid</code> where the channel uuid is the FreshChat Message Channels uuid."
-msgid "Each Message sent to the channel will have a URN that's in the format of %(uuid)s where the channel uuid is the FreshChat Message Channels uuid."
-msgstr "Каждое Сообщение, отправляемое на канал, будет иметь URN в формате <code>channel-uuid/user-uuid</code>, где uuid канала это uuid каналов сообщений FreshChat."
 
 #, fuzzy, python-format
 #| msgid ""
@@ -6181,7 +6201,7 @@ msgstr ""
 #| "            Activate the permission to login via web application in the \"Settings > Account > Allow login\"\n"
 #| "\n"
 #| "          "
-msgid "Activate the permission to login via web application in the \"Settings > Account > Allow login\""
+msgid "Activate the permission to login via web application in the <i>Settings</i> &gt; <i>Account</i> &gt; <i>Allow login</i>"
 msgstr ""
 "\n"
 "            Активируйте разрешение на вход через веб-приложение в \"Настройки > Учетная запись > Разрешить вход\"\n"
@@ -6194,7 +6214,7 @@ msgstr ""
 #| "            Register your email and password via the application \"Settings > Account > Email Account\"\n"
 #| "\n"
 #| "          "
-msgid "Register your email and password via the application \"Settings > Account > Email Account\""
+msgid "Register your email and password via the application <i>Settings</i> &gt; <i>Account</i> &gt; <i>Email Account</i>"
 msgstr ""
 "\n"
 "            Зарегистрируйте свой адрес электронной почты и пароль через приложение \"Настройки > Учетная запись > Учетная запись электронной почты\"\n"
@@ -6220,7 +6240,7 @@ msgstr ""
 #| "                In <a href=\"https://business.line.me/en/\">LINE Business Center</a>, select \"Messaging API\" in the \"Services\"\n"
 #| "\n"
 #| "              "
-msgid "In <a href=\"https://business.line.me/en/\">LINE Business Center</a>, select \"Messaging API\" in the \"Services\""
+msgid "In <a href=\"https://business.line.me/en/\">LINE Business Center</a>, select <i>Messaging API</i> in <i>Services</i>"
 msgstr ""
 "\n"
 "                В <a href=\"https://business.line.me/en/\">Корпоративном центре LINE</a> выберите \"API для передачи сообщений\" в \"Службы\"\n"
@@ -6233,7 +6253,7 @@ msgstr ""
 #| "                Select \"Start using Messaging API\"\n"
 #| "\n"
 #| "              "
-msgid "Select \"Start using Messaging API\""
+msgid "Select <i>Start using Messaging API</i>"
 msgstr ""
 "\n"
 "                Выберите \"Начать использовать API для передачи сообщений\"\n"
@@ -6272,7 +6292,7 @@ msgstr ""
 #| "                After the creation process of the LINE business account, you will see the page to add a new channel of communication \"Messaging API.\" Enter the name and select the appropriate category and click OK.\n"
 #| "\n"
 #| "              "
-msgid "After the creation process of the LINE business account, you will see the page to add a new channel of communication \"Messaging API.\" Enter the name and select the appropriate category and click OK."
+msgid "After the creation process of the LINE business account, you will see the page to add a new channel of communication <i>Messaging API</i>. Enter the name and select the appropriate category and click OK."
 msgstr ""
 "\n"
 "                После завершения процесса создания корпоративной учетной записи в LINE Вы увидите страницу для добавления нового канала связи \"API для передачи сообщений.\" Введите название, выберите соответствующую категорию и нажмите OK.\n"
@@ -6285,7 +6305,7 @@ msgstr ""
 #| "                In the next step, click the \"LINE @ Manager\" and it will redirect you to the API activation page.\n"
 #| "\n"
 #| "              "
-msgid "In the next step, click the \"LINE @ Manager\" and it will redirect you to the API activation page."
+msgid "In the next step, click the <i>LINE @ Manager</i> and it will redirect you to the API activation page."
 msgstr ""
 "\n"
 "                На следующем этапе нажмите \"LINE @ Manager\" и он перенаправит Вас на страницу активации API.\n"
@@ -6298,7 +6318,7 @@ msgstr ""
 #| "                Click \"Enable API\" and confirm. (By doing so, the status of your API will be \"Valid\")\n"
 #| "\n"
 #| "              "
-msgid "Click \"Enable API\" and confirm. (By doing so, the status of your API will be \"Valid\")"
+msgid "Click \"Enable API\" and confirm. (By doing so, the status of your API will be <i>Valid</i>)"
 msgstr ""
 "\n"
 "                Нажмите \"Включить API\" и подтвердите. (После таких действий статус Вашего API изменится на \"Действительный\")\n"
@@ -6311,7 +6331,7 @@ msgstr ""
 #| "                Enable the option to allow the use of Webhooks and click \"Save.\"\n"
 #| "\n"
 #| "              "
-msgid "Enable the option to allow the use of Webhooks and click \"Save.\""
+msgid "Enable the option to allow the use of Webhooks and click <i>Save</i>."
 msgstr ""
 "\n"
 "                Включите возможность использования Вебхуков и нажмите \"Сохранить.\"\n"
@@ -6342,7 +6362,7 @@ msgstr ""
 #| "                In the communication channel of your choice, click on the \"LINE Developers\" button, accept the terms, and it will direct you to a page with the information needed to fill out in the form below (Channel ID, Channel Name, Channel Secret and Channel Access Token).\n"
 #| "\n"
 #| "              "
-msgid "In the communication channel of your choice, click on the \"LINE Developers\" button, accept the terms, and it will direct you to a page with the information needed to fill out in the form below (Channel ID, Channel Name, Channel Secret and Channel Access Token)."
+msgid "In the communication channel of your choice, click on the <i>LINE Developers</i> button, accept the terms, and it will direct you to a page with the information needed to fill out in the form below (Channel ID, Channel Name, Channel Secret and Channel Access Token)."
 msgstr ""
 "\n"
 "                В выбранном Вами канале связи нажмите на кнопку \"Разработчики LINE\", примите условия, и Вы перейдете на страницу с информацией, которая необходима для заполнения в приведенной ниже форме (ID Канала, Название Канала, Секрет Канала Токен Доступа к Каналу).\n"
@@ -6355,7 +6375,7 @@ msgstr ""
 #| "                  Note: To generate the Channel Access Token click on \"Issue\" button\n"
 #| "\n"
 #| "                "
-msgid "Note: To generate the Channel Access Token click on \"Issue\" button"
+msgid "Note: To generate the Channel Access Token click on <i>Issue</i> button"
 msgstr ""
 "\n"
 "                  Примечание: Чтобы генерировать Токен Доступа к Каналу нажмите на кнопку \"Выпустить\"\n"
@@ -6501,7 +6521,7 @@ msgstr ""
 #| "            device by searching for \"botfather\" and starting a new chat.</li>\n"
 #| "\n"
 #| "          "
-msgid "Start a new chat with the <a href=\"https://telegram.me/botfather\">BotFather</a>. You can do so on your device by searching for \"botfather\" and starting a new chat.</li>"
+msgid "Start a new chat with the <a href=\"https://telegram.me/botfather\">BotFather</a>. You can do so on your device by searching for \"botfather\" and starting a new chat."
 msgstr ""
 "\n"
 "            Начните новый чат с <a href=\"https://telegram.me/botfather\">BotFather</a>. Вы можете сделать это на своем\n"
@@ -6538,6 +6558,9 @@ msgstr ""
 "            Введите указанный токен ниже.\n"
 "\n"
 "          "
+
+msgid "You can quickly connect TextIt WhatsApp numbers by entering the credentials below. You can find the API endpoint and access token by visiting your TextIt WhatsApp account page."
+msgstr ""
 
 msgid "You have connected a Twilio Trial Account which has some restrictions."
 msgstr "Вы подключили Пробную версию учетной записи Twilio, у которой есть некоторые ограничения."
@@ -7470,9 +7493,6 @@ msgstr ""
 "\n"
 "Вы можете скачать свои результаты потоков %(brand)s, нажав на следующую ссылку:\n"
 
-msgid "What is a Flow?"
-msgstr "Что такое Поток?"
-
 #, fuzzy
 #| msgid ""
 #| "\n"
@@ -7502,9 +7522,6 @@ msgstr ""
 "        создавать очень личный и интересный опыт для Ваших пользователей.\n"
 "\n"
 "      "
-
-msgid "Create Flow"
-msgstr "Создать Поток"
 
 msgid "No results yet"
 msgstr "Пока результатов нет"
@@ -7652,13 +7669,13 @@ msgstr ""
 "\n"
 "            "
 
+msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
+msgstr "Этот поток находится в процессе осуществления отправки, это сообщение исчезнет после того, ​​как все контакты будут добавлены в поток."
+
 #, fuzzy
 #| msgid "Base Language"
 msgid "Change Language"
 msgstr "Основной язык"
-
-msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
-msgstr "Этот поток находится в процессе осуществления отправки, это сообщение исчезнет после того, ​​как все контакты будут добавлены в поток."
 
 #, python-format
 msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the workspace, communication with that contact will default to <b>%(language)s</b>."
@@ -7720,6 +7737,9 @@ msgstr "Вернуться"
 
 msgid "Create Label"
 msgstr "Создать Метку"
+
+msgid "Create Flow"
+msgstr "Создать Поток"
 
 #, fuzzy
 #| msgid "Webhook Log"
@@ -10445,6 +10465,20 @@ msgstr "Ввести запрос"
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
+#, fuzzy
+#~| msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook. To do so:"
+#~ msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook."
+#~ msgstr "Вам потребуется наличие учетной записи FreshChat, а также необходимо получить токен аутентификации и настроить вебхук. Для этого:"
+
+#~ msgid "What is a Flow?"
+#~ msgstr "Что такое Поток?"
+
+#~ msgid "Passwords must contain at least 8 letters."
+#~ msgstr "Пароль должен содержать не менее 8 букв"
+
+#~ msgid "Password must be at least 8 characters long"
+#~ msgstr "Пароль должен быть длиной не менее 8 символов "
+
 #, fuzzy, python-format
 #~| msgid "Are you sure you want to delete this contact?"
 #~ msgid "Are you sure you want to delete <b>%(name)s</b>? No way to undo this operation."
@@ -12558,11 +12592,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "ID"
 #~ msgstr "ID"
-
-#, fuzzy
-#~| msgid "Please enter at least 8 characters"
-#~ msgid "At least eight characters"
-#~ msgstr "Пожалуйста, введите не менее 8 символов"
 
 #~ msgid "Hold up!"
 #~ msgstr "Подождите!"
