@@ -225,37 +225,37 @@ class Migrator(object):
         count = self.get_count("channels_channelevent", condition=condition_string)
         return self.get_results_paginated(query_string=query_string, count=count), count
 
-    def get_org_trigger_schedules(self) -> (list, int):
-        count_query = self.make_query_one(
-            query_string=f"SELECT count(ss.*) as count FROM public.schedules_schedule ss INNER JOIN "
-            f"public.triggers_trigger tt ON (ss.id = tt.schedule_id) WHERE tt.org_id = {self.org_id} "
-            f"AND tt.schedule_id IS NOT NULL"
-        )
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT ss.* as count FROM public.schedules_schedule ss INNER JOIN "
-                f"public.triggers_trigger tt ON (ss.id = tt.schedule_id) WHERE tt.org_id = {self.org_id} "
-                f"AND tt.schedule_id IS NOT NULL",
-                count=count_query.count,
-            ),
-            count_query.count,
-        )
+    def get_org_trigger_schedules(self, start_date=None, end_date=None) -> (list, int):
+        count_query_string = f"""
+            SELECT count(ss.*) as count FROM public.schedules_schedule ss INNER JOIN 
+            public.triggers_trigger tt ON (ss.id = tt.schedule_id) WHERE tt.org_id = {self.org_id} 
+            AND tt.schedule_id IS NOT NULL 
+            {"AND (ss.created_on >= '%s' AND ss.created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"""
+            SELECT ss.* as count FROM public.schedules_schedule ss INNER JOIN 
+            public.triggers_trigger tt ON (ss.id = tt.schedule_id) WHERE tt.org_id = {self.org_id} 
+            AND tt.schedule_id IS NOT NULL
+            {"AND (ss.created_on >= '%s' AND ss.created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        count_query = self.make_query_one(query_string=count_query_string)
+        return self.get_results_paginated(query_string=query_string, count=count_query.count), count_query.count
 
-    def get_org_broadcast_schedules(self) -> (list, int):
-        count_query = self.make_query_one(
-            query_string=f"SELECT count(ss.*) as count FROM public.schedules_schedule ss INNER JOIN "
-            f"public.msgs_broadcast mb ON (ss.id = mb.schedule_id) WHERE mb.org_id = {self.org_id} "
-            f"AND mb.schedule_id IS NOT NULL"
-        )
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT ss.* FROM public.schedules_schedule ss INNER JOIN "
-                f"public.msgs_broadcast mb ON (ss.id = mb.schedule_id) WHERE mb.org_id = {self.org_id} "
-                f"AND mb.schedule_id IS NOT NULL",
-                count=count_query.count,
-            ),
-            count_query.count,
-        )
+    def get_org_broadcast_schedules(self, start_date=None, end_date=None) -> (list, int):
+        count_query_string = f"""
+            SELECT count(ss.*) as count FROM public.schedules_schedule ss INNER JOIN 
+            public.msgs_broadcast mb ON (ss.id = mb.schedule_id) WHERE mb.org_id = {self.org_id} 
+            AND mb.schedule_id IS NOT NULL
+            {"AND (ss.created_on >= '%s' AND ss.created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"""
+            SELECT ss.* FROM public.schedules_schedule ss INNER JOIN 
+            public.msgs_broadcast mb ON (ss.id = mb.schedule_id) WHERE mb.org_id = {self.org_id} 
+            AND mb.schedule_id IS NOT NULL
+            {"AND (ss.created_on >= '%s' AND ss.created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        count_query = self.make_query_one(query_string=count_query_string)
+        return self.get_results_paginated(query_string=query_string, count=count_query.count), count_query.count
 
     def get_org_msg_broadcasts(self) -> (list, int):
         count = self.get_count("msgs_broadcast", condition=f"org_id = {self.org_id} AND status not in ('P', 'I')")

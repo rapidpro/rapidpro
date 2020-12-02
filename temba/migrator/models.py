@@ -280,17 +280,24 @@ class MigrationTask(TembaModel):
                 logger.info("---------------- Schedules ----------------")
                 logger.info("[STARTED] Schedules migration")
 
-                # Inactivating all schedules before the migration as we can re-run the script to re-import the schedules
-                Schedule.objects.filter(org=self.org, is_active=True).update(is_active=False)
+                if not self.start_date:
+                    # Inactivating all schedules before the migration as we can re-run the script to re-import the schedules
+                    Schedule.objects.filter(org=self.org, is_active=True).update(is_active=False)
 
-                org_trigger_schedules, trigger_schedules_count = migrator.get_org_trigger_schedules()
+                org_trigger_schedules, trigger_schedules_count = migrator.get_org_trigger_schedules(
+                    start_date=start_date_string,
+                    end_date=end_date_string
+                )
                 if org_trigger_schedules:
                     self.add_schedules(logger=logger, schedules=org_trigger_schedules, count=trigger_schedules_count)
 
                 logger.info("[COMPLETED] Trigger schedules migration")
                 logger.info("[STARTED] Broadcast schedules migration")
 
-                org_broadcast_schedules, broadcast_schedules_count = migrator.get_org_broadcast_schedules()
+                org_broadcast_schedules, broadcast_schedules_count = migrator.get_org_broadcast_schedules(
+                    start_date=start_date_string,
+                    end_date=end_date_string
+                )
                 if org_broadcast_schedules:
                     self.add_schedules(
                         logger=logger, schedules=org_broadcast_schedules, count=broadcast_schedules_count
