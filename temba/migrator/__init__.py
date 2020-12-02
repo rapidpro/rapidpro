@@ -257,15 +257,14 @@ class Migrator(object):
         count_query = self.make_query_one(query_string=count_query_string)
         return self.get_results_paginated(query_string=query_string, count=count_query.count), count_query.count
 
-    def get_org_msg_broadcasts(self) -> (list, int):
-        count = self.get_count("msgs_broadcast", condition=f"org_id = {self.org_id} AND status not in ('P', 'I')")
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.msgs_broadcast WHERE org_id = {self.org_id} AND status not in ('P', 'I') ORDER BY id ASC",
-                count=count,
-            ),
-            count,
-        )
+    def get_org_msg_broadcasts(self, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            org_id = {self.org_id} AND status not in ('P', 'I')
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.msgs_broadcast WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("msgs_broadcast", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
     def get_msg_broadcast_contacts(self, broadcast_id) -> list:
         count = self.get_count("msgs_broadcast_contacts", condition=f"broadcast_id = {broadcast_id}")

@@ -310,9 +310,13 @@ class MigrationTask(TembaModel):
                 logger.info("---------------- Msg Broadcasts ----------------")
                 logger.info("[STARTED] Msg Broadcasts migration")
 
-                Broadcast.objects.filter(org=self.org, is_active=True).update(is_active=False)
+                if not self.start_date:
+                    Broadcast.objects.filter(org=self.org, is_active=True).update(is_active=False)
 
-                org_msg_broadcasts, msg_broadcast_count = migrator.get_org_msg_broadcasts()
+                org_msg_broadcasts, msg_broadcast_count = migrator.get_org_msg_broadcasts(
+                    start_date=start_date_string,
+                    end_date=end_date_string
+                )
                 if org_msg_broadcasts:
                     self.add_msg_broadcasts(
                         logger=logger, msg_broadcasts=org_msg_broadcasts, migrator=migrator, count=msg_broadcast_count
