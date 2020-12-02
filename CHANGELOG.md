@@ -1,3 +1,9 @@
+v6.1.3
+----------
+ * Fix intent selection on split by intent
+ * Update callback URL for textit whatsapp
+ * Use Django password validators
+
 v6.1.2
 ----------
  * Add TextIt WhatsApp channel type
