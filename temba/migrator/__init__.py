@@ -395,17 +395,23 @@ class Migrator(object):
             count=count,
         )
 
-    def get_flow_images(self, flow_id) -> list:
-        count = self.get_count("flows_flowimage", condition=f"flow_id = {flow_id}")
-        return self.get_results_paginated(
-            query_string=f"SELECT * FROM public.flows_flowimage WHERE flow_id = {flow_id} ORDER BY id ASC", count=count
-        )
+    def get_flow_images(self, flow_id, start_date=None, end_date=None) -> list:
+        condition_string = f"""
+            flow_id = {flow_id} 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.flows_flowimage WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("flows_flowimage", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count)
 
-    def get_flow_starts(self, flow_id) -> list:
-        count = self.get_count("flows_flowstart", condition=f"flow_id = {flow_id}")
-        return self.get_results_paginated(
-            query_string=f"SELECT * FROM public.flows_flowstart WHERE flow_id = {flow_id} ORDER BY id ASC", count=count
-        )
+    def get_flow_starts(self, flow_id, start_date=None, end_date=None) -> list:
+        condition_string = f"""
+            flow_id = {flow_id} 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.flows_flowstart WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("flows_flowstart", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count)
 
     def get_flow_start_contacts(self, flowstart_id) -> list:
         count = self.get_count("flows_flowstart_contacts", condition=f"flowstart_id = {flowstart_id}")
@@ -421,11 +427,14 @@ class Migrator(object):
             count=count,
         )
 
-    def get_flow_runs(self, flow_id) -> list:
-        count = self.get_count("flows_flowrun", condition=f"flow_id = {flow_id}")
-        return self.get_results_paginated(
-            query_string=f"SELECT * FROM public.flows_flowrun WHERE flow_id = {flow_id} ORDER BY id ASC", count=count
-        )
+    def get_flow_runs(self, flow_id, start_date=None, end_date=None) -> list:
+        condition_string = f"""
+            flow_id = {flow_id} 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.flows_flowrun WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("flows_flowrun", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count)
 
     def get_flow_run_events(self, flow_run_id) -> list:
         count_query = self.make_query_one(

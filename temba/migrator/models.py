@@ -406,6 +406,8 @@ class MigrationTask(TembaModel):
                         migrator=migrator,
                         count=flows_count,
                         inactive_flows=inactive_flows,
+                        start_date=start_date_string,
+                        end_date=end_date_string
                     )
 
                 logger.info("[COMPLETED] Flows migration")
@@ -1353,7 +1355,7 @@ class MigrationTask(TembaModel):
                 model=MigrationAssociation.MODEL_FLOW_LABEL,
             )
 
-    def add_flows(self, logger, flows, migrator, count, inactive_flows):
+    def add_flows(self, logger, flows, migrator, count, inactive_flows, start_date=None, end_date=None):
         for idx, flow in enumerate(flows, start=1):
             logger.info(f">>> [{idx}/{count}] Flow: {flow.uuid} - {flow.name}")
 
@@ -1612,10 +1614,11 @@ class MigrationTask(TembaModel):
             except Exception:
                 pass
 
-            # Removing flow images before importing again
-            new_flow.flow_images.all().delete()
+            if not start_date:
+                # Removing flow images before importing again
+                new_flow.flow_images.all().delete()
 
-            flow_images = migrator.get_flow_images(flow_id=flow.id)
+            flow_images = migrator.get_flow_images(flow_id=flow.id, start_date=start_date, end_date=end_date)
             logger.info(f">>> Flow Images")
 
             for item in flow_images:
@@ -1655,26 +1658,30 @@ class MigrationTask(TembaModel):
                     path_s3_file_url = item.path
                     path_thumbnail_s3_file_url = item.path_thumbnail
 
-                FlowImage.objects.create(
-                    uuid=item.uuid,
-                    org=self.org,
-                    flow=new_flow,
-                    contact=new_contact_obj,
-                    name=item.name,
-                    path=path_s3_file_url,
-                    path_thumbnail=path_thumbnail_s3_file_url,
-                    exif=item.exif,
-                    created_on=item.created_on,
-                    modified_on=item.modified_on,
-                    is_active=item.is_active,
-                )
+                try:
+                    FlowImage.objects.create(
+                        uuid=item.uuid,
+                        org=self.org,
+                        flow=new_flow,
+                        contact=new_contact_obj,
+                        name=item.name,
+                        path=path_s3_file_url,
+                        path_thumbnail=path_thumbnail_s3_file_url,
+                        exif=item.exif,
+                        created_on=item.created_on,
+                        modified_on=item.modified_on,
+                        is_active=item.is_active,
+                    )
+                except IntegrityError:
+                    continue
 
-            # Releasing flow starts before the migration
-            for fs in new_flow.starts.all():
-                fs.release()
+            if not start_date:
+                # Releasing flow starts before the migration
+                for fs in new_flow.starts.all():
+                    fs.release()
 
             logger.info(f">>> Flow Starts")
-            flow_starts = migrator.get_flow_starts(flow_id=flow.id)
+            flow_starts = migrator.get_flow_starts(flow_id=flow.id, start_date=start_date, end_date=end_date)
 
             for item in flow_starts:
                 try:
@@ -1682,20 +1689,23 @@ class MigrationTask(TembaModel):
                 except Exception:
                     extra = dict()
 
-                new_flow_start = FlowStart.objects.create(
-                    uuid=item.uuid,
-                    flow=new_flow,
-                    restart_participants=item.restart_participants,
-                    include_active=item.include_active,
-                    status=item.status,
-                    extra=extra,
-                    created_by=self.created_by,
-                    created_on=item.created_on,
-                    is_active=item.is_active,
-                    modified_by=self.created_by,
-                    modified_on=item.modified_on,
-                    contact_count=item.contact_count,
-                )
+                try:
+                    new_flow_start = FlowStart.objects.create(
+                        uuid=item.uuid,
+                        flow=new_flow,
+                        restart_participants=item.restart_participants,
+                        include_active=item.include_active,
+                        status=item.status,
+                        extra=extra,
+                        created_by=self.created_by,
+                        created_on=item.created_on,
+                        is_active=item.is_active,
+                        modified_by=self.created_by,
+                        modified_on=item.modified_on,
+                        contact_count=item.contact_count,
+                    )
+                except IntegrityError:
+                    continue
 
                 self_migration_task = (
                     MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
@@ -1730,12 +1740,13 @@ class MigrationTask(TembaModel):
                     if new_group_obj:
                         new_flow_start.groups.add(new_group_obj)
 
-            # Releasing flow runs before the migration
-            for fr in new_flow.runs.all():
-                fr.release()
+            if not start_date:
+                # Releasing flow runs before the migration
+                for fr in new_flow.runs.all():
+                    fr.release()
 
             logger.info(f">>> Flow Runs")
-            flow_runs = migrator.get_flow_runs(flow_id=flow.id)
+            flow_runs = migrator.get_flow_runs(flow_id=flow.id, start_date=start_date, end_date=end_date)
             for item in flow_runs:
                 new_contact_obj = MigrationAssociation.get_new_object(
                     model=MigrationAssociation.MODEL_CONTACT,
@@ -1790,28 +1801,31 @@ class MigrationTask(TembaModel):
                     }
                     flow_run_events.append(event)
 
-                new_flow_run = FlowRun.objects.create(
-                    uuid=item.uuid,
-                    org=self.org,
-                    flow=new_flow,
-                    contact=new_contact_obj,
-                    status=MigrationTask.get_run_status(exit_type=item.exit_type, is_active=item.is_active),
-                    created_on=item.created_on,
-                    modified_on=item.modified_on,
-                    exited_on=item.exited_on,
-                    expires_on=item.expires_on,
-                    timeout_on=item.timeout_on,
-                    responded=item.responded,
-                    start=new_start_obj,
-                    submitted_by=self.created_by if item.submitted_by_id else None,
-                    parent=new_parent_obj,
-                    parent_uuid=new_parent_obj.uuid if new_parent_obj else None,
-                    results=json.loads(item.results) if item.results else dict(),
-                    path=run_path,
-                    is_active=item.is_active,
-                    exit_type=item.exit_type,
-                    events=flow_run_events,
-                )
+                try:
+                    new_flow_run = FlowRun.objects.create(
+                        uuid=item.uuid,
+                        org=self.org,
+                        flow=new_flow,
+                        contact=new_contact_obj,
+                        status=MigrationTask.get_run_status(exit_type=item.exit_type, is_active=item.is_active),
+                        created_on=item.created_on,
+                        modified_on=item.modified_on,
+                        exited_on=item.exited_on,
+                        expires_on=item.expires_on,
+                        timeout_on=item.timeout_on,
+                        responded=item.responded,
+                        start=new_start_obj,
+                        submitted_by=self.created_by if item.submitted_by_id else None,
+                        parent=new_parent_obj,
+                        parent_uuid=new_parent_obj.uuid if new_parent_obj else None,
+                        results=json.loads(item.results) if item.results else dict(),
+                        path=run_path,
+                        is_active=item.is_active,
+                        exit_type=item.exit_type,
+                        events=flow_run_events,
+                    )
+                except IntegrityError:
+                    continue
 
                 self_migration_task = (
                     MigrationTask.objects.filter(uuid=self.migration_related_uuid).first()
