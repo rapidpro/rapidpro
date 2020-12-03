@@ -49,7 +49,7 @@ actions_names = {
 
 def get_flow_step_name(node, default=""):
     if "router" not in node:
-        action_type = node["actions"][0]["type"]
+        action_type = node.get("actions", [{}])[0].get("type", "")
         action_type = "set_contact_field" if "set_contact" in action_type else action_type
         return actions_names.get(action_type, {}).get("name", default)
     else:

@@ -946,6 +946,10 @@ CELERYBEAT_SCHEDULE = {
         "schedule": crontab(hour=4, minute=0),
     },
     "start-active-mergeflow-tasks": {"task": "start_active_merge_flows", "schedule": timedelta(minutes=10)},
+    "generate-missing-gif-thumbnails": {
+        "task": "generate_missing_gif_thumbnails",
+        "schedule": crontab(hour=3, minute=30),
+    },
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True

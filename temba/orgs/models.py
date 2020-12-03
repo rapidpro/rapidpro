@@ -327,7 +327,7 @@ class Org(SmartModel):
                 modified_by=created_by,
             )
 
-            org.administrators.add(created_by)
+            org.administrators.add(created_by, *self.administrators.all())
 
             # initialize our org, but without any credits
             org.initialize(branding=org.get_branding(), topup_size=0)

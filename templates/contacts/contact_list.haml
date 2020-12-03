@@ -207,7 +207,7 @@
                           {{ object|name:user_org }}
                           .value-labels
                             %nobr.group_labels
-                              - for group in object.user_groups.all
+                              - for group in object.user_groups.all|dictsort:"name"
                                 %a{
                                   'href': "{% url 'contacts.contact_filter' group.uuid %}",
                                   'class': "{% if not forloop.first %}hidden_group{% endif %}",
@@ -339,7 +339,13 @@
       background: #ecf0f1;
       padding: 10px;
     }
-    
+
+    .group_labels {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
     .group_labels > .hidden_group {
       display: none;
     }
