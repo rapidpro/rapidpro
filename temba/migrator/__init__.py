@@ -136,15 +136,14 @@ class Migrator(object):
             languages_count,
         )
 
-    def get_org_channels(self) -> (list, int):
-        channels_count = self.get_count("channels_channel", condition=f"org_id = {self.org_id}")
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.channels_channel WHERE org_id = {self.org_id} ORDER BY id ASC",
-                count=channels_count,
-            ),
-            channels_count,
-        )
+    def get_org_channels(self, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            org_id = {self.org_id} 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        channels_count = self.get_count("channels_channel", condition=condition_string)
+        query_string = f"SELECT * FROM public.channels_channel WHERE {condition_string} ORDER BY id ASC"
+        return self.get_results_paginated(query_string=query_string, count=channels_count), channels_count
 
     def get_channels_count(self, channel_id) -> list:
         channels_count = self.get_count("channels_channelcount", condition=f"channel_id = {channel_id}")
@@ -160,47 +159,37 @@ class Migrator(object):
             count=syncevents_count,
         )
 
-    def get_channel_logs(self, channel_id) -> (list, int):
-        count = self.get_count("channels_channellog", condition=f"channel_id = {channel_id}")
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.channels_channellog WHERE channel_id = {channel_id} ORDER BY id ASC",
-                count=count,
-            ),
-            count,
-        )
+    def get_channel_logs(self, channel_id, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            channel_id = {channel_id} 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.channels_channellog WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("channels_channellog", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
-    def get_org_contact_fields(self) -> (list, int):
-        count = self.get_count("contacts_contactfield", condition=f"org_id = {self.org_id} AND is_active = true")
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.contacts_contactfield WHERE org_id = {self.org_id} AND is_active = true ORDER BY id ASC",
-                count=count,
-            ),
-            count,
-        )
+    def get_org_contact_fields(self, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            org_id = {self.org_id} AND is_active = true {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.contacts_contactfield WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("contacts_contactfield", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
-    def get_org_contacts(self) -> (list, int):
-        count = self.get_count(
-            "contacts_contact", condition=f"org_id = {self.org_id} AND is_test = false AND is_active = true"
-        )
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.contacts_contact WHERE org_id = {self.org_id} AND is_test = false  AND is_active = true ORDER BY id ASC",
-                count=count,
-            ),
-            count,
-        )
+    def get_org_contacts(self, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            org_id = {self.org_id} AND is_test = false AND is_active = true 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.contacts_contact WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("contacts_contact", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
     def get_values_value(self, contact_id) -> list:
-        count = self.get_count(
-            "values_value",
-            condition=f"org_id = {self.org_id} AND contact_id = {contact_id} AND contact_field_id IS NOT NULL",
-        )
-        return self.get_results_paginated(
-            query_string=f"SELECT * FROM public.values_value WHERE org_id = {self.org_id} AND contact_id = {contact_id} AND contact_field_id IS NOT NULL ORDER BY id ASC",
-            count=count,
-        )
+        condition_string = f"org_id = {self.org_id} AND contact_id = {contact_id} AND contact_field_id IS NOT NULL"
+        query_string = f"SELECT * FROM public.values_value WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("values_value", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count)
 
     def get_contact_urns(self, contact_id) -> list:
         count = self.get_count(
@@ -211,17 +200,14 @@ class Migrator(object):
             count=count,
         )
 
-    def get_org_contact_groups(self) -> (list, int):
-        count = self.get_count(
-            "contacts_contactgroup", condition=f"org_id = {self.org_id} AND group_type = 'U' AND is_active = true"
-        )
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.contacts_contactgroup WHERE org_id = {self.org_id} AND group_type = 'U' AND is_active = true ORDER BY id ASC",
-                count=count,
-            ),
-            count,
-        )
+    def get_org_contact_groups(self, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            org_id = {self.org_id} AND group_type = 'U' AND is_active = true 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.contacts_contactgroup WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("contacts_contactgroup", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
     def get_contactgroups_contacts(self, contactgroup_id) -> list:
         count = self.get_count("contacts_contactgroup_contacts", condition=f"contactgroup_id = {contactgroup_id}")
@@ -230,57 +216,55 @@ class Migrator(object):
             count=count,
         )
 
-    def get_org_channel_events(self) -> (list, int):
-        count = self.get_count("channels_channelevent", condition=f"org_id = {self.org_id}")
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.channels_channelevent WHERE org_id = {self.org_id} ORDER BY id ASC",
-                count=count,
-            ),
-            count,
-        )
+    def get_org_channel_events(self, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            org_id = {self.org_id} 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.channels_channelevent WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("channels_channelevent", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
-    def get_org_trigger_schedules(self) -> (list, int):
-        count_query = self.make_query_one(
-            query_string=f"SELECT count(ss.*) as count FROM public.schedules_schedule ss INNER JOIN "
-            f"public.triggers_trigger tt ON (ss.id = tt.schedule_id) WHERE tt.org_id = {self.org_id} "
-            f"AND tt.schedule_id IS NOT NULL"
-        )
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT ss.* as count FROM public.schedules_schedule ss INNER JOIN "
-                f"public.triggers_trigger tt ON (ss.id = tt.schedule_id) WHERE tt.org_id = {self.org_id} "
-                f"AND tt.schedule_id IS NOT NULL",
-                count=count_query.count,
-            ),
-            count_query.count,
-        )
+    def get_org_trigger_schedules(self, start_date=None, end_date=None) -> (list, int):
+        count_query_string = f"""
+            SELECT count(ss.*) as count FROM public.schedules_schedule ss INNER JOIN 
+            public.triggers_trigger tt ON (ss.id = tt.schedule_id) WHERE tt.org_id = {self.org_id} 
+            AND tt.schedule_id IS NOT NULL 
+            {"AND (ss.created_on >= '%s' AND ss.created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"""
+            SELECT ss.* as count FROM public.schedules_schedule ss INNER JOIN 
+            public.triggers_trigger tt ON (ss.id = tt.schedule_id) WHERE tt.org_id = {self.org_id} 
+            AND tt.schedule_id IS NOT NULL
+            {"AND (ss.created_on >= '%s' AND ss.created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        count_query = self.make_query_one(query_string=count_query_string)
+        return self.get_results_paginated(query_string=query_string, count=count_query.count), count_query.count
 
-    def get_org_broadcast_schedules(self) -> (list, int):
-        count_query = self.make_query_one(
-            query_string=f"SELECT count(ss.*) as count FROM public.schedules_schedule ss INNER JOIN "
-            f"public.msgs_broadcast mb ON (ss.id = mb.schedule_id) WHERE mb.org_id = {self.org_id} "
-            f"AND mb.schedule_id IS NOT NULL"
-        )
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT ss.* FROM public.schedules_schedule ss INNER JOIN "
-                f"public.msgs_broadcast mb ON (ss.id = mb.schedule_id) WHERE mb.org_id = {self.org_id} "
-                f"AND mb.schedule_id IS NOT NULL",
-                count=count_query.count,
-            ),
-            count_query.count,
-        )
+    def get_org_broadcast_schedules(self, start_date=None, end_date=None) -> (list, int):
+        count_query_string = f"""
+            SELECT count(ss.*) as count FROM public.schedules_schedule ss INNER JOIN 
+            public.msgs_broadcast mb ON (ss.id = mb.schedule_id) WHERE mb.org_id = {self.org_id} 
+            AND mb.schedule_id IS NOT NULL
+            {"AND (ss.created_on >= '%s' AND ss.created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"""
+            SELECT ss.* FROM public.schedules_schedule ss INNER JOIN 
+            public.msgs_broadcast mb ON (ss.id = mb.schedule_id) WHERE mb.org_id = {self.org_id} 
+            AND mb.schedule_id IS NOT NULL
+            {"AND (ss.created_on >= '%s' AND ss.created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        count_query = self.make_query_one(query_string=count_query_string)
+        return self.get_results_paginated(query_string=query_string, count=count_query.count), count_query.count
 
-    def get_org_msg_broadcasts(self) -> (list, int):
-        count = self.get_count("msgs_broadcast", condition=f"org_id = {self.org_id} AND status not in ('P', 'I')")
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.msgs_broadcast WHERE org_id = {self.org_id} AND status not in ('P', 'I') ORDER BY id ASC",
-                count=count,
-            ),
-            count,
-        )
+    def get_org_msg_broadcasts(self, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            org_id = {self.org_id} AND status not in ('P', 'I')
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.msgs_broadcast WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("msgs_broadcast", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
     def get_msg_broadcast_contacts(self, broadcast_id) -> list:
         count = self.get_count("msgs_broadcast_contacts", condition=f"broadcast_id = {broadcast_id}")
@@ -303,26 +287,23 @@ class Migrator(object):
             count=count,
         )
 
-    def get_org_msg_labels(self, label_type) -> (list, int):
-        count = self.get_count(
-            "msgs_label", condition=f"org_id = {self.org_id} AND is_active = true AND label_type = '{label_type}'"
-        )
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.msgs_label WHERE org_id = {self.org_id} AND is_active = true AND label_type = '{label_type}' ORDER BY id ASC",
-                count=count,
-            ),
-            count,
-        )
+    def get_org_msg_labels(self, label_type, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            org_id = {self.org_id} AND is_active = true AND label_type = '{label_type}'
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.msgs_label WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("msgs_label", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
-    def get_org_msgs(self) -> (list, int):
-        count = self.get_count("msgs_msg", condition=f"org_id = {self.org_id}")
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.msgs_msg WHERE org_id = {self.org_id} ORDER BY id ASC", count=count
-            ),
-            count,
-        )
+    def get_org_msgs(self, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            org_id = {self.org_id}
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.msgs_msg WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("msgs_msg", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
     def get_msg_labels(self, msg_id) -> list:
         count = self.get_count("msgs_msg_labels", condition=f"msg_id = {msg_id}")
@@ -331,14 +312,10 @@ class Migrator(object):
         )
 
     def get_org_flow_labels(self) -> (list, int):
-        count = self.get_count("flows_flowlabel", condition=f"org_id = {self.org_id}")
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.flows_flowlabel WHERE org_id = {self.org_id} ORDER BY id ASC",
-                count=count,
-            ),
-            count,
-        )
+        condition_string = f"org_id = {self.org_id}"
+        query_string = f"SELECT * FROM public.flows_flowlabel WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("flows_flowlabel", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
     def get_org_flows(self) -> (list, int):
         count = self.get_count("flows_flow", condition=f"org_id = {self.org_id} AND is_archived = false")
@@ -418,17 +395,23 @@ class Migrator(object):
             count=count,
         )
 
-    def get_flow_images(self, flow_id) -> list:
-        count = self.get_count("flows_flowimage", condition=f"flow_id = {flow_id}")
-        return self.get_results_paginated(
-            query_string=f"SELECT * FROM public.flows_flowimage WHERE flow_id = {flow_id} ORDER BY id ASC", count=count
-        )
+    def get_flow_images(self, flow_id, start_date=None, end_date=None) -> list:
+        condition_string = f"""
+            flow_id = {flow_id} 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.flows_flowimage WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("flows_flowimage", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count)
 
-    def get_flow_starts(self, flow_id) -> list:
-        count = self.get_count("flows_flowstart", condition=f"flow_id = {flow_id}")
-        return self.get_results_paginated(
-            query_string=f"SELECT * FROM public.flows_flowstart WHERE flow_id = {flow_id} ORDER BY id ASC", count=count
-        )
+    def get_flow_starts(self, flow_id, start_date=None, end_date=None) -> list:
+        condition_string = f"""
+            flow_id = {flow_id} 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.flows_flowstart WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("flows_flowstart", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count)
 
     def get_flow_start_contacts(self, flowstart_id) -> list:
         count = self.get_count("flows_flowstart_contacts", condition=f"flowstart_id = {flowstart_id}")
@@ -444,11 +427,14 @@ class Migrator(object):
             count=count,
         )
 
-    def get_flow_runs(self, flow_id) -> list:
-        count = self.get_count("flows_flowrun", condition=f"flow_id = {flow_id}")
-        return self.get_results_paginated(
-            query_string=f"SELECT * FROM public.flows_flowrun WHERE flow_id = {flow_id} ORDER BY id ASC", count=count
-        )
+    def get_flow_runs(self, flow_id, start_date=None, end_date=None) -> list:
+        condition_string = f"""
+            flow_id = {flow_id} 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.flows_flowrun WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("flows_flowrun", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count)
 
     def get_flow_run_events(self, flow_run_id) -> list:
         count_query = self.make_query_one(
@@ -474,15 +460,14 @@ class Migrator(object):
             count=count_query.count,
         )
 
-    def get_org_resthooks(self) -> (list, int):
-        count = self.get_count("api_resthook", condition=f"org_id = {self.org_id} AND is_active = true")
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.api_resthook WHERE org_id = {self.org_id} AND is_active = true ORDER BY id ASC",
-                count=count,
-            ),
-            count,
-        )
+    def get_org_resthooks(self, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            org_id = {self.org_id} AND is_active = true 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.api_resthook WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("api_resthook", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
     def get_resthook_subscribers(self, resthook_id) -> list:
         count = self.get_count("api_resthooksubscriber", condition=f"resthook_id = {resthook_id} AND is_active = true")
@@ -491,15 +476,14 @@ class Migrator(object):
             count=count,
         )
 
-    def get_org_webhook_events(self) -> (list, int):
-        count = self.get_count("api_webhookevent", condition=f"org_id = {self.org_id} AND is_active = true")
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.api_webhookevent WHERE org_id = {self.org_id} AND is_active = true ORDER BY id ASC",
-                count=count,
-            ),
-            count,
-        )
+    def get_org_webhook_events(self, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            org_id = {self.org_id} AND is_active = true
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.api_webhookevent WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("api_webhookevent", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
     def get_webhook_event_results(self, event_id) -> list:
         count = self.get_count("api_webhookresult", condition=f"event_id = {event_id} AND is_active = true")
@@ -534,17 +518,14 @@ class Migrator(object):
             count=count,
         )
 
-    def get_org_triggers(self) -> (list, int):
-        count = self.get_count(
-            "triggers_trigger", condition=f"org_id = {self.org_id} AND is_archived = false AND is_active = true"
-        )
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.triggers_trigger WHERE org_id = {self.org_id} AND is_archived = false AND is_active = true ORDER BY id ASC",
-                count=count,
-            ),
-            count,
-        )
+    def get_org_triggers(self, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            org_id = {self.org_id} AND is_archived = false AND is_active = true 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.triggers_trigger WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("triggers_trigger", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
     def get_trigger_contacts(self, trigger_id) -> list:
         count = self.get_count("triggers_trigger_contacts", condition=f"trigger_id = {trigger_id}")
@@ -560,17 +541,14 @@ class Migrator(object):
             count=count,
         )
 
-    def get_org_links(self) -> (list, int):
-        count = self.get_count(
-            "links_link", condition=f"org_id = {self.org_id} AND is_archived = false AND is_active = true"
-        )
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.links_link WHERE org_id = {self.org_id} AND is_archived = false AND is_active = true ORDER BY id ASC",
-                count=count,
-            ),
-            count,
-        )
+    def get_org_links(self, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            org_id = {self.org_id} AND is_archived = false AND is_active = true 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.links_link WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("links_link", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
     def get_link_contacts(self, link_id) -> list:
         count = self.get_count("links_linkcontacts", condition=f"link_id = {link_id}")
@@ -591,13 +569,14 @@ class Migrator(object):
 
         query_string = (
             f"SELECT new_id as contact_id,"
-            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {channel_id} AND model = 'channels_channel' AND migration_task_id = {migration_task_id}) as channel_id,"
-            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {response_to_id} AND model = 'msgs_msg' AND migration_task_id = {migration_task_id}) as response_to_id,"
-            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {contact_urn_id} AND model = 'contacts_contacturn' AND migration_task_id = {migration_task_id}) as contact_urn_id,"
-            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {broadcast_id} AND model = 'msgs_broadcast' AND migration_task_id = {migration_task_id}) as broadcast_id,"
-            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {topup_id} AND model = 'orgs_topups' AND migration_task_id = {migration_task_id}) as topup_id "
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {channel_id} AND model = 'channels_channel' AND migration_task_id = {migration_task_id} ORDER BY id DESC LIMIT 1) as channel_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {response_to_id} AND model = 'msgs_msg' AND migration_task_id = {migration_task_id} ORDER BY id DESC LIMIT 1) as response_to_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {contact_urn_id} AND model = 'contacts_contacturn' AND migration_task_id = {migration_task_id} ORDER BY id DESC LIMIT 1) as contact_urn_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {broadcast_id} AND model = 'msgs_broadcast' AND migration_task_id = {migration_task_id} ORDER BY id DESC LIMIT 1) as broadcast_id,"
+            f"(SELECT new_id from public.migrator_migrationassociation WHERE old_id = {topup_id} AND model = 'orgs_topups' AND migration_task_id = {migration_task_id} ORDER BY id DESC LIMIT 1) as topup_id "
             f"FROM public.migrator_migrationassociation "
-            f"WHERE old_id = {contact_id} AND model = 'contacts_contact' AND migration_task_id = {migration_task_id}"
+            f"WHERE old_id = {contact_id} AND model = 'contacts_contact' AND migration_task_id = {migration_task_id} "
+            f"ORDER BY id DESC LIMIT 1"
         )
 
         obj = self.make_query_one_local(query_string=query_string)
