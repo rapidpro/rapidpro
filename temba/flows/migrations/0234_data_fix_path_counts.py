@@ -71,6 +71,10 @@ def recheck_origin_uuids_and_update_path_counts(apps, schema_editor):
             print("Mistaken paths were not found.")
 
 
+def skip_temp(apps, schema_editor):
+    pass
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -78,5 +82,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        RunPython(recheck_origin_uuids_and_update_path_counts)
+        RunPython(skip_temp)
     ]
