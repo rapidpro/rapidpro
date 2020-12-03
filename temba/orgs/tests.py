@@ -3204,10 +3204,12 @@ class OrgCRUDLTest(TembaTest):
                 "name": "Oculus",
                 "timezone": "Africa/Kigali",
                 "credits": "100000",
-                "password": "password",
+                "password": "pass",
             },
         )
-        self.assertFormError(response, "form", None, "This password is too common.")
+        self.assertFormError(
+            response, "form", None, "This password is too short. It must contain at least 8 characters."
+        )
 
     @patch("temba.orgs.views.OrgCRUDL.Signup.pre_process")
     def test_new_signup_with_user_logged_in(self, mock_pre_process):
@@ -3271,6 +3273,13 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
         self.assertFalse(org.uses_topups)
 
+    @override_settings(
+        AUTH_PASSWORD_VALIDATORS=[
+            {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},
+            {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+            {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+        ]
+    )
     def test_org_signup(self):
         signup_url = reverse("orgs.org_signup")
 
