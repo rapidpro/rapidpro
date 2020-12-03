@@ -496,10 +496,14 @@ class MigrationTask(TembaModel):
                 logger.info("---------------- Trackable Links ----------------")
                 logger.info("[STARTED] Trackable Links migration")
 
-                # Releasing links from this org before importing them from live server
-                Link.objects.filter(org=self.org).delete()
+                if not self.start_date:
+                    # Releasing links from this org before importing them from live server
+                    Link.objects.filter(org=self.org).delete()
 
-                org_links, links_count = migrator.get_org_links()
+                org_links, links_count = migrator.get_org_links(
+                    start_date=start_date_string,
+                    end_date=end_date_string
+                )
                 if org_links:
                     self.add_links(logger=logger, links=org_links, migrator=migrator, count=links_count)
 
