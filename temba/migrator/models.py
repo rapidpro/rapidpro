@@ -372,7 +372,13 @@ class MigrationTask(TembaModel):
                 logger.info("[STARTED] Channel Logs migration")
 
                 if org_channels:
-                    self.add_channel_logs(logger=logger, channels=org_channels, migrator=migrator)
+                    self.add_channel_logs(
+                        logger=logger,
+                        channels=org_channels,
+                        migrator=migrator,
+                        start_date=start_date_string,
+                        end_date=end_date_string
+                    )
 
                 logger.info("[COMPLETED] Channel Logs migration")
                 logger.info("")
@@ -799,9 +805,13 @@ class MigrationTask(TembaModel):
                 created_on=event.created_on,
             )
 
-    def add_channel_logs(self, logger, channels, migrator):
+    def add_channel_logs(self, logger, channels, migrator, start_date=None, end_date=None):
         for channel in channels:
-            channel_logs, channel_logs_count = migrator.get_channel_logs(channel_id=channel.id)
+            channel_logs, channel_logs_count = migrator.get_channel_logs(
+                channel_id=channel.id,
+                start_date=start_date,
+                end_date=end_date
+            )
 
             new_channel_obj = MigrationAssociation.get_new_object(
                 model=MigrationAssociation.MODEL_CHANNEL,

@@ -138,7 +138,8 @@ class Migrator(object):
 
     def get_org_channels(self, start_date=None, end_date=None) -> (list, int):
         condition_string = f"""
-            org_id = {self.org_id} {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+            org_id = {self.org_id} 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
         """
         channels_count = self.get_count("channels_channel", condition=condition_string)
         query_string = f"SELECT * FROM public.channels_channel WHERE {condition_string} ORDER BY id ASC"
@@ -158,15 +159,14 @@ class Migrator(object):
             count=syncevents_count,
         )
 
-    def get_channel_logs(self, channel_id) -> (list, int):
-        count = self.get_count("channels_channellog", condition=f"channel_id = {channel_id}")
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.channels_channellog WHERE channel_id = {channel_id} ORDER BY id ASC",
-                count=count,
-            ),
-            count,
-        )
+    def get_channel_logs(self, channel_id, start_date=None, end_date=None) -> (list, int):
+        condition_string = f"""
+            channel_id = {channel_id} 
+            {"AND (created_on >= '%s' AND created_on <= '%s')" % (start_date, end_date) if start_date else ""}
+        """
+        query_string = f"SELECT * FROM public.channels_channellog WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("channels_channellog", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
     def get_org_contact_fields(self, start_date=None, end_date=None) -> (list, int):
         condition_string = f"""
