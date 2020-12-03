@@ -103,7 +103,10 @@ def handler500(request):
     Templates: `500.html`
     """
     user = request.user
-    brand = user.get_org().get_branding() if not user.is_anonymous else getattr(settings, "BRANDING")
+    try:
+        brand = user.get_org().get_branding() if not user.is_anonymous else getattr(settings, "BRANDING")
+    except AttributeError:
+        brand = getattr(settings, "BRANDING")
     context = dict(request=request, brand=brand)
 
     return render(request, "500.html", context=context, status=500)  # pragma: needs cover
