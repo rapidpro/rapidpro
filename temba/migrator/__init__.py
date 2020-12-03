@@ -312,14 +312,10 @@ class Migrator(object):
         )
 
     def get_org_flow_labels(self) -> (list, int):
-        count = self.get_count("flows_flowlabel", condition=f"org_id = {self.org_id}")
-        return (
-            self.get_results_paginated(
-                query_string=f"SELECT * FROM public.flows_flowlabel WHERE org_id = {self.org_id} ORDER BY id ASC",
-                count=count,
-            ),
-            count,
-        )
+        condition_string = f"org_id = {self.org_id}"
+        query_string = f"SELECT * FROM public.flows_flowlabel WHERE {condition_string} ORDER BY id ASC"
+        count = self.get_count("flows_flowlabel", condition=condition_string)
+        return self.get_results_paginated(query_string=query_string, count=count), count
 
     def get_org_flows(self) -> (list, int):
         count = self.get_count("flows_flow", condition=f"org_id = {self.org_id} AND is_archived = false")
