@@ -949,7 +949,7 @@ CELERYBEAT_SCHEDULE = {
     "generate-missing-gif-thumbnails": {
         "task": "generate_missing_gif_thumbnails",
         "schedule": crontab(hour=3, minute=30),
-    }
+    },
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True
