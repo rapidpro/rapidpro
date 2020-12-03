@@ -329,11 +329,19 @@ class MigrationTask(TembaModel):
                 logger.info("---------------- Msg Labels ----------------")
                 logger.info("[STARTED] Msg Labels migration")
 
-                org_msg_folders, folders_count = migrator.get_org_msg_labels(label_type="F")
+                org_msg_folders, folders_count = migrator.get_org_msg_labels(
+                    label_type="F",
+                    start_date=start_date_string,
+                    end_date=end_date_string
+                )
                 if org_msg_folders:
                     self.add_msg_folders(logger=logger, folders=org_msg_folders, count=folders_count)
 
-                org_msg_labels, labels_count = migrator.get_org_msg_labels(label_type="L")
+                org_msg_labels, labels_count = migrator.get_org_msg_labels(
+                    label_type="L",
+                    start_date=start_date_string,
+                    end_date=end_date_string
+                )
                 if org_msg_labels:
                     self.add_msg_labels(logger=logger, labels=org_msg_labels, count=labels_count)
 
