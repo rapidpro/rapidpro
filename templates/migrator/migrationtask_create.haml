@@ -14,11 +14,59 @@
   .title-text
     %h1 Start migration
 
+  #start-migration-box.hide
+    .title
+      -trans "Start Migration"
+    .body
+      %p
+        -trans "Are you sure you want to start the migration with the below parameters?"
+      %p
+        %strong
+          Organization:
+        %span.org
+        %br
+        %strong
+          Start from:
+        %span.start-from
+        %br
+        %strong
+          Start date:
+        %span.start-date
+        %br
+        %strong
+          End date:
+        %span.end-date
+        %br
+        %strong
+          Migration related UUID:
+        %span.migration-related-uuid
+
+
 -block extra-script
   %script{src:"{{ STATIC_URL }}js/jquery.mask.min.js"}
 
   :javascript
     (function($) {
+      $(".smartmin-form").find("input[type='submit']").attr("type", "button").addClass("start-migration");
+
+      $(".start-migration").live('click', function(){
+        $('#start-migration-box > .body span.org').html($("#id_org option:selected").text());
+        $('#start-migration-box > .body span.start-from').html($("#id_start_from option:selected").text());
+        $('#start-migration-box > .body span.start-date').html($("#id_start_date").val());
+        $('#start-migration-box > .body span.end-date').html($("#id_end_date").val());
+        $('#start-migration-box > .body span.migration-related-uuid').html($("#id_migration_related_uuid").val());
+
+        modal = new ConfirmationModal($('#start-migration-box > .title').html(), $('#start-migration-box > .body').html());
+        modal.addClass('alert');
+        modal.setListeners({
+          onPrimary: function(){
+            $('.smartmin-form').submit();
+          }
+        }, false);
+        modal.setPrimaryButton('{% trans "Start migration" %}');
+        modal.show();
+      });
+
       $('#id_start_date').mask('00-00-0000 00:00');
       $('#id_end_date').mask('00-00-0000 00:00');
       $("#id_org").select2({
@@ -31,4 +79,5 @@
         containerCssClass: "select2-temba-field",
         placeholder: "{% trans 'Select a step to start from' %}"
       });
+
     })(jQuery);
