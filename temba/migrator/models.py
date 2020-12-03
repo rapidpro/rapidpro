@@ -482,7 +482,10 @@ class MigrationTask(TembaModel):
                 for t in triggers:
                     t.release()
 
-                org_triggers, triggers_count = migrator.get_org_triggers()
+                org_triggers, triggers_count = migrator.get_org_triggers(
+                    start_date=start_date_string,
+                    end_date=end_date_string
+                )
                 if org_triggers:
                     self.add_triggers(logger=logger, triggers=org_triggers, migrator=migrator, count=triggers_count)
 
