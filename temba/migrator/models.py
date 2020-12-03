@@ -352,11 +352,15 @@ class MigrationTask(TembaModel):
                 logger.info("---------------- Msgs ----------------")
                 logger.info("[STARTED] Msgs migration")
 
-                all_org_msgs = Msg.objects.filter(org=self.org).only("id").order_by("id")
-                for msg in all_org_msgs:
-                    msg.release(delete_reason=None)
+                if not self.start_date:
+                    all_org_msgs = Msg.objects.filter(org=self.org).only("id").order_by("id")
+                    for msg in all_org_msgs:
+                        msg.release(delete_reason=None)
 
-                org_msgs, msgs_count = migrator.get_org_msgs()
+                org_msgs, msgs_count = migrator.get_org_msgs(
+                    start_date=start_date_string,
+                    end_date=end_date_string
+                )
                 if org_msgs:
                     self.add_msgs(logger=logger, msgs=org_msgs, migrator=migrator, count=msgs_count)
 
