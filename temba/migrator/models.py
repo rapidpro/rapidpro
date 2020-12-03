@@ -417,11 +417,15 @@ class MigrationTask(TembaModel):
                 logger.info("---------------- Resthooks ----------------")
                 logger.info("[STARTED] Resthooks migration")
 
-                all_org_resthooks = Resthook.objects.filter(org=self.org).only("id").order_by("id")
-                for rh in all_org_resthooks:
-                    rh.release(user=self.created_by)
+                if not self.start_date:
+                    all_org_resthooks = Resthook.objects.filter(org=self.org).only("id").order_by("id")
+                    for rh in all_org_resthooks:
+                        rh.release(user=self.created_by)
 
-                org_resthooks, resthooks_count = migrator.get_org_resthooks()
+                org_resthooks, resthooks_count = migrator.get_org_resthooks(
+                    start_date=start_date_string,
+                    end_date=end_date_string
+                )
                 if org_resthooks:
                     self.add_resthooks(
                         logger=logger, resthooks=org_resthooks, migrator=migrator, count=resthooks_count
