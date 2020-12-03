@@ -189,8 +189,7 @@ class MigrationTask(TembaModel):
                         Trigger.objects.filter(channel=channel, org=self.org).update(is_active=False)
 
                 org_channels, channels_count = migrator.get_org_channels(
-                    start_date=start_date_string,
-                    end_date=end_date_string
+                    start_date=start_date_string, end_date=end_date_string
                 )
                 if org_channels:
                     self.add_channels(
@@ -209,8 +208,7 @@ class MigrationTask(TembaModel):
                 logger.info("[STARTED] Contact Fields migration")
 
                 org_contact_fields, fields_count = migrator.get_org_contact_fields(
-                    start_date=start_date_string,
-                    end_date=end_date_string,
+                    start_date=start_date_string, end_date=end_date_string
                 )
                 if org_contact_fields:
                     self.add_contact_fields(logger=logger, fields=org_contact_fields, count=fields_count)
@@ -223,8 +221,7 @@ class MigrationTask(TembaModel):
                 logger.info("[STARTED] Contacts migration")
 
                 org_contacts, contacts_count = migrator.get_org_contacts(
-                    start_date=start_date_string,
-                    end_date=end_date_string,
+                    start_date=start_date_string, end_date=end_date_string
                 )
                 if org_contacts:
                     self.add_contacts(logger=logger, contacts=org_contacts, migrator=migrator, count=contacts_count)
@@ -245,8 +242,7 @@ class MigrationTask(TembaModel):
                         contact_group.save(update_fields=["uuid"])
 
                 org_contact_groups, contact_groups_count = migrator.get_org_contact_groups(
-                    start_date=start_date_string,
-                    end_date=end_date_string
+                    start_date=start_date_string, end_date=end_date_string
                 )
                 if org_contact_groups:
                     self.add_contact_groups(
@@ -265,8 +261,7 @@ class MigrationTask(TembaModel):
                     ChannelEvent.objects.filter(org=self.org).delete()
 
                 org_channel_events, channel_events_count = migrator.get_org_channel_events(
-                    start_date=start_date_string,
-                    end_date=end_date_string
+                    start_date=start_date_string, end_date=end_date_string
                 )
                 if org_channel_events:
                     self.add_channel_events(
@@ -285,8 +280,7 @@ class MigrationTask(TembaModel):
                     Schedule.objects.filter(org=self.org, is_active=True).update(is_active=False)
 
                 org_trigger_schedules, trigger_schedules_count = migrator.get_org_trigger_schedules(
-                    start_date=start_date_string,
-                    end_date=end_date_string
+                    start_date=start_date_string, end_date=end_date_string
                 )
                 if org_trigger_schedules:
                     self.add_schedules(logger=logger, schedules=org_trigger_schedules, count=trigger_schedules_count)
@@ -295,8 +289,7 @@ class MigrationTask(TembaModel):
                 logger.info("[STARTED] Broadcast schedules migration")
 
                 org_broadcast_schedules, broadcast_schedules_count = migrator.get_org_broadcast_schedules(
-                    start_date=start_date_string,
-                    end_date=end_date_string
+                    start_date=start_date_string, end_date=end_date_string
                 )
                 if org_broadcast_schedules:
                     self.add_schedules(
@@ -314,8 +307,7 @@ class MigrationTask(TembaModel):
                     Broadcast.objects.filter(org=self.org, is_active=True).update(is_active=False)
 
                 org_msg_broadcasts, msg_broadcast_count = migrator.get_org_msg_broadcasts(
-                    start_date=start_date_string,
-                    end_date=end_date_string
+                    start_date=start_date_string, end_date=end_date_string
                 )
                 if org_msg_broadcasts:
                     self.add_msg_broadcasts(
@@ -330,17 +322,13 @@ class MigrationTask(TembaModel):
                 logger.info("[STARTED] Msg Labels migration")
 
                 org_msg_folders, folders_count = migrator.get_org_msg_labels(
-                    label_type="F",
-                    start_date=start_date_string,
-                    end_date=end_date_string
+                    label_type="F", start_date=start_date_string, end_date=end_date_string
                 )
                 if org_msg_folders:
                     self.add_msg_folders(logger=logger, folders=org_msg_folders, count=folders_count)
 
                 org_msg_labels, labels_count = migrator.get_org_msg_labels(
-                    label_type="L",
-                    start_date=start_date_string,
-                    end_date=end_date_string
+                    label_type="L", start_date=start_date_string, end_date=end_date_string
                 )
                 if org_msg_labels:
                     self.add_msg_labels(logger=logger, labels=org_msg_labels, count=labels_count)
@@ -357,10 +345,7 @@ class MigrationTask(TembaModel):
                     for msg in all_org_msgs:
                         msg.release(delete_reason=None)
 
-                org_msgs, msgs_count = migrator.get_org_msgs(
-                    start_date=start_date_string,
-                    end_date=end_date_string
-                )
+                org_msgs, msgs_count = migrator.get_org_msgs(start_date=start_date_string, end_date=end_date_string)
                 if org_msgs:
                     self.add_msgs(logger=logger, msgs=org_msgs, migrator=migrator, count=msgs_count)
 
@@ -377,7 +362,7 @@ class MigrationTask(TembaModel):
                         channels=org_channels,
                         migrator=migrator,
                         start_date=start_date_string,
-                        end_date=end_date_string
+                        end_date=end_date_string,
                     )
 
                 logger.info("[COMPLETED] Channel Logs migration")
@@ -407,7 +392,7 @@ class MigrationTask(TembaModel):
                         count=flows_count,
                         inactive_flows=inactive_flows,
                         start_date=start_date_string,
-                        end_date=end_date_string
+                        end_date=end_date_string,
                     )
 
                 logger.info("[COMPLETED] Flows migration")
@@ -423,8 +408,7 @@ class MigrationTask(TembaModel):
                         rh.release(user=self.created_by)
 
                 org_resthooks, resthooks_count = migrator.get_org_resthooks(
-                    start_date=start_date_string,
-                    end_date=end_date_string
+                    start_date=start_date_string, end_date=end_date_string
                 )
                 if org_resthooks:
                     self.add_resthooks(
@@ -449,8 +433,7 @@ class MigrationTask(TembaModel):
                         wer.release()
 
                 org_webhook_events, webhook_events_count = migrator.get_org_webhook_events(
-                    start_date=start_date_string,
-                    end_date=end_date_string
+                    start_date=start_date_string, end_date=end_date_string
                 )
                 if org_webhook_events:
                     self.add_webhook_events(
@@ -483,8 +466,7 @@ class MigrationTask(TembaModel):
                     t.release()
 
                 org_triggers, triggers_count = migrator.get_org_triggers(
-                    start_date=start_date_string,
-                    end_date=end_date_string
+                    start_date=start_date_string, end_date=end_date_string
                 )
                 if org_triggers:
                     self.add_triggers(logger=logger, triggers=org_triggers, migrator=migrator, count=triggers_count)
@@ -500,10 +482,7 @@ class MigrationTask(TembaModel):
                     # Releasing links from this org before importing them from live server
                     Link.objects.filter(org=self.org).delete()
 
-                org_links, links_count = migrator.get_org_links(
-                    start_date=start_date_string,
-                    end_date=end_date_string
-                )
+                org_links, links_count = migrator.get_org_links(start_date=start_date_string, end_date=end_date_string)
                 if org_links:
                     self.add_links(logger=logger, links=org_links, migrator=migrator, count=links_count)
 
@@ -825,9 +804,7 @@ class MigrationTask(TembaModel):
     def add_channel_logs(self, logger, channels, migrator, start_date=None, end_date=None):
         for channel in channels:
             channel_logs, channel_logs_count = migrator.get_channel_logs(
-                channel_id=channel.id,
-                start_date=start_date,
-                end_date=end_date
+                channel_id=channel.id, start_date=start_date, end_date=end_date
             )
 
             new_channel_obj = MigrationAssociation.get_new_object(
