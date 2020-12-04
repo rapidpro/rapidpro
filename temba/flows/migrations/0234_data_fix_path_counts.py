@@ -71,16 +71,11 @@ def recheck_origin_uuids_and_update_path_counts(apps, schema_editor):
             print("Mistaken paths were not found.")
 
 
-def skip_temp(apps, schema_editor):
-    pass
-
-
 class Migration(migrations.Migration):
-
     dependencies = [
         ('flows', '0233_auto_20201029_1736'),
     ]
 
     operations = [
-        RunPython(skip_temp)
+        RunPython(recheck_origin_uuids_and_update_path_counts)
     ]
