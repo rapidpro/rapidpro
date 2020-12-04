@@ -5,6 +5,7 @@ import django.db.models.deletion
 import django.db.models.manager
 import django.utils.timezone
 from django.conf import settings
+from django.contrib.postgres.operations import HStoreExtension
 from django.db import migrations, models
 
 import temba.utils.models
@@ -24,6 +25,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        HStoreExtension(),
         migrations.CreateModel(
             name="Broadcast",
             fields=[
