@@ -3672,6 +3672,7 @@ class ExportFlowResultsTask(BaseExportTask):
             columns.append(extra_urn["label"])
 
         columns.append("Name")
+        columns.append("Groups")
 
         for gr in groups:
             columns.append("Group:%s" % gr.name)
@@ -3911,6 +3912,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 contact_values.append(urn_display)
 
             contact_values.append(self.prepare_value(contact.name))
+            contact_values.append(", ".join(contact.all_groups.values_list("name", flat=True)))
             contact_groups_ids = [g.id for g in contact.all_groups.all()]
             for gr in groups:
                 contact_values.append(gr.id in contact_groups_ids)
