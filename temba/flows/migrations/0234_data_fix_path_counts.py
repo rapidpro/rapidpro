@@ -27,8 +27,10 @@ def recheck_origin_uuids_and_update_path_counts(apps, schema_editor):
         mistaken_path_counts = task.target.path_counts.exclude(
             from_uuid__in=target_exit_uuids, to_uuid__in=target_node_uuids
         )
-        mistaken_path_runs_counts = FlowPathRecentRun.objects.using(db_alias).filter(run__flow=task.target).exclude(
-            from_uuid__in=target_exit_uuids, to_uuid__in=target_node_uuids
+        mistaken_path_runs_counts = (
+            FlowPathRecentRun.objects.using(db_alias)
+            .filter(run__flow=task.target)
+            .exclude(from_uuid__in=target_exit_uuids, to_uuid__in=target_node_uuids)
         )
 
         if mistaken_path_counts or mistaken_path_runs_counts:
@@ -72,10 +74,6 @@ def recheck_origin_uuids_and_update_path_counts(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [
-        ('flows', '0233_auto_20201029_1736'),
-    ]
+    dependencies = [("flows", "0233_auto_20201029_1736")]
 
-    operations = [
-        RunPython(recheck_origin_uuids_and_update_path_counts)
-    ]
+    operations = [RunPython(recheck_origin_uuids_and_update_path_counts)]

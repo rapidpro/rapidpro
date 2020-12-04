@@ -24,10 +24,6 @@ def remove_parent_org_admins(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('orgs', '0060_merge_20200510_1733'),
-    ]
+    dependencies = [("orgs", "0060_merge_20200510_1733")]
 
-    operations = [
-        RunPython(add_parent_org_admins, remove_parent_org_admins)
-    ]
+    operations = [RunPython(add_parent_org_admins, remove_parent_org_admins)]
