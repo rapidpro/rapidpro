@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.utils.timesince import timesince
 
 from celery.task import task
+from sorl.thumbnail import get_thumbnail
 
 from temba.orgs.models import Org
 from temba.utils.celery import nonoverlapping_task
@@ -30,6 +31,7 @@ from .models import (
     FlowRunCount,
     FlowSession,
     FlowStartCount,
+    FlowImage,
     MergeFlowsTask,
 )
 
@@ -178,6 +180,15 @@ def delete_flowimage_downloaded_files():
         except Exception:
             pass
     print("> Garbage collection finished in %0.3fs for %s file(s)" % (time.time() - start, counter_files))
+
+
+@nonoverlapping_task(track_started=True, name="generate_missing_gif_thumbnails")
+def create_flow_image_thumbnail():
+    images = FlowImage.objects.filter(path__endswith=".gif", path_thumbnail__isnull=True)
+    for image in images:
+        image_thumbnail = get_thumbnail(image.path, "50x50", crop="center", quality=99, format="PNG")
+        image.path_thumbnail = image_thumbnail.url
+        image.save(update_fields=["path_thumbnail"])
 
 
 def merge_flow_failed(self, exc, task_id, args, kwargs, einfo):

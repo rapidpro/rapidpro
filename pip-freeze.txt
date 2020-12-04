@@ -33,7 +33,7 @@ django-mptt==0.8.7
 django-redis==4.10.0
 django-storages==1.7.1
 django-timezone-field==3.0
-django==2.2.4
+django==2.2.10
 djangorestframework==3.9.2
 docutils==0.13.1          # via botocore
 elasticsearch-dsl==6.3.1
@@ -69,7 +69,7 @@ openpyxl==2.5.14
 packaging==19.0
 pdfkit==0.6.1
 pandas==0.22
-phonenumbers
+phonenumbers==8.12.1
 Pillow==7.1.2
 pip-tools==4.0.0
 psycopg2-binary==2.7.7
@@ -91,7 +91,7 @@ python-gcm==0.4
 python-intercom==3.1.0
 python-magic==0.4.15
 python-telegram-bot==11.1.0
-pytz
+pytz==2019.3
 rapidpro-expressions==1.7
 raven==6.10.0
 rcssmin==1.0.6            # via django-compressor
