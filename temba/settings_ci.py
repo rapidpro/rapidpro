@@ -1,7 +1,7 @@
 from .settings import *  # noqa
 
-# instead of running tests against temba_test whictest framework creates, run against regular temba database so that
-# other components (i.e. mailroom) can be run against same database
+# instead of running tests against temba_test which the test framework creates, run against regular temba database so
+# that other components (i.e. mailroom) can be run against same database
 DATABASES = {
     "default": {
         "ENGINE": "django.contrib.gis.db.backends.postgis",

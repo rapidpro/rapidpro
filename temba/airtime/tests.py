@@ -4,7 +4,7 @@ from django.urls import reverse
 
 from temba.airtime.dtone import DTOneClient
 from temba.airtime.models import AirtimeTransfer
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest
 
 
 class AirtimeCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -142,49 +142,3 @@ class DTOneClientTest(TembaTest):
             "https://airtime-api.dtone.com/cgi-bin/shop/topup",
             {"login": "mrrapid", "key": "123456", "md5": "4ff2ddfae96f8d902eb7d5b2c7b490c9", "action": "check_wallet"},
         )
-
-
-class RecipientsToURNsMigrationTest(MigrationTest):
-    app = "airtime"
-    migrate_from = "0012_auto_20191015_1704"
-    migrate_to = "0013_recipient_to_urn"
-
-    def setUpBeforeMigration(self, apps):
-        contact = self.create_contact("Ben Haggerty", phone="+250700000003")
-
-        self.transfer1 = AirtimeTransfer.objects.create(
-            org=self.org,
-            status=AirtimeTransfer.STATUS_SUCCESS,
-            contact=contact,
-            recipient="+250700000003",
-            currency="RWF",
-            desired_amount="1100",
-            actual_amount="1000",
-        )
-        self.transfer2 = AirtimeTransfer.objects.create(
-            org=self.org,
-            status=AirtimeTransfer.STATUS_SUCCESS,
-            contact=contact,
-            recipient="+250700000004",
-            currency="RWF",
-            desired_amount="1100",
-            actual_amount="1000",
-        )
-        self.transfer3 = AirtimeTransfer.objects.create(
-            org=self.org,
-            status=AirtimeTransfer.STATUS_SUCCESS,
-            contact=contact,
-            recipient="tel:+250700000005",
-            currency="RWF",
-            desired_amount="1100",
-            actual_amount="1000",
-        )
-
-    def test_migration(self):
-        self.transfer1.refresh_from_db()
-        self.transfer2.refresh_from_db()
-        self.transfer3.refresh_from_db()
-
-        self.assertEqual("tel:+250700000003", self.transfer1.recipient)
-        self.assertEqual("tel:+250700000004", self.transfer2.recipient)
-        self.assertEqual("tel:+250700000005", self.transfer3.recipient)

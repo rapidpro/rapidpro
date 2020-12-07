@@ -999,6 +999,7 @@ a:hover {
           user-select: none;
   white-space: nowrap;
   font-weight: 400;
+  display: inline-block;
   margin-top: 1px;
 }
 
@@ -1036,6 +1037,7 @@ a:hover {
           user-select: none;
   white-space: nowrap;
   font-weight: 400;
+  display: inline-block;
   margin-top: 1px;
   color: #717171;
   background-color: #f7f7f7;
@@ -1083,6 +1085,7 @@ a:hover {
           user-select: none;
   white-space: nowrap;
   font-weight: 400;
+  display: inline-block;
   margin-top: 1px;
   color: #717171;
   background-color: #f7f7f7;
@@ -1139,6 +1142,7 @@ a:hover {
           user-select: none;
   white-space: nowrap;
   font-weight: 400;
+  display: inline-block;
   margin-top: 1px;
   color: #fff;
   background-color: rgb(var(--tertiary-rgb));
@@ -1178,6 +1182,7 @@ a:hover {
           user-select: none;
   white-space: nowrap;
   font-weight: 400;
+  display: inline-block;
   margin-top: 1px;
   color: #fff;
   background-color: rgb(var(--secondary-rgb));
@@ -1217,6 +1222,7 @@ a:hover {
           user-select: none;
   white-space: nowrap;
   font-weight: 400;
+  display: inline-block;
   margin-top: 1px;
   color: #fff;
   background-color: rgb(var(--primary-rgb));
@@ -1256,6 +1262,7 @@ a:hover {
           user-select: none;
   white-space: nowrap;
   font-weight: 400;
+  display: inline-block;
   margin-top: 1px;
   color: rgb(var(--primary-rgb));
   background-color: #fff;
@@ -1295,6 +1302,7 @@ a:hover {
           user-select: none;
   white-space: nowrap;
   font-weight: 400;
+  display: inline-block;
   margin-top: 1px;
   color: #fff;
   background-color: rgb(var(--error-rgb));
@@ -1334,6 +1342,7 @@ a:hover {
           user-select: none;
   white-space: nowrap;
   font-weight: 400;
+  display: inline-block;
   margin-top: 1px;
   color: #fff;
   background-color: rgba(0, 0, 0, .2);
@@ -1373,6 +1382,7 @@ a:hover {
           user-select: none;
   white-space: nowrap;
   font-weight: 400;
+  display: inline-block;
   margin-top: 1px;
   color: #fff;
   background-color: rgba(0, 0, 0, .2);
