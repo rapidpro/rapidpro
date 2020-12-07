@@ -1,3 +1,9 @@
+v6.1.4
+----------
+ * Add security settings file
+ * Fix intent selection on split by intent
+ * Add empty migrations for squashing in next release
+
 v6.1.3
 ----------
  * Fix intent selection on split by intent
