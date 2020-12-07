@@ -1,3 +1,8 @@
+v6.1.5
+----------
+ * Share modals on globals list, truncate values
+ * Squash migrations
+
 v6.1.4
 ----------
  * Add security settings file
