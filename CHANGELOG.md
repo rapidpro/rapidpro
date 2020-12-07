@@ -1,3 +1,8 @@
+v6.0.8
+----------
+ * Editor fix for split by intents
+ * Add empty migrations for squashing in next release
+
 v6.0.7
 ----------
  * Fix choose org page
