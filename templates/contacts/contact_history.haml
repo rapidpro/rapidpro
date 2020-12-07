@@ -196,8 +196,9 @@
   -if start_date
     %tr.archive-note
       %td(colspan=3)><
-        -blocktrans trimmed with start=start_date
-          Any messages prior to {{ start }} can be found in your
+        .inline
+          -blocktrans trimmed with start=start_date
+            Any messages prior to {{ start }} can be found in your
         %a(href="{% url 'archives.archive_message'%}")><
           -trans "archive"
         \.
