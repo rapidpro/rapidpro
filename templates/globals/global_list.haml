@@ -71,10 +71,9 @@
                 Found {{ results_count }} globals matching <i>{{search}}</i>.
 
           -block pre-table
-            -for obj in object_list
-              %temba-modax{ id:'update-{{obj.id}}', header:'{% trans "Update Global" %}', endpoint:"{% url 'globals.global_update' obj.id %}" }
-              %temba-modax{ id:'delete-{{obj.id}}', header:'{% trans "Delete Global" %}', endpoint:"{% url 'globals.global_delete' obj.id %}" }
-              %temba-modax{ id:'uses-{{obj.id}}', header:'{% trans "Global Details" %}', endpoint:"{% url 'globals.global_detail' obj.id %}" }
+            %temba-modax{ id:'update-global', header:'{{_("Update Global")|escapejs}}' }
+            %temba-modax{ id:'delete-global', header:'{{_("Delete Global")|escapejs}}'}
+            %temba-modax{ id:'uses-global', header:'{{_("Global Details")|escapejs}}'}
 
           %table.list.object-list.lined{class:"{% if org_perms.contacts.contact_update %}selectable{%endif%}"}
             %tbody
@@ -85,7 +84,7 @@
                   %td(style="font-family: monospace; font-size: 12px;")
                     @globals.{{ obj.key }}
                   %td
-                    {{ obj.value }}
+                    {{ obj.value|truncatechars:128 }}
                   %td.dependencies
                     .text-right
                       - with usage_count=obj.get_usage_count
@@ -112,17 +111,20 @@
   {{ block.super }}
   <script>
     function showUpdateGlobalModal(id) {
-      var modax = document.querySelector('#update-' + id);
+      var modax = document.querySelector('#update-global');
+      modax.endpoint = `/global/update/${id}/`;
       modax.open = true;
     }
 
     function showDeleteGlobalModal(id) {
-      var modax = document.querySelector('#delete-' + id);
+      var modax = document.querySelector('#delete-global');
+      modax.endpoint = `/global/delete/${id}/`;
       modax.open = true;
     }
 
     function showDetailGlobalModal(id, label) {
-      var modax = document.querySelector('#uses-' + id);
+      var modax = document.querySelector('#uses-global');
+      modax.endpoint = `/global/detail/${id}/`
       modax.open = true;
     }
 
