@@ -1,3 +1,15 @@
+v6.1.4
+----------
+ * Add security settings file
+ * Fix intent selection on split by intent
+ * Add empty migrations for squashing in next release
+
+v6.1.3
+----------
+ * Fix intent selection on split by intent
+ * Update callback URL for textit whatsapp
+ * Use Django password validators
+
 v6.1.2
 ----------
  * Add TextIt WhatsApp channel type
@@ -13,6 +25,11 @@ v6.1.0
  * Allow underscores in global names
  * Improve calculating of URN columns for exports so tests don't break every time we add new URN schemes
  * Make instruction lists on channel claim pages more consistent
+
+v6.0.8
+----------
+ * Editor fix for split by intents
+ * Add empty migrations for squashing in next release
 
 v6.0.7
 ----------
