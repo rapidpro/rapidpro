@@ -20,6 +20,11 @@ v6.1.0
  * Improve calculating of URN columns for exports so tests don't break every time we add new URN schemes
  * Make instruction lists on channel claim pages more consistent
 
+v6.0.8
+----------
+ * Editor fix for split by intents
+ * Add empty migrations for squashing in next release
+
 v6.0.7
 ----------
  * Fix choose org page
