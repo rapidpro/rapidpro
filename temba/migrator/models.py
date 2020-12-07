@@ -460,10 +460,11 @@ class MigrationTask(TembaModel):
                 logger.info("---------------- Triggers ----------------")
                 logger.info("[STARTED] Triggers migration")
 
-                # Releasing triggers before importing them from live server
-                triggers = Trigger.objects.filter(org=self.org, is_active=True)
-                for t in triggers:
-                    t.release()
+                if not self.start_date:
+                    # Releasing triggers before importing them from live server
+                    triggers = Trigger.objects.filter(org=self.org, is_active=True)
+                    for t in triggers:
+                        t.release()
 
                 org_triggers, triggers_count = migrator.get_org_triggers(
                     start_date=start_date_string, end_date=end_date_string
