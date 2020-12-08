@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-01 16:43+0000\n"
+"POT-Creation-Date: 2020-12-01 20:53+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -7163,9 +7163,9 @@ msgid "<b>%(name)s</b> cannot be deleted since it is currently in use."
 msgstr ""
 
 #, fuzzy, python-format
-#| msgid "Are you sure you want to remove this label?"
+#| msgid "Are you sure you want to delete this contact?"
 msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
-msgstr "Вы действительно хотите удалить эту метку?"
+msgstr "Вы действительно хотите удалить этот контакт?"
 
 #, fuzzy
 #| msgid "contacts not in other flows"
@@ -7844,9 +7844,6 @@ msgstr "Поток для запуска"
 #| msgid "Are you sure you want to remove this label?"
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "Вы действительно хотите удалить эту метку?"
-
-msgid "No related flows."
-msgstr "Нет связанных потоков."
 
 #, python-format
 msgid "You have <b>%(counter)s global</b> configured"
@@ -10465,6 +10462,12 @@ msgstr "Ввести запрос"
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
+#~ msgid "Passwords must contain at least 8 letters."
+#~ msgstr "Пароль должен содержать не менее 8 букв"
+
+#~ msgid "Password must be at least 8 characters long"
+#~ msgstr "Пароль должен быть длиной не менее 8 символов "
+
 #, fuzzy
 #~| msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook. To do so:"
 #~ msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook."
@@ -10472,22 +10475,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "What is a Flow?"
 #~ msgstr "Что такое Поток?"
-
-#~ msgid "Passwords must contain at least 8 letters."
-#~ msgstr "Пароль должен содержать не менее 8 букв"
-
-#~ msgid "Password must be at least 8 characters long"
-#~ msgstr "Пароль должен быть длиной не менее 8 символов "
-
-#, fuzzy, python-format
-#~| msgid "Are you sure you want to delete this contact?"
-#~ msgid "Are you sure you want to delete <b>%(name)s</b>? No way to undo this operation."
-#~ msgstr "Вы действительно хотите удалить этот контакт?"
-
-#, fuzzy
-#~| msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
-#~ msgid "Once deleted, this label will be gone forever. There is no way to undo this operation."
-#~ msgstr "После удаления этот глобальный объект исчезнет навсегда. Способа отменить эту операцию не существует."
 
 #~ msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
 #~ msgstr "После удаления этот глобальный объект исчезнет навсегда. Способа отменить эту операцию не существует."
@@ -10497,13 +10484,11 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Are you sure you want to delete"
 #~ msgstr "Вы действительно хотите удалить "
 
-#, fuzzy, python-format
-#~| msgid "cannot be deleted because it is in use. Usage summary:"
-#~ msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
-#~ msgstr "невозможно удалить, потому что используется. Сводная информация по использованию:"
-
 #~ msgid "Flows:"
 #~ msgstr "Потоки:"
+
+#~ msgid "No related flows."
+#~ msgstr "Нет связанных потоков."
 
 #, fuzzy
 #~| msgid "The base URL for your WhatsApp enterprise installation"

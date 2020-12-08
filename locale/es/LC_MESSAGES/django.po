@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-01 16:43+0000\n"
+"POT-Creation-Date: 2020-12-01 20:53+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -8728,11 +8728,6 @@ msgstr "Flujo para empezar"
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "¿Está seguro de que desea borrar este contacto?"
 
-#, fuzzy
-#| msgid "No matching flows."
-msgid "No related flows."
-msgstr "Sin flujos que correspondan."
-
 #, fuzzy, python-format
 msgid "You have <b>%(counter)s global</b> configured"
 msgid_plural "You have <b>%(counter)s globals</b> configured"
@@ -10854,9 +10849,6 @@ msgstr "Ingrese el código de pedido"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
-#~ msgid "What is a Flow?"
-#~ msgstr "¿Qué es un flujo?"
-
 #~ msgid "Passwords must contain at least 8 letters."
 #~ msgstr "Las contraseñas deben contener como mínimo 8 letras."
 
@@ -10864,15 +10856,8 @@ msgstr ""
 #~ msgid "Password must be at least 8 characters long"
 #~ msgstr "Las contraseñas deben tener como mínimo 8 letras."
 
-#, fuzzy, python-format
-#~| msgid "Are you sure you want to delete this contact?"
-#~ msgid "Are you sure you want to delete <b>%(name)s</b>? No way to undo this operation."
-#~ msgstr "¿Está seguro de que desea borrar este contacto?"
-
-#, fuzzy
-#~| msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
-#~ msgid "Once deleted, this label will be gone forever. There is no way to undo this operation."
-#~ msgstr "Una vez borrados, no podrá recuperarlos. No puede deshacer esta operación. "
+#~ msgid "What is a Flow?"
+#~ msgstr "¿Qué es un flujo?"
 
 #, fuzzy
 #~| msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
@@ -10888,6 +10873,11 @@ msgstr ""
 #~| msgid "Flows"
 #~ msgid "Flows:"
 #~ msgstr "Flujos"
+
+#, fuzzy
+#~| msgid "No matching flows."
+#~ msgid "No related flows."
+#~ msgstr "Sin flujos que correspondan."
 
 #, fuzzy
 #~| msgid "The name of your organization"

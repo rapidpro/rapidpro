@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-01 16:43+0000\n"
+"POT-Creation-Date: 2020-12-01 20:53+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -8039,11 +8039,6 @@ msgstr "Fluxo para iniciar"
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
 
-#, fuzzy
-#| msgid "No matching flows."
-msgid "No related flows."
-msgstr "Não há fluxos correspondentes"
-
 #, fuzzy, python-format
 msgid "You have <b>%(counter)s global</b> configured"
 msgid_plural "You have <b>%(counter)s globals</b> configured"
@@ -9993,9 +9988,6 @@ msgstr "Insira o seu código de requisição"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
-#~ msgid "What is a Flow?"
-#~ msgstr "O que é um fluxo?"
-
 #~ msgid "Passwords must contain at least 8 letters."
 #~ msgstr "Senhas devem conter pelo menos 8 letras"
 
@@ -10003,13 +9995,8 @@ msgstr ""
 #~ msgid "Password must be at least 8 characters long"
 #~ msgstr "Senhas devem ter pelo menos 8 letras"
 
-#, fuzzy, python-format
-#~ msgid "Are you sure you want to delete <b>%(name)s</b>? No way to undo this operation."
-#~ msgstr "Você tem certeza que deseja remover este Grupo de Contato?"
-
-#, fuzzy
-#~ msgid "Once deleted, this label will be gone forever. There is no way to undo this operation."
-#~ msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
+#~ msgid "What is a Flow?"
+#~ msgstr "O que é um fluxo?"
 
 #, fuzzy
 #~ msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
@@ -10024,6 +10011,11 @@ msgstr ""
 #~| msgid "Flows"
 #~ msgid "Flows:"
 #~ msgstr "Fluxos"
+
+#, fuzzy
+#~| msgid "No matching flows."
+#~ msgid "No related flows."
+#~ msgstr "Não há fluxos correspondentes"
 
 #, fuzzy
 #~| msgid "Setup your RocketChat first to be able to integrate."

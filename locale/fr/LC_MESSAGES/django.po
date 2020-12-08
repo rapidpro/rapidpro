@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-01 16:43+0000\n"
+"POT-Creation-Date: 2020-12-01 20:53+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -5486,10 +5486,9 @@ msgstr "Ces contacts se sont retirés et vous ne pouvez plus leur envoyer de mes
 msgid "<b>%(name)s</b> cannot be deleted since it is currently in use."
 msgstr "<b>%(name)s</b> ne peut pas être supprimé car il est actuellement utilisé."
 
-#, fuzzy, python-format
-#| msgid "Are you sure you want to continue? This cannot be undone."
+#, python-format
 msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
-msgstr "Es-tu sur de vouloir continuer? Ça ne peut pas être annulé."
+msgstr "Voulez-vous vraiment supprimer <b>%(name)s</b>? Ça ne peut pas être annulé."
 
 msgid "Used in the flow"
 msgid_plural "Used in the flows"
@@ -5975,9 +5974,6 @@ msgstr "Aucun flux ne démarre"
 
 msgid "Are you sure you want to continue? This cannot be undone."
 msgstr "Es-tu sur de vouloir continuer? Ça ne peut pas être annulé."
-
-msgid "No related flows."
-msgstr "Aucun flux associé."
 
 #, python-format
 msgid "You have <b>%(counter)s global</b> configured"
@@ -7803,27 +7799,17 @@ msgstr "Entrez une requête"
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
-#~ msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook."
-#~ msgstr "Vous devrez avoir un compte FreshChat, obtenir un jeton d'authentification et configurer un webhook."
-
-#~ msgid "What is a Flow?"
-#~ msgstr "Qu'est-ce qu'un flux?"
-
 #~ msgid "Passwords must contain at least 8 letters."
 #~ msgstr "Les mots de passe doivent contenir au moins 8 caractères."
 
 #~ msgid "Password must be at least 8 characters long"
 #~ msgstr "Le mot de passe doit comporter au moins 8 caractères"
 
-#, fuzzy, python-format
-#~| msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
-#~ msgid "Are you sure you want to delete <b>%(name)s</b>? No way to undo this operation."
-#~ msgstr "Voulez-vous vraiment supprimer <b>%(name)s</b>? Ça ne peut pas être annulé."
+#~ msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook."
+#~ msgstr "Vous devrez avoir un compte FreshChat, obtenir un jeton d'authentification et configurer un webhook."
 
-#, fuzzy
-#~| msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
-#~ msgid "Once deleted, this label will be gone forever. There is no way to undo this operation."
-#~ msgstr "Une fois supprimé, ce global sera définitivement perdu. Il n'y a aucun moyen d'annuler cette opération."
+#~ msgid "What is a Flow?"
+#~ msgstr "Qu'est-ce qu'un flux?"
 
 #~ msgid "Once deleted, this global will be gone forever. There is no way to undo this operation."
 #~ msgstr "Une fois supprimé, ce global sera définitivement perdu. Il n'y a aucun moyen d'annuler cette opération."
@@ -7837,3 +7823,6 @@ msgstr "${count} trouvé pour ${query}"
 
 #~ msgid "Flows:"
 #~ msgstr "Flux:"
+
+#~ msgid "No related flows."
+#~ msgstr "Aucun flux associé."

@@ -52,7 +52,7 @@ class CreateGlobalForm(forms.ModelForm):
         fields = ("name", "value")
         widgets = {
             "name": InputWidget(attrs={"name": _("Name"), "widget_only": False}),
-            "value": InputWidget(attrs={"name": _("Value"), "widget_only": False}),
+            "value": InputWidget(attrs={"name": _("Value"), "widget_only": False, "textarea": True}),
         }
 
 
@@ -67,7 +67,7 @@ class UpdateGlobalForm(forms.ModelForm):
         model = Global
         fields = ("value",)
         widgets = {
-            "value": InputWidget(attrs={"name": _("Value"), "widget_only": False}),
+            "value": InputWidget(attrs={"name": _("Value"), "widget_only": False, "textarea": True}),
         }
 
 
