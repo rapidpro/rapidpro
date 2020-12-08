@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("globals", "0001_initial"),
+        ("globals", "0003_squashed"),
     ]
 
     operations = [
