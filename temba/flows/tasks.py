@@ -12,6 +12,7 @@ from django.utils.timesince import timesince
 from celery.task import task
 
 from temba.utils.celery import nonoverlapping_task
+from temba.utils import chunk_list
 
 from .models import (
     ExportFlowResultsTask,
@@ -135,7 +136,13 @@ def trim_flow_starts():
             break
 
         # detach any flows runs that belong to these starts
-        FlowRun.objects.filter(start_id__in=start_ids).update(start_id=None)
+        run_ids = FlowRun.objects.filter(start_id__in=start_ids).values_list("id", flat=True)[:100000]
+        while len(run_ids) > 0:
+            for chunk in chunk_list(run_ids, 1000):
+                FlowRun.objects.filter(id__in=chunk).update(start_id=None)
+
+            # reselect for our next batch
+            run_ids = FlowRun.objects.filter(start_id__in=start_ids).values_list("id", flat=True)[:100000]
 
         FlowStart.contacts.through.objects.filter(flowstart_id__in=start_ids).delete()
         FlowStart.groups.through.objects.filter(flowstart_id__in=start_ids).delete()
