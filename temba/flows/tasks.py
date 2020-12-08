@@ -11,8 +11,8 @@ from django.utils.timesince import timesince
 
 from celery.task import task
 
-from temba.utils.celery import nonoverlapping_task
 from temba.utils import chunk_list
+from temba.utils.celery import nonoverlapping_task
 
 from .models import (
     ExportFlowResultsTask,
