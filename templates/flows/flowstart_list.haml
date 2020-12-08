@@ -2,52 +2,64 @@
 -load smartmin sms temba compress
 -load i18n humanize
 
--block table
-  %table.list-table.table(cellspacing="0")
+
+-block page-title
+  {{title}}
+
+-block title
+  {{title}}
+
+
+-block content
+
+  %table.list.lined
     %tbody
-      -for obj in object_list
-        %tr
-          %td(width="16px")
-            -if obj.status == "P" or obj.status == "S"
-              %span.spin.icon-loop(title="{{ obj.get_status_display }}")
-            -elif obj.status == "C"
-              %span.icon-checkmark(title="{{ obj.get_status_display }}")
-            -elif obj.status == "F"
-              %span.icon-warning(title="{{ obj.get_status_display }}")
-          %td
-            %a(href="{% url 'flows.flow_editor' obj.flow.uuid %}")
-              {{ obj.flow.name }}
+        -for obj in object_list
+          %tr
+            %td(width="16px")
+              -if obj.status == "P" or obj.status == "S"
+                %span.spin.icon-loop(title="{{ obj.get_status_display }}")
+              -elif obj.status == "C"
+                %span.icon-checkmark.text-success(title="{{ obj.get_status_display }}")
+              -elif obj.status == "F"
+                %span.icon-warning(title="{{ obj.get_status_display }}")
+            %td
+              %a(href="{% url 'flows.flow_editor' obj.flow.uuid %}")
+                {{ obj.flow.name }}
 
-            -if obj.start_type == "M"
-              -blocktrans trimmed with user=obj.created_by
-                was started by {{ user }} for
-            -elif obj.start_type == "Z"
-              -trans "was started by Zapier for"
-            -else
-              -trans "was started by an API call for"
+              -if obj.start_type == "M"
+                -blocktrans trimmed with user=obj.created_by
+                  was started by {{ user }} for
+              -elif obj.start_type == "Z"
+                -trans "was started by Zapier for"
+              -else
+                -trans "was started by an API call for"
 
-            -if obj.restart_participants and obj.include_active
-              -trans "all contacts"
-            -elif obj.restart_participants and not obj.include_active
-              -trans "contacts not in other flows"
-            -elif not obj.restart_participants and not obj.include_active
-              -trans "contacts not in other flows who haven't already been through this flow"
-            -else
-              -trans "contacts who haven't already been through this flow"
+              -if obj.restart_participants and obj.include_active
+                -trans "all contacts"
+              -elif obj.restart_participants and not obj.include_active
+                -trans "contacts not in other flows"
+              -elif not obj.restart_participants and not obj.include_active
+                -trans "contacts not in other flows who haven't already been through this flow"
+              -else
+                -trans "contacts who haven't already been through this flow"
 
-            .(style="padding-top: 10px")
-              -include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all query=obj.query
+              .flex(style="padding-top: 10px")
+                -include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all query=obj.query
 
-          %td(style="text-align: right")
-            .
-              {% short_datetime obj.created_on %}
-            .(style="padding-top: 10px; font-size: 11px")
-              -blocktrans trimmed with count=obj.run_count|intcomma count counter=obj.run_count
-                <b>{{ count }}</b> run
-                -plural
-                  <b>{{ count }}</b> runs
-      -empty
-        %tr.empty_list
-          %td
-          %td
-          %td
+            %td(style="text-align: right")
+              .flex.flex-col.w-32
+                .
+                  {% short_datetime obj.created_on %}
+                .(style="padding-top: 10px; font-size: 11px")
+                  -blocktrans trimmed with count=obj.run_count|intcomma count counter=obj.run_count
+                    <b>{{ count }}</b> run
+                    -plural
+                      <b>{{ count }}</b> runs
+        - empty
+          %tr.empty_list
+            %td(colspan='99')
+              -trans "No flow starts"
+
+  -block paginator
+    -include "includes/pagination.haml"

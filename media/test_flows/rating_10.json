@@ -1,0 +1,168 @@
+{
+  "version": "13",
+  "site": "https://textit.in",
+  "flows": [
+    {
+      "name": "Rate us",
+      "uuid": "d6a23704-c558-40c0-b850-5102cf69896c",
+      "spec_version": "13.1.0",
+      "language": "eng",
+      "type": "messaging",
+      "nodes": [
+        {
+          "uuid": "07ed96e6-f74a-4227-b160-661c80878fb0",
+          "actions": [
+            {
+              "attachments": [],
+              "text": "How do you rate the experience? Answer with a number below 10",
+              "type": "send_msg",
+              "quick_replies": [],
+              "uuid": "9009d06d-946c-4119-90c0-0325114cc30c"
+            }
+          ],
+          "exits": [
+            {
+              "uuid": "43ea0a1d-8338-4fce-ba16-13899f76968e",
+              "destination_uuid": "eb12cb19-76fe-4111-bb70-3113c30a2e50"
+            }
+          ]
+        },
+        {
+          "uuid": "eabac992-9968-46a1-b6af-9fb5b9f5090a",
+          "actions": [
+            {
+              "attachments": [],
+              "text": "Please, pick a valid number ",
+              "type": "send_msg",
+              "quick_replies": [],
+              "uuid": "968d0d5e-2395-4010-ba7b-10dd9e95843e"
+            }
+          ],
+          "exits": [
+            {
+              "uuid": "36d2706d-f0a1-4c9b-8da3-713c0bf61b4b",
+              "destination_uuid": "eb12cb19-76fe-4111-bb70-3113c30a2e50"
+            }
+          ]
+        },
+        {
+          "uuid": "eb12cb19-76fe-4111-bb70-3113c30a2e50",
+          "actions": [],
+          "router": {
+            "type": "switch",
+            "default_category_uuid": "cc09e8f5-0fb5-4168-b542-942de524517a",
+            "cases": [
+              {
+                "arguments": [],
+                "type": "has_number",
+                "uuid": "86da7229-534f-47a6-b799-2b6928f3570a",
+                "category_uuid": "49a015a4-47a8-48c8-93ad-e5cf83005c84"
+              }
+            ],
+            "categories": [
+              {
+                "uuid": "49a015a4-47a8-48c8-93ad-e5cf83005c84",
+                "name": "Has Number",
+                "exit_uuid": "6a269277-9431-444f-8dec-c21d8117e187"
+              },
+              {
+                "uuid": "cc09e8f5-0fb5-4168-b542-942de524517a",
+                "name": "Other",
+                "exit_uuid": "4abba910-c497-4d62-a379-94209cb476ca"
+              }
+            ],
+            "operand": "@input.text",
+            "wait": {
+              "type": "msg"
+            },
+            "result_name": "Result 1"
+          },
+          "exits": [
+            {
+              "uuid": "6a269277-9431-444f-8dec-c21d8117e187",
+              "destination_uuid": "e5a55d43-1c26-4e1d-bc71-6f054cf31ae8"
+            },
+            {
+              "uuid": "4abba910-c497-4d62-a379-94209cb476ca",
+              "destination_uuid": "eabac992-9968-46a1-b6af-9fb5b9f5090a"
+            }
+          ]
+        },
+        {
+          "uuid": "e5a55d43-1c26-4e1d-bc71-6f054cf31ae8",
+          "actions": [
+            {
+              "attachments": [],
+              "text": "Thank, we recorded your answer as @results.result_1",
+              "type": "send_msg",
+              "quick_replies": [],
+              "uuid": "d583e1f1-2a97-4a26-b523-d65d92b6723e"
+            }
+          ],
+          "exits": [
+            {
+              "uuid": "25cdd176-e322-431c-bb32-5092fc0a462e",
+              "destination_uuid": null
+            }
+          ]
+        }
+      ],
+      "_ui": {
+        "nodes": {
+          "07ed96e6-f74a-4227-b160-661c80878fb0": {
+            "position": {
+              "left": 0,
+              "top": 0
+            },
+            "type": "execute_actions"
+          },
+          "eb12cb19-76fe-4111-bb70-3113c30a2e50": {
+            "type": "wait_for_response",
+            "position": {
+              "left": 20,
+              "top": 200
+            },
+            "config": {
+              "cases": {}
+            }
+          },
+          "e5a55d43-1c26-4e1d-bc71-6f054cf31ae8": {
+            "position": {
+              "left": 0,
+              "top": 400
+            },
+            "type": "execute_actions"
+          },
+          "eabac992-9968-46a1-b6af-9fb5b9f5090a": {
+            "position": {
+              "left": 400,
+              "top": 60
+            },
+            "type": "execute_actions"
+          }
+        }
+      },
+      "revision": 7,
+      "expire_after_minutes": 10080,
+      "metadata": {
+        "revision": 1
+      },
+      "localization": {}
+    }
+  ],
+  "campaigns": [],
+  "triggers": [
+    {
+      "trigger_type": "K",
+      "keyword": "rating",
+      "flow": {
+        "uuid": "d6a23704-c558-40c0-b850-5102cf69896c",
+        "name": "Rate us"
+      },
+      "groups": [],
+      "channel": null
+    }
+  ],
+  "fields": [],
+  "groups": []
+}

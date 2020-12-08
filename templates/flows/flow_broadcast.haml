@@ -1,48 +1,8 @@
--extends 'smartmin/form.html'
+-extends 'includes/modax.html'
 -load smartmin
 -load i18n
 
 -block fields
-
-  %style
-    :plain
-      .modal .modal-body .control-label {
-        display:none;
-      }
-
-      .modal .modal-body .controls {
-        margin-top: 6px;
-      }
-
-      .start-options {
-        margin-top: 10px;
-        color: #666;
-      }
-
-      .start-options .form-group {
-        margin-top: -15px;
-      }
-
-      .start-options > .font-checkbox > .controls > .help-block > label {
-        color: #666 !important;
-      }
-
-      .hidden {
-        display: none;
-      }
-
-      .recipients-mode {
-        margin-bottom: 10px;
-      }
-
-      temba-contact-search {
-        font-size: 90%;
-      }
-
-      temba-alert {
-        margin-bottom: 10px;
-      }
-
 
   -if object.flow_type == 'M' and not send_channel
     %p
@@ -59,7 +19,7 @@
 
   -elif object.flow_type == 'V' and not call_channel
     %p
-      -blocktrans with name=brand.name
+      -blocktrans trimmed with name=brand.name
         To get started you need to add a voice-enabled channel to your workspace. A voice-enabled channel is a
         phone number which {{ name }} can use to make and receive phone calls on your behalf. For example, Twilio
         is a service which provides voice-enabled numbers which you can add as channels in your {{ name }} workspace.
@@ -67,37 +27,22 @@
   -else
     -if warnings
       -for warning in warnings
-        %temba-alert{level: "warning"}
-          %div= warning
+        .mb-4
+          %temba-alert{level: "warning"}
+            %div= warning
 
     .field.recipients-mode
-      {% render_field 'recipients_mode' %}
+      -render_field 'recipients_mode'
 
     .field.omnibox{class:'{% if not form.recipients_mode.value == "select" %}hidden{%endif%}'}
-      {% render_field 'omnibox' %}
+      -render_field 'omnibox'
 
     .field.query{class:'{% if form.recipients_mode.value == "select" %}hidden{%endif%}'}
-      {% render_field 'contact_query' %}
+      -render_field 'contact_query'
 
-    .start-options
-      .control-group.restart-participants
-        %label.control-label{ for:"id_restart_participants" }
-          -trans "Restart Participants"
-        .controls
-          %input#id_restart_participants{ name:"restart_participants", type:"checkbox" }
-            .help-block
-              %label{ for:"id_restart_participants" }
-                -trans "Restart contacts who have already entered this flow"
-
-      .control-group.include-active
-        %label.control-label{ for:"id_include_active" }
-          -trans "Include Active Contacts"
-        .controls
-          %input#id_include_active{ name:"include_active", type:"checkbox" }
-            .help-block
-              %label{ for:"id_include_active" }
-                -trans "Interrupt contacts currently active in flows"
-
+    .start-options.mt-6.ml-2
+      -render_field 'restart_participants'
+      -render_field 'include_active'
 
 -block form-buttons
   -if send_channel
@@ -136,10 +81,12 @@
       ele.classList.remove(className);
     }
 
-    var queryField = document.querySelector('.query');
-    var recipientsField = document.querySelector('.omnibox');
+    var modalBody = document.querySelector("#start-flow").shadowRoot
 
-    var modeSelect = document.querySelector("temba-select[name='recipients_mode']");
+    var queryField = modalBody.querySelector('.query');
+    var recipientsField = modalBody.querySelector('.omnibox');
+    var modeSelect = modalBody.querySelector("temba-select[name='recipients_mode']");
+
     if (modeSelect) {
       modeSelect.addEventListener("change", function(evt) {
         var selected = evt.target.values[0];
@@ -153,7 +100,5 @@
       });
     }
 
-    $(document).ready(function () {
-      useFontCheckbox("#id_restart_participants");
-      useFontCheckbox("#id_include_active");
-    });
+
+

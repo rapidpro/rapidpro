@@ -3,56 +3,36 @@
 -load i18n
 
 -block fields
-  .field.formax-vertical
-    {% render_field 'name' %}
+  {% render_field 'name' %}
 
-  .field.formax-vertical
-    {% render_field 'slug' %}
+  {% render_field 'timezone' %}
 
-  .field.formax-vertical
-    {% render_field 'timezone' %}
-
-  .field.formax-vertical
-    {% render_field 'date_format' %}
+  {% render_field 'date_format' %}
 
 -block post-form
 
 -block summary
-  -if object.is_multi_org
-    %p.pull-right
-      %a.sub-orgs.btn.btn-secondary{url:'{% url "orgs.org_sub_orgs" %}'}
-        Manage Workspaces
+  .flex.items-center
+    .text.flex-grow.mr-4
+      -blocktrans trimmed with org=object.name
+        Your workspace is <b>{{org}}</b>
 
-  -blocktrans with org=object.name
-    Your workspace is <span class='attn'>{{org}}</span>
+      -blocktrans trimmed with timezone=object.timezone
+        which is in the <b>{{timezone}}</b> timezone.
 
-  -blocktrans with timezone=object.timezone
-    which is in the <span class='attn'>{{timezone}}</span> timezone.
+      -if object.is_multi_org and sub_orgs
+        .mt-4
+          {% blocktrans count sub_orgs|length as org_count%}
+            You have <b>{{org_count}}</b> child workspaces.
+          {% plural %}
+            You have <b>{{org_count}}</b> child workspaces.
+          {% endblocktrans%}
 
-  -if object.is_multi_org and sub_orgs
-    %br
-    {% blocktrans count sub_orgs|length as org_count%}
-      You have <span class='attn'>{{org_count}}</span> child workspaces.
-      {% plural %}
-      You have <span class='attn'>{{org_count}}</span> child workspaces.
-    {% endblocktrans%}
 
--block extra-script
-  {{block.super}}
-  :javascript
-    $(document).ready(function() {
+    .buttons
+      -if object.is_multi_org
+        .button-light(onclick="goto(event)" href='{% url "orgs.org_sub_orgs" %}')
+          -trans "Manage Workspaces"
 
-      $('.sub-orgs').click(function(evt) {
-        evt.stopPropagation();
-        window.location = '{% url "orgs.org_sub_orgs" %}';
-      });
 
-      $('#id_timezone').select2({
-        containerCssClass: 'select2-temba-field',
-      });
 
-      $('#id_date_format').select2({
-        containerCssClass: 'select2-temba-field',
-        minimumResultsForSearch: '-1',
-      });
-    });

@@ -3,7 +3,7 @@ from django.conf.urls import url
 from django.utils.translation import ugettext_lazy as _
 
 from ...models import TicketerType
-from .views import AdminUIView, ConfigureView, ConnectView, ManifestView
+from .views import AdminUIView, ConfigureView, ConnectView, FileCallbackView, ManifestView
 
 
 class ZendeskType(TicketerType):
@@ -27,7 +27,7 @@ class ZendeskType(TicketerType):
         "You can use it to manage all the tickets created on your account."
     )
 
-    def is_available(self):
+    def is_available_to(self, user):
         return bool(settings.ZENDESK_CLIENT_ID and settings.ZENDESK_CLIENT_SECRET)
 
     def get_urls(self):
@@ -39,4 +39,5 @@ class ZendeskType(TicketerType):
             url(r"^manifest\.json", ManifestView.as_view(), name="manifest"),
             url(r"^admin_ui", AdminUIView.as_view(), name="admin_ui"),
             url(r"^configure/(?P<uuid>[a-z0-9\-]+)/$", ConfigureView.as_view(), name="configure"),
+            url(r"^file/(?P<path>[\w\-./]+)$", FileCallbackView.as_view(), name="file_callback"),
         ]

@@ -2,7 +2,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import ChannelType
 from temba.channels.types.playmobile.views import ClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 
 class PlayMobileType(ChannelType):
@@ -19,19 +19,18 @@ class PlayMobileType(ChannelType):
     available_timezones = ["Asia/Tashkent", "Asia/Samarkand"]
 
     claim_blurb = _(
-        """If you are based in Uzbekistan, you can purchase a short code from <a href="http://playmobile.uz/">Play Mobile</a> and connect it in a few simple steps."""
-    )
+        "If you are based in Uzbekistan, you can purchase a short code from %(link)s and connect it in a few simple "
+        "steps."
+    ) % {"link": '<a href="http://playmobile.uz/">Play Mobile</a>'}
     claim_view = ClaimView
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 160
 
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your Play Mobile connection you'll need to notify Play Mobile of the following URL.
-        """
+        "To finish configuring your Play Mobile connection you'll need to notify Play Mobile of the following URL."
     )
 
     configuration_urls = (

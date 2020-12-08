@@ -1,34 +1,35 @@
 .attachment
   -if category == 'image'
-    %a.attachment-preview{ href:"#", data-featherlight:'<img class="image-full" src="{{url}}"/>' }
+    %a.attachment-preview.button-light.rounded-r-none(href="#" data-featherlight='<img class="image-full" src="{{url}}"/>' data-featherlight-after-open="stopEvent(event)")
       .attachment-icon.icon-photo
       {{preview}}
 
   -elif category == 'audio' and is_playable
-    %a.attachment-preview{ href:"#", data-featherlight:'<audio style="width: 360px" controls><source type="{{content_type}}" src="{{url}}" /></audio>' }
+    %a.attachment-preview.button-light.rounded-r-none(href="#" data-featherlight='<audio style="width: 360px" controls><source type="{{content_type}}" src="{{url}}" /></audio>' data-featherlight-after-open="stopEvent(event)")
       .attachment-icon.icon-volume-medium
       {{preview}}
 
   -elif category == 'video' and is_playable
-    %a.attachment-preview{
+    %a.attachment-preview.button-light.rounded-r-none{
       href:"#",
       data-featherlight:'<video class="video-js vjs-default-skin" controls preload="auto"><source type="{{content_type}}" src="{{url}}" /></video>',
       data-featherlight-after-content:'initializeVideoPlayer(this.$content[0])',
-      data-featherlight-after-close:'disposeVideoPlayer(this.$content[0])'
+      data-featherlight-after-close:'disposeVideoPlayer(this.$content[0])',
+      data-featherlight-after-open:'stopEvent(event)'
     }
       .attachment-icon.icon-videocam
       {{preview}}
 
   -elif category == 'geo'
-    %a.attachment-preview{ href:"{{url}}", target:"_loc" }
+    .attachment-preview.button-light(onclick="goto(event)" href="{{url}}" target="_loc" )
       .attachment-icon.icon-pin_drop
       {{preview}}
 
   -else
-    .attachment-preview
+    .attachment-preview.button-light.rounded-r-none(onclick="goto(event, this)" href="{{url}}" download="true")
       .attachment-icon.icon-docs
       {{preview}}
 
   -if category != 'geo'
-    %a.attachment-download{ href:"{{url}}", download }
+    .attachment-download.rounded-l-none.button-light(onclick="goto(event, this)" href="{{url}}" download="true")
       .icon-file_download

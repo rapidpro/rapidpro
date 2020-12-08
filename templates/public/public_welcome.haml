@@ -11,81 +11,75 @@
 -block messages
 
 -block content
-  .row
-    .span12
-      -if 'success' in request.REQUEST.keys
-        %h1
-          -trans "Your channel is now connected."
-        %p.medium-title
-          -blocktrans with name=brand.name
-            You can now start flows through {{name}}.
-      -else
-        %h1
-          -trans "Getting Started"
+  -if 'success' in request.GET.keys
+    .page-title
+      -trans "Your channel is now connected."
+    -blocktrans with name=brand.name
+      You can now start flows through {{name}}.
+  -else
+    .page-title
+      -trans "Getting Started"
+    -blocktrans
+      Here's a short introduction to help you get started.
 
-      .row
-        .span12
-          %hr
 
-  .row.workflow-section
-    .span3
-      %a.charm.workflow-glyph.icon-tree-2{href:'{% url "flows.flow_list" %}'}
-    .span7
-      %h3
-        -trans "FLOWS"
-      %p
-        -blocktrans
-          Using a simple drag-and-drop interface, anybody can design a custom SMS application
-          that is tailored to their needs. Design a flow in minutes and start getting responses
-          instantly. Once people start interacting with your flow, use real-time analytics to
-          see how things are going.
-      %p
-        -trans "To learn more about flows, visit the"
-        <a href="{% non_ssl_brand_url 'public.video_list'%}">{% trans "learning center" %}</a>.
-      %div
-        %a.btn.workflow-btn{href:"{% url 'flows.flow_list' %}" }
-          -trans "View Sample Flows"
-        %a.create_flow.btn.workflow-btn{href:"#"}
-          -trans "Create Flow"
-        %a.btn.workflow-btn{href:"{% non_ssl_brand_url 'public.video_list'%}"}
-          -trans "How to Build Flows"
+  .mt-6
+    .flex
+      .summary.card.p-12.overflow-hidden
+        .icon-flow.relative.text-gray-100(style="font-size:200px; transform: rotate(-5deg) translate(-120px, -40px);")
+        .-mt-8.mx-20
+          .title
+            %a(href="{% url 'flows.flow_list' %}")
+              -trans "Flows"
+          -blocktrans
+            Using a simple drag-and-drop interface, anybody can design a custom SMS application
+            that is tailored to their needs. Design a flow in minutes and start getting responses
+            instantly. Once people start interacting with your flow, use real-time analytics to
+            see how things are going.
 
-  .row
-    .offset1.span10
-      %hr
+          -trans "To learn more about flows, visit the"
+            <a href="{% non_ssl_brand_url 'public.video_list'%}">{% trans "learning center" %}</a>.
+    
+          .mt-6
+            %temba-modax.inline-block.mb-1(endpoint="{% url 'flows.flow_create'%}" header='{{_("Create Flow")|escapejs}}')
+              .button-primary.lift.inline-block
+                -trans "Create Flow"
+            .button-light.lift.inline-block.mx-1.mb-1(href="{% url 'flows.flow_list' %}" onclick="goto(event)")
+              -trans "Sample Flows"
+            .button-light.lift.inline-block.mb-1(href="{% non_ssl_brand_url 'public.video_list'%}" onclick="goto(event)")
+              -trans "Tutorials"
 
-  -if 'success' not in request.REQUEST.keys
-    .row.workflow-section
-      .span3
-        %a.charm.workflow-glyph.icon-phone{href:'{% url "channels.channel_list" %}'}
-      .span7
-        %h3
-          -trans "GET CONNECTED"
-        %p
+
+
+  -if 'success' in request.GET.keys
+    .flex.mt-6
+      .summary.card.p-12.overflow-hidden
+        .icon-phone.relative.text-gray-100(style="font-size:160px; transform: rotate(25deg) translate(-40px, -10px);")
+        .-mt-8.mx-20
+          .title
+            %a(href="{% url 'channels.channel_claim' %}")
+              -trans "Get Connected"
+          
           -blocktrans with name=brand.name
             No matter where you are in the world, it's easy to configure {{name}} to work on real phones without delay.
             Whether you want to use a Twilio number, a direct connection with your local carriers, or even the SIM card
             you already have, we've got you covered.
 
-        %p
-          -blocktrans
-            You can also use our flow simulator if you don't want to setup a number right away.
+          .mt-2
+            -blocktrans
+              You can also use our flow simulator if you don't want to setup a number right away.
 
-        %div
-          %a.btn.workflow-btn.send-button{href:"{% url 'channels.channel_list' %}#message"}
-            -trans "Add Number"
+          .mt-6
+            .button-primary.lift.inline-block(href="{% url 'channels.channel_claim' %}" onclick="goto(event)")
+                -trans "Add Number"
 
-    .row
-      .offset1.span10
-        %hr
-
-  .row.workflow-section
-    .span3
-      %a.charm.workflow-glyph.icon-vcard{href:'{% url "contacts.contact_list" %}'}
-    .span7
-      %h3
-        -trans "CONTACTS"
-      %p
+  .flex.mt-6
+    .summary.card.p-12
+      .icon-contact.relative.text-gray-100(style="font-size:240px; transform: rotate(-5deg) translate(-180px, 0px);")
+      .-mt-8.mx-20
+        .title
+          %a(href="{% url 'contacts.contact_list' %}")
+            -trans "Contacts"
         -blocktrans with name=brand.name
           Before you do anything else in {{name}}, it is helpful to have a list of contacts. This will make it easy to send a message or survey out
           to a wide distribution list.
@@ -97,82 +91,66 @@
             template
           as a guide. We'll create a group for you automatically for each file you upload. Don't worry, it's easy to add or
           remove people from groups later if you need to tweak things.
-      %p
-        -blocktrans
-          If you want anybody to be able to join a group using SMS, you can set a <i>join keyword</i>. Anybody who
-          texts with that keyword will automatically be registered into the group.
 
-        %div
-          %a.btn.workflow-btn{href:"{% url 'contacts.contact_import' %}"}
+        .mt-2
+          -blocktrans
+            If you want anybody to be able to join a group using SMS, you can set a <i>join keyword</i>. Anybody who
+            texts with that keyword will automatically be registered into the group.
+
+        .mt-6
+          .button-primary.lift.inline-block.mr-1.mb-1(href="{% url 'contacts.contactimport_create' %}" onclick="goto(event)")
             -trans "Import Contacts"
-          %a.btn.workflow-btn{href:"{% url 'contacts.contact_list' %}#contact"}
-            -trans "Create Contact"
-          %a.btn.workflow-btn{href:"{% url 'contacts.contact_list' %}#group"}
-            -trans "Create Group"
+          %temba-modax.inline-block.mb-1(endpoint="{% url 'contacts.contact_create'%}" header='{{_("Create Contact")|escapejs}}')
+            .button-light.lift.inline-block.mr-1{href:"{% url 'contacts.contact_list' %}#contact"}
+              -trans "Create Contact"
+          %temba-modax.inline-block.mb-1(endpoint="{% url 'contacts.contactgroup_create'%}" header='{{_("Create Group")|escapejs}}')
+            .button-light.lift.inline-block.mr-1.mb-1{href:"{% url 'contacts.contact_list' %}#group"}
+              -trans "Create Group"
       
-  .row 
-    .offset1.span10
-      %hr
-
-  .row.workflow-section
-    .span3
-      %a.charm.workflow-glyph.icon-bubble-3.icon-1{href:'{% url "msgs.msg_inbox" %}'}
-    .span7
-      %h3
-        -trans "MESSAGES"
-      %p
+  .flex.mt-6
+    .summary.card.p-12.overflow-hidden
+      .icon-contact.relative.text-gray-100(style="font-size:240px; transform: rotate(-5deg) translate(-180px, 0px);")
+      .-mt-8.mx-20
+        .title
+          %a(href="{% url 'msgs.msg_inbox' %}")
+            -trans "Messages"
         -blocktrans with name=brand.name
           If you use e-mail, reading and writing messages in {{name}} should already be familiar to you. Just like e-mail, you have an Inbox and it's easy to label
           messages so you can follow up with them later. {{name}} also allows you to schedule a message to be sent later or even as a reminder
           on a regular schedule.
 
-      %p
-        -blocktrans with name=brand.name
-          For example you might have {{name}} send a message every Friday reminding people in the <i>Field Staff</i> group to complete their weekly report.
-          If anybody joins the <i>Field Staff</i> group later, they will automatically start receiving the weekly reminder.
+        .mt-2
+          -blocktrans with name=brand.name
+            For example you might have {{name}} send a message every Friday reminding people in the <i>Field Staff</i> group to complete their weekly report.
+            If anybody joins the <i>Field Staff</i> group later, they will automatically start receiving the weekly reminder.
 
-      %div
-        %a.btn.workflow-btn.send-button{href:"{% url 'msgs.msg_inbox' %}#message"}
-          -trans "Send Message"
+        .mt-6
+          %temba-modax.inline-block.mb-1(endpoint="{% url 'msgs.broadcast_send'%}" header='{{_("Send Message")|escapejs}}')
+            .button-primary.lift
+              -trans "Send Message"
 
-  .row
-    .offset1.span10
-      %hr
+  .flex.mt-6
+    .summary.card.p-12.overflow-hidden
+      .icon-user.relative.text-gray-100(style="font-size:190px; transform: rotate(-5deg) translate(-100px, 20px);")
+      .-mt-8.mx-20
+        .title
+          %a(href="{% url 'orgs.org_home' %}")
+            -trans "Workspace"
+  
+        -block account-blurb
 
-  .row.workflow-section
-    .span3
-      %a.charm.workflow-glyph.icon-user{href:'{% url "orgs.org_home" %}'}
-    .span7
-      %h3
-        -trans "WORKSPACE"
-      %p
-        -trans "Visit your workspace page to add credits at any time"
-      %p
-        -url 'api' as api_url
-        -blocktrans with name=brand.name
-          {{name}} also offers a robust REST API to add SMS features to your own website. Have a look through the
-          %a{href:'{{api_url}}'}
-            API documentation
-          to learn more. 
+        .mt-2
+          -url 'api' as api_url
+          -blocktrans with name=brand.name
+            {{name}} also offers a robust REST API to add SMS features to your own website. Have a look through the
+            %a{href:'{{api_url}}'}
+              API documentation
+            to learn more. 
 
-      %div
-        -block account-details
-        %a.btn.workflow-btn{href:"{% url 'orgs.org_home' %}?open=webhook"}
-          -trans "Add Web Hook"
-        %a.btn.workflow-btn{href:"{% url 'api' %}"}
-          -trans "API Documentation"
-
--block extra-script
-  {{ block.super }}
-  :javascript
-    {% if org_perms.flows.flow_create %}
-      $(".create_flow").on('click', function() {
-        var modal = new Modax('{{ _("Create a Flow")|escapejs }}', '{% url "flows.flow_create" %}');
-        modal.setIcon('icon-tree');
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-    {% endif %}
+        .mt-6
+          -block account-details
+          .button-light.lift.inline-block(href="{% url 'api' %}" onclick="goto(event)")
+            -trans "API Documentation"
 
 
 -block extra-less
@@ -194,19 +172,14 @@
 
         .workflow-glyph {
           line-height: 1;
-          color: #fff;
-          background: var(--color-primary-dark);
           font-size: 120px;
-          height: 220px;
-          width: 220px;
+          height: 160px;
+          width: 160px;
+          padding: 20px;
           text-decoration: none;
           border-radius: 50%;
           text-align: center;
-          line-height:1.75em;
-
-          &:hover {
-            color: #fff;
-          }
+          line-height:1;
 
           &.icon-1 {
             line-height:1.9em;

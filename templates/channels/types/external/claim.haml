@@ -2,77 +2,61 @@
 -load i18n
 
 -block title
-  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
-
-  %h2.font_normalize.header-margin
-    {{ title }}
+  {{ title }}
 
 -block pre-form
-  .info
-    %p
-      -blocktrans trimmed with brand.name as brand
-        You can connect an external aggregator or messaging service to {{ brand }} using our external API. You can
-        specify parameters to substitute in the URL or body by using these variables:
+  -blocktrans trimmed with brand.name as brand
+    You can connect an external aggregator or messaging service to {{ brand }} using our external API. You can
+    specify parameters to substitute in the URL or body by using these variables:
 
-    %ul
-      %li <code><span class="variable-sub">text</span></code> -
-        -trans "the message of the text being sent"
-      %li <code><span class="variable-sub">from</span></code> -
-        -trans "the phone number or address you have configured for this service"
-      %li <code><span class="variable-sub">from_no_plus</span></code> -
-        -trans "the phone number or address you have configured for this service, with leading +'s removed"
-      %li <code><span class="variable-sub">to</span></code> -
-        -trans "the phone number or URN this message is addressed to"
-      %li <code><span class="variable-sub">to_no_plus</span></code> -
-        -trans "the phone number or URN this message is addressed to, with leading +'s removed"
-      %li <code><span class="variable-sub">id</span></code> -
-        -trans "the unique ID of this message"
-      %li <code><span class="variable-sub">quick_replies</span></code> -
-        -trans "the quick replies for this message, formatted according to send method and content type"
+  %ul.my-4
+    %li
+      .code text
+      -trans "the message of the text being sent"
+    %li
+      .code from
+      -trans "the phone number or address you have configured for this service"
+    %li 
+      .code from_no_plus
+      -trans "the phone number or address you have configured for this service, with leading +'s removed"
+    %li
+      .code to
+      -trans "the phone number or URN this message is addressed to"
+    %li
+      .code to_no_plus
+      -trans "the phone number or URN this message is addressed to, with leading +'s removed"
+    %li 
+      .code id
+      -trans "the unique ID of this message"
+    %li
+      .code quick_replies
+      -trans "the quick replies for this message, formatted according to send method and content type"
 
-    %p
-      -blocktrans trimmed
-        An example that would substitute variables in the URL:
+  .mb-2
+    -blocktrans trimmed
+      An example that would substitute variables in the URL:
 
-    %pre<
-      http://myservice.com/send.php?from={% templatetag openbrace %}{% templatetag openbrace %}from{% templatetag closebrace %}{% templatetag closebrace %}&text={% templatetag openbrace %}{% templatetag openbrace %}text{% templatetag closebrace %}{% templatetag closebrace %}&to={% templatetag openbrace %}{% templatetag openbrace %}to{% templatetag closebrace %}{% templatetag closebrace %}{% templatetag openbrace %}{% templatetag openbrace %}quick_replies{% templatetag closebrace %}{% templatetag closebrace %}{% templatetag closebrace %}
+  %pre<
+    http://myservice.com/send.php?from={% templatetag openbrace %}{% templatetag openbrace %}from{% templatetag closebrace %}{% templatetag closebrace %}&text={% templatetag openbrace %}{% templatetag openbrace %}text{% templatetag closebrace %}{% templatetag closebrace %}&to={% templatetag openbrace %}{% templatetag openbrace %}to{% templatetag closebrace %}{% templatetag closebrace %}{% templatetag openbrace %}{% templatetag openbrace %}quick_replies{% templatetag closebrace %}{% templatetag closebrace %}{% templatetag closebrace %}
 
-    %p
-      -blocktrans trimmed
-        If using POST or PUT, you can specify the body of the request using the same variables.
+  .mt-6
+    -blocktrans trimmed
+      If using POST or PUT, you can specify the body of the request using the same variables.
 
-    %p
-      -blocktrans trimmed with "<code><span class='variable-sub'>quick_replies</span></code>" as quick_replies_var and "<code>&quick_reply=(reply)</code>" as quick_replies_output
-        The {{ quick_replies_var }} variable with method GET or content type URL Encoded will be
-        replaced by {{ quick_replies_output }} for each quick reply.
+  .mt-4.leading-loose
+    -blocktrans trimmed with "<div class='code'>quick_replies</div>" as quick_replies_var and "<div class='code'>&quick_reply=(reply)</div>" as quick_replies_output
+      The {{ quick_replies_var }} variable with method GET or content type URL Encoded will be
+      replaced by {{ quick_replies_output }} for each quick reply.
 
-    %p
-      -blocktrans trimmed with brand.name as brand
-        After connecting your service we will provide URLs for the endpoints to call when you want to push a message to
-        {{ brand }} or notify {{ brand }} of the delivery status of a message.
+  .mt-4
+    -blocktrans trimmed with brand.name as brand
+      After connecting your service we will provide URLs for the endpoints to call when you want to push a message to
+      {{ brand }} or notify {{ brand }} of the delivery status of a message.
 
 -block extra-script
   {{ block.super }}
 
   :javascript
-    $(function(){
-      var schemeSelect = $('#id_scheme');
-      schemeSelect.on('change', function() {
-        updateFormForScheme($(this).val());
-      });
-      updateFormForScheme(schemeSelect.val());
-
-      var methodSelect = $("#id_method");
-      methodSelect.on('change', function(){
-        updateFormForMethod($(this).val());
-      })
-      updateFormForMethod($(this).val());
-
-      schemeSelect.select2({ minimumResultsForSearch: -1, width: '370px' });
-      $('#id_country').select2({width:'370px'});
-      $('#id_method').select2({ minimumResultsForSearch: -1, width: '370px' });
-      $('#id_content_type').select2({ minimumResultsForSearch: -1, width: '370px' });
-    });
 
     function updateFormForMethod(method){
       var bodyCtrlGroup = $('#id_body').parents('.control-group');
@@ -111,6 +95,10 @@
   {{ block.super }}
 
   :css
+    li { 
+      padding: 5px 0px;
+    }
+
     .info {
       width: 800px;
       margin-bottom: 20px;

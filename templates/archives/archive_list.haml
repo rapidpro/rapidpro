@@ -1,17 +1,22 @@
-- extends "smartmin/list.html"
-- load smartmin sms temba compress i18n humanize
+-extends "smartmin/list.html"
+-load smartmin sms temba compress i18n humanize
 
 
+-block title
+  {{selected|title}}
 
+  -trans "Archives"
 
-- block page-title
-  - trans "Archives"
+-block subtitle
 
-- block title-icon
+-block page-title
+  -trans "Archives"
+
+-block title-icon
   .title-icon
     %span.glyph.icon-box
 
-- block summary
+-block summary
   -if archive_count
     {% blocktrans trimmed with counter=archive_count|intcomma count num=archive_count  %}
     You have {{ counter }} archive
@@ -27,26 +32,9 @@
   -else
     -trans "You do not have any message or run archives yet."
 
-- block page-top
-  {% render as page_top %}
-    {{block.super}}
-  {% endrender %}
-  {{page_top}}
-
--block top-form
-  - block search-form
-    - for type in archive_types
-      - if type.0 == selected
-        {{ type.1 }}
-      - else
-        %a{href:'/archive/{{type.0}}/'}<
-          {{type.1}}
-      - if not forloop.last
-        |
-
-- block content
+-block content
   -if object_list
-    %table.archives
+    %table.archives.list.lined
       %thead
         %th.name
           -trans "File"
@@ -58,10 +46,10 @@
           -trans "Period"
         %th
 
-      - for archive in object_list
+      -for archive in object_list
         %tr.archive-row
           %td
-            %a{href:"{% url 'archives.archive_read' archive.id %}"}
+            .hover-linked(onclick="goto(event)" href="{% url 'archives.archive_read' archive.id %}")
               {{archive.filename}}
           %td.archive-record-count.cell
             {{archive.record_count|intcomma}}
@@ -72,12 +60,11 @@
               {{archive.start_date|date:"M j, Y"}}
             -else
               {{archive.start_date|date:"F Y"}}
-          %td.archive-icon
-            %a{href:"{% url 'archives.archive_read' archive.id %}"}
-              -if archive.period == 'D'
-                %span.icon.icon-docs-2
-              -else
-                %span.icon.icon-box
+          %td.text-gray-500
+            -if archive.period == 'D'
+              .icon-docs-2.hover-linked(onclick="goto(event)" href="{% url 'archives.archive_read' archive.id %}")
+            -else
+              .icon-box.hover-linked(onclick="goto(event)" href="{% url 'archives.archive_read' archive.id %}")
   -else
 
     -blocktrans trimmed
@@ -85,14 +72,18 @@
       see a list of all archives.
 
 
-  - block paginator
-    - if object_list.count
-      .row
-        - include "smartmin/sidebar_pagination.haml"
+  -block paginator
+    -if object_list.count
+      -include "includes/pagination.haml"
 
 
 -block extra-style
   :css
+    .page-content {
+        align-self: auto;
+        max-width: 1024px;
+    }
+
     .title-icon {
       margin-bottom: -5px;
     }
@@ -135,26 +126,15 @@
       text-align: center;
     }
 
-    tr {
-      border-top: 1px solid #e6e6e6;
-    }
-
-    td {
-    }
-
     thead {
       border-top: none;
     }
 
-    th {
-      font-weight: 200;
-      color: #aaa;
-      font-size: 11px;
+    table.archives.list thead th {
       text-align: right;
-      padding-right: 5px;
     }
 
-    th.name {
+    table.archives.list thead th.name {
       text-align: left;
     }
 

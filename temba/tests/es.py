@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 class ESMockWithScroll:
     def __init__(self, data=None):
-        self.mock_es = patch("temba.utils.es.ES")
+        self.mock_es = patch("temba.contacts.search.elastic.ES")
 
         self.data = data if data is not None else []
 

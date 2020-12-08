@@ -6,7 +6,7 @@
   .search-details
 
 -block message-list
-  %table.list-table.sms_list.object-list.table.table-condensed{style: '{% if not org_perms.msgs.msg_update %}margin-top:10px{% endif %}'}
+  %table.mt-4.object-list.list.lined
     %tbody
       -for broadcast in pending_broadcasts
         %tr.broadcast
@@ -20,7 +20,7 @@
                     - plural
                       {{counter}} recipients
                 -else
-                  -blocktrans
+                  -blocktrans trimmed
                     {{recipient_counts.groups}} groups, {{recipient_counts.contacts}} contacts, {{recipient_counts.urns}} urns
 
           %td.value-text.field_text.wrapped
@@ -32,12 +32,12 @@
               {% short_datetime broadcast.created_on %}
 
       -for object in object_list
-        %tr.sms.object-row.select-row{id: 'id-row-{{object.id}}', class:'{% cycle row1 row2 %}', data-object-id:'{{ object.id }}',
-                       data-sender-id:'{{object.contact.id}}', data-sender-uuid:'{{object.contact.uuid}}', data-sender-select2:'{{object.contact|short_name:user_org}}'}
-          %td.value-phone.field_phone
-            %nobr
-              {{ object.contact|short_name:user_org }}
-          %td.value-text.field_text.wrapped
+        %tr
+          %td.whitespace-no-wrap
+            .px-6.py-3
+              .hover-linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
+                {{ object.contact|short_name:user_org }}
+          %td.w-full
             {% get_value object 'text' %}
 
             - if 'label' in actions
@@ -60,10 +60,10 @@
               -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon
                 {% channel_log_link object %}
 
-        -if not object_list and not pending_broadcasts
-          %tr
-            %td{colspan:3}
-              -trans "No matching messages."
+      -if not object_list and not pending_broadcasts
+        %tr.empty_list
+          %td{ colspan:'99' }
+            -trans "No matching messages."
 
   -block paginator
     -if object_list.count

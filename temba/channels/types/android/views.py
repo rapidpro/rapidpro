@@ -81,9 +81,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         org = self.request.user.get_org()
 
-        if not org:  # pragma: no cover
-            raise Exception(_("No org for this user, cannot claim"))
-
         self.object = Channel.objects.filter(claim_code=self.form.cleaned_data["claim_code"]).first()
 
         country = self.object.country

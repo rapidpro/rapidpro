@@ -1,109 +1,128 @@
 -extends "smartmin/base.html"
--load smartmin
--load i18n
+-load smartmin i18n humanize
 
 -block page-title
-  {{ title }}
+  -trans "Custom Fields"
 
--block top-form
-  - if view.search_fields
-    - block search-form
-      %form
-        %input.input-medium.search-query{type:'text', placeholder:'Search', name:"search", value:"{{ search }}"}
-
-
--block title-icon
-  %span.title-icon
-    .glyph.icon-vcard
+-block page-top
 
 -block content
-
-  {% block pjax %}
   #pjax
-    -if total_count >= total_limit
-      .(style="margin-bottom: 10px")
-        %temba-alert(level="warning")
-          -blocktrans trimmed with limit=total_limit
-            You have reached the limit of {{ limit }} fields per workspace. Please remove fields that you are no longer using.
-    -elif total_count >= total_limit|add:-10
-      .(style="margin-bottom: 10px")
-        %temba-alert(level="warning")
-          -blocktrans trimmed with limit=total_limit
-            You are approaching the limit of {{ limit }} fields per workspace. You should remove fields that you are no longer using.
+    -block pjax
+      -if total_count >= total_limit
+        .mb-4
+          %temba-alert(level="warning")
+            -blocktrans trimmed with limit=total_limit
+              You have reached the limit of {{ limit }} fields per workspace. Please remove fields that you are no longer using.
+      -elif total_count >= total_limit|add:-10
+        .mb-4
+          %temba-alert(level="warning")
+            -blocktrans trimmed with limit=total_limit
+              You are approaching the limit of {{ limit }} fields per workspace. You should remove fields that you are no longer using.
 
-    .row-fluid
-      .span3.sidebox
-        %div.contacts{style:"margin-bottom: 10px"}
-          - if view.add_button
-            - if org_perms.contacts.contactfield_create
-              %a.btn.btn-primary.btn-block{ onClick:'showCreateContactFieldModal()' }
-                -trans "Create Field"
+      .lp-frame.mt-0
+        .left
+          .flex.flex-col
+            -if org_perms.contacts.contactfield_create
+              .w-64.mr-5
+                %temba-modax#create-field-modal{ header:'{% trans "Create Field" %}', endpoint:"{% url 'contacts.contactfield_create' %}"}
+                  .button-primary.mb-3
+                    - trans "Create Field"
 
-        #sidebar-nav
-          %ul.nav.nav-list
-            %li.nav-header
-              -trans "Contact Fields"
-            - for category in cf_categories
-              %li{'class':'{% if request.path == category.url %}active{% endif %}'}
-                %a{'href':'{{category.url}}'}
-                  {{category.label}} ({{ category.count }})
+            .lp-nav.upper
+              -for category in cf_categories
+                .lp-nav-item{'class': '{% if request.path == category.url %}font-normal{% endif %}' }
+                  .name{onclick:"goto(event)", href:'{{category.url}}'}
+                    {{category.label}}
+                  .count{onclick:"goto(event)", href:'{{category.url}}'}
+                    {{category.count|intcomma}}
 
-            %li.nav-header
-              -trans "Types"
-            - for cf_type in cf_types
-              %li{'class':'{% if selected_value_type == cf_type.value_type %}active{% endif %}'}
-                %a{'href':'{{ cf_type.url }}'}
-                  {{cf_type.label}} ({{ cf_type.count }})
+            .lp-nav.lower
+              -for category in cf_types
+                .lp-nav-item{'class': '{% if selected_value_type == category.value_type %}font-normal{% endif %}' }
+                  .name{onclick:"goto(event)", href:'{{category.url}}'}
+                    {{category.label}}
+                  .count{onclick:"goto(event)", href:'{{category.url}}'}
+                    {{category.count|intcomma}}
 
-      .span9
-        - block pre-table
+        .right
+          -if view.search_fields
+            %form#search-form.mb-4(method="get")
+              %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+          -else
+            .title
+              -trans "Featured Fields"
+            .my-4
+              -blocktrans trimmed
+                Featured fields are shown prominently on contact pages. Drag to reorder the fields that you would most like to see at glance.
 
-        - block table
-          .scroll-x
-            %table{ class:'{% get_list_class object_list %} list-table table', cellspacing:'0'}
+          -block pre-table
+            %temba-modax{ id:'update-field', header:'{% trans "Update Field" %}'}
+            %temba-modax{ id:'delete-field', header:'{% trans "Delete Field" %}'}
+            %temba-modax{ id:'uses-modal', header:'{% trans "Field Details" %}'}
+          
+          - block table
+            %table.list.lined{ class:'{% get_list_class object_list %}', cellspacing:'0'}
               %thead
                 %tbody#draggable-tbody
                   - for obj in object_list
-                    %tr.draggable-row{ data-cfid:'{{ obj.id }}', data-priority:'{{ obj.priority }}'}
-
+                    %tr{ data-cfid:'{{ obj.id }}', data-priority:'{{ obj.priority }}', class:'{% if org_perms.contacts.contactfield_update_priority and is_featured_category%}draggable-row{%endif%}'}
                       - if org_perms.contacts.contactfield_update_priority and is_featured_category
-                        %td.drag-icon
+                        %td.drag-icon.pl-2(style="padding:0px;padding-left:5px;")
                           .drag-handle.icon.icon-menu
                       - else
-                        %td
+                        %td(style="padding:3px")
 
-                      %td{ style:"min-width: 240px" }
-                        {{ obj.label }}
-                      %td
-                        -if obj.show_in_table
-                          %span.label.label-info
-                            -trans "Featured"
-                      %td{ style:"font-family: monospace; font-size: 12px;" }
-                        @fields.{{ obj.key }}
-                      %td
-                        {{ obj.get_value_type_display }}
-                      %td{class:'field-dependencies'}
-                        -if obj.flow_count or obj.campaign_count or obj.contactgroup_count
-                          %a{href:"#", class:'field-dependencies', onClick:"showDetailContactFieldModal({{ obj.id }}, \"{{ obj.label }}\");"}
-                            {% blocktrans trimmed count counter=obj.flow_count|add:obj.campaign_count|add:obj.contactgroup_count %}
-                              {{counter}} Use
-                            {% plural %}
-                              {{counter}} Uses
-                            {% endblocktrans %}
+                      %td(style="{%if org_perms.contacts.contactfield_update_priority and is_featured_category%}padding-left:0px;{%endif%}")
+                        .w-full
+                          -if org_perms.contacts.contactfield_update
+                            .hover-linked.update{onclick:"showUpdateContactFieldModal({{obj.id}})"}
+                              {{ obj.label }}                          
+                              .key{ style:"font-family: monospace; font-size: 12px;" }
+                                @fields.{{ obj.key }}
+                              -if obj.show_in_table
+                                .inline.text-xs.py-1.px-2.font-medium.tracking-wide.p-1.bg-gray-200.rounded-lg
+                                  -trans "Featured"
+                          -else
+                            {{ obj.label }}                          
+                            .key{ style:"font-family: monospace; font-size: 12px;" }
+                              @fields.{{ obj.key }}
 
+                            -if obj.show_in_table
+                              .inline.text-xs.py-1.px-2.font-medium.tracking-wide.p-1.bg-gray-200.rounded-lg
+                                -trans "Featured"
+
+                      %td.w-12
+                        .flex.text-center
+                          -if obj.flow_count or obj.campaign_count or obj.contactgroup_count
+                            .uses{onclick:"event.stopPropagation(); showDetailContactFieldModal({{ obj.id }}, \"{{ obj.label }}\");"}
+                              .lbl.linked
+                                {% blocktrans trimmed count counter=obj.flow_count|add:obj.campaign_count|add:obj.contactgroup_count %}
+                                  {{counter}} Use
+                                {% plural %}
+                                  {{counter}} Uses
+                                {% endblocktrans %}
+                      %td.w-32
+                        .text-right
+                          {{ obj.get_value_type_display }}
+                      
+                      %td.w-10
+                        -if org_perms.contacts.contactfield_delete
+                          .pl-2.pt-1.delete-link.linked.text-gray-400{style:"visibility:hidden", onclick:"showDeleteContactFieldModal({{obj.id}})"}
+                            %span.icon-close
+
+                            
                   - empty
                     %tr.empty_list
                       %td{ colspan:'99' }
                         -trans "No fields"
 
-          - block extra-rows
+            - block extra-rows
 
         - block post-table
 
-  {% block paginator %}
+    -block paginator
 
-{% endblock pjax %}
-{% endblock content %}
 
 {% block extra-script %}
 {{ block.super }}
@@ -156,132 +175,24 @@
           }
         });
 
-
-    $('tr[data-cfid]').on('click', function(evt) {
-      evt.preventDefault();
-
-      var srcElem = $(evt.srcElement);
-
-      // if user clicked on the the field that shows field dependencies
-      if (srcElem.hasClass('field-dependencies')) {
-        // pass, do nothing, onClick method will handle this
-      } else {
-        - if org_perms.contacts.contactfield_update
-          showUpdateContactFieldModal($(this).data('cfid'));
-      }
-
-    });
-
   }); // document.ready
 
-  function showCreateContactFieldModal() {
-
-    var modal = new Modax('{{ _("Create Contact Field")|escapejs }}', '{% url "contacts.contactfield_create" %}')
-    modal.setIcon('icon-vcard');
-    modal.ele.find('.primary').text('{{ _("Create")|escapejs }}');
-
-    modal.setListeners({
-      onSuccess: function() {
-        // simply reload the whole page
-        location.reload();
-      },
-      onFormLoaded: function() {
-        useFontCheckbox(".smartmin-form input[type=checkbox]");
-        modal.ele.find('#id_value_type').select2();
-      }
-    })
-    modal.show()
+  function showUpdateContactFieldModal(id) {
+    var modax = document.querySelector('#update-field');
+    modax.endpoint = `/contactfield/update/${id}/`;
+    modax.open = true;
   }
 
-  function showUpdateContactFieldModal(cfid) {
-    var updateUrl = '/contactfield/update/' + cfid + '/';
-
-    var modal = new Modax('{{ _("Update Contact Field")|escapejs }}', updateUrl);
-
-    modal.setIcon('icon-vcard');
-    modal.ele.find('.primary').text('{{ _("Update")|escapejs }}');
-
-    - if org_perms.contacts.contactfield_delete
-      modal.setTertiaryButton('{{ _("Delete")|escapejs }}', function() {
-        // hide current UpdateModal
-        modal.dismiss();
-
-        showDeleteContactFieldModal(cfid);
-      });
-      // make Delete dangerous
-      modal.ele.find('.tertiary').addClass('btn-danger');
-
-    modal.setListeners({
-      onSuccess: function() {
-        // simply reload the whole page
-        location.reload();
-      },
-      onFormLoaded: function() {
-        // fonty checkboxy
-        useFontCheckbox(".smartmin-form input[type=checkbox]");
-        modal.ele.find('#id_value_type').select2();
-      }
-    })
-    modal.show();
+  function showDeleteContactFieldModal(id) {
+    var modax = document.querySelector('#delete-field');
+    modax.endpoint = `/contactfield/delete/${id}/`;
+    modax.open = true;
   }
 
-  function _updateModalButtonsStyle(modal) {
-    var has_related_flows = !!$(modal.ele.find('.has-related-flows')).length;
-
-    if (has_related_flows) {
-      // hide the secondary button
-      modal.hideSecondaryButton();
-      // rename the primary button
-      modal.ele.find('.primary').text('Ok').on('click', function () { modal.dismiss()} );
-
-      modal.submit = function () {};
-    } else {
-      modal.ele.find('.primary').text('{{ _("Delete")|escapejs }}').addClass('btn-danger')
-    }
-  };
-
-  function showDeleteContactFieldModal(cfid) {
-    var deleteUrl = '/contactfield/delete/' + cfid + '/';
-
-    var modal = new Modax('{{ _("Delete Contact Field")|escapejs }}', deleteUrl);
-
-    modal.setIcon('icon-vcard');
-    modal.addClass("alert");
-    modal.redirectOnSuccess = true;
-
-    modal.show();
-
-    modal.setListeners({
-      onCompleted: function() {
-        _updateModalButtonsStyle(modal)
-
-        // simply reload the whole page
-        location.reload();
-      },
-      onFormLoaded: function() {
-        _updateModalButtonsStyle(modal)
-      }
-    })
-  };
-
-  function showDetailContactFieldModal(cfid, label) {
-    var detailUrl = '/contactfield/detail/' + cfid + '/';
-
-    var modal = new Modax(label + ' ' + '{{ _("Uses")|escapejs }}', detailUrl);
-
-    modal.setIcon('icon-vcard');
-
-    modal.ele.find('.primary').hide();  // hide primary, because primary button onClick handler will try to submit the form
-
-    modal.ele.find('.secondary').text('{{ _("Ok")|escapejs }}');
-
-    modal.setListeners({
-      onSuccess: function() {
-        // simply reload the whole page
-        location.reload();
-      },
-    })
-    modal.show();
+  function showDetailContactFieldModal(id, label) {
+    var modax = document.querySelector('#uses-modal');
+    modax.endpoint = "/contactfield/detail/" + id;
+    modax.open = true;
   }
 
 </script>
@@ -294,6 +205,10 @@
 -block extra-style
   {{block.super}}
   :css
+   .page-content {
+      align-self: auto;
+      max-width: 100%;
+    }
 
     .drag-handle {
       cursor: move;
@@ -320,13 +235,24 @@
     }
 
     .draggable-row > td {
-      cursor: pointer;
+      cursor: move;
+    }
+
+    .draggable-row > td:nth-child(2) > div {
+      padding-left: 0rem;
+      cursor: move !important;
     }
 
     .draggable-row:hover .icon {
       display: inline-block;
       color: #cccccc;
     }
+
+    tr:hover .delete-link {
+      visibility: visible !important;
+    }
+
+    
 
     .drag-icon {
       width: 15px;

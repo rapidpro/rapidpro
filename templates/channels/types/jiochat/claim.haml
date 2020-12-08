@@ -1,18 +1,10 @@
 -extends "channels/channel_claim_form.html"
 -load i18n compress temba
 
--block title
-  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
-
-  %h2.font_normalize.header-margin
-    {{ title }}
-
 -block pre-form
-  .info
-    %p
-      -blocktrans with name=brand.name
-        You can connect a <a href="https://jiochat.com">JioChat Channel</a> to your {{ name }} workspace
-        to automate sending and receiving JioChat messages.
-    %p
-      -blocktrans
-        To start copy the App ID and App Secret from the Developer Center into the form below and click Submit.
+  -blocktrans trimmed with name=brand.name
+    You can connect a <a href="https://jiochat.com">JioChat Channel</a> to your {{ name }} workspace
+    to automate sending and receiving JioChat messages.
+  .mt-2
+    -blocktrans trimmed
+      To start copy the App ID and App Secret from the Developer Center into the form below and click Submit.

@@ -1,4 +1,4 @@
--extends "smartmin/list.html"
+-extends "smartmin/read.html"
 
 -load humanize
 -load smartmin
@@ -6,129 +6,64 @@
 
 -block table-buttons
 
--block extra-style
-  :css
-    #btn-save {
-      padding: 3px 10px;
-      margin-bottom: 10px;
-    }
-    label h3 {
-      margin-top: 0px;
-      margin-bottom: 0px;
-    }
+-block title
+  -trans "Top Ups"
 
-    .topup {
-      margin-bottom: 10px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #ccc;
-    }
-
-    .topup-price {
-      float: right;
-      font-size: 20px;
-    }
-
-    .topup-credits {
-      font-size: 20px;
-    }
-
-    .topup-history {
-      margin-top: 5px;
-      font-style: italic;
-    }
-
-    .topup-expires {
-      margin-top: 5px;
-      float: right;
-      font-style: italic;
-    }
-
-    .topup.expired > .topup-expires {
-      color: rgb(178, 23, 26);
-    }
-
-    .topup.expiring > .topup-expires {
-      color: #e68628;
-    }
-
-    .title-icon + .title-text {
-      margin-left: 65px;
-    }
-
-    .topup-status {
-      padding: 10px;
-      margin-bottom: 30px;
-      border: 1px solid #ccc;
-    }
-
-    .topup-status.interrupted {
-      border: 1px solid rgb(178, 23, 26);
-      color: rgb(178, 23, 26);
-    }
-
--block title-icon
-  .title-icon
-    %span.glyph.icon-coins
-
--block title-text
-  .title-text
-    %h1
-      -trans "Top Ups"
-
--block paginator
-
--block table
+-block content
   -with user_org.get_credits_remaining as credits
     -if credits < 0
-      .topup-status.interrupted
+      .alert-warning
         -trans "Your service is interrupted. You have"
         {{ credits|intcomma }}
-        -trans "credits and must add more to resume your service."
+        -trans "credits."
 
     -else
       -if credits < 500
-        .topup-status.interrupted
+        .alert-warning
           -trans "You have"
           {{ credits|intcomma }}
-          -trans "credits remaining. Top up early to prevent any disruption in your service."
+          -trans "credits remaining. Your service will be suspended when they are all used."
       -else
-        .topup-status
+        .alert-warning
           -trans "You have"
           {{ credits|intcomma }}
-          -trans "credits remaining. Top up early to prevent any disruption in your service."
+          -trans "credits remaining. Your service will be suspended when they are all used."
 
   -for topup in object_list
-    .topup{ class:"{% if topup.expires_on < now %}expired{% elif topup.expires_on < expiration_period %}expiring{% endif %}" }
-      .topup-price
-        {{ topup.get_price_display }}
+    .mt-4.border.rounded.p-4
+      .flex.font-normal.mb-4.text-xl
+        .flex-1
+          {{ topup.get_used|intcomma }} {% trans "of" %} {{ topup.credits|intcomma }} {% trans "Credits Used" %}
 
-      .topup-credits
-        {{ topup.get_used|intcomma }} {% trans "of" %} {{ topup.credits|intcomma }} {% trans "Credits Used" %}
 
-      .topup-expires
-        -if topup.expires_on < now
-          -trans "Expired on "
-          {{ topup.expires_on }}
-        -else
-          -trans "Expires on "
-          {{ topup.expires_on }}
+        .flex-1.text-right
+          {{ topup.get_price_display }}
 
-      .topup-history
-        -if topup.comment
-          {{ topup.comment }}
-
-        -else
-          -if topup.price|default_if_none:-1 == -1
-            -blocktrans with brand.name as brand
-              Thank you for supporting {{ brand }}.
-
-          -elif topup.price == 0
-            -blocktrans with brand.name as brand
-              Complementary credits, thanks for trying {{ brand }}.
-
+      .flex.mb-4
+        .flex-1
+          -if topup.expires_on < now
+            -trans "Expired on "
+            {{ topup.expires_on }}
           -else
+            -trans "Expires on "
+            {{ topup.expires_on }}
+
+        .flex-1.text-right
+          -if topup.price|default_if_none:0 > 5
             %a{ href:"{% url 'orgs.topup_read' topup.id %}" }
               -trans "Added on"
               {{ topup.created_on }}
               -trans " by "
               {{ topup.created_by.first_name }} {{ topup.created_by.last_name }}
+
+      %div.italic
+        -if topup.comment
+          {{ topup.comment }}
+        -else
+          -if topup.price|default_if_none:-1 == -1
+            -blocktrans trimmed with brand.name as brand
+              Thank you for supporting {{ brand }}.
+
+          -elif topup.price == 0
+            -blocktrans trimmed with brand.name as brand
+              Complementary credits, thanks for trying {{ brand }}.

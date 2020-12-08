@@ -86,11 +86,13 @@ class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
         return context
 
     def normalize_urn(self, value):
-        if self.request.user.get_org().is_anon:
+        org = self.request.user.get_org()
+
+        if org.is_anon:
             raise InvalidQueryError("URN lookups not allowed for anonymous organizations")
 
         try:
-            return URN.identity(URN.normalize(value))
+            return URN.identity(URN.normalize(value, country_code=org.default_country_code))
         except ValueError:
             raise InvalidQueryError("Invalid URN: %s" % value)
 

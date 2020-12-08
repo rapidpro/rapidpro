@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?f77vj9');
-  src:  url('fonts/temba.eot?f77vj9#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?f77vj9') format('truetype'),
-    url('fonts/temba.woff?f77vj9') format('woff'),
-    url('fonts/temba.svg?f77vj9#temba') format('svg');
+  src:  url('fonts/temba.eot?p4yg8w');
+  src:  url('fonts/temba.eot?p4yg8w#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?p4yg8w') format('truetype'),
+    url('fonts/temba.woff?p4yg8w') format('woff'),
+    url('fonts/temba.svg?p4yg8w#temba') format('svg');
   font-weight: normal;
   font-style: normal;
   font-display: block;
@@ -13,7 +13,7 @@
 [class^="icon-"], [class*=" icon-"] {
   /* use !important to prevent issues with browser extensions that change fonts */
   font-family: 'temba' !important;
-  speak: none;
+  speak: never;
   font-style: normal;
   font-weight: normal;
   font-variant: normal;
@@ -25,6 +25,9 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-rocketchat:before {
+  content: "\e916";
+}
 .icon-email-tickets:before {
   content: "\ea35";
 }
@@ -33,10 +36,6 @@
 }
 .icon-zendesk:before {
   content: "\e918";
-}
-.icon-two-factor:before {
-  content: "\e916";
-  color: #8f8f8f;
 }
 .icon-prometheus:before {
   content: "\e915";
@@ -500,9 +499,6 @@
 .icon-close-2:before {
   content: "\e0a2";
 }
-.icon-activity:before {
-  content: "\e0a7";
-}
 .icon-feed:before {
   content: "\e0a8";
 }
@@ -736,4 +732,16 @@
 }
 .icon-shopping-bag:before {
   content: "\e917";
+}
+.icon-campaign:before {
+  content: "\e919";
+}
+.icon-contact:before {
+  content: "\e91a";
+}
+.icon-flow:before {
+  content: "\e91b";
+}
+.icon-two-factor:before {
+  content: "\e91c";
 }

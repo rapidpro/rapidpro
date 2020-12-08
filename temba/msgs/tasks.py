@@ -36,16 +36,17 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
 
     runs = FlowRun.objects.filter(org=org, current_node_uuid=node_uuid, is_active=True)
 
-    contact_ids = (
-        Contact.objects.filter(org=org, is_blocked=False, is_stopped=False, is_active=True)
+    contact_ids = list(
+        Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True)
         .filter(id__in=runs.values_list("contact", flat=True))
         .values_list("id", flat=True)
     )
 
-    broadcast = Broadcast.create(org, user, text, contact_ids=contact_ids)
-    broadcast.send()
+    if contact_ids:
+        broadcast = Broadcast.create(org, user, text, contact_ids=contact_ids)
+        broadcast.send_async()
 
-    analytics.track(user.username, "temba.broadcast_created", dict(contacts=len(contact_ids), groups=0, urns=0))
+        analytics.track(user.username, "temba.broadcast_created", dict(contacts=len(contact_ids), groups=0, urns=0))
 
 
 @task(track_started=True, name="fail_old_messages")
@@ -65,7 +66,6 @@ def collect_message_metrics_task():  # pragma: needs cover
     count = (
         Msg.objects.filter(direction=OUTGOING, status=QUEUED)
         .exclude(channel=None)
-        .exclude(topup=None)
         .exclude(channel__channel_type="A")
         .exclude(next_attempt__gte=timezone.now())
         .count()
@@ -76,7 +76,6 @@ def collect_message_metrics_task():  # pragma: needs cover
     count = (
         Msg.objects.filter(direction=OUTGOING, status=INITIALIZING)
         .exclude(channel=None)
-        .exclude(topup=None)
         .exclude(channel__channel_type="A")
         .count()
     )
@@ -86,7 +85,6 @@ def collect_message_metrics_task():  # pragma: needs cover
     count = (
         Msg.objects.filter(direction=OUTGOING, status=PENDING)
         .exclude(channel=None)
-        .exclude(topup=None)
         .exclude(channel__channel_type="A")
         .count()
     )
@@ -96,7 +94,6 @@ def collect_message_metrics_task():  # pragma: needs cover
     count = (
         Msg.objects.filter(direction=OUTGOING, status=ERRORED)
         .exclude(channel=None)
-        .exclude(topup=None)
         .exclude(channel__channel_type="A")
         .count()
     )
@@ -106,7 +103,6 @@ def collect_message_metrics_task():  # pragma: needs cover
     count = (
         Msg.objects.filter(direction=OUTGOING, status__in=[PENDING, QUEUED], channel__channel_type="A")
         .exclude(channel=None)
-        .exclude(topup=None)
         .count()
     )
     analytics.gauge("temba.current_outgoing_android", count)
@@ -142,7 +138,6 @@ def retry_errored_messages():
 
     errored_msgs = (
         Msg.objects.filter(direction=OUTGOING, status=ERRORED, next_attempt__lte=timezone.now())
-        .exclude(topup=None)
         .exclude(channel__channel_type=AndroidType.code)
         .order_by("created_on")
         .prefetch_related("channel")[:5000]

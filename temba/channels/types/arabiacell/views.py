@@ -5,13 +5,17 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.channels.views import ALL_COUNTRIES, ClaimViewMixin
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
+from temba.utils.fields import SelectWidget
 
 
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         country = forms.ChoiceField(
-            choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this channel will be used in")
+            choices=ALL_COUNTRIES,
+            widget=SelectWidget(attrs={"searchable": True}),
+            label=_("Country"),
+            help_text=_("The country this channel will be used in"),
         )
         shortcode = forms.CharField(label=_("Short Code"), help_text=_("The short code you are connecting"))
         service_id = forms.CharField(label=_("Service ID"), help_text=_("The service ID as provided by ArabiaCell"))
@@ -37,11 +41,11 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             org=org,
             user=self.request.user,
             country=data["country"],
-            channel_type="AC",
+            channel_type=self.channel_type,
             name=data["shortcode"],
             address=data["shortcode"],
             config=config,
-            schemes=[TEL_SCHEME],
+            schemes=[URN.TEL_SCHEME],
         )
 
         return super(ClaimViewMixin, self).form_valid(form)

@@ -44,10 +44,9 @@ class FacebookTypeTest(TembaTest):
 
         self.login(self.admin)
 
-        # Still hidden
-        # # check that claim page URL appears on claim list page
-        # response = self.client.get(reverse("channels.channel_claim"))
-        # self.assertContains(response, url)
+        # check that claim page URL appears on claim list page
+        response = self.client.get(reverse("channels.channel_claim"))
+        self.assertContains(response, url)
 
         # can fetch the claim page
         response = self.client.get(url)

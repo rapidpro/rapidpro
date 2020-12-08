@@ -1,9 +1,9 @@
 import copy
 import datetime
+import io
 import os
 from collections import OrderedDict
 from decimal import Decimal
-from io import StringIO
 from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
@@ -67,7 +67,16 @@ from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import IDSliceQuerySet, JSONAsTextField, patch_queryset_count
 from .templatetags.temba import short_datetime
-from .text import clean_string, decode_base64, generate_token, random_string, slugify_with, truncate, unsnakify
+from .text import (
+    clean_string,
+    decode_base64,
+    decode_stream,
+    generate_token,
+    random_string,
+    slugify_with,
+    truncate,
+    unsnakify,
+)
 from .timezones import TimeZoneFormField, timezone_to_country_code
 
 
@@ -187,6 +196,13 @@ class InitTest(TembaTest):
         rs = random_string(1000)
         self.assertEqual(1000, len(rs))
         self.assertFalse("1" in rs or "I" in rs or "0" in rs or "O" in rs)
+
+    def test_decode_stream(self):
+        self.assertEqual("", decode_stream(io.BytesIO(b"")).read())
+        self.assertEqual("hello", decode_stream(io.BytesIO(b"hello")).read())
+        self.assertEqual("hello👋", decode_stream(io.BytesIO(b"hello\xf0\x9f\x91\x8b")).read())  # UTF-8
+        self.assertEqual("hello", decode_stream(io.BytesIO(b"\xff\xfeh\x00e\x00l\x00l\x00o\x00")).read())  # UTF-16
+        self.assertEqual("hèllo", decode_stream(io.BytesIO(b"h\xe8llo")).read())  # ISO8859-1
 
     def test_percentage(self):
         self.assertEqual(0, percentage(0, 100))
@@ -471,9 +487,9 @@ class TemplateTagTest(TembaTest):
             org=self.org, keyword="trigger", flow=flow, created_by=self.admin, modified_by=self.admin
         )
 
-        self.assertEqual("icon-instant", icon(campaign))
+        self.assertEqual("icon-campaign", icon(campaign))
         self.assertEqual("icon-feed", icon(trigger))
-        self.assertEqual("icon-tree", icon(flow))
+        self.assertEqual("icon-flow", icon(flow))
         self.assertEqual("", icon(None))
 
     def test_format_datetime(self):
@@ -640,7 +656,7 @@ class TemplateTagTestSimple(TestCase):
 
 class CacheTest(TembaTest):
     def test_get_cacheable_result(self):
-        self.create_contact("Bob", number="1234")
+        self.create_contact("Bob", phone="1234")
 
         def calculate():
             return Contact.objects.all().count(), 60
@@ -650,7 +666,7 @@ class CacheTest(TembaTest):
         with self.assertNumQueries(0):
             self.assertEqual(get_cacheable_result("test_contact_count", calculate), 1)  # from cache
 
-        self.create_contact("Jim", number="2345")
+        self.create_contact("Jim", phone="2345")
 
         with self.assertNumQueries(0):
             self.assertEqual(get_cacheable_result("test_contact_count", calculate), 1)  # not updated
@@ -939,7 +955,7 @@ class GSM7Test(TembaTest):
 
 class ModelsTest(TembaTest):
     def test_require_update_fields(self):
-        contact = self.create_contact("Bob", twitter="bobby")
+        contact = self.create_contact("Bob", urns=["twitter:bobby"])
         flow = self.get_flow("color")
         run = FlowRun.objects.create(org=self.org, flow=flow, contact=contact)
 
@@ -969,8 +985,8 @@ class ModelsTest(TembaTest):
         self.assertEqual(curr, 100)
 
     def test_patch_queryset_count(self):
-        self.create_contact("Ann", twitter="ann")
-        self.create_contact("Bob", twitter="bob")
+        self.create_contact("Ann", urns=["twitter:ann"])
+        self.create_contact("Bob", urns=["twitter:bob"])
 
         with self.assertNumQueries(0):
             qs = Contact.objects.all()
@@ -1150,17 +1166,17 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         )
         assertOrgCounts(ContactField.user_fields.all(), [6, 6, 6])
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
-        assertOrgCounts(Contact.objects.all(), [12, 11, 7])
+        assertOrgCounts(Contact.objects.all(), [15, 12, 3])
 
-        org_1_all_contacts = ContactGroup.system_groups.get(org=org1, name="All Contacts")
+        org_1_active_contacts = ContactGroup.system_groups.get(org=org1, name="Active")
 
-        self.assertEqual(org_1_all_contacts.contacts.count(), 12)
+        self.assertEqual(org_1_active_contacts.contacts.count(), 15)
         self.assertEqual(
-            list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list("count")), [(12,)]
+            list(ContactGroupCount.objects.filter(group=org_1_active_contacts).values_list("count")), [(15,)]
         )
 
         # same seed should generate objects with same UUIDs
-        self.assertEqual(ContactGroup.user_groups.order_by("id").first().uuid, "086dde0d-eb11-4413-aa44-6896fef91f7f")
+        self.assertEqual(ContactGroup.user_groups.order_by("id").first().uuid, "86f15ec5-3a37-431c-a891-f9f4ff519987")
 
         # check if contact fields are serialized
         self.assertIsNotNone(Contact.objects.first().fields)
@@ -1172,7 +1188,7 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
 
 class PreDeployTest(TembaTest):
     def test_command(self):
-        buffer = StringIO()
+        buffer = io.StringIO()
         call_command("pre_deploy", stdout=buffer)
 
         self.assertEqual("", buffer.getvalue())
@@ -1180,7 +1196,7 @@ class PreDeployTest(TembaTest):
         ExportContactsTask.create(self.org, self.admin)
         ExportContactsTask.create(self.org, self.admin)
 
-        buffer = StringIO()
+        buffer = io.StringIO()
         call_command("pre_deploy", stdout=buffer)
 
         self.assertEqual(
@@ -1304,7 +1320,7 @@ class TestJSONAsTextField(TestCase):
 
 class TestJSONField(TembaTest):
     def test_jsonfield_decimal_encoding(self):
-        contact = self.create_contact("Xavier", number="+5939790990001")
+        contact = self.create_contact("Xavier", phone="+5939790990001")
 
         with connection.cursor() as cur:
             cur.execute(
@@ -1672,14 +1688,19 @@ class AnalyticsTest(TestCase):
         )
 
 
-class IDSliceQuerySetTest(TestCase):
-    def test_query_set(self):
-        users = IDSliceQuerySet(User, [1], 0, 1)
-        self.assertEqual(1, users[0].id)
-        self.assertEqual(1, users[0:1][0].id)
+class IDSliceQuerySetTest(TembaTest):
+    def test_slicing(self):
+        empty = IDSliceQuerySet(User, [], 0, 0)
+        self.assertEqual(0, len(empty))
+
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], 0, 3)
+        self.assertEqual(self.user.id, users[0].id)
+        self.assertEqual(self.editor.id, users[0:3][1].id)
+        self.assertEqual(0, users.offset)
+        self.assertEqual(3, users.total)
 
         with self.assertRaises(IndexError):
-            users[2]
+            users[4]
 
         with self.assertRaises(IndexError):
             users[-1]
@@ -1690,9 +1711,9 @@ class IDSliceQuerySetTest(TestCase):
         with self.assertRaises(TypeError):
             users["foo"]
 
-        users = IDSliceQuerySet(User, [1], 10, 100)
-        self.assertEqual(1, users[10].id)
-        self.assertEqual(1, users[10:11][0].id)
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], 10, 100)
+        self.assertEqual(self.user.id, users[10].id)
+        self.assertEqual(self.user.id, users[10:11][0].id)
 
         with self.assertRaises(IndexError):
             users[0]
@@ -1700,8 +1721,34 @@ class IDSliceQuerySetTest(TestCase):
         with self.assertRaises(IndexError):
             users[11:15]
 
-        users = IDSliceQuerySet(User, [], 0, 0)
-        self.assertEqual(0, len(users))
+    def test_filter(self):
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], 10, 100)
+
+        filtered = users.filter(pk=self.user.id)
+        self.assertEqual(User, filtered.model)
+        self.assertEqual([self.user.id], filtered.ids)
+        self.assertEqual(0, filtered.offset)
+        self.assertEqual(1, filtered.total)
+
+        filtered = users.filter(pk__in=[self.user.id, self.admin.id])
+        self.assertEqual(User, filtered.model)
+        self.assertEqual([self.user.id, self.admin.id], filtered.ids)
+        self.assertEqual(0, filtered.offset)
+        self.assertEqual(2, filtered.total)
+
+        # pks can be strings
+        filtered = users.filter(pk=str(self.user.id))
+        self.assertEqual([self.user.id], filtered.ids)
+
+        # only filtering by pk is supported
+        with self.assertRaises(ValueError):
+            users.filter(name="Bob")
+
+    def test_none(self):
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id], 0, 2)
+        empty = users.none()
+        self.assertEqual([], empty.ids)
+        self.assertEqual(0, empty.total)
 
 
 class RedactTest(TestCase):

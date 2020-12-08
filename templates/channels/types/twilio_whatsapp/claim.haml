@@ -3,32 +3,29 @@
 -load compress temba
 -load i18n
 
--block title-icon
-  .title-icon
-    %span.glyph{class:"{{ view.channel_type.icon }}"}
-
-- block account-trial-warning
-  - if account_trial
-    .account-trial-warning
+-block account-trial-warning
+  -if account_trial
+    .alert-warning.my-4
       - blocktrans trimmed
         You have connected a Twilio Trial Account which has some restrictions.
-      %br
-      %a{href:"https://www.twilio.com/help/faq/twilio-basics/how-does-twilios-free-trial-work"}
-        - trans "Read more about the limits placed on Twilio's Free Trial numbers."
+
+      .mt-2
+        %a(href="https://www.twilio.com/help/faq/twilio-basics/how-does-twilios-free-trial-work")
+          -trans "Read more about the limits placed on Twilio's Free Trial numbers."
 
 
-- block numbers-search-form
+-block numbers-search-form
 
 
-- block claim-numbers-description
-  - blocktrans trimmed
-    Once you claim a number you will immediately be able to send and receive WhatsApp messages.
+-block claim-numbers-description
+  -blocktrans trimmed
+    Once you connect a number you will immediately be able to send and receive WhatsApp messages.
 
   -if not account_numbers
-    .account-trial-warning
+    .alert-warning.my-4
       - blocktrans trimmed
         You do not have any number on your Twilio Account. Please make sure you have a number and that it has access to Twilio WhatsApp.
 
-      %br
-      %a{href:"https://www.twilio.com/whatsapp/request-access"}
-        - trans "To request access to Twilio WhatsApp"
+      .mt-2
+        %a(href="https://www.twilio.com/whatsapp/request-access")
+          - trans "To request access to Twilio WhatsApp"

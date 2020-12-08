@@ -26,5 +26,5 @@ class MailgunType(TicketerType):
         "You will be able to respond to them directly and your replies will be sent to the contact."
     )
 
-    def is_available(self):
+    def is_available_to(self, user):
         return bool(settings.MAILGUN_API_KEY)

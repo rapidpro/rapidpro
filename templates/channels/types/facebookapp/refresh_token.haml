@@ -1,44 +1,29 @@
 -extends "channels/channel_claim_form.html"
 -load i18n compress temba
 
--block title
-  .medium-help.float-left.icon-facebook-official
-
-  %h2.font_normalize.header-margin
-    {{ title }}
-
--block modal
-  
+-block pre-form
   %p#fb-status
     -if error_connect
-      - trans "Error with token, you need to reconnect the Facebook page by clicking the button below"
+      -trans "Error with token, you need to reconnect the Facebook page by clicking the button below"
     -else
-      - trans "Everything looks good. No need to reconnect"
-  
-  
-  #fb-channel-error(style="display:none;")
-    %p
-      -trans "Error reconnecting Facebook page. Please retry"
+      -trans "Everything looks good. No need to reconnect"
 
-  #fb-app-connect
-    .btn.btn-primary.connect-facebook
-      -trans "Reconnect Facebook page"
-  
-  #throbber(style="display:none;")
-    %img(src="{{ STATIC_URL }}/images/loader-circles.gif")
-  %form#refresh-token-form(style="display:none;" method="POST" action="{{ refresh_url }}")
-    {% csrf_token %}
-    %input#fb-user-id(type="text" name="fb_user_id")
-    %input#user-access-token(type="text" name="user_access_token")
+-block form
+  .mt-4.card
+    #fb-channel-error.mb-4(style="display:none;")
+      %p
+        -trans "Error reconnecting Facebook page. Please retry"
 
--block extra-less
-  -compress css inline
-    {% lessblock %}
-      :plain
-        #fb-app-connect {
-          margin-top: 2rem;
-        }
-    {% endlessblock %}
+    #fb-app-connect.flex
+      .button-primary.connect-facebook
+        -trans "Reconnect Facebook page"
+
+    #throbber(style="display:none;")
+      %img(src="{{ STATIC_URL }}/images/loader-circles.gif")
+    %form#refresh-token-form(style="display:none;" method="POST" action="{{ refresh_url }}")
+      {% csrf_token %}
+      %input#fb-user-id(type="text" name="fb_user_id")
+      %input#user-access-token(type="text" name="user_access_token")
 
 
 -block extra-script

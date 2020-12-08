@@ -1,7 +1,7 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.thinq.views import ClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
 from ...models import ChannelType
@@ -21,22 +21,19 @@ class ThinQType(ChannelType):
     icon = "icon-thinq"
 
     claim_blurb = _(
-        """If you have a number with <a href="https://thinq.com">ThinQ</a> you can connect it in a few easy steps to
-        automate your SMS numbers."""
-    )
+        "If you have a number with %(link)s you can connect it in a few easy steps to automate your SMS numbers."
+    ) % {"link": '<a href="https://thinq.com">ThinQ</a>'}
     claim_view = ClaimView
 
     show_public_addresses = True
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 160
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your ThinQ connection you'll need to set the following callback URLs
-        on the ThinQ website on the SMS -> SMS Configuration page.
-        """
+        "To finish configuring your ThinQ connection you'll need to set the following callback URLs on the ThinQ "
+        "website on the SMS -> SMS Configuration page."
     )
 
     CONFIG_ACCOUNT_ID = "account_id"
@@ -48,19 +45,14 @@ class ThinQType(ChannelType):
             label=_("Inbound SMS Configuration"),
             url="https://{{ channel.callback_domain }}{% url 'courier.tq' channel.uuid 'receive' %}",
             description=_(
-                """
-                Set your Inbound SMS Configuration URL to the above, making sure you select "URL" for Attachment Type.
-                """
+                """Set your Inbound SMS Configuration URL to the above, making sure you select "URL" for Attachment Type."""
             ),
         ),
         dict(
             label=_("Outbound SMS Configuration"),
             url="https://{{ channel.callback_domain }}{% url 'courier.tq' channel.uuid 'status' %}",
             description=_(
-                """
-                Set your Delivery Confirmation URL to the above, making sure you select "Form-Data" as the Delivery
-                Notification Format.
-                """
+                """Set your Delivery Confirmation URL to the above, making sure you select "Form-Data" as the Delivery Notification Format."""
             ),
         ),
     )

@@ -1,0 +1,43 @@
+-extends "smartmin/users/login_base.haml"
+
+-load smartmin i18n
+
+-block login-title
+  -trans "Welcome Back"
+      
+-block login-content        
+  -blocktrans
+    Please sign in with your email address and password.
+
+  %form#login-form(method="POST" action="/users/login/")
+    -csrf_token
+    -for field, errors in form.errors.items
+      -if field == '__all__'
+        .alert-error.my-4
+          {{ errors }}
+
+    .mt-4
+      %temba-textinput(name='username' maxlength=254 placeholder='{{_("Email Address")|escapejs}}' value='{% if form.username.value%}{{form.username.value|escape}}{%endif%}')
+
+    -if form.username.errors
+      .alert-error.mt-4
+        {{form.username.errors}}
+
+    .mt-4
+      %temba-textinput(name='password' placeholder='{{_("Password")|escapejs}}' password="true")
+    
+    -if form.password.errors
+      .alert-error.mt-4
+        {{form.password.errors}}
+    .mt-2.text-right
+      %a(href="/users/user/forget/")
+        Forgot your password?
+
+    .mt-6
+      %input.button-primary(type="submit" value='{{_("Sign In")}}')
+
+  .mt-6
+    -blocktrans trimmed
+      Don't have an account yet?
+    %a(href="/org/signup")
+      -trans "Sign up"

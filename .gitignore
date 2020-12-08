@@ -25,22 +25,19 @@ node_modules
 parser.out
 screenshots
 sitestatic
-static/coffee/analytics.js
-static/coffee/flows.js
-static/coffee/simulator.js
-static/coffee/temba.js
-static/coffee/formax.js
 static/javascripts/
 temba/settings.py
 temba/smartmin
 temba.db
 smartmin
 mailroom_test.dump
+docs/
 
 # Exclude media folder except files used for import testing
 media/apks
 media/contacts
 media/csv_imports
+media/contact_imports
 media/flow
 media/messages
 media/orgs
@@ -114,7 +111,7 @@ docs/_build/
 
 # PyBuilder
 target/
-textit
+/textit
 
 # Vagrant/Ansible
 .vagrant/
@@ -126,3 +123,6 @@ ansible/site.retry
 
 # VS Code projects
 .vscode/
+
+# autoenv
+.direnv/

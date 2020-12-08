@@ -102,7 +102,7 @@ class BrandingMiddleware:
 
 class ConsentMiddleware:  # pragma: no cover
 
-    REQUIRES_CONSENT = ("/msg", "/contact", "/flow", "/trigger", "/org/home", "/campaign", "/channel")
+    REQUIRES_CONSENT = ("/msg", "/contact", "/flow", "/trigger", "/org/home", "/campaign", "/channel", "/welcome")
 
     def __init__(self, get_response=None):
         self.get_response = get_response
@@ -112,7 +112,7 @@ class ConsentMiddleware:  # pragma: no cover
             for path in ConsentMiddleware.REQUIRES_CONSENT:
                 if request.path.startswith(path):
                     if Policy.get_policies_needing_consent(request.user):
-                        return HttpResponseRedirect(reverse("policies.policy_list"))
+                        return HttpResponseRedirect(reverse("policies.policy_list") + "?next=" + request.path)
         response = self.get_response(request)
         return response
 

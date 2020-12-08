@@ -2,7 +2,7 @@ import itertools
 import logging
 import os
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal
 from enum import Enum
 from urllib.parse import quote, urlencode, urlparse
@@ -35,7 +35,7 @@ from temba import mailroom
 from temba.archives.models import Archive
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.utils import analytics, chunk_list, json, languages
+from temba.utils import chunk_list, json, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
 from temba.utils.dates import datetime_to_str, str_to_datetime
@@ -43,6 +43,7 @@ from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, SquashableModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import generate_token, random_string
+from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -120,6 +121,10 @@ class Org(SmartModel):
     EARLIEST_IMPORT_VERSION = "3"
     CURRENT_EXPORT_VERSION = "13"
 
+    LIMIT_FIELDS = "limit_fields"
+    LIMIT_GLOBALS = "limit_globals"
+    LIMIT_GROUPS = "limit_groups"
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     name = models.CharField(verbose_name=_("Name"), max_length=128)
@@ -129,6 +134,8 @@ class Org(SmartModel):
         default=settings.DEFAULT_PLAN,
         help_text=_("What plan your organization is on"),
     )
+    plan_start = models.DateTimeField(null=True)
+    plan_end = models.DateTimeField(null=True)
 
     stripe_customer = models.CharField(
         verbose_name=_("Stripe Customer"),
@@ -275,6 +282,9 @@ class Org(SmartModel):
             # generate a unique slug
             slug = Org.get_unique_slug(name)
 
+            brand = settings.BRANDING[self.brand]
+            plan = brand.get("default_plan", settings.DEFAULT_PLAN)
+
             org = Org.objects.create(
                 name=name,
                 timezone=timezone,
@@ -283,6 +293,7 @@ class Org(SmartModel):
                 slug=slug,
                 created_by=created_by,
                 modified_by=created_by,
+                plan=plan,
                 is_multi_user=self.is_multi_user,
                 is_multi_org=self.is_multi_org,
             )
@@ -319,8 +330,8 @@ class Org(SmartModel):
         """
         from temba.contacts.models import ContactGroup
 
-        counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ALL, ContactGroup.TYPE_BLOCKED))
-        return (counts[ContactGroup.TYPE_ALL] + counts[ContactGroup.TYPE_BLOCKED]) > 0
+        counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ACTIVE, ContactGroup.TYPE_BLOCKED))
+        return (counts[ContactGroup.TYPE_ACTIVE] + counts[ContactGroup.TYPE_BLOCKED]) > 0
 
     @cached_property
     def has_ticketer(self):
@@ -345,6 +356,17 @@ class Org(SmartModel):
             *active_topup_keys,
         )
 
+    def get_limit(self, limit_type):
+
+        if limit_type == Org.LIMIT_FIELDS:
+            return settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG
+        if limit_type == Org.LIMIT_GROUPS:
+            return settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG
+        if limit_type == Org.LIMIT_GLOBALS:
+            return settings.MAX_ACTIVE_GLOBALS_PER_ORG
+
+        raise ValueError("Invalid org limit type")
+
     def flag(self):
         self.is_flagged = True
         self.save(update_fields=("is_flagged", "modified_on"))
@@ -367,14 +389,14 @@ class Org(SmartModel):
         """
         return self.config.get(Org.CONFIG_VERIFIED, False)
 
-    def import_app(self, export_json, user, site=None, legacy=False):
+    def import_app(self, export_json, user, site=None):
         """
         Imports previously exported JSON
         """
 
         from temba.campaigns.models import Campaign
         from temba.contacts.models import ContactField, ContactGroup
-        from temba.flows.models import Flow, FlowRevision
+        from temba.flows.models import Flow
         from temba.triggers.models import Trigger
 
         # only required field is version
@@ -395,7 +417,7 @@ class Org(SmartModel):
 
         # do we need to migrate the export forward?
         if export_version < Version(Flow.CURRENT_SPEC_VERSION):
-            export_json = FlowRevision.migrate_export(self, export_json, same_site, export_version, legacy=legacy)
+            export_json = Flow.migrate_export(self, export_json, same_site, export_version)
 
         export_fields = export_json.get(Org.EXPORT_FIELDS, [])
         export_groups = export_json.get(Org.EXPORT_GROUPS, [])
@@ -411,12 +433,16 @@ class Org(SmartModel):
             new_flows = Flow.import_flows(self, user, export_json, dependency_mapping, same_site)
 
             # these depend on flows so are imported last
-            Campaign.import_campaigns(self, user, export_campaigns, same_site)
+            new_campaigns = Campaign.import_campaigns(self, user, export_campaigns, same_site)
             Trigger.import_triggers(self, user, export_triggers, same_site)
+
+        # queue mailroom tasks to schedule campaign events
+        for campaign in new_campaigns:
+            campaign.schedule_events_async()
 
         # with all the flows and dependencies committed, we can now have mailroom do full validation
         for flow in new_flows:
-            mailroom.get_client().flow_inspect(self.id, flow.as_json())
+            mailroom.get_client().flow_inspect(self.id, flow.get_definition())
 
     @classmethod
     def export_definitions(cls, site_link, components, include_fields=True, include_groups=True):
@@ -436,7 +462,7 @@ class Org(SmartModel):
         for component in components:
             if isinstance(component, Flow):
                 component.ensure_current_version()  # only export current versions
-                exported_flows.append(component.as_json(expand_contacts=True))
+                exported_flows.append(component.get_definition())
 
                 if include_groups:
                     groups.update(component.group_dependencies.all())
@@ -473,9 +499,9 @@ class Org(SmartModel):
         """
         If an org's telephone send channel is an Android device, let them add a bulk sender
         """
-        from temba.contacts.models import TEL_SCHEME
+        from temba.contacts.models import URN
 
-        send_channel = self.get_send_channel(TEL_SCHEME)
+        send_channel = self.get_send_channel(URN.TEL_SCHEME)
         return send_channel and send_channel.is_android()
 
     def can_add_caller(self):  # pragma: needs cover
@@ -509,15 +535,14 @@ class Org(SmartModel):
             return channel
 
     @cached_property
-    def cached_all_contacts_group(self):
+    def cached_active_contacts_group(self):
         from temba.contacts.models import ContactGroup
 
-        return ContactGroup.all_groups.get(org=self, group_type=ContactGroup.TYPE_ALL)
+        return ContactGroup.all_groups.get(org=self, group_type=ContactGroup.TYPE_ACTIVE)
 
     def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
-        from temba.contacts.models import TEL_SCHEME
         from temba.channels.models import Channel
-        from temba.contacts.models import ContactURN
+        from temba.contacts.models import URN, ContactURN
 
         if contact_urn:
             scheme = contact_urn.scheme
@@ -528,7 +553,7 @@ class Org(SmartModel):
                 if previous_sender:
                     return previous_sender
 
-            if scheme == TEL_SCHEME:
+            if scheme == URN.TEL_SCHEME:
                 path = contact_urn.path
 
                 # we don't have a channel for this contact yet, let's try to pick one from the same carrier
@@ -544,12 +569,12 @@ class Org(SmartModel):
                 channels = []
                 if country_code:
                     for c in self.channels.filter(is_active=True):
-                        if c.country == country_code and TEL_SCHEME in c.schemes:
+                        if c.country == country_code and URN.TEL_SCHEME in c.schemes:
                             channels.append(c)
 
                 # no country specific channel, try to find any channel at all
                 if not channels:
-                    channels = [c for c in self.channels.filter(is_active=True) if TEL_SCHEME in c.schemes]
+                    channels = [c for c in self.channels.filter(is_active=True) if URN.TEL_SCHEME in c.schemes]
 
                 # filter based on role and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
                 senders = []
@@ -596,16 +621,16 @@ class Org(SmartModel):
         return self.get_channel_for_role(Channel.ROLE_RECEIVE, scheme=scheme)
 
     def get_call_channel(self):
-        from temba.contacts.models import TEL_SCHEME
+        from temba.contacts.models import URN
         from temba.channels.models import Channel
 
-        return self.get_channel_for_role(Channel.ROLE_CALL, scheme=TEL_SCHEME)
+        return self.get_channel_for_role(Channel.ROLE_CALL, scheme=URN.TEL_SCHEME)
 
     def get_answer_channel(self):
-        from temba.contacts.models import TEL_SCHEME
+        from temba.contacts.models import URN
         from temba.channels.models import Channel
 
-        return self.get_channel_for_role(Channel.ROLE_ANSWER, scheme=TEL_SCHEME)
+        return self.get_channel_for_role(Channel.ROLE_ANSWER, scheme=URN.TEL_SCHEME)
 
     def get_schemes(self, role):
         """
@@ -842,28 +867,45 @@ class Org(SmartModel):
             return self.config.get(Org.CONFIG_CHATBASE_API_KEY), self.config.get(Org.CONFIG_CHATBASE_VERSION)
         return None, None
 
-    def get_country_code(self):
+    @property
+    def default_country_code(self) -> str:
         """
-        Gets the 2-digit country code, e.g. RW, US
+        Gets the default country as a 2-digit country code, e.g. RW, US
         """
-        return get_cacheable_attr(self, "_country_code", lambda: self.calculate_country_code())
 
-    def calculate_country_code(self):
-        # first try the actual country field
+        return self.default_country.alpha_2 if self.default_country else ""
+
+    @cached_property
+    def default_country(self):
+        """
+        Gets the default country as a pycountry country for this org
+        """
+
+        # first try the country boundary field
         if self.country:
-            try:
-                country = pycountry.countries.get(name=self.country.name)
-                if country:
-                    return country.alpha_2
-            except KeyError:  # pragma: no cover
-                # pycountry blows up if we pass it a country name it doesn't know
-                pass
+            country = pycountry.countries.get(name=self.country.name)
+            if country:
+                return country
 
-        # if that isn't set and we only have have one country set for our channels, use that
-        countries = self.channels.filter(is_active=True).exclude(country=None).order_by("country")
-        countries = countries.distinct("country").values_list("country", flat=True)
-        if len(countries) == 1:
-            return countries[0]
+        # next up try timezone
+        code = timezone_to_country_code(self.timezone)
+        if code:
+            country = pycountry.countries.get(alpha_2=code)
+            if country:
+                return country
+
+        # if that didn't work (not all timezones have a country) look for channels with countries
+        codes = (
+            self.channels.filter(is_active=True)
+            .exclude(country=None)
+            .order_by("country")
+            .distinct("country")
+            .values_list("country", flat=True)
+        )
+        if len(codes) == 1:
+            country = pycountry.countries.get(alpha_2=codes[0])
+            if country:
+                return country
 
         return None
 
@@ -1085,49 +1127,15 @@ class Org(SmartModel):
     def has_nexmo_number(self):  # pragma: needs cover
         return self.channels.filter(channel_type="NX")
 
-    def create_welcome_topup(self, topup_size=None):
+    def init_topups(self, topup_size=None):
         if topup_size:
             return TopUp.create(self.created_by, price=0, credits=topup_size, org=self)
+
+        # set whether we use topups based on our plan
+        self.uses_topups = self.plan == settings.TOPUP_PLAN
+        self.save(update_fields=["uses_topups"])
+
         return None
-
-    def create_system_groups(self):
-        """
-        Creates our system groups for this organization so that we can keep track of counts etc..
-        """
-        from temba.contacts.models import ContactGroup
-
-        self.all_groups.create(
-            name="All Contacts",
-            group_type=ContactGroup.TYPE_ALL,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-        self.all_groups.create(
-            name="Blocked Contacts",
-            group_type=ContactGroup.TYPE_BLOCKED,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-        self.all_groups.create(
-            name="Stopped Contacts",
-            group_type=ContactGroup.TYPE_STOPPED,
-            created_by=self.created_by,
-            modified_by=self.modified_by,
-        )
-
-    def create_system_contact_fields(self):
-        from temba.contacts.models import ContactField
-
-        for key, field in ContactField.SYSTEM_FIELDS.items():
-            ContactField.system_fields.create(
-                org_id=self.id,
-                key=key,
-                label=field["label"],
-                value_type=field["value_type"],
-                show_in_table=False,
-                created_by=self.created_by,
-                modified_by=self.modified_by,
-            )
 
     def create_sample_flows(self, api_url):
         # get our sample dir
@@ -1463,6 +1471,11 @@ class Org(SmartModel):
         # any time we've reapplied topups, lets invalidate our credit cache too
         self.clear_credit_cache()
 
+        # if we our suspended and have credits now, unsuspend ourselves
+        if self.is_suspended and self.get_credits_remaining() > 0:
+            self.is_suspended = False
+            self.save(update_fields=["is_suspended"])
+
         # update our capabilities based on topups
         self.update_capabilities()
 
@@ -1625,82 +1638,6 @@ class Org(SmartModel):
             paid = 0
         return paid / 100
 
-    def update_plan(self, new_plan, token, user):  # pragma: no cover
-        # We can't test stripe in unit tests since it requires javascript tokens to be generated
-        stripe.api_key = get_stripe_credentials()[1]
-
-        # no plan change?  do nothing
-        if new_plan == self.plan:
-            return None
-
-        # this is our stripe customer id
-        stripe_customer = None
-
-        # our actual customer object
-        customer = self.get_stripe_customer()
-        if customer:
-            stripe_customer = customer.id
-
-        # cancel our plan on our stripe customer
-        if new_plan == Org.PLAN_FREE:
-            if customer:
-                analytics.track(user.username, "temba.plan_cancelled", dict(cancelledPlan=self.plan))
-
-                try:
-                    subscription = customer.cancel_subscription(at_period_end=True)
-                except Exception as e:
-                    logger.error(f"Unable to cancel customer plan: {str(e)}", exc_info=True)
-                    raise ValidationError(
-                        _("Sorry, we are unable to cancel your plan at this time.  Please contact us.")
-                    )
-            else:
-                raise ValidationError(_("Sorry, we are unable to cancel your plan at this time.  Please contact us."))
-
-        else:
-            # we have a customer, try to upgrade them
-            if customer:
-                try:
-                    subscription = customer.update_subscription(plan=new_plan)
-
-                    analytics.track(user.username, "temba.plan_upgraded", dict(previousPlan=self.plan, plan=new_plan))
-
-                except Exception as e:
-                    # can't load it, oh well, we'll try to create one dynamically below
-                    logger.error(f"Unable to update Stripe customer subscription: {str(e)}", exc_info=True)
-                    customer = None
-
-            # if we don't have a customer, go create one
-            if not customer:
-                try:
-                    # then go create a customer object for this user
-                    customer = stripe.Customer.create(
-                        card=token, plan=new_plan, email=user, description="{ org: %d }" % self.pk
-                    )
-
-                    stripe_customer = customer.id
-                    subscription = customer["subscription"]
-
-                    analytics.track(user.username, "temba.plan_upgraded", dict(previousPlan=self.plan, plan=new_plan))
-
-                except Exception as e:
-                    logger.error(f"Unable to create Stripe customer: {str(e)}", exc_info=True)
-                    raise ValidationError(
-                        _("Sorry, we were unable to charge your card, please try again later or contact us.")
-                    )
-
-        # update our org
-        self.stripe_customer = stripe_customer
-
-        if subscription["status"] != "active":
-            self.plan = Org.PLAN_FREE
-        else:
-            self.plan = new_plan
-
-        self.plan_start = datetime.fromtimestamp(subscription["start"])
-        self.save()
-
-        return subscription
-
     def generate_dependency_graph(self, include_campaigns=True, include_triggers=False, include_archived=False):
         """
         Generates a dict of all exportable flows and campaigns for this org with each object's immediate dependencies
@@ -1709,7 +1646,6 @@ class Org(SmartModel):
         from temba.contacts.models import ContactGroup, ContactField
         from temba.flows.models import Flow
 
-        flow_prefetches = ("action_sets", "rule_sets")
         campaign_prefetches = (
             Prefetch(
                 "events",
@@ -1719,7 +1655,7 @@ class Org(SmartModel):
             "flow_events__flow",
         )
 
-        all_flows = self.flows.filter(is_active=True).exclude(is_system=True).prefetch_related(*flow_prefetches)
+        all_flows = self.flows.filter(is_active=True).exclude(is_system=True)
 
         if include_campaigns:
             all_campaigns = (
@@ -1803,14 +1739,16 @@ class Org(SmartModel):
         Initializes an organization, creating all the dependent objects we need for it to work properly.
         """
         from temba.middleware import BrandingMiddleware
+        from temba.contacts.models import ContactField, ContactGroup
 
         with transaction.atomic():
             if not branding:
                 branding = BrandingMiddleware.get_branding_for_host("")
 
-            self.create_system_groups()
-            self.create_system_contact_fields()
-            self.create_welcome_topup(topup_size)
+            ContactGroup.create_system_groups(self)
+            ContactField.create_system_fields(self)
+
+            self.init_topups(topup_size)
             self.update_capabilities()
 
         # outside of the transaction as it's going to call out to mailroom for flow validation
@@ -1947,9 +1885,6 @@ class Org(SmartModel):
             for rev in flow.revisions.all():
                 rev.release()
 
-            flow.rule_sets.all().delete()
-            flow.action_sets.all().delete()
-
             flow.category_counts.all().delete()
             flow.path_counts.all().delete()
             flow.node_counts.all().delete()
@@ -2073,7 +2008,7 @@ class Org(SmartModel):
             "timezone": str(self.timezone),
             "default_language": self.primary_language.iso_code if self.primary_language else None,
             "allowed_languages": list(self.get_language_codes()),
-            "default_country": self.get_country_code(),
+            "default_country": self.default_country_code,
             "redaction_policy": "urns" if self.is_anon else "none",
         }
 
@@ -2670,7 +2605,7 @@ class CreditAlert(SmartModel):
         from temba.msgs.models import Msg
 
         # all active orgs in the last hour
-        active_orgs = Msg.objects.filter(created_on__gte=timezone.now() - timedelta(hours=1))
+        active_orgs = Msg.objects.filter(created_on__gte=timezone.now() - timedelta(hours=1), org__uses_topups=True)
         active_orgs = active_orgs.order_by("org").distinct("org")
 
         for msg in active_orgs:
@@ -2694,7 +2629,7 @@ class CreditAlert(SmartModel):
 
         # get the ids of the last to expire topup, with credits, for each org
         final_topups = (
-            TopUp.objects.filter(is_active=True, org__is_active=True, credits__gt=0)
+            TopUp.objects.filter(is_active=True, org__is_active=True, org__uses_topups=True, credits__gt=0)
             .order_by("org_id", "-expires_on")
             .distinct("org_id")
             .values_list("id", flat=True)
@@ -2731,6 +2666,7 @@ class OrgActivity(models.Model):
        * total # of active contacts (that sent or received a message)
        * total # of messages sent
        * total # of message received
+       * total # of active contacts in plan period up to that date (if there is one)
     """
 
     # the org this contact activity is being tracked for
@@ -2751,11 +2687,16 @@ class OrgActivity(models.Model):
     # the number of messages received on this day
     incoming_count = models.IntegerField(default=0)
 
+    # the number of active contacts in the plan period (if they are on a plan)
+    plan_active_contact_count = models.IntegerField(null=True)
+
     @classmethod
     def update_day(cls, now):
         """
         Updates our org activity for the passed in day.
         """
+        from temba.msgs.models import Msg
+
         # truncate to midnight the same day in UTC
         end = pytz.utc.normalize(now.astimezone(pytz.utc)).replace(hour=0, minute=0, second=0, microsecond=0)
         start = end - timedelta(days=1)
@@ -2783,6 +2724,23 @@ class OrgActivity(models.Model):
         ).annotate(msg_count=Count("id"))
         outgoing_count = {o.id: o.msg_count for o in outgoing_count}
 
+        # calculate active count in plan period for orgs with an active plan
+        plan_active_contact_counts = dict()
+        for org in (
+            Org.objects.exclude(plan_end=None)
+            .exclude(plan_start=None)
+            .exclude(plan_end__lt=start)
+            .only("plan_start", "plan_end")
+        ):
+            plan_end = org.plan_end if org.plan_end < end else end
+            count = (
+                Msg.objects.filter(org=org, created_on__gt=org.plan_start, created_on__lt=plan_end)
+                .only("contact")
+                .distinct("contact")
+                .count()
+            )
+            plan_active_contact_counts[org.id] = count
+
         for org in contact_counts:
             OrgActivity.objects.update_or_create(
                 org=org,
@@ -2791,6 +2749,7 @@ class OrgActivity(models.Model):
                 active_contact_count=active_counts.get(org.id, 0),
                 incoming_count=incoming_count.get(org.id, 0),
                 outgoing_count=outgoing_count.get(org.id, 0),
+                plan_active_contact_count=plan_active_contact_counts.get(org.id),
             )
 
     class Meta:

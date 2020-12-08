@@ -41,6 +41,20 @@ custom2["email"] = "join@custom-brand.org"
 custom2["support_email"] = "support@custom-brand.org"
 BRANDING["custom-brand.org"] = custom2
 
+custom3 = copy.deepcopy(BRANDING["rapidpro.io"])
+custom3["aliases"] = ["no-topups.org"]
+custom3["name"] = "No Topups"
+custom3["slug"] = "notopups"
+custom3["org"] = "NoTopups"
+custom3["api_link"] = "http://no-topups.org"
+custom3["domain"] = "no-topups.org"
+custom3["email"] = "join@no-topups.org"
+custom3["support_email"] = "support@no-topups.org"
+custom3["allow_signups"] = True
+custom3["welcome_topup"] = 0
+custom3["default_plan"] = "trial"
+BRANDING["no-topups.org"] = custom3
+
 # set our domain on our brands to our tunnel domain if set
 localhost_domain = os.environ.get("LOCALHOST_TUNNEL_DOMAIN")
 if localhost_domain is not None:

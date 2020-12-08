@@ -1,34 +1,20 @@
 -extends 'smartmin/form.html'
--load smartmin
--load i18n
-
--block form-span
-  span8
+-load smartmin i18n
 
 -block fields
-  .field.formax-vertical
-    {% render_field 'country' %}
+  {% render_field 'country' %}
 
 -block summary
   -if object.country
-    -blocktrans with country=object.country
-      Responses to location questions must be in <span class='attn'>{{country}}</span>.
+    .flex.items-center
+      .flex-grow.mr-4
+        -blocktrans trimmed with country=object.country
+          Responses to location questions must be in <b>{{country}}</b>.
+
+      .buttons
+        .button-light(onclick="goto(event)" href='{% url "locations.adminboundary_alias" %}')
+          -trans "Edit Aliases"
 
   -else
     -trans "Choose a country to enable location support in your flows."
 
--block post-fields
-  -if object.country
-    .extra-formax-buttons
-      %a.btn{ href: '{% url "locations.adminboundary_alias" %}', style:'width: 120px;'}
-        -trans "Edit Aliases"
-
--block extra-script
-  {{block.super}}
-  :javascript
-    $(document).ready(function() {
-
-      $('#id_country').select2({
-        containerCssClass: 'select2-temba-field',
-      });
-    });

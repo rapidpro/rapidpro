@@ -1,41 +1,15 @@
-{% extends "smartmin/base.html" %}
+-extends 'includes/modal.html'
+-load i18n temba smartmin
 
-{% load smartmin %}
-{% load i18n %}
+-block modal
+  -if object.get_usage_count
+    -blocktrans trimmed with name=object.name
+      <b>{{name}}</b> cannot be deleted since it is currently in use.
 
--block page-top
+  -else
+    -blocktrans trimmed with name=object.name
+      Are you sure you want to delete <b>{{name}}</b>? This cannot be undone.
 
--block content
-  -block pjax
-
-    -if object.get_usage_count
-      .row
-        .span5
-          %p
-            %b
-              {{ object.name }}
-          %p
-            -trans "cannot be deleted because it is in use. Usage summary:"
-          %p
-            -trans "Flows:"
-            {{ object.get_usage_count }}
-
-    -else
-      .row
-        .span5
-          %p
-            -trans "Are you sure you want to delete this global?"
-          %p
-            %b
-              {{ object.label }}
-          %p
-            -trans "Once deleted, this global will be gone forever. There is no way to undo this operation."
-
-          <form method="POST">
-            {% block delete_form %}{% endblock %}
-          </form>
-
-
-
-
-
+    .hidden
+      %form(method="POST")
+        %input(type="submit" value="{% trans 'Delete' %}")

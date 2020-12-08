@@ -1,56 +1,11 @@
--extends 'smartmin/form.html'
--load i18n temba
--load humanize
+-extends 'includes/modax.html'
+-load i18n temba smartmin humanize
 
--block summary
-
-  -if object.trigger_type == 'M'
-    -trans "Missed call trigger activated. Change flow that starts on missed call."
-
-  -if object.trigger_type == 'C'
-    -trans "Catch all trigger activated. Change flow that catches all messages."
-
-  -if object.schedule.next_fire
-    -spaceless
-
-      -if object.schedule
-        -trans "The next time the flow will be started is"
-        <span class='attn next-fire'>{{ object.schedule.next_fire|naturaltime }}</span>.
-
-    -if not object.schedule.repeat_period == 'O'
-      -if object.schedule.repeat_period == 'W' and object.schedule.repeat_days
-        -trans "It will repeat every"
-        -with object.schedule.get_repeat_days_display|length as day_count
-          -for day in object.schedule.get_repeat_days_display
-            {% if forloop.last and day_count > 1 %} {% trans "and" %} {%endif%}
-            %span.attn
-              {{day}}{% if not forloop.last and day_count > 2%}, {%endif%}
-
-        -trans "at around the same time."
-      -elif object.schedule.repeat_period == 'M'
-        -trans "It will repeat every"
-        %span.attn
-          -trans "month"
-        -blocktrans with repeat_day_of_month=object.schedule.repeat_day_of_month|ordinal
-          on the {{ repeat_day_of_month }}
-
-      -else
-        -blocktrans  with repeat_period_display=get_repeat_period_display|lower
-          It will repeat <span class='attn'>{{repeat_period_display}}</span> at around the same time.
-
-    -else
-      -blocktrans
-        It will <span class='attn'>not repeat</span>.
-
-  -else
-    -if object.trigger_type == 'K'
-      -trans "Create a message keyword that allows people to join a group."
 
 -block fields
-
-  -load smartmin
+  %script{src:"{{ STATIC_URL }}js/temba.js"}
+  
   -if object.schedule
-
     :css
       #schedule-options #start-datetime {
         margin-top:10px;
@@ -58,126 +13,43 @@
         cursor:pointer;
       }
 
-
-    %p.instructions
-      -trans "Choose when you would like the flow to start."
-
     #trigger_flow  
-      - render_field 'flow'
+      -render_field 'flow'
     #trigger_omnibox
-      - render_field 'omnibox'
-
+      -render_field 'omnibox'
     #schedule-options
-      -if object.schedule
-        %label.schedule-options-label{for:"later-option"}
-        %input#start-datetime{ name:'start_datetime', disabled: 'true'}
-        %input#start-datetime-value{ hidden:'true', name:'start_datetime_value'}
-        %input#later-option{name:'start', type:'hidden', value:'later', tabindex:1}
-
-    #recurrence{class:'{% if not object.schedule.next_fire %}hide{%endif%}'}
+      -render_field 'start_datetime'
+    #recurrence{class:'{% if not object.schedule.next_fire %}hidden{%endif%}'}
       .repeat-period
-        %p.instructions
-          -render_field 'repeat_period'
-      .weekly-repeat-options{class:'{% if form.repeat_period.value == "W" %}{% else%}hide{%endif%}'}
-        .btn-group{'data-toggle':'buttons-checkbox'}
-          #mon.btn{value:"M", class:'{% if "M" in days %}active{% endif %}'}
-            -trans "Mon"
-          #tue.btn{value:"T", class:'{% if "T" in days %}active{% endif %}'}
-            -trans "Tue"
-          #wed.btn{value:"W", class:'{% if "W" in days %}active{% endif %}'}
-            -trans "Wed"
-          #thu.btn{value:"R", class:'{% if "R" in days %}active{% endif %}'}
-            -trans "Thu"
-          #fri.btn{value:"F", class:'{% if "F" in days %}active{% endif %}'}
-            -trans "Fri"
-          #sat.btn{value:"S", class:'{% if "S" in days %}active{% endif %}'}
-            -trans "Sat"
-          #sun.btn{value:"U", class:'{% if "U" in days %}active{% endif %}'}
-            -trans "Sun"
-
-      %input#repeat-days-value{name:'repeat_days_of_week', type:'hidden', value:'{{days}}'}
-
+        -render_field 'repeat_period'
+      .weekly-repeat-options{class:'{% if form.repeat_period.value == "W" %}{% else%}hidden{%endif%}'}
+        -render_field 'repeat_days_of_week'
     -else
       {{block.super}}
 
 
--block extra-style
+-block modal-extra-style
   {{block.super}}
-  :css
-    #id_action_join_group {
-      width: 100%;
-    }
-
-    #schedule-options {
-      margin-top: 10px;
-    }
+  %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/tailwind.css", type:"text/css"}
+  %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
 
 -block modal-script
-  {{block.super}}
-  %script{src:"{{ STATIC_URL }}js/schedules-ui.js"}
-
   :javascript
-    var user_tz = "{{ user_tz }}";
-    var user_tz_offset = {{ user_tz_offset }};
+    {{block.super}}
 
-    $(document).ready(function() {
-
-      {% if object.trigger_type == 'C' %}
-        select2div("#id_catchall_flow", "520px", '{{ _("Flow to start")|escapejs }}');
-        $("#id_groups").select2({ containerCssClass: "select2-temba-field" })
-      {% endif %}
-
-      {% if object.trigger_type == 'M' %}
-        select2div("#id_missedcall_flow", "520px", '{{ _("Flow to start")|escapejs }}');
-      {% endif %}
-
-      {% if object.trigger_type == 'N' %}
-        select2div("#id_channel", "520px", '{{ _("Social media channel")|escapejs }}');
-      {% endif %}
-
-      {% if object.trigger_type == 'R' %}
-        select2div("#id_channel", "520px", '{{ _("Facebook Channel")|escapejs }}');
-      {% endif %}
-
-      {% if object.trigger_type == 'K' or object.trigger_type == 'V' %}
-        $('#id_groups').select2({ containerCssClass: "select2-temba-field" });
-      {% endif %}
-
-      $('select#id_flow').select2({
-        minimumResultsForSearch: -1
+    var body = document.querySelector("#update-trigger").getBody();
+    var repeatPeriod = body.querySelector("#id_repeat_period");
+    if (repeatPeriod) {
+      repeatPeriod.addEventListener("change", function(event){
+        var currentRepeat = event.currentTarget.values[0].value;
+        if (currentRepeat == 'W') {
+          body.querySelector(".weekly-repeat-options").classList.remove("hidden");
+        } else {
+          body.querySelector(".weekly-repeat-options").classList.add("hidden");
+        }
       });
+    }
 
-      $('#id_match_type').select2({
-        containerCssClass: "select2-temba-field",
-        minimumResultsForSearch: -1
-      });
 
-      // this initialize day in the modal
-      day = getStartTime().day();
 
-      var minDate = new Date();
-      var minutes = minDate.getMinutes();
-      if (minutes > 0) {
-        minDate.setMinutes(0);
-        minDate.setHours(minDate.getHours() + 1);
-      }
-
-      {% if object.schedule.next_fire and object.schedule.next_fire|timeuntil != "0 minutes" %}
-        // honor our form value if we have a validation failure
-        {% if form.start_datetime_value.value %}
-          initializeDatetimePicker(minDate, new Date({{form.start_datetime_value.value}} * 1000));
-        {% else %}
-          initializeDatetimePicker(minDate, new Date({{object.schedule.next_fire|date:"U"}} * 1000));
-        {% endif %}
-      {% else %}
-        initializeDatetimePicker(minDate);
-      {% endif %}
-
-      // re-enable our datetime widget after load, this works around
-      // an issue with jquery datetimepicker that shows the picker on load
-      window.setTimeout(function(){
-        $("input#start-datetime").attr('disabled', false);
-      }, 0);
-
-    });
 

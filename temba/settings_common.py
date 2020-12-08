@@ -46,7 +46,7 @@ FLOW_FROM_EMAIL = "no-reply@temba.io"
 # HTTP Headers using for outgoing requests to other services
 OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
 
-STORAGE_URL = None  # may be local /media or AWS S3
+STORAGE_URL = None  # may be an absolute URL to /media (like http://localhost:8000/media) or AWS S3
 STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
 
 # -----------------------------------------------------------------------------------
@@ -144,6 +144,8 @@ COMPRESS_ROOT = os.path.join(PROJECT_DIR, "../sitestatic")
 MEDIA_ROOT = os.path.join(PROJECT_DIR, "../media")
 MEDIA_URL = "/media/"
 
+HELP_URL = None
+
 
 # -----------------------------------------------------------------------------------
 # Templates Configuration
@@ -168,7 +170,6 @@ TEMPLATES = [
                 "temba.context_processors.analytics",
                 "temba.orgs.context_processors.user_group_perms_processor",
                 "temba.channels.views.channel_status_processor",
-                "temba.msgs.views.send_message_auto_complete_processor",
                 "temba.orgs.context_processors.settings_includer",
                 "temba.orgs.context_processors.user_orgs_for_brand",
             ],
@@ -266,7 +267,6 @@ INSTALLED_APPS = (
     "temba.campaigns",
     "temba.ivr",
     "temba.locations",
-    "temba.values",
     "temba.airtime",
     "temba.sql",
 )
@@ -290,6 +290,12 @@ LOGGING = {
     },
 }
 
+# the name of our topup plan
+TOPUP_PLAN = "topups"
+
+# Default plan for new orgs
+DEFAULT_PLAN = TOPUP_PLAN
+
 # -----------------------------------------------------------------------------------
 # Branding Configuration
 # -----------------------------------------------------------------------------------
@@ -300,6 +306,7 @@ BRANDING = {
         "org": "UNICEF",
         "colors": dict(primary="#0c6596"),
         "styles": ["brands/rapidpro/font/style.css"],
+        "default_plan": TOPUP_PLAN,
         "welcome_topup": 1000,
         "email": "join@rapidpro.io",
         "support_email": "support@rapidpro.io",
@@ -316,11 +323,12 @@ BRANDING = {
         "tiers": dict(multi_user=0, multi_org=0),
         "bundles": [],
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
+        "title": _("Visually build nationally scalable mobile applications"),
         "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
         "credits": _("Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."),
     }
 }
-DEFAULT_BRAND = "rapidpro.io"
+DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro.io")
 
 # -----------------------------------------------------------------------------------
 # Permission Management
@@ -345,24 +353,24 @@ PERMISSIONS = {
     "classifiers.intent": ("api",),
     "contacts.contact": (
         "api",
+        "archive",
+        "archived",
         "block",
         "blocked",
         "break_anon",
-        "customize",
         "export",
         "stopped",
         "filter",
         "history",
-        "import",
         "omnibox",
+        "restore",
         "search",
-        "unblock",
-        "unstop",
         "update_fields",
         "update_fields_input",
     ),
     "contacts.contactfield": ("api", "json", "update_priority", "featured", "filter_by_type", "detail"),
     "contacts.contactgroup": ("api",),
+    "contacts.contactimport": ("preview",),
     "ivr.ivrcall": ("start",),
     "archives.archive": ("api", "run", "message"),
     "globals.global": ("api", "unused", "detail"),
@@ -392,6 +400,7 @@ PERMISSIONS = {
         "manage_accounts_sub_org",
         "nexmo_account",
         "nexmo_connect",
+        "plan",
         "plivo_connect",
         "profile",
         "prometheus",
@@ -434,7 +443,6 @@ PERMISSIONS = {
         "campaign",
         "category_counts",
         "change_language",
-        "completion",
         "copy",
         "editor",
         "editor_next",
@@ -444,7 +452,6 @@ PERMISSIONS = {
         "import_translation",
         "export_results",
         "filter",
-        "json",
         "recent_messages",
         "results",
         "revisions",
@@ -521,7 +528,6 @@ GROUP_PERMISSIONS = {
         "contacts.contact_break_anon",
         "contacts.contact_read",
         "flows.flow_editor",
-        "flows.flow_json",
         "flows.flow_revisions",
         "flows.flowrun_delete",
         "flows.flow_editor_next",
@@ -564,27 +570,27 @@ GROUP_PERMISSIONS = {
         "classifiers.classifier_sync",
         "classifiers.intent_api",
         "contacts.contact_api",
+        "contacts.contact_archive",
+        "contacts.contact_archived",
         "contacts.contact_block",
         "contacts.contact_blocked",
         "contacts.contact_create",
-        "contacts.contact_customize",
         "contacts.contact_delete",
         "contacts.contact_export",
         "contacts.contact_filter",
         "contacts.contact_history",
-        "contacts.contact_import",
         "contacts.contact_list",
         "contacts.contact_omnibox",
         "contacts.contact_read",
+        "contacts.contact_restore",
         "contacts.contact_search",
         "contacts.contact_stopped",
-        "contacts.contact_unblock",
-        "contacts.contact_unstop",
         "contacts.contact_update",
         "contacts.contact_update_fields",
         "contacts.contact_update_fields_input",
         "contacts.contactfield.*",
         "contacts.contactgroup.*",
+        "contacts.contactimport.*",
         "csv_imports.importtask.*",
         "globals.global.*",
         "ivr.ivrcall.*",
@@ -611,6 +617,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_manage_accounts_sub_org",
         "orgs.org_nexmo_account",
         "orgs.org_nexmo_connect",
+        "orgs.org_plan",
         "orgs.org_plivo_connect",
         "orgs.org_profile",
         "orgs.org_prometheus",
@@ -695,27 +702,27 @@ GROUP_PERMISSIONS = {
         "classifiers.classifier_list",
         "classifiers.intent_api",
         "contacts.contact_api",
+        "contacts.contact_archive",
+        "contacts.contact_archived",
         "contacts.contact_block",
         "contacts.contact_blocked",
         "contacts.contact_create",
-        "contacts.contact_customize",
         "contacts.contact_delete",
         "contacts.contact_export",
         "contacts.contact_filter",
         "contacts.contact_history",
-        "contacts.contact_import",
         "contacts.contact_list",
         "contacts.contact_omnibox",
         "contacts.contact_read",
+        "contacts.contact_restore",
         "contacts.contact_search",
         "contacts.contact_stopped",
-        "contacts.contact_unblock",
-        "contacts.contact_unstop",
         "contacts.contact_update",
         "contacts.contact_update_fields",
         "contacts.contact_update_fields_input",
         "contacts.contactfield.*",
         "contacts.contactgroup.*",
+        "contacts.contactimport.*",
         "csv_imports.importtask.*",
         "ivr.ivrcall.*",
         "globals.global_api",
@@ -730,6 +737,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_import",
         "orgs.org_profile",
         "orgs.org_resthooks",
+        "orgs.org_token",
         "orgs.topup_list",
         "orgs.topup_read",
         "orgs.usersettings_phone",
@@ -790,6 +798,7 @@ GROUP_PERMISSIONS = {
         "classifiers.classifier_read",
         "classifiers.classifier_list",
         "classifiers.intent_api",
+        "contacts.contact_archived",
         "contacts.contact_blocked",
         "contacts.contact_export",
         "contacts.contact_filter",
@@ -799,6 +808,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_stopped",
         "contacts.contactfield_api",
         "contacts.contactgroup_api",
+        "contacts.contactimport_read",
         "globals.global_api",
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",
@@ -817,7 +827,6 @@ GROUP_PERMISSIONS = {
         "flows.flow_archived",
         "flows.flow_assets",
         "flows.flow_campaign",
-        "flows.flow_completion",
         "flows.flow_category_counts",
         "flows.flow_export",
         "flows.flow_export_results",
@@ -825,7 +834,6 @@ GROUP_PERMISSIONS = {
         "flows.flow_list",
         "flows.flow_editor",
         "flows.flow_editor_next",
-        "flows.flow_json",
         "flows.flow_recent_messages",
         "flows.flow_results",
         "flows.flow_revisions",
@@ -865,6 +873,10 @@ LOGIN_REDIRECT_URL = "/org/choose/"
 LOGOUT_REDIRECT_URL = "/"
 
 AUTHENTICATION_BACKENDS = ("smartmin.backends.CaseInsensitiveBackend",)
+
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},
+]
 
 ANONYMOUS_USER_NAME = "AnonymousUser"
 
@@ -921,6 +933,7 @@ CELERYBEAT_SCHEDULE = {
     "squash-flowcounts": {"task": "squash_flowcounts", "schedule": timedelta(seconds=60)},
     "squash-msgcounts": {"task": "squash_msgcounts", "schedule": timedelta(seconds=60)},
     "squash-topupcredits": {"task": "squash_topupcredits", "schedule": timedelta(seconds=60)},
+    "suspend-topup-orgs": {"task": "suspend_topup_orgs_task", "schedule": timedelta(hours=1)},
     "sync-classifier-intents": {"task": "sync_classifier_intents", "schedule": timedelta(seconds=300)},
     "sync-old-seen-channels": {"task": "sync_old_seen_channels_task", "schedule": timedelta(seconds=600)},
     "track-org-channel-counts": {"task": "track_org_channel_counts", "schedule": crontab(hour=4, minute=0)},
@@ -1005,12 +1018,11 @@ REST_HANDLE_EXCEPTIONS = not TESTING
 # -----------------------------------------------------------------------------------
 
 if TESTING:
-    # if only testing, disable coffeescript and less compilation
+    # if only testing, disable less compilation
     COMPRESS_PRECOMPILERS = ()
 else:
     COMPRESS_PRECOMPILERS = (
         ("text/less", 'lessc --include-path="%s" {infile} {outfile}' % os.path.join(PROJECT_DIR, "../static", "less")),
-        ("text/coffeescript", "coffee --compile --stdio"),
     )
 
 COMPRESS_ENABLED = False
@@ -1046,11 +1058,17 @@ CLASSIFIER_TYPES = [
     "temba.classifiers.types.bothub.BothubType",
 ]
 
-TICKETER_TYPES = ["temba.tickets.types.mailgun.MailgunType", "temba.tickets.types.zendesk.ZendeskType"]
+TICKETER_TYPES = [
+    "temba.tickets.types.mailgun.MailgunType",
+    "temba.tickets.types.zendesk.ZendeskType",
+    "temba.tickets.types.rocketchat.RocketChatType",
+]
 
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",
+    "temba.channels.types.textit_whatsapp.TextItWhatsAppType",
+    "temba.channels.types.dialog360.Dialog360Type",
     "temba.channels.types.twilio.TwilioType",
     "temba.channels.types.twilio_whatsapp.TwilioWhatsappType",
     "temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType",
@@ -1062,6 +1080,8 @@ CHANNEL_TYPES = [
     "temba.channels.types.burstsms.BurstSMSType",
     "temba.channels.types.chikka.ChikkaType",
     "temba.channels.types.clickatell.ClickatellType",
+    "temba.channels.types.clickmobile.ClickMobileType",
+    "temba.channels.types.clicksend.ClickSendType",
     "temba.channels.types.dartmedia.DartMediaType",
     "temba.channels.types.dmark.DMarkType",
     "temba.channels.types.external.ExternalType",
@@ -1073,6 +1093,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.highconnection.HighConnectionType",
     "temba.channels.types.hormuud.HormuudType",
     "temba.channels.types.hub9.Hub9Type",
+    "temba.channels.types.i2sms.I2SMSType",
     "temba.channels.types.infobip.InfobipType",
     "temba.channels.types.jasmin.JasminType",
     "temba.channels.types.jiochat.JioChatType",
@@ -1104,9 +1125,8 @@ CHANNEL_TYPES = [
     "temba.channels.types.wechat.WeChatType",
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia.ZenviaType",
-    "temba.channels.types.i2sms.I2SMSType",
-    "temba.channels.types.clicksend.ClickSendType",
     "temba.channels.types.android.AndroidType",
+    "temba.channels.types.rocketchat.RocketChatType",
 ]
 
 # -----------------------------------------------------------------------------------
@@ -1171,7 +1191,6 @@ IP_ADDRESSES = ("172.16.10.10", "162.16.10.20")
 # Installs may choose how big they want their text messages and contact fields to be.
 # -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640
-VALUE_FIELD_SIZE = 640
 FLOW_START_PARAMS_SIZE = 256
 
 # -----------------------------------------------------------------------------------
@@ -1210,9 +1229,8 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 # ElasticSearch configuration (URL RFC-1738)
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 
-# Default plan for new orgs
-DEFAULT_PLAN = "topups"
 
 # Maximum active objects are org can have
-MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
-MAX_ACTIVE_GLOBALS_PER_ORG = 255
+MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 250
+MAX_ACTIVE_CONTACTGROUPS_PER_ORG = 250
+MAX_ACTIVE_GLOBALS_PER_ORG = 250

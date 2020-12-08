@@ -8,9 +8,9 @@ from django.utils import timezone
 
 from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowRun, FlowStart
-from temba.mailroom.client import MailroomException, get_client
+from temba.mailroom.client import ContactSpec, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
-from temba.tests import MockResponse, TembaTest, matchers
+from temba.tests import MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.utils import json
 
@@ -24,6 +24,25 @@ class MailroomClientTest(TembaTest):
             version = get_client().version()
 
         self.assertEqual("5.3.4", version)
+
+    def test_expression_migrate(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"migrated": "@fields.age"}')
+            migrated = get_client().expression_migrate("@contact.age")
+
+            self.assertEqual("@fields.age", migrated)
+
+            mock_post.assert_called_once_with(
+                "http://localhost:8090/mr/expression/migrate",
+                headers={"User-Agent": "Temba"},
+                json={"expression": "@contact.age"},
+            )
+
+            # in case of error just return original
+            mock_post.return_value = MockResponse(422, '{"error": "bad isn\'t a thing"}')
+            migrated = get_client().expression_migrate("@(bad)")
+
+            self.assertEqual("@(bad)", migrated)
 
     def test_flow_migrate(self):
         with patch("requests.post") as mock_post:
@@ -147,58 +166,123 @@ class MailroomClientTest(TembaTest):
             files={"po": b'msgid "Red"\nmsgstr "Rojo"\n\n'},
         )
 
-    def test_parse_query(self):
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"query":"name ~ \\"frank\\"","fields":["name"]}')
-            response = get_client().parse_query(1, "frank")
+    @patch("requests.post")
+    def test_parse_query(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"query":"name ~ \\"frank\\"","fields":["name"]}')
+        response = get_client().parse_query(self.org.id, "frank")
 
-            self.assertEqual('name ~ "frank"', response["query"])
-            mock_post.assert_called_once_with(
-                "http://localhost:8090/mr/contact/parse_query",
-                headers={"User-Agent": "Temba"},
-                json={"query": "frank", "org_id": 1, "group_uuid": ""},
-            )
+        self.assertEqual('name ~ "frank"', response["query"])
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/parse_query",
+            headers={"User-Agent": "Temba"},
+            json={"query": "frank", "org_id": self.org.id, "group_uuid": ""},
+        )
 
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(400, '{"error":"no such field age"}')
+        mock_post.return_value = MockResponse(400, '{"error":"no such field age"}')
 
-            with self.assertRaises(MailroomException):
-                get_client().parse_query(1, "age > 10")
+        with self.assertRaises(MailroomException):
+            get_client().parse_query(1, "age > 10")
 
-    def test_contact_search(self):
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(
-                200,
-                """
-                {
-                  "query":"name ~ \\"frank\\"",
-                  "contact_ids":[1,2],
-                  "fields":["name"],
-                  "total": 2,
-                  "offset": 0
-                }
-                """,
-            )
-            response = get_client().contact_search(1, "2752dbbc-723f-4007-8bc5-b3720835d3a9", "frank", "-created_on")
+    @patch("requests.post")
+    def test_contact_create(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"contact": {"id": 1234, "name": "", "language": ""}}')
 
-            self.assertEqual('name ~ "frank"', response["query"])
-            mock_post.assert_called_once_with(
-                "http://localhost:8090/mr/contact/search",
-                headers={"User-Agent": "Temba"},
-                json={
-                    "query": "frank",
-                    "org_id": 1,
-                    "group_uuid": "2752dbbc-723f-4007-8bc5-b3720835d3a9",
-                    "offset": 0,
-                    "sort": "-created_on",
+        # try with empty contact spec
+        response = get_client().contact_create(
+            self.org.id, self.admin.id, ContactSpec(name="", language="", urns=[], fields={}, groups=[])
+        )
+
+        self.assertEqual({"id": 1234, "name": "", "language": ""}, response["contact"])
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/create",
+            headers={"User-Agent": "Temba"},
+            json={
+                "org_id": self.org.id,
+                "user_id": self.admin.id,
+                "contact": {"name": "", "language": "", "urns": [], "fields": {}, "groups": []},
+            },
+        )
+
+        mock_post.reset_mock()
+        mock_post.return_value = MockResponse(200, '{"contact": {"id": 1234, "name": "Bob", "language": "eng"}}')
+
+        response = get_client().contact_create(
+            self.org.id,
+            self.admin.id,
+            ContactSpec(
+                name="Bob",
+                language="eng",
+                urns=["tel:+123456789"],
+                fields={"age": "39", "gender": "M"},
+                groups=["d5b1770f-0fb6-423b-86a0-b4d51096b99a"],
+            ),
+        )
+
+        self.assertEqual({"id": 1234, "name": "Bob", "language": "eng"}, response["contact"])
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/create",
+            headers={"User-Agent": "Temba"},
+            json={
+                "org_id": self.org.id,
+                "user_id": self.admin.id,
+                "contact": {
+                    "name": "Bob",
+                    "language": "eng",
+                    "urns": ["tel:+123456789"],
+                    "fields": {"age": "39", "gender": "M"},
+                    "groups": ["d5b1770f-0fb6-423b-86a0-b4d51096b99a"],
                 },
-            )
+            },
+        )
 
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(400, '{"error":"no such field age"}')
+    @patch("requests.post")
+    def test_contact_resolve(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"contact": {"id": 1234}, "urn": {"id": 2345}}')
 
-            with self.assertRaises(MailroomException):
-                get_client().contact_search(1, "2752dbbc-723f-4007-8bc5-b3720835d3a9", "age > 10", "-created_on")
+        # try with empty contact spec
+        response = get_client().contact_resolve(self.org.id, 345, "tel:+1234567890")
+
+        self.assertEqual({"contact": {"id": 1234}, "urn": {"id": 2345}}, response)
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/resolve",
+            headers={"User-Agent": "Temba"},
+            json={"org_id": self.org.id, "channel_id": 345, "urn": "tel:+1234567890"},
+        )
+
+    @patch("requests.post")
+    def test_contact_search(self, mock_post):
+        mock_post.return_value = MockResponse(
+            200,
+            """
+            {
+              "query":"name ~ \\"frank\\"",
+              "contact_ids":[1,2],
+              "fields":["name"],
+              "total": 2,
+              "offset": 0
+            }
+            """,
+        )
+        response = get_client().contact_search(1, "2752dbbc-723f-4007-8bc5-b3720835d3a9", "frank", "-created_on")
+
+        self.assertEqual('name ~ "frank"', response["query"])
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/contact/search",
+            headers={"User-Agent": "Temba"},
+            json={
+                "query": "frank",
+                "org_id": 1,
+                "group_uuid": "2752dbbc-723f-4007-8bc5-b3720835d3a9",
+                "exclude_ids": (),
+                "offset": 0,
+                "sort": "-created_on",
+            },
+        )
+
+        mock_post.return_value = MockResponse(400, '{"error":"no such field age"}')
+
+        with self.assertRaises(MailroomException):
+            get_client().contact_search(1, "2752dbbc-723f-4007-8bc5-b3720835d3a9", "age > 10", "-created_on")
 
     def test_ticket_close(self):
         with patch("requests.post") as mock_post:
@@ -244,7 +328,7 @@ class MailroomClientTest(TembaTest):
             mock_post.return_value = MockResponse(400, '{"errors":["Bad request", "Doh!"]}')
 
             with self.assertRaises(MailroomException) as e:
-                get_client().flow_migrate(flow.as_json())
+                get_client().flow_migrate(flow.get_definition())
 
         self.assertEqual(
             e.exception.as_json(),
@@ -268,7 +352,8 @@ class MailroomQueueTest(TembaTest):
         r = get_redis_connection()
         r.execute_command("select", settings.REDIS_DB)
 
-    def test_queue_msg_handling(self):
+    @mock_mailroom(queue=False)
+    def test_queue_msg_handling(self, mr_mocks):
         with override_settings(TESTING=False):
             msg = Msg.create_relayer_incoming(self.org, self.channel, "tel:12065551212", "Hello World", timezone.now())
 
@@ -290,13 +375,14 @@ class MailroomQueueTest(TembaTest):
                     "urn_id": msg.contact.urns.get().id,
                     "text": "Hello World",
                     "attachments": None,
-                    "new_contact": True,
+                    "new_contact": False,
                 },
                 "queued_on": matchers.ISODate(),
             },
         )
 
-    def test_queue_mo_miss_event(self):
+    @mock_mailroom(queue=False)
+    def test_queue_mo_miss_event(self, mr_mocks):
         get_redis_connection("default").flushall()
         event = ChannelEvent.create_relayer_event(
             self.channel, "tel:12065551212", ChannelEvent.TYPE_CALL_OUT, timezone.now()
@@ -326,9 +412,9 @@ class MailroomQueueTest(TembaTest):
                     "event_type": "mo_miss",
                     "extra": None,
                     "id": event.id,
-                    "new_contact": True,
+                    "new_contact": False,
+                    "occurred_on": matchers.ISODate(),
                     "org_id": event.contact.org.id,
-                    "urn": "tel:+12065551515",
                     "urn_id": event.contact.urns.get().id,
                 },
                 "queued_on": matchers.ISODate(),
@@ -336,8 +422,8 @@ class MailroomQueueTest(TembaTest):
         )
 
     def test_queue_broadcast(self):
-        jim = self.create_contact("Jim", "+12065551212")
-        bobs = self.create_group("Bobs", [self.create_contact("Bob", "+12065551313")])
+        jim = self.create_contact("Jim", phone="+12065551212")
+        bobs = self.create_group("Bobs", [self.create_contact("Bob", phone="+12065551313")])
 
         bcast = Broadcast.create(
             self.org,
@@ -345,11 +431,11 @@ class MailroomQueueTest(TembaTest):
             {"eng": "Welcome to mailroom!", "spa": "¡Bienvenidx a mailroom!"},
             groups=[bobs],
             contacts=[jim],
-            urns=[jim.urns.get()],
+            urns=["tel:+12065556666"],
             base_language="eng",
         )
 
-        bcast.send()
+        bcast.send_async()
 
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(
@@ -364,7 +450,7 @@ class MailroomQueueTest(TembaTest):
                     },
                     "template_state": "legacy",
                     "base_language": "eng",
-                    "urns": ["tel:+12065551212"],
+                    "urns": ["tel:+12065556666"],
                     "contact_ids": [jim.id],
                     "group_ids": [bobs.id],
                     "broadcast_id": bcast.id,
@@ -376,14 +462,15 @@ class MailroomQueueTest(TembaTest):
 
     def test_queue_flow_start(self):
         flow = self.get_flow("favorites")
-        jim = self.create_contact("Jim", "+12065551212")
-        bobs = self.create_group("Bobs", [self.create_contact("Bob", "+12065551313")])
+        jim = self.create_contact("Jim", phone="+12065551212")
+        bobs = self.create_group("Bobs", [self.create_contact("Bob", phone="+12065551313")])
 
         start = FlowStart.create(
             flow,
             self.admin,
             groups=[bobs],
             contacts=[jim],
+            urns=["tel:+1234567890", "twitter:bobby"],
             restart_participants=True,
             extra={"foo": "bar"},
             include_active=True,
@@ -399,11 +486,14 @@ class MailroomQueueTest(TembaTest):
                 "org_id": self.org.id,
                 "task": {
                     "start_id": start.id,
+                    "start_type": "M",
                     "org_id": self.org.id,
+                    "created_by": self.admin.username,
                     "flow_id": flow.id,
                     "flow_type": "M",
                     "contact_ids": [jim.id],
                     "group_ids": [bobs.id],
+                    "urns": ["tel:+1234567890", "twitter:bobby"],
                     "query": None,
                     "restart_participants": True,
                     "include_active": True,
@@ -413,9 +503,24 @@ class MailroomQueueTest(TembaTest):
             },
         )
 
+    def test_queue_contact_import_batch(self):
+        imp = self.create_contact_import("media/test_imports/simple.xlsx")
+        imp.start()
+
+        self.assert_org_queued(self.org, "batch")
+        self.assert_queued_batch_task(
+            self.org,
+            {
+                "type": "import_contact_batch",
+                "org_id": self.org.id,
+                "task": {"contact_import_batch_id": imp.batches.get().id},
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
     def test_queue_interrupt_by_contacts(self):
-        jim = self.create_contact("Jim", "+12065551212")
-        bob = self.create_contact("Bob", "+12065551313")
+        jim = self.create_contact("Jim", phone="+12065551212")
+        bob = self.create_contact("Bob", phone="+12065551313")
 
         queue_interrupt(self.org, contacts=[jim, bob])
 
@@ -460,10 +565,10 @@ class MailroomQueueTest(TembaTest):
         )
 
     def test_queue_interrupt_by_session(self):
-        jim = self.create_contact("Jim", "+12065551212")
+        jim = self.create_contact("Jim", phone="+12065551212")
 
         flow = self.get_flow("favorites")
-        flow_nodes = flow.as_json()["nodes"]
+        flow_nodes = flow.get_definition()["nodes"]
         color_prompt = flow_nodes[0]
         color_split = flow_nodes[2]
 

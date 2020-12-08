@@ -1,19 +1,15 @@
 
-.recipients
+.flex.justify-end
   -for group in groups
-    .item.group
-      .icon.icon-users-2
-      %a(href="{% url 'contacts.contact_filter' group.uuid %}")
-        {{ group.name }}
-
+    .lbl-group.linked.ml-2(onclick="goto(event)" href="{% url 'contacts.contact_filter' group.uuid %}" class="{% if group.is_dynamic%}lbl-group-dynamic{%endif%}")
+      {{ group.name }}
+  
   -for contact in contacts
-    .item.contact
-      .icon.icon-user
-      %a(href="{% url 'contacts.contact_read' contact.uuid %}")
-        {{ contact.get_display }}
+    .item.contact.lbl.linked.ml-2(onclick="goto(event)" href="{% url 'contacts.contact_read' contact.uuid %}")
+      .icon.icon-user.text-dark-alpha-300
+      {{ contact.get_display }}
 
   -if query
-    .item.query
-      .icon.icon-filter
-      %a(href="{% url 'contacts.contact_list' %}?search={{ query|urlencode }}")
-        {{ query }}
+    .item.query.lbl.linked.ml-2(onclick="goto(event)" href="{% url 'contacts.contact_list' %}?search={{ query|urlencode }}")
+      .icon.icon-filter.text-dark-alpha-300
+      {{ query }}
