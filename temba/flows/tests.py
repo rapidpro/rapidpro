@@ -3512,6 +3512,9 @@ class FlowStartTest(TembaTest):
         # 5 mailroom created starts remain
         self.assertEqual(5, FlowStart.objects.filter(created_by=None).count())
 
+        # only runs from our remaining starts still have start ids
+        self.assertEqual(8, FlowRun.objects.exclude(start=None).count())
+
         # the 3 that aren't complete...
         self.assertEqual(3, FlowStart.objects.filter(created_by=None).exclude(status="C").exclude(status="F").count())
 
