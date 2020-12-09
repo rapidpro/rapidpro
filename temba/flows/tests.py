@@ -3473,6 +3473,9 @@ class FlowStartTest(TembaTest):
             start.modified_on = modified_on
             start.save(update_fields=("status", "modified_on"))
 
+            session = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact)
+            FlowRun.objects.create(org=self.org, contact=contact, flow=flow, session=session, start=start)
+
             FlowStartCount.objects.create(start=start, count=1, is_squashed=False)
 
         date1 = timezone.now() - timedelta(days=8)
