@@ -9,6 +9,7 @@ from django.utils.html import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.tickets.types.internal import InternalType
 from temba.utils.views import BulkActionMixin, ComponentFormMixin
 
 from .models import Ticket, Ticketer
@@ -64,11 +65,16 @@ class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
     bulk_actions = ()
 
     def get_context_data(self, **kwargs):
-        org = self.get_user().get_org()
+        user = self.get_user()
+        org = user.get_org()
+
+        ticketers = org.ticketers.filter(is_active=True).order_by("created_on")
+        if not user.is_beta():
+            ticketers = ticketers.exclude(ticketer_type=InternalType.slug)
 
         context = super().get_context_data(**kwargs)
         context["folder"] = self.folder
-        context["ticketers"] = org.ticketers.filter(is_active=True).order_by("created_on")
+        context["ticketers"] = ticketers
         return context
 
 
