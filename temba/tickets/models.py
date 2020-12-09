@@ -1,4 +1,5 @@
 from abc import ABCMeta
+from typing import Dict
 
 from smartmin.models import SmartModel
 
@@ -82,7 +83,7 @@ class Ticketer(SmartModel):
     config = JSONField()
 
     @classmethod
-    def create(cls, org, user, ticketer_type, name, config):
+    def create(cls, org, user, ticketer_type: str, name: str, config: Dict):
         return cls.objects.create(
             uuid=uuid4(),
             ticketer_type=ticketer_type,
@@ -92,6 +93,15 @@ class Ticketer(SmartModel):
             created_by=user,
             modified_by=user,
         )
+
+    @classmethod
+    def create_internal(cls, org):
+        """
+        Creates the internal ticketer for the given org
+        """
+        from .types.internal import InternalType
+
+        return cls.create(org, org.created_by, InternalType.slug, "Internal", {})
 
     @classmethod
     def get_types(cls):

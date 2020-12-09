@@ -38,6 +38,7 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticketer
+from temba.tickets.types.internal import InternalType
 from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool
 
 from ..models import SSLPermission
@@ -3434,6 +3435,9 @@ class TicketersEndpoint(ListAPIMixin, BaseAPIView):
         org = self.request.user.get_org()
 
         queryset = queryset.filter(org=org, is_active=True)
+
+        if not self.request.user.is_beta():
+            queryset = queryset.exclude(ticketer_type=InternalType.slug)
 
         # filter by uuid (optional)
         uuid = params.get("uuid")

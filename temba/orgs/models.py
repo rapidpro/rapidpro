@@ -1740,6 +1740,7 @@ class Org(SmartModel):
         """
         from temba.middleware import BrandingMiddleware
         from temba.contacts.models import ContactField, ContactGroup
+        from temba.tickets.models import Ticketer
 
         with transaction.atomic():
             if not branding:
@@ -1747,6 +1748,7 @@ class Org(SmartModel):
 
             ContactGroup.create_system_groups(self)
             ContactField.create_system_fields(self)
+            Ticketer.create_internal(self)
 
             self.init_topups(topup_size)
             self.update_capabilities()

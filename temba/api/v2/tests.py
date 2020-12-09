@@ -4263,7 +4263,7 @@ class APITest(TembaTest):
         Ticketer.create(self.org2, self.admin, LuisType.slug, "Mailgun", {})
 
         # no filtering
-        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
             response = self.fetchJSON(url)
 
         resp_json = response.json()
@@ -4299,3 +4299,21 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(1, len(resp_json["results"]))
         self.assertEqual("Mailgun (bob@acme.com)", resp_json["results"][0]["name"])
+
+        # beta users see the internal ticketer too
+        Group.objects.get(name="Beta").user_set.add(self.admin)
+        internal = Ticketer.objects.get(org=self.org, ticketer_type="internal")
+
+        response = self.fetchJSON(url)
+        resp_json = response.json()
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(3, len(resp_json["results"]))
+        self.assertEqual(
+            {
+                "uuid": str(internal.uuid),
+                "name": "Internal",
+                "type": "internal",
+                "created_on": format_datetime(internal.created_on),
+            },
+            resp_json["results"][2],
+        )
