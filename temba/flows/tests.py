@@ -3473,6 +3473,9 @@ class FlowStartTest(TembaTest):
             start.modified_on = modified_on
             start.save(update_fields=("status", "modified_on"))
 
+            session = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact)
+            FlowRun.objects.create(org=self.org, contact=contact, flow=flow, session=session, start=start)
+
             FlowStartCount.objects.create(start=start, count=1, is_squashed=False)
 
         date1 = timezone.now() - timedelta(days=8)
@@ -3508,6 +3511,9 @@ class FlowStartTest(TembaTest):
 
         # 5 mailroom created starts remain
         self.assertEqual(5, FlowStart.objects.filter(created_by=None).count())
+
+        # only runs from our remaining starts still have start ids
+        self.assertEqual(8, FlowRun.objects.exclude(start=None).count())
 
         # the 3 that aren't complete...
         self.assertEqual(3, FlowStart.objects.filter(created_by=None).exclude(status="C").exclude(status="F").count())
