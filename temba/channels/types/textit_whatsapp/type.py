@@ -32,7 +32,7 @@ class TextItWhatsAppType(ChannelType):
 
     claim_blurb = _(
         "Easily use your own Enterprise WhatsApp account using %(link)s to communicate with your contacts. "
-    ) % {"link": '<a href="https://swag.textit.com/">TextIt WhatsApp Hosting</a>'}
+    ) % {"link": '<a href="https://whatsapp.textit.com/">TextIt WhatsApp Hosting</a>'}
     claim_view = ClaimView
 
     schemes = [URN.WHATSAPP_SCHEME]
