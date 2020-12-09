@@ -24,7 +24,7 @@ class TextItWhatsappTypeTest(TembaTest):
         self.assertEqual(200, response.status_code)
         post_data = response.context["form"].initial
 
-        post_data["api_endpoint"] = "http://test.swag.textit.com/v1"
+        post_data["api_endpoint"] = "http://test.whatsapp.textit.com/v1"
         post_data["access_token"] = "123456789"
 
         # first bad token
@@ -59,7 +59,7 @@ class TextItWhatsappTypeTest(TembaTest):
         channel = Channel.objects.get()
 
         self.assertEqual("123456789", channel.config[Channel.CONFIG_AUTH_TOKEN])
-        self.assertEqual("http://test.swag.textit.com/", channel.config[Channel.CONFIG_BASE_URL])
+        self.assertEqual("http://test.whatsapp.textit.com/", channel.config[Channel.CONFIG_BASE_URL])
 
         self.assertEqual("+12065551212", channel.address)
         self.assertEqual("US", channel.country)
