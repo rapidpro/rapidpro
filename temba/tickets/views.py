@@ -9,7 +9,6 @@ from django.utils.html import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.tickets.types.internal import InternalType
 from temba.utils.views import BulkActionMixin, ComponentFormMixin
 
 from .models import Ticket, Ticketer
@@ -68,13 +67,9 @@ class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
         user = self.get_user()
         org = user.get_org()
 
-        ticketers = org.ticketers.filter(is_active=True).order_by("created_on")
-        if not user.is_beta():
-            ticketers = ticketers.exclude(ticketer_type=InternalType.slug)
-
         context = super().get_context_data(**kwargs)
         context["folder"] = self.folder
-        context["ticketers"] = ticketers
+        context["ticketers"] = org.ticketers.filter(is_active=True).order_by("created_on")
         return context
 
 
@@ -114,9 +109,11 @@ class TicketCRUDL(SmartCRUDL):
             return super().get_queryset(**kwargs).filter(ticketer=self.ticketer)
 
         def get_gear_links(self):
+            from .types.internal import InternalType
+
             links = []
 
-            if self.has_org_perm("tickets.ticketer_delete"):
+            if self.has_org_perm("tickets.ticketer_delete") and self.ticketer.ticketer_type != InternalType.slug:
                 links.append(
                     dict(
                         id="ticketer-delete",

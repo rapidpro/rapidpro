@@ -94,15 +94,6 @@ class Ticketer(SmartModel):
         )
 
     @classmethod
-    def create_internal(cls, org):
-        """
-        Creates the internal ticketer for the given org
-        """
-        from .types.internal import InternalType
-
-        return cls.create(org, org.created_by, InternalType.slug, "Internal", {})
-
-    @classmethod
     def get_types(cls):
         """
         Returns the possible types available for ticketers

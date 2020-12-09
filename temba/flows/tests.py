@@ -378,12 +378,7 @@ class FlowTest(TembaTest):
         self.channel.save()
         assert_features(["facebook", "airtime", "classifier", "resthook"])
 
-        # beta users see the internal ticketer so they always get ticketing
-        Group.objects.get(name="Beta").user_set.add(self.admin)
-        assert_features(["facebook", "airtime", "classifier", "ticketer", "resthook"])
-
-        # regular users see it when a ticketer is connected
-        Group.objects.get(name="Beta").user_set.remove(self.admin)
+        # add a ticketer
         Ticketer.create(self.org, self.user, "mailgun", "Email (bob@acme.com)", {})
         assert_features(["facebook", "airtime", "classifier", "ticketer", "resthook"])
 

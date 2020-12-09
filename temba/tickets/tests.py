@@ -62,8 +62,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_open(self, mr_mocks):
         open_url = reverse("tickets.ticket_open")
 
-        internal = Ticketer.objects.get(org=self.org, ticketer_type="internal")
-
         ticket1 = self.create_ticket("Ticket 1", "Where are my cookies?", "O")
         ticket2 = self.create_ticket("Ticket 2", "Where are my shoes?", "O", ticketer=self.zendesk)
         self.create_ticket("Ticket 3", "Old ticket", "C")
@@ -75,9 +73,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(("close",), response.context["actions"])
         self.assertContains(response, reverse("tickets.ticket_filter", args=[self.mailgun.uuid]))
         self.assertContains(response, reverse("tickets.ticket_filter", args=[self.zendesk.uuid]))
-
-        # doesn't have link to internal ticketer
-        self.assertNotContains(response, reverse("tickets.ticket_filter", args=[internal.uuid]))
 
         # can close tickets with an action POST
         response = self.requestView(open_url, self.admin, post_data={"action": "close", "objects": [ticket2.id]})
