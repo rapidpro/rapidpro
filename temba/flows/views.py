@@ -1074,7 +1074,11 @@ class FlowCRUDL(SmartCRUDL):
             if flow.org.classifiers.filter(is_active=True).exists():
                 feature_filters.append("classifier")
 
-            if flow.org.ticketers.filter(is_active=True).exists():
+            ticketers = flow.org.ticketers.filter(is_active=True)
+            if not self.request.user.is_beta():
+                ticketers = ticketers.exclude(ticketer_type="internal")
+
+            if ticketers.exists():
                 feature_filters.append("ticketer")
 
             if flow.org.get_resthooks():

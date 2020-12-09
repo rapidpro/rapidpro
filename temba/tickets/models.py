@@ -1,5 +1,4 @@
 from abc import ABCMeta
-from typing import Dict
 
 from smartmin.models import SmartModel
 
@@ -83,7 +82,7 @@ class Ticketer(SmartModel):
     config = JSONField()
 
     @classmethod
-    def create(cls, org, user, ticketer_type: str, name: str, config: Dict):
+    def create(cls, org, user, ticketer_type: str, name: str, config: dict):
         return cls.objects.create(
             uuid=uuid4(),
             ticketer_type=ticketer_type,
