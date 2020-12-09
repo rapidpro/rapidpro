@@ -1,3 +1,8 @@
+v6.1.6
+----------
+ * Trim our start runs 1,000 at a time and by id
+ * Increase global max value length to 10000 and fix UI to be more consistent with fields
+
 v6.1.5
 ----------
  * Share modals on globals list, truncate values
