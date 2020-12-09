@@ -69,7 +69,7 @@ from temba.utils.text import random_string
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import ComponentFormMixin, NonAtomicMixin
 
-from .models import BackupToken, Invitation, Org, OrgCache, TopUp, UserSettings, get_stripe_credentials
+from .models import BackupToken, Invitation, Org, OrgCache, OrgRole, TopUp, UserSettings, get_stripe_credentials
 from .tasks import apply_topups_task
 
 
@@ -1351,49 +1351,45 @@ class OrgCRUDL(SmartCRUDL):
             invite_emails = forms.CharField(
                 required=False, widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email Address")}),
             )
-            invite_group = forms.ChoiceField(
-                choices=(("A", _("Administrator")), ("E", _("Editor")), ("V", _("Viewer")), ("S", _("Surveyor"))),
+            invite_role = forms.ChoiceField(
+                choices=[(r.code, r.display) for r in OrgRole],
                 required=True,
                 initial="V",
                 label=_("Role"),
                 widget=SelectWidget(),
             )
 
-            def add_user_group_fields(self, groups, users):
+            def add_per_user_fields(self, users) -> dict:
                 fields_by_user = {}
 
                 for user in users:
-                    fields = []
-                    field_mapping = []
+                    role_field = forms.ChoiceField(
+                        choices=[(r.code, r.display) for r in OrgRole],
+                        required=True,
+                        initial="V",
+                        label=" ",
+                        widget=SelectWidget(),
+                    )
+                    remove_field = forms.BooleanField(
+                        required=False, label=" ", widget=CheckboxWidget(attrs={"widget_only": True}),
+                    )
 
-                    for group in groups:
-                        check_field = forms.BooleanField(
-                            required=False, widget=CheckboxWidget(attrs={"widget_only": True})
-                        )
-                        field_name = "%s_%d" % (group.lower(), user.pk)
-
-                        field_mapping.append((field_name, check_field))
-                        fields.append(field_name)
-
-                    self.fields = OrderedDict(list(self.fields.items()) + field_mapping)
-                    fields_by_user[user] = fields
+                    self.fields.update(
+                        OrderedDict([(f"user_{user.id}_role", role_field), (f"user_{user.id}_remove", remove_field)])
+                    )
+                    fields_by_user[user] = {"role": f"user_{user.id}_role", "remove": f"user_{user.id}_remove"}
                 return fields_by_user
 
-            def add_invite_remove_fields(self, invites):
+            def add_per_invite_fields(self, invites) -> dict:
                 fields_by_invite = {}
 
                 for invite in invites:
-                    field_name = "%s_%d" % ("remove_invite", invite.pk)
-                    self.fields = OrderedDict(
-                        list(self.fields.items())
-                        + [
-                            (
-                                field_name,
-                                forms.BooleanField(required=False, widget=CheckboxWidget(attrs={"widget_only": True})),
-                            )
-                        ]
+                    remove_field = forms.BooleanField(
+                        required=False, widget=CheckboxWidget(attrs={"widget_only": True}),
                     )
-                    fields_by_invite[invite] = field_name
+
+                    self.fields.update(OrderedDict([(f"invite_{invite.id}_remove", remove_field)]))
+                    fields_by_invite[invite] = {"remove": remove_field}
 
                 return fields_by_invite
 
@@ -1410,22 +1406,17 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Invitation
-                fields = ("invite_emails", "invite_group")
+                fields = ("invite_emails", "invite_role")
 
         form_class = AccountsForm
         success_url = "@orgs.org_manage_accounts"
         success_message = ""
         submit_button_name = _("Save Changes")
-        ORG_GROUPS = ("Administrators", "Editors", "Viewers", "Surveyors")
-        title = "Manage Logins"
-
-        @staticmethod
-        def org_group_set(org, group_name):
-            return getattr(org, group_name.lower())
+        title = _("Manage Logins")
 
         def get_gear_links(self):
             links = []
-            if self.request.user.get_org().pk != self.get_object().pk:
+            if self.request.user.get_org().id != self.get_object().id:
                 links.append(dict(title=_("Workspaces"), style="button-light", href=reverse("orgs.org_sub_orgs"),))
 
             links.append(dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"),))
@@ -1435,11 +1426,10 @@ class OrgCRUDL(SmartCRUDL):
             initial = super().derive_initial()
 
             org = self.get_object()
-            for group in self.ORG_GROUPS:
-                users_in_group = self.org_group_set(org, group).all()
-
+            for role in OrgRole:
+                users_in_group = role.get_users(org)
                 for user in users_in_group:
-                    initial["%s_%d" % (group.lower(), user.pk)] = True
+                    initial[f"user_{user.id}_role"] = role.code
 
             return initial
 
@@ -1448,10 +1438,10 @@ class OrgCRUDL(SmartCRUDL):
 
             org = self.get_object()
             self.org_users = org.get_org_users()
-            self.fields_by_users = form.add_user_group_fields(self.ORG_GROUPS, self.org_users)
+            self.fields_by_users = form.add_per_user_fields(self.org_users)
 
             self.invites = Invitation.objects.filter(org=org, is_active=True).order_by("email")
-            self.fields_by_invite = form.add_invite_remove_fields(self.invites)
+            self.fields_by_invite = form.add_per_invite_fields(self.invites)
 
             return form
 
@@ -1461,8 +1451,8 @@ class OrgCRUDL(SmartCRUDL):
             cleaned_data = self.form.cleaned_data
             org = self.get_object()
 
-            for invite in self.fields_by_invite.keys():
-                if cleaned_data.get(self.fields_by_invite.get(invite)):
+            for invite, invite_fields in self.fields_by_invite.keys():
+                if cleaned_data.get(invite_fields["remove"]):
                     Invitation.objects.filter(org=org, pk=invite.pk).delete()
 
             invite_emails = cleaned_data["invite_emails"].lower().strip()
@@ -1523,9 +1513,9 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             context["org"] = org
             context["org_users"] = self.org_users
-            context["group_fields"] = self.fields_by_users
+            context["user_fields"] = self.fields_by_users
             context["invites"] = self.invites
-            context["invites_fields"] = self.fields_by_invite
+            context["invite_fields"] = self.fields_by_invite
             return context
 
         def get_success_url(self):

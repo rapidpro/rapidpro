@@ -1,6 +1,8 @@
 import itertools
 import logging
 import os
+import functools
+import operator
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
@@ -60,6 +62,27 @@ ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY = "org:%d:cache:low_credits_threshold"
 
 ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
+
+
+class OrgRole(Enum):
+    ADMINISTRATOR = ("A", _("Administrator"), "Administrators", "administrators")
+    EDITOR = ("E", _("Editor"), "Editors", "editors")
+    VIEWER = ("V", _("Viewer"), "Viewers", "viewers")
+    AGENT = ("T", _("Agent"), "Agents", "agents")
+    SURVEYOR = ("S", _("Surveyor"), "Surveyors", "surveyors")
+
+    def __init__(self, code: str, display: str, group_name: str, m2m_name: str):
+        self.code = code
+        self.display = display
+        self.group_name = group_name
+        self.m2m_name = m2m_name
+
+    @property
+    def group(self):
+        return Group.objects.get(name=self.group_name)
+
+    def get_users(self, org):
+        return getattr(org, self.m2m_name).all()
 
 
 class OrgLock(Enum):
@@ -145,27 +168,12 @@ class Org(SmartModel):
         help_text=_("Our Stripe customer id for your organization"),
     )
 
-    administrators = models.ManyToManyField(
-        User,
-        verbose_name=_("Administrators"),
-        related_name="org_admins",
-        help_text=_("The administrators in your organization"),
-    )
-
-    viewers = models.ManyToManyField(
-        User, verbose_name=_("Viewers"), related_name="org_viewers", help_text=_("The viewers in your organization")
-    )
-
-    editors = models.ManyToManyField(
-        User, verbose_name=_("Editors"), related_name="org_editors", help_text=_("The editors in your organization")
-    )
-
-    surveyors = models.ManyToManyField(
-        User,
-        verbose_name=_("Surveyors"),
-        related_name="org_surveyors",
-        help_text=_("The users can login via Android for your organization"),
-    )
+    # user role m2ms
+    administrators = models.ManyToManyField(User, related_name="org_admins")
+    viewers = models.ManyToManyField(User, related_name="org_viewers")
+    editors = models.ManyToManyField(User, related_name="org_editors")
+    agents = models.ManyToManyField(User, related_name="org_agents")
+    surveyors = models.ManyToManyField(User, related_name="org_surveyors")
 
     language = models.CharField(
         verbose_name=_("Language"),
@@ -1077,47 +1085,42 @@ class Org(SmartModel):
         return boundary
 
     def get_org_admins(self):
-        return self.administrators.all()
+        return self.get_users_with_role(OrgRole.ADMINISTRATOR)
 
     def get_org_editors(self):
-        return self.editors.all()
+        return self.get_users_with_role(OrgRole.EDITOR)
 
     def get_org_viewers(self):
-        return self.viewers.all()
+        return self.get_users_with_role(OrgRole.VIEWER)
 
     def get_org_surveyors(self):
-        return self.surveyors.all()
+        return self.get_users_with_role(OrgRole.SURVEYOR)
+
+    def get_users_with_role(self, role: OrgRole):
+        return role.get_users(self)
 
     def get_org_users(self):
-        org_users = self.get_org_admins() | self.get_org_editors() | self.get_org_viewers() | self.get_org_surveyors()
-        return org_users.distinct().order_by("email")
+        user_sets = [role.get_users(self) for role in OrgRole]
+        all_users = functools.reduce(operator.or_, user_sets)
+        return all_users.distinct().order_by("email")
 
     def latest_admin(self):
-        admin = self.get_org_admins().last()
+        for role in OrgRole:
+            user = self.get_users_with_role(role).last()
+            if user:
+                return user
 
-        # no admins? try editors
-        if not admin:  # pragma: needs cover
-            admin = self.get_org_editors().last()
-
-        # no editors? try viewers
-        if not admin:  # pragma: needs cover
-            admin = self.get_org_viewers().last()
-
-        return admin
+        return None
 
     def get_user_org_group(self, user):
-        if user in self.get_org_admins():
-            user._org_group = Group.objects.get(name="Administrators")
-        elif user in self.get_org_editors():
-            user._org_group = Group.objects.get(name="Editors")
-        elif user in self.get_org_viewers():
-            user._org_group = Group.objects.get(name="Viewers")
-        elif user in self.get_org_surveyors():
-            user._org_group = Group.objects.get(name="Surveyors")
-        elif user.is_staff:
-            user._org_group = Group.objects.get(name="Administrators")
+        if user.is_staff:
+            user._org_group = OrgRole.ADMINISTRATOR.group
         else:
             user._org_group = None
+            for role in OrgRole:
+                if user in self.get_users_with_role(role):
+                    user._org_group = role.group
+                    break
 
         return getattr(user, "_org_group", None)
 

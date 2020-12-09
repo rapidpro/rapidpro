@@ -18,45 +18,36 @@
     }
 
 -block fields
-  %table.list{style:"margin-bottom:0px;"}
+  %table.list.mb-0
     %thead
       %tr
         %th
-          -trans "Logins"
-        %th.permission
-          -trans "Admins"
-        %th.permission
-          -trans "Editors"
-        %th.permission
-          -trans "Viewers"
-        %th.permission
-          -trans "Surveyors"
-        %th.permission
+          -trans "Login"
+        %th
+          -trans "Role"
+        %th
           -trans "Remove"
 
     %tbody
       %tr#admin-error.hide
-        %td.alert.alert-error{colspan: 6}
+        %td.alert.alert-error(colspan=3)
           -trans "You must have at least one administator"
-      - for user in org_users
+      -for user in org_users
         %tr
-          %td
-            {{user.email}}
-            - if user.first_name or user.last_name
-              ({{user.first_name}} {{ user.last_name}})
-          - with group_fields|get:user as row_fields
-            - for check_name in row_fields
-              %td.check.permission.level-checkbox
-                .m-auto(style="width:24px")
-                  {{form|field:check_name}}
-          %td.check.permission.level-checkbox
-            .m-auto(style="width:24px")
-              %temba-checkbox(name="")
+          %td.pt-0.pb-0
+            {{ user.email }}
+            -if user.first_name or user.last_name
+              ({{ user.first_name }} {{ user.last_name }})
+          %td.pt-0.pb-0.w-48
+            {% render_field user_fields|get:user|get:"role" %}
+          %td.pt-0.pb-0.w-24
+            .m-auto
+              {% render_field user_fields|get:user|get:"remove" %}
 
       // pending invites
       -if invites
         %tr.invites-title
-          %th(colspan=99)
+          %th(colspan=3)
             -trans "Pending Invitations"
 
       -for invite in invites
@@ -101,7 +92,7 @@
       .pr-4.flex-grow
         {% render_field 'invite_emails' %}
       .group.w-48
-        {% render_field 'invite_group' %}
+        {% render_field 'invite_role' %}
 
 -block form-buttons
   .form-actions.mt-4.ml-2

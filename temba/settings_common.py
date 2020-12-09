@@ -861,6 +861,7 @@ GROUP_PERMISSIONS = {
         "triggers.trigger_archived",
         "triggers.trigger_list",
     ),
+    "Agents": ("tickets.ticket_open",),
     "Prometheus": (),
 }
 
