@@ -1118,6 +1118,10 @@ class Org(SmartModel):
     def add_user(self, user: User, role: OrgRole):
         getattr(self, role.m2m_name).add(user)
 
+    def remove_user(self, user: User):
+        for role in OrgRole:
+            getattr(self, role.m2m_name).remove(user)
+
     def get_owner(self) -> User:
         # look thru roles in order for the last added user
         for role in OrgRole:
@@ -2056,8 +2060,7 @@ def release(user, brand):
 
     # remove user from all roles on any org for our brand
     for org in user.get_user_orgs([brand]):
-        for role in OrgRole:
-            getattr(org, role.m2m_name).remove(user)
+        org.remove_user(user)
 
 
 def get_user_orgs(user, brands=None):

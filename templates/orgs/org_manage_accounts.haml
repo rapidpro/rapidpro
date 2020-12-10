@@ -1,6 +1,5 @@
-- extends 'smartmin/form.html'
-- load smartmin temba compress
-- load i18n
+-extends 'smartmin/form.html'
+-load smartmin temba compress i18n
 
 -block title
   -if parent
@@ -107,60 +106,8 @@
   .form-actions.mt-4.ml-2
     %input.button-primary(type="submit" value="{{ submit_button_name }}")
 
-- block summary
-  %span.attn= object.name
-  -trans "has"
 
-  -if org.administrators.count == 1
-    %span.attn= org.administrators.count
-      -trans "Administrator"
-    -trans ","
-  -elif org.admnistrators.count == 0
-    %span.attn
-      -trans "No Administrator"
-    -trans ","
-  -else
-    %span.attn= org.administrators.count
-      -trans "Administrators"
-    -trans ","
-
-  -if org.editors.count == 1
-    %span.attn= org.editors.count
-      -trans "Editor"
-    -trans ","
-  -elif org.editors.count == 0
-    %span.attn
-      -trans "No Editors"
-    -trans ","
-  -else
-    %span.attn= org.editors.count
-      -trans "Editors"
-    -trans ","
-
-  -if org.viewers.count == 1
-    %span.attn= org.viewers.count
-      -trans "Viewer"
-    -trans "and"
-  -elif org.viewers.count == 0
-    %span.attn
-      -trans "No Viewers"
-    -trans "and"
-  -else
-    %span.attn= org.viewers.count
-      -trans "Viewers"
-    -trans "and"
-
-  -if org.surveyors.count == 1
-    %span.attn= org.surveyors.count
-      -trans "Surveyor."
-  -elif org.surveyors.count == 0
-    %span.attn
-      -trans "No Surveyors."
-  -else
-    %span.attn= org.surveyors.count
-      -trans "Surveyors."
-
-- block extra-script
+-block extra-script
   {{block.super}}
   :javascript
     $(function() {
