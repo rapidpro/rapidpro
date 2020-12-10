@@ -51,8 +51,18 @@ from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
 
 from .context_processors import GroupPermWrapper
-from .models import CreditAlert, Invitation, Language, Org, TopUp, TopUpCredits
+from .models import CreditAlert, Invitation, Language, Org, OrgRole, TopUp, TopUpCredits
 from .tasks import resume_failed_tasks, squash_topupcredits
+
+
+class OrgRoleTest(TembaTest):
+    def test_from_code(self):
+        self.assertEqual(OrgRole.EDITOR, OrgRole.from_code("E"))
+        self.assertIsNone(OrgRole.from_code("X"))
+
+    def test_group(self):
+        self.assertEqual(Group.objects.get(name="Editors"), OrgRole.EDITOR.group)
+        self.assertEqual(Group.objects.get(name="Agents"), OrgRole.AGENT.group)
 
 
 class OrgContextProcessorTest(TembaTest):
@@ -484,17 +494,25 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
 class OrgTest(TembaTest):
     def test_get_users(self):
-        org_users = self.org.get_users()
-        self.assertTrue(self.user in org_users)
-        self.assertTrue(self.surveyor in org_users)
-        self.assertTrue(self.editor in org_users)
-        self.assertTrue(self.admin in org_users)
+        # should return all org users ordered by email
+        self.assertEqual([self.admin, self.agent, self.editor, self.surveyor, self.user], list(self.org.get_users()))
 
-        # should be ordered by email
-        self.assertEqual(self.admin, org_users[0])
-        self.assertEqual(self.editor, org_users[1])
-        self.assertEqual(self.surveyor, org_users[2])
-        self.assertEqual(self.user, org_users[3])
+    def test_get_owner(self):
+        # admins take priority
+        self.assertEqual(self.admin, self.org.get_owner())
+
+        self.org.administrators.clear()
+
+        # then editors etc
+        self.assertEqual(self.editor, self.org.get_owner())
+
+        self.org.editors.clear()
+        self.org.viewers.clear()
+        self.org.agents.clear()
+        self.org.surveyors.clear()
+
+        # finally defaulting to org creator
+        self.assertEqual(self.user, self.org.get_owner())
 
     def test_get_unique_slug(self):
         self.org.slug = "allo"
