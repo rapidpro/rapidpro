@@ -1,7 +1,8 @@
 import itertools
 import json
-from collections import namedtuple
 
+
+import regex
 import requests
 from enum import Enum
 from mimetypes import guess_extension
@@ -3581,6 +3582,105 @@ class ValidateUrlAttachmentEndpoint(BaseAPIView):
 
 
 class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
+    """
+        This endpoint allows to manage lookup databases.
+
+        ## Listing Lookup Collections
+
+        A `GET` returns the list of collections that you can access via API:
+        List of databases for current org:
+
+            GET /api/v2/database.json
+
+        Response is the list of collection names that you can use access specific collection:
+
+            {
+                "results": [
+                    "Lookups 2",
+                    "Lookups"
+                ]
+            }
+
+        ## Creating a new Lookup Collection
+
+        A `POST` creates a new collection:
+
+         * **collection_name** - the name of new collection
+
+        Create new collection for current org:
+
+            POST /api/v2/database.json
+            {
+                "collection_name": "Lookups List"
+            }
+
+
+        Response status of successful creation would be `201`
+
+        ## Uploading data to Lookup Collection
+
+        A `PUT` inserts data into collection:
+
+         * **collection_name** - the name of collection
+         * **fields** - columns that are going to be created in collection (If not provided the columns will be created automaticaly from items keywords)
+         * **items** - list of objects that are going to be inserted
+
+        Create new collection for current org (This action will clear all records and paste new ones instead of them):
+
+            PUT /api/v2/database.json
+            {
+                "collection_name": "Lookups List",
+                "fields": {
+                    "name": {"type": "String"},
+                    "age": {"type": "Number"}
+                },
+                "items": [
+                    {
+                        "name": "Test Name",
+                        "age": 50
+                    },
+                    {
+                        "name": "Test Name 2",
+                        "age": 22
+                    }
+                ]
+            }
+
+
+        Response will contain list of created objects and response status will be `201`:
+
+            [
+                {
+                    "success": {
+                        "objectId": "QnzUnlfydT",
+                        "createdAt": "2020-12-10T15:51:12.797Z"
+                    }
+                },
+                {
+                    "success": {
+                        "objectId": "uJTNjXyek9",
+                        "createdAt": "2020-12-10T15:51:12.797Z"
+                    }
+                }
+            ]
+
+        ## Deleting Lookup Collection
+
+        A `DELETE` deletes collection:
+
+         * **collection_name** - the name of collection
+
+        Create new collection for current org:
+
+            DELETE /api/v2/database.json
+            {
+                "collection_name": "Lookups List"
+            }
+
+
+        Response status of successful deletion would be `204`
+    """
+
     permission = "orgs.org_lookups"
     parse_headers = {
         "X-Parse-Application-Id": settings.PARSE_APP_ID,
@@ -3624,6 +3724,17 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
         org, collection_name, collections_list, error_response = self.get_default_params(config="new_collection")
         if error_response:
             return error_response
+
+        if not regex.match(r"^[A-Za-z0-9_\- ]+$", collection_name, regex.V0):
+            return Response(
+                {
+                    "error": _(
+                        "Please make sure the collection name only contains "
+                        "alphanumeric characters [0-9a-zA-Z], spaces, underscores and hyphens"
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         collection = self.get_collection_full_name(org=org, collection=collection_name)
         url = f"{settings.PARSE_URL}/schemas/{collection}"
@@ -3707,7 +3818,7 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
             response = requests.put(
                 parse_url,
                 data=json.dumps({"className": collection, "fields": fields_to_create}),
-                headers=self.parse_headers
+                headers=self.parse_headers,
             )
             if response.status_code != 200:
                 return Response(response.json(), status=response.status_code)
@@ -3718,16 +3829,127 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
             insert_url = f"{settings.PARSE_URL}/batch"
             db_endpoint = f"{settings.PARSE_ENDPOINT}/classes/{collection}"
             for index, data in enumerate(items_to_push):
-                requests_.append({
-                    "method": "POST",
-                    "path": db_endpoint,
-                    "body": {"order": index, **data}
-                })
+                requests_.append({"method": "POST", "path": db_endpoint, "body": {"order": index, **data}})
             response = requests.post(insert_url, data=json.dumps({"requests": requests_}), headers=self.parse_headers)
         return Response(response.json(), status=status.HTTP_201_CREATED)
 
 
 class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
+    """
+        This endpoint allows to manage lookup databases.
+
+        ## Lookup Records Listing
+
+        A `GET` returns the list records for specific collections:
+
+         * **collection_name** - the name of new collection
+
+        List of records for specific collection:
+
+            GET /api/v2/database_records.json
+            {
+                "collection_name": "Lookups List"
+            }
+
+        Response is the list of records for specific collection:
+
+            {
+                "results": [
+                    {
+                        "objectId": "Y3H13CqmmG",
+                        "order": 0,
+                        "name": "Test Name",
+                        "age": 50,
+                        "createdAt": "2020-12-10T20:00:30.037Z",
+                        "updatedAt": "2020-12-10T20:00:30.037Z"
+                    },
+                    {
+                        "objectId": "Bjb77AnjbV",
+                        "order": 1,
+                        "name": "Test Name 2",
+                        "age": 20,
+                        "createdAt": "2020-12-10T20:00:30.037Z",
+                        "updatedAt": "2020-12-10T20:00:30.037Z"
+                    }
+                ]
+            }
+
+        ## Lookup Records Uploading
+
+        A `POST` creates new records for specific collection:
+
+         * **collection_name** - the name of new collection
+         * **items** - list of objects that are going to be inserted
+
+        Insert list of new records into collection:
+
+            POST /api/v2/database_records.json
+            {
+                "collection_name": "Lookups List"
+                "items": [
+                    {
+                        "name": "Gendalf the White",
+                        "age": 500
+                    }
+                ]
+            }
+
+
+        Response status of success creation would be `201`:
+
+            [
+                {
+                    "success": {
+                        "objectId": "MVPuxmVfG7",
+                        "createdAt": "2020-12-10T20:14:45.999Z"
+                    }
+                }
+            ]
+
+        ## Lookup Record Updating
+
+        A `PUT` update existing row in collection:
+
+         * **collection_name** - the name of collection
+         * **objectId** - identifier of row that is going to be updated
+         * **item** - a data to update existing row
+
+        Replace data of existing row for specific collection:
+
+            PUT /api/v2/database_records.json
+            {
+                "collection_name": "Lookups List",
+                "objectId": "J7vDtb5Aek",
+                "item": {
+                    "name": "Gendalf the Gray"
+                }
+            }
+
+
+        Response status of success updating would be `202`:
+
+            {
+                "updatedAt": "2020-12-10T20:24:32.595Z"
+            }
+
+        ## Lookup Record Deleting
+
+        A `DELETE` deletes collection:
+
+         * **collection_name** - the name of collection
+         * **objectId** - identifier of record to delete
+
+        Create new collection for current org:
+
+            DELETE /api/v2/database_records.json
+            {
+                "collection_name": "Lookups List",
+                "objectId": "J7vDtb5Aek"
+            }
+
+        Response status of success deletion would be `204`
+    """
+
     permission = "orgs.org_lookups"
 
     def list(self, request, *args, **kwargs):
@@ -3741,12 +3963,9 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
             "X-Parse-Master-Key": settings.PARSE_MASTER_KEY,
             "Content-Type": "application/json",
         }
-        fields_url = f"{settings.PARSE_URL}/schemas/{collection}"
         results_url = f"{settings.PARSE_URL}/classes/{collection}?order=order&limit=1000"
-        fields = requests.get(fields_url, headers=parse_headers).json().get("fields", {})
         response = requests.get(results_url, headers=parse_headers)
         result = response.json()
-        result["fields"] = fields
 
         return Response(result, status=status.HTTP_200_OK)
 
@@ -3769,16 +3988,14 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
             insert_index = count_response.json().get("count")
             db_endpoint = f"{settings.PARSE_ENDPOINT}/classes/{collection}"
             for index, data in enumerate(items_to_push, start=insert_index):
-                requests_.append({
-                    "method": "POST",
-                    "path": db_endpoint,
-                    "body": {"order": index, **data}
-                })
+                requests_.append({"method": "POST", "path": db_endpoint, "body": {"order": index, **data}})
             response = requests.post(insert_url, data=json.dumps({"requests": requests_}), headers=self.parse_headers)
         else:
             return Response(count_response.json(), status=count_response.status_code)
 
-        return Response(response.json(), status=(status.HTTP_201_CREATED if response.status_code == 200 else response.status_code))
+        return Response(
+            response.json(), status=(status.HTTP_201_CREATED if response.status_code == 200 else response.status_code)
+        )
 
     def delete(self, request, *args, **kwargs):
         org, collection_name, collections_list, error_response = self.get_default_params(config="collection_exist")
@@ -3804,15 +4021,12 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
         if not object_id:
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
-        data_to_replace: dict = self.request.data
-        del data_to_replace["objectId"]
-        del data_to_replace["collection_name"]
+        data_to_replace: dict = self.request.data.get("item")
 
         collection = self.get_collection_full_name(org=org, collection=collection_name)
         parse_url = f"{settings.PARSE_URL}/classes/{collection}/{object_id}"
         response = requests.put(parse_url, data=json.dumps(data_to_replace), headers=self.parse_headers)
 
         return Response(
-            response.json(),
-            status=status.HTTP_202_ACCEPTED if response.status_code == 200 else response.status_code
+            response.json(), status=status.HTTP_202_ACCEPTED if response.status_code == 200 else response.status_code
         )
