@@ -69,7 +69,7 @@ from temba.utils.text import random_string
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import ComponentFormMixin, NonAtomicMixin
 
-from .models import BackupToken, Invitation, Org, OrgCache, TopUp, UserSettings, get_stripe_credentials
+from .models import BackupToken, Invitation, Org, OrgCache, OrgRole, TopUp, UserSettings, get_stripe_credentials
 from .tasks import apply_topups_task
 
 
@@ -486,12 +486,10 @@ class UserCRUDL(SmartCRUDL):
             org = user.get_org()
 
             if org:
-                org_users = org.administrators.all() | org.editors.all() | org.viewers.all() | org.surveyors.all()
-
                 if not user.is_authenticated:  # pragma: needs cover
                     return False
 
-                if user in org_users:
+                if user in org.get_org_users():
                     return True
 
             return False  # pragma: needs cover
@@ -1147,8 +1145,7 @@ class OrgCRUDL(SmartCRUDL):
             return mark_safe(f"<div class='plan-name'>{obj.plan}</div>")
 
         def get_owner(self, obj):
-            # default to the created by if there are no admins
-            owner = obj.latest_admin() or obj.created_by
+            owner = obj.get_owner()
 
             return mark_safe(
                 f"<div class='owner-name'>{escape(owner.first_name)} {escape(owner.last_name)}</div><div class='owner-email'>{owner}</div>"
@@ -1204,7 +1201,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def lookup_field_link(self, context, field, obj):
             if field == "owner":
-                owner = obj.latest_admin() or obj.created_by
+                owner = obj.get_owner()
                 return reverse("users.user_update", args=[owner.pk])
             return super().lookup_field_link(context, field, obj)
 
@@ -1842,7 +1839,7 @@ class OrgCRUDL(SmartCRUDL):
                 elif user_orgs.count() == 1:
                     org = user_orgs[0]
                     self.request.session["org_id"] = org.pk
-                    if org.get_org_surveyors().filter(username=self.request.user.username):
+                    if org.get_user_role(user) == OrgRole.SURVEYOR:
                         return HttpResponseRedirect(reverse("orgs.org_surveyor"))
 
                     return HttpResponseRedirect(self.get_success_url())  # pragma: needs cover
@@ -1878,7 +1875,7 @@ class OrgCRUDL(SmartCRUDL):
             else:
                 return HttpResponseRedirect(reverse("orgs.org_choose"))
 
-            if org.get_org_surveyors().filter(username=self.request.user.username):
+            if org.get_user_role(self.request.user) == OrgRole.SURVEYOR:
                 return HttpResponseRedirect(reverse("orgs.org_surveyor"))
 
             return HttpResponseRedirect(self.get_success_url())
@@ -1915,14 +1912,9 @@ class OrgCRUDL(SmartCRUDL):
             # log the user in
             user = authenticate(username=user.username, password=self.form.cleaned_data["password"])
             login(self.request, user)
-            if self.invitation.user_group == "A":
-                obj.administrators.add(user)
-            elif self.invitation.user_group == "E":  # pragma: needs cover
-                obj.editors.add(user)
-            elif self.invitation.user_group == "S":
-                obj.surveyors.add(user)
-            else:  # pragma: needs cover
-                obj.viewers.add(user)
+
+            role = OrgRole.from_code(self.invitation.user_group) or OrgRole.VIEWER
+            obj.add_user(user, role)
 
             # make the invitation inactive
             self.invitation.is_active = False
@@ -1999,14 +1991,8 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             self.invitation = self.get_invitation()
             if org:
-                if self.invitation.user_group == "A":
-                    org.administrators.add(self.request.user)
-                elif self.invitation.user_group == "E":
-                    org.editors.add(self.request.user)
-                elif self.invitation.user_group == "S":
-                    org.surveyors.add(self.request.user)
-                else:
-                    org.viewers.add(self.request.user)
+                role = OrgRole.from_code(self.invitation.user_group) or OrgRole.VIEWER
+                org.add_user(self.request.user, role)
 
                 # make the invitation inactive
                 self.invitation.is_active = False
@@ -2225,12 +2211,12 @@ class OrgCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             obj = super().post_save(obj)
-            obj.administrators.add(self.user)
+            obj.add_user(self.user, OrgRole.ADMINISTRATOR)
 
             if not self.request.user.is_anonymous and self.request.user.has_perm(
                 "orgs.org_grant"
             ):  # pragma: needs cover
-                obj.administrators.add(self.request.user.pk)
+                obj.add_user(self.request.user, OrgRole.ADMINISTRATOR)
 
             obj.initialize(branding=obj.get_branding(), topup_size=self.get_welcome_size())
 
