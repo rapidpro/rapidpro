@@ -489,7 +489,7 @@ class UserCRUDL(SmartCRUDL):
                 if not user.is_authenticated:  # pragma: needs cover
                     return False
 
-                if user in org.get_org_users():
+                if org.has_user(user):
                     return True
 
             return False  # pragma: needs cover
@@ -1013,7 +1013,7 @@ class OrgCRUDL(SmartCRUDL):
                     try:
                         from temba.utils.email import send_custom_smtp_email
 
-                        admin_emails = [admin.email for admin in self.instance.get_org_admins().order_by("email")]
+                        admin_emails = [admin.email for admin in self.instance.get_admins().order_by("email")]
 
                         branding = self.instance.get_branding()
                         subject = _("%(name)s SMTP configuration test") % branding
@@ -1444,7 +1444,7 @@ class OrgCRUDL(SmartCRUDL):
             form = super().get_form()
 
             org = self.get_object()
-            self.org_users = org.get_org_users()
+            self.org_users = org.get_users()
             self.fields_by_users = form.add_user_group_fields(self.ORG_GROUPS, self.org_users)
 
             self.invites = Invitation.objects.filter(org=org, is_active=True).order_by("email")
@@ -1526,7 +1526,7 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def get_success_url(self):
-            still_in_org = self.request.user in self.get_object().get_org_users()
+            still_in_org = self.get_object().has_user(self.request.user)
 
             # if current user no longer belongs to this org, redirect to org chooser
             return reverse("orgs.org_manage_accounts") if still_in_org else reverse("orgs.org_choose")

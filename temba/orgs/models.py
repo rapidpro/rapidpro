@@ -1104,21 +1104,42 @@ class Org(SmartModel):
 
         return boundary
 
-    def get_org_admins(self):
-        return self.get_users_with_role(OrgRole.ADMINISTRATOR)
-
     def get_users_with_role(self, role: OrgRole):
+        """
+        Gets the users who have the given role in this org
+        """
         return role.get_users(self)
 
-    def get_org_users(self):
+    def get_admins(self):
+        """
+        Convenience method for getting all org administrators
+        """
+        return self.get_users_with_role(OrgRole.ADMINISTRATOR)
+
+    def get_users(self):
+        """
+        Gets all of the users across all roles for this org
+        """
         user_sets = [role.get_users(self) for role in OrgRole]
         all_users = functools.reduce(operator.or_, user_sets)
         return all_users.distinct().order_by("email")
 
+    def has_user(self, user: User) -> bool:
+        """
+        Returns whether the given user has a role in this org (only explicit roles, so doesn't include customer support)
+        """
+        return self.get_users().filter(id=user.id).exists()
+
     def add_user(self, user: User, role: OrgRole):
+        """
+        Adds the given user to this org with the given role
+        """
         getattr(self, role.m2m_name).add(user)
 
     def remove_user(self, user: User):
+        """
+        Removes the given user from this org by removing them from any roles
+        """
         for role in OrgRole:
             getattr(self, role.m2m_name).remove(user)
 
@@ -1137,7 +1158,7 @@ class Org(SmartModel):
             return OrgRole.ADMINISTRATOR
 
         for role in OrgRole:
-            if user in self.get_users_with_role(role):
+            if self.get_users_with_role(role).filter(id=user.id).exists():
                 return role
 
         return None
@@ -1173,7 +1194,7 @@ class Org(SmartModel):
         with open(filename, "r") as example_file:
             samples = example_file.read()
 
-        user = self.get_org_users().first()
+        user = self.get_admins().first()
         if user:
             # some some substitutions
             samples = samples.replace("{{EMAIL}}", user.username).replace("{{API_URL}}", api_url)
@@ -1855,7 +1876,7 @@ class Org(SmartModel):
 
         # release any user that belongs only to us
         if release_users:
-            for user in self.get_org_users():
+            for user in self.get_users():
                 # check if this user is a member of any org on any brand
                 other_orgs = user.get_user_orgs().exclude(id=self.id)
                 if not other_orgs:
@@ -2082,7 +2103,7 @@ def get_owned_orgs(user, brands=None):
     """
     owned_orgs = []
     for org in user.get_user_orgs(brands=brands):
-        if not org.get_org_users().exclude(id=user.id).exists():
+        if not org.get_users().exclude(id=user.id).exists():
             owned_orgs.append(org)
     return owned_orgs
 
@@ -2587,7 +2608,7 @@ class CreditAlert(SmartModel):
 
         logging.info(f"triggering {alert_type} credits alert type for {org.name}")
 
-        admin = org.get_org_admins().first()
+        admin = org.get_admins().first()
 
         if admin:
             # Otherwise, create our alert objects and trigger our event
@@ -2601,7 +2622,7 @@ class CreditAlert(SmartModel):
         send_alert_email_task(self.id)
 
     def send_email(self):
-        admin_emails = [admin.email for admin in self.org.get_org_admins().order_by("email")]
+        admin_emails = [admin.email for admin in self.org.get_admins().order_by("email")]
 
         if len(admin_emails) == 0:
             return

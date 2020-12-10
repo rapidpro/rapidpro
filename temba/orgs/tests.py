@@ -412,7 +412,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
             # save off the ids of our current users
-            org_user_ids = list(org.get_org_users().values_list("id", flat=True))
+            org_user_ids = list(org.get_users().values_list("id", flat=True))
 
             # we should be starting with some mock s3 objects
             self.assertEqual(5, len(self.mock_s3.objects))
@@ -483,8 +483,8 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
 
 class OrgTest(TembaTest):
-    def test_get_org_users(self):
-        org_users = self.org.get_org_users()
+    def test_get_users(self):
+        org_users = self.org.get_users()
         self.assertTrue(self.user in org_users)
         self.assertTrue(self.surveyor in org_users)
         self.assertTrue(self.editor in org_users)
@@ -3248,10 +3248,10 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
 
         # of which our user is an administrator
-        self.assertTrue(org.get_org_admins().filter(pk=user.pk))
+        self.assertTrue(org.get_admins().filter(pk=user.pk))
 
         # not the logged in user at the signup time
-        self.assertFalse(org.get_org_admins().filter(pk=self.user.pk))
+        self.assertFalse(org.get_admins().filter(pk=self.user.pk))
 
     @override_settings(DEFAULT_BRAND="no-topups.org")
     def test_no_topup_signup(self):
@@ -3357,7 +3357,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertTrue(org.uses_topups)
 
         # of which our user is an administrator
-        self.assertTrue(org.get_org_admins().filter(pk=user.pk))
+        self.assertTrue(org.get_admins().filter(pk=user.pk))
 
         # org should have 1000 credits
         self.assertEqual(org.get_credits_remaining(), 1000)
