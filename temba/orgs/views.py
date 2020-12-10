@@ -2568,7 +2568,14 @@ class OrgCRUDL(SmartCRUDL):
                     self.add_classifier_section(formax, classifier)
 
             if self.has_org_perm("tickets.ticket_filter"):
-                for ticketer in org.ticketers.filter(is_active=True).order_by("created_on"):
+                from temba.tickets.types.internal import InternalType
+
+                ext_ticketers = (
+                    org.ticketers.filter(is_active=True)
+                    .exclude(ticketer_type=InternalType.slug)
+                    .order_by("created_on")
+                )
+                for ticketer in ext_ticketers:
                     self.add_ticketer_section(formax, ticketer)
 
             if self.has_org_perm("orgs.org_profile"):

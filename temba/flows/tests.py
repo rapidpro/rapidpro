@@ -349,48 +349,38 @@ class FlowTest(TembaTest):
 
         self.login(self.admin)
 
+        def assert_features(features: list):
+            response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
+            self.assertEqual(features, json.loads(response.context["feature_filters"]))
+
         # empty feature set
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertEqual([], json.loads(response.context["feature_filters"]))
+        assert_features([])
 
-        # with zapier
+        # add a resthook
         Resthook.objects.create(org=flow.org, created_by=self.admin, modified_by=self.admin)
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertEqual(["resthook"], json.loads(response.context["feature_filters"]))
+        assert_features(["resthook"])
 
-        # add in a classifier
+        # add an NLP classifier
         Classifier.objects.create(org=flow.org, config="", created_by=self.admin, modified_by=self.admin)
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertEqual(["classifier", "resthook"], json.loads(response.context["feature_filters"]))
+        assert_features(["classifier", "resthook"])
 
-        # add in an airtime connection
+        # add a DTOne account
         flow.org.connect_dtone("login", "token", self.admin)
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertEqual(["airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"]))
+        assert_features(["airtime", "classifier", "resthook"])
 
         # change our channel to use a whatsapp scheme
         self.channel.schemes = [URN.WHATSAPP_SCHEME]
         self.channel.save()
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertEqual(
-            ["whatsapp", "airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"])
-        )
+        assert_features(["whatsapp", "airtime", "classifier", "resthook"])
 
         # change our channel to use a facebook scheme
         self.channel.schemes = [URN.FACEBOOK_SCHEME]
         self.channel.save()
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertEqual(
-            ["facebook", "airtime", "classifier", "resthook"], json.loads(response.context["feature_filters"])
-        )
+        assert_features(["facebook", "airtime", "classifier", "resthook"])
 
-        # add in a ticketer
+        # add a ticketer
         Ticketer.create(self.org, self.user, "mailgun", "Email (bob@acme.com)", {})
-        response = self.client.get(reverse("flows.flow_editor", args=[flow.uuid]))
-        self.assertEqual(
-            ["facebook", "airtime", "classifier", "ticketer", "resthook"],
-            json.loads(response.context["feature_filters"]),
-        )
+        assert_features(["facebook", "airtime", "classifier", "ticketer", "resthook"])
 
     def test_save_revision(self):
         self.login(self.admin)
@@ -3473,6 +3463,9 @@ class FlowStartTest(TembaTest):
             start.modified_on = modified_on
             start.save(update_fields=("status", "modified_on"))
 
+            session = FlowSession.objects.create(uuid=uuid4(), org=self.org, contact=contact)
+            FlowRun.objects.create(org=self.org, contact=contact, flow=flow, session=session, start=start)
+
             FlowStartCount.objects.create(start=start, count=1, is_squashed=False)
 
         date1 = timezone.now() - timedelta(days=8)
@@ -3508,6 +3501,9 @@ class FlowStartTest(TembaTest):
 
         # 5 mailroom created starts remain
         self.assertEqual(5, FlowStart.objects.filter(created_by=None).count())
+
+        # only runs from our remaining starts still have start ids
+        self.assertEqual(8, FlowRun.objects.exclude(start=None).count())
 
         # the 3 that aren't complete...
         self.assertEqual(3, FlowStart.objects.filter(created_by=None).exclude(status="C").exclude(status="F").count())

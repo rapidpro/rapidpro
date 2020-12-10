@@ -1,15 +1,15 @@
 
-.flex.justify-end
+.flex.flex-wrap.max-w-full
   -for group in groups
-    .lbl-group.linked.ml-2(onclick="goto(event)" href="{% url 'contacts.contact_filter' group.uuid %}" class="{% if group.is_dynamic%}lbl-group-dynamic{%endif%}")
+    .lbl-group.linked.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_filter' group.uuid %}" class="{% if group.is_dynamic%}lbl-group-dynamic{%endif%}")
       {{ group.name }}
   
   -for contact in contacts
-    .item.contact.lbl.linked.ml-2(onclick="goto(event)" href="{% url 'contacts.contact_read' contact.uuid %}")
-      .icon.icon-user.text-dark-alpha-300
+    .item.contact.lbl.linked.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_read' contact.uuid %}")
+      .icon.icon-user.text-dark-alpha-300.-mb-1
       {{ contact.get_display }}
 
   -if query
-    .item.query.lbl.linked.ml-2(onclick="goto(event)" href="{% url 'contacts.contact_list' %}?search={{ query|urlencode }}")
-      .icon.icon-filter.text-dark-alpha-300
+    .item.query.lbl.linked.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_list' %}?search={{ query|urlencode }}")
+      .icon.icon-filter.text-dark-alpha-300.-mb-1
       {{ query }}

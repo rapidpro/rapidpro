@@ -172,6 +172,7 @@ a {
 }
 
 .lift {
+  will-change: transform, opacity;
   &:hover {
     @apply shadow-lg;
     transform: translateY(-1px);

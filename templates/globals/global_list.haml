@@ -33,7 +33,7 @@
         .left
           - if view.add_button and org_perms.globals.global_create
             %temba-modax#create-global-modal{ header:'{% trans "Create Global" %}', endpoint:"{% url 'globals.global_create' %}"}
-              .button-primary.mb-3
+              .button-primary.mb-3.block
                 -trans "Create Global"
 
           .lp-nav.upper

@@ -20,7 +20,7 @@
 
 -block post-title
   -if object.is_archived
-    .labels
+    .labels.mt-2
       .lbl.linked{onclick:"goto(event)", href:"{%url 'campaigns.campaign_archived' %}"}
         -trans "Archived"
 
