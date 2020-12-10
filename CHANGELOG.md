@@ -1,3 +1,11 @@
+v6.1.7
+----------
+ * Wire table listeners on pjax reload
+ * Update domain from swag.textit.com to whatsapp.textit.com
+ * Add internal ticketer type for BETA users
+ * Inner scrolling on contact list page
+ * Improve styles for recipient lists
+
 v6.1.6
 ----------
  * Trim our start runs 1,000 at a time and by id
