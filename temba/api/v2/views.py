@@ -103,6 +103,8 @@ class RootView(views.APIView):
      * [/api/v2/classifiers](/api/v2/classifiers) - to list classifiers
      * [/api/v2/contacts](/api/v2/contacts) - to list, create, update or delete contacts
      * [/api/v2/contact_actions](/api/v2/contact_actions) - to perform bulk contact actions
+     * [/api/v2/database](/api/v2/database) - to manage lookup collections
+     * [/api/v2/database_records](/api/v2/database_records) - to manage lookup collection records
      * [/api/v2/definitions](/api/v2/definitions) - to export flow definitions, campaigns, and triggers
      * [/api/v2/fields](/api/v2/fields) - to list, create or update contact fields
      * [/api/v2/flow_starts](/api/v2/flow_starts) - to list flow starts and start contacts in flows
