@@ -85,7 +85,7 @@ class OrgRole(Enum):
                 return role
         return None
 
-    @property
+    @cached_property
     def group(self):
         """
         Gets the auth group which defines the permissions for this role
