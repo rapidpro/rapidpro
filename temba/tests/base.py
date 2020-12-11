@@ -47,9 +47,10 @@ class TembaTestMixin:
 
         # create different user types
         self.non_org_user = self.create_user("NonOrg")
-        self.user = self.create_user("User", ("Viewers",))
-        self.editor = self.create_user("Editor")
         self.admin = self.create_user("Administrator")
+        self.editor = self.create_user("Editor")
+        self.user = self.create_user("User", ("Viewers",))
+        self.agent = self.create_user("Agent")
         self.surveyor = self.create_user("Surveyor")
         self.customer_support = self.create_user("support", ("Customer Support",))
 
@@ -71,6 +72,9 @@ class TembaTestMixin:
 
         self.admin.set_org(self.org)
         self.org.administrators.add(self.admin)
+
+        self.agent.set_org(self.org)
+        self.org.agents.add(self.agent)
 
         self.surveyor.set_org(self.org)
         self.org.surveyors.add(self.surveyor)

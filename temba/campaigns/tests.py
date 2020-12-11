@@ -1366,7 +1366,7 @@ class CampaignTest(TembaTest):
 
 class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
     def create_campaign(self, org, name, group):
-        user = org.get_user()
+        user = org.get_admins().first()
         registered = self.create_field("registered", "Registered", value_type="D", org=org)
         flow = self.create_flow(org=org)
         campaign = Campaign.create(org, user, name, group)
@@ -1490,7 +1490,7 @@ class CampaignEventCRUDLTest(TembaTest):
         self.other_org_campaign = self.create_campaign(self.org2)
 
     def create_campaign(self, org):
-        user = org.get_user()
+        user = org.get_admins().first()
         group = self.create_group("Reporters", contacts=[], org=org)
         registered = self.create_field("registered", "Registered", value_type="D", org=org)
         flow = self.create_flow(org=org)
