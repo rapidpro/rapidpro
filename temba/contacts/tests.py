@@ -5335,6 +5335,7 @@ class ContactImportTest(TembaTest):
             ),
             ("invalid_scheme.xlsx", "Header 'URN:XXX' is not a valid URN type."),
             ("invalid_field_key.xlsx", "Header 'Field: #$^%' is not a valid field name."),
+            ("reserved_field_key.xlsx", "Header 'Field:id' is not a valid field name."),
             ("no_urn_or_uuid.xlsx", "Import files must contain either UUID or a URN header."),
             ("uuid_only.csv", "Import files must contain columns besides UUID."),
         ]
