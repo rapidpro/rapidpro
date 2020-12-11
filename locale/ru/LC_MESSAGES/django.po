@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-01 20:53+0000\n"
+"POT-Creation-Date: 2020-12-10 20:04+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3748,6 +3748,14 @@ msgstr "Войти"
 msgid "Sign out"
 msgstr "Зарегистрироваться"
 
+msgid "Viewer"
+msgstr "Абонент"
+
+#, fuzzy
+#| msgid "Agent Name"
+msgid "Agent"
+msgstr "Название Агента"
+
 msgid "Plan"
 msgstr "План"
 
@@ -3759,30 +3767,6 @@ msgstr "Клиент Stripe "
 
 msgid "Our Stripe customer id for your organization"
 msgstr "Наш id клиента Stripe для Вашей организации"
-
-msgid "Administrators"
-msgstr "Администраторы"
-
-msgid "The administrators in your organization"
-msgstr "Администраторы в Вашей организации"
-
-msgid "Viewers"
-msgstr "Абоненты"
-
-msgid "The viewers in your organization"
-msgstr "Абоненты в Вашей организации"
-
-msgid "Editors"
-msgstr "Редакторы"
-
-msgid "The editors in your organization"
-msgstr "Редакторы в Вашей организации"
-
-msgid "Surveyors"
-msgstr "Наблюдатели"
-
-msgid "The users can login via Android for your organization"
-msgstr "Пользователи, которые могут зайти через Android от Вашей организации"
 
 msgid "The main language used by this organization"
 msgstr "Основной язык, используемый этой организацией"
@@ -3864,9 +3848,6 @@ msgstr "Извините, Ваша карта была отклонена, по�
 
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr "Извините, нам не удалось обработать Ваш платеж, повторите попытку позже или свяжитесь с нами."
-
-msgid "Viewer"
-msgstr "Абонент"
 
 msgid "Org"
 msgstr "Организация"
@@ -4594,6 +4575,13 @@ msgstr "Открыто"
 
 msgid "Closed"
 msgstr "Закрыто"
+
+msgid "Enabling this will allow you to handle tickets within this application."
+msgstr ""
+
+#, python-format
+msgid "This will enable handling tickets internally in %(brand)s."
+msgstr ""
 
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr ""
@@ -9244,6 +9232,15 @@ msgstr "Логин"
 msgid "Admins"
 msgstr "Администраторы"
 
+msgid "Editors"
+msgstr "Редакторы"
+
+msgid "Viewers"
+msgstr "Абоненты"
+
+msgid "Surveyors"
+msgstr "Наблюдатели"
+
 msgid "Remove"
 msgstr "Удалить"
 
@@ -9259,30 +9256,6 @@ msgstr "Приглашение %(name)s"
 #| msgid "Invites"
 msgid "Invite New Users"
 msgstr "Приглашения"
-
-msgid ","
-msgstr ","
-
-msgid "No Administrator"
-msgstr "Администратор отсутствует"
-
-msgid "No Editors"
-msgstr "Редакторы отсутствуют"
-
-msgid "and"
-msgstr "и"
-
-msgid "No Viewers"
-msgstr "Абоненты отсутствуют"
-
-msgid "Surveyor."
-msgstr "Наблюдатель."
-
-msgid "No Surveyors."
-msgstr "Наблюдатели отсутствуют"
-
-msgid "Surveyors."
-msgstr "Наблюдатели."
 
 msgid "Disconnect Nexmo"
 msgstr "Отключить Nexmo"
@@ -10461,6 +10434,45 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Administrators"
+#~ msgstr "Администраторы"
+
+#~ msgid "The administrators in your organization"
+#~ msgstr "Администраторы в Вашей организации"
+
+#~ msgid "The viewers in your organization"
+#~ msgstr "Абоненты в Вашей организации"
+
+#~ msgid "The editors in your organization"
+#~ msgstr "Редакторы в Вашей организации"
+
+#~ msgid "The users can login via Android for your organization"
+#~ msgstr "Пользователи, которые могут зайти через Android от Вашей организации"
+
+#~ msgid ","
+#~ msgstr ","
+
+#~ msgid "No Administrator"
+#~ msgstr "Администратор отсутствует"
+
+#~ msgid "No Editors"
+#~ msgstr "Редакторы отсутствуют"
+
+#~ msgid "and"
+#~ msgstr "и"
+
+#~ msgid "No Viewers"
+#~ msgstr "Абоненты отсутствуют"
+
+#~ msgid "Surveyor."
+#~ msgstr "Наблюдатель."
+
+#~ msgid "No Surveyors."
+#~ msgstr "Наблюдатели отсутствуют"
+
+#~ msgid "Surveyors."
+#~ msgstr "Наблюдатели."
 
 #~ msgid "Passwords must contain at least 8 letters."
 #~ msgstr "Пароль должен содержать не менее 8 букв"

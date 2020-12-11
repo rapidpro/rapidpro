@@ -51,8 +51,18 @@ from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
 
 from .context_processors import GroupPermWrapper
-from .models import CreditAlert, Invitation, Language, Org, TopUp, TopUpCredits
+from .models import CreditAlert, Invitation, Language, Org, OrgRole, TopUp, TopUpCredits
 from .tasks import resume_failed_tasks, squash_topupcredits
+
+
+class OrgRoleTest(TembaTest):
+    def test_from_code(self):
+        self.assertEqual(OrgRole.EDITOR, OrgRole.from_code("E"))
+        self.assertIsNone(OrgRole.from_code("X"))
+
+    def test_group(self):
+        self.assertEqual(Group.objects.get(name="Editors"), OrgRole.EDITOR.group)
+        self.assertEqual(Group.objects.get(name="Agents"), OrgRole.AGENT.group)
 
 
 class OrgContextProcessorTest(TembaTest):
@@ -193,6 +203,7 @@ class UserTest(TembaTest):
         self.surveyor.release(self.org.brand)
         self.editor.release(self.org.brand)
         self.user.release(self.org.brand)
+        self.agent.release(self.org.brand)
 
         # still a user left, our org remains active
         self.org.refresh_from_db()
@@ -412,7 +423,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
             # save off the ids of our current users
-            org_user_ids = list(org.get_org_users().values_list("id", flat=True))
+            org_user_ids = list(org.get_users().values_list("id", flat=True))
 
             # we should be starting with some mock s3 objects
             self.assertEqual(5, len(self.mock_s3.objects))
@@ -483,18 +494,26 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
 
 class OrgTest(TembaTest):
-    def test_get_org_users(self):
-        org_users = self.org.get_org_users()
-        self.assertTrue(self.user in org_users)
-        self.assertTrue(self.surveyor in org_users)
-        self.assertTrue(self.editor in org_users)
-        self.assertTrue(self.admin in org_users)
+    def test_get_users(self):
+        # should return all org users ordered by email
+        self.assertEqual([self.admin, self.agent, self.editor, self.surveyor, self.user], list(self.org.get_users()))
 
-        # should be ordered by email
-        self.assertEqual(self.admin, org_users[0])
-        self.assertEqual(self.editor, org_users[1])
-        self.assertEqual(self.surveyor, org_users[2])
-        self.assertEqual(self.user, org_users[3])
+    def test_get_owner(self):
+        # admins take priority
+        self.assertEqual(self.admin, self.org.get_owner())
+
+        self.org.administrators.clear()
+
+        # then editors etc
+        self.assertEqual(self.editor, self.org.get_owner())
+
+        self.org.editors.clear()
+        self.org.viewers.clear()
+        self.org.agents.clear()
+        self.org.surveyors.clear()
+
+        # finally defaulting to org creator
+        self.assertEqual(self.user, self.org.get_owner())
 
     def test_get_unique_slug(self):
         self.org.slug = "allo"
@@ -1099,7 +1118,7 @@ class OrgTest(TembaTest):
         # we have 19 fields in the form including 16 checkboxes for the four users, an email field, a user group field
         # and 'loc' field.
         expected_fields = {"invite_emails", "invite_group", "loc"}
-        for user in (self.surveyor, self.user, self.editor, self.admin):
+        for user in (self.surveyor, self.user, self.editor, self.admin, self.agent):
             for group in ("administrators", "editors", "viewers", "surveyors"):
                 expected_fields.add(group + "_%d" % user.pk)
 
@@ -1192,7 +1211,7 @@ class OrgTest(TembaTest):
         response = self.client.get(url)
 
         # user ordered by email
-        self.assertEqual(list(response.context["org_users"]), [self.admin, self.editor, self.user])
+        self.assertEqual(list(response.context["org_users"]), [self.admin, self.agent, self.editor, self.user])
 
         # invites ordered by email as well
         self.assertEqual(response.context["invites"][0].email, "code@temba.com")
@@ -3248,10 +3267,10 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
 
         # of which our user is an administrator
-        self.assertTrue(org.get_org_admins().filter(pk=user.pk))
+        self.assertTrue(org.get_admins().filter(pk=user.pk))
 
         # not the logged in user at the signup time
-        self.assertFalse(org.get_org_admins().filter(pk=self.user.pk))
+        self.assertFalse(org.get_admins().filter(pk=self.user.pk))
 
     @override_settings(DEFAULT_BRAND="no-topups.org")
     def test_no_topup_signup(self):
@@ -3357,7 +3376,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertTrue(org.uses_topups)
 
         # of which our user is an administrator
-        self.assertTrue(org.get_org_admins().filter(pk=user.pk))
+        self.assertTrue(org.get_admins().filter(pk=user.pk))
 
         # org should have 1000 credits
         self.assertEqual(org.get_credits_remaining(), 1000)

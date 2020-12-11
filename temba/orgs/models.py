@@ -1,8 +1,8 @@
+import functools
 import itertools
 import logging
-import os
-import functools
 import operator
+import os
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
@@ -65,24 +65,44 @@ ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
 
 
 class OrgRole(Enum):
-    ADMINISTRATOR = ("A", _("Administrator"), "Administrators", "administrators")
-    EDITOR = ("E", _("Editor"), "Editors", "editors")
-    VIEWER = ("V", _("Viewer"), "Viewers", "viewers")
-    AGENT = ("T", _("Agent"), "Agents", "agents")
-    SURVEYOR = ("S", _("Surveyor"), "Surveyors", "surveyors")
+    ADMINISTRATOR = ("A", _("Administrator"), "Administrators", "administrators", "org_admins")
+    EDITOR = ("E", _("Editor"), "Editors", "editors", "org_editors")
+    VIEWER = ("V", _("Viewer"), "Viewers", "viewers", "org_viewers")
+    AGENT = ("T", _("Agent"), "Agents", "agents", "org_agents")
+    SURVEYOR = ("S", _("Surveyor"), "Surveyors", "surveyors", "org_surveyors")
 
-    def __init__(self, code: str, display: str, group_name: str, m2m_name: str):
+    def __init__(self, code: str, display: str, group_name: str, m2m_name: str, rel_name: str):
         self.code = code
         self.display = display
         self.group_name = group_name
         self.m2m_name = m2m_name
+        self.rel_name = rel_name
+
+    @classmethod
+    def from_code(cls, code: str):
+        for role in cls:
+            if role.code == code:
+                return role
+        return None
 
     @property
     def group(self):
+        """
+        Gets the auth group which defines the permissions for this role
+        """
         return Group.objects.get(name=self.group_name)
 
     def get_users(self, org):
+        """
+        The users with this role in the given org
+        """
         return getattr(org, self.m2m_name).all()
+
+    def get_orgs(self, user):
+        """
+        The orgs which the given user belongs to with this role
+        """
+        return getattr(user, self.rel_name).all()
 
 
 class OrgLock(Enum):
@@ -169,11 +189,11 @@ class Org(SmartModel):
     )
 
     # user role m2ms
-    administrators = models.ManyToManyField(User, related_name="org_admins")
-    viewers = models.ManyToManyField(User, related_name="org_viewers")
-    editors = models.ManyToManyField(User, related_name="org_editors")
-    agents = models.ManyToManyField(User, related_name="org_agents")
-    surveyors = models.ManyToManyField(User, related_name="org_surveyors")
+    administrators = models.ManyToManyField(User, related_name=OrgRole.ADMINISTRATOR.rel_name)
+    editors = models.ManyToManyField(User, related_name=OrgRole.EDITOR.rel_name)
+    viewers = models.ManyToManyField(User, related_name=OrgRole.VIEWER.rel_name)
+    agents = models.ManyToManyField(User, related_name=OrgRole.AGENT.rel_name)
+    surveyors = models.ManyToManyField(User, related_name=OrgRole.SURVEYOR.rel_name)
 
     language = models.CharField(
         verbose_name=_("Language"),
@@ -306,7 +326,7 @@ class Org(SmartModel):
                 is_multi_org=self.is_multi_org,
             )
 
-            org.administrators.add(created_by)
+            org.add_user(created_by, OrgRole.ADMINISTRATOR)
 
             # initialize our org, but without any credits
             org.initialize(branding=org.get_branding(), topup_size=0)
@@ -1084,45 +1104,71 @@ class Org(SmartModel):
 
         return boundary
 
-    def get_org_admins(self):
-        return self.get_users_with_role(OrgRole.ADMINISTRATOR)
-
-    def get_org_editors(self):
-        return self.get_users_with_role(OrgRole.EDITOR)
-
-    def get_org_viewers(self):
-        return self.get_users_with_role(OrgRole.VIEWER)
-
-    def get_org_surveyors(self):
-        return self.get_users_with_role(OrgRole.SURVEYOR)
-
     def get_users_with_role(self, role: OrgRole):
+        """
+        Gets the users who have the given role in this org
+        """
         return role.get_users(self)
 
-    def get_org_users(self):
+    def get_admins(self):
+        """
+        Convenience method for getting all org administrators
+        """
+        return self.get_users_with_role(OrgRole.ADMINISTRATOR)
+
+    def get_users(self):
+        """
+        Gets all of the users across all roles for this org
+        """
         user_sets = [role.get_users(self) for role in OrgRole]
         all_users = functools.reduce(operator.or_, user_sets)
         return all_users.distinct().order_by("email")
 
-    def latest_admin(self):
+    def has_user(self, user: User) -> bool:
+        """
+        Returns whether the given user has a role in this org (only explicit roles, so doesn't include customer support)
+        """
+        return self.get_users().filter(id=user.id).exists()
+
+    def add_user(self, user: User, role: OrgRole):
+        """
+        Adds the given user to this org with the given role
+        """
+        getattr(self, role.m2m_name).add(user)
+
+    def remove_user(self, user: User):
+        """
+        Removes the given user from this org by removing them from any roles
+        """
         for role in OrgRole:
-            user = self.get_users_with_role(role).last()
+            getattr(self, role.m2m_name).remove(user)
+
+    def get_owner(self) -> User:
+        # look thru roles in order for the last added user
+        for role in OrgRole:
+            user = self.get_users_with_role(role).order_by("id").last()
             if user:
                 return user
 
+        # default to user that created this org
+        return self.created_by
+
+    def get_user_role(self, user: User):
+        if user.is_staff:
+            return OrgRole.ADMINISTRATOR
+
+        for role in OrgRole:
+            if self.get_users_with_role(role).filter(id=user.id).exists():
+                return role
+
         return None
 
-    def get_user_org_group(self, user):
-        if user.is_staff:
-            user._org_group = OrgRole.ADMINISTRATOR.group
-        else:
-            user._org_group = None
-            for role in OrgRole:
-                if user in self.get_users_with_role(role):
-                    user._org_group = role.group
-                    break
+    def get_user_org_group(self, user: User):
+        role = self.get_user_role(user)
 
-        return getattr(user, "_org_group", None)
+        user._org_group = role.group if role else None
+
+        return user._org_group
 
     def has_twilio_number(self):  # pragma: needs cover
         return self.channels.filter(channel_type="T")
@@ -1148,7 +1194,7 @@ class Org(SmartModel):
         with open(filename, "r") as example_file:
             samples = example_file.read()
 
-        user = self.get_user()
+        user = self.get_admins().first()
         if user:
             # some some substitutions
             samples = samples.replace("{{EMAIL}}", user.username).replace("{{API_URL}}", api_url)
@@ -1161,9 +1207,6 @@ class Org(SmartModel):
                     exc_info=True,
                     extra=dict(definition=json.loads(samples)),
                 )
-
-    def get_user(self):
-        return self.administrators.filter(is_active=True).first()
 
     def has_low_credits(self):
         return self.get_credits_remaining() <= self.get_low_credits_threshold()
@@ -1833,17 +1876,15 @@ class Org(SmartModel):
 
         # release any user that belongs only to us
         if release_users:
-            for user in self.get_org_users():
+            for user in self.get_users():
                 # check if this user is a member of any org on any brand
                 other_orgs = user.get_user_orgs().exclude(id=self.id)
                 if not other_orgs:
                     user.release(self.brand)
 
-        # clear out all of our users
-        self.administrators.clear()
-        self.editors.clear()
-        self.viewers.clear()
-        self.surveyors.clear()
+        # remove all the org users
+        for user in self.get_users():
+            self.remove_user(user)
 
         if immediately:
             self._full_release()
@@ -1985,8 +2026,7 @@ class Org(SmartModel):
 
     @classmethod
     def create_user(cls, email, password):
-        user = User.objects.create_user(username=email, email=email, password=password)
-        return user
+        return User.objects.create_user(username=email, email=email, password=password)
 
     @classmethod
     def get_org(cls, user):
@@ -2039,19 +2079,17 @@ def release(user, brand):
     for org in user.get_owned_orgs([brand]):
         org.release(release_users=False)
 
-    # remove us as a user on any org for our brand
+    # remove user from all roles on any org for our brand
     for org in user.get_user_orgs([brand]):
-        org.administrators.remove(user)
-        org.editors.remove(user)
-        org.viewers.remove(user)
-        org.surveyors.remove(user)
+        org.remove_user(user)
 
 
 def get_user_orgs(user, brands=None):
     if user.is_superuser:
         return Org.objects.all()
 
-    user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
+    org_sets = [role.get_orgs(user) for role in OrgRole]
+    user_orgs = functools.reduce(operator.or_, org_sets)
 
     if brands:
         user_orgs = user_orgs.filter(brand__in=brands)
@@ -2065,7 +2103,7 @@ def get_owned_orgs(user, brands=None):
     """
     owned_orgs = []
     for org in user.get_user_orgs(brands=brands):
-        if not org.get_org_users().exclude(id=user.id).exists():
+        if not org.get_users().exclude(id=user.id).exists():
             owned_orgs.append(org)
     return owned_orgs
 
@@ -2570,7 +2608,7 @@ class CreditAlert(SmartModel):
 
         logging.info(f"triggering {alert_type} credits alert type for {org.name}")
 
-        admin = org.get_org_admins().first()
+        admin = org.get_admins().first()
 
         if admin:
             # Otherwise, create our alert objects and trigger our event
@@ -2584,7 +2622,7 @@ class CreditAlert(SmartModel):
         send_alert_email_task(self.id)
 
     def send_email(self):
-        admin_emails = [admin.email for admin in self.org.get_org_admins().order_by("email")]
+        admin_emails = [admin.email for admin in self.org.get_admins().order_by("email")]
 
         if len(admin_emails) == 0:
             return

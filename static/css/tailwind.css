@@ -1419,6 +1419,10 @@ a:hover {
     box-shadow: inset 0 0 20px 10px rgba(255, 255, 255, .2);
   }
 
+.lift {
+  will-change: transform, opacity;
+}
+
 .lift:hover {
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     transform: translateY(-1px);

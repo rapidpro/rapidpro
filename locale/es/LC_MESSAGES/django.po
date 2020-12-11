@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-01 20:53+0000\n"
+"POT-Creation-Date: 2020-12-10 20:04+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4408,6 +4408,14 @@ msgstr "Registrarse"
 msgid "Sign out"
 msgstr "Registrarse"
 
+msgid "Viewer"
+msgstr "Visitante"
+
+#, fuzzy
+#| msgid "Contact Name"
+msgid "Agent"
+msgstr "Nombre del contacto"
+
 msgid "Plan"
 msgstr "Plan"
 
@@ -4419,32 +4427,6 @@ msgstr "Stripe Customer"
 
 msgid "Our Stripe customer id for your organization"
 msgstr "Nuestro id de Stripe customer para su organización"
-
-msgid "Administrators"
-msgstr "Administradores"
-
-msgid "The administrators in your organization"
-msgstr "Los administradores en su organización"
-
-msgid "Viewers"
-msgstr "Visitantes"
-
-msgid "The viewers in your organization"
-msgstr "Los visitantes en su organización"
-
-msgid "Editors"
-msgstr "Editores"
-
-msgid "The editors in your organization"
-msgstr "Los editores en su organización"
-
-msgid "Surveyors"
-msgstr ""
-
-#, fuzzy
-#| msgid "The viewers in your organization"
-msgid "The users can login via Android for your organization"
-msgstr "Los visitantes en su organización"
 
 msgid "The main language used by this organization"
 msgstr "El idioma principal usado por esta organización"
@@ -4532,9 +4514,6 @@ msgstr ""
 #, fuzzy
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr "Lo sentimos, no podemos recargar su tarjeta, por favor, inténtelo nuevamente más tarde o contáctenos a feedback@textit.in"
-
-msgid "Viewer"
-msgstr "Visitante"
 
 msgid "Org"
 msgstr "Org"
@@ -5316,6 +5295,13 @@ msgid "Open"
 msgstr ""
 
 msgid "Closed"
+msgstr ""
+
+msgid "Enabling this will allow you to handle tickets within this application."
+msgstr ""
+
+#, python-format
+msgid "This will enable handling tickets internally in %(brand)s."
 msgstr ""
 
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
@@ -9702,6 +9688,15 @@ msgstr ""
 msgid "Admins"
 msgstr "Administradores"
 
+msgid "Editors"
+msgstr "Editores"
+
+msgid "Viewers"
+msgstr "Visitantes"
+
+msgid "Surveyors"
+msgstr ""
+
 msgid "Remove"
 msgstr "Retirar"
 
@@ -9714,32 +9709,6 @@ msgid "Pending Invitations"
 msgstr "Invitación de %(name)s"
 
 msgid "Invite New Users"
-msgstr ""
-
-msgid ","
-msgstr ","
-
-msgid "No Administrator"
-msgstr "Sin Administrador"
-
-msgid "No Editors"
-msgstr "Sin Editores"
-
-msgid "and"
-msgstr "y"
-
-#, fuzzy
-#| msgid "No Viewers."
-msgid "No Viewers"
-msgstr "Sin visitantes."
-
-msgid "Surveyor."
-msgstr ""
-
-msgid "No Surveyors."
-msgstr ""
-
-msgid "Surveyors."
 msgstr ""
 
 msgid "Disconnect Nexmo"
@@ -10848,6 +10817,40 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Administrators"
+#~ msgstr "Administradores"
+
+#~ msgid "The administrators in your organization"
+#~ msgstr "Los administradores en su organización"
+
+#~ msgid "The viewers in your organization"
+#~ msgstr "Los visitantes en su organización"
+
+#~ msgid "The editors in your organization"
+#~ msgstr "Los editores en su organización"
+
+#, fuzzy
+#~| msgid "The viewers in your organization"
+#~ msgid "The users can login via Android for your organization"
+#~ msgstr "Los visitantes en su organización"
+
+#~ msgid ","
+#~ msgstr ","
+
+#~ msgid "No Administrator"
+#~ msgstr "Sin Administrador"
+
+#~ msgid "No Editors"
+#~ msgstr "Sin Editores"
+
+#~ msgid "and"
+#~ msgstr "y"
+
+#, fuzzy
+#~| msgid "No Viewers."
+#~ msgid "No Viewers"
+#~ msgstr "Sin visitantes."
 
 #~ msgid "Passwords must contain at least 8 letters."
 #~ msgstr "Las contraseñas deben contener como mínimo 8 letras."

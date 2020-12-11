@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-01 20:53+0000\n"
+"POT-Creation-Date: 2020-12-10 20:04+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2992,6 +2992,14 @@ msgstr "Connectez-vous"
 msgid "Sign out"
 msgstr "Déconnexion"
 
+msgid "Viewer"
+msgstr "Spectateur"
+
+#, fuzzy
+#| msgid "Agent Name"
+msgid "Agent"
+msgstr "Nom d'agent"
+
 msgid "Plan"
 msgstr "Plan"
 
@@ -3003,30 +3011,6 @@ msgstr "Bande consommateur"
 
 msgid "Our Stripe customer id for your organization"
 msgstr "Notre bande d'identification pour votre organisation"
-
-msgid "Administrators"
-msgstr "Administrateurs"
-
-msgid "The administrators in your organization"
-msgstr "Les administrateurs de votre entreprise"
-
-msgid "Viewers"
-msgstr "Les spectateurs"
-
-msgid "The viewers in your organization"
-msgstr "Les spectateurs de votre organisation"
-
-msgid "Editors"
-msgstr "Editeurs"
-
-msgid "The editors in your organization"
-msgstr "Les éditeurs de votre organisation"
-
-msgid "Surveyors"
-msgstr "Enquêteur"
-
-msgid "The users can login via Android for your organization"
-msgstr "Les utilisateurs peuvent se connecter via Android pour votre organisation"
 
 msgid "The main language used by this organization"
 msgstr "La langue principale utilisée par cette organisation"
@@ -3098,9 +3082,6 @@ msgstr "Désolé, votre carte a été refusée. Veuillez contacter votre fournis
 
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr "Désolé, nous n'avons pas pu traiter votre paiement. Veuillez réessayer ultérieurement ou contactez-nous."
-
-msgid "Viewer"
-msgstr "Spectateur"
 
 msgid "Org"
 msgstr "Org"
@@ -3755,6 +3736,13 @@ msgstr "Ouvert"
 
 msgid "Closed"
 msgstr "Fermé"
+
+msgid "Enabling this will allow you to handle tickets within this application."
+msgstr ""
+
+#, python-format
+msgid "This will enable handling tickets internally in %(brand)s."
+msgstr ""
 
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr "La connexion d'une adresse e-mail transmet tous les nouveaux tickets et leurs réponses à cette adresse e-mail. Vous pourrez y répondre directement et vos réponses seront envoyées au contact."
@@ -6850,6 +6838,15 @@ msgstr "Connexions"
 msgid "Admins"
 msgstr "Admins"
 
+msgid "Editors"
+msgstr "Editeurs"
+
+msgid "Viewers"
+msgstr "Les spectateurs"
+
+msgid "Surveyors"
+msgstr "Enquêteur"
+
 msgid "Remove"
 msgstr "Supprimer"
 
@@ -6861,30 +6858,6 @@ msgstr "Invitations en attente"
 
 msgid "Invite New Users"
 msgstr "Inviter de nouveaux utilisateurs"
-
-msgid ","
-msgstr ","
-
-msgid "No Administrator"
-msgstr "Aucun administrateur"
-
-msgid "No Editors"
-msgstr "Aucun éditeur"
-
-msgid "and"
-msgstr "et"
-
-msgid "No Viewers"
-msgstr "Aucun Observateurs"
-
-msgid "Surveyor."
-msgstr "Enquêteur."
-
-msgid "No Surveyors."
-msgstr "Pas d'enquêteurs."
-
-msgid "Surveyors."
-msgstr "Enquêteurs."
 
 msgid "Disconnect Nexmo"
 msgstr "Déconnectez Nexmo"
@@ -7798,6 +7771,45 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Administrators"
+#~ msgstr "Administrateurs"
+
+#~ msgid "The administrators in your organization"
+#~ msgstr "Les administrateurs de votre entreprise"
+
+#~ msgid "The viewers in your organization"
+#~ msgstr "Les spectateurs de votre organisation"
+
+#~ msgid "The editors in your organization"
+#~ msgstr "Les éditeurs de votre organisation"
+
+#~ msgid "The users can login via Android for your organization"
+#~ msgstr "Les utilisateurs peuvent se connecter via Android pour votre organisation"
+
+#~ msgid ","
+#~ msgstr ","
+
+#~ msgid "No Administrator"
+#~ msgstr "Aucun administrateur"
+
+#~ msgid "No Editors"
+#~ msgstr "Aucun éditeur"
+
+#~ msgid "and"
+#~ msgstr "et"
+
+#~ msgid "No Viewers"
+#~ msgstr "Aucun Observateurs"
+
+#~ msgid "Surveyor."
+#~ msgstr "Enquêteur."
+
+#~ msgid "No Surveyors."
+#~ msgstr "Pas d'enquêteurs."
+
+#~ msgid "Surveyors."
+#~ msgstr "Enquêteurs."
 
 #~ msgid "Passwords must contain at least 8 letters."
 #~ msgstr "Les mots de passe doivent contenir au moins 8 caractères."
