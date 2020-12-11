@@ -203,6 +203,7 @@ class UserTest(TembaTest):
         self.surveyor.release(self.org.brand)
         self.editor.release(self.org.brand)
         self.user.release(self.org.brand)
+        self.agent.release(self.org.brand)
 
         # still a user left, our org remains active
         self.org.refresh_from_db()
@@ -1117,7 +1118,7 @@ class OrgTest(TembaTest):
         # we have 19 fields in the form including 16 checkboxes for the four users, an email field, a user group field
         # and 'loc' field.
         expected_fields = {"invite_emails", "invite_group", "loc"}
-        for user in (self.surveyor, self.user, self.editor, self.admin):
+        for user in (self.surveyor, self.user, self.editor, self.admin, self.agent):
             for group in ("administrators", "editors", "viewers", "surveyors"):
                 expected_fields.add(group + "_%d" % user.pk)
 
@@ -1210,7 +1211,7 @@ class OrgTest(TembaTest):
         response = self.client.get(url)
 
         # user ordered by email
-        self.assertEqual(list(response.context["org_users"]), [self.admin, self.editor, self.user])
+        self.assertEqual(list(response.context["org_users"]), [self.admin, self.agent, self.editor, self.user])
 
         # invites ordered by email as well
         self.assertEqual(response.context["invites"][0].email, "code@temba.com")

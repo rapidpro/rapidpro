@@ -1165,10 +1165,10 @@ class Org(SmartModel):
 
     def get_user_org_group(self, user: User):
         role = self.get_user_role(user)
-        if role:
-            user._org_group = role.group
 
-        return getattr(user, "_org_group", None)
+        user._org_group = role.group if role else None
+
+        return user._org_group
 
     def has_twilio_number(self):  # pragma: needs cover
         return self.channels.filter(channel_type="T")
@@ -1882,9 +1882,9 @@ class Org(SmartModel):
                 if not other_orgs:
                     user.release(self.brand)
 
-        # clear out all of our user roles
-        for role in OrgRole:
-            getattr(self, role.m2m_name).clear()
+        # remove all the org users
+        for user in self.get_users():
+            self.remove_user(user)
 
         if immediately:
             self._full_release()
