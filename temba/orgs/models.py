@@ -1144,9 +1144,9 @@ class Org(SmartModel):
             getattr(self, role.m2m_name).remove(user)
 
     def get_owner(self) -> User:
-        # look thru roles in order for the last added user
+        # look thru roles in order for the first added user
         for role in OrgRole:
-            user = self.get_users_with_role(role).order_by("id").last()
+            user = self.get_users_with_role(role).order_by("id").first()
             if user:
                 return user
 

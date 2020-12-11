@@ -2143,7 +2143,7 @@ class ContactImport(SmartModel):
 
         fields_by_key = {}
         fields_by_label = {}
-        for f in org.contactfields.filter(is_active=True):
+        for f in org.contactfields(manager="user_fields").filter(is_active=True):
             fields_by_key[f.key] = f
             fields_by_label[f.label.lower()] = f
 

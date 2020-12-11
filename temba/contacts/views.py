@@ -1901,7 +1901,8 @@ class ContactImportCRUDL(SmartCRUDL):
                 return data
 
             def clean(self):
-                existing_field_keys = {f.key for f in self.org.contactfields.filter(is_active=True)}
+                org_fields = self.org.contactfields(manager="user_fields").filter(is_active=True)
+                existing_field_keys = {f.key for f in org_fields}
                 used_field_keys = set()
                 form_values = self.get_form_values()
                 for data, item in zip(form_values, self.instance.mappings):
