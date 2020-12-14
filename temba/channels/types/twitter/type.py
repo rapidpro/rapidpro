@@ -4,7 +4,7 @@ from django.forms import ValidationError
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import TWITTER_SCHEME, TWITTERID_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 from .client import TwitterClient
@@ -27,14 +27,15 @@ class TwitterType(ChannelType):
     icon = "icon-twitter"
 
     claim_blurb = _(
-        """Send and receive messages on Twitter using their
-        <a href="https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/overview">
-        Twitter Activity API.</a> You will have to apply for Twitter API access and create a Twitter application."""
-    )
+        "Send and receive messages on Twitter using their %(link)s API. You will have to apply for Twitter API access "
+        "and create a Twitter application."
+    ) % {
+        "link": '<a href="https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/overview">Twitter Activity</a>'
+    }
     claim_view = ClaimView
     update_form = UpdateForm
 
-    schemes = [TWITTER_SCHEME, TWITTERID_SCHEME]
+    schemes = [URN.TWITTER_SCHEME, URN.TWITTERID_SCHEME]
     show_config_page = False
     free_sending = True
     async_activation = False

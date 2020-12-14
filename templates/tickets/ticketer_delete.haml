@@ -1,0 +1,19 @@
+-extends 'includes/modax.html'
+-load i18n temba
+
+-block modal
+  -if used_by_flows
+    -blocktrans trimmed
+      Unable to delete service still being used by 
+    -for flow in used_by_flows
+      <a href="{% url 'flows.flow_editor' flow.uuid %}">{{ flow.name }}</a>{{ forloop|oxford }}
+  -else
+    -blocktrans trimmed with name=object.name
+      You are about to delete
+      %span.font-normal
+        {{name}}.
+      There is no way to undo this. Are you sure?
+
+    .hidden
+      %form(method="POST")
+        %input(type="submit" value="{{submit_button_name}}")

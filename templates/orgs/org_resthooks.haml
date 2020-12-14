@@ -2,22 +2,20 @@
 -load smartmin
 -load i18n
 
--block form-span
-  span8
-
 -block pre-form
 
-  -blocktrans
-    You can create flow events which external services can subscribe to. For example, Zapier can subscribe
-    to flow events you create and trigger any number of Zapier integrations when they occur in your flows.
+  .mb-4
+    -blocktrans trimmed
+      You can create flow events which external services can subscribe to. For example, Zapier can subscribe
+      to flow events you create and trigger any number of Zapier integrations when they occur in your flows.
 
-  %p
-    -if brand.guided_zaps|length > 0
+  -if brand.guided_zaps|length > 0
+    .mb-4
       <script type="text/javascript" src="https://zapier.com/zapbook/embed/widget.js?container=true&inlinecss=true&guided_zaps={{ brand.guided_zaps|join:"," }}"></script>
 
 -block fields
     -if current_resthooks
-      %table#table-resthooks.table.table-condensed
+      %table.list.light.lined
         %thead
           %tr
             %th Flow Event
@@ -33,17 +31,14 @@
                     {{form|field:resthook.field}}
                   .glyph.level-checkbox
 
-    -else
-      %hr
-
-    .field.formax-vertical
+    .my-4
       {% render_field 'resthook' %}
 
 -block summary
   -with org.get_resthooks as resthooks
     -trans "You have"
 
-    %span.attn
+    %b
       -if resthooks|length == 0
         -trans "no flow events"
       -elif resthooks|length == 1
@@ -77,12 +72,6 @@
 
     #table-resthooks {
       margin: 10px 0px 10px 0px;
-      /* border-top: 1px solid #eee; */
-      /* border-bottom: 1px solid #eee; */
-    }
-
-    #table-resthooks th {
-      border-bottom: 1px solid #eee;
     }
 
     td.resthook-check.checked .glyph.level-checkbox:before {

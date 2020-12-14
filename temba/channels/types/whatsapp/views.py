@@ -9,7 +9,7 @@ from temba.contacts.models import URN
 from temba.orgs.views import OrgPermsMixin
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
-from temba.utils.fields import ExternalURLField
+from temba.utils.fields import ExternalURLField, SelectWidget
 from temba.utils.views import PostOnlyMixin
 
 from ...models import Channel
@@ -110,7 +110,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         number = forms.CharField(help_text=_("Your enterprise WhatsApp number"))
         country = forms.ChoiceField(
-            choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in")
+            widget=SelectWidget(attrs={"searchable": True}),
+            choices=ALL_COUNTRIES,
+            label=_("Country"),
+            help_text=_("The country this phone number is used in"),
         )
         base_url = ExternalURLField(help_text=_("The base URL for your WhatsApp enterprise installation"))
         username = forms.CharField(
@@ -162,19 +165,20 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             # check we can access their facebook templates
             from .type import TEMPLATE_LIST_URL
 
-            response = requests.get(
-                TEMPLATE_LIST_URL
-                % (self.cleaned_data["facebook_template_list_domain"], self.cleaned_data["facebook_business_id"]),
-                params=dict(access_token=self.cleaned_data["facebook_access_token"]),
-            )
-
-            if response.status_code != 200:
-                raise forms.ValidationError(
-                    _(
-                        "Unable to access Facebook templates, please check user id and access token and make sure "
-                        + "the whatsapp_business_management permission is enabled"
-                    )
+            if self.cleaned_data["facebook_template_list_domain"] != "graph.facebook.com":
+                response = requests.get(
+                    TEMPLATE_LIST_URL
+                    % (self.cleaned_data["facebook_template_list_domain"], self.cleaned_data["facebook_business_id"]),
+                    params=dict(access_token=self.cleaned_data["facebook_access_token"]),
                 )
+
+                if response.status_code != 200:
+                    raise forms.ValidationError(
+                        _(
+                            "Unable to access Facebook templates, please check user id and access token and make sure "
+                            + "the whatsapp_business_management permission is enabled"
+                        )
+                    )
             return self.cleaned_data
 
     form_class = Form
@@ -189,9 +193,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         user = self.request.user
         org = user.get_org()
-
-        if not org:  # pragma: no cover
-            raise Exception(_("No org for this user, cannot claim"))
 
         data = form.cleaned_data
 
@@ -210,7 +211,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             org,
             user,
             data["country"],
-            "WA",
+            self.channel_type,
             name="WhatsApp: %s" % data["number"],
             address=data["number"],
             config=config,

@@ -1,31 +1,38 @@
 -load i18n
 
-%h4
-  -blocktrans
-    To finish configuring your Novo connection you'll need to set the following callback URLs on your
-    Novo account.
+-blocktrans trimmed
+  To finish configuring your Novo connection you'll need to set the following callback URLs on your
+  Novo account.
 
-%hr
 
-%p
-  -trans "Received URL"
-  %code
+.card
+  .subtitle
+    -trans "Received URL"
+  
+  .code.inline-block
     https://{{ channel.callback_domain }}{% url 'courier.nv' channel.uuid 'receive' %}
 
-  %p
-    -blocktrans
+  .mt-2
+    -blocktrans trimmed
       When a new message is received by your service, it should notify us with a POST to the following URL, passing
       the following parameters: 'from' and 'text'.
-  %pre.prettyprint.example<
-    :plain
-      POST https://{{ channel.callback_domain }}{% url 'courier.nv' channel.uuid 'receive' %}
-      from=%2B250788123123&text=Love+is+patient.+Love+is+kind.
 
-%p
-  -trans "Token"
-  %code
+  .bleed-x.bleed-b.text-white.bg-black
+    .code.p-0.break-all.bg-black.text-white<
+      %b    
+        POST
+      https://{{ channel.callback_domain }}{% url 'courier.nv' channel.uuid 'receive' %}
+      
+      .mt-3.text-gray-400
+        from=%2B250788123123&text=Love+is+patient.+Love+is+kind.
+      
+.mt-4.card
+  .subtitle
+    -trans "Token"
+
+  .code.inline-block
     {{ channel.config.secret }}
 
-  %p
-    -blocktrans
+  .mt-2
+    -blocktrans trimmed
       Use this Token as Authorization when sending incoming messages

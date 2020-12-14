@@ -177,7 +177,7 @@ class Migration(migrations.Migration):
                 (
                     "org",
                     models.ForeignKey(
-                        help_text="The organization this trigger belongs to",
+                        help_text="The workspace this trigger belongs to",
                         on_delete=django.db.models.deletion.PROTECT,
                         to="orgs.Org",
                         verbose_name="Org",

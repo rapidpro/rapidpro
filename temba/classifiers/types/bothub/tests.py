@@ -24,29 +24,31 @@ INTENT_RESPONSE = """
 
 class BothubTypeTest(TembaTest):
     def test_sync(self):
+        # create classifier but don't sync the intents
         c = Classifier.create(
             self.org,
             self.user,
             BothubType.slug,
             "Booker",
             {BothubType.CONFIG_ACCESS_TOKEN: "123456789", BothubType.INTENT_URL: "https://nlp.bothub.it/info/"},
+            sync=False,
         )
 
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(400, '{ "error": "true" }')
-            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 2)
-            with self.assertRaises(Exception):
-                c.get_type().get_active_intents_from_api(c)
-                self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 3)
+
+            c.get_type().get_active_intents_from_api(c)
+            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 1)
 
             mock_get.side_effect = RequestException("Network is unreachable", response=MockResponse(100, ""))
             c.get_type().get_active_intents_from_api(c)
-            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 4)
+            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 2)
 
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(200, INTENT_RESPONSE)
             intents = c.get_type().get_active_intents_from_api(c)
-            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 5)
+
+            self.assertEqual(HTTPLog.objects.filter(classifier=c).count(), 3)
             self.assertEqual(3, len(intents))
             intent = intents[0]
             self.assertEqual("intent", intent.name)

@@ -1,7 +1,5 @@
 from datetime import timedelta
 
-from smartmin.csv_imports.models import ImportTask
-
 import time
 import requests
 import pytz
@@ -15,7 +13,7 @@ from celery.task import task
 from parse_rest.connection import register
 from parse_rest.datatypes import Object
 
-from temba.contacts.models import ExportContactsTask
+from temba.contacts.models import URN, ContactURN, ExportContactsTask
 from temba.contacts.tasks import export_contacts_task
 from temba.flows.models import ExportFlowResultsTask
 from temba.flows.tasks import export_flow_results_task
@@ -26,7 +24,7 @@ from temba.utils.dates import str_to_datetime
 from temba.utils.celery import nonoverlapping_task
 from temba.utils.email import send_template_email
 
-from .models import CreditAlert, Invitation, Org, TopUpCredits
+from .models import CreditAlert, Invitation, Org, OrgActivity, TopUpCredits
 
 
 @task(track_started=True, name="send_invitation_email_task")
@@ -58,6 +56,17 @@ def apply_topups_task(org_id):
     org.trigger_send()
 
 
+@task(track_started=True, name="normalize_contact_tels_task")
+def normalize_contact_tels_task(org_id):
+    org = Org.objects.get(id=org_id)
+
+    # do we have an org-level country code? if so, try to normalize any numbers not starting with +
+    if org.default_country_code:
+        urns = ContactURN.objects.filter(org=org, scheme=URN.TEL_SCHEME).exclude(path__startswith="+").iterator()
+        for urn in urns:
+            urn.ensure_number_normalization(org.default_country_code)
+
+
 @nonoverlapping_task(track_started=True, name="squash_topupcredits", lock_key="squash_topupcredits", lock_timeout=7200)
 def squash_topupcredits():
     TopUpCredits.squash()
@@ -67,12 +76,6 @@ def squash_topupcredits():
 def resume_failed_tasks():
     now = timezone.now()
     window = now - timedelta(hours=1)
-
-    import_tasks = ImportTask.objects.filter(modified_on__lte=window).exclude(
-        task_status__in=[ImportTask.SUCCESS, ImportTask.FAILURE]
-    )
-    for import_task in import_tasks:
-        import_task.start()
 
     contact_exports = ExportContactsTask.objects.filter(modified_on__lte=window).exclude(
         status__in=[ExportContactsTask.STATUS_COMPLETE, ExportContactsTask.STATUS_FAILED]
@@ -240,3 +243,23 @@ def import_data_to_parse(
     )
 
     send_template_email(user_email, subject, template, context, branding)
+
+
+@nonoverlapping_task(track_started=True, name="update_org_activity_task")
+def update_org_activity(now=None):
+    now = now if now else timezone.now()
+    OrgActivity.update_day(now)
+
+
+@nonoverlapping_task(
+    track_started=True, name="suspend_topup_orgs_task", lock_key="suspend_topup_orgs_task", lock_timeout=7200
+)
+def suspend_topup_orgs_task():
+    # for every org on a topup plan that isn't suspended, check they have credits, if not, suspend them
+    for org in Org.objects.filter(uses_topups=True, is_active=True, is_suspended=False):
+        if org.get_credits_remaining() <= 0:
+            org.clear_credit_cache()
+            if org.get_credits_remaining() <= 0:
+                org.is_suspended = True
+                org.plan_end = timezone.now()
+                org.save(update_fields=["is_suspended", "plan_end"])

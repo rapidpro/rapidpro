@@ -28,19 +28,13 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
 from temba.orgs.models import Org
-from temba.utils import get_anonymous_user, json, on_transaction_commit, redact
+from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
 from temba.utils.text import random_string
 
 logger = logging.getLogger(__name__)
-
-
-class Encoding(Enum):
-    GSM7 = 1
-    REPLACED = 2
-    UNICODE = 3
 
 
 class ChannelType(metaclass=ABCMeta):
@@ -256,19 +250,12 @@ class Channel(TembaModel):
     # keys for various config options stored in the channel config dict
     CONFIG_BASE_URL = "base_url"
     CONFIG_SEND_URL = "send_url"
-    CONFIG_SEND_METHOD = "method"
-    CONFIG_SEND_BODY = "body"
-    CONFIG_MT_RESPONSE_CHECK = "mt_response_check"
-    CONFIG_DEFAULT_SEND_BODY = (
-        "id={{id}}&text={{text}}&to={{to}}&to_no_plus={{to_no_plus}}&from={{from}}&from_no_plus={{from_no_plus}}"
-        "&channel={{channel}}"
-    )
+
     CONFIG_USERNAME = "username"
     CONFIG_PASSWORD = "password"
     CONFIG_KEY = "key"
     CONFIG_API_ID = "api_id"
     CONFIG_API_KEY = "api_key"
-    CONFIG_CONTENT_TYPE = "content_type"
     CONFIG_VERIFY_SSL = "verify_ssl"
     CONFIG_USE_NATIONAL = "use_national"
     CONFIG_ENCODING = "encoding"
@@ -281,7 +268,6 @@ class Channel(TembaModel):
     CONFIG_CHANNEL_ID = "channel_id"
     CONFIG_CHANNEL_MID = "channel_mid"
     CONFIG_FCM_ID = "FCM_ID"
-    CONFIG_MAX_LENGTH = "max_length"
     CONFIG_MACROKIOSK_SENDER_ID = "macrokiosk_sender_id"
     CONFIG_MACROKIOSK_SERVICE_ID = "macrokiosk_service_id"
     CONFIG_RP_HOSTNAME_OVERRIDE = "rp_hostname_override"
@@ -352,7 +338,9 @@ class Channel(TembaModel):
         "roles": ["send"],
     }
 
-    channel_type = models.CharField(verbose_name=_("Channel Type"), max_length=3)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="channels", null=True)
+
+    channel_type = models.CharField(max_length=3)
 
     name = models.CharField(
         verbose_name=_("Name"), max_length=64, blank=True, null=True, help_text=_("Descriptive label for this channel")
@@ -368,16 +356,6 @@ class Channel(TembaModel):
 
     country = CountryField(
         verbose_name=_("Country"), null=True, blank=True, help_text=_("Country which this channel is for")
-    )
-
-    org = models.ForeignKey(
-        Org,
-        on_delete=models.PROTECT,
-        verbose_name=_("Org"),
-        related_name="channels",
-        blank=True,
-        null=True,
-        help_text=_("Organization using this channel"),
     )
 
     claim_code = models.CharField(
@@ -425,36 +403,15 @@ class Channel(TembaModel):
         help_text=_("We will send email alerts to this address if experiencing issues sending"),
     )
 
-    config = JSONAsTextField(
-        verbose_name=_("Config"),
-        null=True,
-        default=dict,
-        help_text=_("Any channel specific configuration, used for the various aggregators"),
-    )
+    config = JSONAsTextField(null=True, default=dict)
 
-    schemes = ArrayField(
-        models.CharField(max_length=16),
-        default=_get_default_channel_scheme,
-        verbose_name="URN Schemes",
-        help_text=_("The URN schemes this channel supports"),
-    )
+    schemes = ArrayField(models.CharField(max_length=16), default=_get_default_channel_scheme)
 
-    role = models.CharField(
-        verbose_name="Channel Role",
-        max_length=4,
-        default=DEFAULT_ROLE,
-        help_text=_("The roles this channel can fulfill"),
-    )
+    role = models.CharField(max_length=4, default=DEFAULT_ROLE)
 
-    parent = models.ForeignKey(
-        "self",
-        on_delete=models.PROTECT,
-        blank=True,
-        null=True,
-        help_text=_("The channel this channel is working on behalf of"),
-    )
+    parent = models.ForeignKey("self", on_delete=models.PROTECT, null=True)
 
-    bod = models.TextField(verbose_name=_("Optional Data"), null=True, help_text=_("Any channel specific state data"))
+    bod = models.TextField(null=True)
 
     tps = models.IntegerField(
         verbose_name=_("Maximum Transactions per Second"),
@@ -517,6 +474,9 @@ class Channel(TembaModel):
         # normalize any telephone numbers that we may now have a clue as to country
         if org and country:
             org.normalize_contact_tels()
+
+        # track our creation
+        analytics.track(user.username, "temba.channel_created", dict(channel_type=channel_type.code))
 
         if settings.IS_PROD:
             if channel_type.async_activation:
@@ -590,7 +550,7 @@ class Channel(TembaModel):
         channel_type,
         config,
         role=DEFAULT_ROLE,
-        schemes=["tel"],
+        schemes=("tel",),
         parent=None,
         name=None,
     ):
@@ -805,12 +765,12 @@ class Channel(TembaModel):
             return _("%s Channel" % self.get_channel_type_display())
 
     def get_address_display(self, e164=False):
-        from temba.contacts.models import TEL_SCHEME, TWITTER_SCHEME, FACEBOOK_SCHEME
+        from temba.contacts.models import URN
 
         if not self.address:
             return ""
 
-        if self.address and TEL_SCHEME in self.schemes and self.country:
+        if self.address and URN.TEL_SCHEME in self.schemes and self.country:
             # assume that a number not starting with + is a short code and return as is
             if self.address[0] != "+":
                 return self.address
@@ -823,10 +783,10 @@ class Channel(TembaModel):
                 # the number may be alphanumeric in the case of short codes
                 pass
 
-        elif TWITTER_SCHEME in self.schemes:
+        elif URN.TWITTER_SCHEME in self.schemes:
             return "@%s" % self.address
 
-        elif FACEBOOK_SCHEME in self.schemes:
+        elif URN.FACEBOOK_SCHEME in self.schemes:
             return "%s (%s)" % (self.config.get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
 
         elif self.channel_type == "WCH":
@@ -925,10 +885,10 @@ class Channel(TembaModel):
 
         In the case of attachments, our cost is the number of attachments.
         """
-        from temba.contacts.models import TEL_SCHEME
+        from temba.contacts.models import URN
 
         cost = 1
-        if msg.contact_urn.scheme == TEL_SCHEME:
+        if msg.contact_urn.scheme == URN.TEL_SCHEME:
             cost = calculate_num_segments(msg.text)
 
         # if we have attachments then use that as our cost (MMS bundles text into the attachment, but only one per)
@@ -1110,7 +1070,6 @@ class Channel(TembaModel):
                 | Q(status=ERRORED, next_attempt__lte=now)
             )
             .exclude(channel__channel_type=AndroidType.code)
-            .exclude(topup=None)
             .order_by("created_on")
         )
 
@@ -1162,18 +1121,6 @@ class Channel(TembaModel):
 
     class Meta:
         ordering = ("-last_seen", "-pk")
-
-
-SOURCE_AC = "AC"
-SOURCE_USB = "USB"
-SOURCE_WIRELESS = "WIR"
-SOURCE_BATTERY = "BAT"
-
-STATUS_UNKNOWN = "UNK"
-STATUS_CHARGING = "CHA"
-STATUS_DISCHARGING = "DIS"
-STATUS_NOT_CHARGING = "NOT"
-STATUS_FULL = "FUL"
 
 
 class ChannelCount(SquashableModel):
@@ -1271,8 +1218,6 @@ class ChannelEvent(models.Model):
     TYPE_STOP_CONTACT = "stop_contact"
     TYPE_WELCOME_MESSAGE = "welcome_message"
 
-    EXTRA_REFERRER_ID = "referrer_id"
-
     # single char flag, human readable name, API readable name
     TYPE_CONFIG = (
         (TYPE_UNKNOWN, _("Unknown Call Type"), "unknown"),
@@ -1290,64 +1235,22 @@ class ChannelEvent(models.Model):
 
     CALL_TYPES = {TYPE_CALL_OUT, TYPE_CALL_OUT_MISSED, TYPE_CALL_IN, TYPE_CALL_IN_MISSED}
 
-    org = models.ForeignKey(
-        Org, on_delete=models.PROTECT, verbose_name=_("Org"), help_text=_("The org this event is connected to")
-    )
-    channel = models.ForeignKey(
-        Channel,
-        on_delete=models.PROTECT,
-        verbose_name=_("Channel"),
-        help_text=_("The channel on which this event took place"),
-    )
-    event_type = models.CharField(
-        max_length=16, choices=TYPE_CHOICES, verbose_name=_("Event Type"), help_text=_("The type of event")
-    )
-    contact = models.ForeignKey(
-        "contacts.Contact",
-        on_delete=models.PROTECT,
-        verbose_name=_("Contact"),
-        related_name="channel_events",
-        help_text=_("The contact associated with this event"),
-    )
+    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    channel = models.ForeignKey(Channel, on_delete=models.PROTECT)
+    event_type = models.CharField(max_length=16, choices=TYPE_CHOICES)
+    contact = models.ForeignKey("contacts.Contact", on_delete=models.PROTECT, related_name="channel_events")
     contact_urn = models.ForeignKey(
-        "contacts.ContactURN",
-        on_delete=models.PROTECT,
-        null=True,
-        verbose_name=_("URN"),
-        related_name="channel_events",
-        help_text=_("The contact URN associated with this event"),
+        "contacts.ContactURN", on_delete=models.PROTECT, null=True, related_name="channel_events"
     )
-    extra = JSONAsTextField(
-        verbose_name=_("Extra"), null=True, default=dict, help_text=_("Any extra properties on this event as JSON")
-    )
-    occurred_on = models.DateTimeField(verbose_name=_("Occurred On"), help_text=_("When this event took place"))
-    created_on = models.DateTimeField(
-        verbose_name=_("Created On"), default=timezone.now, help_text=_("When this event was created")
-    )
-
-    @classmethod
-    def create(cls, channel, urn, event_type, occurred_on, extra=None):
-        from temba.contacts.models import Contact
-
-        contact, contact_urn = Contact.get_or_create(channel.org, urn, channel, name=None, user=get_anonymous_user())
-
-        event = cls.objects.create(
-            org=channel.org,
-            channel=channel,
-            contact=contact,
-            contact_urn=contact_urn,
-            occurred_on=occurred_on,
-            event_type=event_type,
-            extra=extra,
-        )
-
-        return event
+    extra = JSONAsTextField(null=True, default=dict)
+    occurred_on = models.DateTimeField()
+    created_on = models.DateTimeField(default=timezone.now)
 
     @classmethod
     def create_relayer_event(cls, channel, urn, event_type, occurred_on, extra=None):
         from temba.contacts.models import Contact
 
-        contact, contact_urn = Contact.get_or_create(channel.org, urn, channel, name=None, user=get_anonymous_user())
+        contact, contact_urn = Contact.resolve(channel, urn)
 
         event = cls.objects.create(
             org=channel.org,
@@ -1374,38 +1277,24 @@ class ChannelEvent(models.Model):
 
 
 class ChannelLog(models.Model):
-    channel = models.ForeignKey(
-        Channel, on_delete=models.PROTECT, related_name="logs", help_text=_("The channel the message was sent on")
-    )
-    msg = models.ForeignKey(
-        "msgs.Msg",
-        on_delete=models.PROTECT,
-        related_name="channel_logs",
-        null=True,
-        help_text=_("The message that was sent"),
-    )
+    """
+    A log of an call made to or from a channel
+    """
 
+    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs")
+    msg = models.ForeignKey("msgs.Msg", on_delete=models.PROTECT, related_name="channel_logs", null=True)
     connection = models.ForeignKey(
-        "channels.ChannelConnection",
-        on_delete=models.PROTECT,
-        related_name="channel_logs",
-        null=True,
-        help_text=_("The channel session for this log"),
+        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="channel_logs", null=True
     )
-
-    description = models.CharField(max_length=255, help_text=_("A description of the status of this message send"))
-    is_error = models.BooleanField(
-        default=None, help_text=_("Whether an error was encountered when sending the message")
-    )
-    url = models.TextField(null=True, help_text=_("The URL used when sending the message"))
-    method = models.CharField(max_length=16, null=True, help_text=_("The HTTP method used when sending the message"))
-    request = models.TextField(null=True, help_text=_("The body of the request used when sending the message"))
-    response = models.TextField(null=True, help_text=_("The body of the response received when sending the message"))
-    response_status = models.IntegerField(
-        null=True, help_text=_("The response code received when sending the message")
-    )
-    created_on = models.DateTimeField(auto_now_add=True, help_text=_("When this log message was logged"))
-    request_time = models.IntegerField(null=True, help_text=_("Time it took to process this request"))
+    description = models.CharField(max_length=255)
+    is_error = models.BooleanField(default=False)
+    url = models.TextField(null=True)
+    method = models.CharField(max_length=16, null=True)
+    request = models.TextField(null=True)
+    response = models.TextField(null=True)
+    response_status = models.IntegerField(null=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+    request_time = models.IntegerField(null=True)
 
     @classmethod
     def log_error(cls, msg, description):
@@ -1489,49 +1378,49 @@ class ChannelLog(models.Model):
 
 
 class SyncEvent(SmartModel):
-    channel = models.ForeignKey(
-        Channel,
-        related_name="sync_events",
-        on_delete=models.PROTECT,
-        verbose_name=_("Channel"),
-        help_text=_("The channel that synced to the server"),
+    """
+    A record of a sync from an Android channel
+    """
+
+    SOURCE_AC = "AC"
+    SOURCE_USB = "USB"
+    SOURCE_WIRELESS = "WIR"
+    SOURCE_BATTERY = "BAT"
+    SOURCE_CHOICES = (
+        (SOURCE_AC, "A/C"),
+        (SOURCE_USB, "USB"),
+        (SOURCE_WIRELESS, "Wireless"),
+        (SOURCE_BATTERY, "Battery"),
     )
-    power_source = models.CharField(
-        verbose_name=_("Power Source"), max_length=64, help_text=_("The power source the device is using")
+
+    STATUS_UNKNOWN = "UNK"
+    STATUS_CHARGING = "CHA"
+    STATUS_DISCHARGING = "DIS"
+    STATUS_NOT_CHARGING = "NOT"
+    STATUS_FULL = "FUL"
+    STATUS_CHOICES = (
+        (STATUS_UNKNOWN, "Unknown"),
+        (STATUS_CHARGING, "Charging"),
+        (STATUS_DISCHARGING, "Discharging"),
+        (STATUS_NOT_CHARGING, "Not Charging"),
+        (STATUS_FULL, "FUL"),
     )
-    power_status = models.CharField(
-        verbose_name=_("Power Status"),
-        max_length=64,
-        default="STATUS_UNKNOWN",
-        help_text=_("The power status. eg: Charging, Full or Discharging"),
-    )
-    power_level = models.IntegerField(verbose_name=_("Power Level"), help_text=_("The power level of the battery"))
-    network_type = models.CharField(
-        verbose_name=_("Network Type"),
-        max_length=128,
-        help_text=_("The data network type to which the channel is connected"),
-    )
-    lifetime = models.IntegerField(verbose_name=_("Lifetime"), null=True, blank=True, default=0)
-    pending_message_count = models.IntegerField(
-        verbose_name=_("Pending Messages Count"),
-        help_text=_("The number of messages on the channel in PENDING state"),
-        default=0,
-    )
-    retry_message_count = models.IntegerField(
-        verbose_name=_("Retry Message Count"),
-        help_text=_("The number of messages on the channel in RETRY state"),
-        default=0,
-    )
-    incoming_command_count = models.IntegerField(
-        verbose_name=_("Incoming Command Count"),
-        help_text=_("The number of commands that the channel gave us"),
-        default=0,
-    )
-    outgoing_command_count = models.IntegerField(
-        verbose_name=_("Outgoing Command Count"),
-        help_text=_("The number of commands that we gave the channel"),
-        default=0,
-    )
+
+    channel = models.ForeignKey(Channel, related_name="sync_events", on_delete=models.PROTECT)
+
+    # power status of the device
+    power_source = models.CharField(max_length=64, choices=SOURCE_CHOICES)
+    power_status = models.CharField(max_length=64, choices=STATUS_CHOICES, default=STATUS_UNKNOWN)
+    power_level = models.IntegerField()
+
+    network_type = models.CharField(max_length=128)
+    lifetime = models.IntegerField(null=True, blank=True, default=0)
+
+    # counts of what was synced
+    pending_message_count = models.IntegerField(default=0)
+    retry_message_count = models.IntegerField(default=0)
+    incoming_command_count = models.IntegerField(default=0)
+    outgoing_command_count = models.IntegerField(default=0)
 
     @classmethod
     def create(cls, channel, cmd, incoming_commands):
@@ -1649,7 +1538,8 @@ class Alert(SmartModel):
         alert_user = get_alert_user()
 
         if (
-            sync.power_status in (STATUS_DISCHARGING, STATUS_UNKNOWN, STATUS_NOT_CHARGING)
+            sync.power_status
+            in (SyncEvent.STATUS_DISCHARGING, SyncEvent.STATUS_UNKNOWN, SyncEvent.STATUS_NOT_CHARGING)
             and int(sync.power_level) < 25
         ):
 
@@ -1665,7 +1555,7 @@ class Alert(SmartModel):
                 )
                 new_alert.send_alert()
 
-        if sync.power_status == STATUS_CHARGING or sync.power_status == STATUS_FULL:
+        if sync.power_status == SyncEvent.STATUS_CHARGING or sync.power_status == SyncEvent.STATUS_FULL:
             alerts = Alert.objects.filter(sync_event__channel=sync.channel, alert_type=cls.TYPE_POWER, ended_on=None)
             alerts = alerts.order_by("-created_on")
 

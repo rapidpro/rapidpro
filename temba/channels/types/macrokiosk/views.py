@@ -3,6 +3,8 @@ from smartmin.views import SmartFormView
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
+from temba.utils.fields import SelectWidget
+
 from ...models import Channel
 from ...views import ALL_COUNTRIES, ClaimViewMixin
 
@@ -10,7 +12,10 @@ from ...views import ALL_COUNTRIES, ClaimViewMixin
 class ClaimView(ClaimViewMixin, SmartFormView):
     class MacrokioskClaimForm(ClaimViewMixin.Form):
         country = forms.ChoiceField(
-            choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in")
+            choices=ALL_COUNTRIES,
+            widget=SelectWidget(attrs={"searchable": True}),
+            label=_("Country"),
+            help_text=_("The country this phone number is used in"),
         )
         number = forms.CharField(
             max_length=14,
@@ -40,9 +45,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         org = self.request.user.get_org()
 
-        if not org:  # pragma: no cover
-            raise Exception(_("No org for this user, cannot claim"))
-
         data = form.cleaned_data
 
         config = {
@@ -56,7 +58,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             self.request.user,
             self.get_submitted_country(data),
             data["number"],
-            "MK",
+            self.channel_type,
             config,
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
         )

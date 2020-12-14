@@ -17,7 +17,6 @@ from smartmin.views import SmartCRUDL, SmartCreateView, SmartListView, SmartUpda
 
 from temba.utils import analytics, on_transaction_commit
 from temba.utils.dates import datetime_to_ms, ms_to_datetime
-from temba.utils.views import BaseActionForm
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.contacts.models import Contact
 from temba.flows.models import Flow
@@ -28,7 +27,7 @@ from .tasks import export_link_task
 logger = logging.getLogger(__name__)
 
 
-class LinkActionForm(BaseActionForm):
+class LinkActionForm(forms.ModelForm):
     allowed_actions = (("archive", _("Archive Links")), ("restore", _("Restore Links")))
 
     model = Link

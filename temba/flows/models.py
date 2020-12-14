@@ -5,30 +5,25 @@ import requests
 import zipfile
 
 from array import array
-from collections import OrderedDict, defaultdict
-from datetime import date, timedelta
-from decimal import Decimal
+from collections import defaultdict
+from datetime import timedelta
 from enum import Enum
 from io import BytesIO
 from urllib.parse import urlparse
-from urllib.request import urlopen
-from uuid import uuid4
+from typing import Dict
 
 import iso8601
-import phonenumbers
 import regex
 import boto3
 from django.db.models.functions import TruncDate
 from django_redis import get_redis_connection
 from packaging.version import Version
-from PIL import Image, ExifTags
-from sorl.thumbnail import get_thumbnail
 from smartmin.models import SmartModel
-from temba_expressions.utils import tokenize
 from xlsxlite.writer import XLSXBook
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
+from django.contrib.postgres.fields import ArrayField
 from django.core.cache import cache
 from django.core.files.temp import NamedTemporaryFile
 from django.db import connection as db_connection, models, transaction
@@ -51,10 +46,13 @@ from temba.orgs.models import Org
 from temba.links.models import Link
 from temba.classifiers.models import Classifier
 from temba.globals.models import Global
+from temba.msgs.models import Attachment, Label, Msg
+from temba.orgs.models import Org
 from temba.templates.models import Template
+from temba.tickets.models import Ticketer
 from temba.utils import analytics, chunk_list, json, on_transaction_commit
-from temba.utils.dates import str_to_datetime, datetime_to_str
-from temba.utils.email import is_valid_address, send_template_email
+from temba.utils.dates import datetime_to_str
+from temba.utils.email import send_template_email
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
 from temba.utils.models import (
     JSONAsTextField,
@@ -64,8 +62,7 @@ from temba.utils.models import (
     TembaModel,
     generate_uuid,
 )
-from temba.utils.s3 import public_file_storage
-from temba.values.constants import Value
+from temba.utils.uuid import uuid4
 
 from . import legacy
 
@@ -103,11 +100,6 @@ class Events(Enum):
 
 class FlowException(Exception):
     pass
-
-
-class FlowInvalidCycleException(FlowException):
-    def __init__(self, node_uuids):
-        self.node_uuids = node_uuids
 
 
 class FlowUserConflictException(FlowException):
@@ -151,45 +143,17 @@ class FlowPropsCache(Enum):
 
 
 class Flow(TembaModel):
-    UUID = "uuid"
-    ENTRY = "entry"
-    RULE_SETS = "rule_sets"
-    ACTION_SETS = "action_sets"
-    RULES = "rules"
-    CONFIG = "config"
-    ACTIONS = "actions"
-    DESTINATION = "destination"
-    EXIT_UUID = "exit_uuid"
-    LABEL = "label"
-    WEBHOOK_URL = "webhook"
-    WEBHOOK_ACTION = "webhook_action"
-    FINISHED_KEY = "finished_key"
-    RULESET_TYPE = "ruleset_type"
-    OPERAND = "operand"
-
-    LANGUAGE = "language"
-    BASE_LANGUAGE = "base_language"
-    SAVED_BY = "saved_by"
-    VERSION = "version"
-
     CONTACT_CREATION = "contact_creation"
     CONTACT_PER_RUN = "run"
     CONTACT_PER_LOGIN = "login"
 
-    FLOW_TYPE = "flow_type"
-    ID = "id"
-
-    # items in Flow.metadata
-    METADATA = "metadata"
-    METADATA_SAVED_ON = "saved_on"
-    METADATA_NAME = "name"
-    METADATA_REVISION = "revision"
-    METADATA_EXPIRES = "expires"
+    # items in metadata
     METADATA_RESULTS = "results"
     METADATA_DEPENDENCIES = "dependencies"
     METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
     METADATA_PARENT_REFS = "parent_refs"
     METADATA_ISSUES = "issues"
+    METADATA_IVR_RETRY = "ivr_retry"
 
     # items in the response from mailroom flow inspection
     INSPECT_RESULTS = "results"
@@ -210,9 +174,6 @@ class Flow(TembaModel):
     DEFINITION_NODES = "nodes"
     DEFINITION_UI = "_ui"
 
-    X = "x"
-    Y = "y"
-
     TYPE_MESSAGE = "M"
     TYPE_VOICE = "V"
     TYPE_SURVEY = "S"
@@ -227,47 +188,11 @@ class Flow(TembaModel):
 
     GOFLOW_TYPES = {TYPE_MESSAGE: "messaging", TYPE_VOICE: "voice", TYPE_SURVEY: "messaging_offline"}
 
-    NODE_TYPE_RULESET = "R"
-    NODE_TYPE_ACTIONSET = "A"
-
-    ENTRY_TYPES = ((NODE_TYPE_RULESET, "Rules"), (NODE_TYPE_ACTIONSET, "Actions"))
-
-    VERSIONS = [
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "6",
-        "7",
-        "8",
-        "9",
-        "10",
-        "10.1",
-        "10.2",
-        "10.3",
-        "10.4",
-        "11.0",
-        "11.1",
-        "11.2",
-        "11.3",
-        "11.4",
-        "11.5",
-        "11.6",
-        "11.7",
-        "11.8",
-        "11.9",
-        "11.10",
-        "11.11",
-        "11.12",
-    ]
-
-    FINAL_LEGACY_VERSION = VERSIONS[-1]
-    GOFLOW_VERSION = "13.0.0"
+    FINAL_LEGACY_VERSION = legacy.VERSIONS[-1]
     INITIAL_GOFLOW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
     CURRENT_SPEC_VERSION = "13.1.0"  # current flow spec version
 
-    DEFAULT_EXPIRES_AFTER = 60 * 12
+    DEFAULT_EXPIRES_AFTER = 60 * 24 * 7  # 1 week
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
 
@@ -276,12 +201,6 @@ class Flow(TembaModel):
     )
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flows")
-
-    entry_uuid = models.CharField(null=True, max_length=36, unique=True)
-
-    entry_type = models.CharField(
-        max_length=1, null=True, choices=ENTRY_TYPES, help_text=_("The type of node this flow starts with")
-    )
 
     is_archived = models.BooleanField(default=False, help_text=_("Whether this flow is archived"))
 
@@ -307,7 +226,11 @@ class Flow(TembaModel):
     )
 
     base_language = models.CharField(
-        max_length=4, null=True, blank=True, help_text=_("The primary language for editing this flow"), default="base"
+        max_length=4,
+        null=True,
+        blank=True,
+        help_text=_("The authoring language, additional languages can be added later"),
+        default="base",
     )
 
     version_number = models.CharField(
@@ -329,6 +252,8 @@ class Flow(TembaModel):
     label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
 
     template_dependencies = models.ManyToManyField(Template, related_name="dependent_flows")
+
+    ticketer_dependencies = models.ManyToManyField(Ticketer, related_name="dependent_flows")
 
     @classmethod
     def create(
@@ -369,7 +294,7 @@ class Flow(TembaModel):
                 },
             )
 
-        analytics.track(user.username, "nyaruka.flow_created", dict(name=name))
+        analytics.track(user.username, "temba.flow_created", dict(name=name))
         return flow
 
     @classmethod
@@ -471,39 +396,19 @@ class Flow(TembaModel):
         from temba.campaigns.models import Campaign
         from temba.triggers.models import Trigger
 
-        version = Version(str(export_json.get("version", "0")))
         created_flows = []
         db_types = {value: key for key, value in Flow.GOFLOW_TYPES.items()}
 
         # fetch or create all the flow db objects
         for flow_def in export_json[Org.EXPORT_FLOWS]:
-            if FlowRevision.is_legacy_definition(flow_def):
-                flow_version = Version(flow_def["version"]) if "version" in flow_def else version
-                flow_metadata = flow_def[Flow.METADATA]
-                flow_type = flow_def.get("flow_type", Flow.TYPE_MESSAGE)
-                flow_uuid = flow_metadata["uuid"]
-                flow_name = flow_metadata["name"]
-                flow_expires = flow_metadata.get(Flow.METADATA_EXPIRES, Flow.DEFAULT_EXPIRES_AFTER)
-
-                FlowRevision.validate_legacy_definition(flow_def)
-            else:
-                flow_version = Version(flow_def[Flow.DEFINITION_SPEC_VERSION])
-                flow_type = db_types[flow_def[Flow.DEFINITION_TYPE]]
-                flow_uuid = flow_def[Flow.DEFINITION_UUID]
-                flow_name = flow_def[Flow.DEFINITION_NAME]
-                flow_expires = flow_def.get(Flow.DEFINITION_EXPIRE_AFTER_MINUTES, Flow.DEFAULT_EXPIRES_AFTER)
+            flow_version = Version(flow_def[Flow.DEFINITION_SPEC_VERSION])
+            flow_type = db_types[flow_def[Flow.DEFINITION_TYPE]]
+            flow_uuid = flow_def[Flow.DEFINITION_UUID]
+            flow_name = flow_def[Flow.DEFINITION_NAME]
+            flow_expires = flow_def.get(Flow.DEFINITION_EXPIRE_AFTER_MINUTES, Flow.DEFAULT_EXPIRES_AFTER)
 
             flow = None
             flow_name = flow_name[:64].strip()
-
-            # Exports up to version 3 included campaign message flows, which will have type_type=M. We don't create
-            # these here as they'll be created by the campaign event itself.
-            if flow_version <= Version("3.0") and flow_type == "M":  # pragma: no cover
-                continue
-
-            # M used to mean single message flow and regular flows were F, now all messaging flows are M
-            if flow_type == "F":
-                flow_type = Flow.TYPE_MESSAGE
 
             if flow_type == Flow.TYPE_VOICE:
                 flow_expires = min([flow_expires, 15])  # voice flow expiration can't be more than 15 minutes
@@ -511,17 +416,17 @@ class Flow(TembaModel):
             # check if we can find that flow by UUID first
             if same_site:
                 flow = org.flows.filter(is_active=True, uuid=flow_uuid).first()
-                if flow:  # pragma: needs cover
-                    flow.expires_after_minutes = flow_expires
-                    flow.name = Flow.get_unique_name(org, flow_name, ignore=flow)
-                    flow.save(update_fields=("name", "expires_after_minutes"))
 
             # if it's not of our world, let's try by name
             if not flow:
-                flow = Flow.objects.filter(org=org, is_active=True, name=flow_name).first()
+                flow = org.flows.filter(is_active=True, name=flow_name).first()
 
-            # if there isn't one already, create a new flow
-            if not flow:
+            if flow:
+                flow.name = Flow.get_unique_name(org, flow_name, ignore=flow)
+                flow.version_number = flow_version
+                flow.expires_after_minutes = flow_expires
+                flow.save(update_fields=("name", "expires_after_minutes"))
+            else:
                 flow = Flow.create(
                     org,
                     user,
@@ -565,7 +470,7 @@ class Flow(TembaModel):
         copy = Flow.create(flow.org, user, "Copy of %s" % flow.name[:55], flow_type=flow.flow_type)
 
         # grab the json of our original
-        flow_json = flow.as_json()
+        flow_json = flow.get_definition()
 
         copy.import_definition(user, flow_json, {})
 
@@ -576,140 +481,15 @@ class Flow(TembaModel):
         return copy
 
     @classmethod
-    def get_node(cls, flow, uuid, destination_type):
-
-        if not uuid or not destination_type:
-            return None
-
-        if destination_type == Flow.NODE_TYPE_RULESET:
-            node = RuleSet.get(flow, uuid)
-        else:
-            node = ActionSet.get(flow, uuid)
-
-        if node:
-            node.flow = flow
-        return node
+    def export_translation(cls, org, flows, language, exclude_args):
+        flow_ids = [f.id for f in flows]
+        return mailroom.get_client().po_export(org.id, flow_ids, language=language, exclude_arguments=exclude_args)
 
     @classmethod
-    def handle_call(cls, call, text=None, saved_media_url=None, hangup=False, resume=False):
-        run = (
-            FlowRun.objects.filter(connection=call, is_active=True)
-            .select_related("org")
-            .order_by("-created_on")
-            .first()
-        )
-
-        # what we will send back
-        voice_response = call.channel.generate_ivr_response()
-
-        if run is None:  # pragma: no cover
-            voice_response.hangup()
-            return voice_response
-
-        flow = run.flow
-
-        # make sure we have the latest version
-        flow.ensure_current_version()
-
-        run.voice_response = voice_response
-
-        # create a message to hold our inbound message
-        from temba.msgs.models import IVR
-
-        if text or saved_media_url:
-
-            # we don't have text for media, so lets use the media value there too
-            if saved_media_url and ":" in saved_media_url:
-                text = saved_media_url.partition(":")[2]
-
-            msg = Msg.create_incoming(
-                call.channel,
-                str(call.contact_urn),
-                text,
-                status=PENDING,
-                msg_type=IVR,
-                attachments=[saved_media_url] if saved_media_url else None,
-                connection=run.connection,
-            )
-        else:
-            msg = Msg(org=call.org, contact=call.contact, text="", id=0)
-
-        # find out where we last left off
-        last_step = run.path[-1] if run.path else None
-
-        # if we are just starting the flow, create our first step
-        if not last_step:
-            # lookup our entry node
-            destination = ActionSet.objects.filter(flow=run.flow, uuid=flow.entry_uuid).first()
-            if not destination:
-                destination = RuleSet.objects.filter(flow=run.flow, uuid=flow.entry_uuid).first()
-
-            # and add our first step for our run
-            if destination:
-                flow.add_step(run, destination, [])
-        else:
-            destination = Flow.get_node(run.flow, last_step[FlowRun.PATH_NODE_UUID], Flow.NODE_TYPE_RULESET)
-
-        if not destination:  # pragma: no cover
-            voice_response.hangup()
-            run.set_completed(exit_uuid=None)
-            return voice_response
-
-        # go and actually handle wherever we are in the flow
-        (handled, msgs) = Flow.handle_destination(
-            destination, run, msg, user_input=text is not None, resume_parent_run=resume
-        )
-
-        # if we stopped needing user input (likely), then wrap our response accordingly
-        voice_response = Flow.wrap_voice_response_with_input(call, run, voice_response)
-
-        # if we handled it, mark it so
-        if handled and msg.id:
-            from temba.msgs import legacy
-
-            legacy.mark_handled(msg)
-
-        # if we didn't handle it, this is a good time to hangup
-        if not handled or hangup:
-            voice_response.hangup()
-            run.set_completed(exit_uuid=None)
-
-        return voice_response
-
-    @classmethod
-    def wrap_voice_response_with_input(cls, call, run, voice_response):
-        """ Finds where we are in the flow and wraps our voice_response with whatever comes next """
-        last_step = run.path[-1]
-        destination = Flow.get_node(run.flow, last_step[FlowRun.PATH_NODE_UUID], Flow.NODE_TYPE_RULESET)
-
-        if isinstance(destination, RuleSet):
-            response = call.channel.generate_ivr_response()
-            callback = "https://%s%s" % (run.org.get_brand_domain(), reverse("ivr.ivrcall_handle", args=[call.pk]))
-            gather = destination.get_voice_input(response, action=callback)
-
-            # recordings have to be tacked on last
-            if destination.ruleset_type == RuleSet.TYPE_WAIT_RECORDING:
-                voice_response.record(action=callback)
-
-            elif destination.ruleset_type == RuleSet.TYPE_SUBFLOW:
-                voice_response.redirect(url=callback)
-
-            elif gather and hasattr(gather, "document"):  # voicexml case
-                gather.join(voice_response)
-
-                voice_response = response
-
-            elif gather:  # TwiML case
-                # nest all of our previous verbs in our gather
-                for verb in voice_response.verbs:
-                    gather.append(verb)
-
-                voice_response = response
-
-                # append a redirect at the end in case the user sends #
-                voice_response.redirect(url=callback + "?empty=1")
-
-        return voice_response
+    def import_translation(cls, org, flows, language, po_data):
+        flow_ids = [f.id for f in flows]
+        response = mailroom.get_client().po_import(org.id, flow_ids, language=language, po_data=po_data)
+        return {d["uuid"]: d for d in response["flows"]}
 
     @classmethod
     def get_unique_name(cls, org, base_name, ignore=None):
@@ -979,51 +759,33 @@ class Flow(TembaModel):
         return dict(handled=True, destination=destination, msgs=msgs_out)
 
     @classmethod
-    def apply_action_label(cls, user, flows, label, add):  # pragma: needs cover
-        return label.toggle_label(flows, add)
+    def apply_action_label(cls, user, flows, label):
+        label.toggle_label(flows, add=True)
+
+    @classmethod
+    def apply_action_unlabel(cls, user, flows, label):
+        label.toggle_label(flows, add=False)
 
     @classmethod
     def apply_action_archive(cls, user, flows):
-        changed = []
-
         for flow in flows:
-
             # don't archive flows that belong to campaigns
             from temba.campaigns.models import CampaignEvent
 
-            if not CampaignEvent.objects.filter(
+            has_events = CampaignEvent.objects.filter(
                 is_active=True, flow=flow, campaign__org=user.get_org(), campaign__is_archived=False
-            ).exists():
-                flow.archive()
-                changed.append(flow.pk)
+            ).exists()
 
-        return changed
+            if not has_events:
+                flow.archive()
 
     @classmethod
     def apply_action_restore(cls, user, flows):
-        changed = []
         for flow in flows:
             try:
                 flow.restore()
-                changed.append(flow.pk)
             except FlowException:  # pragma: no cover
                 pass
-        return changed
-
-    @classmethod
-    def get_versions_before(cls, version_number):  # pragma: no cover
-        # older flows had numeric versions, lets make sure we are dealing with strings
-        version_number = Version(f"{version_number}")
-        return [v for v in Flow.VERSIONS if Version(v) < version_number]
-
-    @classmethod
-    def get_versions_after(cls, version_number):
-        # older flows had numeric versions, lets make sure we are dealing with strings
-        version_number = Version(f"{version_number}")
-        return [v for v in Flow.VERSIONS if Version(v) > version_number]
-
-    def as_select2(self):
-        return dict(id=self.uuid, text=self.name)
 
     def get_trigger_params(self):
         flow_json = self.as_json()
@@ -1117,9 +879,8 @@ class Flow(TembaModel):
         """
         Allows setting the definition for a flow from another definition. All UUID's will be remapped.
         """
-        if FlowRevision.is_legacy_definition(definition):
-            self.import_legacy_definition(definition, dependency_mapping)
-            return
+
+        definition = Flow.migrate_definition(definition, flow=None)
 
         flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
         dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
@@ -1175,6 +936,7 @@ class Flow(TembaModel):
 
         # save a new revision but we can't validate it just yet because we're in a transaction and mailroom
         # won't see any new database objects
+        self.save_revision(user, cloned_definition)
         self.save_revision(user, cloned_definition, validate=False)
 
     def import_legacy_definition(self, flow_json, uuid_map):
@@ -1426,11 +1188,12 @@ class Flow(TembaModel):
         """
 
         flow_start = FlowStart.objects.create(
+            org=self.org,
             flow=self,
+            start_type=FlowStart.TYPE_MANUAL,
             restart_participants=restart_participants,
             include_active=include_active,
             created_by=user,
-            modified_by=user,
             query=query,
             extra=params,
         )
@@ -1440,8 +1203,7 @@ class Flow(TembaModel):
 
         group_ids = [g.id for g in groups]
         flow_start.groups.add(*group_ids)
-
-        on_transaction_commit(lambda: flow_start.async_start())
+        flow_start.async_start()
 
     def get_export_dependencies(self):
         """
@@ -1460,157 +1222,18 @@ class Flow(TembaModel):
         deps = self.metadata.get(Flow.METADATA_DEPENDENCIES, [])
         return [d for d in deps if d["type"] == type_name]
 
-    def is_legacy(self):
+    def is_legacy(self) -> bool:
         """
         Returns whether this flow still uses a legacy definition
         """
         return Version(self.version_number) < Version(Flow.INITIAL_GOFLOW_VERSION)
 
-    def as_export_ref(self):
+    def as_export_ref(self) -> Dict:
         return {Flow.DEFINITION_UUID: str(self.uuid), Flow.DEFINITION_NAME: self.name}
 
-    def as_json(self, expand_contacts=False):
-        if self.is_legacy():
-            return self.get_legacy_definition(expand_contacts)
-
-        return self.get_definition()
-
-    def get_legacy_definition(self, expand_contacts=False):
-        """
-        Builds the JSON definition for a legacy flow from its action sets and rule sets.
-
-          expand_contacts:
-            Add names for contacts and groups that are just ids. This is useful for human readable
-            situations such as the flow editor.
-
-        """
-
-        flow = dict()
-
-        if self.entry_uuid:
-            flow[Flow.ENTRY] = self.entry_uuid
-        else:
-            flow[Flow.ENTRY] = None
-
-        actionsets = []
-        for actionset in ActionSet.objects.filter(flow=self).order_by("pk"):
-            actionsets.append(actionset.as_json())
-
-        def lookup_action_contacts(action, contacts, groups):
-
-            if "contact" in action:  # pragma: needs cover
-                contacts.append(action["contact"]["uuid"])
-
-            if "contacts" in action:
-                for contact in action["contacts"]:
-                    contacts.append(contact["uuid"])
-
-            if "group" in action:  # pragma: needs cover
-                g = action["group"]
-                if isinstance(g, dict):
-                    if "uuid" in g:
-                        groups.append(g["uuid"])
-
-            if "groups" in action:
-                for group in action["groups"]:
-                    if isinstance(group, dict):
-                        if "uuid" in group:
-                            groups.append(group["uuid"])
-
-        def replace_action_contacts(action, contacts, groups):
-
-            if "contact" in action:  # pragma: needs cover
-                contact = contacts.get(action["contact"]["uuid"], None)
-                if contact:
-                    action["contact"] = contact.as_json()
-
-            if "contacts" in action:
-                expanded_contacts = []
-                for contact in action["contacts"]:
-                    contact = contacts.get(contact["uuid"], None)
-                    if contact:
-                        expanded_contacts.append(contact.as_json())
-
-                action["contacts"] = expanded_contacts
-
-            if "group" in action:  # pragma: needs cover
-                # variable substitution
-                group = action["group"]
-                if isinstance(group, dict):
-                    if "uuid" in group:
-                        group = groups.get(group["uuid"], None)
-                        if group:
-                            action["group"] = dict(uuid=group.uuid, name=group.name)
-
-            if "groups" in action:
-                expanded_groups = []
-                for group in action["groups"]:
-
-                    # variable substitution
-                    if not isinstance(group, dict):
-                        expanded_groups.append(group)
-                    else:
-                        group_instance = groups.get(group["uuid"], None)
-                        if group_instance:
-                            expanded_groups.append(dict(uuid=group_instance.uuid, name=group_instance.name))
-                        else:
-                            expanded_groups.append(group)
-
-                action["groups"] = expanded_groups
-
-        if expand_contacts:
-            groups = []
-            contacts = []
-
-            for actionset in actionsets:
-                for action in actionset["actions"]:
-                    lookup_action_contacts(action, contacts, groups)
-
-            # load them all
-            contacts = dict((_.uuid, _) for _ in self.org.contacts.filter(uuid__in=contacts))
-            groups = dict((_.uuid, _) for _ in ContactGroup.user_groups.filter(org=self.org, uuid__in=groups))
-
-            # and replace them
-            for actionset in actionsets:
-                for action in actionset["actions"]:
-                    replace_action_contacts(action, contacts, groups)
-
-        flow[Flow.ACTION_SETS] = actionsets
-
-        # add in our rulesets
-        rulesets = []
-        for ruleset in RuleSet.objects.filter(flow=self).order_by("pk"):
-            rulesets.append(ruleset.as_json())
-        flow[Flow.RULE_SETS] = rulesets
-
-        # required flow running details
-        flow[Flow.BASE_LANGUAGE] = self.base_language
-        flow[Flow.FLOW_TYPE] = self.flow_type
-        flow[Flow.VERSION] = Flow.FINAL_LEGACY_VERSION
-        flow[Flow.METADATA] = self.get_legacy_metadata()
-        return flow
-
-    def get_legacy_metadata(self):
-        exclude_keys = (Flow.METADATA_RESULTS, Flow.METADATA_WAITING_EXIT_UUIDS, Flow.METADATA_PARENT_REFS)
-        metadata = {k: v for k, v in self.metadata.items() if k not in exclude_keys}
-
-        revision = self.get_current_revision()
-
-        last_saved = self.saved_on
-        if self.saved_by == get_flow_user(self.org):
-            last_saved = self.modified_on
-
-        metadata[Flow.UUID] = self.uuid
-        metadata[Flow.METADATA_NAME] = self.name
-        metadata[Flow.METADATA_SAVED_ON] = json.encode_datetime(last_saved, micros=True)
-        metadata[Flow.METADATA_REVISION] = revision.revision if revision else 1
-        metadata[Flow.METADATA_EXPIRES] = self.expires_after_minutes
-
-        return metadata
-
     @classmethod
-    def get_metadata(cls, flow_info):
-        return {
+    def get_metadata(cls, flow_info, previous=None) -> Dict:
+        data = {
             Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
             Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
             Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
@@ -1618,102 +1241,29 @@ class Flow(TembaModel):
             Flow.METADATA_ISSUES: flow_info[Flow.INSPECT_ISSUES],
         }
 
-    @classmethod
-    def detect_invalid_cycles(cls, json_dict):
-        """
-        Checks for invalid cycles in our flow
-        :param json_dict: our flow definition
-        :return: invalid cycle path as list of uuids if found, otherwise empty list
-        """
+        # IVR retry is the only value in metadata that doesn't come from flow inspection
+        if previous and Flow.METADATA_IVR_RETRY in previous:
+            data[Flow.METADATA_IVR_RETRY] = previous[Flow.METADATA_IVR_RETRY]
 
-        # Adapted from a blog post by Guido:
-        # http://neopythonic.blogspot.com/2009/01/detecting-cycles-in-directed-graph.html
-
-        # Maintain path as a a depth-first path in the implicit tree;
-        # path is represented as an OrderedDict of {node: [child,...]} pairs.
-
-        nodes = list()
-        node_map = {}
-
-        for ruleset in json_dict.get(Flow.RULE_SETS, []):
-            nodes.append(ruleset.get("uuid"))
-            node_map[ruleset.get("uuid")] = ruleset
-
-        for actionset in json_dict.get(Flow.ACTION_SETS, []):
-            nodes.append(actionset.get("uuid"))
-            node_map[actionset.get("uuid")] = actionset
-
-        def get_destinations(uuid):
-            node = node_map.get(uuid)
-
-            if not node:  # pragma: needs cover
-                return []
-
-            rules = node.get("rules", [])
-            destinations = []
-            if rules:
-
-                if node.get("ruleset_type", None) in RuleSet.TYPE_WAIT:
-                    return []
-
-                for rule in rules:
-                    if rule.get("destination"):
-                        destinations.append(rule.get("destination"))
-
-            elif node.get("destination"):
-                destinations.append(node.get("destination"))
-            return destinations
-
-        while nodes:
-            root = nodes.pop()
-            path = OrderedDict({root: get_destinations(root)})
-            while path:
-                # children at the fringe of the tree
-                children = path[next(reversed(path))]
-                while children:
-                    child = children.pop()
-
-                    # found a loop
-                    if child in path:
-                        pathlist = list(path)
-                        return pathlist[pathlist.index(child) :] + [child]
-
-                    # new path
-                    if child in nodes:
-                        path[child] = get_destinations(child)
-                        nodes.remove(child)
-                        break
-                else:
-                    # no more children; pop back up a level
-                    path.popitem()
-        return None
+        return data
 
     def ensure_current_version(self):
         """
-        Makes sure the flow is at the latest legacy or goflow spec version
+        Makes sure the flow is at the latest spec version
         """
 
-        to_version = Flow.FINAL_LEGACY_VERSION if self.is_legacy() else Flow.CURRENT_SPEC_VERSION
-
         # nothing to do if flow is already at the target version
-        if Version(self.version_number) >= Version(to_version):
+        if Version(self.version_number) >= Version(Flow.CURRENT_SPEC_VERSION):
             return
 
         with self.lock():
             revision = self.get_current_revision()
-            if revision:
-                flow_def = revision.get_definition_json(to_version)
-            else:  # pragma: needs cover
-                flow_def = self.as_json()
+            flow_def = revision.get_migrated_definition()
 
-            if self.is_legacy():
-                self.update(flow_def, user=get_flow_user(self.org))
-            else:
-                self.save_revision(get_flow_user(self.org), flow_def, validate=False)
-
+            self.save_revision(user=None, definition=flow_def)
             self.refresh_from_db()
 
-    def get_definition(self):
+    def get_definition(self) -> Dict:
         """
         Returns the current definition of this flow
         """
@@ -1723,10 +1273,19 @@ class Flow(TembaModel):
 
         # update metadata in definition from database object as it may be out of date
         definition = rev.definition
-        definition[Flow.DEFINITION_UUID] = self.uuid
-        definition[Flow.DEFINITION_NAME] = self.name
-        definition[Flow.DEFINITION_REVISION] = rev.revision
-        definition[Flow.DEFINITION_EXPIRE_AFTER_MINUTES] = self.expires_after_minutes
+
+        if self.is_legacy():
+            if "metadata" not in definition:
+                definition["metadata"] = {}
+            definition["metadata"]["uuid"] = self.uuid
+            definition["metadata"]["name"] = self.name
+            definition["metadata"]["revision"] = rev.revision
+            definition["metadata"]["expires"] = self.expires_after_minutes
+        else:
+            definition[Flow.DEFINITION_UUID] = self.uuid
+            definition[Flow.DEFINITION_NAME] = self.name
+            definition[Flow.DEFINITION_REVISION] = rev.revision
+            definition[Flow.DEFINITION_EXPIRE_AFTER_MINUTES] = self.expires_after_minutes
         return definition
 
     def get_current_revision(self):
@@ -1735,7 +1294,7 @@ class Flow(TembaModel):
         """
         return self.revisions.order_by("revision").last()
 
-    def save_revision(self, user, definition, validate=True):
+    def save_revision(self, user, definition):
         """
         Saves a new revision for this flow, validation will be done on the definition first
         """
@@ -1764,14 +1323,27 @@ class Flow(TembaModel):
         flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
         dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
 
+        if user is None:
+            is_system_rev = True
+            user = get_flow_user(self.org)
+        else:
+            is_system_rev = False
+
         with transaction.atomic():
             # update our flow fields
             self.base_language = definition.get(Flow.DEFINITION_LANGUAGE, None)
-            self.metadata = Flow.get_metadata(flow_info)
-            self.saved_by = user
-            self.saved_on = timezone.now()
             self.version_number = Flow.CURRENT_SPEC_VERSION
-            self.save(update_fields=["metadata", "version_number", "base_language", "saved_by", "saved_on"])
+            self.metadata = Flow.get_metadata(flow_info, self.metadata)
+            self.modified_by = user
+            self.modified_on = timezone.now()
+            fields = ["base_language", "version_number", "metadata", "modified_by", "modified_on"]
+
+            if not is_system_rev:
+                self.saved_by = user
+                self.saved_on = timezone.now()
+                fields += ["saved_by", "saved_on"]
+
+            self.save(update_fields=fields)
 
             # create our new revision
             revision = self.revisions.create(
@@ -1786,340 +1358,44 @@ class Flow(TembaModel):
 
         return revision
 
-    def update(self, json_dict, user=None, force=False):
-        """
-        Updates a definition for a flow and returns the new revision
-        """
+    @classmethod
+    def migrate_definition(cls, flow_def, flow, to_version=None):
+        if not to_version:
+            to_version = cls.CURRENT_SPEC_VERSION
 
-        cycle_node_uuids = Flow.detect_invalid_cycles(json_dict)
-        if cycle_node_uuids:
-            raise FlowInvalidCycleException(cycle_node_uuids)
+        if "version" in flow_def:
+            flow_def = legacy.migrate_definition(flow_def, flow=flow)
 
-        # make sure the flow version hasn't changed out from under us
-        if Version(json_dict.get(Flow.VERSION)) != Version(Flow.FINAL_LEGACY_VERSION):
-            raise FlowVersionConflictException(json_dict.get(Flow.VERSION))
+        if "metadata" not in flow_def:
+            flow_def["metadata"] = {}
 
-        flow_user = get_flow_user(self.org)
-        # check whether the flow has changed since this flow was last saved
-        if user and not force:
-            saved_on = json_dict.get(Flow.METADATA, {}).get(Flow.METADATA_SAVED_ON, None)
-            org = user.get_org()
+        # ensure definition has a valid expiration
+        expires = flow_def["metadata"].get("expires", 0)
+        if expires <= 0 or expires > (30 * 24 * 60):
+            flow_def["metadata"]["expires"] = Flow.DEFAULT_EXPIRES_AFTER
 
-            # check our last save if we aren't the system flow user
-            if user != flow_user:
-                migrated = self.saved_by == flow_user
-                last_save = self.saved_on
+        # migrate using goflow for anything newer
+        if Version(to_version) >= Version(Flow.INITIAL_GOFLOW_VERSION):
+            flow_def = mailroom.get_client().flow_migrate(flow_def, to_version)
 
-                # use modified on if it was a migration
-                if migrated:
-                    last_save = self.modified_on
+        return flow_def
 
-                if not saved_on or str_to_datetime(saved_on, org.timezone) < last_save:
-                    raise FlowUserConflictException(self.saved_by, last_save)
+    @classmethod
+    def migrate_export(cls, org, exported_json, same_site, version):
+        # use legacy migrations to get export to final legacy version
+        if version < Version(Flow.FINAL_LEGACY_VERSION):
+            from temba.flows.legacy import exports
 
-        try:
-            # run through all our action sets and validate / instantiate them, we need to do this in a transaction
-            # or mailroom won't know about the labels / groups possibly created here
-            with transaction.atomic():
-                for actionset in json_dict.get(Flow.ACTION_SETS, []):
-                    actions = [
-                        _.as_json() for _ in legacy.Action.from_json_array(self.org, actionset.get(Flow.ACTIONS))
-                    ]
-                    actionset[Flow.ACTIONS] = actions
+            exported_json = exports.migrate(org, exported_json, same_site, version)
 
-            flow_info = mailroom.get_client().flow_inspect(self.org.id, json_dict)
-            dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
+        migrated_flows = []
+        for flow_def in exported_json[Org.EXPORT_FLOWS]:
+            migrated_def = Flow.migrate_definition(flow_def, flow=None)
+            migrated_flows.append(migrated_def)
 
-            with transaction.atomic():
-                # TODO remove this when we no longer need rulesets or actionsets
-                self.update_rulesets_and_actionsets(json_dict)
+        exported_json[Org.EXPORT_FLOWS] = migrated_flows
 
-                # if we have a base language, set that
-                self.base_language = json_dict.get("base_language", None)
-
-                # set our metadata
-                self.metadata = json_dict.get(Flow.METADATA, {})
-                self.metadata[Flow.METADATA_RESULTS] = flow_info[Flow.INSPECT_RESULTS]
-                self.metadata[Flow.METADATA_WAITING_EXIT_UUIDS] = flow_info[Flow.INSPECT_WAITING_EXITS]
-                self.metadata[Flow.METADATA_PARENT_REFS] = flow_info[Flow.INSPECT_PARENT_REFS]
-
-                if user:
-                    self.saved_by = user
-
-                # if it's our migration user, don't update saved on
-                if user and user != flow_user:
-                    self.saved_on = timezone.now()
-
-                self.version_number = Flow.FINAL_LEGACY_VERSION
-                self.save()
-
-                # in case rulesets/actionsets were prefetched, clear those cached values
-                # TODO https://code.djangoproject.com/ticket/29625
-                self.action_sets._remove_prefetched_objects()
-                self.rule_sets._remove_prefetched_objects()
-
-                # create a version of our flow for posterity
-                if user is None:
-                    user = self.created_by
-
-                # last version
-                revision_num = 1
-                last_revision = self.get_current_revision()
-                if last_revision:
-                    revision_num = last_revision.revision + 1
-
-                # create a new version
-                revision = self.revisions.create(
-                    definition=json_dict,
-                    created_by=user,
-                    modified_by=user,
-                    spec_version=Flow.FINAL_LEGACY_VERSION,
-                    revision=revision_num,
-                )
-
-                self.update_dependencies(dependencies)
-
-        except Exception as e:
-            # user will see an error in the editor but log exception so we know we got something to fix
-            logger.error(str(e), exc_info=True)
-            raise e
-
-        return revision
-
-    def update_rulesets_and_actionsets(self, json_dict):
-        """
-        Creates RuleSet and ActionSet database objects as required by the legacy engine
-        """
-
-        def get_step_type(dest, rulesets, actionsets):
-            if dest:
-                if rulesets.get(dest, None):
-                    return Flow.NODE_TYPE_RULESET
-                if actionsets.get(dest, None):
-                    return Flow.NODE_TYPE_ACTIONSET
-            return None
-
-        top_y = 0
-        top_uuid = None
-
-        # load all existing objects into dicts by uuid
-        existing_actionsets = {actionset.uuid: actionset for actionset in self.action_sets.all()}
-        existing_rulesets = {ruleset.uuid: ruleset for ruleset in self.rule_sets.all()}
-
-        # set of uuids which we've seen, we use this set to remove objects no longer used in this flow
-        seen_rulesets = set()
-        seen_actionsets = set()
-        destinations = set()
-
-        # our steps in our current update submission
-        current_actionsets = {}
-        current_rulesets = {}
-
-        # parse our actions
-        for actionset in json_dict.get(Flow.ACTION_SETS, []):
-
-            uuid = actionset.get(Flow.UUID)
-
-            # validate our actions, normalizing them as JSON after reading them
-            actions = [_.as_json() for _ in legacy.Action.from_json_array(self.org, actionset.get(Flow.ACTIONS))]
-
-            if actions:
-                current_actionsets[uuid] = actions
-
-        for ruleset in json_dict.get(Flow.RULE_SETS, []):
-            uuid = ruleset.get(Flow.UUID)
-            current_rulesets[uuid] = ruleset
-            seen_rulesets.add(uuid)
-
-        # create all our rule sets
-        for ruleset in json_dict.get(Flow.RULE_SETS, []):
-
-            uuid = ruleset.get(Flow.UUID)
-            rules = ruleset.get(Flow.RULES)
-            label = ruleset.get(Flow.LABEL, None)
-            operand = ruleset.get(Flow.OPERAND, None)
-            finished_key = ruleset.get(Flow.FINISHED_KEY)
-            ruleset_type = ruleset.get(Flow.RULESET_TYPE)
-            config = ruleset.get(Flow.CONFIG)
-
-            if not config:
-                config = dict()
-
-            # cap our lengths
-            if label:
-                label = label[:64]
-
-            if operand:
-                operand = operand[:128]
-
-            (x, y) = (ruleset.get(Flow.X), ruleset.get(Flow.Y))
-
-            if not top_uuid or y < top_y:
-                top_y = y
-                top_uuid = uuid
-
-            # parse our rules, this will materialize any necessary dependencies
-            parsed_rules = []
-            rule_objects = legacy.Rule.from_json_array(self.org, rules)
-            for r in rule_objects:
-                parsed_rules.append(r.as_json())
-            rules = parsed_rules
-
-            for rule in rules:
-                if "destination" in rule:
-                    # if the destination was excluded for not having any actions
-                    # remove the connection for our rule too
-                    if rule["destination"] not in current_actionsets and rule["destination"] not in seen_rulesets:
-                        rule["destination"] = None
-                    else:
-                        destination_uuid = rule.get("destination", None)
-                        destinations.add(destination_uuid)
-
-                        # determine what kind of destination we are pointing to
-                        rule["destination_type"] = get_step_type(
-                            destination_uuid, current_rulesets, current_actionsets
-                        )
-
-                        # print "Setting destination [%s] type to: %s" % (destination_uuid, rule['destination_type'])
-
-            existing = existing_rulesets.get(uuid, None)
-
-            if existing:
-                existing.label = ruleset.get(Flow.LABEL, None)
-                existing.rules = rules
-                existing.operand = operand
-                existing.label = label
-                existing.finished_key = finished_key
-                existing.ruleset_type = ruleset_type
-                existing.config = config
-                (existing.x, existing.y) = (x, y)
-                existing.save()
-            else:
-
-                existing = RuleSet.objects.create(
-                    flow=self,
-                    uuid=uuid,
-                    label=label,
-                    rules=rules,
-                    finished_key=finished_key,
-                    ruleset_type=ruleset_type,
-                    operand=operand,
-                    config=config,
-                    x=x,
-                    y=y,
-                )
-
-            existing_rulesets[uuid] = existing
-
-            # update our value type based on our new rules
-            existing.value_type = existing.get_value_type()
-            RuleSet.objects.filter(pk=existing.pk).update(value_type=existing.value_type)
-
-        # now work through our action sets
-        for actionset in json_dict.get(Flow.ACTION_SETS, []):
-            uuid = actionset.get(Flow.UUID)
-            exit_uuid = actionset.get(Flow.EXIT_UUID)
-
-            # skip actionsets without any actions. This happens when there are no valid
-            # actions in an actionset such as when deleted groups or flows are the only actions
-            if uuid not in current_actionsets:
-                continue
-
-            actions = current_actionsets[uuid]
-            seen_actionsets.add(uuid)
-
-            (x, y) = (actionset.get(Flow.X), actionset.get(Flow.Y))
-
-            if not top_uuid or y < top_y:
-                top_y = y
-                top_uuid = uuid
-
-            existing = existing_actionsets.get(uuid, None)
-
-            # lookup our destination
-            destination_uuid = actionset.get("destination")
-            destination_type = get_step_type(destination_uuid, current_rulesets, current_actionsets)
-
-            if destination_uuid:
-                if not destination_type:
-                    destination_uuid = None
-
-            # only create actionsets if there are actions
-            if actions:
-                if existing:
-                    # print "Updating %s to point to %s" % (unicode(actions), destination_uuid)
-                    existing.destination = destination_uuid
-                    existing.destination_type = destination_type
-                    existing.exit_uuid = exit_uuid
-                    existing.actions = actions
-                    (existing.x, existing.y) = (x, y)
-                    existing.save()
-                else:
-                    existing = ActionSet.objects.create(
-                        flow=self,
-                        uuid=uuid,
-                        destination=destination_uuid,
-                        destination_type=destination_type,
-                        exit_uuid=exit_uuid,
-                        actions=actions,
-                        x=x,
-                        y=y,
-                    )
-
-                    existing_actionsets[uuid] = existing
-
-        existing_actionsets_to_delete = set()
-        seen_existing_actionsets = {}
-
-        # now work through all our objects once more, making sure all uuids map appropriately
-        for uuid, actionset in existing_actionsets.items():
-            if uuid not in seen_actionsets:
-                existing_actionsets_to_delete.add(uuid)
-            else:
-                seen_existing_actionsets[uuid] = actionset
-
-        # delete actionset which are not seen
-        ActionSet.objects.filter(uuid__in=existing_actionsets_to_delete).delete()
-
-        existing_actionsets = seen_existing_actionsets
-
-        existing_rulesets_to_delete = set()
-        seen_existing_rulesets = {}
-
-        for uuid, ruleset in existing_rulesets.items():
-            if uuid not in seen_rulesets:
-                existing_rulesets_to_delete.add(uuid)
-
-                # instead of deleting it, make it a phantom ruleset until we do away with values_value
-                ruleset.flow = None
-                ruleset.uuid = str(uuid4())
-                ruleset.save(update_fields=("flow", "uuid"))
-            else:
-                seen_existing_rulesets[uuid] = ruleset
-
-        existing_rulesets = seen_existing_rulesets
-
-        # make sure all destinations are present though
-        for destination in destinations:
-            if destination not in existing_rulesets and destination not in existing_actionsets:  # pragma: needs cover
-                raise FlowException("Invalid destination: '%s', no matching actionset or ruleset" % destination)
-
-        entry = json_dict.get("entry", None)
-
-        # check if we are pointing to a destination that is no longer valid
-        if entry not in existing_rulesets and entry not in existing_actionsets:
-            entry = None
-
-        if not entry and top_uuid:
-            entry = top_uuid
-
-        # set our entry
-        if entry in existing_actionsets:
-            self.entry_uuid = entry
-            self.entry_type = Flow.NODE_TYPE_ACTIONSET
-        elif entry in existing_rulesets:
-            self.entry_uuid = entry
-            self.entry_type = Flow.NODE_TYPE_RULESET
+        return exported_json
 
     def update_dependencies(self, dependencies):
         # build a lookup of types to identifier lists
@@ -2146,6 +1422,7 @@ class Flow(TembaModel):
             "group": ContactGroup.user_groups.filter(org=self.org, is_active=True, uuid__in=identifiers["group"]),
             "label": Label.label_objects.filter(org=self.org, uuid__in=identifiers["label"]),
             "template": self.org.templates.filter(uuid__in=identifiers["template"]),
+            "ticketer": self.org.ticketers.filter(is_active=True, uuid__in=identifiers["ticketer"]),
         }
 
         # reset the m2m for each type
@@ -2183,6 +1460,7 @@ class Flow(TembaModel):
         self.channel_dependencies.clear()
         self.label_dependencies.clear()
         self.classifier_dependencies.clear()
+        self.ticketer_dependencies.clear()
 
         # queue mailroom to interrupt sessions where contact is currently in this flow
         mailroom.queue_interrupt(self.org, flow=self)
@@ -2533,9 +1811,6 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
     # when this run will expire
     expires_on = models.DateTimeField(null=True)
 
-    # next wait timeout in this run (if any)
-    timeout_on = models.DateTimeField(null=True)
-
     # true if the contact has responded in this run
     responded = models.BooleanField(default=False)
 
@@ -2666,6 +1941,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
         return {
             "id": self.id,
+            "uuid": str(self.uuid),
             "flow": {"uuid": str(self.flow.uuid), "name": self.flow.name},
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "responded": self.responded,
@@ -2783,8 +2059,6 @@ class RuleSet(models.Model):
 
     value_type = models.CharField(
         max_length=1,
-        choices=Value.TYPE_CHOICES,
-        default=Value.TYPE_TEXT,
         help_text="The type of value this ruleset saves",
     )
 
@@ -2805,41 +2079,6 @@ class RuleSet(models.Model):
     created_on = models.DateTimeField(auto_now_add=True, help_text=_("When this ruleset was originally created"))
     modified_on = models.DateTimeField(auto_now=True, help_text=_("When this ruleset was last modified"))
 
-    def get_value_type(self):
-        """
-        Determines the value type that this ruleset will generate.
-        """
-        # we keep track of specialized rule types we see
-        value_type = None
-
-        for rule in self.get_rules():
-            if isinstance(rule.test, legacy.TrueTest):
-                continue
-
-            rule_type = None
-
-            if isinstance(rule.test, legacy.NumericTest):
-                rule_type = Value.TYPE_NUMBER
-
-            elif isinstance(rule.test, legacy.DateTest):
-                rule_type = Value.TYPE_DATETIME
-
-            elif isinstance(rule.test, legacy.HasStateTest):
-                rule_type = Value.TYPE_STATE
-
-            elif isinstance(rule.test, legacy.HasDistrictTest):
-                rule_type = Value.TYPE_DISTRICT
-
-            elif isinstance(rule.test, legacy.HasWardTest):
-                rule_type = Value.TYPE_WARD
-
-            # this either isn't one of our value types or we have more than one type in this ruleset
-            if not rule_type or (value_type and rule_type != value_type):
-                return Value.TYPE_TEXT
-
-            value_type = rule_type
-
-        return value_type if value_type else Value.TYPE_TEXT
 
     def get_voice_input(self, voice_response, action=None):
 
@@ -3153,115 +2392,36 @@ class FlowRevision(SmartModel):
         return FlowRevision.objects.filter(flow=flow_id, created_on__lt=cutoff).exclude(id__in=keepers).delete()[0]
 
     @classmethod
-    def is_legacy_definition(cls, definition):
-        return Flow.DEFINITION_SPEC_VERSION not in definition
-
-    @classmethod
     def validate_legacy_definition(cls, definition):
-
-        if definition[Flow.FLOW_TYPE] not in (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, "F"):
-            raise ValueError(_("Unsupported flow type"))
-
-        non_localized_error = _("Malformed flow, encountered non-localized definition")
+        if definition["flow_type"] not in (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY, "F"):
+            raise ValueError("unsupported flow type")
 
         # should always have a base_language
-        if Flow.BASE_LANGUAGE not in definition or not definition[Flow.BASE_LANGUAGE]:
-            raise ValueError(non_localized_error)
+        if "base_language" not in definition or not definition["base_language"]:
+            raise ValueError("non-localized flow definition")
 
         # language should match values in definition
-        base_language = definition[Flow.BASE_LANGUAGE]
+        base_language = definition["base_language"]
 
         def validate_localization(lang_dict):
-
             # must be a dict
             if not isinstance(lang_dict, dict):
-                raise ValueError(non_localized_error)
+                raise ValueError("non-localized flow definition")
 
             # and contain the base_language
             if base_language not in lang_dict:  # pragma: needs cover
-                raise ValueError(non_localized_error)
+                raise ValueError("non-localized flow definition")
 
-        for actionset in definition[Flow.ACTION_SETS]:
+        for actionset in definition["action_sets"]:
             for action in actionset["actions"]:
                 if "msg" in action and action["type"] != "email":
                     validate_localization(action["msg"])
 
-        for ruleset in definition[Flow.RULE_SETS]:
+        for ruleset in definition["rule_sets"]:
             for rule in ruleset["rules"]:
                 validate_localization(rule["category"])
 
-    @classmethod
-    def migrate_export(cls, org, exported_json, same_site, version, legacy=False):
-        # use legacy migrations to get export to final legacy version
-        if version < Version(Flow.FINAL_LEGACY_VERSION):
-            from temba.flows.legacy import exports
-
-            exported_json = exports.migrate(org, exported_json, same_site, version)
-
-        if legacy:
-            return exported_json
-
-        # use mailroom to get export to current spec version
-        migrated_flows = []
-        for flow_def in exported_json[Org.EXPORT_FLOWS]:
-            migrated_flow = mailroom.get_client().flow_migrate(flow_def)
-            if version <= Version(Flow.FINAL_LEGACY_VERSION):
-                migrated_flow = cls.migrate_issues(migrated_flow)
-            migrated_flows.append(migrated_flow)
-
-        exported_json[Org.EXPORT_FLOWS] = migrated_flows
-
-        return exported_json
-
-    @classmethod
-    def migrate_issues(cls, flow_definition):
-        # hotfix to be able import legacy flows with correct timeout
-        for item in flow_definition.get("nodes", []):
-            timeout = item.get("router", {}).get("wait", {}).get("timeout")
-            if timeout is not None and timeout.get("seconds"):
-                timeout_seconds = timeout["seconds"]
-                timeout_seconds //= 60
-                timeout["seconds"] = timeout_seconds or 10
-                item["router"]["wait"]["timeout"].update(timeout)
-
-            for action in item.get("actions", []):
-                if action.get("type") == "send_email":
-                    for idx, attachment in enumerate(action.get("attachments", [])):
-                        [content_type, url] = str(attachment).split(":", 1)
-                        url = str(url).replace(
-                            "https://attachments", f"https://{settings.AWS_BUCKET_DOMAIN}/attachments"
-                        )
-                        action["attachments"][idx] = f"{content_type}:{url}"
-                elif action.get("type") == "call_giftcard":
-                    action["giftcard_type"] = "GIFTCARD_ASSIGNING"
-
-        return flow_definition
-
-    @classmethod
-    def migrate_definition(cls, json_flow, flow, to_version=Flow.CURRENT_SPEC_VERSION):
-        from temba.flows.legacy import migrations
-
-        # migrate any legacy versions forward
-        if Flow.VERSION in json_flow:
-            versions = legacy.get_versions_after(json_flow[Flow.VERSION])
-            for version in versions:
-                version_slug = version.replace(".", "_")
-                migrate_fn = getattr(migrations, "migrate_to_version_%s" % version_slug, None)
-
-                if migrate_fn:
-                    json_flow = migrate_fn(json_flow, flow)
-                    json_flow[Flow.VERSION] = version
-
-                if version == to_version:
-                    break
-
-        # migrate using goflow for anything newer
-        if Version(to_version) >= Version(Flow.INITIAL_GOFLOW_VERSION):
-            json_flow = mailroom.get_client().flow_migrate(json_flow, to_version)
-
-        return json_flow
-
-    def get_definition_json(self, to_version=Flow.CURRENT_SPEC_VERSION):
+    def get_migrated_definition(self, to_version: str = Flow.CURRENT_SPEC_VERSION) -> Dict:
         definition = self.definition
 
         # if it's previous to version 6, wrap the definition to
@@ -3278,15 +2438,15 @@ class FlowRevision(SmartModel):
 
         # make sure old revisions migrate properly
         if Version(self.spec_version) <= Version(Flow.FINAL_LEGACY_VERSION):
-            definition[Flow.VERSION] = self.spec_version
+            definition["version"] = self.spec_version
+
+            if "metadata" not in definition:
+                definition["metadata"] = {}
+            definition["metadata"]["revision"] = self.revision
 
         # migrate our definition if necessary
         if self.spec_version != to_version:
-            if Flow.METADATA not in definition:
-                definition[Flow.METADATA] = {}
-
-            definition[Flow.METADATA][Flow.METADATA_REVISION] = self.revision
-            definition = FlowRevision.migrate_definition(definition, self.flow, to_version)
+            definition = Flow.migrate_definition(definition, self.flow, to_version)
 
         # update variables from our db into our revision
         flow = self.flow
@@ -3683,6 +2843,7 @@ class ExportFlowResultsTask(BaseExportTask):
         columns.append("Started")
         columns.append("Modified")
         columns.append("Exited")
+        columns.append("Run UUID")
 
         for result_field in result_fields:
             field_name, flow_name = result_field["name"], result_field["flow_name"]
@@ -3707,7 +2868,7 @@ class ExportFlowResultsTask(BaseExportTask):
         sheet = book.add_sheet(name, index)
         book.num_msgs_sheets += 1
 
-        headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Channel"]
+        headers = ["Contact UUID", "URN", "Name", "Date", "Direction", "Message", "Attachments", "Channel"]
 
         self.append_row(sheet, headers)
         return sheet
@@ -3823,38 +2984,21 @@ class ExportFlowResultsTask(BaseExportTask):
             if earliest_created_on is None or flow.created_on < earliest_created_on:
                 earliest_created_on = flow.created_on
 
-        earliest_day = earliest_created_on.date()
-        earliest_month = date(earliest_day.year, earliest_day.month, 1)
-
-        archives = (
-            Archive.objects.filter(org=self.org, archive_type=Archive.TYPE_FLOWRUN, record_count__gt=0, rollup=None)
-            .filter(
-                Q(period=Archive.PERIOD_MONTHLY, start_date__gte=earliest_month)
-                | Q(period=Archive.PERIOD_DAILY, start_date__gte=earliest_day)
-            )
-            .order_by("start_date")
-        )
-
+        records = Archive.iter_all_records(self.org, Archive.TYPE_FLOWRUN, after=earliest_created_on)
         flow_uuids = {str(flow.uuid) for flow in flows}
-        last_modified_on = None
+        seen = set()
 
-        for archive in archives:
-            for record_batch in chunk_list(archive.iter_records(), 1000):
-                matching = []
-                for record in record_batch:
-                    modified_on = iso8601.parse_date(record["modified_on"])
-                    if last_modified_on is None or last_modified_on < modified_on:
-                        last_modified_on = modified_on
+        for record_batch in chunk_list(records, 1000):
+            matching = []
+            for record in record_batch:
+                if record["flow"]["uuid"] in flow_uuids and (not responded_only or record["responded"]):
+                    seen.add(record["id"])
+                    matching.append(record)
 
-                    if record["flow"]["uuid"] in flow_uuids and (not responded_only or record["responded"]):
-                        matching.append(record)
-                yield matching
+            yield matching
 
         # secondly get runs from database
         runs = FlowRun.objects.filter(flow__in=flows).order_by("modified_on")
-        if last_modified_on:
-            runs = runs.filter(modified_on__gt=last_modified_on)
-
         if responded_only:
             runs = runs.filter(responded=True)
         run_ids = array(str("l"), runs.values_list("id", flat=True))
@@ -3869,7 +3013,7 @@ class ExportFlowResultsTask(BaseExportTask):
             )
 
             # convert this batch of runs to same format as records in our archives
-            yield [run.as_archive_json() for run in run_batch]
+            yield [run.as_archive_json() for run in run_batch if run.id not in seen]
 
     def _write_runs(
         self,
@@ -3948,6 +3092,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 iso8601.parse_date(run["created_on"]),
                 iso8601.parse_date(run["modified_on"]),
                 iso8601.parse_date(run["exited_on"]) if run["exited_on"] else None,
+                run["uuid"],
             ]
             runs_sheet_row += result_values
 
@@ -3975,6 +3120,7 @@ class ExportFlowResultsTask(BaseExportTask):
             msg_text = msg.get("text", "")
             msg_created_on = iso8601.parse_date(event["created_on"])
             msg_channel = msg.get("channel")
+            msg_attachments = [attachment.url for attachment in Attachment.parse_all(msg.get("attachments", []))]
             msg_uuid = msg.get("uuid", None)
 
             if (msg_uuid is not None) and (msg_uuid in getattr(self, "seen_msgs", [])):
@@ -4002,6 +3148,7 @@ class ExportFlowResultsTask(BaseExportTask):
                     msg_created_on,
                     msg_direction,
                     msg_text,
+                    ", ".join(msg_attachments),
                     msg_channel["name"] if msg_channel else "",
                 ],
             )
@@ -4374,23 +3521,46 @@ class FlowStart(models.Model):
     STATUS_FAILED = "F"
 
     STATUS_CHOICES = (
-        (STATUS_PENDING, "Pending"),
-        (STATUS_STARTING, "Starting"),
-        (STATUS_COMPLETE, "Complete"),
-        (STATUS_FAILED, "Failed"),
+        (STATUS_PENDING, _("Pending")),
+        (STATUS_STARTING, _("Starting")),
+        (STATUS_COMPLETE, _("Complete")),
+        (STATUS_FAILED, _("Failed")),
+    )
+
+    TYPE_MANUAL = "M"
+    TYPE_API = "A"
+    TYPE_API_ZAPIER = "Z"
+    TYPE_FLOW_ACTION = "F"
+    TYPE_TRIGGER = "T"
+
+    TYPE_CHOICES = (
+        (TYPE_MANUAL, "Manual"),
+        (TYPE_API, "API"),
+        (TYPE_API_ZAPIER, "Zapier"),
+        (TYPE_FLOW_ACTION, "Flow Action"),
+        (TYPE_TRIGGER, "Trigger"),
     )
 
     # the uuid of this start
     uuid = models.UUIDField(unique=True, default=uuid4)
 
+    # the org the flow belongs to
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flow_starts")
+
     # the flow that should be started
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="starts")
+
+    # the type of start
+    start_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
 
     # the groups that should be considered for start in this flow
     groups = models.ManyToManyField(ContactGroup)
 
     # the individual contacts that should be considered for start in this flow
     contacts = models.ManyToManyField(Contact)
+
+    # the individual URNs that should be considered for start in this flow
+    urns = ArrayField(models.TextField(), null=True)
 
     # the query (if any) that should be used to select contacts to start
     query = models.TextField(null=True)
@@ -4415,24 +3585,24 @@ class FlowStart(models.Model):
     # any extra parameters that should be passed as trigger params for this flow start
     extra = JSONAsTextField(null=True, default=dict)
 
-    # the parent flow's summary if there is one
+    # the parent run's summary if there is one
     parent_summary = JSONField(null=True)
+
+    # the session history if there is some
+    session_history = JSONField(null=True)
 
     # who created this flow start
     created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT, related_name="%(app_label)s_%(class)s_creations"
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT, related_name="flow_starts"
     )
 
     # when this flow start was created
     created_on = models.DateTimeField(default=timezone.now, editable=False)
 
-    # deprecated fields
-    is_active = models.BooleanField(default=True, null=True)
+    # when this flow start was last modified
+    modified_on = models.DateTimeField(default=timezone.now, editable=False)
 
-    modified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True)
-
-    modified_on = models.DateTimeField(default=timezone.now, editable=False, null=True)
-
+    # the number of de-duped contacts that might be started, depending on options above
     contact_count = models.IntegerField(default=0, null=True)
 
     @classmethod
@@ -4440,27 +3610,27 @@ class FlowStart(models.Model):
         cls,
         flow,
         user,
-        groups=None,
-        contacts=None,
+        start_type=TYPE_MANUAL,
+        groups=(),
+        contacts=(),
+        urns=(),
+        query=None,
         restart_participants=True,
         extra=None,
         include_active=True,
         campaign_event=None,
     ):
-        if contacts is None:  # pragma: needs cover
-            contacts = []
-
-        if groups is None:  # pragma: needs cover
-            groups = []
-
         start = FlowStart.objects.create(
+            org=flow.org,
             flow=flow,
+            start_type=start_type,
             restart_participants=restart_participants,
             include_active=include_active,
             campaign_event=campaign_event,
+            urns=list(urns),
+            query=query,
             extra=extra,
             created_by=user,
-            created_on=timezone.now(),
         )
 
         for contact in contacts:
@@ -4472,7 +3642,7 @@ class FlowStart(models.Model):
         return start
 
     def async_start(self):
-        mailroom.queue_flow_start(self)
+        on_transaction_commit(lambda: mailroom.queue_flow_start(self))
 
     def release(self):
         with transaction.atomic():
@@ -4485,6 +3655,22 @@ class FlowStart(models.Model):
 
     def __str__(self):  # pragma: no cover
         return f"FlowStart[id={self.id}, flow={self.flow.uuid}]"
+
+    class Meta:
+        indexes = [
+            # used for the flow start log page
+            models.Index(
+                name="flows_flowstarts_org_created",
+                fields=["org", "-created_on"],
+                condition=Q(created_by__isnull=False),
+            ),
+            # used by the flow_starts API endpoint
+            models.Index(
+                name="flows_flowstarts_org_modified",
+                fields=["org", "-modified_on"],
+                condition=Q(created_by__isnull=False),
+            ),
+        ]
 
 
 class FlowStartCount(SquashableModel):
@@ -4513,16 +3699,24 @@ class FlowStartCount(SquashableModel):
 
     @classmethod
     def get_count(cls, start):
-        count = FlowStartCount.objects.filter(start=start).aggregate(count_sum=Sum("count"))["count_sum"]
+        count = start.counts.aggregate(count_sum=Sum("count"))["count_sum"]
         return count if count else 0
 
     @classmethod
-    def populate_for_start(cls, start):
-        FlowStartCount.objects.filter(start=start).delete()
-        return FlowStartCount.objects.create(start=start, count=start.runs.count())
+    def bulk_annotate(cls, starts):
+        counts = (
+            cls.objects.filter(start_id__in=[s.id for s in starts])
+            .values("start_id")
+            .order_by("start_id")
+            .annotate(count=Sum("count"))
+        )
+        counts_by_start = {c["start_id"]: c["count"] for c in counts}
+
+        for start in starts:
+            start.run_count = counts_by_start.get(start.id, 0)
 
     def __str__(self):  # pragma: needs cover
-        return "FlowStartCount[%d:%d]" % (self.start_id, self.count)
+        return f"FlowStartCount[start={self.start_id}, count={self.count}]"
 
 
 class FlowLabel(models.Model):
@@ -4633,2180 +3827,3 @@ def get_flow_user(org):
             __flow_users[username] = flow_user
 
     return flow_user
-
-
-class Action(object):
-    """
-    Base class for actions that can be added to an action set and executed during a flow run
-    """
-
-    TYPE = "type"
-    UUID = "uuid"
-
-    __action_mapping = None
-
-    def __init__(self, uuid):
-        self.uuid = uuid if uuid else str(uuid4())
-
-    @classmethod
-    def from_json(cls, org, json_obj):
-        if not cls.__action_mapping:
-            cls.__action_mapping = {
-                ReplyAction.TYPE: ReplyAction,
-                SendAction.TYPE: SendAction,
-                AddToGroupAction.TYPE: AddToGroupAction,
-                DeleteFromGroupAction.TYPE: DeleteFromGroupAction,
-                AddLabelAction.TYPE: AddLabelAction,
-                EmailAction.TYPE: EmailAction,
-                SaveToContactAction.TYPE: SaveToContactAction,
-                SetLanguageAction.TYPE: SetLanguageAction,
-                SetChannelAction.TYPE: SetChannelAction,
-                StartFlowAction.TYPE: StartFlowAction,
-                SayAction.TYPE: SayAction,
-                PlayAction.TYPE: PlayAction,
-                TriggerFlowAction.TYPE: TriggerFlowAction,
-            }
-
-        action_type = json_obj.get(cls.TYPE)
-        if not action_type:  # pragma: no cover
-            raise FlowException("Action definition missing 'type' attribute: %s" % json_obj)
-
-        if action_type not in cls.__action_mapping:  # pragma: no cover
-            raise FlowException("Unknown action type '%s' in definition: '%s'" % (action_type, json_obj))
-
-        return cls.__action_mapping[action_type].from_json(org, json_obj)
-
-    @classmethod
-    def from_json_array(cls, org, json_arr):
-        actions = []
-        for inner in json_arr:
-            action = Action.from_json(org, inner)
-            if action:
-                actions.append(action)
-        return actions
-
-
-class EmailAction(Action):
-    """
-    Sends an email to someone
-    """
-
-    TYPE = "email"
-    EMAILS = "emails"
-    SUBJECT = "subject"
-    MESSAGE = "msg"
-
-    def __init__(self, uuid, emails, subject, message):
-        super().__init__(uuid)
-
-        if not emails:
-            raise FlowException("Email actions require at least one recipient")
-
-        self.emails = emails
-        self.subject = subject
-        self.message = message
-
-    @classmethod
-    def from_json(cls, org, json_obj):
-        emails = json_obj.get(EmailAction.EMAILS)
-        message = json_obj.get(EmailAction.MESSAGE)
-        subject = json_obj.get(EmailAction.SUBJECT)
-        return cls(json_obj.get(cls.UUID), emails, subject, message)
-
-    def as_json(self):
-        return dict(type=self.TYPE, uuid=self.uuid, emails=self.emails, subject=self.subject, msg=self.message)
-
-    def execute(self, run, context, actionset_uuid, msg):
-        from .tasks import send_email_action_task
-
-        # build our message from our flow variables
-        (message, errors) = Msg.evaluate_template(self.message, context, org=run.flow.org)
-        (subject, errors) = Msg.evaluate_template(self.subject, context, org=run.flow.org)
-
-        # make sure the subject is single line; replace '\t\n\r\f\v' to ' '
-        subject = regex.sub(r"\s+", " ", subject, regex.V0)
-
-        valid_addresses = []
-        invalid_addresses = []
-        for email in self.emails:
-            if email.startswith("@"):
-                # a valid email will contain @ so this is very likely to generate evaluation errors
-                (address, errors) = Msg.evaluate_template(email, context, org=run.flow.org)
-            else:
-                address = email
-
-            address = address.strip()
-
-            if is_valid_address(address):
-                valid_addresses.append(address)
-            else:
-                invalid_addresses.append(address)
-
-        if valid_addresses:
-            on_transaction_commit(
-                lambda: send_email_action_task.delay(run.flow.org.id, valid_addresses, subject, message)
-            )
-        return []
-
-
-class AddToGroupAction(Action):
-    """
-    Adds the user to a group
-    """
-
-    TYPE = "add_group"
-    GROUP = "group"
-    GROUPS = "groups"
-
-    def __init__(self, uuid, groups):
-        super().__init__(uuid)
-
-        self.groups = groups
-
-    @classmethod
-    def from_json(cls, org, json_obj):
-        return cls(json_obj.get(cls.UUID), cls.get_groups(org, json_obj))
-
-    @classmethod
-    def get_groups(cls, org, json_obj):
-
-        # for backwards compatibility
-        group_data = json_obj.get(AddToGroupAction.GROUP, None)
-        if not group_data:
-            group_data = json_obj.get(AddToGroupAction.GROUPS)
-        else:
-            group_data = [group_data]
-
-        groups = []
-
-        for g in group_data:
-            if isinstance(g, dict):
-                group_uuid = g.get("uuid", None)
-                group_name = g.get("name")
-
-                group = ContactGroup.get_or_create(org, org.created_by, group_name, uuid=group_uuid)
-                groups.append(group)
-            else:
-                if g and g[0] == "@":
-                    groups.append(g)
-                else:  # pragma: needs cover
-                    group = ContactGroup.get_user_group(org, g)
-                    if group:
-                        groups.append(group)
-                    else:
-                        groups.append(ContactGroup.create_static(org, org.get_user(), g))
-        return groups
-
-    def as_json(self):
-        groups = []
-        for g in self.groups:
-            if isinstance(g, ContactGroup):
-                groups.append(dict(uuid=g.uuid, name=g.name))
-            else:
-                groups.append(g)
-
-        return dict(type=self.get_type(), uuid=self.uuid, groups=groups)
-
-    def get_type(self):
-        return AddToGroupAction.TYPE
-
-    def execute(self, run, context, actionset_uuid, msg):
-        contact = run.contact
-        add = AddToGroupAction.TYPE == self.get_type()
-        user = get_flow_user(run.org)
-
-        if contact:
-            for group in self.groups:
-                if not isinstance(group, ContactGroup):
-                    (value, errors) = Msg.evaluate_template(group, context, org=run.flow.org)
-                    group = None
-
-                    if not errors:
-                        group = ContactGroup.get_user_group(contact.org, value)
-
-                if group:
-                    # TODO should become a failure (because it should be impossible) and not just a simulator error
-                    if group.is_dynamic:
-                        # report to sentry
-                        logger.error(
-                            "Attempt to add/remove contacts on dynamic group '%s' [%d] "
-                            "in flow '%s' [%d] for org '%s' [%d]"
-                            % (group.name, group.pk, run.flow.name, run.flow.pk, run.org.name, run.org.pk)
-                        )
-                        continue  # pragma: can't cover
-
-                    group.org = run.org
-                    group.update_contacts(user, [contact], add)
-
-        return []
-
-
-class DeleteFromGroupAction(AddToGroupAction):
-    """
-    Removes the user from a group
-    """
-
-    TYPE = "del_group"
-
-    def get_type(self):
-        return DeleteFromGroupAction.TYPE
-
-    def as_json(self):
-        groups = []
-        for g in self.groups:
-            if isinstance(g, ContactGroup):
-                groups.append(dict(uuid=g.uuid, name=g.name))
-            else:
-                groups.append(g)
-
-        return dict(type=self.get_type(), uuid=self.uuid, groups=groups)
-
-    @classmethod
-    def from_json(cls, org, json_obj):
-        return cls(json_obj.get(cls.UUID), cls.get_groups(org, json_obj))
-
-    def execute(self, run, context, actionset, msg):
-        if len(self.groups) == 0:
-            contact = run.contact
-            user = get_flow_user(run.org)
-            if contact:
-                # remove from all active and inactive user-defined, static groups
-                for group in ContactGroup.user_groups.filter(
-                    org=contact.org, group_type=ContactGroup.TYPE_USER_DEFINED, query__isnull=True
-                ):
-                    group.update_contacts(user, [contact], False)
-            return []
-        return AddToGroupAction.execute(self, run, context, actionset, msg)
-
-
-class AddLabelAction(Action):
-    """
-    Add a label to the incoming message
-    """
-
-    TYPE = "add_label"
-    LABELS = "labels"
-
-    def __init__(self, uuid, labels):
-        super().__init__(uuid)
-
-        self.labels = labels
-
-    @classmethod
-    def from_json(cls, org, json_obj):
-        labels_data = json_obj.get(cls.LABELS)
-
-        labels = []
-        for label_data in labels_data:
-            if isinstance(label_data, dict):
-                label_uuid = label_data.get("uuid", None)
-                label_name = label_data.get("name")
-
-                if label_uuid and Label.label_objects.filter(org=org, uuid=label_uuid).first():
-                    label = Label.label_objects.filter(org=org, uuid=label_uuid).first()
-                    if label:
-                        labels.append(label)
-                else:  # pragma: needs cover
-                    labels.append(Label.get_or_create(org, org.get_user(), label_name))
-
-            elif isinstance(label_data, str):
-                if label_data and label_data[0] == "@":
-                    # label name is a variable substitution
-                    labels.append(label_data)
-                else:  # pragma: needs cover
-                    labels.append(Label.get_or_create(org, org.get_user(), label_data))
-            else:  # pragma: needs cover
-                raise ValueError("Label data must be a dict or string")
-
-        return cls(json_obj.get(cls.UUID), labels)
-
-    def as_json(self):
-        labels = []
-        for action_label in self.labels:
-            if isinstance(action_label, Label):
-                labels.append(dict(uuid=action_label.uuid, name=action_label.name))
-            else:
-                labels.append(action_label)
-
-        return dict(type=self.get_type(), uuid=self.uuid, labels=labels)
-
-    def get_type(self):
-        return AddLabelAction.TYPE
-
-    def execute(self, run, context, actionset_uuid, msg):
-        for label in self.labels:
-            if not isinstance(label, Label):
-                contact = run.contact
-                (value, errors) = Msg.evaluate_template(label, context, org=run.flow.org)
-
-                if not errors:
-                    label = Label.label_objects.filter(org=contact.org, name__iexact=value.strip()).first()
-                else:  # pragma: needs cover
-                    label = None
-
-            if label and msg and msg.pk:
-                label.toggle_label([msg], True)
-
-        return []
-
-
-class SayAction(Action):
-    """
-    Voice action for reading some text to a user
-    """
-
-    TYPE = "say"
-    MESSAGE = "msg"
-    RECORDING = "recording"
-
-    def __init__(self, uuid, msg, recording):
-        super().__init__(uuid)
-
-        self.msg = msg
-        self.recording = recording
-
-    @classmethod
-    def from_json(cls, org, json_obj):
-        return cls(json_obj.get(cls.UUID), json_obj.get(cls.MESSAGE), json_obj.get(cls.RECORDING))
-
-    def as_json(self):
-        return dict(type=self.TYPE, uuid=self.uuid, msg=self.msg, recording=self.recording)
-
-    def execute(self, run, context, actionset_uuid, event):
-
-        media_url = None
-        if self.recording:
-
-            # localize our recording
-            recording = run.flow.get_localized_text(self.recording, run.contact)
-
-            # if we have a localized recording, create the url
-            if recording:  # pragma: needs cover
-                media_url = f"{settings.STORAGE_URL}/{recording}"
-
-        # localize the text for our message, need this either way for logging
-        message = run.flow.get_localized_text(self.msg, run.contact)
-        (message, errors) = Msg.evaluate_template(message, context)
-
-        msg = run.create_outgoing_ivr(message, media_url, run.connection)
-
-        if msg:
-            return [msg]
-        else:  # pragma: needs cover
-            # no message, possibly failed loop detection
-            run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
-            return []
-
-
-class PlayAction(Action):
-    """
-    Voice action for reading some text to a user
-    """
-
-    TYPE = "play"
-    URL = "url"
-
-    def __init__(self, uuid, url):
-        super().__init__(uuid)
-
-        self.url = url
-
-    @classmethod
-    def from_json(cls, org, json_obj):
-        return cls(json_obj.get(cls.UUID), json_obj.get(cls.URL))
-
-    def as_json(self):
-        return dict(type=self.TYPE, uuid=self.uuid, url=self.url)
-
-    def execute(self, run, context, actionset_uuid, event):
-        (recording_url, errors) = Msg.evaluate_template(self.url, context)
-        msg = run.create_outgoing_ivr(_("Played contact recording"), recording_url, run.connection)
-
-        if msg:
-            return [msg]
-        else:  # pragma: needs cover
-            # no message, possibly failed loop detection
-            run.voice_response.say(_("Sorry, an invalid flow has been detected. Good bye."))
-            return []
-
-
-class ReplyAction(Action):
-    """
-    Simple action for sending back a message
-    """
-
-    TYPE = "reply"
-    MESSAGE = "msg"
-    MSG_TYPE = None
-    MEDIA = "media"
-    SEND_ALL = "send_all"
-    QUICK_REPLIES = "quick_replies"
-
-    def __init__(self, uuid, msg=None, media=None, quick_replies=None, send_all=False):
-        super().__init__(uuid)
-
-        self.msg = msg
-        self.media = media if media else {}
-        self.send_all = send_all
-        self.quick_replies = quick_replies if quick_replies else []
-
-    @classmethod
-    def from_json(cls, org, json_obj):
-        # assert we have some kind of message in this reply
-        msg = json_obj.get(cls.MESSAGE)
-        if isinstance(msg, dict):
-            if not msg:
-                raise FlowException("Invalid reply action, empty message dict")
-
-            if not any([v for v in msg.values()]):
-                raise FlowException("Invalid reply action, missing at least one message")
-        elif not msg:
-            raise FlowException("Invalid reply action, no message")
-
-        return cls(
-            json_obj.get(cls.UUID),
-            msg=json_obj.get(cls.MESSAGE),
-            media=json_obj.get(cls.MEDIA, None),
-            quick_replies=json_obj.get(cls.QUICK_REPLIES),
-            send_all=json_obj.get(cls.SEND_ALL, False),
-        )
-
-    def as_json(self):
-        return dict(
-            type=self.TYPE,
-            uuid=self.uuid,
-            msg=self.msg,
-            media=self.media,
-            quick_replies=self.quick_replies,
-            send_all=self.send_all,
-        )
-
-    @staticmethod
-    def get_translated_quick_replies(metadata, run):
-        """
-        Gets the appropriate metadata translation for the given contact
-        """
-        language_metadata = []
-        for item in metadata:
-            text = run.flow.get_localized_text(text_translations=item, contact=run.contact)
-            language_metadata.append(text)
-
-        return language_metadata
-
-    def execute(self, run, context, actionset_uuid, msg):
-        replies = []
-
-        if self.msg or self.media:
-            user = get_flow_user(run.org)
-
-            text = ""
-            if self.msg:
-                text = run.flow.get_localized_text(self.msg, run.contact)
-
-            quick_replies = []
-            if self.quick_replies:
-                quick_replies = ReplyAction.get_translated_quick_replies(self.quick_replies, run)
-
-            attachments = None
-            if self.media:
-                # localize our media attachment
-                media_type, media_url = run.flow.get_localized_text(self.media, run.contact).split(":", 1)
-
-                # if we have a localized media, create the url
-                if media_url and len(media_type.split("/")) > 1:
-                    abs_url = f"{settings.STORAGE_URL}/{media_url}"
-                    attachments = [f"{media_type}:{abs_url}"]
-                else:
-                    attachments = [f"{media_type}:{media_url}"]
-
-            if msg and msg.id:
-                replies = msg.reply(
-                    text,
-                    user,
-                    trigger_send=False,
-                    expressions_context=context,
-                    connection=run.connection,
-                    msg_type=self.MSG_TYPE,
-                    quick_replies=quick_replies,
-                    attachments=attachments,
-                    send_all=self.send_all,
-                    sent_on=None,
-                )
-            else:
-                # if our run has been responded to or any of our parent runs have
-                # been responded to consider us interactive with high priority
-                high_priority = run.get_session_responded()
-                replies = run.contact.send(
-                    text,
-                    user,
-                    trigger_send=False,
-                    expressions_context=context,
-                    connection=run.connection,
-                    msg_type=self.MSG_TYPE,
-                    attachments=attachments,
-                    quick_replies=quick_replies,
-                    sent_on=None,
-                    all_urns=self.send_all,
-                    high_priority=high_priority,
-                )
-        return replies
-
-
-class VariableContactAction(Action):
-    """
-    Base action that resolves variables into contacts. Used for actions that take
-    SendAction, TriggerAction, etc
-    """
-
-    CONTACTS = "contacts"
-    GROUPS = "groups"
-    VARIABLES = "variables"
-    PHONE = "phone"
-    PATH = "path"
-    SCHEME = "scheme"
-    URNS = "urns"
-    NAME = "name"
-    ID = "id"
-
-    def __init__(self, uuid, groups, contacts, variables):
-        super().__init__(uuid)
-
-        self.groups = groups
-        self.contacts = contacts
-        self.variables = variables
-
-    @classmethod
-    def parse_groups(cls, org, json_obj):
-        # we actually instantiate our contacts here
-        groups = []
-        for group_data in json_obj.get(VariableContactAction.GROUPS):
-            group_uuid = group_data.get(VariableContactAction.UUID, None)
-            group_name = group_data.get(VariableContactAction.NAME)
-
-            # flows from when true deletion was allowed need this
-            if not group_name:
-                group_name = "Missing"
-
-            group = ContactGroup.get_or_create(org, org.get_user(), group_name, uuid=group_uuid)
-            groups.append(group)
-
-        return groups
-
-    @classmethod
-    def parse_contacts(cls, org, json_obj):
-        contacts = []
-        for contact in json_obj.get(VariableContactAction.CONTACTS):
-            name = contact.get(VariableContactAction.NAME, None)
-            phone = contact.get(VariableContactAction.PHONE, None)
-            contact_uuid = contact.get(VariableContactAction.UUID, None)
-
-            urns = []
-            for urn in contact.get(VariableContactAction.URNS, []):
-                scheme = urn.get(VariableContactAction.SCHEME)
-                path = urn.get(VariableContactAction.PATH)
-
-                if scheme and path:
-                    urns.append(URN.from_parts(scheme, path))
-
-            if phone:  # pragma: needs cover
-                urns.append(URN.from_tel(phone))
-
-            contact = Contact.objects.filter(uuid=contact_uuid, org=org).first()
-
-            if not contact:
-                contact = Contact.get_or_create_by_urns(org, org.created_by, name=None, urns=urns)
-
-                # if they don't have a name use the one in our action
-                if name and not contact.name:  # pragma: needs cover
-                    contact.name = name
-                    contact.save(update_fields=["name"], handle_update=True)
-
-            if contact:
-                contacts.append(contact)
-
-        return contacts
-
-    @classmethod
-    def parse_variables(cls, org, json_obj):
-        variables = []
-        if VariableContactAction.VARIABLES in json_obj:
-            variables = list(_.get(VariableContactAction.ID) for _ in json_obj.get(VariableContactAction.VARIABLES))
-        return variables
-
-    def build_groups_and_contacts(self, run, msg):
-        expressions_context = run.flow.build_expressions_context(run.contact, msg, run=run)
-        contacts = list(self.contacts)
-        groups = list(self.groups)
-
-        # see if we've got groups or contacts
-        for variable in self.variables:
-            # this is a marker for a new contact
-            if variable == "@new_contact":
-                contacts.append(Contact.get_or_create_by_urns(run.org, get_flow_user(run.org), name=None, urns=()))
-
-            # other type of variable, perform our substitution
-            else:
-                (variable, errors) = Msg.evaluate_template(variable, expressions_context, org=run.flow.org)
-
-                # Check for possible contact uuid and use its contact
-                contact_variable_by_uuid = Contact.objects.filter(uuid=variable, org=run.flow.org).first()
-                if contact_variable_by_uuid:
-                    contacts.append(contact_variable_by_uuid)
-                    continue
-
-                variable_group = ContactGroup.get_user_group(run.flow.org, name=variable)
-                if variable_group:  # pragma: needs cover
-                    groups.append(variable_group)
-                else:
-                    country = run.flow.org.get_country_code()
-                    (number, valid) = URN.normalize_number(variable, country)
-                    if number and valid:
-                        contact, contact_urn = Contact.get_or_create(
-                            run.org, URN.from_tel(number), user=get_flow_user(run.org)
-                        )
-                        contacts.append(contact)
-
-        return groups, contacts
-
-
-class TriggerFlowAction(VariableContactAction):
-    """
-    Action that starts a set of contacts down another flow
-    """
-
-    TYPE = "trigger-flow"
-
-    def __init__(self, uuid, flow, groups, contacts, variables):
-        super().__init__(uuid, groups, contacts, variables)
-
-        self.flow = flow
-
-    @classmethod
-    def from_json(cls, org, json_obj):
-        flow_json = json_obj.get("flow")
-        flow_uuid = flow_json.get("uuid")
-        flow = Flow.objects.filter(org=org, is_active=True, is_archived=False, uuid=flow_uuid).first()
-
-        # it is possible our flow got deleted
-        if not flow:
-            return None
-
-        groups = VariableContactAction.parse_groups(org, json_obj)
-        contacts = VariableContactAction.parse_contacts(org, json_obj)
-        variables = VariableContactAction.parse_variables(org, json_obj)
-
-        return cls(json_obj.get(cls.UUID), flow, groups, contacts, variables)
-
-    def as_json(self):
-        contact_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.contacts]
-        group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
-        variables = [dict(id=_) for _ in self.variables]
-
-        return dict(
-            type=self.TYPE,
-            uuid=self.uuid,
-            flow=dict(uuid=self.flow.uuid, name=self.flow.name),
-            contacts=contact_ids,
-            groups=group_ids,
-            variables=variables,
-        )
-
-    def execute(self, run, context, actionset_uuid, msg):
-        if self.flow:
-            (groups, contacts) = self.build_groups_and_contacts(run, msg)
-            # start our contacts down the flow
-            # our extra will be our flow variables in our message context
-            extra = context.get("extra", dict())
-            child_runs = self.flow.start(
-                groups, contacts, restart_participants=True, started_flows=[run.flow.pk], extra=extra, parent_run=run
-            )
-
-            # build up all the msgs that where sent by our flow
-            msgs = []
-            for run in child_runs:
-                msgs += run.start_msgs
-
-            return msgs
-        else:  # pragma: no cover
-            return []
-
-
-class SetLanguageAction(Action):
-    """
-    Action that sets the language for a contact
-    """
-
-    TYPE = "lang"
-    LANG = "lang"
-    NAME = "name"
-
-    def __init__(self, uuid, lang, name):
-        super().__init__(uuid)
-
-        self.lang = lang
-        self.name = name
-
-    @classmethod
-    def from_json(cls, org, json_obj):
-        return cls(json_obj.get(cls.UUID), json_obj.get(cls.LANG), json_obj.get(cls.NAME))
-
-    def as_json(self):
-        return dict(type=self.TYPE, uuid=self.uuid, lang=self.lang, name=self.name)
-
-    def execute(self, run, context, actionset_uuid, msg):
-        old_value = run.contact.language
-
-        if len(self.lang) != 3:
-            new_lang = None
-        else:
-            new_lang = self.lang
-
-        if old_value != new_lang:
-            run.contact.language = new_lang
-            run.contact.save(update_fields=["language"], handle_update=True)
-
-        return []
-
-
-class StartFlowAction(Action):
-    """
-    Action that starts the contact into another flow
-    """
-
-    TYPE = "flow"
-    FLOW = "flow"
-    NAME = "name"
-
-    def __init__(self, uuid, flow):
-        super().__init__(uuid)
-
-        self.flow = flow
-
-    @classmethod
-    def from_json(cls, org, json_obj):
-        flow_obj = json_obj.get(cls.FLOW)
-        flow_uuid = flow_obj.get("uuid")
-
-        flow = Flow.objects.filter(org=org, is_active=True, is_archived=False, uuid=flow_uuid).first()
-
-        # it is possible our flow got deleted
-        if not flow:
-            return None
-        else:
-            return cls(json_obj.get(cls.UUID), flow)
-
-    def as_json(self):
-        return dict(type=self.TYPE, uuid=self.uuid, flow=dict(uuid=self.flow.uuid, name=self.flow.name))
-
-    def execute(self, run, context, actionset_uuid, msg, started_flows):
-        msgs = []
-
-        # our extra will be our flow variables in our message context
-        extra = context.get("extra", dict())
-
-        # if they are both flow runs, just redirect the call
-        if run.flow.flow_type == Flow.TYPE_VOICE and self.flow.flow_type == Flow.TYPE_VOICE:
-            new_run = self.flow.start(
-                [], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra, parent_run=run
-            )[0]
-            url = "https://%s%s" % (
-                new_run.org.get_brand_domain(),
-                reverse("ivr.ivrcall_handle", args=[new_run.connection.pk]),
-            )
-            run.voice_response.redirect(url)
-        else:
-            child_runs = self.flow.start(
-                [], [run.contact], started_flows=started_flows, restart_participants=True, extra=extra, parent_run=run
-            )
-            for run in child_runs:
-                for msg in run.start_msgs:
-                    msg.from_other_run = True
-                    msgs.append(msg)
-
-        return msgs
-
-
-class SaveToContactAction(Action):
-    """
-    Action to save a variable substitution to a field on a contact
-    """
-
-    TYPE = "save"
-    FIELD = "field"
-    LABEL = "label"
-    VALUE = "value"
-
-    def __init__(self, uuid, label, field, value):
-        super().__init__(uuid)
-
-        self.label = label
-        self.field = field
-        self.value = value
-
-    @classmethod
-    def get_label(cls, org, field, label=None):
-
-        # make sure this field exists
-        if field == "name":
-            label = "Contact Name"
-        elif field == "first_name":
-            label = "First Name"
-        elif field == "tel_e164":
-            label = "Phone Number"
-        elif field in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
-            label = str(ContactURN.CONTEXT_KEYS_TO_LABEL[field])
-        else:
-            contact_field = ContactField.user_fields.filter(org=org, key=field).first()
-
-            if not contact_field:
-                contact_field = ContactField.get_or_create(org, get_flow_user(org), field, label)
-
-            label = contact_field.label
-
-        return label
-
-    @classmethod
-    def from_json(cls, org, json_obj):
-        # they are creating a new field
-        label = json_obj.get(cls.LABEL)
-        field = json_obj.get(cls.FIELD)
-        value = json_obj.get(cls.VALUE)
-
-        if label and label.startswith("[_NEW_]"):
-            label = label[7:]
-
-        # create our contact field if necessary
-        if not field:
-            field = ContactField.make_key(label)
-
-        # look up our label
-        label = cls.get_label(org, field, label)
-
-        return cls(json_obj.get(cls.UUID), label, field, value)
-
-    def as_json(self):
-        return dict(type=self.TYPE, uuid=self.uuid, label=self.label, field=self.field, value=self.value)
-
-    def execute(self, run, context, actionset_uuid, msg):
-        # evaluate our value
-        contact = run.contact
-        user = get_flow_user(run.org)
-        (value, errors) = Msg.evaluate_template(self.value, context, org=run.flow.org)
-
-        value = value.strip()
-
-        if self.field == "name":
-            new_value = value[:128]
-            contact.name = new_value
-            contact.modified_by = user
-            contact.save(update_fields=("name", "modified_by", "modified_on"), handle_update=True)
-
-        elif self.field == "first_name":
-            new_value = value[:128]
-            contact.set_first_name(new_value)
-            contact.modified_by = user
-            contact.save(update_fields=("name", "modified_by", "modified_on"), handle_update=True)
-
-        elif self.field in ContactURN.CONTEXT_KEYS_TO_SCHEME.keys():
-            new_value = value[:128]
-
-            # add in our new urn number
-            scheme = ContactURN.CONTEXT_KEYS_TO_SCHEME[self.field]
-
-            # trim off '@' for twitter handles
-            if self.field == "twitter":  # pragma: needs cover
-                if len(new_value) > 0:
-                    if new_value[0] == "@":
-                        new_value = new_value[1:]
-
-            # only valid urns get added, sorry
-            new_urn = None
-            if new_value:
-                new_urn = URN.normalize(URN.from_parts(scheme, new_value))
-                if not URN.validate(new_urn, contact.org.get_country_code()):  # pragma: no cover
-                    new_urn = False
-
-            if new_urn:
-                urns = [str(urn) for urn in contact.urns.all()]
-                urns += [new_urn]
-                contact.update_urns(user, urns)
-
-        else:
-            new_value = value[: Value.MAX_VALUE_LEN]
-            contact.set_field(user, self.field, new_value)
-
-        return []
-
-
-class SetChannelAction(Action):
-    """
-    Action which sets the preferred channel to use for this Contact. If the contact has no URNs that match
-    the Channel being set then this is a no-op.
-    """
-
-    TYPE = "channel"
-    CHANNEL = "channel"
-    NAME = "name"
-
-    def __init__(self, uuid, channel):
-        super().__init__(uuid)
-
-        self.channel = channel
-
-    @classmethod
-    def from_json(cls, org, json_obj):
-        channel_uuid = json_obj.get(SetChannelAction.CHANNEL)
-
-        if channel_uuid:
-            channel = Channel.objects.filter(org=org, is_active=True, uuid=channel_uuid).first()
-        else:  # pragma: needs cover
-            channel = None
-        return cls(json_obj.get(cls.UUID), channel)
-
-    def as_json(self):
-        channel_uuid = self.channel.uuid if self.channel else None
-        channel_name = (
-            "%s: %s" % (self.channel.get_channel_type_display(), self.channel.get_address_display())
-            if self.channel
-            else None
-        )
-        return dict(type=self.TYPE, uuid=self.uuid, channel=channel_uuid, name=channel_name)
-
-    def execute(self, run, context, actionset_uuid, msg):
-        # if we found the channel to set
-        if self.channel:
-            run.contact.set_preferred_channel(self.channel)
-            return []
-        else:
-            return []
-
-
-class SendAction(VariableContactAction):
-    """
-    Action which sends a message to a specified set of contacts and groups.
-    """
-
-    TYPE = "send"
-    MESSAGE = "msg"
-    MEDIA = "media"
-
-    def __init__(self, uuid, msg, groups, contacts, variables, media=None):
-        super().__init__(uuid, groups, contacts, variables)
-
-        self.msg = msg
-        self.media = media if media else {}
-
-    @classmethod
-    def from_json(cls, org, json_obj):
-        groups = VariableContactAction.parse_groups(org, json_obj)
-        contacts = VariableContactAction.parse_contacts(org, json_obj)
-        variables = VariableContactAction.parse_variables(org, json_obj)
-
-        return cls(
-            json_obj.get(cls.UUID),
-            json_obj.get(cls.MESSAGE),
-            groups,
-            contacts,
-            variables,
-            json_obj.get(cls.MEDIA, None),
-        )
-
-    def as_json(self):
-        contact_ids = [dict(uuid=_.uuid) for _ in self.contacts]
-        group_ids = [dict(uuid=_.uuid, name=_.name) for _ in self.groups]
-        variables = [dict(id=_) for _ in self.variables]
-
-        return dict(
-            type=self.TYPE,
-            uuid=self.uuid,
-            msg=self.msg,
-            contacts=contact_ids,
-            groups=group_ids,
-            variables=variables,
-            media=self.media,
-        )
-
-    def execute(self, run, context, actionset_uuid, msg):
-        if self.msg or self.media:
-            flow = run.flow
-            (groups, contacts) = self.build_groups_and_contacts(run, msg)
-
-            # no-op if neither text nor media are defined in the flow base language
-            if not (self.msg.get(flow.base_language) or self.media.get(flow.base_language)):
-                return list()
-
-            broadcast = Broadcast.create(
-                flow.org,
-                flow.modified_by,
-                self.msg,
-                groups=groups,
-                contacts=contacts,
-                media=self.media,
-                base_language=flow.base_language,
-            )
-            broadcast.send(expressions_context=context)
-
-        return []
-
-
-class Rule(object):
-    def __init__(self, uuid, category, destination, destination_type, test, label=None):
-        self.uuid = uuid
-        self.category = category
-        self.destination = destination
-        self.destination_type = destination_type
-        self.test = test
-        self.label = label
-
-    def get_category_name(self, flow_lang, contact_lang=None):
-        if not self.category:  # pragma: needs cover
-            if isinstance(self.test, BetweenTest):
-                return "%s-%s" % (self.test.min, self.test.max)
-
-        # return the category name for the flow language version
-        if isinstance(self.category, dict):
-            category = None
-            if contact_lang:
-                category = self.category.get(contact_lang)
-
-            if not category and flow_lang:
-                category = self.category.get(flow_lang)
-
-            if not category:  # pragma: needs cover
-                category = list(self.category.values())[0]
-
-            return category
-
-        return self.category  # pragma: needs cover
-
-    def matches(self, run, sms, context, text):
-        return self.test.evaluate(run, sms, context, text)
-
-    def as_json(self):
-        return dict(
-            uuid=self.uuid,
-            category=self.category,
-            destination=self.destination,
-            destination_type=self.destination_type,
-            test=self.test.as_json(),
-            label=self.label,
-        )
-
-    @classmethod
-    def from_json_array(cls, org, json):
-        rules = []
-        for rule in json:
-            category = rule.get("category", None)
-
-            if isinstance(category, dict):
-                # prune all of our translations to 36
-                for k, v in category.items():
-                    if isinstance(v, str):
-                        category[k] = v[:36]
-            elif category:
-                category = category[:36]
-
-            destination = rule.get("destination", None)
-            destination_type = None
-
-            # determine our destination type, if its not set its an action set
-            if destination:
-                destination_type = rule.get("destination_type", Flow.NODE_TYPE_ACTIONSET)
-
-            rules.append(
-                Rule(
-                    rule.get("uuid"),
-                    category,
-                    destination,
-                    destination_type,
-                    Test.from_json(org, rule["test"]),
-                    rule.get("label"),
-                )
-            )
-
-        return rules
-
-
-class Test(object):
-    TYPE = "type"
-    __test_mapping = None
-
-    @classmethod
-    def from_json(cls, org, json_dict):
-        if not cls.__test_mapping:
-            cls.__test_mapping = {
-                AirtimeStatusTest.TYPE: AirtimeStatusTest,
-                AndTest.TYPE: AndTest,
-                BetweenTest.TYPE: BetweenTest,
-                ContainsAnyTest.TYPE: ContainsAnyTest,
-                ContainsOnlyPhraseTest.TYPE: ContainsOnlyPhraseTest,
-                ContainsPhraseTest.TYPE: ContainsPhraseTest,
-                ContainsTest.TYPE: ContainsTest,
-                DateAfterTest.TYPE: DateAfterTest,
-                DateBeforeTest.TYPE: DateBeforeTest,
-                DateEqualTest.TYPE: DateEqualTest,
-                EqTest.TYPE: EqTest,
-                FalseTest.TYPE: FalseTest,
-                GtTest.TYPE: GtTest,
-                GteTest.TYPE: GteTest,
-                DateTest.TYPE: DateTest,
-                HasDistrictTest.TYPE: HasDistrictTest,
-                HasEmailTest.TYPE: HasEmailTest,
-                HasStateTest.TYPE: HasStateTest,
-                HasWardTest.TYPE: HasWardTest,
-                InGroupTest.TYPE: InGroupTest,
-                LtTest.TYPE: LtTest,
-                LteTest.TYPE: LteTest,
-                NotEmptyTest.TYPE: NotEmptyTest,
-                NumberTest.TYPE: NumberTest,
-                OrTest.TYPE: OrTest,
-                PhoneTest.TYPE: PhoneTest,
-                PhotoTest.TYPE: PhotoTest,
-                RegexTest.TYPE: RegexTest,
-                StartsWithTest.TYPE: StartsWithTest,
-                SubflowTest.TYPE: SubflowTest,
-                TimeoutTest.TYPE: TimeoutTest,
-                TrueTest.TYPE: TrueTest,
-                WebhookStatusTest.TYPE: WebhookStatusTest,
-            }
-
-        type = json_dict.get(cls.TYPE, None)
-        if not type:  # pragma: no cover
-            raise FlowException("Test definition missing 'type' field: %s", json_dict)
-
-        if type not in cls.__test_mapping:  # pragma: no cover
-            raise FlowException("Unknown type: '%s' in definition: %s" % (type, json_dict))
-
-        return cls.__test_mapping[type].from_json(org, json_dict)
-
-    @classmethod
-    def from_json_array(cls, org, json):
-        tests = []
-        for inner in json:
-            tests.append(Test.from_json(org, inner))
-
-        return tests
-
-    def evaluate(self, run, sms, context, text):  # pragma: no cover
-        """
-        Where the work happens, subclasses need to be able to evalute their Test
-        according to their definition given the passed in message. Tests do not have
-        side effects.
-        """
-        raise FlowException(
-            "Subclasses must implement evaluate, returning a tuple containing 1 or 0 and the value tested"
-        )
-
-
-class PhotoTest(Test):
-    """
-    Test for whether a response contains a photo
-    """
-
-    TYPE = "image"
-
-    def __init__(self):
-        pass
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls()
-
-    def as_json(self):  # pragma: needs cover
-        return dict(type=self.TYPE)
-
-    def evaluate(self, run, sms, context, text):
-        image_url = None
-        image = None
-        text_split = []
-        org = run.flow.org
-        has_attachment = 1 if sms.attachments and len(sms.attachments) > 0 else 0
-
-        if has_attachment:
-            text_split = sms.attachments[0].split(":", 1)
-            image = text_split[1]
-            is_image = 1 if "image" in text_split[0] or "mp4" in text_split[0] else 0
-        else:
-            is_image = 0
-
-        if is_image and not run.contact.is_test:
-            if settings.DEFAULT_FILE_STORAGE == "storages.backends.s3boto3.S3Boto3Storage":
-                media_path = image
-                image = Org.get_temporary_file_from_url(media_url=image)
-                image_path = image.file.name
-                thumbnail_path = media_path
-            else:
-                media_path = image.split("media", 1)[1]
-                image_path = "%s%s" % (settings.MEDIA_ROOT, media_path)
-                media_path = media_path.replace("/", "", 1)
-                thumbnail_path = image_path
-
-            if text_split and "image" in text_split[0]:
-                media_thumbnail = get_thumbnail(thumbnail_path, "50x50", crop="center", quality=99, format="PNG")
-                media_thumbnail_path = media_thumbnail.url
-            else:
-                media_thumbnail_path = None
-
-            try:
-                img = Image.open(image_path)
-                exif_data = img._getexif()
-            except Exception:
-                exif_data = {}
-
-            exif = {ExifTags.TAGS[k]: v for k, v in exif_data.items() if k in ExifTags.TAGS} if exif_data else {}
-
-            try:
-                exif = json.dumps(exif)
-            except Exception:
-                exif = None
-
-            file_name = media_path.split("/", -1)[-1]
-            image_args = dict(
-                org=org,
-                flow=run.flow,
-                contact=run.contact,
-                path=media_path,
-                exif=exif,
-                path_thumbnail=media_thumbnail_path,
-                name=file_name,
-            )
-            flow_image = FlowImage.objects.create(**image_args)
-            image_url = flow_image.get_url()
-        elif is_image:
-            text_split = sms.attachments[0].split(":", 1)
-            image_url = text_split[1]
-
-        return is_image, image_url
-
-
-class WebhookStatusTest(Test):
-    """
-    {op: 'webhook', status: 'success' }
-    """
-
-    TYPE = "webhook_status"
-    STATUS = "status"
-
-    STATUS_SUCCESS = "success"
-    STATUS_FAILURE = "failure"
-
-    def __init__(self, status):
-        self.status = status
-
-    @classmethod
-    def from_json(cls, org, json):
-        return WebhookStatusTest(json.get("status"))
-
-    def as_json(self):  # pragma: needs cover
-        return dict(type=WebhookStatusTest.TYPE, status=self.status)
-
-    def evaluate(self, run, sms, context, text):
-        # we treat any 20* return code as successful
-        success = 200 <= int(text) < 300
-
-        if success and self.status == WebhookStatusTest.STATUS_SUCCESS:
-            return 1, text
-        elif not success and self.status == WebhookStatusTest.STATUS_FAILURE:
-            return 1, text
-        else:
-            return 0, None
-
-
-class AirtimeStatusTest(Test):
-    """
-    {op: 'airtime_status'}
-    """
-
-    TYPE = "airtime_status"
-    EXIT = "exit_status"
-
-    STATUS_SUCCESS = "success"
-    STATUS_FAILED = "failed"
-
-    STATUS_MAP = {STATUS_SUCCESS: AirtimeTransfer.STATUS_SUCCESS, STATUS_FAILED: AirtimeTransfer.STATUS_FAILED}
-
-    def __init__(self, exit_status):
-        self.exit_status = exit_status
-
-    @classmethod
-    def from_json(cls, org, json):
-        return AirtimeStatusTest(json.get("exit_status"))
-
-    def as_json(self):  # pragma: needs cover
-        return dict(type=AirtimeStatusTest.TYPE, exit_status=self.exit_status)
-
-    def evaluate(self, run, sms, context, text):
-        status = text
-        if status and AirtimeStatusTest.STATUS_MAP[self.exit_status] == status:
-            return 1, status
-        return 0, None
-
-
-class InGroupTest(Test):
-    """
-    { op: "in_group" }
-    """
-
-    TYPE = "in_group"
-    NAME = "name"
-    UUID = "uuid"
-    TEST = "test"
-
-    def __init__(self, group):
-        self.group = group
-
-    @classmethod
-    def from_json(cls, org, json):
-        group = json.get(InGroupTest.TEST)
-        name = group.get(InGroupTest.NAME)
-        uuid = group.get(InGroupTest.UUID)
-        return InGroupTest(ContactGroup.get_or_create(org, org.created_by, name, uuid=uuid))
-
-    def as_json(self):
-        group = ContactGroup.get_or_create(
-            self.group.org, self.group.org.created_by, self.group.name, uuid=self.group.uuid
-        )
-        return dict(type=InGroupTest.TYPE, test=dict(name=group.name, uuid=group.uuid))
-
-    def evaluate(self, run, sms, context, text):
-        if run.contact.user_groups.filter(id=self.group.id).first():
-            return 1, self.group.name
-        return 0, None
-
-
-class SubflowTest(Test):
-    """
-    { op: "subflow" }
-    """
-
-    TYPE = "subflow"
-    EXIT = "exit_type"
-
-    TYPE_COMPLETED = "completed"
-    TYPE_EXPIRED = "expired"
-
-    def __init__(self, exit_type):
-        self.exit_type = exit_type
-
-    @classmethod
-    def from_json(cls, org, json):
-        return SubflowTest(json.get(SubflowTest.EXIT))
-
-    def as_json(self):  # pragma: needs cover
-        return dict(type=SubflowTest.TYPE, exit_type=self.exit_type)
-
-    def evaluate(self, run, sms, context, text):
-        if self.exit_type == text:
-            return 1, self.exit_type
-        return 0, None
-
-
-class TimeoutTest(Test):
-    """
-    { op: "timeout", minutes: 60 }
-    """
-
-    TYPE = "timeout"
-    MINUTES = "minutes"
-
-    def __init__(self, minutes):
-        self.minutes = minutes
-
-    @classmethod
-    def from_json(cls, org, json):
-        return TimeoutTest(float(json.get(TimeoutTest.MINUTES)))
-
-    def as_json(self):  # pragma: no cover
-        return {"type": TimeoutTest.TYPE, TimeoutTest.MINUTES: self.minutes}
-
-    def evaluate(self, run, sms, context, text):  # pragma: no cover
-        pass
-
-
-class TrueTest(Test):
-    """
-    { op: "true" }
-    """
-
-    TYPE = "true"
-
-    def __init__(self):
-        pass
-
-    @classmethod
-    def from_json(cls, org, json):
-        return TrueTest()
-
-    def as_json(self):
-        return dict(type=TrueTest.TYPE)
-
-    def evaluate(self, run, sms, context, text):
-        return 1, text
-
-
-class FalseTest(Test):
-    """
-    { op: "false" }
-    """
-
-    TYPE = "false"
-
-    def __init__(self):
-        pass
-
-    @classmethod
-    def from_json(cls, org, json):
-        return FalseTest()
-
-    def as_json(self):
-        return dict(type=FalseTest.TYPE)
-
-    def evaluate(self, run, sms, context, text):
-        return 0, None
-
-
-class AndTest(Test):
-    """
-    { op: "and",  "tests": [ ... ] }
-    """
-
-    TESTS = "tests"
-    TYPE = "and"
-
-    def __init__(self, tests):
-        self.tests = tests
-
-    @classmethod
-    def from_json(cls, org, json):
-        return AndTest(Test.from_json_array(org, json[cls.TESTS]))
-
-    def as_json(self):
-        return dict(type=AndTest.TYPE, tests=[_.as_json() for _ in self.tests])
-
-    def evaluate(self, run, sms, context, text):  # pragma: needs cover
-        matches = []
-        for test in self.tests:
-            (result, value) = test.evaluate(run, sms, context, text)
-            if result:
-                matches.append(value)
-            else:
-                return 0, None
-
-        # all came out true, we are true
-        return 1, " ".join(matches)
-
-
-class OrTest(Test):
-    """
-    { op: "or",  "tests": [ ... ] }
-    """
-
-    TESTS = "tests"
-    TYPE = "or"
-
-    def __init__(self, tests):
-        self.tests = tests
-
-    @classmethod
-    def from_json(cls, org, json):
-        return OrTest(Test.from_json_array(org, json[cls.TESTS]))
-
-    def as_json(self):
-        return dict(type=OrTest.TYPE, tests=[_.as_json() for _ in self.tests])
-
-    def evaluate(self, run, sms, context, text):  # pragma: needs cover
-        for test in self.tests:
-            (result, value) = test.evaluate(run, sms, context, text)
-            if result:
-                return result, value
-
-        return 0, None
-
-
-class NotEmptyTest(Test):
-    """
-    { op: "not_empty" }
-    """
-
-    TYPE = "not_empty"
-
-    def __init__(self):  # pragma: needs cover
-        pass
-
-    @classmethod
-    def from_json(cls, org, json):  # pragma: needs cover
-        return NotEmptyTest()
-
-    def as_json(self):  # pragma: needs cover
-        return dict(type=NotEmptyTest.TYPE)
-
-    def evaluate(self, run, sms, context, text):  # pragma: needs cover
-        if text and len(text.strip()):
-            return 1, text.strip()
-        return 0, None
-
-
-class ContainsTest(Test):
-    """
-    { op: "contains", "test": "red" }
-    """
-
-    TEST = "test"
-    TYPE = "contains"
-
-    def __init__(self, test):
-        self.test = test
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls(json[cls.TEST])
-
-    def as_json(self):
-        json = dict(type=ContainsTest.TYPE, test=self.test)
-        return json
-
-    def test_in_words(self, test, words, raw_words):
-        matches = []
-        for index, word in enumerate(words):
-            if word == test:
-                matches.append(index)
-                continue
-
-        return matches
-
-    def evaluate(self, run, sms, context, text):
-        # substitute any variables
-        test = run.flow.get_localized_text(self.test, run.contact)
-        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
-
-        # tokenize our test
-        tests = tokenize(test.lower())
-
-        # tokenize our sms
-        words = tokenize(text.lower())
-        raw_words = tokenize(text)
-
-        tests = [elt for elt in tests if elt != ""]
-        words = [elt for elt in words if elt != ""]
-        raw_words = [elt for elt in raw_words if elt != ""]
-
-        # run through each of our tests
-        matches = set()
-        matched_tests = 0
-        for test in tests:
-            match = self.test_in_words(test, words, raw_words)
-            if match:
-                matched_tests += 1
-                matches.update(match)
-
-        # we are a match only if every test matches
-        if matched_tests == len(tests):
-            matches = sorted(list(matches))
-            matched_words = " ".join([raw_words[idx] for idx in matches])
-            return len(tests), matched_words
-        else:
-            return 0, None
-
-
-class HasEmailTest(Test):
-    """
-    { op: "has_email" }
-    """
-
-    TYPE = "has_email"
-
-    def __init__(self):
-        pass
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls()
-
-    def as_json(self):
-        return dict(type=self.TYPE)
-
-    def evaluate(self, run, sms, context, text):
-        # split on whitespace
-        words = text.split()
-        for word in words:
-            word = word.strip(",.;:|()[]\"'<>?&*/\\")
-            if is_valid_address(word):
-                return 1, word
-
-        return 0, None
-
-
-class ContainsAnyTest(ContainsTest):
-    """
-    { op: "contains_any", "test": "red" }
-    """
-
-    TEST = "test"
-    TYPE = "contains_any"
-
-    def as_json(self):
-        return dict(type=ContainsAnyTest.TYPE, test=self.test)
-
-    def evaluate(self, run, sms, context, text):
-        # substitute any variables
-        test = run.flow.get_localized_text(self.test, run.contact)
-        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
-
-        # tokenize our test
-        tests = tokenize(test.lower())
-
-        # tokenize our sms
-        words = tokenize(text.lower())
-        raw_words = tokenize(text)
-
-        tests = [elt for elt in tests if elt != ""]
-        words = [elt for elt in words if elt != ""]
-        raw_words = [elt for elt in raw_words if elt != ""]
-
-        # run through each of our tests
-        matches = set()
-        for test in tests:
-            match = self.test_in_words(test, words, raw_words)
-            if match:
-                matches.update(match)
-
-        # we are a match if at least one test matches
-        if matches:
-            matches = sorted(list(matches))
-            matched_words = " ".join([raw_words[idx] for idx in matches])
-            return 1, matched_words
-        else:
-            return 0, None
-
-
-class ContainsOnlyPhraseTest(ContainsTest):
-    """
-    { op: "contains_only_phrase", "test": "red" }
-    """
-
-    TEST = "test"
-    TYPE = "contains_only_phrase"
-
-    def as_json(self):
-        return dict(type=ContainsOnlyPhraseTest.TYPE, test=self.test)
-
-    def evaluate(self, run, sms, context, text):
-        # substitute any variables
-        test = run.flow.get_localized_text(self.test, run.contact)
-        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
-
-        # tokenize our test
-        tests = tokenize(test.lower())
-
-        # tokenize our sms
-        words = tokenize(text.lower())
-        raw_words = tokenize(text)
-
-        # they are the same? then we matched
-        if tests == words:
-            return 1, " ".join(raw_words)
-        else:
-            return 0, None
-
-
-class ContainsPhraseTest(ContainsTest):
-    """
-    { op: "contains_phrase", "test": "red" }
-    """
-
-    TEST = "test"
-    TYPE = "contains_phrase"
-
-    def as_json(self):
-        return dict(type=ContainsPhraseTest.TYPE, test=self.test)
-
-    def evaluate(self, run, sms, context, text):
-        # substitute any variables
-        test = run.flow.get_localized_text(self.test, run.contact)
-        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
-
-        # tokenize our test
-        tests = tokenize(test.lower())
-        if not tests:
-            return True, ""
-
-        # tokenize our sms
-        words = tokenize(text.lower())
-        raw_words = tokenize(text)
-
-        # look for the phrase
-        test_idx = 0
-        matches = []
-        for i in range(len(words)):
-            if tests[test_idx] == words[i]:
-                matches.append(raw_words[i])
-                test_idx += 1
-                if test_idx == len(tests):
-                    break
-            else:
-                matches = []
-                test_idx = 0
-
-        # we found the phrase
-        if test_idx == len(tests):
-            matched_words = " ".join(matches)
-            return 1, matched_words
-        else:
-            return 0, None
-
-
-class StartsWithTest(Test):
-    """
-    { op: "starts", "test": "red" }
-    """
-
-    TEST = "test"
-    TYPE = "starts"
-
-    def __init__(self, test):
-        self.test = test
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls(json[cls.TEST])
-
-    def as_json(self):  # pragma: needs cover
-        return dict(type=StartsWithTest.TYPE, test=self.test)
-
-    def evaluate(self, run, sms, context, text):
-        # substitute any variables in our test
-        test = run.flow.get_localized_text(self.test, run.contact)
-        test, errors = Msg.evaluate_template(test, context, org=run.flow.org)
-
-        # strip leading and trailing whitespace
-        text = text.strip()
-
-        # see whether we start with our test
-        if text.lower().find(test.lower()) == 0:
-            return 1, text[: len(test)]
-        else:
-            return 0, None
-
-
-class HasStateTest(Test):
-    TYPE = "state"
-
-    def __init__(self):
-        pass
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls()
-
-    def as_json(self):
-        return dict(type=self.TYPE)
-
-    def evaluate(self, run, sms, context, text):
-        org = run.flow.org
-
-        # if they removed their country since adding the rule
-        if not org.country:
-            return 0, None
-
-        state = org.parse_location(text, AdminBoundary.LEVEL_STATE)
-        if state:
-            return 1, state[0]
-
-        return 0, None
-
-
-class HasDistrictTest(Test):
-    TYPE = "district"
-    TEST = "test"
-
-    def __init__(self, state=None):
-        self.state = state
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls(json[cls.TEST])
-
-    def as_json(self):
-        return dict(type=self.TYPE, test=self.state)
-
-    def evaluate(self, run, sms, context, text):
-
-        # if they removed their country since adding the rule
-        org = run.flow.org
-        if not org.country:
-            return 0, None
-
-        # evaluate our district in case it has a replacement variable
-        state, errors = Msg.evaluate_template(self.state, context, org=run.flow.org)
-
-        parent = org.parse_location(state, AdminBoundary.LEVEL_STATE)
-        if parent:
-            district = org.parse_location(text, AdminBoundary.LEVEL_DISTRICT, parent[0])
-            if district:
-                return 1, district[0]
-        district = org.parse_location(text, AdminBoundary.LEVEL_DISTRICT)
-
-        # parse location when state contraint is not provided or available
-        if (errors or not state) and len(district) == 1:
-            return 1, district[0]
-
-        return 0, None
-
-
-class HasWardTest(Test):
-    TYPE = "ward"
-    STATE = "state"
-    DISTRICT = "district"
-
-    def __init__(self, state=None, district=None):
-        self.state = state
-        self.district = district
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls(json[cls.STATE], json[cls.DISTRICT])
-
-    def as_json(self):
-        return dict(type=self.TYPE, state=self.state, district=self.district)
-
-    def evaluate(self, run, sms, context, text):
-        # if they removed their country since adding the rule
-        org = run.flow.org
-        if not org.country:  # pragma: needs cover
-            return 0, None
-        district = None
-
-        # evaluate our district in case it has a replacement variable
-        district_name, missing_district = Msg.evaluate_template(self.district, context, org=run.flow.org)
-        state_name, missing_state = Msg.evaluate_template(self.state, context, org=run.flow.org)
-        if (district_name and state_name) and (len(missing_district) == 0 and len(missing_state) == 0):
-            state = org.parse_location(state_name, AdminBoundary.LEVEL_STATE)
-            if state:
-                district = org.parse_location(district_name, AdminBoundary.LEVEL_DISTRICT, state[0])
-                if district:
-                    ward = org.parse_location(text, AdminBoundary.LEVEL_WARD, district[0])
-                    if ward:
-                        return 1, ward[0]
-
-        # parse location when district contraint is not provided or available
-        ward = org.parse_location(text, AdminBoundary.LEVEL_WARD)
-        if len(ward) == 1 and district is None:
-            return 1, ward[0]
-
-        return 0, None
-
-
-class DateTest(Test):
-    """
-    Base class for those tests that check relative dates
-    """
-
-    TEST = None
-    TYPE = "date"
-
-    def __init__(self, test=None):
-        self.test = test
-
-    @classmethod
-    def from_json(cls, org, json):
-        if cls.TEST:
-            return cls(json[cls.TEST])
-        else:
-            return cls()
-
-    def as_json(self):
-        if self.test:
-            return dict(type=self.TYPE, test=self.test)
-        else:
-            return dict(type=self.TYPE)
-
-    def evaluate_date_test(self, date_message, date_test):
-        return date_message is not None
-
-    def evaluate(self, run, sms, context, text):
-        org = run.flow.org
-        day_first = org.get_dayfirst()
-        tz = org.timezone
-
-        test, errors = Msg.evaluate_template(self.test, context, org=org)
-        if not errors:
-            date_message = str_to_datetime(text, tz=tz, dayfirst=day_first)
-            date_test = str_to_datetime(test, tz=tz, dayfirst=day_first)
-
-            if self.evaluate_date_test(date_message, date_test):
-                return 1, date_message.astimezone(tz)
-
-        return 0, None
-
-
-class DateEqualTest(DateTest):
-    TEST = "test"
-    TYPE = "date_equal"
-
-    def evaluate_date_test(self, date_message, date_test):
-        return date_message and date_test and date_message.date() == date_test.date()
-
-
-class DateAfterTest(DateTest):
-    TEST = "test"
-    TYPE = "date_after"
-
-    def evaluate_date_test(self, date_message, date_test):
-        return date_message and date_test and date_message >= date_test
-
-
-class DateBeforeTest(DateTest):
-    TEST = "test"
-    TYPE = "date_before"
-
-    def evaluate_date_test(self, date_message, date_test):
-        return date_message and date_test and date_message <= date_test
-
-
-class NumericTest(Test):
-    """
-    Base class for those tests that do numeric tests.
-    """
-
-    TEST = "test"
-    TYPE = ""
-
-    @classmethod
-    def convert_to_decimal(cls, word):
-        try:
-            return (word, Decimal(word))
-        except Exception as e:
-            # does this start with a number?  just use that part if so
-            match = regex.match(r"^[$£€]?([\d,][\d,\.]*([\.,]\d+)?)\D*$", word, regex.UNICODE | regex.V0)
-
-            if match:
-                return (match.group(1), Decimal(match.group(1)))
-            else:
-                raise e
-
-    # test every word in the message against our test
-    def evaluate(self, run, sms, context, text):
-        text = text.replace(",", "")
-        for word in regex.split(r"\s+", text, flags=regex.UNICODE | regex.V0):
-            try:
-                (word, decimal) = NumericTest.convert_to_decimal(word)
-                if self.evaluate_numeric_test(run, context, decimal):
-                    return 1, decimal
-            except Exception:  # pragma: needs cover
-                pass
-        return 0, None
-
-
-class BetweenTest(NumericTest):
-    """
-    Test whether we are between two numbers (inclusive)
-    """
-
-    MIN = "min"
-    MAX = "max"
-    TYPE = "between"
-
-    def __init__(self, min_val, max_val):
-        self.min = min_val
-        self.max = max_val
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls(json[cls.MIN], json[cls.MAX])
-
-    def as_json(self):
-        return dict(type=self.TYPE, min=self.min, max=self.max)
-
-    def evaluate_numeric_test(self, run, context, decimal_value):
-        min_val, min_errors = Msg.evaluate_template(self.min, context, org=run.flow.org)
-        max_val, max_errors = Msg.evaluate_template(self.max, context, org=run.flow.org)
-
-        if not min_errors and not max_errors:
-            try:
-                return Decimal(min_val) <= decimal_value <= Decimal(max_val)
-            except Exception:  # pragma: needs cover
-                pass
-
-        return False  # pragma: needs cover
-
-
-class NumberTest(NumericTest):
-    """
-    Tests that there is any number in the string.
-    """
-
-    TYPE = "number"
-
-    def __init__(self):
-        pass
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls()
-
-    def as_json(self):  # pragma: needs cover
-        return dict(type=self.TYPE)
-
-    def evaluate_numeric_test(self, run, context, decimal_value):
-        return True
-
-
-class SimpleNumericTest(NumericTest):
-    """
-    Base class for those tests that do a numeric test with a single value
-    """
-
-    TEST = "test"
-    TYPE = ""
-
-    def __init__(self, test):
-        self.test = test
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls(json[cls.TEST])
-
-    def as_json(self):
-        return dict(type=self.TYPE, test=self.test)
-
-    def evaluate_numeric_test(self, message_numeric, test_numeric):  # pragma: no cover
-        raise FlowException("Evaluate numeric test needs to be defined by subclass")
-
-    # test every word in the message against our test
-    def evaluate(self, run, sms, context, text):
-        test, errors = Msg.evaluate_template(str(self.test), context, org=run.flow.org)
-
-        text = text.replace(",", "")
-        for word in regex.split(r"\s+", text, flags=regex.UNICODE | regex.V0):
-            try:
-                (word, decimal) = NumericTest.convert_to_decimal(word)
-                if self.evaluate_numeric_test(decimal, Decimal(test)):
-                    return 1, decimal
-            except Exception:
-                pass
-        return 0, None
-
-
-class GtTest(SimpleNumericTest):
-    TEST = "test"
-    TYPE = "gt"
-
-    def evaluate_numeric_test(self, message_numeric, test_numeric):
-        return message_numeric > test_numeric
-
-
-class GteTest(SimpleNumericTest):
-    TEST = "test"
-    TYPE = "gte"
-
-    def evaluate_numeric_test(self, message_numeric, test_numeric):
-        return message_numeric >= test_numeric
-
-
-class LtTest(SimpleNumericTest):
-    TEST = "test"
-    TYPE = "lt"
-
-    def evaluate_numeric_test(self, message_numeric, test_numeric):
-        return message_numeric < test_numeric
-
-
-class LteTest(SimpleNumericTest):
-    TEST = "test"
-    TYPE = "lte"
-
-    def evaluate_numeric_test(self, message_numeric, test_numeric):  # pragma: needs cover
-        return message_numeric <= test_numeric
-
-
-class EqTest(SimpleNumericTest):
-    TEST = "test"
-    TYPE = "eq"
-
-    def evaluate_numeric_test(self, message_numeric, test_numeric):
-        return message_numeric == test_numeric
-
-
-class PhoneTest(Test):
-    """
-    Test for whether a response contains a phone number
-    """
-
-    TYPE = "phone"
-
-    def __init__(self):
-        pass
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls()
-
-    def as_json(self):  # pragma: needs cover
-        return dict(type=self.TYPE)
-
-    def evaluate(self, run, sms, context, text):
-        org = run.flow.org
-
-        # try to find a phone number in the text we have been sent
-        country_code = org.get_country_code()
-        if not country_code:  # pragma: needs cover
-            country_code = "US"
-
-        number = None
-        matches = phonenumbers.PhoneNumberMatcher(text, country_code)
-
-        # try it as an international number if we failed
-        if not matches.has_next():  # pragma: needs cover
-            matches = phonenumbers.PhoneNumberMatcher("+" + text, country_code)
-
-        for match in matches:
-            number = phonenumbers.format_number(match.number, phonenumbers.PhoneNumberFormat.E164)
-
-        return number, number
-
-
-class RegexTest(Test):  # pragma: needs cover
-    """
-    Test for whether a response matches a regular expression
-    """
-
-    TEST = "test"
-    TYPE = "regex"
-
-    def __init__(self, test):
-        self.test = test
-
-    @classmethod
-    def from_json(cls, org, json):
-        return cls(json[cls.TEST])
-
-    def as_json(self):
-        return dict(type=self.TYPE, test=self.test)
-
-    def evaluate(self, run, sms, context, text):
-        try:
-            test = run.flow.get_localized_text(self.test, run.contact)
-
-            # check whether we match
-            rexp = regex.compile(test, regex.UNICODE | regex.IGNORECASE | regex.MULTILINE | regex.V0)
-            match = rexp.search(text)
-
-            # if so, $0 will be what we return
-            if match:
-                return_match = match.group(0)
-
-                # build up a dictionary that contains indexed group matches
-                group_dict = {}
-                for idx in range(rexp.groups + 1):
-                    group_dict[str(idx)] = match.group(idx)
-
-                # set it on run@extra
-                run.update_fields(group_dict)
-
-                # return all matched values
-                return True, return_match
-
-        except Exception as e:
-            logger.error(f"Unable to evaluate RegexTest: {str(e)}", exc_info=True)
-
-        return False, None

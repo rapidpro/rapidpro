@@ -1,22 +1,37 @@
 -load i18n
 
-%h4
+.card
   -blocktrans trimmed
-    To complete the configuration of your VK connection, you will need to enter the Webhook URL
-    in the URL field in the Manage > API Usage > Callback API > Server Settings section. And the Verify Token
-    in the Secret Key field present in the API Usage > Callback API > Server Settings section.
-    After this part, go to Manage > API Usage > Callback API > Event Types and check the option: <code>Message received</code>
+    To complete the configuration you will need to enter a few things on your VK account.
+  -blocktrans trimmed with option='<div class="code inline-block py-1">Message received</div>'
 
-%hr
+    .code.mt-4
+      Manage > API Usage > Callback API > Server Settings
 
-%h4
-  -trans "Webhook URL"
+    .mt-2  
+      Enter the Webhook URL below for the
+      .code.inline.py-1<
+        URL
+      field and the Verify Token in the 
+      .code.inline.py-1<
+        Secret Key
+      field.
 
-%code
-  https://{{ channel.callback_domain }}{% url 'courier.vk' channel.uuid %}
+    .code.mt-6
+      Manage > API Usage > Callback API > Event Types
 
-%h4
-  -trans "Verify Token"
+    .mt-2  
+      Check the option {{option}}
 
-%code
-  {{ channel.config.secret }}
+.card
+  .subtitle
+    -trans "Webhook URL"
+
+  .code
+    https://{{ channel.callback_domain }}{% url 'courier.vk' channel.uuid %}
+
+  .subtitle.mt-4
+    -trans "Verify Token"
+
+  .code
+    {{ channel.config.secret }}

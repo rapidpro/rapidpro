@@ -4,13 +4,16 @@ from django import forms
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.views import ALL_COUNTRIES, AuthenticatedExternalCallbackClaimView, ClaimViewMixin
-from temba.utils.fields import ExternalURLField
+from temba.utils.fields import ExternalURLField, SelectWidget
 
 
 class ClaimView(AuthenticatedExternalCallbackClaimView):
     class JasminForm(ClaimViewMixin.Form):
         country = forms.ChoiceField(
-            choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in")
+            choices=ALL_COUNTRIES,
+            widget=SelectWidget(attrs={"searchable": True}),
+            label=_("Country"),
+            help_text=_("The country this phone number is used in"),
         )
         number = forms.CharField(
             max_length=14,
@@ -19,7 +22,9 @@ class ClaimView(AuthenticatedExternalCallbackClaimView):
             help_text=_("The short code or phone number you are connecting."),
         )
         url = ExternalURLField(
-            label=_("URL"), help_text=_("The URL for the Jasmin server send path. ex: https://jasmin.gateway.io/send")
+            widget=forms.URLInput(attrs={"placeholder": _("Ex: https://jasmin.gateway.io/send")}),
+            label=_("URL"),
+            help_text=_("The URL for the Jasmin server send path"),
         )
         username = forms.CharField(
             label=_("Username"), help_text=_("The username to be used to authenticate to Jasmin")

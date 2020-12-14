@@ -53,23 +53,23 @@ class Command(BaseCommand):
             props = feature.properties
 
             # get parent id which is set in new file format
-            parent_osm_id = props.get("parent_id")
+            parent_osm_id = str(props.get("parent_id"))
 
             # if parent_osm_id is not set and not LEVEL_COUNTRY check for old file format
-            if not parent_osm_id and level != AdminBoundary.LEVEL_COUNTRY:
+            if parent_osm_id == "None" and level != AdminBoundary.LEVEL_COUNTRY:
                 if level == AdminBoundary.LEVEL_STATE:
-                    parent_osm_id = props["is_in_country"]
+                    parent_osm_id = str(props["is_in_country"])
                 elif level == AdminBoundary.LEVEL_DISTRICT:
-                    parent_osm_id = props["is_in_state"]
+                    parent_osm_id = str(props["is_in_state"])
 
-            osm_id = props["osm_id"]
+            osm_id = str(props["osm_id"])
             name = props.get("name", "")
             if not name or name == "None" or level == AdminBoundary.LEVEL_COUNTRY:
                 name = props.get("name_en", "")
 
             # try to find parent, bail if we can't
             parent = None
-            if parent_osm_id and parent_osm_id != "None":
+            if parent_osm_id != "None":
                 parent = AdminBoundary.objects.filter(osm_id=parent_osm_id).first()
                 if not parent:
                     self.stdout.write(
@@ -102,8 +102,6 @@ class Command(BaseCommand):
             kwargs = dict(osm_id=osm_id, name=name, level=level, parent=parent)
             if is_simplified:
                 kwargs["simplified_geometry"] = geometry
-            else:
-                kwargs["geometry"] = geometry
 
             # if this is an update, just update with those fields
             if boundary:
@@ -133,7 +131,6 @@ class Command(BaseCommand):
             if last_boundary:
                 self.stdout.write(self.style.SUCCESS(f" ** removing unseen boundaries ({osm_id})"))
                 country = last_boundary.get_root()
-
                 unseen_boundaries = country.get_descendants().filter(level=level).exclude(osm_id__in=seen_osm_ids)
                 deleted_count = 0
                 for unseen_boundary in unseen_boundaries:

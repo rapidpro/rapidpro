@@ -31,9 +31,10 @@ class FacebookTypeTest(TembaTest):
 
         self.login(self.admin)
 
-        # check that claim page URL appears on claim list page
-        response = self.client.get(reverse("channels.channel_claim"))
-        self.assertContains(response, url)
+        # Switched to FBA
+        # # check that claim page URL appears on claim list page
+        # response = self.client.get(reverse("channels.channel_claim"))
+        # self.assertContains(response, url)
 
         # can fetch the claim page
         response = self.client.get(url)
@@ -64,7 +65,7 @@ class FacebookTypeTest(TembaTest):
         self.channel.release()
 
         mock_delete.assert_called_once_with(
-            "https://graph.facebook.com/v2.12/me/subscribed_apps", params={"access_token": "09876543"}
+            "https://graph.facebook.com/v3.3/me/subscribed_apps", params={"access_token": "09876543"}
         )
 
     @override_settings(IS_PROD=True)
@@ -77,7 +78,7 @@ class FacebookTypeTest(TembaTest):
             trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow, self.channel)
 
             mock_post.assert_called_once_with(
-                "https://graph.facebook.com/v2.12/12345/thread_settings",
+                "https://graph.facebook.com/v3.3/12345/thread_settings",
                 json={
                     "setting_type": "call_to_actions",
                     "thread_state": "new_thread",
@@ -91,7 +92,7 @@ class FacebookTypeTest(TembaTest):
             trigger.archive(self.admin)
 
             mock_post.assert_called_once_with(
-                "https://graph.facebook.com/v2.12/12345/thread_settings",
+                "https://graph.facebook.com/v3.3/12345/thread_settings",
                 json={"setting_type": "call_to_actions", "thread_state": "new_thread", "call_to_actions": []},
                 headers={"Content-Type": "application/json"},
                 params={"access_token": "09876543"},
@@ -101,7 +102,7 @@ class FacebookTypeTest(TembaTest):
             trigger.restore(self.admin)
 
             mock_post.assert_called_once_with(
-                "https://graph.facebook.com/v2.12/12345/thread_settings",
+                "https://graph.facebook.com/v3.3/12345/thread_settings",
                 json={
                     "setting_type": "call_to_actions",
                     "thread_state": "new_thread",

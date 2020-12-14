@@ -1,34 +1,57 @@
 -load i18n
 
-%h4
-  -blocktrans
+  -blocktrans trimmed
     To finish configuring your Facebook connection, you'll need to enter the following webhook URL and token on your application's
     Messenger settings page. Make sure to check all boxes within the 'Webhooks' section to subscribe to incoming Facebook events and referral parameters in the following list.
 
-  (<code>messaging_referrals</code>, <code>messages</code>, <code>messsages_deliveries</code>, <code>messaging_postbacks</code>, <code>message_reads</code>, <code>messaging_handovers</code>, <code>messaging_optins</code>, <code>messaging_referrals</code>)
+  .card
+    .subtitle
+      -trans 'Referral Parmeters'
 
-.important
-  %p
-    -blocktrans
+    .code.inline-block.m-1
+      messaging_referrals
+    .code.inline-block.m-1
+      messages
+    .code.inline-block.m-1
+      messsages_deliveries
+    .code.inline-block.m-1
+      messaging_postbacks
+    .code.inline-block.m-1
+      message_reads
+    .code.inline-block.m-1
+      messaging_handovers
+    .code.inline-block.m-1
+      messaging_optins
+    .code.inline-block.m-1
+      messaging_referrals
+
+  .mt-4.card
+    .subtitle
+      -trans 'Permissions'
+
+    -blocktrans trimmed with subscriptions='<div class="code inline py-1 px-2">pages_messaging_subscriptions</div>' messaging='<div class="code inline py-1 px-2">pages_messaging</div>'
+      When submitting your application for approval, make sure to include the {{messaging}}
+      and {{subscriptions}} permissions so that you are able to initiate conversations with your contacts.
+
+.card
+
+  .subtitle
+    -trans "Verify Token"
+
+  .code
+    {{ channel.config.secret }}
+
+  .subtitle.mt-4
+    -trans "Webhook URL"
+
+  .code
+    https://{{ channel.callback_domain }}{% url 'courier.fb' channel.uuid %}
+
+  .mt-4
+    -blocktrans trimmed
       It may take up to ten minutes for a new webhook to take effect after being set on your Facebook application. Remember,
       until your Facebook application is approved by Facebook you will only be able to send and receive messages
       with administrators of your application.
 
-  %p
-    -blocktrans
-      When submitting your application for approval, make sure to include the <code>pages_messaging</code>
-      and <code>pages_messaging_subscriptions</code> permissions so that you are able to initiate conversations with your contacts.
 
-%hr
 
-%h4
-  -trans "Webhook URL"
-
-%code
-  https://{{ channel.callback_domain }}{% url 'courier.fb' channel.uuid %}
-
-%h4
-  -trans "Verify Token"
-
-%code
-  {{ channel.config.secret }}

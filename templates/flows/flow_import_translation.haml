@@ -1,0 +1,135 @@
+-extends 'smartmin/update.html'
+-load i18n
+-load smartmin
+-load temba
+
+-block pre-form
+  -blocktrans trimmed
+    Importing a PO file will replace all matching translations in the flow for the selected language.
+  %br
+  %br
+  .flow-info
+    %h3
+      -trans "Selected Flow"
+    .
+      {% trans "Name" %}:
+      %b
+        {{ object.name }}
+    .
+      {% trans "Base Language" %}:
+      %b
+        {{ flow_language.name }} ({{ flow_language.iso_code }})
+  -if po_info
+    .po-info
+      %h3
+        -trans "Uploaded PO File"
+      .
+        {% trans "Language" %}:
+          %b
+            -if po_info.language_name
+              {{ po_info.language_name }} ({{ po_info.language_code }})
+            -else
+              -trans "Unknown"
+      .
+        {% trans "Number of entries" %}:
+          %b
+            {{ po_info.num_entries }}
+      .
+        {% trans "Number of translations" %}:
+          %b
+            {{ po_info.num_translations }}
+
+-block fields
+  %fieldset
+    -if show_upload_form
+      .control-group.field_po_file
+        %label.control-label
+          PO Translation File
+        .controls
+          #po_file_errors
+            {{ form.po_file.errors }}
+          #file-upload
+            %input(type="file" name="po_file" id="id_po_file" onchange='updatePOFile()')
+          #real_button
+            %input(type="text" id="file-field")
+            %a.btn.btn-primary
+              -trans "Choose File"
+      {% render_field "loc" %}
+    -else
+      {% render_field "language" %}
+      {% render_field "loc" %}
+
+-block form-buttons
+  .form-group.smartmin-form-buttons
+    .col-sm-offset-2.col-sm-10
+      -if show_upload_form
+        %button.btn.btn-primary(type="submit")
+          -trans "Upload"
+        %a.btn.btn-default(onclick="javascript:history.go(-1)")
+          -trans "Cancel"
+      -else
+        %button.btn.btn-primary(type="submit")
+          -trans "Import"
+        %a.btn.btn-default(href="{% url 'flows.flow_import_translation' object.id %}")
+          -trans "Back"
+
+-block extra-script
+  {{ block.super }}
+  %script
+    function updatePOFile(){
+      var file = $("#id_po_file").val();
+      while (file.indexOf("\\") >= 0) {
+        file = file.substring(file.indexOf("\\")+1, file.length);
+      }
+      $("#file-field").val(file);
+    }
+
+
+-block extra-style
+  :css
+    .flow-info, .po-info {
+      padding-bottom: 2em;
+    }
+
+    #file-upload {
+      position:relative;
+    }
+
+    #po_file_errors {
+      font-size: 14px;
+    }
+
+    #real-button {
+      position: absolute;
+      top: 0px;
+      left: 0px;
+      z-index: 1;
+      height:35px;
+      width:340px;
+    }
+
+    #file-field {
+      width:255px;
+      height:25px;
+      font-size:16px;
+      border:solid 1px #777;
+      margin-bottom: 0px;
+    }
+
+    #id_po_file {
+      position:absolute;
+      width:340px;
+      height:35px;
+      top: 0px;
+      left: 0px;
+      text-align: right;
+      -moz-opacity:0 ;
+      filter:alpha(opacity: 0);
+      opacity: 0;
+      z-index: 2;
+    }
+
+    #id_language {
+      display: block;
+      width: 500px;
+    }

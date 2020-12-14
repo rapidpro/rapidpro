@@ -1,82 +1,37 @@
 -extends "smartmin/base.html"
 -load i18n compress temba
 
--block page-top
-  .row
-    .span12
-      %h2
-        -trans "Connect a Classifier"
-      .instructions
-        %p
-          -blocktrans
-            Classifiers let you interpret words and phrases into intents you can act on. Various services let you
-            train your own classifier which you can then use in your flows to draw meaning from the unstructured text your
-            contacts send you.
-
-        %p
-          -blocktrans
-            Select your provider below to get started.
+-block title
+  -trans "Connect a Classifier"
 
 -block content
+  -blocktrans trimmed
+    Classifiers let you interpret words and phrases into intents you can act on. Various services let you
+    train your own classifier which you can then use in your flows to draw meaning from the unstructured text your
+    contacts send you.
+
+  .mt-2
+    -blocktrans trimmed
+      Select your provider below to get started.
+
   .classifier-options
     -for cl_type in classifier_types
-      .classifier-row
-        .row
-          .span3
-            %a.btn.btn-primary.btn-primary-muted.btn-connect{href:"{% url 'classifiers.types.'|add:cl_type.slug|add:'.connect' %}"}
-              .btn-container
-                .classifier-glyph{class:"{{ cl_type.icon }}"}
-                %p.classifier-text= cl_type.name
-          .span8
-            .classifier-description
-              %div
-                {% include cl_type.get_connect_blurb %}
+
+      .card.link(onclick="goto(event, this)" href="{% url 'classifiers.types.'|add:cl_type.slug|add:'.connect' %}")
+        .relative
+          .text-base.absolute.text-gray-100.bg-icon(class="{{ cl_type.icon }}")
+        
+        .flex.flex-col.mx-20.relative
+          .title
+            {{ cl_type.name }}
+
+          .mt-2
+            {% include cl_type.get_connect_blurb %}
+
 
 -block extra-style
   :css
-    .classifier-description {
-      padding: 25px 40px;
-      height: 50px;
-      width:95%;
-      background: #f5f5f5;
-      font-size: 16px;
-    }
-
-    .align-text-center {
-      text-align: center;
-    }
-
-    .classifier-text {
-      margin-top: 10px;
-    }
-
-    .btn-container {
-      margin-right: 10px;
-    }
-
-    .external {
-      text-align: center;
-    }
-
-    .classifier-glyph {
-      line-height: 40px;
-      text-decoration: none;
-      font-size: 40px;
-      display: inline;
-      padding-bottom: 10px;
-    }
-
-    .btn-connect {
-      padding: 10px 10px;
-      width: 95%;
-      height: 78px;
-    }
-
-    .classifier-row {
-      clear: both;
-      margin-bottom: 10px;
-    }
-
-    .classifier-row .span8 {
-      margin-left: 0px;
+    .bg-icon {
+      font-size: 90px;
+      transform: translate(-45px, 10px) rotate(-15deg);
     }

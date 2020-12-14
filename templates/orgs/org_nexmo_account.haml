@@ -6,8 +6,6 @@
   .title-icon
     %span.glyph.icon-nexmo
 
--block form-span
-
 -block title-text
   .title-text
     %h1
@@ -20,17 +18,18 @@
     Disconnected from Nexmo
 
 -block post-form
-  -if object.is_connected_to_nexmo and request.META.HTTP_X_FORMAX
-    If you no longer want it connected, you can
-    %a{href:'javascript:confirmNexmoDisconnect();'}
-      disconnect your Nexmo Account
+  .mt-4
+    -if object.is_connected_to_nexmo and request.META.HTTP_X_FORMAX
+      If you no longer want it connected, you can
+      %a{href:'javascript:confirmNexmoDisconnect();'}
+        disconnect your Nexmo Account
 
   - if org_perms.channels.channel_delete
     .disconnect-nexmo.hide
       .title
         -trans "Disconnect Nexmo"
       .body
-        -blocktrans
+        -blocktrans trimmed
           Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?
     %a#disconnect-nexmo-form.posterize{href:'{% url "orgs.org_nexmo_account" %}?disconnect=true'}
 

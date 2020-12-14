@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 from django.utils import timezone
 
 from temba.api.models import WebHookResult
@@ -8,6 +6,7 @@ from temba.contacts.models import URN
 from temba.flows.models import Flow, FlowRun, FlowSession
 from temba.msgs.models import Msg
 from temba.utils.text import slugify_with
+from temba.utils.uuid import uuid4
 
 # engine session statuses to db statuses
 SESSION_STATUSES = {
@@ -128,16 +127,17 @@ class MockSessionWriter:
         self._log_event("error", text=text)
         return self
 
-    def send_msg(self, text, channel=None):
-        self._log_event(
-            "msg_created",
-            msg={
-                "uuid": str(uuid4()),
-                "urn": self.contact.get_urn().urn,
-                "text": text,
-                "channel": self._channel_ref(channel),
-            },
-        )
+    def send_msg(self, text, channel=None, attachments=[]):
+        msg = {
+            "uuid": str(uuid4()),
+            "urn": self.contact.get_urn().urn,
+            "text": text,
+            "channel": self._channel_ref(channel),
+        }
+        if attachments:
+            msg["attachments"] = attachments
+
+        self._log_event("msg_created", msg=msg)
         return self
 
     def send_email(self, to, subject, body):
@@ -294,6 +294,7 @@ class MockSessionWriter:
 
     def _handle_msg_created(self, event):
         channel_ref = event["msg"].get("channel")
+        attachments = event["msg"].get("attachments", [])
 
         Msg.objects.create(
             uuid=event["msg"]["uuid"],
@@ -303,6 +304,7 @@ class MockSessionWriter:
             channel=Channel.objects.get(uuid=channel_ref["uuid"]) if channel_ref else None,
             direction="O",
             text=event["msg"]["text"],
+            attachments=attachments,
             created_on=event["created_on"],
             msg_type="F",
             status="S",

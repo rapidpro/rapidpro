@@ -1,3 +1,4 @@
+import contextlib
 from uuid import UUID
 
 import iso8601
@@ -85,11 +86,13 @@ class BaseAPIView(NonAtomicMixin, generics.GenericAPIView):
         return context
 
     def normalize_urn(self, value):
-        if self.request.user.get_org().is_anon:
+        org = self.request.user.get_org()
+
+        if org.is_anon:
             raise InvalidQueryError("URN lookups not allowed for anonymous organizations")
 
         try:
-            return URN.identity(URN.normalize(value))
+            return URN.identity(URN.normalize(value, country_code=org.default_country_code))
         except ValueError:
             raise InvalidQueryError("Invalid URN: %s" % value)
 
@@ -155,7 +158,7 @@ class ListAPIMixin(mixins.ListModelMixin):
         pass
 
 
-class WriteAPIMixin(object):
+class WriteAPIMixin:
     """
     Mixin for any endpoint which can create or update objects with a write serializer. Our approach differs a bit from
     the REST framework default way as we use POST requests for both create and update operations, and use separate
@@ -163,6 +166,7 @@ class WriteAPIMixin(object):
     """
 
     write_serializer_class = None
+    write_with_transaction = True
 
     def post_save(self, instance):
         """
@@ -186,7 +190,8 @@ class WriteAPIMixin(object):
         serializer = self.write_serializer_class(instance=instance, data=request.data, context=context)
 
         if serializer.is_valid():
-            with transaction.atomic():
+            mgr = transaction.atomic() if self.write_with_transaction else contextlib.suppress()
+            with mgr:
                 output = serializer.save()
                 self.post_save(output)
                 return self.render_write_response(output, context)
@@ -202,7 +207,7 @@ class WriteAPIMixin(object):
         return Response(response_serializer.data, status=status_code)
 
 
-class BulkWriteAPIMixin(object):
+class BulkWriteAPIMixin:
     """
     Mixin for a bulk action endpoint which writes multiple objects in response to a POST but returns nothing.
     """

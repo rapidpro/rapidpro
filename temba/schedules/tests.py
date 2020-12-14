@@ -1,4 +1,3 @@
-import time
 from datetime import datetime, timedelta
 
 import pytz
@@ -6,9 +5,10 @@ import pytz
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.contacts.omnibox import omnibox_serialize
+from temba.contacts.search.omnibox import omnibox_serialize
 from temba.msgs.models import Broadcast
 from temba.tests import TembaTest
+from temba.utils.dates import datetime_to_str
 
 from .models import Schedule
 
@@ -16,7 +16,7 @@ from .models import Schedule
 class ScheduleTest(TembaTest):
     def setUp(self):
         super().setUp()
-        self.joe = self.create_contact(name="Joe Blow", number="123")
+        self.joe = self.create_contact("Joe Blow", phone="123")
 
     def test_get_repeat_days_display(self):
         sched = Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_WEEKLY, "M")
@@ -31,7 +31,7 @@ class ScheduleTest(TembaTest):
             ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
         )
 
-    def test_next_fire(self):
+    def test_schedules(self):
         default_tz = pytz.timezone("Africa/Kigali")
 
         tcs = [
@@ -42,6 +42,7 @@ class ScheduleTest(TembaTest):
                 repeat_period=Schedule.REPEAT_NEVER,
                 first=None,
                 next=[None],
+                display="",
             ),
             dict(
                 label="one time in the future (fire once)",
@@ -50,6 +51,7 @@ class ScheduleTest(TembaTest):
                 repeat_period=Schedule.REPEAT_NEVER,
                 first=datetime(2013, 1, 2, hour=10),
                 next=[],
+                display="in 0\xa0minutes",
             ),
             dict(
                 label="daily repeating starting in the past",
@@ -58,6 +60,7 @@ class ScheduleTest(TembaTest):
                 repeat_period=Schedule.REPEAT_DAILY,
                 first=datetime(2013, 1, 3, hour=10),
                 next=[datetime(2013, 1, 4, hour=10), datetime(2013, 1, 5, hour=10)],
+                display="each day at 10:00",
             ),
             dict(
                 label="monthly across start of DST",
@@ -77,6 +80,7 @@ class ScheduleTest(TembaTest):
                     datetime(2019, 10, 10, hour=10),
                     datetime(2019, 11, 10, hour=10),
                 ],
+                display="each month on the 10th",
             ),
             dict(
                 label="weekly across start of DST",
@@ -87,6 +91,7 @@ class ScheduleTest(TembaTest):
                 tz=pytz.timezone("America/Los_Angeles"),
                 first=datetime(2019, 3, 2, hour=10),
                 next=[datetime(2019, 3, 9, hour=10), datetime(2019, 3, 16, hour=10)],
+                display="each week on Saturday",
             ),
             dict(
                 label="weekly across end of DST",
@@ -97,6 +102,7 @@ class ScheduleTest(TembaTest):
                 tz=pytz.timezone("America/Los_Angeles"),
                 first=datetime(2019, 11, 2, hour=10),
                 next=[datetime(2019, 11, 9, hour=10), datetime(2019, 11, 16, hour=10)],
+                display="each week on Saturday",
             ),
             dict(
                 label="daily across start of DST",
@@ -106,6 +112,7 @@ class ScheduleTest(TembaTest):
                 tz=pytz.timezone("America/Los_Angeles"),
                 first=datetime(2019, 3, 8, hour=10),
                 next=[datetime(2019, 3, 9, hour=10), datetime(2019, 3, 10, hour=10), datetime(2019, 3, 11, hour=10)],
+                display="each day at 10:00",
             ),
             dict(
                 label="daily across end of DST",
@@ -115,6 +122,7 @@ class ScheduleTest(TembaTest):
                 tz=pytz.timezone("America/Los_Angeles"),
                 first=datetime(2019, 11, 2, hour=10),
                 next=[datetime(2019, 11, 3, hour=10), datetime(2019, 11, 4, hour=10), datetime(2019, 11, 5, hour=10)],
+                display="each day at 10:00",
             ),
             dict(
                 label="weekly repeating starting on non weekly day of the week",
@@ -129,6 +137,7 @@ class ScheduleTest(TembaTest):
                     datetime(2013, 1, 10, hour=10),
                     datetime(2013, 1, 12, hour=10),
                 ],
+                display="each week on Thursday, Saturday",
             ),
             dict(
                 label="weekly repeat starting in the past",
@@ -138,6 +147,7 @@ class ScheduleTest(TembaTest):
                 repeat_days_of_week="RS",
                 first=datetime(2013, 1, 3, hour=10),
                 next=[datetime(2013, 1, 5, hour=10), datetime(2013, 1, 10, hour=10), datetime(2013, 1, 12, hour=10)],
+                display="each week on Thursday, Saturday",
             ),
             dict(
                 label="monthly repeat starting in the past",
@@ -150,6 +160,7 @@ class ScheduleTest(TembaTest):
                     datetime(2013, 4, 2, hour=10, minute=35),
                     datetime(2013, 5, 2, hour=10, minute=35),
                 ],
+                display="each month on the 2nd",
             ),
             dict(
                 label="monthly on 31st",
@@ -162,6 +173,7 @@ class ScheduleTest(TembaTest):
                     datetime(2013, 3, 31, hour=10, minute=35),
                     datetime(2013, 4, 30, hour=10, minute=35),
                 ],
+                display="each month on the 31st",
             ),
         ]
 
@@ -203,10 +215,10 @@ class ScheduleTest(TembaTest):
                 expected_next = tz.localize(next) if next else None
                 self.assertEqual(expected_next, next_fire, f"{label}: {expected_next} != {next_fire}")
 
+            self.assertEqual(tc["display"], sched.get_display(), f"display mismatch for {label}")
+
     def test_schedule_ui(self):
         self.login(self.admin)
-
-        joe = self.create_contact("Joe Blow", "123")
 
         # test missing recipients
         omnibox = omnibox_serialize(self.org, [], [], True)
@@ -240,20 +252,20 @@ class ScheduleTest(TembaTest):
         broadcast = response.context["object"]
 
         # update our message
-        post_data = dict(message="An updated scheduled message", omnibox="c-%s" % joe.uuid)
+        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
+        post_data = dict(message="An updated scheduled message", omnibox=omnibox)
         self.client.post(reverse("msgs.broadcast_update", args=[broadcast.pk]), post_data)
         self.assertEqual(Broadcast.objects.get(id=broadcast.id).text, {"base": "An updated scheduled message"})
 
         start = datetime(2045, 9, 19, hour=10, minute=15, second=0, microsecond=0)
         start = pytz.utc.normalize(self.org.timezone.localize(start))
-        start_stamp = time.mktime(start.timetuple())
 
         # update the schedule
         post_data = dict(
             repeat_period=Schedule.REPEAT_WEEKLY,
             repeat_days_of_week="W",
             start="later",
-            start_datetime_value=start_stamp,
+            start_datetime=datetime_to_str(start, "%Y-%m-%d %H:%M", self.org.timezone),
         )
         response = self.client.post(reverse("schedules.schedule_update", args=[broadcast.schedule.pk]), post_data)
 
@@ -305,10 +317,8 @@ class ScheduleTest(TembaTest):
         self.assertEqual(response.status_code, 200)
 
         now = timezone.now()
-        now_stamp = time.mktime(now.timetuple())
 
         tommorrow = now + timedelta(days=1)
-        tommorrow_stamp = time.mktime(tommorrow.timetuple())
 
         # user in other org can't make changes
         self.login(self.admin2)
@@ -334,7 +344,12 @@ class ScheduleTest(TembaTest):
         self.assertIsNone(schedule.next_fire)
 
         response = self.client.post(
-            update_url, {"start": "now", "repeat_period": "O", "start_datetime_value": "%d" % now_stamp}
+            update_url,
+            {
+                "start": "now",
+                "repeat_period": "O",
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
+            },
         )
         self.assertEqual(302, response.status_code)
 
@@ -343,7 +358,12 @@ class ScheduleTest(TembaTest):
         self.assertFalse(schedule.next_fire)
 
         response = self.client.post(
-            update_url, {"repeat_period": "D", "start": "later", "start_datetime_value": "%d" % tommorrow_stamp}
+            update_url,
+            {
+                "repeat_period": "D",
+                "start": "later",
+                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
+            },
         )
         self.assertEqual(302, response.status_code)
 
@@ -351,7 +371,12 @@ class ScheduleTest(TembaTest):
         self.assertEqual(schedule.repeat_period, "D")
 
         response = self.client.post(
-            update_url, {"repeat_period": "D", "start": "later", "start_datetime_value": "%d" % tommorrow_stamp}
+            update_url,
+            {
+                "repeat_period": "D",
+                "start": "later",
+                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
+            },
         )
         self.assertEqual(302, response.status_code)
 
@@ -365,7 +390,7 @@ class ScheduleTest(TembaTest):
                 "repeat_period": "W",
                 "start": "later",
                 "repeat_days_of_week": "",
-                "start_datetime_value": str(now_stamp),
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
@@ -382,11 +407,13 @@ class ScheduleTest(TembaTest):
                 "repeat_period": "W",
                 "start": "later",
                 "repeat_days_of_week": "X",
-                "start_datetime_value": str(now_stamp),
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
-        self.assertFormError(response, "form", "repeat_days_of_week", "X is not a valid day of the week")
+        self.assertFormError(
+            response, "form", "repeat_days_of_week", "Select a valid choice. X is not one of the available choices."
+        )
 
         schedule.refresh_from_db()
         self.assertEqual(schedule.repeat_period, "D")  # unchanged
@@ -398,8 +425,8 @@ class ScheduleTest(TembaTest):
             {
                 "repeat_period": "W",
                 "start": "later",
-                "repeat_days_of_week": "MF",
-                "start_datetime_value": str(now_stamp),
+                "repeat_days_of_week": ["M", "F"],
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
             },
         )
 
@@ -433,7 +460,7 @@ class ScheduleTest(TembaTest):
         post_data = dict()
         post_data["repeat_period"] = "D"
         post_data["start"] = "later"
-        post_data["start_datetime_value"] = "%d" % time.mktime(start_date.timetuple())
+        post_data["start_datetime"] = (datetime_to_str(start_date, "%Y-%m-%d %H:%M", self.org.timezone),)
         self.client.post(update_url, post_data)
         sched = Schedule.objects.get(pk=sched.pk)
 
@@ -447,7 +474,7 @@ class ScheduleTest(TembaTest):
         post_data = dict()
         post_data["repeat_period"] = "D"
         post_data["start"] = "later"
-        post_data["start_datetime_value"] = "%d" % time.mktime(start_date.timetuple())
+        post_data["start_datetime"] = (datetime_to_str(start_date, "%Y-%m-%d %H:%M", self.org.timezone),)
         self.client.post(update_url, post_data)
         sched = Schedule.objects.get(pk=sched.pk)
 

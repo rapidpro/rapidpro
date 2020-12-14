@@ -6,8 +6,6 @@
   .title-icon
     %span.glyph.icon-twilio
 
--block form-span
-
 -block title-text
   .title-text
     %h1 Disconnect Twilio
@@ -19,19 +17,20 @@
     Disconnected from Twilio
 
 -block post-form
-  -if object.is_connected_to_twilio and request.META.HTTP_X_FORMAX
-    If you no longer want it connected, you can
-    %a{href:'javascript:confirmTwilioDisconnect();'}
-      disconnect your Twilio Account
+  .mt-4
+    -if object.is_connected_to_twilio and request.META.HTTP_X_FORMAX
+      If you no longer want it connected, you can
+      %a{href:'javascript:confirmTwilioDisconnect();'}
+        disconnect your Twilio Account
 
-  - if org_perms.channels.channel_delete
-    .disconnect-twilio.hide
-      .title
-        -trans "Disconnect Twilio"
-      .body
-        -blocktrans
-          Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?
-    %a#disconnect-twilio-form.posterize{href:'{% url "orgs.org_twilio_account" %}?disconnect=true'}
+    - if org_perms.channels.channel_delete
+      .disconnect-twilio.hide
+        .title
+          -trans "Disconnect Twilio"
+        .body
+          -blocktrans trimmed
+            Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?
+      %a#disconnect-twilio-form.posterize{href:'{% url "orgs.org_twilio_account" %}?disconnect=true'}
 
 -block form-buttons
   .form-actions

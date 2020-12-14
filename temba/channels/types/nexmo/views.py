@@ -8,7 +8,7 @@ from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.models import Org
-from temba.utils import analytics
+from temba.utils.fields import SelectWidget
 from temba.utils.models import generate_uuid
 
 from ...models import Channel
@@ -23,7 +23,9 @@ from ...views import (
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
-        country = forms.ChoiceField(choices=NEXMO_SUPPORTED_COUNTRIES)
+        country = forms.ChoiceField(
+            choices=NEXMO_SUPPORTED_COUNTRIES, widget=SelectWidget(attrs={"searchable": True}),
+        )
         phone_number = forms.CharField(help_text=_("The phone number being added"))
 
         def clean_phone_number(self):
@@ -175,7 +177,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             org,
             user,
             country,
-            "NX",
+            self.channel_type,
             name=phone,
             address=phone_number,
             role=role,
@@ -185,11 +187,9 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             tps=1,
         )
 
-        analytics.track(user.username, "temba.channel_claim_nexmo", dict(number=phone_number))
-
         return channel
 
 
 class UpdateForm(UpdateTelChannelForm):
     class Meta(UpdateTelChannelForm.Meta):
-        readonly = ("country",)
+        readonly = ()

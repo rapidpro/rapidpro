@@ -5,11 +5,19 @@
       "uuid": "aef60b1e-14ab-4095-81ee-fce02b3e320d",
       "name": "Favorites",
       "spec_version": "13.0.0",
-      "language": "base",
+      "language": "eng",
       "type": "messaging",
       "revision": 1,
       "expire_after_minutes": 720,
-      "localization": {},
+      "localization": {
+        "spa": {
+          "376d00df-75cf-4760-86c1-d481634a30ec": {
+            "text": [
+              "¿Cuál es tu color favorito?"
+            ]
+          }
+        }
+      },
       "nodes": [
         {
           "uuid": "2428f8f2-2ab0-4af5-80d3-3dab5b8918cd",

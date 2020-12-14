@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # default manager for AdminBoundary, doesn't load geometries
 class NoGeometryManager(models.Manager):
     def get_queryset(self):
-        return super().get_queryset().defer("geometry", "simplified_geometry")
+        return super().get_queryset().defer("simplified_geometry")
 
 
 # optional 'geometries' manager for AdminBoundary, loads everything
@@ -60,8 +60,6 @@ class AdminBoundary(MPTTModel, models.Model):
 
     path = models.CharField(max_length=768, help_text="The full path name for this location")
 
-    geometry = models.MultiPolygonField(null=True, help_text="The full geometry of this administrative boundary")
-
     simplified_geometry = models.MultiPolygonField(
         null=True, help_text="The simplified geometry of this administrative boundary"
     )
@@ -75,13 +73,13 @@ class AdminBoundary(MPTTModel, models.Model):
         feature_collection = geojson.FeatureCollection(features)
         return geojson.dumps({"name": name, "geometry": feature_collection})
 
-    def as_json(self):
+    def as_json(self, org):
         result = dict(osm_id=self.osm_id, name=self.name, level=self.level, aliases="", path=self.path)
 
         if self.parent:
             result["parent_osm_id"] = self.parent.osm_id
 
-        aliases = "\n".join(sorted([alias.name for alias in self.aliases.all()]))
+        aliases = "\n".join(sorted([alias.name for alias in self.aliases.filter(org=org)]))
         result["aliases"] = aliases
         return result
 

@@ -1,5 +1,3 @@
-from uuid import uuid4
-
 import phonenumbers
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartFormView
@@ -10,9 +8,10 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import WHATSAPP_SCHEME
+from temba.contacts.models import URN
 from temba.orgs.models import Org
-from temba.utils import analytics
+from temba.utils.fields import SelectWidget
+from temba.utils.uuid import uuid4
 
 from ...models import Channel
 from ...views import ALL_COUNTRIES, TWILIO_SUPPORTED_COUNTRIES, BaseClaimNumberMixin, ClaimViewMixin
@@ -20,7 +19,7 @@ from ...views import ALL_COUNTRIES, TWILIO_SUPPORTED_COUNTRIES, BaseClaimNumberM
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
-        country = forms.ChoiceField(choices=ALL_COUNTRIES)
+        country = forms.ChoiceField(choices=ALL_COUNTRIES, widget=SelectWidget(attrs={"searchable": True}),)
         phone_number = forms.CharField(help_text=_("The phone number being added"))
 
         def clean_phone_number(self):
@@ -40,10 +39,12 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         try:
             self.client = org.get_twilio_client()
             if not self.client:
-                return HttpResponseRedirect(reverse("orgs.org_twilio_connect"))
+                return HttpResponseRedirect(
+                    f'{reverse("orgs.org_twilio_connect")}?claim_type={self.channel_type.slug}'
+                )
             self.account = self.client.api.account.fetch()
         except TwilioRestException:
-            return HttpResponseRedirect(reverse("orgs.org_twilio_connect"))
+            return HttpResponseRedirect(f'{reverse("orgs.org_twilio_connect")}?claim_type={self.channel_type.slug}')
 
     def get_search_countries_tuple(self):
         return []
@@ -119,15 +120,13 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             org,
             user,
             country,
-            "TWA",
+            self.channel_type,
             name=phone,
             address=phone_number,
             role=role,
             config=config,
             uuid=channel_uuid,
-            schemes=[WHATSAPP_SCHEME],
+            schemes=[URN.WHATSAPP_SCHEME],
         )
-
-        analytics.track(user.username, "temba.channel_claim_twilio_whatsapp", properties=dict(number=phone_number))
 
         return channel

@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timedelta
-from uuid import uuid4
+from urllib.parse import urlencode
 
 import iso8601
 import regex
@@ -29,8 +29,8 @@ from django.db.models.functions import Lower
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, Http404
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.encoding import force_text
+from django.utils.functional import cached_property
 from django.utils.text import slugify
 from django.utils.timezone import get_current_timezone_name
 from django.utils.translation import ugettext_lazy as _
@@ -40,13 +40,10 @@ from django.views.generic import FormView
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.channels.models import Channel
-from temba.classifiers.models import Classifier
-from temba.contacts.fields import OmniboxField
-from temba.contacts.models import FACEBOOK_SCHEME, TEL_SCHEME, WHATSAPP_SCHEME, ContactField, ContactGroup, ContactURN
-from temba.contacts.omnibox import omnibox_deserialize
-from temba.flows import legacy
-from temba.flows.legacy.expressions import get_function_listing
-from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession
+from temba.contacts.models import URN, ContactField, ContactGroup
+from temba.contacts.search import SearchException, parse_query
+from temba.contacts.search.omnibox import omnibox_deserialize
+from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task, download_flow_images_task
 from temba.ivr.models import IVRCall
 from temba.links.models import Link, LinkContacts
@@ -57,10 +54,20 @@ from temba.schedules.views import BaseScheduleForm
 from temba.schedules.models import Schedule
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
-from temba.utils import analytics, json, on_transaction_commit, str_to_bool, build_flow_parameters
-from temba.utils.fields import ContactSearchWidget, JSONField, OmniboxChoice, SelectWidget
+from temba.utils import analytics, gettext, json, on_transaction_commit, str_to_bool, build_flow_parameters
+from temba.utils.fields import (
+    CheckboxWidget,
+    ContactSearchWidget,
+    InputWidget,
+    JSONField,
+    OmniboxChoice,
+    SelectMultipleWidget,
+    SelectWidget,
+)
 from temba.utils.s3 import public_file_storage
-from temba.utils.views import BaseActionForm, NonAtomicMixin
+from temba.utils.text import slugify_with
+from temba.utils.uuid import uuid4
+from temba.utils.views import BulkActionMixin
 
 from .merging import (
     Graph,
@@ -72,10 +79,10 @@ from .merging import (
 from .models import (
     ExportFlowImagesTask,
     ExportFlowResultsTask,
-    FlowInvalidCycleException,
     FlowImage,
     FlowLabel,
     FlowPathRecentRun,
+    FlowStartCount,
     FlowUserConflictException,
     FlowVersionConflictException,
     MergeFlowsTask,
@@ -94,6 +101,7 @@ EXPIRES_CHOICES = (
     (60 * 3, _("After 3 hours")),
     (60 * 6, _("After 6 hours")),
     (60 * 12, _("After 12 hours")),
+    (60 * 18, _("After 18 hours")),
     (60 * 24, _("After 1 day")),
     (60 * 24 * 2, _("After 2 days")),
     (60 * 24 * 3, _("After 3 days")),
@@ -112,18 +120,27 @@ LAUNCH_CHOICES = (
 )
 
 
+class OrgQuerysetMixin:
+    def derive_queryset(self, *args, **kwargs):
+        queryset = super().derive_queryset(*args, **kwargs)
+        if not self.request.user.is_authenticated:  # pragma: needs cover
+            return queryset.exclude(pk__gt=0)
+        else:
+            return queryset.filter(org=self.request.user.get_org())
+
+
 class BaseFlowForm(forms.ModelForm):
     def clean_keyword_triggers(self):
         org = self.user.get_org()
-        value = self.cleaned_data.get("keyword_triggers", "")
+        value = self.data.getlist("keyword_triggers", [])
 
         duplicates = []
         wrong_format = []
         cleaned_keywords = []
 
-        for keyword in value.split(","):
+        for keyword in value:
             keyword = keyword.lower().strip()
-            if not keyword:
+            if not keyword:  # pragma: needs cover
                 continue
 
             if (
@@ -165,7 +182,7 @@ class BaseFlowForm(forms.ModelForm):
         fields = "__all__"
 
 
-class FlowActionForm(BaseActionForm):
+class FlowActionForm(forms.ModelForm):
     allowed_actions = (
         ("archive", _("Archive Flows")),
         ("label", _("Label Messages")),
@@ -219,7 +236,7 @@ class FlowActionMixin(SmartListView):
         return response
 
 
-class FlowImageActionForm(BaseActionForm):
+class FlowImageActionForm:
     allowed_actions = (
         ("archive", _("Archive Flow Images")),
         ("delete", _("Delete Flow Images")),
@@ -511,6 +528,10 @@ class FlowCRUDL(SmartCRUDL):
         "delete",
         "update",
         "simulate",
+        "change_language",
+        "export_translation",
+        "download_translation",
+        "import_translation",
         "export_results",
         "upload_action_recording",
         "editor",
@@ -519,18 +540,16 @@ class FlowCRUDL(SmartCRUDL):
         "run_table",
         "links_table",
         "category_counts",
-        "json",
         "broadcast",
         "activity",
         "activity_chart",
         "filter",
         "campaign",
-        "completion",
         "revisions",
         "recent_messages",
         "assets",
         "upload_media_action",
-        "pdf_export",
+        # "pdf_export",
         "lookups_api",
         "giftcards_api",
         "launch",
@@ -601,6 +620,9 @@ class FlowCRUDL(SmartCRUDL):
             return initial_queryset.filter(is_active=True)
 
     class RecentMessages(OrgObjPermsMixin, SmartReadView):
+        """
+        Used by the editor for the rollover of recent messages on path segments in a flow
+        """
 
         slug_url_kwarg = "uuid"
 
@@ -619,6 +641,9 @@ class FlowCRUDL(SmartCRUDL):
             return JsonResponse(recent_messages, safe=False)
 
     class Revisions(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+        """
+        Used by the editor for fetching and saving flow definitions
+        """
 
         slug_url_kwarg = "uuid"
 
@@ -628,18 +653,16 @@ class FlowCRUDL(SmartCRUDL):
 
         def get(self, request, *args, **kwargs):
             flow = self.get_object()
-
-            flow_version = request.GET.get("version", Flow.CURRENT_SPEC_VERSION)
             revision_id = self.kwargs["revision_id"]
+
+            # the editor requests the spec version it supports which allows us to add support for new versions
+            # on the goflow/mailroom side before updating the editor to use that new version
+            requested_version = request.GET.get("version", Flow.CURRENT_SPEC_VERSION)
 
             # we are looking for a specific revision, fetch it and migrate it forward
             if revision_id:
-                revision = FlowRevision.objects.get(flow=flow, pk=revision_id)
-                definition = revision.get_definition_json(to_version=flow_version)
-
-                # TODO: this is only needed to support the legacy editor
-                if Version(flow_version) < Version(Flow.INITIAL_GOFLOW_VERSION):
-                    return JsonResponse(definition)
+                revision = FlowRevision.objects.get(flow=flow, id=revision_id)
+                definition = revision.get_migrated_definition(to_version=requested_version)
 
                 # get our metadata
                 flow_info = mailroom.get_client().flow_inspect(flow.org_id, definition)
@@ -651,45 +674,33 @@ class FlowCRUDL(SmartCRUDL):
                 ]
                 return JsonResponse(dict(definition=definition, metadata=metadata))
 
-            # get a list of all revisions, these should be reasonably pruned already
+            # build a list of valid revisions to display
             revisions = []
-            requested_version = Version(flow_version)
-            release = requested_version.release
 
-            # if a patch version wasn't given, we want to include all patches
-            # for example, 13.2 should include anything up to but not including 13.3.0
-            # up to the next minor version
-            include_patches = len(release) == 2
-            up_to_version = Version(".".join([str(release[0]), str((release[1]) + 1), "0"]))
-
-            for revision in flow.revisions.all().order_by("-revision"):
-
+            for revision in flow.revisions.all().order_by("-revision")[:100]:
                 revision_version = Version(revision.spec_version)
 
-                # any version up to the requested version is allowed
-                if revision_version <= requested_version or (include_patches and revision_version < up_to_version):
+                # our goflow revisions are already validated
+                if revision_version >= Version(Flow.INITIAL_GOFLOW_VERSION):
+                    revisions.append(revision.as_json())
+                    continue
 
-                    # our goflow revisions are already validated
-                    if revision_version >= Version(Flow.INITIAL_GOFLOW_VERSION):
-                        revisions.append(revision.as_json())
-                        continue
+                # legacy revisions should be validated first as a failsafe
+                try:
+                    legacy_flow_def = revision.get_migrated_definition(to_version=Flow.FINAL_LEGACY_VERSION)
+                    FlowRevision.validate_legacy_definition(legacy_flow_def)
+                    revisions.append(revision.as_json())
 
-                    # legacy revisions should be validated first as a failsafe
-                    try:
-                        legacy_flow_def = revision.get_definition_json(to_version=Flow.FINAL_LEGACY_VERSION)
-                        FlowRevision.validate_legacy_definition(legacy_flow_def)
-                        revisions.append(revision.as_json())
+                except ValueError:
+                    # "expected" error in the def, silently cull it
+                    pass
 
-                    except ValueError:
-                        # "expected" error in the def, silently cull it
-                        pass
-
-                    except Exception as e:
-                        # something else, we still cull, but report it to sentry
-                        logger.error(
-                            f"Error validating flow revision ({flow.uuid} [{revision.id}]): {str(e)}", exc_info=True
-                        )
-                        pass
+                except Exception as e:
+                    # something else, we still cull, but report it to sentry
+                    logger.error(
+                        f"Error validating flow revision ({flow.uuid} [{revision.id}]): {str(e)}", exc_info=True
+                    )
+                    pass
 
             return JsonResponse({"results": revisions}, safe=False)
 
@@ -719,13 +730,15 @@ class FlowCRUDL(SmartCRUDL):
                     }
                 )
 
-            except FlowValidationException:  # pragma: no cover
+            except FlowValidationException as e:
                 error = _("Your flow failed validation. Please refresh your browser.")
+                detail = str(e)
             except FlowVersionConflictException:
                 error = _(
                     "Your flow has been upgraded to the latest version. "
                     "In order to continue editing, please refresh your browser."
                 )
+                detail = None
             except FlowUserConflictException as e:
                 error = (
                     _(
@@ -734,21 +747,15 @@ class FlowCRUDL(SmartCRUDL):
                     )
                     % e.other_user
                 )
+                detail = None
             except Exception as e:  # pragma: no cover
                 import traceback
 
                 traceback.print_stack(e)
                 error = _("Your flow could not be saved. Please refresh your browser.")
+                detail = None
 
-            return JsonResponse({"status": "failure", "description": error}, status=400)
-
-    class OrgQuerysetMixin(object):
-        def derive_queryset(self, *args, **kwargs):
-            queryset = super().derive_queryset(*args, **kwargs)
-            if not self.request.user.is_authenticated:  # pragma: needs cover
-                return queryset.exclude(pk__gt=0)
-            else:
-                return queryset.filter(org=self.request.user.get_org())
+            return JsonResponse({"status": "failure", "description": error, "detail": detail}, status=400)
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         class FlowCreateForm(BaseFlowForm):
@@ -756,16 +763,27 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 label=_("Global keyword triggers"),
                 help_text=_("When a user sends any of these keywords they will begin this flow"),
+                widget=SelectWidget(
+                    attrs={
+                        "widget_only": False,
+                        "multi": True,
+                        "searchable": True,
+                        "tags": True,
+                        "space_select": True,
+                        "placeholder": _("Select keywords to trigger this flow"),
+                    }
+                ),
             )
 
             flow_type = forms.ChoiceField(
-                label=_("Run flow over"),
+                label=_("Type"),
                 help_text=_("Choose the method for your flow"),
                 choices=(
                     (Flow.TYPE_MESSAGE, "Messaging"),
                     (Flow.TYPE_VOICE, "Phone Call"),
                     (Flow.TYPE_SURVEY, "Surveyor"),
                 ),
+                widget=SelectWidget(attrs={"widget_only": False}),
             )
 
             def __init__(self, user, branding, *args, **kwargs):
@@ -785,12 +803,16 @@ class FlowCRUDL(SmartCRUDL):
                 self.fields["flow_type"].choices = choices
 
                 self.fields["base_language"] = forms.ChoiceField(
-                    label=_("Language"), initial=self.user.get_org().primary_language, choices=language_choices
+                    label=_("Language"),
+                    initial=self.user.get_org().primary_language,
+                    choices=language_choices,
+                    widget=SelectWidget(attrs={"widget_only": False}),
                 )
 
             class Meta:
                 model = Flow
                 fields = ("name", "keyword_triggers", "flow_type", "base_language")
+                widgets = {"name": InputWidget()}
 
         form_class = FlowCreateForm
         success_url = "uuid@flows.flow_editor"
@@ -827,7 +849,7 @@ class FlowCRUDL(SmartCRUDL):
                 obj.base_language = "base"
 
             # default expiration is a week
-            expires_after_minutes = 60 * 24 * 7
+            expires_after_minutes = Flow.DEFAULT_EXPIRES_AFTER
             if obj.flow_type == Flow.TYPE_VOICE:
                 # ivr expires after 5 minutes of inactivity
                 expires_after_minutes = 5
@@ -858,6 +880,7 @@ class FlowCRUDL(SmartCRUDL):
         fields = ("id",)
         cancel_url = "uuid@flows.flow_editor"
         success_message = ""
+        submit_button_name = _("Delete")
 
         def get_success_url(self):
             return reverse("flows.flow_list")
@@ -908,17 +931,22 @@ class FlowCRUDL(SmartCRUDL):
                     ]
                     self.fields["base_language"] = forms.ChoiceField(label=_("Language"), choices=choices)
 
+            class Meta:
+                widgets = {"name": InputWidget(), "ignore_triggers": CheckboxWidget()}
+
         class SurveyFlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
             expires_after_minutes = forms.ChoiceField(
                 label=_("Expire inactive contacts"),
                 help_text=_("When inactive contacts should be removed from the flow"),
                 initial=str(60 * 24 * 7),
                 choices=EXPIRES_CHOICES,
+                widget=SelectWidget(attrs={"widget_only": False}),
             )
             contact_creation = forms.ChoiceField(
                 label=_("Create a contact "),
                 help_text=_("Whether surveyor logins should be used as the contact for each run"),
                 choices=((Flow.CONTACT_PER_RUN, _("For each run")), (Flow.CONTACT_PER_LOGIN, _("For each login"))),
+                widget=SelectWidget(attrs={"widget_only": False}),
             )
 
             def __init__(self, user, *args, **kwargs):
@@ -933,6 +961,7 @@ class FlowCRUDL(SmartCRUDL):
             class Meta:
                 model = Flow
                 fields = ("name", "contact_creation", "expires_after_minutes")
+                widgets = {"name": InputWidget()}
 
         class IVRFlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
             ivr_retry = forms.ChoiceField(
@@ -940,17 +969,29 @@ class FlowCRUDL(SmartCRUDL):
                 help_text=_("Retries call three times for the chosen interval"),
                 initial=60,
                 choices=IVRCall.IVR_RETRY_CHOICES,
+                widget=SelectWidget(attrs={"widget_only": False}),
             )
             expires_after_minutes = forms.ChoiceField(
                 label=_("Expire inactive contacts"),
                 help_text=_("When inactive contacts should be removed from the flow"),
                 initial=5,
                 choices=IVRCall.IVR_EXPIRES_CHOICES,
+                widget=SelectWidget(attrs={"widget_only": False}),
             )
             keyword_triggers = forms.CharField(
                 required=False,
                 label=_("Global keyword triggers"),
                 help_text=_("When a user sends any of these keywords they will begin this flow"),
+                widget=SelectWidget(
+                    attrs={
+                        "widget_only": False,
+                        "multi": True,
+                        "searchable": True,
+                        "tags": True,
+                        "space_select": True,
+                        "placeholder": _("Keywords"),
+                    }
+                ),
             )
 
             def __init__(self, user, *args, **kwargs):
@@ -977,12 +1018,23 @@ class FlowCRUDL(SmartCRUDL):
             class Meta:
                 model = Flow
                 fields = ("name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "ivr_retry")
+                widgets = {"name": InputWidget(), "ignore_triggers": CheckboxWidget()}
 
         class FlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
             keyword_triggers = forms.CharField(
                 required=False,
                 label=_("Global keyword triggers"),
                 help_text=_("When a user sends any of these keywords they will begin this flow"),
+                widget=SelectWidget(
+                    attrs={
+                        "widget_only": False,
+                        "multi": True,
+                        "searchable": True,
+                        "tags": True,
+                        "space_select": True,
+                        "placeholder": _("Keywords"),
+                    }
+                ),
             )
 
             expires_after_minutes = forms.ChoiceField(
@@ -990,6 +1042,7 @@ class FlowCRUDL(SmartCRUDL):
                 help_text=_("When inactive contacts should be removed from the flow"),
                 initial=str(60 * 24 * 7),
                 choices=EXPIRES_CHOICES,
+                widget=SelectWidget(attrs={"widget_only": False}),
             )
 
             def __init__(self, user, *args, **kwargs):
@@ -1005,13 +1058,15 @@ class FlowCRUDL(SmartCRUDL):
                 ).order_by("created_on")
 
                 keyword_triggers = self.fields["keyword_triggers"]
-                keyword_triggers.initial = ",".join(t.keyword for t in flow_triggers)
+                keyword_triggers.initial = list([t.keyword for t in flow_triggers])
 
             class Meta:
                 model = Flow
                 fields = ("name", "keyword_triggers", "expires_after_minutes", "ignore_triggers")
+                widgets = {"name": InputWidget(), "ignore_triggers": CheckboxWidget()}
 
         success_message = ""
+        success_url = "uuid@flows.flow_editor"
 
         def get_form_class(self):
             flow_type = self.object.flow_type
@@ -1036,7 +1091,7 @@ class FlowCRUDL(SmartCRUDL):
                 metadata[Flow.CONTACT_CREATION] = self.form.cleaned_data[Flow.CONTACT_CREATION]
 
             if "ivr_retry" in self.form.cleaned_data:
-                metadata["ivr_retry"] = int(self.form.cleaned_data["ivr_retry"])
+                metadata[Flow.METADATA_IVR_RETRY] = int(self.form.cleaned_data["ivr_retry"])
 
             obj.metadata = metadata
             return obj
@@ -1129,7 +1184,7 @@ class FlowCRUDL(SmartCRUDL):
             )
             return {"type": file.content_type, "url": f"{settings.STORAGE_URL}/{url}"}
 
-    class BaseList(FlowActionMixin, OrgQuerysetMixin, OrgPermsMixin, SmartListView):
+    class BaseList(OrgQuerysetMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         title = _("Flows")
         refresh = 10000
         fields = ("name", "modified_on")
@@ -1144,7 +1199,6 @@ class FlowCRUDL(SmartCRUDL):
             context["labels"] = self.get_flow_labels()
             context["campaigns"] = self.get_campaigns()
             context["request_url"] = self.request.path
-            context["actions"] = self.actions
 
             # decorate flow objects with their run activity stats
             for flow in context["object_list"]:
@@ -1171,6 +1225,21 @@ class FlowCRUDL(SmartCRUDL):
             return (
                 events.values("campaign__name", "campaign__id").annotate(count=Count("id")).order_by("campaign__name")
             )
+
+        def apply_bulk_action(self, user, action, objects, label):
+            super().apply_bulk_action(user, action, objects, label)
+
+            if action == "archive":
+                ignored = objects.filter(is_archived=False)
+                if ignored:
+                    flow_names = ", ".join([f.name for f in ignored])
+                    raise forms.ValidationError(
+                        _("The following flows are still used by campaigns so could not be archived: %(flows)s"),
+                        params={"flows": flow_names},
+                    )
+
+        def get_bulk_action_labels(self):
+            return self.get_user().get_org().flow_labels.all()
 
         def get_flow_labels(self):
             labels = []
@@ -1201,7 +1270,7 @@ class FlowCRUDL(SmartCRUDL):
             ]
 
     class Archived(BaseList):
-        actions = ("restore",)
+        bulk_actions = ("restore",)
         default_order = ("-created_on",)
 
         def derive_queryset(self, *args, **kwargs):
@@ -1209,23 +1278,15 @@ class FlowCRUDL(SmartCRUDL):
 
     class List(BaseList):
         title = _("Flows")
-        actions = ("archive", "label")
+        bulk_actions = ("archive", "label")
 
         def derive_queryset(self, *args, **kwargs):
             queryset = super().derive_queryset(*args, **kwargs)
             queryset = queryset.filter(is_active=True, is_archived=False)
-            types = self.request.GET.getlist("flow_type")
-            if types:
-                queryset = queryset.filter(flow_type__in=types)
-
-            exclude_flow_uuid = self.request.GET.get("exclude_flow_uuid")
-            if exclude_flow_uuid:
-                queryset = queryset.exclude(uuid=exclude_flow_uuid)
-
             return queryset
 
     class Campaign(BaseList, OrgObjPermsMixin):
-        actions = ["label"]
+        bulk_actions = ("label",)
         campaign = None
 
         def has_permission_view_objects(self):
@@ -1275,7 +1336,7 @@ class FlowCRUDL(SmartCRUDL):
 
     class Filter(BaseList, OrgObjPermsMixin):
         add_button = True
-        actions = ["unlabel", "label"]
+        bulk_actions = ("label",)
 
         def has_permission_view_objects(self):
             flow_label = FlowLabel.objects.filter(
@@ -1288,11 +1349,30 @@ class FlowCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
+            label = FlowLabel.objects.get(pk=self.kwargs["label_id"])
+
             if self.has_org_perm("flows.flow_update"):
-                links.append(dict(title=_("Edit"), href="#", js_class="label-update-btn"))
+                # links.append(dict(title=_("Edit"), href="#", js_class="label-update-btn"))
+
+                links.append(
+                    dict(
+                        id="update-label",
+                        title=_("Edit"),
+                        style="button-primary",
+                        href=f"{reverse('flows.flowlabel_update', args=[label.pk])}",
+                        modax=_("Edit Label"),
+                    )
+                )
 
             if self.has_org_perm("flows.flow_delete"):
-                links.append(dict(title=_("Remove"), href="#", js_class="remove-label"))
+                links.append(
+                    dict(
+                        id="delete-label",
+                        title=_("Delete Label"),
+                        href=f"{reverse('flows.flowlabel_delete', args=[label.pk])}",
+                        modax=_("Delete Label"),
+                    )
+                )
 
             return links
 
@@ -1329,283 +1409,21 @@ class FlowCRUDL(SmartCRUDL):
 
             return qs
 
-    class Completion(OrgPermsMixin, SmartListView):
-        def render_to_response(self, context, **response_kwargs):
-
-            org = self.request.user.get_org()
-
-            contact_variables = [
-                dict(name="contact", display=str(_("Contact Name"))),
-                dict(name="contact.created_on", display=str(_("Contact Creation Date"))),
-                dict(name="contact.first_name", display=str(_("Contact First Name"))),
-                dict(name="contact.groups", display=str(_("Contact Groups"))),
-                dict(name="contact.language", display=str(_("Contact Language"))),
-                dict(name="contact.mailto", display=str(_("Contact Email Address"))),
-                dict(name="contact.name", display=str(_("Contact Name"))),
-                dict(name="contact.tel", display=str(_("Contact Phone"))),
-                dict(name="contact.tel_e164", display=str(_("Contact Phone - E164"))),
-                dict(name="contact.uuid", display=str(_("Contact UUID"))),
-                dict(name="new_contact", display=str(_("New Contact"))),
-            ]
-
-            contact_variables += [
-                dict(name="contact.%s" % scheme, display=str(_("Contact %s" % label)))
-                for scheme, label in ContactURN.SCHEME_CHOICES
-                if scheme != TEL_SCHEME and scheme in org.get_schemes(Channel.ROLE_SEND)
-            ]
-
-            contact_variables += [
-                dict(name="contact.%s" % field.key, display=field.label)
-                for field in ContactField.user_fields.active_for_org(org=org)
-            ]
-
-            date_variables = [
-                dict(name="date", display=str(_("Current Date and Time"))),
-                dict(name="date.now", display=str(_("Current Date and Time"))),
-                dict(name="date.today", display=str(_("Current Date"))),
-                dict(name="date.tomorrow", display=str(_("Tomorrow's Date"))),
-                dict(name="date.yesterday", display=str(_("Yesterday's Date"))),
-            ]
-
-            flow_variables = [
-                dict(name="channel", display=str(_("Sent to"))),
-                dict(name="channel.name", display=str(_("Sent to"))),
-                dict(name="channel.tel", display=str(_("Sent to"))),
-                dict(name="channel.tel_e164", display=str(_("Sent to"))),
-                dict(name="step", display=str(_("Sent to"))),
-                dict(name="step.urn", display=str(_("Sent to"))),
-                dict(name="step.urn.display", display=str(_("Sent to URN display"))),
-                dict(name="step.urn.path", display=str(_("Sent to URN path"))),
-                dict(name="step.urn.scheme", display=str(_("Sent to URN type"))),
-                dict(name="step.urn.urn", display=str(_("Sent to URN"))),
-                dict(name="step.value", display=str(_("Sent to"))),
-            ]
-
-            parent_variables = [dict(name="parent.%s" % v["name"], display=v["display"]) for v in contact_variables]
-            parent_variables += [dict(name="parent.%s" % v["name"], display=v["display"]) for v in flow_variables]
-
-            child_variables = [dict(name="child.%s" % v["name"], display=v["display"]) for v in contact_variables]
-            child_variables += [dict(name="child.%s" % v["name"], display=v["display"]) for v in flow_variables]
-
-            flow_variables.append(dict(name="flow", display=str(_("All flow variables"))))
-
-            flow_uuid = self.request.GET.get("flow", None)
-            if flow_uuid:
-                flow = Flow.objects.get(org=org, uuid=flow_uuid)
-                for result in flow.metadata["results"]:
-                    key, label = result["key"], result["name"]
-                    flow_variables.append(dict(name="flow.%s" % key, display=label))
-                    flow_variables.append(dict(name="flow.%s.category" % key, display="%s Category" % label))
-                    flow_variables.append(dict(name="flow.%s.text" % key, display="%s Text" % label))
-                    flow_variables.append(dict(name="flow.%s.corrected" % key, display="%s Text Corrected" % label))
-                    flow_variables.append(dict(name="flow.%s.time" % key, display="%s Time" % label))
-
-            function_completions = get_function_listing()
-            messages_completions = contact_variables + date_variables + flow_variables
-            messages_completions += parent_variables + child_variables
-            return JsonResponse(
-                dict(message_completions=messages_completions, function_completions=function_completions)
-            )
-
-    class Editor(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
+    class EditorNext(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
 
         def get(self, request, *args, **kwargs):
-            flow = self.get_object()
-            if "legacy" in self.request.GET:
-                flow.version_number = Flow.FINAL_LEGACY_VERSION
-                flow.save(update_fields=("version_number",))
+            # redirect to the editor endpoint
+            return HttpResponseRedirect(reverse("flows.flow_editor", args=[self.get_object().uuid]))
 
-            # require update permissions
-            if Version(flow.version_number) >= Version(Flow.INITIAL_GOFLOW_VERSION):
-                return HttpResponseRedirect(reverse("flows.flow_editor_next", args=[self.get_object().uuid]))
-
-            return super().get(request, *args, **kwargs)
-
-        def post(self, request, *args, **kwargs):
-            import os
-            import pdfkit
-
-            self.object = self.get_object()
-
-            protocol = "http" if settings.DEBUG else "https"
-
-            csrftoken = "%s" % request.COOKIES.get("csrftoken")
-            sessionid = "%s" % request.session.session_key
-
-            pdf_export_lang = request.POST.get("pdf_export_lang", None)
-
-            options = {
-                "page-size": "A4",
-                "margin-top": "0.1in",
-                "margin-right": "0.1in",
-                "margin-bottom": "0.1in",
-                "margin-left": "0.1in",
-                "encoding": "UTF-8",
-                "no-outline": None,
-                "orientation": "Landscape",
-                "dpi": "300",
-                "zoom": 0.7,
-                "viewport-size": "1920x900",
-                "javascript-delay": 2000,
-                "cookie": [("csrftoken", csrftoken), ("sessionid", sessionid)],
-                "quiet": "",
-            }
-
-            slug_flow = slugify(self.object.name)
-
-            url = "%s://%s%s" % (
-                protocol,
-                settings.HOSTNAME,
-                reverse("flows.flow_pdf_export", args=[self.object.uuid]),
-            )
-
-            if pdf_export_lang:
-                url += "?pdf_export_lang=%s" % pdf_export_lang
-
-            output_dir = "%s/flow_pdf" % settings.MEDIA_ROOT
-            output_path = "%s/%s.pdf" % (output_dir, slug_flow)
-
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-
-            pdfkit.from_url(url=url, output_path=output_path, options=options)
-
-            from django.http import FileResponse, Http404
-
-            try:
-                return FileResponse(open(output_path, "rb"), content_type="application/pdf")
-            except FileNotFoundError:
-                raise Http404()
+    class Editor(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = "uuid"
 
         def derive_title(self):
             return self.object.name
 
         def get_template_names(self):
             return "flows/flow_editor.haml"
-
-        def get_context_data(self, *args, **kwargs):
-            context = super().get_context_data(*args, **kwargs)
-
-            context["media_url"] = "%s://%s/" % ("http" if settings.DEBUG else "https", settings.AWS_BUCKET_DOMAIN)
-            context["pdf_export_lang"] = self.request.GET.get("pdf_export_lang", None)
-
-            flow = self.object
-            org = self.request.user.get_org()
-
-            context["flow_version"] = Flow.FINAL_LEGACY_VERSION
-            flow.ensure_current_version()
-
-            if org:
-                languages = org.languages.all().order_by("orgs")
-                for lang in languages:
-                    if flow.base_language == lang.iso_code:
-                        context["base_language"] = lang
-
-                context["languages"] = languages
-
-            if flow.is_archived:
-                context["mutable"] = False
-                context["can_start"] = False
-            else:
-                context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
-                context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
-
-            static_url = f"http://{org.get_brand_domain()}{settings.STATIC_URL}" if org else settings.STATIC_URL
-
-            context["media_url"] = f"{settings.STORAGE_URL}/"
-            context["static_url"] = static_url
-            context["is_starting"] = flow.is_starting()
-            context["has_airtime_service"] = bool(flow.org.is_connected_to_dtone())
-            context["has_mailroom"] = bool(settings.MAILROOM_URL)
-            context["pdf_export_lang"] = self.request.GET.get("pdf_export_lang", None)
-            return context
-
-        def get_gear_links(self):
-            links = []
-            flow = self.object
-
-            if (
-                flow.flow_type != Flow.TYPE_SURVEY
-                and self.has_org_perm("flows.flow_broadcast")
-                and not flow.is_archived
-            ):
-                links.append(dict(title=_("Launch Flow"), style="btn-primary", js_class="launch-rulesflow", href="#"))
-
-            if self.has_org_perm("flows.flow_results"):
-                links.append(
-                    dict(title=_("Results"), style="btn-primary", href=reverse("flows.flow_results", args=[flow.uuid]))
-                )
-            if len(links) > 1:
-                links.append(dict(divider=True))
-
-            if self.has_org_perm("flows.flow_update") and not flow.is_archived:
-                links.append(dict(title=_("Edit"), js_class="update-rulesflow", href="#"))
-
-            if self.has_org_perm("flows.flow_copy"):
-                links.append(dict(title=_("Copy"), posterize=True, href=reverse("flows.flow_copy", args=[flow.id])))
-
-            if self.has_org_perm("orgs.org_export"):
-                links.append(dict(title=_("Export"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id)))
-
-            if self.has_org_perm("flows.flow_pdf_export"):
-                links.append(dict(title=_("Export to PDF"), href="javascript:;", js_class="pdf_export_submit"))
-
-            if self.has_org_perm("flows.flow_results") and flow.flow_type == Flow.TYPE_MESSAGE:
-                links.append(
-                    dict(
-                        title=_("Download Images"),
-                        style="btn-primary",
-                        href=reverse("flows.flowimage_filter", args=["flow", flow.uuid]),
-                    )
-                )
-
-            if self.has_org_perm("orgs.org_lookups") and flow.flow_type == Flow.TYPE_MESSAGE:
-                links.append(dict(title=_("Import Database"), href=reverse("orgs.org_lookups")))
-
-            if self.has_org_perm("flows.flow_revisions"):
-                links.append(dict(divider=True)),
-                links.append(dict(title=_("Revision History"), ngClick="showRevisionHistory()", href="#"))
-
-            if self.has_org_perm("flows.flow_delete"):
-                links.append(dict(title=_("Delete"), js_class="delete-flow", href="#"))
-
-            links.append(dict(divider=True))
-            links.append(
-                dict(title=_("New Editor"), href=f'{reverse("flows.flow_editor_next", args=[flow.uuid])}?migrate=1')
-            )
-
-            user = self.get_user()
-            if user.is_superuser or user.is_staff:
-                if len(links) > 1:
-                    links.append(dict(divider=True))
-                links.append(
-                    dict(
-                        title=_("Service"),
-                        posterize=True,
-                        href=f'{reverse("orgs.org_service")}?organization={flow.org_id}&redirect_url={reverse("flows.flow_editor", args=[flow.uuid])}',
-                    )
-                )
-
-            return links
-
-    class PdfExport(Editor):
-        slug_url_kwarg = "uuid"
-
-        def get_template_names(self):
-            return "flows/flow_pdf_export.haml"
-
-        def get_gear_links(self):
-            return []
-
-    class EditorNext(OrgObjPermsMixin, SmartReadView):
-        slug_url_kwarg = "uuid"
-
-        def derive_title(self):
-            return self.object.name
-
-        def get_template_names(self):
-            return "flows/flow_editor_next.haml"
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -1664,19 +1482,22 @@ class FlowCRUDL(SmartCRUDL):
 
             feature_filters = []
 
-            facebook_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=FACEBOOK_SCHEME)
+            facebook_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
             if facebook_channel is not None:
                 feature_filters.append("facebook")
 
-            whatsapp_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
+            whatsapp_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
             if whatsapp_channel is not None:
                 feature_filters.append("whatsapp")
 
             if flow.org.is_connected_to_dtone():
                 feature_filters.append("airtime")
 
-            if Classifier.objects.filter(org=flow.org, is_active=True):
+            if flow.org.classifiers.filter(is_active=True).exists():
                 feature_filters.append("classifier")
+
+            if flow.org.ticketers.filter(is_active=True).exists():
+                feature_filters.append("ticketer")
 
             if flow.org.get_resthooks():
                 feature_filters.append("resthook")
@@ -1710,25 +1531,42 @@ class FlowCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
             flow = self.object
-
-            has_legacy_revision = flow.revisions.filter(spec_version__in=legacy.VERSIONS).exists()
-
             if (
                 flow.flow_type != Flow.TYPE_SURVEY
                 and self.has_org_perm("flows.flow_broadcast")
                 and not flow.is_archived
             ):
                 links.append(dict(title=_("Launch Flow"), style="btn-primary", js_class="launch-rulesflow", href="#"))
+                links.append(
+                    dict(
+                        id="start-flow",
+                        title=_("Start Flow"),
+                        style="button-primary",
+                        href=f"{reverse('flows.flow_broadcast', args=[self.object.pk])}",
+                        modax=_("Start Flow"),
+                    )
+                )
 
             if self.has_org_perm("flows.flow_results"):
                 links.append(
-                    dict(title=_("Results"), style="btn-primary", href=reverse("flows.flow_results", args=[flow.uuid]))
+                    dict(
+                        title=_("Results"),
+                        style="button-primary",
+                        href=reverse("flows.flow_results", args=[flow.uuid]),
+                    )
                 )
             if len(links) > 1:
                 links.append(dict(divider=True))
 
             if self.has_org_perm("flows.flow_update") and not flow.is_archived:
-                links.append(dict(title=_("Edit"), js_class="update-rulesflow", href="#"))
+                links.append(
+                    dict(
+                        id="edit-flow",
+                        title=_("Edit"),
+                        href=f"{reverse('flows.flow_update', args=[self.object.pk])}",
+                        modax=_("Edit Flow"),
+                    )
+                )
 
             if self.has_org_perm("flows.flow_copy"):
                 links.append(dict(title=_("Copy"), posterize=True, href=reverse("flows.flow_copy", args=[flow.id])))
@@ -1752,8 +1590,33 @@ class FlowCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Combine Flows"), js_class="merge-flows-trigger", href="#"))
 
             if self.has_org_perm("flows.flow_delete"):
-                links.append(dict(divider=True)),
-                links.append(dict(title=_("Delete"), js_class="delete-flow", href="#"))
+                links.append(
+                    dict(
+                        id="delete-flow",
+                        title=_("Delete"),
+                        href=f"{reverse('flows.flow_delete', args=[self.object.pk])}",
+                        modax=_("Delete Flow"),
+                    )
+                )
+
+            links.append(dict(divider=True)),
+
+            if self.has_org_perm("orgs.org_export"):
+                links.append(dict(title=_("Export Definition"), href=f"{reverse('orgs.org_export')}?flow={flow.id}"))
+            if self.has_org_perm("flows.flow_export_translation"):
+                links.append(
+                    dict(
+                        id="export-translation",
+                        title=_("Export Translation"),
+                        href=f"{reverse('flows.flow_export_translation', args=[self.object.pk])}",
+                        modax=_("Export Translation"),
+                    )
+                )
+
+            if self.has_org_perm("flows.flow_import_translation"):
+                links.append(
+                    dict(title=_("Import Translation"), href=reverse("flows.flow_import_translation", args=[flow.id]))
+                )
 
             user = self.get_user()
             if user.is_superuser or user.is_staff:
@@ -1765,10 +1628,6 @@ class FlowCRUDL(SmartCRUDL):
                     )
                 )
 
-            # show previous editor option if we have a legacy revision
-            if has_legacy_revision:
-                links.append(dict(divider=True))
-                links.append(dict(title=_("Previous Editor"), js_class="previous-editor", href="#"))
             return links
 
         def get_mergeable_flows(self):
@@ -1830,6 +1689,227 @@ class FlowCRUDL(SmartCRUDL):
 
             return context
 
+    class ChangeLanguage(OrgObjPermsMixin, SmartUpdateView):
+        class Form(forms.Form):
+            language = forms.CharField(required=True)
+
+            def __init__(self, user, instance, *args, **kwargs):
+                self.user = user
+
+                super().__init__(*args, **kwargs)
+
+            def clean_language(self):
+                data = self.cleaned_data["language"]
+                if data and data not in self.user.get_org().get_language_codes():
+                    raise ValidationError(_("Not a valid language."))
+
+                return data
+
+        form_class = Form
+        success_url = "uuid@flows.flow_editor"
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
+
+        def form_valid(self, form):
+            flow_def = mailroom.get_client().flow_change_language(
+                self.object.get_definition(), form.cleaned_data["language"]
+            )
+
+            self.object.save_revision(self.get_user(), flow_def)
+
+            return HttpResponseRedirect(self.get_success_url())
+
+    class ExportTranslation(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
+        class Form(forms.Form):
+            language = forms.ChoiceField(
+                required=False,
+                label=_("Language"),
+                help_text=_("Include translations in this language."),
+                choices=[("", "None")],
+                widget=SelectWidget(),
+            )
+            include_args = forms.BooleanField(
+                required=False,
+                label=_("Include Arguments"),
+                initial=True,
+                help_text=_("Include arguments to tests on splits"),
+                widget=CheckboxWidget(),
+            )
+
+            def __init__(self, user, instance, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                org = user.get_org()
+                org_languages = org.languages.all().order_by("orgs", "name")
+
+                self.user = user
+                self.fields["language"].choices += [(lang.iso_code, lang.name) for lang in org_languages]
+
+        form_class = Form
+        submit_button_name = _("Export")
+        success_url = "@flows.flow_list"
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
+
+        def form_valid(self, form):
+            params = {
+                "flow": self.object.id,
+                "language": form.cleaned_data["language"],
+                "exclude_args": "0" if form.cleaned_data["include_args"] else "1",
+            }
+            download_url = reverse("flows.flow_download_translation") + "?" + urlencode(params, doseq=True)
+
+            # if this is an XHR request, we need to return a structured response that it can parse
+            if "HTTP_X_PJAX" in self.request.META:
+                response = self.render_to_response(
+                    self.get_context_data(
+                        form=form,
+                        success_url=self.get_success_url(),
+                        success_script=getattr(self, "success_script", None),
+                    )
+                )
+                response["Temba-Success"] = download_url
+                return response
+
+            return HttpResponseRedirect(download_url)
+
+    class DownloadTranslation(OrgObjPermsMixin, SmartListView):
+        """
+        Download link for PO translation files extracted from flows by mailroom
+        """
+
+        def get_object_org(self):
+            self.flows = Flow.objects.filter(id__in=self.request.GET.getlist("flow"), is_active=True)
+            flow_orgs = {flow.org for flow in self.flows}
+            return self.flows[0].org if len(flow_orgs) == 1 else None
+
+        def get(self, request, *args, **kwargs):
+            org = self.request.user.get_org()
+
+            language = request.GET.get("language", "")
+            exclude_args = request.GET.get("exclude_args") == "1"
+
+            filename = slugify_with(self.flows[0].name) if len(self.flows) == 1 else "flows"
+            if language:
+                filename += f".{language}"
+            filename += ".po"
+
+            po = Flow.export_translation(org, self.flows, language, exclude_args)
+
+            response = HttpResponse(po, content_type="text/x-gettext-translation")
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
+            return response
+
+    class ImportTranslation(OrgObjPermsMixin, SmartUpdateView):
+        class UploadForm(forms.Form):
+            po_file = forms.FileField(label=_("PO translation file"), required=True)
+
+            def __init__(self, user, instance, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                self.flow = instance
+
+            def clean_po_file(self):
+                data = self.cleaned_data["po_file"]
+                if data:
+                    try:
+                        po_info = gettext.po_get_info(data.read().decode())
+                    except Exception:
+                        raise ValidationError(_("File doesn't appear to be a valid PO file."))
+
+                    if po_info.language_code:
+                        if po_info.language_code == self.flow.base_language:
+                            raise ValidationError(
+                                _("Contains translations in %(lang)s which is the base language of this flow."),
+                                params={"lang": po_info.language_name},
+                            )
+
+                        if not self.flow.org.languages.filter(iso_code=po_info.language_code).exists():
+                            raise ValidationError(
+                                _("Contains translations in %(lang)s which is not a supported translation language."),
+                                params={"lang": po_info.language_name},
+                            )
+
+                return data
+
+        class ConfirmForm(forms.Form):
+            language = forms.ChoiceField(
+                label=_("Language"),
+                help_text=_("Replace flow translations in this language."),
+                required=True,
+                widget=SelectWidget(),
+            )
+
+            def __init__(self, user, instance, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                org = user.get_org()
+                languages = org.languages.exclude(iso_code=instance.base_language).order_by("name")
+
+                self.fields["language"].choices += [(lang.iso_code, lang.name) for lang in languages]
+
+        title = _("Import Translation")
+        submit_button_name = _("Import")
+        success_url = "uuid@flows.flow_editor"
+
+        def get_form_class(self):
+            return self.ConfirmForm if self.request.GET.get("po") else self.UploadForm
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+            po_uuid = self.request.GET.get("po")
+
+            if not po_uuid:
+                po_file = form.cleaned_data["po_file"]
+                po_uuid = gettext.po_save(org, po_file)
+
+                return HttpResponseRedirect(
+                    reverse("flows.flow_import_translation", args=[self.object.id]) + f"?po={po_uuid}"
+                )
+            else:
+                po_data = gettext.po_load(org, po_uuid)
+                language = form.cleaned_data["language"]
+
+                updated_defs = Flow.import_translation(self.object.org, [self.object], language, po_data)
+                self.object.save_revision(self.request.user, updated_defs[str(self.object.uuid)])
+
+                analytics.track(self.request.user.username, "temba.flow_po_imported")
+
+            return HttpResponseRedirect(self.get_success_url())
+
+        @cached_property
+        def po_info(self):
+            po_uuid = self.request.GET.get("po")
+            if not po_uuid:
+                return None
+
+            org = self.request.user.get_org()
+            po_data = gettext.po_load(org, po_uuid)
+            return gettext.po_get_info(po_data)
+
+        def get_context_data(self, *args, **kwargs):
+            org = self.request.user.get_org()
+
+            context = super().get_context_data(*args, **kwargs)
+            context["show_upload_form"] = not self.po_info
+            context["po_info"] = self.po_info
+            context["flow_language"] = org.languages.filter(iso_code=self.object.base_language).first()
+            return context
+
+        def derive_initial(self):
+            return {"language": self.po_info.language_code if self.po_info else ""}
+
     class ExportResults(ModalMixin, OrgPermsMixin, SmartFormView):
         class ExportForm(forms.Form):
             flows = forms.ModelMultipleChoiceField(
@@ -1839,20 +1919,26 @@ class FlowCRUDL(SmartCRUDL):
             group_memberships = forms.ModelMultipleChoiceField(
                 queryset=ContactGroup.user_groups.none(),
                 required=False,
-                label=_("Which group memberships, if any, to include in the export"),
+                label=_("Groups"),
+                widget=SelectMultipleWidget(attrs={"placeholder": _("Optional: Group memberships")}),
             )
 
             contact_fields = forms.ModelMultipleChoiceField(
                 ContactField.user_fields.filter(id__lt=0),
                 required=False,
-                help_text=_("Which contact fields, if any, to include " "in the export"),
+                label=("Fields"),
+                widget=SelectMultipleWidget(
+                    attrs={"placeholder": _("Optional: Fields to include"), "searchable": True}
+                ),
             )
 
             extra_urns = forms.MultipleChoiceField(
                 required=False,
-                label=_("Extra URNs"),
-                choices=ContactURN.EXPORT_SCHEME_HEADERS,
-                help_text=_("Extra URNs to include in the export in addition to " "the URN used in the flow"),
+                label=_("URNs"),
+                choices=URN.SCHEME_CHOICES,
+                widget=SelectMultipleWidget(
+                    attrs={"placeholder": _("Optional: URNs in addition to the one used in the flow")}
+                ),
             )
 
             responded_only = forms.BooleanField(
@@ -1860,11 +1946,13 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Responded Only"),
                 initial=True,
                 help_text=_("Only export results for contacts which responded"),
+                widget=CheckboxWidget(),
             )
             include_msgs = forms.BooleanField(
                 required=False,
                 label=_("Include Messages"),
                 help_text=_("Export all messages sent and received in this flow"),
+                widget=CheckboxWidget(),
             )
 
             def __init__(self, user, *args, **kwargs):
@@ -1872,7 +1960,7 @@ class FlowCRUDL(SmartCRUDL):
                 self.user = user
                 self.fields[ExportFlowResultsTask.CONTACT_FIELDS].queryset = ContactField.user_fields.active_for_org(
                     org=self.user.get_org()
-                )
+                ).order_by(Lower("label"))
 
                 self.fields[ExportFlowResultsTask.GROUP_MEMBERSHIPS].queryset = ContactGroup.user_groups.filter(
                     org=self.user.get_org(), is_active=True, status=ContactGroup.STATUS_READY
@@ -1910,7 +1998,7 @@ class FlowCRUDL(SmartCRUDL):
                 return cleaned_data
 
         form_class = ExportForm
-        submit_button_name = _("Export")
+        submit_button_name = _("Download Results")
         success_url = "@flows.flow_list"
 
         def get_form_kwargs(self):
@@ -2192,13 +2280,20 @@ class FlowCRUDL(SmartCRUDL):
             links = []
 
             if self.has_org_perm("flows.flow_update"):
-                links.append(dict(title=_("Download"), href="#", js_class="download-results"))
+                links.append(
+                    dict(
+                        id="download-results",
+                        title=_("Download"),
+                        modax=_("Download Flow Results"),
+                        href=f"{reverse('flows.flow_export_results')}?ids={self.get_object().pk}",
+                    )
+                )
 
             if self.has_org_perm("flows.flow_editor"):
                 links.append(
                     dict(
                         title=_("Edit Flow"),
-                        style="btn-primary",
+                        style="button-primary",
                         href=reverse("flows.flow_editor", args=[self.get_object().uuid]),
                     )
                 )
@@ -2258,6 +2353,8 @@ class FlowCRUDL(SmartCRUDL):
                     dict(status="error", description="mailroom not configured, cannot simulate"), status=500
                 )
 
+            analytics.track(request.user.username, "temba.flow_simulated")
+
             flow = self.get_object()
             client = mailroom.get_client()
 
@@ -2286,7 +2383,6 @@ class FlowCRUDL(SmartCRUDL):
 
             # check if we are triggering a new session
             if "trigger" in json_dict:
-
                 payload["trigger"] = json_dict["trigger"]
 
                 # ivr flows need a connection in their trigger
@@ -2314,89 +2410,6 @@ class FlowCRUDL(SmartCRUDL):
                 except mailroom.MailroomException:
                     return JsonResponse(dict(status="error", description="mailroom error"), status=500)
 
-    class Json(NonAtomicMixin, AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartUpdateView):
-        slug_url_kwarg = "uuid"
-        success_message = ""
-
-        def get(self, request, *args, **kwargs):
-            flow = self.get_object()
-            flow.ensure_current_version()
-
-            # all the translation languages for our org
-            languages = [lang.as_json() for lang in flow.org.languages.all().order_by("orgs")]
-
-            # all countries we have a channel for, never fail here
-            try:
-                channel_countries = flow.org.get_channel_countries()
-            except Exception:  # pragma: needs cover
-                logger.error("Unable to get currency for channel countries.", exc_info=True)
-                channel_countries = []
-
-            # all the channels available for our org
-            channels = [
-                dict(uuid=chan.uuid, name=f"{chan.get_channel_type_display()}: {chan.name}")
-                for chan in flow.org.channels.filter(is_active=True)
-            ]
-            return JsonResponse(
-                dict(
-                    flow=flow.as_json(expand_contacts=True),
-                    languages=languages,
-                    channel_countries=channel_countries,
-                    channels=channels,
-                )
-            )
-
-        def post(self, request, *args, **kwargs):
-
-            # require update permissions
-            if not self.has_org_perm("flows.flow_update"):
-                return HttpResponseRedirect(reverse("flows.flow_json", args=[self.get_object().pk]))
-
-            # try to parse our body
-            json_string = force_text(request.body)
-
-            # if the last modified on this flow is more than a day ago, log that this flow as updated
-            if self.get_object().saved_on < timezone.now() - timedelta(hours=24):  # pragma: needs cover
-                analytics.track(self.request.user.username, "temba.flow_updated")
-
-            # try to save the our flow, if this fails, let's let that bubble up to our logger
-            json_dict = json.loads(json_string)
-            print(json.dumps(json_dict, indent=2))
-
-            try:
-                flow = self.get_object(self.get_queryset())
-                revision = flow.update(json_dict, user=self.request.user)
-                return JsonResponse(
-                    {
-                        "status": "success",
-                        "saved_on": json.encode_datetime(flow.saved_on, micros=True),
-                        "revision": revision.revision,
-                    },
-                    status=200,
-                )
-
-            except FlowValidationException:  # pragma: no cover
-                error = _("Your flow failed validation. Please refresh your browser.")
-            except FlowInvalidCycleException:
-                error = _("Your flow contains an invalid loop. Please refresh your browser.")
-            except FlowVersionConflictException:
-                error = _(
-                    "Your flow has been upgraded to the latest version. "
-                    "In order to continue editing, please refresh your browser."
-                )
-            except FlowUserConflictException as e:
-                error = (
-                    _(
-                        "%s is currently editing this Flow. "
-                        "Your changes will not be saved until you refresh your browser."
-                    )
-                    % e.other_user
-                )
-            except Exception:  # pragma: no cover
-                error = _("Your flow could not be saved. Please refresh your browser.")
-
-            return JsonResponse({"status": "failure", "description": error}, status=400)
-
     class Broadcast(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class BroadcastForm(forms.ModelForm):
             def __init__(self, *args, **kwargs):
@@ -2423,6 +2436,7 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 initial=False,
                 help_text=_("Restart any contacts already participating in this flow"),
+                widget=CheckboxWidget(),
             )
 
             include_active = forms.BooleanField(
@@ -2430,9 +2444,10 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 initial=False,
                 help_text=_("Include contacts currently active in a flow"),
+                widget=CheckboxWidget(),
             )
 
-            start_type = forms.ChoiceField(
+            recipients_mode = forms.ChoiceField(
                 widget=SelectWidget(
                     attrs={"placeholder": _("Select contacts or groups to start in the flow"), "widget_only": True}
                 ),
@@ -2444,32 +2459,31 @@ class FlowCRUDL(SmartCRUDL):
             )
 
             contact_query = forms.CharField(
-                required=False, widget=ContactSearchWidget(attrs={"placeholder": _("Enter contact query")})
+                required=False,
+                widget=ContactSearchWidget(attrs={"widget_only": True, "placeholder": _("Enter contact query")}),
             )
 
             def clean_contact_query(self):
                 contact_query = self.cleaned_data["contact_query"]
-                start_type = self.data["start_type"]
+                recipients_mode = self.data["recipients_mode"]
 
-                if start_type == "query":
+                if recipients_mode == "query":
                     if not contact_query.strip():
                         raise ValidationError(_("Contact query is required"))
 
-                    client = mailroom.get_client()
-
                     try:
-                        resp = client.parse_query(self.flow.org_id, contact_query)
-                        contact_query = resp["query"]
-                    except mailroom.MailroomException as e:
-                        raise ValidationError(e.response["error"])
+                        parsed = parse_query(self.flow.org, contact_query)
+                        contact_query = parsed.query
+                    except SearchException as e:
+                        raise ValidationError(str(e))
 
                 return contact_query
 
             def clean_omnibox(self):
                 starting = self.cleaned_data["omnibox"]
-                start_type = self.data["start_type"]
+                recipients_mode = self.data["recipients_mode"]
 
-                if start_type == "select" and not starting:  # pragma: needs cover
+                if recipients_mode == "select" and not starting:  # pragma: needs cover
                     raise ValidationError(_("You must specify at least one contact or one group to start a flow."))
 
                 return omnibox_deserialize(self.user.get_org(), starting)
@@ -2482,14 +2496,22 @@ class FlowCRUDL(SmartCRUDL):
                 if self.flow.is_starting():
                     raise ValidationError(
                         _(
-                            "This flow is already being started, please wait until that process is complete before starting more contacts."
+                            "This flow is already being started, please wait until that process is complete before "
+                            "starting more contacts."
                         )
                     )
 
-                if self.flow.org.is_suspended():
+                if self.flow.org.is_suspended:
                     raise ValidationError(
                         _(
-                            "Sorry, your account is currently suspended. To enable sending messages, please contact support."
+                            "Sorry, your workspace is currently suspended. "
+                            "To enable starting flows, please contact support."
+                        )
+                    )
+                if self.flow.org.is_flagged:
+                    raise ValidationError(
+                        _(
+                            "Sorry, your workspace is currently flagged. To enable starting flows, please contact support."
                         )
                     )
 
@@ -2500,14 +2522,14 @@ class FlowCRUDL(SmartCRUDL):
                 fields = ("omnibox", "restart_participants", "include_active")
 
         form_class = BroadcastForm
-        fields = ("omnibox", "restart_participants", "include_active", "start_type", "contact_query")
+        fields = ("omnibox", "restart_participants", "include_active", "recipients_mode", "contact_query")
         success_message = ""
-        submit_button_name = _("Add Contacts to Flow")
+        submit_button_name = _("Start Flow")
         success_url = "uuid@flows.flow_editor"
 
         def has_facebook_topic(self, flow):
             if not flow.is_legacy():
-                definition = flow.get_current_revision().get_definition_json()
+                definition = flow.get_current_revision().get_migrated_definition()
                 for node in definition.get("nodes", []):
                     for action in node.get("actions", []):
                         if action.get("type", "") == "send_msg" and action.get("topic", ""):
@@ -2521,7 +2543,7 @@ class FlowCRUDL(SmartCRUDL):
             warnings = []
 
             # facebook channels need to warn if no topic is set
-            facebook_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=FACEBOOK_SCHEME)
+            facebook_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
             if facebook_channel:
                 if not self.has_facebook_topic(flow):
                     warnings.append(
@@ -2531,7 +2553,7 @@ class FlowCRUDL(SmartCRUDL):
                     )
 
             # if we have a whatsapp channel
-            whatsapp_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
+            whatsapp_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
             if whatsapp_channel:
                 # check to see we are using templates
                 templates = flow.get_dependencies_metadata("template")
@@ -2571,14 +2593,14 @@ class FlowCRUDL(SmartCRUDL):
             form = self.form
             flow = self.object
 
-            start_type = form.cleaned_data["start_type"]
+            recipients_mode = form.cleaned_data["recipients_mode"]
 
             # save off our broadcast info
             groups = []
             contacts = []
             contact_query = None
 
-            if start_type == "query":
+            if recipients_mode == "query":
                 contact_query = form.cleaned_data["contact_query"]
             else:
                 omnibox = form.cleaned_data["omnibox"]
@@ -2664,11 +2686,6 @@ class FlowCRUDL(SmartCRUDL):
                 initial="select",
             )
 
-            omnibox = OmniboxField(
-                label=_("Contacts & Groups"),
-                help_text=_("These contacts will be added to the flow, sending the first message if appropriate."),
-                required=False,
-            )
 
             contact_query = forms.CharField(
                 required=False, widget=ContactSearchWidget(attrs={"placeholder": _("Enter contact query")})
@@ -2774,16 +2791,6 @@ class FlowCRUDL(SmartCRUDL):
 
                     cleaned_data["keyword_triggers"] = ",".join(cleaned_keywords)
 
-                def validate_omnibox():
-                    starting = cleaned_data["omnibox"]
-                    start_type = cleaned_data["start_type"]
-                    if (
-                        start_type == "select" and not starting["groups"] and not starting["contacts"]
-                    ):  # pragma: needs cover
-                        self.add_error(
-                            "omnibox",
-                            ValidationError(_("You must specify at least one contact or one group to start a flow.")),
-                        )
 
                 def validate_contact_query():
                     start_type = cleaned_data["start_type"]
@@ -2834,7 +2841,6 @@ class FlowCRUDL(SmartCRUDL):
                 fields = (
                     "launch_type",
                     "start_type",
-                    "omnibox",
                     "contact_query",
                     "restart_participants",
                     "include_active",
@@ -3239,8 +3245,13 @@ class PreprocessTest(FormView):  # pragma: no cover
 
 
 class FlowLabelForm(forms.ModelForm):
-    name = forms.CharField(required=True)
-    parent = forms.ModelChoiceField(FlowLabel.objects.all(), required=False, label=_("Parent"))
+    name = forms.CharField(required=True, widget=InputWidget())
+    parent = forms.ModelChoiceField(
+        FlowLabel.objects.all(),
+        required=False,
+        label=_("Parent"),
+        widget=SelectWidget(attrs={"widget_only": True, "placeholder": _("Optional: Select parent label")}),
+    )
     flows = forms.CharField(required=False, widget=forms.HiddenInput)
 
     def __init__(self, *args, **kwargs):
@@ -3276,9 +3287,11 @@ class FlowLabelCRUDL(SmartCRUDL):
     actions = ("create", "update", "delete")
 
     class Delete(OrgObjPermsMixin, SmartDeleteView):
+        success_url = "@flows.flow_list"
         redirect_url = "@flows.flow_list"
         cancel_url = "@flows.flow_list"
         success_message = ""
+        submit_button_name = _("Delete")
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = FlowLabelForm
@@ -3292,7 +3305,10 @@ class FlowLabelCRUDL(SmartCRUDL):
             return kwargs
 
         def derive_fields(self):
-            return ("name", "parent")
+            if FlowLabel.objects.filter(parent=self.get_object()):  # pragma: needs cover
+                return ("name",)
+            else:
+                return ("name", "parent")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "parent", "flows")
@@ -3324,3 +3340,32 @@ class FlowLabelCRUDL(SmartCRUDL):
                 obj.toggle_label(flows, add=True)
 
             return obj
+
+
+class FlowStartCRUDL(SmartCRUDL):
+    model = FlowStart
+    actions = ("list",)
+
+    class List(OrgQuerysetMixin, OrgPermsMixin, SmartListView):
+        title = _("Flow Start Log")
+        ordering = ("-created_on",)
+        select_related = ("flow", "created_by")
+        paginate_by = 25
+
+        def get_gear_links(self):
+            return [dict(title=_("Flows"), style="button-light", href=reverse("flows.flow_list"),)]
+
+        def derive_queryset(self, *args, **kwargs):
+            return (
+                super()
+                .derive_queryset(*args, **kwargs)
+                .exclude(created_by=None)
+                .prefetch_related("contacts", "groups")
+            )
+
+        def get_context_data(self, *args, **kwargs):
+            context = super().get_context_data(*args, **kwargs)
+
+            FlowStartCount.bulk_annotate(context["object_list"])
+
+            return context

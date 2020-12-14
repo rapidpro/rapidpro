@@ -3,6 +3,7 @@ from django.urls import reverse
 from temba.tests import TembaTest
 
 from ...models import Channel
+from .type import ExternalType
 
 
 class ExternalTypeTest(TembaTest):
@@ -28,6 +29,7 @@ class ExternalTypeTest(TembaTest):
         post_data["scheme"] = "tel"
         post_data["content_type"] = Channel.CONTENT_TYPE_JSON
         post_data["max_length"] = 180
+        post_data["send_authorization"] = "Token 123"
         post_data["encoding"] = Channel.ENCODING_SMART
         post_data["mt_response_check"] = "SENT"
 
@@ -45,13 +47,14 @@ class ExternalTypeTest(TembaTest):
         self.assertTrue(channel.uuid)
         self.assertEqual(post_data["number"], channel.address)
         self.assertEqual(post_data["url"], channel.config[Channel.CONFIG_SEND_URL])
-        self.assertEqual(post_data["method"], channel.config[Channel.CONFIG_SEND_METHOD])
-        self.assertEqual(post_data["content_type"], channel.config[Channel.CONFIG_CONTENT_TYPE])
-        self.assertEqual(channel.config[Channel.CONFIG_MAX_LENGTH], 180)
+        self.assertEqual(post_data["method"], channel.config[ExternalType.CONFIG_SEND_METHOD])
+        self.assertEqual(post_data["content_type"], channel.config[ExternalType.CONFIG_CONTENT_TYPE])
+        self.assertEqual(channel.config[ExternalType.CONFIG_MAX_LENGTH], 180)
+        self.assertEqual(channel.config[ExternalType.CONFIG_SEND_AUTHORIZATION], "Token 123")
         self.assertEqual(channel.channel_type, "EX")
         self.assertEqual(Channel.ENCODING_SMART, channel.config[Channel.CONFIG_ENCODING])
-        self.assertEqual("send=true", channel.config[Channel.CONFIG_SEND_BODY])
-        self.assertEqual("SENT", channel.config[Channel.CONFIG_MT_RESPONSE_CHECK])
+        self.assertEqual("send=true", channel.config[ExternalType.CONFIG_SEND_BODY])
+        self.assertEqual("SENT", channel.config[ExternalType.CONFIG_MT_RESPONSE_CHECK])
 
         config_url = reverse("channels.channel_configuration", args=[channel.uuid])
         self.assertRedirect(response, config_url)
@@ -96,13 +99,13 @@ class ExternalTypeTest(TembaTest):
         )
 
         # raw content type should be loaded on setting page as is
-        channel.config[Channel.CONFIG_CONTENT_TYPE] = "application/x-www-form-urlencoded; charset=utf-8"
+        channel.config[ExternalType.CONFIG_CONTENT_TYPE] = "application/x-www-form-urlencoded; charset=utf-8"
         channel.save()
 
         response = self.client.get(config_url)
         self.assertEqual(response.status_code, 200)
 
-        channel.config[Channel.CONFIG_CONTENT_TYPE] = Channel.CONTENT_TYPE_XML
+        channel.config[ExternalType.CONFIG_CONTENT_TYPE] = Channel.CONTENT_TYPE_XML
         channel.save()
 
         response = self.client.get(config_url)
@@ -116,7 +119,19 @@ class ExternalTypeTest(TembaTest):
         response = self.client.get(url)
         self.assertEqual(
             set(response.context["form"].fields.keys()),
-            set(["url", "method", "encoding", "content_type", "max_length", "body", "mt_response_check", "loc"]),
+            set(
+                [
+                    "url",
+                    "method",
+                    "encoding",
+                    "content_type",
+                    "max_length",
+                    "send_authorization",
+                    "body",
+                    "mt_response_check",
+                    "loc",
+                ]
+            ),
         )
 
         post_data = response.context["form"].initial
@@ -138,12 +153,56 @@ class ExternalTypeTest(TembaTest):
         self.assertTrue(channel.uuid)
         self.assertEqual(self.channel.address, channel.address)
         self.assertEqual(post_data["url"], channel.config[Channel.CONFIG_SEND_URL])
-        self.assertEqual(post_data["method"], channel.config[Channel.CONFIG_SEND_METHOD])
-        self.assertEqual(post_data["content_type"], channel.config[Channel.CONFIG_CONTENT_TYPE])
-        self.assertEqual(channel.config[Channel.CONFIG_MAX_LENGTH], 180)
+        self.assertEqual(post_data["method"], channel.config[ExternalType.CONFIG_SEND_METHOD])
+        self.assertEqual(post_data["content_type"], channel.config[ExternalType.CONFIG_CONTENT_TYPE])
+        self.assertEqual(channel.config[ExternalType.CONFIG_MAX_LENGTH], 180)
         self.assertEqual(channel.channel_type, "EX")
         self.assertEqual(Channel.ENCODING_SMART, channel.config[Channel.CONFIG_ENCODING])
-        self.assertEqual("send=true", channel.config[Channel.CONFIG_SEND_BODY])
-        self.assertEqual("SENT", channel.config[Channel.CONFIG_MT_RESPONSE_CHECK])
+        self.assertEqual("send=true", channel.config[ExternalType.CONFIG_SEND_BODY])
+        self.assertEqual("SENT", channel.config[ExternalType.CONFIG_MT_RESPONSE_CHECK])
         self.assertEqual(channel.role, "S")
         self.assertEqual(channel.parent, self.channel)
+
+    def test_update(self):
+        channel = Channel.create(
+            self.org,
+            self.user,
+            None,
+            "EX",
+            name="EX 12345",
+            address="12345",
+            role="SR",
+            schemes=["tel"],
+            config={
+                Channel.CONFIG_SEND_URL: "https://example.com/send",
+                ExternalType.CONFIG_SEND_METHOD: "POST",
+                ExternalType.CONFIG_CONTENT_TYPE: "json",
+                ExternalType.CONFIG_MAX_LENGTH: 160,
+                Channel.CONFIG_ENCODING: Channel.ENCODING_DEFAULT,
+            },
+        )
+        update_url = reverse("channels.channel_update", args=[channel.id])
+
+        self.login(self.admin)
+        response = self.client.get(update_url)
+        self.assertEqual(
+            ["name", "alert_email", "role", "allow_international", "loc"],
+            list(response.context["form"].fields.keys()),
+        )
+
+        post_data = dict(name="Receiver 1234", role=["R"], alert_email="alert@example.com")
+        response = self.client.post(update_url, post_data)
+
+        channel = Channel.objects.filter(pk=channel.pk).first()
+        self.assertEqual(channel.role, "R")
+        self.assertEqual(channel.name, "Receiver 1234")
+        self.assertEqual(channel.alert_email, "alert@example.com")
+
+        post_data = dict(name="Channel 1234", role=["R", "S"], alert_email="")
+
+        response = self.client.post(update_url, post_data)
+
+        channel = Channel.objects.filter(pk=channel.pk).first()
+        self.assertEqual(channel.role, "RS")
+        self.assertEqual(channel.name, "Channel 1234")
+        self.assertIsNone(channel.alert_email)

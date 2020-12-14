@@ -1,6 +1,5 @@
 import logging
 from abc import ABCMeta
-from uuid import uuid4
 
 from smartmin.models import SmartModel
 
@@ -11,6 +10,7 @@ from django.utils import timezone
 
 from temba.utils import on_transaction_commit
 from temba.utils.models import JSONField
+from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,5 @@
 import hmac
 import logging
-import uuid
 from datetime import timedelta
 from hashlib import sha1
 
@@ -17,6 +16,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.orgs.models import Org
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.models import JSONAsTextField
+from temba.utils.uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -226,6 +226,7 @@ class APIToken(models.Model):
         "Administrators": ("Administrators",),
         "Editors": ("Administrators", "Editors"),
         "Surveyors": ("Administrators", "Editors", "Surveyors"),
+        "Prometheus": ("Administrators",),
     }
 
     is_active = models.BooleanField(default=True)
@@ -319,7 +320,7 @@ class APIToken(models.Model):
         return super().save(*args, **kwargs)
 
     def generate_key(self):
-        unique = uuid.uuid4()
+        unique = uuid4()
         return hmac.new(unique.bytes, digestmod=sha1).hexdigest()
 
     def release(self):

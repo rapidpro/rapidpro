@@ -1,0 +1,61 @@
+-extends "smartmin/read.html"
+-load smartmin i18n
+
+
+-block title
+  .medium-help.float-left.icon-ticket
+
+  %h2.font_normalize.header-margin.title
+    {{ object.subject }}
+
+
+-block fields
+  %table.table.table-striped(width="100%")
+    %tbody
+      %tr
+        %td.read-label
+          -trans "Contact"
+        %td.read-value
+          %a(href="{% url 'contacts.contact_read' object.contact.uuid %}")
+            {{ object.contact }}
+      %tr
+        %td.read-label
+          -trans "Through"
+        %td.read-value
+          %a(href="{% url 'tickets.ticket_filter' object.ticketer.uuid %}")
+            {{ object.ticketer.name }}
+      %tr
+        %td.read-label
+          -trans "Body"
+        %td.read-value
+          {{ object.body }}
+      %tr
+        %td.read-label
+          -trans "Opened On"
+        %td.read-value
+          {% format_datetime object.opened_on %}
+
+
+-block post-content
+  - if org_perms.tickets.ticket_close
+    .close-modal.hide
+      .title
+        -trans "Close Ticket"
+      .body
+        %p
+          -trans "Are you sure you want to close this ticket?"
+
+    %a#close-form.posterize{href:'{% url "tickets.ticket_close" object.uuid %}'}
+
+
+-block extra-script
+  {{ block.super }}
+
+  :javascript
+    $(".close-ticket").live('click', function(){
+      var modal = new ConfirmationModal($('.close-modal > .title').html(), $('.close-modal > .body').html());
+      modal.addClass('alert');
+      modal.setListeners({onPrimary: function(){ $('#close-form').click(); }}, false);
+      modal.setPrimaryButton('{{ _("Close")|escapejs }}');
+      modal.show();
+    });

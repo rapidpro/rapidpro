@@ -2,7 +2,7 @@ import json
 
 from django.urls import reverse
 
-from temba.contacts.models import TEL_SCHEME, URN, ContactURN
+from temba.contacts.models import URN, ContactURN
 from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba.utils import get_anonymous_user
@@ -14,7 +14,8 @@ class AndroidTypeTest(TembaTest):
     def test_claim(self):
         # remove our explicit country so it needs to be derived from channels
         self.org.country = None
-        self.org.save()
+        self.org.timezone = "UTC"
+        self.org.save(update_fields=("country", "timezone"))
 
         Channel.objects.all().delete()
 
@@ -192,9 +193,9 @@ class AndroidTypeTest(TembaTest):
         self.assertFormError(response, "form", "claim_code", "Invalid claim code, please check and try again.")
 
         # check our primary tel channel is the same as our outgoing
-        default_sender = self.org.get_send_channel(TEL_SCHEME)
+        default_sender = self.org.get_send_channel(URN.TEL_SCHEME)
         self.assertEqual(default_sender, android2)
-        self.assertEqual(default_sender, self.org.get_receive_channel(TEL_SCHEME))
+        self.assertEqual(default_sender, self.org.get_receive_channel(URN.TEL_SCHEME))
         self.assertFalse(default_sender.is_delegate_sender())
 
         response = self.client.get(reverse("channels.channel_bulk_sender_options"))
@@ -211,7 +212,7 @@ class AndroidTypeTest(TembaTest):
         self.assertFormError(response, "form", "connection", "A connection to a Nexmo account is required")
 
         # send channel is still our Android device
-        self.assertEqual(self.org.get_send_channel(TEL_SCHEME), android2)
+        self.assertEqual(self.org.get_send_channel(URN.TEL_SCHEME), android2)
         self.assertFalse(self.org.is_connected_to_nexmo())
 
         # now connect to nexmo
@@ -220,10 +221,10 @@ class AndroidTypeTest(TembaTest):
 
         # now adding Nexmo bulk sender should work
         response = self.client.post(claim_nexmo_url, dict(connection="NX", channel=android2.pk))
-        self.assertRedirect(response, reverse("orgs.org_home"))
+        self.assertRedirect(response, reverse("channels.channel_read", args=[android2.uuid]))
 
         # new Nexmo channel created for delegated sending
-        nexmo = self.org.get_send_channel(TEL_SCHEME)
+        nexmo = self.org.get_send_channel(URN.TEL_SCHEME)
         self.assertEqual(nexmo.channel_type, "NX")
         self.assertEqual(nexmo.parent, android2)
         self.assertTrue(nexmo.is_delegate_sender())
@@ -238,7 +239,7 @@ class AndroidTypeTest(TembaTest):
         self.assertContains(response, "Disable Bulk Sending")
 
         # receiving still job of our Android device
-        self.assertEqual(self.org.get_receive_channel(TEL_SCHEME), android2)
+        self.assertEqual(self.org.get_receive_channel(URN.TEL_SCHEME), android2)
 
         # re-register device with country as US
         reg_data = dict(
@@ -261,12 +262,12 @@ class AndroidTypeTest(TembaTest):
         android2.save()
 
         # our country is RW
-        self.assertEqual(self.org.get_country_code(), "RW")
+        self.assertEqual(self.org.default_country_code, "RW")
 
         # remove nexmo
         nexmo.release()
 
-        self.assertEqual(self.org.get_country_code(), "RW")
+        self.assertEqual(self.org.default_country_code, "RW")
 
         # register another device with country as US
         reg_data = dict(
@@ -296,23 +297,25 @@ class AndroidTypeTest(TembaTest):
         self.assertFalse(valid)
 
         # get our send channel without a URN, should just default to last
-        default_channel = self.org.get_send_channel(TEL_SCHEME)
+        default_channel = self.org.get_send_channel(URN.TEL_SCHEME)
         self.assertEqual(default_channel, channel)
 
         # get our send channel for a Rwandan URN
-        rwanda_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.create(self.org, None, "tel:+250788383383"))
+        rwanda_channel = self.org.get_send_channel(
+            URN.TEL_SCHEME, ContactURN.create(self.org, None, "tel:+250788383383")
+        )
         self.assertEqual(rwanda_channel, android2)
 
         # and a US one
-        us_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.create(self.org, None, "tel:+12065555353"))
+        us_channel = self.org.get_send_channel(URN.TEL_SCHEME, ContactURN.create(self.org, None, "tel:+12065555353"))
         self.assertEqual(us_channel, channel)
 
         # a different country altogether should just give us the default
-        us_channel = self.org.get_send_channel(TEL_SCHEME, ContactURN.create(self.org, None, "tel:+593997290044"))
+        us_channel = self.org.get_send_channel(URN.TEL_SCHEME, ContactURN.create(self.org, None, "tel:+593997290044"))
         self.assertEqual(us_channel, channel)
 
         self.org = Org.objects.get(id=self.org.id)
-        self.assertIsNone(self.org.get_country_code())
+        self.assertEqual("", self.org.default_country_code)
 
         # yet another registration in rwanda
         reg_data = dict(
@@ -347,6 +350,5 @@ class AndroidTypeTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(update_url)
         self.assertEqual(
-            ["name", "address", "country", "alert_email", "allow_international", "loc"],
-            list(response.context["form"].fields.keys()),
+            ["name", "alert_email", "allow_international", "loc"], list(response.context["form"].fields.keys()),
         )

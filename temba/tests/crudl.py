@@ -56,10 +56,6 @@ class CRUDLTestMixin:
     def assertListFetch(
         self, url, *, allow_viewers, allow_editors, context_objects=None, context_object_count=None, status=200
     ):
-        assert (
-            context_objects is not None or context_object_count is not None
-        ), "must specify context_objects or context_object_count"
-
         viewer, editor, admin, org2_admin = self.get_test_users()
 
         def as_user(user, allowed):
@@ -68,7 +64,7 @@ class CRUDLTestMixin:
                 if user != org2_admin:
                     if context_objects is not None:
                         checks.append(ContextObjectList(context_objects))
-                    else:
+                    elif context_object_count is not None:
                         checks.append(ContextObjectCount(context_object_count))
             else:
                 checks = [LoginRedirect()]

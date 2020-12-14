@@ -5,7 +5,6 @@ import telegram
 from django.test import override_settings
 from django.urls import reverse
 
-from temba.contacts.models import URN
 from temba.tests import TembaTest
 
 from ...models import Channel
@@ -80,7 +79,7 @@ class TelegramTypeTest(TembaTest):
             response.context["form"].errors["auth_token"][0],
         )
 
-        contact = self.create_contact("Telegram User", urn=URN.from_telegram("1234"))
+        contact = self.create_contact("Telegram User", urns=["telegram:1234"])
 
         # make sure we our telegram channel satisfies as a send channel
         response = self.client.get(reverse("contacts.contact_read", args=[contact.uuid]))

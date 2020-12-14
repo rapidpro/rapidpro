@@ -17,6 +17,7 @@ boto3
 librato_bg
 nexmo
 pyfcm
+pyotp
 python-gcm
 python-telegram-bot
 raven
@@ -29,6 +30,7 @@ elasticsearch_dsl
 ########################## file types ##########################
 geojson
 markdown
+polib
 pyexcel
 pyexcel-xls
 pyexcel-xlsx
@@ -37,7 +39,6 @@ xlsxlite
 pdfkit
 
 ########################## misc ##########################
-antlr4-python3-runtime
 celery[redis]
 colorama
 gunicorn
@@ -50,7 +51,6 @@ pycrypto
 python-dateutil==2.2
 pytz
 psycopg2-binary
-rapidpro-expressions
 redis<3.0  # see https://github.com/celery/celery/issues/4495
 requests
 simplejson

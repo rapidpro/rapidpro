@@ -13,9 +13,11 @@ class Policy(SmartModel):
     TYPE_PRIVACY = "privacy"
     TYPE_TOS = "tos"
     TYPE_COOKIE = "cookie"
+    TYPE_CONTENT = "content"
 
     TYPE_CHOICES = (
         (TYPE_PRIVACY, _("Privacy Policy")),
+        (TYPE_CONTENT, _("Content Guidelines")),
         (TYPE_TOS, _("Terms of Service")),
         (TYPE_COOKIE, _("Cookie Policy")),
     )

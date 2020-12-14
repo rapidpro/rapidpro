@@ -4,7 +4,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel, ChannelType
 from temba.channels.types.plivo.views import ClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 from temba.utils.http import http_headers
 
 
@@ -21,14 +21,14 @@ class PlivoType(ChannelType):
     name = "Plivo"
     icon = "icon-channel-plivo"
 
-    claim_blurb = _(
-        """Easily add a two way number you have configured with <a href="https://www.plivo.com/">Plivo</a> using their APIs."""
-    )
+    claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
+        "link": '<a href="https://www.plivo.com/">Plivo</a>'
+    }
     claim_view = ClaimView
 
     show_config_page = False
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 1600
 
     def deactivate(self, channel):

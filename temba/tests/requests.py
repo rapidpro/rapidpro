@@ -1,6 +1,7 @@
 import json
 from unittest.mock import patch
 
+from requests import HTTPError
 from requests.structures import CaseInsensitiveDict
 
 from django.utils.encoding import force_bytes, force_text
@@ -8,13 +9,13 @@ from django.utils.encoding import force_bytes, force_text
 from temba.utils import dict_to_struct
 
 
-class MockResponse(object):
+class MockResponse:
     """
     MockResponse is a utility class that mimics the requests library response object for use
     in unit tests and mocks.
     """
 
-    def __init__(self, status_code, body, method="GET", url="http://foo.com/", headers=None):
+    def __init__(self, status_code: int, body, method="GET", url="http://foo.com/", headers=None):
         if headers is None:
             headers = {}
 
@@ -49,7 +50,7 @@ class MockResponse(object):
 
     def raise_for_status(self):
         if self.status_code != 200:
-            raise Exception("Got HTTP error: %d" % self.status_code)
+            raise HTTPError(request=self.request, response=self)
 
 
 class MockPost:

@@ -8,7 +8,6 @@ from django.utils.translation import ugettext_lazy as _
 from temba.apks.models import Apk
 from temba.contacts.models import ContactURN
 from temba.orgs.models import Org
-from temba.utils import analytics
 
 from ...models import Channel
 from ...views import ClaimViewMixin, UpdateTelChannelForm
@@ -82,9 +81,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         org = self.request.user.get_org()
 
-        if not org:  # pragma: no cover
-            raise Exception(_("No org for this user, cannot claim"))
-
         self.object = Channel.objects.filter(claim_code=self.form.cleaned_data["claim_code"]).first()
 
         country = self.object.country
@@ -95,8 +91,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         # always prefer the country of the phone number they are entering if we have one
         if phone_country and phone_country != country:  # pragma: needs cover
             self.object.country = phone_country
-
-        analytics.track(self.request.user.username, "temba.channel_create")
 
         self.object.claim(org, self.request.user, self.form.cleaned_data["phone_number"])
         self.object.save()

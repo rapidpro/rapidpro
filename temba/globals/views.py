@@ -3,11 +3,12 @@ from gettext import gettext as _
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartListView, SmartReadView, SmartUpdateView
 
 from django import forms
-from django.conf import settings
-from django.http import HttpResponseRedirect
+from django.http import HttpResponse
 from django.urls import reverse
 
+from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.utils.fields import InputWidget
 
 from .models import Global
 
@@ -22,10 +23,10 @@ class CreateGlobalForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
-        if self.org.globals.filter(is_active=True).count() >= settings.MAX_ACTIVE_GLOBALS_PER_ORG:
+        org_active_globals_limit = self.org.get_limit(Org.LIMIT_GLOBALS)
+        if self.org.globals.filter(is_active=True).count() >= org_active_globals_limit:
             raise forms.ValidationError(
-                _("Cannot create a new global as limit is %(limit)s."),
-                params={"limit": settings.MAX_ACTIVE_GLOBALS_PER_ORG},
+                _("Cannot create a new global as limit is %(limit)s."), params={"limit": org_active_globals_limit},
             )
 
         return cleaned_data
@@ -49,6 +50,10 @@ class CreateGlobalForm(forms.ModelForm):
     class Meta:
         model = Global
         fields = ("name", "value")
+        widgets = {
+            "name": InputWidget(attrs={"name": _("Name"), "widget_only": False}),
+            "value": InputWidget(attrs={"name": _("Value"), "widget_only": False}),
+        }
 
 
 class UpdateGlobalForm(forms.ModelForm):
@@ -61,6 +66,9 @@ class UpdateGlobalForm(forms.ModelForm):
     class Meta:
         model = Global
         fields = ("value",)
+        widgets = {
+            "value": InputWidget(attrs={"name": _("Value"), "widget_only": False}),
+        }
 
 
 class GlobalCRUDL(SmartCRUDL):
@@ -121,7 +129,9 @@ class GlobalCRUDL(SmartCRUDL):
 
             self.object.release()
 
-            return HttpResponseRedirect(redirect_url)
+            response = HttpResponse()
+            response["Temba-Success"] = redirect_url
+            return response
 
     class List(OrgPermsMixin, SmartListView):
         title = _("Manage Globals")

@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 from .views import SignalWireClaimView
@@ -69,23 +69,19 @@ class SignalWireType(ChannelType):
     name = "SignalWire"
     icon = "icon-signalwire"
 
-    claim_blurb = _(
-        """Easily add a two way number you have with <a href="http://www.signalwire.com/">SignalWire</a> using their APIs."""
-    )
+    claim_blurb = _("Easily add a two way number you have with %(link)s using their APIs.") % {
+        "link": '<a href="http://www.signalwire.com/">SignalWire</a>'
+    }
     claim_view = SignalWireClaimView
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 1600
 
     attachment_support = True
 
     async_activation = False
 
-    configuration_blurb = _(
-        """
-        Your SignalWire channel is now connected.
-        """
-    )
+    configuration_blurb = _("Your SignalWire channel is now connected.")
 
     configuration_urls = (
         dict(

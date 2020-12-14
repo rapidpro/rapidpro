@@ -1,0 +1,23 @@
+-extends 'includes/modal.html'
+-load i18n temba smartmin
+
+-block modal
+  -if error
+    .alert-text.mb-4
+      .title
+        -blocktrans trimmed with name=object.name
+          Uh oh, we couldn't delete {{name}}.
+      .message
+        {{error}}
+
+  -if object.children.all
+    -blocktrans trimmed with name=object.name
+      <b>{{name}}</b> cannot be deleted since it is a parent to other labels.
+
+  -else
+    -blocktrans trimmed with name=object.name
+      Are you sure you want to delete <b>{{name}}</b>? This cannot be undone.
+
+    .hidden
+      %form(method="POST")
+        %input(type="submit" value="{{submit_button_name}}")

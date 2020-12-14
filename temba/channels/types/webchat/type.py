@@ -1,5 +1,5 @@
 from django.utils.translation import ugettext_lazy as _
-from temba.contacts.models import EXTERNAL_SCHEME
+from temba.contacts.models import URN
 from .views import ClaimView
 from ...models import ChannelType
 from ...views import UpdateWebChatForm
@@ -25,7 +25,7 @@ class WebChatType(ChannelType):
     claim_blurb = _("Use our pluggable API to create a mobile-friendly web chat widget to add to any website.")
     claim_view = ClaimView
 
-    schemes = [EXTERNAL_SCHEME]
+    schemes = [URN.EXTERNAL_SCHEME]
     max_length = 2000
     attachment_support = True
 
