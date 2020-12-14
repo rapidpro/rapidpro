@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-10 20:04+0000\n"
+"POT-Creation-Date: 2020-12-14 22:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3072,21 +3072,6 @@ msgstr ""
 msgid "Org"
 msgstr ""
 
-msgid "The organization to which the account is invited to view"
-msgstr ""
-
-msgid "Email"
-msgstr ""
-
-msgid "The email to which we send the invitation of the viewer"
-msgstr ""
-
-msgid "a unique code associated with this invitation"
-msgstr ""
-
-msgid "User Role"
-msgstr ""
-
 #, python-format
 msgid "%(name)s Invitation"
 msgstr ""
@@ -3254,6 +3239,9 @@ msgstr ""
 msgid "Last Name"
 msgstr ""
 
+msgid "Email"
+msgstr ""
+
 msgid "Current Password"
 msgstr ""
 
@@ -3402,6 +3390,12 @@ msgid "This password is not valid. Choose a new password and try again."
 msgstr ""
 
 msgid "One of the emails you entered is invalid."
+msgstr ""
+
+msgid "A workspace must have at least one administrator."
+msgstr ""
+
+msgid "Manage Logins"
 msgstr ""
 
 msgid "Enter the code from your authentication application"
@@ -6287,9 +6281,6 @@ msgstr ""
 msgid "Your workspace can have logins with various roles. You can use the Manage Logins page to view all existing logins or to add new logins to your workspace."
 msgstr ""
 
-msgid "Manage Logins"
-msgstr ""
-
 #, python-format
 msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join %(org)s as a surveyor."
 msgstr ""
@@ -6514,25 +6505,7 @@ msgstr ""
 msgid "Your workspace is configured to use a single language."
 msgstr ""
 
-msgid "Logins"
-msgstr ""
-
-msgid "Admins"
-msgstr ""
-
-msgid "Editors"
-msgstr ""
-
-msgid "Viewers"
-msgstr ""
-
-msgid "Surveyors"
-msgstr ""
-
 msgid "Remove"
-msgstr ""
-
-msgid "You must have at least one administator"
 msgstr ""
 
 msgid "Pending Invitations"

@@ -6,6 +6,7 @@
     {{org.name}}
   -else
     {{user_org.name|capfirst}}
+
 -block subtitle
   -trans "Manage Logins"
 
@@ -28,60 +29,31 @@
           -trans "Remove"
 
     %tbody
-      %tr#admin-error.hide
-        %td.alert.alert-error(colspan=3)
-          -trans "You must have at least one administator"
-      -for user in org_users
+      -for row in form.user_rows
         %tr
-          %td.pt-0.pb-0
-            {{ user.email }}
-            -if user.first_name or user.last_name
-              ({{ user.first_name }} {{ user.last_name }})
-          %td.pt-0.pb-0.w-48
-            {% render_field user_fields|get:user|get:"role" %}
-          %td.pt-0.pb-0.w-24
-            .m-auto
-              {% render_field user_fields|get:user|get:"remove" %}
+          %td
+            {{ row.user.email }}
+            -if row.user.first_name or row.user.last_name
+              ({{ row.user.first_name }} {{ row.user.last_name }})
+          %td.w-48
+            {% render_field row.role_field %}
+          %td
+            {% render_field row.remove_field %}
 
       // pending invites
-      -if invites
+      -if has_invites
         %tr.invites-title
           %th(colspan=3)
             -trans "Pending Invitations"
 
-      -for invite in invites
-        %tr.invite
+      -for row in form.invite_rows
+        %tr
           %td.opacity-50
-            {{invite.email}} (Invite Sent)
-          %td.permission
-            .flex.justify-center.opacity-25.pointer-events-none
-              -if invite.user_group == "A"
-                %temba-checkbox.pointer-events-none(name="" checked)
-              -else
-                %temba-checkbox.pointer-events-none(name="")
-          %td.permission
-            .flex.justify-center.opacity-25.pointer-events-none
-              -if invite.user_group == "E"
-                %temba-checkbox.pointer-events-none(name="" checked)
-              -else
-                %temba-checkbox.pointer-events-none(name="")
-          %td.permission
-            .flex.justify-center.opacity-25.pointer-events-none
-              -if invite.user_group == "V"
-                %temba-checkbox.pointer-events-none(name="" checked)
-              -else
-                %temba-checkbox.pointer-events-none(name="")
-          %td.permission
-            .flex.justify-center.opacity-25.pointer-events-none
-              -if invite.user_group == "S"
-                %temba-checkbox.pointer-events-none(name="" checked)
-              -else
-                %temba-checkbox.pointer-events-none(name="")
-          - with invites_fields|get:invite as check_name
-            %td.permission.invite-perm.invite-remove.level-checkbox
-              .flex.justify-center
-                {{form|field:check_name}}
-
+            {{ row.invite.email }} (Invite Sent)
+          %td.opacity-50.w-48
+            {% render_field row.role_field %}
+          %td
+            {% render_field row.remove_field %}
 
   .card
     .title.mb-0.pb-0
@@ -96,35 +68,3 @@
 -block form-buttons
   .form-actions.mt-4.ml-2
     %input.button-primary(type="submit" value="{{ submit_button_name }}")
-
-
--block extra-script
-  {{block.super}}
-  :javascript
-    $(function() {
-      // update the checkbox on click
-
-      $("td.check temba-checkbox").on('click', function(){
-        var ipt =  $(this);
-        var cell = $(this).parent().parent("td.check");
-        
-        allCells = cell.parent().children('td.check');
-        allCheckboxes = allCells.find("temba-checkbox");
-        allCheckboxes.prop('checked', false);
-        ipt.prop('checked', true);
-
-        hasAdmin = false;
-        // validate that we always have an admin first
-        // to show error if no admin is remaining
-        $("td.check").parent().find("temba-checkbox[id*='administrators']").each(function() {
-           hasAdmin = hasAdmin || $(this).prop('checked')
-        })
-
-        if (!hasAdmin) {
-          $('#admin-error').show();
-        } else {
-          $('#admin-error').hide();
-        }
-
-      });
-    });

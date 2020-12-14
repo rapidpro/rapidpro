@@ -1356,14 +1356,20 @@ class OrgCRUDL(SmartCRUDL):
                 widget=SelectWidget(),
             )
 
-            def add_per_user_fields(self, users) -> dict:
-                fields_by_user = {}
+            def __init__(self, org, *args, **kwargs):
+                super().__init__(*args, **kwargs)
 
-                for user in users:
+                self.user_rows = []
+                self.invite_rows = []
+                self.add_per_user_fields(org)
+                self.add_per_invite_fields(org)
+
+            def add_per_user_fields(self, org):
+                for user in org.get_users():
                     role_field = forms.ChoiceField(
                         choices=[(r.code, r.display) for r in OrgRole],
                         required=True,
-                        initial="V",
+                        initial=org.get_user_role(user).code,
                         label=" ",
                         widget=SelectWidget(),
                     )
@@ -1374,21 +1380,36 @@ class OrgCRUDL(SmartCRUDL):
                     self.fields.update(
                         OrderedDict([(f"user_{user.id}_role", role_field), (f"user_{user.id}_remove", remove_field)])
                     )
-                    fields_by_user[user] = {"role": f"user_{user.id}_role", "remove": f"user_{user.id}_remove"}
-                return fields_by_user
-
-            def add_per_invite_fields(self, invites) -> dict:
-                fields_by_invite = {}
-
-                for invite in invites:
-                    remove_field = forms.BooleanField(
-                        required=False, widget=CheckboxWidget(attrs={"widget_only": True}),
+                    self.user_rows.append(
+                        {"user": user, "role_field": f"user_{user.id}_role", "remove_field": f"user_{user.id}_remove"}
                     )
 
-                    self.fields.update(OrderedDict([(f"invite_{invite.id}_remove", remove_field)]))
-                    fields_by_invite[invite] = {"remove": remove_field}
+            def add_per_invite_fields(self, org):
+                for invite in org.invitations.order_by("email"):
+                    role_field = forms.ChoiceField(
+                        choices=[(r.code, r.display) for r in OrgRole],
+                        required=True,
+                        initial=invite.role.code,
+                        label=" ",
+                        widget=SelectWidget(),
+                        disabled=True,
+                    )
+                    remove_field = forms.BooleanField(
+                        required=False, label=" ", widget=CheckboxWidget(attrs={"widget_only": True}),
+                    )
 
-                return fields_by_invite
+                    self.fields.update(
+                        OrderedDict(
+                            [(f"invite_{invite.id}_role", role_field), (f"invite_{invite.id}_remove", remove_field)]
+                        )
+                    )
+                    self.invite_rows.append(
+                        {
+                            "invite": invite,
+                            "role_field": f"invite_{invite.id}_role",
+                            "remove_field": f"invite_{invite.id}_remove",
+                        }
+                    )
 
             def clean_invite_emails(self):
                 emails = self.cleaned_data["invite_emails"].lower().strip()
@@ -1400,6 +1421,41 @@ class OrgCRUDL(SmartCRUDL):
                         except ValidationError:
                             raise forms.ValidationError(_("One of the emails you entered is invalid."))
                 return emails
+
+            def get_submitted_roles(self) -> dict:
+                """
+                Returns a dict of users to roles from the current form data. None role means removal.
+                """
+                roles = {}
+
+                for row in self.user_rows:
+                    role = self.cleaned_data[row["role_field"]]
+                    remove = self.cleaned_data[row["remove_field"]]
+                    roles[row["user"]] = OrgRole.from_code(role) if not remove else None
+                return roles
+
+            def get_submitted_invite_removals(self) -> list:
+                """
+                Returns a list of invites to be removed.
+                """
+                invites = []
+                for row in self.invite_rows:
+                    if self.cleaned_data[row["remove_field"]]:
+                        invites.append(row["invite"])
+                return invites
+
+            def clean(self):
+                super().clean()
+
+                new_roles = self.get_submitted_roles()
+                has_admin = False
+                for new_role in new_roles.values():
+                    if new_role == OrgRole.ADMINISTRATOR:
+                        has_admin = True
+                        break
+
+                if not has_admin:
+                    raise forms.ValidationError(_("A workspace must have at least one administrator."))
 
             class Meta:
                 model = Invitation
@@ -1419,28 +1475,10 @@ class OrgCRUDL(SmartCRUDL):
             links.append(dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"),))
             return links
 
-        def derive_initial(self):
-            initial = super().derive_initial()
-
-            org = self.get_object()
-            for role in OrgRole:
-                users_in_group = role.get_users(org)
-                for user in users_in_group:
-                    initial[f"user_{user.id}_role"] = role.code
-
-            return initial
-
-        def get_form(self):
-            form = super().get_form()
-
-            org = self.get_object()
-            self.org_users = org.get_users()
-            self.fields_by_users = form.add_user_group_fields(self.ORG_GROUPS, self.org_users)
-
-            self.invites = Invitation.objects.filter(org=org, is_active=True).order_by("email")
-            self.fields_by_invite = form.add_per_invite_fields(self.invites)
-
-            return form
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.get_object()
+            return kwargs
 
         def post_save(self, obj):
             obj = super().post_save(obj)
@@ -1448,71 +1486,53 @@ class OrgCRUDL(SmartCRUDL):
             cleaned_data = self.form.cleaned_data
             org = self.get_object()
 
-            for invite, invite_fields in self.fields_by_invite.keys():
-                if cleaned_data.get(invite_fields["remove"]):
-                    Invitation.objects.filter(org=org, pk=invite.pk).delete()
+            # delete any invitations which have been checked for removal
+            for invite in self.form.get_submitted_invite_removals():
+                org.invitations.filter(id=invite.id).delete()
 
-            invite_emails = cleaned_data["invite_emails"].lower().strip()
-            invite_group = cleaned_data["invite_group"]
-
+            # handle any requests for new invitations
+            invite_emails = cleaned_data["invite_emails"]
             if invite_emails:
-                for email in invite_emails.split(","):
-                    # if they already have an invite, update it
-                    invites = Invitation.objects.filter(email=email, org=org).order_by("-pk")
-                    invitation = invites.first()
+                invite_role = OrgRole.from_code(cleaned_data["invite_role"])
+                self.create_or_update_invitations(org, invite_emails.split(","), invite_role)
 
-                    if invitation:
-                        invites.exclude(pk=invitation.pk).delete()  # remove any old invites
+            # update org users with new roles
+            for user, new_role in self.form.get_submitted_roles().items():
+                if not new_role:
+                    org.remove_user(user)
+                elif org.get_user_role(user) != new_role:
+                    org.add_user(user, new_role)
 
-                        invitation.user_group = invite_group
-                        invitation.is_active = True
-                        # generate new secret for this invitation
-                        invitation.secret = random_string(64)
-                        invitation.save()
-                    else:
-                        invitation = Invitation.create(org, self.request.user, email, invite_group)
-
-                    invitation.send_invitation()
-
-            current_groups = {}
-            new_groups = {}
-
-            for group in self.ORG_GROUPS:
-                # gather up existing users with their groups
-                for user in self.org_group_set(org, group).all():
-                    current_groups[user] = group
-
-                # parse form fields to get new roles
-                for field in self.form.cleaned_data:
-                    if field.startswith(group.lower() + "_") and self.form.cleaned_data[field]:
-                        user = User.objects.get(pk=field.split("_")[1])
-                        new_groups[user] = group
-
-            for user in current_groups.keys():
-                current_group = current_groups.get(user)
-                new_group = new_groups.get(user)
-
-                if user in self.fields_by_users and current_group != new_group:
-                    if current_group:
-                        self.org_group_set(org, current_group).remove(user)
-                    if new_group:
-                        self.org_group_set(org, new_group).add(user)
-
-                    # when a user's role changes, delete any API tokens they're no longer allowed to have
-                    api_roles = APIToken.get_allowed_roles(org, user)
-                    for token in APIToken.objects.filter(org=org, user=user).exclude(role__in=api_roles):
-                        token.release()
+                # when a user's role changes, delete any API tokens they're no longer allowed to have
+                api_roles = APIToken.get_allowed_roles(org, user)
+                for token in APIToken.objects.filter(org=org, user=user).exclude(role__in=api_roles):
+                    token.release()
 
             return obj
+
+        def create_or_update_invitations(self, org, emails: list, role: OrgRole):
+            for email in emails:
+                # if they already have an invite, update it
+                invites = org.invitations.filter(email=email).order_by("-id")
+                invitation = invites.first()
+
+                if invitation:
+                    invites.exclude(id=invitation.id).delete()  # remove any old invites
+
+                    invitation.user_group = role.code
+                    invitation.secret = random_string(64)  # generate new secret for this invitation
+                    invitation.is_active = True
+                    invitation.save(update_fields=("user_group", "secret", "is_active"))
+                else:
+                    invitation = Invitation.create(org, self.request.user, email, role)
+
+                invitation.send_invitation()
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org = self.get_object()
             context["org"] = org
-            context["org_users"] = self.org_users
-            context["user_fields"] = self.fields_by_users
-            context["invites"] = self.invites
-            context["invite_fields"] = self.fields_by_invite
+            context["has_invites"] = org.invitations.filter(is_active=True).exists()
             return context
 
         def get_success_url(self):

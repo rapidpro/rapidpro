@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-10 20:04+0000\n"
+"POT-Creation-Date: 2020-12-14 22:06+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3852,21 +3852,6 @@ msgstr "Извините, нам не удалось обработать Ваш
 msgid "Org"
 msgstr "Организация"
 
-msgid "The organization to which the account is invited to view"
-msgstr "Организация, которой предлагается просмотреть учетную запись"
-
-msgid "Email"
-msgstr "E-mail"
-
-msgid "The email to which we send the invitation of the viewer"
-msgstr "Электронная почта, на которую мы отправим приглашение для абонента"
-
-msgid "a unique code associated with this invitation"
-msgstr "уникальный код, относящийся к этому приглашению"
-
-msgid "User Role"
-msgstr "Функция Пользователя"
-
 #, python-format
 msgid "%(name)s Invitation"
 msgstr "Приглашение %(name)s"
@@ -4058,6 +4043,9 @@ msgstr "Требуется POST"
 msgid "Last Name"
 msgstr "Фамилия"
 
+msgid "Email"
+msgstr "E-mail"
+
 #, fuzzy
 #| msgid "Current Password (required)"
 msgid "Current Password"
@@ -4217,6 +4205,16 @@ msgstr "Этот пароль не является допустимым. Выб
 
 msgid "One of the emails you entered is invalid."
 msgstr "Один из адресов электронной почты, который Вы ввели, является недопустимым."
+
+#, fuzzy
+#| msgid "You must have at least one administator"
+msgid "A workspace must have at least one administrator."
+msgstr "У Вас должен быть хотя бы один администратор"
+
+#, fuzzy
+#| msgid "Manage Accounts"
+msgid "Manage Logins"
+msgstr "Управление учетными записями"
 
 msgid "Enter the code from your authentication application"
 msgstr "Введите код из Вашего приложения по аутентификации"
@@ -8741,11 +8739,6 @@ msgstr ""
 "\n"
 "  "
 
-#, fuzzy
-#| msgid "Manage Accounts"
-msgid "Manage Logins"
-msgstr "Управление учетными записями"
-
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
@@ -9224,28 +9217,8 @@ msgstr ""
 msgid "Your workspace is configured to use a single language."
 msgstr "Ваша организация настроена на использование одного языка."
 
-#, fuzzy
-#| msgid "Login"
-msgid "Logins"
-msgstr "Логин"
-
-msgid "Admins"
-msgstr "Администраторы"
-
-msgid "Editors"
-msgstr "Редакторы"
-
-msgid "Viewers"
-msgstr "Абоненты"
-
-msgid "Surveyors"
-msgstr "Наблюдатели"
-
 msgid "Remove"
 msgstr "Удалить"
-
-msgid "You must have at least one administator"
-msgstr "У Вас должен быть хотя бы один администратор"
 
 #, fuzzy
 #| msgid "%(name)s Invitation"
@@ -10434,6 +10407,35 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "The organization to which the account is invited to view"
+#~ msgstr "Организация, которой предлагается просмотреть учетную запись"
+
+#~ msgid "The email to which we send the invitation of the viewer"
+#~ msgstr "Электронная почта, на которую мы отправим приглашение для абонента"
+
+#~ msgid "a unique code associated with this invitation"
+#~ msgstr "уникальный код, относящийся к этому приглашению"
+
+#~ msgid "User Role"
+#~ msgstr "Функция Пользователя"
+
+#, fuzzy
+#~| msgid "Login"
+#~ msgid "Logins"
+#~ msgstr "Логин"
+
+#~ msgid "Admins"
+#~ msgstr "Администраторы"
+
+#~ msgid "Editors"
+#~ msgstr "Редакторы"
+
+#~ msgid "Viewers"
+#~ msgstr "Абоненты"
+
+#~ msgid "Surveyors"
+#~ msgstr "Наблюдатели"
 
 #~ msgid "Administrators"
 #~ msgstr "Администраторы"

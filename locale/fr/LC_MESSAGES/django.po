@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-10 20:04+0000\n"
+"POT-Creation-Date: 2020-12-14 22:06+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3086,21 +3086,6 @@ msgstr "Désolé, nous n'avons pas pu traiter votre paiement. Veuillez réessaye
 msgid "Org"
 msgstr "Org"
 
-msgid "The organization to which the account is invited to view"
-msgstr "L'organisation à laquelle le compte est invité à voir"
-
-msgid "Email"
-msgstr "Email"
-
-msgid "The email to which we send the invitation of the viewer"
-msgstr "L'e-mail que nous envoyons comme invitation à l'utilisateur"
-
-msgid "a unique code associated with this invitation"
-msgstr "un code unique est associé à cette invitation"
-
-msgid "User Role"
-msgstr "Rôle de l'utilisateur"
-
 #, python-format
 msgid "%(name)s Invitation"
 msgstr "Invitation %(name)s"
@@ -3270,6 +3255,9 @@ msgstr "Obligatoire"
 msgid "Last Name"
 msgstr "Nom"
 
+msgid "Email"
+msgstr "Email"
+
 msgid "Current Password"
 msgstr "Mot de passe actuel"
 
@@ -3419,6 +3407,14 @@ msgstr "Ce mot de passe n'est pas valide. Choisissez un nouveau mot de passe et 
 
 msgid "One of the emails you entered is invalid."
 msgstr "L'un des e-mails que vous avez inscrits est invalide."
+
+#, fuzzy
+#| msgid "You must have at least one administator"
+msgid "A workspace must have at least one administrator."
+msgstr "Vous devez avoir au moins un administateur"
+
+msgid "Manage Logins"
+msgstr "Gérer les connexions"
 
 msgid "Enter the code from your authentication application"
 msgstr "Entrez le code de votre application d'authentification"
@@ -6599,9 +6595,6 @@ msgstr ""
 msgid "Your workspace can have logins with various roles. You can use the Manage Logins page to view all existing logins or to add new logins to your workspace."
 msgstr "Votre espace de travail peut avoir des connexions avec différents rôles. Vous pouvez utiliser la page Gérer les connexions pour afficher toutes les connexions existantes ou pour ajouter de nouvelles connexions à votre espace de travail."
 
-msgid "Manage Logins"
-msgstr "Gérer les connexions"
-
 #, python-format
 msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join %(org)s as a surveyor."
 msgstr "Si vous utilisez l'application %(brand)s Surveyor pour exécuter des flux hors ligne, nous vous recommandons d'autoriser les utilisateurs à créer des comptes à partir de l'application Android. La définition d'un mot de passe Surveyor permettra à toute personne disposant de ce mot de passe de rejoindre %(org)s as a surveyor."
@@ -6832,26 +6825,8 @@ msgstr "Les traductions sont fournies en <b>%(lang)s</b>."
 msgid "Your workspace is configured to use a single language."
 msgstr "Votre espace de travail est configuré pour utiliser une seule langue."
 
-msgid "Logins"
-msgstr "Connexions"
-
-msgid "Admins"
-msgstr "Admins"
-
-msgid "Editors"
-msgstr "Editeurs"
-
-msgid "Viewers"
-msgstr "Les spectateurs"
-
-msgid "Surveyors"
-msgstr "Enquêteur"
-
 msgid "Remove"
 msgstr "Supprimer"
-
-msgid "You must have at least one administator"
-msgstr "Vous devez avoir au moins un administateur"
 
 msgid "Pending Invitations"
 msgstr "Invitations en attente"
@@ -7771,6 +7746,33 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "The organization to which the account is invited to view"
+#~ msgstr "L'organisation à laquelle le compte est invité à voir"
+
+#~ msgid "The email to which we send the invitation of the viewer"
+#~ msgstr "L'e-mail que nous envoyons comme invitation à l'utilisateur"
+
+#~ msgid "a unique code associated with this invitation"
+#~ msgstr "un code unique est associé à cette invitation"
+
+#~ msgid "User Role"
+#~ msgstr "Rôle de l'utilisateur"
+
+#~ msgid "Logins"
+#~ msgstr "Connexions"
+
+#~ msgid "Admins"
+#~ msgstr "Admins"
+
+#~ msgid "Editors"
+#~ msgstr "Editeurs"
+
+#~ msgid "Viewers"
+#~ msgstr "Les spectateurs"
+
+#~ msgid "Surveyors"
+#~ msgstr "Enquêteur"
 
 #~ msgid "Administrators"
 #~ msgstr "Administrateurs"

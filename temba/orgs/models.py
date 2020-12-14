@@ -1134,6 +1134,8 @@ class Org(SmartModel):
         """
         Adds the given user to this org with the given role
         """
+        self.remove_user(user)  # remove from any existing roles
+
         getattr(self, role.m2m_name).add(user)
 
     def remove_user(self, user: User):
@@ -2184,8 +2186,6 @@ User.get_org_group = get_org_group
 User.get_owned_orgs = get_owned_orgs
 User.has_org_perm = _user_has_org_perm
 
-USER_GROUPS = (("A", _("Administrator")), ("E", _("Editor")), ("V", _("Viewer")), ("S", _("Surveyor")))
-
 
 def get_stripe_credentials():
     public_key = os.environ.get(
@@ -2250,30 +2250,19 @@ class Invitation(SmartModel):
     An Invitation to an e-mail address to join an Org with specific roles.
     """
 
-    org = models.ForeignKey(
-        Org,
-        on_delete=models.PROTECT,
-        verbose_name=_("Org"),
-        related_name="invitations",
-        help_text=_("The organization to which the account is invited to view"),
-    )
+    ROLE_CHOICES = [(r.code, r.display) for r in OrgRole]
 
-    email = models.EmailField(
-        verbose_name=_("Email"), help_text=_("The email to which we send the invitation of the viewer")
-    )
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="invitations")
 
-    secret = models.CharField(
-        verbose_name=_("Secret"),
-        max_length=64,
-        unique=True,
-        help_text=_("a unique code associated with this invitation"),
-    )
+    email = models.EmailField()
 
-    user_group = models.CharField(max_length=1, choices=USER_GROUPS, default="V", verbose_name=_("User Role"))
+    secret = models.CharField(max_length=64, unique=True)
+
+    user_group = models.CharField(max_length=1, choices=ROLE_CHOICES, default=OrgRole.VIEWER.code)
 
     @classmethod
-    def create(cls, org, user, email, user_group):
-        return cls.objects.create(org=org, email=email, user_group=user_group, created_by=user, modified_by=user)
+    def create(cls, org, user, email, role: OrgRole):
+        return cls.objects.create(org=org, email=email, user_group=role.code, created_by=user, modified_by=user)
 
     def save(self, *args, **kwargs):
         if not self.secret:
@@ -2285,6 +2274,10 @@ class Invitation(SmartModel):
             self.secret = secret
 
         return super().save(*args, **kwargs)
+
+    @property
+    def role(self):
+        return OrgRole.from_code(self.user_group)
 
     def send_invitation(self):
         from .tasks import send_invitation_email_task
