@@ -2596,6 +2596,9 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_profile"):
                 formax.add_section("user", reverse("orgs.user_edit"), icon="icon-user", action="redirect")
 
+            if self.has_org_perm("orgs.org_edit"):
+                formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
+
             # only pro orgs get multiple users
             if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user:
                 formax.add_section("accounts", reverse("orgs.org_accounts"), icon="icon-users", action="redirect")
@@ -2608,9 +2611,6 @@ class OrgCRUDL(SmartCRUDL):
                     action="redirect",
                     nobutton=True,
                 )
-
-            if self.has_org_perm("orgs.org_edit"):
-                formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
 
             if self.has_org_perm("orgs.org_languages"):
                 formax.add_section("languages", reverse("orgs.org_languages"), icon="icon-language")
