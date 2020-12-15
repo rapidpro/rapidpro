@@ -3762,20 +3762,57 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
         collection_full_name = collection_full_name.replace("-", "")
         return collection_full_name
 
+    @staticmethod
+    def batch_requests(requests_, chunk_size=500):
+        chunk, batch_counter = [], 0
+        for r in requests_:
+            chunk.append(r)
+            batch_counter += 1
+            if batch_counter >= chunk_size:
+                yield chunk
+                chunk, batch_counter = [], 0
+        if chunk:
+            yield chunk
+
     def get_default_params(self, is_new_collection=False, is_collection_exists=False):
         org = self.request.user.get_org()
         if not org:
-            return None, None, None, Response(status=status.HTTP_403_FORBIDDEN)
+            return (
+                None,
+                None,
+                None,
+                Response(
+                    {"error": _("You don't have permission to perform this action.")}, status=status.HTTP_403_FORBIDDEN
+                ),
+            )
 
         collection_name = self.request.data.get("collection_name", self.request.query_params.get("collection_name"))
         collections_list = org.get_collections(collection_type=LOOKUPS)
 
         if is_new_collection and (not collection_name or collection_name in collections_list):
-            return None, None, None, Response(status=status.HTTP_400_BAD_REQUEST)
+            return (
+                None,
+                None,
+                None,
+                Response(
+                    {"error": _("Collection name is not provided or collection with this name already exist.")},
+                    status=status.HTTP_400_BAD_REQUEST,
+                ),
+            )
         elif is_collection_exists and not collection_name:
-            return None, None, None, Response(status=status.HTTP_400_BAD_REQUEST)
+            return (
+                None,
+                None,
+                None,
+                Response({"error": _("Collection name is not provided.")}, status=status.HTTP_400_BAD_REQUEST),
+            )
         elif is_collection_exists and collection_name not in collections_list:
-            return None, None, None, Response(status=status.HTTP_404_NOT_FOUND)
+            return (
+                None,
+                None,
+                None,
+                Response({"error": _("There is no collection with this name.")}, status=status.HTTP_400_BAD_REQUEST),
+            )
 
         return org, collection_name, collections_list, None
 
@@ -3814,7 +3851,7 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
         else:
             return Response(response.json(), status=response.status_code)
 
-        return Response(status=status.HTTP_201_CREATED)
+        return Response(response.json(), status=status.HTTP_201_CREATED)
 
     def delete(self, request, *args, **kwargs):
         org, collection_name, collections_list, error_response = self.get_default_params(is_collection_exists=True)
@@ -3853,7 +3890,7 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
         )
         items_to_push = self.request.data.get("items", [])
         if not fields_to_create and not items_to_push:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "There are no items to insert."}, status=status.HTTP_400_BAD_REQUEST)
 
         collection = self.get_collection_full_name(org, collection_name)
 
@@ -3895,8 +3932,14 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
             db_endpoint = f"{settings.PARSE_ENDPOINT}/classes/{collection}"
             for index, data in enumerate(items_to_push):
                 requests_.append({"method": "POST", "path": db_endpoint, "body": {"order": index, **data}})
-            response = requests.post(insert_url, data=json.dumps({"requests": requests_}), headers=self.parse_headers)
-        return Response(response.json(), status=status.HTTP_201_CREATED)
+
+            response = []
+            for chunk in self.batch_requests(requests_):
+                chunk_response = requests.post(
+                    insert_url, data=json.dumps({"requests": chunk}), headers=self.parse_headers
+                )
+                response.extend(chunk_response.json())
+        return Response(response, status=status.HTTP_201_CREATED)
 
 
 class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
@@ -4105,7 +4148,7 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
 
         items_to_push = self.request.data.get("items", [])
         if not items_to_push:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "There are no items to insert."}, status=status.HTTP_400_BAD_REQUEST)
 
         collection = self.get_collection_full_name(org=org, collection=collection_name)
         count_url = f"{settings.PARSE_URL}/classes/{collection}?count=1"
@@ -4118,13 +4161,17 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
             db_endpoint = f"{settings.PARSE_ENDPOINT}/classes/{collection}"
             for index, data in enumerate(items_to_push, start=insert_index):
                 requests_.append({"method": "POST", "path": db_endpoint, "body": {"order": index, **data}})
-            response = requests.post(insert_url, data=json.dumps({"requests": requests_}), headers=self.parse_headers)
+
+            response = []
+            for chunk in self.batch_requests(requests_):
+                chunk_response = requests.post(
+                    insert_url, data=json.dumps({"requests": chunk}), headers=self.parse_headers
+                )
+                response.extend(chunk_response.json())
         else:
             return Response(count_response.json(), status=count_response.status_code)
 
-        return Response(
-            response.json(), status=(status.HTTP_201_CREATED if response.status_code == 200 else response.status_code)
-        )
+        return Response(response, status=status.HTTP_201_CREATED)
 
     def delete(self, request, *args, **kwargs):
         org, collection_name, collections_list, error_response = self.get_default_params(is_collection_exists=True)
@@ -4133,7 +4180,7 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
 
         object_id = self.request.data.get("objectId")
         if not object_id:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error", "'objectId' is not provided."}, status=status.HTTP_400_BAD_REQUEST)
 
         collection = self.get_collection_full_name(org=org, collection=collection_name)
         parse_url = f"{settings.PARSE_URL}/classes/{collection}/{object_id}"
@@ -4148,7 +4195,7 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
 
         object_id = self.request.data.get("objectId")
         if not object_id:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error", "'objectId' is not provided."}, status=status.HTTP_400_BAD_REQUEST)
 
         data_to_replace: dict = self.request.data.get("item")
 
