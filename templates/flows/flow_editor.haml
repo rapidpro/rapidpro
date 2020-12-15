@@ -274,6 +274,7 @@
         revisions: '/flow/revisions/{{object.uuid}}/',
         recents: '/flow/recent_messages/{{object.uuid}}/',
         attachments: '/flow/upload_media_action/{{object.uuid}}/',
+        attachments_validation: '{% url "api.v2.attachments_validation" %}',
         languages: base + 'language',
         environment: base + 'environment',
         activity: '/flow/activity/{{object.uuid}}/',
@@ -284,8 +285,12 @@
 
         {% if can_simulate %}
         simulateStart: '/flow/simulate/{{object.id}}/',
-        simulateResume: '/flow/simulate/{{object.id}}/'
+        simulateResume: '/flow/simulate/{{object.id}}/',
         {% endif %}
+
+        lookups: '/flow/lookups_api/',
+        giftcard: '/flow/giftcards_api/',
+        link: '/link/api/',
       }
     };
 

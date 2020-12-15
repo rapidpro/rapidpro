@@ -632,46 +632,46 @@
         %a{href: '#runs', data-toggle:'tab', onclick:"updateColumnSelect();"}
           -trans "Runs"
 
-    %li
-      %a{href: '#links', data-toggle:'tab'}
-        -trans "Links"
-
-    - if flow.merge_sources.all
       %li
-        %a{href: '#flows', data-toggle:'tab'}
-          -trans "Combined Flows"
+        %a{href: '#links', data-toggle:'tab'}
+          -trans "Links"
+
+      - if flow.merge_sources.all
+        %li
+          %a{href: '#flows', data-toggle:'tab'}
+            -trans "Combined Flows"
 
   .tab-content
     #overview.tab-pane.active.py-4
-        .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
-          %i.fa.fa-spinner.fa-spin.fa-2x
+      .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
+        %i.fa.fa-spinner.fa-spin.fa-2x
 
-      #analytics.tab-pane
-        #category-charts
+    #analytics.tab-pane
+      #category-charts
 
-      #runs.tab-pane
-        .scroll-x
-          .responded-checkbox.flex.items-center.py-3.w-full
-            .runs-show#show-all-runs{
-                                        ic-get-from:"/flow/run_table/{{object.id}}/",
-                                        ic-on-beforeSend:'$("#results_run_table").empty();',
-                                        ic-on-beforeTrigger: 'localStorage.setItem("responded", "false");',
-                                        ic-trigger-on:"click",
-                                        ic-target:"#results_run_table",
-                                        ic-indicator:"#indicator"}
-              -trans "All"
-            .runs-show-sep
-              |
-            .runs-show.active{
-                                        ic-get-from:"/flow/run_table/{{object.id}}/",
-                                        ic-on-beforeSend:'$("#results_run_table").empty();',
-                                        ic-on-beforeTrigger: 'localStorage.setItem("responded", "true");',
-                                        ic-trigger-on:"click",
-                                        ic-target:"#results_run_table",
-                                        ic-indicator:"#indicator"}
+    #runs.tab-pane
+      .scroll-x
+        .responded-checkbox.items-center.py-3.w-full
+          .runs-show#show-all-runs{
+            ic-get-from:"/flow/run_table/{{object.id}}/",
+            ic-on-beforeSend:'$("#results_run_table").empty();',
+            ic-on-beforeTrigger: 'localStorage.setItem("responded", "false");',
+            ic-trigger-on:"click",
+            ic-target:"#results_run_table",
+            ic-indicator:"#indicator"}
+            -trans "All"
+          .runs-show-sep
+            |
+          .runs-show.active{
+              ic-get-from:"/flow/run_table/{{object.id}}/",
+              ic-on-beforeSend:'$("#results_run_table").empty();',
+              ic-on-beforeTrigger: 'localStorage.setItem("responded", "true");',
+              ic-trigger-on:"click",
+              ic-target:"#results_run_table",
+              ic-indicator:"#indicator"}
               -trans "Responded"
 
-            .flex-grow
+          .flex-grow
             .add-columns.select.flex-grow.pl-12.pr-4
               .selection
                 %temba-select#select-columns(searchable="true" onchange="handleColumnSelection(this)" placeholder='{{_("More Columns")|escapejs}}')
@@ -703,43 +703,43 @@
     #links.tab-pane
       - if trackable_links
         %table
-            %tr
-              %td.header
-                .details
-                  .text
-                    -trans "Contact"
-              %td.header
-                .details
-                  .text
-                    -trans "Link"
-              %td.header
+          %tr
+            %td.header
+              .details
+                .text
+                  -trans "Contact"
+            %td.header
+              .details
+                .text
+                  -trans "Link"
+            %td.header
 
-            %tbody{id:"trackable_links_table"}
-              %tr{ic-append-from:"/flow/links_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#trackable_links_table", ic-indicator:"#indicator"}
+          %tbody{id:"trackable_links_table"}
+            %tr{ic-append-from:"/flow/links_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#trackable_links_table", ic-indicator:"#indicator"}
       - else
         .text-center
           -trans "No clicked links yet"
 
     - if flow.merge_sources.all
       #flows.tab-pane
-          %table
-              %tr
-                %td.header
-                  .details
-                    .text
-                      -trans "Flow"
-                %td.header
-                  .details
-                    .text
-                      -trans "Task Status"
-                %td.header
-                  .details
-                    %div(style="min-width: 152px;")
-                      -trans "Last Modified"
-                %td.header
+        %table
+          %tr
+            %td.header
+              .details
+                .text
+                  -trans "Flow"
+            %td.header
+              .details
+                .text
+                  -trans "Task Status"
+            %td.header
+              .details
+                %div(style="min-width: 152px;")
+                  -trans "Last Modified"
+            %td.header
 
-              %tbody{id:"transfered_flows"}
-                %tr{ic-append-from:"/flow/merging_flows_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#transfered_flows", ic-indicator:"#indicator"}
+          %tbody{id:"transfered_flows"}
+            %tr{ic-append-from:"/flow/merging_flows_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#transfered_flows", ic-indicator:"#indicator"}
 
 
   #indicator{style:"display:none"}

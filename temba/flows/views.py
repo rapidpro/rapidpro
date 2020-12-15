@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 import iso8601
 import regex
 import requests
+from django.utils import timezone
 
 from django_redis import get_redis_connection
 from packaging.version import Version
@@ -68,6 +69,7 @@ from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.utils.uuid import uuid4
 from temba.utils.views import BulkActionMixin
+from . import legacy
 
 from .merging import (
     Graph,
@@ -1536,7 +1538,15 @@ class FlowCRUDL(SmartCRUDL):
                 and self.has_org_perm("flows.flow_broadcast")
                 and not flow.is_archived
             ):
-                links.append(dict(title=_("Launch Flow"), style="btn-primary", js_class="launch-rulesflow", href="#"))
+                links.append(
+                    dict(
+                        id="launch-flow",
+                        title=_("Launch Flow"),
+                        style="button-primary",
+                        href=f"{reverse('flows.flow_launch', args=[self.object.pk])}",
+                        modax=_("Launch Flow"),
+                    )
+                )
                 links.append(
                     dict(
                         id="start-flow",
@@ -1633,7 +1643,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_mergeable_flows(self):
             queryset = Flow.objects.filter(org=self.object.org, is_active=True, is_archived=False, is_system=False)
             queryset = queryset.filter(flow_type=self.object.flow_type)
-            queryset = queryset.exclude(version_number__in=Flow.VERSIONS)
+            queryset = queryset.exclude(version_number__in=legacy.VERSIONS)
             queryset = queryset.exclude(uuid=self.object.uuid).order_by("name")
             return queryset
 
@@ -2660,7 +2670,7 @@ class FlowCRUDL(SmartCRUDL):
                 FlowCRUDL.Launch.flow_params_values = []
 
                 super().__init__(*args, **kwargs)
-                self.fields["omnibox"].set_user(self.user)
+                # self.fields["omnibox"].set_user(self.user)
 
                 for counter, flow_param in enumerate(sorted(self.flow.get_trigger_params())):
                     self.fields[f"flow_param_field_{counter}"] = forms.CharField(
@@ -2809,9 +2819,9 @@ class FlowCRUDL(SmartCRUDL):
 
                 if cleaned_data["launch_type"] == LAUNCH_IMMEDIATELY:
                     validate_flow_params()
-                    validate_omnibox()
-                elif cleaned_data["launch_type"] == LAUNCH_ON_SHEDULE_TRIGGER:
-                    validate_omnibox()
+                    # validate_omnibox()
+                # elif cleaned_data["launch_type"] == LAUNCH_ON_SHEDULE_TRIGGER:
+                #     validate_omnibox()
                 elif cleaned_data["launch_type"] == LAUNCH_ON_KEYWORD_TRIGGER:
                     validate_keyword_triggers()
 
@@ -2861,7 +2871,6 @@ class FlowCRUDL(SmartCRUDL):
                 (
                     "launch_type",
                     "start_type",
-                    "omnibox",
                     "contact_query",
                     "restart_participants",
                     "include_active",
@@ -2883,7 +2892,7 @@ class FlowCRUDL(SmartCRUDL):
             warnings = []
 
             # if we have a whatsapp channel
-            whatsapp_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=WHATSAPP_SCHEME)
+            whatsapp_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
             if whatsapp_channel:
                 # check to see we are using templates
                 templates = flow.get_dependencies_metadata("template")
