@@ -1343,6 +1343,21 @@ class OrgCRUDL(SmartCRUDL):
         title = "Logins"
         fields = ("surveyor_password",)
 
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            org = self.get_object()
+            role_summary = []
+            for role in OrgRole:
+                num_users = org.get_users_with_role(role).count()
+                if num_users == 1:
+                    role_summary.append(f"1 {role.display}")
+                elif num_users > 1:
+                    role_summary.append(f"{num_users} {role.display_plural}")
+
+            context["role_summary"] = role_summary
+            return context
+
     class ManageAccounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class AccountsForm(forms.ModelForm):
             invite_emails = forms.CharField(

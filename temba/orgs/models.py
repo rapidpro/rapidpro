@@ -65,15 +65,16 @@ ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
 
 
 class OrgRole(Enum):
-    ADMINISTRATOR = ("A", _("Administrator"), "Administrators", "administrators", "org_admins")
-    EDITOR = ("E", _("Editor"), "Editors", "editors", "org_editors")
-    VIEWER = ("V", _("Viewer"), "Viewers", "viewers", "org_viewers")
-    AGENT = ("T", _("Agent"), "Agents", "agents", "org_agents")
-    SURVEYOR = ("S", _("Surveyor"), "Surveyors", "surveyors", "org_surveyors")
+    ADMINISTRATOR = ("A", _("Administrator"), _("Administrators"), "Administrators", "administrators", "org_admins")
+    EDITOR = ("E", _("Editor"), _("Editors"), "Editors", "editors", "org_editors")
+    VIEWER = ("V", _("Viewer"), _("Viewers"), "Viewers", "viewers", "org_viewers")
+    AGENT = ("T", _("Agent"), _("Agents"), "Agents", "agents", "org_agents")
+    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors", "surveyors", "org_surveyors")
 
-    def __init__(self, code: str, display: str, group_name: str, m2m_name: str, rel_name: str):
+    def __init__(self, code: str, display: str, display_plural: str, group_name: str, m2m_name: str, rel_name: str):
         self.code = code
         self.display = display
+        self.display_plural = display_plural
         self.group_name = group_name
         self.m2m_name = m2m_name
         self.rel_name = rel_name
