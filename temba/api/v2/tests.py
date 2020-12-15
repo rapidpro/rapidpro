@@ -44,7 +44,7 @@ from temba.utils import json
 from . import fields
 from .serializers import format_datetime, normalize_extra
 
-NUM_BASE_REQUEST_QUERIES = 7  # number of db queries required for any API request
+NUM_BASE_REQUEST_QUERIES = 6  # number of db queries required for any API request
 
 
 class APITest(TembaTest):

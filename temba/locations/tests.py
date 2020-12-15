@@ -107,7 +107,7 @@ class LocationTest(TembaTest):
         )
 
         # update our alias for kigali
-        with self.assertNumQueries(17):
+        with self.assertNumQueries(16):
             response = self.client.post(
                 reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]),
                 json.dumps(dict(osm_id=self.state1.osm_id, aliases="kigs\nkig")),
@@ -117,7 +117,7 @@ class LocationTest(TembaTest):
         self.assertEqual(200, response.status_code)
 
         # fetch our aliases again
-        with self.assertNumQueries(21):
+        with self.assertNumQueries(20):
             response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
         response_json = response.json()
 
@@ -133,7 +133,7 @@ class LocationTest(TembaTest):
         self.assertEqual("Kigali City", search_result.json()[0]["name"])
 
         # update our alias for kigali with duplicates
-        with self.assertNumQueries(17):
+        with self.assertNumQueries(16):
             response = self.client.post(
                 reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]),
                 json.dumps(dict(osm_id=self.state1.osm_id, aliases="kigs\nkig\nkig\nkigs\nkig")),
@@ -147,7 +147,7 @@ class LocationTest(TembaTest):
         )
 
         # fetch our aliases again
-        with self.assertNumQueries(21):
+        with self.assertNumQueries(20):
             response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
         response_json = response.json()
 
@@ -187,7 +187,7 @@ class LocationTest(TembaTest):
         )
 
         # fetch our aliases again
-        with self.assertNumQueries(21):
+        with self.assertNumQueries(20):
             response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
         response_json = response.json()
 
