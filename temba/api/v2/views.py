@@ -208,6 +208,7 @@ class RootView(views.APIView):
                 "contacts": reverse("api.v2.contacts", request=request),
                 "contact_actions": reverse("api.v2.contact_actions", request=request),
                 "database": reverse("api.v2.parse_database", request=request),
+                "database_records": reverse("api.v2.parse_database_records", request=request),
                 "definitions": reverse("api.v2.definitions", request=request),
                 "fields": reverse("api.v2.fields", request=request),
                 "flow_starts": reverse("api.v2.flow_starts", request=request),
@@ -232,7 +233,7 @@ class ExplorerView(SmartTemplateView):
     Explorer view which lets users experiment with endpoints against their own data
     """
 
-    template_name = "api/v2/api_explorer.html"
+    template_name = "api/v2/api_explorer.haml"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -257,6 +258,10 @@ class ExplorerView(SmartTemplateView):
             ParseDatabaseEndpoint.get_write_explorer(),
             ParseDatabaseEndpoint.get_put_explorer(),
             ParseDatabaseEndpoint.get_delete_explorer(),
+            ParseDatabaseRecordsEndpoint.get_read_explorer(),
+            ParseDatabaseRecordsEndpoint.get_write_explorer(),
+            ParseDatabaseRecordsEndpoint.get_put_explorer(),
+            ParseDatabaseRecordsEndpoint.get_delete_explorer(),
             DefinitionsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_write_explorer(),
@@ -3710,9 +3715,7 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
             title="Create new Lookups Collection",
             url=reverse("api.v2.parse_database"),
             slug="lookup-database-create",
-            fields=[
-                dict(name="collection_name", required=True, help="The name of lookups database"),
-            ],
+            fields=[dict(name="collection_name", required=True, help="The name of lookups database")],
             example=dict(body='{"collection_name": "New lookups name"}'),
         )
 
@@ -3723,9 +3726,7 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
             "title": "Delete Lookups Collection",
             "url": reverse("api.v2.parse_database"),
             "slug": "lookup-database-delete",
-            "fields": [
-                {"name": "collection_name", "required": True, "help": "The name of lookups database"}
-            ],
+            "fields": [{"name": "collection_name", "required": True, "help": "The name of lookups database"}],
             "example": dict(body='{"collection_name": "New lookups name"}'),
         }
 
@@ -3742,25 +3743,14 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
                 dict(name="items", required=True, help="The rows to be pushed"),
             ],
             example=dict(
-                body=''
-                     '{\n'
-                     '    "collection_name": "New lookups name",\n'
-                     '    "fields": {\n'
-                     '        "name": {"type": "String"},\n'
-                     '        "age": {"type": "Number"}\n'
-                     '    },\n'
-                     '    "items": [\n'
-                     '        {\n'
-                     '            "name": "Test Name",\n'
-                     '            "age": 50\n'
-                     '        },\n'
-                     '        {\n'
-                     '            "name": "Test Name 2",\n'
-                     '            "age": 20\n'
-                     '        }\n'
-                     '    ]\n'
-                     '}'
-            )
+                body=json.dumps(
+                    {
+                        "collection_name": "New lookups name",
+                        "fields": {"name": {"type": "String"}, "age": {"type": "Number"}},
+                        "items": [{"name": "Test Name", "age": 50}, {"name": "Test Name 2", "age": 20}],
+                    }
+                )
+            ),
         )
 
     @staticmethod
@@ -3772,19 +3762,19 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
         collection_full_name = collection_full_name.replace("-", "")
         return collection_full_name
 
-    def get_default_params(self, config=""):
+    def get_default_params(self, is_new_collection=False, is_collection_exists=False):
         org = self.request.user.get_org()
         if not org:
             return None, None, None, Response(status=status.HTTP_403_FORBIDDEN)
 
-        collection_name = self.request.data.get("collection_name")
+        collection_name = self.request.data.get("collection_name", self.request.query_params.get("collection_name"))
         collections_list = org.get_collections(collection_type=LOOKUPS)
 
-        if "new_collection" == config and (not collection_name or collection_name in collections_list):
+        if is_new_collection and (not collection_name or collection_name in collections_list):
             return None, None, None, Response(status=status.HTTP_400_BAD_REQUEST)
-        elif "collection_exist" == config and not collection_name:
+        elif is_collection_exists and not collection_name:
             return None, None, None, Response(status=status.HTTP_400_BAD_REQUEST)
-        elif "collection_exist" == config and collection_name not in collections_list:
+        elif is_collection_exists and collection_name not in collections_list:
             return None, None, None, Response(status=status.HTTP_404_NOT_FOUND)
 
         return org, collection_name, collections_list, None
@@ -3796,7 +3786,7 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
         return Response({"results": collections_list}, status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
-        org, collection_name, collections_list, error_response = self.get_default_params(config="new_collection")
+        org, collection_name, collections_list, error_response = self.get_default_params(is_new_collection=True)
         if error_response:
             return error_response
 
@@ -3827,7 +3817,7 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
         return Response(status=status.HTTP_201_CREATED)
 
     def delete(self, request, *args, **kwargs):
-        org, collection_name, collections_list, error_response = self.get_default_params(config="collection_exist")
+        org, collection_name, collections_list, error_response = self.get_default_params(is_collection_exists=True)
         if error_response:
             return error_response
 
@@ -3853,7 +3843,7 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
             return Response(response_purge.json(), status=response_purge.status_code)
 
     def put(self, request, *args, **kwargs):
-        org, collection_name, collections_list, error_response = self.get_default_params(config="collection_exist")
+        org, collection_name, collections_list, error_response = self.get_default_params(is_collection_exists=True)
         if error_response:
             return error_response
 
@@ -4025,10 +4015,74 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
         Response status of success deletion would be `204`
     """
 
+    @classmethod
+    def get_read_explorer(cls):
+        return dict(
+            method="GET",
+            title="List of Items in Lookups Collection",
+            url=reverse("api.v2.parse_database_records"),
+            slug="lookup-database-records-read",
+            params=[dict(name="collection_name", required=True, help="The name of lookups database")],
+            example=dict(query="collection_name=New lookups name"),
+        )
+
+    @classmethod
+    def get_write_explorer(cls):
+        return dict(
+            method="POST",
+            title="Append items into Lookups Collection",
+            url=reverse("api.v2.parse_database_records"),
+            slug="lookup-database-records-create",
+            fields=[
+                dict(name="collection_name", required=True, help="The name of lookups database"),
+                dict(name="items", required=True, help="List of items to insert"),
+            ],
+            example=dict(
+                body=json.dumps({"collection_name": "New lookups name", "items": [{"name": "Gandalf", "age": 500}]})
+            ),
+        )
+
+    @classmethod
+    def get_delete_explorer(cls):
+        return dict(
+            method="DELETE",
+            title="Append item from Lookups Collection",
+            url=reverse("api.v2.parse_database_records"),
+            slug="lookup-database-records-delete",
+            fields=[
+                {"name": "collection_name", "required": True, "help": "The name of lookups database"},
+                {"name": "objectId", "required": True, "help": "Identifier of row to be deleted"},
+            ],
+            example=dict(body='{"collection_name": "New lookups name", "objectId": "FrFZregCZ3"}'),
+        )
+
+    @classmethod
+    def get_put_explorer(cls):
+        return dict(
+            method="PUT",
+            title="Update item in Lookups Collection",
+            url=reverse("api.v2.parse_database_records"),
+            slug="lookup-database-records-put",
+            fields=[
+                dict(name="collection_name", required=True, help="The name of lookups database"),
+                dict(name="objectId", required=True, help="Identifier of row to be replaced"),
+                dict(name="item", required=True, help="Data to replace existing row"),
+            ],
+            example=dict(
+                body=json.dumps(
+                    {
+                        "collection_name": "New lookups name",
+                        "objectId": "Nvbc5iNvtP",
+                        "item": {"name": "Gandalf the Gray"},
+                    }
+                )
+            ),
+        )
+
     permission = "orgs.org_lookups"
 
     def list(self, request, *args, **kwargs):
-        org, collection_name, collections_list, error_response = self.get_default_params(config="collection_exist")
+        org, collection_name, collections_list, error_response = self.get_default_params(is_collection_exists=True)
         if error_response:
             return error_response
 
@@ -4045,7 +4099,7 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
         return Response(result, status=status.HTTP_200_OK)
 
     def post(self, request, *args, **kwargs):
-        org, collection_name, collections_list, error_response = self.get_default_params(config="collection_exist")
+        org, collection_name, collections_list, error_response = self.get_default_params(is_collection_exists=True)
         if error_response:
             return error_response
 
@@ -4073,7 +4127,7 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
         )
 
     def delete(self, request, *args, **kwargs):
-        org, collection_name, collections_list, error_response = self.get_default_params(config="collection_exist")
+        org, collection_name, collections_list, error_response = self.get_default_params(is_collection_exists=True)
         if error_response:
             return error_response
 
@@ -4088,7 +4142,7 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
         return Response(status=(status.HTTP_204_NO_CONTENT if response.status_code == 200 else response.status_code))
 
     def put(self, request, *args, **kwargs):
-        org, collection_name, collections_list, error_response = self.get_default_params(config="collection_exist")
+        org, collection_name, collections_list, error_response = self.get_default_params(is_collection_exists=True)
         if error_response:
             return error_response
 
