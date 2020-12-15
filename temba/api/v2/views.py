@@ -1,7 +1,6 @@
 import itertools
 import json
 
-
 import regex
 import requests
 from enum import Enum
@@ -208,6 +207,7 @@ class RootView(views.APIView):
                 "classifiers": reverse("api.v2.classifiers", request=request),
                 "contacts": reverse("api.v2.contacts", request=request),
                 "contact_actions": reverse("api.v2.contact_actions", request=request),
+                "database": reverse("api.v2.parse_database", request=request),
                 "definitions": reverse("api.v2.definitions", request=request),
                 "fields": reverse("api.v2.fields", request=request),
                 "flow_starts": reverse("api.v2.flow_starts", request=request),
@@ -253,6 +253,10 @@ class ExplorerView(SmartTemplateView):
             ContactsEndpoint.get_write_explorer(),
             ContactsEndpoint.get_delete_explorer(),
             ContactActionsEndpoint.get_write_explorer(),
+            ParseDatabaseEndpoint.get_read_explorer(),
+            ParseDatabaseEndpoint.get_write_explorer(),
+            ParseDatabaseEndpoint.get_put_explorer(),
+            ParseDatabaseEndpoint.get_delete_explorer(),
             DefinitionsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_write_explorer(),
@@ -3689,6 +3693,75 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
         "X-Parse-Master-Key": settings.PARSE_MASTER_KEY,
         "Content-Type": "application/json",
     }
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "List of Lookup Collections",
+            "url": reverse("api.v2.parse_database"),
+            "slug": "lookup-database-read",
+        }
+
+    @classmethod
+    def get_write_explorer(cls):
+        return dict(
+            method="POST",
+            title="Create new Lookups Collection",
+            url=reverse("api.v2.parse_database"),
+            slug="lookup-database-create",
+            fields=[
+                dict(name="collection_name", required=True, help="The name of lookups database"),
+            ],
+            example=dict(body='{"collection_name": "New lookups name"}'),
+        )
+
+    @classmethod
+    def get_delete_explorer(cls):
+        return {
+            "method": "DELETE",
+            "title": "Delete Lookups Collection",
+            "url": reverse("api.v2.parse_database"),
+            "slug": "lookup-database-delete",
+            "fields": [
+                {"name": "collection_name", "required": True, "help": "The name of lookups database"}
+            ],
+            "example": dict(body='{"collection_name": "New lookups name"}'),
+        }
+
+    @classmethod
+    def get_put_explorer(cls):
+        return dict(
+            method="PUT",
+            title="Replace Lookups Collection Data",
+            url=reverse("api.v2.parse_database"),
+            slug="lookup-database-put",
+            fields=[
+                dict(name="collection_name", required=True, help="The name of lookups database"),
+                dict(name="fields", required=True, help="The columns to be created"),
+                dict(name="items", required=True, help="The rows to be pushed"),
+            ],
+            example=dict(
+                body=''
+                     '{\n'
+                     '    "collection_name": "New lookups name",\n'
+                     '    "fields": {\n'
+                     '        "name": {"type": "String"},\n'
+                     '        "age": {"type": "Number"}\n'
+                     '    },\n'
+                     '    "items": [\n'
+                     '        {\n'
+                     '            "name": "Test Name",\n'
+                     '            "age": 50\n'
+                     '        },\n'
+                     '        {\n'
+                     '            "name": "Test Name 2",\n'
+                     '            "age": 20\n'
+                     '        }\n'
+                     '    ]\n'
+                     '}'
+            )
+        )
 
     @staticmethod
     def get_collection_full_name(org, collection, collection_type=LOOKUPS.lower()):
