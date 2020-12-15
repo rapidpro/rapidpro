@@ -97,14 +97,18 @@ class FlowTest(TembaTest):
 
     @patch("temba.mailroom.queue_interrupt")
     def test_release(self, mock_queue_interrupt):
+        global1 = Global.get_or_create(self.org, self.admin, "api_key", "API Key", "234325")
         flow = self.get_flow("color")
+        flow.global_dependencies.add(global1)
+
         flow.release()
 
         mock_queue_interrupt.assert_called_once_with(self.org, flow=flow)
 
         flow.refresh_from_db()
-        self.assertEqual(flow.is_archived, False)
-        self.assertEqual(flow.is_active, False)
+        self.assertFalse(flow.is_archived)
+        self.assertFalse(flow.is_active)
+        self.assertEqual(0, flow.global_dependencies.count())
 
     def test_get_definition(self):
         favorites = self.get_flow("favorites_v13")
