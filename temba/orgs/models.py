@@ -1134,7 +1134,10 @@ class Org(SmartModel):
         """
         Adds the given user to this org with the given role
         """
-        self.remove_user(user)  # remove from any existing roles
+
+        # remove user from any existing roles
+        if self.has_user(user):
+            self.remove_user(user)
 
         getattr(self, role.m2m_name).add(user)
 
@@ -2269,6 +2272,25 @@ class Invitation(SmartModel):
     def create(cls, org, user, email, role: OrgRole):
         return cls.objects.create(org=org, email=email, user_group=role.code, created_by=user, modified_by=user)
 
+    @classmethod
+    def bulk_create_or_update(cls, org, user, emails: list, role: OrgRole):
+        for email in emails:
+            # if they already have an invite, update it
+            invites = org.invitations.filter(email=email).order_by("-id")
+            invitation = invites.first()
+
+            if invitation:
+                invites.exclude(id=invitation.id).delete()  # remove any old invites
+
+                invitation.user_group = role.code
+                invitation.secret = random_string(64)  # generate new secret for this invitation
+                invitation.is_active = True
+                invitation.save(update_fields=("user_group", "secret", "is_active"))
+            else:
+                invitation = cls.create(org, user, email, role)
+
+            invitation.send()
+
     def save(self, *args, **kwargs):
         if not self.secret:
             secret = random_string(64)
@@ -2284,7 +2306,10 @@ class Invitation(SmartModel):
     def role(self):
         return OrgRole.from_code(self.user_group)
 
-    def send_invitation(self):
+    def send(self):
+        """
+        Sends this invitation as an email to the user
+        """
         from .tasks import send_invitation_email_task
 
         send_invitation_email_task(self.id)

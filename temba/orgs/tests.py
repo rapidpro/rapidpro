@@ -1347,7 +1347,7 @@ class OrgTest(TembaTest):
             )
 
         editor_invitation = create_invite("E")
-        editor_invitation.send_invitation()
+        editor_invitation.send()
         email_args = mock_send_temba_email.call_args[0]  # all positional args
 
         self.assertEqual(email_args[0], "RapidPro Invitation")

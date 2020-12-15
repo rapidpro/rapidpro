@@ -13,6 +13,9 @@
 -block extra-style
   {{block.super}}
   :css
+    .role .control-group {
+      margin-bottom: 0;
+    }
     temba-checkbox {
       --fa-icon-fill-color: #999;
     }
@@ -32,14 +35,14 @@
     %tbody
       -for row in form.user_rows
         %tr
-          %td
+          %td.login-user
             {{ row.user.email }}
             -if row.user.first_name or row.user.last_name
               ({{ row.user.first_name }} {{ row.user.last_name }})
-          %td.w-48
+          %td.role(style="padding-top:6px")
             {% render_field row.role_field %}
           %td
-            .m-auto(style="width:24px")
+            .m-auto.mt-4(style="width:24px")
               {% render_field row.remove_field %}
 
       // pending invites
@@ -52,10 +55,10 @@
         %tr
           %td.opacity-50
             {{ row.invite.email }} (Invite Sent)
-          %td.opacity-50.w-48
+          %td.role.w-48.opacity-50(style="padding-top:6px")
             {% render_field row.role_field %}
           %td
-            .text-center
+            .m-auto.mt-4(style="width:24px")
               {% render_field row.remove_field %}
 
   .card

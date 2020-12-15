@@ -65,7 +65,6 @@ from temba.utils.fields import (
     SelectWidget,
 )
 from temba.utils.http import http_headers
-from temba.utils.text import random_string
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import ComponentFormMixin, NonAtomicMixin
 
@@ -1496,7 +1495,7 @@ class OrgCRUDL(SmartCRUDL):
             invite_emails = cleaned_data["invite_emails"]
             if invite_emails:
                 invite_role = OrgRole.from_code(cleaned_data["invite_role"])
-                self.create_or_update_invitations(org, invite_emails.split(","), invite_role)
+                Invitation.bulk_create_or_update(org, self.request.user, invite_emails.split(","), invite_role)
 
             # update org users with new roles
             for user, new_role in self.form.get_submitted_roles().items():
@@ -1511,24 +1510,6 @@ class OrgCRUDL(SmartCRUDL):
                     token.release()
 
             return obj
-
-        def create_or_update_invitations(self, org, emails: list, role: OrgRole):
-            for email in emails:
-                # if they already have an invite, update it
-                invites = org.invitations.filter(email=email).order_by("-id")
-                invitation = invites.first()
-
-                if invitation:
-                    invites.exclude(id=invitation.id).delete()  # remove any old invites
-
-                    invitation.user_group = role.code
-                    invitation.secret = random_string(64)  # generate new secret for this invitation
-                    invitation.is_active = True
-                    invitation.save(update_fields=("user_group", "secret", "is_active"))
-                else:
-                    invitation = Invitation.create(org, self.request.user, email, role)
-
-                invitation.send_invitation()
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
