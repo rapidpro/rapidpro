@@ -71,7 +71,7 @@ class Global(SmartModel):
         if hasattr(self, "usage_count"):
             return self.usage_count
 
-        return self.dependent_flows.count()
+        return self.dependent_flows.filter(is_active=True).count()
 
     def release(self):
         self.delete()
