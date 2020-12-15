@@ -26,7 +26,8 @@
         %th
           -trans "Role"
         %th
-          -trans "Remove"
+          .text-center
+            -trans "Remove"
 
     %tbody
       -for row in form.user_rows
@@ -38,7 +39,8 @@
           %td.w-48
             {% render_field row.role_field %}
           %td
-            {% render_field row.remove_field %}
+            .m-auto(style="width:24px")
+              {% render_field row.remove_field %}
 
       // pending invites
       -if has_invites
@@ -53,7 +55,8 @@
           %td.opacity-50.w-48
             {% render_field row.role_field %}
           %td
-            {% render_field row.remove_field %}
+            .text-center
+              {% render_field row.remove_field %}
 
   .card
     .title.mb-0.pb-0

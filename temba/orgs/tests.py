@@ -1103,10 +1103,32 @@ class OrgTest(TembaTest):
     def test_manage_accounts(self):
         url = reverse("orgs.org_manage_accounts")
 
+        # can't access as editor
+        self.login(self.editor)
+        response = self.client.get(url)
+        self.assertLoginRedirect(response)
+
+        # can access as admin
         self.login(self.admin)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        # because we don't have internal ticketing, don't yet see agent role
+        self.assertEqual(
+            [("A", "Administrator"), ("E", "Editor"), ("V", "Viewer"), ("S", "Surveyor")],
+            response.context["form"].fields["invite_role"].choices,
+        )
+
+        # add internal ticketer so that agent role appears
+        Ticketer.create(self.org, self.admin, "internal", "Internal", config={})
 
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(
+            [("A", "Administrator"), ("E", "Editor"), ("V", "Viewer"), ("T", "Agent"), ("S", "Surveyor")],
+            response.context["form"].fields["invite_role"].choices,
+        )
 
         # give users an API token and give admin and editor an additional surveyor-role token
         APIToken.get_or_create(self.org, self.admin)

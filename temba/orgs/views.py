@@ -1349,25 +1349,27 @@ class OrgCRUDL(SmartCRUDL):
                 required=False, widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email Address")}),
             )
             invite_role = forms.ChoiceField(
-                choices=[(r.code, r.display) for r in OrgRole],
-                required=True,
-                initial="V",
-                label=_("Role"),
-                widget=SelectWidget(),
+                choices=[], required=True, initial="V", label=_("Role"), widget=SelectWidget(),
             )
 
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
+                # orgs see agent role choice if they have an internal ticketing enabled
+                has_internal = org.has_internal_ticketing()
+                role_choices = [(r.code, r.display) for r in OrgRole if r != OrgRole.AGENT or has_internal]
+
+                self.fields["invite_role"].choices = role_choices
+
                 self.user_rows = []
                 self.invite_rows = []
-                self.add_per_user_fields(org)
+                self.add_per_user_fields(org, role_choices)
                 self.add_per_invite_fields(org)
 
-            def add_per_user_fields(self, org):
+            def add_per_user_fields(self, org: Org, role_choices: list):
                 for user in org.get_users():
                     role_field = forms.ChoiceField(
-                        choices=[(r.code, r.display) for r in OrgRole],
+                        choices=role_choices,
                         required=True,
                         initial=org.get_user_role(user).code,
                         label=" ",
@@ -1384,7 +1386,7 @@ class OrgCRUDL(SmartCRUDL):
                         {"user": user, "role_field": f"user_{user.id}_role", "remove_field": f"user_{user.id}_remove"}
                     )
 
-            def add_per_invite_fields(self, org):
+            def add_per_invite_fields(self, org: Org):
                 for invite in org.invitations.order_by("email"):
                     role_field = forms.ChoiceField(
                         choices=[(r.code, r.display) for r in OrgRole],

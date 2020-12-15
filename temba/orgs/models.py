@@ -1172,6 +1172,11 @@ class Org(SmartModel):
 
         return user._org_group
 
+    def has_internal_ticketing(self):
+        from temba.tickets.types.internal import InternalType
+
+        return self.ticketers.filter(ticketer_type=InternalType.slug).exists()
+
     def has_twilio_number(self):  # pragma: needs cover
         return self.channels.filter(channel_type="T")
 
