@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-16 13:36+0000\n"
+"POT-Creation-Date: 2020-12-16 14:18+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4228,21 +4228,6 @@ msgstr "Desculpe, mas não fomos capazes de cobrar em seu cartão, por favor, te
 msgid "Org"
 msgstr "Organização"
 
-msgid "The organization to which the account is invited to view"
-msgstr "Organização para a qual a conta foi convidada a visualizar"
-
-msgid "Email"
-msgstr "E-mail"
-
-msgid "The email to which we send the invitation of the viewer"
-msgstr "e-mail para o qual foi enviado o convite do visualizador"
-
-msgid "a unique code associated with this invitation"
-msgstr "um código único associado com este convite"
-
-msgid "User Role"
-msgstr "Função do Usuário"
-
 #, python-format
 msgid "%(name)s Invitation"
 msgstr ""
@@ -4447,6 +4432,9 @@ msgstr "POST obrigatório"
 msgid "Last Name"
 msgstr "Primeiro nome"
 
+msgid "Email"
+msgstr "E-mail"
+
 #, fuzzy
 #| msgid "Current Password (required)"
 msgid "Current Password"
@@ -4620,6 +4608,16 @@ msgstr ""
 
 msgid "One of the emails you entered is invalid."
 msgstr "Um dos e-mails que você digitou é inválido."
+
+#, fuzzy
+#| msgid "You must have at least one administator"
+msgid "A workspace must have at least one administrator."
+msgstr "Você deve ter pelo menos um administator"
+
+#, fuzzy
+#| msgid "Manage %(name)s Accounts"
+msgid "Manage Logins"
+msgstr "Gerenciar contas de %(name)s"
 
 msgid "Enter the code from your authentication application"
 msgstr ""
@@ -8621,11 +8619,6 @@ msgstr ""
 msgid "Your workspace can have logins with various roles. You can use the Manage Logins page to view all existing logins or to add new logins to your workspace."
 msgstr ""
 
-#, fuzzy
-#| msgid "Manage %(name)s Accounts"
-msgid "Manage Logins"
-msgstr "Gerenciar contas de %(name)s"
-
 #, python-format
 msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join your workspace as a surveyor."
 msgstr ""
@@ -8889,17 +8882,8 @@ msgstr ""
 msgid "Your workspace is configured to use a single language."
 msgstr ""
 
-msgid "Logins"
-msgstr ""
-
-msgid "Admins"
-msgstr "Administradores"
-
 msgid "Remove"
 msgstr "Remover"
-
-msgid "You must have at least one administator"
-msgstr "Você deve ter pelo menos um administator"
 
 #, fuzzy
 #| msgid "Email notifications"
@@ -9950,6 +9934,21 @@ msgstr ""
 #~ msgid_plural "%(accounts)s Administrators,"
 #~ msgstr[0] "Nenhum administrador"
 #~ msgstr[1] "Nenhum administrador"
+
+#~ msgid "The organization to which the account is invited to view"
+#~ msgstr "Organização para a qual a conta foi convidada a visualizar"
+
+#~ msgid "The email to which we send the invitation of the viewer"
+#~ msgstr "e-mail para o qual foi enviado o convite do visualizador"
+
+#~ msgid "a unique code associated with this invitation"
+#~ msgstr "um código único associado com este convite"
+
+#~ msgid "User Role"
+#~ msgstr "Função do Usuário"
+
+#~ msgid "Admins"
+#~ msgstr "Administradores"
 
 #~ msgid "The administrators in your organization"
 #~ msgstr "Os administradores da sua organização"

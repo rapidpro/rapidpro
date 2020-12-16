@@ -1135,6 +1135,11 @@ class Org(SmartModel):
         """
         Adds the given user to this org with the given role
         """
+
+        # remove user from any existing roles
+        if self.has_user(user):
+            self.remove_user(user)
+
         getattr(self, role.m2m_name).add(user)
 
     def remove_user(self, user: User):
@@ -1170,6 +1175,11 @@ class Org(SmartModel):
         user._org_group = role.group if role else None
 
         return user._org_group
+
+    def has_internal_ticketing(self):
+        from temba.tickets.types.internal import InternalType
+
+        return self.ticketers.filter(ticketer_type=InternalType.slug).exists()
 
     def has_twilio_number(self):  # pragma: needs cover
         return self.channels.filter(channel_type="T")
@@ -2185,8 +2195,6 @@ User.get_org_group = get_org_group
 User.get_owned_orgs = get_owned_orgs
 User.has_org_perm = _user_has_org_perm
 
-USER_GROUPS = (("A", _("Administrator")), ("E", _("Editor")), ("V", _("Viewer")), ("S", _("Surveyor")))
-
 
 def get_stripe_credentials():
     public_key = os.environ.get(
@@ -2251,30 +2259,38 @@ class Invitation(SmartModel):
     An Invitation to an e-mail address to join an Org with specific roles.
     """
 
-    org = models.ForeignKey(
-        Org,
-        on_delete=models.PROTECT,
-        verbose_name=_("Org"),
-        related_name="invitations",
-        help_text=_("The organization to which the account is invited to view"),
-    )
+    ROLE_CHOICES = [(r.code, r.display) for r in OrgRole]
 
-    email = models.EmailField(
-        verbose_name=_("Email"), help_text=_("The email to which we send the invitation of the viewer")
-    )
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="invitations")
 
-    secret = models.CharField(
-        verbose_name=_("Secret"),
-        max_length=64,
-        unique=True,
-        help_text=_("a unique code associated with this invitation"),
-    )
+    email = models.EmailField()
 
-    user_group = models.CharField(max_length=1, choices=USER_GROUPS, default="V", verbose_name=_("User Role"))
+    secret = models.CharField(max_length=64, unique=True)
+
+    user_group = models.CharField(max_length=1, choices=ROLE_CHOICES, default=OrgRole.VIEWER.code)
 
     @classmethod
-    def create(cls, org, user, email, user_group):
-        return cls.objects.create(org=org, email=email, user_group=user_group, created_by=user, modified_by=user)
+    def create(cls, org, user, email, role: OrgRole):
+        return cls.objects.create(org=org, email=email, user_group=role.code, created_by=user, modified_by=user)
+
+    @classmethod
+    def bulk_create_or_update(cls, org, user, emails: list, role: OrgRole):
+        for email in emails:
+            # if they already have an invite, update it
+            invites = org.invitations.filter(email=email).order_by("-id")
+            invitation = invites.first()
+
+            if invitation:
+                invites.exclude(id=invitation.id).delete()  # remove any old invites
+
+                invitation.user_group = role.code
+                invitation.secret = random_string(64)  # generate new secret for this invitation
+                invitation.is_active = True
+                invitation.save(update_fields=("user_group", "secret", "is_active"))
+            else:
+                invitation = cls.create(org, user, email, role)
+
+            invitation.send()
 
     def save(self, *args, **kwargs):
         if not self.secret:
@@ -2287,7 +2303,14 @@ class Invitation(SmartModel):
 
         return super().save(*args, **kwargs)
 
-    def send_invitation(self):
+    @property
+    def role(self):
+        return OrgRole.from_code(self.user_group)
+
+    def send(self):
+        """
+        Sends this invitation as an email to the user
+        """
         from .tasks import send_invitation_email_task
 
         send_invitation_email_task(self.id)

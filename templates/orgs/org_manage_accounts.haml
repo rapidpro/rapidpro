@@ -6,91 +6,60 @@
     {{org.name}}
   -else
     {{user_org.name|capfirst}}
+
 -block subtitle
   -trans "Manage Logins"
 
 -block extra-style
   {{block.super}}
   :css
+    .role .control-group {
+      margin-bottom: 0;
+    }
     temba-checkbox {
       --fa-icon-fill-color: #999;
     }
 
 -block fields
-  %table.list{style:"margin-bottom:0px;"}
+  %table.list.mb-0
     %thead
       %tr
         %th
-          -trans "Logins"
-        %th.permission
-          -trans "Admins"
-        %th.permission
-          -trans "Editors"
-        %th.permission
-          -trans "Viewers"
-        %th.permission
-          -trans "Surveyors"
-        %th.permission
-          -trans "Remove"
+          -trans "Login"
+        %th
+          -trans "Role"
+        %th
+          .text-center
+            -trans "Remove"
 
     %tbody
-      %tr#admin-error.hide
-        %td.alert.alert-error{colspan: 6}
-          -trans "You must have at least one administator"
-      - for user in org_users
+      -for row in form.user_rows
         %tr
+          %td.login-user
+            {{ row.user.email }}
+            -if row.user.first_name or row.user.last_name
+              ({{ row.user.first_name }} {{ row.user.last_name }})
+          %td.role(style="padding-top:6px")
+            {% render_field row.role_field %}
           %td
-            {{user.email}}
-            - if user.first_name or user.last_name
-              ({{user.first_name}} {{ user.last_name}})
-          - with group_fields|get:user as row_fields
-            - for check_name in row_fields
-              %td.check.permission.level-checkbox
-                .m-auto(style="width:24px")
-                  {{form|field:check_name}}
-          %td.check.permission.level-checkbox
-            .m-auto(style="width:24px")
-              %temba-checkbox(name="")
+            .m-auto.mt-4(style="width:24px")
+              {% render_field row.remove_field %}
 
       // pending invites
-      -if invites
+      -if has_invites
         %tr.invites-title
-          %th(colspan=99)
+          %th(colspan=3)
             -trans "Pending Invitations"
 
-      -for invite in invites
-        %tr.invite
+      -for row in form.invite_rows
+        %tr
           %td.opacity-50
-            {{invite.email}} (Invite Sent)
-          %td.permission
-            .flex.justify-center.opacity-25.pointer-events-none
-              -if invite.user_group == "A"
-                %temba-checkbox.pointer-events-none(name="" checked)
-              -else
-                %temba-checkbox.pointer-events-none(name="")
-          %td.permission
-            .flex.justify-center.opacity-25.pointer-events-none
-              -if invite.user_group == "E"
-                %temba-checkbox.pointer-events-none(name="" checked)
-              -else
-                %temba-checkbox.pointer-events-none(name="")
-          %td.permission
-            .flex.justify-center.opacity-25.pointer-events-none
-              -if invite.user_group == "V"
-                %temba-checkbox.pointer-events-none(name="" checked)
-              -else
-                %temba-checkbox.pointer-events-none(name="")
-          %td.permission
-            .flex.justify-center.opacity-25.pointer-events-none
-              -if invite.user_group == "S"
-                %temba-checkbox.pointer-events-none(name="" checked)
-              -else
-                %temba-checkbox.pointer-events-none(name="")
-          - with invites_fields|get:invite as check_name
-            %td.permission.invite-perm.invite-remove.level-checkbox
-              .flex.justify-center
-                {{form|field:check_name}}
-
+            {{ row.invite.email }} (Invite Sent)
+          %td.role.w-48.opacity-50(style="padding-top:6px")
+            {% render_field row.role_field %}
+          %td
+            .m-auto.mt-4(style="width:24px")
+              {% render_field row.remove_field %}
 
   .card
     .title.mb-0.pb-0
@@ -100,40 +69,8 @@
       .pr-4.flex-grow
         {% render_field 'invite_emails' %}
       .group.w-48
-        {% render_field 'invite_group' %}
+        {% render_field 'invite_role' %}
 
 -block form-buttons
   .form-actions.mt-4.ml-2
     %input.button-primary(type="submit" value="{{ submit_button_name }}")
-
-
--block extra-script
-  {{block.super}}
-  :javascript
-    $(function() {
-      // update the checkbox on click
-
-      $("td.check temba-checkbox").on('click', function(){
-        var ipt =  $(this);
-        var cell = $(this).parent().parent("td.check");
-        
-        allCells = cell.parent().children('td.check');
-        allCheckboxes = allCells.find("temba-checkbox");
-        allCheckboxes.prop('checked', false);
-        ipt.prop('checked', true);
-
-        hasAdmin = false;
-        // validate that we always have an admin first
-        // to show error if no admin is remaining
-        $("td.check").parent().find("temba-checkbox[id*='administrators']").each(function() {
-           hasAdmin = hasAdmin || $(this).prop('checked')
-        })
-
-        if (!hasAdmin) {
-          $('#admin-error').show();
-        } else {
-          $('#admin-error').hide();
-        }
-
-      });
-    });
