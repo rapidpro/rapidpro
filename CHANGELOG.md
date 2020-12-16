@@ -1,3 +1,8 @@
+v6.1.9
+----------
+ * Fix deleted flow dependency preventing global deletion
+ * Cache lookups of auth.Group instances
+
 v6.1.8
 ----------
  * For field columns in imports, only match against user fields

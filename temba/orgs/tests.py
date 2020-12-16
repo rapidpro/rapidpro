@@ -1049,10 +1049,7 @@ class OrgTest(TembaTest):
 
         # fetch it as a formax so we can inspect the summary
         response = self.client.get(url, HTTP_X_FORMAX=1, HTTP_X_PJAX=1)
-        self.assertContains(response, "1 Administrator")
-        self.assertContains(response, "2 Editors")
-        self.assertContains(response, "1 Viewer")
-        self.assertContains(response, "0 Surveyors")
+        self.assertContains(response, "1 Administrator, 2 Editors, 1 Viewer, and 1 Agent.")
 
     def test_refresh_tokens(self):
         self.login(self.admin)
