@@ -261,6 +261,10 @@ class Flow(TembaModel):
         flow.update_single_message_flow(user, message, base_language)
         return flow
 
+    @property
+    def engine_type(self):
+        return Flow.GOFLOW_TYPES.get(self.flow_type, "")
+
     @classmethod
     def label_to_slug(cls, label):
         return regex.sub(r"[^a-z0-9]+", "_", label.lower() if label else "", regex.V0)
