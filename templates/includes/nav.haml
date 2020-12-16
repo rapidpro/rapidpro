@@ -146,7 +146,7 @@
   -if org_perms.flows.flow_list and not request.user.is_superuser
     %a{href:"{% url 'flows.flow_list' %}", class:"{% active request '(?<!msg)/flow' %}"}
       .circle
-        .icon-flow.icon-3
+        .icon-nav-flows.icon-3
       .title 
         -trans "flows"
 
@@ -164,12 +164,25 @@
       .title
         -trans "triggers"
 
+  -if org_perms.links.link_list and not request.user.is_superuser
+    %a{href:"{% url 'links.link_list' %}", class:"{% active request 'link' %}"}
+      .circle
+        .icon-nav-hand
+      .title
+        -trans "trackable links"
+
   -if org_perms.tickets.ticket_open and not request.user.is_superuser and user_org and user_org.has_ticketer
     %a{href:"{% url 'tickets.ticket_open' %}", class:"{% active request 'ticket' %}"}
       .circle
         .icon-ticket
       .title
         -trans "tickets"
+
+  %a{href:"https://help.communityconnectlabs.com/support/home", class:"{% active request 'help' %}", target:"_blank"}
+    .circle
+      .icon-help
+    .title
+      -trans "help"
 
   -if org_perms.channels.channel_list or request.user.is_superuser
     -if not has_outgoing_channel and org_perms.channels.channel_claim

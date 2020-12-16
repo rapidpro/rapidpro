@@ -25,7 +25,7 @@
             .button-primary.block(onclick="goto(event)" href="{% url 'contacts.contactimport_create' %}")
               -trans "Import Contacts"
             - if org_perms.contacts.contact_invite_participants
-              %a#id_invite_participants.btn.btn-block{href:"{% url 'contacts.contact_invite_participants' %}"}
+              %a#id_invite_participants.button-light.block{href:"{% url 'contacts.contact_invite_participants' %}"}
                 -trans "Invite Participants"
 
           .lp-nav.upper
