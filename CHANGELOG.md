@@ -1,3 +1,8 @@
+v6.1.10
+----------
+ * Login summary on org home page should include agents
+ * Rework manage accounts UI to include agents
+
 v6.1.9
 ----------
  * Fix deleted flow dependency preventing global deletion
