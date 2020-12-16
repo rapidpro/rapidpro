@@ -3948,7 +3948,7 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
 
         ## Lookup Records Listing
 
-        A `GET` returns the list records for specific collections:
+        A `GET` returns the first 1000 records for specific collections:
 
          * **collection_name** - the name of new collection
 
