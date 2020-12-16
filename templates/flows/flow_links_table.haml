@@ -11,7 +11,7 @@
   >
     %td
       %a{href: '{% url "contacts.contact_read" link.contact.uuid %}'}
-        = link.contact.name
+        = link.contact
     %td
       %a{href: '{% url "links.link_read" link.link.uuid %}'}
         = link.link

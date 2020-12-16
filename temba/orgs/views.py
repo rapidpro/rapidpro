@@ -1794,6 +1794,12 @@ class OrgCRUDL(SmartCRUDL):
             login(self.request, user)
             if self.invitation.user_group == "A":
                 obj.administrators.add(user)
+                nested_orgs = obj.org_set.all()
+                if nested_orgs:
+                    AdministratorModel = Org.administrators.through
+                    AdministratorModel.objects.bulk_create(
+                        [AdministratorModel(org=nested_org, user=self.request.user) for nested_org in nested_orgs]
+                    )
             elif self.invitation.user_group == "E":  # pragma: needs cover
                 obj.editors.add(user)
             elif self.invitation.user_group == "S":
@@ -1878,6 +1884,12 @@ class OrgCRUDL(SmartCRUDL):
             if org:
                 if self.invitation.user_group == "A":
                     org.administrators.add(self.request.user)
+                    nested_orgs = org.org_set.all()
+                    if nested_orgs:
+                        AdministratorModel = Org.administrators.through
+                        AdministratorModel.objects.bulk_create(
+                            [AdministratorModel(org=nested_org, user=self.request.user) for nested_org in nested_orgs]
+                        )
                 elif self.invitation.user_group == "E":
                     org.editors.add(self.request.user)
                 elif self.invitation.user_group == "S":

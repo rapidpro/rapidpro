@@ -3672,6 +3672,7 @@ class ExportFlowResultsTask(BaseExportTask):
             columns.append(extra_urn["label"])
 
         columns.append("Name")
+        columns.append("Groups")
 
         for gr in groups:
             columns.append("Group:%s" % gr.name)
@@ -3911,6 +3912,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 contact_values.append(urn_display)
 
             contact_values.append(self.prepare_value(contact.name))
+            contact_values.append(", ".join(contact.all_groups.values_list("name", flat=True)))
             contact_groups_ids = [g.id for g in contact.all_groups.all()]
             for gr in groups:
                 contact_values.append(gr.id in contact_groups_ids)
@@ -3953,6 +3955,8 @@ class ExportFlowResultsTask(BaseExportTask):
 
             # write out any message associated with this run
             if include_msgs and not self.org.is_anon:
+                if getattr(self, "seen_msgs", None) is None:
+                    setattr(self, "seen_msgs", set())
                 self._write_run_messages(book, run, contact)
 
     def _write_run_messages(self, book, run, contact):
@@ -3971,6 +3975,15 @@ class ExportFlowResultsTask(BaseExportTask):
             msg_text = msg.get("text", "")
             msg_created_on = iso8601.parse_date(event["created_on"])
             msg_channel = msg.get("channel")
+            msg_uuid = msg.get("uuid", None)
+
+            if (msg_uuid is not None) and (msg_uuid in getattr(self, "seen_msgs", [])):
+                continue
+            else:
+                try:
+                    self.seen_msgs.add(msg_uuid)
+                except AttributeError:
+                    self.seen_msgs = {msg_uuid}
 
             if "urn" in msg:
                 msg_urn = URN.format(msg["urn"], formatted=False)
