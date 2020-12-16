@@ -33,6 +33,8 @@ from .views import (
     RunsEndpoint,
     TemplatesEndpoint,
     ValidateUrlAttachmentEndpoint,
+    ParseDatabaseEndpoint,
+    ParseDatabaseRecordsEndpoint,
 )
 
 urlpatterns = [
@@ -50,6 +52,8 @@ urlpatterns = [
     url(r"^classifiers$", ClassifiersEndpoint.as_view(), name="api.v2.classifiers"),
     url(r"^contacts$", ContactsEndpoint.as_view(), name="api.v2.contacts"),
     url(r"^contact_actions$", ContactActionsEndpoint.as_view(), name="api.v2.contact_actions"),
+    url(r"^database$", ParseDatabaseEndpoint.as_view(), name="api.v2.parse_database"),
+    url(r"^database_records$", ParseDatabaseRecordsEndpoint.as_view(), name="api.v2.parse_database_records"),
     url(r"^definitions$", DefinitionsEndpoint.as_view(), name="api.v2.definitions"),
     url(r"^fields$", FieldsEndpoint.as_view(), name="api.v2.fields"),
     url(r"^flow_starts$", FlowStartsEndpoint.as_view(), name="api.v2.flow_starts"),
