@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-10 20:04+0000\n"
+"POT-Creation-Date: 2020-12-16 13:36+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2992,13 +2992,30 @@ msgstr "Connectez-vous"
 msgid "Sign out"
 msgstr "Déconnexion"
 
+msgid "Administrators"
+msgstr "Administrateurs"
+
+msgid "Editors"
+msgstr "Editeurs"
+
 msgid "Viewer"
 msgstr "Spectateur"
+
+msgid "Viewers"
+msgstr "Les spectateurs"
 
 #, fuzzy
 #| msgid "Agent Name"
 msgid "Agent"
 msgstr "Nom d'agent"
+
+#, fuzzy
+#| msgid "Agent Name"
+msgid "Agents"
+msgstr "Nom d'agent"
+
+msgid "Surveyors"
+msgstr "Enquêteur"
 
 msgid "Plan"
 msgstr "Plan"
@@ -6602,36 +6619,15 @@ msgstr "Votre espace de travail peut avoir des connexions avec différents rôle
 msgid "Manage Logins"
 msgstr "Gérer les connexions"
 
-#, python-format
-msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join %(org)s as a surveyor."
+#, fuzzy, python-format
+#| msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join %(org)s as a surveyor."
+msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join your workspace as a surveyor."
 msgstr "Si vous utilisez l'application %(brand)s Surveyor pour exécuter des flux hors ligne, nous vous recommandons d'autoriser les utilisateurs à créer des comptes à partir de l'application Android. La définition d'un mot de passe Surveyor permettra à toute personne disposant de ce mot de passe de rejoindre %(org)s as a surveyor."
 
-msgid "has"
-msgstr "a"
-
-#, python-format
-msgid "%(accounts)s Administrator,"
-msgid_plural "%(accounts)s Administrators,"
-msgstr[0] "%(accounts)s Administrateur,"
-msgstr[1] "%(accounts)s Administrateurs,"
-
-#, python-format
-msgid "%(accounts)s Editor,"
-msgid_plural "%(accounts)s Editors,"
-msgstr[0] "%(accounts)s Editeur,"
-msgstr[1] "%(accounts)s Editeurs,"
-
-#, python-format
-msgid "%(accounts)s Viewer,"
-msgid_plural "%(accounts)s Viewers,"
-msgstr[0] "%(accounts)s Observateur,"
-msgstr[1] "%(accounts)s Observateurs,"
-
-#, python-format
-msgid "%(accounts)s Surveyor."
-msgid_plural "%(accounts)s Surveyors."
-msgstr[0] "%(accounts)s Enquêteurs."
-msgstr[1] "%(accounts)s Enquêteurs."
+#, fuzzy
+#| msgid "workspaces"
+msgid "Your workspace has"
+msgstr "espaces de travail"
 
 msgid "Chatbase Account"
 msgstr "Compte Chatbase"
@@ -6837,15 +6833,6 @@ msgstr "Connexions"
 
 msgid "Admins"
 msgstr "Admins"
-
-msgid "Editors"
-msgstr "Editeurs"
-
-msgid "Viewers"
-msgstr "Les spectateurs"
-
-msgid "Surveyors"
-msgstr "Enquêteur"
 
 msgid "Remove"
 msgstr "Supprimer"
@@ -7772,8 +7759,32 @@ msgstr "Entrez une requête"
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
-#~ msgid "Administrators"
-#~ msgstr "Administrateurs"
+#~ msgid "has"
+#~ msgstr "a"
+
+#, python-format
+#~ msgid "%(accounts)s Administrator,"
+#~ msgid_plural "%(accounts)s Administrators,"
+#~ msgstr[0] "%(accounts)s Administrateur,"
+#~ msgstr[1] "%(accounts)s Administrateurs,"
+
+#, python-format
+#~ msgid "%(accounts)s Editor,"
+#~ msgid_plural "%(accounts)s Editors,"
+#~ msgstr[0] "%(accounts)s Editeur,"
+#~ msgstr[1] "%(accounts)s Editeurs,"
+
+#, python-format
+#~ msgid "%(accounts)s Viewer,"
+#~ msgid_plural "%(accounts)s Viewers,"
+#~ msgstr[0] "%(accounts)s Observateur,"
+#~ msgstr[1] "%(accounts)s Observateurs,"
+
+#, python-format
+#~ msgid "%(accounts)s Surveyor."
+#~ msgid_plural "%(accounts)s Surveyors."
+#~ msgstr[0] "%(accounts)s Enquêteurs."
+#~ msgstr[1] "%(accounts)s Enquêteurs."
 
 #~ msgid "The administrators in your organization"
 #~ msgstr "Les administrateurs de votre entreprise"

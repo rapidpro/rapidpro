@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-10 20:04+0000\n"
+"POT-Creation-Date: 2020-12-16 13:36+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4408,13 +4408,30 @@ msgstr "Registrarse"
 msgid "Sign out"
 msgstr "Registrarse"
 
+msgid "Administrators"
+msgstr "Administradores"
+
+msgid "Editors"
+msgstr "Editores"
+
 msgid "Viewer"
 msgstr "Visitante"
+
+msgid "Viewers"
+msgstr "Visitantes"
 
 #, fuzzy
 #| msgid "Contact Name"
 msgid "Agent"
 msgstr "Nombre del contacto"
+
+#, fuzzy
+#| msgid "Contact Name"
+msgid "Agents"
+msgstr "Nombre del contacto"
+
+msgid "Surveyors"
+msgstr ""
 
 msgid "Plan"
 msgstr "Plan"
@@ -9352,36 +9369,13 @@ msgid "Manage Logins"
 msgstr "Manejar las cuentas de %(name)s "
 
 #, python-format
-msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join %(org)s as a surveyor."
+msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join your workspace as a surveyor."
 msgstr ""
 
-msgid "has"
-msgstr "tiene"
-
-#, fuzzy, python-format
-#| msgid "No Administrator"
-msgid "%(accounts)s Administrator,"
-msgid_plural "%(accounts)s Administrators,"
-msgstr[0] "Sin Administrador"
-msgstr[1] "Sin Administrador"
-
-#, python-format
-msgid "%(accounts)s Editor,"
-msgid_plural "%(accounts)s Editors,"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid "%(accounts)s Viewer,"
-msgid_plural "%(accounts)s Viewers,"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid "%(accounts)s Surveyor."
-msgid_plural "%(accounts)s Surveyors."
-msgstr[0] ""
-msgstr[1] ""
+#, fuzzy
+#| msgid "Select your Organization"
+msgid "Your workspace has"
+msgstr "Elija su Organización"
 
 #, fuzzy
 #| msgid "Create new account"
@@ -9687,15 +9681,6 @@ msgstr ""
 
 msgid "Admins"
 msgstr "Administradores"
-
-msgid "Editors"
-msgstr "Editores"
-
-msgid "Viewers"
-msgstr "Visitantes"
-
-msgid "Surveyors"
-msgstr ""
 
 msgid "Remove"
 msgstr "Retirar"
@@ -10818,8 +10803,15 @@ msgstr "Ingrese el código de pedido"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
-#~ msgid "Administrators"
-#~ msgstr "Administradores"
+#~ msgid "has"
+#~ msgstr "tiene"
+
+#, fuzzy, python-format
+#~| msgid "No Administrator"
+#~ msgid "%(accounts)s Administrator,"
+#~ msgid_plural "%(accounts)s Administrators,"
+#~ msgstr[0] "Sin Administrador"
+#~ msgstr[1] "Sin Administrador"
 
 #~ msgid "The administrators in your organization"
 #~ msgstr "Los administradores en su organización"

@@ -1343,6 +1343,21 @@ class OrgCRUDL(SmartCRUDL):
         title = "Logins"
         fields = ("surveyor_password",)
 
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            org = self.get_object()
+            role_summary = []
+            for role in OrgRole:
+                num_users = org.get_users_with_role(role).count()
+                if num_users == 1:
+                    role_summary.append(f"1 {role.display}")
+                elif num_users > 1:
+                    role_summary.append(f"{num_users} {role.display_plural}")
+
+            context["role_summary"] = role_summary
+            return context
+
     class ManageAccounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class AccountsForm(forms.ModelForm):
             invite_emails = forms.CharField(
@@ -2581,6 +2596,9 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_profile"):
                 formax.add_section("user", reverse("orgs.user_edit"), icon="icon-user", action="redirect")
 
+            if self.has_org_perm("orgs.org_edit"):
+                formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
+
             # only pro orgs get multiple users
             if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user:
                 formax.add_section("accounts", reverse("orgs.org_accounts"), icon="icon-users", action="redirect")
@@ -2593,9 +2611,6 @@ class OrgCRUDL(SmartCRUDL):
                     action="redirect",
                     nobutton=True,
                 )
-
-            if self.has_org_perm("orgs.org_edit"):
-                formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
 
             if self.has_org_perm("orgs.org_languages"):
                 formax.add_section("languages", reverse("orgs.org_languages"), icon="icon-language")

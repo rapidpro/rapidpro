@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-10 20:04+0000\n"
+"POT-Creation-Date: 2020-12-16 13:36+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2980,10 +2980,25 @@ msgstr ""
 msgid "Sign out"
 msgstr ""
 
+msgid "Administrators"
+msgstr ""
+
+msgid "Editors"
+msgstr ""
+
 msgid "Viewer"
 msgstr ""
 
+msgid "Viewers"
+msgstr ""
+
 msgid "Agent"
+msgstr ""
+
+msgid "Agents"
+msgstr ""
+
+msgid "Surveyors"
 msgstr ""
 
 msgid "Plan"
@@ -6291,35 +6306,11 @@ msgid "Manage Logins"
 msgstr ""
 
 #, python-format
-msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join %(org)s as a surveyor."
+msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join your workspace as a surveyor."
 msgstr ""
 
-msgid "has"
+msgid "Your workspace has"
 msgstr ""
-
-#, python-format
-msgid "%(accounts)s Administrator,"
-msgid_plural "%(accounts)s Administrators,"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid "%(accounts)s Editor,"
-msgid_plural "%(accounts)s Editors,"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid "%(accounts)s Viewer,"
-msgid_plural "%(accounts)s Viewers,"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid "%(accounts)s Surveyor."
-msgid_plural "%(accounts)s Surveyors."
-msgstr[0] ""
-msgstr[1] ""
 
 msgid "Chatbase Account"
 msgstr ""
@@ -6518,15 +6509,6 @@ msgid "Logins"
 msgstr ""
 
 msgid "Admins"
-msgstr ""
-
-msgid "Editors"
-msgstr ""
-
-msgid "Viewers"
-msgstr ""
-
-msgid "Surveyors"
 msgstr ""
 
 msgid "Remove"
