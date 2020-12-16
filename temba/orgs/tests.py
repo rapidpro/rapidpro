@@ -1217,6 +1217,10 @@ class OrgTest(TembaTest):
         invitation.is_active = False
         invitation.save()
 
+        # no longer appears in list
+        response = self.client.get(url)
+        self.assertNotContains(response, "norkans7@gmail.com")
+
         # send another invitation, different role
         self.client.post(
             url,
