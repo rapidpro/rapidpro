@@ -1401,7 +1401,7 @@ class OrgCRUDL(SmartCRUDL):
                     )
 
             def add_per_invite_fields(self, org: Org):
-                for invite in org.invitations.order_by("email"):
+                for invite in org.invitations.filter(is_active=True).order_by("email"):
                     role_field = forms.ChoiceField(
                         choices=[(r.code, r.display) for r in OrgRole],
                         required=True,
