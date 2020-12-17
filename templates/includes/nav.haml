@@ -146,7 +146,7 @@
   -if org_perms.flows.flow_list and not request.user.is_superuser
     %a{href:"{% url 'flows.flow_list' %}", class:"{% active request '(?<!msg)/flow' %}"}
       .circle
-        .icon-nav-flows.icon-3
+        .icon-flow.icon-3
       .title 
         -trans "flows"
 
@@ -167,7 +167,7 @@
   -if org_perms.links.link_list and not request.user.is_superuser
     %a{href:"{% url 'links.link_list' %}", class:"{% active request 'link' %}"}
       .circle
-        .icon-nav-hand
+        .icon-hand
       .title
         -trans "trackable links"
 

@@ -760,3 +760,9 @@
 .icon-two-factor:before {
   content: "\e91c";
 }
+.icon-hand:before {
+  content: "\e079";
+}
+.icon-help:before {
+  content: "\e91d";
+}
