@@ -1,3 +1,7 @@
+v6.1.12
+----------
+ * Un-beta-gate Rocket.Chat channels
+
 v6.1.10
 ----------
  * Login summary on org home page should include agents
