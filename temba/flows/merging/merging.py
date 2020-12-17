@@ -1,7 +1,7 @@
 import math
 
 from collections import OrderedDict, Counter, defaultdict
-from jellyfish import jaro_distance
+from jellyfish import jaro_similarity
 
 from .test_data import get_flow_step_name, get_flow_step_type
 
@@ -68,13 +68,6 @@ class Node:
             self_actions = self.data.get("actions", [])
             other_actions = other.data.get("actions", [])
 
-            def compare_router_params(param):
-                return (
-                    (param in self_router and param in other_router)
-                    and (self_router[param] != "" and other_router[param] != "")
-                    and (jaro_distance(self_router[param], other_router[param]) == 1.0)
-                )
-
             def get_action_pairs_for_comparing(action_type):
                 for self_action in self.data.get("actions", []):
                     for other_action in other.data.get("actions", []):
@@ -84,7 +77,7 @@ class Node:
             if not (bool(common_types) and both_routers):
                 return False
 
-            if len(self_actions) != len(other_actions):
+            if self.has_router and len(self_actions) != len(other_actions):
                 return False
 
             if self.has_router and other.has_router:
@@ -99,7 +92,10 @@ class Node:
 
                 if self_actions and self_actions[0]["type"] == "enter_flow":
                     for self_action, other_action in get_action_pairs_for_comparing("enter_flow"):
-                        if self_action["flow"]["uuid"] == other_action["flow"]["uuid"]:
+                        if (
+                            self_action["flow"]["uuid"] == other_action["flow"]["uuid"]
+                            or jaro_similarity(self_action["flow"]["name"], other_action["flow"]["name"]) >= 0.7
+                        ):
                             return True
                     return False
 
@@ -122,22 +118,19 @@ class Node:
                     return False
 
                 if self_router["type"] == "switch":
-                    params_to_check = ["operand", "result_name"] if self_router.get("result_name") else ["operand"]
-                    if not all(map(compare_router_params, params_to_check)):
-                        return False
+                    if self_router.get("result_name"):
+                        return self_router.get("result_name") == other_router.get("result_name")
+                    else:
+                        return self_router.get("operand") == other_router.get("operand")
 
             def check_send_message():
                 for self_action, other_action in get_action_pairs_for_comparing("send_msg"):
-                    if self_action["text"] == other_action["text"]:
+                    if jaro_similarity(self_action["text"], other_action["text"]) >= 0.7:
                         return True
 
             def check_update_contact():
                 for self_action, other_action in get_action_pairs_for_comparing("set_contact_field"):
-                    is_similar = (
-                        self_action["field"]["key"] == other_action["field"]["key"]
-                        and self_action["value"] == other_action["value"]
-                    )
-                    if is_similar:
+                    if self_action["field"]["key"] == other_action["field"]["key"]:
                         return True
 
             action_checks = {"send_msg": check_send_message, "set_contact_field": check_update_contact}
