@@ -1,3 +1,7 @@
+v6.1.13
+----------
+ * Bump temba-components to v0.8.11
+
 v6.1.12
 ----------
  * Un-beta-gate Rocket.Chat channels
