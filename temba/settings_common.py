@@ -38,6 +38,7 @@ EMAIL_HOST_USER = "server@temba.io"
 DEFAULT_FROM_EMAIL = "server@temba.io"
 EMAIL_HOST_PASSWORD = "mypassword"
 EMAIL_USE_TLS = True
+EMAIL_TIMEOUT = 10
 
 # Used when sending email from within a flow and the user hasn't configured
 # their own SMTP server.
