@@ -161,6 +161,7 @@ class URN:
         if scheme == cls.TEL_SCHEME:
             try:
                 parse_number(path, country_code)
+                return True
             except ValueError:
                 return False
 
@@ -223,6 +224,7 @@ class URN:
         """
         scheme, path, query, display = cls.to_parts(urn)
 
+        country_code = str(country_code) if country_code else ""
         norm_path = str(path).strip()
 
         if scheme == cls.TEL_SCHEME:
