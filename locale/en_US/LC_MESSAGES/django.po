@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-09 22:20+0000\n"
+"POT-Creation-Date: 2020-12-16 14:18+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2980,6 +2980,27 @@ msgstr ""
 msgid "Sign out"
 msgstr ""
 
+msgid "Administrators"
+msgstr ""
+
+msgid "Editors"
+msgstr ""
+
+msgid "Viewer"
+msgstr ""
+
+msgid "Viewers"
+msgstr ""
+
+msgid "Agent"
+msgstr ""
+
+msgid "Agents"
+msgstr ""
+
+msgid "Surveyors"
+msgstr ""
+
 msgid "Plan"
 msgstr ""
 
@@ -2990,30 +3011,6 @@ msgid "Stripe Customer"
 msgstr ""
 
 msgid "Our Stripe customer id for your organization"
-msgstr ""
-
-msgid "Administrators"
-msgstr ""
-
-msgid "The administrators in your organization"
-msgstr ""
-
-msgid "Viewers"
-msgstr ""
-
-msgid "The viewers in your organization"
-msgstr ""
-
-msgid "Editors"
-msgstr ""
-
-msgid "The editors in your organization"
-msgstr ""
-
-msgid "Surveyors"
-msgstr ""
-
-msgid "The users can login via Android for your organization"
 msgstr ""
 
 msgid "The main language used by this organization"
@@ -3087,25 +3084,7 @@ msgstr ""
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr ""
 
-msgid "Viewer"
-msgstr ""
-
 msgid "Org"
-msgstr ""
-
-msgid "The organization to which the account is invited to view"
-msgstr ""
-
-msgid "Email"
-msgstr ""
-
-msgid "The email to which we send the invitation of the viewer"
-msgstr ""
-
-msgid "a unique code associated with this invitation"
-msgstr ""
-
-msgid "User Role"
 msgstr ""
 
 #, python-format
@@ -3275,6 +3254,9 @@ msgstr ""
 msgid "Last Name"
 msgstr ""
 
+msgid "Email"
+msgstr ""
+
 msgid "Current Password"
 msgstr ""
 
@@ -3423,6 +3405,12 @@ msgid "This password is not valid. Choose a new password and try again."
 msgstr ""
 
 msgid "One of the emails you entered is invalid."
+msgstr ""
+
+msgid "A workspace must have at least one administrator."
+msgstr ""
+
+msgid "Manage Logins"
 msgstr ""
 
 msgid "Enter the code from your authentication application"
@@ -6308,39 +6296,12 @@ msgstr ""
 msgid "Your workspace can have logins with various roles. You can use the Manage Logins page to view all existing logins or to add new logins to your workspace."
 msgstr ""
 
-msgid "Manage Logins"
+#, python-format
+msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join your workspace as a surveyor."
 msgstr ""
 
-#, python-format
-msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join %(org)s as a surveyor."
+msgid "Your workspace has"
 msgstr ""
-
-msgid "has"
-msgstr ""
-
-#, python-format
-msgid "%(accounts)s Administrator,"
-msgid_plural "%(accounts)s Administrators,"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid "%(accounts)s Editor,"
-msgid_plural "%(accounts)s Editors,"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid "%(accounts)s Viewer,"
-msgid_plural "%(accounts)s Viewers,"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid "%(accounts)s Surveyor."
-msgid_plural "%(accounts)s Surveyors."
-msgstr[0] ""
-msgstr[1] ""
 
 msgid "Chatbase Account"
 msgstr ""
@@ -6535,46 +6496,13 @@ msgstr ""
 msgid "Your workspace is configured to use a single language."
 msgstr ""
 
-msgid "Logins"
-msgstr ""
-
-msgid "Admins"
-msgstr ""
-
 msgid "Remove"
-msgstr ""
-
-msgid "You must have at least one administator"
 msgstr ""
 
 msgid "Pending Invitations"
 msgstr ""
 
 msgid "Invite New Users"
-msgstr ""
-
-msgid ","
-msgstr ""
-
-msgid "No Administrator"
-msgstr ""
-
-msgid "No Editors"
-msgstr ""
-
-msgid "and"
-msgstr ""
-
-msgid "No Viewers"
-msgstr ""
-
-msgid "Surveyor."
-msgstr ""
-
-msgid "No Surveyors."
-msgstr ""
-
-msgid "Surveyors."
 msgstr ""
 
 msgid "Disconnect Nexmo"

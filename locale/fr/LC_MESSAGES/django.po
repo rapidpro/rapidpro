@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-09 22:20+0000\n"
+"POT-Creation-Date: 2020-12-16 14:18+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2992,6 +2992,31 @@ msgstr "Connectez-vous"
 msgid "Sign out"
 msgstr "Déconnexion"
 
+msgid "Administrators"
+msgstr "Administrateurs"
+
+msgid "Editors"
+msgstr "Editeurs"
+
+msgid "Viewer"
+msgstr "Spectateur"
+
+msgid "Viewers"
+msgstr "Les spectateurs"
+
+#, fuzzy
+#| msgid "Agent Name"
+msgid "Agent"
+msgstr "Nom d'agent"
+
+#, fuzzy
+#| msgid "Agent Name"
+msgid "Agents"
+msgstr "Nom d'agent"
+
+msgid "Surveyors"
+msgstr "Enquêteur"
+
 msgid "Plan"
 msgstr "Plan"
 
@@ -3003,30 +3028,6 @@ msgstr "Bande consommateur"
 
 msgid "Our Stripe customer id for your organization"
 msgstr "Notre bande d'identification pour votre organisation"
-
-msgid "Administrators"
-msgstr "Administrateurs"
-
-msgid "The administrators in your organization"
-msgstr "Les administrateurs de votre entreprise"
-
-msgid "Viewers"
-msgstr "Les spectateurs"
-
-msgid "The viewers in your organization"
-msgstr "Les spectateurs de votre organisation"
-
-msgid "Editors"
-msgstr "Editeurs"
-
-msgid "The editors in your organization"
-msgstr "Les éditeurs de votre organisation"
-
-msgid "Surveyors"
-msgstr "Enquêteur"
-
-msgid "The users can login via Android for your organization"
-msgstr "Les utilisateurs peuvent se connecter via Android pour votre organisation"
 
 msgid "The main language used by this organization"
 msgstr "La langue principale utilisée par cette organisation"
@@ -3099,26 +3100,8 @@ msgstr "Désolé, votre carte a été refusée. Veuillez contacter votre fournis
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr "Désolé, nous n'avons pas pu traiter votre paiement. Veuillez réessayer ultérieurement ou contactez-nous."
 
-msgid "Viewer"
-msgstr "Spectateur"
-
 msgid "Org"
 msgstr "Org"
-
-msgid "The organization to which the account is invited to view"
-msgstr "L'organisation à laquelle le compte est invité à voir"
-
-msgid "Email"
-msgstr "Email"
-
-msgid "The email to which we send the invitation of the viewer"
-msgstr "L'e-mail que nous envoyons comme invitation à l'utilisateur"
-
-msgid "a unique code associated with this invitation"
-msgstr "un code unique est associé à cette invitation"
-
-msgid "User Role"
-msgstr "Rôle de l'utilisateur"
 
 #, python-format
 msgid "%(name)s Invitation"
@@ -3289,6 +3272,9 @@ msgstr "Obligatoire"
 msgid "Last Name"
 msgstr "Nom"
 
+msgid "Email"
+msgstr "Email"
+
 msgid "Current Password"
 msgstr "Mot de passe actuel"
 
@@ -3438,6 +3424,14 @@ msgstr "Ce mot de passe n'est pas valide. Choisissez un nouveau mot de passe et 
 
 msgid "One of the emails you entered is invalid."
 msgstr "L'un des e-mails que vous avez inscrits est invalide."
+
+#, fuzzy
+#| msgid "You must have at least one administator"
+msgid "A workspace must have at least one administrator."
+msgstr "Vous devez avoir au moins un administateur"
+
+msgid "Manage Logins"
+msgstr "Gérer les connexions"
 
 msgid "Enter the code from your authentication application"
 msgstr "Entrez le code de votre application d'authentification"
@@ -6618,39 +6612,15 @@ msgstr ""
 msgid "Your workspace can have logins with various roles. You can use the Manage Logins page to view all existing logins or to add new logins to your workspace."
 msgstr "Votre espace de travail peut avoir des connexions avec différents rôles. Vous pouvez utiliser la page Gérer les connexions pour afficher toutes les connexions existantes ou pour ajouter de nouvelles connexions à votre espace de travail."
 
-msgid "Manage Logins"
-msgstr "Gérer les connexions"
-
-#, python-format
-msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join %(org)s as a surveyor."
+#, fuzzy, python-format
+#| msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join %(org)s as a surveyor."
+msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join your workspace as a surveyor."
 msgstr "Si vous utilisez l'application %(brand)s Surveyor pour exécuter des flux hors ligne, nous vous recommandons d'autoriser les utilisateurs à créer des comptes à partir de l'application Android. La définition d'un mot de passe Surveyor permettra à toute personne disposant de ce mot de passe de rejoindre %(org)s as a surveyor."
 
-msgid "has"
-msgstr "a"
-
-#, python-format
-msgid "%(accounts)s Administrator,"
-msgid_plural "%(accounts)s Administrators,"
-msgstr[0] "%(accounts)s Administrateur,"
-msgstr[1] "%(accounts)s Administrateurs,"
-
-#, python-format
-msgid "%(accounts)s Editor,"
-msgid_plural "%(accounts)s Editors,"
-msgstr[0] "%(accounts)s Editeur,"
-msgstr[1] "%(accounts)s Editeurs,"
-
-#, python-format
-msgid "%(accounts)s Viewer,"
-msgid_plural "%(accounts)s Viewers,"
-msgstr[0] "%(accounts)s Observateur,"
-msgstr[1] "%(accounts)s Observateurs,"
-
-#, python-format
-msgid "%(accounts)s Surveyor."
-msgid_plural "%(accounts)s Surveyors."
-msgstr[0] "%(accounts)s Enquêteurs."
-msgstr[1] "%(accounts)s Enquêteurs."
+#, fuzzy
+#| msgid "workspaces"
+msgid "Your workspace has"
+msgstr "espaces de travail"
 
 msgid "Chatbase Account"
 msgstr "Compte Chatbase"
@@ -6851,47 +6821,14 @@ msgstr "Les traductions sont fournies en <b>%(lang)s</b>."
 msgid "Your workspace is configured to use a single language."
 msgstr "Votre espace de travail est configuré pour utiliser une seule langue."
 
-msgid "Logins"
-msgstr "Connexions"
-
-msgid "Admins"
-msgstr "Admins"
-
 msgid "Remove"
 msgstr "Supprimer"
-
-msgid "You must have at least one administator"
-msgstr "Vous devez avoir au moins un administateur"
 
 msgid "Pending Invitations"
 msgstr "Invitations en attente"
 
 msgid "Invite New Users"
 msgstr "Inviter de nouveaux utilisateurs"
-
-msgid ","
-msgstr ","
-
-msgid "No Administrator"
-msgstr "Aucun administrateur"
-
-msgid "No Editors"
-msgstr "Aucun éditeur"
-
-msgid "and"
-msgstr "et"
-
-msgid "No Viewers"
-msgstr "Aucun Observateurs"
-
-msgid "Surveyor."
-msgstr "Enquêteur."
-
-msgid "No Surveyors."
-msgstr "Pas d'enquêteurs."
-
-msgid "Surveyors."
-msgstr "Enquêteurs."
 
 msgid "Disconnect Nexmo"
 msgstr "Déconnectez Nexmo"
@@ -7805,6 +7742,87 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "has"
+#~ msgstr "a"
+
+#, python-format
+#~ msgid "%(accounts)s Administrator,"
+#~ msgid_plural "%(accounts)s Administrators,"
+#~ msgstr[0] "%(accounts)s Administrateur,"
+#~ msgstr[1] "%(accounts)s Administrateurs,"
+
+#, python-format
+#~ msgid "%(accounts)s Editor,"
+#~ msgid_plural "%(accounts)s Editors,"
+#~ msgstr[0] "%(accounts)s Editeur,"
+#~ msgstr[1] "%(accounts)s Editeurs,"
+
+#, python-format
+#~ msgid "%(accounts)s Viewer,"
+#~ msgid_plural "%(accounts)s Viewers,"
+#~ msgstr[0] "%(accounts)s Observateur,"
+#~ msgstr[1] "%(accounts)s Observateurs,"
+
+#, python-format
+#~ msgid "%(accounts)s Surveyor."
+#~ msgid_plural "%(accounts)s Surveyors."
+#~ msgstr[0] "%(accounts)s Enquêteurs."
+#~ msgstr[1] "%(accounts)s Enquêteurs."
+
+#~ msgid "The organization to which the account is invited to view"
+#~ msgstr "L'organisation à laquelle le compte est invité à voir"
+
+#~ msgid "The email to which we send the invitation of the viewer"
+#~ msgstr "L'e-mail que nous envoyons comme invitation à l'utilisateur"
+
+#~ msgid "a unique code associated with this invitation"
+#~ msgstr "un code unique est associé à cette invitation"
+
+#~ msgid "User Role"
+#~ msgstr "Rôle de l'utilisateur"
+
+#~ msgid "Logins"
+#~ msgstr "Connexions"
+
+#~ msgid "Admins"
+#~ msgstr "Admins"
+
+#~ msgid "The administrators in your organization"
+#~ msgstr "Les administrateurs de votre entreprise"
+
+#~ msgid "The viewers in your organization"
+#~ msgstr "Les spectateurs de votre organisation"
+
+#~ msgid "The editors in your organization"
+#~ msgstr "Les éditeurs de votre organisation"
+
+#~ msgid "The users can login via Android for your organization"
+#~ msgstr "Les utilisateurs peuvent se connecter via Android pour votre organisation"
+
+#~ msgid ","
+#~ msgstr ","
+
+#~ msgid "No Administrator"
+#~ msgstr "Aucun administrateur"
+
+#~ msgid "No Editors"
+#~ msgstr "Aucun éditeur"
+
+#~ msgid "and"
+#~ msgstr "et"
+
+#~ msgid "No Viewers"
+#~ msgstr "Aucun Observateurs"
+
+#~ msgid "Surveyor."
+#~ msgstr "Enquêteur."
+
+#~ msgid "No Surveyors."
+#~ msgstr "Pas d'enquêteurs."
+
+#~ msgid "Surveyors."
+#~ msgstr "Enquêteurs."
 
 #~ msgid "Passwords must contain at least 8 letters."
 #~ msgstr "Les mots de passe doivent contenir au moins 8 caractères."
