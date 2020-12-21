@@ -7,7 +7,6 @@ from django import forms
 from django.conf import settings
 from django.urls import reverse
 from django.contrib import messages
-from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import RedirectView
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -23,36 +22,10 @@ from temba.flows.models import Flow
 
 from .models import Link, ExportLinksTask
 from .tasks import export_link_task
+from ..utils.fields import SelectWidget, InputWidget
+from ..utils.views import BulkActionMixin
 
 logger = logging.getLogger(__name__)
-
-
-class LinkActionForm(forms.ModelForm):
-    allowed_actions = (("archive", _("Archive Links")), ("restore", _("Restore Links")))
-
-    model = Link
-    has_is_active = True
-
-    class Meta:
-        fields = ("action", "objects", "add")
-
-
-class LinkActionMixin(SmartListView):
-    @csrf_exempt
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        user = self.request.user
-        org = user.get_org()
-
-        form = LinkActionForm(self.request.POST, org=org, user=user)
-        if form.is_valid():
-            form.execute().get("changed")
-
-        response = self.get(request, *args, **kwargs)
-
-        return response
 
 
 class BaseFlowForm(forms.ModelForm):
@@ -76,7 +49,17 @@ class LinkCRUDL(SmartCRUDL):
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         class LinkCreateForm(BaseFlowForm):
-            related_flow = forms.ModelChoiceField(required=False, queryset=Flow.objects.none())
+            name = forms.CharField(widget=InputWidget)
+            related_flow = forms.ModelChoiceField(
+                required=False,
+                queryset=Flow.objects.none(),
+                widget=SelectWidget(
+                    attrs={
+                        "widget_only": True,
+                        "placeholder": _("Select related flow"),
+                    }
+                )
+            )
 
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -89,8 +72,9 @@ class LinkCRUDL(SmartCRUDL):
                 model = Link
                 fields = ("name", "related_flow", "destination")
                 widgets = {
-                    "destination": forms.URLInput(
-                        attrs={"placeholder": "E.g. http://example.com, https://example.com"}
+                    "name": InputWidget,
+                    "destination": InputWidget(
+                        attrs={"placeholder": "E.g. http://example.com, https://example.com", "type": "url"}
                     )
                 }
 
@@ -142,13 +126,19 @@ class LinkCRUDL(SmartCRUDL):
             links = []
 
             if self.has_org_perm("links.link_update"):
-                links.append(dict(title=_("Edit"), style="btn-primary", js_class="update-link", href="#"))
+                links.append(dict(
+                    id="edit-link",
+                    title=_("Edit"),
+                    style="button-primary",
+                    href=f"{reverse('links.link_update', args=[self.object.pk])}",
+                    modax=_("Update Link"),
+                ))
 
             if self.has_org_perm("links.link_export"):
                 links.append(
                     dict(
                         title=_("Export"),
-                        style="btn-primary",
+                        style="button-primary",
                         js_class="posterize",
                         href=reverse("links.link_export", args=(self.object.pk,)),
                     )
@@ -213,7 +203,16 @@ class LinkCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class LinkUpdateForm(BaseFlowForm):
-            related_flow = forms.ModelChoiceField(required=False, queryset=Flow.objects.none())
+            related_flow = forms.ModelChoiceField(
+                required=False,
+                queryset=Flow.objects.none(),
+                widget=SelectWidget(
+                    attrs={
+                        "widget_only": False,
+                        "placeholder": _("Select related flow"),
+                    }
+                )
+            )
 
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
@@ -226,8 +225,9 @@ class LinkCRUDL(SmartCRUDL):
                 model = Link
                 fields = ("name", "related_flow", "destination")
                 widgets = {
-                    "destination": forms.URLInput(
-                        attrs={"placeholder": "E.g. http://example.com, https://example.com"}
+                    "name": InputWidget,
+                    "destination": InputWidget(
+                        attrs={"placeholder": "E.g. http://example.com, https://example.com", "type": "url"}
                     )
                 }
 
@@ -303,13 +303,15 @@ class LinkCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(redirect or reverse("links.link_read", args=[link.uuid]))
 
-    class BaseList(LinkActionMixin, OrgQuerysetMixin, OrgPermsMixin, SmartListView):
+    class BaseList(BulkActionMixin, OrgQuerysetMixin, OrgPermsMixin, SmartListView):
         title = _("Trackable Links")
         refresh = 10000
         fields = ("name", "modified_on")
         default_template = "links/link_list.html"
         default_order = "-created_on"
         search_fields = ("name__icontains", "destination__icontains")
+        bulk_actions = ("archive", "restore")
+        bulk_action_permissions = {"archive": "links.link_update", "restore": "links.link_update"}
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
