@@ -79,15 +79,6 @@
   {{ block.super }}
 
   :css
-
-    .delivered {
-      color: inherit;
-    }
-
-    .control-group.field_event_type {
-      margin-bottom: 8px;
-    }
-
     #languages{
       position: relative;
       text-align: right;
@@ -133,21 +124,21 @@
       margin-bottom: 6px;
     }
 
-    .delivered {
-      padding-top:10px;
-      margin-right: 12px;
-      vertical-align: center;
-    }
-
-    #send-at {
-      display: flex;
-    }
-
     temba-completion {
-
       margin: 10px 0px 20px 0px;
       --textarea-height: 125px;
     }
+
+    a {
+      color: rgb(var(--primary-rgb));
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
 
 -block fields
 
@@ -169,16 +160,12 @@
         -render_field field.language.iso_code
 
     #event-message-start-mode
-      .start-mode-help
-        - trans "If the contact is already active in a flow"
       -render_field 'message_start_mode'
 
   #flow-section
     -render_field 'flow_to_start'
 
     #event-flow-start-mode
-      .start-mode-help
-        -trans "If the contact is already active in a flow"
       -render_field 'flow_start_mode'
 
   #schedule-section
@@ -192,8 +179,6 @@
       -render_field 'relative_to'
 
   #send-at.hide
-    .delivered
-      -trans "Delivered"
     #field-hour
       -render_field 'delivery_hour'
 

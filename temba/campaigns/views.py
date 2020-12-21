@@ -121,7 +121,15 @@ class CampaignCRUDL(SmartCRUDL):
 
             else:
                 if self.has_org_perm("campaigns.campaignevent_create"):
-                    links.append(dict(title="Add Event", style="btn-primary", js_class="add-event", href="#"))
+                    links.append(
+                        dict(
+                            id="event-add",
+                            title=_("Add Event"),
+                            style="button-primary",
+                            href=f"{reverse('campaigns.campaignevent_create')}?campaign={self.object.pk}",
+                            modax=_("Add Event"),
+                        )
+                    )
                 if self.has_org_perm("orgs.org_export"):
                     links.append(
                         dict(title=_("Export"), href=f"{reverse('orgs.org_export')}?campaign={self.object.id}")
@@ -160,7 +168,6 @@ class CampaignCRUDL(SmartCRUDL):
 
     class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
         class CampaignForm(forms.ModelForm):
-
             group = forms.ModelChoiceField(
                 queryset=ContactGroup.user_groups.none(),
                 required=True,
@@ -266,15 +273,23 @@ class CampaignCRUDL(SmartCRUDL):
 
 
 class CampaignEventForm(forms.ModelForm):
-
     event_type = forms.ChoiceField(
         choices=((CampaignEvent.TYPE_MESSAGE, "Send a message"), (CampaignEvent.TYPE_FLOW, "Start a flow")),
         required=True,
+        widget=SelectWidget
     )
 
-    direction = forms.ChoiceField(choices=(("B", "Before"), ("A", "After")), required=True)
+    direction = forms.ChoiceField(
+        choices=(("B", "Before"), ("A", "After")),
+        required=True,
+        widget=SelectWidget
+    )
 
-    unit = forms.ChoiceField(choices=CampaignEvent.UNIT_CHOICES, required=True)
+    unit = forms.ChoiceField(
+        choices=CampaignEvent.UNIT_CHOICES,
+        required=True,
+        widget=SelectWidget
+    )
 
     flow_to_start = forms.ModelChoiceField(
         queryset=Flow.objects.filter(is_active=True),
@@ -285,9 +300,18 @@ class CampaignEventForm(forms.ModelForm):
         ),
     )
 
-    relative_to = forms.ModelChoiceField(queryset=ContactField.all_fields.none(), required=False, empty_label=None)
+    relative_to = forms.ModelChoiceField(
+        queryset=ContactField.all_fields.none(),
+        required=False,
+        empty_label=None,
+        widget=SelectWidget,
+    )
 
-    delivery_hour = forms.ChoiceField(choices=CampaignEvent.get_hour_choices(), required=False)
+    delivery_hour = forms.ChoiceField(
+        choices=CampaignEvent.get_hour_choices(),
+        required=False,
+        widget=SelectWidget,
+    )
 
     flow_start_mode = forms.ChoiceField(
         choices=(
@@ -295,7 +319,8 @@ class CampaignEventForm(forms.ModelForm):
             (CampaignEvent.MODE_SKIP, _("Skip this event")),
         ),
         required=False,
-        widget=SelectWidget(attrs={"placeholder": _("Flow starting rules"), "widget_only": True}),
+        label=_("If the contact is already active in a flow"),
+        widget=SelectWidget(attrs={"placeholder": _("Flow starting rules"), "widget_only": False}),
     )
 
     message_start_mode = forms.ChoiceField(
@@ -304,6 +329,8 @@ class CampaignEventForm(forms.ModelForm):
             (CampaignEvent.MODE_SKIP, _("Skip this message")),
         ),
         required=False,
+        label=_("If the contact is already active in a flow"),
+        widget=SelectWidget,
     )
 
     def clean(self):
@@ -464,6 +491,7 @@ class CampaignEventForm(forms.ModelForm):
         model = CampaignEvent
         fields = "__all__"
         exclude = ("extra",)
+        widgets = {"offset": InputWidget}
 
 
 class CampaignEventCRUDL(SmartCRUDL):
@@ -503,17 +531,26 @@ class CampaignEventCRUDL(SmartCRUDL):
             campaign_event = self.get_object()
 
             if self.has_org_perm("campaigns.campaignevent_update") and not campaign_event.campaign.is_archived:
-                links.append(dict(title="Edit", style="btn-primary", js_class="update-event", href="#"))
-
-            if self.has_org_perm("campaigns.campaignevent_delete"):
                 links.append(
                     dict(
-                        id="event-delete",
-                        title="Delete",
-                        href=reverse("campaigns.campaignevent_delete", args=[campaign_event.id]),
-                        modax=_("Delete Event"),
+                        id="event-add",
+                        title=_("Edit"),
+                        style="button-primary",
+                        js_class="update-event",
+                        href=f"{reverse('campaigns.campaignevent_update', args=[campaign_event.id])}",
+                        modax=_("Add Event"),
                     )
                 )
+
+                if self.has_org_perm("campaigns.campaignevent_delete"):
+                    links.append(
+                        dict(
+                            id="event-delete",
+                            title="Delete",
+                            href=reverse("campaigns.campaignevent_delete", args=[campaign_event.id]),
+                            modax=_("Delete Event"),
+                        )
+                    )
 
             return links
 
@@ -634,13 +671,13 @@ class CampaignEventCRUDL(SmartCRUDL):
 
             # if we changed anything, update our event fires
             if (
-                prev.unit != obj.unit
-                or prev.offset != obj.offset
-                or prev.relative_to != obj.relative_to
-                or prev.delivery_hour != obj.delivery_hour
-                or prev.message != obj.message
-                or prev.flow != obj.flow
-                or prev.start_mode != obj.start_mode
+                    prev.unit != obj.unit
+                    or prev.offset != obj.offset
+                    or prev.relative_to != obj.relative_to
+                    or prev.delivery_hour != obj.delivery_hour
+                    or prev.message != obj.message
+                    or prev.flow != obj.flow
+                    or prev.start_mode != obj.start_mode
             ):
                 obj = obj.recreate()
                 obj.schedule_async()
