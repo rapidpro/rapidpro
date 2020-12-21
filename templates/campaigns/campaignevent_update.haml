@@ -9,6 +9,7 @@
 
 -block modal-script
   {{ block.super }}
+  %script{src:"{{ STATIC_URL }}js/flow-parameters.js"}
 
   :javascript
 
@@ -71,6 +72,26 @@
       deliveryHourOptions.style.display = 'flex';
     {% else %}
       deliveryHourOptions.style.display = 'none';
+    {% endif %}
+
+    body.querySelector("#id_flow_to_start").addEventListener("change", function (event) {
+      var selectedFlow = event.target.values[0].value;
+      var flowId = (selectedFlow !== '' ? parseInt(selectedFlow) : null);
+      if (flowId) {
+        var api_url = "{% url 'flows.flow_flow_parameters' %}?flow_id=" + flowId;
+        $.getJSON(api_url).done(function(data) {
+          buildTriggerFlowParams(data.results, [], 'update', body);
+        });
+      } else {
+        buildTriggerFlowParams([], [], 'update', body);
+      }
+    });
+
+    {% if flow_parameters_fields and flow_parameters_values %}
+      var container = body.querySelector("#embed-container-update");
+      var flowParamsFields = "{{ flow_parameters_fields }}".split(",");
+      var flowParamsValues = "{{ flow_parameters_values }}".split(",");
+      buildTriggerFlowParams(flowParamsFields, flowParamsValues, 'update', body);
     {% endif %}
 
 
@@ -139,6 +160,49 @@
       text-decoration: underline;
     }
 
+    .embedded-data-update {
+      margin: 0 0 5px 4px;
+      font-weight: 400;
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      line-height: normal;
+      color: rgb(119, 119, 119);
+    }
+
+    .embed-row {
+      display: flex;
+    }
+
+    .embed-field-update, .embed-value-update {
+      width: 49%;
+      margin: 0 5px 5px 0;
+    }
+
+    .embed-field-update > input, .embed-value-update > input {
+      width: calc(100% - 18px);
+      font-size: 13px;
+      padding: 9px;
+      border-radius: var(--curvature-widget);;
+      border: 1px solid var(--color-widget-border);
+      color: var(--color-widget-text);
+      outline: none;
+    }
+
+    .embed-field-update > input:read-only {
+      background: #eee;
+    }
+
+    .embed-value-update > input:focus {
+      background: var(--color-widget-bg-focused);
+      border-color: var(--color-focus);
+      box-shadow: var(--widget-box-shadow-focused);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+
 
 -block fields
 
@@ -181,4 +245,10 @@
   #send-at.hide
     #field-hour
       -render_field 'delivery_hour'
+
+  #flow-params-section
+    %h5.embedded-data-update.hidden
+      -trans "Flow Parameters"
+    #embedded-data-update.hidden
+      #embed-container-update
 

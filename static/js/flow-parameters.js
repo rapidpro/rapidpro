@@ -1,5 +1,6 @@
-function buildTriggerFlowParams(params = [], values = [], category = 'keyword') {
-    var embedContainer = document.getElementById('embed-container-' + category);
+function buildTriggerFlowParams(params = [], values = [], category = 'keyword', context = null) {
+    context = context ? context : document;
+    var embedContainer = context.querySelector(`#embed-container-${category}`);
     embedContainer.innerHTML = '';
 
     if (params.length > 0) {
@@ -44,15 +45,15 @@ function buildTriggerFlowParams(params = [], values = [], category = 'keyword') 
             embedContainer.append(embedRow);
         }
 
-        $('#embedded-data-' + category).show();
-        $('h5.embedded-data-' + category).show();
-        $('#embed-container-' + category).show();
-        $('.embed-header-' + category).show();
+        context.querySelector('#embedded-data-' + category).style.display = 'block';
+        context.querySelectorAll('.embedded-data-' + category).forEach(el => {
+            el.style.display = 'block';
+        });
     } else {
-        $('#embedded-data-' + category).hide();
-        $('h5.embedded-data-' + category).hide();
-        $('#embed-container-' + category).hide();
-        $('.embed-header-' + category).hide();
+        context.querySelector('#embedded-data-' + category).style.display = 'none';
+        context.querySelectorAll('.embedded-data-' + category).forEach(el => {
+            el.style.display = 'none';
+        });
     }
 }
 

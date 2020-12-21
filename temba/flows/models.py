@@ -788,7 +788,7 @@ class Flow(TembaModel):
                 pass
 
     def get_trigger_params(self):
-        flow_json = {}
+        flow_json = self.get_definition()
         rule = r"@trigger.params.([a-zA-Z0-9_]+)"
         matches = regex.finditer(rule, json.dumps(flow_json), regex.MULTILINE | regex.IGNORECASE)
         params = [match.group() for match in matches]

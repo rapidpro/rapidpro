@@ -1583,9 +1583,6 @@ class UpdateWebChatForm(UpdateChannelForm):
             "action_type", forms.CharField(widget=forms.HiddenInput()), "update_and_generate_code_snippet"
         )
 
-        del self.fields["country"]
-        del self.fields["address"]
-
         unlisted_fields = ["name", "alert_email"]
 
         for field in list(self.fields):
