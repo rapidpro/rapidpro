@@ -297,3 +297,8 @@ def temba_get_value(context, obj, field):
         value = str(value)
 
     return value or "-"
+
+
+@register.simple_tag
+def to_dict(obj):
+    return str(obj.__dict__)

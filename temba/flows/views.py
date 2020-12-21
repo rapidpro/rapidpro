@@ -2662,7 +2662,7 @@ class FlowCRUDL(SmartCRUDL):
         flow_params_fields = []
         flow_params_values = []
 
-        class LaunchForm(BaseScheduleForm, forms.ModelForm):
+        class LaunchForm(forms.ModelForm):
             def __init__(self, *args, **kwargs):
                 self.user = kwargs.pop("user")
                 self.flow = kwargs.pop("flow")
@@ -2676,19 +2676,33 @@ class FlowCRUDL(SmartCRUDL):
                     self.fields[f"flow_param_field_{counter}"] = forms.CharField(
                         required=False,
                         initial=flow_param,
-                        label=None,
-                        widget=forms.TextInput(attrs={"readonly": True, "title": flow_param}),
+                        label=False,
+                        widget=forms.TextInput(attrs={"readonly": True, "title": flow_param, "clean": True}),
                     )
-                    self.fields[f"flow_param_value_{counter}"] = forms.CharField(required=False)
+                    self.fields[f"flow_param_value_{counter}"] = forms.CharField(
+                        required=False,
+                        widget=InputWidget(
+                            attrs={
+                                "widget_only": True,
+                            }
+                        )
+                    )
                     if f"flow_param_field_{counter}" not in FlowCRUDL.Launch.flow_params_fields:
                         FlowCRUDL.Launch.flow_params_fields.append(f"flow_param_field_{counter}")
                     if f"flow_param_value_{counter}" not in FlowCRUDL.Launch.flow_params_values:
                         FlowCRUDL.Launch.flow_params_values.append(f"flow_param_value_{counter}")
 
-            launch_type = forms.ChoiceField(choices=LAUNCH_CHOICES, initial=LAUNCH_IMMEDIATELY)
+            launch_type = forms.ChoiceField(
+                choices=LAUNCH_CHOICES,
+                initial=LAUNCH_IMMEDIATELY,
+                widget=SelectWidget,
+            )
 
             # Fields for immediate launch
             start_type = forms.ChoiceField(
+                widget=SelectWidget(
+                    attrs={"placeholder": _("Select contacts or groups to start in the flow"), "widget_only": True}
+                ),
                 choices=(
                     ("select", _("Enter contacts and groups to start below")),
                     ("query", _("Search for contacts to start")),
@@ -2696,9 +2710,22 @@ class FlowCRUDL(SmartCRUDL):
                 initial="select",
             )
 
+            omnibox = JSONField(
+                label=_("Contacts & Groups"),
+                required=False,
+                help_text=_("These contacts will be added to the flow, sending the first message if appropriate."),
+                widget=OmniboxChoice(
+                    attrs={
+                        "placeholder": _("Recipients, enter contacts or groups"),
+                        "groups": True,
+                        "contacts": True,
+                        "widget_only": True,
+                    }
+                ),
+            )
 
             contact_query = forms.CharField(
-                required=False, widget=ContactSearchWidget(attrs={"placeholder": _("Enter contact query")})
+                required=False, widget=ContactSearchWidget(attrs={"widget_only": True, "placeholder": _("Enter contact query")})
             )
 
             restart_participants = forms.BooleanField(
@@ -2706,6 +2733,7 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 initial=False,
                 help_text=_("Restart any contacts already participating in this flow"),
+                widget=CheckboxWidget(),
             )
 
             include_active = forms.BooleanField(
@@ -2713,23 +2741,17 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 initial=False,
                 help_text=_("Include contacts currently active in a flow"),
+                widget=CheckboxWidget(),
             )
 
-            # Fields for trigger keyword launch
-            keyword_triggers = forms.CharField(
-                label=_("Keyword triggers"),
-                required=False,
-                help_text=_("When a user sends any of these keywords they will begin this flow"),
-            )
+            def clean_omnibox(self):
+                starting = self.cleaned_data["omnibox"]
+                start_type = self.data["start_type"]
 
-            # Fields for schedule trigger
-            repeat_period = forms.ChoiceField(label=_("Repeat"), choices=Schedule.REPEAT_CHOICES)
+                if start_type == "select" and not starting:  # pragma: needs cover
+                    raise ValidationError(_("You must specify at least one contact or one group to start a flow."))
 
-            repeat_days_of_week = forms.CharField(required=False)
-
-            start = forms.CharField(max_length=16)
-
-            start_datetime_value = forms.IntegerField(required=False)
+                return omnibox_deserialize(self.user.get_org(), starting)
 
             def clean(self):
                 cleaned_data = super().clean()
@@ -2742,65 +2764,16 @@ class FlowCRUDL(SmartCRUDL):
                                 value_field, ValidationError(_("You must specify the value for this field."))
                             )
 
-                def validate_keyword_triggers():
-                    duplicates = []
-                    wrong_format = []
-                    cleaned_keywords = []
-                    keyword_triggers = cleaned_data.get("keyword_triggers", "")
-                    org = self.user.get_org()
-
-                    for keyword in keyword_triggers.split(","):
-                        keyword = keyword.strip()
-
-                        # format validation
-                        keyword_has_wrong_format = (
-                            keyword == ""
-                            or keyword
-                            and not regex.match(r"^\w+$", keyword, flags=regex.UNICODE | regex.V0)
-                            or len(keyword) > Trigger.KEYWORD_MAX_LEN
-                        )
-                        if keyword_has_wrong_format:
-                            wrong_format.append(keyword)
-                            continue
-
-                        # duplicates validation
-                        keyword_already_exist = Trigger.objects.filter(
-                            org=org, is_archived=False, is_active=True, keyword__iexact=keyword
-                        ).exists()
-                        if keyword_already_exist:
-                            duplicates.append(keyword)
-                            continue
-
-                        # if keyword valid we need add it to cleaned
-                        cleaned_keywords.append(keyword)
-
-                    if not keyword_triggers:
+                def validate_omnibox():
+                    starting = cleaned_data["omnibox"]
+                    start_type = cleaned_data["start_type"]
+                    if (
+                            start_type == "select" and not starting["groups"] and not starting["contacts"]
+                    ):  # pragma: needs cover
                         self.add_error(
-                            "keyword_triggers",
-                            forms.ValidationError(_("You must specify at least one keyword to launch the flow.")),
+                            "omnibox",
+                            ValidationError(_("You must specify at least one contact or one group to start a flow.")),
                         )
-                    elif wrong_format:
-                        self.add_error(
-                            "keyword_triggers",
-                            forms.ValidationError(
-                                _(
-                                    '"%s" must be a single word, less than %d characters, containing only letter '
-                                    "and numbers"
-                                )
-                                % (", ".join(wrong_format), Trigger.KEYWORD_MAX_LEN)
-                            ),
-                        )
-
-                    if duplicates:
-                        error_message = (
-                            _('The keywords "{}" are already used for another flow')
-                            if len(duplicates) > 1
-                            else _('The keyword "{}" is already used for another flow')
-                        ).format(", ".join(duplicates))
-                        self.add_error("keyword_triggers", forms.ValidationError(error_message))
-
-                    cleaned_data["keyword_triggers"] = ",".join(cleaned_keywords)
-
 
                 def validate_contact_query():
                     start_type = cleaned_data["start_type"]
@@ -2817,17 +2790,15 @@ class FlowCRUDL(SmartCRUDL):
                         except mailroom.MailroomException as e:
                             self.add_error("contact_query", ValidationError(e.response["error"]))
 
-                if cleaned_data["launch_type"] == LAUNCH_IMMEDIATELY:
-                    validate_flow_params()
-                    # validate_omnibox()
-                # elif cleaned_data["launch_type"] == LAUNCH_ON_SHEDULE_TRIGGER:
-                #     validate_omnibox()
-                elif cleaned_data["launch_type"] == LAUNCH_ON_KEYWORD_TRIGGER:
-                    validate_keyword_triggers()
+                if not cleaned_data["launch_type"] == LAUNCH_IMMEDIATELY:
+                    raise ValidationError(_("You can't perform this action."))
 
-                # only weekly gets repeat days
-                if cleaned_data["repeat_period"] != "W":
-                    cleaned_data["repeat_days_of_week"] = None
+                if cleaned_data["start_type"] == "select":
+                    validate_flow_params()
+                    validate_omnibox()
+                else:
+                    validate_flow_params()
+                    validate_contact_query()
 
                 # check whether there are any flow starts that are incomplete
                 if self.flow.is_starting():
@@ -2837,7 +2808,7 @@ class FlowCRUDL(SmartCRUDL):
                         )
                     )
 
-                if self.flow.org.is_suspended():
+                if self.flow.org.is_suspended:
                     raise ValidationError(
                         _(
                             "Sorry, your account is currently suspended. To enable sending messages, please contact support."
@@ -2851,19 +2822,15 @@ class FlowCRUDL(SmartCRUDL):
                 fields = (
                     "launch_type",
                     "start_type",
+                    "omnibox",
                     "contact_query",
                     "restart_participants",
                     "include_active",
-                    "keyword_triggers",
-                    "repeat_period",
-                    "repeat_days_of_week",
-                    "start",
-                    "start_datetime_value",
                 )
 
         form_class = LaunchForm
         success_message = ""
-        submit_button_name = _("Add Contacts to Flow")
+        submit_button_name = _("OK")
         success_url = "uuid@flows.flow_editor"
 
         def derive_fields(self):
@@ -2871,14 +2838,10 @@ class FlowCRUDL(SmartCRUDL):
                 (
                     "launch_type",
                     "start_type",
+                    "omnibox",
                     "contact_query",
                     "restart_participants",
                     "include_active",
-                    "keyword_triggers",
-                    "repeat_period",
-                    "repeat_days_of_week",
-                    "start",
-                    "start_datetime_value",
                 )
                 + tuple(self.flow_params_fields)
                 + tuple(self.flow_params_values)
@@ -2936,99 +2899,39 @@ class FlowCRUDL(SmartCRUDL):
             form = self.form
             flow = self.object
 
-            def process_immediately():
-                # save off our broadcast info
-                start_type = form.cleaned_data["start_type"]
-                groups = []
-                contacts = []
-                contact_query = None
+            # save off our broadcast info
+            start_type = form.cleaned_data["start_type"]
+            groups = []
+            contacts = []
+            contact_query = None
 
-                flow_params = build_flow_parameters(
-                    self.request.POST, self.flow_params_fields, self.flow_params_values
-                )
+            flow_params = build_flow_parameters(
+                self.request.POST, self.flow_params_fields, self.flow_params_values
+            )
 
-                if start_type == "query":
-                    contact_query = form.cleaned_data["contact_query"]
-                else:
-                    omnibox = form.cleaned_data["omnibox"]
-                    groups = list(omnibox["groups"])
-                    contacts = list(omnibox["contacts"])
+            if start_type == "query":
+                contact_query = form.cleaned_data["contact_query"]
+            else:
+                omnibox = form.cleaned_data["omnibox"]
+                groups = list(omnibox["groups"])
+                contacts = list(omnibox["contacts"])
 
-                analytics.track(
-                    self.request.user.username,
-                    "temba.flow_broadcast",
-                    dict(contacts=len(contacts), groups=len(groups), query=contact_query),
-                )
+            analytics.track(
+                self.request.user.username,
+                "temba.flow_broadcast",
+                dict(contacts=len(contacts), groups=len(groups), query=contact_query),
+            )
 
-                # activate all our contacts
-                flow.async_start(
-                    self.request.user,
-                    groups,
-                    contacts,
-                    contact_query,
-                    restart_participants=form.cleaned_data["restart_participants"],
-                    include_active=form.cleaned_data["include_active"],
-                    params=flow_params,
-                )
-
-            def process_on_keyword_trigger():
-                user = self.request.user
-                org = user.get_org()
-                keyword_triggers = form.cleaned_data["keyword_triggers"]
-
-                with transaction.atomic():
-                    triggers = []
-                    # creating of triggers
-                    for keyword in keyword_triggers.split(","):
-                        triggers.append(
-                            Trigger(
-                                flow=flow,
-                                keyword=keyword,
-                                match_type=Trigger.MATCH_FIRST_WORD,
-                                org=org,
-                                created_by=user,
-                                modified_by=user,
-                            )
-                        )
-                    Trigger.objects.bulk_create(triggers)
-
-            def process_on_schedule_trigger():
-                user = self.request.user
-                org = user.get_org()
-                start_time = form.get_start_time(org.timezone)
-                with transaction.atomic():
-                    schedule = Schedule.create_schedule(
-                        org,
-                        self.request.user,
-                        start_time,
-                        form.cleaned_data.get("repeat_period"),
-                        repeat_days_of_week=form.cleaned_data.get("repeat_days_of_week"),
-                    )
-
-                    recipients = self.form.cleaned_data["omnibox"]
-
-                    trigger = Trigger.objects.create(
-                        flow=flow,
-                        org=org,
-                        schedule=schedule,
-                        trigger_type=Trigger.TYPE_SCHEDULE,
-                        created_by=user,
-                        modified_by=user,
-                    )
-
-                    for group in recipients["groups"]:
-                        trigger.groups.add(group)
-
-                    for contact in recipients["contacts"]:
-                        trigger.contacts.add(contact)
-
-            launch_type = form.cleaned_data["launch_type"]
-            processors_mapper = {
-                LAUNCH_IMMEDIATELY: process_immediately,
-                LAUNCH_ON_KEYWORD_TRIGGER: process_on_keyword_trigger,
-                LAUNCH_ON_SHEDULE_TRIGGER: process_on_schedule_trigger,
-            }
-            processors_mapper.get(launch_type, lambda: None)()
+            # activate all our contacts
+            flow.async_start(
+                self.request.user,
+                groups,
+                contacts,
+                contact_query,
+                restart_participants=form.cleaned_data["restart_participants"],
+                include_active=form.cleaned_data["include_active"],
+                params=flow_params,
+            )
 
             return flow
 
