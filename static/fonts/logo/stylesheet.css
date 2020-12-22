@@ -1,10 +1,10 @@
 @font-face {
 	font-family: 'logo';
-	src:url('fonts/logo.eot');
-	src:url('fonts/logo.eot?#iefix') format('embedded-opentype'),
-		url('fonts/logo.woff') format('woff'),
-		url('fonts/logo.ttf') format('truetype'),
-		url('fonts/logo.svg#logo') format('svg');
+	src:url('logo.eot');
+	src:url('logo.eot?#iefix') format('embedded-opentype'),
+		url('logo.woff') format('woff'),
+		url('logo.ttf') format('truetype'),
+		url('logo.svg#logo') format('svg');
 	font-weight: normal;
 	font-style: normal;
 }
