@@ -192,11 +192,11 @@
           // showFieldsOnStartType(startFlowTypeSelector.val());
           break;
         case "LAUNCH_ON_KEYWORD_TRIGGER":
-          // window.location.href = "{% url 'triggers.trigger_create' %}?trigger=keyword&flow={{flow.id}}"
+          window.location.href = "{% url 'triggers.trigger_create' %}?trigger=keyword&flow={{flow.id}}"
           removeClass(loader, "hidden");
           break;
         case "LAUNCH_ON_SHEDULE_TRIGGER":
-          // window.location.href = "{% url 'triggers.trigger_create' %}?trigger=schedule&flow={{flow.id}}"
+          window.location.href = "{% url 'triggers.trigger_create' %}?trigger=schedule&flow={{flow.id}}"
           removeClass(loader, "hidden");
           break;
         }

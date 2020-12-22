@@ -3,3 +3,10 @@
 
 -block summary
   -trans "Create a message keyword that launches a flow."
+
+-block fields
+  {{ block.super }}
+  %h5.embedded-data-keyword.hidden
+    -trans "Flow Parameters"
+  #embedded-data-keyword.hidden
+    #embed-container-keyword

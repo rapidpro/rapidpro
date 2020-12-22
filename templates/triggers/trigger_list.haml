@@ -129,7 +129,7 @@
   %temba-modax#update-trigger
 -block extra-script
   {{ block.super }}
-
+  <script src="{{ STATIC_URL }}js/flow-parameters.js"></script>
   :javascript
     function updateTrigger(event, id) {
       event.preventDefault();

@@ -24,14 +24,61 @@
         -render_field 'repeat_period'
       .weekly-repeat-options{class:'{% if form.repeat_period.value == "W" %}{% else%}hidden{%endif%}'}
         -render_field 'repeat_days_of_week'
-    -else
-      {{block.super}}
+  -else
+    {{block.super}}
 
+  -if object.trigger_type == 'K' or object.trigger_type == 'S'
+    %h5.embedded-data-update.hidden
+      -trans "Flow Parameters"
+    #embedded-data-update.hidden
+      #embed-container-update
 
 -block modal-extra-style
   {{block.super}}
   %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/tailwind.css", type:"text/css"}
   %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
+  :css
+    .embedded-data-update {
+      margin: 0 0 5px 4px;
+      font-weight: 400;
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      line-height: normal;
+      color: rgb(119, 119, 119);
+    }
+
+    .embed-row {
+      display: flex;
+    }
+
+    .embed-field-update, .embed-value-update {
+      width: 49%;
+      margin: 0 5px 5px 0;
+    }
+
+    .embed-field-update > input, .embed-value-update > input {
+      width: calc(100% - 18px);
+      font-size: 13px;
+      padding: 9px;
+      border-radius: var(--curvature-widget);;
+      border: 1px solid var(--color-widget-border);
+      color: var(--color-widget-text);
+      outline: none;
+    }
+
+    .embed-field-update > input:read-only {
+      background: #eee;
+    }
+
+    .embed-value-update > input:focus {
+      background: var(--color-widget-bg-focused);
+      border-color: var(--color-focus);
+      box-shadow: var(--widget-box-shadow-focused);
+    }
+
+    .hidden {
+      display: none;
+    }
 
 -block modal-script
   :javascript
@@ -50,6 +97,35 @@
       });
     }
 
+    var flowField = body.querySelector("#id_flow");
+    flowField.addEventListener('change', function (event) {
+      let selectedValue = event.target.values[0].value;
+      let flowId = (selectedValue !== '' ? parseInt(selectedValue) : null);
+      _requestAndBuildFlowParams(flowId);
+    });
 
+    setTimeout(() => {
+      var idFlowVal = flowField.values[0].value;
+      {% if flow_parameters_fields and flow_parameters_values %}
+          var flowParamsFields = "{{ flow_parameters_fields }}".split(",");
+          var flowParamsValues = "{{ flow_parameters_values }}".split(",");
+          _requestAndBuildFlowParams(idFlowVal, flowParamsFields, flowParamsValues);
+      {% else %}
+        _requestAndBuildFlowParams(idFlowVal);
+      {% endif %}
+    }, 100)
 
-
+    function _requestAndBuildFlowParams(flowId, fields, values) {
+      if (flowId) {
+        var api_url = "{% url 'flows.flow_flow_parameters' %}?flow_id=" + flowId;
+        $.getJSON(api_url).done(function(data) {
+          if (fields && values) {
+            buildTriggerFlowParams(data.results, values, 'update', body);
+          } else {
+            buildTriggerFlowParams(data.results, [], 'update', body);
+          }
+        });
+      } else {
+        buildTriggerFlowParams([], [], 'update', body);
+      }
+    }

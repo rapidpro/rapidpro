@@ -12,6 +12,49 @@
       margin-top:15px;
     }
 
+    .embedded-data-keyword, .embedded-data-schedule {
+      margin: 0 0 5px 4px;
+      font-weight: 400;
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      line-height: normal;
+      color: rgb(119, 119, 119);
+    }
+
+    .embed-row {
+      display: flex !important;
+    }
+
+    .embed-field-keyword, .embed-value-keyword, .embed-field-schedule, .embed-value-schedule {
+      width: 49%;
+      margin: 0 5px 5px 0;
+    }
+
+    .embed-field-keyword > input, .embed-value-keyword > input,
+    .embed-field-schedule > input, .embed-value-schedule > input {
+      width: 100% !important;
+      font-size: 13px;
+      padding: 7px;
+      border-radius: var(--curvature-widget);;
+      border: 1px solid var(--color-widget-border);
+      color: var(--color-widget-text);
+      outline: none;
+    }
+
+    .embed-field-keyword > input:read-only, .embed-field-schedule > input:read-only {
+      background: #eee;
+    }
+
+    .embed-value-keyword > input:focus, .embed-value-schedule > input:focus {
+      background: var(--color-widget-bg-focused);
+      border-color: var(--color-focus);
+      box-shadow: var(--widget-box-shadow-focused);
+    }
+
+    .hidden {
+      display: none;
+    }
+
 -block title  
   {{title}}
 
@@ -24,3 +67,68 @@
 -block extra-script
   {{ block.super }}
   <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
+  <script src="{{ STATIC_URL }}js/flow-parameters.js"></script>
+  :javascript
+
+    ["keyword", "schedule"].forEach(triggerType => {
+      let triggerBody = document.getElementById(`id-trigger-${triggerType}`);
+      if (triggerBody) {
+        let flowElement = triggerBody.querySelector(`#id_${triggerType}_flow`);
+        flowElement.addEventListener('change', function(event) {
+          let selectedValue = event.target.values[0].value;
+          let flowId = (selectedValue !== '' ? parseInt(selectedValue) : null);
+          if (flowId) {
+            var api_url = "{% url 'flows.flow_flow_parameters' %}?flow_id=" + flowId;
+            $.getJSON(api_url).done(function(data) {
+              buildTriggerFlowParams(data.results, [], triggerType);
+            });
+          } else {
+            buildTriggerFlowParams([], [], triggerType);
+          }
+        });
+      }
+    });
+
+    {% if trigger %}
+    $(document).ready(function() {
+      var trigger = '{{trigger}}';
+      var flow = parseInt('{{flow}}');
+
+      setTimeout(function () {
+        switch(trigger) {
+          case "keyword":
+            var keywordTrigger = document.getElementById("id-trigger-keyword");
+            keywordTrigger.scrollIntoView({behavior: 'smooth'});
+            $('#id-trigger-keyword>.formax-icon').trigger('click');
+            var flowSelect = document.querySelector('#id_keyword_flow');
+            var optionToSelect = flowSelect.staticOptions.find(opt => opt.value == flow);
+            flowSelect.setValue(optionToSelect);
+            if (optionToSelect) {
+              var api_url = "{% url 'flows.flow_flow_parameters' %}?flow_id=" + flow;
+              $.getJSON(api_url).done(function(data) {
+                buildTriggerFlowParams(data.results, [], 'keyword', keywordTrigger.shadowRoot);
+              });
+            } else {
+              buildTriggerFlowParams([], [], 'keyword');
+            }
+            break;
+          case "schedule":
+            var scheduleTrigger = document.getElementById("id-trigger-schedule");
+            scheduleTrigger.scrollIntoView({behavior: 'smooth'});
+            $('#id-trigger-schedule>.formax-icon').trigger('click');
+            var flowSelect = document.querySelector('#id_schedule_flow');
+            var optionToSelect = flowSelect.staticOptions.find(opt => opt.value == flow);
+            flowSelect.setValue(optionToSelect);
+            if (optionToSelect) {
+              var api_url = "{% url 'flows.flow_flow_parameters' %}?flow_id=" + flow;
+              $.getJSON(api_url).done(function(data) {
+                buildTriggerFlowParams(data.results, [], 'schedule', scheduleTrigger.shadowRoot);
+              });
+            } else {
+              buildTriggerFlowParams([], [], 'schedule', scheduleTrigger.shadowRoot);
+            }
+            break;
+        }
+      }, 1000)
+    });
+    {% endif %}

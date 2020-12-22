@@ -248,7 +248,7 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
         widget=SelectWidget(attrs={"placeholder": _("Select a flow"), "searchable": True}),
         empty_label=None,
     )
-    start = forms.ChoiceField(choices=(("stop", "Stop Schedule"), ("later", "Schedule for later")))
+
     start_datetime_value = forms.IntegerField(required=False)
 
     omnibox = JSONField(
