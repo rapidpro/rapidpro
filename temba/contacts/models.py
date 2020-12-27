@@ -50,7 +50,7 @@ class URN:
     """
 
     DELETED_SCHEME = "deleted"
-    EMAIL_SCHEME = "mailto"
+    EMAIL_SCHEME = "email"
     EXTERNAL_SCHEME = "ext"
     FACEBOOK_SCHEME = "facebook"
     JIOCHAT_SCHEME = "jiochat"
@@ -456,7 +456,7 @@ class ContactField(SmartModel):
     @classmethod
     def is_valid_label(cls, label):
         label = label.strip()
-        return regex.match(r"^[A-Za-z0-9\- ]+$", label, regex.V0) and len(label) <= cls.MAX_LABEL_LEN
+        return regex.match(r"^[A-Za-z0-9_\- ]+$", label, regex.V0) and len(label) <= cls.MAX_LABEL_LEN
 
     @classmethod
     def hide_field(cls, org, user, key):
