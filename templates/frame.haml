@@ -257,7 +257,7 @@
         posterize(ele.getAttribute('href'));
       }
 
-      function removalConfirmation(removal, buttonName, autoDismiss) {
+      function removalConfirmation(removal, buttonName) {
 
         var modal = document.querySelector("#general-delete-confirmation");
 
@@ -273,7 +273,6 @@
         modal.addEventListener("temba-button-clicked", function(event){
           if(!event.detail.button.secondary) {
             var ele = document.querySelector('#' + removal + '-form');
-          if(autoDismiss) modal.dismiss();
             handlePosterize(ele);
           }
           modal.open = false;

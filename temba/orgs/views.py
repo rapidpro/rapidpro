@@ -369,6 +369,7 @@ class GiftcardsForm(forms.ModelForm):
         label=_("New Collection"),
         max_length=30,
         help_text="Enter a name for your collection. ex: my gifts, new lookup table",
+        widget=InputWidget
     )
     remove = forms.CharField(widget=forms.HiddenInput, max_length=6, required=False)
     index = forms.CharField(widget=forms.HiddenInput, max_length=10, required=False)

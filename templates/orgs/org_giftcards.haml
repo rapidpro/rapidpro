@@ -19,13 +19,13 @@
 
 -block fields
   -if current_collections
-    %table#table-giftcards.table.table-condensed
+    %table#table-giftcards.list.object-list.lined
       %thead
         %tr
           %th Collections
           %th.permission
           %th.permission
-          %th.permission Remove
+          %th.permission.text-center Remove
 
       %tbody
         -if current_collections
@@ -61,7 +61,7 @@
   {{block.super}}
   :javascript
     function confirmRemoveCollection(name, index) {
-      removalConfirmation(name + "-" + index, "Remove", true);
+      removalConfirmation(name + "-" + index, "Remove");
     }
 
     var isFormSubmitted = false;
@@ -92,4 +92,10 @@
     }
     td.action {
       width: 100px;
+    }
+    .span8 {
+      width: 100% !important;
+    }
+    .text-center {
+      text-align: center !important;
     }
