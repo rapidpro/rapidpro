@@ -27,7 +27,8 @@
             - if not prevent_merge
               %label{for: "flow_name"}
                 -trans "Name of new combined flow:"
-              %input{type:"text", name:"flow_name", id:"flow_name", value:"{{ target.name }}"}
+              %temba-textinput{type:"text", name:"flow_name", id:"flow_name", value:"{{ target.name }}"}
+              %br
 
           - if errors
             - for error in errors
@@ -61,10 +62,10 @@
                 %p
                   =warning
         
-          .form-buttons
+          .flex
             - if not prevent_merge
-              %input.btn.btn-primary{type:"submit", value:'{% trans "Combine Flows" %}'}
-            %a.btn{onclick:"javascript:history.go(-1)"}
+              %input.button-primary{type:"submit", value:'{% trans "Combine Flows" %}'}
+            %a.button-light.ml-4{onclick:"javascript:history.go(-1)"}
               -trans "Cancel"
 
 

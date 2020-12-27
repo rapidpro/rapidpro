@@ -190,6 +190,12 @@
       padding-bottom: 0px;
     }
 
+    .inverted {
+      color: var(--color-text-light);
+      background: #1a1a1a;
+      border-radius: 100%;
+    }
+
 -block extra-script
   {{ block.super }}
 
@@ -218,6 +224,20 @@
           posterize('{% url "flows.flow_change_language" object.id %}?language=' + code);
         }
         confirmation.open = false;
+      });
+
+      var combineFlowsTrigger = document.querySelector(".merge-flows-trigger");
+      var combineFlowsModal = document.getElementById("combine-flows");
+      combineFlowsTrigger.onclick = (event) => {
+        combineFlowsModal.classList.remove("hide");
+        combineFlowsModal.open = true;
+      };
+      combineFlowsModal.addEventListener("temba-button-clicked", function(event) {
+        if (!event.detail.button.secondary) {
+          let form = document.getElementById("select-source-form");
+          form.submit();
+        }
+        combineFlowsModal.open = false;
       });
     });
 
@@ -335,6 +355,22 @@
         flow will be appear in that language and can be translated into other languages. Also if a contact is
         in this flow and no translation exists for their language or the default language of the workspace,
         communication with that contact will default to <b>{{ language }}</b>.
+
+  %temba-dialog.hide#combine-flows(header='{{_("Combine Flows")|escapejs}}s' primaryButtonName='{{_("OK")|escapejs}}')
+    .p-6.body
+      %form#select-source-form{action: "{% url 'flows.flow_merge_flows' %}"}
+        %label
+          - trans "Original Flow"
+          .icon-help.inverted(data-toggle="tooltip" data-placement="bottom" title="{% trans 'This is the flow that will transfer data to the destination flow' %}")
+        %temba-select(name="source")
+          - for flow in mergeable_flows
+            %temba-option(name="{{ flow }}" value="{{ flow.uuid }}")
+
+        %label
+          - trans "Destination Flow"
+          .icon-help.inverted(data-toggle="tooltip" data-placement="bottom" title="{% trans 'This is the flow that will have the combined data from the original flow' %}")
+        %temba-select(name="target")
+          %temba-option(name="{{ object.name }}" value="{{ object.uuid }}" selected)
 
   #grid.h-full
     <temba-loading units="10" size="8"></temba-loading>

@@ -2878,18 +2878,18 @@ class FlowCRUDL(SmartCRUDL):
             if not all((source, target)):
                 raise Http404()
 
-            context["source"] = source.as_json()
-            context["target"] = target.as_json()
+            context["source"] = source.get_definition()
+            context["target"] = target.get_definition()
 
             errors = []
-            if {source.version_number, target.version_number}.intersection(set(Flow.VERSIONS)):
+            if {source.version_number, target.version_number}.intersection(set(legacy.VERSIONS)):
                 errors.append(_("Legacy flows don't support merging."))
 
             if source.flow_type != target.flow_type:
                 errors.append(_("These flows can't be merged because of different flow types."))
 
-            source_graph = Graph(source.as_json())
-            target_graph = Graph(target.as_json())
+            source_graph = Graph(source.get_definition())
+            target_graph = Graph(target.get_definition())
             diff_graph = GraphDifferenceMap(source_graph, target_graph)
             diff_graph.compare_graphs()
 
@@ -2958,7 +2958,7 @@ class FlowCRUDL(SmartCRUDL):
                     [message for val in form.errors.as_data().values() for error in val for message in error]
                 )
 
-            if {source.version_number, target.version_number}.intersection(set(Flow.VERSIONS)):
+            if {source.version_number, target.version_number}.intersection(set(legacy.VERSIONS)):
                 errors.append(_("Legacy flows don't support merging."))
 
             if source.flow_type != target.flow_type:
@@ -2972,8 +2972,8 @@ class FlowCRUDL(SmartCRUDL):
                 if difference_map.conflicts and resolved_conflicts:
                     difference_map.apply_conflict_resolving(resolved_conflicts)
             if difference_map is None:
-                source_graph = Graph(source.as_json())
-                target_graph = Graph(target.as_json())
+                source_graph = Graph(source.get_definition())
+                target_graph = Graph(target.get_definition())
                 difference_map = GraphDifferenceMap(source_graph, target_graph)
                 difference_map.compare_graphs()
 
@@ -2986,8 +2986,8 @@ class FlowCRUDL(SmartCRUDL):
                 context = self.get_context_data()
                 context.update(
                     {
-                        "source": source.as_json(),
-                        "target": target.as_json(),
+                        "source": source.get_definition(),
+                        "target": target.get_definition(),
                         "flow_name": request.POST.get("flow_name"),
                         "merging_map": serialize_difference_graph(difference_map, dumps=True),
                         "conflict_solutions": difference_map.get_conflict_solutions(),
