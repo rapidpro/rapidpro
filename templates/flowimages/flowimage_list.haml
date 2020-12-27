@@ -1,10 +1,6 @@
 -extends "smartmin/list.html"
--load smartmin sms contacts
+-load smartmin sms contacts temba
 -load i18n humanize
-
--block title-icon
-  .title-icon
-    %span.glyph.icon-photo
 
 -block page-title
   -if current_object
@@ -14,236 +10,189 @@
     {{title}}
 
 -block page-top
-  {% render as page_top %}
-    {{block.super}}
-  {% endrender %}
-  -if org_has_flowimages
-    {{page_top}}
 
--block above-bar
-  -block top-form
-    %form{method:'get'}
-      %input.input-medium.search-query{'type':'text', 'placeholder':'{% trans "Search" %}', 'name':"search", 'value':"{{search}}"}
+-block title-icon
+  .title-icon
+    %span.glyph.icon-photo
 
 -block content
+
   #pjax
     -block pjax
-      .row-fluid
-        .span3.sidebox
-
-          #sidebar-nav
-            %ul.nav.nav-list
-              %li.nav-header
-                -trans "Flow Images"
+      .lp-frame
+        .left
+          .lp-nav.upper
+            .font-normal.uppercase.text-xs.pb-1.text-gray-500
+              - trans "Flow Images"
+            .inner-scroll
               - for folder in folders
-                %li{'class':"{% if folder.url == request_url %}active{% endif %}" }
-                  %a{'href':'{{folder.url}}'}
-                    {{ folder.label }} ({{ folder.count }})
-              %li.nav-header
-                -trans "Images by Flows"
+                .lp-nav-item(class="{% if folder.url == request_url %}font-normal{% endif %}")
+                  .name(onclick="goto(event)" href='{{ folder.url }}')
+                    {{ folder.label }}
+                  .count(onclick="goto(event)" href='{{ folder.url }}')
+                    {{ folder.count | intcomma }}
+
+          .lp-nav.lower
+            .font-normal.uppercase.text-xs.text-gray-500.pb-1
+              - trans "Images by Flows"
+            .inner-scroll
               - for flow in flows
-                %li{'class':'{% if current_object.uuid == flow.uuid %}active{% endif %}'}
-                  %a{'href':'{% url "flows.flowimage_filter" "flow" flow.uuid %}'}
-                    {{flow.name}} ({{ flow.get_images_count | intcomma }})
-              %li.nav-header
-                -trans "Images by Groups"
+                .lp-nav-item(class="{% if current_object.uuid == flow.uuid %}font-normal{% endif %}")
+                  .name(onclick="goto(event)" href='{% url "flows.flowimage_filter" "flow" flow.uuid %}')
+                    {{ flow.name }}
+                  .count(onclick="goto(event)" href='{% url "flows.flowimage_filter" "flow" flow.uuid %}')
+                    {{ flow.get_images_count | intcomma }}
+
+          .lp-nav.upper
+            .font-normal.uppercase.text-xs.text-gray-500.pb-1
+              - trans "Images by Groups"
+            .inner-scroll
               - for group in groups
-                %li{'class':'{% if current_object.uuid == group.uuid %}active{% endif %}'}
-                  %a{'href':'{% url "flows.flowimage_filter" "group" group.uuid %}'}
-                    {{group.name}}
-        - if org_has_flowimages or org_has_flowimages_archived
-          - block contacts-list
-            .span9
-              - block buttons
-                -if object_list
-                  .pull-right
-                    -block buttons-right
-                      -block gear-menu
-                        -include "gear_links_include.haml"
-                    %form#download-images{method:'POST', action:'{% url "flows.flowimage_download" %}', style:'display:none'}
-                      -csrf_token
-                      %input#objects{type:'hidden', name:'objects'}
-                      %input#type{type:'hidden', name:'type'}
-                      %input#uuid{type:'hidden', name:'uuid'}
-                .list-buttons-container
-                  .list-buttons
-                    - if 'download' in actions and org_perms.flows.flowimage_download
-                      %span.btn-group
-                        %a.object-btn-download{href:'#', onclick:'submitDownloadImages()'}
-                          %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Download" %}'}
-                            .glyph.icon-cloud-download
-                    - if 'restore' in actions and org_perms.flows.flowimage_action_restore
-                      %span.btn-group
-                        %a.object-btn-restore{href:'#'}
-                          %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Activate" %}'}
-                            .glyph.icon-photo
-                    - if 'archive' in actions and org_perms.flows.flowimage_action_archive
-                      %span.btn-group
-                        %a.object-btn-archive{href:'#'}
-                          %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Archive" %}'}
-                            .glyph.icon-box
-                    - if 'delete' in actions and org_perms.flows.flowimage_action_delete
-                      %span.btn-group
-                        %a{href:'javascript:confirmRemoveItems("remove-items")'}
-                          %button.btn{data-toggle:'tooltip', data-trigger:'hover', data-delay:"800", data-placement:'top', data-original-title:'{% trans "Delete" %}'}
-                            .glyph.icon-remove-2
-                      %a.hide.object-btn-delete#remove-items-form
-                        -trans 'Delete items'
-                      .hide{'class': 'remove-items'}
-                        .title
-                          -trans "Delete selected images"
-                        .body
-                          -blocktrans
-                            Are you sure you want to delete the selected files? This action cannot be undone.
-                        %a.posterize
-              .search-details
-                -if search_error
+                .lp-nav-item(class="{% if current_object.uuid == group.uuid %}font-normal{% endif %}")
+                  .name(onclick="goto(event)" href='{% url "flows.flowimage_filter" "group" group.uuid %}}')
+                    {{ group.nam }}
+        .right
+          - if org_has_flowimages or org_has_flowimages_archived
+            - block contacts-list
+              .flex.w-full.mb-4.items-end.flex-wrap.justify-end.-mt-2(style="min-height:41px")
+
+                -block action-buttons
+                  .list-buttons-container.h-full.mr-2.mt-2.flex-grow
+                    .list-buttons.flex.items-center.-mx-2.h-full
+                      - if 'download' in actions and org_perms.flows.flowimage_download
+                        .button-action.object-btn-download
+                          .-mt-1.mr-2.glyph.icon-cloud-download
+                          -trans "Download"
+
+                      - if 'restore' in actions and org_perms.flows.flowimage_action_restore
+                        .button-action.object-btn-restore
+                          .-mt-1.mr-2.glyph.icon-checkmark
+                          -trans "Activate"
+
+                      - if 'archive' in actions and org_perms.flows.flowimage_action_archive
+                        .button-action.object-btn-archive
+                          .-mt-1.mr-2.glyph.icon-box
+                          -trans "Archive"
+
+                      - if 'delete' in actions and org_perms.flows.flowimage_action_delete
+                        .button-action.object-btn-delete
+                          .-mt-1.mr-2.glyph.icon-user-delete
+                          -trans "Delete"
+
+                  .flex-grow.ml-1.self-end.items-end
+                    .flex.flex-col.pr-12
+                      .page-title.leading-tight
+                        -block title
+                          -if current_group
+                            {{current_group.name}}
+                          -else
+                            {{title}}
+                      .subtitle
+                        -block subtitle
+                  .gear-links
+                    -include "gear_links_include.haml"
+
+              %form#search-form.mb-4(method="get")
+                %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{search}}")
+
+              -if search_error
+                .mb-4.ml-2
                   %span.search-error
                     =search_error
-                -elif search
-                  -blocktrans count results_count=paginator.count
-                    Found {{ results_count }} flow image matching <i>{{search}}</i>.
+              -elif search
+                .mb-4.ml-1.text-base.leading-relaxed
+                  -blocktrans with results_count=paginator.count|intcomma count cc=paginator.count
+                    Found {{ results_count }} contact matching <i>{{search}}</i>.
                     -plural
-                      Found {{ results_count }} flow images matching <i>{{search}}</i>.
-              .list-container
-                %table.list-table.flowimage_list.table.object-list.table.table-condensed{style: '{% if not org_perms.flows.flowimage_list %}margin-top:10px{% endif %}'}
+                      Found {{ results_count }} contacts matching <i>{{search}}</i>.
+
+              %form#download-images{method:'POST', action:'{% url "flows.flowimage_download" %}', style:'display:none'}
+                -csrf_token
+                %input#objects{type:'hidden', name:'objects'}
+                %input#type{type:'hidden', name:'type'}
+                %input#uuid{type:'hidden', name:'uuid'}
+
+              %table.list.object-list.lined.selectable{style: '{% if not org_perms.flows.flowimage_list %}margin-top:10px{% endif %}'}
+                -if object_list
                   %tr.flowimages
-                    -if object_list
-                      %th.checkbox.object-row-checkbox
-                        .glyph.icon-checkbox-unchecked.flowimage-checkbox.object-row-checkbox{'title':'Select/Deselect all items'}
+                    %th.checkbox.object-row-checkbox
+                      .glyph.icon-checkbox-unchecked.flowimage-checkbox.object-row-checkbox{'title':'Select/Deselect all items'}
                     %th.select-all-items-text{'style': 'text-align: left'}
                       -trans "Select all items"
                     -if not current_object.flow_type
                       %th
                         -trans "Flow"
-                    -if object_list
-                      %th
-                        -trans "Image"
+                    %th
+                      -trans "Image"
                     -for field in contact_fields
                       -if field.show_in_table
                         %th
                           {{ field.label }}
                     %th
-                      - if object_list
-                        -trans "Created On"
-                  %tbody.infinite-scroll
-                    - for object in object_list
-                      %tr.flowimage.select-row.object-row{'class':'{% cycle row1 row2 %}', 'data-uuid': '{{object.uuid}}', 'data-object-id':'{{object.id}}'}
-                        - if org_perms.flows.flowimage_archived
-                          %td.flowimage.checkbox.object-row-checkbox
-                            .glyph.icon-checkbox-unchecked.contact-checkbox.object-row-checkbox
-                        %td.value-text.field_name
-                          %span
-                            {{ object.contact|name_or_urn:user_org }}
-                        -if not current_object.flow_type
-                          %td.value-text.field_name{'style': 'text-align: center'}
+                      -trans "Created On"
+
+                    %tbody.infinite-scroll
+                      - for object in object_list
+                        %tr.flowimage.select-row.object-row(data-uuid="{{object.uuid}}" data-object-id="{{object.id}}" onrowclick='handleRowClicked("{{object.uuid}}")')
+                          - if org_perms.flows.flowimage_archived
+                            %td.flowimage.checkbox.object-row-checkbox
+                              %temba-checkbox(onclick="handleRowSelection(this)")
+                          %td.value-text.field_name
                             %span
-                              {{ object.flow.name }}
-                        %td.value-text.field_name{'style': 'text-align: center; min-width: 50px'}
-                          -if object.is_playable
-                            %a.attachment-preview{
-                              href:"#",
-                              data-featherlight:'<video class="video-js vjs-default-skin" controls preload="auto"><source type="{{ object.get_content_type }}" src="{{ object.get_url }}" /></video>',
-                              data-featherlight-after-content:'initializeVideoPlayer(this.$content[0])',
-                              data-featherlight-after-close:'disposeVideoPlayer(this.$content[0])'
-                            }
-                              .attachment-icon.icon-videocam{'style': 'font-size: 18px;'}
-                          -else
-                            %a{'href':'#', 'data-featherlight':'<img class="image-full" src="{{ object.get_url }}"/>'}
-                              -if object.path_thumbnail
-                                %img{'src':'{{ object.path_thumbnail }}'}
-                              -else
-                                .attachment-icon.icon-photo{'style': 'font-size: 18px;'}
+                              {{ object.contact|name_or_urn:user_org }}
+                          -if not current_object.flow_type
+                            %td.value-text.field_name{'style': 'text-align: center'}
+                              %span
+                                {{ object.flow.name }}
+                          %td.value-text.field_name{'style': 'text-align: center; min-width: 50px'}
+                            -if object.is_playable
+                              %a.attachment-preview{
+                                href:"#",
+                                data-featherlight:'<video class="video-js vjs-default-skin" controls preload="auto"><source type="{{ object.get_content_type }}" src="{{ object.get_url }}" /></video>',
+                                data-featherlight-after-content:'initializeVideoPlayer(this.$content[0])',
+                                data-featherlight-after-close:'disposeVideoPlayer(this.$content[0])'
+                              }
+                                .attachment-icon.icon-videocam{'style': 'font-size: 18px;'}
+                            -else
+                              %a{'href':'#', 'data-featherlight':'<img class="image-full" src="{{ object.get_url }}"/>'}
+                                -if object.path_thumbnail
+                                  %img.thumbnail{'src':'{{ object.path_thumbnail }}'}
+                                -else
+                                  .attachment-icon.icon-photo{'style': 'font-size: 18px;'}
 
-                        -for field in contact_fields
-                          -if field.show_in_table
-                            %td.field
-                              {{ object.contact|contact_field:field.key }}
+                          -for field in contact_fields
+                            -if field.show_in_table
+                              %td.field
+                                {{ object.contact|contact_field:field.key }}
 
-                        %td.value-received.field_received
-                          %nobr
-                            {{ object.created_on|gmail_time }}
+                          %td.value-received.field_received
+                            %nobr
+                              {{ object.created_on|gmail_time }}
 
-                    -empty
-                      %tr
-                        %td{colspan:3}
-                          -trans "No matching flow images."
-                        -for field in contact_fields
-                          -if field.show_in_table
-                            %td.field
-                        %td
+                      -empty
+                        %tr
+                          %td(colspan="99")
+                            -trans "No matching flow images."
 
 
-              - block paginator
-                - if object_list.count
-                  .paginator
-                    - include "smartmin/sidebar_pagination.haml"
+              .flex.flex-col.mb-16
+                -include "includes/pagination.haml"
 
-        - else
-          - include "flowimages/empty_include.haml"
+                -if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000
+                  .text-gray-400.text-sm.self-end.mt-2
+                    -trans "To view more than 10,000 search results, save it as a group."
+
+          - if not object_list
+            - include "flowimages/empty_include.haml"
 
 -block post-content
 
 -block extra-style
+  {{block.super}}
   :css
-
-    .flowimage-checkbox {
-      padding: 0 0 10px 0;
-      margin: 0px 0 0px 4px !important;
+    .thumbnail {
+      width: 50px;
     }
-
-    .pagination {
-      display: none;
-    }
-
-    td {
-      max-width: 100px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    td:hover {
-      overflow: visible;
-    }
-
-    td:hover span {
-      position: relative;
-      background-color: white;
-    }
-
-    tr.flowimages th {
-      font-size:11px;
-      height:10px;
-      padding:0;
-      padding-top:10px;
-      font-weight:200;
-      color: #aaa;
-      border:0px solid;
-      text-align:center;
-    }
-
-    td.field {
-      text-align:center;
-      min-width:125px;
-    }
-
-    .span9 .flowimage_list tr.flowimages {
-      border-top: none;
-    }
-
-    .span9 .object-list tbody td.value-text {
-      min-width: 30px;
-    }
-
-    .modal .modal-body .control-group .control-label {
-      display:none;
-    }
-
-    .search-error {
-      color: #da4f49;
-    }
-
 
 -block extra-script
   {{ block.super }}
@@ -252,31 +201,11 @@
 
   :javascript
 
-    function confirmRemoveItems(name) {
-      removalConfirmation(name, "Delete");
-    }
-
-    function submitDownloadImages() {
+    $('.page-content').on('click', '.object-btn-download', function () {
       var objects = getCheckedIds();
       $('input#objects').val(objects);
       $('form#download-images').submit();
-    }
-
-    $(document).on('click', '#remove-items-form', function() {
-        var modal = $('#active-modal');
-        var modal_backdrop = $('.modal-backdrop');
-        modal.remove();
-        modal_backdrop.remove();
     });
-
-    var refresh = 0;
-
-    $(document).on('click', '.search-query', function() {
-      $(this).animate({ width: '600px'}, 200);
-    });
-
-    // keeps track if we are on a link or not
-    var onLink = false;
 
     $(document).ready(function () {
       var ias = $.ias({
@@ -297,35 +226,20 @@
         });
     });
 
-    {% if org_perms.contacts.contactfield_managefields %}
-    $('.page-content').on('click', ".manage-fields", function() {
-      lastChecked = getCheckedIds();
-      var modal = new Modax('{% trans "Manage Contact Fields" %}', '{% url "contacts.contactfield_managefields" %}');
-      modal.setIcon('icon-vcard');
-      modal.setListeners({
-        onFormLoaded:function() {
-          useFontCheckbox("input[type=checkbox]", false);
-        },
-        onSuccess: function() { location.reload(); }
-      });
-      modal.show();
-    });
-    {% endif %}
-
-    {% if object_list %}
-    $('.page-content').on('click', ".download-all-images", function(e) {
+    document.querySelectorAll(".download-all-images").forEach(el => {
+      el.addEventListener("click", (e) => {
         e.preventDefault();
-        var href = $(this)[0].href;
-        splitted = href.split('/');
-        if (splitted[4] == 'filter') {
-            $('input#type').val(splitted[5]);
-            $('input#uuid').val(splitted[6]);
-        } else if (splitted[4] == 'archived') {
-            $('input#type').val('archived');
+        let path = document.location.pathname;
+        let split = path.split('/');
+        if (split[2] === 'filter') {
+          $('input#type').val(split[3]);
+          $('input#uuid').val(split[4]);
+        } else if (split[2] === 'archived') {
+          $('input#type').val('archived');
         }
         else {
-            $('input#type').val('list');
+          $('input#type').val('list');
         }
         $('form#download-images').submit();
+      });
     });
-    {% endif %}

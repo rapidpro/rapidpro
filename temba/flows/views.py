@@ -184,90 +184,6 @@ class BaseFlowForm(forms.ModelForm):
         fields = "__all__"
 
 
-class FlowActionForm(forms.ModelForm):
-    allowed_actions = (
-        ("archive", _("Archive Flows")),
-        ("label", _("Label Messages")),
-        ("restore", _("Restore Flows")),
-    )
-
-    model = Flow
-    label_model = FlowLabel
-    has_is_active = True
-
-    class Meta:
-        fields = ("action", "objects", "label", "add")
-
-
-class FlowActionMixin(SmartListView):
-    @csrf_exempt
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        user = self.request.user
-        org = user.get_org()
-
-        form = FlowActionForm(self.request.POST, org=org, user=user)
-
-        toast = None
-        ignored = []
-        if form.is_valid():
-            changed = form.execute().get("changed")
-            for flow in form.cleaned_data["objects"]:
-                if flow.id not in changed:
-                    ignored.append(flow.name)
-
-            if form.cleaned_data["action"] == "archive" and ignored:
-                if len(ignored) > 1:
-                    toast = _(
-                        "%s are used inside a campaign. To archive them, first remove them from your campaigns."
-                        % " and ".join(ignored)
-                    )
-                else:
-                    toast = _(
-                        "%s is used inside a campaign. To archive it, first remove it from your campaigns."
-                        % ignored[0]
-                    )
-
-        response = self.get(request, *args, **kwargs)
-
-        if toast:
-            response["Temba-Toast"] = toast
-
-        return response
-
-
-class FlowImageActionForm:
-    allowed_actions = (
-        ("archive", _("Archive Flow Images")),
-        ("delete", _("Delete Flow Images")),
-        ("download", _("Download Flow Images")),
-        ("restore", _("Restore Flows Images")),
-    )
-
-    model = FlowImage
-    has_is_active = False
-
-    class Meta:
-        fields = ("action", "objects", "label", "add")
-
-
-class FlowImageActionMixin(SmartListView):
-    @csrf_exempt
-    def dispatch(self, *args, **kwargs):
-        return super(FlowImageActionMixin, self).dispatch(*args, **kwargs)
-
-    def post(self, request, *args, **kwargs):
-        user = self.request.user
-        org = user.get_org()
-        form = FlowImageActionForm(self.request.POST, org=org, user=user)
-        if form.is_valid():
-            form.execute()
-        response = self.get(request, *args, **kwargs)
-        return response
-
-
 class PartialTemplate(SmartTemplateView):  # pragma: no cover
     def pre_process(self, request, *args, **kwargs):
         self.template = kwargs["template"]
@@ -319,13 +235,14 @@ class FlowImageCRUDL(SmartCRUDL):
             else:
                 return queryset.filter(org=self.request.user.get_org())
 
-    class BaseList(FlowImageActionMixin, OrgQuerysetMixin, OrgPermsMixin, SmartListView):
+    class BaseList(BulkActionMixin, OrgQuerysetMixin, OrgPermsMixin, SmartListView):
         title = _("Flow Images")
         refresh = 10000
         fields = ("name", "modified_on")
         default_template = "flowimages/flowimage_list.html"
         default_order = ("-created_on",)
         search_fields = ("name__icontains", "contact__name__icontains", "contact__urns__path__icontains")
+        bulk_actions = ("archive", "delete", "download", "restore")
 
         def get_counter(self):
             query = FlowImage.objects.filter(org=self.request.user.get_org())
@@ -367,10 +284,12 @@ class FlowImageCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
-            if self.has_org_perm("contacts.contactfield_managefields"):
-                links.append(dict(title=_("Manage Fields"), js_class="manage-fields", href="#"))
-            if self.has_org_perm("flows.flowimage_download"):
-                links.append(dict(title=_("Download all images"), js_class="download-all-images", href=""))
+            if self.has_org_perm("flows.flowimage_download") and self.object_list:
+                links.append(dict(
+                    title=_("Download all images"),
+                    style="download-all-images",
+                    href="#"
+                ))
             return links
 
     class List(BaseList):
