@@ -1,8 +1,13 @@
 import itertools
+import json
+
+import regex
 import requests
 from enum import Enum
 from mimetypes import guess_extension
 
+from django.conf import settings
+from django.template.defaultfilters import slugify
 from rest_framework import generics, status, views
 from rest_framework.pagination import CursorPagination
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -81,6 +86,7 @@ from .serializers import (
     UrlAttachmentValidationSerializer,
     WebHookEventReadSerializer,
 )
+from ...orgs.models import LOOKUPS, DEFAULT_FIELDS_PAYLOAD_LOOKUPS, DEFAULT_INDEXES_FIELDS_PAYLOAD_LOOKUPS
 
 
 class RootView(views.APIView):
@@ -98,6 +104,8 @@ class RootView(views.APIView):
      * [/api/v2/classifiers](/api/v2/classifiers) - to list classifiers
      * [/api/v2/contacts](/api/v2/contacts) - to list, create, update or delete contacts
      * [/api/v2/contact_actions](/api/v2/contact_actions) - to perform bulk contact actions
+     * [/api/v2/database](/api/v2/database) - to manage lookup collections
+     * [/api/v2/database_records](/api/v2/database_records) - to manage lookup collection records
      * [/api/v2/definitions](/api/v2/definitions) - to export flow definitions, campaigns, and triggers
      * [/api/v2/fields](/api/v2/fields) - to list, create or update contact fields
      * [/api/v2/flow_starts](/api/v2/flow_starts) - to list flow starts and start contacts in flows
@@ -202,6 +210,8 @@ class RootView(views.APIView):
                 "classifiers": reverse("api.v2.classifiers", request=request),
                 "contacts": reverse("api.v2.contacts", request=request),
                 "contact_actions": reverse("api.v2.contact_actions", request=request),
+                "database": reverse("api.v2.parse_database", request=request),
+                "database_records": reverse("api.v2.parse_database_records", request=request),
                 "definitions": reverse("api.v2.definitions", request=request),
                 "fields": reverse("api.v2.fields", request=request),
                 "flow_starts": reverse("api.v2.flow_starts", request=request),
@@ -227,7 +237,7 @@ class ExplorerView(SmartTemplateView):
     Explorer view which lets users experiment with endpoints against their own data
     """
 
-    template_name = "api/v2/api_explorer.html"
+    template_name = "api/v2/api_explorer.haml"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -248,6 +258,14 @@ class ExplorerView(SmartTemplateView):
             ContactsEndpoint.get_write_explorer(),
             ContactsEndpoint.get_delete_explorer(),
             ContactActionsEndpoint.get_write_explorer(),
+            ParseDatabaseEndpoint.get_read_explorer(),
+            ParseDatabaseEndpoint.get_write_explorer(),
+            ParseDatabaseEndpoint.get_put_explorer(),
+            ParseDatabaseEndpoint.get_delete_explorer(),
+            ParseDatabaseRecordsEndpoint.get_read_explorer(),
+            ParseDatabaseRecordsEndpoint.get_write_explorer(),
+            ParseDatabaseRecordsEndpoint.get_put_explorer(),
+            ParseDatabaseRecordsEndpoint.get_delete_explorer(),
             DefinitionsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_read_explorer(),
             FieldsEndpoint.get_write_explorer(),
@@ -2421,7 +2439,6 @@ class MediaEndpoint(BaseAPIView):
     permission = "msgs.msg_api"
 
     def post(self, request, format=None, *args, **kwargs):
-
         org = self.request.user.get_org()
         media_file = request.data.get("media_file", None)
         extension = request.data.get("extension", None)
@@ -3634,3 +3651,619 @@ class ValidateUrlAttachmentEndpoint(BaseAPIView):
             validation_data.update({"valid": False, "error": _("Url of attachment is not valid.")})
 
         return Response(validation_data, status=status_code)
+
+
+class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
+    """
+        This endpoint allows to manage lookup databases.
+
+        ## Listing Lookup Collections
+
+        A `GET` returns the list of collections that you can access via API:
+        List of databases for current org:
+
+            GET /api/v2/database.json
+
+        Response is the list of collection names that you can use access specific collection:
+
+            {
+                "results": [
+                    "Lookups 2",
+                    "Lookups"
+                ]
+            }
+
+        ## Creating a new Lookup Collection
+
+        A `POST` creates a new collection:
+
+         * **collection_name** - the name of new collection
+
+        Create new collection for current org:
+
+            POST /api/v2/database.json
+            {
+                "collection_name": "Lookups List"
+            }
+
+
+        Response status of successful creation would be `201`
+
+        ## Uploading data to Lookup Collection
+
+        A `PUT` inserts data into collection:
+
+         * **collection_name** - the name of collection
+         * **fields** - columns that are going to be created in collection (If not provided the columns will be created automaticaly from items keywords)
+         * **items** - list of objects that are going to be inserted
+
+        Create new collection for current org (This action will clear all records and paste new ones instead of them):
+
+            PUT /api/v2/database.json
+            {
+                "collection_name": "Lookups List",
+                "fields": {
+                    "name": {"type": "String"},
+                    "age": {"type": "Number"}
+                },
+                "items": [
+                    {
+                        "name": "Test Name",
+                        "age": 50
+                    },
+                    {
+                        "name": "Test Name 2",
+                        "age": 22
+                    }
+                ]
+            }
+
+
+        Response will contain list of created objects and response status will be `201`:
+
+            [
+                {
+                    "success": {
+                        "objectId": "QnzUnlfydT",
+                        "createdAt": "2020-12-10T15:51:12.797Z"
+                    }
+                },
+                {
+                    "success": {
+                        "objectId": "uJTNjXyek9",
+                        "createdAt": "2020-12-10T15:51:12.797Z"
+                    }
+                }
+            ]
+
+        ## Deleting Lookup Collection
+
+        A `DELETE` deletes collection:
+
+         * **collection_name** - the name of collection
+
+        Create new collection for current org:
+
+            DELETE /api/v2/database.json
+            {
+                "collection_name": "Lookups List"
+            }
+
+
+        Response status of successful deletion would be `204`
+    """
+
+    permission = "orgs.org_lookups"
+    parse_headers = {
+        "X-Parse-Application-Id": settings.PARSE_APP_ID,
+        "X-Parse-Master-Key": settings.PARSE_MASTER_KEY,
+        "Content-Type": "application/json",
+    }
+
+    @classmethod
+    def get_read_explorer(cls):
+        return {
+            "method": "GET",
+            "title": "List of Lookup Collections",
+            "url": reverse("api.v2.parse_database"),
+            "slug": "lookup-database-read",
+        }
+
+    @classmethod
+    def get_write_explorer(cls):
+        return dict(
+            method="POST",
+            title="Create new Lookups Collection",
+            url=reverse("api.v2.parse_database"),
+            slug="lookup-database-create",
+            fields=[dict(name="collection_name", required=True, help="The name of lookups database")],
+            example=dict(body='{"collection_name": "New lookups name"}'),
+        )
+
+    @classmethod
+    def get_delete_explorer(cls):
+        return {
+            "method": "DELETE",
+            "title": "Delete Lookups Collection",
+            "url": reverse("api.v2.parse_database"),
+            "slug": "lookup-database-delete",
+            "fields": [{"name": "collection_name", "required": True, "help": "The name of lookups database"}],
+            "example": dict(body='{"collection_name": "New lookups name"}'),
+        }
+
+    @classmethod
+    def get_put_explorer(cls):
+        return dict(
+            method="PUT",
+            title="Replace Lookups Collection Data",
+            url=reverse("api.v2.parse_database"),
+            slug="lookup-database-put",
+            fields=[
+                dict(name="collection_name", required=True, help="The name of lookups database"),
+                dict(name="fields", required=True, help="The columns to be created"),
+                dict(name="items", required=True, help="The rows to be pushed"),
+            ],
+            example=dict(
+                body=json.dumps(
+                    {
+                        "collection_name": "New lookups name",
+                        "fields": {"name": {"type": "String"}, "age": {"type": "Number"}},
+                        "items": [{"name": "Test Name", "age": 50}, {"name": "Test Name 2", "age": 20}],
+                    }
+                )
+            ),
+        )
+
+    @staticmethod
+    def get_collection_full_name(org, collection, collection_type=LOOKUPS.lower()):
+        slug_new_collection = slugify(collection)
+        collection_full_name = (
+            f"{settings.PARSE_SERVER_NAME}_{org.slug}_{org.id}_{collection_type}_{slug_new_collection}"
+        )
+        collection_full_name = collection_full_name.replace("-", "")
+        return collection_full_name
+
+    @staticmethod
+    def batch_requests(requests_, chunk_size=500):
+        chunk, batch_counter = [], 0
+        for r in requests_:
+            chunk.append(r)
+            batch_counter += 1
+            if batch_counter >= chunk_size:
+                yield chunk
+                chunk, batch_counter = [], 0
+        if chunk:
+            yield chunk
+
+    def get_default_params(self, is_new_collection=False, is_collection_exists=False):
+        org = self.request.user.get_org()
+        if not org:
+            return (
+                None,
+                None,
+                None,
+                Response(
+                    {"error": _("You don't have permission to perform this action.")}, status=status.HTTP_403_FORBIDDEN
+                ),
+            )
+
+        collection_name = self.request.data.get("collection_name", self.request.query_params.get("collection_name"))
+        collections_list = org.get_collections(collection_type=LOOKUPS)
+
+        if is_new_collection and (not collection_name or collection_name in collections_list):
+            return (
+                None,
+                None,
+                None,
+                Response(
+                    {"error": _("Collection name is not provided or collection with this name already exist.")},
+                    status=status.HTTP_400_BAD_REQUEST,
+                ),
+            )
+        elif is_collection_exists and not collection_name:
+            return (
+                None,
+                None,
+                None,
+                Response({"error": _("Collection name is not provided.")}, status=status.HTTP_400_BAD_REQUEST),
+            )
+        elif is_collection_exists and collection_name not in collections_list:
+            return (
+                None,
+                None,
+                None,
+                Response({"error": _("There is no collection with this name.")}, status=status.HTTP_400_BAD_REQUEST),
+            )
+
+        return org, collection_name, collections_list, None
+
+    def list(self, request, *args, **kwargs):
+        org, _, collections_list, error_response = self.get_default_params()
+        if error_response:
+            return error_response
+        return Response({"results": collections_list}, status=status.HTTP_200_OK)
+
+    def post(self, request, *args, **kwargs):
+        org, collection_name, collections_list, error_response = self.get_default_params(is_new_collection=True)
+        if error_response:
+            return error_response
+
+        if not regex.match(r"^[A-Za-z0-9_\- ]+$", collection_name, regex.V0):
+            return Response(
+                {
+                    "error": _(
+                        "Please make sure the collection name only contains "
+                        "alphanumeric characters [0-9a-zA-Z], spaces, underscores and hyphens"
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        collection = self.get_collection_full_name(org=org, collection=collection_name)
+        url = f"{settings.PARSE_URL}/schemas/{collection}"
+        data = {
+            "className": collection,
+            "fields": DEFAULT_FIELDS_PAYLOAD_LOOKUPS,
+            "indexes": DEFAULT_INDEXES_FIELDS_PAYLOAD_LOOKUPS,
+        }
+        response = requests.post(url, data=json.dumps(data), headers=self.parse_headers)
+        if response.status_code == 200:
+            org.add_collection_to_org(self.request.user, collection_name, collection_type=LOOKUPS)
+        else:
+            return Response(response.json(), status=response.status_code)
+
+        return Response(response.json(), status=status.HTTP_201_CREATED)
+
+    def delete(self, request, *args, **kwargs):
+        org, collection_name, collections_list, error_response = self.get_default_params(is_collection_exists=True)
+        if error_response:
+            return error_response
+
+        collection = self.get_collection_full_name(org=org, collection=collection_name)
+        purge_url = f"{settings.PARSE_URL}/purge/{collection}"
+        url = f"{settings.PARSE_URL}/schemas/{collection}"
+
+        try:
+            collection_index = collections_list.index(collection_name)
+        except ValueError:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        response_purge = requests.delete(purge_url, headers=self.parse_headers)
+        if response_purge.status_code in [200, 404]:
+            response = requests.delete(url, headers=self.parse_headers)
+
+            if response.status_code == 200:
+                org.remove_collection_from_org(user=self.request.user, index=collection_index, collection_type=LOOKUPS)
+                return Response(status=status.HTTP_204_NO_CONTENT)
+            else:
+                return Response(response.json(), status=response.status_code)
+        else:
+            return Response(response_purge.json(), status=response_purge.status_code)
+
+    def put(self, request, *args, **kwargs):
+        org, collection_name, collections_list, error_response = self.get_default_params(is_collection_exists=True)
+        if error_response:
+            return error_response
+
+        fields_to_skip = ["objectId", "createdAt", "updatedAt", "ACL"]
+        fields_to_create = dict(
+            filter(lambda x: x[0] not in fields_to_skip, self.request.data.get("fields", {}).items())
+        )
+        items_to_push = self.request.data.get("items", [])
+        if not fields_to_create and not items_to_push:
+            return Response({"error": "There are no items to insert."}, status=status.HTTP_400_BAD_REQUEST)
+
+        collection = self.get_collection_full_name(org, collection_name)
+
+        # clear previous data
+        parse_url = f"{settings.PARSE_URL}/schemas/{collection}"
+        response = requests.get(parse_url, headers=self.parse_headers)
+        if response.status_code == 200 and "fields" in response.json():
+            fields = response.json().get("fields")
+
+            for key in list(fields.keys()):
+                if key in ["objectId", "updatedAt", "createdAt", "ACL"]:
+                    del fields[key]
+                else:
+                    del fields[key]["type"]
+                    fields[key]["__op"] = "Delete"
+
+            remove_fields = {"className": collection, "fields": fields}
+
+            purge_url = f"{settings.PARSE_URL}/purge/{collection}"
+            response_purge = requests.delete(purge_url, headers=self.parse_headers)
+
+            if response_purge.status_code in [200, 404]:
+                requests.put(parse_url, data=json.dumps(remove_fields), headers=self.parse_headers)
+
+        # create new columns
+        if fields_to_create:
+            response = requests.put(
+                parse_url,
+                data=json.dumps({"className": collection, "fields": fields_to_create}),
+                headers=self.parse_headers,
+            )
+            if response.status_code != 200:
+                return Response(response.json(), status=response.status_code)
+
+        # insert data rows
+        if items_to_push:
+            requests_ = []
+            insert_url = f"{settings.PARSE_URL}/batch"
+            db_endpoint = f"{settings.PARSE_ENDPOINT}/classes/{collection}"
+            for index, data in enumerate(items_to_push):
+                requests_.append({"method": "POST", "path": db_endpoint, "body": {"order": index, **data}})
+
+            response = []
+            for chunk in self.batch_requests(requests_):
+                chunk_response = requests.post(
+                    insert_url, data=json.dumps({"requests": chunk}), headers=self.parse_headers
+                )
+                response.extend(chunk_response.json())
+        return Response(response, status=status.HTTP_201_CREATED)
+
+
+class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
+    """
+        This endpoint allows to manage lookup databases.
+
+        ## Lookup Records Listing
+
+        A `GET` returns the first 1000 records for specific collections:
+
+         * **collection_name** - the name of new collection
+
+        List of records for specific collection:
+
+            GET /api/v2/database_records.json
+            {
+                "collection_name": "Lookups List"
+            }
+
+        Response is the list of records for specific collection:
+
+            {
+                "results": [
+                    {
+                        "objectId": "Y3H13CqmmG",
+                        "order": 0,
+                        "name": "Test Name",
+                        "age": 50,
+                        "createdAt": "2020-12-10T20:00:30.037Z",
+                        "updatedAt": "2020-12-10T20:00:30.037Z"
+                    },
+                    {
+                        "objectId": "Bjb77AnjbV",
+                        "order": 1,
+                        "name": "Test Name 2",
+                        "age": 20,
+                        "createdAt": "2020-12-10T20:00:30.037Z",
+                        "updatedAt": "2020-12-10T20:00:30.037Z"
+                    }
+                ]
+            }
+
+        ## Lookup Records Uploading
+
+        A `POST` creates new records for specific collection:
+
+         * **collection_name** - the name of new collection
+         * **items** - list of objects that are going to be inserted
+
+        Insert list of new records into collection:
+
+            POST /api/v2/database_records.json
+            {
+                "collection_name": "Lookups List"
+                "items": [
+                    {
+                        "name": "Gendalf the White",
+                        "age": 500
+                    }
+                ]
+            }
+
+
+        Response status of success creation would be `201`:
+
+            [
+                {
+                    "success": {
+                        "objectId": "MVPuxmVfG7",
+                        "createdAt": "2020-12-10T20:14:45.999Z"
+                    }
+                }
+            ]
+
+        ## Lookup Record Updating
+
+        A `PUT` update existing row in collection:
+
+         * **collection_name** - the name of collection
+         * **objectId** - identifier of row that is going to be updated
+         * **item** - a data to update existing row
+
+        Replace data of existing row for specific collection:
+
+            PUT /api/v2/database_records.json
+            {
+                "collection_name": "Lookups List",
+                "objectId": "J7vDtb5Aek",
+                "item": {
+                    "name": "Gendalf the Gray"
+                }
+            }
+
+
+        Response status of success updating would be `202`:
+
+            {
+                "updatedAt": "2020-12-10T20:24:32.595Z"
+            }
+
+        ## Lookup Record Deleting
+
+        A `DELETE` deletes collection:
+
+         * **collection_name** - the name of collection
+         * **objectId** - identifier of record to delete
+
+        Create new collection for current org:
+
+            DELETE /api/v2/database_records.json
+            {
+                "collection_name": "Lookups List",
+                "objectId": "J7vDtb5Aek"
+            }
+
+        Response status of success deletion would be `204`
+    """
+
+    @classmethod
+    def get_read_explorer(cls):
+        return dict(
+            method="GET",
+            title="List of Items in Lookups Collection",
+            url=reverse("api.v2.parse_database_records"),
+            slug="lookup-database-records-read",
+            params=[dict(name="collection_name", required=True, help="The name of lookups database")],
+            example=dict(query="collection_name=New lookups name"),
+        )
+
+    @classmethod
+    def get_write_explorer(cls):
+        return dict(
+            method="POST",
+            title="Append items into Lookups Collection",
+            url=reverse("api.v2.parse_database_records"),
+            slug="lookup-database-records-create",
+            fields=[
+                dict(name="collection_name", required=True, help="The name of lookups database"),
+                dict(name="items", required=True, help="List of items to insert"),
+            ],
+            example=dict(
+                body=json.dumps({"collection_name": "New lookups name", "items": [{"name": "Gandalf", "age": 500}]})
+            ),
+        )
+
+    @classmethod
+    def get_delete_explorer(cls):
+        return dict(
+            method="DELETE",
+            title="Append item from Lookups Collection",
+            url=reverse("api.v2.parse_database_records"),
+            slug="lookup-database-records-delete",
+            fields=[
+                {"name": "collection_name", "required": True, "help": "The name of lookups database"},
+                {"name": "objectId", "required": True, "help": "Identifier of row to be deleted"},
+            ],
+            example=dict(body='{"collection_name": "New lookups name", "objectId": "FrFZregCZ3"}'),
+        )
+
+    @classmethod
+    def get_put_explorer(cls):
+        return dict(
+            method="PUT",
+            title="Update item in Lookups Collection",
+            url=reverse("api.v2.parse_database_records"),
+            slug="lookup-database-records-put",
+            fields=[
+                dict(name="collection_name", required=True, help="The name of lookups database"),
+                dict(name="objectId", required=True, help="Identifier of row to be replaced"),
+                dict(name="item", required=True, help="Data to replace existing row"),
+            ],
+            example=dict(
+                body=json.dumps(
+                    {
+                        "collection_name": "New lookups name",
+                        "objectId": "Nvbc5iNvtP",
+                        "item": {"name": "Gandalf the Gray"},
+                    }
+                )
+            ),
+        )
+
+    permission = "orgs.org_lookups"
+
+    def list(self, request, *args, **kwargs):
+        org, collection_name, collections_list, error_response = self.get_default_params(is_collection_exists=True)
+        if error_response:
+            return error_response
+
+        collection = self.get_collection_full_name(org=org, collection=collection_name)
+        parse_headers = {
+            "X-Parse-Application-Id": settings.PARSE_APP_ID,
+            "X-Parse-Master-Key": settings.PARSE_MASTER_KEY,
+            "Content-Type": "application/json",
+        }
+        results_url = f"{settings.PARSE_URL}/classes/{collection}?order=order&limit=1000"
+        response = requests.get(results_url, headers=parse_headers)
+        result = response.json()
+
+        return Response(result, status=status.HTTP_200_OK)
+
+    def post(self, request, *args, **kwargs):
+        org, collection_name, collections_list, error_response = self.get_default_params(is_collection_exists=True)
+        if error_response:
+            return error_response
+
+        items_to_push = self.request.data.get("items", [])
+        if not items_to_push:
+            return Response({"error": "There are no items to insert."}, status=status.HTTP_400_BAD_REQUEST)
+
+        collection = self.get_collection_full_name(org=org, collection=collection_name)
+        count_url = f"{settings.PARSE_URL}/classes/{collection}?count=1"
+        count_response = requests.get(count_url, headers=self.parse_headers)
+
+        if count_response.status_code == 200:
+            requests_ = []
+            insert_url = f"{settings.PARSE_URL}/batch"
+            insert_index = count_response.json().get("count")
+            db_endpoint = f"{settings.PARSE_ENDPOINT}/classes/{collection}"
+            for index, data in enumerate(items_to_push, start=insert_index):
+                requests_.append({"method": "POST", "path": db_endpoint, "body": {"order": index, **data}})
+
+            response = []
+            for chunk in self.batch_requests(requests_):
+                chunk_response = requests.post(
+                    insert_url, data=json.dumps({"requests": chunk}), headers=self.parse_headers
+                )
+                response.extend(chunk_response.json())
+        else:
+            return Response(count_response.json(), status=count_response.status_code)
+
+        return Response(response, status=status.HTTP_201_CREATED)
+
+    def delete(self, request, *args, **kwargs):
+        org, collection_name, collections_list, error_response = self.get_default_params(is_collection_exists=True)
+        if error_response:
+            return error_response
+
+        object_id = self.request.data.get("objectId")
+        if not object_id:
+            return Response({"error", "'objectId' is not provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        collection = self.get_collection_full_name(org=org, collection=collection_name)
+        parse_url = f"{settings.PARSE_URL}/classes/{collection}/{object_id}"
+        response = requests.delete(parse_url, headers=self.parse_headers)
+
+        return Response(status=(status.HTTP_204_NO_CONTENT if response.status_code == 200 else response.status_code))
+
+    def put(self, request, *args, **kwargs):
+        org, collection_name, collections_list, error_response = self.get_default_params(is_collection_exists=True)
+        if error_response:
+            return error_response
+
+        object_id = self.request.data.get("objectId")
+        if not object_id:
+            return Response({"error", "'objectId' is not provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        data_to_replace: dict = self.request.data.get("item")
+
+        collection = self.get_collection_full_name(org=org, collection=collection_name)
+        parse_url = f"{settings.PARSE_URL}/classes/{collection}/{object_id}"
+        response = requests.put(parse_url, data=json.dumps(data_to_replace), headers=self.parse_headers)
+
+        return Response(
+            response.json(), status=status.HTTP_202_ACCEPTED if response.status_code == 200 else response.status_code
+        )
