@@ -2,6 +2,17 @@
 
 from django.db import migrations, models
 
+SQL = """
+CREATE OR REPLACE FUNCTION
+  temba_insert_message_label_counts(_msg_id BIGINT, _is_archived BOOLEAN, _count INT)
+RETURNS VOID AS $$
+BEGIN
+  INSERT INTO msgs_labelcount("label_id", "count", "is_archived", "is_squashed")
+  SELECT label_id, _count, _is_archived, FALSE FROM msgs_msg_labels WHERE msgs_msg_labels.msg_id = _msg_id;
+END;
+$$ LANGUAGE plpgsql;
+"""
+
 
 class Migration(migrations.Migration):
 
@@ -15,4 +26,5 @@ class Migration(migrations.Migration):
             name="id",
             field=models.BigAutoField(auto_created=True, primary_key=True, serialize=False),
         ),
+        migrations.RunSQL(SQL),
     ]
