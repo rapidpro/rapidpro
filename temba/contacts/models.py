@@ -33,7 +33,7 @@ from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.models import JSONField as TembaJSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import decode_stream, truncate, unsnakify
-from temba.utils.urns import ParsedURN, parse_urn
+from temba.utils.urns import ParsedURN, parse_number, parse_urn
 
 from .search import SearchException, elastic, parse_query
 
@@ -160,9 +160,9 @@ class URN:
 
         if scheme == cls.TEL_SCHEME:
             try:
-                parsed = phonenumbers.parse(path, country_code)
-                return phonenumbers.is_possible_number(parsed)
-            except Exception:
+                parse_number(path, country_code)
+                return True
+            except ValueError:
                 return False
 
         # validate twitter URNs look like handles
@@ -224,10 +224,11 @@ class URN:
         """
         scheme, path, query, display = cls.to_parts(urn)
 
+        country_code = str(country_code) if country_code else ""
         norm_path = str(path).strip()
 
         if scheme == cls.TEL_SCHEME:
-            norm_path, valid = cls.normalize_number(norm_path, country_code)
+            norm_path = cls.normalize_number(norm_path, country_code)
         elif scheme == cls.TWITTER_SCHEME:
             norm_path = norm_path.lower()
             if norm_path[0:1] == "@":  # strip @ prefix if provided
@@ -246,40 +247,35 @@ class URN:
         return cls.from_parts(scheme, norm_path, query, display)
 
     @classmethod
-    def normalize_number(cls, number, country_code):
+    def normalize_number(cls, number: str, country_code: str):
         """
         Normalizes the passed in number, they should be only digits, some backends prepend + and
         maybe crazy users put in dashes or parentheses in the console.
-
-        Returns a tuple of the normalized number and whether it looks like a possible full international
-        number.
         """
+
+        number = number.strip()
+        normalized = number.lower()
+
         # if the number ends with e11, then that is Excel corrupting it, remove it
-        if number.lower().endswith("e+11") or number.lower().endswith("e+12"):
-            number = number[0:-4].replace(".", "")
+        if normalized.endswith("e+11") or normalized.endswith("e+12"):
+            normalized = normalized[0:-4].replace(".", "")
 
-        # remove other characters
-        number = regex.sub(r"[^0-9a-z\+]", "", number.lower(), regex.V0)
+        # remove non alphanumeric characters
+        normalized = regex.sub(r"[^0-9a-z]", "", normalized, regex.V0)
 
-        # add on a plus if it looks like it could be a fully qualified number
-        if len(number) >= 11 and number[0] not in ["+", "0"]:
-            number = "+" + number
+        parse_as = normalized
 
-        normalized = None
+        # if we started with + prefix, or we have a sufficiently long number that doesn't start with 0, add + prefix
+        if number.startswith("+") or (len(normalized) >= 11 and not normalized.startswith("0")):
+            parse_as = "+" + normalized
+
         try:
-            normalized = phonenumbers.parse(number, str(country_code) if country_code else None)
-        except Exception:
-            pass
+            formatted = parse_number(parse_as, country_code)
+        except ValueError:
+            # if it's not a possible number, just return what we have minus the +
+            return normalized
 
-        # now does it look plausible?
-        try:
-            if phonenumbers.is_possible_number(normalized):
-                return (phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164), True)
-        except Exception:
-            pass
-
-        # this must be a local number of some kind, just lowercase and save
-        return regex.sub("[^0-9a-z]", "", number.lower(), regex.V0), False
+        return formatted
 
     @classmethod
     def identity(cls, urn):
@@ -1388,7 +1384,7 @@ class ContactURN(models.Model):
         number = self.path
 
         if number and not number[0] == "+" and country_code:
-            (norm_number, valid) = URN.normalize_number(number, country_code)
+            norm_number = URN.normalize_number(number, country_code)
 
             # don't trounce existing contacts with that country code already
             norm_urn = URN.from_tel(norm_number)
