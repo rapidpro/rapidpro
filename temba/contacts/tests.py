@@ -4934,6 +4934,9 @@ class URNTest(TembaTest):
         self.assertEqual(URN.normalize("tel:62877747666", "ID"), "tel:+62877747666")
         self.assertEqual(URN.normalize("tel:0877747666", "ID"), "tel:+62877747666")
         self.assertEqual(URN.normalize("tel:07531669965", "GB"), "tel:+447531669965")
+        self.assertEqual(URN.normalize("tel:22658125926", ""), "tel:+22658125926")
+        self.assertEqual(URN.normalize("tel:263780821000", "ZW"), "tel:+263780821000")
+        self.assertEqual(URN.normalize("tel:+2203693333", ""), "tel:+2203693333")
 
         # un-normalizable tel numbers
         self.assertEqual(URN.normalize("tel:12345", "RW"), "tel:12345")
@@ -4965,6 +4968,7 @@ class URNTest(TembaTest):
         self.assertFalse(URN.validate("tel:0788383383", "ZZ"))  # invalid country
         self.assertFalse(URN.validate("tel:0788383383", None))  # no country
         self.assertFalse(URN.validate("tel:MTN", "RW"))
+        self.assertFalse(URN.validate("tel:5912705", "US"))
 
         # twitter handles
         self.assertTrue(URN.validate("twitter:jimmyjo"))
