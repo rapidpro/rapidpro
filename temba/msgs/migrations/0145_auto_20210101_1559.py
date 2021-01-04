@@ -25,9 +25,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AlterField(
-            model_name="msg",
-            name="id",
-            field=models.BigAutoField(auto_created=True, primary_key=True, serialize=False),
+            model_name="msg", name="id", field=models.BigAutoField(primary_key=True, serialize=False),
         ),
         migrations.RunSQL(SQL),
     ]
