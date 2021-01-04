@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-16 14:18+0000\n"
+"POT-Creation-Date: 2021-01-04 20:34+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -7954,6 +7954,20 @@ msgstr ""
 
 msgid "Your phone is having difficulty relaying messages"
 msgstr "Ваш телефон столкнулся с проблемами при ретрансляции сообщений"
+
+#, fuzzy, python-format
+#| msgid "%(counter)s Use"
+#| msgid_plural "%(counter)s Uses"
+msgid "%(count)s result"
+msgid_plural "%(count)s results"
+msgstr[0] "%(counter)s использование"
+msgstr[1] "%(counter)s использований"
+msgstr[2] "%(counter)s использований"
+msgstr[3] "%(counter)s использований"
+
+#, python-format
+msgid "Results %(start)s - %(end)s of %(total)s"
+msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""
