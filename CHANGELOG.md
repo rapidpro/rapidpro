@@ -1,3 +1,9 @@
+v6.1.14
+----------
+ * Change template translations to be TEXT
+ * Set global email timeout, fixes rapidpro #1345
+ * Update tel parsing to match gocommon, fixing how we currently accept local US numbers
+
 v6.1.13
 ----------
  * Bump temba-components to v0.8.11
