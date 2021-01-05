@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-16 14:18+0000\n"
+"POT-Creation-Date: 2021-01-04 20:34+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -8156,6 +8156,20 @@ msgid "Your active credits will expire soon, add credits to prevent interruption
 msgstr ""
 
 msgid "Your phone is having difficulty relaying messages"
+msgstr ""
+
+#, fuzzy, python-format
+msgid "%(count)s result"
+msgid_plural "%(count)s results"
+msgstr[0] ""
+"\n"
+"%(sms_sent)s Enviadas"
+msgstr[1] ""
+"\n"
+"%(sms_sent)s Enviadas"
+
+#, python-format
+msgid "Results %(start)s - %(end)s of %(total)s"
 msgstr ""
 
 #, fuzzy, python-format
