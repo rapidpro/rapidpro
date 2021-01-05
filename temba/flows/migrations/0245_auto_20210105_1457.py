@@ -13,7 +13,8 @@ CREATE OR REPLACE FUNCTION temba_insert_flowpathrecentrun(_from_uuid UUID, _from
   END;
 $$ LANGUAGE plpgsql;
 
-DROP FUNCTION temba_insert_flowpathrecentrun(_from_uuid UUID, _from_step_uuid UUID, _to_uuid UUID, _to_step_uuid UUID, _run_id INTEGER, _visited_on TIMESTAMPTZ)
+DROP FUNCTION temba_insert_flowpathrecentrun(_from_uuid UUID, _from_step_uuid UUID, _to_uuid UUID, _to_step_uuid UUID, _run_id INTEGER, _visited_on TIMESTAMPTZ);
+DROP FUNCTION temba_flow_for_run(_run_id INT);
 """
 
 
