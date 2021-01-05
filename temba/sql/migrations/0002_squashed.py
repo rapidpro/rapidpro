@@ -8,7 +8,9 @@ from . import InstallSQL
 class Migration(migrations.Migration):
 
     dependencies = [
+        ("contacts", "0129_squashed"),
         ("flows", "0244_squashed"),
+        ("msgs", "0144_squashed"),
     ]
 
     operations = [InstallSQL("0002_functions"), InstallSQL("0002_indexes"), InstallSQL("0002_triggers")]

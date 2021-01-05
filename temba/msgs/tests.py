@@ -1664,6 +1664,7 @@ class MsgTest(TembaTest):
         self.assertEqual("/msg/inbox/", response.url)
 
     def test_big_ids(self):
+        # create an incoming message with big id
         msg = Msg.objects.create(
             id=3_000_000_000,
             org=self.org,
@@ -1680,10 +1681,8 @@ class MsgTest(TembaTest):
         ChannelLog.objects.create(
             id=3_000_000_000, channel=msg.channel, msg=msg, is_error=True, description="Boom",
         )
-
-        # TODO need to create custom through model for Msg.labels with BigAutoField id
-        # spam = Label.get_or_create(self.org, self.admin, "Spam")
-        # msg.labels.add(spam)
+        spam = Label.get_or_create(self.org, self.admin, "Spam")
+        msg.labels.add(spam)
 
 
 class MsgCRUDLTest(TembaTest):

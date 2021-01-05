@@ -12,6 +12,37 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+----------------------------------------------------------------------
+-- Determines the (mutually exclusive) system label for a msg record
+----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION temba_msg_determine_system_label(_msg msgs_msg) RETURNS CHAR(1) AS $$
+BEGIN
+  IF _msg.direction = 'I' THEN
+    IF _msg.visibility = 'V' THEN
+      IF _msg.msg_type = 'I' THEN
+        RETURN 'I';
+      ELSIF _msg.msg_type = 'F' THEN
+        RETURN 'W';
+      END IF;
+    ELSIF _msg.visibility = 'A' THEN
+      RETURN 'A';
+    END IF;
+  ELSE
+    IF _msg.VISIBILITY = 'V' THEN
+      IF _msg.status = 'P' OR _msg.status = 'Q' THEN
+        RETURN 'O';
+      ELSIF _msg.status = 'W' OR _msg.status = 'S' OR _msg.status = 'D' THEN
+        RETURN 'S';
+      ELSIF _msg.status = 'F' THEN
+        RETURN 'X';
+      END IF;
+    END IF;
+  END IF;
+
+  RETURN NULL; -- might not match any label
+END;
+$$ LANGUAGE plpgsql;
+
 DROP FUNCTION temba_insert_message_label_counts(_msg_id INT, _is_archived BOOLEAN, _count INT);
 """
 
