@@ -3604,6 +3604,10 @@ class ContactURNTest(TembaTest):
         with self.assertRaises(IntegrityError):
             ContactURN.objects.create(org=self.org, scheme="ext", path="", identity="ext:")
 
+    def test_identity_mismatch_disallowed(self):
+        with self.assertRaises(IntegrityError):
+            ContactURN.objects.create(org=self.org, scheme="ext", path="1234", identity="ext:5678")
+
 
 class ContactFieldTest(TembaTest):
     def setUp(self):
