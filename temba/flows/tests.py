@@ -3454,6 +3454,33 @@ class FlowSessionTest(TembaTest):
         # only sessions for run2 and run3 are left
         self.assertEqual(FlowSession.objects.count(), 2)
 
+    def test_big_ids(self):
+        contact = self.create_contact("Ben Haggerty", phone="+250788123123")
+        flow = self.get_flow("color")
+
+        session = FlowSession.objects.create(id=3_000_000_000, uuid=uuid4(), org=self.org, contact=contact,)
+        run = FlowRun.objects.create(
+            id=3_000_000_000,
+            org=self.org,
+            flow=flow,
+            contact=contact,
+            session=session,
+            path=[
+                {
+                    "uuid": "b37dc4a5-0493-42aa-a31f-435bc0bf2ae0",
+                    "node_uuid": "41153534-ffe7-4ebd-819d-3cb56336bb26",
+                    "arrived_on": timezone.now().isoformat(),
+                    "exit_uuid": "063f3f7e-9b9c-4bfd-b782-a9338ff279e3",
+                },
+                {
+                    "uuid": "f7c5b8e1-bbba-4d99-a24e-dc50ad931143",
+                    "node_uuid": "7475fa00-ac6f-4af1-af3e-b8939a8a25ca",
+                    "arrived_on": timezone.now().isoformat(),
+                },
+            ],
+        )
+        self.assertEqual(1, FlowPathRecentRun.objects.filter(run=run).count())
+
 
 class FlowStartTest(TembaTest):
     def test_trim(self):

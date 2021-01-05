@@ -1018,6 +1018,7 @@ class FlowSession(models.Model):
         (STATUS_FAILED, "Failed"),
     )
 
+    id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(unique=True)
 
     # the modality of this session
@@ -1118,12 +1119,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     DELETE_CHOICES = ((DELETE_FOR_ARCHIVE, _("Archive delete")), (DELETE_FOR_USER, _("User delete")))
 
+    id = models.BigAutoField(primary_key=True)
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="runs", db_index=False)
-
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="runs")
-
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="runs")
 
     # session this run belongs to (can be null if session has been trimmed)
@@ -1550,7 +1550,7 @@ class FlowPathRecentRun(models.Model):
     PRUNE_TO = 5
     LAST_PRUNED_KEY = "last_recentrun_pruned"
 
-    id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name="ID")
+    id = models.BigAutoField(primary_key=True)
 
     # the node and step UUIDs of the start of the path segment
     from_uuid = models.UUIDField()
