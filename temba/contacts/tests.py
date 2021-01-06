@@ -15,6 +15,7 @@ from django.core.validators import ValidationError
 from django.db import connection
 from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
+from django.db.utils import IntegrityError
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -3594,6 +3595,18 @@ class ContactURNTest(TembaTest):
             display="JIM",
         )
         self.assertEqual(urn.get_display(self.org), "JIM")
+
+    def test_empty_scheme_disallowed(self):
+        with self.assertRaises(IntegrityError):
+            ContactURN.objects.create(org=self.org, scheme="", path="1234", identity=":1234")
+
+    def test_empty_path_disallowed(self):
+        with self.assertRaises(IntegrityError):
+            ContactURN.objects.create(org=self.org, scheme="ext", path="", identity="ext:")
+
+    def test_identity_mismatch_disallowed(self):
+        with self.assertRaises(IntegrityError):
+            ContactURN.objects.create(org=self.org, scheme="ext", path="1234", identity="ext:5678")
 
 
 class ContactFieldTest(TembaTest):

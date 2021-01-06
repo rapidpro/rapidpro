@@ -19,7 +19,8 @@ from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, models, transaction
-from django.db.models import Count, Max, Q, Sum
+from django.db.models import Count, F, Max, Q, Sum, Value
+from django.db.models.functions import Concat
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
@@ -1431,6 +1432,12 @@ class ContactURN(models.Model):
     class Meta:
         unique_together = ("identity", "org")
         ordering = ("-priority", "id")
+        constraints = [
+            models.CheckConstraint(check=~(Q(scheme="") | Q(path="")), name="non_empty_scheme_and_path"),
+            models.CheckConstraint(
+                check=Q(identity=Concat(F("scheme"), Value(":"), F("path"))), name="identity_matches_scheme_and_path",
+            ),
+        ]
 
 
 class SystemContactGroupManager(models.Manager):
