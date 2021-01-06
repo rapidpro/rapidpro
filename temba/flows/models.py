@@ -129,18 +129,25 @@ class Flow(TembaModel):
     DEFINITION_UI = "_ui"
 
     TYPE_MESSAGE = "M"
-    TYPE_VOICE = "V"
+    TYPE_PASSIVE = "P"
     TYPE_SURVEY = "S"
+    TYPE_VOICE = "V"
     TYPE_USSD = "U"
 
-    FLOW_TYPES = (
-        (TYPE_MESSAGE, _("Message flow")),
-        (TYPE_VOICE, _("Phone call flow")),
-        (TYPE_SURVEY, _("Surveyor flow")),
-        (TYPE_USSD, _("USSD flow")),
+    TYPE_CHOICES = (
+        (TYPE_MESSAGE, _("Messaging")),
+        (TYPE_VOICE, _("Phone Call")),
+        (TYPE_PASSIVE, _("Passive")),
+        (TYPE_SURVEY, _("Surveyor")),
+        (TYPE_USSD, _("USSD")),
     )
 
-    GOFLOW_TYPES = {TYPE_MESSAGE: "messaging", TYPE_VOICE: "voice", TYPE_SURVEY: "messaging_offline"}
+    GOFLOW_TYPES = {
+        TYPE_MESSAGE: "messaging",
+        TYPE_PASSIVE: "messaging_passive",
+        TYPE_SURVEY: "messaging_offline",
+        TYPE_VOICE: "voice",
+    }
 
     FINAL_LEGACY_VERSION = legacy.VERSIONS[-1]
     INITIAL_GOFLOW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
@@ -161,7 +168,7 @@ class Flow(TembaModel):
     is_system = models.BooleanField(default=False, help_text=_("Whether this is a system created flow"))
 
     flow_type = models.CharField(
-        max_length=1, choices=FLOW_TYPES, default=TYPE_MESSAGE, help_text=_("The type of this flow")
+        max_length=1, choices=TYPE_CHOICES, default=TYPE_MESSAGE, help_text=_("The type of this flow")
     )
 
     # additional information about the flow, e.g. possible results
@@ -1021,7 +1028,7 @@ class FlowSession(models.Model):
     uuid = models.UUIDField(unique=True)
 
     # the modality of this session
-    session_type = models.CharField(max_length=1, choices=Flow.FLOW_TYPES, default=Flow.TYPE_MESSAGE, null=True)
+    session_type = models.CharField(max_length=1, choices=Flow.TYPE_CHOICES, default=Flow.TYPE_MESSAGE, null=True)
 
     # the organization this session belongs to
     org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
