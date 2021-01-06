@@ -1840,7 +1840,10 @@ class OrgCRUDL(SmartCRUDL):
             user = self.request.user
             if user.is_authenticated:
                 user_orgs = self.get_user_orgs()
-                if user_orgs.count() == 1:
+                if user.is_superuser:
+                    return HttpResponseRedirect(reverse("orgs.org_manage"))
+
+                elif user_orgs.count() == 1:
                     org = user_orgs[0]
                     self.request.session["org_id"] = org.pk
                     if org.get_user_role(user) == OrgRole.SURVEYOR:
