@@ -1,3 +1,32 @@
+v6.1.14
+----------
+ * Change template translations to be TEXT
+ * Set global email timeout, fixes rapidpro #1345
+ * Update tel parsing to match gocommon, fixing how we currently accept local US numbers
+
+v6.1.13
+----------
+ * Bump temba-components to v0.8.11
+
+v6.1.12
+----------
+ * Un-beta-gate Rocket.Chat channels
+
+v6.1.10
+----------
+ * Login summary on org home page should include agents
+ * Rework manage accounts UI to include agents
+
+v6.1.9
+----------
+ * Fix deleted flow dependency preventing global deletion
+ * Cache lookups of auth.Group instances
+
+v6.1.8
+----------
+ * For field columns in imports, only match against user fields
+ * Add agent role and cleanup code around org roles
+
 v6.1.7
 ----------
  * Wire table listeners on pjax reload

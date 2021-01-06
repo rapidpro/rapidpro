@@ -21,7 +21,7 @@ from temba.flows.models import Flow, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Label, Msg
-from temba.orgs.models import Org
+from temba.orgs.models import Org, OrgRole
 from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
 
@@ -47,9 +47,10 @@ class TembaTestMixin:
 
         # create different user types
         self.non_org_user = self.create_user("NonOrg")
-        self.user = self.create_user("User", ("Viewers",))
-        self.editor = self.create_user("Editor")
         self.admin = self.create_user("Administrator")
+        self.editor = self.create_user("Editor")
+        self.user = self.create_user("User", ("Viewers",))
+        self.agent = self.create_user("Agent")
         self.surveyor = self.create_user("Surveyor")
         self.customer_support = self.create_user("support", ("Customer Support",))
 
@@ -71,6 +72,9 @@ class TembaTestMixin:
 
         self.admin.set_org(self.org)
         self.org.administrators.add(self.admin)
+
+        self.agent.set_org(self.org)
+        self.org.agents.add(self.agent)
 
         self.surveyor.set_org(self.org)
         self.org.surveyors.add(self.surveyor)
@@ -565,6 +569,11 @@ class TembaTest(TembaTestMixin, SmartminTest):
 
     def setUp(self):
         self.setUpOrgs()
+
+        # OrgRole.group is a cached property so get that cached before test starts to avoid query count differences
+        # when a test is first to request it and when it's not.
+        for role in OrgRole:
+            role.group  # noqa
 
     def tearDown(self):
         clear_flow_users()

@@ -190,16 +190,7 @@
   :javascript
     const base = '/flow/assets/{{object.org.id}}/' + new Date().getTime() + '/';
     const api = '/api/v2/';
-
-    // line up our flow types with goflow types
-    var flowType = '{{object.flow_type}}';
-    if (flowType == 'M') {
-      flowType = 'message';
-    } else if (flowType == 'V') {
-      flowType = 'voice';
-    } else if (flowType == 'S') {
-      flowType = 'message_offline';
-    }
+    const flowType = '{{ object.engine_type }}';
 
     window.addEventListener("DOMContentLoaded", function() {
       var confirmation = document.getElementById("confirm-language");

@@ -205,3 +205,9 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
             self.client.post(delete_url)
 
         self.assertEqual(1, Global.objects.filter(id=self.global1.id).count())
+
+        # a deleted dependency shouldn't prevent deletion
+        self.flow.release()
+
+        response = self.assertDeleteFetch(delete_url)
+        self.assertContains(response, "Are you sure you want to delete")

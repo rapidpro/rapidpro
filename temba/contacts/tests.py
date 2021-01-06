@@ -15,6 +15,7 @@ from django.core.validators import ValidationError
 from django.db import connection
 from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
+from django.db.utils import IntegrityError
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -1733,7 +1734,7 @@ class ContactTest(TembaTest):
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id]),
                 SearchResults(query="", total=0, contact_ids=[]),
             ]
-            with self.assertNumQueries(17):
+            with self.assertNumQueries(16):
                 actual_result = omnibox_request(query="")
                 expected_result = [
                     # all 3 groups A-Z
@@ -2011,7 +2012,7 @@ class ContactTest(TembaTest):
             )
 
             # fetch our contact history
-            with self.assertNumQueries(67):
+            with self.assertNumQueries(64):
                 response = self.fetch_protected(url, self.admin)
 
             # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -3595,6 +3596,18 @@ class ContactURNTest(TembaTest):
         )
         self.assertEqual(urn.get_display(self.org), "JIM")
 
+    def test_empty_scheme_disallowed(self):
+        with self.assertRaises(IntegrityError):
+            ContactURN.objects.create(org=self.org, scheme="", path="1234", identity=":1234")
+
+    def test_empty_path_disallowed(self):
+        with self.assertRaises(IntegrityError):
+            ContactURN.objects.create(org=self.org, scheme="ext", path="", identity="ext:")
+
+    def test_identity_mismatch_disallowed(self):
+        with self.assertRaises(IntegrityError):
+            ContactURN.objects.create(org=self.org, scheme="ext", path="1234", identity="ext:5678")
+
 
 class ContactFieldTest(TembaTest):
     def setUp(self):
@@ -3803,7 +3816,7 @@ class ContactFieldTest(TembaTest):
             self.create_contact_import(path)
 
         # no group specified, so will default to 'Active'
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(39):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -3856,7 +3869,7 @@ class ContactFieldTest(TembaTest):
         # change the order of the fields
         self.contactfield_2.priority = 15
         self.contactfield_2.save()
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(39):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -3914,7 +3927,7 @@ class ContactFieldTest(TembaTest):
         ContactURN.create(self.org, contact, "tel:+12062233445")
 
         # but should have additional Twitter and phone columns
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(39):
             export = request_export()
             self.assertExcelSheet(
                 export[0],
@@ -3999,7 +4012,7 @@ class ContactFieldTest(TembaTest):
         assertImportExportedFile()
 
         # export a specified group of contacts (only Ben and Adam are in the group)
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(40):
             self.assertExcelSheet(
                 request_export("?g=%s" % group.uuid)[0],
                 [
@@ -4064,7 +4077,7 @@ class ContactFieldTest(TembaTest):
                 log_info_threshold.return_value = 1
 
                 with ESMockWithScroll(data=mock_es_data):
-                    with self.assertNumQueries(42):
+                    with self.assertNumQueries(41):
                         self.assertExcelSheet(
                             request_export("?s=name+has+adam+or+name+has+deng")[0],
                             [
@@ -4123,7 +4136,7 @@ class ContactFieldTest(TembaTest):
         # export a search within a specified group of contacts
         mock_es_data = [{"_type": "_doc", "_index": "dummy_index", "_source": {"id": contact.id}}]
         with ESMockWithScroll(data=mock_es_data):
-            with self.assertNumQueries(41):
+            with self.assertNumQueries(40):
                 self.assertExcelSheet(
                     request_export("?g=%s&s=Hagg" % group.uuid)[0],
                     [
@@ -4934,6 +4947,9 @@ class URNTest(TembaTest):
         self.assertEqual(URN.normalize("tel:62877747666", "ID"), "tel:+62877747666")
         self.assertEqual(URN.normalize("tel:0877747666", "ID"), "tel:+62877747666")
         self.assertEqual(URN.normalize("tel:07531669965", "GB"), "tel:+447531669965")
+        self.assertEqual(URN.normalize("tel:22658125926", ""), "tel:+22658125926")
+        self.assertEqual(URN.normalize("tel:263780821000", "ZW"), "tel:+263780821000")
+        self.assertEqual(URN.normalize("tel:+2203693333", ""), "tel:+2203693333")
 
         # un-normalizable tel numbers
         self.assertEqual(URN.normalize("tel:12345", "RW"), "tel:12345")
@@ -4965,6 +4981,7 @@ class URNTest(TembaTest):
         self.assertFalse(URN.validate("tel:0788383383", "ZZ"))  # invalid country
         self.assertFalse(URN.validate("tel:0788383383", None))  # no country
         self.assertFalse(URN.validate("tel:MTN", "RW"))
+        self.assertFalse(URN.validate("tel:5912705", "US"))
 
         # twitter handles
         self.assertTrue(URN.validate("twitter:jimmyjo"))
@@ -5335,6 +5352,7 @@ class ContactImportTest(TembaTest):
             ),
             ("invalid_scheme.xlsx", "Header 'URN:XXX' is not a valid URN type."),
             ("invalid_field_key.xlsx", "Header 'Field: #$^%' is not a valid field name."),
+            ("reserved_field_key.xlsx", "Header 'Field:id' is not a valid field name."),
             ("no_urn_or_uuid.xlsx", "Import files must contain either UUID or a URN header."),
             ("uuid_only.csv", "Import files must contain columns besides UUID."),
         ]

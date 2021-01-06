@@ -72,7 +72,7 @@ class TemplateTranslation(models.Model):
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT)
 
     # the content of this template
-    content = models.CharField(max_length=1280, null=False)
+    content = models.TextField(null=False)
 
     # how many variables this template contains
     variable_count = models.IntegerField()
