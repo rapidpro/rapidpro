@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-04 20:34+0000\n"
+"POT-Creation-Date: 2021-01-06 15:43+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -5298,9 +5298,6 @@ msgstr "Cette opération peut prendre un certain temps. Les contacts peuvent res
 msgid "You are about to delete <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
 msgstr "Vous êtes sur le point de supprimer <span class='font-normal'> %(object)s. </span> Il n'y a aucun moyen d'annuler cela. Êtes-vous sûr?"
 
-msgid "Smart Group"
-msgstr "Groupe intelligent"
-
 #, python-format
 msgid "Transferred <b>%(amount)s</b> <b>%(currency)s</b> of airtime"
 msgstr "Transféré <b>%(amount)s</b> <b>%(currency)s</b> de temps d'antenne"
@@ -7754,6 +7751,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Smart Group"
+#~ msgstr "Groupe intelligent"
 
 #~ msgid "has"
 #~ msgstr "a"
