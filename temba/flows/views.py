@@ -1466,15 +1466,6 @@ class FlowCRUDL(SmartCRUDL):
                         modax=_("Launch Flow"),
                     )
                 )
-                links.append(
-                    dict(
-                        id="start-flow",
-                        title=_("Start Flow"),
-                        style="button-primary",
-                        href=f"{reverse('flows.flow_broadcast', args=[self.object.pk])}",
-                        modax=_("Start Flow"),
-                    )
-                )
 
             if self.has_org_perm("flows.flow_results"):
                 links.append(
@@ -1499,9 +1490,6 @@ class FlowCRUDL(SmartCRUDL):
 
             if self.has_org_perm("flows.flow_copy"):
                 links.append(dict(title=_("Copy"), posterize=True, href=reverse("flows.flow_copy", args=[flow.id])))
-
-            if self.has_org_perm("orgs.org_export"):
-                links.append(dict(title=_("Export"), href="%s?flow=%s" % (reverse("orgs.org_export"), flow.id)))
 
             if self.has_org_perm("flows.flow_results") and flow.flow_type == Flow.TYPE_MESSAGE:
                 links.append(
@@ -1612,10 +1600,50 @@ class FlowCRUDL(SmartCRUDL):
                 if key.endswith(".js") and filename.endswith(".js"):
                     scripts.append(filename)
 
+            flow = self.object
+
             context["scripts"] = scripts
             context["styles"] = styles
-            context["dev_mode"] = dev_mode
+            context["migrate"] = "migrate" in self.request.GET
 
+            if flow.is_archived:
+                context["mutable"] = False
+                context["can_start"] = False
+                context["can_simulate"] = False
+            else:
+                context["mutable"] = self.has_org_perm("flows.flow_update") and not self.request.user.is_superuser
+                context["can_start"] = flow.flow_type != Flow.TYPE_VOICE or flow.org.supports_ivr()
+                context["can_simulate"] = True
+
+            context["dev_mode"] = dev_mode
+            context["is_starting"] = flow.is_starting()
+
+            feature_filters = []
+
+            facebook_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
+            if facebook_channel is not None:
+                feature_filters.append("facebook")
+
+            whatsapp_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
+            if whatsapp_channel is not None:
+                feature_filters.append("whatsapp")
+
+            if flow.org.is_connected_to_dtone():
+                feature_filters.append("airtime")
+
+            if flow.org.classifiers.filter(is_active=True).exists():
+                feature_filters.append("classifier")
+
+            if flow.org.ticketers.filter(is_active=True).exists():
+                feature_filters.append("ticketer")
+
+            if flow.org.get_resthooks():
+                feature_filters.append("resthook")
+
+            if flow.flow_type != Flow.TYPE_MESSAGE:
+                feature_filters.append("spell_checker")
+
+            context["feature_filters"] = json.dumps(feature_filters)
             return context
 
     class ChangeLanguage(OrgObjPermsMixin, SmartUpdateView):

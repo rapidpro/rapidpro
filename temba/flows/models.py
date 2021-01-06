@@ -937,7 +937,6 @@ class Flow(TembaModel):
         # save a new revision but we can't validate it just yet because we're in a transaction and mailroom
         # won't see any new database objects
         self.save_revision(user, cloned_definition)
-        self.save_revision(user, cloned_definition, validate=False)
 
     def import_legacy_definition(self, flow_json, uuid_map):
         """

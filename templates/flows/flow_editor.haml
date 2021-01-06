@@ -25,7 +25,7 @@
     }
 
     #rp-flow-editor #simulator {
-      top: -180px;
+      top: 20px;
       margin-left: 20px;
     }
 
@@ -155,12 +155,11 @@
     }
 
     #rp-flow-editor .language-selector {
-      /* top: 14px; */
+      top: 65px;
     }
 
     temba-loading {
-      margin-left: 30px;
-      padding-top: 25px;
+      margin-left: 20px;
       display: block;
     }
 
@@ -181,19 +180,22 @@
       margin-bottom: 0;
     }
 
-    .top-bar {
-      background-color: #f9f9f9;
-      background-position: 13px 13px;
-      background-image: linear-gradient(0deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent),linear-gradient(90deg, transparent 24%, rgba(61,177,255,0.15) 25%, rgba(61,177,255,0.15) 26%, transparent 27%, transparent 74%, rgba(61,177,255,0.15) 75%, rgba(61,177,255,0.15) 76%, transparent 77%, transparent);
-      background-size: 40px 42px;
-      margin-top: 0px;
-      padding-bottom: 0px;
-    }
-
     .inverted {
       color: var(--color-text-light);
       background: #1a1a1a;
       border-radius: 100%;
+    }
+
+    .top-bar {
+      z-index: 10000;
+    }
+
+    #editor-container {
+      top: -76px;
+    }
+
+    [class*="components_printButton"] {
+      right: -78px;
     }
 
 -block extra-script
@@ -209,11 +211,11 @@
     // line up our flow types with goflow types
     var flowType = '{{object.flow_type}}';
     if (flowType == 'M') {
-      flowType = 'message';
+      flowType = 'messaging';
     } else if (flowType == 'V') {
       flowType = 'voice';
     } else if (flowType == 'S') {
-      flowType = 'message_offline';
+      flowType = 'messaging_offline';
     }
 
     window.addEventListener("DOMContentLoaded", function() {
@@ -243,7 +245,27 @@
 
     function handleEditorLoaded() {
       $('temba-loading').hide();
-      $('#rp-flow-editor > div').css('opacity', '1')
+      $('#rp-flow-editor > div').css('opacity', '1');
+      $('[class*="components_printButton"]').click((e) => {
+        e.stopPropagation(); // Prevent print to PDF call on this page.
+        if ($.browser.mozilla) {
+          // For Mozilla Firefox we use a different way of exporting because it correctly exports to PDF only the first page.
+          let modal = new ConfirmationModal(gettext("Flow Export"), gettext("The current flow will be exported as an image."));
+          modal.ele.find(".primary").click(() => {
+            modal.setMessage(gettext("Exporting in progress..."));
+            modal.ele.find('.loader').show();
+            modal.ele.find('.modal-footer').hide();
+            exportFlowAsImage(() => modal.dismiss());
+          });
+          modal.show();
+        } else {
+          // In all other case we use normal exporting.
+          Object.assign(document.createElement('a'), {
+            target: '_blank',
+            href: '{% url "flows.flow_export_pdf" object.uuid %}'
+          }).click();
+        }
+      });
     }
 
     function handleActivityClicked(nodeUUID, count) {
