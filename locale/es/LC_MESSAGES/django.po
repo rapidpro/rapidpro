@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-04 20:34+0000\n"
+"POT-Creation-Date: 2021-01-06 15:43+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -7773,11 +7773,6 @@ msgstr ""
 "\n"
 "          "
 
-#, fuzzy
-#| msgid "Select Group"
-msgid "Smart Group"
-msgstr "Elegir Grupo"
-
 #, fuzzy, python-format
 msgid "Transferred <b>%(amount)s</b> <b>%(currency)s</b> of airtime"
 msgstr ""
@@ -10804,6 +10799,11 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Select Group"
+#~ msgid "Smart Group"
+#~ msgstr "Elegir Grupo"
 
 #~ msgid "has"
 #~ msgstr "tiene"

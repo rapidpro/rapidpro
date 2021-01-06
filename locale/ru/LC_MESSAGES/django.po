@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-04 20:34+0000\n"
+"POT-Creation-Date: 2021-01-06 15:43+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -6895,11 +6895,6 @@ msgstr ""
 msgid "You are about to delete <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
 msgstr "Вы собираетесь удалить <span class='group_name'> %(object)s. </span> Контакты не будут удалены, но сама группа будет удалена. Способа отменить это действие нет. Вы уверены?"
 
-#, fuzzy
-#| msgid "Select Group"
-msgid "Smart Group"
-msgstr "Выбрать Группу"
-
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
@@ -10316,6 +10311,11 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, fuzzy
+#~| msgid "Select Group"
+#~ msgid "Smart Group"
+#~ msgstr "Выбрать Группу"
 
 #~ msgid "has"
 #~ msgstr "содержит"

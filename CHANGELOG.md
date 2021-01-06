@@ -1,3 +1,10 @@
+v6.1.15
+----------
+ * Add constraint to chek URN identity mathes scheme and path
+ * Add non-empty constraint for URN scheme and path
+ * Fix contact list pagination with searches
+ * Show query on list page for smart groups
+
 v6.1.14
 ----------
  * Change template translations to be TEXT
