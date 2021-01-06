@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-04 20:34+0000\n"
+"POT-Creation-Date: 2021-01-06 15:43+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -7156,10 +7156,6 @@ msgstr ""
 "</ a> \n"
 "para enviar mensagens para mais de 200 países."
 
-#, fuzzy
-msgid "Smart Group"
-msgstr "Criar grupos"
-
 #, fuzzy, python-format
 msgid "Transferred <b>%(amount)s</b> <b>%(currency)s</b> of airtime"
 msgstr ""
@@ -9938,6 +9934,10 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Smart Group"
+#~ msgstr "Criar grupos"
 
 #~ msgid "has"
 #~ msgstr "tem"
