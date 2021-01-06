@@ -73,12 +73,12 @@
   {{block.super}}
   :javascript
 
-    function addClass(ele, className) {
-      ele.classList.add(className);
+    function hideElement(ele) {
+      ele.classList.add("hidden");
     }
 
-    function removeClass(ele, className) {
-      ele.classList.remove(className);
+    function showElement(ele) {
+      ele.classList.remove("hidden");
     }
 
     var modalBody = document.querySelector("#start-flow").shadowRoot
@@ -91,11 +91,11 @@
       modeSelect.addEventListener("change", function(evt) {
         var selected = evt.target.values[0];
         if (selected.value === "query") {
-          removeClass(queryField, "hidden");
-          addClass(recipientsField, "hidden");
+          showElement(queryField);
+          hideElement(recipientsField);
         } else {
-          addClass(queryField, "hidden");
-          removeClass(recipientsField, "hidden");
+          hideElement(queryField);
+          showElement(recipientsField);
         }
       });
     }
