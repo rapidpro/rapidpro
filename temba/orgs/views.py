@@ -57,7 +57,7 @@ from temba.api.models import APIToken
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroupCount
-from temba.flows.models import Flow, RuleSet
+from temba.flows.models import Flow
 from temba.links.models import Link
 from temba.triggers.models import Trigger
 from temba.formax import FormaxMixin
@@ -779,16 +779,7 @@ class OrgCRUDL(SmartCRUDL):
             # fetch the selected flows and campaigns
             flows = Flow.objects.filter(id__in=flow_ids, org=org, is_active=True)
             campaigns = Campaign.objects.filter(id__in=campaign_ids, org=org, is_active=True)
-
-            shorten_url_rulesets = (
-                RuleSet.objects.filter(flow__id__in=[flow.id for flow in flows], ruleset_type=RuleSet.TYPE_SHORTEN_URL)
-                .only("config")
-                .order_by("id")
-            )
             links = []
-            if shorten_url_rulesets:
-                links_uuid = [item.config[RuleSet.TYPE_SHORTEN_URL]["id"] for item in shorten_url_rulesets]
-                links = Link.objects.filter(uuid__in=links_uuid)
 
             components = set(itertools.chain(flows, campaigns, links))
 

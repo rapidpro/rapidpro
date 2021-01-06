@@ -29,9 +29,7 @@ from temba.flows.models import (
     FlowStart,
     FlowCategoryCount,
     FlowRevision,
-    FlowImage,
-    ActionSet,
-    RuleSet,
+    FlowImage
 )
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.links.models import Link, LinkContacts
@@ -1483,52 +1481,6 @@ class MigrationTask(TembaModel):
                     result_name=item.result_name,
                     category_name=item.category_name,
                     count=item.count,
-                )
-
-            # Removing flow actionsets before importing again
-            new_flow.action_sets.all().delete()
-
-            logger.info(f">>> Flow ActionSets")
-            action_sets = migrator.get_flow_actionsets(flow_id=flow.id)
-
-            for item in action_sets:
-                ActionSet.objects.create(
-                    uuid=item.uuid,
-                    flow=new_flow,
-                    destination=item.destination,
-                    destination_type=item.destination_type,
-                    exit_uuid=item.exit_uuid,
-                    actions=json.loads(item.actions) if item.actions else dict(),
-                    x=item.x,
-                    y=item.y,
-                    created_on=item.created_on,
-                    modified_on=item.modified_on,
-                )
-
-            # Removing flow rulesets before importing again
-            new_flow.rule_sets.all().delete()
-
-            logger.info(f">>> Flow RuleSets")
-            rule_sets = migrator.get_flow_rulesets(flow_id=flow.id)
-
-            for item in rule_sets:
-                RuleSet.objects.create(
-                    uuid=item.uuid,
-                    flow=new_flow,
-                    label=item.label,
-                    operand=item.operand,
-                    webhook_url=item.webhook_url,
-                    webhook_action=item.webhook_action,
-                    rules=json.loads(item.rules) if item.rules else dict(),
-                    finished_key=item.finished_key,
-                    value_type=item.value_type,
-                    ruleset_type=item.ruleset_type,
-                    response_type=item.response_type,
-                    config=json.loads(item.config) if item.config else dict(),
-                    x=item.x,
-                    y=item.y,
-                    created_on=item.created_on,
-                    modified_on=item.modified_on,
                 )
 
             # Removing flow revisions before importing again
