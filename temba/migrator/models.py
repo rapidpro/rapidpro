@@ -233,17 +233,7 @@ class MigrationTask(TembaModel):
                 logger.info("---------------- Contact Groups ----------------")
                 logger.info("[STARTED] Contact Groups migration")
 
-                if not self.start_date:
-                    # Releasing current contact groups
-                    contact_groups = ContactGroup.user_groups.filter(org=self.org).only("id", "uuid").order_by("id")
-                    for contact_group in contact_groups:
-                        contact_group.release()
-                        contact_group.uuid = generate_uuid()
-                        contact_group.save(update_fields=["uuid"])
-
-                org_contact_groups, contact_groups_count = migrator.get_org_contact_groups(
-                    start_date=start_date_string, end_date=end_date_string
-                )
+                org_contact_groups, contact_groups_count = migrator.get_org_contact_groups()
                 if org_contact_groups:
                     self.add_contact_groups(
                         logger=logger, groups=org_contact_groups, migrator=migrator, count=contact_groups_count
@@ -422,19 +412,16 @@ class MigrationTask(TembaModel):
                 logger.info("---------------- Webhook Events ----------------")
                 logger.info("[STARTED] Webhooks migration")
 
-                if not self.start_date:
-                    # Releasing webhook logs before migrate them
-                    all_org_webhook_events = WebHookEvent.objects.filter(org=self.org).only("id").order_by("id")
-                    for we in all_org_webhook_events:
-                        we.release()
+                # Releasing webhook logs before migrate them
+                all_org_webhook_events = WebHookEvent.objects.filter(org=self.org).only("id").order_by("id")
+                for we in all_org_webhook_events:
+                    we.release()
 
-                    all_webhook_event_results = WebHookResult.objects.filter(org=self.org).only("id").order_by("id")
-                    for wer in all_webhook_event_results:
-                        wer.release()
+                all_webhook_event_results = WebHookResult.objects.filter(org=self.org).only("id").order_by("id")
+                for wer in all_webhook_event_results:
+                    wer.release()
 
-                org_webhook_events, webhook_events_count = migrator.get_org_webhook_events(
-                    start_date=start_date_string, end_date=end_date_string
-                )
+                org_webhook_events, webhook_events_count = migrator.get_org_webhook_events()
                 if org_webhook_events:
                     self.add_webhook_events(
                         logger=logger, webhook_events=org_webhook_events, migrator=migrator, count=webhook_events_count
@@ -460,10 +447,11 @@ class MigrationTask(TembaModel):
                 logger.info("---------------- Triggers ----------------")
                 logger.info("[STARTED] Triggers migration")
 
-                # Releasing triggers before importing them from live server
-                triggers = Trigger.objects.filter(org=self.org, is_active=True)
-                for t in triggers:
-                    t.release()
+                if not self.start_date:
+                    # Releasing triggers before importing them from live server
+                    triggers = Trigger.objects.filter(org=self.org, is_active=True)
+                    for t in triggers:
+                        t.release()
 
                 org_triggers, triggers_count = migrator.get_org_triggers(
                     start_date=start_date_string, end_date=end_date_string
