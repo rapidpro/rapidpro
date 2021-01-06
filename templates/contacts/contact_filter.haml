@@ -9,5 +9,3 @@
   -if current_group.is_dynamic
     .font-mono.text-sm
       {{ current_group.query }}
-    .hidden.lbl-secondary.linked{onclick:"goto(event)", href:"{% url 'contacts.contact_filter' current_group.uuid %}"}
-      -trans "Smart Group"
