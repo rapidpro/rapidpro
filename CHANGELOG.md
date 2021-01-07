@@ -1,3 +1,8 @@
+v6.1.16
+----------
+ * Update to latest flow editor 1.12.3
+ * Allow staff users to use the org chooser
+
 v6.1.15
 ----------
  * Add constraint to chek URN identity mathes scheme and path
