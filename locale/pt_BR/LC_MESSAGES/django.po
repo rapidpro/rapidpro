@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-07 17:03+0000\n"
+"POT-Creation-Date: 2021-01-07 20:08+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -7778,9 +7778,6 @@ msgid "To get started you need to add a voice-enabled channel to your workspace.
 msgstr ""
 "\n"
 "Para começar, você precisa adicionar um número de telefone para a sua conta. Você pode optar por usar um celular com Android e seu próprio plano de telefone celular ou podemos conectá-lo diretamente com um prestador de serviços no seu país."
-
-msgid "This is a background flow so starting a contact in this flow will not interrupt any ongoing runs they have in other flows."
-msgstr ""
 
 #, python-format
 msgid ""

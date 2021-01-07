@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
                 choices=[
                     ("M", "Messaging"),
                     ("V", "Phone Call"),
-                    ("P", "Background"),
+                    ("B", "Background"),
                     ("S", "Surveyor"),
                     ("U", "USSD"),
                 ],
@@ -32,7 +32,7 @@ class Migration(migrations.Migration):
                 choices=[
                     ("M", "Messaging"),
                     ("V", "Phone Call"),
-                    ("P", "Background"),
+                    ("B", "Background"),
                     ("S", "Surveyor"),
                     ("U", "USSD"),
                 ],

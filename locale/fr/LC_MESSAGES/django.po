@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-07 17:03+0000\n"
+"POT-Creation-Date: 2021-01-07 20:08+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -5768,9 +5768,6 @@ msgstr "sur le droit de l'ouvrir."
 #, python-format
 msgid "To get started you need to add a voice-enabled channel to your workspace. A voice-enabled channel is a phone number which %(name)s can use to make and receive phone calls on your behalf. For example, Twilio is a service which provides voice-enabled numbers which you can add as channels in your %(name)s workspace."
 msgstr "Pour commencer, vous devez ajouter une chaîne vocale à votre espace de travail. Un canal à activation vocale est un numéro de téléphone que %(name)s peut utiliser pour passer et recevoir des appels téléphoniques en votre nom. Par exemple, Twilio est un service qui fournit des numéros activés par la voix que vous pouvez ajouter comme canaux dans votre espace de travail %(name)s ."
-
-msgid "This is a background flow so starting a contact in this flow will not interrupt any ongoing runs they have in other flows."
-msgstr ""
 
 #, python-format
 msgid ""

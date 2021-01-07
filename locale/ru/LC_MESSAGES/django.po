@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-07 17:03+0000\n"
+"POT-Creation-Date: 2021-01-07 20:08+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -7575,9 +7575,6 @@ msgstr ""
 "        это служба, которая предоставляет номера с включенной голосовой связью, которые Вы можете добавить в качестве каналов в своей учетной записи %(name)s.\n"
 "\n"
 "      "
-
-msgid "This is a background flow so starting a contact in this flow will not interrupt any ongoing runs they have in other flows."
-msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""

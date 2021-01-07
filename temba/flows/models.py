@@ -129,7 +129,7 @@ class Flow(TembaModel):
     DEFINITION_UI = "_ui"
 
     TYPE_MESSAGE = "M"
-    TYPE_PASSIVE = "P"
+    TYPE_BACKGROUND = "B"
     TYPE_SURVEY = "S"
     TYPE_VOICE = "V"
     TYPE_USSD = "U"
@@ -137,14 +137,14 @@ class Flow(TembaModel):
     TYPE_CHOICES = (
         (TYPE_MESSAGE, _("Messaging")),
         (TYPE_VOICE, _("Phone Call")),
-        (TYPE_PASSIVE, _("Background")),
+        (TYPE_BACKGROUND, _("Background")),
         (TYPE_SURVEY, _("Surveyor")),
         (TYPE_USSD, _("USSD")),
     )
 
     GOFLOW_TYPES = {
         TYPE_MESSAGE: "messaging",
-        TYPE_PASSIVE: "messaging_passive",
+        TYPE_BACKGROUND: "messaging_passive",
         TYPE_SURVEY: "messaging_offline",
         TYPE_VOICE: "voice",
     }

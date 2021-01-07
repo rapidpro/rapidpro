@@ -28,12 +28,6 @@
       %temba-alert.mb-4(level="warning")
         %div= warning
 
-    -if object.flow_type == 'P'
-      %temba-alert.mb-4(level="info")
-        -blocktrans trimmed
-          This is a background flow so starting a contact in this flow will not interrupt any ongoing runs they have in
-          other flows.
-
     .field.recipients-mode
       -render_field 'recipients_mode'
 
@@ -45,7 +39,7 @@
 
     .start-options.mt-6.ml-2
       -render_field 'restart_participants'
-      -if object.flow_type != 'P'
+      -if object.flow_type != 'B'
         -render_field 'include_active'
 
 -block form-buttons

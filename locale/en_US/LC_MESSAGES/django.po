@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-07 17:03+0000\n"
+"POT-Creation-Date: 2021-01-07 20:08+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5626,9 +5626,6 @@ msgstr ""
 
 #, python-format
 msgid "To get started you need to add a voice-enabled channel to your workspace. A voice-enabled channel is a phone number which %(name)s can use to make and receive phone calls on your behalf. For example, Twilio is a service which provides voice-enabled numbers which you can add as channels in your %(name)s workspace."
-msgstr ""
-
-msgid "This is a background flow so starting a contact in this flow will not interrupt any ongoing runs they have in other flows."
 msgstr ""
 
 #, python-format

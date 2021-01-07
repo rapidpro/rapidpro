@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-07 17:03+0000\n"
+"POT-Creation-Date: 2021-01-07 20:08+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -8451,9 +8451,6 @@ msgstr ""
 "\n"
 "          Para empezar tiene que agregar un número de teléfono a su cuenta. Puede elegir usar un teléfono Android y su propio plan de telefonía celular o podemos conectarlo con un proveedor de servicios en su país directamente.\n"
 "        "
-
-msgid "This is a background flow so starting a contact in this flow will not interrupt any ongoing runs they have in other flows."
-msgstr ""
 
 #, python-format
 msgid ""
