@@ -137,7 +137,7 @@ class Flow(TembaModel):
     TYPE_CHOICES = (
         (TYPE_MESSAGE, _("Messaging")),
         (TYPE_VOICE, _("Phone Call")),
-        (TYPE_PASSIVE, _("Passive")),
+        (TYPE_PASSIVE, _("Background")),
         (TYPE_SURVEY, _("Surveyor")),
         (TYPE_USSD, _("USSD")),
     )
@@ -167,9 +167,7 @@ class Flow(TembaModel):
 
     is_system = models.BooleanField(default=False, help_text=_("Whether this is a system created flow"))
 
-    flow_type = models.CharField(
-        max_length=1, choices=TYPE_CHOICES, default=TYPE_MESSAGE, help_text=_("The type of this flow")
-    )
+    flow_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_MESSAGE)
 
     # additional information about the flow, e.g. possible results
     metadata = JSONAsTextField(null=True, default=dict)
@@ -1028,7 +1026,7 @@ class FlowSession(models.Model):
     uuid = models.UUIDField(unique=True)
 
     # the modality of this session
-    session_type = models.CharField(max_length=1, choices=Flow.TYPE_CHOICES, default=Flow.TYPE_MESSAGE, null=True)
+    session_type = models.CharField(max_length=1, choices=Flow.TYPE_CHOICES, default=Flow.TYPE_MESSAGE)
 
     # the organization this session belongs to
     org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
