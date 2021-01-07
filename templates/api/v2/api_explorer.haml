@@ -152,6 +152,420 @@
 -block extra-style
   {{ block.super }}
   :css
+        .request-form {
+          background-color: #f7f7f9;
+          border: 1px solid #e1e1e8;
+          padding: 7px;
+        }
+
+        .request-form .form-group {
+          margin: 3px 0;
+        }
+
+        .request-header {
+          font-family: monospace;
+          padding-bottom: 10px;
+        }
+
+        .request-query {
+          font-family: monospace;
+          width: 700px;
+        }
+
+        .request-body {
+          font-family: monospace;
+          width: 700px;
+          height: 110px;
+        }
+
+        .request-buttons {
+          margin-top: 5px;
+          margin-bottom: 5px;
+          height: 35px;
+        }
+
+        .endpoint-title {
+          background-color: #eee;
+          border: 1px solid #ccc;
+          padding: 5px;
+          margin-bottom: 10px;
+          cursor: pointer;
+          -webkit-touch-callout: none;
+          -webkit-user-select: none;
+          -khtml-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+          user-select: none;
+        }
+
+        .endpoint {
+          margin-bottom: 20px;
+        }
+
+        .endpoint-description {
+          margin-top: 2px;
+        }
+
+        .endpoint table {
+          margin-bottom: 10px;
+        }
+
+        .method-get {
+          background-color: #058C40;
+          color: #eee;
+          padding: 3px;
+          text-align: center;
+          width: 55px;
+          display: inline-block;
+          margin-right: 5px;
+        }
+
+        .method-delete {
+          background-color: #952624;
+          color: #eee;
+          padding: 3px;
+          text-align: center;
+          width: 55px;
+          display: inline-block;
+          margin-right: 5px;
+        }
+
+        .method-post {
+          background-color: #1793cd;
+          color: #eee;
+          width: 55px;
+          text-align: center;
+          padding: 3px;
+          display: inline-block;
+          margin-right: 5px;
+        }
+
+        .method-put {
+          background-color: #17a9cd;
+          color: #eee;
+          width: 55px;
+          text-align: center;
+          padding: 3px;
+          display: inline-block;
+          margin-right: 5px;
+        }
+
+        td.field.field-required {
+          color: black;
+        }
+
+        .result {
+          display: none;
+          border-radius: 0;
+        }
+
+        .endpoint {
+          display: none;
+        }
+
+        .endpoint-url {
+          font-family: monospace;
+        }
+
+        .endpoint-method {
+          font-family: monospace;
+        }
+
+        td.field {
+          width: 100px;
+          text-align: right;
+          font-family: monospace;
+          font-weight: bold;
+          color: #666;
+        }
+
+        .field-title {
+          font-weight: bold;
+        }
+
+        .warning {
+          position: absolute;
+          right: 0px;
+          bottom: 5px;
+          font-weight: bold;
+        }
+
+      .request-form {
+        background-color: #f7f7f9;
+        border: 1px solid #e1e1e8;
+        padding: 7px;
+      }
+
+      .request-form .form-group {
+        margin: 3px 0;
+      }
+
+      .request-header {
+        font-family: monospace;
+        padding-bottom: 10px;
+      }
+
+      .request-query {
+        font-family: monospace;
+        width: 700px;
+      }
+
+      .request-body {
+        font-family: monospace;
+        width: 700px;
+        height: 110px;
+      }
+
+      .request-buttons {
+        margin-top: 5px;
+        margin-bottom: 5px;
+        height: 35px;
+      }
+
+      .endpoint-title {
+        background-color: #eee;
+        border: 1px solid #ccc;
+        padding: 5px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+
+      .endpoint {
+        margin-bottom: 20px;
+      }
+
+      .endpoint-description {
+        margin-top: 2px;
+      }
+
+      .endpoint table {
+        margin-bottom: 10px;
+      }
+
+      .method-get {
+        background-color: #058C40;
+        color: #eee;
+        padding: 3px;
+        text-align: center;
+        width: 55px;
+        display: inline-block;
+        margin-right: 5px;
+      }
+
+      .method-delete {
+        background-color: #952624;
+        color: #eee;
+        padding: 3px;
+        text-align: center;
+        width: 55px;
+        display: inline-block;
+        margin-right: 5px;
+      }
+
+      .method-post {
+        background-color: #1793cd;
+        color: #eee;
+        width: 55px;
+        text-align: center;
+        padding: 3px;
+        display: inline-block;
+        margin-right: 5px;
+      }
+
+      .method-put {
+        background-color: #17a3cd;
+        color: #eee;
+        width: 55px;
+        text-align: center;
+        padding: 3px;
+        display: inline-block;
+        margin-right: 5px;
+      }
+
+      td.field.field-required {
+        color: black;
+      }
+
+      .result {
+        display: none;
+        border-radius: 0;
+      }
+
+      .endpoint {
+        display: none;
+      }
+
+      .endpoint-url {
+        font-family: monospace;
+      }
+
+      .endpoint-method {
+        font-family: monospace;
+      }
+
+      td.field {
+        width: 100px;
+        text-align: right;
+        font-family: monospace;
+        font-weight: bold;
+        color: #666;
+      }
+
+      .field-title {
+        font-weight: bold;
+      }
+
+      .warning {
+        position: absolute;
+        right: 0px;
+        bottom: 5px;
+        font-weight: bold;
+      }
+
+      .request-form {
+        background-color: #f7f7f9;
+        border: 1px solid #e1e1e8;
+        padding: 7px;
+      }
+
+      .request-form .form-group {
+        margin: 3px 0;
+      }
+
+      .request-header {
+        font-family: monospace;
+        padding-bottom: 10px;
+      }
+
+      .request-query {
+        font-family: monospace;
+        width: 700px;
+      }
+
+      .request-body {
+        font-family: monospace;
+        width: 700px;
+        height: 110px;
+      }
+
+      .request-buttons {
+        margin-top: 5px;
+        margin-bottom: 5px;
+        height: 35px;
+      }
+
+      .endpoint-title {
+        background-color: #eee;
+        border: 1px solid #ccc;
+        padding: 5px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+
+      .endpoint {
+        margin-bottom: 20px;
+      }
+
+      .endpoint-description {
+        margin-top: 2px;
+      }
+
+      .endpoint table {
+        margin-bottom: 10px;
+      }
+
+      .method-get {
+        background-color: #058C40;
+        color: #eee;
+        padding: 3px;
+        text-align: center;
+        width: 55px;
+        display: inline-block;
+        margin-right: 5px;
+      }
+
+      .method-delete {
+        background-color: #952624;
+        color: #eee;
+        padding: 3px;
+        text-align: center;
+        width: 55px;
+        display: inline-block;
+        margin-right: 5px;
+      }
+
+      .method-post {
+        background-color: #1793cd;
+        color: #eee;
+        width: 55px;
+        text-align: center;
+        padding: 3px;
+        display: inline-block;
+        margin-right: 5px;
+      }
+
+      .method-put {
+        background-color: #17a9cd;
+        color: #eee;
+        width: 55px;
+        text-align: center;
+        padding: 3px;
+        display: inline-block;
+        margin-right: 5px;
+      }
+
+      td.field.field-required {
+        color: black;
+      }
+
+      .result {
+        display: none;
+        border-radius: 0;
+      }
+
+      .endpoint {
+        display: none;
+      }
+
+      .endpoint-url {
+        font-family: monospace;
+      }
+
+      .endpoint-method {
+        font-family: monospace;
+      }
+
+      td.field {
+        width: 100px;
+        text-align: right;
+        font-family: monospace;
+        font-weight: bold;
+        color: #666;
+      }
+
+      .field-title {
+        font-weight: bold;
+      }
+
+      .warning {
+        position: absolute;
+        right: 0px;
+        bottom: 5px;
+        font-weight: bold;
+      }
+
     .request-form {
       background-color: #f7f7f9;
       border: 1px solid #e1e1e8;
@@ -232,6 +646,16 @@
 
     .method-post {
       background-color: #1793cd;
+      color: #eee;
+      width: 55px;
+      text-align: center;
+      padding: 3px;
+      display: inline-block;
+      margin-right: 5px;
+    }
+
+    .method-put {
+      background-color: var(--color-button-primary);
       color: #eee;
       width: 55px;
       text-align: center;
