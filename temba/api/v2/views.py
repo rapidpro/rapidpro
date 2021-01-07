@@ -8,6 +8,7 @@ from mimetypes import guess_extension
 
 from django.conf import settings
 from django.template.defaultfilters import slugify
+from parse_rest.datatypes import Date
 from rest_framework import generics, status, views
 from rest_framework.pagination import CursorPagination
 from rest_framework.parsers import FormParser, MultiPartParser
@@ -44,7 +45,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
 from temba.templates.models import Template, TemplateTranslation
-from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool
+from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool, dates
 
 from ..models import SSLPermission
 from ..support import InvalidQueryError
@@ -3633,7 +3634,7 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
         A `PUT` inserts data into collection:
 
          * **collection_name** - the name of collection
-         * **fields** - columns that are going to be created in collection (If not provided the columns will be created automaticaly from items keywords)
+         * **fields** - columns that are going to be created in collection (If not provided, the columns will be created automaticaly from items keywords)
          * **items** - list of objects that are going to be inserted
 
         Create new collection for current org (This action will clear all records and paste new ones instead of them):
@@ -3642,17 +3643,21 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
             {
                 "collection_name": "Lookups List",
                 "fields": {
+                    // Available types
                     "name": {"type": "String"},
-                    "age": {"type": "Number"}
+                    "age": {"type": "Number"},
+                    "date": {"type": "Date"},
                 },
                 "items": [
                     {
                         "name": "Test Name",
-                        "age": 50
+                        "age": 50,
+                        "date": "01-01-2021"
                     },
                     {
                         "name": "Test Name 2",
-                        "age": 22
+                        "age": 22,
+                        "date": "02-02-2021"
                     }
                 ]
             }
@@ -3816,6 +3821,32 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
 
         return org, collection_name, collections_list, None
 
+    @staticmethod
+    def preprocess_date_fields(field_types: dict, request_body: dict, tz: object, dayfirst: bool):
+        for key in request_body:
+            if field_types.get(key) == "Date":
+                field_value = str(request_body[key]).replace("-", "/")
+                try:
+                    datetime_obj = dates.str_to_datetime(
+                        date_str=field_value, tz=tz, dayfirst=dayfirst, fill_time=False
+                    )
+                    request_body[key] = Date.convert_to_parse(datetime_obj)
+                except Exception:
+                    request_body[key] = None
+
+    def get_collection_fields(self, response=None, collection=""):
+        if not response and collection:
+            url = f"{settings.PARSE_URL}/schemas/{collection}"
+            response = requests.get(url, headers=self.parse_headers)
+        if response and response.status_code == 200:
+            return {
+                field: config.get("type")
+                for field, config in response.json().get("fields", {}).items()
+                if field not in ["objectId", "createdAt", "updatedAt", "ACL"]
+            }
+        else:
+            return {}
+
     def list(self, request, *args, **kwargs):
         org, _, collections_list, error_response = self.get_default_params()
         if error_response:
@@ -3925,12 +3956,16 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
             if response.status_code != 200:
                 return Response(response.json(), status=response.status_code)
 
+        field_types = self.get_collection_fields(response=response)
+        tz, dayfirst = org.timezone, org.get_dayfirst()
+
         # insert data rows
         if items_to_push:
             requests_ = []
             insert_url = f"{settings.PARSE_URL}/batch"
             db_endpoint = f"{settings.PARSE_ENDPOINT}/classes/{collection}"
             for index, data in enumerate(items_to_push):
+                self.preprocess_date_fields(field_types, data, tz, dayfirst)
                 requests_.append({"method": "POST", "path": db_endpoint, "body": {"order": index, **data}})
 
             response = []
@@ -4154,12 +4189,16 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
         count_url = f"{settings.PARSE_URL}/classes/{collection}?count=1"
         count_response = requests.get(count_url, headers=self.parse_headers)
 
+        field_types = self.get_collection_fields(collection=collection)
+        tz, dayfirst = org.timezone, org.get_dayfirst()
+
         if count_response.status_code == 200:
             requests_ = []
             insert_url = f"{settings.PARSE_URL}/batch"
             insert_index = count_response.json().get("count")
             db_endpoint = f"{settings.PARSE_ENDPOINT}/classes/{collection}"
             for index, data in enumerate(items_to_push, start=insert_index):
+                self.preprocess_date_fields(field_types, data, tz, dayfirst)
                 requests_.append({"method": "POST", "path": db_endpoint, "body": {"order": index, **data}})
 
             response = []
@@ -4197,9 +4236,12 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
         if not object_id:
             return Response({"error", "'objectId' is not provided."}, status=status.HTTP_400_BAD_REQUEST)
 
-        data_to_replace: dict = self.request.data.get("item")
-
         collection = self.get_collection_full_name(org=org, collection=collection_name)
+        field_types = self.get_collection_fields(collection=collection)
+        tz, dayfirst = org.timezone, org.get_dayfirst()
+        data_to_replace: dict = self.request.data.get("item")
+        self.preprocess_date_fields(field_types, data_to_replace, tz, dayfirst)
+
         parse_url = f"{settings.PARSE_URL}/classes/{collection}/{object_id}"
         response = requests.put(parse_url, data=json.dumps(data_to_replace), headers=self.parse_headers)
 
