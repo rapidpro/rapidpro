@@ -144,7 +144,7 @@ class Flow(TembaModel):
 
     GOFLOW_TYPES = {
         TYPE_MESSAGE: "messaging",
-        TYPE_BACKGROUND: "messaging_passive",
+        TYPE_BACKGROUND: "messaging_background",
         TYPE_SURVEY: "messaging_offline",
         TYPE_VOICE: "voice",
     }
