@@ -3851,7 +3851,7 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
         else:
             return Response(response.json(), status=response.status_code)
 
-        return Response(response.json(), status=status.HTTP_201_CREATED)
+        return Response(status=status.HTTP_201_CREATED)
 
     def delete(self, request, *args, **kwargs):
         org, collection_name, collections_list, error_response = self.get_default_params(is_collection_exists=True)
