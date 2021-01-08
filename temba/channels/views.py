@@ -2302,7 +2302,7 @@ class ChannelCRUDL(SmartCRUDL):
                 links.append(
                     dict(
                         title=_("Edit"),
-                        style="btn-primary",
+                        style="button-primary",
                         href=reverse("channels.channel_update", args=[self.object.id]),
                     )
                 )

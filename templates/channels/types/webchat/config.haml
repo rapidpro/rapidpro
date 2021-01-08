@@ -3,7 +3,7 @@
 %h4
   -blocktrans
     To finish, please add this code to your HTML page before the end of the <code>&lt;body&gt;</code> tag.
-%hr
+
 %h4
   -trans "Javascript Code"
 %pre.wch-channel
@@ -47,15 +47,14 @@
       }, 'ccl-web-surveyor');
     &lt;/script>
 
-%a.btn-primary.btn{id:"btnCopyWCHCode", href:"javascript:;", onclick:"copyWCHCode();"}
+%a.button-primary.block{id:"btnCopyWCHCode", href:"javascript:;", onclick:"copyWCHCode();"}
   -trans "Copy"
-
-%textarea#code-field
 
 %hr
 %h4
   -blocktrans
     Note: To make sure your website is adapted for the mobile version, please, check if it has some <code>viewport</code> meta tag like:
+%br
 %code
   :escaped
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />

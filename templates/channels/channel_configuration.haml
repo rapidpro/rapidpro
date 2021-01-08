@@ -54,12 +54,16 @@
 
     function copyWCHCode() {
       var el = $("pre.wch-channel code");
-      var copyArea = document.getElementById("code-field");
-      copyArea.value = el[0].innerText.trim();
-      copyArea.select();
-      copyArea.setSelectionRange(0, 99999);
-      document.execCommand('copy');
+      copyToClipboard(el);
       alert("{% trans 'The code has been copied to clipboard' %}");
+    }
+
+    function copyToClipboard(element) {
+      var $temp = $("<textarea>");
+      $("body").append($temp);
+      $temp.val($(element).text()).select();
+      document.execCommand("copy");
+      $temp.remove();
     }
 
 -block extra-style
