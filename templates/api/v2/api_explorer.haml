@@ -22,7 +22,7 @@
         %li.pull-right(style="color: #666")
           API Token: {{ request.user.api_token }}
       -else
-        %li.pull-right 
+        %li.pull-right
           -trans "Log in to get your API Token"
 
   .flex.justify-between.items-center.pb-1.mb-4(style="position: relative;")
@@ -196,6 +196,16 @@
       padding: 3px;
       display: inline-block;
       margin-right: 15px;
+    }
+
+    .method-put {
+      background-color: var(--color-button-primary);
+      color: #eee;
+      width: 55px;
+      text-align: center;
+      padding: 3px;
+      display: inline-block;
+      margin-right: 5px;
     }
 
     table.list tr td:first-child {
