@@ -3119,9 +3119,6 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_import"):
                 links.append(dict(title=_("Import"), href=reverse("orgs.org_import")))
 
-            if self.request.user.is_superuser:
-                links.append(dict(title=_("Migrate data"), href=reverse("migrator.migrationtask_create")))
-
             if settings.HELP_URL:  # pragma: needs cover
                 if len(links) > 0:
                     links.append(dict(divider=True))
