@@ -139,7 +139,6 @@ class Flow(TembaModel):
         (TYPE_VOICE, _("Phone Call")),
         (TYPE_BACKGROUND, _("Background")),
         (TYPE_SURVEY, _("Surveyor")),
-        (TYPE_USSD, _("USSD")),
     )
 
     GOFLOW_TYPES = {

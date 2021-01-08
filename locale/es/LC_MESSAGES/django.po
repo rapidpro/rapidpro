@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-07 20:08+0000\n"
+"POT-Creation-Date: 2021-01-08 15:22+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -3623,11 +3623,6 @@ msgstr "Flujo de llamadas telefónicas"
 
 msgid "Background"
 msgstr ""
-
-#, fuzzy
-#| msgid "SMS flow"
-msgid "USSD"
-msgstr "Flujo de mensajes de texto"
 
 msgid "The name for this flow"
 msgstr "El nombre para este flujo"
@@ -10770,6 +10765,11 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "SMS flow"
+#~ msgid "USSD"
+#~ msgstr "Flujo de mensajes de texto"
 
 #~ msgid "The type of this flow"
 #~ msgstr "El tipo de este flujo"

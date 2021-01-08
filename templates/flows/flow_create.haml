@@ -10,7 +10,7 @@
     .ml-3
       -render_field 'flow_type'
 
-  .keywords(class="{%if form.flow_type.value == 'S'%}hidden{%endif%}")
+  .keywords(class="{% if form.flow_type.value == 'B' or form.flow_type.value == 'S' %}hidden{%endif%}")
     -render_field 'keyword_triggers'
   
   -if form.base_language

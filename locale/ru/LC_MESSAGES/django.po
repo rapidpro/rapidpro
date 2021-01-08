@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-07 20:08+0000\n"
+"POT-Creation-Date: 2021-01-08 15:22+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3060,11 +3060,6 @@ msgstr "телефонный вызов"
 
 msgid "Background"
 msgstr ""
-
-#, fuzzy
-#| msgid "USSD flow"
-msgid "USSD"
-msgstr "Поток USSD"
 
 msgid "The name for this flow"
 msgstr "Название данного потока"
@@ -10291,6 +10286,11 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, fuzzy
+#~| msgid "USSD flow"
+#~ msgid "USSD"
+#~ msgstr "Поток USSD"
 
 #~ msgid "The type of this flow"
 #~ msgstr "Тип данного потока"

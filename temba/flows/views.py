@@ -378,7 +378,7 @@ class FlowCRUDL(SmartCRUDL):
             flow_type = forms.ChoiceField(
                 label=_("Type"),
                 help_text=_("Choose the method for your flow"),
-                choices=(),
+                choices=Flow.TYPE_CHOICES,
                 widget=SelectWidget(attrs={"widget_only": False}),
             )
 
@@ -390,8 +390,9 @@ class FlowCRUDL(SmartCRUDL):
                 language_choices = ((lang.iso_code, lang.name) for lang in org_languages)
 
                 # prune our type choices by brand config
-                allowed_types = branding.get("flow_types", [Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY])
-                self.fields["flow_type"].choices = [c for c in Flow.TYPE_CHOICES if c[0] in allowed_types]
+                allowed_types = branding.get("flow_types")
+                if allowed_types:
+                    self.fields["flow_type"].choices = [c for c in Flow.TYPE_CHOICES if c[0] in allowed_types]
 
                 self.fields["base_language"] = forms.ChoiceField(
                     label=_("Language"),

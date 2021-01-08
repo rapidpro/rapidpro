@@ -14,13 +14,7 @@ class Migration(migrations.Migration):
             model_name="flow",
             name="flow_type",
             field=models.CharField(
-                choices=[
-                    ("M", "Messaging"),
-                    ("V", "Phone Call"),
-                    ("B", "Background"),
-                    ("S", "Surveyor"),
-                    ("U", "USSD"),
-                ],
+                choices=[("M", "Messaging"), ("V", "Phone Call"), ("B", "Background"), ("S", "Surveyor")],
                 default="M",
                 max_length=1,
             ),
@@ -29,13 +23,7 @@ class Migration(migrations.Migration):
             model_name="flowsession",
             name="session_type",
             field=models.CharField(
-                choices=[
-                    ("M", "Messaging"),
-                    ("V", "Phone Call"),
-                    ("B", "Background"),
-                    ("S", "Surveyor"),
-                    ("U", "USSD"),
-                ],
+                choices=[("M", "Messaging"), ("V", "Phone Call"), ("B", "Background"), ("S", "Surveyor")],
                 default="M",
                 max_length=1,
             ),
