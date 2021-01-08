@@ -1851,9 +1851,14 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(response.context["has_flows"])
         self.assertIn("flow_type", response.context["form"].fields)
 
-        # our default brand has all choice types
+        # our default brand has all choice types except USSD which is no longer supported
         response = self.client.get(reverse("flows.flow_create"))
-        choices = [(Flow.TYPE_MESSAGE, "Messaging"), (Flow.TYPE_VOICE, "Phone Call"), (Flow.TYPE_SURVEY, "Surveyor")]
+        choices = [
+            (Flow.TYPE_MESSAGE, "Messaging"),
+            (Flow.TYPE_VOICE, "Phone Call"),
+            (Flow.TYPE_BACKGROUND, "Background"),
+            (Flow.TYPE_SURVEY, "Surveyor"),
+        ]
         self.assertEqual(choices, response.context["form"].fields["flow_type"].choices)
 
         # create a new regular flow
