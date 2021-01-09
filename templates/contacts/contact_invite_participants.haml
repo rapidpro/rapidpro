@@ -57,7 +57,7 @@
                         %label.control-label
                           %trans Opt-in flow
                         %div(style="display: flex;")
-                          %temba-select#id_opt_in_flow{float:'left', name:'optin_flow_uuid', data-url-template:"{% url 'flows.flow_broadcast' '0' %}"}
+                          %temba-select#id_opt_in_flow.w-96{float:'left', name:'optin_flow_uuid', data-url-template:"{% url 'flows.flow_broadcast' '0' %}", placeholder:'{{_("Opt-in flow")}}'}
                             %temba-option
                             - for flow in flows
                               %temba-option{value:'{{flow.uuid}}', name: '{{ flow.name }}', '{% if flow.uuid == optin_flow %}selected{% endif %}'}
