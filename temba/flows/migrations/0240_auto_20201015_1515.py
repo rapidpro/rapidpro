@@ -5,11 +5,9 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("flows", "0239_auto_20201009_1641"),
-    ]
+    dependencies = [("flows", "0239_auto_20201009_1641")]
 
     operations = [
-        migrations.RemoveField(model_name="flow", name="entry_type",),
-        migrations.RemoveField(model_name="flow", name="entry_uuid",),
+        migrations.RemoveField(model_name="flow", name="entry_type"),
+        migrations.RemoveField(model_name="flow", name="entry_uuid"),
     ]

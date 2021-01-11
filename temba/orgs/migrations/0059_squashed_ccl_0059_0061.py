@@ -25,29 +25,29 @@ def remove_parent_org_admins(apps, schema_editor):
 class Migration(migrations.Migration):
 
     replaces = [
-        ('orgs', '0059_creditalert_admin_emails'),
-        ('orgs', '0059_usersettings_authy_id'),
-        ('orgs', '0060_merge_20200510_1733'),
-        ('orgs', '0061_data_move_admins_to_nested_org')
+        ("orgs", "0059_creditalert_admin_emails"),
+        ("orgs", "0059_usersettings_authy_id"),
+        ("orgs", "0060_merge_20200510_1733"),
+        ("orgs", "0061_data_move_admins_to_nested_org"),
     ]
 
-    dependencies = [
-        ('orgs', '0058_auto_20190723_2129'),
-    ]
+    dependencies = [("orgs", "0058_auto_20190723_2129")]
 
     operations = [
         migrations.AddField(
-            model_name='creditalert',
-            name='admin_emails',
-            field=django.contrib.postgres.fields.ArrayField(base_field=models.EmailField(max_length=254), default=list, help_text='Emails of administrators who will be alerted', size=None),
+            model_name="creditalert",
+            name="admin_emails",
+            field=django.contrib.postgres.fields.ArrayField(
+                base_field=models.EmailField(max_length=254),
+                default=list,
+                help_text="Emails of administrators who will be alerted",
+                size=None,
+            ),
         ),
         migrations.AddField(
             model_name="usersettings",
             name="authy_id",
             field=models.CharField(blank=True, max_length=255, null=True, verbose_name="Authy ID"),
         ),
-        migrations.RunPython(
-            code=add_parent_org_admins,
-            reverse_code=remove_parent_org_admins,
-        ),
+        migrations.RunPython(code=add_parent_org_admins, reverse_code=remove_parent_org_admins),
     ]

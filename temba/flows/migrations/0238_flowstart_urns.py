@@ -6,14 +6,12 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("flows", "0237_auto_20200727_1723"),
-    ]
+    dependencies = [("flows", "0237_auto_20200727_1723")]
 
     operations = [
         migrations.AddField(
             model_name="flowstart",
             name="urns",
             field=django.contrib.postgres.fields.ArrayField(base_field=models.TextField(), null=True, size=None),
-        ),
+        )
     ]

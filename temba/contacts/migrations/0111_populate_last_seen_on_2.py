@@ -15,7 +15,7 @@ WRITE_BATCH_SIZE = 5000
 
 def s3_client():  # pragma: no cover
     return boto3.Session(
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
     ).client("s3")
 
 
@@ -116,8 +116,6 @@ def apply_manual():  # pragma: no cover
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("contacts", "0110_populate_last_seen_on"),
-    ]
+    dependencies = [("contacts", "0110_populate_last_seen_on")]
 
     operations = [migrations.RunPython(populate_last_seen_on, reverse)]

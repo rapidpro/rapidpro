@@ -173,7 +173,7 @@ class TicketerCRUDL(SmartCRUDL):
 
     class Connect(OrgPermsMixin, SmartTemplateView):
         def get_gear_links(self):
-            return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"),)]
+            return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"))]
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)

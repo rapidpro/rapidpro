@@ -5,9 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("flows", "0236_flowstart_session_history"),
-    ]
+    dependencies = [("flows", "0236_flowstart_session_history")]
 
     operations = [
         migrations.AlterField(
@@ -20,5 +18,5 @@ class Migration(migrations.Migration):
                 max_length=4,
                 null=True,
             ),
-        ),
+        )
     ]

@@ -759,10 +759,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         triggers = (
             Trigger.objects.select_related("schedule")
-                .filter(trigger_type=Trigger.TYPE_SCHEDULE)
-                .filter(schedule__next_fire__gte=timezone.now())
-                .filter(Q(contacts=self) | Q(groups__contacts=self))
-                .filter(is_archived=False)
+            .filter(trigger_type=Trigger.TYPE_SCHEDULE)
+            .filter(schedule__next_fire__gte=timezone.now())
+            .filter(Q(contacts=self) | Q(groups__contacts=self))
+            .filter(is_archived=False)
         )
         return triggers
 
@@ -1526,7 +1526,7 @@ class ContactGroup(TembaModel):
         Creates our system groups for the given organization so that we can keep track of counts etc..
         """
         org.all_groups.create(
-            name="Active", group_type=ContactGroup.TYPE_ACTIVE, created_by=org.created_by, modified_by=org.modified_by,
+            name="Active", group_type=ContactGroup.TYPE_ACTIVE, created_by=org.created_by, modified_by=org.modified_by
         )
         org.all_groups.create(
             name="Blocked",
@@ -1623,7 +1623,7 @@ class ContactGroup(TembaModel):
             count += 1
 
         return cls.user_groups.create(
-            org=org, name=full_group_name, query=query, status=status, created_by=user, modified_by=user,
+            org=org, name=full_group_name, query=query, status=status, created_by=user, modified_by=user
         )
 
     @classmethod
@@ -2243,7 +2243,7 @@ class ContactImport(SmartModel):
             mapping = item["mapping"]
             if mapping["type"] == "new_field":
                 ContactField.get_or_create(
-                    self.org, self.created_by, mapping["key"], label=mapping["name"], value_type=mapping["value_type"],
+                    self.org, self.created_by, mapping["key"], label=mapping["name"], value_type=mapping["value_type"]
                 )
 
         # create the destination group

@@ -10,11 +10,6 @@ DROP INDEX flows_flowrun_timeout_active;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("flows", "0241_auto_20201015_1521"),
-    ]
+    dependencies = [("flows", "0241_auto_20201015_1521")]
 
-    operations = [
-        migrations.RunSQL(SQL),
-        migrations.RemoveField(model_name="flowrun", name="timeout_on",),
-    ]
+    operations = [migrations.RunSQL(SQL), migrations.RemoveField(model_name="flowrun", name="timeout_on")]

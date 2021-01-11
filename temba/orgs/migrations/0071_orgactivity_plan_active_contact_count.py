@@ -5,12 +5,10 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("orgs", "0070_populate_plan_start"),
-    ]
+    dependencies = [("orgs", "0070_populate_plan_start")]
 
     operations = [
         migrations.AddField(
-            model_name="orgactivity", name="plan_active_contact_count", field=models.IntegerField(null=True),
-        ),
+            model_name="orgactivity", name="plan_active_contact_count", field=models.IntegerField(null=True)
+        )
     ]

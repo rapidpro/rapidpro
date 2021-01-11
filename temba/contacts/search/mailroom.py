@@ -64,7 +64,7 @@ def parse_query(org, query: str, *, group=None) -> ParsedQuery:
         group_uuid = group.uuid if group else None
 
         response = mailroom.get_client().parse_query(org.id, query, group_uuid=str(group_uuid))
-        return ParsedQuery(response["query"], response["elastic_query"], Metadata(**response.get("metadata", {})),)
+        return ParsedQuery(response["query"], response["elastic_query"], Metadata(**response.get("metadata", {})))
 
     except mailroom.MailroomException as e:
         raise SearchException.from_mailroom_exception(e)
@@ -84,10 +84,10 @@ def search_contacts(
         group_uuid = group.uuid if group else None
 
         response = mailroom.get_client().contact_search(
-            org.id, group_uuid=str(group_uuid), query=query, sort=sort, offset=offset, exclude_ids=exclude_ids,
+            org.id, group_uuid=str(group_uuid), query=query, sort=sort, offset=offset, exclude_ids=exclude_ids
         )
         return SearchResults(
-            response["total"], response["query"], response["contact_ids"], Metadata(**response.get("metadata", {})),
+            response["total"], response["query"], response["contact_ids"], Metadata(**response.get("metadata", {}))
         )
 
     except mailroom.MailroomException as e:

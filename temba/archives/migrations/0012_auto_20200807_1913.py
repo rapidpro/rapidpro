@@ -7,9 +7,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("archives", "0011_initial"),
-    ]
+    dependencies = [("archives", "0011_initial")]
 
     operations = [
         migrations.AlterField(
@@ -17,13 +15,13 @@ class Migration(migrations.Migration):
             name="archive_type",
             field=models.CharField(choices=[("message", "Message"), ("run", "Run")], max_length=16),
         ),
-        migrations.AlterField(model_name="archive", name="build_time", field=models.IntegerField(),),
+        migrations.AlterField(model_name="archive", name="build_time", field=models.IntegerField()),
         migrations.AlterField(
-            model_name="archive", name="created_on", field=models.DateTimeField(default=django.utils.timezone.now),
+            model_name="archive", name="created_on", field=models.DateTimeField(default=django.utils.timezone.now)
         ),
-        migrations.AlterField(model_name="archive", name="deleted_on", field=models.DateTimeField(null=True),),
-        migrations.AlterField(model_name="archive", name="hash", field=models.TextField(),),
-        migrations.AlterField(model_name="archive", name="needs_deletion", field=models.BooleanField(default=False),),
+        migrations.AlterField(model_name="archive", name="deleted_on", field=models.DateTimeField(null=True)),
+        migrations.AlterField(model_name="archive", name="hash", field=models.TextField()),
+        migrations.AlterField(model_name="archive", name="needs_deletion", field=models.BooleanField(default=False)),
         migrations.AlterField(
             model_name="archive",
             name="org",
@@ -36,13 +34,13 @@ class Migration(migrations.Migration):
             name="period",
             field=models.CharField(choices=[("D", "Day"), ("M", "Month")], default="D", max_length=1),
         ),
-        migrations.AlterField(model_name="archive", name="record_count", field=models.IntegerField(default=0),),
+        migrations.AlterField(model_name="archive", name="record_count", field=models.IntegerField(default=0)),
         migrations.AlterField(
             model_name="archive",
             name="rollup",
             field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to="archives.Archive"),
         ),
-        migrations.AlterField(model_name="archive", name="size", field=models.BigIntegerField(default=0),),
-        migrations.AlterField(model_name="archive", name="start_date", field=models.DateField(),),
-        migrations.AlterField(model_name="archive", name="url", field=models.URLField(),),
+        migrations.AlterField(model_name="archive", name="size", field=models.BigIntegerField(default=0)),
+        migrations.AlterField(model_name="archive", name="start_date", field=models.DateField()),
+        migrations.AlterField(model_name="archive", name="url", field=models.URLField()),
     ]

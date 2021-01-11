@@ -39,10 +39,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         data = form.cleaned_data
 
-        config = {
-            Channel.CONFIG_BASE_URL: data["base_url"],
-            Channel.CONFIG_AUTH_TOKEN: data["api_key"],
-        }
+        config = {Channel.CONFIG_BASE_URL: data["base_url"], Channel.CONFIG_AUTH_TOKEN: data["api_key"]}
 
         self.object = Channel.create(
             org,

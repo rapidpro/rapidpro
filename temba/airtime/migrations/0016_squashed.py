@@ -5,9 +5,6 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("airtime", "0015_squashed"),
-        ("contacts", "0128_squashed"),
-    ]
+    dependencies = [("airtime", "0015_squashed"), ("contacts", "0128_squashed")]
 
     operations = []

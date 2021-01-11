@@ -11,15 +11,13 @@ import temba.utils.models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("channels", "0122_populate_allow_international"),
-    ]
+    dependencies = [("channels", "0122_populate_allow_international")]
 
     operations = [
-        migrations.AlterField(model_name="channel", name="bod", field=models.TextField(null=True),),
-        migrations.AlterField(model_name="channel", name="channel_type", field=models.CharField(max_length=3),),
+        migrations.AlterField(model_name="channel", name="bod", field=models.TextField(null=True)),
+        migrations.AlterField(model_name="channel", name="channel_type", field=models.CharField(max_length=3)),
         migrations.AlterField(
-            model_name="channel", name="config", field=temba.utils.models.JSONAsTextField(default=dict, null=True),
+            model_name="channel", name="config", field=temba.utils.models.JSONAsTextField(default=dict, null=True)
         ),
         migrations.AlterField(
             model_name="channel",
@@ -33,7 +31,7 @@ class Migration(migrations.Migration):
             name="parent",
             field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to="channels.Channel"),
         ),
-        migrations.AlterField(model_name="channel", name="role", field=models.CharField(default="SR", max_length=4),),
+        migrations.AlterField(model_name="channel", name="role", field=models.CharField(default="SR", max_length=4)),
         migrations.AlterField(
             model_name="channel",
             name="schemes",
@@ -66,9 +64,7 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterField(
-            model_name="channelevent",
-            name="created_on",
-            field=models.DateTimeField(default=django.utils.timezone.now),
+            model_name="channelevent", name="created_on", field=models.DateTimeField(default=django.utils.timezone.now)
         ),
         migrations.AlterField(
             model_name="channelevent",
@@ -89,9 +85,9 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterField(
-            model_name="channelevent", name="extra", field=temba.utils.models.JSONAsTextField(default=dict, null=True),
+            model_name="channelevent", name="extra", field=temba.utils.models.JSONAsTextField(default=dict, null=True)
         ),
-        migrations.AlterField(model_name="channelevent", name="occurred_on", field=models.DateTimeField(),),
+        migrations.AlterField(model_name="channelevent", name="occurred_on", field=models.DateTimeField()),
         migrations.AlterField(
             model_name="channelevent",
             name="org",
@@ -115,12 +111,12 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterField(
-            model_name="channellog", name="created_on", field=models.DateTimeField(auto_now_add=True),
+            model_name="channellog", name="created_on", field=models.DateTimeField(auto_now_add=True)
         ),
-        migrations.AlterField(model_name="channellog", name="description", field=models.CharField(max_length=255),),
-        migrations.AlterField(model_name="channellog", name="is_error", field=models.BooleanField(default=False),),
+        migrations.AlterField(model_name="channellog", name="description", field=models.CharField(max_length=255)),
+        migrations.AlterField(model_name="channellog", name="is_error", field=models.BooleanField(default=False)),
         migrations.AlterField(
-            model_name="channellog", name="method", field=models.CharField(max_length=16, null=True),
+            model_name="channellog", name="method", field=models.CharField(max_length=16, null=True)
         ),
         migrations.AlterField(
             model_name="channellog",
@@ -129,11 +125,11 @@ class Migration(migrations.Migration):
                 null=True, on_delete=django.db.models.deletion.PROTECT, related_name="channel_logs", to="msgs.Msg"
             ),
         ),
-        migrations.AlterField(model_name="channellog", name="request", field=models.TextField(null=True),),
-        migrations.AlterField(model_name="channellog", name="request_time", field=models.IntegerField(null=True),),
-        migrations.AlterField(model_name="channellog", name="response", field=models.TextField(null=True),),
-        migrations.AlterField(model_name="channellog", name="response_status", field=models.IntegerField(null=True),),
-        migrations.AlterField(model_name="channellog", name="url", field=models.TextField(null=True),),
+        migrations.AlterField(model_name="channellog", name="request", field=models.TextField(null=True)),
+        migrations.AlterField(model_name="channellog", name="request_time", field=models.IntegerField(null=True)),
+        migrations.AlterField(model_name="channellog", name="response", field=models.TextField(null=True)),
+        migrations.AlterField(model_name="channellog", name="response_status", field=models.IntegerField(null=True)),
+        migrations.AlterField(model_name="channellog", name="url", field=models.TextField(null=True)),
         migrations.AlterField(
             model_name="syncevent",
             name="channel",
@@ -142,19 +138,19 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterField(
-            model_name="syncevent", name="incoming_command_count", field=models.IntegerField(default=0),
+            model_name="syncevent", name="incoming_command_count", field=models.IntegerField(default=0)
         ),
         migrations.AlterField(
-            model_name="syncevent", name="lifetime", field=models.IntegerField(blank=True, default=0, null=True),
+            model_name="syncevent", name="lifetime", field=models.IntegerField(blank=True, default=0, null=True)
         ),
-        migrations.AlterField(model_name="syncevent", name="network_type", field=models.CharField(max_length=128),),
+        migrations.AlterField(model_name="syncevent", name="network_type", field=models.CharField(max_length=128)),
         migrations.AlterField(
-            model_name="syncevent", name="outgoing_command_count", field=models.IntegerField(default=0),
+            model_name="syncevent", name="outgoing_command_count", field=models.IntegerField(default=0)
         ),
         migrations.AlterField(
-            model_name="syncevent", name="pending_message_count", field=models.IntegerField(default=0),
+            model_name="syncevent", name="pending_message_count", field=models.IntegerField(default=0)
         ),
-        migrations.AlterField(model_name="syncevent", name="power_level", field=models.IntegerField(),),
+        migrations.AlterField(model_name="syncevent", name="power_level", field=models.IntegerField()),
         migrations.AlterField(
             model_name="syncevent",
             name="power_source",
@@ -178,6 +174,6 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterField(
-            model_name="syncevent", name="retry_message_count", field=models.IntegerField(default=0),
+            model_name="syncevent", name="retry_message_count", field=models.IntegerField(default=0)
         ),
     ]

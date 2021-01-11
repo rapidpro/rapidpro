@@ -104,10 +104,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         page_access_token = form.cleaned_data["page_access_token"]
         name = form.cleaned_data["name"]
 
-        config = {
-            Channel.CONFIG_AUTH_TOKEN: page_access_token,
-            Channel.CONFIG_PAGE_NAME: name,
-        }
+        config = {Channel.CONFIG_AUTH_TOKEN: page_access_token, Channel.CONFIG_PAGE_NAME: name}
         self.object = Channel.create(
             org, self.request.user, None, self.channel_type, name=name, address=page_id, config=config
         )

@@ -5,10 +5,6 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('triggers', '0017_squashed'),
-        ('triggers', '0017_trigger_extra'),
-    ]
+    dependencies = [("triggers", "0017_squashed"), ("triggers", "0017_trigger_extra")]
 
-    operations = [
-    ]
+    operations = []

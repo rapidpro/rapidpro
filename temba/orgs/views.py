@@ -272,7 +272,7 @@ class OrgSignupForm(forms.ModelForm):
     timezone = TimeZoneFormField(help_text=_("The timezone for your workspace"), widget=forms.widgets.HiddenInput())
 
     password = forms.CharField(
-        widget=InputWidget(attrs={"hide_label": True, "password": True, "placeholder": _("Password")},),
+        widget=InputWidget(attrs={"hide_label": True, "password": True, "placeholder": _("Password")}),
         validators=[validate_password],
         help_text=_("At least eight characters or more"),
     )
@@ -369,7 +369,7 @@ class GiftcardsForm(forms.ModelForm):
         label=_("New Collection"),
         max_length=30,
         help_text="Enter a name for your collection. ex: my gifts, new lookup table",
-        widget=InputWidget
+        widget=InputWidget,
     )
     remove = forms.CharField(widget=forms.HiddenInput, max_length=6, required=False)
     index = forms.CharField(widget=forms.HiddenInput, max_length=10, required=False)
@@ -1478,7 +1478,7 @@ class OrgCRUDL(SmartCRUDL):
     class ManageAccounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class AccountsForm(forms.ModelForm):
             invite_emails = forms.CharField(
-                required=False, widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email Address")}),
+                required=False, widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email Address")})
             )
             invite_group = forms.ChoiceField(
                 choices=(("A", _("Administrator")), ("E", _("Editor")), ("V", _("Viewer")), ("S", _("Surveyor"))),
@@ -1555,9 +1555,9 @@ class OrgCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
             if self.request.user.get_org().pk != self.get_object().pk:
-                links.append(dict(title=_("Workspaces"), style="button-light", href=reverse("orgs.org_sub_orgs"),))
+                links.append(dict(title=_("Workspaces"), style="button-light", href=reverse("orgs.org_sub_orgs")))
 
-            links.append(dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"),))
+            links.append(dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home")))
             return links
 
         def derive_initial(self):
@@ -3126,7 +3126,7 @@ class OrgCRUDL(SmartCRUDL):
                 if len(links) > 0:
                     links.append(dict(divider=True))
 
-                links.append(dict(title=_("Help"), href=settings.HELP_URL,))
+                links.append(dict(title=_("Help"), href=settings.HELP_URL))
 
             if len(links) > 0:
                 links.append(dict(divider=True))
@@ -3440,7 +3440,7 @@ class OrgCRUDL(SmartCRUDL):
         class OrgForm(forms.ModelForm):
             name = forms.CharField(max_length=128, label=_("Workspace Name"), help_text="", widget=InputWidget())
             timezone = TimeZoneFormField(
-                label=_("Timezone"), help_text="", widget=SelectWidget(attrs={"searchable": True}),
+                label=_("Timezone"), help_text="", widget=SelectWidget(attrs={"searchable": True})
             )
 
             class Meta:

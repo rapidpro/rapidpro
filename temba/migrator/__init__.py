@@ -1,3 +1,4 @@
+# flake8: noqa: W291
 from django.db import connections, connection
 from django.conf import settings
 

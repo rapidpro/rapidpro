@@ -148,9 +148,7 @@ class ContactCRUDLTest(TembaTest):
 
         self.assertEqual(response.status_code, 404)
 
-        mr_mocks.contact_search(
-            'age > 18 and home = "Kigali"', cleaned='age > 18 AND home = "Kigali"', contacts=[joe],
-        )
+        mr_mocks.contact_search('age > 18 and home = "Kigali"', cleaned='age > 18 AND home = "Kigali"', contacts=[joe])
 
         response = self.client.get(list_url + '?search=age+>+18+and+home+%3D+"Kigali"')
         self.assertEqual(list(response.context["object_list"]), [joe])
@@ -1687,7 +1685,7 @@ class ContactTest(TembaTest):
         with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(
-                    query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
+                    query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id]
                 ),
                 SearchResults(query="", total=3, contact_ids=[]),
             ]
@@ -1709,7 +1707,7 @@ class ContactTest(TembaTest):
         with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id]),
-                SearchResults(query="", total=2, contact_ids=[self.voldemort.id, self.frank.id],),
+                SearchResults(query="", total=2, contact_ids=[self.voldemort.id, self.frank.id]),
             ]
             actual_result = omnibox_request(query="search=250", version="2")
             expected_result = [
@@ -1771,9 +1769,9 @@ class ContactTest(TembaTest):
         with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(
-                    query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
+                    query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id]
                 ),
-                SearchResults(query="", total=3, contact_ids=[self.voldemort.id, self.joe.id, self.frank.id],),
+                SearchResults(query="", total=3, contact_ids=[self.voldemort.id, self.joe.id, self.frank.id]),
             ]
             self.assertEqual(
                 omnibox_request("search=250&types=c,u"),
@@ -3210,7 +3208,7 @@ class ContactTest(TembaTest):
                         modifiers.GroupRef(uuid=spammers.uuid, name="Spammers"),
                         modifiers.GroupRef(uuid=testers.uuid, name="Testers"),
                     ],
-                ),
+                )
             ],
             mods,
         )
@@ -5477,7 +5475,7 @@ class ContactImportTest(TembaTest):
                     "org_id": self.org.id,
                     "task": {"contact_import_batch_id": batches[0].id},
                     "queued_on": matchers.Datetime(),
-                },
+                }
             ],
             mr_mocks.queued_batch_tasks,
         )
@@ -5689,11 +5687,7 @@ class ContactImportTest(TembaTest):
         )
 
         # check that we correctly detect different encodings
-        enc_tests = [
-            ("utf16-le", "Drazen"),
-            ("utf16-be", "Drazen"),
-            ("iso-8859-1", "Dràzen"),
-        ]
+        enc_tests = [("utf16-le", "Drazen"), ("utf16-be", "Drazen"), ("iso-8859-1", "Dràzen")]
         for test in enc_tests:
             imp = self.create_contact_import(f"media/test_imports/encoding_{test[0]}.csv")
             imp.start()

@@ -22,15 +22,7 @@ from temba.channels.models import Channel, ChannelCount, SyncEvent, ChannelEvent
 from temba.schedules.models import Schedule
 from temba.msgs.models import Msg, Label, Broadcast
 from temba.orgs.models import Org, DEFAULT_FIELDS_PAYLOAD_GIFTCARDS, DEFAULT_INDEXES_FIELDS_PAYLOAD_GIFTCARDS
-from temba.flows.models import (
-    Flow,
-    FlowLabel,
-    FlowRun,
-    FlowStart,
-    FlowCategoryCount,
-    FlowRevision,
-    FlowImage
-)
+from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart, FlowCategoryCount, FlowRevision, FlowImage
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.links.models import Link, LinkContacts
 from temba.triggers.models import Trigger

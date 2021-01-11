@@ -25,8 +25,6 @@ def apply_manual():  # pragma: no cover
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("orgs", "0069_plan_start"),
-    ]
+    dependencies = [("orgs", "0069_plan_start")]
 
     operations = [migrations.RunPython(populate_plan_start, reverse)]

@@ -6,9 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("contacts", "0126_auto_20201022_2030"),
-    ]
+    dependencies = [("contacts", "0126_auto_20201022_2030")]
 
     operations = [
         migrations.AlterField(
@@ -17,5 +15,5 @@ class Migration(migrations.Migration):
             field=django.contrib.postgres.fields.ArrayField(
                 base_field=models.CharField(max_length=255), null=True, size=None
             ),
-        ),
+        )
     ]

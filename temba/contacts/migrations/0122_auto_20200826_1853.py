@@ -5,9 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("contacts", "0121_auto_20200825_2000"),
-    ]
+    dependencies = [("contacts", "0121_auto_20200825_2000")]
 
     operations = [
         migrations.AlterField(
@@ -25,5 +23,5 @@ class Migration(migrations.Migration):
                 help_text="What type of group it is, either user defined or one of our system groups",
                 max_length=1,
             ),
-        ),
+        )
     ]

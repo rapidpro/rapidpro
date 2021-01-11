@@ -24,7 +24,7 @@ class BoundaryCRUDL(SmartCRUDL):
             return r"^%s/%s/$" % (path, action)
 
         def get_gear_links(self):
-            return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"),)]
+            return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"))]
 
         def pre_process(self, request, *args, **kwargs):
             response = super().pre_process(self, request, *args, **kwargs)

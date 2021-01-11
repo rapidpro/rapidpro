@@ -55,7 +55,6 @@ from .models import (
 )
 from .tasks import squash_flowcounts, trim_flow_revisions, trim_flow_sessions_and_starts, update_run_expirations_task
 from .views import FlowCRUDL
-from .merging import serialized_test_data, DiffGraphSerializer, GraphDifferenceMap
 
 
 class FlowTest(TembaTest):
@@ -391,7 +390,7 @@ class FlowTest(TembaTest):
             ["facebook", "airtime", "classifier", "ticketer", "resthook"],
             json.loads(response.context["feature_filters"]),
         )
-                gear_links = response.context["view"].get_gear_links()
+        gear_links = response.context["view"].get_gear_links()
         self.assertEqual(gear_links[-1]["title"], "Service")
         self.assertEqual(
             gear_links[-1]["href"], f"/org/service/?organization={flow.org_id}&redirect_url=/flow/editor/{flow.uuid}/"

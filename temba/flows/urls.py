@@ -1,7 +1,13 @@
 from django.conf.urls import url
 
 from .views import (
-    FlowCRUDL, FlowImageCRUDL, FlowLabelCRUDL, FlowRunCRUDL, FlowSessionCRUDL, FlowStartCRUDL, PartialTemplate,
+    FlowCRUDL,
+    FlowImageCRUDL,
+    FlowLabelCRUDL,
+    FlowRunCRUDL,
+    FlowSessionCRUDL,
+    FlowStartCRUDL,
+    PartialTemplate,
 )
 
 urlpatterns = FlowCRUDL().as_urlpatterns()

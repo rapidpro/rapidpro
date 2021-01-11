@@ -5,14 +5,12 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("msgs", "0138_remove_broadcast_recipient_count"),
-    ]
+    dependencies = [("msgs", "0138_remove_broadcast_recipient_count")]
 
     operations = [
         migrations.AlterField(
             model_name="label",
             name="name",
             field=models.CharField(help_text="Choose a name for your label", max_length=64, verbose_name="Name"),
-        ),
+        )
     ]

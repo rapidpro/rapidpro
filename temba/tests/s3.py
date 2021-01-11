@@ -18,7 +18,7 @@ class MockEventStream:
 
         self.events = [{"Records": {"Payload": chunk}} for chunk in payload_chunks]
         self.events.append(
-            {"Stats": {"Details": {"BytesScanned": 123, "BytesProcessed": 234, "BytesReturned": len(payload)}}},
+            {"Stats": {"Details": {"BytesScanned": 123, "BytesProcessed": 234, "BytesReturned": len(payload)}}}
         )
         self.events.append({"End": {}})
 

@@ -632,9 +632,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], update_url)
 
-        self.fetch_protected(
-            update_url, self.admin, {"name": "Test Channel Update2", "allow_international": True},
-        )
+        self.fetch_protected(update_url, self.admin, {"name": "Test Channel Update2", "allow_international": True})
 
         self.tel_channel.refresh_from_db()
         self.assertEqual("Test Channel Update2", self.tel_channel.name)
@@ -1131,7 +1129,7 @@ class ChannelTest(TembaTest):
 
         post_data = dict(
             cmds=[
-                dict(cmd="status", org_id="-1", p_lvl=84, net="WIFI", p_sts="CHA", p_src="USB", pending=[], retry=[],)
+                dict(cmd="status", org_id="-1", p_lvl=84, net="WIFI", p_sts="CHA", p_src="USB", pending=[], retry=[])
             ]
         )
 

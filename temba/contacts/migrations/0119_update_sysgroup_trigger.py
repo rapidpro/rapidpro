@@ -54,8 +54,6 @@ $$ LANGUAGE plpgsql;"""
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("contacts", "0118_archived_sys_group"),
-    ]
+    dependencies = [("contacts", "0118_archived_sys_group")]
 
     operations = [migrations.RunSQL(SQL)]

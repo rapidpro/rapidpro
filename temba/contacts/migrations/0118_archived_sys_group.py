@@ -24,8 +24,6 @@ def reverse(apps, schema_editor):  # pragma: no cover
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("contacts", "0117_auto_20200824_2036"),
-    ]
+    dependencies = [("contacts", "0117_auto_20200824_2036")]
 
     operations = [migrations.RunPython(add_archived_sys_group, reverse)]
