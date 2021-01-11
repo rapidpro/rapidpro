@@ -614,7 +614,13 @@ class Flow(TembaModel):
 
                 obj = org_objs.filter(uuid=ref["uuid"]).first()
                 if not obj and ref["name"]:
-                    obj = org_objs.filter(name=ref["name"]).first()
+                    name = ref["name"]
+
+                    # migrated legacy flows may have name as <type>: <name>
+                    if dep_type == "channel" and ":" in name:
+                        name = name.split(":")[-1].strip()
+
+                    obj = org_objs.filter(name=name).first()
 
                 dependency_mapping[ref["uuid"]] = str(obj.uuid) if obj else ref["uuid"]
 
