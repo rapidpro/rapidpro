@@ -109,7 +109,11 @@ class Broadcast(models.Model):
     raw_urns = ArrayField(models.TextField(), null=True)
 
     # message content
-    text = TranslatableField(max_length=MAX_TEXT_LEN)
+    text = TranslatableField(
+        max_length=MAX_TEXT_LEN,
+        verbose_name="Translations",
+        help_text=_("The localized versions of the message text"),
+    )
     media = TranslatableField(max_length=2048, null=True)
 
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True)

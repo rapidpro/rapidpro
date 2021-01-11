@@ -6,7 +6,7 @@ import django.db.models.deletion
 import django.utils.timezone
 import temba.utils.json
 import temba.utils.models
-import uuid
+import temba.utils.uuid
 
 from temba.flows.merging import GraphDifferenceMap, Graph
 
@@ -83,7 +83,7 @@ class Migration(migrations.Migration):
     replaces = [('flows', '0227_flowimage'), ('flows', '0228_exportflowimagestask'), ('flows', '0229_auto_20200511_2018'), ('flows', '0230_flowimage_is_active'), ('flows', '0231_auto_20200622_1053'), ('flows', '0232_mergeflowstask'), ('flows', '0233_auto_20201029_1736'), ('flows', '0234_data_fix_path_counts')]
 
     dependencies = [
-        ('flows', '0226_merge_20200313_1155'),
+        ('flows', '0226_add_flowstart_org'),
         ('orgs', '0058_auto_20190723_2129'),
         ('contacts', '0105_auto_20191112_2039'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
@@ -96,7 +96,7 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('created_on', models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was originally created')),
                 ('modified_on', models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was last modified')),
-                ('uuid', models.UUIDField(default=uuid.uuid4, unique=True)),
+                ('uuid', models.UUIDField(default=temba.utils.uuid.uuid4, unique=True)),
                 ('name', models.CharField(help_text='Image name', max_length=255)),
                 ('path', models.CharField(help_text='Image URL', max_length=255)),
                 ('path_thumbnail', models.CharField(help_text='Image thumbnail URL', max_length=255, null=True)),
