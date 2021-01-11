@@ -172,7 +172,7 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertDeleteFetch(delete_url)
         self.assertContains(response, "You are about to delete")
 
-        self.assertDeleteSubmit(delete_url, object_deleted=self.c2, success_status=200)
+        self.assertDeleteSubmit(delete_url, object_deactivated=self.c2, success_status=200)
 
         # can't delete if global is being used
         delete_url = reverse("classifiers.classifier_delete", args=[self.c1.uuid])
