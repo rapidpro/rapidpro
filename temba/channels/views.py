@@ -1498,7 +1498,11 @@ class UpdateWebChatForm(UpdateChannelForm):
                 "",
             )
 
-        self.add_config_field("google_font", forms.ChoiceField(label=_("Google Font"), required=False), None)
+        self.add_config_field(
+            "google_font",
+            forms.ChoiceField(label=_("Google Font"), required=False, widget=SelectWidget(attrs={"searchable": True})),
+            None
+        )
 
         self.add_config_field("theme", forms.ChoiceField(label=_("Theme"), required=False), None)
 
@@ -1671,14 +1675,16 @@ class ChannelCRUDL(SmartCRUDL):
                     )
 
             if self.has_org_perm("channels.channel_update"):
-                links.append(
-                    dict(
-                        id="update-channel",
-                        title=_("Edit"),
-                        href=reverse("channels.channel_update", args=[self.get_object().id]),
-                        modax=_("Edit Channel"),
-                    )
+                edit_link = dict(
+                    id="update-channel",
+                    title=_("Edit"),
+                    href=reverse("channels.channel_update", args=[self.get_object().id]),
+                    modax=_("Edit Channel"),
                 )
+                if self.object.channel_type == "WCH":
+                    del edit_link["modax"]
+
+                links.append(edit_link)
 
                 if channel.is_android() or (channel.parent and channel.parent.is_android()):
 
@@ -2298,7 +2304,7 @@ class ChannelCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm("channels.channel_update"):
+            if self.has_org_perm("channels.channel_update") and self.object.channel_type == "WCH":
                 links.append(
                     dict(
                         title=_("Edit"),
