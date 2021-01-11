@@ -272,12 +272,16 @@ class ObjectDeleted(BaseCheck):
         self.obj = obj
 
     def check(self, test_cls, response, msg_prefix):
-        try:
+        if hasattr(self.obj, "is_active"):
             self.obj.refresh_from_db()
-        except Exception:
-            return
+            test_cls.assertFalse(self.obj.is_active, msg=f"{msg_prefix}: expected object.is_active to be false")
+        else:
+            try:
+                self.obj.refresh_from_db()
+            except Exception:
+                return
 
-        test_cls.fail(msg=f"{msg_prefix}: object not deleted")
+            test_cls.fail(msg=f"{msg_prefix}: object not deleted")
 
 
 class FormFields(BaseCheck):

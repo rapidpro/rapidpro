@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-06 15:43+0000\n"
+"POT-Creation-Date: 2021-01-11 17:06+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -7070,6 +7070,28 @@ msgstr ""
 "\n"
 "Instalar o %(name)s app"
 
+msgid "Unable to delete classifier still being used by"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "            Instead of using your Android phone to send messages, you can use your\n"
+#| "            <a class='nexmo-account' href='#'>\n"
+#| "              Nexmo Account\n"
+#| "            </a>\n"
+#| "            to send messages to over 200 countries.\n"
+#| "\n"
+#| "          "
+msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
+msgstr ""
+"\n"
+"Em vez de usar o seu telefone Android para enviar mensagens, você pode usar a sua \n"
+"<a class='nexmo-account' href='#'>\n"
+"Conta Nexmo \n"
+"</ a> \n"
+"para enviar mensagens para mais de 200 países."
+
 #, fuzzy
 #| msgid "Channel Event"
 msgid "Classifier"
@@ -7091,26 +7113,6 @@ msgstr ""
 
 msgid "Intents are synced automatically every 5 minutes"
 msgstr ""
-
-#, fuzzy
-msgid "Are you sure you want to remove this classifier from your account?"
-msgstr "Você tem certeza de que deseja remover este número de sua conta?"
-
-msgid "This classifier cannot be removed because it in use."
-msgstr ""
-
-msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
-msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
-
-#, fuzzy, python-format
-msgid "Used by %(num_flows)s flow:"
-msgid_plural "Used by %(num_flows)s flows:"
-msgstr[0] ""
-"\n"
-"%(sms_sent)s Enviadas"
-msgstr[1] ""
-"\n"
-"%(sms_sent)s Enviadas"
 
 msgid "Ok"
 msgstr ""
@@ -7885,6 +7887,9 @@ msgstr "Remover rótulo"
 msgid "Are you sure you want to remove this label?"
 msgstr "Você tem certeza que deseja remover esse rótulo?"
 
+msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgstr "Uma vez que for removido, ele irá desaparecer para sempre. Não há maneira de desfazer esta operação."
+
 msgid "You cannot remove a label which has child labels. Please remove all children first."
 msgstr ""
 
@@ -8352,6 +8357,16 @@ msgstr "Você tem certeza que deseja remover chamadas de voz para este número?"
 
 msgid "This label cannot be removed because it in use."
 msgstr ""
+
+#, fuzzy, python-format
+msgid "Used by %(num_flows)s flow:"
+msgid_plural "Used by %(num_flows)s flows:"
+msgstr[0] ""
+"\n"
+"%(sms_sent)s Enviadas"
+msgstr[1] ""
+"\n"
+"%(sms_sent)s Enviadas"
 
 #, fuzzy, python-format
 msgid ""
@@ -9789,25 +9804,6 @@ msgstr ""
 msgid "Unable to delete service still being used by"
 msgstr ""
 
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "            Instead of using your Android phone to send messages, you can use your\n"
-#| "            <a class='nexmo-account' href='#'>\n"
-#| "              Nexmo Account\n"
-#| "            </a>\n"
-#| "            to send messages to over 200 countries.\n"
-#| "\n"
-#| "          "
-msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
-msgstr ""
-"\n"
-"Em vez de usar o seu telefone Android para enviar mensagens, você pode usar a sua \n"
-"<a class='nexmo-account' href='#'>\n"
-"Conta Nexmo \n"
-"</ a> \n"
-"para enviar mensagens para mais de 200 países."
-
 #, python-format
 msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
 msgstr ""
@@ -9934,6 +9930,10 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "Are you sure you want to remove this classifier from your account?"
+#~ msgstr "Você tem certeza de que deseja remover este número de sua conta?"
 
 #, fuzzy
 #~ msgid "Smart Group"
