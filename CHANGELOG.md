@@ -1,3 +1,11 @@
+v6.1.17
+----------
+ * Update to flow editor v1.12.5
+ * Fix importing dependencies when it's a clone in the same workspace
+ * Allow aliases to be reused on boundaries with different parent
+ * Increase max length on external channels to be configurable up to 6400 chars
+ * Fix contact export warning for existing export
+
 v6.1.16
 ----------
  * Update to latest flow editor 1.12.3
