@@ -16,7 +16,7 @@ from temba.msgs.views import ModalMixin
 from temba.orgs.views import OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
-from temba.utils.fields import (InputWidget, SelectMultipleWidget, SelectWidget, )
+from temba.utils.fields import InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.views import BulkActionMixin, ComponentFormMixin
 from temba.utils import analytics, json, build_flow_parameters, flow_params_context
 from temba.utils.fields import CompletionTextarea, JSONField, OmniboxChoice
@@ -592,8 +592,8 @@ class TriggerCRUDL(SmartCRUDL):
             qs = super().get_queryset(*args, **kwargs)
             qs = (
                 qs.filter(is_active=True, is_archived=False)
-                    .annotate(earliest_group=Min("groups__name"))
-                    .order_by("keyword", "earliest_group")
+                .annotate(earliest_group=Min("groups__name"))
+                .order_by("keyword", "earliest_group")
             )
             return qs
 

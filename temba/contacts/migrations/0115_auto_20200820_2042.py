@@ -5,9 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("contacts", "0114_populate_contact_status"),
-    ]
+    dependencies = [("contacts", "0114_populate_contact_status")]
 
     operations = [
         migrations.AlterField(
@@ -18,5 +16,5 @@ class Migration(migrations.Migration):
                 default="A",
                 max_length=1,
             ),
-        ),
+        )
     ]

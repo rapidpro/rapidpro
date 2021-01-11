@@ -27,7 +27,6 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.db.models import Count, Max, Min, Sum
 from django.db.models.functions import Lower
-from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, Http404
 from django.urls import reverse
 from django.utils.encoding import force_text
@@ -51,8 +50,6 @@ from temba.links.models import Link, LinkContacts
 from temba.mailroom import FlowValidationException
 from temba.orgs.models import Org, LOOKUPS, GIFTCARDS
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.schedules.views import BaseScheduleForm
-from temba.schedules.models import Schedule
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, on_transaction_commit, str_to_bool, build_flow_parameters
@@ -285,11 +282,7 @@ class FlowImageCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
             if self.has_org_perm("flows.flowimage_download") and self.object_list:
-                links.append(dict(
-                    title=_("Download all images"),
-                    style="download-all-images",
-                    href="#"
-                ))
+                links.append(dict(title=_("Download all images"), style="download-all-images", href="#"))
             return links
 
     class List(BaseList):
@@ -2627,23 +2620,14 @@ class FlowCRUDL(SmartCRUDL):
                         widget=forms.TextInput(attrs={"readonly": True, "title": flow_param, "clean": True}),
                     )
                     self.fields[f"flow_param_value_{counter}"] = forms.CharField(
-                        required=False,
-                        widget=InputWidget(
-                            attrs={
-                                "widget_only": True,
-                            }
-                        )
+                        required=False, widget=InputWidget(attrs={"widget_only": True})
                     )
                     if f"flow_param_field_{counter}" not in FlowCRUDL.Launch.flow_params_fields:
                         FlowCRUDL.Launch.flow_params_fields.append(f"flow_param_field_{counter}")
                     if f"flow_param_value_{counter}" not in FlowCRUDL.Launch.flow_params_values:
                         FlowCRUDL.Launch.flow_params_values.append(f"flow_param_value_{counter}")
 
-            launch_type = forms.ChoiceField(
-                choices=LAUNCH_CHOICES,
-                initial=LAUNCH_IMMEDIATELY,
-                widget=SelectWidget,
-            )
+            launch_type = forms.ChoiceField(choices=LAUNCH_CHOICES, initial=LAUNCH_IMMEDIATELY, widget=SelectWidget)
 
             # Fields for immediate launch
             start_type = forms.ChoiceField(
@@ -2672,7 +2656,8 @@ class FlowCRUDL(SmartCRUDL):
             )
 
             contact_query = forms.CharField(
-                required=False, widget=ContactSearchWidget(attrs={"widget_only": True, "placeholder": _("Enter contact query")})
+                required=False,
+                widget=ContactSearchWidget(attrs={"widget_only": True, "placeholder": _("Enter contact query")}),
             )
 
             restart_participants = forms.BooleanField(
@@ -2715,7 +2700,7 @@ class FlowCRUDL(SmartCRUDL):
                     starting = cleaned_data["omnibox"]
                     start_type = cleaned_data["start_type"]
                     if (
-                            start_type == "select" and not starting["groups"] and not starting["contacts"]
+                        start_type == "select" and not starting["groups"] and not starting["contacts"]
                     ):  # pragma: needs cover
                         self.add_error(
                             "omnibox",
@@ -2782,14 +2767,7 @@ class FlowCRUDL(SmartCRUDL):
 
         def derive_fields(self):
             return (
-                (
-                    "launch_type",
-                    "start_type",
-                    "omnibox",
-                    "contact_query",
-                    "restart_participants",
-                    "include_active",
-                )
+                ("launch_type", "start_type", "omnibox", "contact_query", "restart_participants", "include_active")
                 + tuple(self.flow_params_fields)
                 + tuple(self.flow_params_values)
             )
@@ -2852,9 +2830,7 @@ class FlowCRUDL(SmartCRUDL):
             contacts = []
             contact_query = None
 
-            flow_params = build_flow_parameters(
-                self.request.POST, self.flow_params_fields, self.flow_params_values
-            )
+            flow_params = build_flow_parameters(self.request.POST, self.flow_params_fields, self.flow_params_values)
 
             if start_type == "query":
                 contact_query = form.cleaned_data["contact_query"]
@@ -3212,7 +3188,7 @@ class FlowStartCRUDL(SmartCRUDL):
         paginate_by = 25
 
         def get_gear_links(self):
-            return [dict(title=_("Flows"), style="button-light", href=reverse("flows.flow_list"),)]
+            return [dict(title=_("Flows"), style="button-light", href=reverse("flows.flow_list"))]
 
         def derive_queryset(self, *args, **kwargs):
             return (

@@ -5,11 +5,9 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("contacts", "0120_auto_20200825_1624"),
-    ]
+    dependencies = [("contacts", "0120_auto_20200825_1624")]
 
     operations = [
-        migrations.RemoveField(model_name="contact", name="is_blocked",),
-        migrations.RemoveField(model_name="contact", name="is_stopped",),
+        migrations.RemoveField(model_name="contact", name="is_blocked"),
+        migrations.RemoveField(model_name="contact", name="is_stopped"),
     ]

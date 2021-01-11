@@ -11,8 +11,6 @@ WHERE fired IS NULL;
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("campaigns", "0033_auto_20191112_1623"),
-    ]
+    dependencies = [("campaigns", "0033_auto_20191112_1623")]
 
     operations = [migrations.RunSQL(SQL)]

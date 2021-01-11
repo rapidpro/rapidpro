@@ -5,9 +5,6 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("orgs", "0072_squashed"),
-        ("campaigns", "0037_squashed"),
-    ]
+    dependencies = [("orgs", "0072_squashed"), ("campaigns", "0037_squashed")]
 
     operations = []

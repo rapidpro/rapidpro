@@ -5,9 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("flows", "0238_flowstart_urns"),
-    ]
+    dependencies = [("flows", "0238_flowstart_urns")]
 
     operations = [
         migrations.AlterField(
@@ -16,5 +14,5 @@ class Migration(migrations.Migration):
             field=models.IntegerField(
                 default=10080, help_text="Minutes of inactivity that will cause expiration from flow"
             ),
-        ),
+        )
     ]

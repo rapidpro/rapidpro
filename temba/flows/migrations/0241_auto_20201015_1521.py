@@ -5,12 +5,10 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("flows", "0240_auto_20201015_1515"),
-    ]
+    dependencies = [("flows", "0240_auto_20201015_1515")]
 
     operations = [
-        migrations.RemoveField(model_name="ruleset", name="flow",),
-        migrations.DeleteModel(name="ActionSet",),
-        migrations.DeleteModel(name="RuleSet",),
+        migrations.RemoveField(model_name="ruleset", name="flow"),
+        migrations.DeleteModel(name="ActionSet"),
+        migrations.DeleteModel(name="RuleSet"),
     ]

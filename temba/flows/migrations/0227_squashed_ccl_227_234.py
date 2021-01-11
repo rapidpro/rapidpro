@@ -6,7 +6,9 @@ import django.db.models.deletion
 import django.utils.timezone
 import temba.utils.json
 import temba.utils.models
-import uuid
+import temba.utils.uuid
+
+from temba.flows.merging import GraphDifferenceMap, Graph
 
 from temba.flows.merging import GraphDifferenceMap, Graph
 
@@ -80,79 +82,235 @@ def recheck_origin_uuids_and_update_path_counts(apps, schema_editor):
 
 class Migration(migrations.Migration):
 
-    replaces = [('flows', '0227_flowimage'), ('flows', '0228_exportflowimagestask'), ('flows', '0229_auto_20200511_2018'), ('flows', '0230_flowimage_is_active'), ('flows', '0231_auto_20200622_1053'), ('flows', '0232_mergeflowstask'), ('flows', '0233_auto_20201029_1736'), ('flows', '0234_data_fix_path_counts')]
+    replaces = [
+        ("flows", "0227_flowimage"),
+        ("flows", "0228_exportflowimagestask"),
+        ("flows", "0229_auto_20200511_2018"),
+        ("flows", "0230_flowimage_is_active"),
+        ("flows", "0231_auto_20200622_1053"),
+        ("flows", "0232_mergeflowstask"),
+        ("flows", "0233_auto_20201029_1736"),
+        ("flows", "0234_data_fix_path_counts"),
+    ]
 
     dependencies = [
-        ('flows', '0226_merge_20200313_1155'),
-        ('orgs', '0058_auto_20190723_2129'),
-        ('contacts', '0105_auto_20191112_2039'),
+        ("flows", "0226_add_flowstart_org"),
+        ("orgs", "0058_auto_20190723_2129"),
+        ("contacts", "0105_auto_20191112_2039"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='FlowImage',
+            name="FlowImage",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_on', models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was originally created')),
-                ('modified_on', models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was last modified')),
-                ('uuid', models.UUIDField(default=uuid.uuid4, unique=True)),
-                ('name', models.CharField(help_text='Image name', max_length=255)),
-                ('path', models.CharField(help_text='Image URL', max_length=255)),
-                ('path_thumbnail', models.CharField(help_text='Image thumbnail URL', max_length=255, null=True)),
-                ('exif', models.TextField(blank=True, help_text='A JSON representation the exif', null=True)),
-                ('contact', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='flow_images', to='contacts.Contact')),
-                ('flow', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='flow_images', to='flows.Flow')),
-                ('org', models.ForeignKey(db_index=False, on_delete=django.db.models.deletion.CASCADE, related_name='flow_images', to='orgs.Org')),
-                ('is_active', models.BooleanField(default=True, help_text='Whether this item is active, use this instead of deleting')),
+                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "created_on",
+                    models.DateTimeField(
+                        blank=True,
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        help_text="When this item was originally created",
+                    ),
+                ),
+                (
+                    "modified_on",
+                    models.DateTimeField(
+                        blank=True,
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        help_text="When this item was last modified",
+                    ),
+                ),
+                ("uuid", models.UUIDField(default=temba.utils.uuid.uuid4, unique=True)),
+                ("name", models.CharField(help_text="Image name", max_length=255)),
+                ("path", models.CharField(help_text="Image URL", max_length=255)),
+                ("path_thumbnail", models.CharField(help_text="Image thumbnail URL", max_length=255, null=True)),
+                ("exif", models.TextField(blank=True, help_text="A JSON representation the exif", null=True)),
+                (
+                    "contact",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, related_name="flow_images", to="contacts.Contact"
+                    ),
+                ),
+                (
+                    "flow",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, related_name="flow_images", to="flows.Flow"
+                    ),
+                ),
+                (
+                    "org",
+                    models.ForeignKey(
+                        db_index=False,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="flow_images",
+                        to="orgs.Org",
+                    ),
+                ),
+                (
+                    "is_active",
+                    models.BooleanField(
+                        default=True, help_text="Whether this item is active, use this instead of deleting"
+                    ),
+                ),
             ],
-            options={
-                'abstract': False,
-            },
+            options={"abstract": False},
         ),
         migrations.CreateModel(
-            name='ExportFlowImagesTask',
+            name="ExportFlowImagesTask",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('is_active', models.BooleanField(default=True, help_text='Whether this item is active, use this instead of deleting')),
-                ('created_on', models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was originally created')),
-                ('modified_on', models.DateTimeField(blank=True, default=django.utils.timezone.now, editable=False, help_text='When this item was last modified')),
-                ('uuid', models.CharField(db_index=True, default=temba.utils.models.generate_uuid, help_text='The unique identifier for this object', max_length=36, unique=True, verbose_name='Unique Identifier')),
-                ('status', models.CharField(choices=[('P', 'Pending'), ('O', 'Processing'), ('C', 'Complete'), ('F', 'Failed')], default='P', max_length=1)),
-                ('files', models.TextField(help_text='Array as text of the files ID to download in a zip file')),
-                ('created_by', models.ForeignKey(help_text='The user which originally created this item', on_delete=django.db.models.deletion.PROTECT, related_name='flows_exportflowimagestask_creations', to=settings.AUTH_USER_MODEL)),
-                ('modified_by', models.ForeignKey(help_text='The user which last modified this item', on_delete=django.db.models.deletion.PROTECT, related_name='flows_exportflowimagestask_modifications', to=settings.AUTH_USER_MODEL)),
-                ('org', models.ForeignKey(help_text='The organization of the user.', on_delete=django.db.models.deletion.PROTECT, related_name='exportflowimagestasks', to='orgs.Org')),
-                ('cleaned', models.NullBooleanField(default=False, help_text='If the file was removed after downloaded')),
-                ('file_downloaded', models.NullBooleanField(default=False, help_text='If the file was downloaded')),
-                ('file_path', models.CharField(help_text='Path to downloadable file', max_length=255, null=True)),
+                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "is_active",
+                    models.BooleanField(
+                        default=True, help_text="Whether this item is active, use this instead of deleting"
+                    ),
+                ),
+                (
+                    "created_on",
+                    models.DateTimeField(
+                        blank=True,
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        help_text="When this item was originally created",
+                    ),
+                ),
+                (
+                    "modified_on",
+                    models.DateTimeField(
+                        blank=True,
+                        default=django.utils.timezone.now,
+                        editable=False,
+                        help_text="When this item was last modified",
+                    ),
+                ),
+                (
+                    "uuid",
+                    models.CharField(
+                        db_index=True,
+                        default=temba.utils.models.generate_uuid,
+                        help_text="The unique identifier for this object",
+                        max_length=36,
+                        unique=True,
+                        verbose_name="Unique Identifier",
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[("P", "Pending"), ("O", "Processing"), ("C", "Complete"), ("F", "Failed")],
+                        default="P",
+                        max_length=1,
+                    ),
+                ),
+                ("files", models.TextField(help_text="Array as text of the files ID to download in a zip file")),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        help_text="The user which originally created this item",
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="flows_exportflowimagestask_creations",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "modified_by",
+                    models.ForeignKey(
+                        help_text="The user which last modified this item",
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="flows_exportflowimagestask_modifications",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "org",
+                    models.ForeignKey(
+                        help_text="The organization of the user.",
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="exportflowimagestasks",
+                        to="orgs.Org",
+                    ),
+                ),
+                (
+                    "cleaned",
+                    models.NullBooleanField(default=False, help_text="If the file was removed after downloaded"),
+                ),
+                ("file_downloaded", models.NullBooleanField(default=False, help_text="If the file was downloaded")),
+                ("file_path", models.CharField(help_text="Path to downloadable file", max_length=255, null=True)),
             ],
-            options={
-                'abstract': False,
-            },
+            options={"abstract": False},
         ),
         migrations.CreateModel(
-            name='MergeFlowsTask',
+            name="MergeFlowsTask",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('is_active', models.BooleanField(default=True, help_text='Whether this item is active, use this instead of deleting')),
-                ('created_on', models.DateTimeField(auto_now_add=True)),
-                ('modified_on', models.DateTimeField(auto_now=True)),
-                ('uuid', models.CharField(db_index=True, default=temba.utils.models.generate_uuid, help_text='The unique identifier for this object', max_length=36, unique=True, verbose_name='Unique Identifier')),
-                ('merge_name', models.CharField(help_text='New name for target flow that contain merged data.', max_length=64)),
-                ('merging_metadata', temba.utils.models.JSONField(encoder=temba.utils.json.TembaEncoder, null=True)),
-                ('definition', temba.utils.models.JSONField(encoder=temba.utils.json.TembaEncoder)),
-                ('created_by', models.ForeignKey(help_text='The user which originally created this item', on_delete=django.db.models.deletion.PROTECT, related_name='flows_mergeflowstask_creations', to=settings.AUTH_USER_MODEL)),
-                ('modified_by', models.ForeignKey(help_text='The user which last modified this item', on_delete=django.db.models.deletion.PROTECT, related_name='flows_mergeflowstask_modifications', to=settings.AUTH_USER_MODEL)),
-                ('source', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='merge_targets', to='flows.Flow')),
-                ('target', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='merge_sources', to='flows.Flow')),
-                ('status', models.CharField(choices=[('A', 'Active'), ('P', 'Processing'), ('C', 'Completed'), ('F', 'Failed')], default='A', max_length=1)),
+                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "is_active",
+                    models.BooleanField(
+                        default=True, help_text="Whether this item is active, use this instead of deleting"
+                    ),
+                ),
+                ("created_on", models.DateTimeField(auto_now_add=True)),
+                ("modified_on", models.DateTimeField(auto_now=True)),
+                (
+                    "uuid",
+                    models.CharField(
+                        db_index=True,
+                        default=temba.utils.models.generate_uuid,
+                        help_text="The unique identifier for this object",
+                        max_length=36,
+                        unique=True,
+                        verbose_name="Unique Identifier",
+                    ),
+                ),
+                (
+                    "merge_name",
+                    models.CharField(help_text="New name for target flow that contain merged data.", max_length=64),
+                ),
+                ("merging_metadata", temba.utils.models.JSONField(encoder=temba.utils.json.TembaEncoder, null=True)),
+                ("definition", temba.utils.models.JSONField(encoder=temba.utils.json.TembaEncoder)),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        help_text="The user which originally created this item",
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="flows_mergeflowstask_creations",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "modified_by",
+                    models.ForeignKey(
+                        help_text="The user which last modified this item",
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="flows_mergeflowstask_modifications",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "source",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, related_name="merge_targets", to="flows.Flow"
+                    ),
+                ),
+                (
+                    "target",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE, related_name="merge_sources", to="flows.Flow"
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[("A", "Active"), ("P", "Processing"), ("C", "Completed"), ("F", "Failed")],
+                        default="A",
+                        max_length=1,
+                    ),
+                ),
             ],
-            options={
-                'abstract': False,
-            },
+            options={"abstract": False},
         ),
-        migrations.RunPython(
-            code=recheck_origin_uuids_and_update_path_counts,
-        ),
+        migrations.RunPython(code=recheck_origin_uuids_and_update_path_counts),
     ]

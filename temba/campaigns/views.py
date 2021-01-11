@@ -276,20 +276,12 @@ class CampaignEventForm(forms.ModelForm):
     event_type = forms.ChoiceField(
         choices=((CampaignEvent.TYPE_MESSAGE, "Send a message"), (CampaignEvent.TYPE_FLOW, "Start a flow")),
         required=True,
-        widget=SelectWidget
+        widget=SelectWidget,
     )
 
-    direction = forms.ChoiceField(
-        choices=(("B", "Before"), ("A", "After")),
-        required=True,
-        widget=SelectWidget
-    )
+    direction = forms.ChoiceField(choices=(("B", "Before"), ("A", "After")), required=True, widget=SelectWidget)
 
-    unit = forms.ChoiceField(
-        choices=CampaignEvent.UNIT_CHOICES,
-        required=True,
-        widget=SelectWidget
-    )
+    unit = forms.ChoiceField(choices=CampaignEvent.UNIT_CHOICES, required=True, widget=SelectWidget)
 
     flow_to_start = forms.ModelChoiceField(
         queryset=Flow.objects.filter(is_active=True),
@@ -301,17 +293,10 @@ class CampaignEventForm(forms.ModelForm):
     )
 
     relative_to = forms.ModelChoiceField(
-        queryset=ContactField.all_fields.none(),
-        required=False,
-        empty_label=None,
-        widget=SelectWidget,
+        queryset=ContactField.all_fields.none(), required=False, empty_label=None, widget=SelectWidget
     )
 
-    delivery_hour = forms.ChoiceField(
-        choices=CampaignEvent.get_hour_choices(),
-        required=False,
-        widget=SelectWidget,
-    )
+    delivery_hour = forms.ChoiceField(choices=CampaignEvent.get_hour_choices(), required=False, widget=SelectWidget)
 
     flow_start_mode = forms.ChoiceField(
         choices=(
@@ -671,13 +656,13 @@ class CampaignEventCRUDL(SmartCRUDL):
 
             # if we changed anything, update our event fires
             if (
-                    prev.unit != obj.unit
-                    or prev.offset != obj.offset
-                    or prev.relative_to != obj.relative_to
-                    or prev.delivery_hour != obj.delivery_hour
-                    or prev.message != obj.message
-                    or prev.flow != obj.flow
-                    or prev.start_mode != obj.start_mode
+                prev.unit != obj.unit
+                or prev.offset != obj.offset
+                or prev.relative_to != obj.relative_to
+                or prev.delivery_hour != obj.delivery_hour
+                or prev.message != obj.message
+                or prev.flow != obj.flow
+                or prev.start_mode != obj.start_mode
             ):
                 obj = obj.recreate()
                 obj.schedule_async()

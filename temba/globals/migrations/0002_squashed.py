@@ -6,9 +6,6 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ("globals", "0001_initial"),
-    ]
+    dependencies = [migrations.swappable_dependency(settings.AUTH_USER_MODEL), ("globals", "0001_initial")]
 
     operations = []

@@ -19,10 +19,7 @@ class Client:
         self.secret = secret
 
     def headers(self, **kwargs):
-        return {
-            "Content-Type": "application/json",
-            "Authorization": f"Token {self.secret}",
-        }
+        return {"Content-Type": "application/json", "Authorization": f"Token {self.secret}"}
 
     def _request(self, method, url, timeout_msg=None, **kwargs):
         kwargs["headers"] = self.headers()
@@ -38,10 +35,7 @@ class Client:
         return self._request("put", url, timeout_msg, **kwargs)
 
     def settings(self, webhook_url: str, bot_username: str):
-        payload = {
-            "webhook": {"url": webhook_url},
-            "bot": {"username": bot_username},
-        }
+        payload = {"webhook": {"url": webhook_url}, "bot": {"username": bot_username}}
 
         response = self.put(
             f"{self.base_url}/settings",

@@ -8,12 +8,10 @@ import temba.utils.models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("msgs", "0140_fail_msgs_missing_topups"),
-    ]
+    dependencies = [("msgs", "0140_fail_msgs_missing_topups")]
 
     operations = [
-        migrations.AlterField(model_name="broadcast", name="base_language", field=models.CharField(max_length=4),),
+        migrations.AlterField(model_name="broadcast", name="base_language", field=models.CharField(max_length=4)),
         migrations.AlterField(
             model_name="broadcast",
             name="channel",
@@ -29,14 +27,14 @@ class Migration(migrations.Migration):
             name="groups",
             field=models.ManyToManyField(related_name="addressed_broadcasts", to="contacts.ContactGroup"),
         ),
-        migrations.AlterField(model_name="broadcast", name="is_active", field=models.BooleanField(default=True),),
+        migrations.AlterField(model_name="broadcast", name="is_active", field=models.BooleanField(default=True)),
         migrations.AlterField(
             model_name="broadcast",
             name="media",
             field=temba.utils.models.TranslatableField(max_length=2048, null=True),
         ),
         migrations.AlterField(
-            model_name="broadcast", name="metadata", field=temba.utils.models.JSONAsTextField(default=dict, null=True),
+            model_name="broadcast", name="metadata", field=temba.utils.models.JSONAsTextField(default=dict, null=True)
         ),
         migrations.AlterField(
             model_name="broadcast",
@@ -60,7 +58,7 @@ class Migration(migrations.Migration):
                 to="schedules.Schedule",
             ),
         ),
-        migrations.AlterField(model_name="broadcast", name="send_all", field=models.BooleanField(default=False),),
+        migrations.AlterField(model_name="broadcast", name="send_all", field=models.BooleanField(default=False)),
         migrations.AlterField(
             model_name="broadcast",
             name="status",
@@ -82,7 +80,7 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterField(
-            model_name="broadcast", name="text", field=temba.utils.models.TranslatableField(max_length=640),
+            model_name="broadcast", name="text", field=temba.utils.models.TranslatableField(max_length=640)
         ),
         migrations.AlterField(
             model_name="broadcast",
@@ -138,7 +136,7 @@ class Migration(migrations.Migration):
                 null=True, on_delete=django.db.models.deletion.PROTECT, related_name="msgs", to="contacts.ContactURN"
             ),
         ),
-        migrations.AlterField(model_name="msg", name="created_on", field=models.DateTimeField(db_index=True),),
+        migrations.AlterField(model_name="msg", name="created_on", field=models.DateTimeField(db_index=True)),
         migrations.AlterField(
             model_name="msg",
             name="delete_reason",
@@ -149,21 +147,21 @@ class Migration(migrations.Migration):
             name="direction",
             field=models.CharField(choices=[("I", "Incoming"), ("O", "Outgoing")], max_length=1),
         ),
-        migrations.AlterField(model_name="msg", name="error_count", field=models.IntegerField(default=0),),
+        migrations.AlterField(model_name="msg", name="error_count", field=models.IntegerField(default=0)),
         migrations.AlterField(
-            model_name="msg", name="external_id", field=models.CharField(blank=True, max_length=255, null=True),
+            model_name="msg", name="external_id", field=models.CharField(blank=True, max_length=255, null=True)
         ),
-        migrations.AlterField(model_name="msg", name="high_priority", field=models.BooleanField(null=True),),
+        migrations.AlterField(model_name="msg", name="high_priority", field=models.BooleanField(null=True)),
         migrations.AlterField(
-            model_name="msg", name="labels", field=models.ManyToManyField(related_name="msgs", to="msgs.Label"),
-        ),
-        migrations.AlterField(
-            model_name="msg", name="metadata", field=temba.utils.models.JSONAsTextField(default=dict, null=True),
+            model_name="msg", name="labels", field=models.ManyToManyField(related_name="msgs", to="msgs.Label")
         ),
         migrations.AlterField(
-            model_name="msg", name="modified_on", field=models.DateTimeField(auto_now=True, null=True),
+            model_name="msg", name="metadata", field=temba.utils.models.JSONAsTextField(default=dict, null=True)
         ),
-        migrations.AlterField(model_name="msg", name="msg_count", field=models.IntegerField(default=1),),
+        migrations.AlterField(
+            model_name="msg", name="modified_on", field=models.DateTimeField(auto_now=True, null=True)
+        ),
+        migrations.AlterField(model_name="msg", name="msg_count", field=models.IntegerField(default=1)),
         migrations.AlterField(
             model_name="msg",
             name="msg_type",
@@ -173,13 +171,13 @@ class Migration(migrations.Migration):
                 null=True,
             ),
         ),
-        migrations.AlterField(model_name="msg", name="next_attempt", field=models.DateTimeField(auto_now_add=True),),
+        migrations.AlterField(model_name="msg", name="next_attempt", field=models.DateTimeField(auto_now_add=True)),
         migrations.AlterField(
             model_name="msg",
             name="org",
             field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name="msgs", to="orgs.Org"),
         ),
-        migrations.AlterField(model_name="msg", name="queued_on", field=models.DateTimeField(blank=True, null=True),),
+        migrations.AlterField(model_name="msg", name="queued_on", field=models.DateTimeField(blank=True, null=True)),
         migrations.AlterField(
             model_name="msg",
             name="response_to",
@@ -192,7 +190,7 @@ class Migration(migrations.Migration):
                 to="msgs.Msg",
             ),
         ),
-        migrations.AlterField(model_name="msg", name="sent_on", field=models.DateTimeField(blank=True, null=True),),
+        migrations.AlterField(model_name="msg", name="sent_on", field=models.DateTimeField(blank=True, null=True)),
         migrations.AlterField(
             model_name="msg",
             name="status",
@@ -214,9 +212,9 @@ class Migration(migrations.Migration):
                 max_length=1,
             ),
         ),
-        migrations.AlterField(model_name="msg", name="text", field=models.TextField(),),
+        migrations.AlterField(model_name="msg", name="text", field=models.TextField()),
         migrations.AlterField(
-            model_name="msg", name="uuid", field=models.UUIDField(default=temba.utils.uuid.uuid4, null=True),
+            model_name="msg", name="uuid", field=models.UUIDField(default=temba.utils.uuid.uuid4, null=True)
         ),
         migrations.AlterField(
             model_name="msg",

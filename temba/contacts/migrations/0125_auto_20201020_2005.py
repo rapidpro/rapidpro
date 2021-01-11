@@ -6,12 +6,10 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("contacts", "0124_auto_20200930_2031"),
-    ]
+    dependencies = [("contacts", "0124_auto_20200930_2031")]
 
     operations = [
-        migrations.RemoveField(model_name="contactgroup", name="import_task",),
+        migrations.RemoveField(model_name="contactgroup", name="import_task"),
         migrations.AlterField(
             model_name="contactgroup",
             name="contacts",
@@ -45,9 +43,9 @@ class Migration(migrations.Migration):
             field=models.TextField(help_text="The membership query for this group", null=True, verbose_name="Query"),
         ),
         migrations.AlterField(
-            model_name="contactgroup", name="query_fields", field=models.ManyToManyField(to="contacts.ContactField"),
+            model_name="contactgroup", name="query_fields", field=models.ManyToManyField(to="contacts.ContactField")
         ),
-        migrations.AlterField(model_name="contacturn", name="auth", field=models.TextField(null=True),),
+        migrations.AlterField(model_name="contacturn", name="auth", field=models.TextField(null=True)),
         migrations.AlterField(
             model_name="contacturn",
             name="channel",
@@ -63,18 +61,18 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterField(
-            model_name="contacturn", name="display", field=models.CharField(max_length=255, null=True),
+            model_name="contacturn", name="display", field=models.CharField(max_length=255, null=True)
         ),
-        migrations.AlterField(model_name="contacturn", name="identity", field=models.CharField(max_length=255),),
+        migrations.AlterField(model_name="contacturn", name="identity", field=models.CharField(max_length=255)),
         migrations.AlterField(
             model_name="contacturn",
             name="org",
             field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name="urns", to="orgs.Org"),
         ),
-        migrations.AlterField(model_name="contacturn", name="path", field=models.CharField(max_length=255),),
-        migrations.AlterField(model_name="contacturn", name="priority", field=models.IntegerField(default=50),),
-        migrations.AlterField(model_name="contacturn", name="scheme", field=models.CharField(max_length=128),),
-        migrations.AlterField(model_name="contactfield", name="key", field=models.CharField(max_length=36),),
+        migrations.AlterField(model_name="contacturn", name="path", field=models.CharField(max_length=255)),
+        migrations.AlterField(model_name="contacturn", name="priority", field=models.IntegerField(default=50)),
+        migrations.AlterField(model_name="contacturn", name="scheme", field=models.CharField(max_length=128)),
+        migrations.AlterField(model_name="contactfield", name="key", field=models.CharField(max_length=36)),
         migrations.AlterField(
             model_name="contactfield",
             name="org",
@@ -83,6 +81,6 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterField(
-            model_name="contactfield", name="show_in_table", field=models.BooleanField(default=False),
+            model_name="contactfield", name="show_in_table", field=models.BooleanField(default=False)
         ),
     ]

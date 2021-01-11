@@ -29,8 +29,6 @@ def reverse(apps, schema_editor):  # pragma: no cover
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("contacts", "0111_populate_last_seen_on_2"),
-    ]
+    dependencies = [("contacts", "0111_populate_last_seen_on_2")]
 
     operations = [migrations.RunPython(add_last_seen_on_sys_field, reverse)]

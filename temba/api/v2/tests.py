@@ -1753,7 +1753,7 @@ class APITest(TembaTest):
         self.assertEqual(jean.get_field_value(nickname), "Jado")
 
         # try to create with group from other org
-        response = self.postJSON(url, None, {"name": "Jim", "groups": [other_org_group.uuid]},)
+        response = self.postJSON(url, None, {"name": "Jim", "groups": [other_org_group.uuid]})
         self.assertResponseError(response, "groups", f"No such object: {other_org_group.uuid}")
 
         # try to create with invalid fields
@@ -2125,7 +2125,7 @@ class APITest(TembaTest):
 
         # test create with a null chars \u0000
         response = self.postJSON(
-            url, None, {"name": "Jean", "urns": ["tel:+250783333334", "tel:+250783333335", "tel:+250783333336"]},
+            url, None, {"name": "Jean", "urns": ["tel:+250783333334", "tel:+250783333335", "tel:+250783333336"]}
         )
         self.assertEqual(201, response.status_code)
 

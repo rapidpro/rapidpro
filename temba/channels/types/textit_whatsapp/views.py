@@ -26,10 +26,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             cleaned = self.cleaned_data
 
             cleaned["api_endpoint"] = urljoin(cleaned["api_endpoint"], "/")
-            headers = {
-                "Authorization": f"Bearer {cleaned['access_token']}",
-                "Content-Type": "application/json",
-            }
+            headers = {"Authorization": f"Bearer {cleaned['access_token']}", "Content-Type": "application/json"}
 
             conf_url = urljoin(cleaned["api_endpoint"], "/conf")
             response = requests.get(conf_url, headers=headers)
@@ -55,10 +52,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         data = form.cleaned_data
 
-        config = {
-            Channel.CONFIG_BASE_URL: data["api_endpoint"],
-            Channel.CONFIG_AUTH_TOKEN: data["access_token"],
-        }
+        config = {Channel.CONFIG_BASE_URL: data["api_endpoint"], Channel.CONFIG_AUTH_TOKEN: data["access_token"]}
 
         parsed = phonenumbers.parse(data["address"], data["country"])
         pretty = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.NATIONAL)

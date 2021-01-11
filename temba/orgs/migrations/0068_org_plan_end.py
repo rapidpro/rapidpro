@@ -5,10 +5,6 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("orgs", "0067_populate_multi_orgs"),
-    ]
+    dependencies = [("orgs", "0067_populate_multi_orgs")]
 
-    operations = [
-        migrations.AddField(model_name="org", name="plan_end", field=models.DateTimeField(null=True),),
-    ]
+    operations = [migrations.AddField(model_name="org", name="plan_end", field=models.DateTimeField(null=True))]

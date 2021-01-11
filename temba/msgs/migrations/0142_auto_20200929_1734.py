@@ -6,9 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("msgs", "0141_help_text_cleanup"),
-    ]
+    dependencies = [("msgs", "0141_help_text_cleanup")]
 
     operations = [
         migrations.AlterField(
@@ -21,5 +19,5 @@ class Migration(migrations.Migration):
                 related_name="msgs",
                 to="orgs.TopUp",
             ),
-        ),
+        )
     ]

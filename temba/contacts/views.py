@@ -3,8 +3,6 @@ from collections import OrderedDict
 from datetime import timedelta
 from typing import Dict, List
 
-from django.core.files.base import ContentFile
-from smartmin.csv_imports.models import ImportTask
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -38,7 +36,6 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.flows.models import Flow
 from temba.contacts.templatetags.contacts import MISSING_VALUE
-from temba.mixins import NotFoundRedirectMixin
 from temba.msgs.views import SendMessageForm
 from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
@@ -62,7 +59,6 @@ from .models import (
 from .search import SearchException, parse_query, search_contacts
 from .search.omnibox import omnibox_query, omnibox_results_to_dict
 from .tasks import export_contacts_task, release_group_task
-from ..utils.text import slugify_with
 
 logger = logging.getLogger(__name__)
 
@@ -402,7 +398,7 @@ class ContactForm(forms.ModelForm):
 
                 # get all the urns for this scheme
                 ctrl = forms.CharField(
-                    required=False, label=label, initial=urn.path, help_text=help_text, widget=InputWidget(),
+                    required=False, label=label, initial=urn.path, help_text=help_text, widget=InputWidget()
                 )
                 extra_fields.append(("urn__%s__%d" % (scheme, idx), ctrl))
                 idx += 1
@@ -488,16 +484,14 @@ class UpdateContactForm(ContactForm):
     class Meta:
         model = Contact
         fields = ("name", "language", "groups")
-        widgets = {
-            "name": InputWidget(),
-        }
+        widgets = {"name": InputWidget()}
 
 
 class ExportForm(Form):
     group_memberships = forms.ModelMultipleChoiceField(
         queryset=ContactGroup.user_groups.none(),
         required=False,
-        label=_("Group Memberships for",),
+        label=_("Group Memberships for"),
         widget=SelectMultipleWidget(
             attrs={"widget_only": True, "placeholder": _("Optional: Choose groups to show in your export")}
         ),
@@ -631,7 +625,6 @@ class ContactCRUDL(SmartCRUDL):
                         success_script=getattr(self, "success_script", None),
                     )
                 )
-
 
     class Omnibox(OrgPermsMixin, SmartListView):
         paginate_by = 75
@@ -1266,9 +1259,7 @@ class ContactCRUDL(SmartCRUDL):
 
             response = self.render_to_response(
                 self.get_context_data(
-                    form=form,
-                    success_url=self.get_success_url(),
-                    success_script=getattr(self, "success_script", None),
+                    form=form, success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
                 )
             )
             response["Temba-Success"] = self.get_success_url()
@@ -1659,7 +1650,7 @@ class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
         field_count = ContactField.user_fields.count_active_for_org(org=self.org)
         if field_count >= org_active_fields_limit:
             raise forms.ValidationError(
-                _(f"Cannot create a new field as limit is %(limit)s."), params={"limit": org_active_fields_limit},
+                _(f"Cannot create a new field as limit is %(limit)s."), params={"limit": org_active_fields_limit}
             )
 
     class Meta:
@@ -2022,7 +2013,7 @@ class ContactImportCRUDL(SmartCRUDL):
                             label=" ", required=False, initial=True, widget=CheckboxWidget(attrs={"widget_only": True})
                         )
                         name_field = forms.CharField(
-                            label=" ", initial=mapping["name"], required=False, widget=InputWidget(),
+                            label=" ", initial=mapping["name"], required=False, widget=InputWidget()
                         )
                         value_type_field = forms.ChoiceField(
                             label=" ",

@@ -53,12 +53,7 @@ class LinkCRUDL(SmartCRUDL):
             related_flow = forms.ModelChoiceField(
                 required=False,
                 queryset=Flow.objects.none(),
-                widget=SelectWidget(
-                    attrs={
-                        "widget_only": True,
-                        "placeholder": _("Select related flow"),
-                    }
-                )
+                widget=SelectWidget(attrs={"widget_only": True, "placeholder": _("Select related flow")}),
             )
 
             def __init__(self, user, *args, **kwargs):
@@ -75,7 +70,7 @@ class LinkCRUDL(SmartCRUDL):
                     "name": InputWidget,
                     "destination": InputWidget(
                         attrs={"placeholder": "E.g. http://example.com, https://example.com", "type": "url"}
-                    )
+                    ),
                 }
 
         form_class = LinkCreateForm
@@ -126,13 +121,15 @@ class LinkCRUDL(SmartCRUDL):
             links = []
 
             if self.has_org_perm("links.link_update"):
-                links.append(dict(
-                    id="edit-link",
-                    title=_("Edit"),
-                    style="button-primary",
-                    href=f"{reverse('links.link_update', args=[self.object.pk])}",
-                    modax=_("Update Link"),
-                ))
+                links.append(
+                    dict(
+                        id="edit-link",
+                        title=_("Edit"),
+                        style="button-primary",
+                        href=f"{reverse('links.link_update', args=[self.object.pk])}",
+                        modax=_("Update Link"),
+                    )
+                )
 
             if self.has_org_perm("links.link_export"):
                 links.append(
@@ -206,12 +203,7 @@ class LinkCRUDL(SmartCRUDL):
             related_flow = forms.ModelChoiceField(
                 required=False,
                 queryset=Flow.objects.none(),
-                widget=SelectWidget(
-                    attrs={
-                        "widget_only": False,
-                        "placeholder": _("Select related flow"),
-                    }
-                )
+                widget=SelectWidget(attrs={"widget_only": False, "placeholder": _("Select related flow")}),
             )
 
             def __init__(self, user, *args, **kwargs):
@@ -228,7 +220,7 @@ class LinkCRUDL(SmartCRUDL):
                     "name": InputWidget,
                     "destination": InputWidget(
                         attrs={"placeholder": "E.g. http://example.com, https://example.com", "type": "url"}
-                    )
+                    ),
                 }
 
         success_message = ""

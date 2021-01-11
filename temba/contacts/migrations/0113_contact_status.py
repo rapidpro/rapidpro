@@ -5,9 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("contacts", "0112_last_seen_on_sys_field"),
-    ]
+    dependencies = [("contacts", "0112_last_seen_on_sys_field")]
 
     operations = [
         migrations.AddField(

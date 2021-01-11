@@ -51,9 +51,6 @@ $$ LANGUAGE plpgsql;"""
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("contacts", "0115_auto_20200820_2042"),
-        ("sql", "0001_initial"),
-    ]
+    dependencies = [("contacts", "0115_auto_20200820_2042"), ("sql", "0001_initial")]
 
     operations = [migrations.RunSQL(SQL)]

@@ -50,9 +50,7 @@ class TextItWhatsappTypeTest(TembaTest):
                     200, '{ "name": "SubsRus", "address": "+12065551212", "country": "US", "status": "activated" }'
                 )
             ]
-            mock_post.side_effect = [
-                MockResponse(200, '{ "status": "ok" }'),
-            ]
+            mock_post.side_effect = [MockResponse(200, '{ "status": "ok" }')]
             response = self.client.post(url, post_data)
             self.assertEqual(302, response.status_code)
 

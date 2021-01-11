@@ -112,8 +112,6 @@ def apply_manual():  # pragma: no cover
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("contacts", "0109_contact_last_seen_on"),
-    ]
+    dependencies = [("contacts", "0109_contact_last_seen_on")]
 
     operations = [migrations.RunPython(populate_last_seen_on, reverse)]

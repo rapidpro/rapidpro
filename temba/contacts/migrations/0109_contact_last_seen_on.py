@@ -5,10 +5,8 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("contacts", "0108_remove_contact_is_paused"),
-    ]
+    dependencies = [("contacts", "0108_remove_contact_is_paused")]
 
     operations = [
-        migrations.AddField(model_name="contact", name="last_seen_on", field=models.DateTimeField(null=True),),
+        migrations.AddField(model_name="contact", name="last_seen_on", field=models.DateTimeField(null=True))
     ]

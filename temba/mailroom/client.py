@@ -134,11 +134,7 @@ class MailroomClient:
         return self._request("sim/resume", payload)
 
     def contact_create(self, org_id: int, user_id: int, contact: ContactSpec):
-        payload = {
-            "org_id": org_id,
-            "user_id": user_id,
-            "contact": contact._asdict(),
-        }
+        payload = {"org_id": org_id, "user_id": user_id, "contact": contact._asdict()}
 
         return self._request("contact/create", payload)
 
@@ -153,11 +149,7 @@ class MailroomClient:
         return self._request("contact/modify", payload)
 
     def contact_resolve(self, org_id: int, channel_id: int, urn: str):
-        payload = {
-            "org_id": org_id,
-            "channel_id": channel_id,
-            "urn": urn,
-        }
+        payload = {"org_id": org_id, "channel_id": channel_id, "urn": urn}
 
         return self._request("contact/resolve", payload)
 

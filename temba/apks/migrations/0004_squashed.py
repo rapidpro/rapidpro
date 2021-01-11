@@ -5,8 +5,6 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("apks", "0003_initial"),
-    ]
+    dependencies = [("apks", "0003_initial")]
 
     operations = []

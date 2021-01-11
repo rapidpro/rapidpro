@@ -5,10 +5,8 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("contacts", "0125_auto_20201020_2005"),
-    ]
+    dependencies = [("contacts", "0125_auto_20201020_2005")]
 
     operations = [
-        migrations.AlterField(model_name="contacturn", name="priority", field=models.IntegerField(default=1000),),
+        migrations.AlterField(model_name="contacturn", name="priority", field=models.IntegerField(default=1000))
     ]

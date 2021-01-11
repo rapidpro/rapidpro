@@ -1650,7 +1650,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             if channel.get_type().show_config_page:
                 links.append(
-                    dict(title=_("Settings"), href=reverse("channels.channel_configuration", args=[channel.uuid]),)
+                    dict(title=_("Settings"), href=reverse("channels.channel_configuration", args=[channel.uuid]))
                 )
 
             if not channel.is_android():
@@ -2608,7 +2608,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             links = []
 
             if self.request.GET.get("connections") or self.request.GET.get("others"):
-                links.append(dict(title=_("Messages"), href=reverse("channels.channellog_list", args=[channel.uuid]),))
+                links.append(dict(title=_("Messages"), href=reverse("channels.channellog_list", args=[channel.uuid])))
 
             if not self.request.GET.get("connections"):
                 if channel.supports_ivr():  # pragma: needs cover

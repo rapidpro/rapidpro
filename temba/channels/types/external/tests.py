@@ -186,8 +186,7 @@ class ExternalTypeTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(update_url)
         self.assertEqual(
-            ["name", "alert_email", "role", "allow_international", "loc"],
-            list(response.context["form"].fields.keys()),
+            ["name", "alert_email", "role", "allow_international", "loc"], list(response.context["form"].fields.keys())
         )
 
         post_data = dict(name="Receiver 1234", role=["R"], alert_email="alert@example.com")

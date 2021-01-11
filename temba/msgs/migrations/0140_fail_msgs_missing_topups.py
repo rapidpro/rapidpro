@@ -41,8 +41,6 @@ def apply_manual():  # pragma: no cover
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("msgs", "0139_auto_20200727_1723"),
-    ]
+    dependencies = [("msgs", "0139_auto_20200727_1723")]
 
     operations = [migrations.RunPython(fail_msg_without_topup, reverse)]

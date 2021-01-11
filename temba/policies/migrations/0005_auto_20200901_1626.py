@@ -5,9 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("policies", "0004_initial"),
-    ]
+    dependencies = [("policies", "0004_initial")]
 
     operations = [
         migrations.AlterField(
@@ -23,5 +21,5 @@ class Migration(migrations.Migration):
                 help_text="Choose the type of policy",
                 max_length=16,
             ),
-        ),
+        )
     ]

@@ -5,10 +5,6 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("orgs", "0068_org_plan_end"),
-    ]
+    dependencies = [("orgs", "0068_org_plan_end")]
 
-    operations = [
-        migrations.AddField(model_name="org", name="plan_start", field=models.DateTimeField(null=True),),
-    ]
+    operations = [migrations.AddField(model_name="org", name="plan_start", field=models.DateTimeField(null=True))]

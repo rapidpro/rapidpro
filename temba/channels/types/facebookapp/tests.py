@@ -135,9 +135,7 @@ class FacebookTypeTest(TembaTest):
 
         mock_post.return_value = MockResponse(200, json.dumps({"success": True}))
 
-        mock_get.side_effect = [
-            MockResponse(400, json.dumps({"error": "token invalid"})),
-        ]
+        mock_get.side_effect = [MockResponse(400, json.dumps({"error": "token invalid"}))]
 
         response = self.client.get(url)
         self.assertContains(response, "Reconnect Facebook Page")

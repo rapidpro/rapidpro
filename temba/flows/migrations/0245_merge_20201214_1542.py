@@ -5,10 +5,6 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('flows', '0227_squashed_ccl_227_234'),
-        ('flows', '0244_squashed'),
-    ]
+    dependencies = [("flows", "0227_squashed_ccl_227_234"), ("flows", "0244_squashed")]
 
-    operations = [
-    ]
+    operations = []

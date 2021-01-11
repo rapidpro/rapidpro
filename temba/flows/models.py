@@ -1,7 +1,6 @@
 import os
 import logging
 import time
-import requests
 import zipfile
 
 from array import array
@@ -11,6 +10,7 @@ from enum import Enum
 from io import BytesIO
 from urllib.parse import urlparse
 from typing import Dict
+from urllib.request import urlopen
 
 import iso8601
 import regex
@@ -35,15 +35,10 @@ from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
-from temba.airtime.models import AirtimeTransfer
 from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelConnection
-from temba.contacts.models import Contact, ContactField, ContactGroup, ContactURN, URN
-from temba.locations.models import AdminBoundary
+from temba.contacts.models import Contact, ContactField, ContactGroup, URN
 from temba.links.models import LinkContacts
-from temba.msgs.models import DELIVERED, PENDING, Broadcast, Label, Msg
-from temba.orgs.models import Org
-from temba.links.models import Link
 from temba.classifiers.models import Classifier
 from temba.globals.models import Global
 from temba.msgs.models import Attachment, Label, Msg

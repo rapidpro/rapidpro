@@ -6,13 +6,11 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ("contacts", "0123_contactimport_contactimportbatch"),
-    ]
+    dependencies = [("contacts", "0123_contactimport_contactimportbatch")]
 
     operations = [
         migrations.AlterField(
-            model_name="contactimport", name="mappings", field=django.contrib.postgres.fields.jsonb.JSONField(),
+            model_name="contactimport", name="mappings", field=django.contrib.postgres.fields.jsonb.JSONField()
         ),
         migrations.AlterField(
             model_name="contactimportbatch",
@@ -20,6 +18,6 @@ class Migration(migrations.Migration):
             field=django.contrib.postgres.fields.jsonb.JSONField(default=list),
         ),
         migrations.AlterField(
-            model_name="contactimportbatch", name="specs", field=django.contrib.postgres.fields.jsonb.JSONField(),
+            model_name="contactimportbatch", name="specs", field=django.contrib.postgres.fields.jsonb.JSONField()
         ),
     ]
