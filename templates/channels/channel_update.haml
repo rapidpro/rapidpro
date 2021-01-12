@@ -96,6 +96,8 @@
         </div>
       </div>
 
+      {% render_field "action_type" %}
+
       </fieldset>
       {% endblock fields %}
 
@@ -199,7 +201,25 @@
   {% endif %}
 
   :javascript
-    function buildWebChat(welcomeMsgDict, inputTextDict, googleFont) {
+    function buildWebChat(welcomeMsgDict, inputTextDict, googleFontForm, logoStyleForm, sideOfScreenForm, quickRepliesForm) {
+      var googleFontValue = $("#id_google_font")[0].values;
+      googleFontValue = googleFontValue.length > 0 ? googleFontValue[0].value : null;
+      if (googleFontForm != null || googleFontForm != undefined) {
+        googleFontValue = googleFontForm;
+      }
+
+      var sideOfScreenValue = $("#id_side_of_screen")[0].values;
+      sideOfScreenValue = sideOfScreenValue.length > 0 ? sideOfScreenValue[0].value : "right";
+      if (sideOfScreenForm != null || sideOfScreenForm != undefined) {
+        sideOfScreenValue = sideOfScreenForm;
+      }
+
+      var logoStyleValue = $("#id_logo_style")[0].values;
+      logoStyleValue = logoStyleValue.length > 0 ? logoStyleValue[0].value : "circle";
+      if (logoStyleForm != null || logoStyleForm != undefined) {
+        logoStyleValue = logoStyleForm;
+      }
+
       var title = $("#id_title").val();
       var icon = "{{ object.config.logo }}";
       var welcomeMessage = $("#id_welcome_message_default").val();
@@ -211,13 +231,13 @@
       var automatedChatTextColor = "#" + $("#id_automated_chat_txt").val();
       var userChatBackgroundColor = "#" + $("#id_user_chat_bg").val();
       var userChatTextColor = "#" + $("#id_user_chat_txt").val();
-      var logoStyle = $("#id_logo_style").val();
+      var logoStyle = logoStyleValue;
       var chatButtonHeight = parseInt($("#id_chat_button_height").val());
       var sidePadding = parseInt($("#id_side_padding").val());
       var bottomPadding = parseInt($("#id_bottom_padding").val());
-      var sideOfScreen = $("#id_side_of_screen").val();
-      var googleFont = googleFont || null;
-      var welcomeMessageQuickReplies = $("#id_welcome_msg_quick_replies").val();
+      var sideOfScreen = sideOfScreenValue;
+      var googleFont = googleFontValue;
+      var welcomeMessageQuickReplies = quickRepliesForm;
       welcomeMessageQuickReplies = welcomeMessageQuickReplies !== "" ? welcomeMessageQuickReplies.split(",") : [];
 
       window.renderSurveyor({
@@ -260,11 +280,6 @@
       // change the value of the first option to be empty so that select2 placeholder works
       $('#id_country').children(":first").remove();
 
-      function updateFormActionAndSubmit() {
-        $("#id_action_type").val("update_and_reload");
-        $(".smartmin-form").submit();
-      }
-
       function reformatWebChatUpdatePage() {
         var errorsLenght = $("ul.errorlist").length;
         if (errorsLenght == 0) {
@@ -277,8 +292,6 @@
       $(document).ready(function() {
         var body = $('body');
         body.append(document.getElementById("ccl-web-surveyor"));
-
-        // console.log($(");
 
         reformatWebChatUpdatePage();
 
@@ -297,25 +310,25 @@
 
         buildGoogleFontLink($("temba-select[name='google_font']").find("temba-option[selected]")[0].attributes.value.nodeValue);
 
+        {% for item in customable_fields %}
+        $("{{ item }}").blur(function() {
+          buildWebChat();
+        });
+        {% endfor %}
 
-        // {% for item in customable_fields %}
-        // $("{{ item }}").blur(function() {
-        //   buildWebChat();
-        // });
-        // {% endfor %}
+        $("#id_side_of_screen").change(function() {
+          buildWebChat();
+        });
 
-        // $("#id_side_of_screen").change(function() {
-        //   buildWebChat();
-        // });
-
-        // $("#id_logo_style").change(function() {
-        //   buildWebChat();
-        // });
-        //
         $("temba-select[name='google_font']").on("change", function(evt) {
+          buildWebChat();
+
           var selected = evt.target.values[0];
-          buildWebChat({}, {}, selected.value);
           buildGoogleFontLink(selected.value);
+        });
+
+        $("#id_logo_style").change(function() {
+          buildWebChat();
         });
 
         var allLanguages = [{"iso_code": "default", "name": "Default"}];
@@ -327,8 +340,6 @@
         welcomeMsgValues["{{ lang.iso_code }}"] = document.getElementById("id_welcome_message_{{ lang.iso_code }}").value;
         inputTextPlaceholderValues["{{ lang.iso_code }}"] = document.getElementById("id_inputtext_placeholder_{{ lang.iso_code }}").value;
         {% endfor %}
-
-        buildWebChat(welcomeMsgValues, inputTextPlaceholderValues);
 
         var divLanguages;
         var welcomeMessageField;
@@ -378,10 +389,17 @@
         $("input").removeAttr("required");
         $("textarea").removeAttr("required");
 
+        buildWebChat(welcomeMsgValues, inputTextPlaceholderValues, "{{ form.google_font.value }}", "{{ form.logo_style.value }}", "{{ form.side_of_screen.value }}", "{{ form.welcome_msg_quick_replies.value|join:',' }}");
+
       });
       {% endif %}
 
     })(jQuery);
+
+    function updateFormActionAndSubmit() {
+      $("#id_action_type").val("update_and_reload");
+      $(".smartmin-form").submit();
+    }
 
     function changeLangField(el) {
       $(".ref-welcome-message-languages a").removeClass("active");

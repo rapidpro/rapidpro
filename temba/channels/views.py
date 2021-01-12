@@ -1,3 +1,4 @@
+import ast
 import base64
 import hashlib
 import hmac
@@ -46,7 +47,7 @@ from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org
 from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils.fields import SelectWidget
+from temba.utils.fields import SelectWidget, SelectMultipleWidget
 from temba.utils import analytics, json, get_image_size
 from temba.utils.http import http_headers
 from temba.utils.models import patch_queryset_count
@@ -1326,7 +1327,7 @@ class UpdateWebChatForm(UpdateChannelForm):
 
             self.fields["welcome_message_default"].initial = config.get("welcome_message_default", "")
 
-            self.fields["welcome_msg_quick_replies"].initial = ",".join(config.get("welcome_msg_quick_replies", []))
+            self.fields["welcome_msg_quick_replies"].initial = config.get("welcome_msg_quick_replies", [])
 
             self.fields["inputtext_placeholder_default"].initial = config.get("inputtext_placeholder_default", "")
 
@@ -1411,7 +1412,8 @@ class UpdateWebChatForm(UpdateChannelForm):
 
     def clean_welcome_msg_quick_replies(self):
         quick_replies = self.cleaned_data.get("welcome_msg_quick_replies", "")
-        return [item for item in quick_replies.split(",") if item != ""]
+        quick_replies = ast.literal_eval(quick_replies if quick_replies else "[]")
+        return [item for item in quick_replies if item != ""]
 
     def add_extra_fields(self):
 
@@ -1469,7 +1471,19 @@ class UpdateWebChatForm(UpdateChannelForm):
 
         self.add_config_field(
             "welcome_msg_quick_replies",
-            forms.CharField(required=False, label=_("Welcome Message Quick Replies"), widget=forms.TextInput()),
+            forms.CharField(
+                required=False,
+                label=_("Welcome Message Quick Replies"),
+                widget=SelectMultipleWidget(
+                    attrs={
+                        "widget_only": False,
+                        "searchable": True,
+                        "tags": True,
+                        "space_select": False,
+                        "placeholder": _("Quick Replies"),
+                    }
+                ),
+            ),
             None,
         )
 
@@ -1500,8 +1514,12 @@ class UpdateWebChatForm(UpdateChannelForm):
 
         self.add_config_field(
             "google_font",
-            forms.ChoiceField(label=_("Google Font"), required=False, widget=SelectWidget(attrs={"searchable": True})),
-            None
+            forms.ChoiceField(
+                label=_("Google Font"),
+                required=False,
+                widget=SelectWidget(attrs={"searchable": True, "clearable": True}),
+            ),
+            None,
         )
 
         self.add_config_field("theme", forms.ChoiceField(label=_("Theme"), required=False), None)
