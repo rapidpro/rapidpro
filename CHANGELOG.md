@@ -1,3 +1,7 @@
+v6.1.18
+----------
+ * Add support for background flows
+
 v6.1.17
 ----------
  * Update to flow editor v1.12.5
