@@ -129,18 +129,24 @@ class Flow(TembaModel):
     DEFINITION_UI = "_ui"
 
     TYPE_MESSAGE = "M"
-    TYPE_VOICE = "V"
+    TYPE_BACKGROUND = "B"
     TYPE_SURVEY = "S"
+    TYPE_VOICE = "V"
     TYPE_USSD = "U"
 
-    FLOW_TYPES = (
-        (TYPE_MESSAGE, _("Message flow")),
-        (TYPE_VOICE, _("Phone call flow")),
-        (TYPE_SURVEY, _("Surveyor flow")),
-        (TYPE_USSD, _("USSD flow")),
+    TYPE_CHOICES = (
+        (TYPE_MESSAGE, _("Messaging")),
+        (TYPE_VOICE, _("Phone Call")),
+        (TYPE_BACKGROUND, _("Background")),
+        (TYPE_SURVEY, _("Surveyor")),
     )
 
-    GOFLOW_TYPES = {TYPE_MESSAGE: "messaging", TYPE_VOICE: "voice", TYPE_SURVEY: "messaging_offline"}
+    GOFLOW_TYPES = {
+        TYPE_MESSAGE: "messaging",
+        TYPE_BACKGROUND: "messaging_background",
+        TYPE_SURVEY: "messaging_offline",
+        TYPE_VOICE: "voice",
+    }
 
     FINAL_LEGACY_VERSION = legacy.VERSIONS[-1]
     INITIAL_GOFLOW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
@@ -160,9 +166,7 @@ class Flow(TembaModel):
 
     is_system = models.BooleanField(default=False, help_text=_("Whether this is a system created flow"))
 
-    flow_type = models.CharField(
-        max_length=1, choices=FLOW_TYPES, default=TYPE_MESSAGE, help_text=_("The type of this flow")
-    )
+    flow_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_MESSAGE)
 
     # additional information about the flow, e.g. possible results
     metadata = JSONAsTextField(null=True, default=dict)
@@ -583,29 +587,11 @@ class Flow(TembaModel):
         def deps_of_type(type_name):
             return [d for d in dependencies if d["type"] == type_name]
 
-        # ensure any channel dependencies exist
-        for ref in deps_of_type("channel"):
-            channel = self.org.channels.filter(is_active=True, uuid=ref["uuid"]).first()
-            if not channel and ref["name"]:
-                name = ref["name"].split(":")[-1].strip()
-                channel = self.org.channels.filter(is_active=True, name=name).first()
-
-            dependency_mapping[ref["uuid"]] = str(channel.uuid) if channel else ref["uuid"]
-
-        # ensure any field dependencies exist
+        # ensure all field dependencies exist
         for ref in deps_of_type("field"):
             ContactField.get_or_create(self.org, user, ref["key"], ref["name"])
 
-        # lookup additional flow dependencies by name (i.e. for flows not in the export itself)
-        for ref in deps_of_type("flow"):
-            if ref["uuid"] not in dependency_mapping:
-                flow = self.org.flows.filter(uuid=ref["uuid"], is_active=True).first()
-                if not flow and ref["name"]:
-                    flow = self.org.flows.filter(name=ref["name"], is_active=True).first()
-
-                dependency_mapping[ref["uuid"]] = str(flow.uuid) if flow else ref["uuid"]
-
-        # lookup/create additional group dependencies (i.e. for flows not in the export itself)
+        # ensure all group dependencies exist
         for ref in deps_of_type("group"):
             if ref["uuid"] not in dependency_mapping:
                 group = ContactGroup.get_or_create(self.org, user, ref.get("name"), uuid=ref["uuid"])
@@ -616,13 +602,31 @@ class Flow(TembaModel):
             label = Label.get_or_create(self.org, user, ref["name"])
             dependency_mapping[ref["uuid"]] = str(label.uuid)
 
-        # ensure any template dependencies exist
-        for ref in deps_of_type("template"):
-            template = self.org.templates.filter(uuid=ref["uuid"]).first()
-            if not template and ref["name"]:
-                template = self.org.templates.filter(name=ref["name"]).first()
+        # for dependencies we can't create, look for them by UUID (this is a clone in same workspace)
+        # or name (this is an import from other workspace)
+        dep_types = {
+            "channel": self.org.channels.filter(is_active=True),
+            "classifier": self.org.classifiers.filter(is_active=True),
+            "flow": self.org.flows.filter(is_active=True),
+            "template": self.org.templates.all(),
+            "ticketer": self.org.ticketers.filter(is_active=True),
+        }
+        for dep_type, org_objs in dep_types.items():
+            for ref in deps_of_type(dep_type):
+                if ref["uuid"] in dependency_mapping:
+                    continue
 
-            dependency_mapping[ref["uuid"]] = str(template.uuid) if template else ref["uuid"]
+                obj = org_objs.filter(uuid=ref["uuid"]).first()
+                if not obj and ref["name"]:
+                    name = ref["name"]
+
+                    # migrated legacy flows may have name as <type>: <name>
+                    if dep_type == "channel" and ":" in name:
+                        name = name.split(":")[-1].strip()
+
+                    obj = org_objs.filter(name=name).first()
+
+                dependency_mapping[ref["uuid"]] = str(obj.uuid) if obj else ref["uuid"]
 
         # clone definition so that all flow elements get new random UUIDs
         cloned_definition = mailroom.get_client().flow_clone(definition, dependency_mapping)
@@ -1021,7 +1025,7 @@ class FlowSession(models.Model):
     uuid = models.UUIDField(unique=True)
 
     # the modality of this session
-    session_type = models.CharField(max_length=1, choices=Flow.FLOW_TYPES, default=Flow.TYPE_MESSAGE, null=True)
+    session_type = models.CharField(max_length=1, choices=Flow.TYPE_CHOICES, default=Flow.TYPE_MESSAGE)
 
     # the organization this session belongs to
     org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
