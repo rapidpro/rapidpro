@@ -238,6 +238,16 @@
       var sideOfScreen = sideOfScreenValue;
       var googleFont = googleFontValue;
       var welcomeMessageQuickReplies = quickRepliesForm;
+
+      var quickRepliesValue = $("#id_welcome_msg_quick_replies")[0].values;
+      if (quickRepliesValue.length > 0) {
+        var valuesQuickReplies = [];
+        for (var qr in quickRepliesValue) {
+          valuesQuickReplies.push(quickRepliesValue[qr].value);
+        }
+        welcomeMessageQuickReplies = valuesQuickReplies.join(",");
+      }
+
       welcomeMessageQuickReplies = welcomeMessageQuickReplies !== "" ? welcomeMessageQuickReplies.split(",") : [];
 
       window.renderSurveyor({
