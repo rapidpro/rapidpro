@@ -1526,45 +1526,43 @@ class UpdateWebChatForm(UpdateChannelForm):
 
         self.add_config_field(
             "widget_bg_color",
-            forms.CharField(label=_("Widget Background Color"), widget=forms.TextInput(attrs={"class": "jscolor"})),
+            forms.CharField(label=_("Widget Background Color"), widget=forms.TextInput()),
             None,
         )
 
         self.add_config_field(
             "chat_header_bg_color",
-            forms.CharField(
-                label=_("Chat Header Background Color"), widget=forms.TextInput(attrs={"class": "jscolor"})
-            ),
+            forms.CharField(label=_("Chat Header Background Color"), widget=forms.TextInput()),
             None,
         )
 
         self.add_config_field(
             "chat_header_text_color",
-            forms.CharField(label=_("Chat Header Text Color"), widget=forms.TextInput(attrs={"class": "jscolor"})),
+            forms.CharField(label=_("Chat Header Text Color"), widget=forms.TextInput()),
             None,
         )
 
         self.add_config_field(
             "automated_chat_bg",
-            forms.CharField(label=_("Automated Chat Background"), widget=forms.TextInput(attrs={"class": "jscolor"})),
+            forms.CharField(label=_("Automated Chat Background"), widget=forms.TextInput()),
             None,
         )
 
         self.add_config_field(
             "automated_chat_txt",
-            forms.CharField(label=_("Automated Chat Text"), widget=forms.TextInput(attrs={"class": "jscolor"})),
+            forms.CharField(label=_("Automated Chat Text"), widget=forms.TextInput()),
             None,
         )
 
         self.add_config_field(
             "user_chat_bg",
-            forms.CharField(label=_("User Chat Background"), widget=forms.TextInput(attrs={"class": "jscolor"})),
+            forms.CharField(label=_("User Chat Background"), widget=forms.TextInput()),
             None,
         )
 
         self.add_config_field(
             "user_chat_txt",
-            forms.CharField(label=_("User Chat Text"), widget=forms.TextInput(attrs={"class": "jscolor"})),
+            forms.CharField(label=_("User Chat Text"), widget=forms.TextInput()),
             None,
         )
 

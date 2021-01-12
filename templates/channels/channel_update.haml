@@ -71,13 +71,21 @@
         </a>
         <div class='custom-collapsed-menu-fields'>
           {% render_field "theme" %}
-          {% render_field "widget_bg_color" %}
-          {% render_field "chat_header_bg_color" %}
-          {% render_field "chat_header_text_color" %}
-          {% render_field "automated_chat_bg" %}
-          {% render_field "automated_chat_txt" %}
-          {% render_field "user_chat_bg" %}
-          {% render_field "user_chat_txt" %}
+
+          {% include "utils/forms/color.haml" with label="Widget Background Color" name="widget_bg_color" value=form.widget_bg_color.value %}
+
+          {% include "utils/forms/color.haml" with label="Chat Header Background Color" name="chat_header_bg_color" value=form.chat_header_bg_color.value %}
+
+          {% include "utils/forms/color.haml" with label="Chat Header Text Color" name="chat_header_text_color" value=form.chat_header_text_color.value %}
+
+          {% include "utils/forms/color.haml" with label="Automated Chat Background" name="automated_chat_bg" value=form.automated_chat_bg.value %}
+
+          {% include "utils/forms/color.haml" with label="Automated Chat Text" name="automated_chat_txt" value=form.automated_chat_txt.value %}
+
+          {% include "utils/forms/color.haml" with label="User Chat Background" name="user_chat_bg" value=form.user_chat_bg.value %}
+
+          {% include "utils/forms/color.haml" with label="User Chat Text" name="user_chat_txt" value=form.user_chat_txt.value %}
+
           {% render_field "google_font" %}
         </div>
       </div>
@@ -119,12 +127,52 @@
 
 -block extra-style
   :css
-    /*#ccl-web-surveyor {*/
-    /*  position: absolute;*/
-    /*  bottom: 20px;*/
-    /*  right: 20px;*/
-    /*  width: 400px;*/
-    /*}*/
+
+    #id_logo {
+      margin-bottom: 10px;
+    }
+
+    .control-label {
+      width: 100% !important;
+      text-align: left !important;
+      margin-bottom: 5px;
+      margin-left: 4px;
+      display: block;
+      font-weight: 400;
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      line-height: normal;
+      color: rgb(119, 119, 119);
+    }
+
+    .input-container {
+      border-radius: var(--curvature-widget);
+      cursor: text;
+      background: var(--color-widget-bg);
+      border: 1px solid var(--color-widget-border);
+      transition: all 0.2s ease-in-out 0s;
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      box-shadow: rgba(0, 0, 0, 0.04) 0px 3px 20px 0px, rgba(0, 0, 0, 0.02) 0px 1px 2px 0px;
+      caret-color: var(--input-caret);
+    }
+
+    .textinput {
+      padding: var(--temba-textinput-padding);
+      border: none;
+      flex: 1 1 0%;
+      margin: 0px;
+      background: 0px 0px;
+      color: var(--color-widget-text);
+      font-family: var(--font-family);
+      font-size: var(--temba-textinput-font-size);
+      line-height: normal;
+      cursor: text;
+      resize: none;
+      font-weight: 300;
+      width: 100%;
+    }
 
     .form-group {
       margin-bottom:15px;
@@ -202,19 +250,19 @@
 
   :javascript
     function buildWebChat(welcomeMsgDict, inputTextDict, googleFontForm, logoStyleForm, sideOfScreenForm, quickRepliesForm) {
-      var googleFontValue = $("#id_google_font")[0].values;
+      var googleFontValue = $("#id_google_font")[0].values || [];
       googleFontValue = googleFontValue.length > 0 ? googleFontValue[0].value : null;
       if (googleFontForm != null || googleFontForm != undefined) {
         googleFontValue = googleFontForm;
       }
 
-      var sideOfScreenValue = $("#id_side_of_screen")[0].values;
+      var sideOfScreenValue = $("#id_side_of_screen")[0].values || [];
       sideOfScreenValue = sideOfScreenValue.length > 0 ? sideOfScreenValue[0].value : "right";
       if (sideOfScreenForm != null || sideOfScreenForm != undefined) {
         sideOfScreenValue = sideOfScreenForm;
       }
 
-      var logoStyleValue = $("#id_logo_style")[0].values;
+      var logoStyleValue = $("#id_logo_style")[0].values || [];
       logoStyleValue = logoStyleValue.length > 0 ? logoStyleValue[0].value : "circle";
       if (logoStyleForm != null || logoStyleForm != undefined) {
         logoStyleValue = logoStyleForm;
@@ -239,7 +287,7 @@
       var googleFont = googleFontValue;
       var welcomeMessageQuickReplies = quickRepliesForm;
 
-      var quickRepliesValue = $("#id_welcome_msg_quick_replies")[0].values;
+      var quickRepliesValue = $("#id_welcome_msg_quick_replies")[0].values || [];
       if (quickRepliesValue.length > 0) {
         var valuesQuickReplies = [];
         for (var qr in quickRepliesValue) {
