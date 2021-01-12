@@ -458,7 +458,7 @@
         $("input").removeAttr("required");
         $("textarea").removeAttr("required");
 
-        buildWebChat(welcomeMsgValues, inputTextPlaceholderValues, "{{ form.google_font.value }}", "{{ form.logo_style.value }}", "{{ form.side_of_screen.value }}", "{{ form.welcome_msg_quick_replies.value|join:',' }}");
+        buildWebChat(welcomeMsgValues, inputTextPlaceholderValues, "{{ form.google_font.value }}", "{{ form.logo_style.value }}", "{{ form.side_of_screen.value }}", "{{ form.welcome_msg_quick_replies.value|safeseq|join:',' }}");
       });
       {% endif %}
     })(jQuery);
