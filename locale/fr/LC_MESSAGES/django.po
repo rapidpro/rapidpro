@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-06 15:43+0000\n"
+"POT-Creation-Date: 2021-01-08 15:22+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2347,17 +2347,13 @@ msgstr "Le nom de champ pour '%(header)s' est invalide ou un mot réservé."
 msgid "Field name '%(name)s' is repeated."
 msgstr "Le nom de champ '%(name)s' est répété."
 
-msgid "Message flow"
-msgstr "Flux de messages"
+#, fuzzy
+#| msgid "phone call"
+msgid "Phone Call"
+msgstr "appel téléphonique"
 
-msgid "Phone call flow"
-msgstr "Flux d'appels de téléphone"
-
-msgid "Surveyor flow"
-msgstr "Flux d'enquêteur"
-
-msgid "USSD flow"
-msgstr "Flux USSD"
+msgid "Background"
+msgstr ""
 
 msgid "The name for this flow"
 msgstr "Le nom de ce flux"
@@ -2373,9 +2369,6 @@ msgstr "Que ce flux est archivée"
 
 msgid "Whether this is a system created flow"
 msgstr "S'il s'agit d'un flux créé par le système"
-
-msgid "The type of this flow"
-msgstr "Le type de ce flux"
 
 msgid "Minutes of inactivity that will cause expiration from flow"
 msgstr "Minutes d'inactivité qui vont entraîner l'expiration de flux"
@@ -5771,24 +5764,6 @@ msgstr "sur le droit de l'ouvrir."
 msgid "To get started you need to add a voice-enabled channel to your workspace. A voice-enabled channel is a phone number which %(name)s can use to make and receive phone calls on your behalf. For example, Twilio is a service which provides voice-enabled numbers which you can add as channels in your %(name)s workspace."
 msgstr "Pour commencer, vous devez ajouter une chaîne vocale à votre espace de travail. Un canal à activation vocale est un numéro de téléphone que %(name)s peut utiliser pour passer et recevoir des appels téléphoniques en votre nom. Par exemple, Twilio est un service qui fournit des numéros activés par la voix que vous pouvez ajouter comme canaux dans votre espace de travail %(name)s ."
 
-msgid "This flow has never been started."
-msgstr "Ce flux n'a jamais été démarré."
-
-msgid "This flow has been started once."
-msgstr "Ce flux a été démarré une fois."
-
-msgid "This flow has been started {{ run_count }} times."
-msgstr "Ce flux a été démarré {{ run_count }} fois."
-
-msgid "It has been completed"
-msgstr "Elle est complétée"
-
-msgid "Once."
-msgstr "Une fois."
-
-msgid "{{ complete_count }} times."
-msgstr "{{ complete_count }} fois."
-
 #, python-format
 msgid ""
 "\n"
@@ -7751,6 +7726,41 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "USSD flow"
+#~ msgid "USSD"
+#~ msgstr "Flux USSD"
+
+#~ msgid "The type of this flow"
+#~ msgstr "Le type de ce flux"
+
+#~ msgid "Message flow"
+#~ msgstr "Flux de messages"
+
+#~ msgid "Phone call flow"
+#~ msgstr "Flux d'appels de téléphone"
+
+#~ msgid "Surveyor flow"
+#~ msgstr "Flux d'enquêteur"
+
+#~ msgid "This flow has never been started."
+#~ msgstr "Ce flux n'a jamais été démarré."
+
+#~ msgid "This flow has been started once."
+#~ msgstr "Ce flux a été démarré une fois."
+
+#~ msgid "This flow has been started {{ run_count }} times."
+#~ msgstr "Ce flux a été démarré {{ run_count }} fois."
+
+#~ msgid "It has been completed"
+#~ msgstr "Elle est complétée"
+
+#~ msgid "Once."
+#~ msgstr "Une fois."
+
+#~ msgid "{{ complete_count }} times."
+#~ msgstr "{{ complete_count }} fois."
 
 #~ msgid "Smart Group"
 #~ msgstr "Groupe intelligent"

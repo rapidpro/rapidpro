@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-06 15:43+0000\n"
+"POT-Creation-Date: 2021-01-08 15:22+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3053,17 +3053,13 @@ msgstr ""
 msgid "Field name '%(name)s' is repeated."
 msgstr ""
 
-msgid "Message flow"
-msgstr "Поток сообщений"
+#, fuzzy
+#| msgid "phone call"
+msgid "Phone Call"
+msgstr "телефонный вызов"
 
-msgid "Phone call flow"
-msgstr "Поток телефонных звонков"
-
-msgid "Surveyor flow"
-msgstr "Поток наблюдателя"
-
-msgid "USSD flow"
-msgstr "Поток USSD"
+msgid "Background"
+msgstr ""
 
 msgid "The name for this flow"
 msgstr "Название данного потока"
@@ -3079,9 +3075,6 @@ msgstr "Архивируется ли данный поток"
 
 msgid "Whether this is a system created flow"
 msgstr "Является ли этот поток созданным системой"
-
-msgid "The type of this flow"
-msgstr "Тип данного потока"
 
 msgid "Minutes of inactivity that will cause expiration from flow"
 msgstr "Количество минут бездействия, которое приведет к выходу из потока"
@@ -7578,24 +7571,6 @@ msgstr ""
 "\n"
 "      "
 
-msgid "This flow has never been started."
-msgstr "Этот поток никогда не запускался."
-
-msgid "This flow has been started once."
-msgstr "Этот поток запускался один раз."
-
-msgid "This flow has been started {{ run_count }} times."
-msgstr "Этот поток запускался {{ run_count }} раз."
-
-msgid "It has been completed"
-msgstr "Было выполнено"
-
-msgid "Once."
-msgstr "один раз."
-
-msgid "{{ complete_count }} times."
-msgstr "{{ complete_count }} раз."
-
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
@@ -10311,6 +10286,41 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, fuzzy
+#~| msgid "USSD flow"
+#~ msgid "USSD"
+#~ msgstr "Поток USSD"
+
+#~ msgid "The type of this flow"
+#~ msgstr "Тип данного потока"
+
+#~ msgid "Message flow"
+#~ msgstr "Поток сообщений"
+
+#~ msgid "Phone call flow"
+#~ msgstr "Поток телефонных звонков"
+
+#~ msgid "Surveyor flow"
+#~ msgstr "Поток наблюдателя"
+
+#~ msgid "This flow has never been started."
+#~ msgstr "Этот поток никогда не запускался."
+
+#~ msgid "This flow has been started once."
+#~ msgstr "Этот поток запускался один раз."
+
+#~ msgid "This flow has been started {{ run_count }} times."
+#~ msgstr "Этот поток запускался {{ run_count }} раз."
+
+#~ msgid "It has been completed"
+#~ msgstr "Было выполнено"
+
+#~ msgid "Once."
+#~ msgstr "один раз."
+
+#~ msgid "{{ complete_count }} times."
+#~ msgstr "{{ complete_count }} раз."
 
 #, fuzzy
 #~| msgid "Select Group"

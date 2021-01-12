@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-06 15:43+0000\n"
+"POT-Creation-Date: 2021-01-08 15:22+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -3330,19 +3330,12 @@ msgid "Field name '%(name)s' is repeated."
 msgstr ""
 
 #, fuzzy
-msgid "Message flow"
-msgstr "Mensagem"
-
-msgid "Phone call flow"
+#| msgid "Phone call flow"
+msgid "Phone Call"
 msgstr "Fluxo de ligação telefônica"
 
-msgid "Surveyor flow"
+msgid "Background"
 msgstr ""
-
-#, fuzzy
-#| msgid "SMS flow"
-msgid "USSD flow"
-msgstr "Fluxo SMS"
 
 msgid "The name for this flow"
 msgstr "O nome para esse fluxo"
@@ -3361,9 +3354,6 @@ msgstr "Se esse fluxo for arquivado"
 #| msgid "Whether this report is currently published"
 msgid "Whether this is a system created flow"
 msgstr "Se este relatório seja publicado atualmente"
-
-msgid "The type of this flow"
-msgstr "O tipo deste fluxo"
 
 msgid "Minutes of inactivity that will cause expiration from flow"
 msgstr "Minutos de inatividade que serão causados a partir da expiração do prazo do fluxo"
@@ -7784,30 +7774,6 @@ msgstr ""
 "\n"
 "Para começar, você precisa adicionar um número de telefone para a sua conta. Você pode optar por usar um celular com Android e seu próprio plano de telefone celular ou podemos conectá-lo diretamente com um prestador de serviços no seu país."
 
-#, fuzzy
-#| msgid "The flow that is being started"
-msgid "This flow has never been started."
-msgstr "O fluxo que está sendo iniciado"
-
-#, fuzzy
-#| msgid "The flow that is being started"
-msgid "This flow has been started once."
-msgstr "O fluxo que está sendo iniciado"
-
-#, fuzzy
-#| msgid "The flow that is being started"
-msgid "This flow has been started {{ run_count }} times."
-msgstr "O fluxo que está sendo iniciado"
-
-msgid "It has been completed"
-msgstr "Concluído"
-
-msgid "Once."
-msgstr "Uma vez."
-
-msgid "{{ complete_count }} times."
-msgstr "{{ complete_count }} vezes"
-
 #, python-format
 msgid ""
 "\n"
@@ -9934,6 +9900,45 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "SMS flow"
+#~ msgid "USSD"
+#~ msgstr "Fluxo SMS"
+
+#~ msgid "The type of this flow"
+#~ msgstr "O tipo deste fluxo"
+
+#, fuzzy
+#~ msgid "Message flow"
+#~ msgstr "Mensagem"
+
+#~ msgid "Phone call flow"
+#~ msgstr "Fluxo de ligação telefônica"
+
+#, fuzzy
+#~| msgid "The flow that is being started"
+#~ msgid "This flow has never been started."
+#~ msgstr "O fluxo que está sendo iniciado"
+
+#, fuzzy
+#~| msgid "The flow that is being started"
+#~ msgid "This flow has been started once."
+#~ msgstr "O fluxo que está sendo iniciado"
+
+#, fuzzy
+#~| msgid "The flow that is being started"
+#~ msgid "This flow has been started {{ run_count }} times."
+#~ msgstr "O fluxo que está sendo iniciado"
+
+#~ msgid "It has been completed"
+#~ msgstr "Concluído"
+
+#~ msgid "Once."
+#~ msgstr "Uma vez."
+
+#~ msgid "{{ complete_count }} times."
+#~ msgstr "{{ complete_count }} vezes"
 
 #, fuzzy
 #~ msgid "Smart Group"
@@ -13667,11 +13672,6 @@ msgstr ""
 #~| msgid "missed call"
 #~ msgid "Missed call"
 #~ msgstr "Chamadas perdidas"
-
-#, fuzzy
-#~| msgid "Phone call flow"
-#~ msgid "Phone call"
-#~ msgstr "Fluxo de ligação telefônica"
 
 #, fuzzy
 #~ msgid ""
