@@ -1,3 +1,8 @@
+v6.1.19
+----------
+ * Update to floweditor v1.12.6
+ * Fix deleting classifiers
+
 v6.1.18
 ----------
  * Add support for background flows
