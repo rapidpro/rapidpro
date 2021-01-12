@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-08 15:22+0000\n"
+"POT-Creation-Date: 2021-01-12 14:27+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -7669,6 +7669,30 @@ msgstr ""
 "\n"
 "        "
 
+msgid "Unable to delete classifier still being used by"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "            Instead of using your Android phone to send messages, you can use your\n"
+#| "            <a class='nexmo-account' href='#'>\n"
+#| "              Nexmo Account\n"
+#| "            </a>\n"
+#| "            to send messages to over 200 countries.\n"
+#| "\n"
+#| "          "
+msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
+msgstr ""
+"\n"
+"            En lugar de usar su teléfono Android para enviar mensajes, puede usar su\n"
+"            <a class='nexmo-account' href='#'>\n"
+"              Cuenta Nexmo\n"
+"            </a>\n"
+"            para enviar mensajes a más de 200 países.\n"
+"\n"
+"          "
+
 #, fuzzy
 #| msgid "Channel Event"
 msgid "Classifier"
@@ -7690,28 +7714,6 @@ msgstr ""
 
 msgid "Intents are synced automatically every 5 minutes"
 msgstr ""
-
-#, fuzzy
-msgid "Are you sure you want to remove this classifier from your account?"
-msgstr "¿Está seguro de que desea borrar este número de su cuenta?"
-
-msgid "This classifier cannot be removed because it in use."
-msgstr ""
-
-msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
-msgstr "Una vez que la borre, no la podrá recuperar. Esta operación no se puede deshacer."
-
-#, fuzzy, python-format
-msgid "Used by %(num_flows)s flow:"
-msgid_plural "Used by %(num_flows)s flows:"
-msgstr[0] ""
-"\n"
-"                Llamada saliente (%(duration)s seconds)\n"
-"              "
-msgstr[1] ""
-"\n"
-"                Llamada saliente (%(duration)s seconds)\n"
-"              "
 
 msgid "Ok"
 msgstr ""
@@ -8529,6 +8531,9 @@ msgstr "Borrar etiqueta"
 msgid "Are you sure you want to remove this label?"
 msgstr "¿Está seguro de que desea retirar esta etiqueta?"
 
+msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgstr "Una vez que la borre, no la podrá recuperar. Esta operación no se puede deshacer."
+
 msgid "You cannot remove a label which has child labels. Please remove all children first."
 msgstr ""
 
@@ -9052,6 +9057,18 @@ msgstr "¿Está seguro de que desea retirar las llamadas de voz para este númer
 
 msgid "This label cannot be removed because it in use."
 msgstr ""
+
+#, fuzzy, python-format
+msgid "Used by %(num_flows)s flow:"
+msgid_plural "Used by %(num_flows)s flows:"
+msgstr[0] ""
+"\n"
+"                Llamada saliente (%(duration)s seconds)\n"
+"              "
+msgstr[1] ""
+"\n"
+"                Llamada saliente (%(duration)s seconds)\n"
+"              "
 
 #, fuzzy, python-format
 msgid ""
@@ -10617,27 +10634,6 @@ msgstr ""
 msgid "Unable to delete service still being used by"
 msgstr ""
 
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "            Instead of using your Android phone to send messages, you can use your\n"
-#| "            <a class='nexmo-account' href='#'>\n"
-#| "              Nexmo Account\n"
-#| "            </a>\n"
-#| "            to send messages to over 200 countries.\n"
-#| "\n"
-#| "          "
-msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
-msgstr ""
-"\n"
-"            En lugar de usar su teléfono Android para enviar mensajes, puede usar su\n"
-"            <a class='nexmo-account' href='#'>\n"
-"              Cuenta Nexmo\n"
-"            </a>\n"
-"            para enviar mensajes a más de 200 países.\n"
-"\n"
-"          "
-
 #, python-format
 msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
 msgstr ""
@@ -10767,19 +10763,19 @@ msgid "Found ${count} for ${query}"
 msgstr ""
 
 #, fuzzy
-#~| msgid "SMS flow"
-#~ msgid "USSD"
-#~ msgstr "Flujo de mensajes de texto"
-
-#~ msgid "The type of this flow"
-#~ msgstr "El tipo de este flujo"
-
-#, fuzzy
 #~ msgid "Message flow"
 #~ msgstr "Mensaje"
 
 #~ msgid "Phone call flow"
 #~ msgstr "Flujo de llamadas telefónicas"
+
+#, fuzzy
+#~| msgid "SMS flow"
+#~ msgid "USSD flow"
+#~ msgstr "Flujo de mensajes de texto"
+
+#~ msgid "The type of this flow"
+#~ msgstr "El tipo de este flujo"
 
 #, fuzzy
 #~| msgid "The flow that is being started"
@@ -10804,6 +10800,10 @@ msgstr ""
 
 #~ msgid "{{ complete_count }} times."
 #~ msgstr "{{ complete_count }} veces."
+
+#, fuzzy
+#~ msgid "Are you sure you want to remove this classifier from your account?"
+#~ msgstr "¿Está seguro de que desea borrar este número de su cuenta?"
 
 #, fuzzy
 #~| msgid "Select Group"

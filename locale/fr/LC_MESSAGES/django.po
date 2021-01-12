@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-08 15:22+0000\n"
+"POT-Creation-Date: 2021-01-12 14:27+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -5232,6 +5232,15 @@ msgstr "Les classificateurs vous permettent d'interpréter des mots et des phras
 msgid "Select your provider below to get started."
 msgstr "Sélectionnez votre fournisseur ci-dessous pour commencer."
 
+#, fuzzy
+#| msgid "Unable to delete service still being used by"
+msgid "Unable to delete classifier still being used by"
+msgstr "Impossible de supprimer le service toujours utilisé par"
+
+#, python-format
+msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
+msgstr "Vous êtes sur le point de supprimer <span class='font-normal'> %(name)s. </span> Il n'y a aucun moyen d'annuler cela. Êtes-vous sûr?"
+
 msgid "Classifier"
 msgstr "Classificateur"
 
@@ -5249,21 +5258,6 @@ msgstr "Aucune intention synchronisée pour le moment."
 
 msgid "Intents are synced automatically every 5 minutes"
 msgstr "Les intentions sont synchronisées automatiquement toutes les 5 minutes"
-
-msgid "Are you sure you want to remove this classifier from your account?"
-msgstr "Voulez-vous vraiment supprimer ce classificateur de votre compte?"
-
-msgid "This classifier cannot be removed because it in use."
-msgstr "Ce classificateur ne peut pas être supprimé car il est en cours d'utilisation."
-
-msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
-msgstr "Une fois qu'il est supprimé, il sera perdu à jamais. Il est impossible d'annuler cette opération."
-
-#, python-format
-msgid "Used by %(num_flows)s flow:"
-msgid_plural "Used by %(num_flows)s flows:"
-msgstr[0] "Utilisé par %(num_flows)s flux:"
-msgstr[1] "Utilisé par %(num_flows)s flux:"
 
 msgid "Ok"
 msgstr "Ok"
@@ -5831,6 +5825,9 @@ msgstr "Supprimer le libellé"
 msgid "Are you sure you want to remove this label?"
 msgstr "Etes-vous sûr de vouloir supprimer ce libellé?"
 
+msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgstr "Une fois qu'il est supprimé, il sera perdu à jamais. Il est impossible d'annuler cette opération."
+
 msgid "You cannot remove a label which has child labels. Please remove all children first."
 msgstr "Vous ne pouvez pas supprimer une étiquette qui a des étiquettes enfants. Veuillez d'abord retirer tous les enfants."
 
@@ -6194,6 +6191,12 @@ msgstr "Êtes-vous sûr de vouloir supprimer ce dossier? Cela supprimera égalem
 
 msgid "This label cannot be removed because it in use."
 msgstr "Cette étiquette ne peut pas être enlevée car elle est utilisée."
+
+#, python-format
+msgid "Used by %(num_flows)s flow:"
+msgid_plural "Used by %(num_flows)s flows:"
+msgstr[0] "Utilisé par %(num_flows)s flux:"
+msgstr[1] "Utilisé par %(num_flows)s flux:"
 
 #, python-format
 msgid ""
@@ -7620,10 +7623,6 @@ msgid "Unable to delete service still being used by"
 msgstr "Impossible de supprimer le service toujours utilisé par"
 
 #, python-format
-msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
-msgstr "Vous êtes sur le point de supprimer <span class='font-normal'> %(name)s. </span> Il n'y a aucun moyen d'annuler cela. Êtes-vous sûr?"
-
-#, python-format
 msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
 msgstr "Votre code de vérification est <b>%(code)s</b> pour continuer à ajouter un service de billetterie par e-mail."
 
@@ -7727,14 +7726,6 @@ msgstr "Entrez une requête"
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
-#, fuzzy
-#~| msgid "USSD flow"
-#~ msgid "USSD"
-#~ msgstr "Flux USSD"
-
-#~ msgid "The type of this flow"
-#~ msgstr "Le type de ce flux"
-
 #~ msgid "Message flow"
 #~ msgstr "Flux de messages"
 
@@ -7743,6 +7734,12 @@ msgstr "${count} trouvé pour ${query}"
 
 #~ msgid "Surveyor flow"
 #~ msgstr "Flux d'enquêteur"
+
+#~ msgid "USSD flow"
+#~ msgstr "Flux USSD"
+
+#~ msgid "The type of this flow"
+#~ msgstr "Le type de ce flux"
 
 #~ msgid "This flow has never been started."
 #~ msgstr "Ce flux n'a jamais été démarré."
@@ -7761,6 +7758,12 @@ msgstr "${count} trouvé pour ${query}"
 
 #~ msgid "{{ complete_count }} times."
 #~ msgstr "{{ complete_count }} fois."
+
+#~ msgid "Are you sure you want to remove this classifier from your account?"
+#~ msgstr "Voulez-vous vraiment supprimer ce classificateur de votre compte?"
+
+#~ msgid "This classifier cannot be removed because it in use."
+#~ msgstr "Ce classificateur ne peut pas être supprimé car il est en cours d'utilisation."
 
 #~ msgid "Smart Group"
 #~ msgstr "Groupe intelligent"

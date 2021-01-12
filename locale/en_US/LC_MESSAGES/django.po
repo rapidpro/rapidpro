@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-08 15:22+0000\n"
+"POT-Creation-Date: 2021-01-12 14:27+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5114,6 +5114,13 @@ msgstr ""
 msgid "Select your provider below to get started."
 msgstr ""
 
+msgid "Unable to delete classifier still being used by"
+msgstr ""
+
+#, python-format
+msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
+msgstr ""
+
 msgid "Classifier"
 msgstr ""
 
@@ -5131,21 +5138,6 @@ msgstr ""
 
 msgid "Intents are synced automatically every 5 minutes"
 msgstr ""
-
-msgid "Are you sure you want to remove this classifier from your account?"
-msgstr ""
-
-msgid "This classifier cannot be removed because it in use."
-msgstr ""
-
-msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
-msgstr ""
-
-#, python-format
-msgid "Used by %(num_flows)s flow:"
-msgid_plural "Used by %(num_flows)s flows:"
-msgstr[0] ""
-msgstr[1] ""
 
 msgid "Ok"
 msgstr ""
@@ -5676,6 +5668,9 @@ msgstr ""
 msgid "Are you sure you want to remove this label?"
 msgstr ""
 
+msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgstr ""
+
 msgid "You cannot remove a label which has child labels. Please remove all children first."
 msgstr ""
 
@@ -6018,6 +6013,12 @@ msgstr ""
 
 msgid "This label cannot be removed because it in use."
 msgstr ""
+
+#, python-format
+msgid "Used by %(num_flows)s flow:"
+msgid_plural "Used by %(num_flows)s flows:"
+msgstr[0] ""
+msgstr[1] ""
 
 #, python-format
 msgid ""
@@ -7142,10 +7143,6 @@ msgid "No ticketing services are available."
 msgstr ""
 
 msgid "Unable to delete service still being used by"
-msgstr ""
-
-#, python-format
-msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
 msgstr ""
 
 #, python-format
