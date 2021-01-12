@@ -155,7 +155,6 @@
       flex-direction: row;
       align-items: stretch;
       box-shadow: rgba(0, 0, 0, 0.04) 0px 3px 20px 0px, rgba(0, 0, 0, 0.02) 0px 1px 2px 0px;
-      caret-color: var(--input-caret);
     }
 
     .textinput {
@@ -407,7 +406,7 @@
         var inputPlaceholderField;
         var allDivLanguagesInputPlaceholder = [];
 
-        for (lang in allLanguages) {
+        for (var lang in allLanguages) {
           divLanguages = document.createElement("div");
           divLanguages.classList.add("welcome-message-languages-" + allLanguages[lang]["iso_code"]);
           divLanguages.classList.add("ref-welcome-message-languages");
@@ -423,7 +422,7 @@
           allDivLanguagesInputPlaceholder.push(divLanguagesInputPlaceholder);
         }
 
-        for (divLang in allDivLanguages) {
+        for (var divLang in allDivLanguages) {
           for (lang in allLanguages) {
             var divLangItem = document.createElement("a");
             divLangItem.href = "javascript:;";
@@ -444,14 +443,24 @@
           }
         }
 
+        $.each($("div[class^='control-group field_welcome_message_']"), function (index) {
+          if (index !== 0) {
+            $(this).addClass("hide");
+          }
+        });
+
+        $.each($("div[class^='control-group field_inputtext_placeholder_']"), function (index) {
+          if (index !== 0) {
+            $(this).addClass("hide");
+          }
+        });
+
         $("input").removeAttr("required");
         $("textarea").removeAttr("required");
 
         buildWebChat(welcomeMsgValues, inputTextPlaceholderValues, "{{ form.google_font.value }}", "{{ form.logo_style.value }}", "{{ form.side_of_screen.value }}", "{{ form.welcome_msg_quick_replies.value|join:',' }}");
-
       });
       {% endif %}
-
     })(jQuery);
 
     function updateFormActionAndSubmit() {
