@@ -9,8 +9,8 @@
     ]
   },
   "dependencies": {
-    "@greatnonprofits-nfp/flow-editor": "1.8.56",
-    "@nyaruka/temba-components": "0.8.8",
+    "@greatnonprofits-nfp/flow-editor": "1.12.2",
+    "@nyaruka/temba-components": "https://github.com/greatnonprofits-nfp/temba-components.git#current-ccl-version",
     "@tailwindcss/ui": "0.2.2",
     "fa-icons": "0.2.0",
     "less": "2.7.1",
