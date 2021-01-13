@@ -18,7 +18,7 @@ RUN pip3 install -r pip-freeze.txt
 COPY . /rapidpro
 COPY docker/docker.settings /rapidpro/temba/settings.py
 
-RUN npm install && bower install --allow-root
+RUN npm install
 
 RUN python3.6 manage.py collectstatic --noinput
 
