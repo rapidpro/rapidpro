@@ -1,3 +1,7 @@
+v6.1.20
+----------
+ * Update to latest floweditor and temba-components
+
 v6.1.19
 ----------
  * Update to floweditor v1.12.6
