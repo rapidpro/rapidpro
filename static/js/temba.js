@@ -139,12 +139,7 @@ document.addEventListener('temba-refresh-begin', function () {
 
     var focused = activeElement == 'TEMBA-TEXTINPUT';
 
-    for (var modal in modals) {
-        if (modal.open) {
-            openedModals = true;
-            break;
-        }
-    }
+    openedModals = Array.from(modals).some(function (modal) { return modal.open; });
 
     var pjaxElement = document.querySelector('#pjax');
 
