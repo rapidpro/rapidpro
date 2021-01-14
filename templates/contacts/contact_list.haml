@@ -22,7 +22,7 @@
 
         .left
           -if org_perms.contacts.contactimport_create
-            .button-primary.block(onclick="goto(event)" href="{% url 'contacts.contactimport_create' %}")
+            .button-primary.mb-2.block(onclick="goto(event)" href="{% url 'contacts.contactimport_create' %}")
               -trans "Import Contacts"
             - if org_perms.contacts.contact_invite_participants
               %a#id_invite_participants.button-light.block{href:"{% url 'contacts.contact_invite_participants' %}"}
@@ -171,6 +171,7 @@
                       %th
                     %th
                     %th
+                    %th
                     -for field in contact_fields
                       -if field.show_in_table
                         %th
@@ -239,16 +240,17 @@
                       %td
                         .whitespace-no-wrap
                           {{ object|name:user_org }}
-                          .value-labels
-                            %nobr.group_labels
-                              - for group in object.user_groups.all|dictsort:"name"
-                                %a{
-                                  'href': "{% url 'contacts.contact_filter' group.uuid %}",
-                                  'class': "{% if not forloop.first %}hidden_group{% endif %}",
-                                  'style': "text-decoration: none;"
-                                }
-                                  %span.lbl.linked.mb-2.ml-2
-                                    {{ group.name }}
+                      %td
+                        .value-labels
+                          %nobr.group_labels
+                            - for group in object.user_groups.all|dictsort:"name"
+                              %a{
+                                'href': "{% url 'contacts.contact_filter' group.uuid %}",
+                                'class': "{% if not forloop.first %}hidden_group{% endif %}",
+                                'style': "text-decoration: none;"
+                              }
+                                %span.lbl.linked.mb-2.ml-2
+                                  {{ group.name }}
 
                       %td.w-full
                         .whitespace-no-wrap
@@ -303,52 +305,57 @@
 -block extra-style
   {{block.super}}
   :css
-    @media only screen and (max-width: 1500px) {
+    @media only screen and (max-width: 1600px) {
       th:nth-child(n+10), td:nth-child(n+10) {
         display:none;
       }
     }
 
-    @media only screen and (max-width: 1600px) {
+    @media only screen and (max-width: 1500px) {
       th:nth-child(n+9), td:nth-child(n+9) {
         display:none;
       }
     }
 
     @media only screen and (max-width: 1450px) {
-      th:nth-child(n+9), td:nth-child(n+9) {
-        display:none;
-      }
-    }
-
-    @media only screen and (max-width: 1300px) {
       th:nth-child(n+8), td:nth-child(n+8) {
         display:none;
       }
     }
 
-    @media only screen and (max-width: 1150px) {
+    @media only screen and (max-width: 1300px) {
       th:nth-child(n+7), td:nth-child(n+7) {
         display:none;
       }
     }
 
-    @media only screen and (max-width: 1000px) {
+    @media only screen and (max-width: 1150px) {
       th:nth-child(n+6), td:nth-child(n+6) {
         display:none;
       }
     }
 
-    @media only screen and (max-width: 850px) {
+    @media only screen and (max-width: 1000px) {
       th:nth-child(n+5), td:nth-child(n+5) {
         display:none;
       }
     }
 
-    @media only screen and (max-width: 700px) {
-      th:nth-child(n+0), td:nth-child(n+4) {
+    @media only screen and (max-width: 850px) {
+      th:nth-child(n+4), td:nth-child(n+4) {
         display:none;
       }
+    }
+
+    @media only screen and (max-width: 700px) {
+      th:nth-child(n+3), td:nth-child(n+3) {
+        display:none;
+      }
+    }
+
+    .right {
+      overflow-x: hidden;
+      padding: 2px;
     }
 
     tr.contacts th a span.icon {
