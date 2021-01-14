@@ -2,13 +2,11 @@
 -load i18n smartmin
 
 -block title
-
   %h2
     {{ title }}
 
 
--if object.channel_type == "WCH"
-  {% block content %}
+{% block content %}
   #ccl-web-surveyor
   {% block pjax %}
   <div class="row" id="pjax">
@@ -22,8 +20,17 @@
       </div>
       {% endif %}
 
+      {% block post-form-errors %}
+      {% endblock post-form-errors %}
+
+      {% block pre-fields %}
+      {% endblock %}
+
+      {% block form-help %}{% endblock form-help %}
+
       {% block fields %}
       <fieldset>
+      {% if object.channel_type == "WCH" %}
 
       <div class='custom-collapsed-menu setup'>
         <a href='javascript:;' class='collapsed-title' id='link-menu-setup'>
@@ -106,24 +113,54 @@
 
       {% render_field "action_type" %}
 
+      {% else %}
+
+        {% for field in fields %}
+        {% render_field field %}
+        {% endfor %}
+
+        {% block extra-fields %}
+        {% endblock %}
+
+      {% endif %}
+
       </fieldset>
       {% endblock fields %}
+
+      {% block post-fields %}
+      {% endblock post-fields %}
 
       {% csrf_token %}
 
       {% block form-buttons %}
+
+      {% if object.channel_type == "WCH" %}
+
       %a.button-primary{onclick:"updateFormActionAndSubmit();"}
         -trans "Save and Update Widget"
       %input.button-primary{type:"submit", value:"{{ submit_button_name }}", style:"margin-top: -4px;"}
       %a.button-light{onclick:"javascript:history.go(-1)"}
         -trans "Cancel"
+
+      {% else %}
+
+      <div class="form-actions mt-4">
+        <input type="submit" class="button-primary" value="{{ submit_button_name }}" />
+        <button class="button-light" onclick="javascript:history.go(-1)">{% trans "Cancel" %}</button>
+        {% if delete_url %}
+          <a class="button-danger" href="{{ delete_url }}">{% trans "Remove" %}</a>
+        {% endif %}
+      </div>
+
+      {% endif %}
       {% endblock %}
     </form>
 
     </div>
   </div>
   {% endblock pjax %}
-  {% endblock content %}
+{% endblock content %}
+
 
 -block extra-style
   :css
@@ -240,6 +277,7 @@
       font-size: 14px;
       margin-bottom: 10px;
     }
+
 
 -block extra-script
   <script src="{{ STATIC_URL }}js/jscolor.js"></script>
@@ -381,7 +419,7 @@
           buildWebChat();
 
           var selected = evt.target.values[0];
-          buildGoogleFontLink(selected.value);
+          buildGoogleFontLink(selected !== undefined ? selected.value : null);
         });
 
         $("#id_logo_style").change(function() {
