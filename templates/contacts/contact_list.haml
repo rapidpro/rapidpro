@@ -238,7 +238,7 @@
                           %temba-checkbox(onclick="handleRowSelection(this)")
 
                       %td
-                        .whitespace-no-wrap
+                        .whitespace-no-wrap.overflow-ellipsis-200
                           {{ object|name:user_org }}
                       %td
                         .value-labels
@@ -413,6 +413,12 @@
 
     .group_labels:hover > .hidden_group {
       display: block;
+    }
+
+    .overflow-ellipsis-200 {
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
 
