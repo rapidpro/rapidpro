@@ -10,12 +10,12 @@
 
 -block title
   .medium-help.icon-easy{style:"float:left"}
-  %h2.header-margin
+  %h2.header-margin.word-wrap
     {{ link.name }}
 
   %h5.header-margin{style: "margin-bottom: 10px"}
     .link-destination
-      %span.link-destination
+      %span.link-destination.word-wrap
         {{ link.destination }}
 
     %div.header-margin{style: "margin-left: 0"}
@@ -213,6 +213,16 @@
           .glyph {
             margin-right: 3px;
           }
+        }
+
+        .link-destination {
+          font-size: 14px;
+        }
+
+        .word-wrap {
+          overflow-wrap: break-word;
+          word-wrap: break-word;
+          hyphens: auto;
         }
 
     {% endlessblock %}
