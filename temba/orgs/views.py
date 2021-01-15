@@ -2895,6 +2895,10 @@ class OrgCRUDL(SmartCRUDL):
 
                         if response_purge.status_code in [200, 404]:
                             requests.put(parse_url, data=json.dumps(remove_fields), headers=parse_headers)
+                        else:
+                            raise ValidationError(
+                                _("An attempt to clear previous data was failed. The import process was interrupted.")
+                            )
 
                     for item in config.get(LOOKUPS, []):
                         full_name = OrgCRUDL.Giftcards.get_collection_full_name(
@@ -2906,7 +2910,12 @@ class OrgCRUDL(SmartCRUDL):
 
                 else:
                     purge_url = f"{settings.PARSE_URL}/purge/{collection}"
-                    requests.delete(purge_url, headers=parse_headers)
+                    response_purge = requests.delete(purge_url, headers=parse_headers)
+
+                    if response_purge.status_code != 200:
+                        raise ValidationError(
+                            _("An attempt to clear previous data was failed. The import process was interrupted.")
+                        )
 
                     for item in config.get(GIFTCARDS, []):
                         full_name = OrgCRUDL.Giftcards.get_collection_full_name(
@@ -2954,7 +2963,9 @@ class OrgCRUDL(SmartCRUDL):
                         org.timezone.zone,
                         org.get_dayfirst(),
                     )
-
+            except ValidationError as e:
+                form._errors["import_file"] = form.error_class(e.messages)
+                return self.form_invalid(form)
             except Exception as e:
                 # this is an unexpected error, report it to sentry
                 logger = logging.getLogger(__name__)
