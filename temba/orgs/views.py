@@ -2588,7 +2588,7 @@ class OrgCRUDL(SmartCRUDL):
                     if response_purge.status_code in [200, 404]:
                         response = requests.delete(url, headers=headers)
 
-                        if response.status_code == 200:
+                        if response.status_code in [200, 400]:
                             self.object.remove_collection_from_org(
                                 user=self.request.user, index=index, collection_type=self.collection_type
                             )
