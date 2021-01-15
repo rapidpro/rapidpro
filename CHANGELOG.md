@@ -1,3 +1,7 @@
+v6.1.21
+----------
+ * Configure editor and components to use completions files in current language
+
 v6.1.20
 ----------
  * Update to latest floweditor and temba-components
