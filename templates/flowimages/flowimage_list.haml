@@ -43,14 +43,14 @@
                   .count(onclick="goto(event)" href='{% url "flows.flowimage_filter" "flow" flow.uuid %}')
                     {{ flow.get_images_count | intcomma }}
 
-          .lp-nav.upper
+          .lp-nav.lower
             .font-normal.uppercase.text-xs.text-gray-500.pb-1
               - trans "Images by Groups"
             .inner-scroll
               - for group in groups
                 .lp-nav-item(class="{% if current_object.uuid == group.uuid %}font-normal{% endif %}")
-                  .name(onclick="goto(event)" href='{% url "flows.flowimage_filter" "group" group.uuid %}}')
-                    {{ group.nam }}
+                  .name(onclick="goto(event)" href='{% url "flows.flowimage_filter" "group" group.uuid %}')
+                    {{ group.name }}
         .right
           - if org_has_flowimages or org_has_flowimages_archived
             - block contacts-list
