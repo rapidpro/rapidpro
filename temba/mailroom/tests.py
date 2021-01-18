@@ -6,7 +6,7 @@ from django.conf import settings
 from django.test import override_settings
 from django.utils import timezone
 
-from temba.channels.models import ChannelEvent
+from temba.channels.models import ChannelEvent, ChannelLog
 from temba.flows.models import FlowRun, FlowStart
 from temba.mailroom.client import ContactSpec, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
@@ -15,6 +15,7 @@ from temba.tests.engine import MockSessionWriter
 from temba.utils import json
 
 from . import modifiers, queue_interrupt
+from .events import Event
 
 
 class MailroomClientTest(TembaTest):
@@ -646,3 +647,91 @@ class MailroomQueueTest(TembaTest):
         actual_task = json.loads(r.zrange(f"batch:{org.id}", 0, 1)[0])
 
         self.assertEqual(actual_task, expected_task)
+
+
+class EventTest(TembaTest):
+    def test_from_msg(self):
+        contact1 = self.create_contact("Jim", phone="0979111111")
+        contact2 = self.create_contact("Bob", phone="0979222222")
+
+        msg_in = self.create_incoming_msg(contact1, "Hello")
+
+        self.assertEqual(
+            {
+                "type": "msg_received",
+                "created_on": matchers.Datetime(),
+                "msg": {
+                    "uuid": str(msg_in.uuid),
+                    "id": msg_in.id,
+                    "urn": "tel:+250979111111",
+                    "text": "Hello",
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                },
+                "msg_type": "I",
+                "channel_log_id": None,
+            },
+            Event.from_msg(msg_in),
+        )
+
+        msg_out = self.create_outgoing_msg(contact1, "Hello", channel=self.channel, status="E")
+        log = ChannelLog.objects.create(channel=self.channel, is_error=True, description="Boom", msg=msg_out)
+
+        self.assertEqual(
+            {
+                "type": "msg_created",
+                "created_on": matchers.Datetime(),
+                "msg": {
+                    "uuid": str(msg_out.uuid),
+                    "id": msg_out.id,
+                    "urn": "tel:+250979111111",
+                    "text": "Hello",
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                },
+                "status": "E",
+                "channel_log_id": log.id,
+            },
+            Event.from_msg(msg_out),
+        )
+
+        ivr_out = self.create_outgoing_msg(contact1, "Hello", msg_type="V")
+
+        self.assertEqual(
+            {
+                "type": "ivr_created",
+                "created_on": matchers.Datetime(),
+                "msg": {
+                    "uuid": str(ivr_out.uuid),
+                    "id": ivr_out.id,
+                    "urn": "tel:+250979111111",
+                    "text": "Hello",
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                },
+                "status": "S",
+                "channel_log_id": None,
+            },
+            Event.from_msg(ivr_out),
+        )
+
+        bcast = self.create_broadcast(self.admin, "Hi there", contacts=[contact1, contact2])
+        msg_out2 = bcast.msgs.filter(contact=contact1).get()
+
+        self.maxDiff = None
+
+        self.assertEqual(
+            {
+                "type": "broadcast_created",
+                "created_on": matchers.Datetime(),
+                "translations": {"base": "Hi there"},
+                "base_language": "base",
+                "msg": {
+                    "uuid": str(msg_out2.uuid),
+                    "id": msg_out2.id,
+                    "urn": "tel:+250979111111",
+                    "text": "Hi there",
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                },
+                "recipient_count": 2,
+                "channel_log_id": None,
+            },
+            Event.from_msg(msg_out2),
+        )

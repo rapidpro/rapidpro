@@ -772,7 +772,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         Gets this contact's history of messages, calls, runs etc in the given time window
         """
         from temba.ivr.models import IVRCall
-        from temba.msgs.models import Msg, INCOMING, OUTGOING
+        from temba.msgs.models import Msg
 
         limit = Contact.MAX_HISTORY
 
@@ -780,11 +780,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
             .exclude(visibility=Msg.VISIBILITY_DELETED)
             .order_by("-created_on")
-            .select_related("channel")
+            .select_related("channel", "contact_urn", "broadcast")
             .prefetch_related("channel_logs")[:limit]
         )
-        msgs_in = filter(lambda m: m.direction == INCOMING, msgs)
-        msgs_out = filter(lambda m: m.direction == OUTGOING, msgs)
 
         # and all of this contact's runs, channel events such as missed calls, scheduled events
         started_runs = (
@@ -834,8 +832,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         # wrap items, chain and sort by time
         events = chain(
-            [{"type": "msg_created", "created_on": m.created_on, "obj": m} for m in msgs_out],
-            [{"type": "msg_received", "created_on": m.created_on, "obj": m} for m in msgs_in],
+            [Event.from_msg(m) for m in msgs],
             [{"type": "flow_entered", "created_on": r.created_on, "obj": r} for r in started_runs],
             [{"type": "flow_exited", "created_on": r.exited_on, "obj": r} for r in exited_runs],
             [{"type": "channel_event", "created_on": e.created_on, "obj": e} for e in channel_events],

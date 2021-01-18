@@ -130,21 +130,27 @@
         -for label in event.labels
           <a href="{% url 'msgs.msg_filter' label.uuid %}">{{ label.name }}</a>{{ forloop|oxford }}
 
-      -elif event.type == 'msg_created' or event.type == 'msg_received'
-        -with event.obj as msg
-          .activity-message
-            -if msg.direction == 'O' and msg.broadcast.get_message_count > 1
-              .sent-to
-                .summary
-                  Broadcast to {{msg.broadcast.get_message_count|intcomma}} recipients
+      -elif event.type == 'broadcast_created'
+        .activity-message
+          .sent-to
+            .summary
+              Broadcast to {{event.recipient_count|intcomma}} recipients
 
-            .activity-body
-              -if msg.text
-                .text(style="{% if msg.attachments %}margin-bottom:10px{% endif %}")
-                  {{ msg.text }}
+          .activity-body
+            -if event.msg.text
+              .text(style="{% if msg.attachments %}margin-bottom:10px{% endif %}")
+                {{ event.msg.text }}
+            -for attachment in event.msg.attachments
+              {% attachment_button attachment %}
 
-              -for attachment in msg.attachments
-                {% attachment_button attachment %}
+      -elif event.type == 'msg_created' or event.type == 'msg_received' or event.type == "ivr_created"
+        .activity-message
+          .activity-body
+            -if event.msg.text
+              .text(style="{% if msg.attachments %}margin-bottom:10px{% endif %}")
+                {{ event.msg.text }}
+            -for attachment in event.msg.attachments
+              {% attachment_button attachment %}
 
       -elif event.type == 'run_result_changed'
         -blocktrans trimmed with name=event.name category=event.category value=event.value
@@ -174,7 +180,11 @@
 
     %td.text-center{style:"padding-left:0px"}
       .log-icon.ml-2.text-dark-alpha-200
-        -if event.type == 'msg_created' or event.type == 'msg_received' or event.type == 'call_started'
+        -if event.channel_log_id
+          .hover-linked{onclick:"goto(event)", href:"{% url 'channels.channellog_read' event.channel_log_id %}"}
+            .icon-docs-2.pointer-events-none
+
+        -elif event.type == 'call_started'
           {% channel_log_link event.obj %}
 
         -elif event.type == 'airtime_transferred'

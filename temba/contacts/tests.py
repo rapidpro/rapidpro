@@ -2025,7 +2025,7 @@ class ContactTest(TembaTest):
                 if obj_class:
                     self.assertIsInstance(item["obj"], obj_class)
                 if msg_text:
-                    self.assertEqual(msg_text, item["obj"].text)
+                    self.assertEqual(msg_text, item["msg"]["text"])
 
             assertHistoryEvent(history[0], "call_started", IVRCall)
             assertHistoryEvent(history[1], "channel_event", ChannelEvent)
@@ -2034,11 +2034,11 @@ class ContactTest(TembaTest):
             assertHistoryEvent(history[4], "airtime_transferred", AirtimeTransfer)
             assertHistoryEvent(history[5], "webhook_called", WebHookResult)
             assertHistoryEvent(history[6], "run_result_changed")
-            assertHistoryEvent(history[7], "msg_created", Msg)
+            assertHistoryEvent(history[7], "msg_created")
             assertHistoryEvent(history[8], "flow_entered", FlowRun)
-            assertHistoryEvent(history[9], "msg_received", Msg)
+            assertHistoryEvent(history[9], "msg_received")
             assertHistoryEvent(history[10], "campaign_fired", EventFire)
-            assertHistoryEvent(history[-1], "msg_received", Msg, msg_text="Inbound message 11")
+            assertHistoryEvent(history[-1], "msg_received", msg_text="Inbound message 11")
 
             self.assertContains(response, "<audio ")
             self.assertContains(response, '<source type="audio/mp3" src="http://blah/file.mp3" />')
@@ -2062,15 +2062,15 @@ class ContactTest(TembaTest):
             # activity should include 11 remaining messages and the event fire
             history = response.context["history"]
             self.assertEqual(12, len(history))
-            assertHistoryEvent(history[0], "msg_received", Msg, msg_text="Inbound message 10")
-            assertHistoryEvent(history[10], "msg_received", Msg, msg_text="Inbound message 0")
-            assertHistoryEvent(history[11], "msg_received", Msg, msg_text="Very old inbound message")
+            assertHistoryEvent(history[0], "msg_received", msg_text="Inbound message 10")
+            assertHistoryEvent(history[10], "msg_received", msg_text="Inbound message 0")
+            assertHistoryEvent(history[11], "msg_received", msg_text="Very old inbound message")
 
             response = self.fetch_protected(url, self.admin)
             history = response.context["history"]
 
             self.assertEqual(95, len(history))
-            assertHistoryEvent(history[7], "msg_created", Msg, msg_text="What is your favorite color?")
+            assertHistoryEvent(history[7], "msg_created", msg_text="What is your favorite color?")
 
             # if a new message comes in
             self.create_incoming_msg(self.joe, "Newer message")
@@ -2078,7 +2078,7 @@ class ContactTest(TembaTest):
 
             # now we'll see the message that just came in first, followed by the call event
             history = response.context["history"]
-            assertHistoryEvent(history[0], "msg_received", Msg, msg_text="Newer message")
+            assertHistoryEvent(history[0], "msg_received", msg_text="Newer message")
             assertHistoryEvent(history[1], "call_started", IVRCall)
 
             recent_start = datetime_to_ms(timezone.now() - timedelta(days=1))
@@ -2124,10 +2124,10 @@ class ContactTest(TembaTest):
                 response.context["before"], datetime_to_ms(response.context["history"][-1]["created_on"])
             )
 
-            assertHistoryEvent(history[0], "msg_created", Msg, msg_text="What is your favorite color?")
+            assertHistoryEvent(history[0], "msg_created", msg_text="What is your favorite color?")
             assertHistoryEvent(history[1], "flow_entered", FlowRun)
             assertHistoryEvent(history[2], "flow_exited", FlowRun)
-            assertHistoryEvent(history[3], "msg_received", Msg, msg_text="Newer message")
+            assertHistoryEvent(history[3], "msg_received", msg_text="Newer message")
             assertHistoryEvent(history[4], "call_started", IVRCall)
             assertHistoryEvent(history[5], "channel_event", ChannelEvent)
             assertHistoryEvent(history[6], "channel_event", ChannelEvent)
@@ -2135,7 +2135,7 @@ class ContactTest(TembaTest):
             assertHistoryEvent(history[8], "airtime_transferred", AirtimeTransfer)
             assertHistoryEvent(history[9], "webhook_called", WebHookResult)
             assertHistoryEvent(history[10], "run_result_changed")
-            assertHistoryEvent(history[11], "msg_created", Msg, msg_text="What is your favorite color?")
+            assertHistoryEvent(history[11], "msg_created", msg_text="What is your favorite color?")
             assertHistoryEvent(history[12], "flow_entered", FlowRun)
 
         # with a max history of one, we should see this event first
