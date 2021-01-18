@@ -115,8 +115,8 @@
               %table.list.object-list.lined.selectable{style: '{% if not org_perms.flows.flowimage_list %}margin-top:10px{% endif %}'}
                 -if object_list
                   %tr.flowimages
-                    %th.checkbox.object-row-checkbox
-                      .glyph.icon-checkbox-unchecked.flowimage-checkbox.object-row-checkbox{'title':'Select/Deselect all items'}
+                    %th.checkbox.object-row-checkbox.select-all-items-checkbox
+                      .glyph.icon-checkbox-unchecked.flowimage-checkbox
                     %th.select-all-items-text{'style': 'text-align: left'}
                       -trans "Select all items"
                     -if not current_object.flow_type
@@ -194,6 +194,11 @@
       width: 50px;
     }
 
+    .select-all-items-checkbox {
+      width: 40px;
+      padding-left: 14px !important;
+    }
+
 -block extra-script
   {{ block.super }}
 
@@ -242,4 +247,44 @@
         }
         $('form#download-images').submit();
       });
+    });
+
+    $(document).on('click', 'th.object-row-checkbox', function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+
+      var btnCheck = String(e.target.tagName).toLowerCase() === 'th' ? e.target : e.target.parentElement;
+      if (btnCheck.classList.contains("checked")) {
+        btnCheck.classList.remove("checked");
+        btnCheck.querySelector('.flowimage-checkbox').classList.remove("checked");
+        document.querySelectorAll("td.object-row-checkbox").forEach(el => {
+          let row = el.parentElement;
+          row.classList.remove("checked");
+          row.querySelector("temba-checkbox").checked = false;
+        });
+        document.querySelector('th.select-all-items-text').innerHTML = 'Select all items';
+      } else {
+        btnCheck.classList.add("checked");
+        btnCheck.querySelector('.flowimage-checkbox').classList.add("checked");
+        document.querySelectorAll("td.object-row-checkbox").forEach(el => {
+          let row = el.parentElement;
+          row.classList.add("checked");
+          row.querySelector("temba-checkbox").checked = true;
+        });
+        document.querySelector('th.select-all-items-text').innerHTML = 'Deselect all items';
+      }
+
+      let listButtons = document.querySelector('.list-buttons-container').classList;
+      let pageTitle = document.querySelector('.page-title').classList;
+
+      if (document.querySelector('tr.checked')) {
+        listButtons.add('visible');
+        pageTitle.add('hidden');
+      } else {
+        listButtons.remove('visible');
+        pageTitle.remove('hidden');
+      }
+
+      updateLabelMenu();
+      return false;
     });
