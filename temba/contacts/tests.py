@@ -2259,8 +2259,6 @@ class ContactTest(TembaTest):
         self.create_campaign()
 
         contact = self.create_contact("Joe Blow", phone="+1234")
-        msg = self.create_incoming_msg(contact, "Inbound message")
-
         flow = self.get_flow("color_v13")
         nodes = flow.get_definition()["nodes"]
         color_prompt = nodes[0]
@@ -2293,50 +2291,35 @@ class ContactTest(TembaTest):
         self.assertEqual(history_class(item), "non-msg warning")
 
         # inbound
-        item = {"type": "msg_received", "obj": msg}
+        item = {"type": "msg_received", "msg": {"text": "Hi"}, "msg_type": "I"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-user"></span>')
 
         # outgoing sent
-        item = {"type": "msg_created", "obj": msg}
-        msg.direction = "O"
-        msg.status = "S"
+        item = {"type": "msg_created", "msg": {"text": "Hi"}, "status": "S"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-right"></span>')
 
         # outgoing delivered
-        msg.status = "D"
+        item = {"type": "msg_created", "msg": {"text": "Hi"}, "status": "D"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-check"></span>')
 
         # failed
-        msg.status = "F"
+        item = {"type": "msg_created", "msg": {"text": "Hi"}, "status": "F"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-notification"></span>')
         self.assertEqual(history_class(item), "msg warning")
 
         # outgoing voice
-        msg.msg_type = "V"
+        item = {"type": "ivr_created", "msg": {"text": "Hi"}, "status": "F"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-call-outgoing"></span>')
         self.assertEqual(history_class(item), "msg warning")
 
         # incoming voice
-        item = {"type": "msg_received", "obj": msg}
-        msg.direction = "I"
+        item = {"type": "msg_received", "msg": {"text": "Hi"}, "msg_type": "V"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-call-incoming"></span>')
-        self.assertEqual(history_class(item), "msg warning")
+        self.assertEqual(history_class(item), "msg")
 
         # simulate a broadcast to 2 people
-        joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
-        item = {"type": "msg_created", "obj": msg}
-        msg.broadcast = Broadcast.create(self.org, self.admin, "Test message", groups=[joe_and_frank])
-        msg.status = "F"
-        msg.msg_type = "F"
-        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-notification"></span>')
-
-        msg.status = "S"
-        with patch("temba.msgs.models.Broadcast.get_message_count") as mock_get_message_count:
-            mock_get_message_count.return_value = 2
-            self.assertEqual(history_icon(item), '<span class="glyph icon-bullhorn"></span>')
-
-            mock_get_message_count.return_value = 0
-            self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-right"></span>')
+        item = {"type": "broadcast_created", "recipient_count": 2}
+        self.assertEqual(history_icon(item), '<span class="glyph icon-bullhorn"></span>')
 
         item = {"type": "flow_entered", "obj": run}
         self.assertEqual(history_icon(item), '<span class="glyph icon-flow"></span>')

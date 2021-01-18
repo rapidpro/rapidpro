@@ -168,7 +168,7 @@ def history_class(item):
     if item["type"] in (Event.TYPE_MSG_CREATED, Event.TYPE_MSG_RECEIVED, Event.TYPE_IVR_CREATED):
         classes.append("msg")
 
-        if item["type"] == Event.TYPE_MSG_CREATED and item["status"] in (ERRORED, FAILED):
+        if item.get("status") in (ERRORED, FAILED):
             classes.append("warning")
     else:
         classes.append("non-msg")
