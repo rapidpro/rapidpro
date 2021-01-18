@@ -29,6 +29,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
+from temba.mailroom.events import Event
 from temba.orgs.models import Org, OrgLock
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
@@ -637,18 +638,17 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     # events from sessions to include in contact history
     HISTORY_INCLUDE_EVENTS = {
-        "contact_language_changed",
-        "contact_field_changed",
-        "contact_groups_changed",
-        "contact_name_changed",
-        "contact_urns_changed",
-        "email_created",  # no longer generated but exists in old sessions
-        "email_sent",
-        "error",
-        "failure",
-        "input_labels_added",
-        "run_result_changed",
-        "ticket_opened",
+        Event.TYPE_CONTACT_LANGUAGE_CHANGED,
+        Event.TYPE_CONTACT_FIELD_CHANGED,
+        Event.TYPE_CONTACT_GROUPS_CHANGED,
+        Event.TYPE_CONTACT_NAME_CHANGED,
+        Event.TYPE_CONTACT_URNS_CHANGED,
+        Event.TYPE_EMAIL_SENT,
+        Event.TYPE_ERROR,
+        Event.TYPE_FAILURE,
+        Event.TYPE_INPUT_LABELS_ADDED,
+        Event.TYPE_RUN_RESULT_CHANGED,
+        Event.TYPE_TICKET_OPENED,
     }
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contacts")
