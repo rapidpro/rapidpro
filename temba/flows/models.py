@@ -2261,6 +2261,8 @@ class FlowStart(models.Model):
                 fields=["org", "-modified_on"],
                 condition=Q(created_by__isnull=False),
             ),
+            # used by the flow_starts type filters page
+            models.Index(name="flows_flowstart_org_start_type", fields=["org", "start_type", "-created_on"]),
         ]
 
 
