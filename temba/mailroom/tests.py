@@ -654,7 +654,7 @@ class EventTest(TembaTest):
         contact1 = self.create_contact("Jim", phone="0979111111")
         contact2 = self.create_contact("Bob", phone="0979222222")
 
-        msg_in = self.create_incoming_msg(contact1, "Hello")
+        msg_in = self.create_incoming_msg(contact1, "Hello", external_id="12345")
 
         self.assertEqual(
             {
@@ -666,6 +666,7 @@ class EventTest(TembaTest):
                     "urn": "tel:+250979111111",
                     "text": "Hello",
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    "external_id": "12345",
                 },
                 "msg_type": "I",
                 "channel_log_id": None,
@@ -673,8 +674,11 @@ class EventTest(TembaTest):
             Event.from_msg(msg_in),
         )
 
-        msg_out = self.create_outgoing_msg(contact1, "Hello", channel=self.channel, status="E")
+        msg_out = self.create_outgoing_msg(
+            contact1, "Hello", channel=self.channel, status="E", quick_replies=("yes", "no")
+        )
         log = ChannelLog.objects.create(channel=self.channel, is_error=True, description="Boom", msg=msg_out)
+        msg_out.refresh_from_db()
 
         self.assertEqual(
             {
@@ -686,6 +690,7 @@ class EventTest(TembaTest):
                     "urn": "tel:+250979111111",
                     "text": "Hello",
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    "quick_replies": ["yes", "no"],
                 },
                 "status": "E",
                 "channel_log_id": log.id,
@@ -714,8 +719,6 @@ class EventTest(TembaTest):
 
         bcast = self.create_broadcast(self.admin, "Hi there", contacts=[contact1, contact2])
         msg_out2 = bcast.msgs.filter(contact=contact1).get()
-
-        self.maxDiff = None
 
         self.assertEqual(
             {
