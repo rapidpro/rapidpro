@@ -36,12 +36,14 @@ class TriggerTest(TembaTest):
 
         flow = self.create_flow()
         voice_flow = self.get_flow("ivr")
+        background_flow = self.get_flow("background")
 
         # flow options should show sms and voice flows
         response = self.client.get(reverse("triggers.trigger_keyword"))
 
         self.assertContains(response, flow.name)
         self.assertContains(response, voice_flow.name)
+        self.assertNotContains(response, background_flow.name)
 
         # try a keyword with spaces
         response = self.client.post(
