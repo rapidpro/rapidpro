@@ -234,7 +234,7 @@ class FlowImageCRUDL(SmartCRUDL):
 
     class BaseList(BulkActionMixin, OrgQuerysetMixin, OrgPermsMixin, SmartListView):
         title = _("Flow Images")
-        refresh = 10000
+        refresh = 86_400_000  # set to 1 day to be able to refresh a page only when a change has been made
         fields = ("name", "modified_on")
         default_template = "flowimages/flowimage_list.html"
         default_order = ("-created_on",)

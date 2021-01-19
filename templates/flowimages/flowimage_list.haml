@@ -176,7 +176,8 @@
 
 
               .flex.flex-col.mb-16
-                -include "includes/pagination.haml"
+                .paginator
+                  -include "includes/pagination.haml"
 
                 -if paginator.is_es_search and not page_obj.has_next_page and page_obj.number == paginator.num_pages and paginator.count > 10000
                   .text-gray-400.text-sm.self-end.mt-2
@@ -221,8 +222,8 @@
       var ias = $.ias({
         container: ".infinite-scroll",
         item: "tr",
-        pagination: ".paginator .span9 .pagination",
-        next: "li.next a"
+        pagination: ".paginator",
+        next: "div.next a"
       });
       ias.extension(new IASSpinnerExtension());
       ias.extension(new IASPagingExtension());
