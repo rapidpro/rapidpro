@@ -1,3 +1,9 @@
+v6.1.22
+----------
+ * Fix API serialization of background flow type
+ * Allow background flows to be used in scheduled triggers
+ * Update pip-tools
+
 v6.1.21
 ----------
  * Configure editor and components to use completions files in current language
