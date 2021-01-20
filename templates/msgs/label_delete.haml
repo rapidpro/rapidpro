@@ -10,7 +10,7 @@
       .message
         {{error}}
 
-  -if object.has_active_children_labels
+  -if object.has_child_labels
     -blocktrans trimmed with name=object.name
       <b>{{name}}</b> cannot be deleted since it is a parent to other labels.
 

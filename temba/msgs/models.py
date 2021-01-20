@@ -1233,7 +1233,7 @@ class Label(TembaModel):
 
         return changed
 
-    def has_active_children_labels(self):
+    def has_child_labels(self):
         return self.children.filter(is_active=True).exists()
 
     def is_folder(self):
@@ -1247,7 +1247,7 @@ class Label(TembaModel):
 
         # release our children if we are a folder
         if self.is_folder():
-            if self.has_active_children_labels():
+            if self.has_child_labels():
                 raise ValueError(f"Cannot delete Folder: {self.name}, since it is a parent to other labels")
 
         else:
