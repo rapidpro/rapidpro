@@ -2524,7 +2524,12 @@ class LabelTest(TembaTest):
         label3.toggle_label([msg3], add=True)
 
         ExportMessagesTask.create(self.org, self.admin, label=label1)
+        with self.assertRaises(ValueError):
+            folder1.release(self.admin)
 
+        # can only release a folder once all its children are released
+        label1.release(self.admin)
+        label2.release(self.admin)
         folder1.release(self.admin)
         folder1.refresh_from_db()
 
