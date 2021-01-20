@@ -2867,63 +2867,43 @@ class OrgCRUDL(SmartCRUDL):
                     "Content-Type": "application/json",
                 }
 
-                needed_create_header = False
-
                 parse_url = f"{settings.PARSE_URL}/schemas/{collection}"
 
                 config = self.org.config
                 collection_real_name = None
+                needed_create_header = True
 
-                if collection_type == "lookup":
-                    needed_create_header = True
+                response = requests.get(parse_url, headers=parse_headers)
+                if response.status_code == 200 and "fields" in response.json():
+                    fields = response.json().get("fields")
 
-                    response = requests.get(parse_url, headers=parse_headers)
-                    if response.status_code == 200 and "fields" in response.json():
-                        fields = response.json().get("fields")
-
-                        for key in list(fields.keys()):
-                            if key in ["objectId", "updatedAt", "createdAt", "ACL"]:
-                                del fields[key]
-                            else:
-                                del fields[key]["type"]
-                                fields[key]["__op"] = "Delete"
-
-                        remove_fields = {"className": collection, "fields": fields}
-
-                        purge_url = f"{settings.PARSE_URL}/purge/{collection}"
-                        response_purge = requests.delete(purge_url, headers=parse_headers)
-
-                        if response_purge.status_code in [200, 404]:
-                            requests.put(parse_url, data=json.dumps(remove_fields), headers=parse_headers)
+                    for key in list(fields.keys()):
+                        if key in ["objectId", "updatedAt", "createdAt", "ACL"]:
+                            del fields[key]
                         else:
-                            raise ValidationError(
-                                _("An attempt to clear previous data was failed. The import process was interrupted.")
-                            )
+                            del fields[key]["type"]
+                            fields[key]["__op"] = "Delete"
 
-                    for item in config.get(LOOKUPS, []):
-                        full_name = OrgCRUDL.Giftcards.get_collection_full_name(
-                            org.slug, org.id, item, LOOKUPS.lower()
-                        )
-                        if full_name == collection:
-                            collection_real_name = item
-                            break
+                    remove_fields = {"className": collection, "fields": fields}
 
-                else:
                     purge_url = f"{settings.PARSE_URL}/purge/{collection}"
                     response_purge = requests.delete(purge_url, headers=parse_headers)
 
-                    if response_purge.status_code != 200:
+                    if response_purge.status_code in [200, 404]:
+                        requests.put(parse_url, data=json.dumps(remove_fields), headers=parse_headers)
+                    else:
                         raise ValidationError(
                             _("An attempt to clear previous data was failed. The import process was interrupted.")
                         )
 
-                    for item in config.get(GIFTCARDS, []):
-                        full_name = OrgCRUDL.Giftcards.get_collection_full_name(
-                            org.slug, org.id, item, GIFTCARDS.lower()
-                        )
-                        if full_name == collection:
-                            collection_real_name = item
-                            break
+                COLLECTION = LOOKUPS if collection_type == "lookup" else GIFTCARDS
+                for item in config.get(COLLECTION, []):
+                    full_name = OrgCRUDL.Giftcards.get_collection_full_name(
+                        org.slug, org.id, item, COLLECTION.lower()
+                    )
+                    if full_name == collection:
+                        collection_real_name = item
+                        break
 
                 # Reading file data with pandas
                 read_file = read_csv if file_type == "csv" else read_excel
