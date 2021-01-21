@@ -337,7 +337,7 @@ class BroadcastCRUDL(SmartCRUDL):
                     params["u"] = ",".join(urn_ids)
 
                 results = omnibox_query(org, **params)
-                initial["omnibox"] = omnibox_results_to_dict(org, results, version=2)
+                initial["omnibox"] = omnibox_results_to_dict(org, results, version="2")
 
             initial["step_node"] = self.request.GET.get("step_node", None)
             return initial
@@ -693,6 +693,10 @@ class MsgCRUDL(SmartCRUDL):
         template_name = "msgs/msg_filter.haml"
         bulk_actions = ("label",)
 
+        def get_filter_contact_uuids(self):
+            msgs = self.get_queryset()
+            return [msg.contact.uuid for msg in msgs]
+
         def derive_title(self, *args, **kwargs):
             return self.derive_label().name
 
@@ -732,11 +736,15 @@ class MsgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("msgs.broadcast_send"):
                 links.append(
-                    dict(title=_("Send All"), style="btn-primary", href="#", js_class="filter-send-all-send-button")
+                    dict(
+                        id="send-all",
+                        title=_("Send All"),
+                        href=f"{reverse('msgs.broadcast_send')}?c={','.join(self.get_filter_contact_uuids())}",
+                        modax=_("Send Message"),
+                    )
                 )
 
             if self.has_org_perm("msgs.label_delete"):
-
                 links.append(
                     dict(
                         id="delete-label",
