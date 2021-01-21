@@ -112,68 +112,68 @@
                 %input#type{type:'hidden', name:'type'}
                 %input#uuid{type:'hidden', name:'uuid'}
 
-              %table.list.object-list.lined.selectable{style: '{% if not org_perms.flows.flowimage_list %}margin-top:10px{% endif %}'}
-                -if object_list
-                  %tr.flowimages
-                    %th.checkbox.object-row-checkbox.select-all-items-checkbox
-                      .glyph.icon-checkbox-unchecked.flowimage-checkbox
-                    %th.select-all-items-text{'style': 'text-align: left'}
-                      -trans "Select all items"
-                    -if not current_object.flow_type
-                      %th
-                        -trans "Flow"
-                    %th
-                      -trans "Image"
-                    -for field in contact_fields
-                      -if field.show_in_table
+              .table-container
+                %table.list.object-list.lined.selectable{style: '{% if not org_perms.flows.flowimage_list %}margin-top:10px{% endif %}'}
+                  -if object_list
+                    %tr.flowimages
+                      %th.checkbox.object-row-checkbox.select-all-items-checkbox
+                        .glyph.icon-checkbox-unchecked.flowimage-checkbox
+                      %th.select-all-items-text{'style': 'text-align: left'}
+                        -trans "Select all items"
+                      -if not current_object.flow_type
                         %th
-                          {{ field.label }}
-                    %th
-                      -trans "Created On"
+                          -trans "Flow"
+                      %th
+                        -trans "Image"
+                      -for field in contact_fields
+                        -if field.show_in_table
+                          %th
+                            {{ field.label }}
+                      %th
+                        -trans "Created On"
 
-                    %tbody.infinite-scroll
-                      - for object in object_list
-                        %tr.flowimage.select-row.object-row(data-uuid="{{object.uuid}}" data-object-id="{{object.id}}" onrowclick='handleRowClicked("{{object.uuid}}")')
-                          - if org_perms.flows.flowimage_archived
-                            %td.flowimage.checkbox.object-row-checkbox
-                              %temba-checkbox(onclick="handleRowSelection(this)")
-                          %td.value-text.field_name
-                            %span
-                              {{ object.contact|name_or_urn:user_org }}
-                          -if not current_object.flow_type
-                            %td.value-text.field_name{'style': 'text-align: center'}
+                      %tbody.infinite-scroll
+                        - for object in object_list
+                          %tr.flowimage.select-row.object-row(data-uuid="{{object.uuid}}" data-object-id="{{object.id}}" onrowclick='handleRowClicked("{{object.uuid}}")')
+                            - if org_perms.flows.flowimage_archived
+                              %td.flowimage.checkbox.object-row-checkbox
+                                %temba-checkbox(onclick="handleRowSelection(this)")
+                            %td.value-text.field_name
                               %span
-                                {{ object.flow.name }}
-                          %td.value-text.field_name{'style': 'text-align: center; min-width: 50px'}
-                            -if object.is_playable
-                              %a.attachment-preview{
-                                href:"#",
-                                data-featherlight:'<video class="video-js vjs-default-skin" controls preload="auto"><source type="{{ object.get_content_type }}" src="{{ object.get_url }}" /></video>',
-                                data-featherlight-after-content:'initializeVideoPlayer(this.$content[0])',
-                                data-featherlight-after-close:'disposeVideoPlayer(this.$content[0])'
-                              }
-                                .attachment-icon.icon-videocam{'style': 'font-size: 18px;'}
-                            -else
-                              %a{'href':'#', 'data-featherlight':'<img class="image-full" src="{{ object.get_url }}"/>'}
-                                -if object.path_thumbnail
-                                  %img.thumbnail{'src':'{{ object.path_thumbnail }}'}
-                                -else
-                                  .attachment-icon.icon-photo{'style': 'font-size: 18px;'}
+                                {{ object.contact|name_or_urn:user_org }}
+                            -if not current_object.flow_type
+                              %td.value-text.field_name{'style': 'text-align: center'}
+                                %span
+                                  {{ object.flow.name }}
+                            %td.value-text.field_name{'style': 'text-align: center; min-width: 50px'}
+                              -if object.is_playable
+                                %a.attachment-preview{
+                                  href:"#",
+                                  data-featherlight:'<video class="video-js vjs-default-skin" controls preload="auto"><source type="{{ object.get_content_type }}" src="{{ object.get_url }}" /></video>',
+                                  data-featherlight-after-content:'initializeVideoPlayer(this.$content[0])',
+                                  data-featherlight-after-close:'disposeVideoPlayer(this.$content[0])'
+                                }
+                                  .attachment-icon.icon-videocam{'style': 'font-size: 18px;'}
+                              -else
+                                %a{'href':'#', 'data-featherlight':'<img class="image-full" src="{{ object.get_url }}"/>'}
+                                  -if object.path_thumbnail
+                                    %img.thumbnail{'src':'{{ object.path_thumbnail }}'}
+                                  -else
+                                    .attachment-icon.icon-photo{'style': 'font-size: 18px;'}
 
-                          -for field in contact_fields
-                            -if field.show_in_table
-                              %td.field
-                                {{ object.contact|contact_field:field.key }}
+                            -for field in contact_fields
+                              -if field.show_in_table
+                                %td.field
+                                  {{ object.contact|contact_field:field.key }}
 
-                          %td.value-received.field_received
-                            %nobr
-                              {{ object.created_on|gmail_time }}
+                            %td.value-received.field_received
+                              %nobr
+                                {{ object.created_on|gmail_time }}
 
-                      -empty
-                        %tr
-                          %td(colspan="99")
-                            -trans "No matching flow images."
-
+                        -empty
+                          %tr
+                            %td(colspan="99")
+                              -trans "No matching flow images."
 
               .flex.flex-col.mb-16
                 .paginator
@@ -200,9 +200,12 @@
       padding-left: 14px !important;
     }
 
-    .page-content {
+    .table-container {
       overflow-x: auto;
-      padding-right: 2px;
+      max-width: calc(100vw - 330px);
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+      border-radius: 0.5rem;
+      margin: 0 2.5px;
     }
 
 -block extra-script
