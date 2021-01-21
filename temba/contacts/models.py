@@ -50,7 +50,7 @@ class URN:
     """
 
     DELETED_SCHEME = "deleted"
-    EMAIL_SCHEME = "email"
+    EMAIL_SCHEME = "mailto"
     EXTERNAL_SCHEME = "ext"
     FACEBOOK_SCHEME = "facebook"
     JIOCHAT_SCHEME = "jiochat"
