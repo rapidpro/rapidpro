@@ -3,6 +3,7 @@ class Event:
     Utility class for working with engine events.
     """
 
+    TYPE_AIRTIME_TRANSFERRED = "airtime_transferred"
     TYPE_BROADCAST_CREATED = "broadcast_created"
     TYPE_CONTACT_FIELD_CHANGED = "contact_field_changed"
     TYPE_CONTACT_GROUPS_CHANGED = "contact_groups_changed"
@@ -12,12 +13,14 @@ class Event:
     TYPE_EMAIL_SENT = "email_sent"
     TYPE_ERROR = "error"
     TYPE_FAILURE = "failure"
+    TYPE_FLOW_ENTERED = "flow_entered"
     TYPE_INPUT_LABELS_ADDED = "input_labels_added"
     TYPE_IVR_CREATED = "ivr_created"
     TYPE_MSG_CREATED = "msg_created"
     TYPE_MSG_RECEIVED = "msg_received"
     TYPE_RUN_RESULT_CHANGED = "run_result_changed"
     TYPE_TICKET_OPENED = "ticket_opened"
+    TYPE_WEBHOOK_CALLED = "webhook_called"
 
     @classmethod
     def from_msg(cls, obj) -> dict:
