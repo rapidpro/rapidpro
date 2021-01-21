@@ -5,6 +5,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.campaigns.models import EventFire
 from temba.contacts.models import URN, ContactField, ContactURN
 from temba.ivr.models import IVRCall
+from temba.mailroom.events import Event
 from temba.msgs.models import ERRORED, FAILED
 
 register = template.Library()
@@ -25,37 +26,35 @@ URN_SCHEME_ICONS = {
 }
 
 ACTIVITY_ICONS = {
-    "airtime_transferred": "icon-cash",
+    Event.TYPE_AIRTIME_TRANSFERRED: "icon-cash",
+    Event.TYPE_BROADCAST_CREATED: "icon-bullhorn",
     "call_started": "icon-phone",
     "campaign_fired": "icon-clock",
     "channel_event": "icon-power",
     "channel_event:missed_incoming": "icon-call-incoming",
     "channel_event:missed_outgoing": "icon-call-outgoing",
-    "contact_field_changed": "icon-pencil",
-    "contact_groups_changed": "icon-users",
-    "contact_language_changed": "icon-language",
-    "contact_name_changed": "icon-contact",
-    "contact_urns_changed": "icon-address-book",
-    "email_created": "icon-envelop",
-    "email_sent": "icon-envelop",
-    "error": "icon-warning",
-    "failure": "icon-warning",
-    "flow_entered": "icon-flow",
+    Event.TYPE_CONTACT_FIELD_CHANGED: "icon-pencil",
+    Event.TYPE_CONTACT_GROUPS_CHANGED: "icon-users",
+    Event.TYPE_CONTACT_LANGUAGE_CHANGED: "icon-language",
+    Event.TYPE_CONTACT_NAME_CHANGED: "icon-contact",
+    Event.TYPE_CONTACT_URNS_CHANGED: "icon-address-book",
+    Event.TYPE_EMAIL_SENT: "icon-envelop",
+    Event.TYPE_ERROR: "icon-warning",
+    Event.TYPE_FAILURE: "icon-warning",
+    Event.TYPE_FLOW_ENTERED: "icon-flow",
     "flow_exited:expired": "icon-clock",
     "flow_exited:interrupted": "icon-cancel-circle",
     "flow_exited:completed": "icon-checkmark",
-    "input_labels_added": "icon-tags",
-    "msg_created": "icon-bubble-right",
-    "msg_created:broadcast": "icon-bullhorn",
-    "msg_created:failed": "icon-bubble-notification",
-    "msg_created:delivered": "icon-bubble-check",
-    "msg_created:voice": "icon-call-outgoing",
-    "msg_received": "icon-bubble-user",
-    "msg_received:voice": "icon-call-incoming",
-    "run_result_changed": "icon-bars",
-    "session_started": "icon-new",
-    "ticket_opened": "icon-ticket",
-    "webhook_called": "icon-cloud-upload",
+    Event.TYPE_INPUT_LABELS_ADDED: "icon-tags",
+    Event.TYPE_IVR_CREATED: "icon-call-outgoing",
+    Event.TYPE_MSG_CREATED: "icon-bubble-right",
+    Event.TYPE_MSG_CREATED + ":failed": "icon-bubble-notification",
+    Event.TYPE_MSG_CREATED + ":delivered": "icon-bubble-check",
+    Event.TYPE_MSG_RECEIVED: "icon-bubble-user",
+    Event.TYPE_MSG_RECEIVED + ":voice": "icon-call-incoming",
+    Event.TYPE_RUN_RESULT_CHANGED: "icon-bars",
+    Event.TYPE_TICKET_OPENED: "icon-ticket",
+    Event.TYPE_WEBHOOK_CALLED: "icon-cloud-upload",
 }
 
 MISSING_VALUE = "--"
@@ -127,19 +126,14 @@ def history_icon(item):
     obj = item.get("obj")
     variant = None
 
-    if event_type == "msg_created":
-        if obj.broadcast and obj.broadcast.get_message_count() and obj.broadcast.get_message_count() > 1:
-            variant = "failed" if obj.status in ("E", "F") else "broadcast"
-        elif obj.msg_type == "V":
-            variant = "voice"
-        else:
-            if obj.status in ("F", "E"):
-                variant = "failed"
-            elif obj.status == "D":
-                variant = "delivered"
+    if event_type == Event.TYPE_MSG_CREATED:
+        if item["status"] in ("F", "E"):
+            variant = "failed"
+        elif item["status"] == "D":
+            variant = "delivered"
 
-    elif event_type == "msg_received":
-        if obj.msg_type == "V":
+    elif event_type == Event.TYPE_MSG_RECEIVED:
+        if item["msg_type"] == "V":
             variant = "voice"
 
     elif event_type == "flow_exited":
@@ -169,9 +163,10 @@ def history_class(item):
     obj = item.get("obj")
     classes = []
 
-    if item["type"] in ("msg_created", "msg_received"):
+    if item["type"] in (Event.TYPE_MSG_CREATED, Event.TYPE_MSG_RECEIVED, Event.TYPE_IVR_CREATED):
         classes.append("msg")
-        if obj.status in (ERRORED, FAILED):
+
+        if item.get("status") in (ERRORED, FAILED):
             classes.append("warning")
     else:
         classes.append("non-msg")
@@ -190,8 +185,10 @@ def history_class(item):
         "campaign_fired",
         "flow_entered",
         "flow_exited",
-        "msg_created",
-        "msg_received",
+        Event.TYPE_BROADCAST_CREATED,
+        Event.TYPE_IVR_CREATED,
+        Event.TYPE_MSG_CREATED,
+        Event.TYPE_MSG_RECEIVED,
     ):
         classes.append("detail-event")
 
