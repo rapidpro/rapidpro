@@ -692,6 +692,7 @@ class MsgCRUDL(SmartCRUDL):
     class Filter(InboxView):
         template_name = "msgs/msg_filter.haml"
         bulk_actions = ("label",)
+        contact_uuids = []
 
         def get_filter_contact_uuids(self):
             msgs = self.get_queryset()
@@ -739,7 +740,7 @@ class MsgCRUDL(SmartCRUDL):
                     dict(
                         id="send-all",
                         title=_("Send All"),
-                        href=f"{reverse('msgs.broadcast_send')}?c={','.join(self.get_filter_contact_uuids())}",
+                        href=f"{reverse('msgs.broadcast_send')}?c={','.join(self.contact_uuids)}",
                         modax=_("Send Message"),
                     )
                 )
@@ -766,8 +767,12 @@ class MsgCRUDL(SmartCRUDL):
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
             qs = self.derive_label().filter_messages(qs).filter(visibility=Msg.VISIBILITY_VISIBLE)
+            qs = qs.prefetch_related("labels").select_related("contact")
 
-            return qs.prefetch_related("labels").select_related("contact")
+            # Adding contact uuids to be used on send all functionality
+            self.contact_uuids = [msg.contact.uuid for msg in qs]
+
+            return qs
 
 
 class BaseLabelForm(forms.ModelForm):
