@@ -1,3 +1,7 @@
+v6.1.24
+----------
+ * Broadcast events in history should be white like message events
+
 v6.1.23
 ----------
  * Add index on flow start by start type
