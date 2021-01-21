@@ -49,6 +49,7 @@ class Event:
                 "base_language": obj.broadcast.base_language,
                 # additional properties
                 "msg": _msg_out(obj),
+                "status": obj.status,
                 "recipient_count": obj.broadcast.get_message_count(),
                 "channel_log_id": channel_log.id if channel_log else None,
             }

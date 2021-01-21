@@ -57,6 +57,8 @@ ACTIVITY_ICONS = {
     Event.TYPE_WEBHOOK_CALLED: "icon-cloud-upload",
 }
 
+MSG_EVENTS = {Event.TYPE_MSG_CREATED, Event.TYPE_MSG_RECEIVED, Event.TYPE_IVR_CREATED, Event.TYPE_BROADCAST_CREATED}
+
 MISSING_VALUE = "--"
 
 
@@ -163,7 +165,7 @@ def history_class(item):
     obj = item.get("obj")
     classes = []
 
-    if item["type"] in (Event.TYPE_MSG_CREATED, Event.TYPE_MSG_RECEIVED, Event.TYPE_IVR_CREATED):
+    if item["type"] in MSG_EVENTS:
         classes.append("msg")
 
         if item.get("status") in (ERRORED, FAILED):
