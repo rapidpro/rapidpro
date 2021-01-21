@@ -1,3 +1,9 @@
+v6.1.23
+----------
+ * Add index on flow start by start type
+ * Allow only deleting msg folders without active children labels
+ * Use engine events (with some extra properties) for msgs in contact history
+
 v6.1.22
 ----------
  * Fix API serialization of background flow type
