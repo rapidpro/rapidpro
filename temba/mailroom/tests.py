@@ -733,6 +733,7 @@ class EventTest(TembaTest):
                     "text": "Hi there",
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                 },
+                "status": "S",
                 "recipient_count": 2,
                 "channel_log_id": None,
             },
