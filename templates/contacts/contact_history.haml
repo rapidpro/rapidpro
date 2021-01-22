@@ -15,11 +15,10 @@
           -trans "Airtime transfer failed"
 
       -elif event.type == 'call_started'
-        -with event.obj as call
-          -if call.status == 'D'
-            -trans "Call Started"
-          -else
-            {{ call.get_status_display }}
+        -if event.status == 'D'
+          -trans "Call Started"
+        -else
+          {{ event.status_display }}
 
       -elif event.type == 'campaign_fired'
         -with event.obj as eventfire
@@ -178,21 +177,10 @@
 
     %td.text-center{style:"padding-left:0px"}
       .log-icon.ml-2.text-dark-alpha-200
-        -if event.channel_log_id
-          .hover-linked{onclick:"goto(event)", href:"{% url 'channels.channellog_read' event.channel_log_id %}"}
-            .icon-docs-2.pointer-events-none
-
-        -elif event.type == 'call_started'
-          {% channel_log_link event.obj %}
-
-        -elif event.type == 'airtime_transferred'
-          .hover-linked.icon-docs-2(onclick="goto(event)" href="{% url 'airtime.airtimetransfer_read' event.transfer_id %}")
-
-        -elif event.type == 'webhook_called'
-          .hover-linked.icon-docs-2(onclick="goto(event)" href="{% url 'api.webhookresult_read' event.webhook_result_id %}")
-
-        -elif event.type == 'flow_entered' and event.session_uuid and perms.flows.flowsession_json
-          .hover-linked.icon-docs-2(onclick="goto(event)" href="{% url 'flows.flowsession_json' event.session_uuid %}")
+        -if event.logs_url
+          -if event.type != 'flow_entered' or perms.flows.flowsession_json
+            .hover-linked(onclick="goto(event)" href="{{ event.logs_url }}")
+              .icon-docs-2.pointer-events-none
 
 -if has_older and not recent_only
   %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{after}}&before={{before}}", 

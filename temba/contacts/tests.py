@@ -2018,25 +2018,23 @@ class ContactTest(TembaTest):
             history = response.context["history"]
             self.assertEqual(95, len(history))
 
-            def assertHistoryEvent(item, expected_type, obj_class=None, msg_text=None):
+            def assertHistoryEvent(item, expected_type, msg_text=None):
                 self.assertEqual(expected_type, item["type"])
                 self.assertIsInstance(item["created_on"], datetime)
-                if obj_class:
-                    self.assertIsInstance(item["obj"], obj_class)
                 if msg_text:
                     self.assertEqual(msg_text, item["msg"]["text"])
 
-            assertHistoryEvent(history[0], "call_started", IVRCall)
-            assertHistoryEvent(history[1], "channel_event", ChannelEvent)
-            assertHistoryEvent(history[2], "channel_event", ChannelEvent)
-            assertHistoryEvent(history[3], "channel_event", ChannelEvent)
+            assertHistoryEvent(history[0], "call_started")
+            assertHistoryEvent(history[1], "channel_event")
+            assertHistoryEvent(history[2], "channel_event")
+            assertHistoryEvent(history[3], "channel_event")
             assertHistoryEvent(history[4], "airtime_transferred")
             assertHistoryEvent(history[5], "webhook_called")
             assertHistoryEvent(history[6], "run_result_changed")
             assertHistoryEvent(history[7], "msg_created")
             assertHistoryEvent(history[8], "flow_entered")
             assertHistoryEvent(history[9], "msg_received")
-            assertHistoryEvent(history[10], "campaign_fired", EventFire)
+            assertHistoryEvent(history[10], "campaign_fired")
             assertHistoryEvent(history[-1], "msg_received", msg_text="Inbound message 11")
 
             self.assertContains(response, "<audio ")
@@ -2078,7 +2076,7 @@ class ContactTest(TembaTest):
             # now we'll see the message that just came in first, followed by the call event
             history = response.context["history"]
             assertHistoryEvent(history[0], "msg_received", msg_text="Newer message")
-            assertHistoryEvent(history[1], "call_started", IVRCall)
+            assertHistoryEvent(history[1], "call_started")
 
             recent_start = datetime_to_ms(timezone.now() - timedelta(days=1))
             response = self.fetch_protected(url + "?after=%s" % recent_start, self.admin)
@@ -2127,10 +2125,10 @@ class ContactTest(TembaTest):
             assertHistoryEvent(history[1], "flow_entered")
             assertHistoryEvent(history[2], "flow_exited")
             assertHistoryEvent(history[3], "msg_received", msg_text="Newer message")
-            assertHistoryEvent(history[4], "call_started", IVRCall)
-            assertHistoryEvent(history[5], "channel_event", ChannelEvent)
-            assertHistoryEvent(history[6], "channel_event", ChannelEvent)
-            assertHistoryEvent(history[7], "channel_event", ChannelEvent)
+            assertHistoryEvent(history[4], "call_started")
+            assertHistoryEvent(history[5], "channel_event")
+            assertHistoryEvent(history[6], "channel_event")
+            assertHistoryEvent(history[7], "channel_event")
             assertHistoryEvent(history[8], "airtime_transferred")
             assertHistoryEvent(history[9], "webhook_called")
             assertHistoryEvent(history[10], "run_result_changed")
@@ -2266,12 +2264,10 @@ class ContactTest(TembaTest):
         item = {"type": "webhook_called", "url": "http://test.com", "status": "response_error"}
         self.assertEqual(history_class(item), "non-msg warning detail-event")
 
-        call = self.create_incoming_call(self.reminder_flow, contact)
-
-        item = {"type": "call_started", "obj": call}
+        item = {"type": "call_started", "status": "D"}
         self.assertEqual(history_class(item), "non-msg")
 
-        call.status = IVRCall.FAILED
+        item = {"type": "call_started", "status": "F"}
         self.assertEqual(history_class(item), "non-msg warning")
 
         # inbound

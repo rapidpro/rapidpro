@@ -669,7 +669,7 @@ class EventTest(TembaTest):
                     "external_id": "12345",
                 },
                 "msg_type": "I",
-                "channel_log_id": None,
+                "logs_url": None,
             },
             Event.from_msg(msg_in),
         )
@@ -693,7 +693,7 @@ class EventTest(TembaTest):
                     "quick_replies": ["yes", "no"],
                 },
                 "status": "E",
-                "channel_log_id": log.id,
+                "logs_url": f"/channels/channellog/read/{log.id}/",
             },
             Event.from_msg(msg_out),
         )
@@ -712,7 +712,7 @@ class EventTest(TembaTest):
                     "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
                 },
                 "status": "S",
-                "channel_log_id": None,
+                "logs_url": None,
             },
             Event.from_msg(ivr_out),
         )
@@ -735,7 +735,7 @@ class EventTest(TembaTest):
                 },
                 "status": "S",
                 "recipient_count": 2,
-                "channel_log_id": None,
+                "logs_url": None,
             },
             Event.from_msg(msg_out2),
         )
@@ -758,7 +758,7 @@ class EventTest(TembaTest):
                 "type": "flow_entered",
                 "created_on": matchers.Datetime(),
                 "flow": {"uuid": str(flow.uuid), "name": "Colors"},
-                "session_uuid": str(run.session.uuid),
+                "logs_url": f"/flowsession/json/{run.session.uuid}/",
             },
             Event.from_started_run(run),
         )

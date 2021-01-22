@@ -833,7 +833,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             [{"type": "channel_event", "created_on": e.created_on, "obj": e} for e in channel_events],
             [{"type": "campaign_fired", "created_on": f.fired, "obj": f} for f in campaign_events],
             [Event.from_webhook_result(r) for r in webhook_results],
-            [{"type": "call_started", "created_on": c.created_on, "obj": c} for c in calls],
+            [Event.from_ivr_call(c) for c in calls],
             [Event.from_airtime_transfer(t) for t in transfers],
             session_events,
         )

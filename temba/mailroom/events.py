@@ -1,3 +1,6 @@
+from django.urls import reverse
+
+
 class Event:
     """
     Utility class for working with engine events.
@@ -24,6 +27,9 @@ class Event:
     TYPE_WEBHOOK_CALLED = "webhook_called"
 
     # additional events
+    TYPE_CALL_STARTED = "call_started"
+    TYPE_CAMPAIGN_FIRED = "campaign_fired"
+    TYPE_CHANNEL_EVENT = "channel_event"
     TYPE_FLOW_EXITED = "flow_exited"
 
     @classmethod
@@ -35,6 +41,7 @@ class Event:
         from temba.msgs.models import INCOMING, IVR
 
         channel_log = obj.get_last_log()
+        logs_url = reverse("channels.channellog_read", args=[channel_log.id]) if channel_log else None
 
         if obj.direction == INCOMING:
             return {
@@ -43,7 +50,7 @@ class Event:
                 "msg": _msg_in(obj),
                 # additional properties
                 "msg_type": obj.msg_type,
-                "channel_log_id": channel_log.id if channel_log else None,
+                "logs_url": logs_url,
             }
         elif obj.broadcast and obj.broadcast.get_message_count() > 1:
             return {
@@ -55,7 +62,7 @@ class Event:
                 "msg": _msg_out(obj),
                 "status": obj.status,
                 "recipient_count": obj.broadcast.get_message_count(),
-                "channel_log_id": channel_log.id if channel_log else None,
+                "logs_url": logs_url,
             }
         elif obj.msg_type == IVR:
             return {
@@ -64,7 +71,7 @@ class Event:
                 "msg": _msg_out(obj),
                 # additional properties
                 "status": obj.status,
-                "channel_log_id": channel_log.id if channel_log else None,
+                "logs_url": logs_url,
             }
         else:
             return {
@@ -73,7 +80,7 @@ class Event:
                 "msg": _msg_out(obj),
                 # additional properties
                 "status": obj.status,
-                "channel_log_id": channel_log.id if channel_log else None,
+                "logs_url": logs_url,
             }
 
     @classmethod
@@ -82,7 +89,7 @@ class Event:
             "type": cls.TYPE_FLOW_ENTERED,
             "created_on": obj.created_on,
             "flow": {"uuid": str(obj.flow.uuid), "name": obj.flow.name},
-            "session_uuid": str(obj.session.uuid) if obj.session else None,
+            "logs_url": reverse("flows.flowsession_json", args=[obj.session.uuid]) if obj.session else None,
         }
 
     @classmethod
@@ -96,6 +103,16 @@ class Event:
         }
 
     @classmethod
+    def from_ivr_call(cls, obj) -> dict:
+        return {
+            "type": cls.TYPE_CALL_STARTED,
+            "created_on": obj.created_on,
+            "status": obj.status,
+            "status_display": obj.get_status_display(),
+            "logs_url": reverse("channels.channellog_connection", args=[obj.id]) if obj.has_logs() else None,
+        }
+
+    @classmethod
     def from_airtime_transfer(cls, obj) -> dict:
         return {
             "type": cls.TYPE_AIRTIME_TRANSFERRED,
@@ -106,7 +123,7 @@ class Event:
             "desired_amount": obj.desired_amount,
             "actual_amount": obj.actual_amount,
             # additional properties
-            "transfer_id": obj.id,
+            "logs_url": reverse("airtime.airtimetransfer_read", args=[obj.id]),
         }
 
     @classmethod
@@ -119,7 +136,7 @@ class Event:
             "status_code": obj.status_code,
             "elapsed_ms": obj.request_time,
             # additional properties
-            "webhook_result_id": obj.id,
+            "logs_url": reverse("api.webhookresult_read", args=[obj.id]),
         }
 
 
