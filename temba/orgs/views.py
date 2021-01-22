@@ -2873,12 +2873,16 @@ class OrgCRUDL(SmartCRUDL):
                 collection_real_name = None
                 needed_create_header = True
 
+                required_columns = ["objectId", "updatedAt", "createdAt", "ACL"]
+                if collection_type == "giftcard":
+                    required_columns += ["active", "identifier"]
+
                 response = requests.get(parse_url, headers=parse_headers)
                 if response.status_code == 200 and "fields" in response.json():
                     fields = response.json().get("fields")
 
                     for key in list(fields.keys()):
-                        if key in ["objectId", "updatedAt", "createdAt", "ACL"]:
+                        if key in required_columns:
                             del fields[key]
                         else:
                             del fields[key]["type"]
