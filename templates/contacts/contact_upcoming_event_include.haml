@@ -1,0 +1,32 @@
+-load i18n humanize
+
+%tr.item{class:"{% if evt.event_type == 'M' %}msg{%else%}non-msg{%endif%}"}
+  %td.icon
+    -if evt.event_type == 'M'
+      %span.glyph.icon-bubble-right
+    -elif evt.event_type == 'F'
+      %span.glyph.icon-flow
+    -else
+      %span.glyph.icon-clock
+
+  %td.details.w-full
+
+    .activity-scheduled
+      -if evt.event_type == 'M'
+        .activity-body
+          {{evt.message}}
+
+      -elif evt.event_type == 'F'
+        -trans "Start"
+        %a.href{ href: "{% url 'flows.flow_editor' evt.flow_uuid %}" }= evt.flow_name
+  %td.whitespace-no-wrap.text-right
+    .pr-6
+      {{ evt.scheduled|naturaltime }}
+
+      .repeats
+        -if evt.repeat_period == 'D'
+          -trans 'repeats daily'
+        -elif evt.repeat_period == 'W'
+          -trans 'repeats weekly'
+        -elif evt.repeat_period == 'M'
+          -trans 'repeats monthly'

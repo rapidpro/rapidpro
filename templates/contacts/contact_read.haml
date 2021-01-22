@@ -177,56 +177,28 @@
             {% short_datetime ticket.opened_on %}
 
   -if upcoming_events
-    -if upcoming_events|length > 3
-      :css
-        tbody:nth-child(1) {
-          display: none;
-        }
-
     %table.list.upcoming.mt-6.light
       %thead
-        %th(colspan="3")
+        %th(colspan="2")
           -trans "Upcoming"
-      -for evt in upcoming_events
-        -if forloop.counter0 == upcoming_events|length|add:-3
-          %tbody.next_three
+        %th(colspan="1")
+          -if upcoming_events|length > 3
+            .flex.justify-end
+              .upcoming-event-display-selector
+                %a.show-all.upcoming
+                  -trans "More"
+                |
+                %a.hide-all.upcoming.is-active
+                  -trans "Less"
 
-        %tr.item{class:"{% if evt.event_type == 'M' %}msg{%else%}non-msg{%endif%}"}
-          %td.icon
-            -if evt.event_type == 'M'
-              %span.glyph.icon-bubble-right
-            -elif evt.event_type == 'F'
-              %span.glyph.icon-flow
-            -else
-              %span.glyph.icon-clock
+      -if upcoming_events|length > 3
+        %tbody.more.hidden
+          -for evt in upcoming_events|slice:":-3"
+            - include "contacts/contact_upcoming_event_include.haml"
 
-          %td.details.w-full
-
-            .activity-scheduled
-              -if evt.event_type == 'M'
-                .activity-body
-                  {{evt.message}}
-
-              -elif evt.event_type == 'F'
-                -trans "Start"
-                %a.href{ href: "{% url 'flows.flow_editor' evt.flow_uuid %}" }= evt.flow_name
-          %td.whitespace-no-wrap.text-right
-            .pr-6
-              {{ evt.scheduled|naturaltime }}
-
-              .repeats
-                -if evt.repeat_period == 'D'
-                  -trans 'repeats daily'
-                -elif evt.repeat_period == 'W'
-                  -trans 'repeats weekly'
-                -elif evt.repeat_period == 'M'
-                  -trans 'repeats monthly'
-
-    -if upcoming_events|length > 3
-      %a.pull-right.show-all.upcoming
-        more
-      %a.pull-right.hide-all.upcoming
-        less
+      %tbody.first_three
+        -for evt in upcoming_events|slice:"-3:"
+          - include "contacts/contact_upcoming_event_include.haml"
 
 
   %table.list.activity.history.mt-6.light
@@ -292,8 +264,8 @@
         }
 
         .show-all {
-          margin-top:-15px;
-          margin-right:18px;
+          margin-top: 0px;
+          margin-right:10px;
           color: #d1d1d1;
 
           &.expanded {
@@ -313,8 +285,8 @@
         }
 
         .hide-all {
-          margin-top:-15px;
-          margin-right:18px;
+          margin-top:0px;
+          margin-right:10px;
           color: #d1d1d1;
 
           &.expanded {
@@ -510,94 +482,19 @@
           }
         }
 
-        .contact-fields {
-          background: #f9f9f9;
-
-          font-size: 12px;
-          color: @color-font-grey;
-          border: 1px solid #f1f1f1;
-          margin-bottom: 20px;
-
-          .show-more {
-            padding: 10px;
-            display:block;
-          }
-
-          .contact-field {
-            display: inline-block;
-            width: 260px;
-            padding: 2px 10px;
-
-
-            .contact-field-label {
-              font-weight: normal;
-              color: @color-font-black;
-              font-size:12px;
-              margin-right:2px;
-              padding-top:5px;
-              font-size:95%;
-              display:block;
+        table.upcoming {
+          .upcoming-event-display-selector{
+            .show-all, .hide-all {
+              display: inline-block;
+              color: rgb(var(--primary-rgb));
+              margin: 0;
             }
-
-            .contact-field-label-featured {
-              font-style: italic;
-            }
-
-            .contact-field-value {
-              font-weight: bold;
-              color: @color-font-grey;
-              padding-top:-5px;
-              display:inline-block;
-            }
-
-            .editable:hover {
-              cursor: pointer;
-              text-decoration: underline;
+            .is-active{
+              color: #999999;
+              cursor: text;
+              text-decoration: none;
             }
           }
-        }
-
-        .page-content{
-          position:relative;
-        }
-
-        #msg-box{
-          background-color: #fff;
-          width: inherit;
-          position: -webkit-sticky; /* Safari */
-          position: sticky;
-          z-index: 999;
-          top: 0;
-          padding-bottom: 10px;
-          padding-top: 0.1px;
-        }
-
-        #send {
-          margin: 0 0 5px 0;
-          width: inherit;
-          position: relative;
-
-          input[type='text'] {
-            resize: none;
-            display: block;
-            width: 100%;
-            height: 50px;
-            padding: 0 100px 0 10px;
-            margin-right: 15px;
-            box-sizing: border-box;
-            -moz-box-sizing: border-box;
-            -webkit-box-sizing: border-box;
-          }
-
-          button {
-            position: absolute;
-            top: 0;
-            right: 0;
-            height: 50px;
-          }
-        }
-        td.created_on .time {
-            margin-right: 40px !important;
         }
     {% endlessblock %}
 
@@ -632,16 +529,16 @@
       });
 
       $('.show-all.upcoming').live('click', function() {
-        $(this).hide();
-        $('.hide-all.upcoming').show();
-        $('table.activity.upcoming tbody:nth-child(1)').show();
+        $(this).addClass("is-active");
+        $('.hide-all.upcoming').removeClass("is-active");
+        $('table.list.upcoming .more').removeClass("hidden");
       });
 
       $('.hide-all.upcoming').live('click', function() {
-        $(this).hide();
-        $('.show-all.upcoming').show();
-        $('table.activity.pending tbody:nth-child(1)').hide();
-      }).hide();
+        $(this).addClass("is-active");
+        $('.show-all.upcoming').removeClass("is-active");
+        $('table.list.upcoming .more').addClass("hidden");
+      });
 
       $('.show-all.fields').live('click', function() {
         if ($(this).hasClass('expanded')) {
@@ -690,8 +587,7 @@
       }
     }
 
-  %script
-
+  :javascript
     {% if org_perms.contacts.contact_update %}
     $('.contact-field-value.editable').live('click', function(evt) {
       var endpoint = '{% url "contacts.contact_update_fields" object.pk %}';
@@ -703,122 +599,6 @@
       // reset our modal
       window.setTimeout(function(){ modax.endpoint = endpoint;}, 1000);
     });
-
-    {% endif %}
-
-
-
-    {% if org_perms.msgs.broadcast_send %}
-    // Declare dom vars
-    var $msg_input_obj = $('#id_text');
-    var $msg_submit_btn = $('#id_send');
-
-    $('#send').submit(function(e){
-      e.preventDefault();
-      $msg_submit_btn.text('{% trans "Sending..." %}').addClass("disabled");
-      $('.failed').remove();
-      $('.succeeded').remove();
-
-      if( (!$msg_input_obj.val()) || ($msg_input_obj.val().trim().length == 0)) {
-        $msg_input_obj.css({'border':'1px solid #da4f49', 'color':'#da4f49'});
-        $('.failed').remove();
-        $('{% trans "<p>This field is required, please fill in the message to send out</p>" %}').insertAfter("#id_send").addClass('failed');
-        $msg_submit_btn.text('{% trans "Send" %}').removeClass("disabled");
-        return false;
-      } else if($msg_input_obj.val().length > 160) {
-        $('.failed').remove();
-        $msg_input_obj.css({'border':'1px solid #da4f49', 'color':'#da4f49'});
-        $('{%trans "<p>Ensure this value has at most 160 characters (it has " %}' + $msg_input_obj.val().length + ') </p> ').insertAfter("#id_send").addClass('failed');
-        $msg_submit_btn.text('{% trans "Send" %}').removeClass("disabled");
-        return false;
-      } else {
-        var form = $('#send');
-        var post = "{% url 'msgs.broadcast_send' %}?u={{ contact.get_urn.id }}";
-
-        if (window.simulation) {
-          post = post + "&simulation=true"
-        }
-
-        var data = {
-          step_node: null,
-          schedule: null,
-          text: form.find("#id_text").val(),
-          csrfmiddlewaretoken: form.find("[name='csrfmiddlewaretoken']").val(),
-          omnibox: JSON.stringify({
-            "id": "{{ contact.uuid }}",
-            "name": "{{ contact.name }}",
-            "type": "contact",
-            "urn": "{{ contact.get_urn.path }}"
-          })
-        };
-
-        $.post(post, data, function(data, textStatus, b, c) {
-          fetchPJAXContent(".", "#pjax", { forceReload:true });
-
-          $msg_input_obj.val('');
-
-          // make sure we arent showing any previous errors
-          $('.failed').remove();
-          $msg_input_obj.css({'border':'auto', 'color':'auto'});
-
-          $msg_submit_btn.text('{% trans "Send" %}').removeClass("disabled");
-          $msg_submit_btn.after("<div class=succeeded>{% trans "Sent." %}</div>");
-
-          return true;
-          window.location.href = data.redirect;
-
-        }).fail(function(data, textStatus) {
-          // uh oh, we couldnt post, check for errors to show the user
-
-          if(data.status != 200){
-            // console.log(data);
-            $msg_submit_btn.after("<div class=failed>" + data.responseText + "</div>");
-            return false;
-          }
-
-          response = $.parseJSON(data.responseText);
-
-          // make sure we arent showing any previous errors
-          $('.failed').remove();
-
-          // show the non-field errors first
-          for (msg in response.errors['__all__']) {
-            $msg_submit_btn.after("<div class=failed>" + response.errors['__all__'][msg] + "</div>");
-          }
-
-          // look through our fielded errors and show them in the form
-          for (var error in response.errors) {
-            var msgs = response.errors[error];
-            for (var msg in msgs) {
-
-              var id = "#id_" + error;
-              if (error == "text") {
-                id = "#counter";
-              }
-
-              $(id).after("<div class=failed id=" + error + "_error>" + msgs[msg] + "</div>");
-            }
-          }
-
-          // re-enable our send button, so they can try again
-          $msg_submit_btn.text('{% trans "Send" %}').removeClass("disabled");
-          return false;
-
-        });
-
-        $msg_submit_btn.text('{% trans "Send" %}').removeClass("disabled");
-        return true;
-      }
-    });
-    {% endif %}
-
-    {% if org_perms.contacts.contact_update %}
-    function removeContactFromGroup(groupId, contactId){
-      var elementId = '#group_' + groupId + '_' + contactId;
-      $.post('{% url 'contacts.contact_read' contact.uuid %}' + '?action=remove_from_group', {contact: contactId, group: groupId}, function() {
-        $(elementId).remove();
-      });
-    }
     {% endif %}
 
     {% if org_perms.contacts.contact_delete %}
