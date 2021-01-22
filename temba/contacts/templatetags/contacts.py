@@ -59,6 +59,18 @@ ACTIVITY_ICONS = {
 
 MSG_EVENTS = {Event.TYPE_MSG_CREATED, Event.TYPE_MSG_RECEIVED, Event.TYPE_IVR_CREATED, Event.TYPE_BROADCAST_CREATED}
 
+# events that are included in the summary view
+SUMMARY_EVENTS = {
+    "call_started",
+    "campaign_fired",
+    Event.TYPE_FLOW_ENTERED,
+    Event.TYPE_FLOW_EXITED,
+    Event.TYPE_BROADCAST_CREATED,
+    Event.TYPE_IVR_CREATED,
+    Event.TYPE_MSG_CREATED,
+    Event.TYPE_MSG_RECEIVED,
+}
+
 MISSING_VALUE = "--"
 
 
@@ -123,30 +135,31 @@ def urn_icon(urn):
 
 
 @register.filter
-def history_icon(item):
-    event_type = item["type"]
-    obj = item.get("obj")
+def history_icon(event: dict) -> str:
+    event_type = event["type"]
     variant = None
 
     if event_type == Event.TYPE_MSG_CREATED:
-        if item["status"] in ("F", "E"):
+        if event["status"] in ("F", "E"):
             variant = "failed"
-        elif item["status"] == "D":
+        elif event["status"] == "D":
             variant = "delivered"
 
     elif event_type == Event.TYPE_MSG_RECEIVED:
-        if item["msg_type"] == "V":
+        if event["msg_type"] == "V":
             variant = "voice"
 
     elif event_type == "flow_exited":
-        if obj.exit_type == "C":
-            variant = "completed"
-        elif obj.exit_type == "I":
+        if event["status"] == "I":
             variant = "interrupted"
-        else:
+        elif event["status"] == "X":
             variant = "expired"
+        else:
+            variant = "completed"
 
     elif event_type == "channel_event":
+        obj = event.get("obj")
+
         if obj.event_type == "mo_miss":
             variant = "missed_incoming"
         elif obj.event_type == "mt_miss":
@@ -161,37 +174,30 @@ def history_icon(item):
 
 
 @register.filter
-def history_class(item):
-    obj = item.get("obj")
+def history_class(event: dict) -> str:
+    event_type = event["type"]
     classes = []
 
-    if item["type"] in MSG_EVENTS:
+    if event_type in MSG_EVENTS:
         classes.append("msg")
 
-        if item.get("status") in (ERRORED, FAILED):
+        if event.get("status") in (ERRORED, FAILED):
             classes.append("warning")
     else:
         classes.append("non-msg")
 
-        if item["type"] == "error" or item["type"] == "failure":
+        obj = event.get("obj")
+
+        if event_type == "error" or event_type == "failure":
             classes.append("warning")
-        elif item["type"] == "webhook_called" and item["status"] != "success":
+        elif event_type == "webhook_called" and event["status"] != "success":
             classes.append("warning")
-        elif item["type"] == "call_started" and obj.status == IVRCall.FAILED:
+        elif event_type == "call_started" and obj.status == IVRCall.FAILED:
             classes.append("warning")
-        elif item["type"] == "campaign_fired" and obj.fired_result == EventFire.RESULT_SKIPPED:
+        elif event_type == "campaign_fired" and obj.fired_result == EventFire.RESULT_SKIPPED:
             classes.append("skipped")
 
-    if item["type"] not in (
-        "call_started",
-        "campaign_fired",
-        "flow_entered",
-        "flow_exited",
-        Event.TYPE_BROADCAST_CREATED,
-        Event.TYPE_IVR_CREATED,
-        Event.TYPE_MSG_CREATED,
-        Event.TYPE_MSG_RECEIVED,
-    ):
+    if event_type not in SUMMARY_EVENTS:
         classes.append("detail-event")
 
     return " ".join(classes)

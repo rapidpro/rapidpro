@@ -767,7 +767,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return scheduled_broadcasts.order_by("schedule__next_fire")
 
-    def get_history(self, after, before):
+    def get_history(self, after: datetime, before: datetime) -> list:
         """
         Gets this contact's history of messages, calls, runs etc in the given time window
         """
@@ -776,7 +776,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         limit = Contact.MAX_HISTORY
 
-        msgs = list(
+        msgs = (
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
             .exclude(visibility=Msg.VISIBILITY_DELETED)
             .order_by("-created_on")
@@ -784,18 +784,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .prefetch_related("channel_logs")[:limit]
         )
 
-        # and all of this contact's runs, channel events such as missed calls, scheduled events
-        started_runs = (
-            self.runs.filter(created_on__gte=after, created_on__lt=before)
+        # get all runs start started or ended in this period
+        runs = (
+            self.runs.filter(
+                Q(created_on__gte=after, created_on__lt=before)
+                | Q(exited_on__isnull=False, exited_on__gte=after, exited_on__lt=before)
+            )
             .exclude(flow__is_system=True)
-            .order_by("-created_on")
-            .select_related("flow")[:limit]
-        )
-
-        exited_runs = (
-            self.runs.filter(exited_on__gte=after, exited_on__lt=before)
-            .exclude(flow__is_system=True)
-            .exclude(exit_type=None)
             .order_by("-created_on")
             .select_related("flow")[:limit]
         )
@@ -833,8 +828,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         # wrap items, chain and sort by time
         events = chain(
             [Event.from_msg(m) for m in msgs],
-            [{"type": "flow_entered", "created_on": r.created_on, "obj": r} for r in started_runs],
-            [{"type": "flow_exited", "created_on": r.exited_on, "obj": r} for r in exited_runs],
+            [Event.from_started_run(r) for r in runs if after <= r.created_on < before],
+            [Event.from_exited_run(r) for r in runs if r.exited_on and after <= r.exited_on < before],
             [{"type": "channel_event", "created_on": e.created_on, "obj": e} for e in channel_events],
             [{"type": "campaign_fired", "created_on": f.fired, "obj": f} for f in campaign_events],
             [Event.from_webhook_result(r) for r in webhook_results],

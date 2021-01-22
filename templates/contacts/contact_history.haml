@@ -109,16 +109,22 @@
         <b>{{ event.subject }}</b>
 
       -elif event.type == 'flow_entered' or event.type == 'flow_exited'
-        -with event.obj as run
-          .activity-run
-            .activity-body
-              .summary
-              -if event.type == 'flow_exited'
-                {{ run.get_exit_type_display }}
+        .activity-run
+          .activity-body
+            .summary
+            -if event.type == 'flow_exited'
+              -if event.status == "I"
+                -trans "Interrupted"
+              -elif event.status == "X"
+                -trans "Expired"
+              -elif event.status == "F"
+                -trans "Failed"
               -else
-                -trans "Started"
-              %a(href="{% url 'flows.flow_editor' run.flow.uuid %}")
-                {{ run.flow.name }}
+                -trans "Completed"
+            -else
+              -trans "Started"
+            %a(href="{% url 'flows.flow_editor' event.flow.uuid %}")
+              {{ event.flow.name }}
 
       -elif event.type == 'input_labels_added'
         -trans "Message labelled as"
@@ -185,8 +191,8 @@
         -elif event.type == 'webhook_called'
           .hover-linked.icon-docs-2(onclick="goto(event)" href="{% url 'api.webhookresult_read' event.webhook_result_id %}")
 
-        -elif event.type == 'flow_entered' and perms.flows.flowsession_json and event.obj.session
-          .hover-linked.icon-docs-2(onclick="goto(event)" href="{% url 'flows.flowsession_json' event.obj.session.uuid %}")
+        -elif event.type == 'flow_entered' and event.session_uuid and perms.flows.flowsession_json
+          .hover-linked.icon-docs-2(onclick="goto(event)" href="{% url 'flows.flowsession_json' event.session_uuid %}")
 
 -if has_older and not recent_only
   %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{after}}&before={{before}}", 

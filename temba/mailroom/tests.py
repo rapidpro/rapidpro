@@ -739,3 +739,26 @@ class EventTest(TembaTest):
             },
             Event.from_msg(msg_out2),
         )
+
+    def test_from_started_run(self):
+        contact = self.create_contact("Jim", phone="0979111111")
+        flow = self.get_flow("color_v13")
+        nodes = flow.get_definition()["nodes"]
+        (
+            MockSessionWriter(contact, flow)
+            .visit(nodes[0])
+            .send_msg("What is your favorite color?", self.channel)
+            .wait()
+            .save()
+        )
+        run = contact.runs.get()
+
+        self.assertEqual(
+            {
+                "type": "flow_entered",
+                "created_on": matchers.Datetime(),
+                "flow": {"uuid": str(flow.uuid), "name": "Colors"},
+                "session_uuid": str(run.session.uuid),
+            },
+            Event.from_started_run(run),
+        )

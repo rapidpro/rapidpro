@@ -3,6 +3,7 @@ class Event:
     Utility class for working with engine events.
     """
 
+    # engine events
     TYPE_AIRTIME_TRANSFERRED = "airtime_transferred"
     TYPE_BROADCAST_CREATED = "broadcast_created"
     TYPE_CONTACT_FIELD_CHANGED = "contact_field_changed"
@@ -21,6 +22,9 @@ class Event:
     TYPE_RUN_RESULT_CHANGED = "run_result_changed"
     TYPE_TICKET_OPENED = "ticket_opened"
     TYPE_WEBHOOK_CALLED = "webhook_called"
+
+    # additional events
+    TYPE_FLOW_EXITED = "flow_exited"
 
     @classmethod
     def from_msg(cls, obj) -> dict:
@@ -73,7 +77,26 @@ class Event:
             }
 
     @classmethod
-    def from_airtime_transfer(cls, obj):
+    def from_started_run(cls, obj) -> dict:
+        return {
+            "type": cls.TYPE_FLOW_ENTERED,
+            "created_on": obj.created_on,
+            "flow": {"uuid": str(obj.flow.uuid), "name": obj.flow.name},
+            "session_uuid": str(obj.session.uuid) if obj.session else None,
+        }
+
+    @classmethod
+    def from_exited_run(cls, obj) -> dict:
+        return {
+            "type": cls.TYPE_FLOW_EXITED,
+            "created_on": obj.exited_on,
+            "flow": {"uuid": str(obj.flow.uuid), "name": obj.flow.name},
+            # additional properties
+            "status": obj.status,
+        }
+
+    @classmethod
+    def from_airtime_transfer(cls, obj) -> dict:
         return {
             "type": cls.TYPE_AIRTIME_TRANSFERRED,
             "created_on": obj.created_on,
@@ -87,7 +110,7 @@ class Event:
         }
 
     @classmethod
-    def from_webhook_result(cls, obj):
+    def from_webhook_result(cls, obj) -> dict:
         return {
             "type": cls.TYPE_WEBHOOK_CALLED,
             "created_on": obj.created_on,

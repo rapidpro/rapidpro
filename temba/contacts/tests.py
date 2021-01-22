@@ -21,12 +21,11 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.airtime.models import AirtimeTransfer
-from temba.api.models import WebHookResult
 from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.search import SearchException, SearchResults, search_contacts
 from temba.contacts.views import ContactListView
-from temba.flows.models import Flow, FlowRun
+from temba.flows.models import Flow
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.mailroom import MailroomException, modifiers
@@ -2035,7 +2034,7 @@ class ContactTest(TembaTest):
             assertHistoryEvent(history[5], "webhook_called")
             assertHistoryEvent(history[6], "run_result_changed")
             assertHistoryEvent(history[7], "msg_created")
-            assertHistoryEvent(history[8], "flow_entered", FlowRun)
+            assertHistoryEvent(history[8], "flow_entered")
             assertHistoryEvent(history[9], "msg_received")
             assertHistoryEvent(history[10], "campaign_fired", EventFire)
             assertHistoryEvent(history[-1], "msg_received", msg_text="Inbound message 11")
@@ -2125,8 +2124,8 @@ class ContactTest(TembaTest):
             )
 
             assertHistoryEvent(history[0], "msg_created", msg_text="What is your favorite color?")
-            assertHistoryEvent(history[1], "flow_entered", FlowRun)
-            assertHistoryEvent(history[2], "flow_exited", FlowRun)
+            assertHistoryEvent(history[1], "flow_entered")
+            assertHistoryEvent(history[2], "flow_exited")
             assertHistoryEvent(history[3], "msg_received", msg_text="Newer message")
             assertHistoryEvent(history[4], "call_started", IVRCall)
             assertHistoryEvent(history[5], "channel_event", ChannelEvent)
@@ -2136,7 +2135,7 @@ class ContactTest(TembaTest):
             assertHistoryEvent(history[9], "webhook_called")
             assertHistoryEvent(history[10], "run_result_changed")
             assertHistoryEvent(history[11], "msg_created", msg_text="What is your favorite color?")
-            assertHistoryEvent(history[12], "flow_entered", FlowRun)
+            assertHistoryEvent(history[12], "flow_entered")
 
         # with a max history of one, we should see this event first
         with patch("temba.contacts.models.Contact.MAX_HISTORY", 1):
@@ -2260,26 +2259,11 @@ class ContactTest(TembaTest):
 
         contact = self.create_contact("Joe Blow", phone="+1234")
         flow = self.get_flow("color_v13")
-        nodes = flow.get_definition()["nodes"]
-        color_prompt = nodes[0]
-        color_split = nodes[4]
 
-        run = (
-            MockSessionWriter(self.joe, flow)
-            .visit(color_prompt)
-            .send_msg("What is your favorite color?", self.channel)
-            .call_webhook("POST", "https://example.com/", "1234")  # pretend that flow run made a webhook request
-            .visit(color_split)
-            .wait()
-            .save()
-        ).session.runs.get()
-
-        result = WebHookResult.objects.get()
-
-        item = {"type": "webhook_called", "obj": result}
+        item = {"type": "webhook_called", "url": "http://test.com", "status": "success"}
         self.assertEqual(history_class(item), "non-msg detail-event")
 
-        result.status_code = 404
+        item = {"type": "webhook_called", "url": "http://test.com", "status": "response_error"}
         self.assertEqual(history_class(item), "non-msg warning detail-event")
 
         call = self.create_incoming_call(self.reminder_flow, contact)
@@ -2321,21 +2305,16 @@ class ContactTest(TembaTest):
         item = {"type": "broadcast_created", "recipient_count": 2}
         self.assertEqual(history_icon(item), '<span class="glyph icon-bullhorn"></span>')
 
-        item = {"type": "flow_entered", "obj": run}
+        item = {"type": "flow_entered", "flow": {"uuid": str(flow.uuid), "name": flow.name}}
         self.assertEqual(history_icon(item), '<span class="glyph icon-flow"></span>')
 
-        run.run_event_type = "Invalid"
-        self.assertEqual(history_icon(item), '<span class="glyph icon-flow"></span>')
-
-        item = {"type": "flow_exited", "obj": run}
-
-        run.exit_type = FlowRun.EXIT_TYPE_COMPLETED
+        item = {"type": "flow_exited", "flow": {"uuid": str(flow.uuid), "name": flow.name}, "status": "C"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-checkmark"></span>')
 
-        run.exit_type = FlowRun.EXIT_TYPE_INTERRUPTED
+        item = {"type": "flow_exited", "flow": {"uuid": str(flow.uuid), "name": flow.name}, "status": "I"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-cancel-circle"></span>')
 
-        run.exit_type = FlowRun.EXIT_TYPE_EXPIRED
+        item = {"type": "flow_exited", "flow": {"uuid": str(flow.uuid), "name": flow.name}, "status": "X"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
 
         # manually create two event fires
@@ -2356,17 +2335,7 @@ class ContactTest(TembaTest):
         self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
         self.assertEqual(history_class(item), "non-msg skipped")
 
-        # airtime transfer
-        transfer = AirtimeTransfer.objects.create(
-            org=self.org,
-            status="S",
-            contact=contact,
-            currency="RWF",
-            desired_amount=Decimal("100"),
-            actual_amount=Decimal("100"),
-            created_on=pastDate,
-        )
-        item = {"type": "airtime_transferred", "obj": transfer}
+        item = {"type": "airtime_transferred", "currency": "RWF", "actual_amount": "100"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-cash"></span>')
         self.assertEqual(history_class(item), "non-msg detail-event")
 
