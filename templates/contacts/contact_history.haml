@@ -8,12 +8,11 @@
 
     %td.details.wrapped.w-full
       -if event.type == 'airtime_transferred'
-        -with event.obj as transfer
-          -if transfer.status == 'S'
-            -blocktrans trimmed with amount=transfer.actual_amount currency=transfer.currency
-              Transferred <b>{{ amount }}</b> <b>{{ currency }}</b> of airtime
-          -else
-            -trans "Airtime transfer failed"
+        -if transfer.actual_amount > 0
+          -blocktrans trimmed with amount=event.actual_amount currency=event.currency
+            Transferred <b>{{ amount }}</b> <b>{{ currency }}</b> of airtime
+        -else
+          -trans "Airtime transfer failed"
 
       -elif event.type == 'call_started'
         -with event.obj as call
@@ -102,10 +101,6 @@
       -elif event.type == 'error' or event.type == 'failure'
         {{ event.text }}
 
-      -elif event.type == 'email_created'
-        -blocktrans trimmed with subject=event.subject
-          Email sent with subject <b>{{ subject }}</b>
-
       -elif event.type == 'email_sent'
         -trans "Email sent to"
         -for address in event.to
@@ -162,14 +157,11 @@
           Opened ticket on <a href="{{ ticketer_url }}">{{ ticketer }}</a> with subject <b>{{ subject }}</b>
 
       -elif event.type == 'webhook_called'
-        -with event.obj as result
-          -if result.is_success
-            -trans "Successfully called"
-          -else
-            -trans "Failed to call"
-          {{ result.url|truncatechars:100 }}
-
-
+        -if event.status == "success"
+          -trans "Successfully called"
+        -else
+          -trans "Failed to call"
+        {{ event.url|truncatechars:100 }}
 
     %td.created_on
       .time.flex.items-end.justify-end
@@ -188,10 +180,10 @@
           {% channel_log_link event.obj %}
 
         -elif event.type == 'airtime_transferred'
-          .hover-linked.icon-docs-2(onclick="goto(event)" href="{% url 'airtime.airtimetransfer_read' event.obj.id %}")
+          .hover-linked.icon-docs-2(onclick="goto(event)" href="{% url 'airtime.airtimetransfer_read' event.transfer_id %}")
 
         -elif event.type == 'webhook_called'
-          .hover-linked.icon-docs-2(onclick="goto(event)" href="{% url 'api.webhookresult_read' event.obj.id %}")
+          .hover-linked.icon-docs-2(onclick="goto(event)" href="{% url 'api.webhookresult_read' event.webhook_result_id %}")
 
         -elif event.type == 'flow_entered' and perms.flows.flowsession_json and event.obj.session
           .hover-linked.icon-docs-2(onclick="goto(event)" href="{% url 'flows.flowsession_json' event.obj.session.uuid %}")

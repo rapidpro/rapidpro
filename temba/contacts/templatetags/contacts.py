@@ -175,7 +175,7 @@ def history_class(item):
 
         if item["type"] == "error" or item["type"] == "failure":
             classes.append("warning")
-        elif item["type"] == "webhook_called" and not obj.is_success:
+        elif item["type"] == "webhook_called" and item["status"] != "success":
             classes.append("warning")
         elif item["type"] == "call_started" and obj.status == IVRCall.FAILED:
             classes.append("warning")

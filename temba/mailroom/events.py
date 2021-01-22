@@ -72,6 +72,33 @@ class Event:
                 "channel_log_id": channel_log.id if channel_log else None,
             }
 
+    @classmethod
+    def from_airtime_transfer(cls, obj):
+        return {
+            "type": cls.TYPE_AIRTIME_TRANSFERRED,
+            "created_on": obj.created_on,
+            "sender": obj.sender,
+            "recipient": obj.recipient,
+            "currency": obj.currency,
+            "desired_amount": obj.desired_amount,
+            "actual_amount": obj.actual_amount,
+            # additional properties
+            "transfer_id": obj.id,
+        }
+
+    @classmethod
+    def from_webhook_result(cls, obj):
+        return {
+            "type": cls.TYPE_WEBHOOK_CALLED,
+            "created_on": obj.created_on,
+            "url": obj.url,
+            "status": "success" if obj.is_success else "response_error",
+            "status_code": obj.status_code,
+            "elapsed_ms": obj.request_time,
+            # additional properties
+            "webhook_result_id": obj.id,
+        }
+
 
 def _msg_in(obj) -> dict:
     d = _base_msg(obj)

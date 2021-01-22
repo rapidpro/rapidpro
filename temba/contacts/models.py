@@ -837,9 +837,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             [{"type": "flow_exited", "created_on": r.exited_on, "obj": r} for r in exited_runs],
             [{"type": "channel_event", "created_on": e.created_on, "obj": e} for e in channel_events],
             [{"type": "campaign_fired", "created_on": f.fired, "obj": f} for f in campaign_events],
-            [{"type": "webhook_called", "created_on": r.created_on, "obj": r} for r in webhook_results],
+            [Event.from_webhook_result(r) for r in webhook_results],
             [{"type": "call_started", "created_on": c.created_on, "obj": c} for c in calls],
-            [{"type": "airtime_transferred", "created_on": t.created_on, "obj": t} for t in transfers],
+            [Event.from_airtime_transfer(t) for t in transfers],
             session_events,
         )
 
