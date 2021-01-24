@@ -1,3 +1,7 @@
+v6.1.26
+----------
+ * Upgrade urllib3
+
 v6.1.25
 ----------
  * Update to elastic search v7
