@@ -8,8 +8,8 @@ jobs:
       redis_version: '5'
       node_version: '10'
       elastic_version: '6.8.5'
-      rpindexer_version: '5.7.2'
-      mailroom_version: '5.7.40'
+      rpindexer_version: '6.0.0'
+      mailroom_version: '6.1.12'
       DJANGO_SETTINGS_MODULE: temba.settings_ci
     strategy:
       matrix:

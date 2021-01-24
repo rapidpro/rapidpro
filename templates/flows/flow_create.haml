@@ -1,5 +1,4 @@
 -extends 'includes/modax.haml'
-
 -load smartmin i18n
 
 -block fields
@@ -11,7 +10,7 @@
     .ml-3
       -render_field 'flow_type'
 
-  .keywords{class:"{%if form.flow_type.value == 'S'%}hidden{%endif%}"}
+  .keywords(class="{% if form.flow_type.value == 'B' or form.flow_type.value == 'S' %}hidden{%endif%}")
     -render_field 'keyword_triggers'
   
   -if form.base_language
@@ -19,19 +18,18 @@
       -render_field 'base_language'
 
 
-
 -block modal-script
   {{block.super}}
 
   :javascript
 
-    var modalBody = document.querySelector("#create-flow-modal").shadowRoot
+    var modalBody = document.querySelector("#create-flow-modal").shadowRoot;
     var typeSelect = modalBody.querySelector("temba-select[name='flow_type']");
     var keywords = modalBody.querySelector(".keywords");
     
     typeSelect.addEventListener("change", function(evt) {
         var selected = evt.target.values[0];
-        if (selected.value === "S") {
+        if (selected.value === "B" || selected.value === "S") {
           keywords.classList.add("hidden");
         } else {
           keywords.classList.remove("hidden");

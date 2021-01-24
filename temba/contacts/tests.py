@@ -15,6 +15,7 @@ from django.core.validators import ValidationError
 from django.db import connection
 from django.db.models import Value as DbValue
 from django.db.models.functions import Concat, Substr
+from django.db.utils import IntegrityError
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -2024,7 +2025,7 @@ class ContactTest(TembaTest):
                 if obj_class:
                     self.assertIsInstance(item["obj"], obj_class)
                 if msg_text:
-                    self.assertEqual(msg_text, item["obj"].text)
+                    self.assertEqual(msg_text, item["msg"]["text"])
 
             assertHistoryEvent(history[0], "call_started", IVRCall)
             assertHistoryEvent(history[1], "channel_event", ChannelEvent)
@@ -2033,11 +2034,11 @@ class ContactTest(TembaTest):
             assertHistoryEvent(history[4], "airtime_transferred", AirtimeTransfer)
             assertHistoryEvent(history[5], "webhook_called", WebHookResult)
             assertHistoryEvent(history[6], "run_result_changed")
-            assertHistoryEvent(history[7], "msg_created", Msg)
+            assertHistoryEvent(history[7], "msg_created")
             assertHistoryEvent(history[8], "flow_entered", FlowRun)
-            assertHistoryEvent(history[9], "msg_received", Msg)
+            assertHistoryEvent(history[9], "msg_received")
             assertHistoryEvent(history[10], "campaign_fired", EventFire)
-            assertHistoryEvent(history[-1], "msg_received", Msg, msg_text="Inbound message 11")
+            assertHistoryEvent(history[-1], "msg_received", msg_text="Inbound message 11")
 
             self.assertContains(response, "<audio ")
             self.assertContains(response, '<source type="audio/mp3" src="http://blah/file.mp3" />')
@@ -2061,15 +2062,15 @@ class ContactTest(TembaTest):
             # activity should include 11 remaining messages and the event fire
             history = response.context["history"]
             self.assertEqual(12, len(history))
-            assertHistoryEvent(history[0], "msg_received", Msg, msg_text="Inbound message 10")
-            assertHistoryEvent(history[10], "msg_received", Msg, msg_text="Inbound message 0")
-            assertHistoryEvent(history[11], "msg_received", Msg, msg_text="Very old inbound message")
+            assertHistoryEvent(history[0], "msg_received", msg_text="Inbound message 10")
+            assertHistoryEvent(history[10], "msg_received", msg_text="Inbound message 0")
+            assertHistoryEvent(history[11], "msg_received", msg_text="Very old inbound message")
 
             response = self.fetch_protected(url, self.admin)
             history = response.context["history"]
 
             self.assertEqual(95, len(history))
-            assertHistoryEvent(history[7], "msg_created", Msg, msg_text="What is your favorite color?")
+            assertHistoryEvent(history[7], "msg_created", msg_text="What is your favorite color?")
 
             # if a new message comes in
             self.create_incoming_msg(self.joe, "Newer message")
@@ -2077,7 +2078,7 @@ class ContactTest(TembaTest):
 
             # now we'll see the message that just came in first, followed by the call event
             history = response.context["history"]
-            assertHistoryEvent(history[0], "msg_received", Msg, msg_text="Newer message")
+            assertHistoryEvent(history[0], "msg_received", msg_text="Newer message")
             assertHistoryEvent(history[1], "call_started", IVRCall)
 
             recent_start = datetime_to_ms(timezone.now() - timedelta(days=1))
@@ -2123,10 +2124,10 @@ class ContactTest(TembaTest):
                 response.context["before"], datetime_to_ms(response.context["history"][-1]["created_on"])
             )
 
-            assertHistoryEvent(history[0], "msg_created", Msg, msg_text="What is your favorite color?")
+            assertHistoryEvent(history[0], "msg_created", msg_text="What is your favorite color?")
             assertHistoryEvent(history[1], "flow_entered", FlowRun)
             assertHistoryEvent(history[2], "flow_exited", FlowRun)
-            assertHistoryEvent(history[3], "msg_received", Msg, msg_text="Newer message")
+            assertHistoryEvent(history[3], "msg_received", msg_text="Newer message")
             assertHistoryEvent(history[4], "call_started", IVRCall)
             assertHistoryEvent(history[5], "channel_event", ChannelEvent)
             assertHistoryEvent(history[6], "channel_event", ChannelEvent)
@@ -2134,7 +2135,7 @@ class ContactTest(TembaTest):
             assertHistoryEvent(history[8], "airtime_transferred", AirtimeTransfer)
             assertHistoryEvent(history[9], "webhook_called", WebHookResult)
             assertHistoryEvent(history[10], "run_result_changed")
-            assertHistoryEvent(history[11], "msg_created", Msg, msg_text="What is your favorite color?")
+            assertHistoryEvent(history[11], "msg_created", msg_text="What is your favorite color?")
             assertHistoryEvent(history[12], "flow_entered", FlowRun)
 
         # with a max history of one, we should see this event first
@@ -2258,8 +2259,6 @@ class ContactTest(TembaTest):
         self.create_campaign()
 
         contact = self.create_contact("Joe Blow", phone="+1234")
-        msg = self.create_incoming_msg(contact, "Inbound message")
-
         flow = self.get_flow("color_v13")
         nodes = flow.get_definition()["nodes"]
         color_prompt = nodes[0]
@@ -2292,50 +2291,35 @@ class ContactTest(TembaTest):
         self.assertEqual(history_class(item), "non-msg warning")
 
         # inbound
-        item = {"type": "msg_received", "obj": msg}
+        item = {"type": "msg_received", "msg": {"text": "Hi"}, "msg_type": "I"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-user"></span>')
 
         # outgoing sent
-        item = {"type": "msg_created", "obj": msg}
-        msg.direction = "O"
-        msg.status = "S"
+        item = {"type": "msg_created", "msg": {"text": "Hi"}, "status": "S"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-right"></span>')
 
         # outgoing delivered
-        msg.status = "D"
+        item = {"type": "msg_created", "msg": {"text": "Hi"}, "status": "D"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-check"></span>')
 
         # failed
-        msg.status = "F"
+        item = {"type": "msg_created", "msg": {"text": "Hi"}, "status": "F"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-notification"></span>')
         self.assertEqual(history_class(item), "msg warning")
 
         # outgoing voice
-        msg.msg_type = "V"
+        item = {"type": "ivr_created", "msg": {"text": "Hi"}, "status": "F"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-call-outgoing"></span>')
         self.assertEqual(history_class(item), "msg warning")
 
         # incoming voice
-        item = {"type": "msg_received", "obj": msg}
-        msg.direction = "I"
+        item = {"type": "msg_received", "msg": {"text": "Hi"}, "msg_type": "V"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-call-incoming"></span>')
-        self.assertEqual(history_class(item), "msg warning")
+        self.assertEqual(history_class(item), "msg")
 
         # simulate a broadcast to 2 people
-        joe_and_frank = self.create_group("Joe and Frank", [self.joe, self.frank])
-        item = {"type": "msg_created", "obj": msg}
-        msg.broadcast = Broadcast.create(self.org, self.admin, "Test message", groups=[joe_and_frank])
-        msg.status = "F"
-        msg.msg_type = "F"
-        self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-notification"></span>')
-
-        msg.status = "S"
-        with patch("temba.msgs.models.Broadcast.get_message_count") as mock_get_message_count:
-            mock_get_message_count.return_value = 2
-            self.assertEqual(history_icon(item), '<span class="glyph icon-bullhorn"></span>')
-
-            mock_get_message_count.return_value = 0
-            self.assertEqual(history_icon(item), '<span class="glyph icon-bubble-right"></span>')
+        item = {"type": "broadcast_created", "recipient_count": 2}
+        self.assertEqual(history_icon(item), '<span class="glyph icon-bullhorn"></span>')
 
         item = {"type": "flow_entered", "obj": run}
         self.assertEqual(history_icon(item), '<span class="glyph icon-flow"></span>')
@@ -3595,6 +3579,18 @@ class ContactURNTest(TembaTest):
         )
         self.assertEqual(urn.get_display(self.org), "JIM")
 
+    def test_empty_scheme_disallowed(self):
+        with self.assertRaises(IntegrityError):
+            ContactURN.objects.create(org=self.org, scheme="", path="1234", identity=":1234")
+
+    def test_empty_path_disallowed(self):
+        with self.assertRaises(IntegrityError):
+            ContactURN.objects.create(org=self.org, scheme="ext", path="", identity="ext:")
+
+    def test_identity_mismatch_disallowed(self):
+        with self.assertRaises(IntegrityError):
+            ContactURN.objects.create(org=self.org, scheme="ext", path="1234", identity="ext:5678")
+
 
 class ContactFieldTest(TembaTest):
     def setUp(self):
@@ -3772,7 +3768,7 @@ class ContactFieldTest(TembaTest):
         # create a dummy export task so that we won't be able to export
         blocking_export = ExportContactsTask.create(self.org, self.admin)
 
-        response = self.client.get(reverse("contacts.contact_export"), dict(), follow=True)
+        response = self.client.post(reverse("contacts.contact_export"), dict(), follow=True)
         self.assertContains(response, "already an export in progress")
 
         # ok, mark that one as finished and try again

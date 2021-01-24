@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-16 14:18+0000\n"
+"POT-Creation-Date: 2021-01-12 14:27+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2335,16 +2335,10 @@ msgstr ""
 msgid "Field name '%(name)s' is repeated."
 msgstr ""
 
-msgid "Message flow"
+msgid "Phone Call"
 msgstr ""
 
-msgid "Phone call flow"
-msgstr ""
-
-msgid "Surveyor flow"
-msgstr ""
-
-msgid "USSD flow"
+msgid "Background"
 msgstr ""
 
 msgid "The name for this flow"
@@ -2360,9 +2354,6 @@ msgid "Whether this flow is archived"
 msgstr ""
 
 msgid "Whether this is a system created flow"
-msgstr ""
-
-msgid "The type of this flow"
 msgstr ""
 
 msgid "Minutes of inactivity that will cause expiration from flow"
@@ -5123,6 +5114,13 @@ msgstr ""
 msgid "Select your provider below to get started."
 msgstr ""
 
+msgid "Unable to delete classifier still being used by"
+msgstr ""
+
+#, python-format
+msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
+msgstr ""
+
 msgid "Classifier"
 msgstr ""
 
@@ -5140,21 +5138,6 @@ msgstr ""
 
 msgid "Intents are synced automatically every 5 minutes"
 msgstr ""
-
-msgid "Are you sure you want to remove this classifier from your account?"
-msgstr ""
-
-msgid "This classifier cannot be removed because it in use."
-msgstr ""
-
-msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
-msgstr ""
-
-#, python-format
-msgid "Used by %(num_flows)s flow:"
-msgid_plural "Used by %(num_flows)s flows:"
-msgstr[0] ""
-msgstr[1] ""
 
 msgid "Ok"
 msgstr ""
@@ -5180,9 +5163,6 @@ msgstr ""
 
 #, python-format
 msgid "You are about to delete <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
-msgstr ""
-
-msgid "Smart Group"
 msgstr ""
 
 #, python-format
@@ -5637,24 +5617,6 @@ msgstr ""
 msgid "To get started you need to add a voice-enabled channel to your workspace. A voice-enabled channel is a phone number which %(name)s can use to make and receive phone calls on your behalf. For example, Twilio is a service which provides voice-enabled numbers which you can add as channels in your %(name)s workspace."
 msgstr ""
 
-msgid "This flow has never been started."
-msgstr ""
-
-msgid "This flow has been started once."
-msgstr ""
-
-msgid "This flow has been started {{ run_count }} times."
-msgstr ""
-
-msgid "It has been completed"
-msgstr ""
-
-msgid "Once."
-msgstr ""
-
-msgid "{{ complete_count }} times."
-msgstr ""
-
 #, python-format
 msgid ""
 "\n"
@@ -5704,6 +5666,9 @@ msgid "Remove Label"
 msgstr ""
 
 msgid "Are you sure you want to remove this label?"
+msgstr ""
+
+msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
 msgstr ""
 
 msgid "You cannot remove a label which has child labels. Please remove all children first."
@@ -5914,6 +5879,16 @@ msgid "Your phone is having difficulty relaying messages"
 msgstr ""
 
 #, python-format
+msgid "%(count)s result"
+msgid_plural "%(count)s results"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "Results %(start)s - %(end)s of %(total)s"
+msgstr ""
+
+#, python-format
 msgid "Aliases for %(name)s"
 msgstr ""
 
@@ -6038,6 +6013,12 @@ msgstr ""
 
 msgid "This label cannot be removed because it in use."
 msgstr ""
+
+#, python-format
+msgid "Used by %(num_flows)s flow:"
+msgid_plural "Used by %(num_flows)s flows:"
+msgstr[0] ""
+msgstr[1] ""
 
 #, python-format
 msgid ""
@@ -7162,10 +7143,6 @@ msgid "No ticketing services are available."
 msgstr ""
 
 msgid "Unable to delete service still being used by"
-msgstr ""
-
-#, python-format
-msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
 msgstr ""
 
 #, python-format

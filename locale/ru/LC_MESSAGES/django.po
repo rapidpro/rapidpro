@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-16 14:18+0000\n"
+"POT-Creation-Date: 2021-01-12 14:27+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3053,17 +3053,13 @@ msgstr ""
 msgid "Field name '%(name)s' is repeated."
 msgstr ""
 
-msgid "Message flow"
-msgstr "Поток сообщений"
+#, fuzzy
+#| msgid "phone call"
+msgid "Phone Call"
+msgstr "телефонный вызов"
 
-msgid "Phone call flow"
-msgstr "Поток телефонных звонков"
-
-msgid "Surveyor flow"
-msgstr "Поток наблюдателя"
-
-msgid "USSD flow"
-msgstr "Поток USSD"
+msgid "Background"
+msgstr ""
 
 msgid "The name for this flow"
 msgstr "Название данного потока"
@@ -3079,9 +3075,6 @@ msgstr "Архивируется ли данный поток"
 
 msgid "Whether this is a system created flow"
 msgstr "Является ли этот поток созданным системой"
-
-msgid "The type of this flow"
-msgstr "Тип данного потока"
 
 msgid "Minutes of inactivity that will cause expiration from flow"
 msgstr "Количество минут бездействия, которое приведет к выходу из потока"
@@ -6824,6 +6817,14 @@ msgstr ""
 "\n"
 "          "
 
+msgid "Unable to delete classifier still being used by"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "You are about to delete <span class='group_name'> %(object)s. </span> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
+msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
+msgstr "Вы собираетесь удалить <span class='group_name'> %(object)s. </span> Контакты не будут удалены, но сама группа будет удалена. Способа отменить это действие нет. Вы уверены?"
+
 msgid "Classifier"
 msgstr "Классификатор"
 
@@ -6843,23 +6844,6 @@ msgstr "На данный момент синхронизированные на
 
 msgid "Intents are synced automatically every 5 minutes"
 msgstr "Намерения автоматически синхронизируются каждые 5 минут"
-
-msgid "Are you sure you want to remove this classifier from your account?"
-msgstr "Вы уверены, что хотите удалить этот классификатор из Вашей учетной записи?"
-
-msgid "This classifier cannot be removed because it in use."
-msgstr "Этот классификатор не может быть удален, потому что он используется."
-
-msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
-msgstr "После того как он будет удален, он исчезнет навсегда. Способа отменить эту операцию не существует."
-
-#, python-format
-msgid "Used by %(num_flows)s flow:"
-msgid_plural "Used by %(num_flows)s flows:"
-msgstr[0] "Используется %(num_flows)s потоком:"
-msgstr[1] "Используется %(num_flows)s потоками:"
-msgstr[2] "Используется %(num_flows)s потоками:"
-msgstr[3] "Используется %(num_flows)s потоками:"
 
 msgid "Ok"
 msgstr "Ok"
@@ -6894,11 +6878,6 @@ msgstr ""
 #| msgid "You are about to delete <span class='group_name'> %(object)s. </span> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
 msgid "You are about to delete <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
 msgstr "Вы собираетесь удалить <span class='group_name'> %(object)s. </span> Контакты не будут удалены, но сама группа будет удалена. Способа отменить это действие нет. Вы уверены?"
-
-#, fuzzy
-#| msgid "Select Group"
-msgid "Smart Group"
-msgstr "Выбрать Группу"
 
 #, fuzzy, python-format
 #| msgid ""
@@ -7583,24 +7562,6 @@ msgstr ""
 "\n"
 "      "
 
-msgid "This flow has never been started."
-msgstr "Этот поток никогда не запускался."
-
-msgid "This flow has been started once."
-msgstr "Этот поток запускался один раз."
-
-msgid "This flow has been started {{ run_count }} times."
-msgstr "Этот поток запускался {{ run_count }} раз."
-
-msgid "It has been completed"
-msgstr "Было выполнено"
-
-msgid "Once."
-msgstr "один раз."
-
-msgid "{{ complete_count }} times."
-msgstr "{{ complete_count }} раз."
-
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"
@@ -7710,6 +7671,9 @@ msgstr "Удалить Метку"
 
 msgid "Are you sure you want to remove this label?"
 msgstr "Вы действительно хотите удалить эту метку?"
+
+msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
+msgstr "После того как он будет удален, он исчезнет навсегда. Способа отменить эту операцию не существует."
 
 msgid "You cannot remove a label which has child labels. Please remove all children first."
 msgstr "Вы не можете удалить метку с дочерними метками. Пожалуйста, сначала удалите все дочерние элементы."
@@ -7954,6 +7918,20 @@ msgstr ""
 
 msgid "Your phone is having difficulty relaying messages"
 msgstr "Ваш телефон столкнулся с проблемами при ретрансляции сообщений"
+
+#, fuzzy, python-format
+#| msgid "%(counter)s Use"
+#| msgid_plural "%(counter)s Uses"
+msgid "%(count)s result"
+msgid_plural "%(count)s results"
+msgstr[0] "%(counter)s использование"
+msgstr[1] "%(counter)s использований"
+msgstr[2] "%(counter)s использований"
+msgstr[3] "%(counter)s использований"
+
+#, python-format
+msgid "Results %(start)s - %(end)s of %(total)s"
+msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""
@@ -8218,6 +8196,14 @@ msgstr "Вы уверены, что хотите удалить эту папк�
 
 msgid "This label cannot be removed because it in use."
 msgstr "Эта метка не может быть удалена, потому что она используется."
+
+#, python-format
+msgid "Used by %(num_flows)s flow:"
+msgid_plural "Used by %(num_flows)s flows:"
+msgstr[0] "Используется %(num_flows)s потоком:"
+msgstr[1] "Используется %(num_flows)s потоками:"
+msgstr[2] "Используется %(num_flows)s потоками:"
+msgstr[3] "Используется %(num_flows)s потоками:"
 
 #, python-format
 msgid ""
@@ -10176,11 +10162,6 @@ msgstr ""
 msgid "Unable to delete service still being used by"
 msgstr ""
 
-#, fuzzy, python-format
-#| msgid "You are about to delete <span class='group_name'> %(object)s. </span> No contacts will be deleted but the group itself will be deleted. There is no way to undo this. Are you sure?"
-msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
-msgstr "Вы собираетесь удалить <span class='group_name'> %(object)s. </span> Контакты не будут удалены, но сама группа будет удалена. Способа отменить это действие нет. Вы уверены?"
-
 #, python-format
 msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
 msgstr ""
@@ -10302,6 +10283,50 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Message flow"
+#~ msgstr "Поток сообщений"
+
+#~ msgid "Phone call flow"
+#~ msgstr "Поток телефонных звонков"
+
+#~ msgid "Surveyor flow"
+#~ msgstr "Поток наблюдателя"
+
+#~ msgid "USSD flow"
+#~ msgstr "Поток USSD"
+
+#~ msgid "The type of this flow"
+#~ msgstr "Тип данного потока"
+
+#~ msgid "This flow has never been started."
+#~ msgstr "Этот поток никогда не запускался."
+
+#~ msgid "This flow has been started once."
+#~ msgstr "Этот поток запускался один раз."
+
+#~ msgid "This flow has been started {{ run_count }} times."
+#~ msgstr "Этот поток запускался {{ run_count }} раз."
+
+#~ msgid "It has been completed"
+#~ msgstr "Было выполнено"
+
+#~ msgid "Once."
+#~ msgstr "один раз."
+
+#~ msgid "{{ complete_count }} times."
+#~ msgstr "{{ complete_count }} раз."
+
+#~ msgid "Are you sure you want to remove this classifier from your account?"
+#~ msgstr "Вы уверены, что хотите удалить этот классификатор из Вашей учетной записи?"
+
+#~ msgid "This classifier cannot be removed because it in use."
+#~ msgstr "Этот классификатор не может быть удален, потому что он используется."
+
+#, fuzzy
+#~| msgid "Select Group"
+#~ msgid "Smart Group"
+#~ msgstr "Выбрать Группу"
 
 #~ msgid "has"
 #~ msgstr "содержит"

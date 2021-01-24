@@ -20,6 +20,7 @@ from django.utils.encoding import force_text
 from temba.api.models import Resthook
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
+from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.globals.models import Global
@@ -1547,11 +1548,41 @@ class FlowTest(TembaTest):
         with self.assertRaises(ValueError):
             FlowRevision.validate_legacy_definition(self.get_flow_json("non_localized_ruleset"))
 
-    def test_global_dependencies(self):
-        self.get_flow("dependencies_v13")
+    def test_importing_dependencies(self):
+        # create channel to be matched by name
+        channel = Channel.create(self.org, self.admin, None, channel_type="TG", name="RapidPro Test")
+
+        # create ticketer to be matched by UUID
+        ticketer = Ticketer.create(self.org, self.admin, "zendesk", "Zendesk Tickets", {})
+        ticketer.uuid = "6ceb51cd-1d19-4f28-a9c3-2e244a9e2959"
+        ticketer.save(update_fields=("uuid",))
+
+        flow = self.get_flow("dependencies_v13")
+        flow_def = flow.get_definition()
 
         # global should have been created with blank value
-        Global.objects.get(name="Org Name", key="org_name", value="")
+        self.assertTrue(self.org.globals.filter(name="Org Name", key="org_name", value="").exists())
+
+        # fields created with type if exists in export
+        self.assertTrue(self.org.contactfields.filter(key="cat_breed", label="Cat Breed", value_type="T").exists())
+        self.assertTrue(self.org.contactfields.filter(key="french_age", value_type="N").exists())
+
+        # reference to channel changed to match existing channel by name
+        self.assertEqual(
+            {"uuid": str(channel.uuid), "name": "RapidPro Test"}, flow_def["nodes"][0]["actions"][4]["channel"],
+        )
+
+        # reference to ticketer unchanged because it matched existing ticketer by UUID
+        self.assertEqual(
+            {"uuid": "6ceb51cd-1d19-4f28-a9c3-2e244a9e2959", "name": "Zendesk"},
+            flow_def["nodes"][8]["actions"][0]["ticketer"],
+        )
+
+        # reference to classifier unchanged since it doesn't exist
+        self.assertEqual(
+            {"uuid": "891a1c5d-1140-4fd0-bd0d-a919ea25abb6", "name": "Feelings"},
+            flow_def["nodes"][7]["actions"][0]["classifier"],
+        )
 
     def test_flow_metadata(self):
         # test importing both old and new flow formats
@@ -1851,9 +1882,14 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(response.context["has_flows"])
         self.assertIn("flow_type", response.context["form"].fields)
 
-        # our default brand has all choice types
+        # our default brand has all choice types except USSD which is no longer supported
         response = self.client.get(reverse("flows.flow_create"))
-        choices = [(Flow.TYPE_MESSAGE, "Messaging"), (Flow.TYPE_VOICE, "Phone Call"), (Flow.TYPE_SURVEY, "Surveyor")]
+        choices = [
+            (Flow.TYPE_MESSAGE, "Messaging"),
+            (Flow.TYPE_VOICE, "Phone Call"),
+            (Flow.TYPE_BACKGROUND, "Background"),
+            (Flow.TYPE_SURVEY, "Surveyor"),
+        ]
         self.assertEqual(choices, response.context["form"].fields["flow_type"].choices)
 
         # create a new regular flow
