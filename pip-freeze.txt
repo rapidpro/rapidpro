@@ -81,9 +81,9 @@ djangorestframework==3.9.2
     # via -r pip-requires.txt
 docutils==0.13.1
     # via botocore
-elasticsearch-dsl==6.3.1
+elasticsearch-dsl==7.3.0
     # via -r pip-requires.txt
-elasticsearch==6.3.1
+elasticsearch==7.10.1
     # via
     #   -r pip-requires.txt
     #   elasticsearch-dsl
