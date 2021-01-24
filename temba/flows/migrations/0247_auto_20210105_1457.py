@@ -21,7 +21,7 @@ DROP FUNCTION temba_flow_for_run(_run_id INT);
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("flows", "0244_squashed"),
+        ("flows", "0246_auto_20210119_1717"),
         ("sql", "0002_squashed"),
     ]
 
