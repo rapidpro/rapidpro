@@ -5,6 +5,7 @@ jobs:
     name: Test
     env:
       python_version: '3.6.x'
+      postgis-version: '2.5'
       redis_version: '5'
       node_version: '10'
       elastic_version: '7.10.1'
@@ -13,16 +14,20 @@ jobs:
       DJANGO_SETTINGS_MODULE: temba.settings_ci
     strategy:
       matrix:
-        pg_version: ['10', '11']
+        pg_version: ['11', '12']
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v1
 
     - name: Install PostgreSQL
-      uses: nyaruka/postgis-action@master
+      uses: nyaruka/postgis-action@v2
       with:
         postgresql version: ${{ matrix.pg_version }}
+        postgis version: ${{ env.postgis-version }}
+        postgresql db: temba
+        postgresql user: temba
+        postgresql password: temba
 
     - name: Install Linux packages
       run: |
@@ -48,12 +53,6 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: ${{ env.node_version }}
-
-    - name: Initialize database
-      run: |
-        psql -h localhost -U postgres -c "CREATE USER temba PASSWORD 'temba';"
-        psql -h localhost -U postgres -c "ALTER ROLE temba WITH SUPERUSER;"
-        psql -h localhost -U postgres -c "CREATE DATABASE temba;"
 
     - name: Initialize environment
       run: |
