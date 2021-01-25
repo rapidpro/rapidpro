@@ -1958,7 +1958,7 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Select your Workspace")
 
         def get_user_orgs(self):
-            return self.request.user.get_user_orgs(self.request.branding.get("keys"))
+            return self.request.user.get_user_orgs()
 
         def pre_process(self, request, *args, **kwargs):
             user = self.request.user
