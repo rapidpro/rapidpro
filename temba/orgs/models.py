@@ -314,6 +314,10 @@ class Org(SmartModel):
             brand = settings.BRANDING[self.brand]
             plan = brand.get("default_plan", settings.DEFAULT_PLAN)
 
+            # if parent are on topups keep using those
+            if self.plan == settings.TOPUP_PLAN:
+                plan = settings.TOPUP_PLAN
+
             org = Org.objects.create(
                 name=name,
                 timezone=timezone,

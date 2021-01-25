@@ -2771,6 +2771,15 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
 
+        with override_settings(DEFAULT_PLAN="other"):
+            settings.BRANDING[settings.DEFAULT_BRAND]["default_plan"] = "other"
+            self.org.plan = settings.TOPUP_PLAN
+            self.org.save()
+            self.org.reset_capabilities()
+            sub_org_c = self.org.create_sub_org("Sub Org C")
+            self.assertIsNotNone(sub_org_c)
+            self.assertEqual(sub_org_c.plan, settings.TOPUP_PLAN)
+
     def test_org_get_limit(self):
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 250)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 250)
