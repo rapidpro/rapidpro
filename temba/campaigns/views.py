@@ -518,12 +518,12 @@ class CampaignEventCRUDL(SmartCRUDL):
             if self.has_org_perm("campaigns.campaignevent_update") and not campaign_event.campaign.is_archived:
                 links.append(
                     dict(
-                        id="event-add",
+                        id="event-update",
                         title=_("Edit"),
                         style="button-primary",
                         js_class="update-event",
                         href=f"{reverse('campaigns.campaignevent_update', args=[campaign_event.id])}",
-                        modax=_("Add Event"),
+                        modax=_("Update Event"),
                     )
                 )
 
