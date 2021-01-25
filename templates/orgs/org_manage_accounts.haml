@@ -17,6 +17,11 @@
       --fa-icon-fill-color: #999;
     }
 
+    .deactivated td {
+      color: tomato;
+      opacity: 0.5;
+    }
+
 -block fields
   %table.list{style:"margin-bottom:0px;"}
     %thead
@@ -39,7 +44,7 @@
         %td.alert.alert-error{colspan: 6}
           -trans "You must have at least one administator"
       - for user in org_users
-        %tr
+        %tr(class="{% if user.is_active %}{% else %}deactivated{% endif %}")
           %td
             {{user.email}}
             - if user.first_name or user.last_name
