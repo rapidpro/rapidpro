@@ -1397,7 +1397,7 @@ class FlowCRUDL(SmartCRUDL):
             feature_filters = []
 
             facebook_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
-            if facebook_channel is not None:
+            if facebook_channel is not None and flow.flow_type == Flow.TYPE_MESSAGE:
                 feature_filters.append("facebook")
 
             whatsapp_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
