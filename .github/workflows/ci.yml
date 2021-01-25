@@ -5,7 +5,7 @@ jobs:
     name: Test
     env:
       python_version: '3.6.x'
-      postgis-version: '2.5'
+      postgis_version: '2.5'
       redis_version: '5'
       node_version: '10'
       elastic_version: '7.10.1'
@@ -24,7 +24,7 @@ jobs:
       uses: nyaruka/postgis-action@v2
       with:
         postgresql version: ${{ matrix.pg_version }}
-        postgis version: ${{ env.postgis-version }}
+        postgis version: ${{ env.postgis_version }}
         postgresql db: temba
         postgresql user: temba
         postgresql password: temba
