@@ -20,8 +20,8 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v1
 
-    - name: Install PostgreSQL
-      uses: nyaruka/postgis-action@master
+    - name: Install PostgreSQL and PostGIS
+      uses: nyaruka/postgis-action@v2.1.0
       with:
         postgresql version: ${{ matrix.pg_version }}
         postgis version: ${{ env.postgis_version }}
