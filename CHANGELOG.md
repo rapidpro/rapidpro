@@ -1,3 +1,11 @@
+v6.1.26
+----------
+ * Upgrade urllib3
+
+v6.1.25
+----------
+ * Update to elastic search v7
+
 v6.1.24
 ----------
  * Broadcast events in history should be white like message events

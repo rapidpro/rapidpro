@@ -26,16 +26,8 @@
     
         -for campaign_event in dep_campaignevents
           .inline<
-            %a{href:"{% url 'campaigns.campaignevent_read' campaign_event.id %}"}
-              {{ campaign_event.campaign.name }} - 
-            
-              -if campaign_event.offset < 0
-                {{campaign_event.abs_offset}} {{campaign_event.get_unit_display|slice:"-1"}}{{campaign_event.offset|pluralize}} Before
-              -elif campaign_event.offset == 0
-                On
-              -else
-                {{campaign_event.abs_offset}} {{campaign_event.get_unit_display|slice:"-1"}}{{campaign_event.offset|pluralize}} After
-              {{campaign_event.relative_to|title}}
+            %a(href="{% url 'campaigns.campaignevent_read' campaign_event.id %}")
+              {{ campaign_event.campaign.name }} - {{ campaign_event.offset_display }} {{ campaign_event.relative_to.label }}
             {{forloop|oxford}}
 
     -if dep_groups

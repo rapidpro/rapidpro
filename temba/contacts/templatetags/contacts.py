@@ -1,6 +1,5 @@
 from django import template
 from django.utils.safestring import mark_safe
-from django.utils.translation import ugettext_lazy as _
 
 from temba.campaigns.models import EventFire
 from temba.contacts.models import URN, ContactField, ContactURN
@@ -201,29 +200,3 @@ def history_class(event: dict) -> str:
         classes.append("detail-event")
 
     return " ".join(classes)
-
-
-@register.filter
-def campaign_event_time(event):
-
-    unit = event.unit
-    if abs(event.offset) == 1:
-        if event.unit == "D":
-            unit = _("day")
-        elif event.unit == "M":
-            unit = _("minute")
-        elif event.unit == "H":
-            unit = _("hour")
-    else:
-        if event.unit == "D":
-            unit = _("days")
-        elif event.unit == "M":
-            unit = _("minutes")
-        elif event.unit == "H":
-            unit = _("hours")
-
-    direction = "after"
-    if event.offset < 0:
-        direction = "before"
-
-    return "%d %s %s %s" % (abs(event.offset), unit, direction, event.relative_to.label)

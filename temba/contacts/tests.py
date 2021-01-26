@@ -2217,41 +2217,6 @@ class ContactTest(TembaTest):
         self.assertContains(response, "unable to send email")
         self.assertContains(response, "this is a failure")
 
-    def test_campaign_event_time(self):
-
-        self.create_campaign()
-
-        from temba.campaigns.models import CampaignEvent
-        from temba.contacts.templatetags.contacts import campaign_event_time
-
-        event = CampaignEvent.create_message_event(
-            self.org,
-            self.admin,
-            self.campaign,
-            relative_to=self.planting_date,
-            offset=7,
-            unit="D",
-            message="A message to send",
-        )
-
-        event.unit = "D"
-        self.assertEqual("7 days after Planting Date", campaign_event_time(event))
-
-        event.unit = "M"
-        self.assertEqual("7 minutes after Planting Date", campaign_event_time(event))
-
-        event.unit = "H"
-        self.assertEqual("7 hours after Planting Date", campaign_event_time(event))
-
-        event.offset = -1
-        self.assertEqual("1 hour before Planting Date", campaign_event_time(event))
-
-        event.unit = "D"
-        self.assertEqual("1 day before Planting Date", campaign_event_time(event))
-
-        event.unit = "M"
-        self.assertEqual("1 minute before Planting Date", campaign_event_time(event))
-
     def test_activity_tags(self):
         self.create_campaign()
 
