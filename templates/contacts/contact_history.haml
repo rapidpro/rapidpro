@@ -33,7 +33,7 @@
             &nbsp;triggered
 
           %a(href='{%url "campaigns.campaignevent_read" eventfire.event.id %}')
-            {{ eventfire.event|campaign_event_time }}
+            {{ eventfire.event.offset_display }} {{ eventfire.event.relative_to.label }}
 
       -elif event.type == 'channel_event'
         -with event.obj as ch_event

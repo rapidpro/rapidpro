@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-12 14:27+0000\n"
+"POT-Creation-Date: 2021-01-26 20:16+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -104,6 +104,62 @@ msgstr ""
 #| msgid "Weekly"
 msgid "Weeks"
 msgstr "Semanalmente"
+
+#, fuzzy, python-format
+#| msgid "has a date before"
+msgid "%d minute before"
+msgid_plural "%d minutes before"
+msgstr[0] "tiene una fecha anterior a"
+msgstr[1] "tiene una fecha anterior a"
+
+#, python-format
+msgid "%d hour before"
+msgid_plural "%d hours before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, fuzzy, python-format
+#| msgid "has a date before"
+msgid "%d day before"
+msgid_plural "%d days before"
+msgstr[0] "tiene una fecha anterior a"
+msgstr[1] "tiene una fecha anterior a"
+
+#, python-format
+msgid "%d week before"
+msgid_plural "%d weeks before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%d minute after"
+msgid_plural "%d minutes after"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%d hour after"
+msgid_plural "%d hours after"
+msgstr[0] ""
+msgstr[1] ""
+
+#, fuzzy, python-format
+#| msgid "has a date after"
+msgid "%d day after"
+msgid_plural "%d days after"
+msgstr[0] "tiene una fecha posterior a"
+msgstr[1] "tiene una fecha posterior a"
+
+#, python-format
+msgid "%d week after"
+msgid_plural "%d weeks after"
+msgstr[0] ""
+msgstr[1] ""
+
+#, fuzzy
+#| msgid "Mon"
+msgid "on"
+msgstr "Lunes"
 
 #, fuzzy
 #| msgid "The groups to send the message to"
@@ -3377,28 +3433,6 @@ msgid "Can't query on URNs in an anonymous workspace"
 msgstr ""
 
 #, fuzzy
-#| msgid "days"
-msgid "day"
-msgstr "días"
-
-msgid "minute"
-msgstr ""
-
-msgid "hour"
-msgstr ""
-
-msgid "days"
-msgstr "días"
-
-#, fuzzy
-#| msgid "After 5 minutes"
-msgid "minutes"
-msgstr "Después de 5 minutos"
-
-msgid "hours"
-msgstr ""
-
-#, fuzzy
 msgid "Name is used by another group"
 msgstr "Enviar un mensaje de texto al contacto"
 
@@ -5816,12 +5850,6 @@ msgstr "El nombre de este contacto"
 #| msgid "The name of this contact"
 msgid "No events in this campaign yet."
 msgstr "El nombre de este contacto"
-
-msgid "before"
-msgstr ""
-
-msgid "after"
-msgstr ""
 
 #, fuzzy
 #| msgid "Once they are deleted, they will be gone forever. There is no way to undo this operation."
@@ -10705,11 +10733,6 @@ msgid "A new conversation"
 msgstr "Clave de conversación"
 
 #, fuzzy
-#| msgid "Mon"
-msgid "on"
-msgstr "Lunes"
-
-#, fuzzy
 #| msgid "The type of this trigger"
 msgid "The referrer id"
 msgstr "El tipo de este activador"
@@ -10761,6 +10784,19 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "days"
+#~ msgid "day"
+#~ msgstr "días"
+
+#~ msgid "days"
+#~ msgstr "días"
+
+#, fuzzy
+#~| msgid "After 5 minutes"
+#~ msgid "minutes"
+#~ msgstr "Después de 5 minutos"
 
 #, fuzzy
 #~ msgid "Message flow"
@@ -16408,14 +16444,8 @@ msgstr ""
 #~ msgid "has a date"
 #~ msgstr "tiene una fecha"
 
-#~ msgid "has a date before"
-#~ msgstr "tiene una fecha anterior a"
-
 #~ msgid "has a date equal to"
 #~ msgstr "tiene una fecha igual a"
-
-#~ msgid "has a date after"
-#~ msgstr "tiene una fecha posterior a"
 
 #~ msgid "has a phone number"
 #~ msgstr "tiene un número de teléfono"
