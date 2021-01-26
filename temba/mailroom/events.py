@@ -155,10 +155,12 @@ class Event:
 
     @classmethod
     def from_channel_event(cls, obj) -> dict:
+        extra = obj.extra or {}
         return {
             "type": cls.TYPE_CHANNEL_EVENT,
             "created_on": obj.created_on,
-            "obj": obj,
+            "channel_event_type": obj.event_type,
+            "duration": extra.get("duration"),
         }
 
 

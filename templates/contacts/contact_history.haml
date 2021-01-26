@@ -33,29 +33,28 @@
           {{ eventfire.campaign_event.offset_display }} {{ eventfire.campaign_event.relative_to.name }}
 
       -elif event.type == 'channel_event'
-        -with event.obj as ch_event
-          -if ch_event.event_type == 'mt_miss'
-            -trans "Missed outgoing call"
-          -if ch_event.event_type == 'mo_miss'
-            -trans "Missed incoming call"
-          -elif ch_event.event_type == 'new_conversation'
-            -trans "Started Conversation"
-          -elif ch_event.event_type == 'welcome_message'
-            -trans "Welcome Message Sent"
-          -elif ch_event.event_type == 'referral'
-            -trans "Referred"
-          -elif ch_event.event_type == 'follow'
-            -trans "Followed"
-          -elif ch_event.event_type == 'stop_contact'
-            -trans "Stopped"
-          -elif ch_event.event_type == 'mt_call'
-            -trans "Outgoing Phone Call"
-            ({{ ch_event.extra.duration|format_seconds }})
-          -elif ch_event.event_type == 'mo_call'
-            -trans "Incoming Phone call"
-            ({{ ch_event.extra.duration|format_seconds }})
-          -else
-            -trans "Unknown/Unsupported"
+        -if event.channel_event_type == 'mt_miss'
+          -trans "Missed outgoing call"
+        -elif event.channel_event_type == 'mo_miss'
+          -trans "Missed incoming call"
+        -elif event.channel_event_type == 'new_conversation'
+          -trans "Started Conversation"
+        -elif event.channel_event_type == 'welcome_message'
+          -trans "Welcome Message Sent"
+        -elif event.channel_event_type == 'referral'
+          -trans "Referred"
+        -elif event.channel_event_type == 'follow'
+          -trans "Followed"
+        -elif event.channel_event_type == 'stop_contact'
+          -trans "Stopped"
+        -elif event.channel_event_type == 'mt_call'
+          -trans "Outgoing Phone Call"
+          ({{ event.duration|format_seconds }})
+        -elif event.channel_event_type == 'mo_call'
+          -trans "Incoming Phone call"
+          ({{ event.duration|format_seconds }})
+        -else
+          -trans "Unknown/Unsupported"
 
       -elif event.type == 'contact_field_changed'
         -if event.value

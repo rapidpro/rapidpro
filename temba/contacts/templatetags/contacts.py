@@ -2,10 +2,12 @@ from django import template
 from django.utils.safestring import mark_safe
 
 from temba.campaigns.models import EventFire
+from temba.channels.models import ChannelEvent
 from temba.contacts.models import URN, ContactField, ContactURN
+from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.mailroom.events import Event
-from temba.msgs.models import ERRORED, FAILED
+from temba.msgs.models import DELIVERED, ERRORED, FAILED, IVR
 
 register = template.Library()
 
@@ -139,29 +141,27 @@ def history_icon(event: dict) -> str:
     variant = None
 
     if event_type == Event.TYPE_MSG_CREATED:
-        if event["status"] in ("F", "E"):
+        if event["status"] in (ERRORED, FAILED):
             variant = "failed"
-        elif event["status"] == "D":
+        elif event["status"] == DELIVERED:
             variant = "delivered"
 
     elif event_type == Event.TYPE_MSG_RECEIVED:
-        if event["msg_type"] == "V":
+        if event["msg_type"] == IVR:
             variant = "voice"
 
     elif event_type == Event.TYPE_FLOW_EXITED:
-        if event["status"] == "I":
+        if event["status"] == FlowRun.STATUS_INTERRUPTED:
             variant = "interrupted"
-        elif event["status"] == "X":
+        elif event["status"] == FlowRun.STATUS_EXPIRED:
             variant = "expired"
         else:
             variant = "completed"
 
     elif event_type == Event.TYPE_CHANNEL_EVENT:
-        obj = event.get("obj")
-
-        if obj.event_type == "mo_miss":
+        if event["channel_event_type"] == ChannelEvent.TYPE_CALL_IN_MISSED:
             variant = "missed_incoming"
-        elif obj.event_type == "mt_miss":
+        elif event["channel_event_type"] == ChannelEvent.TYPE_CALL_OUT_MISSED:
             variant = "missed_outgoing"
 
     if variant:
