@@ -185,15 +185,13 @@ def history_class(event: dict) -> str:
     else:
         classes.append("non-msg")
 
-        obj = event.get("obj")
-
         if event_type == Event.TYPE_ERROR or event_type == "failure":
             classes.append("warning")
         elif event_type == Event.TYPE_WEBHOOK_CALLED and event["status"] != "success":
             classes.append("warning")
         elif event_type == Event.TYPE_CALL_STARTED and event["status"] == IVRCall.FAILED:
             classes.append("warning")
-        elif event_type == Event.TYPE_CAMPAIGN_FIRED and obj["fired_result"] == EventFire.RESULT_SKIPPED:
+        elif event_type == Event.TYPE_CAMPAIGN_FIRED and event["fired_result"] == EventFire.RESULT_SKIPPED:
             classes.append("skipped")
 
     if event_type not in SUMMARY_EVENTS:

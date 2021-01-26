@@ -2011,7 +2011,7 @@ class ContactTest(TembaTest):
             )
 
             # fetch our contact history
-            with self.assertNumQueries(64):
+            with self.assertNumQueries(63):
                 response = self.fetch_protected(url, self.admin)
 
             # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -2151,7 +2151,7 @@ class ContactTest(TembaTest):
                 + "?before=%d" % datetime_to_ms(scheduled + timedelta(minutes=5)),
                 self.admin,
             )
-            self.assertEqual(self.message_event, response.context["history"][0]["obj"].event)
+            self.assertEqual(self.message_event.id, response.context["history"][0]["campaign_event"]["id"])
 
         # now try the proper max history to test truncation
         response = self.fetch_protected(
@@ -2217,12 +2217,7 @@ class ContactTest(TembaTest):
         self.assertContains(response, "unable to send email")
         self.assertContains(response, "this is a failure")
 
-    def test_activity_tags(self):
-        self.create_campaign()
-
-        contact = self.create_contact("Joe Blow", phone="+1234")
-        flow = self.get_flow("color_v13")
-
+    def test_history_templatetags(self):
         item = {"type": "webhook_called", "url": "http://test.com", "status": "success"}
         self.assertEqual(history_class(item), "non-msg detail-event")
 
@@ -2266,33 +2261,23 @@ class ContactTest(TembaTest):
         item = {"type": "broadcast_created", "recipient_count": 2}
         self.assertEqual(history_icon(item), '<span class="glyph icon-bullhorn"></span>')
 
-        item = {"type": "flow_entered", "flow": {"uuid": str(flow.uuid), "name": flow.name}}
+        item = {"type": "flow_entered", "flow": {"uuid": "1234", "name": "Survey"}}
         self.assertEqual(history_icon(item), '<span class="glyph icon-flow"></span>')
 
-        item = {"type": "flow_exited", "flow": {"uuid": str(flow.uuid), "name": flow.name}, "status": "C"}
+        item = {"type": "flow_exited", "flow": {"uuid": "1234", "name": "Survey"}, "status": "C"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-checkmark"></span>')
 
-        item = {"type": "flow_exited", "flow": {"uuid": str(flow.uuid), "name": flow.name}, "status": "I"}
+        item = {"type": "flow_exited", "flow": {"uuid": "1234", "name": "Survey"}, "status": "I"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-cancel-circle"></span>')
 
-        item = {"type": "flow_exited", "flow": {"uuid": str(flow.uuid), "name": flow.name}, "status": "X"}
+        item = {"type": "flow_exited", "flow": {"uuid": "1234", "name": "Survey"}, "status": "X"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
 
-        # manually create two event fires
-        pastDate = timezone.now() - timedelta(days=1)
-        event_fire = EventFire.objects.create(
-            event=self.message_event, contact=contact, scheduled=pastDate, fired=pastDate
-        )
-
-        item = {"type": "campaign_fired", "obj": event_fire}
+        item = {"type": "campaign_fired", "campaign": {}, "fired_result": "F"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
         self.assertEqual(history_class(item), "non-msg")
 
-        event_fire.fired_result = EventFire.RESULT_FIRED
-        self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
-        self.assertEqual(history_class(item), "non-msg")
-
-        event_fire.fired_result = EventFire.RESULT_SKIPPED
+        item = {"type": "campaign_fired", "campaign": {}, "fired_result": "S"}
         self.assertEqual(history_icon(item), '<span class="glyph icon-clock"></span>')
         self.assertEqual(history_class(item), "non-msg skipped")
 

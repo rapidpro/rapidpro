@@ -153,6 +153,14 @@ class Event:
             "fired_result": obj.fired_result,
         }
 
+    @classmethod
+    def from_channel_event(cls, obj) -> dict:
+        return {
+            "type": cls.TYPE_CHANNEL_EVENT,
+            "created_on": obj.created_on,
+            "obj": obj,
+        }
+
 
 def _msg_in(obj) -> dict:
     d = _base_msg(obj)

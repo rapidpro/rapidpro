@@ -830,7 +830,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             [Event.from_msg(m) for m in msgs],
             [Event.from_started_run(r) for r in runs if after <= r.created_on < before],
             [Event.from_exited_run(r) for r in runs if r.exited_on and after <= r.exited_on < before],
-            [{"type": "channel_event", "created_on": e.created_on, "obj": e} for e in channel_events],
+            [Event.from_channel_event(e) for e in channel_events],
             [Event.from_event_fire(f) for f in campaign_events],
             [Event.from_webhook_result(r) for r in webhook_results],
             [Event.from_ivr_call(c) for c in calls],
