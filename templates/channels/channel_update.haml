@@ -376,7 +376,7 @@
       $('#id_country').children(":first").remove();
 
       function reformatWebChatUpdatePage() {
-        var errorsLenght = $("ul.errorlist").length;
+        var errorsLenght = $(".control-group.error").length;
         if (errorsLenght == 0) {
           $(".custom-collapsed-menu.setup").addClass("active");
         }
@@ -390,9 +390,9 @@
 
         reformatWebChatUpdatePage();
 
-        $("ul.errorlist").each(function(idx, el) {
-          $(el.parentNode.parentNode.parentNode.parentNode.parentNode).find("a.collapsed-title").find("i").attr("class", "icon-arrow-down-2");
-          $(el.parentNode.parentNode.parentNode.parentNode.parentNode).find(".custom-collapsed-menu-fields").slideDown();
+        $(".control-group.error").each(function(idx, el) {
+          $(el.parentNode.parentNode).find("a.collapsed-title").find("i").attr("class", "icon-arrow-down-2");
+          $(el.parentNode.parentNode).find(".custom-collapsed-menu-fields").slideDown();
         });
 
         $(".custom-collapsed-menu .collapsed-title").click(function() {
