@@ -333,7 +333,7 @@
         welcomeMessageQuickReplies = valuesQuickReplies.join(",");
       }
 
-      welcomeMessageQuickReplies = welcomeMessageQuickReplies !== "" ? welcomeMessageQuickReplies.split(",") : [];
+      welcomeMessageQuickReplies = (welcomeMessageQuickReplies !== "" && welcomeMessageQuickReplies !== undefined) ? welcomeMessageQuickReplies.split(",") : [];
 
       window.renderSurveyor({
         socketUrl: '{{ websocket_url }}',
