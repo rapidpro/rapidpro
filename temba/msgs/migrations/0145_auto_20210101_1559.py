@@ -3,6 +3,9 @@
 from django.db import migrations, models
 
 SQL = """
+---------------------------------------------------------------------------------
+-- Increment or decrement all of a message's labels
+---------------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION
   temba_insert_message_label_counts(_msg_id BIGINT, _is_archived BOOLEAN, _count INT)
 RETURNS VOID AS $$
