@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-12 14:27+0000\n"
+"POT-Creation-Date: 2021-01-26 19:24+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -87,6 +87,57 @@ msgid "Days"
 msgstr ""
 
 msgid "Weeks"
+msgstr ""
+
+#, python-format
+msgid "%(num)d minute before"
+msgid_plural "%(num)d minutes before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(num)d hour before"
+msgid_plural "%(num)d hours before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(num)d day before"
+msgid_plural "%(num)d days before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(num)d week before"
+msgid_plural "%(num)d weeks before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(num)d minute after"
+msgid_plural "%(num)d minutes after"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(num)d hour after"
+msgid_plural "%(num)d hours after"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(num)d day after"
+msgid_plural "%(num)d days after"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(num)d week after"
+msgid_plural "%(num)d weeks after"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "on"
 msgstr ""
 
 msgid "Select a group to base the campaign on"
@@ -7204,9 +7255,6 @@ msgid "An inbound call"
 msgstr ""
 
 msgid "A new conversation"
-msgstr ""
-
-msgid "on"
 msgstr ""
 
 msgid "The referrer id"

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-12 14:27+0000\n"
+"POT-Creation-Date: 2021-01-26 19:24+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -109,6 +109,59 @@ msgstr ""
 #| msgid "Weekly"
 msgid "Weeks"
 msgstr "Semanalmente"
+
+#, python-format
+msgid "%(num)d minute before"
+msgid_plural "%(num)d minutes before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(num)d hour before"
+msgid_plural "%(num)d hours before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(num)d day before"
+msgid_plural "%(num)d days before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(num)d week before"
+msgid_plural "%(num)d weeks before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(num)d minute after"
+msgid_plural "%(num)d minutes after"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(num)d hour after"
+msgid_plural "%(num)d hours after"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(num)d day after"
+msgid_plural "%(num)d days after"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%(num)d week after"
+msgid_plural "%(num)d weeks after"
+msgstr[0] ""
+msgstr[1] ""
+
+#, fuzzy
+#| msgid "Mon"
+msgid "on"
+msgstr "Segunda-feira"
 
 #, fuzzy
 #| msgid "The groups to send the message to"
@@ -9838,11 +9891,6 @@ msgstr "Chamadas perdidas"
 #, fuzzy
 msgid "A new conversation"
 msgstr "Configuração"
-
-#, fuzzy
-#| msgid "Mon"
-msgid "on"
-msgstr "Segunda-feira"
 
 #, fuzzy
 #| msgid "The type of this trigger"

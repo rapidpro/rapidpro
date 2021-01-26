@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-12 14:27+0000\n"
+"POT-Creation-Date: 2021-01-26 19:24+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -95,6 +95,79 @@ msgstr "Дни"
 
 msgid "Weeks"
 msgstr "Недели"
+
+#, fuzzy, python-format
+#| msgid "%d minute"
+#| msgid_plural "%d minutes"
+msgid "%(num)d minute before"
+msgid_plural "%(num)d minutes before"
+msgstr[0] "%d минута"
+msgstr[1] "%d минут"
+msgstr[2] "%d минут"
+msgstr[3] "%d минут"
+
+#, python-format
+msgid "%(num)d hour before"
+msgid_plural "%(num)d hours before"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+
+#, python-format
+msgid "%(num)d day before"
+msgid_plural "%(num)d days before"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+
+#, python-format
+msgid "%(num)d week before"
+msgid_plural "%(num)d weeks before"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+
+#, fuzzy, python-format
+#| msgid "%d minute"
+#| msgid_plural "%d minutes"
+msgid "%(num)d minute after"
+msgid_plural "%(num)d minutes after"
+msgstr[0] "%d минута"
+msgstr[1] "%d минут"
+msgstr[2] "%d минут"
+msgstr[3] "%d минут"
+
+#, python-format
+msgid "%(num)d hour after"
+msgid_plural "%(num)d hours after"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+
+#, python-format
+msgid "%(num)d day after"
+msgid_plural "%(num)d days after"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+
+#, python-format
+msgid "%(num)d week after"
+msgid_plural "%(num)d weeks after"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+
+#, fuzzy
+#| msgid "Mon"
+msgid "on"
+msgstr "Пн"
 
 msgid "Select a group to base the campaign on"
 msgstr "Выберите группу, на которой будет основана кампания"
@@ -10230,11 +10303,6 @@ msgstr "входящий звонок"
 #| msgid "New Conversation"
 msgid "A new conversation"
 msgstr "Новый Разговор"
-
-#, fuzzy
-#| msgid "Mon"
-msgid "on"
-msgstr "Пн"
 
 #, fuzzy
 #| msgid "Referrer Id"
