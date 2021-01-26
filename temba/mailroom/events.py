@@ -139,6 +139,16 @@ class Event:
             "logs_url": reverse("api.webhookresult_read", args=[obj.id]),
         }
 
+    @classmethod
+    def from_event_fire(cls, obj) -> dict:
+        return {
+            "type": cls.TYPE_CAMPAIGN_FIRED,
+            "created_on": obj.fired,
+            "campaign": {"id": obj.event.campaign.id, "name": obj.event.campaign.name},
+            "campaign_event_id": obj.event_id,
+            "fired_result": obj.fired_result,
+        }
+
 
 def _msg_in(obj) -> dict:
     d = _base_msg(obj)

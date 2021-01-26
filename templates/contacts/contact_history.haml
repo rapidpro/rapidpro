@@ -21,17 +21,16 @@
           {{ event.status_display }}
 
       -elif event.type == 'campaign_fired'
-        -with event.obj as eventfire
-          %a(href='{%url "campaigns.campaign_read" eventfire.event.campaign.id %}')><
-            {{ eventfire.event.campaign.name }}
+        %a(href='{%url "campaigns.campaign_read" event.campaign.id %}')><
+          {{ event.campaign.name }}
 
-          -if eventfire.fired_result == 'S'
-            &nbsp;skipped
-          -else
-            &nbsp;triggered
+        -if event.fired_result == 'S'
+          &nbsp;skipped
+        -else
+          &nbsp;triggered
 
-          %a(href='{%url "campaigns.campaignevent_read" eventfire.event.id %}')
-            {{ eventfire.event|campaign_event_time }}
+        %a(href='{%url "campaigns.campaignevent_read" event.campaign_event_id %}')
+          {{ eventfire.event|campaign_event_time }}
 
       -elif event.type == 'channel_event'
         -with event.obj as ch_event
