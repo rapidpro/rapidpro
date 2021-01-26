@@ -156,7 +156,7 @@ pip-tools==5.5.0
     # via -r pip-requires.txt
 polib==1.1.0
     # via -r pip-requires.txt
-psycopg2-binary==2.8.5
+psycopg2-binary==2.8.6
     # via -r pip-requires.txt
 pycodestyle==2.5.0
     # via flake8
