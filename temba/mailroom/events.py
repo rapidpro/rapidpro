@@ -145,7 +145,11 @@ class Event:
             "type": cls.TYPE_CAMPAIGN_FIRED,
             "created_on": obj.fired,
             "campaign": {"id": obj.event.campaign.id, "name": obj.event.campaign.name},
-            "campaign_event_id": obj.event_id,
+            "campaign_event": {
+                "id": obj.event.id,
+                "offset_display": obj.event.offset_display,
+                "relative_to": {"key": obj.event.relative_to.key, "name": obj.event.relative_to.label},
+            },
             "fired_result": obj.fired_result,
         }
 

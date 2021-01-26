@@ -6,6 +6,7 @@ from django.conf import settings
 from django.test import override_settings
 from django.utils import timezone
 
+from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import ChannelEvent, ChannelLog
 from temba.flows.models import FlowRun, FlowStart
 from temba.mailroom.client import ContactSpec, MailroomException, get_client
@@ -761,4 +762,36 @@ class EventTest(TembaTest):
                 "logs_url": f"/flowsession/json/{run.session.uuid}/",
             },
             Event.from_started_run(run),
+        )
+
+    def test_from_event_fire(self):
+        flow = self.get_flow("color_v13")
+        group = self.create_group("Reporters", contacts=[])
+        registered = self.create_field("registered", "Registered", value_type="D")
+        campaign = Campaign.create(self.org, self.admin, "Welcomes", group)
+        event = CampaignEvent.create_flow_event(
+            self.org, self.user, campaign, registered, offset=1, unit="W", flow=flow
+        )
+        contact = self.create_contact("Jim", phone="0979111111")
+        fire = EventFire.objects.create(
+            event=event,
+            contact=contact,
+            scheduled=timezone.now(),
+            fired=timezone.now(),
+            fired_result=EventFire.RESULT_FIRED,
+        )
+
+        self.assertEqual(
+            {
+                "type": "campaign_fired",
+                "created_on": fire.fired,
+                "campaign": {"id": campaign.id, "name": "Welcomes"},
+                "campaign_event": {
+                    "id": event.id,
+                    "offset_display": "1 week after",
+                    "relative_to": {"key": "registered", "name": "Registered"},
+                },
+                "fired_result": "F",
+            },
+            Event.from_event_fire(fire),
         )

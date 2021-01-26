@@ -805,7 +805,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.campaign_fires.filter(fired__gte=after, fired__lt=before)
             .exclude(fired=None)
             .order_by("-fired")
-            .select_related("event__campaign")[:limit]
+            .select_related("event__campaign", "event__relative_to")[:limit]
         )
 
         webhook_results = self.webhook_results.filter(created_on__gte=after, created_on__lt=before).order_by(
