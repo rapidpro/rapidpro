@@ -108,7 +108,7 @@ class CampaignTest(TembaTest):
         def assert_display(offset: int, unit: str, expected: str):
             event.offset = offset
             event.unit = unit
-            self.assertEqual(expected, event.get_offset_display())
+            self.assertEqual(expected, event.offset_display)
 
         assert_display(-2, "M", "2 minutes before")
         assert_display(-1, "M", "1 minute before")
@@ -1550,7 +1550,7 @@ class CampaignEventCRUDLTest(TembaTest):
 
         response = self.client.get(read_url)
         self.assertContains(response, "Welcomes")
-        self.assertContains(response, "1 Week After")
+        self.assertContains(response, "1 week after")
         self.assertContains(response, "Registered")
 
         # can't view event from other org

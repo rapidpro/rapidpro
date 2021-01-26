@@ -435,12 +435,6 @@ class CampaignEvent(TembaModel):
         self.flow.name = "Single Message (%d)" % self.id
         self.flow.save(update_fields=["name"])
 
-    def single_unit_display(self):
-        return self.get_unit_display()[:-1]
-
-    def abs_offset(self):
-        return abs(self.offset)
-
     def minute_offset(self):
         """
         Returns an offset that can be used to sort events that go against the same relative_to variable.
@@ -461,7 +455,8 @@ class CampaignEvent(TembaModel):
 
         return offset
 
-    def get_offset_display(self):
+    @property
+    def offset_display(self):
         """
         Returns the offset and units as a human readable string
         """

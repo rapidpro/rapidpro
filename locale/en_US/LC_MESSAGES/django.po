@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-26 19:24+0000\n"
+"POT-Creation-Date: 2021-01-26 20:16+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -90,50 +90,50 @@ msgid "Weeks"
 msgstr ""
 
 #, python-format
-msgid "%(num)d minute before"
-msgid_plural "%(num)d minutes before"
+msgid "%d minute before"
+msgid_plural "%d minutes before"
 msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
-msgid "%(num)d hour before"
-msgid_plural "%(num)d hours before"
+msgid "%d hour before"
+msgid_plural "%d hours before"
 msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
-msgid "%(num)d day before"
-msgid_plural "%(num)d days before"
+msgid "%d day before"
+msgid_plural "%d days before"
 msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
-msgid "%(num)d week before"
-msgid_plural "%(num)d weeks before"
+msgid "%d week before"
+msgid_plural "%d weeks before"
 msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
-msgid "%(num)d minute after"
-msgid_plural "%(num)d minutes after"
+msgid "%d minute after"
+msgid_plural "%d minutes after"
 msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
-msgid "%(num)d hour after"
-msgid_plural "%(num)d hours after"
+msgid "%d hour after"
+msgid_plural "%d hours after"
 msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
-msgid "%(num)d day after"
-msgid_plural "%(num)d days after"
+msgid "%d day after"
+msgid_plural "%d days after"
 msgstr[0] ""
 msgstr[1] ""
 
 #, python-format
-msgid "%(num)d week after"
-msgid_plural "%(num)d weeks after"
+msgid "%d week after"
+msgid_plural "%d weeks after"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -2188,24 +2188,6 @@ msgstr ""
 msgid "Can't query on URNs in an anonymous workspace"
 msgstr ""
 
-msgid "day"
-msgstr ""
-
-msgid "minute"
-msgstr ""
-
-msgid "hour"
-msgstr ""
-
-msgid "days"
-msgstr ""
-
-msgid "minutes"
-msgstr ""
-
-msgid "hours"
-msgstr ""
-
 msgid "Name is used by another group"
 msgstr ""
 
@@ -4198,12 +4180,6 @@ msgid "No group assigned to this campaign"
 msgstr ""
 
 msgid "No events in this campaign yet."
-msgstr ""
-
-msgid "before"
-msgstr ""
-
-msgid "after"
 msgstr ""
 
 msgid "You are about to delete this event. There is no way to undo this. Are you sure?"

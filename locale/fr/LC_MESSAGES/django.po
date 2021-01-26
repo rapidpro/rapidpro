@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-26 19:24+0000\n"
+"POT-Creation-Date: 2021-01-26 20:16+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -97,54 +97,66 @@ msgstr "Semaines"
 #, fuzzy, python-format
 #| msgid "%d minute"
 #| msgid_plural "%d minutes"
-msgid "%(num)d minute before"
-msgid_plural "%(num)d minutes before"
+msgid "%d minute before"
+msgid_plural "%d minutes before"
 msgstr[0] "%d minute"
 msgstr[1] "%d minutes"
 
-#, python-format
-msgid "%(num)d hour before"
-msgid_plural "%(num)d hours before"
-msgstr[0] ""
-msgstr[1] ""
+#, fuzzy, python-format
+#| msgid "%d hour"
+#| msgid_plural "%d hours"
+msgid "%d hour before"
+msgid_plural "%d hours before"
+msgstr[0] "%d heure"
+msgstr[1] "%d heures"
 
-#, python-format
-msgid "%(num)d day before"
-msgid_plural "%(num)d days before"
-msgstr[0] ""
-msgstr[1] ""
+#, fuzzy, python-format
+#| msgid "%d day"
+#| msgid_plural "%d days"
+msgid "%d day before"
+msgid_plural "%d days before"
+msgstr[0] "%d jour"
+msgstr[1] "%d jours"
 
-#, python-format
-msgid "%(num)d week before"
-msgid_plural "%(num)d weeks before"
-msgstr[0] ""
-msgstr[1] ""
+#, fuzzy, python-format
+#| msgid "%d week"
+#| msgid_plural "%d weeks"
+msgid "%d week before"
+msgid_plural "%d weeks before"
+msgstr[0] "%d semaine"
+msgstr[1] "%d semaines"
 
 #, fuzzy, python-format
 #| msgid "%d minute"
 #| msgid_plural "%d minutes"
-msgid "%(num)d minute after"
-msgid_plural "%(num)d minutes after"
+msgid "%d minute after"
+msgid_plural "%d minutes after"
 msgstr[0] "%d minute"
 msgstr[1] "%d minutes"
 
-#, python-format
-msgid "%(num)d hour after"
-msgid_plural "%(num)d hours after"
-msgstr[0] ""
-msgstr[1] ""
+#, fuzzy, python-format
+#| msgid "%d hour"
+#| msgid_plural "%d hours"
+msgid "%d hour after"
+msgid_plural "%d hours after"
+msgstr[0] "%d heure"
+msgstr[1] "%d heures"
 
-#, python-format
-msgid "%(num)d day after"
-msgid_plural "%(num)d days after"
-msgstr[0] ""
-msgstr[1] ""
+#, fuzzy, python-format
+#| msgid "%d day"
+#| msgid_plural "%d days"
+msgid "%d day after"
+msgid_plural "%d days after"
+msgstr[0] "%d jour"
+msgstr[1] "%d jours"
 
-#, python-format
-msgid "%(num)d week after"
-msgid_plural "%(num)d weeks after"
-msgstr[0] ""
-msgstr[1] ""
+#, fuzzy, python-format
+#| msgid "%d week"
+#| msgid_plural "%d weeks"
+msgid "%d week after"
+msgid_plural "%d weeks after"
+msgstr[0] "%d semaine"
+msgstr[1] "%d semaines"
 
 msgid "on"
 msgstr "actif"
@@ -2204,24 +2216,6 @@ msgstr "Impossible de résoudre '%(property)s' en un champ ou un schéma URN"
 msgid "Can't query on URNs in an anonymous workspace"
 msgstr "Impossible d'interroger les URN dans un espace de travail anonyme"
 
-msgid "day"
-msgstr "jour"
-
-msgid "minute"
-msgstr "minute"
-
-msgid "hour"
-msgstr "heure"
-
-msgid "days"
-msgstr "jours"
-
-msgid "minutes"
-msgstr "minutes"
-
-msgid "hours"
-msgstr "heures"
-
 msgid "Name is used by another group"
 msgstr "Le nom est utilisé par un autre groupe"
 
@@ -4225,12 +4219,6 @@ msgstr "Aucun groupe affecté à cette campagne"
 
 msgid "No events in this campaign yet."
 msgstr "Aucun événement dans cette campagne pour le moment."
-
-msgid "before"
-msgstr "avant"
-
-msgid "after"
-msgstr "après"
 
 msgid "You are about to delete this event. There is no way to undo this. Are you sure?"
 msgstr "Vous êtes sur le point de supprimer cet événement. Il n'y a aucun moyen d'annuler cela. Êtes-vous sûr?"
@@ -7777,6 +7765,30 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "day"
+#~ msgstr "jour"
+
+#~ msgid "minute"
+#~ msgstr "minute"
+
+#~ msgid "hour"
+#~ msgstr "heure"
+
+#~ msgid "days"
+#~ msgstr "jours"
+
+#~ msgid "minutes"
+#~ msgstr "minutes"
+
+#~ msgid "hours"
+#~ msgstr "heures"
+
+#~ msgid "before"
+#~ msgstr "avant"
+
+#~ msgid "after"
+#~ msgstr "après"
 
 #~ msgid "Message flow"
 #~ msgstr "Flux de messages"
