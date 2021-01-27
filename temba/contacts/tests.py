@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from unittest.mock import PropertyMock, call, patch
 
+import iso8601
 import pytz
 from openpyxl import load_workbook
 
@@ -2014,13 +2015,13 @@ class ContactTest(TembaTest):
             with self.assertNumQueries(73):
                 response = self.fetch_protected(url, self.admin)
 
-            # activity should include all messages in the last 90 days, the channel event, the call, and the flow run
-            history = response.context["history"]
+            # history should include all messages in the last 90 days, the channel event, the call, and the flow run
+            history = response.context["events"]
             self.assertEqual(95, len(history))
 
             def assertHistoryEvent(item, expected_type, msg_text=None):
                 self.assertEqual(expected_type, item["type"])
-                self.assertIsInstance(item["created_on"], datetime)
+                self.assertTrue(iso8601.parse_date(item["created_on"]))
                 if msg_text:
                     self.assertEqual(msg_text, item["msg"]["text"])
 
@@ -2048,6 +2049,10 @@ class ContactTest(TembaTest):
             self.assertContains(response, reverse("channels.channellog_read", args=[log.id]))
             self.assertContains(response, reverse("channels.channellog_connection", args=[call.id]))
 
+            # can also fetch same page as JSON
+            response_json = self.client.get(url + "?_format=json").json()
+            self.assertEqual(95, len(response_json["events"]))
+
             # fetch next page
             before = datetime_to_ms(timezone.now() - timedelta(days=90))
             response = self.fetch_protected(url + "?before=%d" % before, self.admin)
@@ -2057,14 +2062,14 @@ class ContactTest(TembaTest):
             self.assertNotContains(response, "icon-bubble-notification")
 
             # activity should include 11 remaining messages and the event fire
-            history = response.context["history"]
+            history = response.context["events"]
             self.assertEqual(12, len(history))
             assertHistoryEvent(history[0], "msg_received", msg_text="Inbound message 10")
             assertHistoryEvent(history[10], "msg_received", msg_text="Inbound message 0")
             assertHistoryEvent(history[11], "msg_received", msg_text="Very old inbound message")
 
             response = self.fetch_protected(url, self.admin)
-            history = response.context["history"]
+            history = response.context["events"]
 
             self.assertEqual(95, len(history))
             assertHistoryEvent(history[7], "msg_created", msg_text="What is your favorite color?")
@@ -2074,7 +2079,7 @@ class ContactTest(TembaTest):
             response = self.fetch_protected(url, self.admin)
 
             # now we'll see the message that just came in first, followed by the call event
-            history = response.context["history"]
+            history = response.context["events"]
             assertHistoryEvent(history[0], "msg_received", msg_text="Newer message")
             assertHistoryEvent(history[1], "call_started")
 
@@ -2082,8 +2087,8 @@ class ContactTest(TembaTest):
             response = self.fetch_protected(url + "?after=%s" % recent_start, self.admin)
 
             # with our recent flag on, should not see the older messages
-            history = response.context["history"]
-            self.assertEqual(11, len(history))
+            events = response.context["events"]
+            self.assertEqual(11, len(events))
             self.assertContains(response, "file.mp4")
 
             # can't view history of contact in another org
@@ -2097,10 +2102,10 @@ class ContactTest(TembaTest):
 
             # super users can view history of any contact
             response = self.fetch_protected(reverse("contacts.contact_history", args=[self.joe.uuid]), self.superuser)
-            self.assertEqual(96, len(response.context["history"]))
+            self.assertEqual(96, len(response.context["events"]))
 
             response = self.fetch_protected(reverse("contacts.contact_history", args=[hans.uuid]), self.superuser)
-            self.assertEqual(0, len(response.context["history"]))
+            self.assertEqual(0, len(response.context["events"]))
 
             # add a new run
             (
@@ -2113,12 +2118,13 @@ class ContactTest(TembaTest):
             )
 
             response = self.fetch_protected(reverse("contacts.contact_history", args=[self.joe.uuid]), self.admin)
-            history = response.context["history"]
+            history = response.context["events"]
             self.assertEqual(99, len(history))
 
             # before date should not match our last activity, that only happens when we truncate
             self.assertNotEqual(
-                response.context["before"], datetime_to_ms(response.context["history"][-1]["created_on"])
+                response.context["next_before"],
+                datetime_to_ms(iso8601.parse_date(response.context["events"][-1]["created_on"])),
             )
 
             assertHistoryEvent(history[0], "msg_created", msg_text="What is your favorite color?")
@@ -2151,7 +2157,7 @@ class ContactTest(TembaTest):
                 + "?before=%d" % datetime_to_ms(scheduled + timedelta(minutes=5)),
                 self.admin,
             )
-            self.assertEqual(self.message_event.id, response.context["history"][0]["campaign_event"]["id"])
+            self.assertEqual(self.message_event.id, response.context["events"][0]["campaign_event"]["id"])
 
         # now try the proper max history to test truncation
         response = self.fetch_protected(
@@ -2160,12 +2166,12 @@ class ContactTest(TembaTest):
         )
 
         # our before should be the same as the last item
-        last_item_date = datetime_to_ms(response.context["history"][-1]["created_on"])
-        self.assertEqual(response.context["before"], last_item_date)
+        last_item_date = datetime_to_ms(iso8601.parse_date(response.context["events"][-1]["created_on"]))
+        self.assertEqual(response.context["next_before"], last_item_date)
 
         # and our after should be 90 days earlier
-        self.assertEqual(response.context["after"], last_item_date - (90 * 24 * 60 * 60 * 1000))
-        self.assertEqual(50, len(response.context["history"]))
+        self.assertEqual(response.context["next_after"], last_item_date - (90 * 24 * 60 * 60 * 1000))
+        self.assertEqual(50, len(response.context["events"]))
 
         # and we should have a marker for older items
         self.assertTrue(response.context["has_older"])

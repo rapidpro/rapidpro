@@ -900,14 +900,10 @@ class ContactCRUDL(SmartCRUDL):
                     after = max(after - timedelta(days=90), contact_creation)
 
             # render as events
-            history = [Event.from_history_item(contact.org, self.request.user, i) for i in history]
+            events = [Event.from_history_item(contact.org, self.request.user, i) for i in history]
 
-            # convert all event times to actual dates
-            for event in history:
-                event["created_on"] = iso8601.parse_date(event["created_on"])
-
-            if len(history) >= Contact.MAX_HISTORY:
-                after = history[-1]["created_on"]
+            if len(events) >= Contact.MAX_HISTORY:
+                after = iso8601.parse_date(events[-1]["created_on"])
 
             # check if there are more pages to fetch
             context["has_older"] = False
@@ -915,11 +911,21 @@ class ContactCRUDL(SmartCRUDL):
                 context["has_older"] = bool(contact.get_history(contact_creation, after, HISTORY_INCLUDE_EVENTS))
 
             context["recent_only"] = recent_only
-            context["before"] = datetime_to_ms(after)
-            context["after"] = datetime_to_ms(max(after - timedelta(days=90), contact_creation))
-            context["history"] = history
+            context["next_before"] = datetime_to_ms(after)
+            context["next_after"] = datetime_to_ms(max(after - timedelta(days=90), contact_creation))
             context["start_date"] = contact.org.get_delete_date(archive_type=Archive.TYPE_MSG)
+            context["events"] = events
             return context
+
+        def as_json(self, context):
+            return {
+                "has_older": context["has_older"],
+                "recent_only": context["recent_only"],
+                "next_before": context["next_before"],
+                "next_after": context["next_after"],
+                "start_date": context["start_date"],
+                "events": context["events"],
+            }
 
     class Search(ContactListView):
         template_name = "contacts/contact_list.haml"

@@ -672,7 +672,7 @@ class EventTest(TembaTest):
                 "msg_type": "I",
                 "logs_url": None,
             },
-            Event.from_msg(msg_in),
+            Event.from_msg(self.org, self.admin, msg_in),
         )
 
         msg_out = self.create_outgoing_msg(
@@ -696,7 +696,7 @@ class EventTest(TembaTest):
                 "status": "E",
                 "logs_url": f"/channels/channellog/read/{log.id}/",
             },
-            Event.from_msg(msg_out),
+            Event.from_msg(self.org, self.admin, msg_out),
         )
 
         ivr_out = self.create_outgoing_msg(contact1, "Hello", msg_type="V")
@@ -715,7 +715,7 @@ class EventTest(TembaTest):
                 "status": "S",
                 "logs_url": None,
             },
-            Event.from_msg(ivr_out),
+            Event.from_msg(self.org, self.admin, ivr_out),
         )
 
         bcast = self.create_broadcast(self.admin, "Hi there", contacts=[contact1, contact2])
@@ -738,7 +738,7 @@ class EventTest(TembaTest):
                 "recipient_count": 2,
                 "logs_url": None,
             },
-            Event.from_msg(msg_out2),
+            Event.from_msg(self.org, self.admin, msg_out2),
         )
 
     def test_from_flow_run(self):
@@ -759,9 +759,20 @@ class EventTest(TembaTest):
                 "type": "flow_entered",
                 "created_on": matchers.ISODate(),
                 "flow": {"uuid": str(flow.uuid), "name": "Colors"},
+                "logs_url": None,
+            },
+            Event.from_flow_run(self.org, self.admin, run),
+        )
+
+        # customer support get access to logs
+        self.assertEqual(
+            {
+                "type": "flow_entered",
+                "created_on": matchers.ISODate(),
+                "flow": {"uuid": str(flow.uuid), "name": "Colors"},
                 "logs_url": f"/flowsession/json/{run.session.uuid}/",
             },
-            Event.from_flow_run(run),
+            Event.from_flow_run(self.org, self.customer_support, run),
         )
 
     def test_from_event_fire(self):
@@ -793,5 +804,5 @@ class EventTest(TembaTest):
                 },
                 "fired_result": "F",
             },
-            Event.from_event_fire(fire),
+            Event.from_event_fire(self.org, self.admin, fire),
         )
