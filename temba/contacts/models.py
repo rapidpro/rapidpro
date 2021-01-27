@@ -771,6 +771,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         Gets this contact's history of messages, calls, runs etc in the given time window
         """
+        from temba.flows.models import FlowExit
         from temba.ivr.models import IVRCall
         from temba.msgs.models import Msg
 
@@ -794,6 +795,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .order_by("-created_on")
             .select_related("flow")[:limit]
         )
+        started_runs = [r for r in runs if after <= r.created_on < before]
+        exited_runs = [FlowExit(r) for r in runs if r.exited_on and after <= r.exited_on < before]
 
         channel_events = (
             self.channel_events.filter(created_on__gte=after, created_on__lt=before)
@@ -825,20 +828,23 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         session_events = self.get_session_events(after, before, Contact.HISTORY_INCLUDE_EVENTS)
 
-        # wrap items, chain and sort by time
-        events = chain(
-            [Event.from_msg(m) for m in msgs],
-            [Event.from_started_run(r) for r in runs if after <= r.created_on < before],
-            [Event.from_exited_run(r) for r in runs if r.exited_on and after <= r.exited_on < before],
-            [Event.from_channel_event(e) for e in channel_events],
-            [Event.from_event_fire(f) for f in campaign_events],
-            [Event.from_webhook_result(r) for r in webhook_results],
-            [Event.from_ivr_call(c) for c in calls],
-            [Event.from_airtime_transfer(t) for t in transfers],
-            session_events,
+        # for each item extract its time so we can sort and slice
+        items = chain(
+            [(m, m.created_on) for m in msgs],
+            [(r, r.created_on) for r in started_runs],
+            [(r, r.run.exited_on) for r in exited_runs],
+            [(e, e.created_on) for e in channel_events],
+            [(f, f.fired) for f in campaign_events],
+            [(r, r.created_on) for r in webhook_results],
+            [(c, c.created_on) for c in calls],
+            [(t, t.created_on) for t in transfers],
+            [(e, iso8601.parse_date(e["created_on"])) for e in session_events],
         )
 
-        return sorted(events, key=lambda i: i["created_on"], reverse=True)[:limit]
+        items = [i[0] for i in sorted(items, key=lambda j: j[1], reverse=True)[:limit]]
+
+        # finally render the final items as events
+        return [Event.from_history_item(i) for i in items]
 
     def get_session_events(self, after, before, types):
         """
@@ -852,9 +858,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             for run in session.output.get("runs", []):
                 for event in run.get("events", []):
                     event["session_uuid"] = str(session.uuid)
-                    event["created_on"] = iso8601.parse_date(event["created_on"])
+                    event_time = iso8601.parse_date(event["created_on"])
 
-                    if event["type"] in types and after <= event["created_on"] < before:
+                    if event["type"] in types and after <= event_time < before:
                         events.append(event)
 
         return events

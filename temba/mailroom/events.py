@@ -1,3 +1,5 @@
+import iso8601
+
 from django.urls import reverse
 
 
@@ -31,6 +33,36 @@ class Event:
     TYPE_CAMPAIGN_FIRED = "campaign_fired"
     TYPE_CHANNEL_EVENT = "channel_event"
     TYPE_FLOW_EXITED = "flow_exited"
+
+    @classmethod
+    def from_history_item(cls, item) -> dict:
+        if isinstance(item, dict):  # already an event
+            item["created_on"] = iso8601.parse_date(item["created_on"])
+            return item
+
+        from temba.airtime.models import AirtimeTransfer
+        from temba.api.models import WebHookResult
+        from temba.campaigns.models import EventFire
+        from temba.channels.models import ChannelEvent
+        from temba.flows.models import FlowRun, FlowExit
+        from temba.ivr.models import IVRCall
+        from temba.msgs.models import Msg
+
+        renderers = {
+            AirtimeTransfer: cls.from_airtime_transfer,
+            ChannelEvent: cls.from_channel_event,
+            EventFire: cls.from_event_fire,
+            FlowExit: cls.from_flow_exit,
+            FlowRun: cls.from_flow_run,
+            IVRCall: cls.from_ivr_call,
+            Msg: cls.from_msg,
+            WebHookResult: cls.from_webhook_result,
+        }
+
+        renderer = renderers.get(type(item))
+        assert renderer is not None, f"unsupported history item of type {type(item)}"
+
+        return renderer(item)
 
     @classmethod
     def from_msg(cls, obj) -> dict:
@@ -84,7 +116,7 @@ class Event:
             }
 
     @classmethod
-    def from_started_run(cls, obj) -> dict:
+    def from_flow_run(cls, obj) -> dict:
         return {
             "type": cls.TYPE_FLOW_ENTERED,
             "created_on": obj.created_on,
@@ -93,13 +125,13 @@ class Event:
         }
 
     @classmethod
-    def from_exited_run(cls, obj) -> dict:
+    def from_flow_exit(cls, obj) -> dict:
         return {
             "type": cls.TYPE_FLOW_EXITED,
-            "created_on": obj.exited_on,
-            "flow": {"uuid": str(obj.flow.uuid), "name": obj.flow.name},
+            "created_on": obj.run.exited_on,
+            "flow": {"uuid": str(obj.run.flow.uuid), "name": obj.run.flow.name},
             # additional properties
-            "status": obj.status,
+            "status": obj.run.status,
         }
 
     @classmethod

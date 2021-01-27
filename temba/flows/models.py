@@ -1271,6 +1271,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         return f"FlowRun[uuid={self.uuid}, flow={self.flow.uuid}]"
 
 
+class FlowExit:
+    def __init__(self, run):
+        self.run = run
+
+
 class FlowRevision(SmartModel):
     """
     JSON definitions for previous flow revisions
