@@ -1877,6 +1877,7 @@ class ExportContactsTask(BaseExportTask):
             dict(label="Name", key=ContactField.KEY_NAME, id=0, field=None, urn_scheme=None),
             dict(label="Language", key=ContactField.KEY_LANGUAGE, id=0, field=None, urn_scheme=None),
             dict(label="Created On", key=ContactField.KEY_CREATED_ON, id=0, field=None, urn_scheme=None),
+            dict(label="Groups", key="group_membership", id=0, field=None, urn_scheme=None),
         ]
 
         # anon orgs also get an ID column that is just the PK
@@ -1993,6 +1994,10 @@ class ExportContactsTask(BaseExportTask):
                             field_value = urn_obj.get_display(org=self.org, formatted=False) if urn_obj else ""
                         else:
                             field_value = ""
+                    elif field["key"] == "group_membership":
+                        field_value = ", ".join(
+                            contact.all_groups.exclude(name="All Contacts").values_list("name", flat=True)
+                        )
                     else:
                         field_value = contact.get_field_display(field["field"])
 
