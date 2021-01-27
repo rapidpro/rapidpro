@@ -892,11 +892,14 @@ class ContactCRUDL(SmartCRUDL):
                 after = ms_to_datetime(after)
 
             # keep looking further back until we get at least 20 items
+            history = []
+            fetch_before = before
             while True:
-                history = contact.get_history(after, before, HISTORY_INCLUDE_EVENTS)
+                history += contact.get_history(after, fetch_before, HISTORY_INCLUDE_EVENTS)
                 if recent_only or len(history) >= 20 or after == contact_creation:
                     break
                 else:
+                    fetch_before = after
                     after = max(after - timedelta(days=90), contact_creation)
 
             # render as events
