@@ -2,10 +2,12 @@ from django import template
 from django.utils.safestring import mark_safe
 
 from temba.campaigns.models import EventFire
+from temba.channels.models import ChannelEvent
 from temba.contacts.models import URN, ContactField, ContactURN
+from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.mailroom.events import Event
-from temba.msgs.models import ERRORED, FAILED
+from temba.msgs.models import DELIVERED, ERRORED, FAILED, IVR
 
 register = template.Library()
 
@@ -27,11 +29,11 @@ URN_SCHEME_ICONS = {
 ACTIVITY_ICONS = {
     Event.TYPE_AIRTIME_TRANSFERRED: "icon-cash",
     Event.TYPE_BROADCAST_CREATED: "icon-bullhorn",
-    "call_started": "icon-phone",
-    "campaign_fired": "icon-clock",
-    "channel_event": "icon-power",
-    "channel_event:missed_incoming": "icon-call-incoming",
-    "channel_event:missed_outgoing": "icon-call-outgoing",
+    Event.TYPE_CALL_STARTED: "icon-phone",
+    Event.TYPE_CAMPAIGN_FIRED: "icon-clock",
+    Event.TYPE_CHANNEL_EVENT: "icon-power",
+    Event.TYPE_CHANNEL_EVENT + ":missed_incoming": "icon-call-incoming",
+    Event.TYPE_CHANNEL_EVENT + ":missed_outgoing": "icon-call-outgoing",
     Event.TYPE_CONTACT_FIELD_CHANGED: "icon-pencil",
     Event.TYPE_CONTACT_GROUPS_CHANGED: "icon-users",
     Event.TYPE_CONTACT_LANGUAGE_CHANGED: "icon-language",
@@ -41,9 +43,9 @@ ACTIVITY_ICONS = {
     Event.TYPE_ERROR: "icon-warning",
     Event.TYPE_FAILURE: "icon-warning",
     Event.TYPE_FLOW_ENTERED: "icon-flow",
-    "flow_exited:expired": "icon-clock",
-    "flow_exited:interrupted": "icon-cancel-circle",
-    "flow_exited:completed": "icon-checkmark",
+    Event.TYPE_FLOW_EXITED + ":expired": "icon-clock",
+    Event.TYPE_FLOW_EXITED + ":interrupted": "icon-cancel-circle",
+    Event.TYPE_FLOW_EXITED + ":completed": "icon-checkmark",
     Event.TYPE_INPUT_LABELS_ADDED: "icon-tags",
     Event.TYPE_IVR_CREATED: "icon-call-outgoing",
     Event.TYPE_MSG_CREATED: "icon-bubble-right",
@@ -57,6 +59,18 @@ ACTIVITY_ICONS = {
 }
 
 MSG_EVENTS = {Event.TYPE_MSG_CREATED, Event.TYPE_MSG_RECEIVED, Event.TYPE_IVR_CREATED, Event.TYPE_BROADCAST_CREATED}
+
+# events that are included in the summary view
+SUMMARY_EVENTS = {
+    Event.TYPE_CALL_STARTED,
+    Event.TYPE_CAMPAIGN_FIRED,
+    Event.TYPE_FLOW_ENTERED,
+    Event.TYPE_FLOW_EXITED,
+    Event.TYPE_BROADCAST_CREATED,
+    Event.TYPE_IVR_CREATED,
+    Event.TYPE_MSG_CREATED,
+    Event.TYPE_MSG_RECEIVED,
+}
 
 MISSING_VALUE = "--"
 
@@ -122,33 +136,32 @@ def urn_icon(urn):
 
 
 @register.filter
-def history_icon(item):
-    event_type = item["type"]
-    obj = item.get("obj")
+def history_icon(event: dict) -> str:
+    event_type = event["type"]
     variant = None
 
     if event_type == Event.TYPE_MSG_CREATED:
-        if item["status"] in ("F", "E"):
+        if event["status"] in (ERRORED, FAILED):
             variant = "failed"
-        elif item["status"] == "D":
+        elif event["status"] == DELIVERED:
             variant = "delivered"
 
     elif event_type == Event.TYPE_MSG_RECEIVED:
-        if item["msg_type"] == "V":
+        if event["msg_type"] == IVR:
             variant = "voice"
 
-    elif event_type == "flow_exited":
-        if obj.exit_type == "C":
-            variant = "completed"
-        elif obj.exit_type == "I":
+    elif event_type == Event.TYPE_FLOW_EXITED:
+        if event["status"] == FlowRun.STATUS_INTERRUPTED:
             variant = "interrupted"
-        else:
+        elif event["status"] == FlowRun.STATUS_EXPIRED:
             variant = "expired"
+        else:
+            variant = "completed"
 
-    elif event_type == "channel_event":
-        if obj.event_type == "mo_miss":
+    elif event_type == Event.TYPE_CHANNEL_EVENT:
+        if event["channel_event_type"] == ChannelEvent.TYPE_CALL_IN_MISSED:
             variant = "missed_incoming"
-        elif obj.event_type == "mt_miss":
+        elif event["channel_event_type"] == ChannelEvent.TYPE_CALL_OUT_MISSED:
             variant = "missed_outgoing"
 
     if variant:
@@ -160,37 +173,28 @@ def history_icon(item):
 
 
 @register.filter
-def history_class(item):
-    obj = item.get("obj")
+def history_class(event: dict) -> str:
+    event_type = event["type"]
     classes = []
 
-    if item["type"] in MSG_EVENTS:
+    if event_type in MSG_EVENTS:
         classes.append("msg")
 
-        if item.get("status") in (ERRORED, FAILED):
+        if event.get("status") in (ERRORED, FAILED):
             classes.append("warning")
     else:
         classes.append("non-msg")
 
-        if item["type"] == "error" or item["type"] == "failure":
+        if event_type == Event.TYPE_ERROR or event_type == "failure":
             classes.append("warning")
-        elif item["type"] == "webhook_called" and not obj.is_success:
+        elif event_type == Event.TYPE_WEBHOOK_CALLED and event["status"] != "success":
             classes.append("warning")
-        elif item["type"] == "call_started" and obj.status == IVRCall.FAILED:
+        elif event_type == Event.TYPE_CALL_STARTED and event["status"] == IVRCall.FAILED:
             classes.append("warning")
-        elif item["type"] == "campaign_fired" and obj.fired_result == EventFire.RESULT_SKIPPED:
+        elif event_type == Event.TYPE_CAMPAIGN_FIRED and event["fired_result"] == EventFire.RESULT_SKIPPED:
             classes.append("skipped")
 
-    if item["type"] not in (
-        "call_started",
-        "campaign_fired",
-        "flow_entered",
-        "flow_exited",
-        Event.TYPE_BROADCAST_CREATED,
-        Event.TYPE_IVR_CREATED,
-        Event.TYPE_MSG_CREATED,
-        Event.TYPE_MSG_RECEIVED,
-    ):
+    if event_type not in SUMMARY_EVENTS:
         classes.append("detail-event")
 
     return " ".join(classes)
