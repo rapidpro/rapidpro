@@ -30,6 +30,7 @@ celery[redis]==4.2.1
     #   smartmin
 certifi==2017.4.17
     # via
+    #   elasticsearch
     #   python-intercom
     #   python-telegram-bot
     #   requests
@@ -79,8 +80,6 @@ django==2.2.10
     #   smartmin
 djangorestframework==3.9.2
     # via -r pip-requires.txt
-docutils==0.13.1
-    # via botocore
 elasticsearch-dsl==7.3.0
     # via -r pip-requires.txt
 elasticsearch==7.10.1
@@ -217,8 +216,6 @@ pytz==2020.5
     #   python-intercom
     #   smartmin
     #   twilio
-raven==6.10.0
-    # via -r pip-requires.txt
 rcssmin==1.0.6
     # via django-compressor
 redis==2.10.5
