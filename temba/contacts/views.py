@@ -35,6 +35,7 @@ from django.views import View
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
+from temba.mailroom.events import Event
 from temba.msgs.views import SendMessageForm
 from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
@@ -60,6 +61,21 @@ from .search.omnibox import omnibox_query, omnibox_results_to_dict
 from .tasks import export_contacts_task, release_group_task
 
 logger = logging.getLogger(__name__)
+
+# events from sessions to include in contact history
+HISTORY_INCLUDE_EVENTS = {
+    Event.TYPE_CONTACT_LANGUAGE_CHANGED,
+    Event.TYPE_CONTACT_FIELD_CHANGED,
+    Event.TYPE_CONTACT_GROUPS_CHANGED,
+    Event.TYPE_CONTACT_NAME_CHANGED,
+    Event.TYPE_CONTACT_URNS_CHANGED,
+    Event.TYPE_EMAIL_SENT,
+    Event.TYPE_ERROR,
+    Event.TYPE_FAILURE,
+    Event.TYPE_INPUT_LABELS_ADDED,
+    Event.TYPE_RUN_RESULT_CHANGED,
+    Event.TYPE_TICKET_OPENED,
+}
 
 
 class RemoveFromGroupForm(forms.Form):
@@ -876,11 +892,14 @@ class ContactCRUDL(SmartCRUDL):
 
             # keep looking further back until we get at least 20 items
             while True:
-                history = contact.get_history(after, before)
+                history = contact.get_history(after, before, HISTORY_INCLUDE_EVENTS)
                 if recent_only or len(history) >= 20 or after == contact_creation:
                     break
                 else:
                     after = max(after - timedelta(days=90), contact_creation)
+
+            # render as events
+            history = [Event.from_history_item(i) for i in history]
 
             if len(history) >= Contact.MAX_HISTORY:
                 after = history[-1]["created_on"]
@@ -888,7 +907,7 @@ class ContactCRUDL(SmartCRUDL):
             # check if there are more pages to fetch
             context["has_older"] = False
             if not recent_only and before > contact.created_on:
-                context["has_older"] = bool(contact.get_history(contact_creation, after))
+                context["has_older"] = bool(contact.get_history(contact_creation, after, HISTORY_INCLUDE_EVENTS))
 
             context["recent_only"] = recent_only
             context["before"] = datetime_to_ms(after)

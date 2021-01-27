@@ -2,6 +2,14 @@ import iso8601
 
 from django.urls import reverse
 
+from temba.airtime.models import AirtimeTransfer
+from temba.api.models import WebHookResult
+from temba.campaigns.models import EventFire
+from temba.channels.models import ChannelEvent
+from temba.flows.models import FlowExit, FlowRun
+from temba.ivr.models import IVRCall
+from temba.msgs.models import Msg
+
 
 class Event:
     """
@@ -40,32 +48,13 @@ class Event:
             item["created_on"] = iso8601.parse_date(item["created_on"])
             return item
 
-        from temba.airtime.models import AirtimeTransfer
-        from temba.api.models import WebHookResult
-        from temba.campaigns.models import EventFire
-        from temba.channels.models import ChannelEvent
-        from temba.flows.models import FlowRun, FlowExit
-        from temba.ivr.models import IVRCall
-        from temba.msgs.models import Msg
-
-        renderers = {
-            AirtimeTransfer: cls.from_airtime_transfer,
-            ChannelEvent: cls.from_channel_event,
-            EventFire: cls.from_event_fire,
-            FlowExit: cls.from_flow_exit,
-            FlowRun: cls.from_flow_run,
-            IVRCall: cls.from_ivr_call,
-            Msg: cls.from_msg,
-            WebHookResult: cls.from_webhook_result,
-        }
-
-        renderer = renderers.get(type(item))
+        renderer = event_renderers.get(type(item))
         assert renderer is not None, f"unsupported history item of type {type(item)}"
 
         return renderer(item)
 
     @classmethod
-    def from_msg(cls, obj) -> dict:
+    def from_msg(cls, obj: Msg) -> dict:
         """
         Reconstructs an engine event from a msg instance. Properties which aren't part of regular events are prefixed
         with an underscore.
@@ -116,7 +105,7 @@ class Event:
             }
 
     @classmethod
-    def from_flow_run(cls, obj) -> dict:
+    def from_flow_run(cls, obj: FlowRun) -> dict:
         return {
             "type": cls.TYPE_FLOW_ENTERED,
             "created_on": obj.created_on,
@@ -125,7 +114,7 @@ class Event:
         }
 
     @classmethod
-    def from_flow_exit(cls, obj) -> dict:
+    def from_flow_exit(cls, obj: FlowExit) -> dict:
         return {
             "type": cls.TYPE_FLOW_EXITED,
             "created_on": obj.run.exited_on,
@@ -135,7 +124,7 @@ class Event:
         }
 
     @classmethod
-    def from_ivr_call(cls, obj) -> dict:
+    def from_ivr_call(cls, obj: IVRCall) -> dict:
         return {
             "type": cls.TYPE_CALL_STARTED,
             "created_on": obj.created_on,
@@ -145,7 +134,7 @@ class Event:
         }
 
     @classmethod
-    def from_airtime_transfer(cls, obj) -> dict:
+    def from_airtime_transfer(cls, obj: AirtimeTransfer) -> dict:
         return {
             "type": cls.TYPE_AIRTIME_TRANSFERRED,
             "created_on": obj.created_on,
@@ -159,7 +148,7 @@ class Event:
         }
 
     @classmethod
-    def from_webhook_result(cls, obj) -> dict:
+    def from_webhook_result(cls, obj: WebHookResult) -> dict:
         return {
             "type": cls.TYPE_WEBHOOK_CALLED,
             "created_on": obj.created_on,
@@ -172,7 +161,7 @@ class Event:
         }
 
     @classmethod
-    def from_event_fire(cls, obj) -> dict:
+    def from_event_fire(cls, obj: EventFire) -> dict:
         return {
             "type": cls.TYPE_CAMPAIGN_FIRED,
             "created_on": obj.fired,
@@ -186,7 +175,7 @@ class Event:
         }
 
     @classmethod
-    def from_channel_event(cls, obj) -> dict:
+    def from_channel_event(cls, obj: ChannelEvent) -> dict:
         extra = obj.extra or {}
         return {
             "type": cls.TYPE_CHANNEL_EVENT,
@@ -229,3 +218,15 @@ def _base_msg(obj) -> dict:
         d["attachments"] = obj.attachments
 
     return d
+
+
+event_renderers = {
+    AirtimeTransfer: Event.from_airtime_transfer,
+    ChannelEvent: Event.from_channel_event,
+    EventFire: Event.from_event_fire,
+    FlowExit: Event.from_flow_exit,
+    FlowRun: Event.from_flow_run,
+    IVRCall: Event.from_ivr_call,
+    Msg: Event.from_msg,
+    WebHookResult: Event.from_webhook_result,
+}

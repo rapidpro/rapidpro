@@ -29,7 +29,6 @@ from temba.channels.models import Channel, ChannelConnection
 from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup
 from temba.globals.models import Global
-from temba.mailroom.events import Event
 from temba.msgs.models import Attachment, Label, Msg
 from temba.orgs.models import Org
 from temba.templates.models import Template
@@ -1172,6 +1171,8 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         """
         Gets all the messages associated with this run
         """
+        from temba.mailroom.events import Event
+
         return self.get_events_of_type((Event.TYPE_MSG_RECEIVED, Event.TYPE_MSG_CREATED))
 
     def get_events_by_step(self, msg_only=False):
@@ -2037,6 +2038,8 @@ class ExportFlowResultsTask(BaseExportTask):
         """
         Writes out any messages associated with the given run
         """
+        from temba.mailroom.events import Event
+
         for event in run["events"] or []:
             if event["type"] == Event.TYPE_MSG_RECEIVED:
                 msg_direction = "IN"
