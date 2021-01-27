@@ -900,7 +900,7 @@ class ContactCRUDL(SmartCRUDL):
                     after = max(after - timedelta(days=90), contact_creation)
 
             # render as events
-            history = [Event.from_history_item(i) for i in history]
+            history = [Event.from_history_item(contact.org, self.request.user, i) for i in history]
 
             # convert all event times to actual dates
             for event in history:

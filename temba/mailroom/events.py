@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.urls import reverse
 
 from temba.airtime.models import AirtimeTransfer
@@ -7,6 +8,7 @@ from temba.channels.models import ChannelEvent
 from temba.flows.models import FlowExit, FlowRun
 from temba.ivr.models import IVRCall
 from temba.msgs.models import Msg
+from temba.orgs.models import Org
 
 
 class Event:
@@ -41,17 +43,17 @@ class Event:
     TYPE_FLOW_EXITED = "flow_exited"
 
     @classmethod
-    def from_history_item(cls, item) -> dict:
+    def from_history_item(cls, org: Org, user: User, item) -> dict:
         if isinstance(item, dict):  # already an event
             return item
 
         renderer = event_renderers.get(type(item))
         assert renderer is not None, f"unsupported history item of type {type(item)}"
 
-        return renderer(item)
+        return renderer(org, user, item)
 
     @classmethod
-    def from_msg(cls, obj: Msg) -> dict:
+    def from_msg(cls, org: Org, user: User, obj: Msg) -> dict:
         """
         Reconstructs an engine event from a msg instance. Properties which aren't part of regular events are prefixed
         with an underscore.
@@ -59,7 +61,7 @@ class Event:
         from temba.msgs.models import INCOMING, IVR
 
         channel_log = obj.get_last_log()
-        logs_url = reverse("channels.channellog_read", args=[channel_log.id]) if channel_log else None
+        logs_url = _url_for_user(org, user, "channels.channellog_read", args=[channel_log.id]) if channel_log else None
 
         if obj.direction == INCOMING:
             return {
@@ -102,16 +104,19 @@ class Event:
             }
 
     @classmethod
-    def from_flow_run(cls, obj: FlowRun) -> dict:
+    def from_flow_run(cls, org: Org, user: User, obj: FlowRun) -> dict:
+        session = obj.session
+        logs_url = _url_for_user(org, user, "flows.flowsession_json", args=[session.uuid]) if session else None
+
         return {
             "type": cls.TYPE_FLOW_ENTERED,
             "created_on": obj.created_on.isoformat(),
             "flow": {"uuid": str(obj.flow.uuid), "name": obj.flow.name},
-            "logs_url": reverse("flows.flowsession_json", args=[obj.session.uuid]) if obj.session else None,
+            "logs_url": logs_url,
         }
 
     @classmethod
-    def from_flow_exit(cls, obj: FlowExit) -> dict:
+    def from_flow_exit(cls, org: Org, user: User, obj: FlowExit) -> dict:
         return {
             "type": cls.TYPE_FLOW_EXITED,
             "created_on": obj.run.exited_on.isoformat(),
@@ -121,17 +126,23 @@ class Event:
         }
 
     @classmethod
-    def from_ivr_call(cls, obj: IVRCall) -> dict:
+    def from_ivr_call(cls, org: Org, user: User, obj: IVRCall) -> dict:
+        logs_url = (
+            _url_for_user(org, user, "channels.channellog_connection", args=[obj.id]) if obj.has_logs() else None
+        )
+
         return {
             "type": cls.TYPE_CALL_STARTED,
             "created_on": obj.created_on.isoformat(),
             "status": obj.status,
             "status_display": obj.get_status_display(),
-            "logs_url": reverse("channels.channellog_connection", args=[obj.id]) if obj.has_logs() else None,
+            "logs_url": logs_url,
         }
 
     @classmethod
-    def from_airtime_transfer(cls, obj: AirtimeTransfer) -> dict:
+    def from_airtime_transfer(cls, org: Org, user: User, obj: AirtimeTransfer) -> dict:
+        logs_url = _url_for_user(org, user, "airtime.airtimetransfer_read", args=[obj.id])
+
         return {
             "type": cls.TYPE_AIRTIME_TRANSFERRED,
             "created_on": obj.created_on.isoformat(),
@@ -141,11 +152,13 @@ class Event:
             "desired_amount": obj.desired_amount,
             "actual_amount": obj.actual_amount,
             # additional properties
-            "logs_url": reverse("airtime.airtimetransfer_read", args=[obj.id]),
+            "logs_url": logs_url,
         }
 
     @classmethod
-    def from_webhook_result(cls, obj: WebHookResult) -> dict:
+    def from_webhook_result(cls, org: Org, user: User, obj: WebHookResult) -> dict:
+        logs_url = _url_for_user(org, user, "api.webhookresult_read", args=[obj.id])
+
         return {
             "type": cls.TYPE_WEBHOOK_CALLED,
             "created_on": obj.created_on.isoformat(),
@@ -154,11 +167,11 @@ class Event:
             "status_code": obj.status_code,
             "elapsed_ms": obj.request_time,
             # additional properties
-            "logs_url": reverse("api.webhookresult_read", args=[obj.id]),
+            "logs_url": logs_url,
         }
 
     @classmethod
-    def from_event_fire(cls, obj: EventFire) -> dict:
+    def from_event_fire(cls, org: Org, user: User, obj: EventFire) -> dict:
         return {
             "type": cls.TYPE_CAMPAIGN_FIRED,
             "created_on": obj.fired.isoformat(),
@@ -172,7 +185,7 @@ class Event:
         }
 
     @classmethod
-    def from_channel_event(cls, obj: ChannelEvent) -> dict:
+    def from_channel_event(cls, org: Org, user: User, obj: ChannelEvent) -> dict:
         extra = obj.extra or {}
         return {
             "type": cls.TYPE_CHANNEL_EVENT,
@@ -180,6 +193,10 @@ class Event:
             "channel_event_type": obj.event_type,
             "duration": extra.get("duration"),
         }
+
+
+def _url_for_user(org: Org, user: User, view_name: str, args: list) -> str:
+    return reverse(view_name, args=args) if user.has_org_perm(org, view_name) else None
 
 
 def _msg_in(obj) -> dict:

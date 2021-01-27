@@ -1273,6 +1273,11 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
 
 class FlowExit:
+    """
+    A helper class used for building contact histories which simply wraps a run which may occur more than once in the
+    same history as both a flow run start and an exit.
+    """
+
     def __init__(self, run):
         self.run = run
 
