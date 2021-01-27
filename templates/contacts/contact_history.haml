@@ -5,7 +5,6 @@
     %td.icon
       %span.det(title='{% if event.obj.channel %}{{event.obj.channel.get_channel_type_name}} {{event.obj.channel.get_name}}{% endif %}')
         {{ event|history_icon }}
-
     %td.details.wrapped.w-full
       -if event.type == 'airtime_transferred'
         -if transfer.actual_amount > 0

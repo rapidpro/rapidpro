@@ -3,6 +3,7 @@ from collections import OrderedDict
 from datetime import timedelta
 from typing import Dict, List
 
+import iso8601
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -900,6 +901,10 @@ class ContactCRUDL(SmartCRUDL):
 
             # render as events
             history = [Event.from_history_item(i) for i in history]
+
+            # convert all event times to actual dates
+            for event in history:
+                event["created_on"] = iso8601.parse_date(event["created_on"])
 
             if len(history) >= Contact.MAX_HISTORY:
                 after = history[-1]["created_on"]

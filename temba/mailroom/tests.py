@@ -660,7 +660,7 @@ class EventTest(TembaTest):
         self.assertEqual(
             {
                 "type": "msg_received",
-                "created_on": matchers.Datetime(),
+                "created_on": matchers.ISODate(),
                 "msg": {
                     "uuid": str(msg_in.uuid),
                     "id": msg_in.id,
@@ -684,7 +684,7 @@ class EventTest(TembaTest):
         self.assertEqual(
             {
                 "type": "msg_created",
-                "created_on": matchers.Datetime(),
+                "created_on": matchers.ISODate(),
                 "msg": {
                     "uuid": str(msg_out.uuid),
                     "id": msg_out.id,
@@ -704,7 +704,7 @@ class EventTest(TembaTest):
         self.assertEqual(
             {
                 "type": "ivr_created",
-                "created_on": matchers.Datetime(),
+                "created_on": matchers.ISODate(),
                 "msg": {
                     "uuid": str(ivr_out.uuid),
                     "id": ivr_out.id,
@@ -724,7 +724,7 @@ class EventTest(TembaTest):
         self.assertEqual(
             {
                 "type": "broadcast_created",
-                "created_on": matchers.Datetime(),
+                "created_on": matchers.ISODate(),
                 "translations": {"base": "Hi there"},
                 "base_language": "base",
                 "msg": {
@@ -741,7 +741,7 @@ class EventTest(TembaTest):
             Event.from_msg(msg_out2),
         )
 
-    def test_from_started_run(self):
+    def test_from_flow_run(self):
         contact = self.create_contact("Jim", phone="0979111111")
         flow = self.get_flow("color_v13")
         nodes = flow.get_definition()["nodes"]
@@ -757,11 +757,11 @@ class EventTest(TembaTest):
         self.assertEqual(
             {
                 "type": "flow_entered",
-                "created_on": matchers.Datetime(),
+                "created_on": matchers.ISODate(),
                 "flow": {"uuid": str(flow.uuid), "name": "Colors"},
                 "logs_url": f"/flowsession/json/{run.session.uuid}/",
             },
-            Event.from_started_run(run),
+            Event.from_flow_run(run),
         )
 
     def test_from_event_fire(self):
@@ -784,7 +784,7 @@ class EventTest(TembaTest):
         self.assertEqual(
             {
                 "type": "campaign_fired",
-                "created_on": fire.fired,
+                "created_on": fire.fired.isoformat(),
                 "campaign": {"id": campaign.id, "name": "Welcomes"},
                 "campaign_event": {
                     "id": event.id,
