@@ -49,10 +49,10 @@
               .time.whitespace-no-wrap
                 {% short_datetime object.occurred_on %}
 
-          -if not object_list
-            %tr.empty_list
-              %td{ colspan:'99' }
-                -trans "No Matching calls"
+      -if not object_list
+        %tr.empty_list
+          %td{ colspan:'99' }
+              -trans "No Matching calls"
 
   - block paginator
     -include "includes/pagination.haml"
