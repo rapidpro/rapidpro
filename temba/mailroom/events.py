@@ -1,8 +1,12 @@
+from django.urls import reverse
+
+
 class Event:
     """
     Utility class for working with engine events.
     """
 
+    # engine events
     TYPE_AIRTIME_TRANSFERRED = "airtime_transferred"
     TYPE_BROADCAST_CREATED = "broadcast_created"
     TYPE_CONTACT_FIELD_CHANGED = "contact_field_changed"
@@ -22,6 +26,12 @@ class Event:
     TYPE_TICKET_OPENED = "ticket_opened"
     TYPE_WEBHOOK_CALLED = "webhook_called"
 
+    # additional events
+    TYPE_CALL_STARTED = "call_started"
+    TYPE_CAMPAIGN_FIRED = "campaign_fired"
+    TYPE_CHANNEL_EVENT = "channel_event"
+    TYPE_FLOW_EXITED = "flow_exited"
+
     @classmethod
     def from_msg(cls, obj) -> dict:
         """
@@ -31,6 +41,7 @@ class Event:
         from temba.msgs.models import INCOMING, IVR
 
         channel_log = obj.get_last_log()
+        logs_url = reverse("channels.channellog_read", args=[channel_log.id]) if channel_log else None
 
         if obj.direction == INCOMING:
             return {
@@ -39,7 +50,7 @@ class Event:
                 "msg": _msg_in(obj),
                 # additional properties
                 "msg_type": obj.msg_type,
-                "channel_log_id": channel_log.id if channel_log else None,
+                "logs_url": logs_url,
             }
         elif obj.broadcast and obj.broadcast.get_message_count() > 1:
             return {
@@ -51,7 +62,7 @@ class Event:
                 "msg": _msg_out(obj),
                 "status": obj.status,
                 "recipient_count": obj.broadcast.get_message_count(),
-                "channel_log_id": channel_log.id if channel_log else None,
+                "logs_url": logs_url,
             }
         elif obj.msg_type == IVR:
             return {
@@ -60,7 +71,7 @@ class Event:
                 "msg": _msg_out(obj),
                 # additional properties
                 "status": obj.status,
-                "channel_log_id": channel_log.id if channel_log else None,
+                "logs_url": logs_url,
             }
         else:
             return {
@@ -69,8 +80,88 @@ class Event:
                 "msg": _msg_out(obj),
                 # additional properties
                 "status": obj.status,
-                "channel_log_id": channel_log.id if channel_log else None,
+                "logs_url": logs_url,
             }
+
+    @classmethod
+    def from_started_run(cls, obj) -> dict:
+        return {
+            "type": cls.TYPE_FLOW_ENTERED,
+            "created_on": obj.created_on,
+            "flow": {"uuid": str(obj.flow.uuid), "name": obj.flow.name},
+            "logs_url": reverse("flows.flowsession_json", args=[obj.session.uuid]) if obj.session else None,
+        }
+
+    @classmethod
+    def from_exited_run(cls, obj) -> dict:
+        return {
+            "type": cls.TYPE_FLOW_EXITED,
+            "created_on": obj.exited_on,
+            "flow": {"uuid": str(obj.flow.uuid), "name": obj.flow.name},
+            # additional properties
+            "status": obj.status,
+        }
+
+    @classmethod
+    def from_ivr_call(cls, obj) -> dict:
+        return {
+            "type": cls.TYPE_CALL_STARTED,
+            "created_on": obj.created_on,
+            "status": obj.status,
+            "status_display": obj.get_status_display(),
+            "logs_url": reverse("channels.channellog_connection", args=[obj.id]) if obj.has_logs() else None,
+        }
+
+    @classmethod
+    def from_airtime_transfer(cls, obj) -> dict:
+        return {
+            "type": cls.TYPE_AIRTIME_TRANSFERRED,
+            "created_on": obj.created_on,
+            "sender": obj.sender,
+            "recipient": obj.recipient,
+            "currency": obj.currency,
+            "desired_amount": obj.desired_amount,
+            "actual_amount": obj.actual_amount,
+            # additional properties
+            "logs_url": reverse("airtime.airtimetransfer_read", args=[obj.id]),
+        }
+
+    @classmethod
+    def from_webhook_result(cls, obj) -> dict:
+        return {
+            "type": cls.TYPE_WEBHOOK_CALLED,
+            "created_on": obj.created_on,
+            "url": obj.url,
+            "status": "success" if obj.is_success else "response_error",
+            "status_code": obj.status_code,
+            "elapsed_ms": obj.request_time,
+            # additional properties
+            "logs_url": reverse("api.webhookresult_read", args=[obj.id]),
+        }
+
+    @classmethod
+    def from_event_fire(cls, obj) -> dict:
+        return {
+            "type": cls.TYPE_CAMPAIGN_FIRED,
+            "created_on": obj.fired,
+            "campaign": {"id": obj.event.campaign.id, "name": obj.event.campaign.name},
+            "campaign_event": {
+                "id": obj.event.id,
+                "offset_display": obj.event.offset_display,
+                "relative_to": {"key": obj.event.relative_to.key, "name": obj.event.relative_to.label},
+            },
+            "fired_result": obj.fired_result,
+        }
+
+    @classmethod
+    def from_channel_event(cls, obj) -> dict:
+        extra = obj.extra or {}
+        return {
+            "type": cls.TYPE_CHANNEL_EVENT,
+            "created_on": obj.created_on,
+            "channel_event_type": obj.event_type,
+            "duration": extra.get("duration"),
+        }
 
 
 def _msg_in(obj) -> dict:
