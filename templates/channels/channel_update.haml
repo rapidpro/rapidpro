@@ -278,6 +278,11 @@
       margin-bottom: 10px;
     }
 
+    {% if object.channel_type == "WCH" %}
+    .page-content {
+      margin-left: 3rem;
+    }
+    {% endif %}
 
 -block extra-script
   <script src="{{ STATIC_URL }}js/jscolor.js"></script>
