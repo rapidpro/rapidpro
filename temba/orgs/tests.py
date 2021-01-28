@@ -71,17 +71,33 @@ class OrgContextProcessorTest(TembaTest):
         editors = Group.objects.get(name="Editors")
         viewers = Group.objects.get(name="Viewers")
 
-        administrators_wrapper = GroupPermWrapper(administrators)
-        self.assertTrue(administrators_wrapper["msgs"]["msg_api"])
-        self.assertTrue(administrators_wrapper["msgs"]["msg_inbox"])
+        perms = GroupPermWrapper(administrators)
 
-        editors_wrapper = GroupPermWrapper(editors)
-        self.assertFalse(editors_wrapper["msgs"]["org_plan"])
-        self.assertTrue(editors_wrapper["msgs"]["msg_inbox"])
+        self.assertTrue(perms["msgs"]["msg_inbox"])
+        self.assertTrue(perms["contacts"]["contact_update"])
+        self.assertTrue(perms["orgs"]["org_country"])
+        self.assertTrue(perms["orgs"]["org_manage_accounts"])
+        self.assertFalse(perms["orgs"]["org_delete"])
 
-        viewers_wrapper = GroupPermWrapper(viewers)
-        self.assertFalse(viewers_wrapper["msgs"]["msg_api"])
-        self.assertTrue(viewers_wrapper["msgs"]["msg_inbox"])
+        perms = GroupPermWrapper(editors)
+
+        self.assertTrue(perms["msgs"]["msg_inbox"])
+        self.assertTrue(perms["contacts"]["contact_update"])
+        self.assertFalse(perms["orgs"]["org_manage_accounts"])
+        self.assertFalse(perms["orgs"]["org_delete"])
+
+        perms = GroupPermWrapper(viewers)
+
+        self.assertTrue(perms["msgs"]["msg_inbox"])
+        self.assertFalse(perms["contacts"]["contact_update"])
+        self.assertFalse(perms["orgs"]["org_manage_accounts"])
+        self.assertFalse(perms["orgs"]["org_delete"])
+
+        self.assertFalse(perms["msgs"]["foo"])  # no blow up if perm doesn't exist
+        self.assertFalse(perms["chickens"]["foo"])  # or app doesn't exist
+
+        with self.assertRaises(TypeError):
+            list(perms)
 
 
 class UserTest(TembaTest):
