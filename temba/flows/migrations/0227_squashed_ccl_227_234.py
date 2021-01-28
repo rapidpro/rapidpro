@@ -10,8 +10,6 @@ import temba.utils.uuid
 
 from temba.flows.merging import GraphDifferenceMap, Graph
 
-from temba.flows.merging import GraphDifferenceMap, Graph
-
 
 def recheck_origin_uuids_and_update_path_counts(apps, schema_editor):
     db_alias = schema_editor.connection.alias

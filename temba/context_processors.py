@@ -10,7 +10,7 @@ def branding(request):
         brand=request.branding,
         recaptcha_site_key=settings.RECAPTCHA_SITE_KEY,
         recaptcha_secrete_key=settings.RECAPTCHA_SECRET_KEY,
-        vanilla=request.session.get("vanilla", "0") == "1"
+        vanilla=request.session.get("vanilla", "0") == "1",
     )
 
 

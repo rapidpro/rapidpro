@@ -3656,106 +3656,106 @@ class ValidateUrlAttachmentEndpoint(BaseAPIView):
 
 class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
     """
-        This endpoint allows to manage lookup databases.
+    This endpoint allows to manage lookup databases.
 
-        ## Listing Lookup Collections
+    ## Listing Lookup Collections
 
-        A `GET` returns the list of collections that you can access via API:
-        List of databases for current org:
+    A `GET` returns the list of collections that you can access via API:
+    List of databases for current org:
 
-            GET /api/v2/database.json
+        GET /api/v2/database.json
 
-        Response is the list of collection names that you can use access specific collection:
+    Response is the list of collection names that you can use access specific collection:
 
-            {
-                "results": [
-                    "Lookups 2",
-                    "Lookups"
-                ]
-            }
+        {
+            "results": [
+                "Lookups 2",
+                "Lookups"
+            ]
+        }
 
-        ## Creating a new Lookup Collection
+    ## Creating a new Lookup Collection
 
-        A `POST` creates a new collection:
+    A `POST` creates a new collection:
 
-         * **collection_name** - the name of new collection
+     * **collection_name** - the name of new collection
 
-        Create new collection for current org:
+    Create new collection for current org:
 
-            POST /api/v2/database.json
-            {
-                "collection_name": "Lookups List"
-            }
-
-
-        Response status of successful creation would be `201`
-
-        ## Uploading data to Lookup Collection
-
-        A `PUT` inserts data into collection:
-
-         * **collection_name** - the name of collection
-         * **fields** - columns that are going to be created in collection (If not provided, the columns will be created automaticaly from items keywords)
-         * **items** - list of objects that are going to be inserted
-
-        Create new collection for current org (This action will clear all records and paste new ones instead of them):
-
-            PUT /api/v2/database.json
-            {
-                "collection_name": "Lookups List",
-                "fields": {
-                    // Available types
-                    "name": {"type": "String"},
-                    "age": {"type": "Number"},
-                    "date": {"type": "Date"},
-                },
-                "items": [
-                    {
-                        "name": "Test Name",
-                        "age": 50,
-                        "date": "01-01-2021"
-                    },
-                    {
-                        "name": "Test Name 2",
-                        "age": 22,
-                        "date": "02-02-2021"
-                    }
-                ]
-            }
+        POST /api/v2/database.json
+        {
+            "collection_name": "Lookups List"
+        }
 
 
-        Response will contain list of created objects and response status will be `201`:
+    Response status of successful creation would be `201`
 
-            [
+    ## Uploading data to Lookup Collection
+
+    A `PUT` inserts data into collection:
+
+     * **collection_name** - the name of collection
+     * **fields** - columns that are going to be created in collection (If not provided, the columns will be created automaticaly from items keywords)
+     * **items** - list of objects that are going to be inserted
+
+    Create new collection for current org (This action will clear all records and paste new ones instead of them):
+
+        PUT /api/v2/database.json
+        {
+            "collection_name": "Lookups List",
+            "fields": {
+                // Available types
+                "name": {"type": "String"},
+                "age": {"type": "Number"},
+                "date": {"type": "Date"},
+            },
+            "items": [
                 {
-                    "success": {
-                        "objectId": "QnzUnlfydT",
-                        "createdAt": "2020-12-10T15:51:12.797Z"
-                    }
+                    "name": "Test Name",
+                    "age": 50,
+                    "date": "01-01-2021"
                 },
                 {
-                    "success": {
-                        "objectId": "uJTNjXyek9",
-                        "createdAt": "2020-12-10T15:51:12.797Z"
-                    }
+                    "name": "Test Name 2",
+                    "age": 22,
+                    "date": "02-02-2021"
                 }
             ]
+        }
 
-        ## Deleting Lookup Collection
 
-        A `DELETE` deletes collection:
+    Response will contain list of created objects and response status will be `201`:
 
-         * **collection_name** - the name of collection
-
-        Create new collection for current org:
-
-            DELETE /api/v2/database.json
+        [
             {
-                "collection_name": "Lookups List"
+                "success": {
+                    "objectId": "QnzUnlfydT",
+                    "createdAt": "2020-12-10T15:51:12.797Z"
+                }
+            },
+            {
+                "success": {
+                    "objectId": "uJTNjXyek9",
+                    "createdAt": "2020-12-10T15:51:12.797Z"
+                }
             }
+        ]
+
+    ## Deleting Lookup Collection
+
+    A `DELETE` deletes collection:
+
+     * **collection_name** - the name of collection
+
+    Create new collection for current org:
+
+        DELETE /api/v2/database.json
+        {
+            "collection_name": "Lookups List"
+        }
 
 
-        Response status of successful deletion would be `204`
+    Response status of successful deletion would be `204`
     """
 
     permission = "orgs.org_lookups"
@@ -4040,118 +4040,118 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
 
 class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
     """
-        This endpoint allows to manage lookup databases.
+    This endpoint allows to manage lookup databases.
 
-        ## Lookup Records Listing
+    ## Lookup Records Listing
 
-        A `GET` returns the first 1000 records for specific collections:
+    A `GET` returns the first 1000 records for specific collections:
 
-         * **collection_name** - the name of new collection
+     * **collection_name** - the name of new collection
 
-        List of records for specific collection:
+    List of records for specific collection:
 
-            GET /api/v2/database_records.json
-            {
-                "collection_name": "Lookups List"
-            }
+        GET /api/v2/database_records.json
+        {
+            "collection_name": "Lookups List"
+        }
 
-        Response is the list of records for specific collection:
+    Response is the list of records for specific collection:
 
-            {
-                "results": [
-                    {
-                        "objectId": "Y3H13CqmmG",
-                        "order": 0,
-                        "name": "Test Name",
-                        "age": 50,
-                        "createdAt": "2020-12-10T20:00:30.037Z",
-                        "updatedAt": "2020-12-10T20:00:30.037Z"
-                    },
-                    {
-                        "objectId": "Bjb77AnjbV",
-                        "order": 1,
-                        "name": "Test Name 2",
-                        "age": 20,
-                        "createdAt": "2020-12-10T20:00:30.037Z",
-                        "updatedAt": "2020-12-10T20:00:30.037Z"
-                    }
-                ]
-            }
-
-        ## Lookup Records Uploading
-
-        A `POST` creates new records for specific collection:
-
-         * **collection_name** - the name of new collection
-         * **items** - list of objects that are going to be inserted
-
-        Insert list of new records into collection:
-
-            POST /api/v2/database_records.json
-            {
-                "collection_name": "Lookups List"
-                "items": [
-                    {
-                        "name": "Gendalf the White",
-                        "age": 500
-                    }
-                ]
-            }
-
-
-        Response status of success creation would be `201`:
-
-            [
+        {
+            "results": [
                 {
-                    "success": {
-                        "objectId": "MVPuxmVfG7",
-                        "createdAt": "2020-12-10T20:14:45.999Z"
-                    }
+                    "objectId": "Y3H13CqmmG",
+                    "order": 0,
+                    "name": "Test Name",
+                    "age": 50,
+                    "createdAt": "2020-12-10T20:00:30.037Z",
+                    "updatedAt": "2020-12-10T20:00:30.037Z"
+                },
+                {
+                    "objectId": "Bjb77AnjbV",
+                    "order": 1,
+                    "name": "Test Name 2",
+                    "age": 20,
+                    "createdAt": "2020-12-10T20:00:30.037Z",
+                    "updatedAt": "2020-12-10T20:00:30.037Z"
                 }
             ]
+        }
 
-        ## Lookup Record Updating
+    ## Lookup Records Uploading
 
-        A `PUT` update existing row in collection:
+    A `POST` creates new records for specific collection:
 
-         * **collection_name** - the name of collection
-         * **objectId** - identifier of row that is going to be updated
-         * **item** - a data to update existing row
+     * **collection_name** - the name of new collection
+     * **items** - list of objects that are going to be inserted
 
-        Replace data of existing row for specific collection:
+    Insert list of new records into collection:
 
-            PUT /api/v2/database_records.json
+        POST /api/v2/database_records.json
+        {
+            "collection_name": "Lookups List"
+            "items": [
+                {
+                    "name": "Gendalf the White",
+                    "age": 500
+                }
+            ]
+        }
+
+
+    Response status of success creation would be `201`:
+
+        [
             {
-                "collection_name": "Lookups List",
-                "objectId": "J7vDtb5Aek",
-                "item": {
-                    "name": "Gendalf the Gray"
+                "success": {
+                    "objectId": "MVPuxmVfG7",
+                    "createdAt": "2020-12-10T20:14:45.999Z"
                 }
             }
+        ]
 
+    ## Lookup Record Updating
 
-        Response status of success updating would be `202`:
+    A `PUT` update existing row in collection:
 
-            {
-                "updatedAt": "2020-12-10T20:24:32.595Z"
+     * **collection_name** - the name of collection
+     * **objectId** - identifier of row that is going to be updated
+     * **item** - a data to update existing row
+
+    Replace data of existing row for specific collection:
+
+        PUT /api/v2/database_records.json
+        {
+            "collection_name": "Lookups List",
+            "objectId": "J7vDtb5Aek",
+            "item": {
+                "name": "Gendalf the Gray"
             }
+        }
 
-        ## Lookup Record Deleting
 
-        A `DELETE` deletes collection:
+    Response status of success updating would be `202`:
 
-         * **collection_name** - the name of collection
-         * **objectId** - identifier of record to delete
+        {
+            "updatedAt": "2020-12-10T20:24:32.595Z"
+        }
 
-        Create new collection for current org:
+    ## Lookup Record Deleting
 
-            DELETE /api/v2/database_records.json
-            {
-                "collection_name": "Lookups List",
-                "objectId": "J7vDtb5Aek"
-            }
+    A `DELETE` deletes collection:
 
-        Response status of success deletion would be `204`
+     * **collection_name** - the name of collection
+     * **objectId** - identifier of record to delete
+
+    Create new collection for current org:
+
+        DELETE /api/v2/database_records.json
+        {
+            "collection_name": "Lookups List",
+            "objectId": "J7vDtb5Aek"
+        }
+
+    Response status of success deletion would be `204`
     """
 
     @classmethod

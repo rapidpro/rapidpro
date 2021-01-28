@@ -2902,9 +2902,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 COLLECTION = LOOKUPS if collection_type == "lookup" else GIFTCARDS
                 for item in config.get(COLLECTION, []):
-                    full_name = OrgCRUDL.Giftcards.get_collection_full_name(
-                        org.slug, org.id, item, COLLECTION.lower()
-                    )
+                    full_name = OrgCRUDL.Giftcards.get_collection_full_name(org.slug, org.id, item, COLLECTION.lower())
                     if full_name == collection:
                         collection_real_name = item
                         break
