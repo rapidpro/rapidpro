@@ -1,6 +1,6 @@
 -load contacts humanize smartmin temba i18n sms
 
--for event in history
+-for event in events
   %tr(class="{{event|history_class}}")
     %td.icon
       %span.det(title='{% if event.obj.channel %}{{event.obj.channel.get_channel_type_name}} {{event.obj.channel.get_name}}{% endif %}')
@@ -169,19 +169,18 @@
     %td.created_on
       .time.flex.items-end.justify-end
         %span.short
-          {% short_datetime event.created_on %}
+          {% short_datetime event.created_on|parse_isodate %}
         %span.long.hide
-          {% format_datetime event.created_on %}
+          {% format_datetime event.created_on|parse_isodate %}
 
     %td.text-center{style:"padding-left:0px"}
       .log-icon.ml-2.text-dark-alpha-200
         -if event.logs_url
-          -if event.type != 'flow_entered' or perms.flows.flowsession_json
-            .hover-linked(onclick="goto(event)" href="{{ event.logs_url }}")
-              .icon-docs-2.pointer-events-none
+          .hover-linked(onclick="goto(event)" href="{{ event.logs_url }}")
+            .icon-docs-2.pointer-events-none
 
 -if has_older and not recent_only
-  %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{after}}&before={{before}}", 
+  %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{ next_after }}&before={{ next_before }}",
        ic-trigger-on:"scrolled-into-view", 
        ic-target:"table.activity tbody.previous", 
        ic-indicator:"#indicator" }
