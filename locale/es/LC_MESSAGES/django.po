@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-26 20:41+0000\n"
+"POT-Creation-Date: 2021-01-28 16:13+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4398,40 +4398,6 @@ msgstr "Actualizar campos"
 msgid "Update Label"
 msgstr "Actualizar etiqueta"
 
-#, fuzzy
-#| msgid "campaigns"
-msgid "Campaigns"
-msgstr "campañas"
-
-msgid "Triggers"
-msgstr "Activadores"
-
-#, fuzzy
-#| msgid "users"
-msgid "Users"
-msgstr "usuarios"
-
-msgid "Orgs"
-msgstr ""
-
-#, fuzzy
-#| msgid "dashboard"
-msgid "Dashboard"
-msgstr "Panel"
-
-#, fuzzy
-#| msgid "Android"
-msgid "Android"
-msgstr "Android"
-
-msgid "Sign in"
-msgstr "Registrarse"
-
-#, fuzzy
-#| msgid "Sign Up"
-msgid "Sign out"
-msgstr "Registrarse"
-
 msgid "Administrators"
 msgstr "Administradores"
 
@@ -4960,6 +4926,11 @@ msgstr "Número de teléfono inválido, inténtelo nuevamente."
 
 msgid "Two Factor Authentication"
 msgstr ""
+
+#, fuzzy
+#| msgid "dashboard"
+msgid "Dashboard"
+msgstr "Panel"
 
 #, fuzzy
 #| msgid "Select your Organization"
@@ -5597,6 +5568,9 @@ msgstr "El tipo de este activador"
 msgid "Create Trigger"
 msgstr "Crear activadores"
 
+msgid "Triggers"
+msgstr "Activadores"
+
 msgid "Join Keyword"
 msgstr "Palabra clave para participar"
 
@@ -5822,6 +5796,11 @@ msgstr ""
 #| msgid "Download Results"
 msgid "Download Now"
 msgstr "Descargar Resultados"
+
+#, fuzzy
+#| msgid "campaigns"
+msgid "Campaigns"
+msgstr "campañas"
 
 #, fuzzy
 #| msgid "Update Campaign"
@@ -9457,6 +9436,9 @@ msgstr "Elija un país para recibir ayuda sobre la ubicación en sus flujos."
 msgid "Create new login"
 msgstr "Crear cuenta nueva"
 
+msgid "Sign in"
+msgstr "Registrarse"
+
 msgid "Add Credits"
 msgstr "Agregar créditos"
 
@@ -10771,6 +10753,21 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "users"
+#~ msgid "Users"
+#~ msgstr "usuarios"
+
+#, fuzzy
+#~| msgid "Android"
+#~ msgid "Android"
+#~ msgstr "Android"
+
+#, fuzzy
+#~| msgid "Sign Up"
+#~ msgid "Sign out"
+#~ msgstr "Registrarse"
 
 #, fuzzy
 #~| msgid "days"
