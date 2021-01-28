@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-26 20:41+0000\n"
+"POT-Creation-Date: 2021-01-28 16:13+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3778,36 +3778,6 @@ msgstr "Обновить Папку"
 msgid "Update Label"
 msgstr "Обновить Метку"
 
-msgid "Campaigns"
-msgstr "Кампании"
-
-msgid "Triggers"
-msgstr "Триггеры"
-
-#, fuzzy
-#| msgid "users"
-msgid "Users"
-msgstr "пользователи"
-
-msgid "Orgs"
-msgstr ""
-
-msgid "Dashboard"
-msgstr "Информационная панель"
-
-#, fuzzy
-#| msgid "android"
-msgid "Android"
-msgstr "android"
-
-msgid "Sign in"
-msgstr "Войти"
-
-#, fuzzy
-#| msgid "Sign Up"
-msgid "Sign out"
-msgstr "Зарегистрироваться"
-
 msgid "Administrators"
 msgstr "Администраторы"
 
@@ -4301,6 +4271,9 @@ msgstr "Неверный токен МФА. Пожалуйста, попробу
 
 msgid "Two Factor Authentication"
 msgstr "Двухфакторная аутентификация"
+
+msgid "Dashboard"
+msgstr "Информационная панель"
 
 #, fuzzy
 #| msgid "Select your Organization"
@@ -4879,6 +4852,9 @@ msgstr "Id источника ссылки, который запустит на
 msgid "Create Trigger"
 msgstr "Создать Триггер"
 
+msgid "Triggers"
+msgstr "Триггеры"
+
 msgid "Join Keyword"
 msgstr "Присоединить ключевое слово"
 
@@ -5094,6 +5070,9 @@ msgstr "Ваша загрузка должна начаться автомати
 
 msgid "Download Now"
 msgstr "Скачать сейчас"
+
+msgid "Campaigns"
+msgstr "Кампании"
 
 #, fuzzy
 #| msgid "Update Campaign"
@@ -8896,6 +8875,9 @@ msgstr "Выберите страну для включения поддержк
 msgid "Create new login"
 msgstr "Создать новую учетную запись"
 
+msgid "Sign in"
+msgstr "Войти"
+
 msgid "Add Credits"
 msgstr "Добавить Кредиты"
 
@@ -10326,6 +10308,21 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, fuzzy
+#~| msgid "users"
+#~ msgid "Users"
+#~ msgstr "пользователи"
+
+#, fuzzy
+#~| msgid "android"
+#~ msgid "Android"
+#~ msgstr "android"
+
+#, fuzzy
+#~| msgid "Sign Up"
+#~ msgid "Sign out"
+#~ msgstr "Зарегистрироваться"
 
 #~ msgid "day"
 #~ msgstr "день"

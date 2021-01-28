@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-26 20:41+0000\n"
+"POT-Creation-Date: 2021-01-28 16:13+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3010,30 +3010,6 @@ msgstr "Mettre à jour le dossier"
 msgid "Update Label"
 msgstr "Mise à jour du libellé"
 
-msgid "Campaigns"
-msgstr "Campagnes"
-
-msgid "Triggers"
-msgstr "Déclencheurs"
-
-msgid "Users"
-msgstr "Utilisateurs"
-
-msgid "Orgs"
-msgstr "Orgs"
-
-msgid "Dashboard"
-msgstr "Tableau de bord"
-
-msgid "Android"
-msgstr "Android"
-
-msgid "Sign in"
-msgstr "Connectez-vous"
-
-msgid "Sign out"
-msgstr "Déconnexion"
-
 msgid "Administrators"
 msgstr "Administrateurs"
 
@@ -3483,6 +3459,9 @@ msgstr "Jeton MFA non valide. Veuillez réessayer."
 
 msgid "Two Factor Authentication"
 msgstr "Authentification à deux facteurs"
+
+msgid "Dashboard"
+msgstr "Tableau de bord"
 
 msgid "New Workspace"
 msgstr "Nouvel espace de travail"
@@ -4012,6 +3991,9 @@ msgstr "L'identifiant de référence qui nous déclenchera"
 msgid "Create Trigger"
 msgstr "Créer des declencheurs"
 
+msgid "Triggers"
+msgstr "Déclencheurs"
+
 msgid "Join Keyword"
 msgstr "Joindre un mot clé"
 
@@ -4201,6 +4183,9 @@ msgstr "Votre téléchargement devrait démarrer automatiquement. S'il ne démar
 
 msgid "Download Now"
 msgstr "Télécharger maintenant"
+
+msgid "Campaigns"
+msgstr "Campagnes"
 
 msgid "Create Campaign"
 msgstr "Créer une campagne"
@@ -6697,6 +6682,9 @@ msgstr "Choisissez un pays pour activer le support de l'emplacement géographiqu
 msgid "Create new login"
 msgstr "Créer une nouvelle connexion"
 
+msgid "Sign in"
+msgstr "Connectez-vous"
+
 msgid "Add Credits"
 msgstr "Ajouter Crédits"
 
@@ -7761,6 +7749,18 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Users"
+#~ msgstr "Utilisateurs"
+
+#~ msgid "Orgs"
+#~ msgstr "Orgs"
+
+#~ msgid "Android"
+#~ msgstr "Android"
+
+#~ msgid "Sign out"
+#~ msgstr "Déconnexion"
 
 #~ msgid "day"
 #~ msgstr "jour"

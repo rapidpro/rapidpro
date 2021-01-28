@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-26 20:41+0000\n"
+"POT-Creation-Date: 2021-01-28 16:13+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2980,30 +2980,6 @@ msgstr ""
 msgid "Update Label"
 msgstr ""
 
-msgid "Campaigns"
-msgstr ""
-
-msgid "Triggers"
-msgstr ""
-
-msgid "Users"
-msgstr ""
-
-msgid "Orgs"
-msgstr ""
-
-msgid "Dashboard"
-msgstr ""
-
-msgid "Android"
-msgstr ""
-
-msgid "Sign in"
-msgstr ""
-
-msgid "Sign out"
-msgstr ""
-
 msgid "Administrators"
 msgstr ""
 
@@ -3444,6 +3420,9 @@ msgid "Invalid MFA token. Please try again."
 msgstr ""
 
 msgid "Two Factor Authentication"
+msgstr ""
+
+msgid "Dashboard"
 msgstr ""
 
 msgid "New Workspace"
@@ -3974,6 +3953,9 @@ msgstr ""
 msgid "Create Trigger"
 msgstr ""
 
+msgid "Triggers"
+msgstr ""
+
 msgid "Join Keyword"
 msgstr ""
 
@@ -4162,6 +4144,9 @@ msgid "Your download should start automatically. If it doesn't start in a few se
 msgstr ""
 
 msgid "Download Now"
+msgstr ""
+
+msgid "Campaigns"
 msgstr ""
 
 msgid "Create Campaign"
@@ -6354,6 +6339,9 @@ msgid "Choose a country to enable location support in your flows."
 msgstr ""
 
 msgid "Create new login"
+msgstr ""
+
+msgid "Sign in"
 msgstr ""
 
 msgid "Add Credits"

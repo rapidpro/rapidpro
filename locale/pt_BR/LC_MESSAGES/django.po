@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-26 20:41+0000\n"
+"POT-Creation-Date: 2021-01-28 16:13+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4097,40 +4097,6 @@ msgstr "Atualizar campos"
 msgid "Update Label"
 msgstr "Atualizar rótulo"
 
-#, fuzzy
-#| msgid "campaigns"
-msgid "Campaigns"
-msgstr "campanhas"
-
-msgid "Triggers"
-msgstr "Disparadores"
-
-#, fuzzy
-#| msgid "users"
-msgid "Users"
-msgstr "usuários"
-
-msgid "Orgs"
-msgstr ""
-
-#, fuzzy
-#| msgid "dashboard"
-msgid "Dashboard"
-msgstr "Painel de controle"
-
-#, fuzzy
-#| msgid "Android"
-msgid "Android"
-msgstr "Android"
-
-msgid "Sign in"
-msgstr "Entrar"
-
-#, fuzzy
-#| msgid "Sign Up"
-msgid "Sign out"
-msgstr "Cadastrar-se"
-
 msgid "Administrators"
 msgstr "Administradores"
 
@@ -4655,6 +4621,11 @@ msgstr "Número de telefone inválido, tente novamente."
 
 msgid "Two Factor Authentication"
 msgstr ""
+
+#, fuzzy
+#| msgid "dashboard"
+msgid "Dashboard"
+msgstr "Painel de controle"
 
 #, fuzzy
 msgid "New Workspace"
@@ -5282,6 +5253,9 @@ msgstr "O tipo desse disparo"
 msgid "Create Trigger"
 msgstr "Criar disparador"
 
+msgid "Triggers"
+msgstr "Disparadores"
+
 msgid "Join Keyword"
 msgstr "Juntar palavra-chave"
 
@@ -5499,6 +5473,11 @@ msgstr ""
 #, fuzzy
 msgid "Download Now"
 msgstr "Resultados ao vivo"
+
+#, fuzzy
+#| msgid "campaigns"
+msgid "Campaigns"
+msgstr "campanhas"
 
 #, fuzzy
 msgid "Create Campaign"
@@ -8706,6 +8685,9 @@ msgstr ""
 msgid "Create new login"
 msgstr "Criar nova conta"
 
+msgid "Sign in"
+msgstr "Entrar"
+
 msgid "Add Credits"
 msgstr "Adicionar créditos"
 
@@ -9910,6 +9892,21 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "users"
+#~ msgid "Users"
+#~ msgstr "usuários"
+
+#, fuzzy
+#~| msgid "Android"
+#~ msgid "Android"
+#~ msgstr "Android"
+
+#, fuzzy
+#~| msgid "Sign Up"
+#~ msgid "Sign out"
+#~ msgstr "Cadastrar-se"
 
 #, fuzzy
 #~| msgid "days"
