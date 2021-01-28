@@ -1,3 +1,7 @@
+v6.1.29
+----------
+ * Rework contact history so that rendering as events happens in view and we also expose a JSON version
+
 v6.1.26
 ----------
  * Upgrade urllib3
