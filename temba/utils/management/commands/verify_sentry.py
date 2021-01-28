@@ -4,12 +4,12 @@ from celery.task import task
 
 
 @task
-def failing_task():  # pragma: no cover
+def failing_task():
     foo = 1 / 0
     print(foo)
 
 
-class Command(BaseCommand):  # pragma: no cover
+class Command(BaseCommand):
     help = "Verify Sentry reports with verify_sentry"
 
     def handle(self, *args, **kwargs):
