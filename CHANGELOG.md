@@ -1,3 +1,8 @@
+v6.1.31
+----------
+ * Add management command to check sentry
+ * Remove unused context processor and unused code from org_perms
+
 v6.1.29
 ----------
  * Rework contact history so that rendering as events happens in view and we also expose a JSON version
