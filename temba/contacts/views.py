@@ -25,7 +25,7 @@ from django.db import transaction
 from django.db.models import Count
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
-from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -549,6 +549,7 @@ class ContactCRUDL(SmartCRUDL):
         "archive",
         "delete",
         "history",
+        "tickets",
     )
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
@@ -1372,6 +1373,49 @@ class ContactCRUDL(SmartCRUDL):
         def save(self, obj):
             obj.release(self.request.user)
             return obj
+
+    class Tickets(OrgPermsMixin, SmartListView):
+        """
+        Fetches contacts with tickets in the specified state.
+        """
+
+        FOLDER_OPEN = "open"
+        FOLDER_CLOSED = "closed"
+
+        def get_queryset(self, **kwargs):
+            org = self.request.user.get_org()
+            qs = super().get_queryset(**kwargs).filter(org=org)
+
+            folder = self.request.GET.get("folder", "")
+            if folder == self.FOLDER_OPEN:
+                qs = qs.filter(tickets__status=Ticket.STATUS_OPEN).distinct()
+            elif folder == self.FOLDER_CLOSED:
+                qs = qs.filter(tickets__status=Ticket.STATUS_CLOSED).distinct()
+            else:
+                raise Http404("'%' is not valid ticket folder", folder)
+
+            # TODO this isn't quite what we want
+            return qs.order_by("-last_seen_on")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            # TODO get last message for each contact
+
+            return context
+
+        def as_json(self, context):
+            def contact_as_json(c):
+                return {
+                    "uuid": str(c.uuid),
+                    "name": c.name,
+                }
+
+            return {
+                "page": context["page_obj"].number,
+                "has_next": context["page_obj"].has_next(),
+                "contacts": [contact_as_json(c) for c in context["object_list"]],
+            }
 
 
 class ContactGroupCRUDL(SmartCRUDL):

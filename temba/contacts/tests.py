@@ -43,6 +43,7 @@ from temba.tests import (
     mock_mailroom,
 )
 from temba.tests.engine import MockSessionWriter
+from temba.tickets.models import Ticket, Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.dates import datetime_to_ms, datetime_to_str
@@ -566,6 +567,56 @@ class ContactCRUDLTest(TembaTest):
         # contact should be unchanged
         other_org_contact.refresh_from_db()
         self.assertTrue(other_org_contact.is_active)
+
+    def test_tickets(self):
+        self.login(self.user)
+
+        ticketer = Ticketer.create(self.org, self.user, "mailgun", "Email (bob@acme.com)", {})
+        contact1 = self.create_contact("Joe", phone="123", last_seen_on=timezone.now())
+        contact2 = self.create_contact("Frank", phone="124", last_seen_on=timezone.now())
+        contact3 = self.create_contact("Anne", phone="125", last_seen_on=timezone.now())
+
+        tickets_url = reverse("contacts.contact_tickets")
+
+        # 404 if you don't specify a folder
+        response = self.client.get(tickets_url)
+        self.assertEqual(404, response.status_code)
+
+        # no tickets yet so no contacts returned
+        response = self.client.get(tickets_url + "?folder=open")
+        self.assertEqual(0, len(response.context["object_list"]))
+
+        # contact 1 has two open tickets
+        Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact1, subject="Question 1", status="O")
+        Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact1, subject="Question 2", status="O")
+
+        # contact 2 has an open ticket and a closed ticket
+        Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact2, subject="Question 3", status="O")
+        Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact2, subject="Question 4", status="C")
+
+        # contact 3 has two closed tickets
+        Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact3, subject="Question 5", status="C")
+        Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact3, subject="Question 6", status="C")
+
+        response = self.client.get(tickets_url + "?folder=open")
+        self.assertEqual([contact2, contact1], list(response.context["object_list"]))
+
+        response = self.client.get(tickets_url + "?folder=closed")
+        self.assertEqual([contact3, contact2], list(response.context["object_list"]))
+
+        # can request page as JSON
+        response = self.client.get(tickets_url + "?folder=open&_format=json")
+        self.assertEqual(
+            {
+                "page": 1,
+                "has_next": False,
+                "contacts": [
+                    {"uuid": str(contact2.uuid), "name": "Frank"},
+                    {"uuid": str(contact1.uuid), "name": "Joe"},
+                ],
+            },
+            response.json(),
+        )
 
 
 class ContactGroupTest(TembaTest):
