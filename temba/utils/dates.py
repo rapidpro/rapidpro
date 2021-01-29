@@ -240,8 +240,13 @@ def ms_to_datetime(ms):
     """
     Converts a millisecond accuracy timestamp to a datetime
     """
-    dt = datetime.datetime.utcfromtimestamp(ms / 1000)
-    return dt.replace(microsecond=(ms % 1000) * 1000).replace(tzinfo=pytz.utc)
+    try:
+        dt = datetime.datetime.utcfromtimestamp(ms / 1_000)
+    except ValueError:
+        # possible this is actually a microsecond accuracy timestamp
+        dt = datetime.datetime.utcfromtimestamp(ms / 1_000_000)
+
+    return dt.replace(tzinfo=pytz.utc)
 
 
 def datetime_to_epoch(dt):
