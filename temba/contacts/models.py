@@ -757,6 +757,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         """
         from temba.flows.models import FlowExit
         from temba.ivr.models import IVRCall
+        from temba.mailroom.events import get_event_time
         from temba.msgs.models import Msg
 
         limit = Contact.MAX_HISTORY
@@ -812,21 +813,21 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         session_events = self.get_session_events(after, before, include_event_types)
 
-        # for each item extract its time so we can sort and slice
+        # chain all items together, sort by their event time, and slice
         items = chain(
-            [(m, m.created_on) for m in msgs],
-            [(r, r.created_on) for r in started_runs],
-            [(r, r.run.exited_on) for r in exited_runs],
-            [(e, e.created_on) for e in channel_events],
-            [(f, f.fired) for f in campaign_events],
-            [(r, r.created_on) for r in webhook_results],
-            [(c, c.created_on) for c in calls],
-            [(t, t.created_on) for t in transfers],
-            [(e, iso8601.parse_date(e["created_on"])) for e in session_events],
+            msgs,
+            started_runs,
+            exited_runs,
+            channel_events,
+            campaign_events,
+            webhook_results,
+            calls,
+            transfers,
+            session_events,
         )
 
         # sort and slice
-        return [i[0] for i in sorted(items, key=lambda j: j[1], reverse=True)[:limit]]
+        return sorted(items, key=get_event_time, reverse=True)[:limit]
 
     def get_session_events(self, after: datetime, before: datetime, types: set) -> list:
         """

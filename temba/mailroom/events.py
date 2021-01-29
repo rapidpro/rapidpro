@@ -1,3 +1,8 @@
+from collections import defaultdict
+from datetime import datetime
+
+import iso8601
+
 from django.contrib.auth.models import User
 from django.urls import reverse
 
@@ -66,7 +71,7 @@ class Event:
         if obj.direction == INCOMING:
             return {
                 "type": cls.TYPE_MSG_RECEIVED,
-                "created_on": obj.created_on.isoformat(),
+                "created_on": get_event_time(obj).isoformat(),
                 "msg": _msg_in(obj),
                 # additional properties
                 "msg_type": obj.msg_type,
@@ -75,7 +80,7 @@ class Event:
         elif obj.broadcast and obj.broadcast.get_message_count() > 1:
             return {
                 "type": cls.TYPE_BROADCAST_CREATED,
-                "created_on": obj.created_on.isoformat(),
+                "created_on": get_event_time(obj).isoformat(),
                 "translations": obj.broadcast.text,
                 "base_language": obj.broadcast.base_language,
                 # additional properties
@@ -87,7 +92,7 @@ class Event:
         elif obj.msg_type == IVR:
             return {
                 "type": cls.TYPE_IVR_CREATED,
-                "created_on": obj.created_on.isoformat(),
+                "created_on": get_event_time(obj).isoformat(),
                 "msg": _msg_out(obj),
                 # additional properties
                 "status": obj.status,
@@ -96,7 +101,7 @@ class Event:
         else:
             return {
                 "type": cls.TYPE_MSG_CREATED,
-                "created_on": obj.created_on.isoformat(),
+                "created_on": get_event_time(obj).isoformat(),
                 "msg": _msg_out(obj),
                 # additional properties
                 "status": obj.status,
@@ -110,7 +115,7 @@ class Event:
 
         return {
             "type": cls.TYPE_FLOW_ENTERED,
-            "created_on": obj.created_on.isoformat(),
+            "created_on": get_event_time(obj).isoformat(),
             "flow": {"uuid": str(obj.flow.uuid), "name": obj.flow.name},
             "logs_url": logs_url,
         }
@@ -119,7 +124,7 @@ class Event:
     def from_flow_exit(cls, org: Org, user: User, obj: FlowExit) -> dict:
         return {
             "type": cls.TYPE_FLOW_EXITED,
-            "created_on": obj.run.exited_on.isoformat(),
+            "created_on": get_event_time(obj).isoformat(),
             "flow": {"uuid": str(obj.run.flow.uuid), "name": obj.run.flow.name},
             # additional properties
             "status": obj.run.status,
@@ -133,7 +138,7 @@ class Event:
 
         return {
             "type": cls.TYPE_CALL_STARTED,
-            "created_on": obj.created_on.isoformat(),
+            "created_on": get_event_time(obj).isoformat(),
             "status": obj.status,
             "status_display": obj.get_status_display(),
             "logs_url": logs_url,
@@ -145,7 +150,7 @@ class Event:
 
         return {
             "type": cls.TYPE_AIRTIME_TRANSFERRED,
-            "created_on": obj.created_on.isoformat(),
+            "created_on": get_event_time(obj).isoformat(),
             "sender": obj.sender,
             "recipient": obj.recipient,
             "currency": obj.currency,
@@ -161,7 +166,7 @@ class Event:
 
         return {
             "type": cls.TYPE_WEBHOOK_CALLED,
-            "created_on": obj.created_on.isoformat(),
+            "created_on": get_event_time(obj).isoformat(),
             "url": obj.url,
             "status": "success" if obj.is_success else "response_error",
             "status_code": obj.status_code,
@@ -174,7 +179,7 @@ class Event:
     def from_event_fire(cls, org: Org, user: User, obj: EventFire) -> dict:
         return {
             "type": cls.TYPE_CAMPAIGN_FIRED,
-            "created_on": obj.fired.isoformat(),
+            "created_on": get_event_time(obj).isoformat(),
             "campaign": {"id": obj.event.campaign.id, "name": obj.event.campaign.name},
             "campaign_event": {
                 "id": obj.event.id,
@@ -189,7 +194,7 @@ class Event:
         extra = obj.extra or {}
         return {
             "type": cls.TYPE_CHANNEL_EVENT,
-            "created_on": obj.created_on.isoformat(),
+            "created_on": get_event_time(obj).isoformat(),
             "channel_event_type": obj.event_type,
             "duration": extra.get("duration"),
         }
@@ -234,6 +239,7 @@ def _base_msg(obj) -> dict:
     return d
 
 
+# map of history item types to methods to render them as events
 event_renderers = {
     AirtimeTransfer: Event.from_airtime_transfer,
     ChannelEvent: Event.from_channel_event,
@@ -244,3 +250,20 @@ event_renderers = {
     Msg: Event.from_msg,
     WebHookResult: Event.from_webhook_result,
 }
+
+# map of history item types to a callable which can extract the event time from that type
+event_time = defaultdict(lambda: lambda i: i.created_on)
+event_time.update(
+    {
+        dict: lambda e: iso8601.parse_date(e["created_on"]),
+        EventFire: lambda e: e.fired,
+        FlowExit: lambda e: e.run.exited_on,
+    },
+)
+
+
+def get_event_time(item) -> datetime:
+    """
+    Extracts the event time from a history item
+    """
+    return event_time[type(item)](item)
