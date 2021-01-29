@@ -633,8 +633,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         (STATUS_ARCHIVED, "Archived"),
     )
 
-    MAX_HISTORY = 50
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contacts")
 
     name = models.CharField(
@@ -751,7 +749,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return scheduled_broadcasts.order_by("schedule__next_fire")
 
-    def get_history(self, after: datetime, before: datetime, include_event_types: set) -> list:
+    def get_history(self, after: datetime, before: datetime, include_event_types: set, limit: int) -> list:
         """
         Gets this contact's history of messages, calls, runs etc in the given time window
         """
@@ -759,8 +757,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from temba.ivr.models import IVRCall
         from temba.mailroom.events import get_event_time
         from temba.msgs.models import Msg
-
-        limit = Contact.MAX_HISTORY
 
         msgs = (
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
