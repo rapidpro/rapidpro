@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-12 14:27+0000\n"
+"POT-Creation-Date: 2021-01-28 16:13+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -87,6 +87,57 @@ msgid "Days"
 msgstr ""
 
 msgid "Weeks"
+msgstr ""
+
+#, python-format
+msgid "%d minute before"
+msgid_plural "%d minutes before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%d hour before"
+msgid_plural "%d hours before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%d day before"
+msgid_plural "%d days before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%d week before"
+msgid_plural "%d weeks before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%d minute after"
+msgid_plural "%d minutes after"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%d hour after"
+msgid_plural "%d hours after"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%d day after"
+msgid_plural "%d days after"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%d week after"
+msgid_plural "%d weeks after"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "on"
 msgstr ""
 
 msgid "Select a group to base the campaign on"
@@ -2137,24 +2188,6 @@ msgstr ""
 msgid "Can't query on URNs in an anonymous workspace"
 msgstr ""
 
-msgid "day"
-msgstr ""
-
-msgid "minute"
-msgstr ""
-
-msgid "hour"
-msgstr ""
-
-msgid "days"
-msgstr ""
-
-msgid "minutes"
-msgstr ""
-
-msgid "hours"
-msgstr ""
-
 msgid "Name is used by another group"
 msgstr ""
 
@@ -2947,30 +2980,6 @@ msgstr ""
 msgid "Update Label"
 msgstr ""
 
-msgid "Campaigns"
-msgstr ""
-
-msgid "Triggers"
-msgstr ""
-
-msgid "Users"
-msgstr ""
-
-msgid "Orgs"
-msgstr ""
-
-msgid "Dashboard"
-msgstr ""
-
-msgid "Android"
-msgstr ""
-
-msgid "Sign in"
-msgstr ""
-
-msgid "Sign out"
-msgstr ""
-
 msgid "Administrators"
 msgstr ""
 
@@ -3411,6 +3420,9 @@ msgid "Invalid MFA token. Please try again."
 msgstr ""
 
 msgid "Two Factor Authentication"
+msgstr ""
+
+msgid "Dashboard"
 msgstr ""
 
 msgid "New Workspace"
@@ -3941,6 +3953,9 @@ msgstr ""
 msgid "Create Trigger"
 msgstr ""
 
+msgid "Triggers"
+msgstr ""
+
 msgid "Join Keyword"
 msgstr ""
 
@@ -4131,6 +4146,9 @@ msgstr ""
 msgid "Download Now"
 msgstr ""
 
+msgid "Campaigns"
+msgstr ""
+
 msgid "Create Campaign"
 msgstr ""
 
@@ -4147,12 +4165,6 @@ msgid "No group assigned to this campaign"
 msgstr ""
 
 msgid "No events in this campaign yet."
-msgstr ""
-
-msgid "before"
-msgstr ""
-
-msgid "after"
 msgstr ""
 
 msgid "You are about to delete this event. There is no way to undo this. Are you sure?"
@@ -5231,10 +5243,6 @@ msgid "Name cleared"
 msgstr ""
 
 msgid "URNs updated to"
-msgstr ""
-
-#, python-format
-msgid "Email sent with subject <b>%(subject)s</b>"
 msgstr ""
 
 msgid "Email sent to"
@@ -6333,6 +6341,9 @@ msgstr ""
 msgid "Create new login"
 msgstr ""
 
+msgid "Sign in"
+msgstr ""
+
 msgid "Add Credits"
 msgstr ""
 
@@ -7204,9 +7215,6 @@ msgid "An inbound call"
 msgstr ""
 
 msgid "A new conversation"
-msgstr ""
-
-msgid "on"
 msgstr ""
 
 msgid "The referrer id"

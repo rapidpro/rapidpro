@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-12 14:27+0000\n"
+"POT-Creation-Date: 2021-01-28 16:13+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -93,6 +93,73 @@ msgstr "Jours"
 
 msgid "Weeks"
 msgstr "Semaines"
+
+#, fuzzy, python-format
+#| msgid "%d minute"
+#| msgid_plural "%d minutes"
+msgid "%d minute before"
+msgid_plural "%d minutes before"
+msgstr[0] "%d minute"
+msgstr[1] "%d minutes"
+
+#, fuzzy, python-format
+#| msgid "%d hour"
+#| msgid_plural "%d hours"
+msgid "%d hour before"
+msgid_plural "%d hours before"
+msgstr[0] "%d heure"
+msgstr[1] "%d heures"
+
+#, fuzzy, python-format
+#| msgid "%d day"
+#| msgid_plural "%d days"
+msgid "%d day before"
+msgid_plural "%d days before"
+msgstr[0] "%d jour"
+msgstr[1] "%d jours"
+
+#, fuzzy, python-format
+#| msgid "%d week"
+#| msgid_plural "%d weeks"
+msgid "%d week before"
+msgid_plural "%d weeks before"
+msgstr[0] "%d semaine"
+msgstr[1] "%d semaines"
+
+#, fuzzy, python-format
+#| msgid "%d minute"
+#| msgid_plural "%d minutes"
+msgid "%d minute after"
+msgid_plural "%d minutes after"
+msgstr[0] "%d minute"
+msgstr[1] "%d minutes"
+
+#, fuzzy, python-format
+#| msgid "%d hour"
+#| msgid_plural "%d hours"
+msgid "%d hour after"
+msgid_plural "%d hours after"
+msgstr[0] "%d heure"
+msgstr[1] "%d heures"
+
+#, fuzzy, python-format
+#| msgid "%d day"
+#| msgid_plural "%d days"
+msgid "%d day after"
+msgid_plural "%d days after"
+msgstr[0] "%d jour"
+msgstr[1] "%d jours"
+
+#, fuzzy, python-format
+#| msgid "%d week"
+#| msgid_plural "%d weeks"
+msgid "%d week after"
+msgid_plural "%d weeks after"
+msgstr[0] "%d semaine"
+msgstr[1] "%d semaines"
+
+msgid "on"
+msgstr "actif"
 
 msgid "Select a group to base the campaign on"
 msgstr "Sélectionnez un groupe sur lequel baser la campagne"
@@ -2149,24 +2216,6 @@ msgstr "Impossible de résoudre '%(property)s' en un champ ou un schéma URN"
 msgid "Can't query on URNs in an anonymous workspace"
 msgstr "Impossible d'interroger les URN dans un espace de travail anonyme"
 
-msgid "day"
-msgstr "jour"
-
-msgid "minute"
-msgstr "minute"
-
-msgid "hour"
-msgstr "heure"
-
-msgid "days"
-msgstr "jours"
-
-msgid "minutes"
-msgstr "minutes"
-
-msgid "hours"
-msgstr "heures"
-
 msgid "Name is used by another group"
 msgstr "Le nom est utilisé par un autre groupe"
 
@@ -2961,30 +3010,6 @@ msgstr "Mettre à jour le dossier"
 msgid "Update Label"
 msgstr "Mise à jour du libellé"
 
-msgid "Campaigns"
-msgstr "Campagnes"
-
-msgid "Triggers"
-msgstr "Déclencheurs"
-
-msgid "Users"
-msgstr "Utilisateurs"
-
-msgid "Orgs"
-msgstr "Orgs"
-
-msgid "Dashboard"
-msgstr "Tableau de bord"
-
-msgid "Android"
-msgstr "Android"
-
-msgid "Sign in"
-msgstr "Connectez-vous"
-
-msgid "Sign out"
-msgstr "Déconnexion"
-
 msgid "Administrators"
 msgstr "Administrateurs"
 
@@ -3434,6 +3459,9 @@ msgstr "Jeton MFA non valide. Veuillez réessayer."
 
 msgid "Two Factor Authentication"
 msgstr "Authentification à deux facteurs"
+
+msgid "Dashboard"
+msgstr "Tableau de bord"
 
 msgid "New Workspace"
 msgstr "Nouvel espace de travail"
@@ -3963,6 +3991,9 @@ msgstr "L'identifiant de référence qui nous déclenchera"
 msgid "Create Trigger"
 msgstr "Créer des declencheurs"
 
+msgid "Triggers"
+msgstr "Déclencheurs"
+
 msgid "Join Keyword"
 msgstr "Joindre un mot clé"
 
@@ -4153,6 +4184,9 @@ msgstr "Votre téléchargement devrait démarrer automatiquement. S'il ne démar
 msgid "Download Now"
 msgstr "Télécharger maintenant"
 
+msgid "Campaigns"
+msgstr "Campagnes"
+
 msgid "Create Campaign"
 msgstr "Créer une campagne"
 
@@ -4170,12 +4204,6 @@ msgstr "Aucun groupe affecté à cette campagne"
 
 msgid "No events in this campaign yet."
 msgstr "Aucun événement dans cette campagne pour le moment."
-
-msgid "before"
-msgstr "avant"
-
-msgid "after"
-msgstr "après"
 
 msgid "You are about to delete this event. There is no way to undo this. Are you sure?"
 msgstr "Vous êtes sur le point de supprimer cet événement. Il n'y a aucun moyen d'annuler cela. Êtes-vous sûr?"
@@ -5352,10 +5380,6 @@ msgstr "Nom effacé"
 
 msgid "URNs updated to"
 msgstr "URN mis à jour vers"
-
-#, python-format
-msgid "Email sent with subject <b>%(subject)s</b>"
-msgstr "E-mail envoyé avec objet <b>%(subject)s</b>"
 
 msgid "Email sent to"
 msgstr "Email envoyé à"
@@ -6658,6 +6682,9 @@ msgstr "Choisissez un pays pour activer le support de l'emplacement géographiqu
 msgid "Create new login"
 msgstr "Créer une nouvelle connexion"
 
+msgid "Sign in"
+msgstr "Connectez-vous"
+
 msgid "Add Credits"
 msgstr "Ajouter Crédits"
 
@@ -7683,9 +7710,6 @@ msgstr "Un appel entrant"
 msgid "A new conversation"
 msgstr "Une nouvelle conversation"
 
-msgid "on"
-msgstr "actif"
-
 msgid "The referrer id"
 msgstr "L'identifiant du référent"
 
@@ -7725,6 +7749,46 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Users"
+#~ msgstr "Utilisateurs"
+
+#~ msgid "Orgs"
+#~ msgstr "Orgs"
+
+#~ msgid "Android"
+#~ msgstr "Android"
+
+#~ msgid "Sign out"
+#~ msgstr "Déconnexion"
+
+#~ msgid "day"
+#~ msgstr "jour"
+
+#~ msgid "minute"
+#~ msgstr "minute"
+
+#~ msgid "hour"
+#~ msgstr "heure"
+
+#~ msgid "days"
+#~ msgstr "jours"
+
+#~ msgid "minutes"
+#~ msgstr "minutes"
+
+#~ msgid "hours"
+#~ msgstr "heures"
+
+#~ msgid "before"
+#~ msgstr "avant"
+
+#~ msgid "after"
+#~ msgstr "après"
+
+#, python-format
+#~ msgid "Email sent with subject <b>%(subject)s</b>"
+#~ msgstr "E-mail envoyé avec objet <b>%(subject)s</b>"
 
 #~ msgid "Message flow"
 #~ msgstr "Flux de messages"

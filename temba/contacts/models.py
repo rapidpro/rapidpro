@@ -29,7 +29,6 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
-from temba.mailroom.events import Event
 from temba.orgs.models import Org, OrgLock
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
@@ -636,21 +635,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     MAX_HISTORY = 50
 
-    # events from sessions to include in contact history
-    HISTORY_INCLUDE_EVENTS = {
-        Event.TYPE_CONTACT_LANGUAGE_CHANGED,
-        Event.TYPE_CONTACT_FIELD_CHANGED,
-        Event.TYPE_CONTACT_GROUPS_CHANGED,
-        Event.TYPE_CONTACT_NAME_CHANGED,
-        Event.TYPE_CONTACT_URNS_CHANGED,
-        Event.TYPE_EMAIL_SENT,
-        Event.TYPE_ERROR,
-        Event.TYPE_FAILURE,
-        Event.TYPE_INPUT_LABELS_ADDED,
-        Event.TYPE_RUN_RESULT_CHANGED,
-        Event.TYPE_TICKET_OPENED,
-    }
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contacts")
 
     name = models.CharField(
@@ -767,16 +751,17 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return scheduled_broadcasts.order_by("schedule__next_fire")
 
-    def get_history(self, after, before):
+    def get_history(self, after: datetime, before: datetime, include_event_types: set) -> list:
         """
         Gets this contact's history of messages, calls, runs etc in the given time window
         """
+        from temba.flows.models import FlowExit
         from temba.ivr.models import IVRCall
         from temba.msgs.models import Msg
 
         limit = Contact.MAX_HISTORY
 
-        msgs = list(
+        msgs = (
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
             .exclude(visibility=Msg.VISIBILITY_DELETED)
             .order_by("-created_on")
@@ -784,21 +769,18 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .prefetch_related("channel_logs")[:limit]
         )
 
-        # and all of this contact's runs, channel events such as missed calls, scheduled events
-        started_runs = (
-            self.runs.filter(created_on__gte=after, created_on__lt=before)
+        # get all runs start started or ended in this period
+        runs = (
+            self.runs.filter(
+                Q(created_on__gte=after, created_on__lt=before)
+                | Q(exited_on__isnull=False, exited_on__gte=after, exited_on__lt=before)
+            )
             .exclude(flow__is_system=True)
             .order_by("-created_on")
             .select_related("flow")[:limit]
         )
-
-        exited_runs = (
-            self.runs.filter(exited_on__gte=after, exited_on__lt=before)
-            .exclude(flow__is_system=True)
-            .exclude(exit_type=None)
-            .order_by("-created_on")
-            .select_related("flow")[:limit]
-        )
+        started_runs = [r for r in runs if after <= r.created_on < before]
+        exited_runs = [FlowExit(r) for r in runs if r.exited_on and after <= r.exited_on < before]
 
         channel_events = (
             self.channel_events.filter(created_on__gte=after, created_on__lt=before)
@@ -810,7 +792,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.campaign_fires.filter(fired__gte=after, fired__lt=before)
             .exclude(fired=None)
             .order_by("-fired")
-            .select_related("event__campaign")[:limit]
+            .select_related("event__campaign", "event__relative_to")[:limit]
         )
 
         webhook_results = self.webhook_results.filter(created_on__gte=after, created_on__lt=before).order_by(
@@ -828,24 +810,25 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             "-created_on"
         )[:limit]
 
-        session_events = self.get_session_events(after, before, Contact.HISTORY_INCLUDE_EVENTS)
+        session_events = self.get_session_events(after, before, include_event_types)
 
-        # wrap items, chain and sort by time
-        events = chain(
-            [Event.from_msg(m) for m in msgs],
-            [{"type": "flow_entered", "created_on": r.created_on, "obj": r} for r in started_runs],
-            [{"type": "flow_exited", "created_on": r.exited_on, "obj": r} for r in exited_runs],
-            [{"type": "channel_event", "created_on": e.created_on, "obj": e} for e in channel_events],
-            [{"type": "campaign_fired", "created_on": f.fired, "obj": f} for f in campaign_events],
-            [{"type": "webhook_called", "created_on": r.created_on, "obj": r} for r in webhook_results],
-            [{"type": "call_started", "created_on": c.created_on, "obj": c} for c in calls],
-            [{"type": "airtime_transferred", "created_on": t.created_on, "obj": t} for t in transfers],
-            session_events,
+        # for each item extract its time so we can sort and slice
+        items = chain(
+            [(m, m.created_on) for m in msgs],
+            [(r, r.created_on) for r in started_runs],
+            [(r, r.run.exited_on) for r in exited_runs],
+            [(e, e.created_on) for e in channel_events],
+            [(f, f.fired) for f in campaign_events],
+            [(r, r.created_on) for r in webhook_results],
+            [(c, c.created_on) for c in calls],
+            [(t, t.created_on) for t in transfers],
+            [(e, iso8601.parse_date(e["created_on"])) for e in session_events],
         )
 
-        return sorted(events, key=lambda i: i["created_on"], reverse=True)[:limit]
+        # sort and slice
+        return [i[0] for i in sorted(items, key=lambda j: j[1], reverse=True)[:limit]]
 
-    def get_session_events(self, after, before, types):
+    def get_session_events(self, after: datetime, before: datetime, types: set) -> list:
         """
         Extracts events from this contacts sessions that overlap with the given time window
         """
@@ -857,9 +840,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             for run in session.output.get("runs", []):
                 for event in run.get("events", []):
                     event["session_uuid"] = str(session.uuid)
-                    event["created_on"] = iso8601.parse_date(event["created_on"])
+                    event_time = iso8601.parse_date(event["created_on"])
 
-                    if event["type"] in types and after <= event["created_on"] < before:
+                    if event["type"] in types and after <= event_time < before:
                         events.append(event)
 
         return events
