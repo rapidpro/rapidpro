@@ -240,14 +240,18 @@ class InitTest(TembaTest):
 
 class DatesTest(TembaTest):
     def test_datetime_to_ms(self):
-        d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, tzinfo=pytz.utc)
-        self.assertEqual(datetime_to_ms(d1), 1_388_631_845_000)  # from http://unixtimestamp.50x.eu
-        self.assertEqual(ms_to_datetime(1_388_631_845_000), d1)
+        d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_000, tzinfo=pytz.utc)
+        self.assertEqual(datetime_to_ms(d1), 1_388_631_845_123)  # from http://unixtimestamp.50x.eu
+        self.assertEqual(ms_to_datetime(1_388_631_845_123), d1)
 
         tz = pytz.timezone("Africa/Kigali")
-        d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5))
-        self.assertEqual(datetime_to_ms(d2), 1_388_624_645_000)
-        self.assertEqual(ms_to_datetime(1_388_624_645_000), d2.astimezone(pytz.utc))
+        d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_000))
+        self.assertEqual(datetime_to_ms(d2), 1_388_624_645_123)
+        self.assertEqual(ms_to_datetime(1_388_624_645_123), d2.astimezone(pytz.utc))
+
+        # can also parse as a microsecond timestamp
+        d3 = datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_456, tzinfo=pytz.utc)
+        self.assertEqual(ms_to_datetime(1_388_631_845_123_456), d3.astimezone(pytz.utc))
 
     def test_datetime_to_str(self):
         tz = pytz.timezone("Africa/Kigali")
