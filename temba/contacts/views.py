@@ -164,15 +164,6 @@ class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
 
     search_error = None
 
-    def pre_process(self, request, *args, **kwargs):
-        """
-        Don't allow pagination past 200th page
-        """
-        if int(self.request.GET.get("page", "1")) > 200:
-            return HttpResponseNotFound()
-
-        return super().pre_process(request, *args, **kwargs)
-
     def derive_group(self):
         return ContactGroup.all_groups.get(org=self.request.user.get_org(), group_type=self.system_group)
 
