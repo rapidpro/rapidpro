@@ -1,3 +1,7 @@
+v6.1.33
+----------
+ * Tweaks to how we generate contact histories
+
 v6.1.32
 ----------
  * Mute invalid host errors
