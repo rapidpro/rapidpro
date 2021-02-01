@@ -1536,7 +1536,7 @@ class FlowPathRecentRun(models.Model):
     PRUNE_TO = 5
     LAST_PRUNED_KEY = "last_recentrun_pruned"
 
-    id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name="ID")
+    id = models.BigAutoField(primary_key=True)
 
     # the node and step UUIDs of the start of the path segment
     from_uuid = models.UUIDField()
