@@ -23,6 +23,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
 from django.db.models import Count
+from django.db.models.aggregates import Max
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
 from django.http import Http404, HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
@@ -1376,8 +1377,11 @@ class ContactCRUDL(SmartCRUDL):
 
     class Tickets(OrgPermsMixin, SmartListView):
         """
-        Fetches contacts with tickets in the specified state.
+        Fetches contacts with tickets in the specified state. This endpoint is for a proof-of-concept implementation
+        of internal ticketing and is thus is not well optimized.
         """
+
+        fields = ("uuid", "name")
 
         FOLDER_OPEN = "open"
         FOLDER_CLOSED = "closed"
@@ -1398,18 +1402,28 @@ class ContactCRUDL(SmartCRUDL):
             return qs.order_by("-last_seen_on")
 
         def get_context_data(self, **kwargs):
+            from temba.msgs.models import Msg
+
             context = super().get_context_data(**kwargs)
 
-            # TODO get last message for each contact
+            # convert queryset to list so it can't change later
+            contacts = list(context["object_list"])
+            context["object_list"] = contacts
+
+            last_msg_ids = Msg.objects.filter(contact__in=contacts).values("contact").annotate(last_msg_id=Max("id"))
+            last_msgs = Msg.objects.filter(id__in=[m["last_msg_id"] for m in last_msg_ids])
+
+            context["last_msgs"] = {m.contact: m for m in last_msgs}
 
             return context
 
         def as_json(self, context):
+            def msg_as_json(m):
+                return {"text": m.text, "direction": m.direction}
+
             def contact_as_json(c):
-                return {
-                    "uuid": str(c.uuid),
-                    "name": c.name,
-                }
+                last_msg = context["last_msgs"].get(c)
+                return {"uuid": str(c.uuid), "name": c.name, "last_msg": msg_as_json(last_msg) if last_msg else None}
 
             return {
                 "page": context["page_obj"].number,
