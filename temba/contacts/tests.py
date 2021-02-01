@@ -2156,7 +2156,7 @@ class ContactTest(TembaTest):
         self.assertEqual(response.context["next_before"], last_item_date)
 
         # and our after should be 90 days earlier
-        self.assertEqual(response.context["next_after"], last_item_date - (90 * 24 * 60 * 60 * 1000))
+        self.assertEqual(response.context["next_after"], last_item_date - (90 * 24 * 60 * 60 * 1000 * 1000))
         self.assertEqual(50, len(response.context["events"]))
 
         # and we should have a marker for older items
