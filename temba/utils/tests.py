@@ -9,7 +9,6 @@ from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import intercom.errors
-import iso8601
 import pycountry
 import pytz
 from django_redis import get_redis_connection
@@ -51,13 +50,12 @@ from .celery import nonoverlapping_task
 from .currencies import currency_for_country
 from .dates import (
     date_to_day_range_utc,
-    datetime_to_epoch,
-    datetime_to_ms,
     datetime_to_str,
-    ms_to_datetime,
+    datetime_to_timestamp,
     str_to_date,
     str_to_datetime,
     str_to_time,
+    timestamp_to_datetime,
 )
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
@@ -239,19 +237,19 @@ class InitTest(TembaTest):
 
 
 class DatesTest(TembaTest):
-    def test_datetime_to_ms(self):
-        d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_000, tzinfo=pytz.utc)
-        self.assertEqual(datetime_to_ms(d1), 1_388_631_845_123)  # from http://unixtimestamp.50x.eu
-        self.assertEqual(ms_to_datetime(1_388_631_845_123), d1)
+    def test_datetime_to_timestamp(self):
+        d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_456, tzinfo=pytz.utc)
+        self.assertEqual(datetime_to_timestamp(d1), 1_388_631_845_123_456)  # from http://unixtimestamp.50x.eu
+        self.assertEqual(timestamp_to_datetime(1_388_631_845_123_456), d1)
 
         tz = pytz.timezone("Africa/Kigali")
-        d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_000))
-        self.assertEqual(datetime_to_ms(d2), 1_388_624_645_123)
-        self.assertEqual(ms_to_datetime(1_388_624_645_123), d2.astimezone(pytz.utc))
+        d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_456))
+        self.assertEqual(datetime_to_timestamp(d2), 1_388_624_645_123_456)
+        self.assertEqual(timestamp_to_datetime(1_388_624_645_123_456), d2.astimezone(pytz.utc))
 
-        # can also parse as a microsecond timestamp
-        d3 = datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_456, tzinfo=pytz.utc)
-        self.assertEqual(ms_to_datetime(1_388_631_845_123_456), d3.astimezone(pytz.utc))
+        # can also parse as a millisecond timestamp
+        d3 = datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_000, tzinfo=pytz.utc)
+        self.assertEqual(timestamp_to_datetime(1_388_631_845_123), d3.astimezone(pytz.utc))
 
     def test_datetime_to_str(self):
         tz = pytz.timezone("Africa/Kigali")
@@ -260,10 +258,6 @@ class DatesTest(TembaTest):
         self.assertIsNone(datetime_to_str(None, "%Y-%m-%d %H:%M", tz=tz))
         self.assertEqual(datetime_to_str(d2, "%Y-%m-%d %H:%M", tz=tz), "2014-01-02 03:04")
         self.assertEqual(datetime_to_str(d2, "%Y/%m/%d %H:%M", tz=pytz.UTC), "2014/01/02 01:04")
-
-    def test_datetime_to_epoch(self):
-        dt = iso8601.parse_date("2014-01-02T01:04:05.000Z")
-        self.assertEqual(1_388_624_645, datetime_to_epoch(dt))
 
     def test_str_to_date(self):
         self.assertIsNone(str_to_date(""))
@@ -1170,13 +1164,13 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         )
         assertOrgCounts(ContactField.user_fields.all(), [6, 6, 6])
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
-        assertOrgCounts(Contact.objects.all(), [15, 12, 3])
+        assertOrgCounts(Contact.objects.all(), [13, 13, 4])
 
         org_1_active_contacts = ContactGroup.system_groups.get(org=org1, name="Active")
 
-        self.assertEqual(org_1_active_contacts.contacts.count(), 15)
+        self.assertEqual(org_1_active_contacts.contacts.count(), 12)
         self.assertEqual(
-            list(ContactGroupCount.objects.filter(group=org_1_active_contacts).values_list("count")), [(15,)]
+            list(ContactGroupCount.objects.filter(group=org_1_active_contacts).values_list("count")), [(12,)]
         )
 
         # same seed should generate objects with same UUIDs
@@ -1409,7 +1403,10 @@ class NonBlockingLockTest(TestCase):
 class JSONTest(TestCase):
     def test_json(self):
         self.assertEqual(OrderedDict({"one": 1, "two": Decimal("0.2")}), json.loads('{"one": 1, "two": 0.2}'))
-        self.assertEqual('{"dt": "2018-08-27T20:41:28.123Z"}', json.dumps(dict(dt=ms_to_datetime(1_535_402_488_123))))
+        self.assertEqual(
+            '{"dt": "2018-08-27T20:41:28.123Z"}',
+            json.dumps({"dt": datetime.datetime(2018, 8, 27, 20, 41, 28, 123000, tzinfo=pytz.UTC)}),
+        )
 
 
 class AnalyticsTest(TestCase):

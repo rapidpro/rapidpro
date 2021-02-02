@@ -228,17 +228,17 @@ def str_to_time(value):
     return None
 
 
-def datetime_to_ms(dt):
+def datetime_to_timestamp(dt):
     """
-    Converts a datetime to a millisecond accuracy timestamp
+    Converts a datetime to a UTC microsecond timestamp
     """
     seconds = calendar.timegm(dt.utctimetuple())
-    return seconds * 1000 + dt.microsecond // 1000
+    return seconds * 1_000_000 + dt.microsecond
 
 
-def ms_to_datetime(ms):
+def timestamp_to_datetime(ms):
     """
-    Converts a millisecond accuracy timestamp to a datetime
+    Converts a UTC microsecond timestamp to a datetime
     """
     try:
         dt = datetime.datetime.utcfromtimestamp(ms / 1_000)
@@ -247,14 +247,6 @@ def ms_to_datetime(ms):
         dt = datetime.datetime.utcfromtimestamp(ms / 1_000_000)
 
     return dt.replace(tzinfo=pytz.utc)
-
-
-def datetime_to_epoch(dt):
-    """
-    Converts a datetime to seconds since 1970
-    """
-    utc_naive = dt.replace(tzinfo=None) - dt.utcoffset()
-    return (utc_naive - datetime.datetime(1970, 1, 1)).total_seconds()
 
 
 def date_to_day_range_utc(input_date, org):

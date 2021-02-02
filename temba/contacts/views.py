@@ -42,7 +42,7 @@ from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
-from temba.utils.dates import datetime_to_ms, ms_to_datetime
+from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin
@@ -768,7 +768,7 @@ class ContactCRUDL(SmartCRUDL):
 
             # calculate time after which timeline should be repeatedly refreshed - five minutes ago lets us pick up
             # status changes on new messages
-            context["recent_start"] = datetime_to_ms(timezone.now() - timedelta(minutes=5))
+            context["recent_start"] = datetime_to_timestamp(timezone.now() - timedelta(minutes=5))
             return context
 
         def post(self, request, *args, **kwargs):
@@ -885,12 +885,12 @@ class ContactCRUDL(SmartCRUDL):
                 recent_only = True
                 before = timezone.now()
             else:
-                before = ms_to_datetime(before)
+                before = timestamp_to_datetime(before)
 
             if not after:
                 after = before - timedelta(days=90)
             else:
-                after = ms_to_datetime(after)
+                after = timestamp_to_datetime(after)
 
             # keep looking further back until we get at least 20 items
             history = []
@@ -915,8 +915,8 @@ class ContactCRUDL(SmartCRUDL):
                 context["has_older"] = bool(contact.get_history(contact_creation, after, HISTORY_INCLUDE_EVENTS, 1))
 
             context["recent_only"] = recent_only
-            context["next_before"] = datetime_to_ms(after)
-            context["next_after"] = datetime_to_ms(max(after - timedelta(days=90), contact_creation))
+            context["next_before"] = datetime_to_timestamp(after)
+            context["next_after"] = datetime_to_timestamp(max(after - timedelta(days=90), contact_creation))
             context["start_date"] = contact.org.get_delete_date(archive_type=Archive.TYPE_MSG)
             context["events"] = events
             return context

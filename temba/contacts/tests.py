@@ -45,7 +45,7 @@ from temba.tests import (
 from temba.tests.engine import MockSessionWriter
 from temba.triggers.models import Trigger
 from temba.utils import json
-from temba.utils.dates import datetime_to_ms, datetime_to_str
+from temba.utils.dates import datetime_to_str, datetime_to_timestamp
 
 from .models import (
     URN,
@@ -2047,7 +2047,7 @@ class ContactTest(TembaTest):
         self.assertEqual(95, len(response_json["events"]))
 
         # fetch next page
-        before = datetime_to_ms(timezone.now() - timedelta(days=90))
+        before = datetime_to_timestamp(timezone.now() - timedelta(days=90))
         response = self.fetch_protected(url + "?limit=100&before=%d" % before, self.admin)
         self.assertFalse(response.context["has_older"])
 
@@ -2076,7 +2076,7 @@ class ContactTest(TembaTest):
         assertHistoryEvent(history[0], "msg_received", msg_text="Newer message")
         assertHistoryEvent(history[1], "call_started")
 
-        recent_start = datetime_to_ms(timezone.now() - timedelta(days=1))
+        recent_start = datetime_to_timestamp(timezone.now() - timedelta(days=1))
         response = self.fetch_protected(url + "?limit=100&after=%s" % recent_start, self.admin)
 
         # with our recent flag on, should not see the older messages
@@ -2117,7 +2117,7 @@ class ContactTest(TembaTest):
         # before date should not match our last activity, that only happens when we truncate
         self.assertNotEqual(
             response.context["next_before"],
-            datetime_to_ms(iso8601.parse_date(response.context["events"][-1]["created_on"])),
+            datetime_to_timestamp(iso8601.parse_date(response.context["events"][-1]["created_on"])),
         )
 
         assertHistoryEvent(history[0], "msg_created", msg_text="What is your favorite color?")
@@ -2144,19 +2144,19 @@ class ContactTest(TembaTest):
 
         # when fetched with limit of 1, it should be the only event we see
         response = self.fetch_protected(
-            url + "?limit=1&before=%d" % datetime_to_ms(scheduled + timedelta(minutes=5)), self.admin,
+            url + "?limit=1&before=%d" % datetime_to_timestamp(scheduled + timedelta(minutes=5)), self.admin,
         )
         self.assertEqual(self.message_event.id, response.context["events"][0]["campaign_event"]["id"])
 
         # now try the proper max history to test truncation
-        response = self.fetch_protected(url + "?before=%d" % datetime_to_ms(timezone.now()), self.admin,)
+        response = self.fetch_protected(url + "?before=%d" % datetime_to_timestamp(timezone.now()), self.admin,)
 
         # our before should be the same as the last item
-        last_item_date = datetime_to_ms(iso8601.parse_date(response.context["events"][-1]["created_on"]))
+        last_item_date = datetime_to_timestamp(iso8601.parse_date(response.context["events"][-1]["created_on"]))
         self.assertEqual(response.context["next_before"], last_item_date)
 
         # and our after should be 90 days earlier
-        self.assertEqual(response.context["next_after"], last_item_date - (90 * 24 * 60 * 60 * 1000))
+        self.assertEqual(response.context["next_after"], last_item_date - (90 * 24 * 60 * 60 * 1000 * 1000))
         self.assertEqual(50, len(response.context["events"]))
 
         # and we should have a marker for older items
