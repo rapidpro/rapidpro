@@ -67,7 +67,7 @@ django-mptt==0.8.7
     # via -r pip-requires.txt
 django-redis==4.10.0
     # via -r pip-requires.txt
-django-storages==1.7.1
+django-storages==1.11.1
     # via -r pip-requires.txt
 django-timezone-field==3.0
     # via -r pip-requires.txt

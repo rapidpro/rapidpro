@@ -81,16 +81,13 @@ class BaseAssetStore(object):
         filename = f"{self.key}_{pk}_{slugify(asset.org.name)}.{extension}"
 
         # if our storage backend is S3
-        if settings.DEFAULT_FILE_STORAGE == "storages.backends.s3boto.S3BotoStorage":  # pragma: needs cover
+        if settings.DEFAULT_FILE_STORAGE == "storages.backends.s3boto3.S3Boto3Storage":  # pragma: needs cover
             url = default_storage.url(
                 path,
-                params=dict(
-                    bucket=default_storage.bucket.name,
-                    key=default_storage._encode_name(path),
-                    query_auth=default_storage.querystring_auth,
-                    force_http=not default_storage.secure_urls,
+                parameters=dict(
                     response_headers={"response-content-disposition": "attachment;filename=%s" % filename},
                 ),
+                http_method="GET"
             )
 
         # otherwise, let the backend generate the URL
