@@ -84,9 +84,7 @@ class BaseAssetStore(object):
         if settings.DEFAULT_FILE_STORAGE == "storages.backends.s3boto3.S3Boto3Storage":  # pragma: needs cover
             url = default_storage.url(
                 path,
-                parameters=dict(
-                    response_headers={"ResponseContentDisposition": f"attachment;filename={filename}"},
-                ),
+                parameters=dict(response_headers={"ResponseContentDisposition": f"attachment;filename={filename}"},),
                 http_method="GET",
             )
 
