@@ -1394,11 +1394,11 @@ class ContactCRUDL(SmartCRUDL):
             if folder == self.FOLDER_OPEN:
                 qs = qs.filter(tickets__status=Ticket.STATUS_OPEN).distinct()
             elif folder == self.FOLDER_CLOSED:
-                qs = qs.filter(tickets__status=Ticket.STATUS_CLOSED).distinct()
+                qs = qs.exclude(tickets=None).exclude(tickets__status=Ticket.STATUS_OPEN).distinct()
             else:
                 raise Http404("'%' is not valid ticket folder", folder)
 
-            # TODO this isn't quite what we want
+            # TODO we probably want ordering by last message in either direction
             return qs.order_by("-last_seen_on")
 
         def get_context_data(self, **kwargs):

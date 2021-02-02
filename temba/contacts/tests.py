@@ -575,6 +575,8 @@ class ContactCRUDLTest(TembaTest):
         contact1 = self.create_contact("Joe", phone="123", last_seen_on=timezone.now())
         contact2 = self.create_contact("Frank", phone="124", last_seen_on=timezone.now())
         contact3 = self.create_contact("Anne", phone="125", last_seen_on=timezone.now())
+        self.create_contact("Mary No tickets", phone="126", last_seen_on=timezone.now())
+        self.create_contact("Mr Other Org", phone="126", last_seen_on=timezone.now(), org=self.org2)
 
         tickets_url = reverse("contacts.contact_tickets")
 
@@ -604,11 +606,13 @@ class ContactCRUDLTest(TembaTest):
         Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact3, subject="Question 5", status="C")
         Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact3, subject="Question 6", status="C")
 
+        # fetching open folder returns both contacts with open tickets
         response = self.client.get(tickets_url + "?folder=open")
         self.assertEqual([contact2, contact1], list(response.context["object_list"]))
 
+        # fetching closed folder returns only contact with all closed tickets
         response = self.client.get(tickets_url + "?folder=closed")
-        self.assertEqual([contact3, contact2], list(response.context["object_list"]))
+        self.assertEqual([contact3], list(response.context["object_list"]))
 
         # can request page as JSON
         response = self.client.get(tickets_url + "?folder=open&_format=json")
