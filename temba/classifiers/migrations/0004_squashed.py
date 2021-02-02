@@ -21,5 +21,5 @@ class Migration(migrations.Migration):
                 on_delete=django.db.models.deletion.PROTECT, related_name="classifiers", to="orgs.Org"
             ),
         ),
-        migrations.AlterUniqueTogether(name="intent", unique_together={("classifier", "external_id")},),
+        migrations.AlterUniqueTogether(name="intent", unique_together={("classifier", "external_id")}),
     ]

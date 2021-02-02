@@ -1569,7 +1569,7 @@ class FlowTest(TembaTest):
 
         # reference to channel changed to match existing channel by name
         self.assertEqual(
-            {"uuid": str(channel.uuid), "name": "RapidPro Test"}, flow_def["nodes"][0]["actions"][4]["channel"],
+            {"uuid": str(channel.uuid), "name": "RapidPro Test"}, flow_def["nodes"][0]["actions"][4]["channel"]
         )
 
         # reference to ticketer unchanged because it matched existing ticketer by UUID

@@ -253,7 +253,7 @@ class OrgSignupForm(forms.ModelForm):
     timezone = TimeZoneFormField(help_text=_("The timezone for your workspace"), widget=forms.widgets.HiddenInput())
 
     password = forms.CharField(
-        widget=InputWidget(attrs={"hide_label": True, "password": True, "placeholder": _("Password")},),
+        widget=InputWidget(attrs={"hide_label": True, "password": True, "placeholder": _("Password")}),
         validators=[validate_password],
         help_text=_("At least eight characters or more"),
     )
@@ -1360,10 +1360,10 @@ class OrgCRUDL(SmartCRUDL):
     class ManageAccounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class AccountsForm(forms.ModelForm):
             invite_emails = forms.CharField(
-                required=False, widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email Address")}),
+                required=False, widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email Address")})
             )
             invite_role = forms.ChoiceField(
-                choices=[], required=True, initial="V", label=_("Role"), widget=SelectWidget(),
+                choices=[], required=True, initial="V", label=_("Role"), widget=SelectWidget()
             )
 
             def __init__(self, org, *args, **kwargs):
@@ -1390,7 +1390,7 @@ class OrgCRUDL(SmartCRUDL):
                         widget=SelectWidget(),
                     )
                     remove_field = forms.BooleanField(
-                        required=False, label=" ", widget=CheckboxWidget(attrs={"widget_only": True}),
+                        required=False, label=" ", widget=CheckboxWidget(attrs={"widget_only": True})
                     )
 
                     self.fields.update(
@@ -1411,7 +1411,7 @@ class OrgCRUDL(SmartCRUDL):
                         disabled=True,
                     )
                     remove_field = forms.BooleanField(
-                        required=False, label=" ", widget=CheckboxWidget(attrs={"widget_only": True}),
+                        required=False, label=" ", widget=CheckboxWidget(attrs={"widget_only": True})
                     )
 
                     self.fields.update(
@@ -1486,9 +1486,9 @@ class OrgCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
             if self.request.user.get_org().id != self.get_object().id:
-                links.append(dict(title=_("Workspaces"), style="button-light", href=reverse("orgs.org_sub_orgs"),))
+                links.append(dict(title=_("Workspaces"), style="button-light", href=reverse("orgs.org_sub_orgs")))
 
-            links.append(dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"),))
+            links.append(dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home")))
             return links
 
         def get_form_kwargs(self):
@@ -2491,7 +2491,7 @@ class OrgCRUDL(SmartCRUDL):
                 if len(links) > 0:
                     links.append(dict(divider=True))
 
-                links.append(dict(title=_("Help"), href=settings.HELP_URL,))
+                links.append(dict(title=_("Help"), href=settings.HELP_URL))
 
             if len(links) > 0:
                 links.append(dict(divider=True))
@@ -2815,7 +2815,7 @@ class OrgCRUDL(SmartCRUDL):
         class OrgForm(forms.ModelForm):
             name = forms.CharField(max_length=128, label=_("Workspace Name"), help_text="", widget=InputWidget())
             timezone = TimeZoneFormField(
-                label=_("Timezone"), help_text="", widget=SelectWidget(attrs={"searchable": True}),
+                label=_("Timezone"), help_text="", widget=SelectWidget(attrs={"searchable": True})
             )
 
             class Meta:
