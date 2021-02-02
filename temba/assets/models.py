@@ -85,7 +85,7 @@ class BaseAssetStore(object):
             url = default_storage.url(
                 path,
                 parameters=dict(
-                    response_headers={"response-content-disposition": "attachment;filename=%s" % filename},
+                    response_headers={"ResponseContentDisposition": f"attachment;filename={filename}"},
                 ),
                 http_method="GET",
             )
