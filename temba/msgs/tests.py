@@ -1678,9 +1678,7 @@ class MsgTest(TembaTest):
             visibility="V",
             created_on=timezone.now(),
         )
-        ChannelLog.objects.create(
-            id=3_000_000_000, channel=msg.channel, msg=msg, is_error=True, description="Boom",
-        )
+        ChannelLog.objects.create(id=3_000_000_000, channel=msg.channel, msg=msg, is_error=True, description="Boom")
         spam = Label.get_or_create(self.org, self.admin, "Spam")
         msg.labels.add(spam)
 

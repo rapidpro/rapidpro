@@ -2199,7 +2199,7 @@ class FlowStartCRUDL(SmartCRUDL):
         paginate_by = 25
 
         def get_gear_links(self):
-            return [dict(title=_("Flows"), style="button-light", href=reverse("flows.flow_list"),)]
+            return [dict(title=_("Flows"), style="button-light", href=reverse("flows.flow_list"))]
 
         def derive_queryset(self, *args, **kwargs):
             return (
