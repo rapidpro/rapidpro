@@ -247,10 +247,6 @@ class DatesTest(TembaTest):
         self.assertEqual(datetime_to_timestamp(d2), 1_388_624_645_123_456)
         self.assertEqual(timestamp_to_datetime(1_388_624_645_123_456), d2.astimezone(pytz.utc))
 
-        # can also parse as a millisecond timestamp
-        d3 = datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_000, tzinfo=pytz.utc)
-        self.assertEqual(timestamp_to_datetime(1_388_631_845_123), d3.astimezone(pytz.utc))
-
     def test_datetime_to_str(self):
         tz = pytz.timezone("Africa/Kigali")
         d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5, 6))
