@@ -87,7 +87,7 @@ class BaseAssetStore(object):
                 parameters=dict(
                     response_headers={"response-content-disposition": "attachment;filename=%s" % filename},
                 ),
-                http_method="GET"
+                http_method="GET",
             )
 
         # otherwise, let the backend generate the URL
