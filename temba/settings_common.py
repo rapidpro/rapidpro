@@ -221,9 +221,9 @@ MIDDLEWARE = (
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "temba.middleware.ConsentMiddleware",
     "temba.middleware.BrandingMiddleware",
-    "temba.middleware.OrgTimezoneMiddleware",
+    "temba.middleware.OrgMiddleware",
     "temba.middleware.ActivateLanguageMiddleware",
-    "temba.middleware.OrgHeaderMiddleware",
+    "temba.middleware.ActivateTimezoneMiddleware",
 )
 
 # security middleware configuration
