@@ -409,6 +409,8 @@ class Msg(models.Model):
     DIRECTIONS = {INCOMING: "in", OUTGOING: "out"}
     MSG_TYPES = {INBOX: "inbox", FLOW: "flow", IVR: "ivr"}
 
+    id = models.BigAutoField(primary_key=True)
+
     uuid = models.UUIDField(null=True, default=uuid4)
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs")

@@ -1901,269 +1901,255 @@ class ContactTest(TembaTest):
         )
 
     def test_history(self):
+        url = reverse("contacts.contact_history", args=[self.joe.uuid])
 
-        # use a max history size of 100
-        with patch("temba.contacts.models.Contact.MAX_HISTORY", 100):
-            url = reverse("contacts.contact_history", args=[self.joe.uuid])
+        kurt = self.create_contact("Kurt", phone="123123")
+        self.joe.created_on = timezone.now() - timedelta(days=1000)
+        self.joe.save(update_fields=("created_on",))
 
-            kurt = self.create_contact("Kurt", phone="123123")
-            self.joe.created_on = timezone.now() - timedelta(days=1000)
-            self.joe.save(update_fields=("created_on",))
+        self.create_campaign()
 
-            self.create_campaign()
+        # add a message with some attachments
+        self.create_incoming_msg(
+            self.joe,
+            "Message caption",
+            created_on=timezone.now(),
+            attachments=[
+                "audio/mp3:http://blah/file.mp3",
+                "video/mp4:http://blah/file.mp4",
+                "geo:47.5414799,-122.6359908",
+            ],
+        )
 
-            # add a message with some attachments
+        # create some messages
+        for i in range(95):
             self.create_incoming_msg(
-                self.joe,
-                "Message caption",
-                created_on=timezone.now(),
-                attachments=[
-                    "audio/mp3:http://blah/file.mp3",
-                    "video/mp4:http://blah/file.mp4",
-                    "geo:47.5414799,-122.6359908",
-                ],
+                self.joe, "Inbound message %d" % i, created_on=timezone.now() - timedelta(days=(100 - i))
             )
 
-            # create some messages
-            for i in range(95):
-                self.create_incoming_msg(
-                    self.joe, "Inbound message %d" % i, created_on=timezone.now() - timedelta(days=(100 - i))
-                )
+        # because messages are stored with timestamps from external systems, possible to have initial message
+        # which is little bit older than the contact itself
+        self.create_incoming_msg(
+            self.joe, "Very old inbound message", created_on=self.joe.created_on - timedelta(seconds=10)
+        )
 
-            # because messages are stored with timestamps from external systems, possible to have initial message
-            # which is little bit older than the contact itself
-            self.create_incoming_msg(
-                self.joe, "Very old inbound message", created_on=self.joe.created_on - timedelta(seconds=10)
-            )
+        flow = self.get_flow("color_v13")
+        nodes = flow.get_definition()["nodes"]
+        color_prompt = nodes[0]
+        color_split = nodes[4]
 
-            flow = self.get_flow("color_v13")
-            nodes = flow.get_definition()["nodes"]
-            color_prompt = nodes[0]
-            color_split = nodes[4]
+        (
+            MockSessionWriter(self.joe, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .call_webhook("POST", "https://example.com/", "1234")  # pretend that flow run made a webhook request
+            .visit(color_split)
+            .set_result("Color", "green", "Green", "I like green")
+            .wait()
+            .save()
+        )
+        (
+            MockSessionWriter(kurt, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+        )
 
-            (
-                MockSessionWriter(self.joe, flow)
-                .visit(color_prompt)
-                .send_msg("What is your favorite color?", self.channel)
-                .call_webhook("POST", "https://example.com/", "1234")  # pretend that flow run made a webhook request
-                .visit(color_split)
-                .set_result("Color", "green", "Green", "I like green")
-                .wait()
-                .save()
-            )
-            (
-                MockSessionWriter(kurt, flow)
-                .visit(color_prompt)
-                .send_msg("What is your favorite color?", self.channel)
-                .visit(color_split)
-                .wait()
-                .save()
-            )
+        # mark an outgoing message as failed
+        failed = Msg.objects.get(direction="O", contact=self.joe)
+        failed.status = "F"
+        failed.save(update_fields=("status",))
+        log = ChannelLog.objects.create(
+            channel=failed.channel, msg=failed, is_error=True, description="It didn't send!!"
+        )
 
-            # mark an outgoing message as failed
-            failed = Msg.objects.get(direction="O", contact=self.joe)
-            failed.status = "F"
-            failed.save(update_fields=("status",))
-            log = ChannelLog.objects.create(
-                channel=failed.channel, msg=failed, is_error=True, description="It didn't send!!"
-            )
+        # create an airtime transfer
+        AirtimeTransfer.objects.create(
+            org=self.org,
+            status="S",
+            contact=self.joe,
+            currency="RWF",
+            desired_amount=Decimal("100"),
+            actual_amount=Decimal("100"),
+        )
 
-            # create an airtime transfer
-            AirtimeTransfer.objects.create(
-                org=self.org,
-                status="S",
-                contact=self.joe,
-                currency="RWF",
-                desired_amount=Decimal("100"),
-                actual_amount=Decimal("100"),
-            )
+        # create an event from the past
+        scheduled = timezone.now() - timedelta(days=5)
+        EventFire.objects.create(event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled)
 
-            # create an event from the past
-            scheduled = timezone.now() - timedelta(days=5)
-            EventFire.objects.create(
-                event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled
-            )
+        # create missed incoming and outgoing calls
+        self.create_channel_event(
+            self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, extra={}
+        )
+        self.create_channel_event(
+            self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, extra={}
+        )
 
-            # create missed incoming and outgoing calls
-            self.create_channel_event(
-                self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, extra={}
-            )
-            self.create_channel_event(
-                self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_IN_MISSED, extra={}
-            )
+        # and a referral event
+        self.create_channel_event(
+            self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_NEW_CONVERSATION, extra={}
+        )
 
-            # and a referral event
-            self.create_channel_event(
-                self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_NEW_CONVERSATION, extra={}
-            )
+        # try adding some failed calls
+        call = IVRCall.objects.create(
+            contact=self.joe,
+            status=IVRCall.NO_ANSWER,
+            channel=self.channel,
+            org=self.org,
+            contact_urn=self.joe.urns.all().first(),
+        )
 
-            # try adding some failed calls
-            call = IVRCall.objects.create(
-                contact=self.joe,
-                status=IVRCall.NO_ANSWER,
-                channel=self.channel,
-                org=self.org,
-                contact_urn=self.joe.urns.all().first(),
-            )
+        # create a channel log for this call
+        ChannelLog.objects.create(channel=self.channel, description="Its an ivr call", is_error=False, connection=call)
 
-            # create a channel log for this call
-            ChannelLog.objects.create(
-                channel=self.channel, description="Its an ivr call", is_error=False, connection=call
-            )
+        # fetch our contact history
+        with self.assertNumQueries(73):
+            response = self.fetch_protected(url + "?limit=100", self.admin)
 
-            # fetch our contact history
-            with self.assertNumQueries(73):
-                response = self.fetch_protected(url, self.admin)
+        # history should include all messages in the last 90 days, the channel event, the call, and the flow run
+        history = response.context["events"]
+        self.assertEqual(95, len(history))
 
-            # history should include all messages in the last 90 days, the channel event, the call, and the flow run
-            history = response.context["events"]
-            self.assertEqual(95, len(history))
+        def assertHistoryEvent(item, expected_type, msg_text=None):
+            self.assertEqual(expected_type, item["type"])
+            self.assertTrue(iso8601.parse_date(item["created_on"]))
+            if msg_text:
+                self.assertEqual(msg_text, item["msg"]["text"])
 
-            def assertHistoryEvent(item, expected_type, msg_text=None):
-                self.assertEqual(expected_type, item["type"])
-                self.assertTrue(iso8601.parse_date(item["created_on"]))
-                if msg_text:
-                    self.assertEqual(msg_text, item["msg"]["text"])
+        assertHistoryEvent(history[0], "call_started")
+        assertHistoryEvent(history[1], "channel_event")
+        assertHistoryEvent(history[2], "channel_event")
+        assertHistoryEvent(history[3], "channel_event")
+        assertHistoryEvent(history[4], "airtime_transferred")
+        assertHistoryEvent(history[5], "webhook_called")
+        assertHistoryEvent(history[6], "run_result_changed")
+        assertHistoryEvent(history[7], "msg_created")
+        assertHistoryEvent(history[8], "flow_entered")
+        assertHistoryEvent(history[9], "msg_received")
+        assertHistoryEvent(history[10], "campaign_fired")
+        assertHistoryEvent(history[-1], "msg_received", msg_text="Inbound message 11")
 
-            assertHistoryEvent(history[0], "call_started")
-            assertHistoryEvent(history[1], "channel_event")
-            assertHistoryEvent(history[2], "channel_event")
-            assertHistoryEvent(history[3], "channel_event")
-            assertHistoryEvent(history[4], "airtime_transferred")
-            assertHistoryEvent(history[5], "webhook_called")
-            assertHistoryEvent(history[6], "run_result_changed")
-            assertHistoryEvent(history[7], "msg_created")
-            assertHistoryEvent(history[8], "flow_entered")
-            assertHistoryEvent(history[9], "msg_received")
-            assertHistoryEvent(history[10], "campaign_fired")
-            assertHistoryEvent(history[-1], "msg_received", msg_text="Inbound message 11")
+        self.assertContains(response, "<audio ")
+        self.assertContains(response, '<source type="audio/mp3" src="http://blah/file.mp3" />')
+        self.assertContains(response, "<video ")
+        self.assertContains(response, '<source type="video/mp4" src="http://blah/file.mp4" />')
+        self.assertContains(
+            response,
+            "http://www.openstreetmap.org/?mlat=47.5414799&amp;mlon=-122.6359908#map=18/47.5414799/-122.6359908",
+        )
+        self.assertContains(response, reverse("channels.channellog_read", args=[log.id]))
+        self.assertContains(response, reverse("channels.channellog_connection", args=[call.id]))
 
-            self.assertContains(response, "<audio ")
-            self.assertContains(response, '<source type="audio/mp3" src="http://blah/file.mp3" />')
-            self.assertContains(response, "<video ")
-            self.assertContains(response, '<source type="video/mp4" src="http://blah/file.mp4" />')
-            self.assertContains(
-                response,
-                "http://www.openstreetmap.org/?mlat=47.5414799&amp;mlon=-122.6359908#map=18/47.5414799/-122.6359908",
-            )
-            self.assertContains(response, reverse("channels.channellog_read", args=[log.id]))
-            self.assertContains(response, reverse("channels.channellog_connection", args=[call.id]))
+        # can also fetch same page as JSON
+        response_json = self.client.get(url + "?limit=100&_format=json").json()
+        self.assertEqual(95, len(response_json["events"]))
 
-            # can also fetch same page as JSON
-            response_json = self.client.get(url + "?_format=json").json()
-            self.assertEqual(95, len(response_json["events"]))
+        # fetch next page
+        before = datetime_to_ms(timezone.now() - timedelta(days=90))
+        response = self.fetch_protected(url + "?limit=100&before=%d" % before, self.admin)
+        self.assertFalse(response.context["has_older"])
 
-            # fetch next page
-            before = datetime_to_ms(timezone.now() - timedelta(days=90))
-            response = self.fetch_protected(url + "?before=%d" % before, self.admin)
-            self.assertFalse(response.context["has_older"])
+        # none of our messages have a failed status yet
+        self.assertNotContains(response, "icon-bubble-notification")
 
-            # none of our messages have a failed status yet
-            self.assertNotContains(response, "icon-bubble-notification")
+        # activity should include 11 remaining messages and the event fire
+        history = response.context["events"]
+        self.assertEqual(12, len(history))
+        assertHistoryEvent(history[0], "msg_received", msg_text="Inbound message 10")
+        assertHistoryEvent(history[10], "msg_received", msg_text="Inbound message 0")
+        assertHistoryEvent(history[11], "msg_received", msg_text="Very old inbound message")
 
-            # activity should include 11 remaining messages and the event fire
-            history = response.context["events"]
-            self.assertEqual(12, len(history))
-            assertHistoryEvent(history[0], "msg_received", msg_text="Inbound message 10")
-            assertHistoryEvent(history[10], "msg_received", msg_text="Inbound message 0")
-            assertHistoryEvent(history[11], "msg_received", msg_text="Very old inbound message")
+        response = self.fetch_protected(url + "?limit=100", self.admin)
+        history = response.context["events"]
 
-            response = self.fetch_protected(url, self.admin)
-            history = response.context["events"]
+        self.assertEqual(95, len(history))
+        assertHistoryEvent(history[7], "msg_created", msg_text="What is your favorite color?")
 
-            self.assertEqual(95, len(history))
-            assertHistoryEvent(history[7], "msg_created", msg_text="What is your favorite color?")
+        # if a new message comes in
+        self.create_incoming_msg(self.joe, "Newer message")
+        response = self.fetch_protected(url, self.admin)
 
-            # if a new message comes in
-            self.create_incoming_msg(self.joe, "Newer message")
-            response = self.fetch_protected(url, self.admin)
+        # now we'll see the message that just came in first, followed by the call event
+        history = response.context["events"]
+        assertHistoryEvent(history[0], "msg_received", msg_text="Newer message")
+        assertHistoryEvent(history[1], "call_started")
 
-            # now we'll see the message that just came in first, followed by the call event
-            history = response.context["events"]
-            assertHistoryEvent(history[0], "msg_received", msg_text="Newer message")
-            assertHistoryEvent(history[1], "call_started")
+        recent_start = datetime_to_ms(timezone.now() - timedelta(days=1))
+        response = self.fetch_protected(url + "?limit=100&after=%s" % recent_start, self.admin)
 
-            recent_start = datetime_to_ms(timezone.now() - timedelta(days=1))
-            response = self.fetch_protected(url + "?after=%s" % recent_start, self.admin)
+        # with our recent flag on, should not see the older messages
+        events = response.context["events"]
+        self.assertEqual(11, len(events))
+        self.assertContains(response, "file.mp4")
 
-            # with our recent flag on, should not see the older messages
-            events = response.context["events"]
-            self.assertEqual(11, len(events))
-            self.assertContains(response, "file.mp4")
+        # can't view history of contact in another org
+        hans = self.create_contact("Hans", urns=["twitter:hans"], org=self.org2)
+        response = self.client.get(reverse("contacts.contact_history", args=[hans.uuid]))
+        self.assertLoginRedirect(response)
 
-            # can't view history of contact in another org
-            hans = self.create_contact("Hans", urns=["twitter:hans"], org=self.org2)
-            response = self.client.get(reverse("contacts.contact_history", args=[hans.uuid]))
-            self.assertLoginRedirect(response)
+        # invalid UUID should return 404
+        response = self.client.get(reverse("contacts.contact_history", args=["bad-uuid"]))
+        self.assertEqual(response.status_code, 404)
 
-            # invalid UUID should return 404
-            response = self.client.get(reverse("contacts.contact_history", args=["bad-uuid"]))
-            self.assertEqual(response.status_code, 404)
+        # super users can view history of any contact
+        response = self.fetch_protected(url + "?limit=100", self.superuser)
+        self.assertEqual(96, len(response.context["events"]))
 
-            # super users can view history of any contact
-            response = self.fetch_protected(reverse("contacts.contact_history", args=[self.joe.uuid]), self.superuser)
-            self.assertEqual(96, len(response.context["events"]))
+        response = self.fetch_protected(reverse("contacts.contact_history", args=[hans.uuid]), self.superuser)
+        self.assertEqual(0, len(response.context["events"]))
 
-            response = self.fetch_protected(reverse("contacts.contact_history", args=[hans.uuid]), self.superuser)
-            self.assertEqual(0, len(response.context["events"]))
+        # add a new run
+        (
+            MockSessionWriter(self.joe, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .save()
+        )
 
-            # add a new run
-            (
-                MockSessionWriter(self.joe, flow)
-                .visit(color_prompt)
-                .send_msg("What is your favorite color?", self.channel)
-                .visit(color_split)
-                .wait()
-                .save()
-            )
+        response = self.fetch_protected(url + "?limit=100", self.admin)
+        history = response.context["events"]
+        self.assertEqual(99, len(history))
 
-            response = self.fetch_protected(reverse("contacts.contact_history", args=[self.joe.uuid]), self.admin)
-            history = response.context["events"]
-            self.assertEqual(99, len(history))
+        # before date should not match our last activity, that only happens when we truncate
+        self.assertNotEqual(
+            response.context["next_before"],
+            datetime_to_ms(iso8601.parse_date(response.context["events"][-1]["created_on"])),
+        )
 
-            # before date should not match our last activity, that only happens when we truncate
-            self.assertNotEqual(
-                response.context["next_before"],
-                datetime_to_ms(iso8601.parse_date(response.context["events"][-1]["created_on"])),
-            )
+        assertHistoryEvent(history[0], "msg_created", msg_text="What is your favorite color?")
+        assertHistoryEvent(history[1], "flow_entered")
+        assertHistoryEvent(history[2], "flow_exited")
+        assertHistoryEvent(history[3], "msg_received", msg_text="Newer message")
+        assertHistoryEvent(history[4], "call_started")
+        assertHistoryEvent(history[5], "channel_event")
+        assertHistoryEvent(history[6], "channel_event")
+        assertHistoryEvent(history[7], "channel_event")
+        assertHistoryEvent(history[8], "airtime_transferred")
+        assertHistoryEvent(history[9], "webhook_called")
+        assertHistoryEvent(history[10], "run_result_changed")
+        assertHistoryEvent(history[11], "msg_created", msg_text="What is your favorite color?")
+        assertHistoryEvent(history[12], "flow_entered")
 
-            assertHistoryEvent(history[0], "msg_created", msg_text="What is your favorite color?")
-            assertHistoryEvent(history[1], "flow_entered")
-            assertHistoryEvent(history[2], "flow_exited")
-            assertHistoryEvent(history[3], "msg_received", msg_text="Newer message")
-            assertHistoryEvent(history[4], "call_started")
-            assertHistoryEvent(history[5], "channel_event")
-            assertHistoryEvent(history[6], "channel_event")
-            assertHistoryEvent(history[7], "channel_event")
-            assertHistoryEvent(history[8], "airtime_transferred")
-            assertHistoryEvent(history[9], "webhook_called")
-            assertHistoryEvent(history[10], "run_result_changed")
-            assertHistoryEvent(history[11], "msg_created", msg_text="What is your favorite color?")
-            assertHistoryEvent(history[12], "flow_entered")
+        # make our message event older than our planting reminder
+        self.message_event.created_on = self.planting_reminder.created_on - timedelta(days=1)
+        self.message_event.save()
 
-        # with a max history of one, we should see this event first
-        with patch("temba.contacts.models.Contact.MAX_HISTORY", 1):
-            # make our message event older than our planting reminder
-            self.message_event.created_on = self.planting_reminder.created_on - timedelta(days=1)
-            self.message_event.save()
+        # but fire it immediately
+        scheduled = timezone.now()
+        EventFire.objects.create(event=self.message_event, contact=self.joe, scheduled=scheduled, fired=scheduled)
 
-            # but fire it immediately
-            scheduled = timezone.now()
-            EventFire.objects.create(event=self.message_event, contact=self.joe, scheduled=scheduled, fired=scheduled)
-
-            # when fetched in a bit, it should be the first event we see
-            response = self.fetch_protected(
-                reverse("contacts.contact_history", args=[self.joe.uuid])
-                + "?before=%d" % datetime_to_ms(scheduled + timedelta(minutes=5)),
-                self.admin,
-            )
-            self.assertEqual(self.message_event.id, response.context["events"][0]["campaign_event"]["id"])
+        # when fetched with limit of 1, it should be the only event we see
+        response = self.fetch_protected(
+            url + "?limit=1&before=%d" % datetime_to_ms(scheduled + timedelta(minutes=5)), self.admin,
+        )
+        self.assertEqual(self.message_event.id, response.context["events"][0]["campaign_event"]["id"])
 
         # now try the proper max history to test truncation
-        response = self.fetch_protected(
-            reverse("contacts.contact_history", args=[self.joe.uuid]) + "?before=%d" % datetime_to_ms(timezone.now()),
-            self.admin,
-        )
+        response = self.fetch_protected(url + "?before=%d" % datetime_to_ms(timezone.now()), self.admin,)
 
         # our before should be the same as the last item
         last_item_date = datetime_to_ms(iso8601.parse_date(response.context["events"][-1]["created_on"]))
