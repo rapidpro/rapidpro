@@ -10,5 +10,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterField(model_name="global", name="value", field=models.TextField(max_length=10000),),
+        migrations.AlterField(
+            model_name="global",
+            name="value",
+            field=models.TextField(max_length=10000),
+        ),
     ]

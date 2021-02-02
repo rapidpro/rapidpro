@@ -158,17 +158,13 @@ class RocketChatViewTest(RocketChatMixin):
         configure()
         self.client.force_login(self.admin)
         response = self.client.get(self.claim_url)
-        self.assertEqual(
-            response.context_data["form"].initial.get("secret"), self.secret,
-        )
+        self.assertEqual(response.context_data["form"].initial.get("secret"), self.secret)
 
         configure()
         with patch("temba.channels.types.rocketchat.views.ClaimView.derive_initial") as mock_initial:
             mock_initial.return_value = {"secret": self.secret2}
             response = self.client.get(self.claim_url)
-        self.assertEqual(
-            response.context_data["form"].initial.get("secret"), self.secret2,
-        )
+        self.assertEqual(response.context_data["form"].initial.get("secret"), self.secret2)
 
     @patch("temba.channels.types.rocketchat.client.Client.settings")
     def test_form_valid(self, mock_settings):

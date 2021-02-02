@@ -1,10 +1,9 @@
 import os
 
 from django.conf import settings
+from django.core.files.storage import default_storage
 from django.urls import reverse
 from django.utils.text import slugify
-
-from temba.utils.s3 import public_file_storage
 
 ASSET_STORES_BY_KEY = {}
 ASSET_STORES_BY_MODEL = {}
@@ -74,7 +73,7 @@ class BaseAssetStore(object):
 
         path = self.derive_path(asset.org, asset.uuid)
 
-        if not public_file_storage.exists(path):  # pragma: needs cover
+        if not default_storage.exists(path):  # pragma: needs cover
             raise AssetFileNotFound()
 
         # create a more friendly download filename
@@ -82,21 +81,14 @@ class BaseAssetStore(object):
         filename = f"{self.key}_{pk}_{slugify(asset.org.name)}.{extension}"
 
         # if our storage backend is S3
-        if settings.DEFAULT_FILE_STORAGE == "storages.backends.s3boto.S3BotoStorage":  # pragma: needs cover
-            # generate our URL manually so that we can force the download name for the user
-            url = public_file_storage.connection.generate_url(
-                public_file_storage.querystring_expire,
-                method="GET",
-                bucket=public_file_storage.bucket.name,
-                key=public_file_storage._encode_name(path),
-                query_auth=public_file_storage.querystring_auth,
-                force_http=not public_file_storage.secure_urls,
-                response_headers={"response-content-disposition": "attachment;filename=%s" % filename},
+        if settings.DEFAULT_FILE_STORAGE == "storages.backends.s3boto3.S3Boto3Storage":  # pragma: needs cover
+            url = default_storage.url(
+                path, parameters=dict(ResponseContentDisposition=f"attachment;filename={filename}"), http_method="GET"
             )
 
         # otherwise, let the backend generate the URL
         else:
-            url = public_file_storage.url(path)
+            url = default_storage.url(path)
 
         return asset.org, url, filename
 
@@ -111,7 +103,7 @@ class BaseAssetStore(object):
 
         path = self.derive_path(asset.org, asset.uuid, extension)
 
-        public_file_storage.save(path, _file)
+        default_storage.save(path, _file)
 
     def derive_asset(self, pk):
         """
@@ -137,7 +129,7 @@ class BaseAssetStore(object):
         # no explicit extension so look for one with an existing file
         for ext in extension or self.extensions:
             path = "%s/%s.%s" % (directory, base_name, ext)
-            if public_file_storage.exists(path):
+            if default_storage.exists(path):
                 return path
 
         raise AssetFileNotFound()  # pragma: needs cover

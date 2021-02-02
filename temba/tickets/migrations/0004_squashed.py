@@ -123,7 +123,7 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AddIndex(
-            model_name="ticket", index=models.Index(fields=["ticketer", "-opened_on"], name="tickets_org_ticketer"),
+            model_name="ticket", index=models.Index(fields=["ticketer", "-opened_on"], name="tickets_org_ticketer")
         ),
         migrations.AddIndex(
             model_name="ticket",

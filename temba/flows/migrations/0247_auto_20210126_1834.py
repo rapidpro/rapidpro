@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunSQL("DROP FUNCTION temba_flow_for_run(_run_id INT);"),
         migrations.AlterField(
-            model_name="flowpathrecentrun", name="id", field=models.BigAutoField(primary_key=True, serialize=False),
+            model_name="flowpathrecentrun", name="id", field=models.BigAutoField(primary_key=True, serialize=False)
         ),
     ]

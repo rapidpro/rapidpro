@@ -338,13 +338,13 @@ class Migration(migrations.Migration):
                 name="flows_flowstarts_org_modified",
             ),
         ),
-        migrations.AlterIndexTogether(name="flowruncount", index_together={("flow", "exit_type")},),
+        migrations.AlterIndexTogether(name="flowruncount", index_together={("flow", "exit_type")}),
         migrations.AddIndex(
             model_name="flowpathrecentrun",
             index=models.Index(fields=["from_uuid", "to_uuid", "-visited_on"], name="flows_flowp_from_uu_f5dc27_idx"),
         ),
         migrations.AlterIndexTogether(
-            name="flowpathcount", index_together={("flow", "from_uuid", "to_uuid", "period")},
+            name="flowpathcount", index_together={("flow", "from_uuid", "to_uuid", "period")}
         ),
-        migrations.AlterUniqueTogether(name="flowlabel", unique_together={("name", "parent", "org")},),
+        migrations.AlterUniqueTogether(name="flowlabel", unique_together={("name", "parent", "org")}),
     ]

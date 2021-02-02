@@ -440,7 +440,7 @@ class Msg(models.Model):
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default="P", db_index=True)
 
     response_to = models.ForeignKey(
-        "Msg", on_delete=models.PROTECT, null=True, blank=True, related_name="responses", db_index=False,
+        "Msg", on_delete=models.PROTECT, null=True, blank=True, related_name="responses", db_index=False
     )
 
     labels = models.ManyToManyField("Label", related_name="msgs")
@@ -461,13 +461,13 @@ class Msg(models.Model):
     # the id of this message on the other side of its channel
     external_id = models.CharField(max_length=255, null=True, blank=True)
 
-    topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT,)
+    topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT)
 
     attachments = ArrayField(models.URLField(max_length=2048), null=True)
 
     # used for IVR sessions on channels
     connection = models.ForeignKey(
-        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="msgs", null=True,
+        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="msgs", null=True
     )
 
     metadata = JSONAsTextField(null=True, default=dict)

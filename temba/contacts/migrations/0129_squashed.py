@@ -130,7 +130,7 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AddField(
-            model_name="contactgroup", name="query_fields", field=models.ManyToManyField(to="contacts.ContactField"),
+            model_name="contactgroup", name="query_fields", field=models.ManyToManyField(to="contacts.ContactField")
         ),
         migrations.AddField(
             model_name="contactfield",
@@ -186,5 +186,5 @@ class Migration(migrations.Migration):
                 on_delete=django.db.models.deletion.PROTECT, related_name="contacts", to="orgs.Org"
             ),
         ),
-        migrations.AlterUniqueTogether(name="contacturn", unique_together={("identity", "org")},),
+        migrations.AlterUniqueTogether(name="contacturn", unique_together={("identity", "org")}),
     ]

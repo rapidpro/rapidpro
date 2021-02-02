@@ -14,7 +14,7 @@ from ...views import ALL_COUNTRIES, ClaimViewMixin, UpdateTelChannelForm
 class ClaimView(ClaimViewMixin, SmartFormView):
     class ClaimForm(ClaimViewMixin.Form):
         scheme = forms.ChoiceField(
-            choices=URN.SCHEME_CHOICES, label=_("URN Type"), help_text=_("The type of URNs handled by this channel"),
+            choices=URN.SCHEME_CHOICES, label=_("URN Type"), help_text=_("The type of URNs handled by this channel")
         )
 
         number = forms.CharField(
