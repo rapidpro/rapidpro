@@ -146,7 +146,7 @@ class OrgMiddleware:
         return None
 
 
-class ActivateTimezoneMiddleware:
+class TimezoneMiddleware:
     """
     Activates the timezone for the current org
     """
@@ -165,7 +165,7 @@ class ActivateTimezoneMiddleware:
         return self.get_response(request)
 
 
-class ActivateLanguageMiddleware:
+class LanguageMiddleware:
     """
     Activates the translation language for the current user
     """

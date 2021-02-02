@@ -222,8 +222,8 @@ MIDDLEWARE = (
     "temba.middleware.ConsentMiddleware",
     "temba.middleware.BrandingMiddleware",
     "temba.middleware.OrgMiddleware",
-    "temba.middleware.ActivateLanguageMiddleware",
-    "temba.middleware.ActivateTimezoneMiddleware",
+    "temba.middleware.LanguageMiddleware",
+    "temba.middleware.TimezoneMiddleware",
 )
 
 # security middleware configuration
