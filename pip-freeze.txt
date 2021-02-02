@@ -18,9 +18,9 @@ billiard==3.5.0.2
     # via celery
 black==19.10b0
     # via -r pip-requires.txt
-boto3==1.16.59
+boto3==1.16.63
     # via -r pip-requires.txt
-botocore==1.19.59
+botocore==1.19.63
     # via
     #   boto3
     #   s3transfer
@@ -67,7 +67,7 @@ django-mptt==0.8.7
     # via -r pip-requires.txt
 django-redis==4.10.0
     # via -r pip-requires.txt
-django-storages==1.7.1
+django-storages==1.11.1
     # via -r pip-requires.txt
 django-timezone-field==3.0
     # via -r pip-requires.txt
