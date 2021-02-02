@@ -414,7 +414,7 @@ class ContactForm(forms.ModelForm):
 
                 # get all the urns for this scheme
                 ctrl = forms.CharField(
-                    required=False, label=label, initial=urn.path, help_text=help_text, widget=InputWidget(),
+                    required=False, label=label, initial=urn.path, help_text=help_text, widget=InputWidget()
                 )
                 extra_fields.append(("urn__%s__%d" % (scheme, idx), ctrl))
                 idx += 1
@@ -509,7 +509,7 @@ class ExportForm(Form):
     group_memberships = forms.ModelMultipleChoiceField(
         queryset=ContactGroup.user_groups.none(),
         required=False,
-        label=_("Group Memberships for",),
+        label=_("Group Memberships for"),
         widget=SelectMultipleWidget(
             attrs={"widget_only": True, "placeholder": _("Optional: Choose groups to show in your export")}
         ),
@@ -1527,7 +1527,7 @@ class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
         field_count = ContactField.user_fields.count_active_for_org(org=self.org)
         if field_count >= org_active_fields_limit:
             raise forms.ValidationError(
-                _(f"Cannot create a new field as limit is %(limit)s."), params={"limit": org_active_fields_limit},
+                _(f"Cannot create a new field as limit is %(limit)s."), params={"limit": org_active_fields_limit}
             )
 
     class Meta:
@@ -1890,7 +1890,7 @@ class ContactImportCRUDL(SmartCRUDL):
                             label=" ", required=False, initial=True, widget=CheckboxWidget(attrs={"widget_only": True})
                         )
                         name_field = forms.CharField(
-                            label=" ", initial=mapping["name"], required=False, widget=InputWidget(),
+                            label=" ", initial=mapping["name"], required=False, widget=InputWidget()
                         )
                         value_type_field = forms.ChoiceField(
                             label=" ",

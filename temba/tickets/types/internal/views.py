@@ -18,7 +18,7 @@ class ConnectView(BaseConnectView):
         from .type import InternalType
 
         self.object = Ticketer.create(
-            org=self.org, user=self.request.user, ticketer_type=InternalType.slug, config={}, name=f"Internal",
+            org=self.org, user=self.request.user, ticketer_type=InternalType.slug, config={}, name=f"Internal"
         )
 
         return super().form_valid(form)

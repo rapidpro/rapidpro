@@ -163,5 +163,5 @@ class Migration(migrations.Migration):
                 verbose_name="Sync Event",
             ),
         ),
-        migrations.AlterIndexTogether(name="channelcount", index_together={("channel", "count_type", "day")},),
+        migrations.AlterIndexTogether(name="channelcount", index_together={("channel", "count_type", "day")}),
     ]

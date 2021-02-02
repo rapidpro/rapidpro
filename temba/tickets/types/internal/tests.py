@@ -16,9 +16,7 @@ class InternalTypeTest(TembaTest):
 
         self.assertTrue(InternalType().is_available_to(self.admin))
 
-        Ticketer.create(
-            org=self.org, user=self.admin, ticketer_type=InternalType.slug, config={}, name=f"Internal",
-        )
+        Ticketer.create(org=self.org, user=self.admin, ticketer_type=InternalType.slug, config={}, name=f"Internal")
 
         # and not if they already created one
         self.assertFalse(InternalType().is_available_to(self.admin))

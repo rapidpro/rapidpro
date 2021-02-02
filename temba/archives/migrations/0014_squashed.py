@@ -27,6 +27,6 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, to="archives.Archive"),
         ),
         migrations.AlterUniqueTogether(
-            name="archive", unique_together={("org", "archive_type", "start_date", "period")},
+            name="archive", unique_together={("org", "archive_type", "start_date", "period")}
         ),
     ]

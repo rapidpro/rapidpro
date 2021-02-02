@@ -149,9 +149,7 @@ class ContactCRUDLTest(TembaTest):
 
         self.assertEqual(response.status_code, 404)
 
-        mr_mocks.contact_search(
-            'age > 18 and home = "Kigali"', cleaned='age > 18 AND home = "Kigali"', contacts=[joe],
-        )
+        mr_mocks.contact_search('age > 18 and home = "Kigali"', cleaned='age > 18 AND home = "Kigali"', contacts=[joe])
 
         response = self.client.get(list_url + '?search=age+>+18+and+home+%3D+"Kigali"')
         self.assertEqual(list(response.context["object_list"]), [joe])
@@ -1688,7 +1686,7 @@ class ContactTest(TembaTest):
         with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(
-                    query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
+                    query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id]
                 ),
                 SearchResults(query="", total=3, contact_ids=[]),
             ]
@@ -1710,7 +1708,7 @@ class ContactTest(TembaTest):
         with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(query="", total=2, contact_ids=[self.billy.id, self.frank.id]),
-                SearchResults(query="", total=2, contact_ids=[self.voldemort.id, self.frank.id],),
+                SearchResults(query="", total=2, contact_ids=[self.voldemort.id, self.frank.id]),
             ]
             actual_result = omnibox_request(query="search=250", version="2")
             expected_result = [
@@ -1772,9 +1770,9 @@ class ContactTest(TembaTest):
         with patch("temba.contacts.search.omnibox.search_contacts") as sc:
             sc.side_effect = [
                 SearchResults(
-                    query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id],
+                    query="", total=4, contact_ids=[self.billy.id, self.frank.id, self.joe.id, self.voldemort.id]
                 ),
-                SearchResults(query="", total=3, contact_ids=[self.voldemort.id, self.joe.id, self.frank.id],),
+                SearchResults(query="", total=3, contact_ids=[self.voldemort.id, self.joe.id, self.frank.id]),
             ]
             self.assertEqual(
                 omnibox_request("search=250&types=c,u"),
@@ -2144,12 +2142,12 @@ class ContactTest(TembaTest):
 
         # when fetched with limit of 1, it should be the only event we see
         response = self.fetch_protected(
-            url + "?limit=1&before=%d" % datetime_to_timestamp(scheduled + timedelta(minutes=5)), self.admin,
+            url + "?limit=1&before=%d" % datetime_to_timestamp(scheduled + timedelta(minutes=5)), self.admin
         )
         self.assertEqual(self.message_event.id, response.context["events"][0]["campaign_event"]["id"])
 
         # now try the proper max history to test truncation
-        response = self.fetch_protected(url + "?before=%d" % datetime_to_timestamp(timezone.now()), self.admin,)
+        response = self.fetch_protected(url + "?before=%d" % datetime_to_timestamp(timezone.now()), self.admin)
 
         # our before should be the same as the last item
         last_item_date = datetime_to_timestamp(iso8601.parse_date(response.context["events"][-1]["created_on"]))

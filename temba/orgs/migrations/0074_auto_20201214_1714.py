@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AlterField(model_name="invitation", name="email", field=models.EmailField(max_length=254),),
+        migrations.AlterField(model_name="invitation", name="email", field=models.EmailField(max_length=254)),
         migrations.AlterField(
             model_name="invitation",
             name="org",
@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
             ),
         ),
         migrations.AlterField(
-            model_name="invitation", name="secret", field=models.CharField(max_length=64, unique=True),
+            model_name="invitation", name="secret", field=models.CharField(max_length=64, unique=True)
         ),
         migrations.AlterField(
             model_name="invitation",
