@@ -240,12 +240,7 @@ def timestamp_to_datetime(ms):
     """
     Converts a UTC microsecond timestamp to a datetime
     """
-    try:
-        dt = datetime.datetime.utcfromtimestamp(ms / 1_000)
-    except ValueError:
-        # possible this is actually a microsecond accuracy timestamp
-        dt = datetime.datetime.utcfromtimestamp(ms / 1_000_000)
-
+    dt = datetime.datetime.utcfromtimestamp(ms / 1_000_000)
     return dt.replace(tzinfo=pytz.utc)
 
 
