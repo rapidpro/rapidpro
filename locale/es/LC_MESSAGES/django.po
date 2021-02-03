@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-28 16:13+0000\n"
+"POT-Creation-Date: 2021-02-03 17:32+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5593,16 +5593,13 @@ msgstr ""
 msgid "The organization of the user."
 msgstr "La Organización del usuario."
 
-#, python-format
-msgid "%(value)s must be http or https scheme"
+msgid "Must use HTTP or HTTPS."
 msgstr ""
 
-#, python-format
-msgid "%(value)s host cannot be resolved"
+msgid "Unable to resolve host."
 msgstr ""
 
-#, python-format
-msgid "%(value)s cannot be localhost"
+msgid "Cannot be a local or private host."
 msgstr ""
 
 msgid "Unique Identifier"

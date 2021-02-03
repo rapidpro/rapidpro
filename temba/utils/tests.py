@@ -1882,30 +1882,31 @@ class RedactTest(TestCase):
 class TestValidators(TestCase):
     def test_validate_external_url(self):
         cases = (
-            dict(url="ftp://localhost/foo", error="must be http or https scheme"),
-            dict(url="http://localhost/foo", error="cannot be localhost"),
-            dict(url="http://localhost:80/foo", error="cannot be localhost"),
-            dict(url="https://localhost/foo", error="cannot be localhost"),
-            dict(url="http://127.0.00.1/foo", error="cannot be localhost"),
-            dict(url="http://::1:80/foo", error="host cannot be resolved"),  # no ipv6 addresses for now
+            dict(url="ftp://google.com", error="Must use HTTP or HTTPS."),
+            dict(url="http://localhost/foo", error="Cannot be a local or private host."),
+            dict(url="http://localhost:80/foo", error="Cannot be a local or private host."),
+            dict(url="http://127.0.00.1/foo", error="Cannot be a local or private host."),  # loop back
+            dict(url="http://192.168.0.0/foo", error="Cannot be a local or private host."),  # private
+            dict(url="http://255.255.255.255", error="Cannot be a local or private host."),  # multicast
+            dict(url="http://169.254.169.254/latest", error="Cannot be a local or private host."),  # link local
+            dict(url="http://::1:80/foo", error="Unable to resolve host."),  # no ipv6 addresses for now
             dict(url="http://google.com/foo", error=None),
             dict(url="http://google.com:8000/foo", error=None),
             dict(url="HTTP://google.com:8000/foo", error=None),
+            dict(url="HTTP://8.8.8.8/foo", error=None),
         )
 
-        for case in cases:
-            if not case["error"]:
-                try:
-                    validate_external_url(case["url"])
-                except Exception as e:
-                    self.assertIsNone(e)
-
-            else:
+        for tc in cases:
+            if tc["error"]:
                 with self.assertRaises(ValidationError) as cm:
-                    cm.expected.__name__ = f'ValueError for {case["url"]}'
-                    validate_external_url(case["url"])
+                    validate_external_url(tc["url"])
 
-                self.assertTrue(case["error"] in str(cm.exception), f"{case['error']} not in {cm.exception}")
+                self.assertEqual(tc["error"], cm.exception.message)
+            else:
+                try:
+                    validate_external_url(tc["url"])
+                except Exception:
+                    self.fail(f"unexpected validation error for URL '{tc['url']}'")
 
 
 class TestUUIDs(TembaTest):
