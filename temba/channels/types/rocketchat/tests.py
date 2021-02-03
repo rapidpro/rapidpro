@@ -130,7 +130,7 @@ class RocketChatViewTest(RocketChatMixin):
             "admin_user_id": self.admin_user_id,
         }
 
-    @patch("socket.gethostbyname")
+    @patch("socket.gethostbyname", return_value="123.123.123.123")
     @patch("random.choice")
     def submit_form(self, data, mock_choices, mock_socket):
         choices = (c for c in self.secret)
@@ -268,11 +268,10 @@ class RocketChatViewTest(RocketChatMixin):
         response = self.submit_form(data)
         self.assertFormError(response, "form", "admin_user_id", "This field is required.")
 
-    @patch("socket.gethostbyname")
+    @patch("socket.gethostbyname", return_value="123.123.123.123")
     @patch("random.choice")
     @patch("requests.put")
     def test_settings_exception(self, mock_request, mock_choices, mock_socket):
-        mock_socket.return_value = "192.168.123.45"  # Fake IP
         self.check_exceptions(
             mock_choices,
             mock_request,

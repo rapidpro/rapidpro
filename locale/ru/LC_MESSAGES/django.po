@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-28 16:13+0000\n"
+"POT-Creation-Date: 2021-02-03 17:32+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -4873,17 +4873,14 @@ msgstr "Обработка"
 msgid "The organization of the user."
 msgstr "Организация пользователя."
 
-#, python-format
-msgid "%(value)s must be http or https scheme"
-msgstr "%(value)s должны быть по схеме http или https "
+msgid "Must use HTTP or HTTPS."
+msgstr ""
 
-#, python-format
-msgid "%(value)s host cannot be resolved"
-msgstr "Хост %(value)s не может быть разрешен"
+msgid "Unable to resolve host."
+msgstr ""
 
-#, python-format
-msgid "%(value)s cannot be localhost"
-msgstr "%(value)s не может быть локальным хостом"
+msgid "Cannot be a local or private host."
+msgstr ""
 
 msgid "Unique Identifier"
 msgstr "Уникальный Идентификатор"
@@ -10308,6 +10305,18 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, python-format
+#~ msgid "%(value)s must be http or https scheme"
+#~ msgstr "%(value)s должны быть по схеме http или https "
+
+#, python-format
+#~ msgid "%(value)s host cannot be resolved"
+#~ msgstr "Хост %(value)s не может быть разрешен"
+
+#, python-format
+#~ msgid "%(value)s cannot be localhost"
+#~ msgstr "%(value)s не может быть локальным хостом"
 
 #, fuzzy
 #~| msgid "users"

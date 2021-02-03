@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-01-28 16:13+0000\n"
+"POT-Creation-Date: 2021-02-03 17:32+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -4012,17 +4012,16 @@ msgstr "En traitement"
 msgid "The organization of the user."
 msgstr "L'organisation de l'utilisateur."
 
-#, python-format
-msgid "%(value)s must be http or https scheme"
-msgstr "%(value)s doit être un schéma http ou https"
+msgid "Must use HTTP or HTTPS."
+msgstr ""
 
-#, python-format
-msgid "%(value)s host cannot be resolved"
-msgstr "L'hôte %(value)s ne peut pas être résolu"
+#, fuzzy
+#| msgid "Unable to request OAuth token."
+msgid "Unable to resolve host."
+msgstr "Impossible de demander le jeton OAuth."
 
-#, python-format
-msgid "%(value)s cannot be localhost"
-msgstr "%(value)s ne peut pas être localhost"
+msgid "Cannot be a local or private host."
+msgstr ""
 
 msgid "Unique Identifier"
 msgstr "Identifiant unique"
@@ -7749,6 +7748,18 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, python-format
+#~ msgid "%(value)s must be http or https scheme"
+#~ msgstr "%(value)s doit être un schéma http ou https"
+
+#, python-format
+#~ msgid "%(value)s host cannot be resolved"
+#~ msgstr "L'hôte %(value)s ne peut pas être résolu"
+
+#, python-format
+#~ msgid "%(value)s cannot be localhost"
+#~ msgstr "%(value)s ne peut pas être localhost"
 
 #~ msgid "Users"
 #~ msgstr "Utilisateurs"
