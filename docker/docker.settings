@@ -125,9 +125,7 @@ COMPRESS_OFFLINE = False
 
 LOGGING["root"]["level"] = os.environ.get("DJANGO_LOG_LEVEL", "INFO")
 
-RAVEN_CONFIG = {
-    "dsn": os.environ.get("RAVEN_DSN")
-}
+SENTRY_DSN = os.environ.get("SENTRY_DSN", os.environ.get("RAVEN_DSN"))
 
 AWS_S3_ENABLED = os.environ.get("AWS_S3_ENABLED", "true") == "true"
 

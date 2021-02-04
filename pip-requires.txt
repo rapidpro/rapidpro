@@ -20,7 +20,7 @@ pyfcm
 pyotp
 python-gcm
 python-telegram-bot
-raven
+sentry-sdk
 stripe
 twilio
 twython
