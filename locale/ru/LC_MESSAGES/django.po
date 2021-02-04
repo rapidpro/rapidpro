@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-03 17:32+0000\n"
+"POT-Creation-Date: 2021-02-04 14:32+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1543,6 +1543,42 @@ msgstr "Пароль, который будет использоваться д�
 
 msgid "The token Junebug should use to authenticate"
 msgstr "Токен, который Junebug должен использовать для аутентификации"
+
+#, fuzzy
+#| msgid "If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio WhatsApp</a>"
+msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+msgstr "Если у Вас имеется Twilio для номера WhatsApp, Вы можете его подключить для общения с Вашими контактами WhatsApp. <a href=\"https://www.twilio.com/whatsapp/\">Узнайте подробнее о Twilio WhatsApp</a>"
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your Zenvia connection you'll need to set the following callback URLs on your Zenvia account.\n"
+#| "        "
+msgid "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra account."
+msgstr ""
+"\n"
+"        Для завершения настройки Вашего соединения Zenvia Вам потребуется установить следующие адреса URL обратного вызова в Вашей учетной записи Zenvia."
+
+#, fuzzy
+#| msgid "To receive incoming messages, you need to set the receive URL for your Zenvia account."
+msgid "To receive incoming messages, you need to set the receive URL for your Kaleyra account."
+msgstr "Для получения входящих сообщений Вам потребуется установить адрес URL получения в Вашей учетной записи Zenvia."
+
+msgid "Account SID"
+msgstr "SID Учетной записи"
+
+#, fuzzy
+#| msgid "Your Twilio Account SID"
+msgid "Your Kaleyra Account SID"
+msgstr "SID Вашей учетной записи Twilio "
+
+#, fuzzy
+#| msgid "Your Nexmo API key"
+msgid "Your Kaleyra API Key"
+msgstr "Ваш ключ API Nexmo "
+
+msgid "No org for this user, cannot claim"
+msgstr "Нет организации для этого пользователя, невозможно запросить"
 
 #, fuzzy, python-format
 #| msgid ""
@@ -4388,9 +4424,6 @@ msgstr "Ключ и секрет API Вашей учетной записи DT O
 #, python-format
 msgid "Connecting to your DT One account failed with error text: %s"
 msgstr "Подключение к Вашей учетной записи DT On не удалось. Текст ошибки: %s"
-
-msgid "Account SID"
-msgstr "SID Учетной записи"
 
 msgid "Account Token"
 msgstr "Токен Учетной записи"
@@ -10306,15 +10339,12 @@ msgstr "Ввести запрос"
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
-#, python-format
 #~ msgid "%(value)s must be http or https scheme"
 #~ msgstr "%(value)s должны быть по схеме http или https "
 
-#, python-format
 #~ msgid "%(value)s host cannot be resolved"
 #~ msgstr "Хост %(value)s не может быть разрешен"
 
-#, python-format
 #~ msgid "%(value)s cannot be localhost"
 #~ msgstr "%(value)s не может быть локальным хостом"
 
@@ -10351,7 +10381,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "hours"
 #~ msgstr "часы"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          Email sent with subject <b>%(subject)s</b>\n"
@@ -10411,7 +10441,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "has"
 #~ msgstr "содержит"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "    %(accounts)s Administrator,\n"
@@ -10443,7 +10473,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "  "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "    %(accounts)s Editor,\n"
@@ -10475,7 +10505,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "  "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "    %(accounts)s Viewer,\n"
@@ -10507,7 +10537,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "  "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "    %(accounts)s Surveyor.\n"
@@ -10795,9 +10825,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "        и подключить его, выполнив несколько простых шагов.\n"
 #~ "        "
 
-#~ msgid "No org for this user, cannot claim"
-#~ msgstr "Нет организации для этого пользователя, невозможно запросить"
-
 #~ msgid ""
 #~ "\n"
 #~ "        If you have an <a href=\"https://www.arabiacell.com/\">ArabiaCell</a> number,\n"
@@ -10844,7 +10871,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "    код у <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> и подключить его,\n"
 #~ "    выполнив несколько простых шагов."
 
-#, python-format
 #~ msgid "Unable to update call to action: %s"
 #~ msgstr "Невозможно обновить вызов действия: %s"
 
@@ -10923,9 +10949,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Easily add a two way number you have configured with <a href=\"https://www.twilio.com/\">Twilio</a> using their APIs."
 #~ msgstr "Легко добавьте двухсторонний номер, который Вы настроили с <a href=\"https://www.twilio.com/\">Twilio</a>, используя их API."
 
-#~ msgid "If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio WhatsApp</a>"
-#~ msgstr "Если у Вас имеется Twilio для номера WhatsApp, Вы можете его подключить для общения с Вашими контактами WhatsApp. <a href=\"https://www.twilio.com/whatsapp/\">Узнайте подробнее о Twilio WhatsApp</a>"
-
 #~ msgid ""
 #~ "\n"
 #~ "        If you have an <a href=\"https://wavy.global/en/\">Movile/Wavy</a> number,\n"
@@ -10949,7 +10972,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "If you are based in Brazil, you can purchase a short code from <a href=\"http://www.zenvia.com.br/\">Zenvia</a> and connect it in a few simple steps."
 #~ msgstr "Если Вы находитесь в Бразилии, вы можете приобрести короткий код у <a href=\"http://www.zenvia.com.br/\">Zenvia</a> и подключить его, выполнив несколько простых шагов."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          When submitting your application for approval, make sure to include the <code>pages_messaging</code>\n"
@@ -10969,7 +10992,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "        "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
@@ -11048,7 +11071,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Create a message keyword to allow people to join a group."
 #~ msgstr "Создать ключевое слово сообщения, чтобы люди могли присоединяться к группе."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -11065,7 +11088,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "                "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -11081,7 +11104,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "                "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "              Used by %(num_flows)s flow:\n"
@@ -11107,7 +11129,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "              Используется %(num_flows)s потоками:\n"
 #~ "              "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        To get started you need to add a channel to your account. A channel is a phone number or social network\n"

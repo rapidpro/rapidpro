@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-03 17:32+0000\n"
+"POT-Creation-Date: 2021-02-04 14:32+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -1612,6 +1612,37 @@ msgstr ""
 #| msgid "The token the user will us to claim this channel"
 msgid "The token Junebug should use to authenticate"
 msgstr "O token que será usado para requisitar este transmissor"
+
+msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+msgstr ""
+
+#, fuzzy
+#| msgid "To finish configuring your Zenvia connection you'll need to set the following callback URLs on your Zenvia account."
+msgid "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra account."
+msgstr "Para finalizar a configuração de sua conexão com a Take.net você precisa definir as seguintes URLs de retorno de chamada em sua conta Take.net."
+
+#, fuzzy
+#| msgid "To receive incoming messages, you need to set the receive URL for your Zenvia account."
+msgid "To receive incoming messages, you need to set the receive URL for your Kaleyra account."
+msgstr "Para receber mensagens, você precisa definir a URL de recebimento para a sua conta Take.net"
+
+#, fuzzy
+#| msgid "Account:"
+msgid "Account SID"
+msgstr "Conta:"
+
+#, fuzzy
+#| msgid "Your Twilio Account SID"
+msgid "Your Kaleyra Account SID"
+msgstr "Seu SID da conta Twilio"
+
+#, fuzzy
+#| msgid "Your Nexmo API key"
+msgid "Your Kaleyra API Key"
+msgstr "Sua chave da API Nexmo"
+
+msgid "No org for this user, cannot claim"
+msgstr "Nenhuma organização para este usuário, não pode requisitar"
 
 #, python-format
 msgid "Connect your %(link)s instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."
@@ -4752,11 +4783,6 @@ msgstr "Sua chave e segredo da API Nexmo estão inválidos. Por favor verifique-
 #, python-format
 msgid "Connecting to your DT One account failed with error text: %s"
 msgstr ""
-
-#, fuzzy
-#| msgid "Account:"
-msgid "Account SID"
-msgstr "Conta:"
 
 #, fuzzy
 msgid "Account Token"
@@ -9913,7 +9939,7 @@ msgstr ""
 #~ msgid "days"
 #~ msgstr "dias"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          Install the %(name)s app\n"
@@ -9974,7 +10000,7 @@ msgstr ""
 #~ msgid "has"
 #~ msgstr "tem"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "No Administrator"
 #~ msgid "%(accounts)s Administrator,"
 #~ msgid_plural "%(accounts)s Administrators,"
@@ -10296,9 +10322,6 @@ msgstr ""
 #~ "Você pode definir a URL de retorno de chamada em sua conta Africa's Talking, visitando a página do Painel de SMS e em seguida, clicando em \n"
 #~ "<a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\"> Callback URL </ a>. "
 
-#~ msgid "No org for this user, cannot claim"
-#~ msgstr "Nenhuma organização para este usuário, não pode requisitar"
-
 #, fuzzy
 #~| msgid ""
 #~| "\n"
@@ -10527,7 +10550,7 @@ msgstr ""
 #~ "número curto da <a href=\"http://www.take.net/\"> Take.net </a> e conectá-lo ao Textit \n"
 #~ "em poucos passos simples. "
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "      After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
@@ -10582,7 +10605,7 @@ msgstr ""
 #~ msgid "Create a message keyword to allow people to join a group."
 #~ msgstr "Criar uma palavra-chave SMS que permita às pessoas participarem de um grupo"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                    %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -10592,7 +10615,7 @@ msgstr ""
 #~ "\n"
 #~ "Contatos %(contacts_count)s importados com sucesso para"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                    %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -10601,7 +10624,7 @@ msgstr ""
 #~ "\n"
 #~ "Contatos %(contacts_count)s importados com sucesso para"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "              Used by %(num_flows)s flow:\n"
@@ -10617,7 +10640,7 @@ msgstr ""
 #~ "\n"
 #~ "%(sms_sent)s Enviadas"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "        To get started you need to add a channel to your workspace. A channel is a phone number or social network\n"
