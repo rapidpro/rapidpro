@@ -13,7 +13,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from celery.schedules import crontab
 
-SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
+SENTRY_DSN = os.environ.get("SENTRY_DSN", os.environ.get("RAVEN_DSN", ""))
 
 
 def traces_sampler(sampling_context):  # pragma: no cover
