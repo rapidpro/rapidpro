@@ -10,6 +10,7 @@ from enum import Enum
 from urllib.parse import quote, urlencode, urlparse
 
 import pycountry
+import pyotp
 import pytz
 import regex
 import stripe
@@ -2139,19 +2140,6 @@ def is_support_user(user):
     return user.groups.filter(name="Customer Support").exists()
 
 
-def get_settings(user):
-    """
-    Gets or creates user settings for the given user
-    """
-    assert user and user.is_authenticated, "can't fetch user settings for anonymous users"
-
-    user_settings = UserSettings.objects.filter(user=user).first()
-    if not user_settings:
-        user_settings = UserSettings.objects.create(user=user)
-
-    return user_settings
-
-
 def set_org(obj, org):
     obj._org = org
 
@@ -2188,17 +2176,50 @@ def _user_has_org_perm(user, org, permission):
     return org_group.permissions.filter(content_type__app_label=app_label, codename=codename).exists()
 
 
+def _user_get_settings(user):
+    """
+    Gets or creates user settings for this user
+    """
+    assert user and user.is_authenticated, "can't fetch user settings for anonymous users"
+
+    return UserSettings.get_or_create(user)
+
+
+def _user_enable_2fa(user):
+    """
+    Enables 2FA for this user
+    """
+    user_settings = user.get_settings()
+    user_settings.two_factor_enabled = True
+    user_settings.save(update_fields=("two_factor_enabled",))
+
+    BackupToken.generate_for_user(user)
+
+
+def _user_disable_2fa(user):
+    """
+    Disables 2FA for this user
+    """
+    user_settings = user.get_settings()
+    user_settings.two_factor_enabled = False
+    user_settings.save(update_fields=("two_factor_enabled",))
+
+    user.backup_tokens.all().delete()
+
+
 User.release = release
 User.get_org = get_org
 User.set_org = set_org
 User.is_alpha = is_alpha_user
 User.is_beta = is_beta_user
 User.is_support = is_support_user
-User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group
 User.get_owned_orgs = get_owned_orgs
 User.has_org_perm = _user_has_org_perm
+User.get_settings = _user_get_settings
+User.enable_2fa = _user_enable_2fa
+User.disable_2fa = _user_disable_2fa
 
 
 def get_stripe_credentials():
@@ -2352,8 +2373,16 @@ class UserSettings(models.Model):
         blank=True,
         help_text=_("Phone number for testing and recording voice flows"),
     )
-    otp_secret = models.CharField(verbose_name=_("OTP Secret"), max_length=18, null=True, blank=True)
+    otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
     two_factor_enabled = models.BooleanField(verbose_name=_("Two Factor Enabled"), default=False)
+
+    @classmethod
+    def get_or_create(cls, user):
+        existing = UserSettings.objects.filter(user=user).first()
+        if existing:
+            return existing
+
+        return cls.objects.create(user=user)
 
     def get_tel_formatted(self):
         if self.tel:
@@ -2729,7 +2758,7 @@ class BackupToken(models.Model):
     created_on = models.DateTimeField(default=timezone.now)
 
     @classmethod
-    def generate_for_user(cls, user, count=10):
+    def generate_for_user(cls, user, count: int = 10):
         # delete any existing tokens for this user
         user.backup_tokens.all().delete()
 

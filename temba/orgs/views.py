@@ -1564,31 +1564,27 @@ class OrgCRUDL(SmartCRUDL):
 
     class TwoFactor(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class TwoFactorForm(forms.Form):
-            token = forms.CharField(
-                label=_("Authentication Token"),
-                help_text=_("Enter the code from your authentication application"),
+            otp = forms.CharField(
+                label=_("One-time Password (OTP)"),
+                help_text=_("Enter the one-time password from your authentication application."),
                 strip=True,
                 required=True,
             )
 
-            def __init__(self, *args, **kwargs):
-                self.request = kwargs.pop("request")
-                self.user_cache = None
+            def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
-            def clean_token(self):  # pragma: no cover
-                token = self.cleaned_data.get("token", None)
-                user_pk = self.request.user.pk
-                user = User.objects.get(pk=user_pk)
-                totp = pyotp.TOTP(user.get_settings().otp_secret)
-                token_valid = totp.verify(token, valid_window=2)
-                if not token_valid:
-                    raise forms.ValidationError(_("Invalid MFA token. Please try again."), code="invalid-token")
-                self.user_cache = user
-                return token
+                self.user = user
+
+            def clean_otp(self):
+                otp = self.cleaned_data["otp"]
+                secret = self.user.get_settings().otp_secret
+                if not pyotp.TOTP(secret).verify(otp, valid_window=2):
+                    raise forms.ValidationError(_("Incorrect OTP. Please try again."))
+                return otp
 
         form_class = TwoFactorForm
-        fields = ("token",)
+        fields = ("otp",)
         success_url = "@orgs.org_two_factor"
         success_message = ""
         submit_button_name = _("Activate")
@@ -1596,68 +1592,38 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["request"] = self.request
+            kwargs["user"] = self.request.user
             return kwargs
 
-        def get(self, request, *args, **kwargs):
-            user = self.request.user
-            form = self.get_form()
-            secret = pyotp.random_base32()
-
-            user_settings = user.get_settings()
-            user_settings.otp_secret = secret
-            user_settings.save()
-            secret_url = self.get_secret_url()
-            return self.render_to_response(self.get_context_data(form=form, secret_url=secret_url))
-
         def post(self, request, *args, **kwargs):
+            user = self.get_user()
             form = self.get_form()
+
             if "disable_two_factor_auth" in request.POST:
-                self.disable_two_factor_auth()
-            if "get_backup_tokens" in request.POST:
-                tokens = self.get_backup_tokens()
-                data = {"tokens": tokens}
-                return JsonResponse(data)
-            elif "generate_backup_tokens" in request.POST:
-                tokens = self.generate_backup_tokens()
-                data = {"tokens": tokens}
-                return JsonResponse(data)
+                user.disable_2fa()
+            elif "regenerate_backup_tokens" in request.POST:
+                BackupToken.generate_for_user(user)
+                return JsonResponse({"tokens": self.get_backup_tokens(user)})
             elif form.is_valid():
-                self.generate_backup_tokens()
-                user = self.request.user
-                user_settings = user.get_settings()
-                user_settings.two_factor_enabled = True
-                user_settings.save()
-            secret_url = self.get_secret_url()
-            return self.render_to_response(self.get_context_data(form=form, secret_url=secret_url))
+                user.enable_2fa()
+
+            return self.render_to_response(self.get_context_data(form=form))
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
+
             user = self.get_user()
             user_settings = user.get_settings()
-            context["user_settings"] = user_settings
+            otp_secret = user_settings.otp_secret
+            secret_url = pyotp.TOTP(otp_secret).provisioning_uri(user.username, issuer_name="RapidPro")
+
+            context["two_factor_enabled"] = user_settings.two_factor_enabled
+            context["secret_url"] = secret_url
+            context["backup_tokens"] = self.get_backup_tokens(user)
             return context
 
-        def get_secret_url(self):
-            user = self.request.user
-            otp_secret = user.get_settings().otp_secret
-            if otp_secret:
-                secret_url = pyotp.TOTP(otp_secret).provisioning_uri(user.username, issuer_name="Rapidpro")
-            return secret_url
-
-        def disable_two_factor_auth(self):
-            self.get_user().backup_tokens.all().delete()
-
-            user = self.get_user()
-            user_settings = user.get_settings()
-            user_settings.two_factor_enabled = False
-            user_settings.save()
-
-        def generate_backup_tokens(self):
-            return [t.token for t in BackupToken.generate_for_user(self.get_user())]
-
-        def get_backup_tokens(self):
-            return [t.token for t in self.get_user().backup_tokens.filter(is_used=False)]
+        def get_backup_tokens(self, user):
+            return [{"token": t.token, "is_used": t.is_used} for t in user.backup_tokens.filter(is_used=False)]
 
     class Service(SmartFormView):
         class ServiceForm(forms.Form):
