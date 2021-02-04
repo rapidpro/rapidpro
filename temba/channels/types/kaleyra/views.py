@@ -18,8 +18,9 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         def clean_number(self):
             # check that our phone number looks sane
-            number, valid = URN.normalize_number(self.data["number"], self.data["country"])
-            if not valid:
+            country = self.data["country"]
+            number = URN.normalize_number(self.data["number"], country)
+            if not URN.validate(URN.from_parts(URN.TEL_SCHEME, number), country):
                 raise forms.ValidationError(_("Please enter a valid phone number"))
             return number
 
