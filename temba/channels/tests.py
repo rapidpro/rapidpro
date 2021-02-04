@@ -29,7 +29,6 @@ from temba.orgs.models import Org
 from temba.tests import AnonymousOrg, MockResponse, TembaTest, mock_mailroom
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json
-from temba.utils.dates import datetime_to_ms, ms_to_datetime
 
 from .models import Alert, Channel, ChannelCount, ChannelEvent, ChannelLog, SyncEvent
 from .tasks import (
@@ -296,9 +295,13 @@ class ChannelTest(TembaTest):
         self.assertContains(response, "Test Channel")
 
         response = self.fetch_protected(
-            reverse("channels.channel_delete", args=[self.tel_channel.pk]), post_data=dict(remove=True), user=self.user
+            reverse("channels.channel_delete", args=[self.tel_channel.pk]),
+            post_data=dict(remove=True),
+            user=self.superuser,
+            failOnFormValidation=False,
         )
-        self.assertRedirect(response, reverse("orgs.org_home"))
+
+        self.assertEqual(reverse("orgs.org_home"), response.get("temba-success"))
 
         msg = Msg.objects.get(pk=msg.pk)
         self.assertIsNotNone(msg.channel)
@@ -349,9 +352,13 @@ class ChannelTest(TembaTest):
         self.assertContains(response, "Test Channel")
 
         response = self.fetch_protected(
-            reverse("channels.channel_delete", args=[channel.pk]), post_data=dict(remove=True), user=self.superuser
+            reverse("channels.channel_delete", args=[channel.pk]),
+            post_data=dict(remove=True),
+            user=self.superuser,
+            failOnFormValidation=False,
         )
-        self.assertRedirect(response, reverse("orgs.org_home"))
+
+        self.assertEqual(reverse("orgs.org_home"), response.get("temba-success"))
 
         # create a channel
         channel = Channel.create(
@@ -373,10 +380,13 @@ class ChannelTest(TembaTest):
         self.assertTrue(Trigger.objects.filter(channel=channel, is_active=True))
 
         response = self.fetch_protected(
-            reverse("channels.channel_delete", args=[channel.pk]), post_data=dict(remove=True), user=self.superuser
+            reverse("channels.channel_delete", args=[channel.pk]),
+            post_data=dict(remove=True),
+            user=self.superuser,
+            failOnFormValidation=False,
         )
 
-        self.assertRedirect(response, reverse("orgs.org_home"))
+        self.assertEqual(reverse("orgs.org_home"), response.get("temba-success"))
 
         # channel trigger should have be removed
         self.assertFalse(Trigger.objects.filter(channel=channel, is_active=True))
@@ -621,9 +631,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], update_url)
 
-        self.fetch_protected(
-            update_url, self.admin, {"name": "Test Channel Update2", "allow_international": True},
-        )
+        self.fetch_protected(update_url, self.admin, {"name": "Test Channel Update2", "allow_international": True})
 
         self.tel_channel.refresh_from_db()
         self.assertEqual("Test Channel Update2", self.tel_channel.name)
@@ -1120,7 +1128,7 @@ class ChannelTest(TembaTest):
 
         post_data = dict(
             cmds=[
-                dict(cmd="status", org_id="-1", p_lvl=84, net="WIFI", p_sts="CHA", p_src="USB", pending=[], retry=[],)
+                dict(cmd="status", org_id="-1", p_lvl=84, net="WIFI", p_sts="CHA", p_src="USB", pending=[], retry=[])
             ]
         )
 
@@ -1672,15 +1680,6 @@ class ChannelCRUDLTest(TembaTest):
         # can't view configuration of channel in other org
         response = self.client.get(reverse("channels.channel_configuration", args=[self.other_org_channel.uuid]))
         self.assertLoginRedirect(response)
-
-
-class ChannelBatchTest(TembaTest):
-    def test_time_utils(self):
-        now = timezone.now()
-        now = now.replace(microsecond=now.microsecond // 1000 * 1000)
-
-        epoch = datetime_to_ms(now)
-        self.assertEqual(ms_to_datetime(epoch), now)
 
 
 class ChannelEventCRUDLTest(TembaTest):

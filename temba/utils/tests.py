@@ -1,15 +1,14 @@
 import copy
 import datetime
+import io
 import os
 from collections import OrderedDict
 from decimal import Decimal
-from io import StringIO
 from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import intercom.errors
-import iso8601
 import pycountry
 import pytz
 from django_redis import get_redis_connection
@@ -51,13 +50,12 @@ from .celery import nonoverlapping_task
 from .currencies import currency_for_country
 from .dates import (
     date_to_day_range_utc,
-    datetime_to_epoch,
-    datetime_to_ms,
     datetime_to_str,
-    ms_to_datetime,
+    datetime_to_timestamp,
     str_to_date,
     str_to_datetime,
     str_to_time,
+    timestamp_to_datetime,
 )
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
@@ -67,7 +65,16 @@ from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import IDSliceQuerySet, JSONAsTextField, patch_queryset_count
 from .templatetags.temba import short_datetime
-from .text import clean_string, decode_base64, generate_token, random_string, slugify_with, truncate, unsnakify
+from .text import (
+    clean_string,
+    decode_base64,
+    decode_stream,
+    generate_token,
+    random_string,
+    slugify_with,
+    truncate,
+    unsnakify,
+)
 from .timezones import TimeZoneFormField, timezone_to_country_code
 
 
@@ -188,6 +195,13 @@ class InitTest(TembaTest):
         self.assertEqual(1000, len(rs))
         self.assertFalse("1" in rs or "I" in rs or "0" in rs or "O" in rs)
 
+    def test_decode_stream(self):
+        self.assertEqual("", decode_stream(io.BytesIO(b"")).read())
+        self.assertEqual("hello", decode_stream(io.BytesIO(b"hello")).read())
+        self.assertEqual("hello👋", decode_stream(io.BytesIO(b"hello\xf0\x9f\x91\x8b")).read())  # UTF-8
+        self.assertEqual("hello", decode_stream(io.BytesIO(b"\xff\xfeh\x00e\x00l\x00l\x00o\x00")).read())  # UTF-16
+        self.assertEqual("hèllo", decode_stream(io.BytesIO(b"h\xe8llo")).read())  # ISO8859-1
+
     def test_percentage(self):
         self.assertEqual(0, percentage(0, 100))
         self.assertEqual(0, percentage(0, 0))
@@ -223,15 +237,15 @@ class InitTest(TembaTest):
 
 
 class DatesTest(TembaTest):
-    def test_datetime_to_ms(self):
-        d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, tzinfo=pytz.utc)
-        self.assertEqual(datetime_to_ms(d1), 1_388_631_845_000)  # from http://unixtimestamp.50x.eu
-        self.assertEqual(ms_to_datetime(1_388_631_845_000), d1)
+    def test_datetime_to_timestamp(self):
+        d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_456, tzinfo=pytz.utc)
+        self.assertEqual(datetime_to_timestamp(d1), 1_388_631_845_123_456)  # from http://unixtimestamp.50x.eu
+        self.assertEqual(timestamp_to_datetime(1_388_631_845_123_456), d1)
 
         tz = pytz.timezone("Africa/Kigali")
-        d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5))
-        self.assertEqual(datetime_to_ms(d2), 1_388_624_645_000)
-        self.assertEqual(ms_to_datetime(1_388_624_645_000), d2.astimezone(pytz.utc))
+        d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_456))
+        self.assertEqual(datetime_to_timestamp(d2), 1_388_624_645_123_456)
+        self.assertEqual(timestamp_to_datetime(1_388_624_645_123_456), d2.astimezone(pytz.utc))
 
     def test_datetime_to_str(self):
         tz = pytz.timezone("Africa/Kigali")
@@ -240,10 +254,6 @@ class DatesTest(TembaTest):
         self.assertIsNone(datetime_to_str(None, "%Y-%m-%d %H:%M", tz=tz))
         self.assertEqual(datetime_to_str(d2, "%Y-%m-%d %H:%M", tz=tz), "2014-01-02 03:04")
         self.assertEqual(datetime_to_str(d2, "%Y/%m/%d %H:%M", tz=pytz.UTC), "2014/01/02 01:04")
-
-    def test_datetime_to_epoch(self):
-        dt = iso8601.parse_date("2014-01-02T01:04:05.000Z")
-        self.assertEqual(1_388_624_645, datetime_to_epoch(dt))
 
     def test_str_to_date(self):
         self.assertIsNone(str_to_date(""))
@@ -1150,13 +1160,13 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         )
         assertOrgCounts(ContactField.user_fields.all(), [6, 6, 6])
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
-        assertOrgCounts(Contact.objects.all(), [15, 12, 3])
+        assertOrgCounts(Contact.objects.all(), [13, 13, 4])
 
         org_1_active_contacts = ContactGroup.system_groups.get(org=org1, name="Active")
 
-        self.assertEqual(org_1_active_contacts.contacts.count(), 15)
+        self.assertEqual(org_1_active_contacts.contacts.count(), 12)
         self.assertEqual(
-            list(ContactGroupCount.objects.filter(group=org_1_active_contacts).values_list("count")), [(15,)]
+            list(ContactGroupCount.objects.filter(group=org_1_active_contacts).values_list("count")), [(12,)]
         )
 
         # same seed should generate objects with same UUIDs
@@ -1172,7 +1182,7 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
 
 class PreDeployTest(TembaTest):
     def test_command(self):
-        buffer = StringIO()
+        buffer = io.StringIO()
         call_command("pre_deploy", stdout=buffer)
 
         self.assertEqual("", buffer.getvalue())
@@ -1180,7 +1190,7 @@ class PreDeployTest(TembaTest):
         ExportContactsTask.create(self.org, self.admin)
         ExportContactsTask.create(self.org, self.admin)
 
-        buffer = StringIO()
+        buffer = io.StringIO()
         call_command("pre_deploy", stdout=buffer)
 
         self.assertEqual(
@@ -1389,7 +1399,10 @@ class NonBlockingLockTest(TestCase):
 class JSONTest(TestCase):
     def test_json(self):
         self.assertEqual(OrderedDict({"one": 1, "two": Decimal("0.2")}), json.loads('{"one": 1, "two": 0.2}'))
-        self.assertEqual('{"dt": "2018-08-27T20:41:28.123Z"}', json.dumps(dict(dt=ms_to_datetime(1_535_402_488_123))))
+        self.assertEqual(
+            '{"dt": "2018-08-27T20:41:28.123Z"}',
+            json.dumps({"dt": datetime.datetime(2018, 8, 27, 20, 41, 28, 123000, tzinfo=pytz.UTC)}),
+        )
 
 
 class AnalyticsTest(TestCase):
@@ -1869,30 +1882,31 @@ class RedactTest(TestCase):
 class TestValidators(TestCase):
     def test_validate_external_url(self):
         cases = (
-            dict(url="ftp://localhost/foo", error="must be http or https scheme"),
-            dict(url="http://localhost/foo", error="cannot be localhost"),
-            dict(url="http://localhost:80/foo", error="cannot be localhost"),
-            dict(url="https://localhost/foo", error="cannot be localhost"),
-            dict(url="http://127.0.00.1/foo", error="cannot be localhost"),
-            dict(url="http://::1:80/foo", error="host cannot be resolved"),  # no ipv6 addresses for now
+            dict(url="ftp://google.com", error="Must use HTTP or HTTPS."),
+            dict(url="http://localhost/foo", error="Cannot be a local or private host."),
+            dict(url="http://localhost:80/foo", error="Cannot be a local or private host."),
+            dict(url="http://127.0.00.1/foo", error="Cannot be a local or private host."),  # loop back
+            dict(url="http://192.168.0.0/foo", error="Cannot be a local or private host."),  # private
+            dict(url="http://255.255.255.255", error="Cannot be a local or private host."),  # multicast
+            dict(url="http://169.254.169.254/latest", error="Cannot be a local or private host."),  # link local
+            dict(url="http://::1:80/foo", error="Unable to resolve host."),  # no ipv6 addresses for now
             dict(url="http://google.com/foo", error=None),
             dict(url="http://google.com:8000/foo", error=None),
             dict(url="HTTP://google.com:8000/foo", error=None),
+            dict(url="HTTP://8.8.8.8/foo", error=None),
         )
 
-        for case in cases:
-            if not case["error"]:
-                try:
-                    validate_external_url(case["url"])
-                except Exception as e:
-                    self.assertIsNone(e)
-
-            else:
+        for tc in cases:
+            if tc["error"]:
                 with self.assertRaises(ValidationError) as cm:
-                    cm.expected.__name__ = f'ValueError for {case["url"]}'
-                    validate_external_url(case["url"])
+                    validate_external_url(tc["url"])
 
-                self.assertTrue(case["error"] in str(cm.exception), f"{case['error']} not in {cm.exception}")
+                self.assertEqual(tc["error"], cm.exception.message)
+            else:
+                try:
+                    validate_external_url(tc["url"])
+                except Exception:
+                    self.fail(f"unexpected validation error for URL '{tc['url']}'")
 
 
 class TestUUIDs(TembaTest):

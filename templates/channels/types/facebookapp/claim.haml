@@ -8,7 +8,7 @@
 -block form
   .mt-4.card
     #fb-guide
-      %ol.ml-6
+      %ol.steps
         %li
           -trans "Click on the button below to get started."
 
@@ -46,12 +46,6 @@
   -compress css inline
     {% lessblock %}
       :plain
-        #fb-guide {
-          li {
-            list-style-type: circle;
-          }
-        }
-
         #fb-channel-options {
           margin-top: 2rem;
 

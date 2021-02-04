@@ -72,7 +72,8 @@ class GlobalTest(TembaTest):
     def test_is_valid_name(self):
         self.assertTrue(Global.is_valid_name("Age"))
         self.assertTrue(Global.is_valid_name("Age Now 2"))
-        self.assertFalse(Global.is_valid_name("Age_Now"))  # can't have punctuation
+        self.assertFalse(Global.is_valid_name("Age>Now"))  # can't have punctuation
+        self.assertTrue(Global.is_valid_name("API_KEY-2"))  # except underscores and hypens
         self.assertFalse(Global.is_valid_name("âge"))  # a-z only
 
 
@@ -204,3 +205,9 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
             self.client.post(delete_url)
 
         self.assertEqual(1, Global.objects.filter(id=self.global1.id).count())
+
+        # a deleted dependency shouldn't prevent deletion
+        self.flow.release()
+
+        response = self.assertDeleteFetch(delete_url)
+        self.assertContains(response, "Are you sure you want to delete")

@@ -13,7 +13,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
-from temba.orgs.models import Org
+from temba.orgs.models import Org, OrgRole
 from temba.utils.cache import get_cacheable_attr
 from temba.utils.models import JSONAsTextField
 from temba.utils.uuid import uuid4
@@ -220,8 +220,6 @@ class APIToken(models.Model):
     Our API token, ties in orgs
     """
 
-    CODE_TO_ROLE = {"A": "Administrators", "E": "Editors", "S": "Surveyors"}
-
     ROLE_GRANTED_TO = {
         "Administrators": ("Administrators",),
         "Editors": ("Administrators", "Editors"),
@@ -311,8 +309,8 @@ class APIToken(models.Model):
 
     @classmethod
     def get_role_from_code(cls, code):
-        role = cls.CODE_TO_ROLE.get(code)
-        return Group.objects.get(name=role) if role else None
+        role = OrgRole.from_code(code)
+        return role.group if role else None
 
     def save(self, *args, **kwargs):
         if not self.key:

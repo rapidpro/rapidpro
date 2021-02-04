@@ -14,7 +14,7 @@ from ...views import ALL_COUNTRIES, ClaimViewMixin, UpdateTelChannelForm
 class ClaimView(ClaimViewMixin, SmartFormView):
     class ClaimForm(ClaimViewMixin.Form):
         scheme = forms.ChoiceField(
-            choices=URN.SCHEME_CHOICES, label=_("URN Type"), help_text=_("The type of URNs handled by this channel"),
+            choices=URN.SCHEME_CHOICES, label=_("URN Type"), help_text=_("The type of URNs handled by this channel")
         )
 
         number = forms.CharField(
@@ -66,7 +66,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         max_length = forms.IntegerField(
             initial=160,
-            validators=[MaxValueValidator(640), MinValueValidator(60)],
+            validators=[MaxValueValidator(6400), MinValueValidator(60)],
             help_text=_(
                 "The maximum length of any single message on this channel. " "(longer messages will be split)"
             ),
@@ -125,7 +125,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         max_length = forms.IntegerField(
             initial=160,
-            validators=[MaxValueValidator(640), MinValueValidator(60)],
+            validators=[MaxValueValidator(6400), MinValueValidator(60)],
             help_text=_(
                 "The maximum length of any single message on this channel. " "(longer messages will be split)"
             ),

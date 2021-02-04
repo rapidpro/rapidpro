@@ -1319,7 +1319,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             if channel.get_type().show_config_page:
                 links.append(
-                    dict(title=_("Settings"), href=reverse("channels.channel_configuration", args=[channel.uuid]),)
+                    dict(title=_("Settings"), href=reverse("channels.channel_configuration", args=[channel.uuid]))
                 )
 
             if not channel.is_android():
@@ -1694,7 +1694,9 @@ class ChannelCRUDL(SmartCRUDL):
                 else:
                     messages.info(request, _("Your channel has been removed."))
 
-                return HttpResponseRedirect(self.get_success_url())
+                response = HttpResponse()
+                response["Temba-Success"] = self.get_success_url()
+                return response
 
             except TwilioRestException as e:
                 messages.error(
@@ -1704,7 +1706,10 @@ class ChannelCRUDL(SmartCRUDL):
                         % e.code
                     ),
                 )
-                return HttpResponseRedirect(reverse("orgs.org_home"))
+
+                response = HttpResponse()
+                response["Temba-Success"] = self.get_success_url()
+                return response
 
             except ValueError as e:
                 logger.error("Error removing a channel", exc_info=True)
@@ -2161,7 +2166,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             links = []
 
             if self.request.GET.get("connections") or self.request.GET.get("others"):
-                links.append(dict(title=_("Messages"), href=reverse("channels.channellog_list", args=[channel.uuid]),))
+                links.append(dict(title=_("Messages"), href=reverse("channels.channellog_list", args=[channel.uuid])))
 
             if not self.request.GET.get("connections"):
                 if channel.supports_ivr():  # pragma: needs cover

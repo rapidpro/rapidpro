@@ -2,7 +2,7 @@ from smartmin.views import SmartCRUDL, SmartDeleteView, SmartFormView, SmartList
 
 from django import forms
 from django.contrib import messages
-from django.http import HttpResponseRedirect
+from django.http import HttpResponse
 from django.urls import reverse
 from django.utils.functional import cached_property
 from django.utils.html import mark_safe
@@ -64,7 +64,8 @@ class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
     bulk_actions = ()
 
     def get_context_data(self, **kwargs):
-        org = self.get_user().get_org()
+        user = self.get_user()
+        org = user.get_org()
 
         context = super().get_context_data(**kwargs)
         context["folder"] = self.folder
@@ -108,9 +109,11 @@ class TicketCRUDL(SmartCRUDL):
             return super().get_queryset(**kwargs).filter(ticketer=self.ticketer)
 
         def get_gear_links(self):
+            from .types.internal import InternalType
+
             links = []
 
-            if self.has_org_perm("tickets.ticketer_delete"):
+            if self.has_org_perm("tickets.ticketer_delete") and self.ticketer.ticketer_type != InternalType.slug:
                 links.append(
                     dict(
                         id="ticketer-delete",
@@ -167,11 +170,13 @@ class TicketerCRUDL(SmartCRUDL):
             service.release()
 
             messages.info(request, _("Your ticketing service has been deleted."))
-            return HttpResponseRedirect(self.get_success_url())
+            response = HttpResponse()
+            response["Temba-Success"] = self.get_success_url()
+            return response
 
     class Connect(OrgPermsMixin, SmartTemplateView):
         def get_gear_links(self):
-            return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"),)]
+            return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"))]
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)

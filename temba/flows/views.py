@@ -378,11 +378,7 @@ class FlowCRUDL(SmartCRUDL):
             flow_type = forms.ChoiceField(
                 label=_("Type"),
                 help_text=_("Choose the method for your flow"),
-                choices=(
-                    (Flow.TYPE_MESSAGE, "Messaging"),
-                    (Flow.TYPE_VOICE, "Phone Call"),
-                    (Flow.TYPE_SURVEY, "Surveyor"),
-                ),
+                choices=Flow.TYPE_CHOICES,
                 widget=SelectWidget(attrs={"widget_only": False}),
             )
 
@@ -393,14 +389,10 @@ class FlowCRUDL(SmartCRUDL):
                 org_languages = self.user.get_org().languages.all().order_by("orgs", "name")
                 language_choices = ((lang.iso_code, lang.name) for lang in org_languages)
 
-                flow_types = branding.get("flow_types", [Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY])
-
-                # prune our choices by brand config
-                choices = []
-                for flow_choice in self.fields["flow_type"].choices:
-                    if flow_choice[0] in flow_types:
-                        choices.append(flow_choice)
-                self.fields["flow_type"].choices = choices
+                # prune our type choices by brand config
+                allowed_types = branding.get("flow_types")
+                if allowed_types:
+                    self.fields["flow_type"].choices = [c for c in Flow.TYPE_CHOICES if c[0] in allowed_types]
 
                 self.fields["base_language"] = forms.ChoiceField(
                     label=_("Language"),
@@ -945,7 +937,14 @@ class FlowCRUDL(SmartCRUDL):
                 )
 
             if self.has_org_perm("flows.flow_delete"):
-                links.append(dict(title=_("Remove"), href="#", js_class="remove-label"))
+                links.append(
+                    dict(
+                        id="delete-label",
+                        title=_("Delete Label"),
+                        href=f"{reverse('flows.flowlabel_delete', args=[label.pk])}",
+                        modax=_("Delete Label"),
+                    )
+                )
 
             return links
 
@@ -2134,9 +2133,11 @@ class FlowLabelCRUDL(SmartCRUDL):
     actions = ("create", "update", "delete")
 
     class Delete(OrgObjPermsMixin, SmartDeleteView):
+        success_url = "@flows.flow_list"
         redirect_url = "@flows.flow_list"
         cancel_url = "@flows.flow_list"
         success_message = ""
+        submit_button_name = _("Delete")
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = FlowLabelForm
@@ -2195,9 +2196,10 @@ class FlowStartCRUDL(SmartCRUDL):
         title = _("Flow Start Log")
         ordering = ("-created_on",)
         select_related = ("flow", "created_by")
+        paginate_by = 25
 
         def get_gear_links(self):
-            return [dict(title=_("Flows"), style="button-light", href=reverse("flows.flow_list"),)]
+            return [dict(title=_("Flows"), style="button-light", href=reverse("flows.flow_list"))]
 
         def derive_queryset(self, *args, **kwargs):
             return (

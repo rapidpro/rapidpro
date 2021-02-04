@@ -227,7 +227,7 @@ class TwilioTypeTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(update_url)
         self.assertEqual(
-            ["name", "alert_email", "allow_international", "loc"], list(response.context["form"].fields.keys()),
+            ["name", "alert_email", "allow_international", "loc"], list(response.context["form"].fields.keys())
         )
 
     @patch("temba.orgs.models.TwilioClient", MockTwilioClient)

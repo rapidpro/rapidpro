@@ -1,3 +1,216 @@
+v6.1.37
+----------
+ * Update components and editor to latest versions
+ * Switch to microsecond accuracy timestamps
+ * Switch to default_storage for export assets 
+
+v6.1.33
+----------
+ * Tweaks to how we generate contact histories
+
+v6.1.32
+----------
+ * Mute invalid host errors
+ * Add migration to alter m2ms to use bigints
+ * Drop no longer used database function
+ * Switch to big id for msgs and channel logs
+
+v6.1.31
+----------
+ * Add management command to check sentry
+ * Remove unused context processor and unused code from org_perms
+
+v6.1.29
+----------
+ * Rework contact history so that rendering as events happens in view and we also expose a JSON version
+
+v6.1.26
+----------
+ * Upgrade urllib3
+
+v6.1.25
+----------
+ * Update to elastic search v7
+
+v6.1.24
+----------
+ * Broadcast events in history should be white like message events
+
+v6.1.23
+----------
+ * Add index on flow start by start type
+ * Allow only deleting msg folders without active children labels
+ * Use engine events (with some extra properties) for msgs in contact history
+
+v6.1.22
+----------
+ * Fix API serialization of background flow type
+ * Allow background flows to be used in scheduled triggers
+ * Update pip-tools
+
+v6.1.21
+----------
+ * Configure editor and components to use completions files in current language
+
+v6.1.20
+----------
+ * Update to latest floweditor and temba-components
+
+v6.1.19
+----------
+ * Update to floweditor v1.12.6
+ * Fix deleting classifiers
+
+v6.1.18
+----------
+ * Add support for background flows
+
+v6.1.17
+----------
+ * Update to flow editor v1.12.5
+ * Fix importing dependencies when it's a clone in the same workspace
+ * Allow aliases to be reused on boundaries with different parent
+ * Increase max length on external channels to be configurable up to 6400 chars
+ * Fix contact export warning for existing export
+
+v6.1.16
+----------
+ * Update to latest flow editor 1.12.3
+ * Allow staff users to use the org chooser
+
+v6.1.15
+----------
+ * Add constraint to chek URN identity mathes scheme and path
+ * Add non-empty constraint for URN scheme and path
+ * Fix contact list pagination with searches
+ * Show query on list page for smart groups
+
+v6.1.14
+----------
+ * Change template translations to be TEXT
+ * Set global email timeout, fixes rapidpro #1345
+ * Update tel parsing to match gocommon, fixing how we currently accept local US numbers
+
+v6.1.13
+----------
+ * Bump temba-components to v0.8.11
+
+v6.1.12
+----------
+ * Un-beta-gate Rocket.Chat channels
+
+v6.1.10
+----------
+ * Login summary on org home page should include agents
+ * Rework manage accounts UI to include agents
+
+v6.1.9
+----------
+ * Fix deleted flow dependency preventing global deletion
+ * Cache lookups of auth.Group instances
+
+v6.1.8
+----------
+ * For field columns in imports, only match against user fields
+ * Add agent role and cleanup code around org roles
+
+v6.1.7
+----------
+ * Wire table listeners on pjax reload
+ * Update domain from swag.textit.com to whatsapp.textit.com
+ * Add internal ticketer type for BETA users
+ * Inner scrolling on contact list page
+ * Improve styles for recipient lists
+
+v6.1.6
+----------
+ * Trim our start runs 1,000 at a time and by id
+ * Increase global max value length to 10000 and fix UI to be more consistent with fields
+
+v6.1.5
+----------
+ * Share modals on globals list, truncate values
+ * Squash migrations
+
+v6.1.4
+----------
+ * Add security settings file
+ * Fix intent selection on split by intent
+ * Add empty migrations for squashing in next release
+
+v6.1.3
+----------
+ * Fix intent selection on split by intent
+ * Update callback URL for textit whatsapp
+ * Use Django password validators
+
+v6.1.2
+----------
+ * Add TextIt WhatsApp channel type
+
+v6.1.1
+----------
+ * Fix contact exports when orgs have orphaned URNs in schemes they don't currently use
+
+v6.1.0
+----------
+ * Hide editor language dialog blurb until needed to prevent flashing
+ * Fix broken flows list page if org has no flows
+ * Allow underscores in global names
+ * Improve calculating of URN columns for exports so tests don't break every time we add new URN schemes
+ * Make instruction lists on channel claim pages more consistent
+
+v6.0.8
+----------
+ * Editor fix for split by intents
+ * Add empty migrations for squashing in next release
+
+v6.0.7
+----------
+ * Fix choose org page
+ * Fix recipient search
+ * Fix run deletion
+
+v6.0.6
+----------
+ * Fix for textarea init
+
+v6.0.5
+----------
+ * Adjust contact icon color in recipient lists
+
+v6.0.4
+----------
+ * Fix recipients contacts and urns UI labels
+ * Fix flow starts log page pagination
+ * Update temba-components and flow-editor to common versions
+ * Fix flow label delete modal
+ * Fix global delete modal
+
+v6.0.3
+----------
+ * Update to components v0.8.6, bugfix release
+ * Handle CSV imports in encodings other than UTF8
+
+v6.0.2
+----------
+ * Fix broken ticket re-open button
+ * Missing updated Fr MO file from previous merge
+ * Apply translations in fr
+
+v6.0.1
+----------
+ * Fix orgs being suspended due to invalid topup cache
+ * Set uses_topups on new orgs based on whether our plan is the TOPUP_PLAN
+ * Fix validation issues on trigger update form
+ * Fix hover cursor in lists for viewers
+ * Action button alignment on archived messages
+ * Fix flow table header for viewers
+ * Fix tests for channel deletion
+ * Fix redirects for channel and ticketer deletion.
+ * Fix dialog when deleting channels with dependencies
+  * Match headers and contact fields with labels as well as keys during contact imports
+
 v6.0.0
 ----------
  * Add Rocket.Chat ticketer to test database

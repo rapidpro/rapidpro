@@ -3,7 +3,6 @@ import time
 from array import array
 from collections import defaultdict
 from datetime import timedelta
-from enum import Enum
 from typing import Dict
 
 import iso8601
@@ -49,32 +48,6 @@ from temba.utils.uuid import uuid4
 from . import legacy
 
 logger = logging.getLogger(__name__)
-
-
-class Events(Enum):
-    broadcast_created = 1
-    contact_channel_changed = 2
-    contact_field_changed = 3
-    contact_groups_changed = 4
-    contact_language_changed = 5
-    contact_name_changed = 6
-    contact_refreshed = 7
-    contact_timezone_changed = 8
-    contact_urns_changed = 9
-    email_created = 10
-    environment_refreshed = 11
-    error = 12
-    flow_entered = 13
-    input_labels_added = 14
-    ivr_created = 15
-    msg_created = 16
-    msg_received = 17
-    msg_wait = 18
-    run_expired = 19
-    run_result_changed = 20
-    session_triggered = 21
-    wait_timed_out = 22
-    webhook_called = 23
 
 
 class FlowException(Exception):
@@ -129,18 +102,24 @@ class Flow(TembaModel):
     DEFINITION_UI = "_ui"
 
     TYPE_MESSAGE = "M"
-    TYPE_VOICE = "V"
+    TYPE_BACKGROUND = "B"
     TYPE_SURVEY = "S"
+    TYPE_VOICE = "V"
     TYPE_USSD = "U"
 
-    FLOW_TYPES = (
-        (TYPE_MESSAGE, _("Message flow")),
-        (TYPE_VOICE, _("Phone call flow")),
-        (TYPE_SURVEY, _("Surveyor flow")),
-        (TYPE_USSD, _("USSD flow")),
+    TYPE_CHOICES = (
+        (TYPE_MESSAGE, _("Messaging")),
+        (TYPE_VOICE, _("Phone Call")),
+        (TYPE_BACKGROUND, _("Background")),
+        (TYPE_SURVEY, _("Surveyor")),
     )
 
-    GOFLOW_TYPES = {TYPE_MESSAGE: "messaging", TYPE_VOICE: "voice", TYPE_SURVEY: "messaging_offline"}
+    GOFLOW_TYPES = {
+        TYPE_MESSAGE: "messaging",
+        TYPE_BACKGROUND: "messaging_background",
+        TYPE_SURVEY: "messaging_offline",
+        TYPE_VOICE: "voice",
+    }
 
     FINAL_LEGACY_VERSION = legacy.VERSIONS[-1]
     INITIAL_GOFLOW_VERSION = "13.0.0"  # initial version of flow spec to use new engine
@@ -160,9 +139,7 @@ class Flow(TembaModel):
 
     is_system = models.BooleanField(default=False, help_text=_("Whether this is a system created flow"))
 
-    flow_type = models.CharField(
-        max_length=1, choices=FLOW_TYPES, default=TYPE_MESSAGE, help_text=_("The type of this flow")
-    )
+    flow_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_MESSAGE)
 
     # additional information about the flow, e.g. possible results
     metadata = JSONAsTextField(null=True, default=dict)
@@ -261,6 +238,10 @@ class Flow(TembaModel):
         flow.update_single_message_flow(user, message, base_language)
         return flow
 
+    @property
+    def engine_type(self):
+        return Flow.GOFLOW_TYPES.get(self.flow_type, "")
+
     @classmethod
     def label_to_slug(cls, label):
         return regex.sub(r"[^a-z0-9]+", "_", label.lower() if label else "", regex.V0)
@@ -325,14 +306,12 @@ class Flow(TembaModel):
         return flow
 
     @classmethod
-    def get_triggerable_flows(cls, org):
-        return Flow.objects.filter(
-            org=org,
-            is_active=True,
-            is_archived=False,
-            flow_type__in=(Flow.TYPE_MESSAGE, Flow.TYPE_VOICE),
-            is_system=False,
-        )
+    def get_triggerable_flows(cls, org, *, by_schedule: bool):
+        flow_types = [Flow.TYPE_MESSAGE, Flow.TYPE_VOICE]
+        if by_schedule:
+            flow_types.append(Flow.TYPE_BACKGROUND)
+
+        return org.flows.filter(flow_type__in=flow_types, is_active=True, is_archived=False, is_system=False)
 
     @classmethod
     def import_flows(cls, org, user, export_json, dependency_mapping, same_site=False):
@@ -579,29 +558,11 @@ class Flow(TembaModel):
         def deps_of_type(type_name):
             return [d for d in dependencies if d["type"] == type_name]
 
-        # ensure any channel dependencies exist
-        for ref in deps_of_type("channel"):
-            channel = self.org.channels.filter(is_active=True, uuid=ref["uuid"]).first()
-            if not channel and ref["name"]:
-                name = ref["name"].split(":")[-1].strip()
-                channel = self.org.channels.filter(is_active=True, name=name).first()
-
-            dependency_mapping[ref["uuid"]] = str(channel.uuid) if channel else ref["uuid"]
-
-        # ensure any field dependencies exist
+        # ensure all field dependencies exist
         for ref in deps_of_type("field"):
             ContactField.get_or_create(self.org, user, ref["key"], ref["name"])
 
-        # lookup additional flow dependencies by name (i.e. for flows not in the export itself)
-        for ref in deps_of_type("flow"):
-            if ref["uuid"] not in dependency_mapping:
-                flow = self.org.flows.filter(uuid=ref["uuid"], is_active=True).first()
-                if not flow and ref["name"]:
-                    flow = self.org.flows.filter(name=ref["name"], is_active=True).first()
-
-                dependency_mapping[ref["uuid"]] = str(flow.uuid) if flow else ref["uuid"]
-
-        # lookup/create additional group dependencies (i.e. for flows not in the export itself)
+        # ensure all group dependencies exist
         for ref in deps_of_type("group"):
             if ref["uuid"] not in dependency_mapping:
                 group = ContactGroup.get_or_create(self.org, user, ref.get("name"), uuid=ref["uuid"])
@@ -612,13 +573,31 @@ class Flow(TembaModel):
             label = Label.get_or_create(self.org, user, ref["name"])
             dependency_mapping[ref["uuid"]] = str(label.uuid)
 
-        # ensure any template dependencies exist
-        for ref in deps_of_type("template"):
-            template = self.org.templates.filter(uuid=ref["uuid"]).first()
-            if not template and ref["name"]:
-                template = self.org.templates.filter(name=ref["name"]).first()
+        # for dependencies we can't create, look for them by UUID (this is a clone in same workspace)
+        # or name (this is an import from other workspace)
+        dep_types = {
+            "channel": self.org.channels.filter(is_active=True),
+            "classifier": self.org.classifiers.filter(is_active=True),
+            "flow": self.org.flows.filter(is_active=True),
+            "template": self.org.templates.all(),
+            "ticketer": self.org.ticketers.filter(is_active=True),
+        }
+        for dep_type, org_objs in dep_types.items():
+            for ref in deps_of_type(dep_type):
+                if ref["uuid"] in dependency_mapping:
+                    continue
 
-            dependency_mapping[ref["uuid"]] = str(template.uuid) if template else ref["uuid"]
+                obj = org_objs.filter(uuid=ref["uuid"]).first()
+                if not obj and ref["name"]:
+                    name = ref["name"]
+
+                    # migrated legacy flows may have name as <type>: <name>
+                    if dep_type == "channel" and ":" in name:
+                        name = name.split(":")[-1].strip()
+
+                    obj = org_objs.filter(name=name).first()
+
+                dependency_mapping[ref["uuid"]] = str(obj.uuid) if obj else ref["uuid"]
 
         # clone definition so that all flow elements get new random UUIDs
         cloned_definition = mailroom.get_client().flow_clone(definition, dependency_mapping)
@@ -967,6 +946,7 @@ class Flow(TembaModel):
         self.label_dependencies.clear()
         self.classifier_dependencies.clear()
         self.ticketer_dependencies.clear()
+        self.global_dependencies.clear()
 
         # queue mailroom to interrupt sessions where contact is currently in this flow
         mailroom.queue_interrupt(self.org, flow=self)
@@ -1016,7 +996,7 @@ class FlowSession(models.Model):
     uuid = models.UUIDField(unique=True)
 
     # the modality of this session
-    session_type = models.CharField(max_length=1, choices=Flow.FLOW_TYPES, default=Flow.TYPE_MESSAGE, null=True)
+    session_type = models.CharField(max_length=1, choices=Flow.TYPE_CHOICES, default=Flow.TYPE_MESSAGE)
 
     # the organization this session belongs to
     org = models.ForeignKey(Org, related_name="sessions", on_delete=models.PROTECT)
@@ -1185,14 +1165,15 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         if not self.events:  # pragma: no cover
             return []
 
-        type_names = [t.name for t in event_types]
-        return [e for e in self.events if e[FlowRun.EVENT_TYPE] in type_names]
+        return [e for e in self.events if e[FlowRun.EVENT_TYPE] in event_types]
 
     def get_msg_events(self):
         """
         Gets all the messages associated with this run
         """
-        return self.get_events_of_type((Events.msg_received, Events.msg_created))
+        from temba.mailroom.events import Event
+
+        return self.get_events_of_type((Event.TYPE_MSG_RECEIVED, Event.TYPE_MSG_CREATED))
 
     def get_events_by_step(self, msg_only=False):
         """
@@ -1289,6 +1270,16 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
 
     def __str__(self):  # pragma: no cover
         return f"FlowRun[uuid={self.uuid}, flow={self.flow.uuid}]"
+
+
+class FlowExit:
+    """
+    A helper class used for building contact histories which simply wraps a run which may occur more than once in the
+    same history as both a flow run start and an exit.
+    """
+
+    def __init__(self, run):
+        self.run = run
 
 
 class FlowRevision(SmartModel):
@@ -1545,7 +1536,7 @@ class FlowPathRecentRun(models.Model):
     PRUNE_TO = 5
     LAST_PRUNED_KEY = "last_recentrun_pruned"
 
-    id = models.BigAutoField(auto_created=True, primary_key=True, verbose_name="ID")
+    id = models.BigAutoField(primary_key=True)
 
     # the node and step UUIDs of the start of the path segment
     from_uuid = models.UUIDField()
@@ -2052,10 +2043,12 @@ class ExportFlowResultsTask(BaseExportTask):
         """
         Writes out any messages associated with the given run
         """
+        from temba.mailroom.events import Event
+
         for event in run["events"] or []:
-            if event["type"] == Events.msg_received.name:
+            if event["type"] == Event.TYPE_MSG_RECEIVED:
                 msg_direction = "IN"
-            elif event["type"] == Events.msg_created.name:
+            elif event["type"] == Event.TYPE_MSG_CREATED:
                 msg_direction = "OUT"
             else:  # pragma: no cover
                 continue
@@ -2254,6 +2247,8 @@ class FlowStart(models.Model):
                 fields=["org", "-modified_on"],
                 condition=Q(created_by__isnull=False),
             ),
+            # used by the flow_starts type filters page
+            models.Index(name="flows_flowstart_org_start_type", fields=["org", "start_type", "-created_on"]),
         ]
 
 

@@ -27,7 +27,7 @@ class PolicyCRUDL(SmartCRUDL):
         paginate_by = 500
 
         def get_gear_links(self):
-            links = [dict(title=_("New Policy"), href=reverse("policies.policy_create"),)]
+            links = [dict(title=_("New Policy"), href=reverse("policies.policy_create"))]
             return links
 
         def get_queryset(self, **kwargs):

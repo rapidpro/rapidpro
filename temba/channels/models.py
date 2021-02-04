@@ -1272,6 +1272,7 @@ class ChannelLog(models.Model):
     A log of an call made to or from a channel
     """
 
+    id = models.BigAutoField(primary_key=True)
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs")
     msg = models.ForeignKey("msgs.Msg", on_delete=models.PROTECT, related_name="channel_logs", null=True)
     connection = models.ForeignKey(

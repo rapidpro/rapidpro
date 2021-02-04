@@ -1,46 +1,53 @@
+from typing import NamedTuple
+
 from temba.tests import TembaTest
 
-from .urns import parse_urn
+from .urns import parse_number, parse_urn
 
 
 class URNTest(TembaTest):
     def test_parse_urn(self):
-        class Test(object):
-            def __init__(self, input, scheme="", path="", query="", fragment="", has_error=False):
-                self.input = input
-                self.scheme = scheme
-                self.path = path
-                self.query = query
-                self.fragment = fragment
-                self.has_error = has_error
+        class Test(NamedTuple):
+            input: str = ""
+            scheme: str = ""
+            path: str = ""
+            query: str = ""
+            fragment: str = ""
+            has_error: bool = False
 
         test_cases = (
-            Test("scheme:path", scheme="scheme", path="path"),
-            Test("scheme:path#frag", scheme="scheme", path="path", fragment="frag"),
-            Test("scheme:path?query", scheme="scheme", path="path", query="query"),
-            Test("scheme:path?query#frag", scheme="scheme", path="path", query="query", fragment="frag"),
+            Test(input="scheme:path", scheme="scheme", path="path"),
+            Test(input="scheme:path#frag", scheme="scheme", path="path", fragment="frag"),
+            Test(input="scheme:path?query", scheme="scheme", path="path", query="query"),
+            Test(input="scheme:path?query#frag", scheme="scheme", path="path", query="query", fragment="frag"),
             Test(
-                "scheme:path?bar=foo&bar=zap#frag",
+                input="scheme:path?bar=foo&bar=zap#frag",
                 scheme="scheme",
                 path="path",
                 query="bar=foo&bar=zap",
                 fragment="frag",
             ),
-            Test("scheme:pa%25th?qu%23ery#fra%3Fg", scheme="scheme", path="pa%th", query="qu#ery", fragment="fra?g"),
-            Test("scheme:path:morepath", scheme="scheme", path="path:morepath"),
-            Test("scheme:path:morepath?foo=bar", scheme="scheme", path="path:morepath", query="foo=bar"),
+            Test(
+                input="scheme:pa%25th?qu%23ery#fra%3Fg",
+                scheme="scheme",
+                path="pa%th",
+                query="qu#ery",
+                fragment="fra?g",
+            ),
+            Test(input="scheme:path:morepath", scheme="scheme", path="path:morepath"),
+            Test(input="scheme:path:morepath?foo=bar", scheme="scheme", path="path:morepath", query="foo=bar"),
             # can't be empty
-            Test("", has_error=True),
+            Test(input="", has_error=True),
             # can't single part
-            Test("xyz", has_error=True),
+            Test(input="xyz", has_error=True),
             # can't omit scheme or path
-            Test(":path", has_error=True),
-            Test("scheme:", has_error=True),
+            Test(input=":path", has_error=True),
+            Test(input="scheme:", has_error=True),
             # can't have multiple queries or fragments
-            Test("scheme:path?query?query", has_error=True),
-            Test("scheme:path#frag#frag", has_error=True),
+            Test(input="scheme:path?query?query", has_error=True),
+            Test(input="scheme:path#frag#frag", has_error=True),
             # can't have query after fragment
-            Test("scheme:path#frag?query", has_error=True),
+            Test(input="scheme:path#frag?query", has_error=True),
         )
 
         for tc in test_cases:
@@ -52,21 +59,45 @@ class URNTest(TembaTest):
                 ex = e
 
             if ex:
-                self.assertTrue(tc.has_error, "Failed parsing URN, got unxpected error: %s" % str(ex))
+                self.assertTrue(tc.has_error, f"Failed parsing URN, got unxpected error: {str(ex)}")
             else:
                 matches = (
                     p.scheme == tc.scheme and p.path == tc.path and p.query == tc.query and p.fragment == tc.fragment
                 )
                 self.assertTrue(
                     matches,
-                    "Failed parsing URN, got %s|%s|%s|%s, expected %s|%s|%s|%s for '%s'"
-                    % (p.scheme, p.path, p.query, p.fragment, tc.scheme, tc.path, tc.query, tc.fragment, tc.input),
+                    f"Failed parsing URN, got {p.scheme}|{p.path}|{p.query}|{p.fragment}, "
+                    f"expected {tc.scheme}|{tc.path}|{tc.query}|{tc.fragment} for '{tc.input}'",
                 )
 
                 back_to_str = str(p)
                 self.assertEqual(
                     back_to_str,
                     tc.input,
-                    "Failed stringifying URN, got '%s', expected '%s' for %s|%s|%s|%s"
-                    % (back_to_str, tc.input, tc.scheme, tc.path, tc.query, tc.fragment),
+                    f"Failed stringifying URN, got '{back_to_str}', "
+                    f"expected '{tc.input}' for {tc.scheme}|{tc.path}|{tc.query}|{tc.fragment}",
                 )
+
+    def test_parse_number(self):
+        class Test(NamedTuple):
+            input: str
+            country: str
+            parsed: str
+
+        test_cases = (
+            Test("+250788123123", "", "+250788123123"),  # international number fine without country
+            Test("+250 788 123-123", "", "+250788123123"),  # fine if not E164 formatted
+            Test("0788123123", "RW", "+250788123123"),
+            Test("206 555 1212", "US", "+12065551212"),
+            Test("12065551212", "US", "+12065551212"),  # country code but no +
+            Test("5912705", "US", ""),  # is only possible as a local number so ignored
+            Test("10000", "US", ""),
+        )
+
+        for tc in test_cases:
+            if tc.parsed != "":
+                parsed = parse_number(tc.input, tc.country)
+                self.assertEqual(parsed, tc.parsed, f"result mismatch for '{tc.input}'")
+            else:
+                with self.assertRaises(ValueError):
+                    parse_number(tc.input, tc.country)

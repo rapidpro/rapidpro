@@ -5,27 +5,35 @@ jobs:
     name: Test
     env:
       python_version: '3.6.x'
+      postgis_version: '2.5'
       redis_version: '5'
       node_version: '10'
-      elastic_version: '6.8.5'
-      rpindexer_version: '5.7.2'
-      mailroom_version: '5.7.40'
+      elastic_version: '7.10.1'
+      rpindexer_version: '6.1.0'
+      mailroom_version: '6.1.14'
       DJANGO_SETTINGS_MODULE: temba.settings_ci
     strategy:
       matrix:
-        pg_version: ['10', '11']
+        pg_version: ['11', '12']
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v1
 
-    - name: Install PostgreSQL
-      uses: nyaruka/postgis-action@master
+    - name: Install PostgreSQL and PostGIS
+      uses: nyaruka/postgis-action@v2.1.0
       with:
         postgresql version: ${{ matrix.pg_version }}
+        postgis version: ${{ env.postgis_version }}
+        postgresql db: temba
+        postgresql user: temba
+        postgresql password: temba
+        postgresql arguments: '--jit=off'
 
     - name: Install Linux packages
-      run: sudo apt install -y --no-install-recommends postgresql-client libgdal-dev gettext
+      run: |
+        sudo apt update
+        sudo apt install -y --no-install-recommends libgdal-dev gettext
 
     - name: Install Python
       uses: actions/setup-python@v1
@@ -46,12 +54,6 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: ${{ env.node_version }}
-
-    - name: Initialize database
-      run: |
-        psql -h localhost -U postgres -c "CREATE USER temba PASSWORD 'temba';"
-        psql -h localhost -U postgres -c "ALTER ROLE temba WITH SUPERUSER;"
-        psql -h localhost -U postgres -c "CREATE DATABASE temba;"
 
     - name: Initialize environment
       run: |

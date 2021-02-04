@@ -98,6 +98,39 @@ class CampaignTest(TembaTest):
         self.assertEqual(3, new_event2.offset)
         self.assertEqual({"base": "Hello"}, new_event2.message)
 
+    def test_get_offset_display(self):
+        campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
+        flow = self.create_flow()
+        event = CampaignEvent.create_flow_event(
+            self.org, self.admin, campaign, self.planting_date, offset=0, unit="W", flow=flow
+        )
+
+        def assert_display(offset: int, unit: str, expected: str):
+            event.offset = offset
+            event.unit = unit
+            self.assertEqual(expected, event.offset_display)
+
+        assert_display(-2, "M", "2 minutes before")
+        assert_display(-1, "M", "1 minute before")
+        assert_display(0, "M", "on")
+        assert_display(1, "M", "1 minute after")
+        assert_display(2, "M", "2 minutes after")
+        assert_display(-2, "H", "2 hours before")
+        assert_display(-1, "H", "1 hour before")
+        assert_display(0, "H", "on")
+        assert_display(1, "H", "1 hour after")
+        assert_display(2, "H", "2 hours after")
+        assert_display(-2, "D", "2 days before")
+        assert_display(-1, "D", "1 day before")
+        assert_display(0, "D", "on")
+        assert_display(1, "D", "1 day after")
+        assert_display(2, "D", "2 days after")
+        assert_display(-2, "W", "2 weeks before")
+        assert_display(-1, "W", "1 week before")
+        assert_display(0, "W", "on")
+        assert_display(1, "W", "1 week after")
+        assert_display(2, "W", "2 weeks after")
+
     def test_get_unique_name(self):
         campaign1 = Campaign.create(
             self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers
@@ -1366,7 +1399,7 @@ class CampaignTest(TembaTest):
 
 class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
     def create_campaign(self, org, name, group):
-        user = org.get_user()
+        user = org.get_admins().first()
         registered = self.create_field("registered", "Registered", value_type="D", org=org)
         flow = self.create_flow(org=org)
         campaign = Campaign.create(org, user, name, group)
@@ -1490,7 +1523,7 @@ class CampaignEventCRUDLTest(TembaTest):
         self.other_org_campaign = self.create_campaign(self.org2)
 
     def create_campaign(self, org):
-        user = org.get_user()
+        user = org.get_admins().first()
         group = self.create_group("Reporters", contacts=[], org=org)
         registered = self.create_field("registered", "Registered", value_type="D", org=org)
         flow = self.create_flow(org=org)
@@ -1517,7 +1550,7 @@ class CampaignEventCRUDLTest(TembaTest):
 
         response = self.client.get(read_url)
         self.assertContains(response, "Welcomes")
-        self.assertContains(response, "1 Week After")
+        self.assertContains(response, "1 week after")
         self.assertContains(response, "Registered")
 
         # can't view event from other org
