@@ -24,7 +24,7 @@ from django.db import transaction
 from django.db.models import Count
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
-from django.http import Http404, HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -1413,6 +1413,9 @@ class ContactCRUDL(SmartCRUDL):
 
             return HttpResponse(json.dumps(result), content_type="application/json")
 
+        def get_queryset(self, **kwargs):
+            return super().get_queryset(**kwargs).exclude(urns__isnull=True).exclude(urns__scheme="ext")
+
         def post(self, request, *args, **kwargs):
             optin_flow_uuid = request.POST.get("optin_flow_uuid", None)
             flow = Flow.objects.filter(
@@ -1463,14 +1466,18 @@ class ContactCRUDL(SmartCRUDL):
             return links
 
         def get_context_data(self, *args, **kwargs):
-            context = super().get_context_data(*args, **kwargs)
+            context = BulkActionMixin.get_context_data(self, *args, **kwargs)
             org = self.request.user.get_org()
             group = self.derive_group()
             view_url = reverse("contacts.contact_invite_participants")
+            count = (
+                Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE)
+                .exclude(urns__isnull=True)
+                .exclude(urns__scheme="ext")
+                .count()
+            )
 
-            counts = ContactGroup.get_system_group_counts(org)
-
-            folders = [dict(count=counts[ContactGroup.TYPE_ACTIVE], label=_("All Contacts"), url=view_url)]
+            folders = [dict(count=count, label=_("All Contacts"), url=view_url)]
 
             available_flows = Flow.objects.filter(org=org, is_active=True, is_system=False, is_archived=False)
             current_optin_flow = available_flows.filter(uuid=org.get_optin_flow())
@@ -1478,13 +1485,34 @@ class ContactCRUDL(SmartCRUDL):
                 org.config.pop(org.OPTIN_FLOW, None)
                 org.save(update_fields=["config"])
 
+            # resolve the paginated object list so we can initialize a cache of URNs and fields
+            contacts = context["object_list"]
+            Contact.bulk_cache_initialize(org, contacts)
+
+            context["contacts"] = contacts
             context["flows"] = available_flows
             context["optin_flow"] = org.get_optin_flow()
             context["folders"] = folders
-            context["current_group"] = group
+            context["groups"] = self.get_user_groups(org)
+            context["has_contacts"] = contacts or org.has_contacts()
             context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
-            context["export_url"] = self.derive_export_url()
-            context["actions"] = ("label", "block")
+            context["current_group"] = group
+
+            group_counts = dict(
+                Contact.objects.filter(
+                    org=org,
+                    status=Contact.STATUS_ACTIVE,
+                    all_groups__in=ContactGroup.get_user_groups(org),
+                )
+                .exclude(urns__isnull=True)
+                .exclude(urns__scheme="ext")
+                .values("all_groups")
+                .annotate(total=Count("*"))
+                .values_list("all_groups", "total")
+            )
+            for group in context["groups"]:
+                group["count"] = group_counts.get(group["pk"], 0)
+
             return context
 
 

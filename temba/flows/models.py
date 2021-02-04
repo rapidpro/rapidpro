@@ -1496,7 +1496,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             "id": self.id,
             "uuid": str(self.uuid),
             "flow": {"uuid": str(self.flow.uuid), "name": self.flow.name},
-            "flow_start_extra": getattr(self.start, "extra", {}),
+            "trigger_params": getattr(self.session, "output", {}).get("trigger", {}).get("params", ""),
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "responded": self.responded,
             "path": [convert_step(s) for s in self.path],
@@ -2040,14 +2040,14 @@ class ExportFlowResultsTask(BaseExportTask):
             columns.append(f"{field_name} (Text) - {flow_name}")
             columns.append(f"{field_name} (Corrected) - {flow_name}")
 
-        embedded_fields = set()
+        flow_params_fields = set()
         for flow in self.flows.all():
             for flow_param in flow.get_trigger_params():
                 if str(flow_param).startswith("@trigger.params."):
-                    embedded_fields.add(flow_param[16:])
-        setattr(self, "embedded_fields", sorted(embedded_fields))
-        for embedded_field in getattr(self, "embedded_fields", []):
-            columns.append(f"Embedded field ({embedded_field})")
+                    flow_params_fields.add(flow_param[16:])
+        setattr(self, "flow_params_fields", sorted(flow_params_fields))
+        for flow_param in getattr(self, "flow_params_fields", []):
+            columns.append(f"Flow Parameter ({flow_param})")
 
         return columns
 
@@ -2275,9 +2275,9 @@ class ExportFlowResultsTask(BaseExportTask):
                 node_corrected = node_result.get("corrected", "")
                 result_values += [node_category, node_value, node_input, node_corrected]
 
-            embedded_fields_values, flow_start_extra = [], run["flow_start_extra"]
-            for embedded_field in getattr(self, "embedded_fields", []):
-                embedded_fields_values.append(flow_start_extra.get(embedded_field, ""))
+            flow_params_values, trigger_params = [], run["trigger_params"]
+            for flow_params_field in getattr(self, "flow_params_fields", []):
+                flow_params_values.append(trigger_params.get(flow_params_field, ""))
 
             if book.current_runs_sheet.num_rows >= self.MAX_EXCEL_ROWS:  # pragma: no cover
                 book.current_runs_sheet = self._add_runs_sheet(book, runs_columns)
@@ -2295,7 +2295,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 iso8601.parse_date(run["exited_on"]) if run["exited_on"] else None,
                 run["uuid"],
             ]
-            runs_sheet_row += result_values + embedded_fields_values
+            runs_sheet_row += result_values + flow_params_values
 
             self.append_row(book.current_runs_sheet, runs_sheet_row)
 
