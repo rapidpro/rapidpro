@@ -187,7 +187,7 @@ ELASTICSEARCH_URL = env("ELASTICSEARCH_URL")
 
 # APPS
 # ------------------------------------------------------------------------------
-INSTALLED_APPS += ("gunicorn", "storages", "elasticapm.contrib.django")
+INSTALLED_APPS += ("gunicorn", "storages", "elasticapm.contrib.django", "weni.channel_stats", "weni.analytics_api",)
 
 # SENTRY
 # ------------------------------------------------------------------------------
