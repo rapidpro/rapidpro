@@ -22,7 +22,7 @@ IS_PROD = os.environ.get("IS_PROD", "false") == "true"
 INSTALLED_APPS = (
     INSTALLED_APPS +
     tuple(filter(None, os.environ.get("EXTRA_INSTALLED_APPS", "").split(","))) +
-    ("storages", "raven.contrib.django.raven_compat")
+    ("storages", )
 )
 
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
@@ -124,10 +124,6 @@ COMPRESS_ENABLED = os.environ.get("COMPRESS_ENABLED", "true") == "true"
 COMPRESS_OFFLINE = False
 
 LOGGING["root"]["level"] = os.environ.get("DJANGO_LOG_LEVEL", "INFO")
-
-RAVEN_CONFIG = {
-    "dsn": os.environ.get("RAVEN_DSN")
-}
 
 AWS_S3_ENABLED = os.environ.get("AWS_S3_ENABLED", "true") == "true"
 
