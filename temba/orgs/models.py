@@ -2140,15 +2140,16 @@ def is_support_user(user):
 
 
 def get_settings(user):
-    if not user:  # pragma: needs cover
-        return None
+    """
+    Gets or creates user settings for the given user
+    """
+    assert user and user.is_authenticated, "can't fetch user settings for anonymous users"
 
-    settings = UserSettings.objects.filter(user=user).first()
+    user_settings = UserSettings.objects.filter(user=user).first()
+    if not user_settings:
+        user_settings = UserSettings.objects.create(user=user)
 
-    if not settings:
-        settings = UserSettings.objects.create(user=user)
-
-    return settings
+    return user_settings
 
 
 def set_org(obj, org):
@@ -2717,15 +2718,25 @@ class CreditAlert(SmartModel):
             CreditAlert.trigger_credit_alert(topup.org, CreditAlert.TYPE_EXPIRING)
 
 
-class BackupToken(SmartModel):
-    settings = models.ForeignKey(
-        UserSettings, verbose_name=_("Settings"), related_name="backups", on_delete=models.CASCADE
-    )
-    token = models.CharField(verbose_name=_("Token"), max_length=18, unique=True, default=generate_token)
-    used = models.BooleanField(verbose_name=_("Used"), default=False)
+class BackupToken(models.Model):
+    """
+    A 2FA backup token for a user
+    """
 
-    def __str__(self):  # pragma: no cover
-        return f"{self.token}"
+    user = models.ForeignKey(User, related_name="backup_tokens", on_delete=models.PROTECT)
+    token = models.CharField(max_length=18, unique=True, default=generate_token)
+    is_used = models.BooleanField(default=False)
+    created_on = models.DateTimeField(default=timezone.now)
+
+    @classmethod
+    def generate_for_user(cls, user, count=10):
+        # delete any existing tokens for this user
+        user.backup_tokens.all().delete()
+
+        return [cls.objects.create(user=user) for i in range(count)]
+
+    def __str__(self):
+        return self.token
 
 
 class OrgActivity(models.Model):

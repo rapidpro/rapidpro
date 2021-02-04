@@ -658,17 +658,17 @@ class OrgTest(TembaTest):
         self.assertIn("token", response.context["form"].errors)
         self.assertIn("Invalid MFA token. Please try again.", response.context["form"].errors["token"])
 
-        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 0)
+        self.assertEqual(BackupToken.objects.filter(user=self.admin).count(), 0)
         data = dict(generate_backup_tokens=True)
         response = self.client.post(reverse("orgs.org_two_factor"), data)
-        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 10)
+        self.assertEqual(BackupToken.objects.filter(user=self.admin).count(), 10)
 
         # disable two factor
         data = dict(disable_two_factor_auth=True)
         user_settings = UserSettings.objects.get(user=self.admin)
         response = self.client.post(reverse("orgs.org_two_factor"), data)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 0)
+        self.assertEqual(BackupToken.objects.filter(user=self.admin).count(), 0)
         self.assertFalse(user_settings.two_factor_enabled)
 
         # get backup tokens without backup tokens
@@ -678,9 +678,7 @@ class OrgTest(TembaTest):
         self.assertEqual(response.json(), {"tokens": []})
 
         # get backup tokens with backup tokens
-        backup_token = BackupToken.objects.create(
-            settings=self.admin.get_settings(), created_by=self.admin, modified_by=self.admin
-        )
+        backup_token = BackupToken.objects.create(user=self.admin)
         data = dict(get_backup_tokens=True)
         response = self.client.post(reverse("orgs.org_two_factor"), data)
         self.assertEqual(response.status_code, 200)
@@ -5127,3 +5125,20 @@ class OrgActivityTest(TembaTest):
         self.assertEqual(2, activity.incoming_count)
         self.assertEqual(1, activity.outgoing_count)
         self.assertEqual(1, activity.plan_active_contact_count)
+
+
+class BackupTokenTest(TembaTest):
+    def test_model(self):
+        admin_tokens = BackupToken.generate_for_user(self.admin)
+        BackupToken.generate_for_user(self.editor)
+
+        self.assertEqual(10, len(admin_tokens))
+        self.assertEqual(10, self.admin.backup_tokens.count())
+        self.assertEqual(10, self.editor.backup_tokens.count())
+        self.assertEqual(str(admin_tokens[0].token), str(admin_tokens[0]))
+
+        # regenerate tokens for admin user
+        new_admin_tokens = BackupToken.generate_for_user(self.admin)
+        self.assertEqual(10, len(new_admin_tokens))
+        self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
+        self.assertEqual(10, self.admin.backup_tokens.count())

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-03 17:32+0000\n"
+"POT-Creation-Date: 2021-02-04 17:43+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3995,9 +3995,6 @@ msgstr "Кредиты с истекающим сроком действия"
 #, python-format
 msgid "%(name)s Credits Alert"
 msgstr "Оповещение по Кредитам %(name)s "
-
-msgid "Used"
-msgstr "Использовано"
 
 #, fuzzy
 #| msgid "First Name"
@@ -10305,6 +10302,9 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Used"
+#~ msgstr "Использовано"
 
 #, python-format
 #~ msgid "%(value)s must be http or https scheme"

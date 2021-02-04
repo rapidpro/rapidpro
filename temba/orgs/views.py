@@ -1646,28 +1646,18 @@ class OrgCRUDL(SmartCRUDL):
             return secret_url
 
         def disable_two_factor_auth(self):
-            self.delete_backup_tokens()
+            self.get_user().backup_tokens.all().delete()
+
             user = self.get_user()
             user_settings = user.get_settings()
             user_settings.two_factor_enabled = False
             user_settings.save()
 
         def generate_backup_tokens(self):
-            user = self.get_user()
-            self.delete_backup_tokens()
-            for backup in range(10):
-                BackupToken.objects.create(settings=user.get_settings(), created_by=user, modified_by=user)
-            tokens = [backup.token for backup in BackupToken.objects.filter(settings__user=user)]
-            return tokens
+            return [t.token for t in BackupToken.generate_for_user(self.get_user())]
 
         def get_backup_tokens(self):
-            user = self.get_user()
-            tokens = [backup.token for backup in BackupToken.objects.filter(settings__user=user)]
-            return tokens
-
-        def delete_backup_tokens(self):
-            user = self.get_user()
-            BackupToken.objects.filter(settings__user=user).delete()
+            return [t.token for t in self.get_user().backup_tokens.filter(is_used=False)]
 
     class Service(SmartFormView):
         class ServiceForm(forms.Form):
