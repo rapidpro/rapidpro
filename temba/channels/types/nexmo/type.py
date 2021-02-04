@@ -1,7 +1,7 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel, ChannelType
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
 from .views import ClaimView, UpdateForm
@@ -34,22 +34,21 @@ class NexmoType(ChannelType):
     name = "Nexmo"
     icon = "icon-channel-nexmo"
 
-    claim_blurb = _(
-        """Easily add a two way number you have configured with <a href="https://www.nexmo.com/">Nexmo</a> using their APIs."""
-    )
+    claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
+        "link": '<a href="https://www.nexmo.com/">Nexmo</a>'
+    }
     claim_view = ClaimView
     update_form = UpdateForm
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 1600
     max_tps = 1
 
     ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO
 
     configuration_blurb = _(
-        """
-        Your Nexmo configuration URLs are as follows. These should have been set up automatically when claiming your number, but if not you can set them from your Nexmo dashboard.
-        """
+        "Your Nexmo configuration URLs are as follows. These should have been set up automatically when claiming your "
+        "number, but if not you can set them from your Nexmo dashboard."
     )
 
     configuration_urls = (

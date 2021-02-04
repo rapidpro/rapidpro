@@ -98,7 +98,7 @@
             texts with that keyword will automatically be registered into the group.
 
         .mt-6
-          .button-primary.lift.inline-block.mr-1.mb-1(href="{% url 'contacts.contact_import' %}" onclick="goto(event)")
+          .button-primary.lift.inline-block.mr-1.mb-1(href="{% url 'contacts.contactimport_create' %}" onclick="goto(event)")
             -trans "Import Contacts"
           %temba-modax.inline-block.mb-1(endpoint="{% url 'contacts.contact_create'%}" header='{{_("Create Contact")|escapejs}}')
             .button-light.lift.inline-block.mr-1{href:"{% url 'contacts.contact_list' %}#contact"}
@@ -151,18 +151,6 @@
           -block account-details
           .button-light.lift.inline-block(href="{% url 'api' %}" onclick="goto(event)")
             -trans "API Documentation"
-
--block extra-script
-  {{ block.super }}
-  :javascript
-    {% if org_perms.flows.flow_create %}
-      $(".create_flow").on('click', function() {
-        var modal = new Modax('{{ _("Create a Flow")|escapejs }}', '{% url "flows.flow_create" %}');
-        modal.setIcon('icon-tree');
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-    {% endif %}
 
 
 -block extra-less

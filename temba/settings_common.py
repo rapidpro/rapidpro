@@ -46,7 +46,7 @@ FLOW_FROM_EMAIL = "no-reply@temba.io"
 # HTTP Headers using for outgoing requests to other services
 OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
 
-STORAGE_URL = None  # may be local /media or AWS S3
+STORAGE_URL = None  # may be an absolute URL to /media (like http://localhost:8000/media) or AWS S3
 STORAGE_ROOT_DIR = "test_orgs" if TESTING else "orgs"
 
 # -----------------------------------------------------------------------------------
@@ -170,7 +170,6 @@ TEMPLATES = [
                 "temba.context_processors.analytics",
                 "temba.orgs.context_processors.user_group_perms_processor",
                 "temba.channels.views.channel_status_processor",
-                "temba.msgs.views.send_message_auto_complete_processor",
                 "temba.orgs.context_processors.settings_includer",
                 "temba.orgs.context_processors.user_orgs_for_brand",
             ],
@@ -268,7 +267,6 @@ INSTALLED_APPS = (
     "temba.campaigns",
     "temba.ivr",
     "temba.locations",
-    "temba.values",
     "temba.airtime",
     "temba.sql",
     "temba.two_factor",
@@ -326,11 +324,12 @@ BRANDING = {
         "tiers": dict(multi_user=0, multi_org=0),
         "bundles": [],
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
+        "title": _("Visually build nationally scalable mobile applications"),
         "description": _("Visually build nationally scalable mobile applications from anywhere in the world."),
         "credits": _("Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved."),
     }
 }
-DEFAULT_BRAND = "rapidpro.io"
+DEFAULT_BRAND = os.environ.get("DEFAULT_BRAND", "rapidpro.io")
 
 # -----------------------------------------------------------------------------------
 # Permission Management
@@ -360,12 +359,10 @@ PERMISSIONS = {
         "block",
         "blocked",
         "break_anon",
-        "customize",
         "export",
         "stopped",
         "filter",
         "history",
-        "import",
         "omnibox",
         "restore",
         "search",
@@ -374,6 +371,7 @@ PERMISSIONS = {
     ),
     "contacts.contactfield": ("api", "json", "update_priority", "featured", "filter_by_type", "detail"),
     "contacts.contactgroup": ("api",),
+    "contacts.contactimport": ("preview",),
     "ivr.ivrcall": ("start",),
     "archives.archive": ("api", "run", "message"),
     "globals.global": ("api", "unused", "detail"),
@@ -446,7 +444,6 @@ PERMISSIONS = {
         "campaign",
         "category_counts",
         "change_language",
-        "completion",
         "copy",
         "editor",
         "editor_next",
@@ -456,7 +453,6 @@ PERMISSIONS = {
         "import_translation",
         "export_results",
         "filter",
-        "json",
         "recent_messages",
         "results",
         "revisions",
@@ -533,7 +529,6 @@ GROUP_PERMISSIONS = {
         "contacts.contact_break_anon",
         "contacts.contact_read",
         "flows.flow_editor",
-        "flows.flow_json",
         "flows.flow_revisions",
         "flows.flowrun_delete",
         "flows.flow_editor_next",
@@ -581,12 +576,10 @@ GROUP_PERMISSIONS = {
         "contacts.contact_block",
         "contacts.contact_blocked",
         "contacts.contact_create",
-        "contacts.contact_customize",
         "contacts.contact_delete",
         "contacts.contact_export",
         "contacts.contact_filter",
         "contacts.contact_history",
-        "contacts.contact_import",
         "contacts.contact_list",
         "contacts.contact_omnibox",
         "contacts.contact_read",
@@ -598,6 +591,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_update_fields_input",
         "contacts.contactfield.*",
         "contacts.contactgroup.*",
+        "contacts.contactimport.*",
         "csv_imports.importtask.*",
         "globals.global.*",
         "ivr.ivrcall.*",
@@ -714,12 +708,10 @@ GROUP_PERMISSIONS = {
         "contacts.contact_block",
         "contacts.contact_blocked",
         "contacts.contact_create",
-        "contacts.contact_customize",
         "contacts.contact_delete",
         "contacts.contact_export",
         "contacts.contact_filter",
         "contacts.contact_history",
-        "contacts.contact_import",
         "contacts.contact_list",
         "contacts.contact_omnibox",
         "contacts.contact_read",
@@ -731,6 +723,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_update_fields_input",
         "contacts.contactfield.*",
         "contacts.contactgroup.*",
+        "contacts.contactimport.*",
         "csv_imports.importtask.*",
         "ivr.ivrcall.*",
         "globals.global_api",
@@ -816,6 +809,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_stopped",
         "contacts.contactfield_api",
         "contacts.contactgroup_api",
+        "contacts.contactimport_read",
         "globals.global_api",
         "locations.adminboundary_boundaries",
         "locations.adminboundary_geometry",
@@ -834,7 +828,6 @@ GROUP_PERMISSIONS = {
         "flows.flow_archived",
         "flows.flow_assets",
         "flows.flow_campaign",
-        "flows.flow_completion",
         "flows.flow_category_counts",
         "flows.flow_export",
         "flows.flow_export_results",
@@ -842,7 +835,6 @@ GROUP_PERMISSIONS = {
         "flows.flow_list",
         "flows.flow_editor",
         "flows.flow_editor_next",
-        "flows.flow_json",
         "flows.flow_recent_messages",
         "flows.flow_results",
         "flows.flow_revisions",
@@ -882,6 +874,10 @@ LOGIN_REDIRECT_URL = "/org/choose/"
 LOGOUT_REDIRECT_URL = "/"
 
 AUTHENTICATION_BACKENDS = ("smartmin.backends.CaseInsensitiveBackend",)
+
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},
+]
 
 ANONYMOUS_USER_NAME = "AnonymousUser"
 
@@ -1023,12 +1019,11 @@ REST_HANDLE_EXCEPTIONS = not TESTING
 # -----------------------------------------------------------------------------------
 
 if TESTING:
-    # if only testing, disable coffeescript and less compilation
+    # if only testing, disable less compilation
     COMPRESS_PRECOMPILERS = ()
 else:
     COMPRESS_PRECOMPILERS = (
         ("text/less", 'lessc --include-path="%s" {infile} {outfile}' % os.path.join(PROJECT_DIR, "../static", "less")),
-        ("text/coffeescript", "coffee --compile --stdio"),
     )
 
 COMPRESS_ENABLED = False
@@ -1064,11 +1059,16 @@ CLASSIFIER_TYPES = [
     "temba.classifiers.types.bothub.BothubType",
 ]
 
-TICKETER_TYPES = ["temba.tickets.types.mailgun.MailgunType", "temba.tickets.types.zendesk.ZendeskType"]
+TICKETER_TYPES = [
+    "temba.tickets.types.mailgun.MailgunType",
+    "temba.tickets.types.zendesk.ZendeskType",
+    "temba.tickets.types.rocketchat.RocketChatType",
+]
 
 CHANNEL_TYPES = [
     "temba.channels.types.arabiacell.ArabiaCellType",
     "temba.channels.types.whatsapp.WhatsAppType",
+    "temba.channels.types.textit_whatsapp.TextItWhatsAppType",
     "temba.channels.types.dialog360.Dialog360Type",
     "temba.channels.types.twilio.TwilioType",
     "temba.channels.types.twilio_whatsapp.TwilioWhatsappType",
@@ -1128,6 +1128,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia.ZenviaType",
     "temba.channels.types.android.AndroidType",
+    "temba.channels.types.rocketchat.RocketChatType",
 ]
 
 # -----------------------------------------------------------------------------------
@@ -1192,7 +1193,6 @@ IP_ADDRESSES = ("172.16.10.10", "162.16.10.20")
 # Installs may choose how big they want their text messages and contact fields to be.
 # -----------------------------------------------------------------------------------
 MSG_FIELD_SIZE = 640
-VALUE_FIELD_SIZE = 640
 FLOW_START_PARAMS_SIZE = 256
 
 # -----------------------------------------------------------------------------------
@@ -1231,6 +1231,8 @@ MACHINE_HOSTNAME = socket.gethostname().split(".")[0]
 # ElasticSearch configuration (URL RFC-1738)
 ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 
+
 # Maximum active objects are org can have
-MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
-MAX_ACTIVE_GLOBALS_PER_ORG = 255
+MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 250
+MAX_ACTIVE_CONTACTGROUPS_PER_ORG = 250
+MAX_ACTIVE_GLOBALS_PER_ORG = 250

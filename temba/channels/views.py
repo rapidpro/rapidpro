@@ -38,12 +38,13 @@ from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
-from temba.contacts.models import TEL_SCHEME, URN
+from temba.contacts.models import URN
 from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org
 from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, json
+from temba.utils.fields import SelectWidget
 from temba.utils.http import http_headers
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import ComponentFormMixin
@@ -814,7 +815,7 @@ def sync(request, channel_id):
                         # ignore these events on our side as they have no purpose and break a lot of our
                         # assumptions
                         if cmd["phone"] and call_tuple not in unique_calls:
-                            urn = URN.from_parts(TEL_SCHEME, cmd["phone"])
+                            urn = URN.from_tel(cmd["phone"])
                             try:
                                 ChannelEvent.create_relayer_event(
                                     channel, urn, cmd["type"], date, extra=dict(duration=duration)
@@ -956,7 +957,10 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
 
     class Form(ClaimViewMixin.Form):
         country = forms.ChoiceField(
-            choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in")
+            choices=ALL_COUNTRIES,
+            widget=SelectWidget(attrs={"searchable": True}),
+            label=_("Country"),
+            help_text=_("The country this phone number is used in"),
         )
         number = forms.CharField(
             max_length=14,
@@ -1026,9 +1030,6 @@ class AuthenticatedExternalClaimView(ClaimViewMixin, SmartFormView):
 
     def form_valid(self, form):
         org = self.request.user.get_org()
-
-        if not org:  # pragma: no cover
-            raise Exception("No org for this user, cannot claim")
 
         data = form.cleaned_data
         extra_config = self.get_channel_config(org, data)
@@ -1245,7 +1246,7 @@ class UpdateChannelForm(forms.ModelForm):
 
         self.config_fields = []
 
-        if TEL_SCHEME in self.object.schemes:
+        if URN.TEL_SCHEME in self.object.schemes:
             self.add_config_field(
                 Channel.CONFIG_ALLOW_INTERNATIONAL,
                 forms.BooleanField(required=False, help_text=_("Allow international sending")),
@@ -1302,6 +1303,11 @@ class ChannelCRUDL(SmartCRUDL):
 
             channel = self.get_object()
 
+            extra_links = channel.get_type().extra_links
+            if extra_links:
+                for extra in extra_links:
+                    links.append(dict(title=extra["name"], href=reverse(extra["link"], args=[channel.uuid])))
+
             if channel.parent:
                 links.append(
                     dict(
@@ -1324,6 +1330,11 @@ class ChannelCRUDL(SmartCRUDL):
                     links.append(
                         dict(title=_("Channel Log"), href=reverse("channels.channellog_list", args=[sender.uuid]))
                     )
+                elif Channel.ROLE_RECEIVE in channel.role:
+                    links.append(
+                        dict(title=_("Channel Log"), href=reverse("channels.channellog_list", args=[channel.uuid]))
+                    )
+
                 if caller and caller != sender:
                     links.append(
                         dict(
@@ -1394,7 +1405,14 @@ class ChannelCRUDL(SmartCRUDL):
                 )
 
             if self.object.channel_type == "FB" and self.has_org_perm("channels.channel_facebook_whitelist"):
-                links.append(dict(title=_("Whitelist Domain"), js_class="facebook-whitelist", href="#"))
+                links.append(
+                    dict(
+                        id="fb-whitelist",
+                        title=_("Whitelist Domain"),
+                        modax=_("Whitelist Domain"),
+                        href=reverse("channels.channel_facebook_whitelist", args=[self.get_object().uuid]),
+                    )
+                )
 
             user = self.get_user()
             if user.is_superuser or user.is_staff:
@@ -1600,7 +1618,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             return context
 
-    class FacebookWhitelist(ModalMixin, OrgObjPermsMixin, SmartModelActionView):
+    class FacebookWhitelist(ComponentFormMixin, ModalMixin, OrgObjPermsMixin, SmartModelActionView):
         class DomainForm(forms.Form):
             whitelisted_domain = forms.URLField(
                 required=True,
@@ -1676,7 +1694,9 @@ class ChannelCRUDL(SmartCRUDL):
                 else:
                     messages.info(request, _("Your channel has been removed."))
 
-                return HttpResponseRedirect(self.get_success_url())
+                response = HttpResponse()
+                response["Temba-Success"] = self.get_success_url()
+                return response
 
             except TwilioRestException as e:
                 messages.error(
@@ -1686,7 +1706,10 @@ class ChannelCRUDL(SmartCRUDL):
                         % e.code
                     ),
                 )
-                return HttpResponseRedirect(reverse("orgs.org_home"))
+
+                response = HttpResponse()
+                response["Temba-Success"] = self.get_success_url()
+                return response
 
             except ValueError as e:
                 logger.error("Error removing a channel", exc_info=True)
@@ -1731,6 +1754,11 @@ class ChannelCRUDL(SmartCRUDL):
             kwargs["object"] = self.object
             return kwargs
 
+        def derive_initial(self):
+            initial = super().derive_initial()
+            initial["role"] = [char for char in self.object.role]
+            return initial
+
         def pre_save(self, obj):
             for field in self.form.config_fields:
                 obj.config[field] = self.form.cleaned_data[field]
@@ -1738,7 +1766,7 @@ class ChannelCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             # update our delegate channels with the new number
-            if not obj.parent and TEL_SCHEME in obj.schemes:
+            if not obj.parent and URN.TEL_SCHEME in obj.schemes:
                 e164_phone_number = None
                 try:
                     parsed = phonenumbers.parse(obj.address, None)
@@ -1901,6 +1929,9 @@ class ChannelCRUDL(SmartCRUDL):
         title = _("Channels")
         fields = ("name", "address", "last_seen")
         search_fields = ("name", "address", "org__created_by__email")
+
+        def lookup_field_link(self, context, field, obj):
+            return reverse("channels.channel_read", args=[obj.uuid])
 
         def get_queryset(self, **kwargs):
             queryset = super().get_queryset(**kwargs)

@@ -5,7 +5,7 @@ import pytz
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.contacts.omnibox import omnibox_serialize
+from temba.contacts.search.omnibox import omnibox_serialize
 from temba.msgs.models import Broadcast
 from temba.tests import TembaTest
 from temba.utils.dates import datetime_to_str
@@ -16,7 +16,7 @@ from .models import Schedule
 class ScheduleTest(TembaTest):
     def setUp(self):
         super().setUp()
-        self.joe = self.create_contact(name="Joe Blow", number="123")
+        self.joe = self.create_contact("Joe Blow", phone="123")
 
     def test_get_repeat_days_display(self):
         sched = Schedule.create_schedule(self.org, self.user, timezone.now(), Schedule.REPEAT_WEEKLY, "M")
@@ -220,8 +220,6 @@ class ScheduleTest(TembaTest):
     def test_schedule_ui(self):
         self.login(self.admin)
 
-        joe = self.create_contact("Joe Blow", "123")
-
         # test missing recipients
         omnibox = omnibox_serialize(self.org, [], [], True)
         post_data = dict(text="message content", omnibox=omnibox, sender=self.channel.pk, schedule=True)
@@ -229,7 +227,7 @@ class ScheduleTest(TembaTest):
         self.assertContains(response, "At least one recipient is required")
 
         # missing message
-        omnibox = omnibox_serialize(self.org, [], [joe], True)
+        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
         post_data = dict(text="", omnibox=omnibox, sender=self.channel.pk, schedule=True)
         response = self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
         self.assertContains(response, "This field is required")

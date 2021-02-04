@@ -6,9 +6,8 @@
 {% endblock %}
   %head
     %title
-      {% block page-title %}
-        {{ brand.name }} - Visually build interactive SMS Applications
-      {% endblock %}
+      -block page-title
+        {{ brand.name }} - {{ brand.title }}
 
     %meta{charset:"utf-8"}
     %meta{name:"viewport", content:"width=device-width, initial-scale=1.0"}
@@ -42,31 +41,27 @@
     -# this view make it possible to process translations from javascript land
     <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
 
+    <!-- Hotjar Tracking Code for https://new.push.al -->
+    <script>
+        (function(h,o,t,j,a,r){
+            h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments)};
+            h._hjSettings={hjid:2221593,hjsv:6};
+            a=o.getElementsByTagName('head')[0];
+            r=o.createElement('script');r.async=1;
+            r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;
+            a.appendChild(r);
+        })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');
+    </script>
+
     -compress js
       :javascript
         var static_url = '{{STATIC_URL}}';
 
       %script{src:"{{ STATIC_URL }}bower/toastr/toastr.js"}
-      %script{src:"{{ STATIC_URL }}bower/select2/select2.js"}
-      %script{src:"{{ STATIC_URL }}bower/Caret.js/dist/jquery.caret.js"}
-      %script{src:"{{ STATIC_URL }}bower/At.js/dist/js/jquery.atwho.js"}
       %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-modal.js"}
       %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-dropdown.js"}
       %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-tooltip.js"}
-      %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-tab.js"}
-      %script{src:"{{ STATIC_URL }}bower/jquery-pjax/jquery.pjax.js"}
-      %script{src:"{{ STATIC_URL }}bower/jquery-ui/ui/jquery.ui.core.js"}
-      %script{src:"{{ STATIC_URL }}bower/jquery-ui/ui/jquery.ui.widget.js"}
-      %script{src:"{{ STATIC_URL }}bower/jquery-ui/ui/jquery.ui.mouse.js"}
-      %script{src:"{{ STATIC_URL }}bower/jquery-ui/ui/jquery.ui.draggable.js"}
-      %script{src:"{{ STATIC_URL }}bower/jquery-ui/ui/jquery.ui.droppable.js"}
-      %script{src:"{{ STATIC_URL }}bower/jquery-ui/ui/jquery.ui.sortable.js"}
-      %script{src:"{{ STATIC_URL }}bower/jquery-ui/ui/jquery.ui.datepicker.js"}
-      %script{src:"{{ STATIC_URL }}bower/jquery-ui/ui/jquery.ui.slider.js"}
-      %script{src:"{{ STATIC_URL }}bower/jquery-sparkline/dist/jquery.sparkline.js"}
-      %script{src:"{{ STATIC_URL }}bower/jquery-history/scripts/jquery.history.js"}
-      %script{src:"{{ STATIC_URL }}bower/jquery-easing/jquery.easing.js"}
-      %script{src:"{{ STATIC_URL }}bower/jquery-hoverintent/jquery.hoverIntent.js"}
+      %script{src:"{{ STATIC_URL }}bower/bootstrap/js/bootstrap-tab.js"}      
       %script{src:"{{ STATIC_URL }}bower/intercooler-js/src/intercooler.js"}
       %script{src:"{{ STATIC_URL }}bower/moment/moment.js"}
       %script{src:"{{ STATIC_URL }}bower/moment-timezone/builds/moment-timezone-with-data.js"}
@@ -74,24 +69,21 @@
       %script{src:"{{ STATIC_URL }}bower/video.js/dist/video.js"}
       %script{src:"{{ STATIC_URL }}bower/videojs-vjsdownload/dist/videojs-vjsdownload.js"}
       %script{src:"{{ STATIC_URL }}bower/xregexp/xregexp-all.js"}
-      %script{src:"{{ STATIC_URL }}bower/sticky-kit/jquery.sticky-kit.js"}
+
+      // expanded nav dropdown
+      %script{src:"{{ STATIC_URL }}bower/jquery-hoverintent/jquery.hoverIntent.js"}
 
       // Non-bower packages
       %script{src:"{{ STATIC_URL }}lib/uuid.js"}
       %script{src:"{{ STATIC_URL }}lib/bootstrap-limit.js"}
-      %script{src:"{{ STATIC_URL }}lib/jquery-ui-timepicker-addon.js"}
 
       -if not debug and not testing
         %script{src:"{{ STATIC_URL }}lib/raven.min.js"}
 
     -compress js
-      %script{src:"{{ STATIC_URL }}js/omnibox.js"}
       %script{src:"{{ STATIC_URL }}js/temba.js"}
-      %script{src:"{{ STATIC_URL }}js/excellent.js"}
       %script{src:"{{ STATIC_URL }}js/labels.js"}
-      %script{src:"{{ STATIC_URL }}coffee/temba.coffee", type:"text/coffeescript"}
-      %script{src:"{{ STATIC_URL }}coffee/formax.coffee", type:"text/coffeescript"}
-      %script{src:"{{ STATIC_URL }}coffee/completions.coffee", type:"text/coffeescript"}
+      %script{src:"{{ STATIC_URL }}js/formax.js"}
     
     -include "components-head.html"
     -include "includes/frame_top.html"
@@ -109,19 +101,9 @@
 
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/bootstrap-css/css/bootstrap.css',  media:'all' }
-        %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/animate.css/animate.css',  media:'all' }
-
-
-      -compress css
-        // %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/bootstrap-css/css/bootstrap-responsive.css',
-              // media:'all and (min-width: 1200px), all and (max-width: 767px), all and (max-width: 480px), all and (min-width: 980px)' }
 
       -compress css
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/toastr/toastr.css", media:'all'}
-        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/select2/select2.css", media:'all'}
-        %link{type:'text/css', rel:'stylesheet', href:'{{ STATIC_URL }}bower/At.js/dist/css/jquery.atwho.css', media:'all'}
-        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/jquery-ui/themes/redmond/jquery-ui.css", media:'all'}
-        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/jquery-ui/themes/redmond/jquery.ui.theme.css", media:'all'}
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/featherlight/src/featherlight.css", media:'all'}
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/video.js/dist/video-js.css", media:'all'}
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/videojs-vjsdownload/dist/videojs-vjsdownload.css", media:'all'}
@@ -169,7 +151,28 @@
 {% block body %}
 
 %body#pageBody.bg-gradient
+
+  .weni-announcement.h-24
+    .flex.flex-row.justify-center
+      .weni-left
+        Ilhasoft, Push e BotHub agora são Weni.
+      .weni-divider
+      .weni-right
+        A partir dessa fusão, nosso propósito é continuar evoluindo a transformação digital na comunicação das organizações.
+      %a.weni-button(href="https://ilhasoft.com.br/somos-weni")
+        Saiba mais
+
   -include "components-body.html"
+
+  -block temba-store
+    
+    -if user.is_authenticated
+      %temba-store(
+        completions="/mr/docs/completion.json"
+        functions="/mr/docs/functions.json"
+        fields="/api/v2/fields.json"
+        globals="/api/v2/globals.json")
+
   .flex.flex-col.h-full
     <!-- Header -->
     #header
@@ -322,18 +325,6 @@
         }
       }
 
-      function initSelect2Fields() {
-        $('.select2tag').select2({
-          containerCssClass: 'select2-container',
-          tags:[], tokenSeparators: [","], formatNoMatches:function(term){return '';}
-        });
-
-        $('.select2tag').find("ul.select2-choices").sortable({
-          start: function() { $(".select2tag").select2("onSortStart"); },
-          update: function() { $(".select2tag").select2("onSortEnd"); }
-        });
-      }
-
     -block extra-script
 
     <script type="text/javascript" src="{{ STATIC_URL }}js/libs/jquery.url.js"></script>
@@ -347,8 +338,6 @@
         if (navigator.appVersion.indexOf("Win")!=-1) {
           $("html").addClass("windows");
         }
-
-        // initSelect2Fields();
 
         $(".btn").tooltip();
 

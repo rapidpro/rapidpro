@@ -2,7 +2,7 @@ from smartmin.views import SmartCRUDL, SmartDeleteView, SmartFormView, SmartList
 
 from django import forms
 from django.contrib import messages
-from django.http import HttpResponseRedirect
+from django.http import HttpResponse
 from django.urls import reverse
 from django.utils.functional import cached_property
 from django.utils.html import mark_safe
@@ -31,9 +31,6 @@ class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
         self.ticketer_type = ticketer_type
 
         super().__init__()
-
-    def get_gear_links(self):
-        return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"),)]
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -170,7 +167,9 @@ class TicketerCRUDL(SmartCRUDL):
             service.release()
 
             messages.info(request, _("Your ticketing service has been deleted."))
-            return HttpResponseRedirect(self.get_success_url())
+            response = HttpResponse()
+            response["Temba-Success"] = self.get_success_url()
+            return response
 
     class Connect(OrgPermsMixin, SmartTemplateView):
         def get_gear_links(self):
@@ -178,5 +177,5 @@ class TicketerCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["ticketer_types"] = [tt for tt in Ticketer.get_types() if tt.is_available()]
+            context["ticketer_types"] = [tt for tt in Ticketer.get_types() if tt.is_available_to(self.get_user())]
             return context

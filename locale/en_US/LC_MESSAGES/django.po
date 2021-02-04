@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-11 20:41+0000\n"
+"POT-Creation-Date: 2020-12-01 16:43+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1699,9 +1699,21 @@ msgstr ""
 msgid "The private key provided to use their API"
 msgstr ""
 
-msgid ""
-"If you have a number with <a href=\"https://thinq.com\">ThinQ</a> you can connect it in a few easy steps to\n"
-"        automate your SMS numbers."
+#, python-format
+msgid "Easily use your own Enterprise WhatsApp account using %(link)s to communicate with your contacts. "
+msgstr ""
+
+msgid "API Endpoint"
+msgstr ""
+
+msgid "The API endpoint for your TextIt WhatsApp number"
+msgstr ""
+
+msgid "The access token for your TextIt WhatsApp number"
+msgstr ""
+
+#, python-format
+msgid "If you have a number with %(link)s you can connect it in a few easy steps to automate your SMS numbers."
 msgstr ""
 
 msgid ""
@@ -2866,65 +2878,7 @@ msgstr ""
 msgid "Contact Name"
 msgstr ""
 
-msgid "Contact Creation Date"
-msgstr ""
-
-msgid "Contact First Name"
-msgstr ""
-
-msgid "Contact Groups"
-msgstr ""
-
-msgid "Contact Language"
-msgstr ""
-
-msgid "Contact Email Address"
-msgstr ""
-
-msgid "Contact Phone"
-msgstr ""
-
-msgid "Contact Phone - E164"
-msgstr ""
-
-msgid "Contact UUID"
-msgstr ""
-
-msgid "New Contact"
-msgstr ""
-
-#, python-format
-msgid "Contact %s"
-msgstr ""
-
-msgid "Current Date and Time"
-msgstr ""
-
-msgid "Current Date"
-msgstr ""
-
-msgid "Tomorrow's Date"
-msgstr ""
-
-msgid "Yesterday's Date"
-msgstr ""
-
-msgid "Sent to"
-msgstr ""
-
-msgid "Sent to URN display"
-msgstr ""
-
-msgid "Sent to URN path"
-msgstr ""
-
-msgid "Sent to URN type"
-msgstr ""
-
-msgid "Sent to URN"
-msgstr ""
-
-msgid "All flow variables"
+msgid "Delete Label"
 msgstr ""
 
 msgid "Start Flow"
@@ -3296,10 +3250,7 @@ msgstr ""
 msgid "When this message was sent to the endpoint"
 msgstr ""
 
-msgid "Queued On"
-msgstr ""
-
-msgid "When this message was queued to be sent or handled."
+msgid "Name must not be blank or begin with punctuation"
 msgstr ""
 
 msgid "Direction"
@@ -3736,7 +3687,10 @@ msgstr ""
 msgid "The timezone for your workspace"
 msgstr ""
 
-msgid "Your password, at least eight letters please"
+msgid "At least eight characters or more"
+msgstr ""
+
+msgid "Workspace"
 msgstr ""
 
 msgid "Workspace"
@@ -3746,9 +3700,6 @@ msgid "The name of your workspace"
 msgstr ""
 
 msgid "That email address is already used"
-msgstr ""
-
-msgid "Passwords must contain at least 8 letters."
 msgstr ""
 
 msgid "The first name of the workspace administrator"
@@ -3763,7 +3714,7 @@ msgstr ""
 msgid "The timezone for the workspace"
 msgstr ""
 
-msgid "Their password, at least eight letters please. (leave blank for existing users)"
+msgid "Their password, at least eight letters please. (leave blank for existing login)"
 msgstr ""
 
 msgid "The name of the new workspace"
@@ -3775,7 +3726,7 @@ msgstr ""
 msgid "Login already exists, please do not include password."
 msgstr ""
 
-msgid "Password must be at least 8 characters long"
+msgid "Password required for new login."
 msgstr ""
 
 #, python-brace-format
@@ -4689,22 +4640,40 @@ msgstr ""
 msgid "Additionally you will need to make sure the following IP addresses are whitelisted"
 msgstr ""
 
-msgid "Are you sure you want to remove this number from your workspace?"
+#, python-format
+msgid ""
+"\n"
+"        There is an active flow using this channel. It cannot be deleted until it is removed from the\n"
+"\n"
+"      "
+msgid_plural ""
+"\n"
+"        There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
+"\n"
+"      "
+msgstr[0] ""
+msgstr[1] ""
+
+msgid ""
+"\n"
+"        flow.\n"
+"      "
+msgid_plural ""
+"\n"
+"        flows.\n"
+"      "
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "You are about to disable bulk sending for <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
 msgstr ""
 
-msgid "Cancel"
+#, python-format
+msgid "You are about to delete the channel <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
 msgstr ""
 
-msgid "Remove Phone"
-msgstr ""
-
-msgid "Bulk sending enabled"
-msgstr ""
-
-msgid "Voice calls enabled"
-msgstr ""
-
-msgid "Channel Log"
+msgid "Bulk sending"
 msgstr ""
 
 msgid "Call Log"
@@ -5334,7 +5303,8 @@ msgid ""
 "      "
 msgstr ""
 
-msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook. To do so:"
+#, python-format
+msgid "Each message sent to the channel will have a URN in the format %(format)s where the channel UUID is the FreshChat channel's UUID."
 msgstr ""
 
 msgid "In the FreshChat web interface, under Settings, API Tokens, select Generate Token. Once the token is created you'll enter it below."
@@ -5344,23 +5314,14 @@ msgid "Under Settings again, select Webhooks and copy the Public Key and paste i
 msgstr ""
 
 #, python-format
-msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat Message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\">FreshChat API</a>."
+msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\">FreshChat API</a>."
 msgstr ""
 
 msgid "Once you press Submit below with all the information configured, the confirmation page will give you the URL to use for the FreshChat Webhooks. Enter this URL on the Settings page, under Webhooks where the Public Key was copied from before."
 msgstr ""
 
-msgid "Each Message sent to the channel will have a URN that's in the format of <code>channel-uuid/user-uuid</code> where the channel uuid is the FreshChat Message Channels uuid."
-msgstr ""
-
 #, python-format
-msgid ""
-"\n"
-"        You can connect your <a href=\"http://www.globelabs.com.ph/\">Globe Labs</a> application to %(name)s using the fields below. You\n"
-"        will first need to create a Globe Labs application, then get approval from Globe Labs by sending an email\n"
-"        to <a href:\"mailto:api@globelabsbeta.com\">api@globelabsbeta.com</a>.\n"
-"\n"
-"      "
+msgid "You can connect your <a href=\"http://www.globelabs.com.ph/\">Globe Labs</a> application to %(name)s using the fields below. You will first need to create a Globe Labs application, then get approval from Globe Labs by sending an email to <a href:\"mailto:api@globelabsbeta.com\">api@globelabsbeta.com</a>."
 msgstr ""
 
 msgid ""
@@ -5447,18 +5408,10 @@ msgid ""
 "          "
 msgstr ""
 
-msgid ""
-"\n"
-"            Activate the permission to login via web application in the \"Settings > Account > Allow login\"\n"
-"\n"
-"          "
+msgid "Activate the permission to login via web application in the <i>Settings</i> &gt; <i>Account</i> &gt; <i>Allow login</i>"
 msgstr ""
 
-msgid ""
-"\n"
-"            Register your email and password via the application \"Settings > Account > Email Account\"\n"
-"\n"
-"          "
+msgid "Register your email and password via the application <i>Settings</i> &gt; <i>Account</i> &gt; <i>Email Account</i>"
 msgstr ""
 
 msgid ""
@@ -5468,18 +5421,10 @@ msgid ""
 "          "
 msgstr ""
 
-msgid ""
-"\n"
-"                In <a href=\"https://business.line.me/en/\">LINE Business Center</a>, select \"Messaging API\" in the \"Services\"\n"
-"\n"
-"              "
+msgid "In <a href=\"https://business.line.me/en/\">LINE Business Center</a>, select <i>Messaging API</i> in <i>Services</i>"
 msgstr ""
 
-msgid ""
-"\n"
-"                Select \"Start using Messaging API\"\n"
-"\n"
-"              "
+msgid "Select <i>Start using Messaging API</i>"
 msgstr ""
 
 msgid ""
@@ -5496,39 +5441,31 @@ msgid ""
 "                  "
 msgstr ""
 
-msgid ""
-"\n"
-"                After the creation process of the LINE business account, you will see the page to add a new channel of communication \"Messaging API.\" Enter the name and select the appropriate category and click OK.\n"
-"\n"
-"              "
+msgid "After the creation process of the LINE business account, you will see the page to add a new channel of communication <i>Messaging API</i>. Enter the name and select the appropriate category and click OK."
 msgstr ""
 
-msgid ""
-"\n"
-"                In the next step, click the \"LINE @ Manager\" and it will redirect you to the API activation page.\n"
-"\n"
-"              "
+msgid "In the next step, click the <i>LINE @ Manager</i> and it will redirect you to the API activation page."
 msgstr ""
 
-msgid ""
-"\n"
-"                Click \"Enable API\" and confirm. (By doing so, the status of your API will be \"Valid\")\n"
-"\n"
-"              "
+msgid "Click \"Enable API\" and confirm. (By doing so, the status of your API will be <i>Valid</i>)"
 msgstr ""
 
-msgid ""
-"\n"
-"                Enable the option to allow the use of Webhooks and click \"Save.\"\n"
-"\n"
-"              "
+msgid "Enable the option to allow the use of Webhooks and click <i>Save</i>."
 msgstr ""
 
-msgid ""
-"\n"
-"            Set your bot:\n"
-"\n"
-"          "
+msgid "Set your bot:"
+msgstr ""
+
+msgid "Click on the menu \"Accounts\" at the top of the page at the link <a href=\"https://business.line.me\">https://business.line.me</a>"
+msgstr ""
+
+msgid "In the communication channel of your choice, click on the <i>LINE Developers</i> button, accept the terms, and it will direct you to a page with the information needed to fill out in the form below (Channel ID, Channel Name, Channel Secret and Channel Access Token)."
+msgstr ""
+
+msgid "Note: To generate the Channel Access Token click on <i>Issue</i> button"
+msgstr ""
+
+msgid "To finish the configuration of Line channel you'll need to set the following callback URL in the Line Bot settings page, following the steps below:"
 msgstr ""
 
 msgid ""
@@ -5647,7 +5584,7 @@ msgid ""
 "      "
 msgstr ""
 
-msgid "Read more about the limits placed on Twilio's Free Trial numbers."
+msgid "Start a new chat with the <a href=\"https://telegram.me/botfather\">BotFather</a>. You can do so on your device by searching for \"botfather\" and starting a new chat."
 msgstr ""
 
 msgid ""
@@ -5665,6 +5602,9 @@ msgid ""
 "        when they want to push a message to %(brand)s.\n"
 "\n"
 "      "
+msgstr ""
+
+msgid "You can quickly connect TextIt WhatsApp numbers by entering the credentials below. You can find the API endpoint and access token by visiting your TextIt WhatsApp account page."
 msgstr ""
 
 msgid "You have connected a Twilio Trial Account which has some restrictions."
@@ -6397,14 +6337,7 @@ msgid ""
 "You can download your %(brand)s flow results by clicking on the following link:\n"
 msgstr ""
 
-msgid "What is a Flow?"
-msgstr ""
-
-msgid ""
-"\n"
-"        Flows let you easily pose a set of questions to a group of users. When you send people through a flow over SMS,\n"
-"        it is natural just like any other conversation.\n"
-"      "
+msgid "Flows let you easily pose a set of questions to a group of users. When you send people through a flow over SMS, it is natural just like any other conversation."
 msgstr ""
 
 #, python-format
@@ -6415,9 +6348,6 @@ msgid ""
 "        create highly personal and engaging experiences for your users.\n"
 "\n"
 "      "
-msgstr ""
-
-msgid "Create Flow"
 msgstr ""
 
 msgid "No results yet"
@@ -6496,18 +6426,6 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-msgid ""
-"\n"
-"                flow.\n"
-"            "
-msgid_plural ""
-"\n"
-"                flows.\n"
-"\n"
-"            "
-msgstr[0] ""
-msgstr[1] ""
-
 #, python-format
 msgid ""
 "\n"
@@ -6520,10 +6438,10 @@ msgid ""
 "            "
 msgstr ""
 
-msgid "Delete Flow"
+msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
 msgstr ""
 
-msgid "Update Flow"
+msgid "Change Language"
 msgstr ""
 
 msgid "The new editor provides powerful new features and better performance, but please note that this cannot be undone."
@@ -6597,7 +6515,10 @@ msgstr ""
 msgid "Click here to add a message"
 msgstr ""
 
-msgid "Remove from all groups"
+msgid "Create Flow"
+msgstr ""
+
+msgid "Webhook Call Log"
 msgstr ""
 
 msgid "Recent Messages"
@@ -6609,7 +6530,13 @@ msgstr ""
 msgid "Wait for "
 msgstr ""
 
-msgid "Wait for USSD Menu"
+msgid "Delete Run"
+msgstr ""
+
+msgid "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
+msgstr ""
+
+msgid "Overview"
 msgstr ""
 
 msgid "Wait for USSD Response"
@@ -6633,7 +6560,12 @@ msgstr ""
 msgid "Call Webhook"
 msgstr ""
 
-msgid "Call Zapier"
+#, python-format
+msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
+msgstr ""
+
+#, python-format
+msgid "was started by %(user)s for"
 msgstr ""
 
 msgid "Split by Expression"
@@ -6661,66 +6593,7 @@ msgstr ""
 msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the workspace, communication with that contact will default to <b>%(language)s</b>."
 msgstr ""
 
-msgid ""
-"\n"
-"      Sorry, this flow cannot be exported because it references another flow. To export it, please remove any\n"
-"      actions that reference other flows and try again.\n"
-"\n"
-"    "
-msgstr ""
-
-msgid "Back to Flow"
-msgstr ""
-
-msgid "Extracts a <a href=\"https://en.wikipedia.org/wiki/Gettext\">gettext</a> PO file from the flow which can later be re-imported with updated translations."
-msgstr ""
-
-msgid "Remove Label"
-msgstr ""
-
-msgid "Are you sure you want to remove this label?"
-msgstr ""
-
-msgid "You cannot remove a label which has child labels. Please remove all children first."
-msgstr ""
-
-msgid "Importing a PO file will replace all matching translations in the flow for the selected language."
-msgstr ""
-
-msgid "Selected Flow"
-msgstr ""
-
-msgid "Base Language"
-msgstr ""
-
-msgid "Uploaded PO File"
-msgstr ""
-
-msgid "Number of entries"
-msgstr ""
-
-msgid "Number of translations"
-msgstr ""
-
-msgid "Upload"
-msgstr ""
-
-msgid "Back"
-msgstr ""
-
-msgid "Webhook Call Log"
-msgstr ""
-
-msgid "Unlabel"
-msgstr ""
-
-msgid "Add Label"
-msgstr ""
-
-msgid "Download Results"
-msgstr ""
-
-msgid "No runs"
+msgid "No related flows."
 msgstr ""
 
 #, python-format
@@ -7027,10 +6900,7 @@ msgid ""
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"        %(name)s also keeps track of calls that are received on your channel so you can return any calls which may have been made to it.\n"
-"      "
+msgid "Uh oh, we couldn't delete %(name)s."
 msgstr ""
 
 msgid "Numeric Value:"
@@ -7672,6 +7542,9 @@ msgid "Logins"
 msgstr ""
 
 msgid "Admins"
+msgstr ""
+
+msgid "Remove"
 msgstr ""
 
 msgid "You must have at least one administator"

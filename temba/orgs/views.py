@@ -31,6 +31,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import Group, User
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError
@@ -253,8 +254,9 @@ class OrgSignupForm(forms.ModelForm):
     timezone = TimeZoneFormField(help_text=_("The timezone for your workspace"), widget=forms.widgets.HiddenInput())
 
     password = forms.CharField(
-        help_text="At least eight characters or more",
         widget=InputWidget(attrs={"hide_label": True, "password": True, "placeholder": _("Password")},),
+        validators=[validate_password],
+        help_text=_("At least eight characters or more"),
     )
 
     name = forms.CharField(
@@ -277,13 +279,6 @@ class OrgSignupForm(forms.ModelForm):
 
         return email.lower()
 
-    def clean_password(self):
-        password = self.cleaned_data["password"]
-        if password:
-            if not len(password) >= 8:
-                raise forms.ValidationError(_("Passwords must contain at least 8 letters."))
-        return password
-
     class Meta:
         model = Org
         fields = "__all__"
@@ -305,7 +300,7 @@ class OrgGrantForm(forms.ModelForm):
     password = forms.CharField(
         widget=forms.PasswordInput,
         required=False,
-        help_text=_("Their password, at least eight letters please. (leave blank for existing users)"),
+        help_text=_("Their password, at least eight letters please. (leave blank for existing login)"),
     )
     name = forms.CharField(label=_("Workspace"), help_text=_("The name of the new workspace"))
     credits = forms.ChoiceField(choices=(), help_text=_("The initial number of credits granted to this workspace"))
@@ -337,9 +332,11 @@ class OrgGrantForm(forms.ModelForm):
             if user:
                 if password:
                     raise ValidationError(_("Login already exists, please do not include password."))
+            else:
+                if not password:
+                    raise ValidationError(_("Password required for new login."))
 
-            elif not password or len(password) < 8:
-                raise ValidationError(_("Password must be at least 8 characters long"))
+                validate_password(password)
 
         return data
 
@@ -767,9 +764,22 @@ class OrgCRUDL(SmartCRUDL):
 
         form_class = TwilioConnectForm
         submit_button_name = "Save"
-        success_url = "@channels.types.twilio.claim"
         field_config = dict(account_sid=dict(label=""), account_token=dict(label=""))
         success_message = "Twilio Account successfully connected."
+
+        def get_success_url(self):
+            claim_type = self.request.GET.get("claim_type", "twilio")
+
+            if claim_type == "twilio_messaging_service":
+                return reverse("channels.types.twilio_messaging_service.claim")
+
+            if claim_type == "twilio_whatsapp":
+                return reverse("channels.types.twilio_whatsapp.claim")
+
+            if claim_type == "twilio":
+                return reverse("channels.types.twilio.claim")
+
+            return reverse("channels.channel_claim")
 
         def form_valid(self, form):
             account_sid = form.cleaned_data["account_sid"]
@@ -2064,6 +2074,8 @@ class OrgCRUDL(SmartCRUDL):
             )
             password = forms.CharField(
                 widget=forms.PasswordInput(attrs={"placeholder": "Password"}),
+                required=True,
+                validators=[validate_password],
                 help_text=_("Your password, at least eight letters please"),
             )
 
@@ -2077,13 +2089,6 @@ class OrgCRUDL(SmartCRUDL):
                         raise forms.ValidationError(_("That email address is already used"))
 
                 return email.lower()
-
-            def clean_password(self):
-                password = self.cleaned_data["password"]
-                if password:
-                    if not len(password) >= 8:
-                        raise forms.ValidationError(_("Passwords must contain at least 8 letters."))
-                return password
 
         permission = None
         form_class = PasswordForm
@@ -2956,6 +2961,7 @@ class OrgCRUDL(SmartCRUDL):
                     attrs={
                         "placeholder": _("Select the primary language for contacts with no language preference"),
                         "searchable": True,
+                        "queryParam": "q",
                         "endpoint": reverse_lazy("orgs.org_languages"),
                     }
                 ),
@@ -2968,6 +2974,7 @@ class OrgCRUDL(SmartCRUDL):
                     attrs={
                         "placeholder": _("Additional languages you would like to provid translations for"),
                         "searchable": True,
+                        "queryParam": "q",
                         "endpoint": reverse_lazy("orgs.org_languages"),
                     }
                 ),
@@ -3024,8 +3031,7 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def get(self, request, *args, **kwargs):
-
-            if "search" in self.request.GET or "initial" in self.request.GET or "q" in self.request.GET:
+            if request.is_ajax():
                 initial = self.request.GET.get("initial", "").split(",")
                 matches = []
 

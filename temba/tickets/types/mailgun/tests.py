@@ -11,11 +11,11 @@ from .type import MailgunType
 
 
 class MailgunTypeTest(TembaTest):
-    def test_is_available(self):
+    def test_is_available_to(self):
         with override_settings(MAILGUN_API_KEY=""):
-            self.assertFalse(MailgunType().is_available())
+            self.assertFalse(MailgunType().is_available_to(self.user))
         with override_settings(MAILGUN_API_KEY="1234567"):
-            self.assertTrue(MailgunType().is_available())
+            self.assertTrue(MailgunType().is_available_to(self.user))
 
     @override_settings(MAILGUN_API_KEY="1234567")
     def test_connect(self):

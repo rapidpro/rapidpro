@@ -27,7 +27,7 @@
             .flex.flex-col
               -if org_perms.triggers.trigger_create
                 .w-64.mr-5
-                  .button-primary{onclick:"goto(event)", href:"{% url 'triggers.trigger_create' %}"}
+                  .button-primary.block(onclick="goto(event)" href="{% url 'triggers.trigger_create' %}")
                     -trans "Create Trigger"
             
             .lp-nav.upper
@@ -104,7 +104,8 @@
                             -trans "Start"
                           -else
                             -trans "starts"
-                          %a{href:'{%url "flows.flow_editor" obj.flow.uuid %}'}= obj.flow
+                          .linked.inline(onclick="goto(event)" href='{%url "flows.flow_editor" obj.flow.uuid %}')<
+                            {{obj.flow}}
 
                           -if obj.schedule
                             -if obj.schedule.next_fire and not obj.is_archived

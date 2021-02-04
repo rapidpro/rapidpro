@@ -1,9 +1,9 @@
 import copy
 import datetime
+import io
 import os
 from collections import OrderedDict
 from decimal import Decimal
-from io import StringIO
 from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
@@ -67,7 +67,16 @@ from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import IDSliceQuerySet, JSONAsTextField, patch_queryset_count
 from .templatetags.temba import short_datetime
-from .text import clean_string, decode_base64, generate_token, random_string, slugify_with, truncate, unsnakify
+from .text import (
+    clean_string,
+    decode_base64,
+    decode_stream,
+    generate_token,
+    random_string,
+    slugify_with,
+    truncate,
+    unsnakify,
+)
 from .timezones import TimeZoneFormField, timezone_to_country_code
 
 
@@ -187,6 +196,13 @@ class InitTest(TembaTest):
         rs = random_string(1000)
         self.assertEqual(1000, len(rs))
         self.assertFalse("1" in rs or "I" in rs or "0" in rs or "O" in rs)
+
+    def test_decode_stream(self):
+        self.assertEqual("", decode_stream(io.BytesIO(b"")).read())
+        self.assertEqual("hello", decode_stream(io.BytesIO(b"hello")).read())
+        self.assertEqual("hello👋", decode_stream(io.BytesIO(b"hello\xf0\x9f\x91\x8b")).read())  # UTF-8
+        self.assertEqual("hello", decode_stream(io.BytesIO(b"\xff\xfeh\x00e\x00l\x00l\x00o\x00")).read())  # UTF-16
+        self.assertEqual("hèllo", decode_stream(io.BytesIO(b"h\xe8llo")).read())  # ISO8859-1
 
     def test_percentage(self):
         self.assertEqual(0, percentage(0, 100))
@@ -640,7 +656,7 @@ class TemplateTagTestSimple(TestCase):
 
 class CacheTest(TembaTest):
     def test_get_cacheable_result(self):
-        self.create_contact("Bob", number="1234")
+        self.create_contact("Bob", phone="1234")
 
         def calculate():
             return Contact.objects.all().count(), 60
@@ -650,7 +666,7 @@ class CacheTest(TembaTest):
         with self.assertNumQueries(0):
             self.assertEqual(get_cacheable_result("test_contact_count", calculate), 1)  # from cache
 
-        self.create_contact("Jim", number="2345")
+        self.create_contact("Jim", phone="2345")
 
         with self.assertNumQueries(0):
             self.assertEqual(get_cacheable_result("test_contact_count", calculate), 1)  # not updated
@@ -939,7 +955,7 @@ class GSM7Test(TembaTest):
 
 class ModelsTest(TembaTest):
     def test_require_update_fields(self):
-        contact = self.create_contact("Bob", twitter="bobby")
+        contact = self.create_contact("Bob", urns=["twitter:bobby"])
         flow = self.get_flow("color")
         run = FlowRun.objects.create(org=self.org, flow=flow, contact=contact)
 
@@ -969,8 +985,8 @@ class ModelsTest(TembaTest):
         self.assertEqual(curr, 100)
 
     def test_patch_queryset_count(self):
-        self.create_contact("Ann", twitter="ann")
-        self.create_contact("Bob", twitter="bob")
+        self.create_contact("Ann", urns=["twitter:ann"])
+        self.create_contact("Bob", urns=["twitter:bob"])
 
         with self.assertNumQueries(0):
             qs = Contact.objects.all()
@@ -1172,7 +1188,7 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
 
 class PreDeployTest(TembaTest):
     def test_command(self):
-        buffer = StringIO()
+        buffer = io.StringIO()
         call_command("pre_deploy", stdout=buffer)
 
         self.assertEqual("", buffer.getvalue())
@@ -1180,7 +1196,7 @@ class PreDeployTest(TembaTest):
         ExportContactsTask.create(self.org, self.admin)
         ExportContactsTask.create(self.org, self.admin)
 
-        buffer = StringIO()
+        buffer = io.StringIO()
         call_command("pre_deploy", stdout=buffer)
 
         self.assertEqual(
@@ -1304,7 +1320,7 @@ class TestJSONAsTextField(TestCase):
 
 class TestJSONField(TembaTest):
     def test_jsonfield_decimal_encoding(self):
-        contact = self.create_contact("Xavier", number="+5939790990001")
+        contact = self.create_contact("Xavier", phone="+5939790990001")
 
         with connection.cursor() as cur:
             cur.execute(
