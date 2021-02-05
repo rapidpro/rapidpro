@@ -22,7 +22,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, F
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
 from django.http import Http404, HttpResponse, HttpResponseRedirect, JsonResponse
@@ -1414,9 +1414,6 @@ class ContactCRUDL(SmartCRUDL):
 
             return HttpResponse(json.dumps(result), content_type="application/json")
 
-        def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).exclude(urns__isnull=True).exclude(urns__scheme="ext")
-
         def post(self, request, *args, **kwargs):
             optin_flow_uuid = request.POST.get("optin_flow_uuid", None)
             flow = Flow.objects.filter(
@@ -1471,14 +1468,6 @@ class ContactCRUDL(SmartCRUDL):
             org = self.request.user.get_org()
             group = self.derive_group()
             view_url = reverse("contacts.contact_invite_participants")
-            count = (
-                Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE)
-                .exclude(urns__isnull=True)
-                .exclude(urns__scheme="ext")
-                .count()
-            )
-
-            folders = [dict(count=count, label=_("All Contacts"), url=view_url)]
 
             available_flows = Flow.objects.filter(org=org, is_active=True, is_system=False, is_archived=False)
             current_optin_flow = available_flows.filter(uuid=org.get_optin_flow())
@@ -1493,28 +1482,52 @@ class ContactCRUDL(SmartCRUDL):
             context["contacts"] = contacts
             context["flows"] = available_flows
             context["optin_flow"] = org.get_optin_flow()
-            context["folders"] = folders
-            context["groups"] = self.get_user_groups(org)
             context["has_contacts"] = contacts or org.has_contacts()
-            context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
             context["current_group"] = group
+            context["groups"] = self.get_user_groups(org)
 
-            group_counts = dict(
-                Contact.objects.filter(
-                    org=org,
-                    status=Contact.STATUS_ACTIVE,
-                    all_groups__in=ContactGroup.get_user_groups(org),
-                )
-                .exclude(urns__isnull=True)
-                .exclude(urns__scheme="ext")
-                .values("all_groups")
-                .annotate(total=Count("*"))
-                .values_list("all_groups", "total")
-            )
-            for group in context["groups"]:
-                group["count"] = group_counts.get(group["pk"], 0)
+            all_contacts_count = sum(map(lambda x: x["count"], context["groups"]))
+            context["folders"] = [dict(count=all_contacts_count, label=_("All Contacts"), url=view_url)]
+            context["sort_direction"] = self.sort_direction
+            context["sort_field"] = self.sort_field
 
             return context
+
+        def get_queryset(self, **kwargs):
+            group = self.derive_group()
+            qs = (
+                group.contacts
+                .exclude(urns__isnull=True)
+                .exclude(urns__scheme="ext")
+                .prefetch_related("org", "all_groups")
+            )
+            sort_on = self.request.GET.get("sort_on", "")
+            self.sort_direction = "desc" if sort_on.startswith("-") else "asc"
+            self.sort_field = sort_on.lstrip("-")
+            qs = qs.order_by(sort_on if self.sort_field == "created_on" else "-id")
+            return qs
+
+        def get_user_groups(self, org):
+            GroupContacts = ContactGroup.contacts.through
+            contact_groups = (
+                GroupContacts.objects
+                .filter(
+                    contactgroup__group_type=ContactGroup.TYPE_USER_DEFINED,
+                    contactgroup__is_active=True,
+                    contactgroup__query=None,  # skip dynamic groups
+                    contactgroup__org=org,
+                    contact__status=Contact.STATUS_ACTIVE,
+                )
+                .exclude(contact__urns__isnull=True)
+                .exclude(contact__urns__scheme="ext")
+                .values(
+                    pk=F("contactgroup__id"),
+                    uuid=F("contactgroup__uuid"),
+                    label=F("contactgroup__name"),
+                )
+                .annotate(count=Count("*"))
+            )
+            return contact_groups
 
 
 class ContactGroupCRUDL(SmartCRUDL):
