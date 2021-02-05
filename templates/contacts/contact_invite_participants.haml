@@ -109,7 +109,7 @@
                                 %div
                                   -trans "Created On"
                                   %span.sort.icon.icon-arrow-down-2.sort-desc
-                          %th
+                          %th.invite-column
 
                     %tbody
                       - for object in contacts
@@ -127,7 +127,7 @@
                               %td.field
                                 {{ object|contact_field:field.key }}
 
-                          %td.value-received.field_received
+                          %td.field_received
                             %nobr
                               {% short_datetime object.created_on %}
 
@@ -181,50 +181,50 @@
 
 -block extra-style
   :css
-    @media only screen and (max-width: 1500px) {
-      th:nth-child(n+10), td:nth-child(n+10) {
-        display:none;
-      }
-    }
-
     @media only screen and (max-width: 1600px) {
       th:nth-child(n+9), td:nth-child(n+9) {
         display:none;
       }
     }
 
-    @media only screen and (max-width: 1450px) {
-      th:nth-child(n+9), td:nth-child(n+9) {
-        display:none;
-      }
-    }
-
-    @media only screen and (max-width: 1300px) {
+    @media only screen and (max-width: 1500px) {
       th:nth-child(n+8), td:nth-child(n+8) {
         display:none;
       }
     }
 
-    @media only screen and (max-width: 1150px) {
+    @media only screen and (max-width: 1450px) {
       th:nth-child(n+7), td:nth-child(n+7) {
         display:none;
       }
     }
 
-    @media only screen and (max-width: 1000px) {
+    @media only screen and (max-width: 1300px) {
       th:nth-child(n+6), td:nth-child(n+6) {
         display:none;
       }
     }
 
-    @media only screen and (max-width: 850px) {
+    @media only screen and (max-width: 1150px) {
       th:nth-child(n+5), td:nth-child(n+5) {
         display:none;
       }
     }
 
+    @media only screen and (max-width: 1000px) {
+      th:nth-child(n+4), td:nth-child(n+4) {
+        display:none;
+      }
+    }
+
+    @media only screen and (max-width: 850px) {
+      th:nth-child(n+3), td:nth-child(n+3) {
+        display:none;
+      }
+    }
+
     @media only screen and (max-width: 700px) {
-      th:nth-child(n+0), td:nth-child(n+4) {
+      th:nth-child(n+2), td:nth-child(n+2) {
         display:none;
       }
     }
@@ -297,6 +297,11 @@
       height: 36px;
     }
 
+    .invite-column {
+      display: table-cell !important;
+      width: 100px;
+    }
+
 
 -block extra-script
   {{ block.super }}
@@ -315,7 +320,6 @@
     var flowEditLink = document.getElementById("id_open_in_flow_editor");
     var inviteLinks = $('a.invite');
 
-    console.log(flowSelect);
     flowEditLink.onmousedown = () => {
       var hrefTemplate = flowEditLink.getAttribute('data-href-template');
       var flowUUID = flowSelect.values[0].value;
