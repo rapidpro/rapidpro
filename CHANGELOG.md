@@ -1,3 +1,9 @@
+v6.1.38
+----------
+ * Update flow editor to 1.12.10 with failsafe errors
+ * Make validation of external channel URLs disallow private and link local hosts
+ * Cleanup middleware used to set org, timezone and language
+
 v6.1.37
 ----------
  * Update components and editor to latest versions
