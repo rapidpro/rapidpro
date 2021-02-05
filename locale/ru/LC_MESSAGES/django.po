@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-05 18:04+0000\n"
+"POT-Creation-Date: 2021-02-05 21:04+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -9423,11 +9423,13 @@ msgstr "Резервные токены можно использовать, е�
 msgid "Any tokens you may have previously generated are invalid."
 msgstr ""
 
-msgid "Generate Backup Tokens"
-msgstr "Генерировать Резервные Токены"
+msgid "Disable"
+msgstr ""
 
-msgid "Disable Two Factor"
-msgstr "Отключить двухфакторную"
+#, fuzzy
+#| msgid "Generate Backup Tokens"
+msgid "Regenerate Backup Tokens"
+msgstr "Генерировать Резервные Токены"
 
 #, fuzzy
 #| msgid "Two Factor Authentication"
@@ -10350,6 +10352,9 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Disable Two Factor"
+#~ msgstr "Отключить двухфакторную"
 
 #~ msgid "OTP Secret"
 #~ msgstr "Секретный ключ OTP"

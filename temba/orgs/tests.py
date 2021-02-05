@@ -685,12 +685,12 @@ class OrgTest(TembaTest):
         current_tokens = [t.token for t in self.admin.backup_tokens.all()]
 
         # try regenerating those tokens
-        self.client.post(reverse("orgs.org_two_factor"), {"regenerate_backup_tokens": True})
+        self.client.post(reverse("orgs.org_two_factor"), {"action": "regenerate_backup_tokens"})
         self.assertEqual(10, self.admin.backup_tokens.count())
         self.assertNotEqual([t.token for t in self.admin.backup_tokens.all()], current_tokens)
 
         # disable 2FA
-        response = self.client.post(reverse("orgs.org_two_factor"), {"disable_two_factor_auth": True})
+        response = self.client.post(reverse("orgs.org_two_factor"), {"action": "disable"})
         self.assertEqual(200, response.status_code)
 
         self.assertFalse(self.admin.get_settings().two_factor_enabled)

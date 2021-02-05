@@ -1598,10 +1598,11 @@ class OrgCRUDL(SmartCRUDL):
         def post(self, request, *args, **kwargs):
             user = self.get_user()
             form = self.get_form()
+            action = request.POST.get("action", "")
 
-            if "disable_two_factor_auth" in request.POST:
+            if action == "disable":
                 user.disable_2fa()
-            elif "regenerate_backup_tokens" in request.POST:
+            elif action == "regenerate_backup_tokens":
                 BackupToken.generate_for_user(user)
                 return JsonResponse({"tokens": self.get_backup_tokens(user)})
             elif form.is_valid():
