@@ -591,7 +591,7 @@ class ContactCRUDLTest(TembaTest):
         Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact1, subject="Question 2", status="O")
 
         self.create_incoming_msg(contact1, "I have an issue")
-        self.create_outgoing_msg(contact1, "We can help")
+        self.create_broadcast(self.admin, "We can help", contacts=[contact1])
 
         # contact 2 has an open ticket and a closed ticket
         Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact2, subject="Question 3", status="O")
@@ -619,11 +619,20 @@ class ContactCRUDLTest(TembaTest):
                 "page": 1,
                 "has_next": False,
                 "contacts": [
-                    {"uuid": str(contact2.uuid), "name": "Frank", "last_msg": {"text": "Hello?", "direction": "I"}},
+                    {
+                        "uuid": str(contact2.uuid),
+                        "name": "Frank",
+                        "last_msg": {"text": "Hello?", "direction": "I", "type": "I", "sender": None},
+                    },
                     {
                         "uuid": str(contact1.uuid),
                         "name": "Joe",
-                        "last_msg": {"text": "We can help", "direction": "O"},
+                        "last_msg": {
+                            "text": "We can help",
+                            "direction": "O",
+                            "type": "I",
+                            "sender": {"id": self.admin.id, "email": "Administrator@nyaruka.com"},
+                        },
                     },
                 ],
             },

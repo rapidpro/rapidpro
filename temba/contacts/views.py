@@ -1412,7 +1412,9 @@ class ContactCRUDL(SmartCRUDL):
             context["object_list"] = contacts
 
             last_msg_ids = Msg.objects.filter(contact__in=contacts).values("contact").annotate(last_msg_id=Max("id"))
-            last_msgs = Msg.objects.filter(id__in=[m["last_msg_id"] for m in last_msg_ids])
+            last_msgs = Msg.objects.filter(id__in=[m["last_msg_id"] for m in last_msg_ids]).select_related(
+                "broadcast__created_by"
+            )
 
             context["last_msgs"] = {m.contact: m for m in last_msgs}
 
@@ -1420,7 +1422,16 @@ class ContactCRUDL(SmartCRUDL):
 
         def as_json(self, context):
             def msg_as_json(m):
-                return {"text": m.text, "direction": m.direction}
+                sender = None
+                if m.broadcast and m.broadcast.created_by:
+                    sender = {"id": m.broadcast.created_by.id, "email": m.broadcast.created_by.email}
+
+                return {
+                    "text": m.text,
+                    "direction": m.direction,
+                    "type": m.msg_type,
+                    "sender": sender,
+                }
 
             def contact_as_json(c):
                 last_msg = context["last_msgs"].get(c)
