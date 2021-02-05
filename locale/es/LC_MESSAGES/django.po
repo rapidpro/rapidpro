@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-04 20:27+0000\n"
+"POT-Creation-Date: 2021-02-05 18:04+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -1782,6 +1782,37 @@ msgstr "La contraseña que usará para autenticar para Kannel, si lo deja en bla
 #| msgid "The username to use to authenticate to Kannel, if left blank we will generate one for you"
 msgid "The token Junebug should use to authenticate"
 msgstr "El nombre de usuario que usará para autenticar para Kannel, si lo deja en blanco le crearemos uno"
+
+msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+msgstr ""
+
+#, fuzzy
+#| msgid "To finish configuring your Zenvia connection you'll need to set the following callback URLs on your Zenvia account."
+msgid "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra account."
+msgstr "Para terminar de configurar su conexión Zenvia tendra que establecer los siguientes URLs de devolución de llamadas en su cuenta Zenvia."
+
+#, fuzzy
+#| msgid "To receive incoming messages, you need to set the receive URL for your Zenvia account."
+msgid "To receive incoming messages, you need to set the receive URL for your Kaleyra account."
+msgstr "Para recibir mensajes entrantes, tiene que establecer el URL para recibir para su cuenta Zenvia."
+
+#, fuzzy
+#| msgid "Account:"
+msgid "Account SID"
+msgstr "Cuenta:"
+
+#, fuzzy
+#| msgid "Your Twilio Account SID"
+msgid "Your Kaleyra Account SID"
+msgstr "El SID de su Cuenta Twilio"
+
+#, fuzzy
+#| msgid "Your Nexmo API key"
+msgid "Your Kaleyra API Key"
+msgstr "Su Clave API de Nexmo"
+
+msgid "No org for this user, cannot claim"
+msgstr "No hay organización para este usuario, no puede pedir"
 
 #, fuzzy, python-format
 #| msgid "Connect your Kannel instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."
@@ -5053,11 +5084,6 @@ msgstr "Su clave y código secreto API de Nexmo son inválidos. Por favor, verif
 #, python-format
 msgid "Connecting to your DT One account failed with error text: %s"
 msgstr ""
-
-#, fuzzy
-#| msgid "Account:"
-msgid "Account SID"
-msgstr "Cuenta:"
 
 #, fuzzy
 #| msgid "Account Key"
@@ -11163,9 +11189,6 @@ msgstr ""
 #~ "        <a href=\"http://www.africastalking.com/account/sms/smscallback\" target=\"africastalking\">Callback URL</a>.\n"
 #~ "\n"
 #~ "      "
-
-#~ msgid "No org for this user, cannot claim"
-#~ msgstr "No hay organización para este usuario, no puede pedir"
 
 #, fuzzy
 #~| msgid ""

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-04 20:27+0000\n"
+"POT-Creation-Date: 2021-02-05 18:04+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1543,6 +1543,42 @@ msgstr "Пароль, который будет использоваться д�
 
 msgid "The token Junebug should use to authenticate"
 msgstr "Токен, который Junebug должен использовать для аутентификации"
+
+#, fuzzy
+#| msgid "If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio WhatsApp</a>"
+msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+msgstr "Если у Вас имеется Twilio для номера WhatsApp, Вы можете его подключить для общения с Вашими контактами WhatsApp. <a href=\"https://www.twilio.com/whatsapp/\">Узнайте подробнее о Twilio WhatsApp</a>"
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your Zenvia connection you'll need to set the following callback URLs on your Zenvia account.\n"
+#| "        "
+msgid "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra account."
+msgstr ""
+"\n"
+"        Для завершения настройки Вашего соединения Zenvia Вам потребуется установить следующие адреса URL обратного вызова в Вашей учетной записи Zenvia."
+
+#, fuzzy
+#| msgid "To receive incoming messages, you need to set the receive URL for your Zenvia account."
+msgid "To receive incoming messages, you need to set the receive URL for your Kaleyra account."
+msgstr "Для получения входящих сообщений Вам потребуется установить адрес URL получения в Вашей учетной записи Zenvia."
+
+msgid "Account SID"
+msgstr "SID Учетной записи"
+
+#, fuzzy
+#| msgid "Your Twilio Account SID"
+msgid "Your Kaleyra Account SID"
+msgstr "SID Вашей учетной записи Twilio "
+
+#, fuzzy
+#| msgid "Your Nexmo API key"
+msgid "Your Kaleyra API Key"
+msgstr "Ваш ключ API Nexmo "
+
+msgid "No org for this user, cannot claim"
+msgstr "Нет организации для этого пользователя, невозможно запросить"
 
 #, fuzzy, python-format
 #| msgid ""
@@ -4389,9 +4425,6 @@ msgstr "Ключ и секрет API Вашей учетной записи DT O
 #, python-format
 msgid "Connecting to your DT One account failed with error text: %s"
 msgstr "Подключение к Вашей учетной записи DT On не удалось. Текст ошибки: %s"
-
-msgid "Account SID"
-msgstr "SID Учетной записи"
 
 msgid "Account Token"
 msgstr "Токен Учетной записи"
@@ -10816,9 +10849,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "        и подключить его, выполнив несколько простых шагов.\n"
 #~ "        "
 
-#~ msgid "No org for this user, cannot claim"
-#~ msgstr "Нет организации для этого пользователя, невозможно запросить"
-
 #~ msgid ""
 #~ "\n"
 #~ "        If you have an <a href=\"https://www.arabiacell.com/\">ArabiaCell</a> number,\n"
@@ -10943,9 +10973,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "Easily add a two way number you have configured with <a href=\"https://www.twilio.com/\">Twilio</a> using their APIs."
 #~ msgstr "Легко добавьте двухсторонний номер, который Вы настроили с <a href=\"https://www.twilio.com/\">Twilio</a>, используя их API."
-
-#~ msgid "If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio WhatsApp</a>"
-#~ msgstr "Если у Вас имеется Twilio для номера WhatsApp, Вы можете его подключить для общения с Вашими контактами WhatsApp. <a href=\"https://www.twilio.com/whatsapp/\">Узнайте подробнее о Twilio WhatsApp</a>"
 
 #~ msgid ""
 #~ "\n"
