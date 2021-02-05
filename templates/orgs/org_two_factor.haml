@@ -1,8 +1,6 @@
 -extends 'smartmin/form.html'
 -load smartmin temba compress i18n
 
--url 'orgs.org_two_factor' as two_factor_url
-
 -block pre-form
   -if not two_factor_enabled
     .mb-4
@@ -36,14 +34,14 @@
       your account.
 
     .mt-4
-      %p#backup_text_help
+      %p#backup_text_help.hide
         -blocktrans trimmed
           Any tokens you may have previously generated are invalid.
 
     .mt-4
       #backup.font-mono
         -for token in backup_tokens
-          .inline-block.px-2
+          .inline-block.px-2(class="{% if token.is_used %}line-through{% endif %}")
             {{ token.token }}
 
     .mt-8
@@ -53,11 +51,8 @@
       %a.button-light.ml-4(href="{% url 'orgs.org_home' %}" id='disable-two-factor-auth' style='margin-top:5px')
         -trans "Disable Two Factor"
 
+    -url 'orgs.org_two_factor' as two_factor_url
     :javascript
-      $(document).ready(function () {
-        $("#backup_text_help").hide();
-      });
-
       $('#generate-backup-tokens').click(function() {
         $.ajax({
           type: "POST",
@@ -66,7 +61,7 @@
           success: function( backups ) {
             var tokenHtml = '';
             for (token of backups.tokens) {
-                tokenHtml = tokenHtml + `<div class="inline-block px-2">${token.token}</div>`;
+                tokenHtml = tokenHtml + `<div class="inline-block px-2 ${token.is_used ? 'line-through' : ''}">${token.token}</div>`;
             }
 
             $('#backup').html(tokenHtml);

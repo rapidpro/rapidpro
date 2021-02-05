@@ -1612,10 +1612,11 @@ class OrgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
+            brand = self.request.branding["name"]
             user = self.get_user()
             user_settings = user.get_settings()
             otp_secret = user_settings.otp_secret
-            secret_url = pyotp.TOTP(otp_secret).provisioning_uri(user.username, issuer_name="RapidPro")
+            secret_url = pyotp.TOTP(otp_secret).provisioning_uri(user.username, issuer_name=brand)
 
             context["two_factor_enabled"] = user_settings.two_factor_enabled
             context["secret_url"] = secret_url
@@ -1623,7 +1624,7 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def get_backup_tokens(self, user):
-            return [{"token": t.token, "is_used": t.is_used} for t in user.backup_tokens.filter(is_used=False)]
+            return [{"token": t.token, "is_used": t.is_used} for t in user.backup_tokens.all()]
 
     class Service(SmartFormView):
         class ServiceForm(forms.Form):
