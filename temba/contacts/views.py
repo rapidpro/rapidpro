@@ -3,6 +3,7 @@ from collections import OrderedDict
 from datetime import timedelta
 from typing import Dict, List
 
+from django.shortcuts import get_object_or_404
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -1147,7 +1148,7 @@ class ContactCRUDL(SmartCRUDL):
             return r"^%s/%s/(?P<group>[^/]+)/$" % (path, action)
 
         def get_object_org(self):
-            return ContactGroup.user_groups.get(uuid=self.kwargs["group"]).org
+            return get_object_or_404(ContactGroup.user_groups, uuid=self.kwargs["group"]).org
 
         def derive_group(self):
             return ContactGroup.user_groups.get(uuid=self.kwargs["group"], org=self.request.user.get_org())
