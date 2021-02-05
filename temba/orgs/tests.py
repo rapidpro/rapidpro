@@ -39,7 +39,15 @@ from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.orgs.models import BackupToken, Debit, OrgActivity, UserSettings
 from temba.orgs.tasks import suspend_topup_orgs_task
 from temba.request_logs.models import HTTPLog
-from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers, mock_mailroom
+from temba.tests import (
+    ESMockWithScroll,
+    MigrationTest,
+    MockResponse,
+    TembaNonAtomicTest,
+    TembaTest,
+    matchers,
+    mock_mailroom,
+)
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -5131,3 +5139,30 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
+
+
+class Populate2FAFieldsMigrationTest(MigrationTest):
+    app = "orgs"
+    migrate_from = "0075_auto_20210204_1638"
+    migrate_to = "0076_populate_2fa_fields"
+
+    def setUpBeforeMigration(self, apps):
+        BackupToken = apps.get_model("orgs", "BackupToken")
+        User = apps.get_model("auth", "User")
+        UserSettings = apps.get_model("orgs", "UserSettings")
+
+        admin = User.objects.get(id=self.admin.id)
+        editor = User.objects.get(id=self.editor.id)
+
+        admin_settings = UserSettings.objects.create(user=admin, otp_secret="1234567890123456")
+        editor_settings = UserSettings.objects.create(user=editor, otp_secret=None)
+
+        BackupToken.objects.create(user=admin, settings=admin_settings)
+        BackupToken.objects.create(user=None, settings=editor_settings)
+
+    def test_migration(self):
+        self.assertEqual(1, self.admin.backup_tokens.count())
+        self.assertEqual(1, self.editor.backup_tokens.count())
+
+        self.assertEqual("1234567890123456", self.admin.get_settings().otp_secret)  # unchanged
+        self.assertEqual(16, len(self.editor.get_settings().otp_secret))

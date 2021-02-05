@@ -74,6 +74,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="usersettings",
             name="otp_secret",
-            field=models.CharField(default=pyotp.random_base32, max_length=18, null=True, verbose_name="OTP Secret"),
+            field=models.CharField(default=pyotp.random_base32, max_length=16, null=True),
         ),
     ]

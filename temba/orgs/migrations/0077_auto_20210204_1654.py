@@ -10,7 +10,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("orgs", "0076_populate_backup_token_user"),
+        ("orgs", "0076_populate_2fa_fields"),
     ]
 
     operations = [

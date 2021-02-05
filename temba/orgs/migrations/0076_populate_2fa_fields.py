@@ -5,18 +5,22 @@ import pyotp
 from django.db import migrations
 
 
-def populate_backup_token_user(apps, schema_editor):
+def populate_2fa_fields(apps, schema_editor):
+    # populate BackupToken.user
     BackupToken = apps.get_model("orgs", "BackupToken")
-    for token in BackupToken.objects.all():
+    for token in BackupToken.objects.filter(user=None):
         token.user = token.settings.user
         token.save(update_fields=("user",))
 
-
-def populate_user_otp_secret(apps, schema_editor):
+    # populate UserSettings.otp_secret
     UserSettings = apps.get_model("orgs", "UserSettings")
     for us in UserSettings.objects.filter(otp_secret=None):
         us.otp_secret = pyotp.random_base32()
         us.save(update_fields=("otp_secret",))
+
+
+def reverse(apps, schema_editor):
+    pass
 
 
 class Migration(migrations.Migration):
@@ -26,6 +30,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(populate_backup_token_user),
-        migrations.RunPython(populate_user_otp_secret),
+        migrations.RunPython(populate_2fa_fields, reverse),
     ]
