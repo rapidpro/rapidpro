@@ -250,3 +250,23 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # APPLICATION LOGS
 # -----------------------------------------------------------------------------------
 FLOW_SESSION_TRIM_DAYS = env.int("FLOW_SESSION_TRIM_DAYS", default=7)
+
+
+# -----------------------------------------------------------------------------------
+# Weni Connect
+# -----------------------------------------------------------------------------------
+OIDC_RP_CLIENT_ID = env("OIDC_RP_CLIENT_ID")
+OIDC_RP_CLIENT_SECRET = env("OIDC_RP_CLIENT_SECRET")
+OIDC_OP_AUTHORIZATION_ENDPOINT = env("OIDC_OP_AUTHORIZATION_ENDPOINT")
+OIDC_OP_TOKEN_ENDPOINT = env("OIDC_OP_TOKEN_ENDPOINT")
+OIDC_OP_USER_ENDPOINT = env("OIDC_OP_USER_ENDPOINT")
+OIDC_OP_JWKS_ENDPOINT = env("OIDC_OP_JWKS_ENDPOINT")
+OIDC_RP_SIGN_ALGO = env("OIDC_RP_SIGN_ALGO", default="RS256")
+OIDC_DRF_AUTH_BACKEND = "weni.auth.oidc"
+AUTHENTICATION_BACKENDS = ("weni.auth.oidc",)
+REST_FRAMEWORK["REST_FRAMEWORK"] = (tuple(("mozilla_django_oidc.contrib.drf.OIDCAuthentication","temba.api.support.APISessionAuthentication", "temba.api.support.APITokenAuthentication", "temba.api.support.APIBasicAuthentication")))
+MIDDLEWARE = MIDDLEWARE + ("mozilla_django_oidc.middleware.SessionRefresh",)
+INSTALLED_APPS += ("mozilla_django_oidc",)
+LOGGING["loggers"]["mozilla_django_oidc"] = {"level": "DEBUG", "handlers": ["console"], "propagate": False}
+LOGGING["loggers"]["weni_django_oidc"] = {"level": "DEBUG", "handlers": ["console"], "propagate": False}
+X_FRAME_OPTIONS = "ALLOW-FROM http://{}/".format(HOSTNAME)
