@@ -559,6 +559,18 @@ table.list {
   }
 }
 
+.flow-start-type-selector {
+  a {
+    display: inline-block;
+    &.is-active {
+      cursor: none;
+      color: #999999;
+      cursor: text;
+      text-decoration: none;
+    }
+  }
+}
+
 .gear-links {
   @apply ml-4;
   min-height: 34.5px;

@@ -5963,6 +5963,9 @@ msgstr "Poser une série de questions visant à recueillir les données de vos c
 msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
 msgstr "<b>%(name)s</b> ne peut pas être supprimé car il est actuellement utilisé."
 
+msgid "Manual"
+msgstr ""
+
 #, python-format
 msgid "was started by %(user)s for"
 msgstr "a été démarré par %(user)s pour"

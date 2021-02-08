@@ -1969,6 +1969,17 @@ table.list.selectable tbody tr.checked td {
           border-color: rgba(var(--selection-light-rgb), 1);
         }
 
+.flow-start-type-selector a {
+    display: inline-block;
+  }
+
+.flow-start-type-selector a.is-active {
+      cursor: none;
+      color: #999999;
+      cursor: text;
+      text-decoration: none;
+    }
+
 .gear-links {
   margin-left: 1rem;
   min-height: 34.5px;

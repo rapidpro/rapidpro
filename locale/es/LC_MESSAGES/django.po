@@ -8656,6 +8656,9 @@ msgstr "Haga una serie de preguntas para obtener los datos de sus contactos."
 msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
 msgstr ""
 
+msgid "Manual"
+msgstr ""
+
 #, fuzzy, python-format
 #| msgid "has started this flow."
 msgid "was started by %(user)s for"
