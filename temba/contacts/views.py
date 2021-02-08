@@ -1464,10 +1464,13 @@ class ContactCRUDL(SmartCRUDL):
             return links
 
         def get_context_data(self, *args, **kwargs):
-            context = BulkActionMixin.get_context_data(self, *args, **kwargs)
+            context = super().get_context_data(*args, **kwargs)
             org = self.request.user.get_org()
             group = self.derive_group()
             view_url = reverse("contacts.contact_invite_participants")
+
+            context["folders"] = context["folders"][:1]
+            context["folders"][0].update(dict(label=_("All Contacts"), url=view_url))
 
             available_flows = Flow.objects.filter(org=org, is_active=True, is_system=False, is_archived=False)
             current_optin_flow = available_flows.filter(uuid=org.get_optin_flow())
@@ -1475,59 +1478,12 @@ class ContactCRUDL(SmartCRUDL):
                 org.config.pop(org.OPTIN_FLOW, None)
                 org.save(update_fields=["config"])
 
-            # resolve the paginated object list so we can initialize a cache of URNs and fields
-            contacts = context["object_list"]
-            Contact.bulk_cache_initialize(org, contacts)
-
-            context["contacts"] = contacts
             context["flows"] = available_flows
             context["optin_flow"] = org.get_optin_flow()
-            context["has_contacts"] = contacts or org.has_contacts()
             context["current_group"] = group
-            context["groups"] = self.get_user_groups(org)
-
-            all_contacts_count = sum(map(lambda x: x["count"], context["groups"]))
-            context["folders"] = [dict(count=all_contacts_count, label=_("All Contacts"), url=view_url)]
-            context["sort_direction"] = self.sort_direction
-            context["sort_field"] = self.sort_field
+            context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
 
             return context
-
-        def get_queryset(self, **kwargs):
-            group = self.derive_group()
-            qs = (
-                group.contacts
-                .exclude(urns__isnull=True)
-                .exclude(urns__scheme="ext")
-                .prefetch_related("org", "all_groups")
-            )
-            sort_on = self.request.GET.get("sort_on", "")
-            self.sort_direction = "desc" if sort_on.startswith("-") else "asc"
-            self.sort_field = sort_on.lstrip("-")
-            qs = qs.order_by(sort_on if self.sort_field == "created_on" else "-id")
-            return qs
-
-        def get_user_groups(self, org):
-            GroupContacts = ContactGroup.contacts.through
-            contact_groups = (
-                GroupContacts.objects
-                .filter(
-                    contactgroup__group_type=ContactGroup.TYPE_USER_DEFINED,
-                    contactgroup__is_active=True,
-                    contactgroup__query=None,  # skip dynamic groups
-                    contactgroup__org=org,
-                    contact__status=Contact.STATUS_ACTIVE,
-                )
-                .exclude(contact__urns__isnull=True)
-                .exclude(contact__urns__scheme="ext")
-                .values(
-                    pk=F("contactgroup__id"),
-                    uuid=F("contactgroup__uuid"),
-                    label=F("contactgroup__name"),
-                )
-                .annotate(count=Count("*"))
-            )
-            return contact_groups
 
 
 class ContactGroupCRUDL(SmartCRUDL):
