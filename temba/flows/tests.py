@@ -5519,6 +5519,12 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "contacts who haven't already been through this flow")
         self.assertContains(response, "<b>1,234</b> runs")
 
+        response = self.assertListFetch(
+            list_url + "?type=manual", allow_viewers=True, allow_editors=True, context_objects=[start1]
+        )
+        self.assertTrue(response.context["filtered"])
+        self.assertEqual(response.context["url_params"], "?type=manual&")
+
 
 class AssetServerTest(TembaTest):
     def test_environment(self):
