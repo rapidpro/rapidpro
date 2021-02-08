@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-04 14:32+0000\n"
+"POT-Creation-Date: 2021-02-08 10:38+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3516,11 +3516,16 @@ msgstr "Votre lien d'invitation n'est pas valide. Veuillez contacter votre admin
 msgid "Join %(name)s"
 msgstr "Rejoignez %(name)s"
 
-msgid "Join"
-msgstr "Rejoignez"
+#, fuzzy
+#| msgid "Please click Join to accept the invitation."
+msgid "Sign in with your account to accept the invitation"
+msgstr "S'il vous plaît cliquer S'inscrire pour accepter l'invitation."
 
 msgid "Your invitation link has expired. Please contact your workspace administrator."
 msgstr "Votre lien d'invitation a expiré. Veuillez contacter votre administrateur d'espace de travail."
+
+msgid "Join"
+msgstr "Rejoignez"
 
 msgid "Invalid surveyor password, please check with your project leader and try again."
 msgstr "Mot de passe d'enquêteur invalide, veuillez vérifier auprès de votre chef de projet et réessayer."
@@ -6706,12 +6711,6 @@ msgstr "Modifier les alias"
 msgid "Choose a country to enable location support in your flows."
 msgstr "Choisissez un pays pour activer le support de l'emplacement géographique dans vos flux."
 
-msgid "Create new login"
-msgstr "Créer une nouvelle connexion"
-
-msgid "Sign in"
-msgstr "Connectez-vous"
-
 msgid "Add Credits"
 msgstr "Ajouter Crédits"
 
@@ -6843,6 +6842,9 @@ msgstr "Si vous avez des flux ou des campagnes portant les mêmes noms ou les m�
 
 msgid "Do not proceed unless you are willing to replace your existing flows and campaigns."
 msgstr "Ne procédez pas à moins que vous ne souhaitiez remplacer vos flux et campagnes existants."
+
+msgid "Sign in"
+msgstr "Connectez-vous"
 
 #, python-format
 msgid "You have been invited to join %(name)s."
@@ -7776,6 +7778,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Create new login"
+#~ msgstr "Créer une nouvelle connexion"
 
 #~ msgid "%(value)s must be http or https scheme"
 #~ msgstr "%(value)s doit être un schéma http ou https"

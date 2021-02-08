@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-04 14:32+0000\n"
+"POT-Creation-Date: 2021-02-08 10:38+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -4343,13 +4343,18 @@ msgstr "Ваша пригласительная ссылка недействи�
 msgid "Join %(name)s"
 msgstr "Присоединиться к %(name)s"
 
-msgid "Join"
-msgstr "Присоединиться"
+#, fuzzy
+#| msgid "Please click Join to accept the invitation."
+msgid "Sign in with your account to accept the invitation"
+msgstr "Пожалуйста, для принятия приглашения нажмите «Присоединиться»."
 
 #, fuzzy
 #| msgid "Your invitation link has expired. Please contact your organization administrator."
 msgid "Your invitation link has expired. Please contact your workspace administrator."
 msgstr "Срок действия Вашей пригласительной ссылки истек. Пожалуйста, свяжитесь с администратором Вашей организации."
+
+msgid "Join"
+msgstr "Присоединиться"
 
 msgid "Invalid surveyor password, please check with your project leader and try again."
 msgstr "Недействительный пароль наблюдателя. Пожалуйста, уточните его у руководителя проекта и повторите попытку."
@@ -8900,14 +8905,6 @@ msgstr "Редактировать Псевдонимы "
 msgid "Choose a country to enable location support in your flows."
 msgstr "Выберите страну для включения поддержки местоположения в Ваших потоках."
 
-#, fuzzy
-#| msgid "Create new account"
-msgid "Create new login"
-msgstr "Создать новую учетную запись"
-
-msgid "Sign in"
-msgstr "Войти"
-
 msgid "Add Credits"
 msgstr "Добавить Кредиты"
 
@@ -9122,6 +9119,9 @@ msgstr "Если у Вас есть потоки или кампании с та
 
 msgid "Do not proceed unless you are willing to replace your existing flows and campaigns."
 msgstr "Не продолжайте, если Вы не хотите заменить свои существующие потоки и кампании."
+
+msgid "Sign in"
+msgstr "Войти"
 
 #, fuzzy, python-format
 #| msgid "You have been invited to join"
@@ -10338,6 +10338,11 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, fuzzy
+#~| msgid "Create new account"
+#~ msgid "Create new login"
+#~ msgstr "Создать новую учетную запись"
 
 #~ msgid "%(value)s must be http or https scheme"
 #~ msgstr "%(value)s должны быть по схеме http или https "

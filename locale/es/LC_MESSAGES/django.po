@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-04 14:32+0000\n"
+"POT-Creation-Date: 2021-02-08 10:38+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4997,13 +4997,18 @@ msgstr "El enlace de su invitación es inválido. Por favor, contacte al adminis
 msgid "Join %(name)s"
 msgstr "Participar en %(name)s"
 
-msgid "Join"
-msgstr "Participar"
+#, fuzzy
+#| msgid "Please click Join to accept the invitation."
+msgid "Sign in with your account to accept the invitation"
+msgstr "Por favor, haga clic en Participar para aceptar la invitación."
 
 #, fuzzy
 #| msgid "Your invitation link has expired. Please contact your organization administrator."
 msgid "Your invitation link has expired. Please contact your workspace administrator."
 msgstr "El enlace de su invitación ha vencido. Por favor, contacte al administrador de su organización."
+
+msgid "Join"
+msgstr "Participar"
 
 #, fuzzy
 #| msgid "Invalid claim code, please check and try again."
@@ -9454,14 +9459,6 @@ msgstr "Editar apelativos"
 msgid "Choose a country to enable location support in your flows."
 msgstr "Elija un país para recibir ayuda sobre la ubicación en sus flujos."
 
-#, fuzzy
-#| msgid "Create new account"
-msgid "Create new login"
-msgstr "Crear cuenta nueva"
-
-msgid "Sign in"
-msgstr "Registrarse"
-
 msgid "Add Credits"
 msgstr "Agregar créditos"
 
@@ -9645,6 +9642,9 @@ msgstr "Si tiene flujos o campañas cuyo nombre es igual al de los que está imp
 
 msgid "Do not proceed unless you are willing to replace your existing flows and campaigns."
 msgstr "No continúe, a no ser que desee reemplazar sus flujos y campañas actuales."
+
+msgid "Sign in"
+msgstr "Registrarse"
 
 #, fuzzy, python-format
 #| msgid "You have been invited to join"
@@ -10776,6 +10776,11 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Create new account"
+#~ msgid "Create new login"
+#~ msgstr "Crear cuenta nueva"
 
 #, fuzzy
 #~| msgid "users"

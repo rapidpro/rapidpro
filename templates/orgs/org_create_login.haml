@@ -5,57 +5,19 @@
 -block title
   {{title}}
 
--block content
-  .formax
-    .formax-section
-      .formax-icon.bg-gray-100.flex.flex-row.items-stretch
-        .margin-wrapper
-          .i-container.icon-user
-      .formax-container.flex-grow
-        .formax-summary
-          -trans "Create new login"
-        .formax-form
-          %form#create_login-form{method:"post", encrypt:"multipart/form-data"}
-            -if form.non_field_errors
-              .alert.alert-error.form-errors
-                {{ form.non_field_errors }}
+-block fields
+  .control-group
+    %temba-field(disabled="true")
+      .px-1.py-2
+        {{email}}
 
-            -block fields
-              %fieldset
-                .flex
-                  .first-name.flex-grow(class="w-1/2")
-                    -render_field 'first_name'
-                  .px-1
-                  .last-name.flex-grow(class="w-1/2")
-                    -render_field 'last_name'
-                .mb-2
-                  -render_field 'email'
+  -render_field 'password'
 
-                -render_field 'password'
-
-            -csrf_token
-
-            -block form-buttons
-              %input.button-primary{type:"submit", value:"{{submit_button_name}}"}
-
-    .formax-section
-      .formax-icon.bg-gray-100.flex.flex-row.items-stretch
-        .margin-wrapper
-          .i-container.icon-user
-      .formax-container.flex-grow
-        .formax-summary
-          -trans "Sign in"
-        .formax-form
-          %form#login-form{method:"post", action:"{% url 'users.user_login' %}?next={% url 'orgs.org_join' secret %}"}
-            %fieldset
-              .control-group
-                %temba-textinput#id_username(type="text" name="username" maxlenght="30" label="{% trans 'Email Address' %}")
-
-              .control-group
-                %temba-textinput#id_password(type="password" name="password" label="{% trans 'Password' %}" placeholder="{% trans 'Your password, at least eight letters please' %}" password)
-
-            -csrf_token
-            %input.button-primary{type:"submit", value:"Login"}
+  .flex
+    .mr-3(class="w-1/2")
+      -render_field 'first_name'
+    .flex-grow
+      -render_field 'last_name'
 
 
 -block extra-script
