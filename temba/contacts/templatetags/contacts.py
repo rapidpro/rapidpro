@@ -222,3 +222,9 @@ def campaign_event_time(event):
         direction = "before"
 
     return "%d %s %s %s" % (abs(event.offset), unit, direction, event.relative_to.label)
+
+
+@register.filter
+def has_no_connection(contact):
+    urn = contact.get_urn()
+    return not (urn and urn.scheme != "ext")
