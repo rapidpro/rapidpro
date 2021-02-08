@@ -1,3 +1,9 @@
+v6.1.39
+----------
+ * Increase max len of URN fields on airtime transfers
+ * Add toggle to display manual flow starts only
+ * Cleanup 2FA models
+
 v6.1.38
 ----------
  * Update flow editor to 1.12.10 with failsafe errors
