@@ -5771,6 +5771,9 @@ msgstr ""
 msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
 msgstr ""
 
+msgid "Manual"
+msgstr ""
+
 #, python-format
 msgid "was started by %(user)s for"
 msgstr ""
