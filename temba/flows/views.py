@@ -2202,15 +2202,22 @@ class FlowStartCRUDL(SmartCRUDL):
             return [dict(title=_("Flows"), style="button-light", href=reverse("flows.flow_list"))]
 
         def derive_queryset(self, *args, **kwargs):
-            return (
-                super()
-                .derive_queryset(*args, **kwargs)
-                .exclude(created_by=None)
-                .prefetch_related("contacts", "groups")
-            )
+            qs = super().derive_queryset(*args, **kwargs)
+
+            if self.request.GET.get("type") == "manual":
+                qs = qs.filter(start_type=FlowStart.TYPE_MANUAL)
+
+            return qs.exclude(created_by=None).prefetch_related("contacts", "groups")
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
+
+            filtered = False
+            if self.request.GET.get("type") == "manual":
+                context["url_params"] = "?type=manual&"
+                filtered = True
+
+            context["filtered"] = filtered
 
             FlowStartCount.bulk_annotate(context["object_list"])
 

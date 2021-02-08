@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-04 14:32+0000\n"
+"POT-Creation-Date: 2021-02-08 14:34+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -7828,6 +7828,9 @@ msgstr "Задайте ряд вопросов, чтобы собрать дан
 #| msgid "cannot be deleted because it is in use. Usage summary:"
 msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
 msgstr "невозможно удалить, потому что используется. Сводная информация по использованию:"
+
+msgid "Manual"
+msgstr ""
 
 #, python-format
 msgid "was started by %(user)s for"
