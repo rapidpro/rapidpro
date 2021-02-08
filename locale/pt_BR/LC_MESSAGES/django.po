@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-08 14:34+0000\n"
+"POT-Creation-Date: 2021-02-05 21:04+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4264,11 +4264,6 @@ msgstr "Número do telefone"
 msgid "Phone number for testing and recording voice flows"
 msgstr "Número do telefone para testar e gravar fluxos de voz"
 
-#, fuzzy
-#| msgid "API Secret:"
-msgid "OTP Secret"
-msgstr "Segredo da API:"
-
 msgid "Two Factor Enabled"
 msgstr ""
 
@@ -4364,9 +4359,6 @@ msgstr "créditos restantes."
 
 #, python-format
 msgid "%(name)s Credits Alert"
-msgstr ""
-
-msgid "Used"
 msgstr ""
 
 #, fuzzy
@@ -4642,12 +4634,15 @@ msgstr "Você deve ter pelo menos um administator"
 msgid "Manage Logins"
 msgstr "Gerenciar contas de %(name)s"
 
-msgid "Enter the code from your authentication application"
+msgid "One-time Password (OTP)"
+msgstr ""
+
+msgid "Enter the one-time password from your authentication application."
 msgstr ""
 
 #, fuzzy
 #| msgid "Invalid phone number, try again."
-msgid "Invalid MFA token. Please try again."
+msgid "Incorrect OTP. Please try again."
 msgstr "Número de telefone inválido, tente novamente."
 
 msgid "Two Factor Authentication"
@@ -9069,7 +9064,8 @@ msgstr "Desconectar Twilio "
 msgid "Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?"
 msgstr ""
 
-msgid "To enable two factor authentication, use a one time password application such as"
+#, python-format
+msgid "To enable two factor authentication, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below and generate an OTP."
 msgstr ""
 
 msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
@@ -9078,10 +9074,16 @@ msgstr ""
 msgid "Any tokens you may have previously generated are invalid."
 msgstr ""
 
-msgid "Generate Backup Tokens"
+msgid "Disable"
 msgstr ""
 
-msgid "Disable Two Factor"
+msgid "Regenerate Backup Tokens"
+msgstr ""
+
+msgid "Two Factor Authentication is <b>enabled</b>."
+msgstr ""
+
+msgid "Two Factor Authentication is <b>disabled</b>."
 msgstr ""
 
 #, fuzzy
@@ -9920,6 +9922,11 @@ msgid "Found ${count} for ${query}"
 msgstr ""
 
 #, fuzzy
+#~| msgid "API Secret:"
+#~ msgid "OTP Secret"
+#~ msgstr "Segredo da API:"
+
+#, fuzzy
 #~| msgid "users"
 #~ msgid "Users"
 #~ msgstr "usuários"
@@ -9942,7 +9949,7 @@ msgstr ""
 #~ msgid "days"
 #~ msgstr "dias"
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
 #~| "          Install the %(name)s app\n"
@@ -10003,7 +10010,7 @@ msgstr ""
 #~ msgid "has"
 #~ msgstr "tem"
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid "No Administrator"
 #~ msgid "%(accounts)s Administrator,"
 #~ msgid_plural "%(accounts)s Administrators,"
@@ -10553,7 +10560,7 @@ msgstr ""
 #~ "número curto da <a href=\"http://www.take.net/\"> Take.net </a> e conectá-lo ao Textit \n"
 #~ "em poucos passos simples. "
 
-#, fuzzy
+#, fuzzy, python-format
 #~ msgid ""
 #~ "\n"
 #~ "      After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
@@ -10608,7 +10615,7 @@ msgstr ""
 #~ msgid "Create a message keyword to allow people to join a group."
 #~ msgstr "Criar uma palavra-chave SMS que permita às pessoas participarem de um grupo"
 
-#, fuzzy
+#, fuzzy, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                    %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -10618,7 +10625,7 @@ msgstr ""
 #~ "\n"
 #~ "Contatos %(contacts_count)s importados com sucesso para"
 
-#, fuzzy
+#, fuzzy, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                    %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -10627,7 +10634,7 @@ msgstr ""
 #~ "\n"
 #~ "Contatos %(contacts_count)s importados com sucesso para"
 
-#, fuzzy
+#, fuzzy, python-format
 #~ msgid ""
 #~ "\n"
 #~ "              Used by %(num_flows)s flow:\n"
@@ -10643,7 +10650,7 @@ msgstr ""
 #~ "\n"
 #~ "%(sms_sent)s Enviadas"
 
-#, fuzzy
+#, fuzzy, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        To get started you need to add a channel to your workspace. A channel is a phone number or social network\n"

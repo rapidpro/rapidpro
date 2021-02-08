@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-08 14:34+0000\n"
+"POT-Creation-Date: 2021-02-05 21:04+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3165,9 +3165,6 @@ msgstr "Numéro de téléphone"
 msgid "Phone number for testing and recording voice flows"
 msgstr "Numéro de téléphone pour les essais et l'enregistrement des flux voix "
 
-msgid "OTP Secret"
-msgstr "Secret OTP"
-
 msgid "Two Factor Enabled"
 msgstr "Deux facteurs activé"
 
@@ -3248,9 +3245,6 @@ msgstr "Crédits expirant bientôt"
 #, python-format
 msgid "%(name)s Credits Alert"
 msgstr "%(name)s Alerte Crédits"
-
-msgid "Used"
-msgstr "Utilisé"
 
 msgid "First name"
 msgstr "Prénom"
@@ -3482,10 +3476,17 @@ msgstr "Vous devez avoir au moins un administateur"
 msgid "Manage Logins"
 msgstr "Gérer les connexions"
 
-msgid "Enter the code from your authentication application"
+msgid "One-time Password (OTP)"
+msgstr ""
+
+#, fuzzy
+#| msgid "Enter the code from your authentication application"
+msgid "Enter the one-time password from your authentication application."
 msgstr "Entrez le code de votre application d'authentification"
 
-msgid "Invalid MFA token. Please try again."
+#, fuzzy
+#| msgid "Invalid MFA token. Please try again."
+msgid "Incorrect OTP. Please try again."
 msgstr "Jeton MFA non valide. Veuillez réessayer."
 
 msgid "Two Factor Authentication"
@@ -6998,8 +6999,9 @@ msgstr "Déconnecter Twilio"
 msgid "Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?"
 msgstr "La déconnexion de votre compte Twilio supprimera également toutes les chaînes Twilio qui y sont connectées. Êtes-vous sur de vouloir continuer?"
 
-msgid "To enable two factor authentication, use a one time password application such as"
-msgstr "Pour activer l'authentification à deux facteurs, utilisez une application de mot de passe à usage unique telle que"
+#, python-format
+msgid "To enable two factor authentication, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below and generate an OTP."
+msgstr ""
 
 msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
 msgstr "Les jetons de sauvegarde peuvent être utilisés si vous n'avez plus accès à l'application d'authentification configurée pour votre compte."
@@ -7007,11 +7009,23 @@ msgstr "Les jetons de sauvegarde peuvent être utilisés si vous n'avez plus acc
 msgid "Any tokens you may have previously generated are invalid."
 msgstr "Tous les jetons que vous avez déjà générés ne sont pas valides."
 
-msgid "Generate Backup Tokens"
+msgid "Disable"
+msgstr ""
+
+#, fuzzy
+#| msgid "Generate Backup Tokens"
+msgid "Regenerate Backup Tokens"
 msgstr "Générer des jetons de sauvegarde"
 
-msgid "Disable Two Factor"
-msgstr "Désactiver deux facteurs"
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two Factor Authentication is <b>enabled</b>."
+msgstr "Authentification à deux facteurs"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two Factor Authentication is <b>disabled</b>."
+msgstr "Authentification à deux facteurs"
 
 msgid "This workspace has been suspended"
 msgstr "Cet espace de travail a été suspendu"
@@ -7780,12 +7794,27 @@ msgstr "Entrez une requête"
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
+#~ msgid "Disable Two Factor"
+#~ msgstr "Désactiver deux facteurs"
+
+#~ msgid "OTP Secret"
+#~ msgstr "Secret OTP"
+
+#~ msgid "To enable two factor authentication, use a one time password application such as"
+#~ msgstr "Pour activer l'authentification à deux facteurs, utilisez une application de mot de passe à usage unique telle que"
+
+#~ msgid "Used"
+#~ msgstr "Utilisé"
+
+#, python-format
 #~ msgid "%(value)s must be http or https scheme"
 #~ msgstr "%(value)s doit être un schéma http ou https"
 
+#, python-format
 #~ msgid "%(value)s host cannot be resolved"
 #~ msgstr "L'hôte %(value)s ne peut pas être résolu"
 
+#, python-format
 #~ msgid "%(value)s cannot be localhost"
 #~ msgstr "%(value)s ne peut pas être localhost"
 
@@ -7825,6 +7854,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "after"
 #~ msgstr "après"
 
+#, python-format
 #~ msgid "Email sent with subject <b>%(subject)s</b>"
 #~ msgstr "E-mail envoyé avec objet <b>%(subject)s</b>"
 
@@ -7873,21 +7903,25 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "has"
 #~ msgstr "a"
 
+#, python-format
 #~ msgid "%(accounts)s Administrator,"
 #~ msgid_plural "%(accounts)s Administrators,"
 #~ msgstr[0] "%(accounts)s Administrateur,"
 #~ msgstr[1] "%(accounts)s Administrateurs,"
 
+#, python-format
 #~ msgid "%(accounts)s Editor,"
 #~ msgid_plural "%(accounts)s Editors,"
 #~ msgstr[0] "%(accounts)s Editeur,"
 #~ msgstr[1] "%(accounts)s Editeurs,"
 
+#, python-format
 #~ msgid "%(accounts)s Viewer,"
 #~ msgid_plural "%(accounts)s Viewers,"
 #~ msgstr[0] "%(accounts)s Observateur,"
 #~ msgstr[1] "%(accounts)s Observateurs,"
 
+#, python-format
 #~ msgid "%(accounts)s Surveyor."
 #~ msgid_plural "%(accounts)s Surveyors."
 #~ msgstr[0] "%(accounts)s Enquêteurs."
@@ -7965,6 +7999,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Are you sure you want to delete"
 #~ msgstr "Etes-vous sûr que vous voulez supprimer"
 
+#, python-format
 #~ msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
 #~ msgstr "<b>%(name)s</b> ne peut pas être supprimé car il est actuellement utilisé. Résumé de l'utilisation %%:"
 

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-08 14:34+0000\n"
+"POT-Creation-Date: 2021-02-05 21:04+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3948,9 +3948,6 @@ msgstr "Номер телефона"
 msgid "Phone number for testing and recording voice flows"
 msgstr "Номер телефона для тестирования и записи голосовых потоков"
 
-msgid "OTP Secret"
-msgstr "Секретный ключ OTP"
-
 msgid "Two Factor Enabled"
 msgstr "Включена двухфакторная"
 
@@ -4031,9 +4028,6 @@ msgstr "Кредиты с истекающим сроком действия"
 #, python-format
 msgid "%(name)s Credits Alert"
 msgstr "Оповещение по Кредитам %(name)s "
-
-msgid "Used"
-msgstr "Использовано"
 
 #, fuzzy
 #| msgid "First Name"
@@ -4299,10 +4293,17 @@ msgstr "У Вас должен быть хотя бы один админист�
 msgid "Manage Logins"
 msgstr "Управление учетными записями"
 
-msgid "Enter the code from your authentication application"
+msgid "One-time Password (OTP)"
+msgstr ""
+
+#, fuzzy
+#| msgid "Enter the code from your authentication application"
+msgid "Enter the one-time password from your authentication application."
 msgstr "Введите код из Вашего приложения по аутентификации"
 
-msgid "Invalid MFA token. Please try again."
+#, fuzzy
+#| msgid "Invalid MFA token. Please try again."
+msgid "Incorrect OTP. Please try again."
 msgstr "Неверный токен МФА. Пожалуйста, попробуйте еще раз."
 
 msgid "Two Factor Authentication"
@@ -9415,8 +9416,9 @@ msgstr ""
 "\n"
 "          Отключение Вашей учетной записи Twilio также удалит все каналы Twilio, подключенные к ней. Вы уверены, что хотите продолжить?"
 
-msgid "To enable two factor authentication, use a one time password application such as"
-msgstr "Для включения двухфакторной аутентификации используйте приложение для одноразового пароля, такое как"
+#, python-format
+msgid "To enable two factor authentication, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below and generate an OTP."
+msgstr ""
 
 msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
 msgstr "Резервные токены можно использовать, если у Вас больше нет доступа к приложению аутентификации, настроенному для Вашей учетной записи."
@@ -9424,11 +9426,23 @@ msgstr "Резервные токены можно использовать, е�
 msgid "Any tokens you may have previously generated are invalid."
 msgstr ""
 
-msgid "Generate Backup Tokens"
+msgid "Disable"
+msgstr ""
+
+#, fuzzy
+#| msgid "Generate Backup Tokens"
+msgid "Regenerate Backup Tokens"
 msgstr "Генерировать Резервные Токены"
 
-msgid "Disable Two Factor"
-msgstr "Отключить двухфакторную"
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two Factor Authentication is <b>enabled</b>."
+msgstr "Двухфакторная аутентификация"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two Factor Authentication is <b>disabled</b>."
+msgstr "Двухфакторная аутентификация"
 
 #, fuzzy
 #| msgid "This organization has been suspended"
@@ -10342,12 +10356,27 @@ msgstr "Ввести запрос"
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
+#~ msgid "Disable Two Factor"
+#~ msgstr "Отключить двухфакторную"
+
+#~ msgid "OTP Secret"
+#~ msgstr "Секретный ключ OTP"
+
+#~ msgid "To enable two factor authentication, use a one time password application such as"
+#~ msgstr "Для включения двухфакторной аутентификации используйте приложение для одноразового пароля, такое как"
+
+#~ msgid "Used"
+#~ msgstr "Использовано"
+
+#, python-format
 #~ msgid "%(value)s must be http or https scheme"
 #~ msgstr "%(value)s должны быть по схеме http или https "
 
+#, python-format
 #~ msgid "%(value)s host cannot be resolved"
 #~ msgstr "Хост %(value)s не может быть разрешен"
 
+#, python-format
 #~ msgid "%(value)s cannot be localhost"
 #~ msgstr "%(value)s не может быть локальным хостом"
 
@@ -10384,7 +10413,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "hours"
 #~ msgstr "часы"
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
 #~| "          Email sent with subject <b>%(subject)s</b>\n"
@@ -10444,7 +10473,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "has"
 #~ msgstr "содержит"
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
 #~| "    %(accounts)s Administrator,\n"
@@ -10476,7 +10505,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "  "
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
 #~| "    %(accounts)s Editor,\n"
@@ -10508,7 +10537,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "  "
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
 #~| "    %(accounts)s Viewer,\n"
@@ -10540,7 +10569,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "  "
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
 #~| "    %(accounts)s Surveyor.\n"
@@ -10874,6 +10903,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "    код у <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> и подключить его,\n"
 #~ "    выполнив несколько простых шагов."
 
+#, python-format
 #~ msgid "Unable to update call to action: %s"
 #~ msgstr "Невозможно обновить вызов действия: %s"
 
@@ -10975,7 +11005,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "If you are based in Brazil, you can purchase a short code from <a href=\"http://www.zenvia.com.br/\">Zenvia</a> and connect it in a few simple steps."
 #~ msgstr "Если Вы находитесь в Бразилии, вы можете приобрести короткий код у <a href=\"http://www.zenvia.com.br/\">Zenvia</a> и подключить его, выполнив несколько простых шагов."
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
 #~| "          When submitting your application for approval, make sure to include the <code>pages_messaging</code>\n"
@@ -10995,7 +11025,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "        "
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
 #~| "        After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
@@ -11074,7 +11104,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Create a message keyword to allow people to join a group."
 #~ msgstr "Создать ключевое слово сообщения, чтобы люди могли присоединяться к группе."
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
 #~| "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -11091,7 +11121,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "                "
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
 #~| "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -11107,6 +11137,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "                "
 
+#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "              Used by %(num_flows)s flow:\n"
@@ -11132,7 +11163,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "              Используется %(num_flows)s потоками:\n"
 #~ "              "
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
 #~| "        To get started you need to add a channel to your account. A channel is a phone number or social network\n"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-08 14:34+0000\n"
+"POT-Creation-Date: 2021-02-05 21:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3121,9 +3121,6 @@ msgstr ""
 msgid "Phone number for testing and recording voice flows"
 msgstr ""
 
-msgid "OTP Secret"
-msgstr ""
-
 msgid "Two Factor Enabled"
 msgstr ""
 
@@ -3203,9 +3200,6 @@ msgstr ""
 
 #, python-format
 msgid "%(name)s Credits Alert"
-msgstr ""
-
-msgid "Used"
 msgstr ""
 
 msgid "First name"
@@ -3434,10 +3428,13 @@ msgstr ""
 msgid "Manage Logins"
 msgstr ""
 
-msgid "Enter the code from your authentication application"
+msgid "One-time Password (OTP)"
 msgstr ""
 
-msgid "Invalid MFA token. Please try again."
+msgid "Enter the one-time password from your authentication application."
+msgstr ""
+
+msgid "Incorrect OTP. Please try again."
 msgstr ""
 
 msgid "Two Factor Authentication"
@@ -6639,7 +6636,8 @@ msgstr ""
 msgid "Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?"
 msgstr ""
 
-msgid "To enable two factor authentication, use a one time password application such as"
+#, python-format
+msgid "To enable two factor authentication, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below and generate an OTP."
 msgstr ""
 
 msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
@@ -6648,10 +6646,16 @@ msgstr ""
 msgid "Any tokens you may have previously generated are invalid."
 msgstr ""
 
-msgid "Generate Backup Tokens"
+msgid "Disable"
 msgstr ""
 
-msgid "Disable Two Factor"
+msgid "Regenerate Backup Tokens"
+msgstr ""
+
+msgid "Two Factor Authentication is <b>enabled</b>."
+msgstr ""
+
+msgid "Two Factor Authentication is <b>disabled</b>."
 msgstr ""
 
 msgid "This workspace has been suspended"
