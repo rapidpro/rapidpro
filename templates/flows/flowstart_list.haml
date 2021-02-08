@@ -73,14 +73,3 @@
 
   -block paginator
     -include "includes/pagination.haml"
-
--block extra-script
-  {{ block.super }}
-
-  :javascript
-     $(document).ready(function() {
-      $(".flow-start-type-selector a").on('click', function() {
-        $(this).parent('.flow-start-type-selector').children('a').removeClass('is-active');
-        $(this).addClass('is-active');
-      })
-     });

@@ -2206,8 +2206,10 @@ class FlowStartCRUDL(SmartCRUDL):
 
             if self.request.GET.get("type") == "manual":
                 qs = qs.filter(start_type=FlowStart.TYPE_MANUAL)
+            else:
+                qs = qs.filter(start_type__in=(FlowStart.TYPE_MANUAL, FlowStart.TYPE_API, FlowStart.TYPE_API_ZAPIER))
 
-            return qs.exclude(created_by=None).prefetch_related("contacts", "groups")
+            return qs.prefetch_related("contacts", "groups")
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
