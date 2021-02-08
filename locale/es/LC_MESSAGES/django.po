@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-04 14:32+0000\n"
+"POT-Creation-Date: 2021-02-05 21:04+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4569,11 +4569,6 @@ msgstr "Número de teléfono"
 msgid "Phone number for testing and recording voice flows"
 msgstr "Número de teléfono para probar y grabar los flujos de voz"
 
-#, fuzzy
-#| msgid "API Secret:"
-msgid "OTP Secret"
-msgstr "Código secreto API:"
-
 msgid "Two Factor Enabled"
 msgstr ""
 
@@ -4669,9 +4664,6 @@ msgstr "créditos."
 
 #, python-format
 msgid "%(name)s Credits Alert"
-msgstr ""
-
-msgid "Used"
 msgstr ""
 
 #, fuzzy
@@ -4947,12 +4939,15 @@ msgstr "Debe tener al menos un administrador"
 msgid "Manage Logins"
 msgstr "Manejar las cuentas de %(name)s "
 
-msgid "Enter the code from your authentication application"
+msgid "One-time Password (OTP)"
+msgstr ""
+
+msgid "Enter the one-time password from your authentication application."
 msgstr ""
 
 #, fuzzy
 #| msgid "Invalid phone number, try again."
-msgid "Invalid MFA token. Please try again."
+msgid "Incorrect OTP. Please try again."
 msgstr "Número de teléfono inválido, inténtelo nuevamente."
 
 msgid "Two Factor Authentication"
@@ -9869,7 +9864,8 @@ msgstr "Desconectar Twilio"
 msgid "Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?"
 msgstr ""
 
-msgid "To enable two factor authentication, use a one time password application such as"
+#, python-format
+msgid "To enable two factor authentication, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below and generate an OTP."
 msgstr ""
 
 msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
@@ -9878,10 +9874,16 @@ msgstr ""
 msgid "Any tokens you may have previously generated are invalid."
 msgstr ""
 
-msgid "Generate Backup Tokens"
+msgid "Disable"
 msgstr ""
 
-msgid "Disable Two Factor"
+msgid "Regenerate Backup Tokens"
+msgstr ""
+
+msgid "Two Factor Authentication is <b>enabled</b>."
+msgstr ""
+
+msgid "Two Factor Authentication is <b>disabled</b>."
 msgstr ""
 
 #, fuzzy
@@ -10778,6 +10780,11 @@ msgid "Found ${count} for ${query}"
 msgstr ""
 
 #, fuzzy
+#~| msgid "API Secret:"
+#~ msgid "OTP Secret"
+#~ msgstr "Código secreto API:"
+
+#, fuzzy
 #~| msgid "users"
 #~ msgid "Users"
 #~ msgstr "usuarios"
@@ -10805,7 +10812,7 @@ msgstr ""
 #~ msgid "minutes"
 #~ msgstr "Después de 5 minutos"
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
 #~| "          Install the %(name)s app\n"
@@ -10869,7 +10876,7 @@ msgstr ""
 #~ msgid "has"
 #~ msgstr "tiene"
 
-#, fuzzy
+#, fuzzy, python-format
 #~| msgid "No Administrator"
 #~ msgid "%(accounts)s Administrator,"
 #~ msgid_plural "%(accounts)s Administrators,"
@@ -11459,7 +11466,7 @@ msgstr ""
 #~ "\n"
 #~ "                "
 
-#, fuzzy
+#, fuzzy, python-format
 #~ msgid ""
 #~ "\n"
 #~ "      After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
@@ -11523,7 +11530,7 @@ msgstr ""
 #~ msgid "Create a message keyword to allow people to join a group."
 #~ msgstr "Crear una palabre clave de mensajería para que las personas participen en un grupo."
 
-#, fuzzy
+#, fuzzy, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                    %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -11535,7 +11542,7 @@ msgstr ""
 #~ "\n"
 #~ "         "
 
-#, fuzzy
+#, fuzzy, python-format
 #~ msgid ""
 #~ "\n"
 #~ "                    %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -11546,7 +11553,7 @@ msgstr ""
 #~ "\n"
 #~ "         "
 
-#, fuzzy
+#, fuzzy, python-format
 #~ msgid ""
 #~ "\n"
 #~ "              Used by %(num_flows)s flow:\n"
@@ -11564,7 +11571,7 @@ msgstr ""
 #~ "                Llamada saliente (%(duration)s seconds)\n"
 #~ "              "
 
-#, fuzzy
+#, fuzzy, python-format
 #~ msgid ""
 #~ "\n"
 #~ "        To get started you need to add a channel to your workspace. A channel is a phone number or social network\n"

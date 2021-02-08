@@ -1,16 +1,16 @@
-- extends 'smartmin/form.html'
-- load smartmin temba compress i18n
-
+-extends 'smartmin/form.html'
+-load smartmin temba compress i18n
 
 -block pre-form
-
-  -if not user_settings.two_factor_enabled
+  -if not two_factor_enabled
+    .mb-4
+      -blocktrans trimmed with ga_url="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" authy_url="https://authy.com/"
+        To enable two factor authentication, use a one-time password (OTP) application such as <a href="{{ ga_url }}">Google Authenticator</a>
+        or <a href="{{ authy_url }}">Authy</a> to scan the QR code below and generate an OTP.
 
     %canvas#qr
-
     %br
-
-    %script{src:"{{ STATIC_URL }}js/qrious.js"}
+    %script(src="{{ STATIC_URL }}js/qrious.js")
 
     :javascript
       (function() {
@@ -18,115 +18,68 @@
         if (secretUrl) {
           var element = document.getElementById('qr');
           element.style.display = "initial";
-          
-          var qr = new QRious({
-            element: element,
-            value: secretUrl,
-            background: "#eee"
-          });
+          new QRious({element: element, value: secretUrl, background: "#eee", size: 128});
         }
       })();
     
 
 -block fields
-  -if not user_settings.two_factor_enabled
+  -if not two_factor_enabled
     .mt-4
-      -blocktrans trimmed
-        To enable two factor authentication, use a one time password application such as
-      
-      %a(href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2")<
-        Google Authenticator
-      
-      or
-
-      %a(href="https://authy.com/")<
-        Authy
-
-      .mt-4
-      
-        {{block.super}}
+      {{ block.super }}
   -else
     -blocktrans trimmed
-      Backup tokens can be used if you no longer have access to the authentication application configured for your account.
+      Backup tokens can be used if you no longer have access to the authentication application configured for
+      your account.
 
     .mt-4
-      %p#backup_text_help
+      %p#backup_text_help.hide
         -blocktrans trimmed
           Any tokens you may have previously generated are invalid.
 
     .mt-4
-
-      %div#backup.font-mono
+      #backup.font-mono
+        -for token in backup_tokens
+          .inline-block.px-2(class="{% if token.is_used %}line-through{% endif %}")
+            {{ token.token }}
 
     .mt-8
-      %a.button-primary{id:'generate-backup-tokens', style:'margin-top:5px'}
-        -trans "Generate Backup Tokens"
+      %a#disable-2fa.button-primary.mr-4(href="{% url 'orgs.org_home' %}")
+        -trans "Disable"
+      %a#regenerate-backup-tokens.button-light.mr-4
+        -trans "Regenerate Backup Tokens"
 
-      %a.button-light.ml-4{href:"{% url 'orgs.org_home' %}", id:'disable-two-factor-auth', style:'margin-top:5px'}
-        -trans "Disable Two Factor"
-
+    -url 'orgs.org_two_factor' as two_factor_url
     :javascript
-
-      $(document).ready(function () {
-        $("#backup_text_help").hide();
+      $('#disable-2fa').click(function() {
+        $.ajax({type: "POST", url: "{{ two_factor_url }}", data: {"action": "disable"}})
       });
 
-      $(document).ready(function() {
+      $('#regenerate-backup-tokens').click(function() {
         $.ajax({
           type: "POST",
-          url: "{%url 'orgs.org_two_factor'%}",
-          data: {
-            "get_backup_tokens": true,
-          },
+          url: "{{ two_factor_url }}",
+          data: {"action": "regenerate_backup_tokens"},
           success: function( backups ) {
-            var tokens = '';
-            for(token of backups.tokens) {
-                tokens = tokens + `<div class="inline-block px-2">${token}</div>`;
+            var tokenHtml = '';
+            for (token of backups.tokens) {
+                tokenHtml = tokenHtml + `<div class="inline-block px-2 ${token.is_used ? 'line-through' : ''}">${token.token}</div>`;
             }
-
-            element = `<div>${tokens}</div>`
-
-            $('#backup').html(element);
-          }
-        });
-      });
-
-      $('#generate-backup-tokens').click(function() {
-        $.ajax({
-          type: "POST",
-          url: "{%url 'orgs.org_two_factor'%}",
-          data: {
-            "generate_backup_tokens": true,
-          },
-          success: function( backups ) {
-            var tokens = '';
-            for(token of backups.tokens) {
-                tokens = tokens + `<div class="inline-block px-2">${token}</div>`;
-            }
-
-            element = `
-            <div>${tokens}</div>
-            `
-
-            $('#backup').html(element);
+            $('#backup').html(tokenHtml);
             $("#backup_text_help").show();
           }
         })
       });
 
-      $('#disable-two-factor-auth').click(function() {
-        $.ajax({
-          type: "POST",
-          url: "{%url 'orgs.org_two_factor' %}",
-          data: {
-            "disable_two_factor_auth": true,
-          }
-        })
-      });
 
-- block form-buttons
-  -if not user_settings.two_factor_enabled
-    {{block.super}}
+-block form-buttons
+  -if not two_factor_enabled
+    {{ block.super }}
 
-- block summary
-  -trans "Two Factor Authentication"
+-block summary
+  -if two_factor_enabled
+    -blocktrans trimmed
+      Two Factor Authentication is <b>enabled</b>.
+  -else
+    -blocktrans trimmed
+      Two Factor Authentication is <b>disabled</b>.
