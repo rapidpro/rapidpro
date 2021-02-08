@@ -527,24 +527,6 @@ class PhoneRequiredForm(forms.ModelForm):
         fields = ("tel",)
 
 
-class UserSettingsCRUDL(SmartCRUDL):
-    actions = ("update", "phone")
-    model = UserSettings
-
-    class Phone(ModalMixin, OrgPermsMixin, SmartUpdateView):
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/$" % (path, action)
-
-        def get_object(self, *args, **kwargs):
-            return self.request.user.get_settings()
-
-        fields = ("tel",)
-        form_class = PhoneRequiredForm
-        submit_button_name = _("Start Call")
-        success_url = "@orgs.usersettings_phone"
-
-
 class OrgCRUDL(SmartCRUDL):
     actions = (
         "signup",
