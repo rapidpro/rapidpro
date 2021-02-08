@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-05 21:04+0000\n"
+"POT-Creation-Date: 2021-02-08 21:12+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3156,18 +3156,6 @@ msgstr "Org"
 msgid "%(name)s Invitation"
 msgstr "Invitation %(name)s"
 
-msgid "Your preferred language"
-msgstr "Langue de votre choix"
-
-msgid "Phone Number"
-msgstr "Numéro de téléphone"
-
-msgid "Phone number for testing and recording voice flows"
-msgstr "Numéro de téléphone pour les essais et l'enregistrement des flux voix "
-
-msgid "Two Factor Enabled"
-msgstr "Deux facteurs activé"
-
 msgid "Price Paid"
 msgstr "Prix ​​payé"
 
@@ -3338,9 +3326,6 @@ msgstr "S'il vous plaît, entrez votre mot de passe pour enregistrer les modific
 
 msgid "Sorry, that email address is already taken."
 msgstr "Désolé, cette adresse est déjà prise."
-
-msgid "Start Call"
-msgstr "Lancer des appels"
 
 msgid "The import file"
 msgstr "Le fichier d'importation"
@@ -7793,6 +7778,21 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Your preferred language"
+#~ msgstr "Langue de votre choix"
+
+#~ msgid "Phone Number"
+#~ msgstr "Numéro de téléphone"
+
+#~ msgid "Phone number for testing and recording voice flows"
+#~ msgstr "Numéro de téléphone pour les essais et l'enregistrement des flux voix "
+
+#~ msgid "Two Factor Enabled"
+#~ msgstr "Deux facteurs activé"
+
+#~ msgid "Start Call"
+#~ msgstr "Lancer des appels"
 
 #~ msgid "Disable Two Factor"
 #~ msgstr "Désactiver deux facteurs"

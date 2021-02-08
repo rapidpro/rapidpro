@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-05 21:04+0000\n"
+"POT-Creation-Date: 2021-02-08 21:12+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4255,18 +4255,6 @@ msgstr "Organização"
 msgid "%(name)s Invitation"
 msgstr ""
 
-msgid "Your preferred language"
-msgstr "Seu idioma preferido"
-
-msgid "Phone Number"
-msgstr "Número do telefone"
-
-msgid "Phone number for testing and recording voice flows"
-msgstr "Número do telefone para testar e gravar fluxos de voz"
-
-msgid "Two Factor Enabled"
-msgstr ""
-
 msgid "Price Paid"
 msgstr "Preço Pago"
 
@@ -4475,9 +4463,6 @@ msgstr "Por favor, insira sua senha para salvar as alterações"
 
 msgid "Sorry, that email address is already taken."
 msgstr "Desculpe, este endereço de e-mail já está sendo usado"
-
-msgid "Start Call"
-msgstr "Iniciar chamada"
 
 msgid "The import file"
 msgstr ""
@@ -9920,6 +9905,18 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Your preferred language"
+#~ msgstr "Seu idioma preferido"
+
+#~ msgid "Phone Number"
+#~ msgstr "Número do telefone"
+
+#~ msgid "Phone number for testing and recording voice flows"
+#~ msgstr "Número do telefone para testar e gravar fluxos de voz"
+
+#~ msgid "Start Call"
+#~ msgstr "Iniciar chamada"
 
 #, fuzzy
 #~| msgid "API Secret:"

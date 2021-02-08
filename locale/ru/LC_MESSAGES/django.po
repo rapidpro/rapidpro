@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-05 21:04+0000\n"
+"POT-Creation-Date: 2021-02-08 21:12+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3939,18 +3939,6 @@ msgstr "Организация"
 msgid "%(name)s Invitation"
 msgstr "Приглашение %(name)s"
 
-msgid "Your preferred language"
-msgstr "Предпочитаемый Вами язык"
-
-msgid "Phone Number"
-msgstr "Номер телефона"
-
-msgid "Phone number for testing and recording voice flows"
-msgstr "Номер телефона для тестирования и записи голосовых потоков"
-
-msgid "Two Factor Enabled"
-msgstr "Включена двухфакторная"
-
 msgid "Price Paid"
 msgstr "Уплаченная цена"
 
@@ -4149,9 +4137,6 @@ msgstr "Пожалуйста, введите свой пароль для сох
 
 msgid "Sorry, that email address is already taken."
 msgstr "Извините, такой адрес электронной почты уже занят"
-
-msgid "Start Call"
-msgstr "Начать Вызов"
 
 msgid "The import file"
 msgstr "Импортированный файл"
@@ -10355,6 +10340,21 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Your preferred language"
+#~ msgstr "Предпочитаемый Вами язык"
+
+#~ msgid "Phone Number"
+#~ msgstr "Номер телефона"
+
+#~ msgid "Phone number for testing and recording voice flows"
+#~ msgstr "Номер телефона для тестирования и записи голосовых потоков"
+
+#~ msgid "Two Factor Enabled"
+#~ msgstr "Включена двухфакторная"
+
+#~ msgid "Start Call"
+#~ msgstr "Начать Вызов"
 
 #~ msgid "Disable Two Factor"
 #~ msgstr "Отключить двухфакторную"
