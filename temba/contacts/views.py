@@ -1469,8 +1469,9 @@ class ContactCRUDL(SmartCRUDL):
             group = self.derive_group()
             view_url = reverse("contacts.contact_invite_participants")
 
-            context["folders"] = context["folders"][:1]
-            context["folders"][0].update(dict(label=_("All Contacts"), url=view_url))
+            counts = ContactGroup.get_system_group_counts(org)
+
+            folders = [dict(count=counts[ContactGroup.TYPE_ACTIVE], label=_("All Contacts"), url=view_url)]
 
             available_flows = Flow.objects.filter(org=org, is_active=True, is_system=False, is_archived=False)
             current_optin_flow = available_flows.filter(uuid=org.get_optin_flow())
@@ -1480,6 +1481,7 @@ class ContactCRUDL(SmartCRUDL):
 
             context["flows"] = available_flows
             context["optin_flow"] = org.get_optin_flow()
+            context["folders"] = folders
             context["current_group"] = group
             context["contact_fields"] = ContactField.user_fields.active_for_org(org=org).order_by("-priority", "pk")
 
