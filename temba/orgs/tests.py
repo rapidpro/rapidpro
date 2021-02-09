@@ -102,13 +102,21 @@ class OrgContextProcessorTest(TembaTest):
 class UserTest(TembaTest):
     def test_login(self):
         login_url = reverse("users.user_login")
+        verify_url = reverse("users.two_factor_verify")
+        backup_url = reverse("users.two_factor_backup")
 
         user_settings = self.admin.get_settings()
         self.assertIsNone(user_settings.last_auth_on)
 
+        # try to access a non-public page
+        response = self.client.get(reverse("msgs.msg_inbox"))
+        self.assertLoginRedirect(response)
+
+        # view login page
         response = self.client.get(login_url)
         self.assertEqual(200, response.status_code)
 
+        # submit incorrect username and password
         response = self.client.post(login_url, {"username": "jim", "password": "pass123"})
         self.assertEqual(200, response.status_code)
         self.assertFormError(
@@ -118,11 +126,90 @@ class UserTest(TembaTest):
             "Please enter a correct username and password. Note that both fields may be case-sensitive.",
         )
 
+        # submit correct username and password
         response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
-        self.assertEqual(302, response.status_code)
+        self.assertRedirect(response, reverse("orgs.org_choose"))
 
         user_settings = self.admin.get_settings()
         self.assertIsNotNone(user_settings.last_auth_on)
+
+        # logout and enable 2FA
+        self.client.logout()
+        self.admin.enable_2fa()
+
+        # can't access two-factor verify page yet
+        response = self.client.get(verify_url)
+        self.assertLoginRedirect(response)
+
+        # login via login page again
+        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        self.assertRedirect(response, verify_url)
+
+        # view two-factor verify page
+        response = self.client.get(verify_url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(["otp"], list(response.context["form"].fields.keys()))
+        self.assertContains(response, backup_url)
+
+        # enter invalid OTP
+        response = self.client.post(verify_url, {"otp": "nope"})
+        self.assertFormError(response, "form", "otp", "Incorrect OTP. Please try again.")
+
+        # enter valid OTP
+        with patch("pyotp.TOTP.verify", return_value=True):
+            response = self.client.post(verify_url, {"otp": "123456"})
+        self.assertRedirect(response, reverse("orgs.org_choose"))
+
+        self.client.logout()
+
+        # login via login page again
+        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        self.assertRedirect(response, verify_url)
+
+        # but this time we've lost our phone so go to the page for backup tokens
+        response = self.client.get(backup_url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(["token"], list(response.context["form"].fields.keys()))
+
+        # enter invalid backup token
+        response = self.client.post(backup_url, {"token": "nope"})
+        self.assertFormError(response, "form", "token", "Incorrect backup token. Please try again.")
+
+        # enter valid backup token
+        response = self.client.post(backup_url, {"token": self.admin.backup_tokens.first()})
+        self.assertRedirect(response, reverse("orgs.org_choose"))
+
+        self.assertEqual(9, len(self.admin.backup_tokens.filter(is_used=False)))
+
+    def test_two_factor(self):
+        self.assertFalse(self.admin.get_settings().two_factor_enabled)
+
+        self.admin.enable_2fa()
+
+        self.assertTrue(self.admin.get_settings().two_factor_enabled)
+        self.assertEqual(10, len(self.admin.backup_tokens.filter(is_used=False)))
+
+        # try to verify with.. nothing
+        self.assertFalse(self.admin.verify_2fa())
+
+        # try to verify with an invalid OTP
+        self.assertFalse(self.admin.verify_2fa(otp="nope"))
+
+        # try to verify with a valid OTP
+        with patch("pyotp.TOTP.verify", return_value=True):
+            self.assertTrue(self.admin.verify_2fa(otp="123456"))
+
+        # try to verify with an invalid backup token
+        self.assertFalse(self.admin.verify_2fa(backup_token="nope"))
+
+        # try to verify with a valid backup token
+        self.assertTrue(self.admin.verify_2fa(backup_token=self.admin.backup_tokens.first()))
+
+        self.assertEqual(9, len(self.admin.backup_tokens.filter(is_used=False)))
+
+        self.admin.disable_2fa()
+
+        self.assertFalse(self.admin.get_settings().two_factor_enabled)
 
     def test_ui_permissions(self):
         # non-logged in users can't go here

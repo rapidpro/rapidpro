@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-08 21:12+0000\n"
+"POT-Creation-Date: 2021-02-09 22:15+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -9506,6 +9506,43 @@ msgstr ""
 "              Дополнительные кредиты, спасибо за опробование %(brand)s.\n"
 "\n"
 "            "
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor Authentication"
+msgstr "Двухфакторная аутентификация"
+
+msgid ""
+"\n"
+"          If you no longer have access to the device you setup two-factor authentication with you can enter one of your\n"
+"          backup tokens below.\n"
+"\n"
+"        "
+msgstr ""
+
+msgid "8-character token"
+msgstr ""
+
+#, fuzzy
+#| msgid "Device"
+msgid "Use Device"
+msgstr "Устройство"
+
+msgid ""
+"\n"
+"          Open the one-time password application with which you configured two-factor authentication on your account\n"
+"          and enter the code below to verify your identity.\n"
+"\n"
+"        "
+msgstr ""
+
+msgid "6-digit code"
+msgstr ""
+
+#, fuzzy
+#| msgid "Generate Backup Tokens"
+msgid "Use Backup Token"
+msgstr "Генерировать Резервные Токены"
 
 #, fuzzy, python-format
 #| msgid ""

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-08 21:12+0000\n"
+"POT-Creation-Date: 2021-02-09 22:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6691,6 +6691,37 @@ msgstr ""
 
 #, python-format
 msgid "Complementary credits, thanks for trying %(brand)s."
+msgstr ""
+
+msgid "Two-factor Authentication"
+msgstr ""
+
+msgid ""
+"\n"
+"          If you no longer have access to the device you setup two-factor authentication with you can enter one of your\n"
+"          backup tokens below.\n"
+"\n"
+"        "
+msgstr ""
+
+msgid "8-character token"
+msgstr ""
+
+msgid "Use Device"
+msgstr ""
+
+msgid ""
+"\n"
+"          Open the one-time password application with which you configured two-factor authentication on your account\n"
+"          and enter the code below to verify your identity.\n"
+"\n"
+"        "
+msgstr ""
+
+msgid "6-digit code"
+msgstr ""
+
+msgid "Use Backup Token"
 msgstr ""
 
 #, python-format
