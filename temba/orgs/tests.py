@@ -1392,13 +1392,23 @@ class OrgTest(TembaTest):
 
         # a user is already logged in
         self.invited_editor = create_user("invitededitor")
-        self.login(self.invited_editor)
+
+        # different user login
+        self.login(self.admin)
 
         response = self.client.get(editor_join_url)
         self.assertEqual(200, response.status_code)
 
         # should be logged out to request login
         self.assertEqual(0, len(self.client.session.keys()))
+
+        self.login(self.invited_editor)
+        response = self.client.get(editor_join_url)
+        self.assertEqual(302, response.status_code)
+        response = self.client.get(editor_join_url, follow=True)
+        self.assertEqual(
+            response.request["PATH_INFO"], reverse("orgs.org_join_accept", args=[editor_invitation.secret])
+        )
 
         editor_join_accept_url = reverse("orgs.org_join_accept", args=[editor_invitation.secret])
         self.login(self.invited_editor)

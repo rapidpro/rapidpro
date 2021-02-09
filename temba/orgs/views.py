@@ -1980,6 +1980,9 @@ class OrgCRUDL(SmartCRUDL):
             invite = self.get_invitation()
             if invite:
                 has_user = User.objects.filter(username=invite.email).exists()
+                if has_user and invite.email == request.user.username:
+                    return HttpResponseRedirect(reverse("orgs.org_join_accept", args=[secret]))
+
                 logout(request)
                 if not has_user:
                     return HttpResponseRedirect(reverse("orgs.org_create_login", args=[secret]))
