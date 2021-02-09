@@ -1947,12 +1947,8 @@ class OrgCRUDL(SmartCRUDL):
             return r"^%s/%s/(?P<secret>\w+)/$" % (path, action)
 
         def get_invitation(self, **kwargs):
-            invitation = None
             secret = self.kwargs.get("secret")
-            invitations = Invitation.objects.filter(secret=secret, is_active=True)
-            if invitations:
-                invitation = invitations[0]
-            return invitation
+            return Invitation.objects.filter(secret=secret, is_active=True).first()
 
         def get_object(self, **kwargs):
             invitation = self.get_invitation()
@@ -2004,12 +2000,8 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def get_invitation(self, **kwargs):  # pragma: needs cover
-            invitation = None
             secret = self.kwargs.get("secret")
-            invitations = Invitation.objects.filter(secret=secret, is_active=True)
-            if invitations:
-                invitation = invitations[0]
-            return invitation
+            return Invitation.objects.filter(secret=secret, is_active=True).first()
 
         @classmethod
         def derive_url_pattern(cls, path, action):
@@ -2079,12 +2071,8 @@ class OrgCRUDL(SmartCRUDL):
             return r"^%s/%s/(?P<secret>\w+)/$" % (path, action)
 
         def get_invitation(self, **kwargs):  # pragma: needs cover
-            invitation = None
             secret = self.kwargs.get("secret")
-            invitations = Invitation.objects.filter(secret=secret, is_active=True)
-            if invitations:
-                invitation = invitations[0]
-            return invitation
+            return Invitation.objects.filter(secret=secret, is_active=True).first()
 
         def get_object(self, **kwargs):  # pragma: needs cover
             invitation = self.get_invitation()
