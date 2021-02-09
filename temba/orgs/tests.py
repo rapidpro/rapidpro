@@ -39,15 +39,7 @@ from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.orgs.models import BackupToken, Debit, OrgActivity, UserSettings
 from temba.orgs.tasks import suspend_topup_orgs_task
 from temba.request_logs.models import HTTPLog
-from temba.tests import (
-    ESMockWithScroll,
-    MigrationTest,
-    MockResponse,
-    TembaNonAtomicTest,
-    TembaTest,
-    matchers,
-    mock_mailroom,
-)
+from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -108,6 +100,30 @@ class OrgContextProcessorTest(TembaTest):
 
 
 class UserTest(TembaTest):
+    def test_login(self):
+        login_url = reverse("users.user_login")
+
+        user_settings = self.admin.get_settings()
+        self.assertIsNone(user_settings.last_auth_on)
+
+        response = self.client.get(login_url)
+        self.assertEqual(200, response.status_code)
+
+        response = self.client.post(login_url, {"username": "jim", "password": "pass123"})
+        self.assertEqual(200, response.status_code)
+        self.assertFormError(
+            response,
+            "form",
+            "__all__",
+            "Please enter a correct username and password. Note that both fields may be case-sensitive.",
+        )
+
+        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        self.assertEqual(302, response.status_code)
+
+        user_settings = self.admin.get_settings()
+        self.assertIsNotNone(user_settings.last_auth_on)
+
     def test_ui_permissions(self):
         # non-logged in users can't go here
         response = self.client.get(reverse("orgs.user_list"))
@@ -770,19 +786,8 @@ class OrgTest(TembaTest):
         self.assertRedirect(response, reverse("orgs.org_home"))
 
         # check that our user settings have changed
-        settings = self.admin.get_settings()
-        self.assertEqual("pt-br", settings.language)
-
-    def test_usersettings(self):
-        self.login(self.admin)
-
-        post_data = dict(tel="+250788382382")
-        self.client.post(reverse("orgs.usersettings_phone"), post_data)
-        self.assertEqual("+250 788 382 382", UserSettings.objects.get(user=self.admin).get_tel_formatted())
-
-        post_data = dict(tel="bad number")
-        response = self.client.post(reverse("orgs.usersettings_phone"), post_data)
-        self.assertEqual(response.context["form"].errors["tel"][0], "Invalid phone number, try again.")
+        user_settings = self.admin.get_settings()
+        self.assertEqual("pt-br", user_settings.language)
 
     @patch("temba.flows.models.FlowStart.async_start")
     def test_org_flagging_and_suspending(self, mock_async_start):
@@ -5139,30 +5144,3 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
-
-
-class Populate2FAFieldsMigrationTest(MigrationTest):
-    app = "orgs"
-    migrate_from = "0075_auto_20210204_1638"
-    migrate_to = "0076_populate_2fa_fields"
-
-    def setUpBeforeMigration(self, apps):
-        BackupToken = apps.get_model("orgs", "BackupToken")
-        User = apps.get_model("auth", "User")
-        UserSettings = apps.get_model("orgs", "UserSettings")
-
-        admin = User.objects.get(id=self.admin.id)
-        editor = User.objects.get(id=self.editor.id)
-
-        admin_settings = UserSettings.objects.create(user=admin, otp_secret="1234567890123456")
-        editor_settings = UserSettings.objects.create(user=editor, otp_secret=None)
-
-        BackupToken.objects.create(user=admin, settings=admin_settings)
-        BackupToken.objects.create(user=None, settings=editor_settings)
-
-    def test_migration(self):
-        self.assertEqual(1, self.admin.backup_tokens.count())
-        self.assertEqual(1, self.editor.backup_tokens.count())
-
-        self.assertEqual("1234567890123456", self.admin.get_settings().otp_secret)  # unchanged
-        self.assertEqual(16, len(self.editor.get_settings().otp_secret))

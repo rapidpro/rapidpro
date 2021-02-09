@@ -5,7 +5,7 @@ import pyotp
 from django.db import migrations
 
 
-def populate_2fa_fields(apps, schema_editor):
+def populate_2fa_fields(apps, schema_editor):  # pragma: no cover
     # populate BackupToken.user
     BackupToken = apps.get_model("orgs", "BackupToken")
     for token in BackupToken.objects.filter(user=None):
@@ -19,7 +19,7 @@ def populate_2fa_fields(apps, schema_editor):
         us.save(update_fields=("otp_secret",))
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

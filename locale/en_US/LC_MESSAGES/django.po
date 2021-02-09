@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-05 21:04+0000\n"
+"POT-Creation-Date: 2021-02-08 21:12+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3112,18 +3112,6 @@ msgstr ""
 msgid "%(name)s Invitation"
 msgstr ""
 
-msgid "Your preferred language"
-msgstr ""
-
-msgid "Phone Number"
-msgstr ""
-
-msgid "Phone number for testing and recording voice flows"
-msgstr ""
-
-msgid "Two Factor Enabled"
-msgstr ""
-
 msgid "Price Paid"
 msgstr ""
 
@@ -3291,9 +3279,6 @@ msgid "Please enter your password to save changes."
 msgstr ""
 
 msgid "Sorry, that email address is already taken."
-msgstr ""
-
-msgid "Start Call"
 msgstr ""
 
 msgid "The import file"

@@ -24,11 +24,13 @@ from twilio.rest import Client as TwilioClient
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
+from django.contrib.auth.signals import user_logged_in
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import Count, F, Prefetch, Q, Sum
+from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.text import slugify
@@ -63,6 +65,13 @@ ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY = "org:%d:cache:low_credits_threshold"
 
 ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
+
+
+@receiver(user_logged_in)
+def my_callback(sender, request, user, **kwargs):
+    user_settings = user.get_settings()
+    user_settings.last_auth_on = timezone.now()
+    user_settings.save(update_fields=("last_auth_on",))
 
 
 class OrgRole(Enum):
@@ -2363,18 +2372,10 @@ class UserSettings(models.Model):
     """
 
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="settings")
-    language = models.CharField(
-        max_length=8, choices=settings.LANGUAGES, default="en-us", help_text=_("Your preferred language")
-    )
-    tel = models.CharField(
-        verbose_name=_("Phone Number"),
-        max_length=16,
-        null=True,
-        blank=True,
-        help_text=_("Phone number for testing and recording voice flows"),
-    )
+    language = models.CharField(max_length=8, choices=settings.LANGUAGES, default="en-us")
     otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
-    two_factor_enabled = models.BooleanField(verbose_name=_("Two Factor Enabled"), default=False)
+    two_factor_enabled = models.BooleanField(default=False)
+    last_auth_on = models.DateTimeField(null=True)
 
     @classmethod
     def get_or_create(cls, user):
@@ -2383,13 +2384,6 @@ class UserSettings(models.Model):
             return existing
 
         return cls.objects.create(user=user)
-
-    def get_tel_formatted(self):
-        if self.tel:
-            import phonenumbers
-
-            normalized = phonenumbers.parse(self.tel, None)
-            return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
 
 
 class TopUp(SmartModel):

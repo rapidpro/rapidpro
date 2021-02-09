@@ -68,7 +68,7 @@ from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import ComponentFormMixin, NonAtomicMixin
 
-from .models import BackupToken, Invitation, Org, OrgCache, OrgRole, TopUp, UserSettings, get_stripe_credentials
+from .models import BackupToken, Invitation, Org, OrgCache, OrgRole, TopUp, get_stripe_credentials
 from .tasks import apply_topups_task
 
 
@@ -501,48 +501,6 @@ class InferOrgMixin(object):
 
     def get_object(self, *args, **kwargs):
         return self.request.user.get_org()
-
-
-class PhoneRequiredForm(forms.ModelForm):
-    tel = forms.CharField(max_length=15, label="Phone Number", required=True)
-
-    def clean_tel(self):
-        if "tel" in self.cleaned_data:
-            tel = self.cleaned_data["tel"]
-            if not tel:  # pragma: needs cover
-                return tel
-
-            import phonenumbers
-
-            try:
-                normalized = phonenumbers.parse(tel, None)
-                if not phonenumbers.is_possible_number(normalized):  # pragma: needs cover
-                    raise forms.ValidationError(_("Invalid phone number, try again."))
-            except Exception:  # pragma: no cover
-                raise forms.ValidationError(_("Invalid phone number, try again."))
-            return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164)
-
-    class Meta:
-        model = UserSettings
-        fields = ("tel",)
-
-
-class UserSettingsCRUDL(SmartCRUDL):
-    actions = ("update", "phone")
-    model = UserSettings
-
-    class Phone(ModalMixin, OrgPermsMixin, SmartUpdateView):
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/$" % (path, action)
-
-        def get_object(self, *args, **kwargs):
-            return self.request.user.get_settings()
-
-        fields = ("tel",)
-        form_class = PhoneRequiredForm
-        submit_button_name = _("Start Call")
-        success_url = "@orgs.usersettings_phone"
 
 
 class OrgCRUDL(SmartCRUDL):
