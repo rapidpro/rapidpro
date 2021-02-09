@@ -1,3 +1,7 @@
+v6.1.40
+----------
+ * Remove UserSettings.tel and add UserSettings.last_auth_on
+
 v6.1.39
 ----------
  * Increase max len of URN fields on airtime transfers
