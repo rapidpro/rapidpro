@@ -132,13 +132,13 @@
                               {% short_datetime object.created_on %}
 
                           %td.invite-column.value-received.field_received
-                            %a.invite.button.button-primary(
-                              class="{% if object|has_no_connection %}disconnected{% endif %}"
-                              href="{% url 'contacts.contact_invite_participants' %}"
-                              data-uuid="{{object.uuid}}"
-                              status="active"
-                            )
-                              -trans "Invite"
+                            - if object|has_connection
+                              %a.invite.button.button-primary(
+                                href="{% url 'contacts.contact_invite_participants' %}"
+                                data-uuid="{{object.uuid}}"
+                                status="active"
+                              )
+                                -trans "Invite"
 
                           // This is needed for action buttons
                           %td.hide
@@ -306,11 +306,6 @@
       display: table-cell !important;
       width: 100px;
     }
-
-    .disconnected {
-      display: none !important;
-    }
-
 
 -block extra-script
   {{ block.super }}

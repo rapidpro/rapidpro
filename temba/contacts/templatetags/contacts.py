@@ -225,6 +225,6 @@ def campaign_event_time(event):
 
 
 @register.filter
-def has_no_connection(contact):
+def has_connection(contact):
     urn = contact.get_urn()
-    return not (urn and urn.scheme != "ext")
+    return bool(urn and urn.scheme != "ext")
