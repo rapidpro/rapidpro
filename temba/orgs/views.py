@@ -390,7 +390,12 @@ class BaseTwoFactorView(AuthLoginView):
         return kwargs
 
     def form_valid(self, form):
+        # set the user as actually authenticated now
         login(self.request, self.get_user())
+
+        # remove our session key so if the user comes back this page they'll get directed to the login view
+        self.request.session.pop(TWO_FACTOR_USER_SESSION_KEY, None)
+
         return HttpResponseRedirect(self.get_success_url())
 
 
