@@ -111,6 +111,7 @@ class UserTest(TembaTest):
         # try to access a non-public page
         response = self.client.get(reverse("msgs.msg_inbox"))
         self.assertLoginRedirect(response)
+        self.assertTrue(response.url.endswith("?next=/msg/inbox/"))
 
         # view login page
         response = self.client.get(login_url)
@@ -142,8 +143,11 @@ class UserTest(TembaTest):
         self.assertLoginRedirect(response)
 
         # login via login page again
-        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        response = self.client.post(
+            login_url + "?next=/msg/inbox/", {"username": "Administrator", "password": "Administrator"}
+        )
         self.assertRedirect(response, verify_url)
+        self.assertTrue(response.url.endswith("?next=/msg/inbox/"))
 
         # view two-factor verify page
         response = self.client.get(verify_url)
