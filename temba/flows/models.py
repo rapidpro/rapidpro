@@ -1496,7 +1496,7 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
             "id": self.id,
             "uuid": str(self.uuid),
             "flow": {"uuid": str(self.flow.uuid), "name": self.flow.name},
-            "trigger_params": getattr(self.session, "output", {}).get("trigger", {}).get("params", ""),
+            "trigger_params": getattr(self.session, "output", {}).get("trigger", {}).get("params", {}),
             "contact": {"uuid": str(self.contact.uuid), "name": self.contact.name},
             "responded": self.responded,
             "path": [convert_step(s) for s in self.path],
