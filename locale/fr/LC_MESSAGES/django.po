@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-09 22:15+0000\n"
+"POT-Creation-Date: 2021-02-10 17:16+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3290,6 +3290,16 @@ msgstr "La connexion existe déjà, veuillez ne pas inclure le mot de passe."
 msgid "Password required for new login."
 msgstr ""
 
+#, fuzzy
+#| msgid "Invalid MFA token. Please try again."
+msgid "Incorrect OTP. Please try again."
+msgstr "Jeton MFA non valide. Veuillez réessayer."
+
+#, fuzzy
+#| msgid "Invalid MFA token. Please try again."
+msgid "Incorrect backup token. Please try again."
+msgstr "Jeton MFA non valide. Veuillez réessayer."
+
 #, python-brace-format
 msgid "Deleted user {username}"
 msgstr "Utilisateur supprimé {username}"
@@ -3468,11 +3478,6 @@ msgstr ""
 #| msgid "Enter the code from your authentication application"
 msgid "Enter the one-time password from your authentication application."
 msgstr "Entrez le code de votre application d'authentification"
-
-#, fuzzy
-#| msgid "Invalid MFA token. Please try again."
-msgid "Incorrect OTP. Please try again."
-msgstr "Jeton MFA non valide. Veuillez réessayer."
 
 msgid "Two Factor Authentication"
 msgstr "Authentification à deux facteurs"
@@ -7067,12 +7072,7 @@ msgstr "Crédits complémentaires, merci d'essayer %(brand)s."
 msgid "Two-factor Authentication"
 msgstr "Authentification à deux facteurs"
 
-msgid ""
-"\n"
-"          If you no longer have access to the device you setup two-factor authentication with you can enter one of your\n"
-"          backup tokens below.\n"
-"\n"
-"        "
+msgid "If you no longer have access to the device you setup two-factor authentication with you can enter one of your backup tokens below."
 msgstr ""
 
 msgid "8-character token"
@@ -7083,12 +7083,7 @@ msgstr ""
 msgid "Use Device"
 msgstr "Appareil"
 
-msgid ""
-"\n"
-"          Open the one-time password application with which you configured two-factor authentication on your account\n"
-"          and enter the code below to verify your identity.\n"
-"\n"
-"        "
+msgid "Open the one-time password application with which you configured two-factor authentication on your account and enter the code below to verify your identity."
 msgstr ""
 
 msgid "6-digit code"
