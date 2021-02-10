@@ -443,9 +443,18 @@ class TwoFactorBackupView(BaseTwoFactorView):
     template_name = "orgs/two_factor/backup.haml"
 
 
+class InferOrgMixin:
+    @classmethod
+    def derive_url_pattern(cls, path, action):
+        return r"^%s/%s/$" % (path, action)
+
+    def get_object(self, *args, **kwargs):
+        return self.request.user.get_org()
+
+
 class UserCRUDL(SmartCRUDL):
     model = User
-    actions = ("list", "edit", "delete")
+    actions = ("list", "edit", "delete", "two_factor_enable", "two_factor")
 
     class List(SmartListView):
         fields = ("username", "orgs", "date_joined")
@@ -592,14 +601,81 @@ class UserCRUDL(SmartCRUDL):
 
             return False  # pragma: needs cover
 
+    class TwoFactorEnable(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+        class Form(forms.Form):
+            otp = forms.CharField(
+                label=" ",
+                widget=InputWidget(attrs={"placeholder": _("6-digit code")}),
+                max_length=6,
+                required=True,
+            )
+            password = forms.CharField(
+                label=" ",
+                widget=InputWidget(attrs={"placeholder": _("Current password"), "password": True}),
+                required=True,
+            )
 
-class InferOrgMixin(object):
-    @classmethod
-    def derive_url_pattern(cls, path, action):
-        return r"^%s/%s/$" % (path, action)
+            def __init__(self, user, *args, **kwargs):
+                super().__init__(*args, **kwargs)
 
-    def get_object(self, *args, **kwargs):
-        return self.request.user.get_org()
+                self.user = user
+
+            def clean_otp(self):
+                data = self.cleaned_data["otp"]
+                if not self.user.verify_2fa(otp=data):
+                    raise forms.ValidationError(_("Incorrect OTP. Please try again."))
+                return data
+
+            def clean_password(self):
+                data = self.cleaned_data["password"]
+                if not self.user.check_password(data):
+                    raise forms.ValidationError(_("Please enter your current password."))
+                return data
+
+        form_class = Form
+        success_url = "@orgs.user_two_factor"
+        success_message = _("Two-factor authentication enabled")
+        submit_button_name = _("Enable")
+        permission = "orgs.org_two_factor"
+        title = _("Two Factor Authentication")
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            brand = self.request.branding["name"]
+            user = self.get_user()
+            user_settings = user.get_settings()
+            secret_url = pyotp.TOTP(user_settings.otp_secret).provisioning_uri(user.username, issuer_name=brand)
+            context["secret_url"] = secret_url
+            return context
+
+    class TwoFactor(InferOrgMixin, OrgPermsMixin, SmartFormView):
+        class Form(forms.Form):
+            password = forms.CharField(
+                label=" ",
+                widget=InputWidget(attrs={"placeholder": _("Current password"), "password": True}),
+                required=True,
+            )
+
+        form_class = Form
+        success_url = "@orgs.org_home"
+        success_message = _("Two-factor authentication disabled")
+        permission = "orgs.org_two_factor"
+        title = _("Two Factor Authentication")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            backup_tokens = self.get_user().backup_tokens.order_by("id")
+            backup_tokens = [{"token": t.token, "is_used": t.is_used} for t in backup_tokens]
+
+            context["backup_tokens"] = backup_tokens
+            return context
 
 
 class OrgCRUDL(SmartCRUDL):
