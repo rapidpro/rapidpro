@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-01 16:43+0000\n"
+"POT-Creation-Date: 2021-02-10 18:14+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1061,6 +1061,37 @@ msgstr "Le mot de passe à utiliser pour s'authentifier auprès de Junebug"
 
 msgid "The token Junebug should use to authenticate"
 msgstr "Le jeton que Junebug devrait utiliser pour s'authentifier"
+
+#, fuzzy
+#| msgid "Activate your own enterprise WhatsApp account in %(link)s to communicate with your contacts. "
+msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+msgstr "Activez votre propre compte WhatsApp d'entreprise dans %(link)s pour communiquer avec vos contacts."
+
+#, fuzzy
+#| msgid "To finish configuring your Zenvia connection you'll need to set the following callback URLs on your Zenvia account."
+msgid "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra account."
+msgstr "Pour terminer la configuration de votre connexion Zenvia, vous devrez définir les URL de rappel suivantes sur votre compte Zenvia."
+
+#, fuzzy
+#| msgid "To receive incoming messages, you need to set the receive URL for your Zenvia account."
+msgid "To receive incoming messages, you need to set the receive URL for your Kaleyra account."
+msgstr "Pour recevoir des messages entrants, vous devez définir l'URL de réception pour votre compte de Zenvia."
+
+msgid "Account SID"
+msgstr "Compte SID"
+
+#, fuzzy
+#| msgid "Your Twilio Account SID"
+msgid "Your Kaleyra Account SID"
+msgstr "Votre compte Twilio SID"
+
+#, fuzzy
+#| msgid "Your Nexmo API key"
+msgid "Your Kaleyra API Key"
+msgstr "Votre clé API Nexmo"
+
+msgid "No org for this user, cannot claim"
+msgstr ""
 
 #, python-format
 msgid "Connect your %(link)s instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."
@@ -3546,9 +3577,6 @@ msgstr "Votre clé API et votre secret DT One semblent invalides. Veuillez les v
 msgid "Connecting to your DT One account failed with error text: %s"
 msgstr "La connexion à votre compte DT One a échoué avec un texte d'erreur: %s"
 
-msgid "Account SID"
-msgstr "Compte SID"
-
 msgid "Account Token"
 msgstr "Jeton de compte"
 
@@ -3980,6 +4008,17 @@ msgstr "Créer un déclencheur de référence"
 
 msgid "Create Schedule"
 msgstr "Créer un planning"
+
+msgid "Submit"
+msgstr ""
+
+#, fuzzy
+#| msgid "Generate Backup Tokens"
+msgid "Backup Token"
+msgstr "Générer des jetons de sauvegarde"
+
+msgid "Enter one of the tokens generated when activating the two-factor login"
+msgstr ""
 
 msgid "Processing"
 msgstr "En traitement"
@@ -7796,6 +7835,11 @@ msgstr "Créez un mot-clé de message permettant aux personnes de rejoindre un g
 msgid "Start a flow in the future or on a schedule."
 msgstr "Démarrer ultérieurement un flux ou de manière programmée."
 
+#, fuzzy
+#| msgid "Generate Backup Tokens"
+msgid "Backup Tokens"
+msgstr "Générer des jetons de sauvegarde"
+
 msgid "Enter a query"
 msgstr "Entrez une requête"
 
@@ -7815,7 +7859,7 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Password must be at least 8 characters long"
 #~ msgstr "Le mot de passe doit comporter au moins 8 caractères"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "Are you sure you want to delete <b>%(name)s</b>? This cannot be undone."
 #~ msgid "Are you sure you want to delete <b>%(name)s</b>? No way to undo this operation."
 #~ msgstr "Voulez-vous vraiment supprimer <b>%(name)s</b>? Ça ne peut pas être annulé."
@@ -7831,7 +7875,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Are you sure you want to delete"
 #~ msgstr "Etes-vous sûr que vous voulez supprimer"
 
-#, python-format
 #~ msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
 #~ msgstr "<b>%(name)s</b> ne peut pas être supprimé car il est actuellement utilisé. Résumé de l'utilisation %%:"
 
