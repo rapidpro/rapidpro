@@ -234,7 +234,7 @@ class Flow(TembaModel):
         Creates a special 'single message' flow
         """
         name = "Single Message (%s)" % str(uuid4())
-        flow = Flow.create(org, user, name, flow_type=Flow.TYPE_MESSAGE, is_system=True)
+        flow = Flow.create(org, user, name, flow_type=Flow.TYPE_BACKGROUND, is_system=True)
         flow.update_single_message_flow(user, message, base_language)
         return flow
 
@@ -642,7 +642,7 @@ class Flow(TembaModel):
             "name": self.name,
             "spec_version": self.version_number,
             "language": base_language,
-            "type": "messaging",
+            "type": "messaging_background",
             "localization": localization,
             "nodes": [
                 {

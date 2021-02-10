@@ -218,7 +218,7 @@ class CampaignTest(TembaTest):
                 "spec_version": "13.0.0",
                 "revision": 1,
                 "language": "eng",
-                "type": "messaging",
+                "type": "messaging_background",
                 "expire_after_minutes": 10080,
                 "localization": {},
                 "nodes": [
@@ -324,6 +324,7 @@ class CampaignTest(TembaTest):
         self.assertIn("base", response.context["form"].fields)
         self.assertIn("spa", response.context["form"].fields)
         self.assertIn("ace", response.context["form"].fields)
+        self.assertEqual(3, len(response.context["form"].fields["message_start_mode"].choices))
 
         response = self.client.post(
             f"{reverse('campaigns.campaignevent_create')}?campaign={campaign.id}",
@@ -359,6 +360,7 @@ class CampaignTest(TembaTest):
 
         self.assertTrue(event.flow.is_system)
         self.assertTrue(event.flow.base_language, "base")
+        self.assertEqual(event.flow.flow_type, Flow.TYPE_BACKGROUND)
 
         flow_json = event.flow.get_definition()
         action_uuid = flow_json["nodes"][0]["actions"][0]["uuid"]
@@ -371,7 +373,7 @@ class CampaignTest(TembaTest):
                 "revision": 1,
                 "expire_after_minutes": 10080,
                 "language": "base",
-                "type": "messaging",
+                "type": "messaging_background",
                 "localization": {"spa": {action_uuid: {"text": ["hola"]}}},
                 "nodes": [
                     {
@@ -385,11 +387,40 @@ class CampaignTest(TembaTest):
         )
 
         url = reverse("campaigns.campaignevent_update", args=[event.id])
+
+        # update the event to be passive
+        response = self.client.post(
+            url,
+            {
+                "relative_to": self.planting_date.id,
+                "event_type": "M",
+                "base": "This is my message",
+                "spa": "hola",
+                "direction": "B",
+                "offset": 1,
+                "unit": "W",
+                "flow_to_start": "",
+                "delivery_hour": 13,
+                "message_start_mode": "P",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        event = CampaignEvent.objects.filter(is_active=True).first()
+
+        self.assertEqual(event.offset, -1)
+        self.assertEqual(event.delivery_hour, 13)
+        self.assertEqual(event.unit, "W")
+        self.assertEqual(event.event_type, "M")
+        self.assertEqual(event.start_mode, "P")
+
+        url = reverse("campaigns.campaignevent_update", args=[event.id])
         response = self.client.get(url)
 
         self.assertEqual("This is my message", response.context["form"].fields["base"].initial)
         self.assertEqual("hola", response.context["form"].fields["spa"].initial)
         self.assertEqual("", response.context["form"].fields["ace"].initial)
+        self.assertEqual(2, len(response.context["form"].fields["flow_start_mode"].choices))
 
         # 'Created On' system field must be selectable in the form
         contact_fields = [field.key for field in response.context["form"].fields["relative_to"].queryset]
@@ -1395,6 +1426,7 @@ class CampaignTest(TembaTest):
         self.assertEqual(campaign_event.event_type, "M")
         self.assertEqual(campaign_event.message, {"base": "oy, pancake man, come back"})
         self.assertEqual(campaign_event.delivery_hour, -1)
+        self.assertEqual(campaign_event.flow.flow_type, Flow.TYPE_BACKGROUND)
 
 
 class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):

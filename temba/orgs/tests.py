@@ -4486,7 +4486,7 @@ class BulkExportTest(TembaTest):
             self.assertEqual(
                 2,
                 Flow.objects.filter(
-                    org=self.org, is_active=True, is_archived=False, flow_type="M", is_system=True
+                    org=self.org, is_active=True, is_archived=False, flow_type="B", is_system=True
                 ).count(),
             )
             self.assertEqual(1, Campaign.objects.filter(org=self.org, is_archived=False).count())
@@ -4523,7 +4523,7 @@ class BulkExportTest(TembaTest):
         trigger.save()
 
         message_flow = (
-            Flow.objects.filter(flow_type="M", is_system=True, campaign_events__offset=-1).order_by("id").first()
+            Flow.objects.filter(flow_type="B", is_system=True, campaign_events__offset=-1).order_by("id").first()
         )
         message_flow.update_single_message_flow(self.admin, {"base": "No reminders for you!"}, base_language="base")
 
@@ -4543,7 +4543,7 @@ class BulkExportTest(TembaTest):
 
         # find our new message flow, and see that the original message is there
         message_flow = (
-            Flow.objects.filter(flow_type="M", is_system=True, campaign_events__offset=-1, is_active=True)
+            Flow.objects.filter(flow_type="B", is_system=True, campaign_events__offset=-1, is_active=True)
             .order_by("id")
             .first()
         )
@@ -4615,7 +4615,7 @@ class BulkExportTest(TembaTest):
         assert_object_counts()
 
         message_flow = (
-            Flow.objects.filter(flow_type="M", is_system=True, campaign_events__offset=-1, is_active=True)
+            Flow.objects.filter(flow_type="B", is_system=True, campaign_events__offset=-1, is_active=True)
             .order_by("id")
             .first()
         )
