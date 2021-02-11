@@ -12,6 +12,7 @@ import pyotp
 import pytz
 import requests
 from packaging.version import Version
+from smartmin.users.views import Login
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -32,6 +33,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import Group, User
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError
@@ -70,6 +72,9 @@ from temba.utils.views import ComponentFormMixin, NonAtomicMixin
 
 from .models import BackupToken, Invitation, Org, OrgCache, OrgRole, TopUp, get_stripe_credentials
 from .tasks import apply_topups_task
+
+# session key for storing a two-factor enabled user's id once we've checked their password
+TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
 
 
 def check_login(request):
@@ -342,6 +347,102 @@ class OrgGrantForm(forms.ModelForm):
     class Meta:
         model = Org
         fields = "__all__"
+
+
+class LoginView(Login):
+    """
+    Overrides the smartmin login view to redirect users with 2FA enabled to a second verification view.
+    """
+
+    template_name = "orgs/login/login.haml"
+
+    def form_valid(self, form):
+        user = form.get_user()
+        if user.get_settings().two_factor_enabled:
+            self.request.session[TWO_FACTOR_USER_SESSION_KEY] = str(user.id)
+
+            verify_url = reverse("users.two_factor_verify")
+            redirect_url = self.get_redirect_url()
+            if redirect_url:
+                verify_url += f"?{self.redirect_field_name}={urlquote(redirect_url)}"
+
+            return HttpResponseRedirect(verify_url)
+
+        return super().form_valid(form)
+
+
+class BaseTwoFactorView(AuthLoginView):
+    def dispatch(self, request, *args, **kwargs):
+        # redirect back to login view if user hasn't completed that yet
+        user = self.get_user()
+        if not user:
+            return HttpResponseRedirect(reverse("users.login"))
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_user(self):
+        user_id = self.request.session.get(TWO_FACTOR_USER_SESSION_KEY)
+        if user_id:
+            return User.objects.filter(id=user_id, is_active=True).first()
+        return None
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.get_user()
+        return kwargs
+
+    def form_valid(self, form):
+        # set the user as actually authenticated now
+        login(self.request, self.get_user())
+
+        # remove our session key so if the user comes back this page they'll get directed to the login view
+        self.request.session.pop(TWO_FACTOR_USER_SESSION_KEY, None)
+
+        return HttpResponseRedirect(self.get_success_url())
+
+
+class TwoFactorVerifyView(BaseTwoFactorView):
+    """
+    View to let users with 2FA enabled verify their identity via an OTP from a device.
+    """
+
+    class Form(forms.Form):
+        otp = forms.CharField(max_length=6, required=True)
+
+        def __init__(self, request, user, *args, **kwargs):
+            self.user = user
+            super().__init__(*args, **kwargs)
+
+        def clean_otp(self):
+            data = self.cleaned_data["otp"]
+            if not self.user.verify_2fa(otp=data):
+                raise ValidationError(_("Incorrect OTP. Please try again."))
+            return data
+
+    form_class = Form
+    template_name = "orgs/login/two_factor_verify.haml"
+
+
+class TwoFactorBackupView(BaseTwoFactorView):
+    """
+    View to let users with 2FA enabled verify their identity using a backup token.
+    """
+
+    class Form(forms.Form):
+        token = forms.CharField(max_length=8, required=True)
+
+        def __init__(self, request, user, *args, **kwargs):
+            self.user = user
+            super().__init__(*args, **kwargs)
+
+        def clean_token(self):
+            data = self.cleaned_data["token"]
+            if not self.user.verify_2fa(backup_token=data):
+                raise ValidationError(_("Invalid backup token. Please try again."))
+            return data
+
+    form_class = Form
+    template_name = "orgs/login/two_factor_backup.haml"
 
 
 class UserCRUDL(SmartCRUDL):
@@ -1536,8 +1637,7 @@ class OrgCRUDL(SmartCRUDL):
 
             def clean_otp(self):
                 otp = self.cleaned_data["otp"]
-                secret = self.user.get_settings().otp_secret
-                if not pyotp.TOTP(secret).verify(otp, valid_window=2):
+                if not self.user.verify_2fa(otp=otp):
                     raise forms.ValidationError(_("Incorrect OTP. Please try again."))
                 return otp
 

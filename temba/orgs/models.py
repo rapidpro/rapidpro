@@ -2216,6 +2216,23 @@ def _user_disable_2fa(user):
     user.backup_tokens.all().delete()
 
 
+def _user_verify_2fa(user, *, otp: str = None, backup_token: str = None) -> bool:
+    """
+    Verifies a user using a 2FA mechanism (OTP or backup token)
+    """
+    if otp:
+        secret = user.get_settings().otp_secret
+        return pyotp.TOTP(secret).verify(otp, valid_window=2)
+    elif backup_token:
+        token = user.backup_tokens.filter(token=backup_token).first()
+        if token:
+            token.is_used = True
+            token.save(update_fields=("is_used",))
+            return True
+
+    return False
+
+
 User.release = release
 User.get_org = get_org
 User.set_org = set_org
@@ -2229,6 +2246,7 @@ User.has_org_perm = _user_has_org_perm
 User.get_settings = _user_get_settings
 User.enable_2fa = _user_enable_2fa
 User.disable_2fa = _user_disable_2fa
+User.verify_2fa = _user_verify_2fa
 
 
 def get_stripe_credentials():
