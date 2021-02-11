@@ -168,7 +168,8 @@
                 - if object_list
                   %tr.contacts
                     -if org_perms.contacts.contact_update
-                      %th
+                      %th.checkbox.object-row-checkbox.select-all-items-checkbox
+                        .glyph.icon-checkbox-unchecked.contacts-checkbox
                     %th
                     %th
                     %th
@@ -415,6 +416,11 @@
       display: block;
     }
 
+    .select-all-items-checkbox {
+      width: 40px;
+      padding-left: 14px !important;
+    }
+
     .overflow-ellipsis-200 {
       max-width: 200px;
       overflow: hidden;
@@ -496,4 +502,42 @@
     function handleAddGroupClicked() {
       document.getElementById("create-group-modal").open = true;
     }
+
+    $(document).on('click', 'th.object-row-checkbox', function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+
+      var btnCheck = String(e.target.tagName).toLowerCase() === 'th' ? e.target : e.target.parentElement;
+      if (btnCheck.classList.contains("checked")) {
+        btnCheck.classList.remove("checked");
+        btnCheck.querySelector('.contacts-checkbox').classList.remove("checked");
+        document.querySelectorAll("td.object-row-checkbox").forEach(el => {
+          let row = el.parentElement;
+          row.classList.remove("checked");
+          row.querySelector("temba-checkbox").checked = false;
+        });
+      } else {
+        btnCheck.classList.add("checked");
+        btnCheck.querySelector('.contacts-checkbox').classList.add("checked");
+        document.querySelectorAll("td.object-row-checkbox").forEach(el => {
+          let row = el.parentElement;
+          row.classList.add("checked");
+          row.querySelector("temba-checkbox").checked = true;
+        });
+      }
+
+      let listButtons = document.querySelector('.list-buttons-container').classList;
+      let pageTitle = document.querySelector('.page-title').classList;
+
+      if (document.querySelector('tr.checked')) {
+        listButtons.add('visible');
+        pageTitle.add('hidden');
+      } else {
+        listButtons.remove('visible');
+        pageTitle.remove('hidden');
+      }
+
+      updateLabelMenu();
+      return false;
+    });
 
