@@ -215,6 +215,75 @@ class UserTest(TembaTest):
 
         self.assertFalse(self.admin.get_settings().two_factor_enabled)
 
+    def test_two_factor_views(self):
+        # 2FA still only accessible to beta users
+        Group.objects.get(name="Beta").user_set.add(self.admin)
+
+        enable_url = reverse("orgs.user_two_factor_enable")
+        tokens_url = reverse("orgs.user_two_factor_tokens")
+        disable_url = reverse("orgs.user_two_factor_disable")
+
+        self.login(self.admin)
+
+        # org home page tells us 2FA is disabled, links to page to enable it
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, "Two-factor Authentication is <b>disabled</b>")
+        self.assertContains(response, enable_url)
+
+        # view form to enable 2FA
+        response = self.client.get(enable_url)
+        self.assertEqual(["otp", "password", "loc"], list(response.context["form"].fields.keys()))
+
+        # try to submit with no OTP or password
+        response = self.client.post(enable_url, {})
+        self.assertFormError(response, "form", "otp", "This field is required.")
+        self.assertFormError(response, "form", "password", "This field is required.")
+
+        # try to submit with invalid OTP and password
+        response = self.client.post(enable_url, {"otp": "nope", "password": "wrong"})
+        self.assertFormError(response, "form", "otp", "OTP incorrect. Please try again.")
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # submit with valid OTP and password
+        with patch("pyotp.TOTP.verify", return_value=True):
+            response = self.client.post(enable_url, {"otp": "123456", "password": "Administrator"})
+        self.assertRedirect(response, tokens_url)
+        self.assertTrue(self.admin.get_settings().two_factor_enabled)
+
+        # view backup tokens page
+        response = self.client.get(tokens_url)
+        self.assertContains(response, "Two-factor authentication enabled")
+        self.assertContains(response, "Regenerate Tokens")
+        self.assertContains(response, disable_url)
+
+        tokens = [t.token for t in response.context["backup_tokens"]]
+
+        # posting to that page regenerates tokens
+        response = self.client.post(tokens_url)
+        self.assertContains(response, "Two-factor authentication backup tokens changed.")
+        self.assertNotEqual(tokens, [t.token for t in response.context["backup_tokens"]])
+
+        # view form to disable 2FA
+        response = self.client.get(disable_url)
+        self.assertEqual(["password", "loc"], list(response.context["form"].fields.keys()))
+
+        # try to submit with no password
+        response = self.client.post(disable_url, {})
+        self.assertFormError(response, "form", "password", "This field is required.")
+
+        # try to submit with invalid password
+        response = self.client.post(disable_url, {"password": "wrong"})
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # submit with valid password
+        response = self.client.post(disable_url, {"password": "Administrator"})
+        self.assertRedirect(response, reverse("orgs.org_home"))
+        self.assertFalse(self.admin.get_settings().two_factor_enabled)
+
+        # trying to view the tokens page now takes us to the enable form
+        response = self.client.get(tokens_url)
+        self.assertRedirect(response, enable_url)
+
     def test_ui_permissions(self):
         # non-logged in users can't go here
         response = self.client.get(reverse("orgs.user_list"))
