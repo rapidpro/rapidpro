@@ -227,7 +227,7 @@ class UserTest(TembaTest):
 
         # org home page tells us 2FA is disabled, links to page to enable it
         response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Two-factor Authentication is <b>disabled</b>")
+        self.assertContains(response, "Two-factor authentication is <b>disabled</b>")
         self.assertContains(response, enable_url)
 
         # view form to enable 2FA
@@ -250,9 +250,12 @@ class UserTest(TembaTest):
         self.assertRedirect(response, tokens_url)
         self.assertTrue(self.admin.get_settings().two_factor_enabled)
 
+        # org home page now tells us 2FA is enabled, links to page manage tokens
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, "Two-factor authentication is <b>enabled</b>")
+
         # view backup tokens page
         response = self.client.get(tokens_url)
-        self.assertContains(response, "Two-factor authentication enabled")
         self.assertContains(response, "Regenerate Tokens")
         self.assertContains(response, disable_url)
 
