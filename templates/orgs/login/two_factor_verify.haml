@@ -7,7 +7,7 @@
 -block login-content
   .mt-4
     -blocktrans trimmed
-      Open the one-time password application with which you configured two-factor authentication on your account
+      Open the one-time password application with which you setup two-factor authentication on your account
       and enter the code below to verify your identity.
 
   %form(method="POST")
@@ -20,8 +20,9 @@
       .alert-error.mt-4
         {{ form.otp.errors }}
 
+    .mt-2.text-right
+      %a(href="{% url 'users.two_factor_backup' %}")
+        -trans "Use Backup Token"
+
     .mt-6
       %input.button-primary(type="submit" value='{{_("Verify")|escape}}')
-
-      %a.button-light.float-right(href="{% url 'users.two_factor_backup' %}")
-        -trans "Use Backup Token"

@@ -20,8 +20,9 @@
       .alert-error.mt-4
         {{ form.token.errors }}
 
+    .mt-2.text-right
+      %a(href="{% url 'users.two_factor_verify' %}")
+        -trans "Use Device"
+
     .mt-6
       %input.button-primary(type="submit" value='{{_("Verify")|escape}}')
-
-      %a.button-light.float-right(href="{% url 'users.two_factor_verify' %}")
-        -trans "Use Device"
