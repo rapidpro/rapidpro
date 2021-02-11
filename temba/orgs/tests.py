@@ -36,7 +36,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
-from temba.orgs.models import BackupToken, Debit, OrgActivity, UserSettings
+from temba.orgs.models import BackupToken, Debit, OrgActivity
 from temba.orgs.tasks import suspend_topup_orgs_task
 from temba.request_logs.models import HTTPLog
 from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers, mock_mailroom
@@ -823,54 +823,6 @@ class OrgTest(TembaTest):
 
         org = Org.objects.get(pk=self.org.pk)
         self.assertEqual("Temba", org.name)
-
-    def test_two_factor(self):
-        # for now only Beta members have access
-        Group.objects.get(name="Beta").user_set.add(self.admin)
-        self.login(self.admin)
-
-        # viewing the form lazy creates user settings with a generated OTP secret
-        response = self.client.get(reverse("orgs.org_two_factor"))
-        self.assertEqual(200, response.status_code)
-
-        user_settings = UserSettings.objects.get()
-        self.assertEqual(self.admin, user_settings.user)
-        self.assertEqual(16, len(user_settings.otp_secret))
-        self.assertFalse(user_settings.two_factor_enabled)
-
-        # try submitting with an incorrect OTP
-        response = self.client.post(reverse("orgs.org_two_factor"), {"otp": "12345"})
-        self.assertFormError(response, "form", "otp", "Incorrect OTP. Please try again.")
-
-        # won't have created any backup tokens
-        self.assertEqual(0, self.admin.backup_tokens.count())
-
-        # try submitting with correct OTP
-        with patch("pyotp.TOTP.verify", return_value=True):
-            response = self.client.post(reverse("orgs.org_two_factor"), {"otp": "12345"})
-            self.assertEqual(200, response.status_code)
-
-        # 2FA should now be enabled and user should have backup tokens
-        self.assertTrue(self.admin.get_settings().two_factor_enabled)
-        self.assertEqual(10, self.admin.backup_tokens.count())
-
-        # check backup tokens now listed on account home page
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Backup tokens can be used")
-
-        current_tokens = [t.token for t in self.admin.backup_tokens.all()]
-
-        # try regenerating those tokens
-        self.client.post(reverse("orgs.org_two_factor"), {"action": "regenerate_backup_tokens"})
-        self.assertEqual(10, self.admin.backup_tokens.count())
-        self.assertNotEqual([t.token for t in self.admin.backup_tokens.all()], current_tokens)
-
-        # disable 2FA
-        response = self.client.post(reverse("orgs.org_two_factor"), {"action": "disable"})
-        self.assertEqual(200, response.status_code)
-
-        self.assertFalse(self.admin.get_settings().two_factor_enabled)
-        self.assertEqual(0, BackupToken.objects.filter(user=self.admin).count())
 
     def test_country_view(self):
         self.setUpLocations()

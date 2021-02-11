@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-11 17:00+0000\n"
+"POT-Creation-Date: 2021-02-11 17:23+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -4153,6 +4153,60 @@ msgstr "Пожалуйста, введите свой пароль для сох
 msgid "Sorry, that email address is already taken."
 msgstr "Извините, такой адрес электронной почты уже занят"
 
+msgid "6-digit code"
+msgstr ""
+
+#, fuzzy
+#| msgid "Current Password (required)"
+msgid "Current password"
+msgstr "Текущий пароль (обязательно)"
+
+#, fuzzy
+#| msgid "Invalid MFA token. Please try again."
+msgid "OTP incorrect. Please try again."
+msgstr "Неверный токен МФА. Пожалуйста, попробуйте еще раз."
+
+msgid "Password incorrect."
+msgstr ""
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication enabled"
+msgstr "Двухфакторная аутентификация"
+
+#, fuzzy
+#| msgid "Enable Voice"
+msgid "Enable"
+msgstr "Включить Голосовую связь"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Enable Two-factor Authentication"
+msgstr "Двухфакторная аутентификация"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication disabled"
+msgstr "Двухфакторная аутентификация"
+
+msgid "Disable"
+msgstr ""
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Disable Two-factor Authentication"
+msgstr "Двухфакторная аутентификация"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor Authentication"
+msgstr "Двухфакторная аутентификация"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication backup tokens changed."
+msgstr "Двухфакторная аутентификация"
+
 msgid "The import file"
 msgstr "Импортированный файл"
 
@@ -4292,17 +4346,6 @@ msgstr "У Вас должен быть хотя бы один админист�
 #| msgid "Manage Accounts"
 msgid "Manage Logins"
 msgstr "Управление учетными записями"
-
-msgid "One-time Password (OTP)"
-msgstr ""
-
-#, fuzzy
-#| msgid "Enter the code from your authentication application"
-msgid "Enter the one-time password from your authentication application."
-msgstr "Введите код из Вашего приложения по аутентификации"
-
-msgid "Two Factor Authentication"
-msgstr "Двухфакторная аутентификация"
 
 msgid "Dashboard"
 msgstr "Информационная панель"
@@ -8808,11 +8851,6 @@ msgstr ""
 msgid "Sign up"
 msgstr "Зарегистрироваться"
 
-#, fuzzy
-#| msgid "Two Factor Authentication"
-msgid "Two-factor Authentication"
-msgstr "Двухфакторная аутентификация"
-
 msgid "If you no longer have access to the device with which you setup two-factor authentication on your login, you can enter one of your backup tokens below."
 msgstr ""
 
@@ -8825,9 +8863,6 @@ msgid "Use Device"
 msgstr "Устройство"
 
 msgid "Open the one-time password application with which you setup two-factor authentication on your account and enter the code below to verify your identity."
-msgstr ""
-
-msgid "6-digit code"
 msgstr ""
 
 #, fuzzy
@@ -9458,34 +9493,6 @@ msgstr ""
 "\n"
 "          Отключение Вашей учетной записи Twilio также удалит все каналы Twilio, подключенные к ней. Вы уверены, что хотите продолжить?"
 
-#, python-format
-msgid "To enable two factor authentication, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below and generate an OTP."
-msgstr ""
-
-msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
-msgstr "Резервные токены можно использовать, если у Вас больше нет доступа к приложению аутентификации, настроенному для Вашей учетной записи."
-
-msgid "Any tokens you may have previously generated are invalid."
-msgstr ""
-
-msgid "Disable"
-msgstr ""
-
-#, fuzzy
-#| msgid "Generate Backup Tokens"
-msgid "Regenerate Backup Tokens"
-msgstr "Генерировать Резервные Токены"
-
-#, fuzzy
-#| msgid "Two Factor Authentication"
-msgid "Two Factor Authentication is <b>enabled</b>."
-msgstr "Двухфакторная аутентификация"
-
-#, fuzzy
-#| msgid "Two Factor Authentication"
-msgid "Two Factor Authentication is <b>disabled</b>."
-msgstr "Двухфакторная аутентификация"
-
 #, fuzzy
 #| msgid "This organization has been suspended"
 msgid "This workspace has been suspended"
@@ -9579,6 +9586,36 @@ msgstr ""
 "    Ваш адрес электронной почты - <span class='attn'>%(email)s</span>.\n"
 "\n"
 "  "
+
+#, fuzzy
+#| msgid "To enable two factor authentication, use a one time password application such as"
+msgid "To disable two-factor authentication for your login, enter your current password."
+msgstr "Для включения двухфакторной аутентификации используйте приложение для одноразового пароля, такое как"
+
+#, python-format
+msgid "To enable two-factor authentication on your login, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below."
+msgstr ""
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor Authentication is <b>disabled</b>."
+msgstr "Двухфакторная аутентификация"
+
+msgid "Two-factor authentication is currently enabled for your login. Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
+msgstr ""
+
+msgid "You can generate new backup tokens but remember that the current tokens will be no longer be usable if you do this."
+msgstr ""
+
+#, fuzzy
+#| msgid "Generate Backup Tokens"
+msgid "Regenerate Tokens"
+msgstr "Генерировать Резервные Токены"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two Factor Authentication is <b>enabled</b>."
+msgstr "Двухфакторная аутентификация"
 
 #, fuzzy
 #| msgid "Previous Policies"
@@ -10378,6 +10415,17 @@ msgstr "Ввести запрос"
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
+#, fuzzy
+#~| msgid "Enter the code from your authentication application"
+#~ msgid "Enter the one-time password from your authentication application."
+#~ msgstr "Введите код из Вашего приложения по аутентификации"
+
+#~ msgid "Two Factor Authentication"
+#~ msgstr "Двухфакторная аутентификация"
+
+#~ msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
+#~ msgstr "Резервные токены можно использовать, если у Вас больше нет доступа к приложению аутентификации, настроенному для Вашей учетной записи."
+
 #~ msgid "Your preferred language"
 #~ msgstr "Предпочитаемый Вами язык"
 
@@ -10398,9 +10446,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "OTP Secret"
 #~ msgstr "Секретный ключ OTP"
-
-#~ msgid "To enable two factor authentication, use a one time password application such as"
-#~ msgstr "Для включения двухфакторной аутентификации используйте приложение для одноразового пароля, такое как"
 
 #~ msgid "Used"
 #~ msgstr "Использовано"
@@ -12966,9 +13011,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "Remove Phone"
 #~ msgstr "Удалить Телефон"
-
-#~ msgid "Enable Voice"
-#~ msgstr "Включить Голосовую связь"
 
 #~ msgid "unsent messages"
 #~ msgid_plural "unsent message"
