@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-10 19:21+0000\n"
+"POT-Creation-Date: 2021-02-11 16:49+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3302,7 +3302,7 @@ msgstr "Jeton MFA non valide. Veuillez réessayer."
 
 #, fuzzy
 #| msgid "Invalid MFA token. Please try again."
-msgid "Incorrect backup token. Please try again."
+msgid "Invalid backup token. Please try again."
 msgstr "Jeton MFA non valide. Veuillez réessayer."
 
 #, python-brace-format
@@ -6646,6 +6646,56 @@ msgstr ""
 "Carte de crédit: %(cc_type)s X%(cc_last4)s\n"
 "\n"
 
+msgid "Welcome Back"
+msgstr "Re-Bienvenu"
+
+msgid ""
+"\n"
+"    Please sign in with your email address and password.\n"
+"\n"
+"  "
+msgstr ""
+"\n"
+"    Veuillez vous connecter avec votre adresse e-mail et votre mot de passe.\n"
+"\n"
+"  "
+
+msgid "Sign In"
+msgstr "Se connecter"
+
+msgid "Don't have an account yet?"
+msgstr "Vous n'avez pas encore de compte?"
+
+msgid "Sign up"
+msgstr "S'inscrire"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor Authentication"
+msgstr "Authentification à deux facteurs"
+
+msgid "If you no longer have access to the device with which you setup two-factor authentication on your login, you can enter one of your backup tokens below."
+msgstr ""
+
+msgid "8-character token"
+msgstr ""
+
+#, fuzzy
+#| msgid "Device"
+msgid "Use Device"
+msgstr "Appareil"
+
+msgid "Open the one-time password application with which you configured two-factor authentication on your account and enter the code below to verify your identity."
+msgstr ""
+
+msgid "6-digit code"
+msgstr ""
+
+#, fuzzy
+#| msgid "Generate Backup Tokens"
+msgid "Use Backup Token"
+msgstr "Générer des jetons de sauvegarde"
+
 msgid "Your workspace can have logins with various roles. You can use the Manage Logins page to view all existing logins or to add new logins to your workspace."
 msgstr "Votre espace de travail peut avoir des connexions avec différents rôles. Vous pouvez utiliser la page Gérer les connexions pour afficher toutes les connexions existantes ou pour ajouter de nouvelles connexions à votre espace de travail."
 
@@ -6943,9 +6993,6 @@ msgstr "Créer un compte"
 msgid "Creating a %(brand)s account is free and only takes a minute."
 msgstr "La création d'un compte %(brand)s est gratuite et ne prend qu'une minute."
 
-msgid "Sign In"
-msgstr "Se connecter"
-
 msgid "Remove SMTP configuration"
 msgstr "Supprimer la configuration SMTP"
 
@@ -7071,33 +7118,6 @@ msgstr "Merci de soutenir %(brand)s."
 #, python-format
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Crédits complémentaires, merci d'essayer %(brand)s."
-
-#, fuzzy
-#| msgid "Two Factor Authentication"
-msgid "Two-factor Authentication"
-msgstr "Authentification à deux facteurs"
-
-msgid "If you no longer have access to the device you setup two-factor authentication with you can enter one of your backup tokens below."
-msgstr ""
-
-msgid "8-character token"
-msgstr ""
-
-#, fuzzy
-#| msgid "Device"
-msgid "Use Device"
-msgstr "Appareil"
-
-msgid "Open the one-time password application with which you configured two-factor authentication on your account and enter the code below to verify your identity."
-msgstr ""
-
-msgid "6-digit code"
-msgstr ""
-
-#, fuzzy
-#| msgid "Generate Backup Tokens"
-msgid "Use Backup Token"
-msgstr "Générer des jetons de sauvegarde"
 
 #, python-format
 msgid ""
@@ -7547,26 +7567,6 @@ msgstr "Non programmé"
 
 msgid "Not scheduled"
 msgstr "Non prévu"
-
-msgid "Welcome Back"
-msgstr "Re-Bienvenu"
-
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
-msgstr ""
-"\n"
-"    Veuillez vous connecter avec votre adresse e-mail et votre mot de passe.\n"
-"\n"
-"  "
-
-msgid "Don't have an account yet?"
-msgstr "Vous n'avez pas encore de compte?"
-
-msgid "Sign up"
-msgstr "S'inscrire"
 
 msgid "Login Failure"
 msgstr "Erreur d'authentification"

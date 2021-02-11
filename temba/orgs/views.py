@@ -354,6 +354,8 @@ class LoginView(Login):
     Overrides the smartmin login view to redirect users with 2FA enabled to a second verification view.
     """
 
+    template_name = "orgs/login/login.haml"
+
     def form_valid(self, form):
         user = form.get_user()
         if user.get_settings().two_factor_enabled:
@@ -418,7 +420,7 @@ class TwoFactorVerifyView(BaseTwoFactorView):
             return data
 
     form_class = Form
-    template_name = "orgs/two_factor/verify.haml"
+    template_name = "orgs/login/two_factor_verify.haml"
 
 
 class TwoFactorBackupView(BaseTwoFactorView):
@@ -436,11 +438,11 @@ class TwoFactorBackupView(BaseTwoFactorView):
         def clean_token(self):
             data = self.cleaned_data["token"]
             if not self.user.verify_2fa(backup_token=data):
-                raise ValidationError(_("Incorrect backup token. Please try again."))
+                raise ValidationError(_("Invalid backup token. Please try again."))
             return data
 
     form_class = Form
-    template_name = "orgs/two_factor/backup.haml"
+    template_name = "orgs/login/two_factor_backup.haml"
 
 
 class UserCRUDL(SmartCRUDL):

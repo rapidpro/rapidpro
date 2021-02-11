@@ -18,7 +18,7 @@ urlpatterns += UserCRUDL().as_urlpatterns()
 urlpatterns += [
     url(r"^login/$", check_login, name="users.user_check_login"),
     url(r"^users/login/$", LoginView.as_view(), name="users.login"),
-    url(r"^users/two-factor/$", TwoFactorVerifyView.as_view(), name="users.two_factor_verify"),
+    url(r"^users/two-factor/verify/$", TwoFactorVerifyView.as_view(), name="users.two_factor_verify"),
     url(r"^users/two-factor/backup/$", TwoFactorBackupView.as_view(), name="users.two_factor_backup"),
     url(r"^handlers/stripe/$", StripeHandler.as_view(), name="handlers.stripe_handler"),
     # for backwards compatibility

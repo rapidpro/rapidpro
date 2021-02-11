@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-10 19:21+0000\n"
+"POT-Creation-Date: 2021-02-11 16:49+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3250,7 +3250,7 @@ msgstr ""
 msgid "Incorrect OTP. Please try again."
 msgstr ""
 
-msgid "Incorrect backup token. Please try again."
+msgid "Invalid backup token. Please try again."
 msgstr ""
 
 #, python-brace-format
@@ -6288,6 +6288,46 @@ msgid ""
 "\n"
 msgstr ""
 
+msgid "Welcome Back"
+msgstr ""
+
+msgid ""
+"\n"
+"    Please sign in with your email address and password.\n"
+"\n"
+"  "
+msgstr ""
+
+msgid "Sign In"
+msgstr ""
+
+msgid "Don't have an account yet?"
+msgstr ""
+
+msgid "Sign up"
+msgstr ""
+
+msgid "Two-factor Authentication"
+msgstr ""
+
+msgid "If you no longer have access to the device with which you setup two-factor authentication on your login, you can enter one of your backup tokens below."
+msgstr ""
+
+msgid "8-character token"
+msgstr ""
+
+msgid "Use Device"
+msgstr ""
+
+msgid "Open the one-time password application with which you configured two-factor authentication on your account and enter the code below to verify your identity."
+msgstr ""
+
+msgid "6-digit code"
+msgstr ""
+
+msgid "Use Backup Token"
+msgstr ""
+
 msgid "Your workspace can have logins with various roles. You can use the Manage Logins page to view all existing logins or to add new logins to your workspace."
 msgstr ""
 
@@ -6576,9 +6616,6 @@ msgstr ""
 msgid "Creating a %(brand)s account is free and only takes a minute."
 msgstr ""
 
-msgid "Sign In"
-msgstr ""
-
 msgid "Remove SMTP configuration"
 msgstr ""
 
@@ -6697,27 +6734,6 @@ msgstr ""
 
 #, python-format
 msgid "Complementary credits, thanks for trying %(brand)s."
-msgstr ""
-
-msgid "Two-factor Authentication"
-msgstr ""
-
-msgid "If you no longer have access to the device you setup two-factor authentication with you can enter one of your backup tokens below."
-msgstr ""
-
-msgid "8-character token"
-msgstr ""
-
-msgid "Use Device"
-msgstr ""
-
-msgid "Open the one-time password application with which you configured two-factor authentication on your account and enter the code below to verify your identity."
-msgstr ""
-
-msgid "6-digit code"
-msgstr ""
-
-msgid "Use Backup Token"
 msgstr ""
 
 #, python-format
@@ -7046,22 +7062,6 @@ msgid "Unschedule"
 msgstr ""
 
 msgid "Not scheduled"
-msgstr ""
-
-msgid "Welcome Back"
-msgstr ""
-
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
-msgstr ""
-
-msgid "Don't have an account yet?"
-msgstr ""
-
-msgid "Sign up"
 msgstr ""
 
 msgid "Login Failure"

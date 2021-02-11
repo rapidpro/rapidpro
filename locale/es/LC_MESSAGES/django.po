@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-10 19:21+0000\n"
+"POT-Creation-Date: 2021-02-11 16:49+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4736,7 +4736,7 @@ msgstr "Número de teléfono inválido, inténtelo nuevamente."
 
 #, fuzzy
 #| msgid "Invalid phone number, try again."
-msgid "Incorrect backup token. Please try again."
+msgid "Invalid backup token. Please try again."
 msgstr "Número de teléfono inválido, inténtelo nuevamente."
 
 #, python-brace-format
@@ -9364,6 +9364,54 @@ msgid ""
 "\n"
 msgstr ""
 
+#, fuzzy
+#| msgid "Flow Message"
+msgid "Welcome Back"
+msgstr "Mensaje del flujo"
+
+msgid ""
+"\n"
+"    Please sign in with your email address and password.\n"
+"\n"
+"  "
+msgstr ""
+
+#, fuzzy
+#| msgid "Sign in"
+msgid "Sign In"
+msgstr "Registrarse"
+
+msgid "Don't have an account yet?"
+msgstr ""
+
+#, fuzzy
+#| msgid "Sign Up"
+msgid "Sign up"
+msgstr "Registrarse"
+
+msgid "Two-factor Authentication"
+msgstr ""
+
+msgid "If you no longer have access to the device with which you setup two-factor authentication on your login, you can enter one of your backup tokens below."
+msgstr ""
+
+msgid "8-character token"
+msgstr ""
+
+#, fuzzy
+#| msgid "Device"
+msgid "Use Device"
+msgstr "Dispositivo"
+
+msgid "Open the one-time password application with which you configured two-factor authentication on your account and enter the code below to verify your identity."
+msgstr ""
+
+msgid "6-digit code"
+msgstr ""
+
+msgid "Use Backup Token"
+msgstr ""
+
 msgid "Your workspace can have logins with various roles. You can use the Manage Logins page to view all existing logins or to add new logins to your workspace."
 msgstr ""
 
@@ -9782,11 +9830,6 @@ msgid "Creating a %(brand)s account is free and only takes a minute."
 msgstr ""
 
 #, fuzzy
-#| msgid "Sign in"
-msgid "Sign In"
-msgstr "Registrarse"
-
-#, fuzzy
 #| msgid "Configuration"
 msgid "Remove SMTP configuration"
 msgstr "Configuración"
@@ -9950,29 +9993,6 @@ msgstr ""
 #, fuzzy, python-format
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Créditos complementarios, gracias por usar TextIt."
-
-msgid "Two-factor Authentication"
-msgstr ""
-
-msgid "If you no longer have access to the device you setup two-factor authentication with you can enter one of your backup tokens below."
-msgstr ""
-
-msgid "8-character token"
-msgstr ""
-
-#, fuzzy
-#| msgid "Device"
-msgid "Use Device"
-msgstr "Dispositivo"
-
-msgid "Open the one-time password application with which you configured two-factor authentication on your account and enter the code below to verify your identity."
-msgstr ""
-
-msgid "6-digit code"
-msgstr ""
-
-msgid "Use Backup Token"
-msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""
@@ -10500,26 +10520,6 @@ msgstr "programado"
 #| msgid "not scheduled"
 msgid "Not scheduled"
 msgstr "programado"
-
-#, fuzzy
-#| msgid "Flow Message"
-msgid "Welcome Back"
-msgstr "Mensaje del flujo"
-
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
-msgstr ""
-
-msgid "Don't have an account yet?"
-msgstr ""
-
-#, fuzzy
-#| msgid "Sign Up"
-msgid "Sign up"
-msgstr "Registrarse"
 
 msgid "Login Failure"
 msgstr ""
