@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-11 17:23+0000\n"
+"POT-Creation-Date: 2021-02-11 18:54+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -9213,8 +9213,10 @@ msgstr ""
 msgid "To enable two-factor authentication on your login, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below."
 msgstr ""
 
-msgid "Two-factor Authentication is <b>disabled</b>."
-msgstr ""
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Two-factor authentication is <b>disabled</b>."
+msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
 
 msgid "Two-factor authentication is currently enabled for your login. Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
 msgstr ""
@@ -9225,8 +9227,10 @@ msgstr ""
 msgid "Regenerate Tokens"
 msgstr ""
 
-msgid "Two Factor Authentication is <b>enabled</b>."
-msgstr ""
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Two-factor authentication is <b>enabled</b>."
+msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
 
 #, fuzzy
 msgid "Policies"

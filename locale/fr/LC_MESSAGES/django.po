@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-11 17:23+0000\n"
+"POT-Creation-Date: 2021-02-11 18:54+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -7147,7 +7147,7 @@ msgstr ""
 
 #, fuzzy
 #| msgid "Two Factor Authentication"
-msgid "Two-factor Authentication is <b>disabled</b>."
+msgid "Two-factor authentication is <b>disabled</b>."
 msgstr "Authentification à deux facteurs"
 
 msgid "Two-factor authentication is currently enabled for your login. Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
@@ -7163,7 +7163,7 @@ msgstr "Générer des jetons de sauvegarde"
 
 #, fuzzy
 #| msgid "Two Factor Authentication"
-msgid "Two Factor Authentication is <b>enabled</b>."
+msgid "Two-factor authentication is <b>enabled</b>."
 msgstr "Authentification à deux facteurs"
 
 msgid "Policies"

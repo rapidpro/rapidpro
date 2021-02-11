@@ -2661,13 +2661,6 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_profile"):
                 formax.add_section("user", reverse("orgs.user_edit"), icon="icon-user", action="redirect")
 
-            if self.has_org_perm("orgs.org_edit"):
-                formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
-
-            # only pro orgs get multiple users
-            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user:
-                formax.add_section("accounts", reverse("orgs.org_accounts"), icon="icon-users", action="redirect")
-
             if self.has_org_perm("orgs.org_two_factor"):
                 if user.get_settings().two_factor_enabled:
                     formax.add_section(
@@ -2677,6 +2670,13 @@ class OrgCRUDL(SmartCRUDL):
                     formax.add_section(
                         "two_factor", reverse("orgs.user_two_factor_enable"), icon="icon-two-factor", action="link"
                     )
+
+            if self.has_org_perm("orgs.org_edit"):
+                formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
+
+            # only pro orgs get multiple users
+            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user:
+                formax.add_section("accounts", reverse("orgs.org_accounts"), icon="icon-users", action="redirect")
 
             if self.has_org_perm("orgs.org_languages"):
                 formax.add_section("languages", reverse("orgs.org_languages"), icon="icon-language")
