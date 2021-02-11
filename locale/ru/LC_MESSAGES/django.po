@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-10 19:21+0000\n"
+"POT-Creation-Date: 2021-02-11 17:00+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -4105,7 +4105,7 @@ msgstr "Неверный токен МФА. Пожалуйста, попробу
 
 #, fuzzy
 #| msgid "Invalid MFA token. Please try again."
-msgid "Incorrect backup token. Please try again."
+msgid "Invalid backup token. Please try again."
 msgstr "Неверный токен МФА. Пожалуйста, попробуйте еще раз."
 
 #, python-brace-format
@@ -8784,6 +8784,58 @@ msgstr ""
 "\n"
 
 #, fuzzy
+#| msgid "Welcome!"
+msgid "Welcome Back"
+msgstr "Добро пожаловать!"
+
+msgid ""
+"\n"
+"    Please sign in with your email address and password.\n"
+"\n"
+"  "
+msgstr ""
+
+#, fuzzy
+#| msgid "Sign in"
+msgid "Sign In"
+msgstr "Войти"
+
+msgid "Don't have an account yet?"
+msgstr ""
+
+#, fuzzy
+#| msgid "Sign Up"
+msgid "Sign up"
+msgstr "Зарегистрироваться"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor Authentication"
+msgstr "Двухфакторная аутентификация"
+
+msgid "If you no longer have access to the device with which you setup two-factor authentication on your login, you can enter one of your backup tokens below."
+msgstr ""
+
+msgid "8-character token"
+msgstr ""
+
+#, fuzzy
+#| msgid "Device"
+msgid "Use Device"
+msgstr "Устройство"
+
+msgid "Open the one-time password application with which you setup two-factor authentication on your account and enter the code below to verify your identity."
+msgstr ""
+
+msgid "6-digit code"
+msgstr ""
+
+#, fuzzy
+#| msgid "Generate Backup Tokens"
+msgid "Use Backup Token"
+msgstr "Генерировать Резервные Токены"
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "    Your organization can have user accounts with various roles. You can use the Manage Accounts page\n"
@@ -9266,11 +9318,6 @@ msgstr "Создать Учетную запись"
 msgid "Creating a %(brand)s account is free and only takes a minute."
 msgstr ""
 
-#, fuzzy
-#| msgid "Sign in"
-msgid "Sign In"
-msgstr "Войти"
-
 msgid "Remove SMTP configuration"
 msgstr "Удалить настройки SMTP"
 
@@ -9516,33 +9563,6 @@ msgstr ""
 "              Дополнительные кредиты, спасибо за опробование %(brand)s.\n"
 "\n"
 "            "
-
-#, fuzzy
-#| msgid "Two Factor Authentication"
-msgid "Two-factor Authentication"
-msgstr "Двухфакторная аутентификация"
-
-msgid "If you no longer have access to the device you setup two-factor authentication with you can enter one of your backup tokens below."
-msgstr ""
-
-msgid "8-character token"
-msgstr ""
-
-#, fuzzy
-#| msgid "Device"
-msgid "Use Device"
-msgstr "Устройство"
-
-msgid "Open the one-time password application with which you configured two-factor authentication on your account and enter the code below to verify your identity."
-msgstr ""
-
-msgid "6-digit code"
-msgstr ""
-
-#, fuzzy
-#| msgid "Generate Backup Tokens"
-msgid "Use Backup Token"
-msgstr "Генерировать Резервные Токены"
 
 #, fuzzy, python-format
 #| msgid ""
@@ -10081,26 +10101,6 @@ msgstr "не запланировано"
 
 msgid "Not scheduled"
 msgstr "Не запланировано"
-
-#, fuzzy
-#| msgid "Welcome!"
-msgid "Welcome Back"
-msgstr "Добро пожаловать!"
-
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
-msgstr ""
-
-msgid "Don't have an account yet?"
-msgstr ""
-
-#, fuzzy
-#| msgid "Sign Up"
-msgid "Sign up"
-msgstr "Зарегистрироваться"
 
 msgid "Login Failure"
 msgstr ""

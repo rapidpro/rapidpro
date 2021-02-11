@@ -177,7 +177,7 @@ class UserTest(TembaTest):
 
         # enter invalid backup token
         response = self.client.post(backup_url, {"token": "nope"})
-        self.assertFormError(response, "form", "token", "Incorrect backup token. Please try again.")
+        self.assertFormError(response, "form", "token", "Invalid backup token. Please try again.")
 
         # enter valid backup token
         response = self.client.post(backup_url, {"token": self.admin.backup_tokens.first()})
