@@ -9,7 +9,7 @@
     ]
   },
   "dependencies": {
-    "@greatnonprofits-nfp/flow-editor": "1.12.8",
+    "@greatnonprofits-nfp/flow-editor": "1.12.9",
     "@greatnonprofits-nfp/temba-components": "0.8.11",
     "@tailwindcss/ui": "0.2.2",
     "fa-icons": "0.2.0",
