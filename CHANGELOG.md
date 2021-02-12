@@ -1,3 +1,10 @@
+v6.1.41
+----------
+ * Remove no longer used permissions
+ * Override login view to redirect to new views for two-factor authentication
+ * Reduce recent export window to 4 hours
+ * Change message campaign events to use background flows
+
 v6.1.40
 ----------
  * Remove UserSettings.tel and add UserSettings.last_auth_on
