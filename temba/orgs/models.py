@@ -2224,7 +2224,7 @@ def _user_verify_2fa(user, *, otp: str = None, backup_token: str = None) -> bool
         secret = user.get_settings().otp_secret
         return pyotp.TOTP(secret).verify(otp, valid_window=2)
     elif backup_token:
-        token = user.backup_tokens.filter(token=backup_token).first()
+        token = user.backup_tokens.filter(token=backup_token, is_used=False).first()
         if token:
             token.is_used = True
             token.save(update_fields=("is_used",))

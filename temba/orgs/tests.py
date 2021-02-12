@@ -207,9 +207,13 @@ class UserTest(TembaTest):
         self.assertFalse(self.admin.verify_2fa(backup_token="nope"))
 
         # try to verify with a valid backup token
-        self.assertTrue(self.admin.verify_2fa(backup_token=self.admin.backup_tokens.first()))
+        token = self.admin.backup_tokens.first().token
+        self.assertTrue(self.admin.verify_2fa(backup_token=token))
 
         self.assertEqual(9, len(self.admin.backup_tokens.filter(is_used=False)))
+
+        # can't verify again with same backup token
+        self.assertFalse(self.admin.verify_2fa(backup_token=token))
 
         self.admin.disable_2fa()
 
