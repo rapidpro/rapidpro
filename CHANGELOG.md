@@ -1,3 +1,8 @@
+v6.1.42
+----------
+ * Use Twilio API to determine capabilities of new Twilio channels
+ * Fix result pages not loading for users using Spanish interface
+
 v6.1.41
 ----------
  * Remove no longer used permissions
