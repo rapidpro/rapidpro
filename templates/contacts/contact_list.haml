@@ -145,8 +145,8 @@
                             {{current_group.name}}
                           -else
                             {{title}}
-                      .subtitle
-                        -block subtitle
+                        .subtitle
+                          -block subtitle
                   .gear-links
                     -include "gear_links_include.haml"
 
@@ -425,6 +425,12 @@
       max-width: 200px;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      font-weight: 300;
+      color: #999;
     }
 
 
