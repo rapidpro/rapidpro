@@ -171,6 +171,12 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
                 phonenumbers.parse(phone_number, None), phonenumbers.PhoneNumberFormat.NATIONAL
             )
 
+            role = ""
+            if twilio_phone.capabilities.get("voice", False):
+                role += Channel.ROLE_CALL + Channel.ROLE_ANSWER
+            if twilio_phone.capabilities.get("sms", False):
+                role += Channel.ROLE_SEND + Channel.ROLE_RECEIVE
+
             number_sid = twilio_phone.sid
 
         org_config = org.config
