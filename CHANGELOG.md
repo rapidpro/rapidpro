@@ -1,3 +1,8 @@
+v6.1.43
+----------
+ * Backup tokens can only be used once
+ * Add new 2FA management views
+
 v6.1.42
 ----------
  * Use Twilio API to determine capabilities of new Twilio channels
