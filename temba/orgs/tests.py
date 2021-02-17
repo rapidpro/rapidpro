@@ -6,7 +6,6 @@ from decimal import Decimal
 from unittest.mock import Mock, patch
 from urllib.parse import urlencode
 
-import pyotp
 import pytz
 import stripe
 import stripe.error
@@ -37,7 +36,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
-from temba.orgs.models import BackupToken, Debit, OrgActivity, UserSettings
+from temba.orgs.models import BackupToken, Debit, OrgActivity
 from temba.orgs.tasks import suspend_topup_orgs_task
 from temba.request_logs.models import HTTPLog
 from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers, mock_mailroom
@@ -101,6 +100,197 @@ class OrgContextProcessorTest(TembaTest):
 
 
 class UserTest(TembaTest):
+    def test_login(self):
+        login_url = reverse("users.user_login")
+        verify_url = reverse("users.two_factor_verify")
+        backup_url = reverse("users.two_factor_backup")
+
+        user_settings = self.admin.get_settings()
+        self.assertIsNone(user_settings.last_auth_on)
+
+        # try to access a non-public page
+        response = self.client.get(reverse("msgs.msg_inbox"))
+        self.assertLoginRedirect(response)
+        self.assertTrue(response.url.endswith("?next=/msg/inbox/"))
+
+        # view login page
+        response = self.client.get(login_url)
+        self.assertEqual(200, response.status_code)
+
+        # submit incorrect username and password
+        response = self.client.post(login_url, {"username": "jim", "password": "pass123"})
+        self.assertEqual(200, response.status_code)
+        self.assertFormError(
+            response,
+            "form",
+            "__all__",
+            "Please enter a correct username and password. Note that both fields may be case-sensitive.",
+        )
+
+        # submit correct username and password
+        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        self.assertRedirect(response, reverse("orgs.org_choose"))
+
+        user_settings = self.admin.get_settings()
+        self.assertIsNotNone(user_settings.last_auth_on)
+
+        # logout and enable 2FA
+        self.client.logout()
+        self.admin.enable_2fa()
+
+        # can't access two-factor verify page yet
+        response = self.client.get(verify_url)
+        self.assertLoginRedirect(response)
+
+        # login via login page again
+        response = self.client.post(
+            login_url + "?next=/msg/inbox/", {"username": "Administrator", "password": "Administrator"}
+        )
+        self.assertRedirect(response, verify_url)
+        self.assertTrue(response.url.endswith("?next=/msg/inbox/"))
+
+        # view two-factor verify page
+        response = self.client.get(verify_url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(["otp"], list(response.context["form"].fields.keys()))
+        self.assertContains(response, backup_url)
+
+        # enter invalid OTP
+        response = self.client.post(verify_url, {"otp": "nope"})
+        self.assertFormError(response, "form", "otp", "Incorrect OTP. Please try again.")
+
+        # enter valid OTP
+        with patch("pyotp.TOTP.verify", return_value=True):
+            response = self.client.post(verify_url, {"otp": "123456"})
+        self.assertRedirect(response, reverse("orgs.org_choose"))
+
+        self.client.logout()
+
+        # login via login page again
+        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        self.assertRedirect(response, verify_url)
+
+        # but this time we've lost our phone so go to the page for backup tokens
+        response = self.client.get(backup_url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(["token"], list(response.context["form"].fields.keys()))
+
+        # enter invalid backup token
+        response = self.client.post(backup_url, {"token": "nope"})
+        self.assertFormError(response, "form", "token", "Invalid backup token. Please try again.")
+
+        # enter valid backup token
+        response = self.client.post(backup_url, {"token": self.admin.backup_tokens.first()})
+        self.assertRedirect(response, reverse("orgs.org_choose"))
+
+        self.assertEqual(9, len(self.admin.backup_tokens.filter(is_used=False)))
+
+    def test_two_factor(self):
+        self.assertFalse(self.admin.get_settings().two_factor_enabled)
+
+        self.admin.enable_2fa()
+
+        self.assertTrue(self.admin.get_settings().two_factor_enabled)
+        self.assertEqual(10, len(self.admin.backup_tokens.filter(is_used=False)))
+
+        # try to verify with.. nothing
+        self.assertFalse(self.admin.verify_2fa())
+
+        # try to verify with an invalid OTP
+        self.assertFalse(self.admin.verify_2fa(otp="nope"))
+
+        # try to verify with a valid OTP
+        with patch("pyotp.TOTP.verify", return_value=True):
+            self.assertTrue(self.admin.verify_2fa(otp="123456"))
+
+        # try to verify with an invalid backup token
+        self.assertFalse(self.admin.verify_2fa(backup_token="nope"))
+
+        # try to verify with a valid backup token
+        token = self.admin.backup_tokens.first().token
+        self.assertTrue(self.admin.verify_2fa(backup_token=token))
+
+        self.assertEqual(9, len(self.admin.backup_tokens.filter(is_used=False)))
+
+        # can't verify again with same backup token
+        self.assertFalse(self.admin.verify_2fa(backup_token=token))
+
+        self.admin.disable_2fa()
+
+        self.assertFalse(self.admin.get_settings().two_factor_enabled)
+
+    def test_two_factor_views(self):
+        # 2FA still only accessible to beta users
+        Group.objects.get(name="Beta").user_set.add(self.admin)
+
+        enable_url = reverse("orgs.user_two_factor_enable")
+        tokens_url = reverse("orgs.user_two_factor_tokens")
+        disable_url = reverse("orgs.user_two_factor_disable")
+
+        self.login(self.admin)
+
+        # org home page tells us 2FA is disabled, links to page to enable it
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, "Two-factor authentication is <b>disabled</b>")
+        self.assertContains(response, enable_url)
+
+        # view form to enable 2FA
+        response = self.client.get(enable_url)
+        self.assertEqual(["otp", "password", "loc"], list(response.context["form"].fields.keys()))
+
+        # try to submit with no OTP or password
+        response = self.client.post(enable_url, {})
+        self.assertFormError(response, "form", "otp", "This field is required.")
+        self.assertFormError(response, "form", "password", "This field is required.")
+
+        # try to submit with invalid OTP and password
+        response = self.client.post(enable_url, {"otp": "nope", "password": "wrong"})
+        self.assertFormError(response, "form", "otp", "OTP incorrect. Please try again.")
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # submit with valid OTP and password
+        with patch("pyotp.TOTP.verify", return_value=True):
+            response = self.client.post(enable_url, {"otp": "123456", "password": "Administrator"})
+        self.assertRedirect(response, tokens_url)
+        self.assertTrue(self.admin.get_settings().two_factor_enabled)
+
+        # org home page now tells us 2FA is enabled, links to page manage tokens
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, "Two-factor authentication is <b>enabled</b>")
+
+        # view backup tokens page
+        response = self.client.get(tokens_url)
+        self.assertContains(response, "Regenerate Tokens")
+        self.assertContains(response, disable_url)
+
+        tokens = [t.token for t in response.context["backup_tokens"]]
+
+        # posting to that page regenerates tokens
+        response = self.client.post(tokens_url)
+        self.assertContains(response, "Two-factor authentication backup tokens changed.")
+        self.assertNotEqual(tokens, [t.token for t in response.context["backup_tokens"]])
+
+        # view form to disable 2FA
+        response = self.client.get(disable_url)
+        self.assertEqual(["password", "loc"], list(response.context["form"].fields.keys()))
+
+        # try to submit with no password
+        response = self.client.post(disable_url, {})
+        self.assertFormError(response, "form", "password", "This field is required.")
+
+        # try to submit with invalid password
+        response = self.client.post(disable_url, {"password": "wrong"})
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # submit with valid password
+        response = self.client.post(disable_url, {"password": "Administrator"})
+        self.assertRedirect(response, reverse("orgs.org_home"))
+        self.assertFalse(self.admin.get_settings().two_factor_enabled)
+
+        # trying to view the tokens page now takes us to the enable form
+        response = self.client.get(tokens_url)
+        self.assertRedirect(response, enable_url)
+
     def test_ui_permissions(self):
         # non-logged in users can't go here
         response = self.client.get(reverse("orgs.user_list"))
@@ -641,66 +831,6 @@ class OrgTest(TembaTest):
         org = Org.objects.get(pk=self.org.pk)
         self.assertEqual("Temba", org.name)
 
-    def test_two_factor(self):
-        # for now only Beta members have access
-        Group.objects.get(name="Beta").user_set.add(self.admin)
-        self.login(self.admin)
-
-        # create profile
-        response = self.client.get(reverse("orgs.org_two_factor"))
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(UserSettings.objects.count(), 1)
-        self.assertEqual(UserSettings.objects.first().user, self.admin)
-
-        # validate token error
-        data = dict(token="12345")
-        response = self.client.post(reverse("orgs.org_two_factor"), data)
-        self.assertIn("token", response.context["form"].errors)
-        self.assertIn("Invalid MFA token. Please try again.", response.context["form"].errors["token"])
-
-        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 0)
-        data = dict(generate_backup_tokens=True)
-        response = self.client.post(reverse("orgs.org_two_factor"), data)
-        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 10)
-
-        # disable two factor
-        data = dict(disable_two_factor_auth=True)
-        user_settings = UserSettings.objects.get(user=self.admin)
-        response = self.client.post(reverse("orgs.org_two_factor"), data)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 0)
-        self.assertFalse(user_settings.two_factor_enabled)
-
-        # get backup tokens without backup tokens
-        data = dict(get_backup_tokens=True)
-        response = self.client.post(reverse("orgs.org_two_factor"), data)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"tokens": []})
-
-        # get backup tokens with backup tokens
-        backup_token = BackupToken.objects.create(
-            settings=self.admin.get_settings(), created_by=self.admin, modified_by=self.admin
-        )
-        data = dict(get_backup_tokens=True)
-        response = self.client.post(reverse("orgs.org_two_factor"), data)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"tokens": [f"{backup_token.token}"]})
-
-        # test form is valid
-        user_settings = UserSettings.objects.get(user=self.admin)
-        user_settings.two_factor_enabled = False
-        user_settings.save()
-        totp = pyotp.TOTP(self.admin.get_settings().otp_secret)
-        data = dict(token=totp.now())
-        response = self.client.post(reverse("orgs.org_two_factor"), data)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(BackupToken.objects.count(), 10)
-        self.assertEqual(self.admin.get_settings().two_factor_enabled, True)
-
-        # check backup tokens now listed on account home page
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Backup tokens can be used")
-
     def test_country_view(self):
         self.setUpLocations()
 
@@ -775,19 +905,8 @@ class OrgTest(TembaTest):
         self.assertRedirect(response, reverse("orgs.org_home"))
 
         # check that our user settings have changed
-        settings = self.admin.get_settings()
-        self.assertEqual("pt-br", settings.language)
-
-    def test_usersettings(self):
-        self.login(self.admin)
-
-        post_data = dict(tel="+250788382382")
-        self.client.post(reverse("orgs.usersettings_phone"), post_data)
-        self.assertEqual("+250 788 382 382", UserSettings.objects.get(user=self.admin).get_tel_formatted())
-
-        post_data = dict(tel="bad number")
-        response = self.client.post(reverse("orgs.usersettings_phone"), post_data)
-        self.assertEqual(response.context["form"].errors["tel"][0], "Invalid phone number, try again.")
+        user_settings = self.admin.get_settings()
+        self.assertEqual("pt-br", user_settings.language)
 
     @patch("temba.flows.models.FlowStart.async_start")
     def test_org_flagging_and_suspending(self, mock_async_start):
@@ -4399,7 +4518,7 @@ class BulkExportTest(TembaTest):
             self.assertEqual(
                 2,
                 Flow.objects.filter(
-                    org=self.org, is_active=True, is_archived=False, flow_type="M", is_system=True
+                    org=self.org, is_active=True, is_archived=False, flow_type="B", is_system=True
                 ).count(),
             )
             self.assertEqual(1, Campaign.objects.filter(org=self.org, is_archived=False).count())
@@ -4436,7 +4555,7 @@ class BulkExportTest(TembaTest):
         trigger.save()
 
         message_flow = (
-            Flow.objects.filter(flow_type="M", is_system=True, campaign_events__offset=-1).order_by("id").first()
+            Flow.objects.filter(flow_type="B", is_system=True, campaign_events__offset=-1).order_by("id").first()
         )
         message_flow.update_single_message_flow(self.admin, {"base": "No reminders for you!"}, base_language="base")
 
@@ -4456,7 +4575,7 @@ class BulkExportTest(TembaTest):
 
         # find our new message flow, and see that the original message is there
         message_flow = (
-            Flow.objects.filter(flow_type="M", is_system=True, campaign_events__offset=-1, is_active=True)
+            Flow.objects.filter(flow_type="B", is_system=True, campaign_events__offset=-1, is_active=True)
             .order_by("id")
             .first()
         )
@@ -4528,7 +4647,7 @@ class BulkExportTest(TembaTest):
         assert_object_counts()
 
         message_flow = (
-            Flow.objects.filter(flow_type="M", is_system=True, campaign_events__offset=-1, is_active=True)
+            Flow.objects.filter(flow_type="B", is_system=True, campaign_events__offset=-1, is_active=True)
             .order_by("id")
             .first()
         )
@@ -5127,3 +5246,20 @@ class OrgActivityTest(TembaTest):
         self.assertEqual(2, activity.incoming_count)
         self.assertEqual(1, activity.outgoing_count)
         self.assertEqual(1, activity.plan_active_contact_count)
+
+
+class BackupTokenTest(TembaTest):
+    def test_model(self):
+        admin_tokens = BackupToken.generate_for_user(self.admin)
+        BackupToken.generate_for_user(self.editor)
+
+        self.assertEqual(10, len(admin_tokens))
+        self.assertEqual(10, self.admin.backup_tokens.count())
+        self.assertEqual(10, self.editor.backup_tokens.count())
+        self.assertEqual(str(admin_tokens[0].token), str(admin_tokens[0]))
+
+        # regenerate tokens for admin user
+        new_admin_tokens = BackupToken.generate_for_user(self.admin)
+        self.assertEqual(10, len(new_admin_tokens))
+        self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
+        self.assertEqual(10, self.admin.backup_tokens.count())

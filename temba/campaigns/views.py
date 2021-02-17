@@ -332,6 +332,7 @@ class CampaignEventForm(forms.ModelForm):
         choices=(
             (CampaignEvent.MODE_INTERRUPT, _("Stop it and send the message")),
             (CampaignEvent.MODE_SKIP, _("Skip this message")),
+            (CampaignEvent.MODE_PASSIVE, _("Send the message")),
         ),
         required=False,
         widget=SelectWidget(attrs={"placeholder": _("Message sending rules"), "widget_only": True}),

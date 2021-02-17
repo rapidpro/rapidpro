@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-03 17:32+0000\n"
+"POT-Creation-Date: 2021-02-11 18:54+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -234,6 +234,11 @@ msgstr "Остановить это и отправить сообщение"
 
 msgid "Skip this message"
 msgstr "Пропустить данное сообщение"
+
+#, fuzzy
+#| msgid "Send Message"
+msgid "Send the message"
+msgstr "Отправить Сообщение"
 
 msgid "Message sending rules"
 msgstr "Правила отправки сообщения"
@@ -1543,6 +1548,42 @@ msgstr "Пароль, который будет использоваться д�
 
 msgid "The token Junebug should use to authenticate"
 msgstr "Токен, который Junebug должен использовать для аутентификации"
+
+#, fuzzy
+#| msgid "If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio WhatsApp</a>"
+msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+msgstr "Если у Вас имеется Twilio для номера WhatsApp, Вы можете его подключить для общения с Вашими контактами WhatsApp. <a href=\"https://www.twilio.com/whatsapp/\">Узнайте подробнее о Twilio WhatsApp</a>"
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "        To finish configuring your Zenvia connection you'll need to set the following callback URLs on your Zenvia account.\n"
+#| "        "
+msgid "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra account."
+msgstr ""
+"\n"
+"        Для завершения настройки Вашего соединения Zenvia Вам потребуется установить следующие адреса URL обратного вызова в Вашей учетной записи Zenvia."
+
+#, fuzzy
+#| msgid "To receive incoming messages, you need to set the receive URL for your Zenvia account."
+msgid "To receive incoming messages, you need to set the receive URL for your Kaleyra account."
+msgstr "Для получения входящих сообщений Вам потребуется установить адрес URL получения в Вашей учетной записи Zenvia."
+
+msgid "Account SID"
+msgstr "SID Учетной записи"
+
+#, fuzzy
+#| msgid "Your Twilio Account SID"
+msgid "Your Kaleyra Account SID"
+msgstr "SID Вашей учетной записи Twilio "
+
+#, fuzzy
+#| msgid "Your Nexmo API key"
+msgid "Your Kaleyra API Key"
+msgstr "Ваш ключ API Nexmo "
+
+msgid "No org for this user, cannot claim"
+msgstr "Нет организации для этого пользователя, невозможно запросить"
 
 #, fuzzy, python-format
 #| msgid ""
@@ -3903,21 +3944,6 @@ msgstr "Организация"
 msgid "%(name)s Invitation"
 msgstr "Приглашение %(name)s"
 
-msgid "Your preferred language"
-msgstr "Предпочитаемый Вами язык"
-
-msgid "Phone Number"
-msgstr "Номер телефона"
-
-msgid "Phone number for testing and recording voice flows"
-msgstr "Номер телефона для тестирования и записи голосовых потоков"
-
-msgid "OTP Secret"
-msgstr "Секретный ключ OTP"
-
-msgid "Two Factor Enabled"
-msgstr "Включена двухфакторная"
-
 msgid "Price Paid"
 msgstr "Уплаченная цена"
 
@@ -3996,9 +4022,6 @@ msgstr "Кредиты с истекающим сроком действия"
 msgid "%(name)s Credits Alert"
 msgstr "Оповещение по Кредитам %(name)s "
 
-msgid "Used"
-msgstr "Использовано"
-
 #, fuzzy
 #| msgid "First Name"
 msgid "First name"
@@ -4075,6 +4098,16 @@ msgstr "Пользователь уже существует, пожалуйст
 msgid "Password required for new login."
 msgstr ""
 
+#, fuzzy
+#| msgid "Invalid MFA token. Please try again."
+msgid "Incorrect OTP. Please try again."
+msgstr "Неверный токен МФА. Пожалуйста, попробуйте еще раз."
+
+#, fuzzy
+#| msgid "Invalid MFA token. Please try again."
+msgid "Invalid backup token. Please try again."
+msgstr "Неверный токен МФА. Пожалуйста, попробуйте еще раз."
+
 #, python-brace-format
 msgid "Deleted user {username}"
 msgstr "Удаленный пользователь {username}"
@@ -4120,8 +4153,59 @@ msgstr "Пожалуйста, введите свой пароль для сох
 msgid "Sorry, that email address is already taken."
 msgstr "Извините, такой адрес электронной почты уже занят"
 
-msgid "Start Call"
-msgstr "Начать Вызов"
+msgid "6-digit code"
+msgstr ""
+
+#, fuzzy
+#| msgid "Current Password (required)"
+msgid "Current password"
+msgstr "Текущий пароль (обязательно)"
+
+#, fuzzy
+#| msgid "Invalid MFA token. Please try again."
+msgid "OTP incorrect. Please try again."
+msgstr "Неверный токен МФА. Пожалуйста, попробуйте еще раз."
+
+msgid "Password incorrect."
+msgstr ""
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication enabled"
+msgstr "Двухфакторная аутентификация"
+
+#, fuzzy
+#| msgid "Enable Voice"
+msgid "Enable"
+msgstr "Включить Голосовую связь"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Enable Two-factor Authentication"
+msgstr "Двухфакторная аутентификация"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication disabled"
+msgstr "Двухфакторная аутентификация"
+
+msgid "Disable"
+msgstr ""
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Disable Two-factor Authentication"
+msgstr "Двухфакторная аутентификация"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor Authentication"
+msgstr "Двухфакторная аутентификация"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication backup tokens changed."
+msgstr "Двухфакторная аутентификация"
 
 msgid "The import file"
 msgstr "Импортированный файл"
@@ -4263,15 +4347,6 @@ msgstr "У Вас должен быть хотя бы один админист�
 msgid "Manage Logins"
 msgstr "Управление учетными записями"
 
-msgid "Enter the code from your authentication application"
-msgstr "Введите код из Вашего приложения по аутентификации"
-
-msgid "Invalid MFA token. Please try again."
-msgstr "Неверный токен МФА. Пожалуйста, попробуйте еще раз."
-
-msgid "Two Factor Authentication"
-msgstr "Двухфакторная аутентификация"
-
 msgid "Dashboard"
 msgstr "Информационная панель"
 
@@ -4388,9 +4463,6 @@ msgstr "Ключ и секрет API Вашей учетной записи DT O
 #, python-format
 msgid "Connecting to your DT One account failed with error text: %s"
 msgstr "Подключение к Вашей учетной записи DT On не удалось. Текст ошибки: %s"
-
-msgid "Account SID"
-msgstr "SID Учетной записи"
 
 msgid "Account Token"
 msgstr "Токен Учетной записи"
@@ -7796,6 +7868,9 @@ msgstr "Задайте ряд вопросов, чтобы собрать дан
 msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
 msgstr "невозможно удалить, потому что используется. Сводная информация по использованию:"
 
+msgid "Manual"
+msgstr ""
+
 #, python-format
 msgid "was started by %(user)s for"
 msgstr "было запущено %(user)s для"
@@ -8752,6 +8827,50 @@ msgstr ""
 "\n"
 
 #, fuzzy
+#| msgid "Welcome!"
+msgid "Welcome Back"
+msgstr "Добро пожаловать!"
+
+msgid ""
+"\n"
+"    Please sign in with your email address and password.\n"
+"\n"
+"  "
+msgstr ""
+
+#, fuzzy
+#| msgid "Sign in"
+msgid "Sign In"
+msgstr "Войти"
+
+msgid "Don't have an account yet?"
+msgstr ""
+
+#, fuzzy
+#| msgid "Sign Up"
+msgid "Sign up"
+msgstr "Зарегистрироваться"
+
+msgid "If you no longer have access to the device with which you setup two-factor authentication on your login, you can enter one of your backup tokens below."
+msgstr ""
+
+msgid "8-character token"
+msgstr ""
+
+#, fuzzy
+#| msgid "Device"
+msgid "Use Device"
+msgstr "Устройство"
+
+msgid "Open the one-time password application with which you setup two-factor authentication on your account and enter the code below to verify your identity."
+msgstr ""
+
+#, fuzzy
+#| msgid "Generate Backup Tokens"
+msgid "Use Backup Token"
+msgstr "Генерировать Резервные Токены"
+
+#, fuzzy
 #| msgid ""
 #| "\n"
 #| "    Your organization can have user accounts with various roles. You can use the Manage Accounts page\n"
@@ -9234,11 +9353,6 @@ msgstr "Создать Учетную запись"
 msgid "Creating a %(brand)s account is free and only takes a minute."
 msgstr ""
 
-#, fuzzy
-#| msgid "Sign in"
-msgid "Sign In"
-msgstr "Войти"
-
 msgid "Remove SMTP configuration"
 msgstr "Удалить настройки SMTP"
 
@@ -9379,21 +9493,6 @@ msgstr ""
 "\n"
 "          Отключение Вашей учетной записи Twilio также удалит все каналы Twilio, подключенные к ней. Вы уверены, что хотите продолжить?"
 
-msgid "To enable two factor authentication, use a one time password application such as"
-msgstr "Для включения двухфакторной аутентификации используйте приложение для одноразового пароля, такое как"
-
-msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
-msgstr "Резервные токены можно использовать, если у Вас больше нет доступа к приложению аутентификации, настроенному для Вашей учетной записи."
-
-msgid "Any tokens you may have previously generated are invalid."
-msgstr ""
-
-msgid "Generate Backup Tokens"
-msgstr "Генерировать Резервные Токены"
-
-msgid "Disable Two Factor"
-msgstr "Отключить двухфакторную"
-
 #, fuzzy
 #| msgid "This organization has been suspended"
 msgid "This workspace has been suspended"
@@ -9487,6 +9586,36 @@ msgstr ""
 "    Ваш адрес электронной почты - <span class='attn'>%(email)s</span>.\n"
 "\n"
 "  "
+
+#, fuzzy
+#| msgid "To enable two factor authentication, use a one time password application such as"
+msgid "To disable two-factor authentication for your login, enter your current password."
+msgstr "Для включения двухфакторной аутентификации используйте приложение для одноразового пароля, такое как"
+
+#, python-format
+msgid "To enable two-factor authentication on your login, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below."
+msgstr ""
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication is <b>disabled</b>."
+msgstr "Двухфакторная аутентификация"
+
+msgid "Two-factor authentication is currently enabled for your login. Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
+msgstr ""
+
+msgid "You can generate new backup tokens but remember that the current tokens will be no longer be usable if you do this."
+msgstr ""
+
+#, fuzzy
+#| msgid "Generate Backup Tokens"
+msgid "Regenerate Tokens"
+msgstr "Генерировать Резервные Токены"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication is <b>enabled</b>."
+msgstr "Двухфакторная аутентификация"
 
 #, fuzzy
 #| msgid "Previous Policies"
@@ -10010,26 +10139,6 @@ msgstr "не запланировано"
 msgid "Not scheduled"
 msgstr "Не запланировано"
 
-#, fuzzy
-#| msgid "Welcome!"
-msgid "Welcome Back"
-msgstr "Добро пожаловать!"
-
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
-msgstr ""
-
-msgid "Don't have an account yet?"
-msgstr ""
-
-#, fuzzy
-#| msgid "Sign Up"
-msgid "Sign up"
-msgstr "Зарегистрироваться"
-
 msgid "Login Failure"
 msgstr ""
 
@@ -10305,6 +10414,41 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, fuzzy
+#~| msgid "Enter the code from your authentication application"
+#~ msgid "Enter the one-time password from your authentication application."
+#~ msgstr "Введите код из Вашего приложения по аутентификации"
+
+#~ msgid "Two Factor Authentication"
+#~ msgstr "Двухфакторная аутентификация"
+
+#~ msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
+#~ msgstr "Резервные токены можно использовать, если у Вас больше нет доступа к приложению аутентификации, настроенному для Вашей учетной записи."
+
+#~ msgid "Your preferred language"
+#~ msgstr "Предпочитаемый Вами язык"
+
+#~ msgid "Phone Number"
+#~ msgstr "Номер телефона"
+
+#~ msgid "Phone number for testing and recording voice flows"
+#~ msgstr "Номер телефона для тестирования и записи голосовых потоков"
+
+#~ msgid "Two Factor Enabled"
+#~ msgstr "Включена двухфакторная"
+
+#~ msgid "Start Call"
+#~ msgstr "Начать Вызов"
+
+#~ msgid "Disable Two Factor"
+#~ msgstr "Отключить двухфакторную"
+
+#~ msgid "OTP Secret"
+#~ msgstr "Секретный ключ OTP"
+
+#~ msgid "Used"
+#~ msgstr "Использовано"
 
 #, python-format
 #~ msgid "%(value)s must be http or https scheme"
@@ -10795,9 +10939,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "        и подключить его, выполнив несколько простых шагов.\n"
 #~ "        "
 
-#~ msgid "No org for this user, cannot claim"
-#~ msgstr "Нет организации для этого пользователя, невозможно запросить"
-
 #~ msgid ""
 #~ "\n"
 #~ "        If you have an <a href=\"https://www.arabiacell.com/\">ArabiaCell</a> number,\n"
@@ -10922,9 +11063,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "Easily add a two way number you have configured with <a href=\"https://www.twilio.com/\">Twilio</a> using their APIs."
 #~ msgstr "Легко добавьте двухсторонний номер, который Вы настроили с <a href=\"https://www.twilio.com/\">Twilio</a>, используя их API."
-
-#~ msgid "If you have a Twilio for WhatsApp number, you can connect it to communicate with your WhatsApp contacts. <a href=\"https://www.twilio.com/whatsapp/\">Learn more about Twilio WhatsApp</a>"
-#~ msgstr "Если у Вас имеется Twilio для номера WhatsApp, Вы можете его подключить для общения с Вашими контактами WhatsApp. <a href=\"https://www.twilio.com/whatsapp/\">Узнайте подробнее о Twilio WhatsApp</a>"
 
 #~ msgid ""
 #~ "\n"
@@ -12873,9 +13011,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "Remove Phone"
 #~ msgstr "Удалить Телефон"
-
-#~ msgid "Enable Voice"
-#~ msgstr "Включить Голосовую связь"
 
 #~ msgid "unsent messages"
 #~ msgid_plural "unsent message"

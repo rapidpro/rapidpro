@@ -10,6 +10,7 @@ from enum import Enum
 from urllib.parse import quote, urlencode, urlparse
 
 import pycountry
+import pyotp
 import pytz
 import regex
 import stripe
@@ -23,11 +24,13 @@ from twilio.rest import Client as TwilioClient
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
+from django.contrib.auth.signals import user_logged_in
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import Count, F, Prefetch, Q, Sum
+from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.text import slugify
@@ -62,6 +65,13 @@ ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY = "org:%d:cache:low_credits_threshold"
 
 ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
+
+
+@receiver(user_logged_in)
+def my_callback(sender, request, user, **kwargs):
+    user_settings = user.get_settings()
+    user_settings.last_auth_on = timezone.now()
+    user_settings.save(update_fields=("last_auth_on",))
 
 
 class OrgRole(Enum):
@@ -2139,18 +2149,6 @@ def is_support_user(user):
     return user.groups.filter(name="Customer Support").exists()
 
 
-def get_settings(user):
-    if not user:  # pragma: needs cover
-        return None
-
-    settings = UserSettings.objects.filter(user=user).first()
-
-    if not settings:
-        settings = UserSettings.objects.create(user=user)
-
-    return settings
-
-
 def set_org(obj, org):
     obj._org = org
 
@@ -2187,17 +2185,68 @@ def _user_has_org_perm(user, org, permission):
     return org_group.permissions.filter(content_type__app_label=app_label, codename=codename).exists()
 
 
+def _user_get_settings(user):
+    """
+    Gets or creates user settings for this user
+    """
+    assert user and user.is_authenticated, "can't fetch user settings for anonymous users"
+
+    return UserSettings.get_or_create(user)
+
+
+def _user_enable_2fa(user):
+    """
+    Enables 2FA for this user
+    """
+    user_settings = user.get_settings()
+    user_settings.two_factor_enabled = True
+    user_settings.save(update_fields=("two_factor_enabled",))
+
+    BackupToken.generate_for_user(user)
+
+
+def _user_disable_2fa(user):
+    """
+    Disables 2FA for this user
+    """
+    user_settings = user.get_settings()
+    user_settings.two_factor_enabled = False
+    user_settings.save(update_fields=("two_factor_enabled",))
+
+    user.backup_tokens.all().delete()
+
+
+def _user_verify_2fa(user, *, otp: str = None, backup_token: str = None) -> bool:
+    """
+    Verifies a user using a 2FA mechanism (OTP or backup token)
+    """
+    if otp:
+        secret = user.get_settings().otp_secret
+        return pyotp.TOTP(secret).verify(otp, valid_window=2)
+    elif backup_token:
+        token = user.backup_tokens.filter(token=backup_token, is_used=False).first()
+        if token:
+            token.is_used = True
+            token.save(update_fields=("is_used",))
+            return True
+
+    return False
+
+
 User.release = release
 User.get_org = get_org
 User.set_org = set_org
 User.is_alpha = is_alpha_user
 User.is_beta = is_beta_user
 User.is_support = is_support_user
-User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group
 User.get_owned_orgs = get_owned_orgs
 User.has_org_perm = _user_has_org_perm
+User.get_settings = _user_get_settings
+User.enable_2fa = _user_enable_2fa
+User.disable_2fa = _user_disable_2fa
+User.verify_2fa = _user_verify_2fa
 
 
 def get_stripe_credentials():
@@ -2341,25 +2390,18 @@ class UserSettings(models.Model):
     """
 
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="settings")
-    language = models.CharField(
-        max_length=8, choices=settings.LANGUAGES, default="en-us", help_text=_("Your preferred language")
-    )
-    tel = models.CharField(
-        verbose_name=_("Phone Number"),
-        max_length=16,
-        null=True,
-        blank=True,
-        help_text=_("Phone number for testing and recording voice flows"),
-    )
-    otp_secret = models.CharField(verbose_name=_("OTP Secret"), max_length=18, null=True, blank=True)
-    two_factor_enabled = models.BooleanField(verbose_name=_("Two Factor Enabled"), default=False)
+    language = models.CharField(max_length=8, choices=settings.LANGUAGES, default="en-us")
+    otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
+    two_factor_enabled = models.BooleanField(default=False)
+    last_auth_on = models.DateTimeField(null=True)
 
-    def get_tel_formatted(self):
-        if self.tel:
-            import phonenumbers
+    @classmethod
+    def get_or_create(cls, user):
+        existing = UserSettings.objects.filter(user=user).first()
+        if existing:
+            return existing
 
-            normalized = phonenumbers.parse(self.tel, None)
-            return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
+        return cls.objects.create(user=user)
 
 
 class TopUp(SmartModel):
@@ -2717,15 +2759,25 @@ class CreditAlert(SmartModel):
             CreditAlert.trigger_credit_alert(topup.org, CreditAlert.TYPE_EXPIRING)
 
 
-class BackupToken(SmartModel):
-    settings = models.ForeignKey(
-        UserSettings, verbose_name=_("Settings"), related_name="backups", on_delete=models.CASCADE
-    )
-    token = models.CharField(verbose_name=_("Token"), max_length=18, unique=True, default=generate_token)
-    used = models.BooleanField(verbose_name=_("Used"), default=False)
+class BackupToken(models.Model):
+    """
+    A 2FA backup token for a user
+    """
 
-    def __str__(self):  # pragma: no cover
-        return f"{self.token}"
+    user = models.ForeignKey(User, related_name="backup_tokens", on_delete=models.PROTECT)
+    token = models.CharField(max_length=18, unique=True, default=generate_token)
+    is_used = models.BooleanField(default=False)
+    created_on = models.DateTimeField(default=timezone.now)
+
+    @classmethod
+    def generate_for_user(cls, user, count: int = 10):
+        # delete any existing tokens for this user
+        user.backup_tokens.all().delete()
+
+        return [cls.objects.create(user=user) for i in range(count)]
+
+    def __str__(self):
+        return self.token
 
 
 class OrgActivity(models.Model):

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-03 17:32+0000\n"
+"POT-Creation-Date: 2021-02-11 18:54+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -214,6 +214,11 @@ msgstr "Arrêtez-le et envoyez le message"
 
 msgid "Skip this message"
 msgstr "Sauter ce mesage"
+
+#, fuzzy
+#| msgid "Send Message"
+msgid "Send the message"
+msgstr "Envoyer un message"
 
 msgid "Message sending rules"
 msgstr "Règles d'envoi de messages"
@@ -1128,6 +1133,37 @@ msgstr "Le mot de passe à utiliser pour s'authentifier auprès de Junebug"
 
 msgid "The token Junebug should use to authenticate"
 msgstr "Le jeton que Junebug devrait utiliser pour s'authentifier"
+
+#, fuzzy
+#| msgid "Activate your own enterprise WhatsApp account in %(link)s to communicate with your contacts. "
+msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+msgstr "Activez votre propre compte WhatsApp d'entreprise dans %(link)s pour communiquer avec vos contacts."
+
+#, fuzzy
+#| msgid "To finish configuring your Zenvia connection you'll need to set the following callback URLs on your Zenvia account."
+msgid "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra account."
+msgstr "Pour terminer la configuration de votre connexion Zenvia, vous devrez définir les URL de rappel suivantes sur votre compte Zenvia."
+
+#, fuzzy
+#| msgid "To receive incoming messages, you need to set the receive URL for your Zenvia account."
+msgid "To receive incoming messages, you need to set the receive URL for your Kaleyra account."
+msgstr "Pour recevoir des messages entrants, vous devez définir l'URL de réception pour votre compte de Zenvia."
+
+msgid "Account SID"
+msgstr "Compte SID"
+
+#, fuzzy
+#| msgid "Your Twilio Account SID"
+msgid "Your Kaleyra Account SID"
+msgstr "Votre compte Twilio SID"
+
+#, fuzzy
+#| msgid "Your Nexmo API key"
+msgid "Your Kaleyra API Key"
+msgstr "Votre clé API Nexmo"
+
+msgid "No org for this user, cannot claim"
+msgstr ""
 
 #, python-format
 msgid "Connect your %(link)s instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."
@@ -3125,21 +3161,6 @@ msgstr "Org"
 msgid "%(name)s Invitation"
 msgstr "Invitation %(name)s"
 
-msgid "Your preferred language"
-msgstr "Langue de votre choix"
-
-msgid "Phone Number"
-msgstr "Numéro de téléphone"
-
-msgid "Phone number for testing and recording voice flows"
-msgstr "Numéro de téléphone pour les essais et l'enregistrement des flux voix "
-
-msgid "OTP Secret"
-msgstr "Secret OTP"
-
-msgid "Two Factor Enabled"
-msgstr "Deux facteurs activé"
-
 msgid "Price Paid"
 msgstr "Prix ​​payé"
 
@@ -3218,9 +3239,6 @@ msgstr "Crédits expirant bientôt"
 msgid "%(name)s Credits Alert"
 msgstr "%(name)s Alerte Crédits"
 
-msgid "Used"
-msgstr "Utilisé"
-
 msgid "First name"
 msgstr "Prénom"
 
@@ -3277,6 +3295,16 @@ msgstr "La connexion existe déjà, veuillez ne pas inclure le mot de passe."
 msgid "Password required for new login."
 msgstr ""
 
+#, fuzzy
+#| msgid "Invalid MFA token. Please try again."
+msgid "Incorrect OTP. Please try again."
+msgstr "Jeton MFA non valide. Veuillez réessayer."
+
+#, fuzzy
+#| msgid "Invalid MFA token. Please try again."
+msgid "Invalid backup token. Please try again."
+msgstr "Jeton MFA non valide. Veuillez réessayer."
+
 #, python-brace-format
 msgid "Deleted user {username}"
 msgstr "Utilisateur supprimé {username}"
@@ -3314,8 +3342,59 @@ msgstr "S'il vous plaît, entrez votre mot de passe pour enregistrer les modific
 msgid "Sorry, that email address is already taken."
 msgstr "Désolé, cette adresse est déjà prise."
 
-msgid "Start Call"
-msgstr "Lancer des appels"
+msgid "6-digit code"
+msgstr ""
+
+#, fuzzy
+#| msgid "Current Password"
+msgid "Current password"
+msgstr "Mot de passe actuel"
+
+#, fuzzy
+#| msgid "Invalid MFA token. Please try again."
+msgid "OTP incorrect. Please try again."
+msgstr "Jeton MFA non valide. Veuillez réessayer."
+
+#, fuzzy
+#| msgid "Secret is incorrect."
+msgid "Password incorrect."
+msgstr "Le secret est incorrect."
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication enabled"
+msgstr "Authentification à deux facteurs"
+
+msgid "Enable"
+msgstr ""
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Enable Two-factor Authentication"
+msgstr "Authentification à deux facteurs"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication disabled"
+msgstr "Authentification à deux facteurs"
+
+msgid "Disable"
+msgstr ""
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Disable Two-factor Authentication"
+msgstr "Authentification à deux facteurs"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor Authentication"
+msgstr "Authentification à deux facteurs"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication backup tokens changed."
+msgstr "Authentification à deux facteurs"
 
 msgid "The import file"
 msgstr "Le fichier d'importation"
@@ -3451,15 +3530,6 @@ msgstr "Vous devez avoir au moins un administateur"
 msgid "Manage Logins"
 msgstr "Gérer les connexions"
 
-msgid "Enter the code from your authentication application"
-msgstr "Entrez le code de votre application d'authentification"
-
-msgid "Invalid MFA token. Please try again."
-msgstr "Jeton MFA non valide. Veuillez réessayer."
-
-msgid "Two Factor Authentication"
-msgstr "Authentification à deux facteurs"
-
 msgid "Dashboard"
 msgstr "Tableau de bord"
 
@@ -3560,9 +3630,6 @@ msgstr "Votre clé API et votre secret DT One semblent invalides. Veuillez les v
 #, python-format
 msgid "Connecting to your DT One account failed with error text: %s"
 msgstr "La connexion à votre compte DT One a échoué avec un texte d'erreur: %s"
-
-msgid "Account SID"
-msgstr "Compte SID"
 
 msgid "Account Token"
 msgstr "Jeton de compte"
@@ -5934,6 +6001,9 @@ msgstr "Poser une série de questions visant à recueillir les données de vos c
 msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
 msgstr "<b>%(name)s</b> ne peut pas être supprimé car il est actuellement utilisé."
 
+msgid "Manual"
+msgstr ""
+
 #, python-format
 msgid "was started by %(user)s for"
 msgstr "a été démarré par %(user)s pour"
@@ -6619,6 +6689,48 @@ msgstr ""
 "Carte de crédit: %(cc_type)s X%(cc_last4)s\n"
 "\n"
 
+msgid "Welcome Back"
+msgstr "Re-Bienvenu"
+
+msgid ""
+"\n"
+"    Please sign in with your email address and password.\n"
+"\n"
+"  "
+msgstr ""
+"\n"
+"    Veuillez vous connecter avec votre adresse e-mail et votre mot de passe.\n"
+"\n"
+"  "
+
+msgid "Sign In"
+msgstr "Se connecter"
+
+msgid "Don't have an account yet?"
+msgstr "Vous n'avez pas encore de compte?"
+
+msgid "Sign up"
+msgstr "S'inscrire"
+
+msgid "If you no longer have access to the device with which you setup two-factor authentication on your login, you can enter one of your backup tokens below."
+msgstr ""
+
+msgid "8-character token"
+msgstr ""
+
+#, fuzzy
+#| msgid "Device"
+msgid "Use Device"
+msgstr "Appareil"
+
+msgid "Open the one-time password application with which you setup two-factor authentication on your account and enter the code below to verify your identity."
+msgstr ""
+
+#, fuzzy
+#| msgid "Generate Backup Tokens"
+msgid "Use Backup Token"
+msgstr "Générer des jetons de sauvegarde"
+
 msgid "Your workspace can have logins with various roles. You can use the Manage Logins page to view all existing logins or to add new logins to your workspace."
 msgstr "Votre espace de travail peut avoir des connexions avec différents rôles. Vous pouvez utiliser la page Gérer les connexions pour afficher toutes les connexions existantes ou pour ajouter de nouvelles connexions à votre espace de travail."
 
@@ -6916,9 +7028,6 @@ msgstr "Créer un compte"
 msgid "Creating a %(brand)s account is free and only takes a minute."
 msgstr "La création d'un compte %(brand)s est gratuite et ne prend qu'une minute."
 
-msgid "Sign In"
-msgstr "Se connecter"
-
 msgid "Remove SMTP configuration"
 msgstr "Supprimer la configuration SMTP"
 
@@ -6966,21 +7075,6 @@ msgstr "Déconnecter Twilio"
 
 msgid "Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?"
 msgstr "La déconnexion de votre compte Twilio supprimera également toutes les chaînes Twilio qui y sont connectées. Êtes-vous sur de vouloir continuer?"
-
-msgid "To enable two factor authentication, use a one time password application such as"
-msgstr "Pour activer l'authentification à deux facteurs, utilisez une application de mot de passe à usage unique telle que"
-
-msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
-msgstr "Les jetons de sauvegarde peuvent être utilisés si vous n'avez plus accès à l'application d'authentification configurée pour votre compte."
-
-msgid "Any tokens you may have previously generated are invalid."
-msgstr "Tous les jetons que vous avez déjà générés ne sont pas valides."
-
-msgid "Generate Backup Tokens"
-msgstr "Générer des jetons de sauvegarde"
-
-msgid "Disable Two Factor"
-msgstr "Désactiver deux facteurs"
 
 msgid "This workspace has been suspended"
 msgstr "Cet espace de travail a été suspendu"
@@ -7041,6 +7135,36 @@ msgstr ""
 "\n"
 "    Votre adresse e-mail est <b>%(email)s</b>.\n"
 "  "
+
+#, fuzzy
+#| msgid "To enable two factor authentication, use a one time password application such as"
+msgid "To disable two-factor authentication for your login, enter your current password."
+msgstr "Pour activer l'authentification à deux facteurs, utilisez une application de mot de passe à usage unique telle que"
+
+#, python-format
+msgid "To enable two-factor authentication on your login, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below."
+msgstr ""
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication is <b>disabled</b>."
+msgstr "Authentification à deux facteurs"
+
+msgid "Two-factor authentication is currently enabled for your login. Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
+msgstr ""
+
+msgid "You can generate new backup tokens but remember that the current tokens will be no longer be usable if you do this."
+msgstr ""
+
+#, fuzzy
+#| msgid "Generate Backup Tokens"
+msgid "Regenerate Tokens"
+msgstr "Générer des jetons de sauvegarde"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication is <b>enabled</b>."
+msgstr "Authentification à deux facteurs"
 
 msgid "Policies"
 msgstr "Politiques"
@@ -7481,26 +7605,6 @@ msgstr "Non programmé"
 msgid "Not scheduled"
 msgstr "Non prévu"
 
-msgid "Welcome Back"
-msgstr "Re-Bienvenu"
-
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
-msgstr ""
-"\n"
-"    Veuillez vous connecter avec votre adresse e-mail et votre mot de passe.\n"
-"\n"
-"  "
-
-msgid "Don't have an account yet?"
-msgstr "Vous n'avez pas encore de compte?"
-
-msgid "Sign up"
-msgstr "S'inscrire"
-
 msgid "Login Failure"
 msgstr "Erreur d'authentification"
 
@@ -7748,6 +7852,44 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "Enter the code from your authentication application"
+#~ msgid "Enter the one-time password from your authentication application."
+#~ msgstr "Entrez le code de votre application d'authentification"
+
+#~ msgid "Two Factor Authentication"
+#~ msgstr "Authentification à deux facteurs"
+
+#~ msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
+#~ msgstr "Les jetons de sauvegarde peuvent être utilisés si vous n'avez plus accès à l'application d'authentification configurée pour votre compte."
+
+#~ msgid "Any tokens you may have previously generated are invalid."
+#~ msgstr "Tous les jetons que vous avez déjà générés ne sont pas valides."
+
+#~ msgid "Your preferred language"
+#~ msgstr "Langue de votre choix"
+
+#~ msgid "Phone Number"
+#~ msgstr "Numéro de téléphone"
+
+#~ msgid "Phone number for testing and recording voice flows"
+#~ msgstr "Numéro de téléphone pour les essais et l'enregistrement des flux voix "
+
+#~ msgid "Two Factor Enabled"
+#~ msgstr "Deux facteurs activé"
+
+#~ msgid "Start Call"
+#~ msgstr "Lancer des appels"
+
+#~ msgid "Disable Two Factor"
+#~ msgstr "Désactiver deux facteurs"
+
+#~ msgid "OTP Secret"
+#~ msgstr "Secret OTP"
+
+#~ msgid "Used"
+#~ msgstr "Utilisé"
 
 #, python-format
 #~ msgid "%(value)s must be http or https scheme"

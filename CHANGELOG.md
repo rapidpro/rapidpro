@@ -1,3 +1,31 @@
+v6.1.42
+----------
+ * Use Twilio API to determine capabilities of new Twilio channels
+ * Fix result pages not loading for users using Spanish interface
+
+v6.1.41
+----------
+ * Remove no longer used permissions
+ * Override login view to redirect to new views for two-factor authentication
+ * Reduce recent export window to 4 hours
+ * Change message campaign events to use background flows
+
+v6.1.40
+----------
+ * Remove UserSettings.tel and add UserSettings.last_auth_on
+
+v6.1.39
+----------
+ * Increase max len of URN fields on airtime transfers
+ * Add toggle to display manual flow starts only
+ * Cleanup 2FA models
+
+v6.1.38
+----------
+ * Update flow editor to 1.12.10 with failsafe errors
+ * Make validation of external channel URLs disallow private and link local hosts
+ * Cleanup middleware used to set org, timezone and language
+
 v6.1.37
 ----------
  * Update components and editor to latest versions

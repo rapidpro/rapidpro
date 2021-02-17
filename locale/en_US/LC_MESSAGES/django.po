@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-03 17:32+0000\n"
+"POT-Creation-Date: 2021-02-11 18:54+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -192,6 +192,9 @@ msgid "Stop it and send the message"
 msgstr ""
 
 msgid "Skip this message"
+msgstr ""
+
+msgid "Send the message"
 msgstr ""
 
 msgid "Message sending rules"
@@ -1106,6 +1109,27 @@ msgid "The password to be used to authenticate to Junebug"
 msgstr ""
 
 msgid "The token Junebug should use to authenticate"
+msgstr ""
+
+msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+msgstr ""
+
+msgid "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra account."
+msgstr ""
+
+msgid "To receive incoming messages, you need to set the receive URL for your Kaleyra account."
+msgstr ""
+
+msgid "Account SID"
+msgstr ""
+
+msgid "Your Kaleyra Account SID"
+msgstr ""
+
+msgid "Your Kaleyra API Key"
+msgstr ""
+
+msgid "No org for this user, cannot claim"
 msgstr ""
 
 #, python-format
@@ -3091,21 +3115,6 @@ msgstr ""
 msgid "%(name)s Invitation"
 msgstr ""
 
-msgid "Your preferred language"
-msgstr ""
-
-msgid "Phone Number"
-msgstr ""
-
-msgid "Phone number for testing and recording voice flows"
-msgstr ""
-
-msgid "OTP Secret"
-msgstr ""
-
-msgid "Two Factor Enabled"
-msgstr ""
-
 msgid "Price Paid"
 msgstr ""
 
@@ -3184,9 +3193,6 @@ msgstr ""
 msgid "%(name)s Credits Alert"
 msgstr ""
 
-msgid "Used"
-msgstr ""
-
 msgid "First name"
 msgstr ""
 
@@ -3241,6 +3247,12 @@ msgstr ""
 msgid "Password required for new login."
 msgstr ""
 
+msgid "Incorrect OTP. Please try again."
+msgstr ""
+
+msgid "Invalid backup token. Please try again."
+msgstr ""
+
 #, python-brace-format
 msgid "Deleted user {username}"
 msgstr ""
@@ -3278,7 +3290,40 @@ msgstr ""
 msgid "Sorry, that email address is already taken."
 msgstr ""
 
-msgid "Start Call"
+msgid "6-digit code"
+msgstr ""
+
+msgid "Current password"
+msgstr ""
+
+msgid "OTP incorrect. Please try again."
+msgstr ""
+
+msgid "Password incorrect."
+msgstr ""
+
+msgid "Two-factor authentication enabled"
+msgstr ""
+
+msgid "Enable"
+msgstr ""
+
+msgid "Enable Two-factor Authentication"
+msgstr ""
+
+msgid "Two-factor authentication disabled"
+msgstr ""
+
+msgid "Disable"
+msgstr ""
+
+msgid "Disable Two-factor Authentication"
+msgstr ""
+
+msgid "Two-factor Authentication"
+msgstr ""
+
+msgid "Two-factor authentication backup tokens changed."
 msgstr ""
 
 msgid "The import file"
@@ -3413,15 +3458,6 @@ msgstr ""
 msgid "Manage Logins"
 msgstr ""
 
-msgid "Enter the code from your authentication application"
-msgstr ""
-
-msgid "Invalid MFA token. Please try again."
-msgstr ""
-
-msgid "Two Factor Authentication"
-msgstr ""
-
 msgid "Dashboard"
 msgstr ""
 
@@ -3521,9 +3557,6 @@ msgstr ""
 
 #, python-format
 msgid "Connecting to your DT One account failed with error text: %s"
-msgstr ""
-
-msgid "Account SID"
 msgstr ""
 
 msgid "Account Token"
@@ -5756,6 +5789,9 @@ msgstr ""
 msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
 msgstr ""
 
+msgid "Manual"
+msgstr ""
+
 #, python-format
 msgid "was started by %(user)s for"
 msgstr ""
@@ -6279,6 +6315,40 @@ msgid ""
 "\n"
 msgstr ""
 
+msgid "Welcome Back"
+msgstr ""
+
+msgid ""
+"\n"
+"    Please sign in with your email address and password.\n"
+"\n"
+"  "
+msgstr ""
+
+msgid "Sign In"
+msgstr ""
+
+msgid "Don't have an account yet?"
+msgstr ""
+
+msgid "Sign up"
+msgstr ""
+
+msgid "If you no longer have access to the device with which you setup two-factor authentication on your login, you can enter one of your backup tokens below."
+msgstr ""
+
+msgid "8-character token"
+msgstr ""
+
+msgid "Use Device"
+msgstr ""
+
+msgid "Open the one-time password application with which you setup two-factor authentication on your account and enter the code below to verify your identity."
+msgstr ""
+
+msgid "Use Backup Token"
+msgstr ""
+
 msgid "Your workspace can have logins with various roles. You can use the Manage Logins page to view all existing logins or to add new logins to your workspace."
 msgstr ""
 
@@ -6567,9 +6637,6 @@ msgstr ""
 msgid "Creating a %(brand)s account is free and only takes a minute."
 msgstr ""
 
-msgid "Sign In"
-msgstr ""
-
 msgid "Remove SMTP configuration"
 msgstr ""
 
@@ -6616,21 +6683,6 @@ msgid "Disconnect Twilio"
 msgstr ""
 
 msgid "Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?"
-msgstr ""
-
-msgid "To enable two factor authentication, use a one time password application such as"
-msgstr ""
-
-msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
-msgstr ""
-
-msgid "Any tokens you may have previously generated are invalid."
-msgstr ""
-
-msgid "Generate Backup Tokens"
-msgstr ""
-
-msgid "Disable Two Factor"
 msgstr ""
 
 msgid "This workspace has been suspended"
@@ -6688,6 +6740,28 @@ msgid ""
 "\n"
 "    Your email address is <b>%(email)s</b>.\n"
 "  "
+msgstr ""
+
+msgid "To disable two-factor authentication for your login, enter your current password."
+msgstr ""
+
+#, python-format
+msgid "To enable two-factor authentication on your login, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below."
+msgstr ""
+
+msgid "Two-factor authentication is <b>disabled</b>."
+msgstr ""
+
+msgid "Two-factor authentication is currently enabled for your login. Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
+msgstr ""
+
+msgid "You can generate new backup tokens but remember that the current tokens will be no longer be usable if you do this."
+msgstr ""
+
+msgid "Regenerate Tokens"
+msgstr ""
+
+msgid "Two-factor authentication is <b>enabled</b>."
 msgstr ""
 
 msgid "Policies"
@@ -7009,22 +7083,6 @@ msgid "Unschedule"
 msgstr ""
 
 msgid "Not scheduled"
-msgstr ""
-
-msgid "Welcome Back"
-msgstr ""
-
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
-msgstr ""
-
-msgid "Don't have an account yet?"
-msgstr ""
-
-msgid "Sign up"
 msgstr ""
 
 msgid "Login Failure"
