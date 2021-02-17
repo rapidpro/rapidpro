@@ -509,6 +509,38 @@
       document.getElementById("create-group-modal").open = true;
     }
 
+    function handleRowSelection(checkbox) {
+      var row = checkbox.parentElement.parentElement.classList;
+      var listButtons = document.querySelector('.list-buttons-container').classList;
+      var pageTitle = document.querySelector('.page-title').classList;
+
+      if (checkbox.checked) {
+        row.add('checked');
+      } else {
+        row.remove('checked');
+      }
+
+      if (document.querySelector('tr.checked')) {
+        listButtons.add('visible');
+        pageTitle.add('hidden');
+      } else {
+        listButtons.remove('visible');
+        pageTitle.remove('hidden');
+      }
+
+      let selectAllCheckbox = document.querySelector(".select-all-items-checkbox > .contacts-checkbox");
+      let allChecked = [...document.querySelectorAll('tr.select-row')].every(el => el.classList.contains("checked"));
+      if (allChecked) {
+        selectAllCheckbox.classList.add("checked");
+        selectAllCheckbox.parentElement.classList.add("checked");
+      } else {
+        selectAllCheckbox.classList.remove("checked");
+        selectAllCheckbox.parentElement.classList.remove("checked");
+      }
+
+      updateLabelMenu();
+    }
+
     $(document).on('click', 'th.object-row-checkbox', function (e) {
       e.stopPropagation();
       e.preventDefault();
