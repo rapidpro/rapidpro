@@ -410,6 +410,8 @@ class BaseTwoFactorView(AuthLoginView):
 
         # if there are too many failed logins, take them to the failed page
         if failures.count() >= failed_login_limit:
+            self.reset_user()
+
             return HttpResponseRedirect(reverse("users.user_failed"))
 
         return super().form_invalid(form)
@@ -419,12 +421,15 @@ class BaseTwoFactorView(AuthLoginView):
         login(self.request, self.get_user())
 
         # remove our session key so if the user comes back this page they'll get directed to the login view
-        self.request.session.pop(TWO_FACTOR_USER_SESSION_KEY, None)
+        self.reset_user()
 
         # cleanup any failed logins
         FailedLogin.objects.filter(user=self.get_user()).delete()
 
         return HttpResponseRedirect(self.get_success_url())
+
+    def reset_user(self):
+        self.request.session.pop(TWO_FACTOR_USER_SESSION_KEY, None)
 
 
 class TwoFactorVerifyView(BaseTwoFactorView):

@@ -240,16 +240,20 @@ class UserTest(TembaTest):
         response = self.client.post(backup_url, {"token": "nope"})
 
         self.assertRedirect(response, failed_url)
+        self.assertRedirect(self.client.get(verify_url), login_url)
+        self.assertRedirect(self.client.get(backup_url), login_url)
         self.assertRedirect(self.client.get(reverse("msgs.msg_inbox")), login_url)
 
         # simulate failed logins timing out by making them older
         FailedLogin.objects.all().update(failed_on=timezone.now() - timedelta(minutes=3))
 
-        # now we're allowed to enter incorrect backup tokens again
+        # we can't enter backup tokens again without going thru regular login first
         response = self.client.post(backup_url, {"token": "nope"})
-        self.assertFormError(response, "form", "token", "Invalid backup token. Please try again.")
+        self.assertRedirect(response, login_url)
 
-        # and correct ones
+        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        self.assertRedirect(response, verify_url)
+
         response = self.client.post(backup_url, {"token": self.admin.backup_tokens.first()})
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
