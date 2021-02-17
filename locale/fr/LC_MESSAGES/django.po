@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-11 17:00+0000\n"
+"POT-Creation-Date: 2021-02-11 18:54+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3342,6 +3342,60 @@ msgstr "S'il vous plaît, entrez votre mot de passe pour enregistrer les modific
 msgid "Sorry, that email address is already taken."
 msgstr "Désolé, cette adresse est déjà prise."
 
+msgid "6-digit code"
+msgstr ""
+
+#, fuzzy
+#| msgid "Current Password"
+msgid "Current password"
+msgstr "Mot de passe actuel"
+
+#, fuzzy
+#| msgid "Invalid MFA token. Please try again."
+msgid "OTP incorrect. Please try again."
+msgstr "Jeton MFA non valide. Veuillez réessayer."
+
+#, fuzzy
+#| msgid "Secret is incorrect."
+msgid "Password incorrect."
+msgstr "Le secret est incorrect."
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication enabled"
+msgstr "Authentification à deux facteurs"
+
+msgid "Enable"
+msgstr ""
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Enable Two-factor Authentication"
+msgstr "Authentification à deux facteurs"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication disabled"
+msgstr "Authentification à deux facteurs"
+
+msgid "Disable"
+msgstr ""
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Disable Two-factor Authentication"
+msgstr "Authentification à deux facteurs"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor Authentication"
+msgstr "Authentification à deux facteurs"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication backup tokens changed."
+msgstr "Authentification à deux facteurs"
+
 msgid "The import file"
 msgstr "Le fichier d'importation"
 
@@ -3475,17 +3529,6 @@ msgstr "Vous devez avoir au moins un administateur"
 
 msgid "Manage Logins"
 msgstr "Gérer les connexions"
-
-msgid "One-time Password (OTP)"
-msgstr ""
-
-#, fuzzy
-#| msgid "Enter the code from your authentication application"
-msgid "Enter the one-time password from your authentication application."
-msgstr "Entrez le code de votre application d'authentification"
-
-msgid "Two Factor Authentication"
-msgstr "Authentification à deux facteurs"
 
 msgid "Dashboard"
 msgstr "Tableau de bord"
@@ -6669,11 +6712,6 @@ msgstr "Vous n'avez pas encore de compte?"
 msgid "Sign up"
 msgstr "S'inscrire"
 
-#, fuzzy
-#| msgid "Two Factor Authentication"
-msgid "Two-factor Authentication"
-msgstr "Authentification à deux facteurs"
-
 msgid "If you no longer have access to the device with which you setup two-factor authentication on your login, you can enter one of your backup tokens below."
 msgstr ""
 
@@ -6686,9 +6724,6 @@ msgid "Use Device"
 msgstr "Appareil"
 
 msgid "Open the one-time password application with which you setup two-factor authentication on your account and enter the code below to verify your identity."
-msgstr ""
-
-msgid "6-digit code"
 msgstr ""
 
 #, fuzzy
@@ -7041,34 +7076,6 @@ msgstr "Déconnecter Twilio"
 msgid "Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?"
 msgstr "La déconnexion de votre compte Twilio supprimera également toutes les chaînes Twilio qui y sont connectées. Êtes-vous sur de vouloir continuer?"
 
-#, python-format
-msgid "To enable two factor authentication, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below and generate an OTP."
-msgstr ""
-
-msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
-msgstr "Les jetons de sauvegarde peuvent être utilisés si vous n'avez plus accès à l'application d'authentification configurée pour votre compte."
-
-msgid "Any tokens you may have previously generated are invalid."
-msgstr "Tous les jetons que vous avez déjà générés ne sont pas valides."
-
-msgid "Disable"
-msgstr ""
-
-#, fuzzy
-#| msgid "Generate Backup Tokens"
-msgid "Regenerate Backup Tokens"
-msgstr "Générer des jetons de sauvegarde"
-
-#, fuzzy
-#| msgid "Two Factor Authentication"
-msgid "Two Factor Authentication is <b>enabled</b>."
-msgstr "Authentification à deux facteurs"
-
-#, fuzzy
-#| msgid "Two Factor Authentication"
-msgid "Two Factor Authentication is <b>disabled</b>."
-msgstr "Authentification à deux facteurs"
-
 msgid "This workspace has been suspended"
 msgstr "Cet espace de travail a été suspendu"
 
@@ -7128,6 +7135,36 @@ msgstr ""
 "\n"
 "    Votre adresse e-mail est <b>%(email)s</b>.\n"
 "  "
+
+#, fuzzy
+#| msgid "To enable two factor authentication, use a one time password application such as"
+msgid "To disable two-factor authentication for your login, enter your current password."
+msgstr "Pour activer l'authentification à deux facteurs, utilisez une application de mot de passe à usage unique telle que"
+
+#, python-format
+msgid "To enable two-factor authentication on your login, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below."
+msgstr ""
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication is <b>disabled</b>."
+msgstr "Authentification à deux facteurs"
+
+msgid "Two-factor authentication is currently enabled for your login. Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
+msgstr ""
+
+msgid "You can generate new backup tokens but remember that the current tokens will be no longer be usable if you do this."
+msgstr ""
+
+#, fuzzy
+#| msgid "Generate Backup Tokens"
+msgid "Regenerate Tokens"
+msgstr "Générer des jetons de sauvegarde"
+
+#, fuzzy
+#| msgid "Two Factor Authentication"
+msgid "Two-factor authentication is <b>enabled</b>."
+msgstr "Authentification à deux facteurs"
 
 msgid "Policies"
 msgstr "Politiques"
@@ -7816,6 +7853,20 @@ msgstr "Entrez une requête"
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
+#, fuzzy
+#~| msgid "Enter the code from your authentication application"
+#~ msgid "Enter the one-time password from your authentication application."
+#~ msgstr "Entrez le code de votre application d'authentification"
+
+#~ msgid "Two Factor Authentication"
+#~ msgstr "Authentification à deux facteurs"
+
+#~ msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
+#~ msgstr "Les jetons de sauvegarde peuvent être utilisés si vous n'avez plus accès à l'application d'authentification configurée pour votre compte."
+
+#~ msgid "Any tokens you may have previously generated are invalid."
+#~ msgstr "Tous les jetons que vous avez déjà générés ne sont pas valides."
+
 #~ msgid "Your preferred language"
 #~ msgstr "Langue de votre choix"
 
@@ -7836,9 +7887,6 @@ msgstr "${count} trouvé pour ${query}"
 
 #~ msgid "OTP Secret"
 #~ msgstr "Secret OTP"
-
-#~ msgid "To enable two factor authentication, use a one time password application such as"
-#~ msgstr "Pour activer l'authentification à deux facteurs, utilisez une application de mot de passe à usage unique telle que"
 
 #~ msgid "Used"
 #~ msgstr "Utilisé"

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-11 17:00+0000\n"
+"POT-Creation-Date: 2021-02-11 18:54+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4479,6 +4479,50 @@ msgstr "Por favor, insira sua senha para salvar as alterações"
 msgid "Sorry, that email address is already taken."
 msgstr "Desculpe, este endereço de e-mail já está sendo usado"
 
+msgid "6-digit code"
+msgstr ""
+
+#, fuzzy
+#| msgid "Current Password (required)"
+msgid "Current password"
+msgstr "Senha atual (obrigatório)"
+
+#, fuzzy
+#| msgid "Invalid phone number, try again."
+msgid "OTP incorrect. Please try again."
+msgstr "Número de telefone inválido, tente novamente."
+
+msgid "Password incorrect."
+msgstr ""
+
+msgid "Two-factor authentication enabled"
+msgstr ""
+
+#, fuzzy
+#| msgid "Enable Voice"
+msgid "Enable"
+msgstr "Ativar voz"
+
+msgid "Enable Two-factor Authentication"
+msgstr ""
+
+msgid "Two-factor authentication disabled"
+msgstr ""
+
+msgid "Disable"
+msgstr ""
+
+msgid "Disable Two-factor Authentication"
+msgstr ""
+
+msgid "Two-factor Authentication"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Two-factor authentication backup tokens changed."
+msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
+
 msgid "The import file"
 msgstr ""
 
@@ -4633,15 +4677,6 @@ msgstr "Você deve ter pelo menos um administator"
 #| msgid "Manage %(name)s Accounts"
 msgid "Manage Logins"
 msgstr "Gerenciar contas de %(name)s"
-
-msgid "One-time Password (OTP)"
-msgstr ""
-
-msgid "Enter the one-time password from your authentication application."
-msgstr ""
-
-msgid "Two Factor Authentication"
-msgstr ""
 
 #, fuzzy
 #| msgid "dashboard"
@@ -8646,9 +8681,6 @@ msgstr ""
 msgid "Sign up"
 msgstr "Cadastrar-se"
 
-msgid "Two-factor Authentication"
-msgstr ""
-
 msgid "If you no longer have access to the device with which you setup two-factor authentication on your login, you can enter one of your backup tokens below."
 msgstr ""
 
@@ -8661,9 +8693,6 @@ msgid "Use Device"
 msgstr "Dispositivo"
 
 msgid "Open the one-time password application with which you setup two-factor authentication on your account and enter the code below to verify your identity."
-msgstr ""
-
-msgid "6-digit code"
 msgstr ""
 
 msgid "Use Backup Token"
@@ -9102,28 +9131,6 @@ msgstr "Desconectar Twilio "
 msgid "Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?"
 msgstr ""
 
-#, python-format
-msgid "To enable two factor authentication, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below and generate an OTP."
-msgstr ""
-
-msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
-msgstr ""
-
-msgid "Any tokens you may have previously generated are invalid."
-msgstr ""
-
-msgid "Disable"
-msgstr ""
-
-msgid "Regenerate Backup Tokens"
-msgstr ""
-
-msgid "Two Factor Authentication is <b>enabled</b>."
-msgstr ""
-
-msgid "Two Factor Authentication is <b>disabled</b>."
-msgstr ""
-
 #, fuzzy
 msgid "This workspace has been suspended"
 msgstr "A organização utilizando esse transmissor"
@@ -9198,6 +9205,32 @@ msgid ""
 msgstr ""
 "\n"
 "Não <span class='attn'>repetirá</span>."
+
+msgid "To disable two-factor authentication for your login, enter your current password."
+msgstr ""
+
+#, python-format
+msgid "To enable two-factor authentication on your login, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below."
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Two-factor authentication is <b>disabled</b>."
+msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
+
+msgid "Two-factor authentication is currently enabled for your login. Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
+msgstr ""
+
+msgid "You can generate new backup tokens but remember that the current tokens will be no longer be usable if you do this."
+msgstr ""
+
+msgid "Regenerate Tokens"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Two-factor authentication is <b>enabled</b>."
+msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
 
 #, fuzzy
 msgid "Policies"
@@ -12157,9 +12190,6 @@ msgstr ""
 #~ msgid "Remove Phone"
 #~ msgstr "Remover telefone"
 
-#~ msgid "Enable Voice"
-#~ msgstr "Ativar voz"
-
 #, fuzzy
 #~| msgid "Resent message"
 #~ msgid "unsent messages"
@@ -14771,11 +14801,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "Type of this channel, whether Android, Twilio or SMSC"
 #~ msgstr "O tipo do transmissor, seja ela Android, Twilio ou SMSC"
-
-#, fuzzy
-#~| msgid "Invalid claim code, please check and try again."
-#~ msgid "Invalid authentication token, please check."
-#~ msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
 
 #~ msgid "Unknown channel type: %(channel)s"
 #~ msgstr "Tipo do transmissor desconhecido: %(channel)s"
