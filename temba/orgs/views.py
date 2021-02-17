@@ -12,6 +12,7 @@ import pyotp
 import pytz
 import requests
 from packaging.version import Version
+from smartmin.users.models import FailedLogin
 from smartmin.users.views import Login
 from smartmin.views import (
     SmartCreateView,
@@ -391,12 +392,37 @@ class BaseTwoFactorView(AuthLoginView):
         kwargs["user"] = self.get_user()
         return kwargs
 
+    def form_invalid(self, form):
+        user = self.get_user()
+
+        # apply the same limits on failed attempts that smartmin uses for regular logins
+        lockout_timeout = getattr(settings, "USER_LOCKOUT_TIMEOUT", 10)
+        failed_login_limit = getattr(settings, "USER_FAILED_LOGIN_LIMIT", 5)
+
+        FailedLogin.objects.create(user=user)
+
+        bad_interval = timezone.now() - timedelta(minutes=lockout_timeout)
+        failures = FailedLogin.objects.filter(user=user)
+
+        # if the failures reset after a period of time, then limit our query to that interval
+        if lockout_timeout > 0:
+            failures = failures.filter(failed_on__gt=bad_interval)
+
+        # if there are too many failed logins, take them to the failed page
+        if failures.count() >= failed_login_limit:
+            return HttpResponseRedirect(reverse("users.user_failed"))
+
+        return super().form_invalid(form)
+
     def form_valid(self, form):
         # set the user as actually authenticated now
         login(self.request, self.get_user())
 
         # remove our session key so if the user comes back this page they'll get directed to the login view
         self.request.session.pop(TWO_FACTOR_USER_SESSION_KEY, None)
+
+        # cleanup any failed logins
+        FailedLogin.objects.filter(user=self.get_user()).delete()
 
         return HttpResponseRedirect(self.get_success_url())
 

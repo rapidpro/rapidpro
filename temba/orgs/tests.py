@@ -11,6 +11,7 @@ import stripe
 import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
+from smartmin.users.models import FailedLogin
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
@@ -184,6 +185,73 @@ class UserTest(TembaTest):
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
         self.assertEqual(9, len(self.admin.backup_tokens.filter(is_used=False)))
+
+    @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
+    def test_login_lockouts(self):
+        login_url = reverse("users.user_login")
+        verify_url = reverse("users.two_factor_verify")
+        backup_url = reverse("users.two_factor_backup")
+        failed_url = reverse("users.user_failed")
+
+        # submit incorrect username and password 3 times
+        self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
+        self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
+        response = self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
+
+        self.assertRedirect(response, failed_url)
+        self.assertRedirect(self.client.get(reverse("msgs.msg_inbox")), login_url)
+
+        # simulate failed logins timing out by making them older
+        FailedLogin.objects.all().update(failed_on=timezone.now() - timedelta(minutes=3))
+
+        # now we're allowed to make failed logins again
+        response = self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
+        self.assertFormError(
+            response,
+            "form",
+            "__all__",
+            "Please enter a correct username and password. Note that both fields may be case-sensitive.",
+        )
+
+        # and successful logins
+        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        self.assertRedirect(response, reverse("orgs.org_choose"))
+
+        # try again with 2FA enabled
+        self.client.logout()
+        self.admin.enable_2fa()
+
+        # submit incorrect username and password 3 times
+        self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
+        self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
+        response = self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
+
+        self.assertRedirect(response, failed_url)
+        self.assertRedirect(self.client.get(reverse("msgs.msg_inbox")), login_url)
+
+        # login correctly
+        FailedLogin.objects.all().delete()
+        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        self.assertRedirect(response, verify_url)
+
+        # now enter a backup token 3 times incorrectly
+        self.client.post(backup_url, {"token": "nope"})
+        self.client.post(backup_url, {"token": "nope"})
+        response = self.client.post(backup_url, {"token": "nope"})
+
+        self.assertRedirect(response, failed_url)
+        self.assertRedirect(self.client.get(reverse("msgs.msg_inbox")), login_url)
+
+        # simulate failed logins timing out by making them older
+        FailedLogin.objects.all().update(failed_on=timezone.now() - timedelta(minutes=3))
+
+        # now we're allowed to enter incorrect backup tokens again
+        response = self.client.post(backup_url, {"token": "nope"})
+        self.assertFormError(response, "form", "token", "Invalid backup token. Please try again.")
+
+        # and correct ones
+        response = self.client.post(backup_url, {"token": self.admin.backup_tokens.first()})
+        self.assertRedirect(response, reverse("orgs.org_choose"))
 
     def test_two_factor(self):
         self.assertFalse(self.admin.get_settings().two_factor_enabled)
