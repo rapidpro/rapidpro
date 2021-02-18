@@ -1521,6 +1521,12 @@ class OrgTest(TembaTest):
         # should be logged out to request login
         self.assertEqual(0, len(self.client.session.keys()))
 
+        # login with a diffent user that the invited
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.org_join_accept", args=[editor_invitation.secret]), follow=True)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_join", args=[editor_invitation.secret]))
+
         self.login(self.invited_editor)
         response = self.client.get(editor_join_url)
         self.assertEqual(302, response.status_code)
@@ -1571,6 +1577,13 @@ class OrgTest(TembaTest):
         response = self.client.post(reverse("orgs.org_join_accept", args=[invite.secret]), follow=True)
         self.assertEqual(200, response.status_code)
         self.assertIsNone(self.org.surveyors.filter(pk=expired_user.pk).first())
+
+        response = self.client.post(reverse("orgs.org_join", args=[invite.secret]))
+        self.assertEqual(302, response.status_code)
+
+        response = self.client.post(reverse("orgs.org_join", args=[invite.secret]), follow=True)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.request["PATH_INFO"], reverse("users.user_login"))
 
     def test_create_login(self):
         admin_invitation = Invitation.objects.create(
