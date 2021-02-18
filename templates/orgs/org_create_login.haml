@@ -7,9 +7,7 @@
 
 -block fields
   .control-group
-    %temba-field(disabled="true")
-      .px-1.py-2
-        {{email}}
+    %temba-textinput#id_username(type="text" name="username" maxlenght="150" label="{% trans 'Email Address' %}" value="{{email}}" disabled)
 
   -render_field 'password'
 
