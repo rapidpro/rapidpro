@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-18 13:56+0000\n"
+"POT-Creation-Date: 2021-02-18 16:10+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4971,6 +4971,11 @@ msgid "This password is not valid. Choose a new password and try again."
 msgstr "No se pudieron guardar sus cambios. Por favor, actualice la página e inténtelo nuevamente."
 
 msgid "One of the emails you entered is invalid."
+msgstr "Uno de los correos electrónicos que ingresó es inválido."
+
+#, fuzzy
+#| msgid "One of the emails you entered is invalid."
+msgid "One of the emails you entered has an existing user on the workspace."
 msgstr "Uno de los correos electrónicos que ingresó es inválido."
 
 #, fuzzy

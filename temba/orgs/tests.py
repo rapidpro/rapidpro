@@ -1471,6 +1471,30 @@ class OrgTest(TembaTest):
         self.admin.refresh_from_db()
         self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 0)
 
+        # make sure an existing user can not be invited again
+        user = Org.create_user("admin1@temba.com", "admin1@temba.com")
+        user.set_org(self.org)
+        self.org.administrators.add(user)
+        self.login(user)
+
+        # include multiple emails on the form
+        response = self.client.post(
+            url,
+            {
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.editor.id}_role": "E",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.agent.id}_role": "T",
+                f"user_{user.id}_role": "A",
+                "invite_emails": "norbert@temba.com,code@temba.com,admin1@temba.com",
+                "invite_role": "A",
+            },
+        )
+
+        self.assertFormError(
+            response, "form", "invite_emails", "One of the emails you entered has an existing user on the workspace."
+        )
+
     @patch("temba.utils.email.send_temba_email")
     def test_join(self, mock_send_temba_email):
         def create_invite(group, username):

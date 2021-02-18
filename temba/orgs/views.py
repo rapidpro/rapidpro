@@ -1556,6 +1556,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 self.fields["invite_role"].choices = role_choices
 
+                self.org = org
                 self.user_rows = []
                 self.invite_rows = []
                 self.add_per_user_fields(org, role_choices)
@@ -1610,6 +1611,7 @@ class OrgCRUDL(SmartCRUDL):
 
             def clean_invite_emails(self):
                 emails = self.cleaned_data["invite_emails"].lower().strip()
+                existing_users_emails = list(self.org.get_users().values_list("username", flat=True))
                 if emails:
                     email_list = emails.split(",")
                     for email in email_list:
@@ -1617,6 +1619,12 @@ class OrgCRUDL(SmartCRUDL):
                             validate_email(email)
                         except ValidationError:
                             raise forms.ValidationError(_("One of the emails you entered is invalid."))
+
+                        if email in existing_users_emails:
+                            raise forms.ValidationError(
+                                _("One of the emails you entered has an existing user on the workspace.")
+                            )
+
                 return emails
 
             def get_submitted_roles(self) -> dict:

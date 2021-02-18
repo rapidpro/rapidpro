@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-18 13:56+0000\n"
+"POT-Creation-Date: 2021-02-18 16:10+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -4335,6 +4335,11 @@ msgid "This password is not valid. Choose a new password and try again."
 msgstr "Этот пароль не является допустимым. Выберите новый пароль и повторите попытку."
 
 msgid "One of the emails you entered is invalid."
+msgstr "Один из адресов электронной почты, который Вы ввели, является недопустимым."
+
+#, fuzzy
+#| msgid "One of the emails you entered is invalid."
+msgid "One of the emails you entered has an existing user on the workspace."
 msgstr "Один из адресов электронной почты, который Вы ввели, является недопустимым."
 
 #, fuzzy
