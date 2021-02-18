@@ -342,26 +342,37 @@ TWILIO_SUPPORTED_COUNTRIES_CONFIG = (
     "AT",  # Austria
     "BE",  # Belgium
     "CA",  # Canada
-    "CL",  # Chile  # Beta
-    "CZ",  # Czech Republic  # Beta
+    "CL",  # Chile
+    "CZ",  # Czech Republic
     "DK",  # Denmark  # Beta
     "EE",  # Estonia
     "FI",  # Finland
     "FR",  # France  # Beta
     "DE",  # Germany
+    "EE",  # Estonia
     "HK",  # Hong Kong
     "HU",  # Hungary  # Beta
     "IE",  # Ireland,
     "IL",  # Israel  # Beta
+    "IT",  # Italy  #Beta
     "LT",  # Lithuania
+    "MY",  # Malaysia
     "MX",  # Mexico  # Beta
+    "NL",  # Netherlands
     "NO",  # Norway
+    "PH",  # Philippines  # Beta
     "PL",  # Poland
+    "PR",  # Puerto Rico
+    "PT",  # Portugal
     "ES",  # Spain
     "SE",  # Sweden
+    "SG",  # Singapore  # Beta
     "CH",  # Switzerland
     "GB",  # United Kingdom
     "US",  # United States
+    "VI",  # Virgin Islands
+    "VN",  # Vietnam  # Beta
+    "ZA",  # South Africa  # Beta
 )
 
 TWILIO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in TWILIO_SUPPORTED_COUNTRIES_CONFIG])

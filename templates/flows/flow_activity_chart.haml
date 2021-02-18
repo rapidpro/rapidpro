@@ -1,4 +1,4 @@
--load humanize i18n compress temba
+-load humanize i18n compress temba l10n
 
 -compress css inline
   {% lessblock %}
@@ -200,7 +200,7 @@
 
     var dow_points = [
       {% for point in dow %}
-        {name:"{{point.day}}", y:{{point.pct}}, msgs: {{point.count}}}{% if not forloop.last %},{% endif %}
+        {name:"{{point.day}}", y:{{point.pct|unlocalize}}, msgs: {{point.count}}}{% if not forloop.last %},{% endif %}
       {% endfor %}
     ];
 

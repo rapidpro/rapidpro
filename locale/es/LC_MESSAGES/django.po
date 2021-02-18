@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-08 10:38+0000\n"
+"POT-Creation-Date: 2021-02-18 12:42+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -232,6 +232,11 @@ msgstr "Los grupos a los que se envía este mensaje "
 #| msgid "Send this message"
 msgid "Skip this message"
 msgstr "Enviar este mensaje"
+
+#, fuzzy
+#| msgid "Send Message"
+msgid "Send the message"
+msgstr "Enviar mensaje"
 
 #, fuzzy
 msgid "Message sending rules"
@@ -4560,23 +4565,6 @@ msgstr "Org"
 msgid "%(name)s Invitation"
 msgstr "Invitación de %(name)s"
 
-msgid "Your preferred language"
-msgstr "Su idioma preferido"
-
-msgid "Phone Number"
-msgstr "Número de teléfono"
-
-msgid "Phone number for testing and recording voice flows"
-msgstr "Número de teléfono para probar y grabar los flujos de voz"
-
-#, fuzzy
-#| msgid "API Secret:"
-msgid "OTP Secret"
-msgstr "Código secreto API:"
-
-msgid "Two Factor Enabled"
-msgstr ""
-
 msgid "Price Paid"
 msgstr "Precio pagado"
 
@@ -4671,9 +4659,6 @@ msgstr "créditos."
 msgid "%(name)s Credits Alert"
 msgstr ""
 
-msgid "Used"
-msgstr ""
-
 #, fuzzy
 #| msgid "First Name"
 msgid "First name"
@@ -4744,6 +4729,16 @@ msgstr ""
 msgid "Password required for new login."
 msgstr ""
 
+#, fuzzy
+#| msgid "Invalid phone number, try again."
+msgid "Incorrect OTP. Please try again."
+msgstr "Número de teléfono inválido, inténtelo nuevamente."
+
+#, fuzzy
+#| msgid "Invalid phone number, try again."
+msgid "Invalid backup token. Please try again."
+msgstr "Número de teléfono inválido, inténtelo nuevamente."
+
 #, python-brace-format
 msgid "Deleted user {username}"
 msgstr ""
@@ -4787,8 +4782,49 @@ msgstr "Por favor, ingrese su contraseña para guardar los cambios."
 msgid "Sorry, that email address is already taken."
 msgstr "Lo sentimos, esta dirección de correo electrónico ya ha sido elegida."
 
-msgid "Start Call"
-msgstr "Empezar llamada"
+msgid "6-digit code"
+msgstr ""
+
+#, fuzzy
+#| msgid "Current Password (required)"
+msgid "Current password"
+msgstr "Contraseña actual (requerida)"
+
+#, fuzzy
+#| msgid "Invalid phone number, try again."
+msgid "OTP incorrect. Please try again."
+msgstr "Número de teléfono inválido, inténtelo nuevamente."
+
+msgid "Password incorrect."
+msgstr ""
+
+msgid "Two-factor authentication enabled"
+msgstr ""
+
+#, fuzzy
+#| msgid "Enable Voice"
+msgid "Enable"
+msgstr "Permitir voz"
+
+msgid "Enable Two-factor Authentication"
+msgstr ""
+
+msgid "Two-factor authentication disabled"
+msgstr ""
+
+msgid "Disable"
+msgstr ""
+
+msgid "Disable Two-factor Authentication"
+msgstr ""
+
+msgid "Two-factor Authentication"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid claim code, please check and try again."
+msgid "Two-factor authentication backup tokens changed."
+msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
 
 msgid "The import file"
 msgstr "El archivo de importación"
@@ -4946,17 +4982,6 @@ msgstr "Debe tener al menos un administrador"
 #| msgid "Manage %(name)s Accounts"
 msgid "Manage Logins"
 msgstr "Manejar las cuentas de %(name)s "
-
-msgid "Enter the code from your authentication application"
-msgstr ""
-
-#, fuzzy
-#| msgid "Invalid phone number, try again."
-msgid "Invalid MFA token. Please try again."
-msgstr "Número de teléfono inválido, inténtelo nuevamente."
-
-msgid "Two Factor Authentication"
-msgstr ""
 
 #, fuzzy
 #| msgid "dashboard"
@@ -8666,6 +8691,9 @@ msgstr "Haga una serie de preguntas para obtener los datos de sus contactos."
 msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
 msgstr ""
 
+msgid "Manual"
+msgstr ""
+
 #, fuzzy, python-format
 #| msgid "has started this flow."
 msgid "was started by %(user)s for"
@@ -9376,6 +9404,48 @@ msgid ""
 "\n"
 msgstr ""
 
+#, fuzzy
+#| msgid "Flow Message"
+msgid "Welcome Back"
+msgstr "Mensaje del flujo"
+
+msgid ""
+"\n"
+"    Please sign in with your email address and password.\n"
+"\n"
+"  "
+msgstr ""
+
+#, fuzzy
+#| msgid "Sign in"
+msgid "Sign In"
+msgstr "Registrarse"
+
+msgid "Don't have an account yet?"
+msgstr ""
+
+#, fuzzy
+#| msgid "Sign Up"
+msgid "Sign up"
+msgstr "Registrarse"
+
+msgid "If you no longer have access to the device with which you setup two-factor authentication on your login, you can enter one of your backup tokens below."
+msgstr ""
+
+msgid "8-character token"
+msgstr ""
+
+#, fuzzy
+#| msgid "Device"
+msgid "Use Device"
+msgstr "Dispositivo"
+
+msgid "Open the one-time password application with which you setup two-factor authentication on your account and enter the code below to verify your identity."
+msgstr ""
+
+msgid "Use Backup Token"
+msgstr ""
+
 msgid "Your workspace can have logins with various roles. You can use the Manage Logins page to view all existing logins or to add new logins to your workspace."
 msgstr ""
 
@@ -9789,11 +9859,6 @@ msgid "Creating a %(brand)s account is free and only takes a minute."
 msgstr ""
 
 #, fuzzy
-#| msgid "Sign in"
-msgid "Sign In"
-msgstr "Registrarse"
-
-#, fuzzy
 #| msgid "Configuration"
 msgid "Remove SMTP configuration"
 msgstr "Configuración"
@@ -9867,21 +9932,6 @@ msgid "Disconnect Twilio"
 msgstr "Desconectar Twilio"
 
 msgid "Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?"
-msgstr ""
-
-msgid "To enable two factor authentication, use a one time password application such as"
-msgstr ""
-
-msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
-msgstr ""
-
-msgid "Any tokens you may have previously generated are invalid."
-msgstr ""
-
-msgid "Generate Backup Tokens"
-msgstr ""
-
-msgid "Disable Two Factor"
 msgstr ""
 
 #, fuzzy
@@ -9966,6 +10016,28 @@ msgstr ""
 "    Su dirección de correo electrónico es <span class='attn'>%(email)s</span>.\n"
 "\n"
 "  "
+
+msgid "To disable two-factor authentication for your login, enter your current password."
+msgstr ""
+
+#, python-format
+msgid "To enable two-factor authentication on your login, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below."
+msgstr ""
+
+msgid "Two-factor authentication is <b>disabled</b>."
+msgstr ""
+
+msgid "Two-factor authentication is currently enabled for your login. Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
+msgstr ""
+
+msgid "You can generate new backup tokens but remember that the current tokens will be no longer be usable if you do this."
+msgstr ""
+
+msgid "Regenerate Tokens"
+msgstr ""
+
+msgid "Two-factor authentication is <b>enabled</b>."
+msgstr ""
 
 #, fuzzy
 #| msgid "No Editors"
@@ -10478,26 +10550,6 @@ msgstr "programado"
 msgid "Not scheduled"
 msgstr "programado"
 
-#, fuzzy
-#| msgid "Flow Message"
-msgid "Welcome Back"
-msgstr "Mensaje del flujo"
-
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
-msgstr ""
-
-msgid "Don't have an account yet?"
-msgstr ""
-
-#, fuzzy
-#| msgid "Sign Up"
-msgid "Sign up"
-msgstr "Registrarse"
-
 msgid "Login Failure"
 msgstr ""
 
@@ -10776,6 +10828,23 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#~ msgid "Your preferred language"
+#~ msgstr "Su idioma preferido"
+
+#~ msgid "Phone Number"
+#~ msgstr "Número de teléfono"
+
+#~ msgid "Phone number for testing and recording voice flows"
+#~ msgstr "Número de teléfono para probar y grabar los flujos de voz"
+
+#, fuzzy
+#~| msgid "API Secret:"
+#~ msgid "OTP Secret"
+#~ msgstr "Código secreto API:"
+
+#~ msgid "Start Call"
+#~ msgstr "Empezar llamada"
 
 #, fuzzy
 #~| msgid "Create new account"
@@ -13066,9 +13135,6 @@ msgstr ""
 
 #~ msgid "Remove Phone"
 #~ msgstr "Borrar teléfono"
-
-#~ msgid "Enable Voice"
-#~ msgstr "Permitir voz"
 
 #, fuzzy
 #~| msgid "Resent message"
@@ -15798,11 +15864,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "Type of this channel, whether Android, Twilio or SMSC"
 #~ msgstr "El tipo de este transmisor, ya sea Android, Twilio o SMSC"
-
-#, fuzzy
-#~| msgid "Invalid claim code, please check and try again."
-#~ msgid "Invalid authentication token, please check."
-#~ msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
 
 #~ msgid "Unknown channel type: %(channel)s"
 #~ msgstr "Tipo de transmisor desconocido: %(channel)s"

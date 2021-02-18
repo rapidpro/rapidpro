@@ -2003,8 +2003,9 @@ class ContactTest(TembaTest):
         ChannelLog.objects.create(channel=self.channel, description="Its an ivr call", is_error=False, connection=call)
 
         # fetch our contact history
-        with self.assertNumQueries(73):
-            response = self.fetch_protected(url + "?limit=100", self.admin)
+        self.login(self.admin)
+        with self.assertNumQueries(49):
+            response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
         history = response.context["events"]

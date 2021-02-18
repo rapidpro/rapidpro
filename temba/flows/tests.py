@@ -3722,7 +3722,7 @@ class ExportFlowResultsTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 1
 
-                with self.assertNumQueries(42):
+                with self.assertNumQueries(44):
                     workbook = self._export(flow, group_memberships=[devs])
 
                 self.assertEqual(len(captured_logger.output), 3)
@@ -3962,7 +3962,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without msgs or unresponded
-        with self.assertNumQueries(40):
+        with self.assertNumQueries(42):
             workbook = self._export(flow, include_msgs=False, responded_only=True, group_memberships=(devs,))
 
         tz = self.org.timezone
@@ -4028,7 +4028,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test export with a contact field
-        with self.assertNumQueries(42):
+        with self.assertNumQueries(44):
             workbook = self._export(
                 flow,
                 include_msgs=False,
@@ -4258,7 +4258,7 @@ class ExportFlowResultsTest(TembaTest):
 
         contact1_run1, contact2_run1, contact3_run1, contact1_run2, contact2_run2 = FlowRun.objects.order_by("id")
 
-        with self.assertNumQueries(50):
+        with self.assertNumQueries(52):
             workbook = self._export(flow)
 
         tz = self.org.timezone
@@ -4528,7 +4528,7 @@ class ExportFlowResultsTest(TembaTest):
         )
 
         # test without msgs or unresponded
-        with self.assertNumQueries(33):
+        with self.assertNumQueries(35):
             workbook = self._export(flow, include_msgs=False, responded_only=True)
 
         tz = self.org.timezone
@@ -5518,6 +5518,12 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "all contacts")
         self.assertContains(response, "contacts who haven't already been through this flow")
         self.assertContains(response, "<b>1,234</b> runs")
+
+        response = self.assertListFetch(
+            list_url + "?type=manual", allow_viewers=True, allow_editors=True, context_objects=[start1]
+        )
+        self.assertTrue(response.context["filtered"])
+        self.assertEqual(response.context["url_params"], "?type=manual&")
 
 
 class AssetServerTest(TembaTest):
