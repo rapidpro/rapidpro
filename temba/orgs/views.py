@@ -1611,7 +1611,10 @@ class OrgCRUDL(SmartCRUDL):
 
             def clean_invite_emails(self):
                 emails = self.cleaned_data["invite_emails"].lower().strip()
-                existing_users_emails = list(self.org.get_users().values_list("username", flat=True))
+                existing_users_emails = set(
+                    list(self.org.get_users().values_list("username", flat=True))
+                    + list(self.org.invitations.values_list("email"))
+                )
                 if emails:
                     email_list = emails.split(",")
                     for email in email_list:
@@ -2122,15 +2125,6 @@ class OrgCRUDL(SmartCRUDL):
             if has_user and invitation_email != request.user.username:
                 logout(request)
                 return HttpResponseRedirect(reverse("orgs.org_join", args=[secret]))
-
-            if not org.get_admins().exclude(id=request.user.id).exists():
-                messages.info(
-                    request,
-                    _(
-                        "You are the only administrator on this workspace. Please add other workspace administrators first."
-                    ),
-                )
-                return HttpResponseRedirect(reverse("public.public_index"))
 
             return None
 

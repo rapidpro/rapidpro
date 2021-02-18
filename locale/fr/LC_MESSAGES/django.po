@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-18 16:10+0000\n"
+"POT-Creation-Date: 2021-02-18 16:52+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3570,11 +3570,6 @@ msgstr "Votre lien d'invitation a expiré. Veuillez contacter votre administrate
 
 msgid "Join"
 msgstr "Rejoignez"
-
-#, fuzzy
-#| msgid "Your invitation link has expired. Please contact your workspace administrator."
-msgid "You are the only administrator on this workspace. Please add other workspace administrators first."
-msgstr "Votre lien d'invitation a expiré. Veuillez contacter votre administrateur d'espace de travail."
 
 msgid "Invalid surveyor password, please check with your project leader and try again."
 msgstr "Mot de passe d'enquêteur invalide, veuillez vérifier auprès de votre chef de projet et réessayer."
@@ -7864,6 +7859,11 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "Your invitation link has expired. Please contact your workspace administrator."
+#~ msgid "You are the only administrator on this workspace. Please add other workspace administrators first."
+#~ msgstr "Votre lien d'invitation a expiré. Veuillez contacter votre administrateur d'espace de travail."
 
 #~ msgid "Your preferred language"
 #~ msgstr "Langue de votre choix"

@@ -1343,8 +1343,6 @@ class OrgTest(TembaTest):
         self.assertEqual("norkans7@gmail.com", invitation.email)
         self.assertEqual("A", invitation.user_group)
 
-        old_secret = invitation.secret
-
         # and sent by email
         self.assertEqual(1, len(mail.outbox))
 
@@ -1355,28 +1353,6 @@ class OrgTest(TembaTest):
         # no longer appears in list
         response = self.client.get(url)
         self.assertNotContains(response, "norkans7@gmail.com")
-
-        # send another invitation, different role
-        self.client.post(
-            url,
-            {
-                f"user_{self.admin.id}_role": "A",
-                f"user_{self.editor.id}_role": "E",
-                f"user_{self.user.id}_role": "E",
-                f"user_{self.agent.id}_role": "T",
-                "invite_emails": "norkans7@gmail.com",
-                "invite_role": "E",
-            },
-        )
-
-        # old invite should be updated with new secret
-        invitation.refresh_from_db()
-        self.assertEqual("E", invitation.user_group)
-        self.assertTrue(invitation.is_active)
-        self.assertNotEqual(old_secret, invitation.secret)
-
-        # and new email sent
-        self.assertEqual(2, len(mail.outbox))
 
         # include multiple emails on the form
         self.client.post(
@@ -1393,7 +1369,7 @@ class OrgTest(TembaTest):
 
         # now 2 new invitations are created and sent
         self.assertEqual(3, Invitation.objects.all().count())
-        self.assertEqual(4, len(mail.outbox))
+        self.assertEqual(3, len(mail.outbox))
 
         response = self.client.get(url)
 
@@ -1403,7 +1379,7 @@ class OrgTest(TembaTest):
 
         # invites ordered by email as well
         invites_on_form = [row["invite"].email for row in response.context["form"].invite_rows]
-        self.assertEqual(["code@temba.com", "norbert@temba.com", "norkans7@gmail.com"], invites_on_form)
+        self.assertEqual(["code@temba.com", "norbert@temba.com"], invites_on_form)
 
         # try to remove ourselves as admin
         response = self.client.post(
@@ -1585,21 +1561,6 @@ class OrgTest(TembaTest):
             response = self.client.post(reverse("orgs.org_join_accept", args=[invite.secret]), follow=True)
             self.assertEqual(200, response.status_code)
             self.assertIsNotNone(role[1].filter(pk=user.pk).first())
-
-        # remove all users and add the invite user a admin
-        for user in self.org.get_admins():
-            self.org.remove_user(user)
-
-        user = create_user("adminUser")
-        self.org.add_user(user, OrgRole.ADMINISTRATOR)
-        invite = create_invite("A", "adminUser")
-
-        # cannot accept invite to the only existing admin
-        self.login(user)
-        response = self.client.get(reverse("orgs.org_join_accept", args=[invite.secret]))
-        self.assertEqual(302, response.status_code)
-        response = self.client.get(reverse("orgs.org_join_accept", args=[invite.secret]), follow=True)
-        self.assertEqual(response.request["PATH_INFO"], reverse("public.public_index"))
 
         # try an expired invite
         invite = create_invite("S", "invitedexpired")
