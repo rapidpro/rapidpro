@@ -1562,6 +1562,21 @@ class OrgTest(TembaTest):
             self.assertEqual(200, response.status_code)
             self.assertIsNotNone(role[1].filter(pk=user.pk).first())
 
+        # remove all users and add the invite user a admin
+        for user in self.org.get_admins():
+            self.org.remove_user(user)
+
+        user = create_user("adminUser")
+        self.org.add_user(user, OrgRole.ADMINISTRATOR)
+        invite = create_invite("A", "adminUser")
+
+        # cannot accept invite to the only existing admin
+        self.login(user)
+        response = self.client.get(reverse("orgs.org_join_accept", args=[invite.secret]))
+        self.assertEqual(302, response.status_code)
+        response = self.client.get(reverse("orgs.org_join_accept", args=[invite.secret]), follow=True)
+        self.assertEqual(response.request["PATH_INFO"], reverse("public.public_index"))
+
         # try an expired invite
         invite = create_invite("S", "invitedexpired")
         invite.is_active = False

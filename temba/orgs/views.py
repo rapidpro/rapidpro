@@ -2115,6 +2115,15 @@ class OrgCRUDL(SmartCRUDL):
                 logout(request)
                 return HttpResponseRedirect(reverse("orgs.org_join", args=[secret]))
 
+            if not org.get_admins().exclude(id=request.user.id).exists():
+                messages.info(
+                    request,
+                    _(
+                        "You are the only administrator on this workspace. Please add other workspace administrators first."
+                    ),
+                )
+                return HttpResponseRedirect(reverse("public.public_index"))
+
             return None
 
         def derive_title(self):  # pragma: needs cover

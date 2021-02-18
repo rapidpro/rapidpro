@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-18 12:42+0000\n"
+"POT-Creation-Date: 2021-02-18 13:56+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4727,6 +4727,11 @@ msgstr "O link do seu convite expirou. Por favor, contate o administrador da org
 
 msgid "Join"
 msgstr "Junte-se"
+
+#, fuzzy
+#| msgid "Your invitation link has expired. Please contact your organization administrator."
+msgid "You are the only administrator on this workspace. Please add other workspace administrators first."
+msgstr "O link do seu convite expirou. Por favor, contate o administrador da organização."
 
 #, fuzzy
 #| msgid "Invalid claim code, please check and try again."

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-18 12:42+0000\n"
+"POT-Creation-Date: 2021-02-18 13:56+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -4394,6 +4394,11 @@ msgstr "Срок действия Вашей пригласительной сс
 
 msgid "Join"
 msgstr "Присоединиться"
+
+#, fuzzy
+#| msgid "Your invitation link has expired. Please contact your organization administrator."
+msgid "You are the only administrator on this workspace. Please add other workspace administrators first."
+msgstr "Срок действия Вашей пригласительной ссылки истек. Пожалуйста, свяжитесь с администратором Вашей организации."
 
 msgid "Invalid surveyor password, please check with your project leader and try again."
 msgstr "Недействительный пароль наблюдателя. Пожалуйста, уточните его у руководителя проекта и повторите попытку."

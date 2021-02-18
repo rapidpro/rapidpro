@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-18 12:42+0000\n"
+"POT-Creation-Date: 2021-02-18 13:56+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3490,6 +3490,9 @@ msgid "Your invitation link has expired. Please contact your workspace administr
 msgstr ""
 
 msgid "Join"
+msgstr ""
+
+msgid "You are the only administrator on this workspace. Please add other workspace administrators first."
 msgstr ""
 
 msgid "Invalid surveyor password, please check with your project leader and try again."
