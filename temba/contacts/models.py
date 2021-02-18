@@ -1920,7 +1920,9 @@ class ExportContactsTask(BaseExportTask):
 
         scheme_counts = dict()
         if not self.org.is_anon:
-            schemes_in_use = sorted(list(self.org.urns.order_by().values_list("scheme", flat=True).distinct()))
+            schemes_in_use = sorted(
+                list(self.org.urns.order_by().exclude(scheme="deleted").values_list("scheme", flat=True).distinct())
+            )
             scheme_contact_max = {}
 
             # for each scheme used by this org, calculate the max number of URNs owned by a single contact
