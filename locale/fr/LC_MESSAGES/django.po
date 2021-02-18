@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-18 12:42+0000\n"
+"POT-Creation-Date: 2021-02-18 16:52+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3520,6 +3520,11 @@ msgid "This password is not valid. Choose a new password and try again."
 msgstr "Ce mot de passe n'est pas valide. Choisissez un nouveau mot de passe et réessayez."
 
 msgid "One of the emails you entered is invalid."
+msgstr "L'un des e-mails que vous avez inscrits est invalide."
+
+#, fuzzy
+#| msgid "One of the emails you entered is invalid."
+msgid "One of the emails you entered has an existing user on the workspace."
 msgstr "L'un des e-mails que vous avez inscrits est invalide."
 
 #, fuzzy
@@ -7854,6 +7859,11 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "Your invitation link has expired. Please contact your workspace administrator."
+#~ msgid "You are the only administrator on this workspace. Please add other workspace administrators first."
+#~ msgstr "Votre lien d'invitation a expiré. Veuillez contacter votre administrateur d'espace de travail."
 
 #~ msgid "Your preferred language"
 #~ msgstr "Langue de votre choix"

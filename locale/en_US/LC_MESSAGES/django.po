@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-18 12:42+0000\n"
+"POT-Creation-Date: 2021-02-18 16:52+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3450,6 +3450,9 @@ msgid "This password is not valid. Choose a new password and try again."
 msgstr ""
 
 msgid "One of the emails you entered is invalid."
+msgstr ""
+
+msgid "One of the emails you entered has an existing user on the workspace."
 msgstr ""
 
 msgid "A workspace must have at least one administrator."
