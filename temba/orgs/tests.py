@@ -1616,6 +1616,15 @@ class OrgTest(TembaTest):
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_join_accept", args=[invitation.secret]))
 
+        invitation.is_active = False
+        invitation.save()
+
+        response = self.client.get(create_login_url)
+        self.assertEqual(302, response.status_code)
+        response = self.client.get(create_login_url, follow=True)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.request["PATH_INFO"], reverse("public.public_index"))
+
     def test_create_login_invalid_form(self):
         admin_invitation = Invitation.objects.create(
             org=self.org, user_group="A", email="user@example.com", created_by=self.admin, modified_by=self.admin

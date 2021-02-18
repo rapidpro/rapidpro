@@ -1972,7 +1972,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def pre_process(self, request, *args, **kwargs):
             org = self.get_object()
-            if not org:  # pragma: needs cover
+            if not org:
                 messages.info(
                     request, _("Your invitation link is invalid. Please contact your workspace administrator.")
                 )
@@ -2047,7 +2047,7 @@ class OrgCRUDL(SmartCRUDL):
         title = _("Sign in with your account to accept the invitation")
         permission = False
 
-        def pre_process(self, request, *args, **kwargs):  # pragma: needs cover
+        def pre_process(self, request, *args, **kwargs):
             secret = self.kwargs.get("secret")
 
             invite = self.get_invitation()
@@ -2098,7 +2098,7 @@ class OrgCRUDL(SmartCRUDL):
         def has_permission(self, request, *args, **kwargs):
             return request.user.is_authenticated
 
-        def pre_process(self, request, *args, **kwargs):  # pragma: needs cover
+        def pre_process(self, request, *args, **kwargs):
             org = self.get_object()
             invitation = self.get_invitation()
             if not (invitation and org):

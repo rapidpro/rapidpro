@@ -14,7 +14,7 @@
         .formax-summary
           -trans "Sign in"
         .formax-form
-          %form#login-form{method:"post", action:"{% url 'users.user_login' %}?next={% url 'orgs.org_join_accept' secret %}"}
+          %form#login-form(method="post" action="{% url 'users.user_login' %}?next={% url 'orgs.org_join_accept' secret %}")
             %fieldset
               .control-group
                 %temba-textinput#id_username(type="text" name="username" maxlenght="150" label="{% trans 'Email Address' %}" value="{{email}}" disabled)
