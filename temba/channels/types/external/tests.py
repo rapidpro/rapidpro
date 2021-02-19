@@ -35,7 +35,7 @@ class ExternalTypeTest(TembaTest):
 
         # fail due to invalid URL
         response = self.client.post(url, post_data)
-        self.assertFormError(response, "form", "url", "http://localhost:8000/foo cannot be localhost")
+        self.assertFormError(response, "form", "url", "Cannot be a local or private host.")
 
         # update to valid URL
         ext_url = "http://test.com/send.php?from={{from}}&text={{text}}&to={{to}}"

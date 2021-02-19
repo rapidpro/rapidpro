@@ -1,6 +1,7 @@
 import regex
 from smartmin.models import SmartModel
 
+from django.conf import settings
 from django.db import models
 from django.db.models import Count, Q
 from django.utils.translation import ugettext_lazy as _
@@ -17,7 +18,7 @@ class Global(SmartModel):
 
     MAX_KEY_LEN = 36
     MAX_NAME_LEN = 36
-    MAX_VALUE_LEN = 640
+    MAX_VALUE_LEN = settings.GLOBAL_VALUE_SIZE
 
     uuid = models.UUIDField(default=uuid4)
 
@@ -70,7 +71,7 @@ class Global(SmartModel):
         if hasattr(self, "usage_count"):
             return self.usage_count
 
-        return self.dependent_flows.count()
+        return self.dependent_flows.filter(is_active=True).count()
 
     def release(self):
         self.delete()

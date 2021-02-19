@@ -1,21 +1,7 @@
-- extends 'smartmin/form.html'
-- load smartmin temba compress
-- load i18n
-
-
--block extra-less
-  -compress css inline
-    {% lessblock %}
-      :plain
-    {% endlessblock %}
-
--block extra-style
-  {{ block.super }}
-  :css
-
+-extends 'smartmin/form.html'
+-load smartmin temba compress i18n
 
 -block pre-form
-
   .mb-2
     -blocktrans trimmed
       Your workspace can have logins with various roles. You can use the Manage Logins page
@@ -28,32 +14,11 @@
   .mt-8
 
   .mb-3
-    -blocktrans trimmed with org=org.name brand=brand.name
+    -blocktrans trimmed with brand=brand.name
       If you use the {{ brand }} Surveyor application to run flows offline, we recommend enabling
       users to create accounts from within the Android application. Setting a Surveyor password will
-      allow anybody with that password to join {{org}} as a surveyor.
+      allow anybody with that password to join your workspace as a surveyor.
 
 -block summary
-
-  %b= object.name
-  -trans "has"
-
-  -blocktrans trimmed count org.administrators.count as accounts
-    {{accounts}} Administrator,
-    -plural
-      {{accounts}} Administrators,
-
-  -blocktrans trimmed count org.editors.count as accounts
-    {{accounts}} Editor,
-    -plural
-      {{accounts}} Editors,
-
-  -blocktrans trimmed count org.viewers.count as accounts
-    {{accounts}} Viewer,
-    -plural
-      {{accounts}} Viewers,
-
-  -blocktrans trimmed count org.surveyors.count as accounts
-    {{accounts}} Surveyor.
-    -plural
-      {{accounts}} Surveyors.
+  -trans "Your workspace has"
+  {% for role in role_summary %}{{ role }}{{ forloop|oxford }}{% endfor %}.

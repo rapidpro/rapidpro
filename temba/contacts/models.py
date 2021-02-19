@@ -19,7 +19,8 @@ from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, models, transaction
-from django.db.models import Count, Max, Q, Sum
+from django.db.models import Count, F, Max, Q, Sum, Value
+from django.db.models.functions import Concat
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
@@ -33,7 +34,7 @@ from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.models import JSONField as TembaJSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import decode_stream, truncate, unsnakify
-from temba.utils.urns import ParsedURN, parse_urn
+from temba.utils.urns import ParsedURN, parse_number, parse_urn
 
 from .search import SearchException, elastic, parse_query
 
@@ -160,9 +161,9 @@ class URN:
 
         if scheme == cls.TEL_SCHEME:
             try:
-                parsed = phonenumbers.parse(path, country_code)
-                return phonenumbers.is_possible_number(parsed)
-            except Exception:
+                parse_number(path, country_code)
+                return True
+            except ValueError:
                 return False
 
         # validate twitter URNs look like handles
@@ -224,10 +225,11 @@ class URN:
         """
         scheme, path, query, display = cls.to_parts(urn)
 
+        country_code = str(country_code) if country_code else ""
         norm_path = str(path).strip()
 
         if scheme == cls.TEL_SCHEME:
-            norm_path, valid = cls.normalize_number(norm_path, country_code)
+            norm_path = cls.normalize_number(norm_path, country_code)
         elif scheme == cls.TWITTER_SCHEME:
             norm_path = norm_path.lower()
             if norm_path[0:1] == "@":  # strip @ prefix if provided
@@ -246,40 +248,35 @@ class URN:
         return cls.from_parts(scheme, norm_path, query, display)
 
     @classmethod
-    def normalize_number(cls, number, country_code):
+    def normalize_number(cls, number: str, country_code: str):
         """
         Normalizes the passed in number, they should be only digits, some backends prepend + and
         maybe crazy users put in dashes or parentheses in the console.
-
-        Returns a tuple of the normalized number and whether it looks like a possible full international
-        number.
         """
+
+        number = number.strip()
+        normalized = number.lower()
+
         # if the number ends with e11, then that is Excel corrupting it, remove it
-        if number.lower().endswith("e+11") or number.lower().endswith("e+12"):
-            number = number[0:-4].replace(".", "")
+        if normalized.endswith("e+11") or normalized.endswith("e+12"):
+            normalized = normalized[0:-4].replace(".", "")
 
-        # remove other characters
-        number = regex.sub(r"[^0-9a-z\+]", "", number.lower(), regex.V0)
+        # remove non alphanumeric characters
+        normalized = regex.sub(r"[^0-9a-z]", "", normalized, regex.V0)
 
-        # add on a plus if it looks like it could be a fully qualified number
-        if len(number) >= 11 and number[0] not in ["+", "0"]:
-            number = "+" + number
+        parse_as = normalized
 
-        normalized = None
+        # if we started with + prefix, or we have a sufficiently long number that doesn't start with 0, add + prefix
+        if number.startswith("+") or (len(normalized) >= 11 and not normalized.startswith("0")):
+            parse_as = "+" + normalized
+
         try:
-            normalized = phonenumbers.parse(number, str(country_code) if country_code else None)
-        except Exception:
-            pass
+            formatted = parse_number(parse_as, country_code)
+        except ValueError:
+            # if it's not a possible number, just return what we have minus the +
+            return normalized
 
-        # now does it look plausible?
-        try:
-            if phonenumbers.is_possible_number(normalized):
-                return (phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164), True)
-        except Exception:
-            pass
-
-        # this must be a local number of some kind, just lowercase and save
-        return regex.sub("[^0-9a-z]", "", number.lower(), regex.V0), False
+        return formatted
 
     @classmethod
     def identity(cls, urn):
@@ -636,24 +633,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         (STATUS_ARCHIVED, "Archived"),
     )
 
-    MAX_HISTORY = 50
-
-    # events from sessions to include in contact history
-    HISTORY_INCLUDE_EVENTS = {
-        "contact_language_changed",
-        "contact_field_changed",
-        "contact_groups_changed",
-        "contact_name_changed",
-        "contact_urns_changed",
-        "email_created",  # no longer generated but exists in old sessions
-        "email_sent",
-        "error",
-        "failure",
-        "input_labels_added",
-        "run_result_changed",
-        "ticket_opened",
-    }
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contacts")
 
     name = models.CharField(
@@ -770,40 +749,35 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return scheduled_broadcasts.order_by("schedule__next_fire")
 
-    def get_history(self, after, before):
+    def get_history(self, after: datetime, before: datetime, include_event_types: set, limit: int) -> list:
         """
         Gets this contact's history of messages, calls, runs etc in the given time window
         """
+        from temba.flows.models import FlowExit
         from temba.ivr.models import IVRCall
-        from temba.msgs.models import Msg, INCOMING, OUTGOING
+        from temba.mailroom.events import get_event_time
+        from temba.msgs.models import Msg
 
-        limit = Contact.MAX_HISTORY
-
-        msgs = list(
+        msgs = (
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
             .exclude(visibility=Msg.VISIBILITY_DELETED)
             .order_by("-created_on")
-            .select_related("channel")
+            .select_related("channel", "contact_urn", "broadcast")
             .prefetch_related("channel_logs")[:limit]
         )
-        msgs_in = filter(lambda m: m.direction == INCOMING, msgs)
-        msgs_out = filter(lambda m: m.direction == OUTGOING, msgs)
 
-        # and all of this contact's runs, channel events such as missed calls, scheduled events
-        started_runs = (
-            self.runs.filter(created_on__gte=after, created_on__lt=before)
+        # get all runs start started or ended in this period
+        runs = (
+            self.runs.filter(
+                Q(created_on__gte=after, created_on__lt=before)
+                | Q(exited_on__isnull=False, exited_on__gte=after, exited_on__lt=before)
+            )
             .exclude(flow__is_system=True)
             .order_by("-created_on")
             .select_related("flow")[:limit]
         )
-
-        exited_runs = (
-            self.runs.filter(exited_on__gte=after, exited_on__lt=before)
-            .exclude(flow__is_system=True)
-            .exclude(exit_type=None)
-            .order_by("-created_on")
-            .select_related("flow")[:limit]
-        )
+        started_runs = [r for r in runs if after <= r.created_on < before]
+        exited_runs = [FlowExit(r) for r in runs if r.exited_on and after <= r.exited_on < before]
 
         channel_events = (
             self.channel_events.filter(created_on__gte=after, created_on__lt=before)
@@ -815,7 +789,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             self.campaign_fires.filter(fired__gte=after, fired__lt=before)
             .exclude(fired=None)
             .order_by("-fired")
-            .select_related("event__campaign")[:limit]
+            .select_related("event__campaign", "event__relative_to")[:limit]
         )
 
         webhook_results = self.webhook_results.filter(created_on__gte=after, created_on__lt=before).order_by(
@@ -833,25 +807,25 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             "-created_on"
         )[:limit]
 
-        session_events = self.get_session_events(after, before, Contact.HISTORY_INCLUDE_EVENTS)
+        session_events = self.get_session_events(after, before, include_event_types)
 
-        # wrap items, chain and sort by time
-        events = chain(
-            [{"type": "msg_created", "created_on": m.created_on, "obj": m} for m in msgs_out],
-            [{"type": "msg_received", "created_on": m.created_on, "obj": m} for m in msgs_in],
-            [{"type": "flow_entered", "created_on": r.created_on, "obj": r} for r in started_runs],
-            [{"type": "flow_exited", "created_on": r.exited_on, "obj": r} for r in exited_runs],
-            [{"type": "channel_event", "created_on": e.created_on, "obj": e} for e in channel_events],
-            [{"type": "campaign_fired", "created_on": f.fired, "obj": f} for f in campaign_events],
-            [{"type": "webhook_called", "created_on": r.created_on, "obj": r} for r in webhook_results],
-            [{"type": "call_started", "created_on": c.created_on, "obj": c} for c in calls],
-            [{"type": "airtime_transferred", "created_on": t.created_on, "obj": t} for t in transfers],
+        # chain all items together, sort by their event time, and slice
+        items = chain(
+            msgs,
+            started_runs,
+            exited_runs,
+            channel_events,
+            campaign_events,
+            webhook_results,
+            calls,
+            transfers,
             session_events,
         )
 
-        return sorted(events, key=lambda i: i["created_on"], reverse=True)[:limit]
+        # sort and slice
+        return sorted(items, key=get_event_time, reverse=True)[:limit]
 
-    def get_session_events(self, after, before, types):
+    def get_session_events(self, after: datetime, before: datetime, types: set) -> list:
         """
         Extracts events from this contacts sessions that overlap with the given time window
         """
@@ -863,9 +837,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             for run in session.output.get("runs", []):
                 for event in run.get("events", []):
                     event["session_uuid"] = str(session.uuid)
-                    event["created_on"] = iso8601.parse_date(event["created_on"])
+                    event_time = iso8601.parse_date(event["created_on"])
 
-                    if event["type"] in types and after <= event["created_on"] < before:
+                    if event["type"] in types and after <= event_time < before:
                         events.append(event)
 
         return events
@@ -1388,7 +1362,7 @@ class ContactURN(models.Model):
         number = self.path
 
         if number and not number[0] == "+" and country_code:
-            (norm_number, valid) = URN.normalize_number(number, country_code)
+            norm_number = URN.normalize_number(number, country_code)
 
             # don't trounce existing contacts with that country code already
             norm_urn = URN.from_tel(norm_number)
@@ -1435,6 +1409,12 @@ class ContactURN(models.Model):
     class Meta:
         unique_together = ("identity", "org")
         ordering = ("-priority", "id")
+        constraints = [
+            models.CheckConstraint(check=~(Q(scheme="") | Q(path="")), name="non_empty_scheme_and_path"),
+            models.CheckConstraint(
+                check=Q(identity=Concat(F("scheme"), Value(":"), F("path"))), name="identity_matches_scheme_and_path"
+            ),
+        ]
 
 
 class SystemContactGroupManager(models.Manager):
@@ -1514,7 +1494,10 @@ class ContactGroup(TembaModel):
         Creates our system groups for the given organization so that we can keep track of counts etc..
         """
         org.all_groups.create(
-            name="Active", group_type=ContactGroup.TYPE_ACTIVE, created_by=org.created_by, modified_by=org.modified_by,
+            name="Active",
+            group_type=ContactGroup.TYPE_ACTIVE,
+            created_by=org.created_by,
+            modified_by=org.modified_by,
         )
         org.all_groups.create(
             name="Blocked",
@@ -1611,7 +1594,7 @@ class ContactGroup(TembaModel):
             count += 1
 
         return cls.user_groups.create(
-            org=org, name=full_group_name, query=query, status=status, created_by=user, modified_by=user,
+            org=org, name=full_group_name, query=query, status=status, created_by=user, modified_by=user
         )
 
     @classmethod
@@ -2143,7 +2126,7 @@ class ContactImport(SmartModel):
 
         fields_by_key = {}
         fields_by_label = {}
-        for f in org.contactfields.filter(is_active=True):
+        for f in org.contactfields(manager="user_fields").filter(is_active=True):
             fields_by_key[f.key] = f
             fields_by_label[f.label.lower()] = f
 
@@ -2231,7 +2214,7 @@ class ContactImport(SmartModel):
             mapping = item["mapping"]
             if mapping["type"] == "new_field":
                 ContactField.get_or_create(
-                    self.org, self.created_by, mapping["key"], label=mapping["name"], value_type=mapping["value_type"],
+                    self.org, self.created_by, mapping["key"], label=mapping["name"], value_type=mapping["value_type"]
                 )
 
         # create the destination group

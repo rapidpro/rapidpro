@@ -3,6 +3,7 @@ from collections import OrderedDict
 from datetime import timedelta
 from typing import Dict, List
 
+import iso8601
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -35,12 +36,13 @@ from django.views import View
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
+from temba.mailroom.events import Event
 from temba.msgs.views import SendMessageForm
 from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
-from temba.utils.dates import datetime_to_ms, ms_to_datetime
+from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin
@@ -60,6 +62,21 @@ from .search.omnibox import omnibox_query, omnibox_results_to_dict
 from .tasks import export_contacts_task, release_group_task
 
 logger = logging.getLogger(__name__)
+
+# events from sessions to include in contact history
+HISTORY_INCLUDE_EVENTS = {
+    Event.TYPE_CONTACT_LANGUAGE_CHANGED,
+    Event.TYPE_CONTACT_FIELD_CHANGED,
+    Event.TYPE_CONTACT_GROUPS_CHANGED,
+    Event.TYPE_CONTACT_NAME_CHANGED,
+    Event.TYPE_CONTACT_URNS_CHANGED,
+    Event.TYPE_EMAIL_SENT,
+    Event.TYPE_ERROR,
+    Event.TYPE_FAILURE,
+    Event.TYPE_INPUT_LABELS_ADDED,
+    Event.TYPE_RUN_RESULT_CHANGED,
+    Event.TYPE_TICKET_OPENED,
+}
 
 
 class RemoveFromGroupForm(forms.Form):
@@ -397,7 +414,7 @@ class ContactForm(forms.ModelForm):
 
                 # get all the urns for this scheme
                 ctrl = forms.CharField(
-                    required=False, label=label, initial=urn.path, help_text=help_text, widget=InputWidget(),
+                    required=False, label=label, initial=urn.path, help_text=help_text, widget=InputWidget()
                 )
                 extra_fields.append(("urn__%s__%d" % (scheme, idx), ctrl))
                 idx += 1
@@ -492,7 +509,7 @@ class ExportForm(Form):
     group_memberships = forms.ModelMultipleChoiceField(
         queryset=ContactGroup.user_groups.none(),
         required=False,
-        label=_("Group Memberships for",),
+        label=_("Group Memberships for"),
         widget=SelectMultipleWidget(
             attrs={"widget_only": True, "placeholder": _("Optional: Choose groups to show in your export")}
         ),
@@ -540,24 +557,6 @@ class ContactCRUDL(SmartCRUDL):
         submit_button_name = "Export"
         success_url = "@contacts.contact_list"
 
-        def pre_process(self, request, *args, **kwargs):
-            user = self.request.user
-            org = user.get_org()
-
-            group_uuid, search, redirect = self.derive_params()
-
-            # is there already an export taking place?
-            existing = ExportContactsTask.get_recent_unfinished(org)
-            if existing:
-                messages.info(
-                    self.request,
-                    _(
-                        "There is already an export in progress, started by %s. You must wait "
-                        "for that export to complete before starting another." % existing.created_by.username
-                    ),
-                )
-                return HttpResponseRedirect(redirect or reverse("contacts.contact_list"))
-
         def derive_params(self):
             group_uuid = self.request.GET.get("g")
             search = self.request.GET.get("s")
@@ -585,36 +584,48 @@ class ContactCRUDL(SmartCRUDL):
             org = user.get_org()
 
             group_uuid, search, redirect = self.derive_params()
-            group_memberships = form.cleaned_data["group_memberships"]
 
-            group = ContactGroup.all_groups.filter(org=org, uuid=group_uuid).first() if group_uuid else None
-
-            previous_export = (
-                ExportContactsTask.objects.filter(org=org, created_by=user).order_by("-modified_on").first()
-            )
-            if previous_export and previous_export.created_on < timezone.now() - timedelta(
-                hours=24
-            ):  # pragma: needs cover
-                analytics.track(self.request.user.username, "temba.contact_exported")
-
-            export = ExportContactsTask.create(org, user, group, search, group_memberships)
-
-            # schedule the export job
-            on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
-
-            if not getattr(settings, "CELERY_ALWAYS_EAGER", False):  # pragma: no cover
+            # is there already an export taking place?
+            existing = ExportContactsTask.get_recent_unfinished(org)
+            if existing:
                 messages.info(
                     self.request,
-                    _("We are preparing your export. We will e-mail you at %s when it is ready.")
-                    % self.request.user.username,
+                    _(
+                        "There is already an export in progress, started by %s. You must wait "
+                        "for that export to complete before starting another." % existing.created_by.username
+                    ),
                 )
-
             else:
-                dl_url = reverse("assets.download", kwargs=dict(type="contact_export", pk=export.pk))
-                messages.info(
-                    self.request,
-                    _("Export complete, you can find it here: %s (production users will get an email)") % dl_url,
+                group_memberships = form.cleaned_data["group_memberships"]
+
+                group = ContactGroup.all_groups.filter(org=org, uuid=group_uuid).first() if group_uuid else None
+
+                previous_export = (
+                    ExportContactsTask.objects.filter(org=org, created_by=user).order_by("-modified_on").first()
                 )
+                if previous_export and previous_export.created_on < timezone.now() - timedelta(
+                    hours=24
+                ):  # pragma: needs cover
+                    analytics.track(self.request.user.username, "temba.contact_exported")
+
+                export = ExportContactsTask.create(org, user, group, search, group_memberships)
+
+                # schedule the export job
+                on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
+
+                if not getattr(settings, "CELERY_ALWAYS_EAGER", False):  # pragma: no cover
+                    messages.info(
+                        self.request,
+                        _("We are preparing your export. We will e-mail you at %s when it is ready.")
+                        % self.request.user.username,
+                    )
+
+                else:
+                    dl_url = reverse("assets.download", kwargs=dict(type="contact_export", pk=export.pk))
+                    messages.info(
+                        self.request,
+                        _("Export complete, you can find it here: %s (production users will get an email)") % dl_url,
+                    )
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(redirect or reverse("contacts.contact_list"))
             else:  # pragma: no cover
@@ -757,7 +768,7 @@ class ContactCRUDL(SmartCRUDL):
 
             # calculate time after which timeline should be repeatedly refreshed - five minutes ago lets us pick up
             # status changes on new messages
-            context["recent_start"] = datetime_to_ms(timezone.now() - timedelta(minutes=5))
+            context["recent_start"] = datetime_to_timestamp(timezone.now() - timedelta(minutes=5))
             return context
 
         def post(self, request, *args, **kwargs):
@@ -866,6 +877,7 @@ class ContactCRUDL(SmartCRUDL):
 
             before = int(self.request.GET.get("before", 0))
             after = int(self.request.GET.get("after", 0))
+            limit = int(self.request.GET.get("limit", 50))
 
             # if we want an expanding window, or just all the recent activity
             recent_only = False
@@ -873,35 +885,51 @@ class ContactCRUDL(SmartCRUDL):
                 recent_only = True
                 before = timezone.now()
             else:
-                before = ms_to_datetime(before)
+                before = timestamp_to_datetime(before)
 
             if not after:
                 after = before - timedelta(days=90)
             else:
-                after = ms_to_datetime(after)
+                after = timestamp_to_datetime(after)
 
             # keep looking further back until we get at least 20 items
+            history = []
+            fetch_before = before
             while True:
-                history = contact.get_history(after, before)
+                history += contact.get_history(after, fetch_before, HISTORY_INCLUDE_EVENTS, limit)
                 if recent_only or len(history) >= 20 or after == contact_creation:
                     break
                 else:
+                    fetch_before = after
                     after = max(after - timedelta(days=90), contact_creation)
 
-            if len(history) >= Contact.MAX_HISTORY:
-                after = history[-1]["created_on"]
+            # render as events
+            events = [Event.from_history_item(contact.org, self.request.user, i) for i in history]
+
+            if len(events) >= limit:
+                after = iso8601.parse_date(events[-1]["created_on"])
 
             # check if there are more pages to fetch
             context["has_older"] = False
             if not recent_only and before > contact.created_on:
-                context["has_older"] = bool(contact.get_history(contact_creation, after))
+                context["has_older"] = bool(contact.get_history(contact_creation, after, HISTORY_INCLUDE_EVENTS, 1))
 
             context["recent_only"] = recent_only
-            context["before"] = datetime_to_ms(after)
-            context["after"] = datetime_to_ms(max(after - timedelta(days=90), contact_creation))
-            context["history"] = history
+            context["next_before"] = datetime_to_timestamp(after)
+            context["next_after"] = datetime_to_timestamp(max(after - timedelta(days=90), contact_creation))
             context["start_date"] = contact.org.get_delete_date(archive_type=Archive.TYPE_MSG)
+            context["events"] = events
             return context
+
+        def as_json(self, context):
+            return {
+                "has_older": context["has_older"],
+                "recent_only": context["recent_only"],
+                "next_before": context["next_before"],
+                "next_after": context["next_after"],
+                "start_date": context["start_date"],
+                "events": context["events"],
+            }
 
     class Search(ContactListView):
         template_name = "contacts/contact_list.haml"
@@ -1499,7 +1527,7 @@ class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
         field_count = ContactField.user_fields.count_active_for_org(org=self.org)
         if field_count >= org_active_fields_limit:
             raise forms.ValidationError(
-                _(f"Cannot create a new field as limit is %(limit)s."), params={"limit": org_active_fields_limit},
+                _(f"Cannot create a new field as limit is %(limit)s."), params={"limit": org_active_fields_limit}
             )
 
     class Meta:
@@ -1862,7 +1890,7 @@ class ContactImportCRUDL(SmartCRUDL):
                             label=" ", required=False, initial=True, widget=CheckboxWidget(attrs={"widget_only": True})
                         )
                         name_field = forms.CharField(
-                            label=" ", initial=mapping["name"], required=False, widget=InputWidget(),
+                            label=" ", initial=mapping["name"], required=False, widget=InputWidget()
                         )
                         value_type_field = forms.ChoiceField(
                             label=" ",
@@ -1901,7 +1929,8 @@ class ContactImportCRUDL(SmartCRUDL):
                 return data
 
             def clean(self):
-                existing_field_keys = {f.key for f in self.org.contactfields.filter(is_active=True)}
+                org_fields = self.org.contactfields(manager="user_fields").filter(is_active=True)
+                existing_field_keys = {f.key for f in org_fields}
                 used_field_keys = set()
                 form_values = self.get_form_values()
                 for data, item in zip(form_values, self.instance.mappings):

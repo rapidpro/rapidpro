@@ -342,26 +342,37 @@ TWILIO_SUPPORTED_COUNTRIES_CONFIG = (
     "AT",  # Austria
     "BE",  # Belgium
     "CA",  # Canada
-    "CL",  # Chile  # Beta
-    "CZ",  # Czech Republic  # Beta
+    "CL",  # Chile
+    "CZ",  # Czech Republic
     "DK",  # Denmark  # Beta
     "EE",  # Estonia
     "FI",  # Finland
     "FR",  # France  # Beta
     "DE",  # Germany
+    "EE",  # Estonia
     "HK",  # Hong Kong
     "HU",  # Hungary  # Beta
     "IE",  # Ireland,
     "IL",  # Israel  # Beta
+    "IT",  # Italy  #Beta
     "LT",  # Lithuania
+    "MY",  # Malaysia
     "MX",  # Mexico  # Beta
+    "NL",  # Netherlands
     "NO",  # Norway
+    "PH",  # Philippines  # Beta
     "PL",  # Poland
+    "PR",  # Puerto Rico
+    "PT",  # Portugal
     "ES",  # Spain
     "SE",  # Sweden
+    "SG",  # Singapore  # Beta
     "CH",  # Switzerland
     "GB",  # United Kingdom
     "US",  # United States
+    "VI",  # Virgin Islands
+    "VN",  # Vietnam  # Beta
+    "ZA",  # South Africa  # Beta
 )
 
 TWILIO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in TWILIO_SUPPORTED_COUNTRIES_CONFIG])
@@ -1319,7 +1330,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             if channel.get_type().show_config_page:
                 links.append(
-                    dict(title=_("Settings"), href=reverse("channels.channel_configuration", args=[channel.uuid]),)
+                    dict(title=_("Settings"), href=reverse("channels.channel_configuration", args=[channel.uuid]))
                 )
 
             if not channel.is_android():
@@ -2166,7 +2177,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             links = []
 
             if self.request.GET.get("connections") or self.request.GET.get("others"):
-                links.append(dict(title=_("Messages"), href=reverse("channels.channellog_list", args=[channel.uuid]),))
+                links.append(dict(title=_("Messages"), href=reverse("channels.channellog_list", args=[channel.uuid])))
 
             if not self.request.GET.get("connections"):
                 if channel.supports_ivr():  # pragma: needs cover

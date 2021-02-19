@@ -12,6 +12,7 @@ import pyotp
 import pytz
 import requests
 from packaging.version import Version
+from smartmin.users.views import Login
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -32,6 +33,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import Group, User
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.views import LoginView as AuthLoginView
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError
@@ -65,12 +67,14 @@ from temba.utils.fields import (
     SelectWidget,
 )
 from temba.utils.http import http_headers
-from temba.utils.text import random_string
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import ComponentFormMixin, NonAtomicMixin
 
-from .models import BackupToken, Invitation, Org, OrgCache, TopUp, UserSettings, get_stripe_credentials
+from .models import BackupToken, Invitation, Org, OrgCache, OrgRole, TopUp, get_stripe_credentials
 from .tasks import apply_topups_task
+
+# session key for storing a two-factor enabled user's id once we've checked their password
+TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
 
 
 def check_login(request):
@@ -254,7 +258,7 @@ class OrgSignupForm(forms.ModelForm):
     timezone = TimeZoneFormField(help_text=_("The timezone for your workspace"), widget=forms.widgets.HiddenInput())
 
     password = forms.CharField(
-        widget=InputWidget(attrs={"hide_label": True, "password": True, "placeholder": _("Password")},),
+        widget=InputWidget(attrs={"hide_label": True, "password": True, "placeholder": _("Password")}),
         validators=[validate_password],
         help_text=_("At least eight characters or more"),
     )
@@ -345,9 +349,114 @@ class OrgGrantForm(forms.ModelForm):
         fields = "__all__"
 
 
+class LoginView(Login):
+    """
+    Overrides the smartmin login view to redirect users with 2FA enabled to a second verification view.
+    """
+
+    template_name = "orgs/login/login.haml"
+
+    def form_valid(self, form):
+        user = form.get_user()
+        if user.get_settings().two_factor_enabled:
+            self.request.session[TWO_FACTOR_USER_SESSION_KEY] = str(user.id)
+
+            verify_url = reverse("users.two_factor_verify")
+            redirect_url = self.get_redirect_url()
+            if redirect_url:
+                verify_url += f"?{self.redirect_field_name}={urlquote(redirect_url)}"
+
+            return HttpResponseRedirect(verify_url)
+
+        return super().form_valid(form)
+
+
+class BaseTwoFactorView(AuthLoginView):
+    def dispatch(self, request, *args, **kwargs):
+        # redirect back to login view if user hasn't completed that yet
+        user = self.get_user()
+        if not user:
+            return HttpResponseRedirect(reverse("users.login"))
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_user(self):
+        user_id = self.request.session.get(TWO_FACTOR_USER_SESSION_KEY)
+        if user_id:
+            return User.objects.filter(id=user_id, is_active=True).first()
+        return None
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["user"] = self.get_user()
+        return kwargs
+
+    def form_valid(self, form):
+        # set the user as actually authenticated now
+        login(self.request, self.get_user())
+
+        # remove our session key so if the user comes back this page they'll get directed to the login view
+        self.request.session.pop(TWO_FACTOR_USER_SESSION_KEY, None)
+
+        return HttpResponseRedirect(self.get_success_url())
+
+
+class TwoFactorVerifyView(BaseTwoFactorView):
+    """
+    View to let users with 2FA enabled verify their identity via an OTP from a device.
+    """
+
+    class Form(forms.Form):
+        otp = forms.CharField(max_length=6, required=True)
+
+        def __init__(self, request, user, *args, **kwargs):
+            self.user = user
+            super().__init__(*args, **kwargs)
+
+        def clean_otp(self):
+            data = self.cleaned_data["otp"]
+            if not self.user.verify_2fa(otp=data):
+                raise ValidationError(_("Incorrect OTP. Please try again."))
+            return data
+
+    form_class = Form
+    template_name = "orgs/login/two_factor_verify.haml"
+
+
+class TwoFactorBackupView(BaseTwoFactorView):
+    """
+    View to let users with 2FA enabled verify their identity using a backup token.
+    """
+
+    class Form(forms.Form):
+        token = forms.CharField(max_length=8, required=True)
+
+        def __init__(self, request, user, *args, **kwargs):
+            self.user = user
+            super().__init__(*args, **kwargs)
+
+        def clean_token(self):
+            data = self.cleaned_data["token"]
+            if not self.user.verify_2fa(backup_token=data):
+                raise ValidationError(_("Invalid backup token. Please try again."))
+            return data
+
+    form_class = Form
+    template_name = "orgs/login/two_factor_backup.haml"
+
+
+class InferOrgMixin:
+    @classmethod
+    def derive_url_pattern(cls, path, action):
+        return r"^%s/%s/$" % (path, action)
+
+    def get_object(self, *args, **kwargs):
+        return self.request.user.get_org()
+
+
 class UserCRUDL(SmartCRUDL):
     model = User
-    actions = ("list", "edit", "delete")
+    actions = ("list", "edit", "delete", "two_factor_enable", "two_factor_disable", "two_factor_tokens")
 
     class List(SmartListView):
         fields = ("username", "orgs", "date_joined")
@@ -486,66 +595,135 @@ class UserCRUDL(SmartCRUDL):
             org = user.get_org()
 
             if org:
-                org_users = org.administrators.all() | org.editors.all() | org.viewers.all() | org.surveyors.all()
-
                 if not user.is_authenticated:  # pragma: needs cover
                     return False
 
-                if user in org_users:
+                if org.has_user(user):
                     return True
 
             return False  # pragma: needs cover
 
+    class TwoFactorEnable(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+        class Form(forms.Form):
+            otp = forms.CharField(
+                label="The generated OTP",
+                widget=InputWidget(attrs={"placeholder": _("6-digit code")}),
+                max_length=6,
+                required=True,
+            )
+            password = forms.CharField(
+                label="Your current login password",
+                widget=InputWidget(attrs={"placeholder": _("Current password"), "password": True}),
+                required=True,
+            )
 
-class InferOrgMixin(object):
-    @classmethod
-    def derive_url_pattern(cls, path, action):
-        return r"^%s/%s/$" % (path, action)
+            def __init__(self, user, *args, **kwargs):
+                super().__init__(*args, **kwargs)
 
-    def get_object(self, *args, **kwargs):
-        return self.request.user.get_org()
+                self.user = user
 
+            def clean_otp(self):
+                data = self.cleaned_data["otp"]
+                if not self.user.verify_2fa(otp=data):
+                    raise forms.ValidationError(_("OTP incorrect. Please try again."))
+                return data
 
-class PhoneRequiredForm(forms.ModelForm):
-    tel = forms.CharField(max_length=15, label="Phone Number", required=True)
+            def clean_password(self):
+                data = self.cleaned_data["password"]
+                if not self.user.check_password(data):
+                    raise forms.ValidationError(_("Password incorrect."))
+                return data
 
-    def clean_tel(self):
-        if "tel" in self.cleaned_data:
-            tel = self.cleaned_data["tel"]
-            if not tel:  # pragma: needs cover
-                return tel
+        form_class = Form
+        success_url = "@orgs.user_two_factor_tokens"
+        success_message = _("Two-factor authentication enabled")
+        submit_button_name = _("Enable")
+        permission = "orgs.org_two_factor"
+        title = _("Enable Two-factor Authentication")
 
-            import phonenumbers
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
 
-            try:
-                normalized = phonenumbers.parse(tel, None)
-                if not phonenumbers.is_possible_number(normalized):  # pragma: needs cover
-                    raise forms.ValidationError(_("Invalid phone number, try again."))
-            except Exception:  # pragma: no cover
-                raise forms.ValidationError(_("Invalid phone number, try again."))
-            return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.E164)
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
 
-    class Meta:
-        model = UserSettings
-        fields = ("tel",)
+            brand = self.request.branding["name"]
+            user = self.get_user()
+            user_settings = user.get_settings()
+            secret_url = pyotp.TOTP(user_settings.otp_secret).provisioning_uri(user.username, issuer_name=brand)
+            context["secret_url"] = secret_url
+            return context
 
+        def form_valid(self, form):
+            self.request.user.enable_2fa()
 
-class UserSettingsCRUDL(SmartCRUDL):
-    actions = ("update", "phone")
-    model = UserSettings
+            return super().form_valid(form)
 
-    class Phone(ModalMixin, OrgPermsMixin, SmartUpdateView):
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/$" % (path, action)
+    class TwoFactorDisable(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+        class Form(forms.Form):
+            password = forms.CharField(
+                label=" ",
+                widget=InputWidget(attrs={"placeholder": _("Current password"), "password": True}),
+                required=True,
+            )
 
-        def get_object(self, *args, **kwargs):
-            return self.request.user.get_settings()
+            def __init__(self, user, *args, **kwargs):
+                super().__init__(*args, **kwargs)
 
-        fields = ("tel",)
-        form_class = PhoneRequiredForm
-        submit_button_name = _("Start Call")
-        success_url = "@orgs.usersettings_phone"
+                self.user = user
+
+            def clean_password(self):
+                data = self.cleaned_data["password"]
+                if not self.user.check_password(data):
+                    raise forms.ValidationError(_("Password incorrect."))
+                return data
+
+        form_class = Form
+        success_url = "@orgs.org_home"
+        success_message = _("Two-factor authentication disabled")
+        submit_button_name = _("Disable")
+        permission = "orgs.org_two_factor"
+        title = _("Disable Two-factor Authentication")
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
+
+        def form_valid(self, form):
+            self.request.user.disable_2fa()
+
+            return super().form_valid(form)
+
+    class TwoFactorTokens(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
+        permission = "orgs.org_two_factor"
+        title = _("Two-factor Authentication")
+
+        def pre_process(self, request, *args, **kwargs):
+            # if 2FA isn't enabled for this user, take them to the enable view instead
+            if not self.request.user.get_settings().two_factor_enabled:
+                return HttpResponseRedirect(reverse("orgs.user_two_factor_enable"))
+
+            return super().pre_process(request, *args, **kwargs)
+
+        def post(self, request, *args, **kwargs):
+            BackupToken.generate_for_user(self.request.user)
+            messages.info(request, _("Two-factor authentication backup tokens changed."))
+
+            return super().get(request, *args, **kwargs)
+
+        def get_gear_links(self):
+            return [
+                dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home")),
+                dict(title=_("Disable"), style="button-light", href=reverse("orgs.user_two_factor_disable")),
+            ]
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["backup_tokens"] = self.get_user().backup_tokens.order_by("id")
+            return context
 
 
 class OrgCRUDL(SmartCRUDL):
@@ -571,7 +749,6 @@ class OrgCRUDL(SmartCRUDL):
         "clear_cache",
         "twilio_connect",
         "twilio_account",
-        "two_factor",
         "nexmo_account",
         "nexmo_connect",
         "plan",
@@ -1015,7 +1192,7 @@ class OrgCRUDL(SmartCRUDL):
                     try:
                         from temba.utils.email import send_custom_smtp_email
 
-                        admin_emails = [admin.email for admin in self.instance.get_org_admins().order_by("email")]
+                        admin_emails = [admin.email for admin in self.instance.get_admins().order_by("email")]
 
                         branding = self.instance.get_branding()
                         subject = _("%(name)s SMTP configuration test") % branding
@@ -1147,8 +1324,7 @@ class OrgCRUDL(SmartCRUDL):
             return mark_safe(f"<div class='plan-name'>{obj.plan}</div>")
 
         def get_owner(self, obj):
-            # default to the created by if there are no admins
-            owner = obj.latest_admin() or obj.created_by
+            owner = obj.get_owner()
 
             return mark_safe(
                 f"<div class='owner-name'>{escape(owner.first_name)} {escape(owner.last_name)}</div><div class='owner-email'>{owner}</div>"
@@ -1204,7 +1380,7 @@ class OrgCRUDL(SmartCRUDL):
 
         def lookup_field_link(self, context, field, obj):
             if field == "owner":
-                owner = obj.latest_admin() or obj.created_by
+                owner = obj.get_owner()
                 return reverse("users.user_update", args=[owner.pk])
             return super().lookup_field_link(context, field, obj)
 
@@ -1346,56 +1522,90 @@ class OrgCRUDL(SmartCRUDL):
         title = "Logins"
         fields = ("surveyor_password",)
 
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            org = self.get_object()
+            role_summary = []
+            for role in OrgRole:
+                num_users = org.get_users_with_role(role).count()
+                if num_users == 1:
+                    role_summary.append(f"1 {role.display}")
+                elif num_users > 1:
+                    role_summary.append(f"{num_users} {role.display_plural}")
+
+            context["role_summary"] = role_summary
+            return context
+
     class ManageAccounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class AccountsForm(forms.ModelForm):
             invite_emails = forms.CharField(
-                required=False, widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email Address")}),
+                required=False, widget=InputWidget(attrs={"widget_only": True, "placeholder": _("Email Address")})
             )
-            invite_group = forms.ChoiceField(
-                choices=(("A", _("Administrator")), ("E", _("Editor")), ("V", _("Viewer")), ("S", _("Surveyor"))),
-                required=True,
-                initial="V",
-                label=_("Role"),
-                widget=SelectWidget(),
+            invite_role = forms.ChoiceField(
+                choices=[], required=True, initial="V", label=_("Role"), widget=SelectWidget()
             )
 
-            def add_user_group_fields(self, groups, users):
-                fields_by_user = {}
+            def __init__(self, org, *args, **kwargs):
+                super().__init__(*args, **kwargs)
 
-                for user in users:
-                    fields = []
-                    field_mapping = []
+                # orgs see agent role choice if they have an internal ticketing enabled
+                has_internal = org.has_internal_ticketing()
+                role_choices = [(r.code, r.display) for r in OrgRole if r != OrgRole.AGENT or has_internal]
 
-                    for group in groups:
-                        check_field = forms.BooleanField(
-                            required=False, widget=CheckboxWidget(attrs={"widget_only": True})
-                        )
-                        field_name = "%s_%d" % (group.lower(), user.pk)
+                self.fields["invite_role"].choices = role_choices
 
-                        field_mapping.append((field_name, check_field))
-                        fields.append(field_name)
+                self.user_rows = []
+                self.invite_rows = []
+                self.add_per_user_fields(org, role_choices)
+                self.add_per_invite_fields(org)
 
-                    self.fields = OrderedDict(list(self.fields.items()) + field_mapping)
-                    fields_by_user[user] = fields
-                return fields_by_user
-
-            def add_invite_remove_fields(self, invites):
-                fields_by_invite = {}
-
-                for invite in invites:
-                    field_name = "%s_%d" % ("remove_invite", invite.pk)
-                    self.fields = OrderedDict(
-                        list(self.fields.items())
-                        + [
-                            (
-                                field_name,
-                                forms.BooleanField(required=False, widget=CheckboxWidget(attrs={"widget_only": True})),
-                            )
-                        ]
+            def add_per_user_fields(self, org: Org, role_choices: list):
+                for user in org.get_users():
+                    role_field = forms.ChoiceField(
+                        choices=role_choices,
+                        required=True,
+                        initial=org.get_user_role(user).code,
+                        label=" ",
+                        widget=SelectWidget(),
                     )
-                    fields_by_invite[invite] = field_name
+                    remove_field = forms.BooleanField(
+                        required=False, label=" ", widget=CheckboxWidget(attrs={"widget_only": True})
+                    )
 
-                return fields_by_invite
+                    self.fields.update(
+                        OrderedDict([(f"user_{user.id}_role", role_field), (f"user_{user.id}_remove", remove_field)])
+                    )
+                    self.user_rows.append(
+                        {"user": user, "role_field": f"user_{user.id}_role", "remove_field": f"user_{user.id}_remove"}
+                    )
+
+            def add_per_invite_fields(self, org: Org):
+                for invite in org.invitations.filter(is_active=True).order_by("email"):
+                    role_field = forms.ChoiceField(
+                        choices=[(r.code, r.display) for r in OrgRole],
+                        required=True,
+                        initial=invite.role.code,
+                        label=" ",
+                        widget=SelectWidget(),
+                        disabled=True,
+                    )
+                    remove_field = forms.BooleanField(
+                        required=False, label=" ", widget=CheckboxWidget(attrs={"widget_only": True})
+                    )
+
+                    self.fields.update(
+                        OrderedDict(
+                            [(f"invite_{invite.id}_role", role_field), (f"invite_{invite.id}_remove", remove_field)]
+                        )
+                    )
+                    self.invite_rows.append(
+                        {
+                            "invite": invite,
+                            "role_field": f"invite_{invite.id}_role",
+                            "remove_field": f"invite_{invite.id}_remove",
+                        }
+                    )
 
             def clean_invite_emails(self):
                 emails = self.cleaned_data["invite_emails"].lower().strip()
@@ -1408,52 +1618,63 @@ class OrgCRUDL(SmartCRUDL):
                             raise forms.ValidationError(_("One of the emails you entered is invalid."))
                 return emails
 
+            def get_submitted_roles(self) -> dict:
+                """
+                Returns a dict of users to roles from the current form data. None role means removal.
+                """
+                roles = {}
+
+                for row in self.user_rows:
+                    role = self.cleaned_data[row["role_field"]]
+                    remove = self.cleaned_data[row["remove_field"]]
+                    roles[row["user"]] = OrgRole.from_code(role) if not remove else None
+                return roles
+
+            def get_submitted_invite_removals(self) -> list:
+                """
+                Returns a list of invites to be removed.
+                """
+                invites = []
+                for row in self.invite_rows:
+                    if self.cleaned_data[row["remove_field"]]:
+                        invites.append(row["invite"])
+                return invites
+
+            def clean(self):
+                super().clean()
+
+                new_roles = self.get_submitted_roles()
+                has_admin = False
+                for new_role in new_roles.values():
+                    if new_role == OrgRole.ADMINISTRATOR:
+                        has_admin = True
+                        break
+
+                if not has_admin:
+                    raise forms.ValidationError(_("A workspace must have at least one administrator."))
+
             class Meta:
                 model = Invitation
-                fields = ("invite_emails", "invite_group")
+                fields = ("invite_emails", "invite_role")
 
         form_class = AccountsForm
         success_url = "@orgs.org_manage_accounts"
         success_message = ""
         submit_button_name = _("Save Changes")
-        ORG_GROUPS = ("Administrators", "Editors", "Viewers", "Surveyors")
-        title = "Manage Logins"
-
-        @staticmethod
-        def org_group_set(org, group_name):
-            return getattr(org, group_name.lower())
+        title = _("Manage Logins")
 
         def get_gear_links(self):
             links = []
-            if self.request.user.get_org().pk != self.get_object().pk:
-                links.append(dict(title=_("Workspaces"), style="button-light", href=reverse("orgs.org_sub_orgs"),))
+            if self.request.user.get_org().id != self.get_object().id:
+                links.append(dict(title=_("Workspaces"), style="button-light", href=reverse("orgs.org_sub_orgs")))
 
-            links.append(dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"),))
+            links.append(dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home")))
             return links
 
-        def derive_initial(self):
-            initial = super().derive_initial()
-
-            org = self.get_object()
-            for group in self.ORG_GROUPS:
-                users_in_group = self.org_group_set(org, group).all()
-
-                for user in users_in_group:
-                    initial["%s_%d" % (group.lower(), user.pk)] = True
-
-            return initial
-
-        def get_form(self):
-            form = super().get_form()
-
-            org = self.get_object()
-            self.org_users = org.get_org_users()
-            self.fields_by_users = form.add_user_group_fields(self.ORG_GROUPS, self.org_users)
-
-            self.invites = Invitation.objects.filter(org=org, is_active=True).order_by("email")
-            self.fields_by_invite = form.add_invite_remove_fields(self.invites)
-
-            return form
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.get_object()
+            return kwargs
 
         def post_save(self, obj):
             obj = super().post_save(obj)
@@ -1461,60 +1682,27 @@ class OrgCRUDL(SmartCRUDL):
             cleaned_data = self.form.cleaned_data
             org = self.get_object()
 
-            for invite in self.fields_by_invite.keys():
-                if cleaned_data.get(self.fields_by_invite.get(invite)):
-                    Invitation.objects.filter(org=org, pk=invite.pk).delete()
+            # delete any invitations which have been checked for removal
+            for invite in self.form.get_submitted_invite_removals():
+                org.invitations.filter(id=invite.id).delete()
 
-            invite_emails = cleaned_data["invite_emails"].lower().strip()
-            invite_group = cleaned_data["invite_group"]
-
+            # handle any requests for new invitations
+            invite_emails = cleaned_data["invite_emails"]
             if invite_emails:
-                for email in invite_emails.split(","):
-                    # if they already have an invite, update it
-                    invites = Invitation.objects.filter(email=email, org=org).order_by("-pk")
-                    invitation = invites.first()
+                invite_role = OrgRole.from_code(cleaned_data["invite_role"])
+                Invitation.bulk_create_or_update(org, self.request.user, invite_emails.split(","), invite_role)
 
-                    if invitation:
-                        invites.exclude(pk=invitation.pk).delete()  # remove any old invites
+            # update org users with new roles
+            for user, new_role in self.form.get_submitted_roles().items():
+                if not new_role:
+                    org.remove_user(user)
+                elif org.get_user_role(user) != new_role:
+                    org.add_user(user, new_role)
 
-                        invitation.user_group = invite_group
-                        invitation.is_active = True
-                        # generate new secret for this invitation
-                        invitation.secret = random_string(64)
-                        invitation.save()
-                    else:
-                        invitation = Invitation.create(org, self.request.user, email, invite_group)
-
-                    invitation.send_invitation()
-
-            current_groups = {}
-            new_groups = {}
-
-            for group in self.ORG_GROUPS:
-                # gather up existing users with their groups
-                for user in self.org_group_set(org, group).all():
-                    current_groups[user] = group
-
-                # parse form fields to get new roles
-                for field in self.form.cleaned_data:
-                    if field.startswith(group.lower() + "_") and self.form.cleaned_data[field]:
-                        user = User.objects.get(pk=field.split("_")[1])
-                        new_groups[user] = group
-
-            for user in current_groups.keys():
-                current_group = current_groups.get(user)
-                new_group = new_groups.get(user)
-
-                if user in self.fields_by_users and current_group != new_group:
-                    if current_group:
-                        self.org_group_set(org, current_group).remove(user)
-                    if new_group:
-                        self.org_group_set(org, new_group).add(user)
-
-                    # when a user's role changes, delete any API tokens they're no longer allowed to have
-                    api_roles = APIToken.get_allowed_roles(org, user)
-                    for token in APIToken.objects.filter(org=org, user=user).exclude(role__in=api_roles):
-                        token.release()
+                # when a user's role changes, delete any API tokens they're no longer allowed to have
+                api_roles = APIToken.get_allowed_roles(org, user)
+                for token in APIToken.objects.filter(org=org, user=user).exclude(role__in=api_roles):
+                    token.release()
 
             return obj
 
@@ -1522,14 +1710,11 @@ class OrgCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             org = self.get_object()
             context["org"] = org
-            context["org_users"] = self.org_users
-            context["group_fields"] = self.fields_by_users
-            context["invites"] = self.invites
-            context["invites_fields"] = self.fields_by_invite
+            context["has_invites"] = org.invitations.filter(is_active=True).exists()
             return context
 
         def get_success_url(self):
-            still_in_org = self.request.user in self.get_object().get_org_users()
+            still_in_org = self.get_object().has_user(self.request.user)
 
             # if current user no longer belongs to this org, redirect to org chooser
             return reverse("orgs.org_manage_accounts") if still_in_org else reverse("orgs.org_choose")
@@ -1556,113 +1741,6 @@ class OrgCRUDL(SmartCRUDL):
         def get_success_url(self):  # pragma: needs cover
             org_id = self.request.GET.get("org")
             return "%s?org=%s" % (reverse("orgs.org_manage_accounts_sub_org"), org_id)
-
-    class TwoFactor(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
-        class TwoFactorForm(forms.Form):
-            token = forms.CharField(
-                label=_("Authentication Token"),
-                help_text=_("Enter the code from your authentication application"),
-                strip=True,
-                required=True,
-            )
-
-            def __init__(self, *args, **kwargs):
-                self.request = kwargs.pop("request")
-                self.user_cache = None
-                super().__init__(*args, **kwargs)
-
-            def clean_token(self):  # pragma: no cover
-                token = self.cleaned_data.get("token", None)
-                user_pk = self.request.user.pk
-                user = User.objects.get(pk=user_pk)
-                totp = pyotp.TOTP(user.get_settings().otp_secret)
-                token_valid = totp.verify(token, valid_window=2)
-                if not token_valid:
-                    raise forms.ValidationError(_("Invalid MFA token. Please try again."), code="invalid-token")
-                self.user_cache = user
-                return token
-
-        form_class = TwoFactorForm
-        fields = ("token",)
-        success_url = "@orgs.org_two_factor"
-        success_message = ""
-        submit_button_name = _("Activate")
-        title = _("Two Factor Authentication")
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["request"] = self.request
-            return kwargs
-
-        def get(self, request, *args, **kwargs):
-            user = self.request.user
-            form = self.get_form()
-            secret = pyotp.random_base32()
-
-            user_settings = user.get_settings()
-            user_settings.otp_secret = secret
-            user_settings.save()
-            secret_url = self.get_secret_url()
-            return self.render_to_response(self.get_context_data(form=form, secret_url=secret_url))
-
-        def post(self, request, *args, **kwargs):
-            form = self.get_form()
-            if "disable_two_factor_auth" in request.POST:
-                self.disable_two_factor_auth()
-            if "get_backup_tokens" in request.POST:
-                tokens = self.get_backup_tokens()
-                data = {"tokens": tokens}
-                return JsonResponse(data)
-            elif "generate_backup_tokens" in request.POST:
-                tokens = self.generate_backup_tokens()
-                data = {"tokens": tokens}
-                return JsonResponse(data)
-            elif form.is_valid():
-                self.generate_backup_tokens()
-                user = self.request.user
-                user_settings = user.get_settings()
-                user_settings.two_factor_enabled = True
-                user_settings.save()
-            secret_url = self.get_secret_url()
-            return self.render_to_response(self.get_context_data(form=form, secret_url=secret_url))
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            user = self.get_user()
-            user_settings = user.get_settings()
-            context["user_settings"] = user_settings
-            return context
-
-        def get_secret_url(self):
-            user = self.request.user
-            otp_secret = user.get_settings().otp_secret
-            if otp_secret:
-                secret_url = pyotp.TOTP(otp_secret).provisioning_uri(user.username, issuer_name="Rapidpro")
-            return secret_url
-
-        def disable_two_factor_auth(self):
-            self.delete_backup_tokens()
-            user = self.get_user()
-            user_settings = user.get_settings()
-            user_settings.two_factor_enabled = False
-            user_settings.save()
-
-        def generate_backup_tokens(self):
-            user = self.get_user()
-            self.delete_backup_tokens()
-            for backup in range(10):
-                BackupToken.objects.create(settings=user.get_settings(), created_by=user, modified_by=user)
-            tokens = [backup.token for backup in BackupToken.objects.filter(settings__user=user)]
-            return tokens
-
-        def get_backup_tokens(self):
-            user = self.get_user()
-            tokens = [backup.token for backup in BackupToken.objects.filter(settings__user=user)]
-            return tokens
-
-        def delete_backup_tokens(self):
-            user = self.get_user()
-            BackupToken.objects.filter(settings__user=user).delete()
 
     class Service(SmartFormView):
         class ServiceForm(forms.Form):
@@ -1835,14 +1913,13 @@ class OrgCRUDL(SmartCRUDL):
             user = self.request.user
             if user.is_authenticated:
                 user_orgs = self.get_user_orgs()
-
-                if user.is_superuser or user.is_staff:
+                if user.is_superuser:
                     return HttpResponseRedirect(reverse("orgs.org_manage"))
 
                 elif user_orgs.count() == 1:
                     org = user_orgs[0]
                     self.request.session["org_id"] = org.pk
-                    if org.get_org_surveyors().filter(username=self.request.user.username):
+                    if org.get_user_role(user) == OrgRole.SURVEYOR:
                         return HttpResponseRedirect(reverse("orgs.org_surveyor"))
 
                     return HttpResponseRedirect(self.get_success_url())  # pragma: needs cover
@@ -1878,7 +1955,7 @@ class OrgCRUDL(SmartCRUDL):
             else:
                 return HttpResponseRedirect(reverse("orgs.org_choose"))
 
-            if org.get_org_surveyors().filter(username=self.request.user.username):
+            if org.get_user_role(self.request.user) == OrgRole.SURVEYOR:
                 return HttpResponseRedirect(reverse("orgs.org_surveyor"))
 
             return HttpResponseRedirect(self.get_success_url())
@@ -1915,14 +1992,9 @@ class OrgCRUDL(SmartCRUDL):
             # log the user in
             user = authenticate(username=user.username, password=self.form.cleaned_data["password"])
             login(self.request, user)
-            if self.invitation.user_group == "A":
-                obj.administrators.add(user)
-            elif self.invitation.user_group == "E":  # pragma: needs cover
-                obj.editors.add(user)
-            elif self.invitation.user_group == "S":
-                obj.surveyors.add(user)
-            else:  # pragma: needs cover
-                obj.viewers.add(user)
+
+            role = OrgRole.from_code(self.invitation.user_group) or OrgRole.VIEWER
+            obj.add_user(user, role)
 
             # make the invitation inactive
             self.invitation.is_active = False
@@ -1999,14 +2071,8 @@ class OrgCRUDL(SmartCRUDL):
             org = self.get_object()
             self.invitation = self.get_invitation()
             if org:
-                if self.invitation.user_group == "A":
-                    org.administrators.add(self.request.user)
-                elif self.invitation.user_group == "E":
-                    org.editors.add(self.request.user)
-                elif self.invitation.user_group == "S":
-                    org.surveyors.add(self.request.user)
-                else:
-                    org.viewers.add(self.request.user)
+                role = OrgRole.from_code(self.invitation.user_group) or OrgRole.VIEWER
+                org.add_user(self.request.user, role)
 
                 # make the invitation inactive
                 self.invitation.is_active = False
@@ -2225,12 +2291,12 @@ class OrgCRUDL(SmartCRUDL):
 
         def post_save(self, obj):
             obj = super().post_save(obj)
-            obj.administrators.add(self.user)
+            obj.add_user(self.user, OrgRole.ADMINISTRATOR)
 
             if not self.request.user.is_anonymous and self.request.user.has_perm(
                 "orgs.org_grant"
             ):  # pragma: needs cover
-                obj.administrators.add(self.request.user.pk)
+                obj.add_user(self.request.user, OrgRole.ADMINISTRATOR)
 
             obj.initialize(branding=obj.get_branding(), topup_size=self.get_welcome_size())
 
@@ -2498,7 +2564,7 @@ class OrgCRUDL(SmartCRUDL):
                 if len(links) > 0:
                     links.append(dict(divider=True))
 
-                links.append(dict(title=_("Help"), href=settings.HELP_URL,))
+                links.append(dict(title=_("Help"), href=settings.HELP_URL))
 
             if len(links) > 0:
                 links.append(dict(divider=True))
@@ -2582,27 +2648,35 @@ class OrgCRUDL(SmartCRUDL):
                     self.add_classifier_section(formax, classifier)
 
             if self.has_org_perm("tickets.ticket_filter"):
-                for ticketer in org.ticketers.filter(is_active=True).order_by("created_on"):
+                from temba.tickets.types.internal import InternalType
+
+                ext_ticketers = (
+                    org.ticketers.filter(is_active=True)
+                    .exclude(ticketer_type=InternalType.slug)
+                    .order_by("created_on")
+                )
+                for ticketer in ext_ticketers:
                     self.add_ticketer_section(formax, ticketer)
 
             if self.has_org_perm("orgs.org_profile"):
                 formax.add_section("user", reverse("orgs.user_edit"), icon="icon-user", action="redirect")
 
-            # only pro orgs get multiple users
-            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user:
-                formax.add_section("accounts", reverse("orgs.org_accounts"), icon="icon-users", action="redirect")
-
             if self.has_org_perm("orgs.org_two_factor"):
-                formax.add_section(
-                    "two_factor",
-                    reverse("orgs.org_two_factor"),
-                    icon="icon-two-factor",
-                    action="redirect",
-                    nobutton=True,
-                )
+                if user.get_settings().two_factor_enabled:
+                    formax.add_section(
+                        "two_factor", reverse("orgs.user_two_factor_tokens"), icon="icon-two-factor", action="link"
+                    )
+                else:
+                    formax.add_section(
+                        "two_factor", reverse("orgs.user_two_factor_enable"), icon="icon-two-factor", action="link"
+                    )
 
             if self.has_org_perm("orgs.org_edit"):
                 formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
+
+            # only pro orgs get multiple users
+            if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user:
+                formax.add_section("accounts", reverse("orgs.org_accounts"), icon="icon-users", action="redirect")
 
             if self.has_org_perm("orgs.org_languages"):
                 formax.add_section("languages", reverse("orgs.org_languages"), icon="icon-language")
@@ -2815,7 +2889,7 @@ class OrgCRUDL(SmartCRUDL):
         class OrgForm(forms.ModelForm):
             name = forms.CharField(max_length=128, label=_("Workspace Name"), help_text="", widget=InputWidget())
             timezone = TimeZoneFormField(
-                label=_("Timezone"), help_text="", widget=SelectWidget(attrs={"searchable": True}),
+                label=_("Timezone"), help_text="", widget=SelectWidget(attrs={"searchable": True})
             )
 
             class Meta:

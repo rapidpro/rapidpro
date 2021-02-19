@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-01 16:43+0000\n"
+"POT-Creation-Date: 2021-02-11 18:54+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -89,6 +89,57 @@ msgstr ""
 msgid "Weeks"
 msgstr ""
 
+#, python-format
+msgid "%d minute before"
+msgid_plural "%d minutes before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%d hour before"
+msgid_plural "%d hours before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%d day before"
+msgid_plural "%d days before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%d week before"
+msgid_plural "%d weeks before"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%d minute after"
+msgid_plural "%d minutes after"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%d hour after"
+msgid_plural "%d hours after"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%d day after"
+msgid_plural "%d days after"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "%d week after"
+msgid_plural "%d weeks after"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "on"
+msgstr ""
+
 msgid "Select a group to base the campaign on"
 msgstr ""
 
@@ -141,6 +192,9 @@ msgid "Stop it and send the message"
 msgstr ""
 
 msgid "Skip this message"
+msgstr ""
+
+msgid "Send the message"
 msgstr ""
 
 msgid "Message sending rules"
@@ -1055,6 +1109,27 @@ msgid "The password to be used to authenticate to Junebug"
 msgstr ""
 
 msgid "The token Junebug should use to authenticate"
+msgstr ""
+
+msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
+msgstr ""
+
+msgid "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra account."
+msgstr ""
+
+msgid "To receive incoming messages, you need to set the receive URL for your Kaleyra account."
+msgstr ""
+
+msgid "Account SID"
+msgstr ""
+
+msgid "Your Kaleyra Account SID"
+msgstr ""
+
+msgid "Your Kaleyra API Key"
+msgstr ""
+
+msgid "No org for this user, cannot claim"
 msgstr ""
 
 #, python-format
@@ -2137,24 +2212,6 @@ msgstr ""
 msgid "Can't query on URNs in an anonymous workspace"
 msgstr ""
 
-msgid "day"
-msgstr ""
-
-msgid "minute"
-msgstr ""
-
-msgid "hour"
-msgstr ""
-
-msgid "days"
-msgstr ""
-
-msgid "minutes"
-msgstr ""
-
-msgid "hours"
-msgstr ""
-
 msgid "Name is used by another group"
 msgstr ""
 
@@ -2335,16 +2392,10 @@ msgstr ""
 msgid "Field name '%(name)s' is repeated."
 msgstr ""
 
-msgid "Message flow"
+msgid "Phone Call"
 msgstr ""
 
-msgid "Phone call flow"
-msgstr ""
-
-msgid "Surveyor flow"
-msgstr ""
-
-msgid "USSD flow"
+msgid "Background"
 msgstr ""
 
 msgid "The name for this flow"
@@ -2360,9 +2411,6 @@ msgid "Whether this flow is archived"
 msgstr ""
 
 msgid "Whether this is a system created flow"
-msgstr ""
-
-msgid "The type of this flow"
 msgstr ""
 
 msgid "Minutes of inactivity that will cause expiration from flow"
@@ -2956,28 +3004,25 @@ msgstr ""
 msgid "Update Label"
 msgstr ""
 
-msgid "Campaigns"
+msgid "Administrators"
 msgstr ""
 
-msgid "Triggers"
+msgid "Editors"
 msgstr ""
 
-msgid "Users"
+msgid "Viewer"
 msgstr ""
 
-msgid "Orgs"
+msgid "Viewers"
 msgstr ""
 
-msgid "Dashboard"
+msgid "Agent"
 msgstr ""
 
-msgid "Android"
+msgid "Agents"
 msgstr ""
 
-msgid "Sign in"
-msgstr ""
-
-msgid "Sign out"
+msgid "Surveyors"
 msgstr ""
 
 msgid "Plan"
@@ -2990,30 +3035,6 @@ msgid "Stripe Customer"
 msgstr ""
 
 msgid "Our Stripe customer id for your organization"
-msgstr ""
-
-msgid "Administrators"
-msgstr ""
-
-msgid "The administrators in your organization"
-msgstr ""
-
-msgid "Viewers"
-msgstr ""
-
-msgid "The viewers in your organization"
-msgstr ""
-
-msgid "Editors"
-msgstr ""
-
-msgid "The editors in your organization"
-msgstr ""
-
-msgid "Surveyors"
-msgstr ""
-
-msgid "The users can login via Android for your organization"
 msgstr ""
 
 msgid "The main language used by this organization"
@@ -3087,44 +3108,11 @@ msgstr ""
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr ""
 
-msgid "Viewer"
-msgstr ""
-
 msgid "Org"
-msgstr ""
-
-msgid "The organization to which the account is invited to view"
-msgstr ""
-
-msgid "Email"
-msgstr ""
-
-msgid "The email to which we send the invitation of the viewer"
-msgstr ""
-
-msgid "a unique code associated with this invitation"
-msgstr ""
-
-msgid "User Role"
 msgstr ""
 
 #, python-format
 msgid "%(name)s Invitation"
-msgstr ""
-
-msgid "Your preferred language"
-msgstr ""
-
-msgid "Phone Number"
-msgstr ""
-
-msgid "Phone number for testing and recording voice flows"
-msgstr ""
-
-msgid "OTP Secret"
-msgstr ""
-
-msgid "Two Factor Enabled"
 msgstr ""
 
 msgid "Price Paid"
@@ -3205,9 +3193,6 @@ msgstr ""
 msgid "%(name)s Credits Alert"
 msgstr ""
 
-msgid "Used"
-msgstr ""
-
 msgid "First name"
 msgstr ""
 
@@ -3262,6 +3247,12 @@ msgstr ""
 msgid "Password required for new login."
 msgstr ""
 
+msgid "Incorrect OTP. Please try again."
+msgstr ""
+
+msgid "Invalid backup token. Please try again."
+msgstr ""
+
 #, python-brace-format
 msgid "Deleted user {username}"
 msgstr ""
@@ -3273,6 +3264,9 @@ msgid "Required"
 msgstr ""
 
 msgid "Last Name"
+msgstr ""
+
+msgid "Email"
 msgstr ""
 
 msgid "Current Password"
@@ -3296,7 +3290,40 @@ msgstr ""
 msgid "Sorry, that email address is already taken."
 msgstr ""
 
-msgid "Start Call"
+msgid "6-digit code"
+msgstr ""
+
+msgid "Current password"
+msgstr ""
+
+msgid "OTP incorrect. Please try again."
+msgstr ""
+
+msgid "Password incorrect."
+msgstr ""
+
+msgid "Two-factor authentication enabled"
+msgstr ""
+
+msgid "Enable"
+msgstr ""
+
+msgid "Enable Two-factor Authentication"
+msgstr ""
+
+msgid "Two-factor authentication disabled"
+msgstr ""
+
+msgid "Disable"
+msgstr ""
+
+msgid "Disable Two-factor Authentication"
+msgstr ""
+
+msgid "Two-factor Authentication"
+msgstr ""
+
+msgid "Two-factor authentication backup tokens changed."
 msgstr ""
 
 msgid "The import file"
@@ -3425,13 +3452,13 @@ msgstr ""
 msgid "One of the emails you entered is invalid."
 msgstr ""
 
-msgid "Enter the code from your authentication application"
+msgid "A workspace must have at least one administrator."
 msgstr ""
 
-msgid "Invalid MFA token. Please try again."
+msgid "Manage Logins"
 msgstr ""
 
-msgid "Two Factor Authentication"
+msgid "Dashboard"
 msgstr ""
 
 msgid "New Workspace"
@@ -3530,9 +3557,6 @@ msgstr ""
 
 #, python-format
 msgid "Connecting to your DT One account failed with error text: %s"
-msgstr ""
-
-msgid "Account SID"
 msgstr ""
 
 msgid "Account Token"
@@ -3740,6 +3764,13 @@ msgid "Open"
 msgstr ""
 
 msgid "Closed"
+msgstr ""
+
+msgid "Enabling this will allow you to handle tickets within this application."
+msgstr ""
+
+#, python-format
+msgid "This will enable handling tickets internally in %(brand)s."
 msgstr ""
 
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
@@ -3955,6 +3986,9 @@ msgstr ""
 msgid "Create Trigger"
 msgstr ""
 
+msgid "Triggers"
+msgstr ""
+
 msgid "Join Keyword"
 msgstr ""
 
@@ -3973,16 +4007,13 @@ msgstr ""
 msgid "The organization of the user."
 msgstr ""
 
-#, python-format
-msgid "%(value)s must be http or https scheme"
+msgid "Must use HTTP or HTTPS."
 msgstr ""
 
-#, python-format
-msgid "%(value)s host cannot be resolved"
+msgid "Unable to resolve host."
 msgstr ""
 
-#, python-format
-msgid "%(value)s cannot be localhost"
+msgid "Cannot be a local or private host."
 msgstr ""
 
 msgid "Unique Identifier"
@@ -4145,6 +4176,9 @@ msgstr ""
 msgid "Download Now"
 msgstr ""
 
+msgid "Campaigns"
+msgstr ""
+
 msgid "Create Campaign"
 msgstr ""
 
@@ -4161,12 +4195,6 @@ msgid "No group assigned to this campaign"
 msgstr ""
 
 msgid "No events in this campaign yet."
-msgstr ""
-
-msgid "before"
-msgstr ""
-
-msgid "after"
 msgstr ""
 
 msgid "You are about to delete this event. There is no way to undo this. Are you sure?"
@@ -5128,6 +5156,13 @@ msgstr ""
 msgid "Select your provider below to get started."
 msgstr ""
 
+msgid "Unable to delete classifier still being used by"
+msgstr ""
+
+#, python-format
+msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
+msgstr ""
+
 msgid "Classifier"
 msgstr ""
 
@@ -5145,21 +5180,6 @@ msgstr ""
 
 msgid "Intents are synced automatically every 5 minutes"
 msgstr ""
-
-msgid "Are you sure you want to remove this classifier from your account?"
-msgstr ""
-
-msgid "This classifier cannot be removed because it in use."
-msgstr ""
-
-msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
-msgstr ""
-
-#, python-format
-msgid "Used by %(num_flows)s flow:"
-msgid_plural "Used by %(num_flows)s flows:"
-msgstr[0] ""
-msgstr[1] ""
 
 msgid "Ok"
 msgstr ""
@@ -5185,9 +5205,6 @@ msgstr ""
 
 #, python-format
 msgid "You are about to delete <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
-msgstr ""
-
-msgid "Smart Group"
 msgstr ""
 
 #, python-format
@@ -5256,10 +5273,6 @@ msgid "Name cleared"
 msgstr ""
 
 msgid "URNs updated to"
-msgstr ""
-
-#, python-format
-msgid "Email sent with subject <b>%(subject)s</b>"
 msgstr ""
 
 msgid "Email sent to"
@@ -5642,24 +5655,6 @@ msgstr ""
 msgid "To get started you need to add a voice-enabled channel to your workspace. A voice-enabled channel is a phone number which %(name)s can use to make and receive phone calls on your behalf. For example, Twilio is a service which provides voice-enabled numbers which you can add as channels in your %(name)s workspace."
 msgstr ""
 
-msgid "This flow has never been started."
-msgstr ""
-
-msgid "This flow has been started once."
-msgstr ""
-
-msgid "This flow has been started {{ run_count }} times."
-msgstr ""
-
-msgid "It has been completed"
-msgstr ""
-
-msgid "Once."
-msgstr ""
-
-msgid "{{ complete_count }} times."
-msgstr ""
-
 #, python-format
 msgid ""
 "\n"
@@ -5709,6 +5704,9 @@ msgid "Remove Label"
 msgstr ""
 
 msgid "Are you sure you want to remove this label?"
+msgstr ""
+
+msgid "Once it is removed, it will be gone forever. There is no way to undo this operation."
 msgstr ""
 
 msgid "You cannot remove a label which has child labels. Please remove all children first."
@@ -5791,6 +5789,9 @@ msgstr ""
 msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
 msgstr ""
 
+msgid "Manual"
+msgstr ""
+
 #, python-format
 msgid "was started by %(user)s for"
 msgstr ""
@@ -5823,9 +5824,6 @@ msgid "No flow starts"
 msgstr ""
 
 msgid "Are you sure you want to continue? This cannot be undone."
-msgstr ""
-
-msgid "No related flows."
 msgstr ""
 
 #, python-format
@@ -5919,6 +5917,16 @@ msgid "Your active credits will expire soon, add credits to prevent interruption
 msgstr ""
 
 msgid "Your phone is having difficulty relaying messages"
+msgstr ""
+
+#, python-format
+msgid "%(count)s result"
+msgid_plural "%(count)s results"
+msgstr[0] ""
+msgstr[1] ""
+
+#, python-format
+msgid "Results %(start)s - %(end)s of %(total)s"
 msgstr ""
 
 #, python-format
@@ -6046,6 +6054,12 @@ msgstr ""
 
 msgid "This label cannot be removed because it in use."
 msgstr ""
+
+#, python-format
+msgid "Used by %(num_flows)s flow:"
+msgid_plural "Used by %(num_flows)s flows:"
+msgstr[0] ""
+msgstr[1] ""
 
 #, python-format
 msgid ""
@@ -6301,42 +6315,49 @@ msgid ""
 "\n"
 msgstr ""
 
+msgid "Welcome Back"
+msgstr ""
+
+msgid ""
+"\n"
+"    Please sign in with your email address and password.\n"
+"\n"
+"  "
+msgstr ""
+
+msgid "Sign In"
+msgstr ""
+
+msgid "Don't have an account yet?"
+msgstr ""
+
+msgid "Sign up"
+msgstr ""
+
+msgid "If you no longer have access to the device with which you setup two-factor authentication on your login, you can enter one of your backup tokens below."
+msgstr ""
+
+msgid "8-character token"
+msgstr ""
+
+msgid "Use Device"
+msgstr ""
+
+msgid "Open the one-time password application with which you setup two-factor authentication on your account and enter the code below to verify your identity."
+msgstr ""
+
+msgid "Use Backup Token"
+msgstr ""
+
 msgid "Your workspace can have logins with various roles. You can use the Manage Logins page to view all existing logins or to add new logins to your workspace."
 msgstr ""
 
-msgid "Manage Logins"
+#, python-format
+msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join your workspace as a surveyor."
 msgstr ""
 
-#, python-format
-msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join %(org)s as a surveyor."
+msgid "Your workspace has"
 msgstr ""
-
-msgid "has"
-msgstr ""
-
-#, python-format
-msgid "%(accounts)s Administrator,"
-msgid_plural "%(accounts)s Administrators,"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid "%(accounts)s Editor,"
-msgid_plural "%(accounts)s Editors,"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid "%(accounts)s Viewer,"
-msgid_plural "%(accounts)s Viewers,"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid "%(accounts)s Surveyor."
-msgid_plural "%(accounts)s Surveyors."
-msgstr[0] ""
-msgstr[1] ""
 
 msgid "Chatbase Account"
 msgstr ""
@@ -6385,6 +6406,9 @@ msgid "Choose a country to enable location support in your flows."
 msgstr ""
 
 msgid "Create new login"
+msgstr ""
+
+msgid "Sign in"
 msgstr ""
 
 msgid "Add Credits"
@@ -6531,46 +6555,13 @@ msgstr ""
 msgid "Your workspace is configured to use a single language."
 msgstr ""
 
-msgid "Logins"
-msgstr ""
-
-msgid "Admins"
-msgstr ""
-
 msgid "Remove"
-msgstr ""
-
-msgid "You must have at least one administator"
 msgstr ""
 
 msgid "Pending Invitations"
 msgstr ""
 
 msgid "Invite New Users"
-msgstr ""
-
-msgid ","
-msgstr ""
-
-msgid "No Administrator"
-msgstr ""
-
-msgid "No Editors"
-msgstr ""
-
-msgid "and"
-msgstr ""
-
-msgid "No Viewers"
-msgstr ""
-
-msgid "Surveyor."
-msgstr ""
-
-msgid "No Surveyors."
-msgstr ""
-
-msgid "Surveyors."
 msgstr ""
 
 msgid "Disconnect Nexmo"
@@ -6646,9 +6637,6 @@ msgstr ""
 msgid "Creating a %(brand)s account is free and only takes a minute."
 msgstr ""
 
-msgid "Sign In"
-msgstr ""
-
 msgid "Remove SMTP configuration"
 msgstr ""
 
@@ -6695,21 +6683,6 @@ msgid "Disconnect Twilio"
 msgstr ""
 
 msgid "Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?"
-msgstr ""
-
-msgid "To enable two factor authentication, use a one time password application such as"
-msgstr ""
-
-msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
-msgstr ""
-
-msgid "Any tokens you may have previously generated are invalid."
-msgstr ""
-
-msgid "Generate Backup Tokens"
-msgstr ""
-
-msgid "Disable Two Factor"
 msgstr ""
 
 msgid "This workspace has been suspended"
@@ -6767,6 +6740,28 @@ msgid ""
 "\n"
 "    Your email address is <b>%(email)s</b>.\n"
 "  "
+msgstr ""
+
+msgid "To disable two-factor authentication for your login, enter your current password."
+msgstr ""
+
+#, python-format
+msgid "To enable two-factor authentication on your login, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below."
+msgstr ""
+
+msgid "Two-factor authentication is <b>disabled</b>."
+msgstr ""
+
+msgid "Two-factor authentication is currently enabled for your login. Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
+msgstr ""
+
+msgid "You can generate new backup tokens but remember that the current tokens will be no longer be usable if you do this."
+msgstr ""
+
+msgid "Regenerate Tokens"
+msgstr ""
+
+msgid "Two-factor authentication is <b>enabled</b>."
 msgstr ""
 
 msgid "Policies"
@@ -7090,22 +7085,6 @@ msgstr ""
 msgid "Not scheduled"
 msgstr ""
 
-msgid "Welcome Back"
-msgstr ""
-
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
-msgstr ""
-
-msgid "Don't have an account yet?"
-msgstr ""
-
-msgid "Sign up"
-msgstr ""
-
 msgid "Login Failure"
 msgstr ""
 
@@ -7233,10 +7212,6 @@ msgid "Unable to delete service still being used by"
 msgstr ""
 
 #, python-format
-msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
-msgstr ""
-
-#, python-format
 msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
 msgstr ""
 
@@ -7295,9 +7270,6 @@ msgid "An inbound call"
 msgstr ""
 
 msgid "A new conversation"
-msgstr ""
-
-msgid "on"
 msgstr ""
 
 msgid "The referrer id"

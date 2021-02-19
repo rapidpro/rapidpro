@@ -847,7 +847,12 @@ class ContactBulkActionSerializer(WriteSerializer):
 
 
 class FlowReadSerializer(ReadSerializer):
-    FLOW_TYPES = {Flow.TYPE_MESSAGE: "message", Flow.TYPE_VOICE: "voice", Flow.TYPE_SURVEY: "survey"}
+    FLOW_TYPES = {
+        Flow.TYPE_MESSAGE: "message",
+        Flow.TYPE_VOICE: "voice",
+        Flow.TYPE_BACKGROUND: "background",
+        Flow.TYPE_SURVEY: "survey",
+    }
 
     type = serializers.SerializerMethodField()
     archived = serializers.ReadOnlyField(source="is_archived")
@@ -1057,7 +1062,7 @@ class GlobalReadSerializer(ReadSerializer):
 
 
 class GlobalWriteSerializer(WriteSerializer):
-    value = serializers.CharField(required=True)
+    value = serializers.CharField(required=True, max_length=Global.MAX_VALUE_LEN)
     name = serializers.CharField(
         required=False,
         max_length=Global.MAX_NAME_LEN,
