@@ -8,6 +8,7 @@ from email.utils import parseaddr
 from functools import cmp_to_key
 from urllib.parse import parse_qs, unquote, urlparse
 
+import iso8601
 import pyotp
 import pytz
 import requests
@@ -76,6 +77,8 @@ from .tasks import apply_topups_task
 
 # session key for storing a two-factor enabled user's id once we've checked their password
 TWO_FACTOR_USER_SESSION_KEY = "_two_factor_user_id"
+TWO_FACTOR_STARTED_SESSION_KEY = "_two_factor_started_on"
+TWO_FACTOR_LIMIT_SECONDS = 5 * 60
 
 
 def check_login(request):
@@ -361,6 +364,7 @@ class LoginView(Login):
         user = form.get_user()
         if user.get_settings().two_factor_enabled:
             self.request.session[TWO_FACTOR_USER_SESSION_KEY] = str(user.id)
+            self.request.session[TWO_FACTOR_STARTED_SESSION_KEY] = timezone.now().isoformat()
 
             verify_url = reverse("users.two_factor_verify")
             redirect_url = self.get_redirect_url()
@@ -383,8 +387,12 @@ class BaseTwoFactorView(AuthLoginView):
 
     def get_user(self):
         user_id = self.request.session.get(TWO_FACTOR_USER_SESSION_KEY)
-        if user_id:
-            return User.objects.filter(id=user_id, is_active=True).first()
+        started_on = self.request.session.get(TWO_FACTOR_STARTED_SESSION_KEY)
+        if user_id and started_on:
+            # only return user if two factor process was started recently
+            started_on = iso8601.parse_date(started_on)
+            if started_on >= timezone.now() - timedelta(seconds=TWO_FACTOR_LIMIT_SECONDS):
+                return User.objects.filter(id=user_id, is_active=True).first()
         return None
 
     def get_form_kwargs(self):
@@ -430,6 +438,7 @@ class BaseTwoFactorView(AuthLoginView):
 
     def reset_user(self):
         self.request.session.pop(TWO_FACTOR_USER_SESSION_KEY, None)
+        self.request.session.pop(TWO_FACTOR_STARTED_SESSION_KEY, None)
 
 
 class TwoFactorVerifyView(BaseTwoFactorView):
