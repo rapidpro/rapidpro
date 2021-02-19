@@ -8,7 +8,7 @@ from .mailroom import parse_query
 ES = Elasticsearch(hosts=[settings.ELASTICSEARCH_URL])
 
 
-def query_contact_ids(org, query, *, group=None):
+def query_contact_ids(org, query, *, group=None, return_parsed_query=False):
     """
     Returns the contact ids for the given query
     """
@@ -16,6 +16,9 @@ def query_contact_ids(org, query, *, group=None):
     results = (
         es_Search(index="contacts").source(include=["id"]).params(routing=org.id).using(ES).query(parsed.elastic_query)
     )
+
+    if return_parsed_query:
+        return parsed.query, [int(r.id) for r in results.scan()]
 
     return [int(r.id) for r in results.scan()]
 

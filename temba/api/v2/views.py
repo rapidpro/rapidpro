@@ -4309,3 +4309,48 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
         return Response(
             response.json(), status=status.HTTP_202_ACCEPTED if response.status_code == 200 else response.status_code
         )
+
+
+class ContactsReportEndpoint(BaseAPIView):
+    permission = "orgs.org_api"
+
+    def get_queryset(self):
+        from temba.contacts.search import SearchException
+        from temba.contacts.search.elastic import query_contact_ids
+
+        org = self.request.user.get_org()
+        contacts = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True).distinct()
+
+        flow = self.request.GET.get("flow", self.request.data.get("flow"))
+        if flow:
+            contacts = contacts.filter(runs__flow__uuid=flow)
+
+        # contact list views don't use regular field searching but use more complex contact searching
+        search_query = self.request.GET.get("search_query", self.request.data.get("search_query"))
+
+        if search_query:
+            # is this request is part of a bulk action, get the ids that were modified so we can check which ones
+            # should no longer appear in this view, even though ES won't have caught up yet
+            try:
+                group = ContactGroup.all_groups.get(org=org, group_type='A')
+                parsed_query, contact_ids = query_contact_ids(org, search_query, group=group, return_parsed_query=True)
+                setattr(self, "search_query", parsed_query if len(parsed_query) > 0 else None)
+                contacts = contacts.filter(id__in=contact_ids)
+
+                return contacts
+            except SearchException as e:
+                setattr(self, "search_query", f"Error: {e.message}")
+                # this should be an empty resultset
+                return Contact.objects.none()
+        else:
+            # if user search is not defined, use DB to select contacts
+            return contacts
+
+    def get(self, request, *args, **kwargs):
+        count = self.get_queryset().count()
+        response_data = {
+            "flow": self.request.GET.get("flow", self.request.data.get("flow")),
+            "search_query": getattr(self, "search_query", ""),
+            "results": [{"totalUniqueContacts": count}]
+        }
+        return Response(response_data)
