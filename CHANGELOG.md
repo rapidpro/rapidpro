@@ -1,3 +1,11 @@
+v6.1.44
+----------
+ * Enforce time limit between login and two factor verification
+ * Prevent inviting existing users
+ * Add disabled textinputs and better expression selection on selects
+ * Create failed login records when users enter incorrect backup tokens too many times
+ * Logout user to force login to accept invite and require invite email account exactly
+
 v6.1.43
 ----------
  * Backup tokens can only be used once
