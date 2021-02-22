@@ -269,3 +269,6 @@ INSTALLED_APPS += ("mozilla_django_oidc", "weni.auth")
 LOGGING["loggers"]["mozilla_django_oidc"] = {"level": "DEBUG", "handlers": ["console"], "propagate": False}
 LOGGING["loggers"]["weni_django_oidc"] = {"level": "DEBUG", "handlers": ["console"], "propagate": False}
 X_FRAME_OPTIONS = env("X_FRAME_OPTIONS", default="ALLOW-FROM https://{}/").format(HOSTNAME)
+# Ensures https connection
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
