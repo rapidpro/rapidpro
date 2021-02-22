@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-11 18:54+0000\n"
+"POT-Creation-Date: 2021-02-18 16:52+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3452,6 +3452,9 @@ msgstr ""
 msgid "One of the emails you entered is invalid."
 msgstr ""
 
+msgid "One of the emails you entered has an existing user on the workspace."
+msgstr ""
+
 msgid "A workspace must have at least one administrator."
 msgstr ""
 
@@ -3483,10 +3486,13 @@ msgstr ""
 msgid "Join %(name)s"
 msgstr ""
 
-msgid "Join"
+msgid "Sign in with your account to accept the invitation"
 msgstr ""
 
 msgid "Your invitation link has expired. Please contact your workspace administrator."
+msgstr ""
+
+msgid "Join"
 msgstr ""
 
 msgid "Invalid surveyor password, please check with your project leader and try again."
@@ -6405,12 +6411,6 @@ msgstr ""
 msgid "Choose a country to enable location support in your flows."
 msgstr ""
 
-msgid "Create new login"
-msgstr ""
-
-msgid "Sign in"
-msgstr ""
-
 msgid "Add Credits"
 msgstr ""
 
@@ -6535,6 +6535,9 @@ msgid "If you have flows or campaigns with the same names or UUIDs as the ones y
 msgstr ""
 
 msgid "Do not proceed unless you are willing to replace your existing flows and campaigns."
+msgstr ""
+
+msgid "Sign in"
 msgstr ""
 
 #, python-format
