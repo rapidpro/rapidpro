@@ -1085,68 +1085,26 @@ class ChannelTest(TembaTest):
 
         android.release()
 
-        # check that some details are cleared and channel is now in active
+        # check that some details are cleared and channel is now inactive
         self.assertFalse(android.is_active)
-        self.assertFalse(android.config.get(Channel.CONFIG_FCM_ID))
+        self.assertIsNone(android.config.get(Channel.CONFIG_FCM_ID))
 
-    def test_unclaimed(self):
+    def test_sync_unclaimed(self):
+        response = self.sync(self.unclaimed_channel)
+        self.assertEqual(401, response.status_code)
+
+        # should be an error response
+        self.assertEqual({"error": "Can't sync unclaimed channel", "error_id": 4, "cmds": []}, response.json())
+
+    def test_sync_released(self):
+        self.unclaimed_channel.is_active = False
+        self.unclaimed_channel.save(update_fields=("is_active",))
+
         response = self.sync(self.unclaimed_channel)
         self.assertEqual(200, response.status_code)
-        response = response.json()
 
-        # should be a registration command containing a new claim code
-        self.assertEqual(response["cmds"][0]["cmd"], "reg")
-
-        post_data = dict(
-            cmds=[
-                dict(
-                    cmd="status",
-                    org_id=self.unclaimed_channel.pk,
-                    p_lvl=84,
-                    net="WIFI",
-                    p_sts="CHA",
-                    p_src="USB",
-                    pending=[],
-                    retry=[],
-                )
-            ]
-        )
-
-        # try syncing against the unclaimed channel that has a secret
-        self.unclaimed_channel.secret = "999"
-        self.unclaimed_channel.save()
-
-        response = self.sync(self.unclaimed_channel, post_data=post_data)
-        response = response.json()
-
-        # registration command
-        self.assertEqual(response["cmds"][0]["cmd"], "reg")
-
-        # claim the channel on the site
-        self.unclaimed_channel.org = self.org
-        self.unclaimed_channel.save()
-
-        post_data = dict(
-            cmds=[
-                dict(cmd="status", org_id="-1", p_lvl=84, net="WIFI", p_sts="CHA", p_src="USB", pending=[], retry=[])
-            ]
-        )
-
-        response = self.sync(self.unclaimed_channel, post_data=post_data)
-        response = response.json()
-
-        # should now be a claim command in return
-        self.assertEqual(response["cmds"][0]["cmd"], "claim")
-
-        # now try releasing the channel from the client
-        post_data = dict(cmds=[dict(cmd="reset", p_id=1)])
-
-        response = self.sync(self.unclaimed_channel, post_data=post_data)
-        response = response.json()
-
-        # channel should be released now
-        channel = Channel.objects.get(pk=self.unclaimed_channel.pk)
-        self.assertFalse(channel.is_active)
+        # should be a rel cmd to instruct app to reset
+        self.assertEqual({"cmds": [{"cmd": "rel", "relayer_id": str(self.unclaimed_channel.id)}]}, response.json())
 
     def test_no_topup_quota_exceeded(self):
         # reduce out credits to 10

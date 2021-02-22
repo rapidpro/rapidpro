@@ -725,21 +725,15 @@ def sync(request, channel_id):
         return HttpResponse(status=500, content="POST Required")
 
     commands = []
-    channel = Channel.objects.filter(pk=channel_id, is_active=True)
+    channel = Channel.objects.filter(id=channel_id, is_active=True).first()
     if not channel:
         return JsonResponse(dict(cmds=[dict(cmd="rel", relayer_id=channel_id)]))
-
-    channel = channel[0]
 
     request_time = request.GET.get("ts", "")
     request_signature = force_bytes(request.GET.get("signature", ""))
 
-    if not channel.secret or not channel.org:
-        return JsonResponse(dict(cmds=[channel.build_registration_command()]))
-
-    # print "\n\nSECRET: '%s'" % channel.secret
-    # print "TS: %s" % request_time
-    # print "BODY: '%s'\n\n" % request.body
+    if not channel.secret:
+        return JsonResponse({"error_id": 4, "error": "Can't sync unclaimed channel", "cmds": []}, status=401)
 
     # check that the request isn't too old (15 mins)
     now = time.time()
@@ -769,11 +763,7 @@ def sync(request, channel_id):
 
     # Take the update from the client
     if request.body:
-
         client_updates = json.loads(request.body)
-
-        print("==GOT SYNC")
-        print(json.dumps(client_updates, indent=2))
 
         if "cmds" in client_updates:
             cmds = client_updates["cmds"]
@@ -882,9 +872,6 @@ def sync(request, channel_id):
     if sync_event:
         sync_event.outgoing_command_count = len([_ for _ in outgoing_cmds if _["cmd"] != "ack"])
         sync_event.save()
-
-    print("==RESPONDING WITH:")
-    print(json.dumps(result, indent=2))
 
     # keep track of how long a sync takes
     analytics.gauge("temba.relayer_sync", time.time() - start)
