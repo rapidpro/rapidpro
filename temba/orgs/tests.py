@@ -363,6 +363,28 @@ class UserTest(TembaTest):
         response = self.client.get(tokens_url)
         self.assertRedirect(response, enable_url)
 
+    def test_two_factor_time_limit(self):
+        login_url = reverse("users.user_login")
+        verify_url = reverse("users.two_factor_verify")
+        backup_url = reverse("users.two_factor_backup")
+
+        self.admin.enable_2fa()
+
+        # simulate a login for a 2FA user 10 minutes ago
+        with patch("django.utils.timezone.now", return_value=timezone.now() - timedelta(minutes=10)):
+            response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+            self.assertRedirect(response, verify_url)
+
+            response = self.client.get(verify_url)
+            self.assertEqual(200, response.status_code)
+
+        # if they access the verify or backup page now, they are redirected back to the login page
+        response = self.client.get(verify_url)
+        self.assertRedirect(response, login_url)
+
+        response = self.client.get(backup_url)
+        self.assertRedirect(response, login_url)
+
     def test_ui_permissions(self):
         # non-logged in users can't go here
         response = self.client.get(reverse("orgs.user_list"))
