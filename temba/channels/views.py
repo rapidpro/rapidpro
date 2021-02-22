@@ -893,7 +893,9 @@ def register(request):
     try:
         # look up a channel with that id
         channel = Channel.get_or_create_android(cmds[0], cmds[1])
-        cmd = channel.build_registration_command()
+        cmd = dict(
+            cmd="reg", relayer_claim_code=channel.claim_code, relayer_secret=channel.secret, relayer_id=channel.id
+        )
     except UnsupportedAndroidChannelError:
         cmd = dict(cmd="reg", relayer_claim_code="*********", relayer_secret="0" * 64, relayer_id=-1)
 
