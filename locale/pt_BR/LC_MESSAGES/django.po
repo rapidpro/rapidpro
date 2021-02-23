@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-23 15:08+0000\n"
+"POT-Creation-Date: 2021-02-23 21:42+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -4523,6 +4523,11 @@ msgstr ""
 msgid "Two-factor authentication backup tokens changed."
 msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
 
+#, fuzzy
+#| msgid "Password"
+msgid "Confirm Password"
+msgstr "Senha"
+
 msgid "The import file"
 msgstr ""
 
@@ -8672,9 +8677,9 @@ msgid ""
 msgstr ""
 
 #, fuzzy
-#| msgid "Flow Message"
-msgid "Welcome Back"
-msgstr "Fluxo de mensagens"
+#| msgid "Password"
+msgid "Confirm Access"
+msgstr "Senha"
 
 msgid ""
 "\n"
@@ -8682,6 +8687,16 @@ msgid ""
 "\n"
 "  "
 msgstr ""
+
+#, fuzzy
+#| msgid "Config"
+msgid "Confirm"
+msgstr "Configuração"
+
+#, fuzzy
+#| msgid "Flow Message"
+msgid "Welcome Back"
+msgstr "Fluxo de mensagens"
 
 #, fuzzy
 #| msgid "Sign in"
@@ -9206,6 +9221,9 @@ msgstr ""
 #, fuzzy, python-format
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Créditos complementares, obrigado por usar o Textit."
+
+msgid "To access this page please confirm your current password."
+msgstr ""
 
 #, fuzzy, python-format
 msgid ""
@@ -10203,9 +10221,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "Organization using this channel"
 #~ msgstr "A organização utilizando esse transmissor"
-
-#~ msgid "Config"
-#~ msgstr "Configuração"
 
 #~ msgid "Any channel specific configuration, used for the various aggregators"
 #~ msgstr "Qualquer configuração específica do transmissor, usado para os vários agregadores"

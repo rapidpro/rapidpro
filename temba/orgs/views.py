@@ -42,11 +42,12 @@ from django.db import IntegrityError
 from django.db.models import ExpressionWrapper, F, IntegerField, Q, Sum
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.shortcuts import resolve_url
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_text
 from django.utils.html import escape
-from django.utils.http import urlquote
+from django.utils.http import is_safe_url, urlquote
 from django.utils.safestring import mark_safe
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
@@ -70,7 +71,7 @@ from temba.utils.fields import (
 )
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
-from temba.utils.views import ComponentFormMixin, NonAtomicMixin
+from temba.utils.views import ComponentFormMixin, NonAtomicMixin, RequireRecentAuthMixin
 
 from .models import BackupToken, Invitation, Org, OrgCache, OrgRole, TopUp, get_stripe_credentials
 from .tasks import apply_topups_task
@@ -362,6 +363,7 @@ class LoginView(Login):
 
     def form_valid(self, form):
         user = form.get_user()
+
         if user.get_settings().two_factor_enabled:
             self.request.session[TWO_FACTOR_USER_SESSION_KEY] = str(user.id)
             self.request.session[TWO_FACTOR_STARTED_SESSION_KEY] = timezone.now().isoformat()
@@ -373,6 +375,7 @@ class LoginView(Login):
 
             return HttpResponseRedirect(verify_url)
 
+        user.record_auth()
         return super().form_valid(form)
 
 
@@ -425,14 +428,17 @@ class BaseTwoFactorView(AuthLoginView):
         return super().form_invalid(form)
 
     def form_valid(self, form):
+        user = self.get_user()
+
         # set the user as actually authenticated now
-        login(self.request, self.get_user())
+        login(self.request, user)
+        user.record_auth()
 
         # remove our session key so if the user comes back this page they'll get directed to the login view
         self.reset_user()
 
         # cleanup any failed logins
-        FailedLogin.objects.filter(user=self.get_user()).delete()
+        FailedLogin.objects.filter(user=user).delete()
 
         return HttpResponseRedirect(self.get_success_url())
 
@@ -496,7 +502,7 @@ class InferOrgMixin:
 
 class UserCRUDL(SmartCRUDL):
     model = User
-    actions = ("list", "edit", "delete", "two_factor_enable", "two_factor_disable", "two_factor_tokens")
+    actions = ("list", "edit", "delete", "two_factor_enable", "two_factor_disable", "two_factor_tokens", "auth")
 
     class List(SmartListView):
         fields = ("username", "orgs", "date_joined")
@@ -737,7 +743,7 @@ class UserCRUDL(SmartCRUDL):
 
             return super().form_valid(form)
 
-    class TwoFactorTokens(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
+    class TwoFactorTokens(RequireRecentAuthMixin, InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         permission = "orgs.org_two_factor"
         title = _("Two-factor Authentication")
 
@@ -764,6 +770,49 @@ class UserCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             context["backup_tokens"] = self.get_user().backup_tokens.order_by("id")
             return context
+
+    class Auth(SmartFormView):
+        class Form(forms.Form):
+            password = forms.CharField(
+                label=" ", widget=InputWidget(attrs={"placeholder": _("Password"), "password": True}), required=True
+            )
+
+            def __init__(self, user, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                self.user = user
+
+            def clean_password(self):
+                data = self.cleaned_data["password"]
+                if not self.user.check_password(data):
+                    raise forms.ValidationError(_("Password incorrect."))
+                return data
+
+        form_class = Form
+        submit_button_name = _("Confirm Password")
+
+        def has_permission(self, request, *args, **kwargs):
+            return request.user.is_authenticated
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
+
+        def form_valid(self, form):
+            self.request.user.record_auth()
+
+            return super().form_valid(form)
+
+        def get_success_url(self):
+            return self.get_redirect_url() or resolve_url(settings.LOGIN_REDIRECT_URL)
+
+        def get_redirect_url(self):
+            redirect_to = self.request.GET.get("next", "")
+            url_is_safe = is_safe_url(
+                url=redirect_to, allowed_hosts={self.request.get_host()}, require_https=self.request.is_secure()
+            )
+            return redirect_to if url_is_safe else ""
 
 
 class OrgCRUDL(SmartCRUDL):

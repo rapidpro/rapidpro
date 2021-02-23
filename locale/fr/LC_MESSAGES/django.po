@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-23 15:08+0000\n"
+"POT-Creation-Date: 2021-02-23 21:42+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3396,6 +3396,11 @@ msgstr "Authentification à deux facteurs"
 msgid "Two-factor authentication backup tokens changed."
 msgstr "Authentification à deux facteurs"
 
+#, fuzzy
+#| msgid "Confirm new password"
+msgid "Confirm Password"
+msgstr "Confirmer le nouveau mot de passe"
+
 msgid "The import file"
 msgstr "Le fichier d'importation"
 
@@ -6704,8 +6709,10 @@ msgstr ""
 "Carte de crédit: %(cc_type)s X%(cc_last4)s\n"
 "\n"
 
-msgid "Welcome Back"
-msgstr "Re-Bienvenu"
+#, fuzzy
+#| msgid "Confirm new password"
+msgid "Confirm Access"
+msgstr "Confirmer le nouveau mot de passe"
 
 msgid ""
 "\n"
@@ -6717,6 +6724,14 @@ msgstr ""
 "    Veuillez vous connecter avec votre adresse e-mail et votre mot de passe.\n"
 "\n"
 "  "
+
+#, fuzzy
+#| msgid "Configuration"
+msgid "Confirm"
+msgstr "Configuration"
+
+msgid "Welcome Back"
+msgstr "Re-Bienvenu"
 
 msgid "Sign In"
 msgstr "Se connecter"
@@ -7137,6 +7152,9 @@ msgstr "Merci de soutenir %(brand)s."
 #, python-format
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Crédits complémentaires, merci d'essayer %(brand)s."
+
+msgid "To access this page please confirm your current password."
+msgstr ""
 
 #, python-format
 msgid ""

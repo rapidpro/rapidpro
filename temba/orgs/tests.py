@@ -297,6 +297,7 @@ class UserTest(TembaTest):
         disable_url = reverse("orgs.user_two_factor_disable")
 
         self.login(self.admin)
+        self.admin.record_auth()
 
         # org home page tells us 2FA is disabled, links to page to enable it
         response = self.client.get(reverse("orgs.org_home"))
@@ -381,6 +382,39 @@ class UserTest(TembaTest):
 
         response = self.client.get(backup_url)
         self.assertRedirect(response, login_url)
+
+    def test_two_factor_recent_auth(self):
+        tokens_url = reverse("orgs.user_two_factor_tokens")
+
+        self.admin.enable_2fa()
+        self.login(self.admin)  # doesn't update last_auth_on
+
+        # org home page tells us 2FA is enabled, links to page manage tokens
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, "Two-factor authentication is <b>enabled</b>")
+        self.assertContains(response, tokens_url)
+
+        # but navigating to tokens page redirects to confirm auth
+        response = self.client.get(tokens_url)
+        self.assertEqual(302, response.status_code)
+        self.assertTrue(response.url.endswith("/user/auth/?next=/user/two_factor_tokens/"))
+
+        auth_url = response.url
+
+        # view auth page
+        response = self.client.get(auth_url)
+        self.assertEqual(["password", "loc"], list(response.context["form"].fields.keys()))
+
+        # try to submit with incorrect password
+        response = self.client.post(auth_url, {"password": "nope"})
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # submit with real password
+        response = self.client.post(auth_url, {"password": "Administrator"})
+        self.assertRedirect(response, tokens_url)
+
+        response = self.client.get(tokens_url)
+        self.assertEqual(200, response.status_code)
 
     def test_ui_permissions(self):
         # non-logged in users can't go here

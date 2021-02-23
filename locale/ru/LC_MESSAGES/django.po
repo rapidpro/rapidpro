@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-23 15:08+0000\n"
+"POT-Creation-Date: 2021-02-23 21:42+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -4206,6 +4206,11 @@ msgstr "Двухфакторная аутентификация"
 #| msgid "Two Factor Authentication"
 msgid "Two-factor authentication backup tokens changed."
 msgstr "Двухфакторная аутентификация"
+
+#, fuzzy
+#| msgid "Password"
+msgid "Confirm Password"
+msgstr "Пароль"
 
 msgid "The import file"
 msgstr "Импортированный файл"
@@ -8842,9 +8847,9 @@ msgstr ""
 "\n"
 
 #, fuzzy
-#| msgid "Welcome!"
-msgid "Welcome Back"
-msgstr "Добро пожаловать!"
+#| msgid "Password"
+msgid "Confirm Access"
+msgstr "Пароль"
 
 msgid ""
 "\n"
@@ -8852,6 +8857,16 @@ msgid ""
 "\n"
 "  "
 msgstr ""
+
+#, fuzzy
+#| msgid "Config"
+msgid "Confirm"
+msgstr "Конфигурация"
+
+#, fuzzy
+#| msgid "Welcome!"
+msgid "Welcome Back"
+msgstr "Добро пожаловать!"
 
 #, fuzzy
 #| msgid "Sign in"
@@ -9580,6 +9595,9 @@ msgstr ""
 "              Дополнительные кредиты, спасибо за опробование %(brand)s.\n"
 "\n"
 "            "
+
+msgid "To access this page please confirm your current password."
+msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""
@@ -10795,9 +10813,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "Organization using this channel"
 #~ msgstr "Организация, использующая данный канал"
-
-#~ msgid "Config"
-#~ msgstr "Конфигурация"
 
 #~ msgid "Any channel specific configuration, used for the various aggregators"
 #~ msgstr "Любая специфическая для канала конфигурация, используемая для различных агрегаторов"

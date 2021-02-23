@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-23 15:08+0000\n"
+"POT-Creation-Date: 2021-02-23 21:42+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3326,6 +3326,9 @@ msgstr ""
 msgid "Two-factor authentication backup tokens changed."
 msgstr ""
 
+msgid "Confirm Password"
+msgstr ""
+
 msgid "The import file"
 msgstr ""
 
@@ -6324,7 +6327,7 @@ msgid ""
 "\n"
 msgstr ""
 
-msgid "Welcome Back"
+msgid "Confirm Access"
 msgstr ""
 
 msgid ""
@@ -6332,6 +6335,12 @@ msgid ""
 "    Please sign in with your email address and password.\n"
 "\n"
 "  "
+msgstr ""
+
+msgid "Confirm"
+msgstr ""
+
+msgid "Welcome Back"
 msgstr ""
 
 msgid "Sign In"
@@ -6739,6 +6748,9 @@ msgstr ""
 
 #, python-format
 msgid "Complementary credits, thanks for trying %(brand)s."
+msgstr ""
+
+msgid "To access this page please confirm your current password."
 msgstr ""
 
 #, python-format
