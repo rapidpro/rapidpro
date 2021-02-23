@@ -22,3 +22,6 @@ class TwitterLegacyType(ChannelType):
 
     def is_available_to(self, user):
         return False
+
+    def is_available_beta(self, user):
+        return False

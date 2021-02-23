@@ -28,3 +28,6 @@ class RedRabbitType(ChannelType):
 
     def is_available_to(self, user):
         return False  # Hidden since it is MT only
+
+    def is_available_beta(self, user):
+        return False

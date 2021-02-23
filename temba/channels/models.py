@@ -54,6 +54,7 @@ class ChannelType(metaclass=ABCMeta):
     code = None
     slug = None
     category = None
+    beta_only = False
 
     # the courier handling URL, will be wired automatically for use in templates, but wired to a null handler
     courier_url = None
@@ -92,6 +93,9 @@ class ChannelType(metaclass=ABCMeta):
 
     redact_request_keys = set()
     redact_response_keys = set()
+
+    def is_available_beta(self, user):
+        return (not self.beta_only) or user.groups.filter(name="Beta")
 
     def is_available_to(self, user):
         """

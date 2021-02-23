@@ -1288,6 +1288,7 @@ class ChannelCRUDL(SmartCRUDL):
     actions = (
         "list",
         "claim",
+        "claim_all",
         "update",
         "read",
         "delete",
@@ -1793,6 +1794,20 @@ class ChannelCRUDL(SmartCRUDL):
             return obj
 
     class Claim(OrgPermsMixin, SmartTemplateView):
+        def channel_types_groups(self):
+            user = self.request.user
+
+            # fetch channel types, sorted by category and name
+            types_by_category = defaultdict(list)
+            recommended_channels = []
+            for ch_type in list(Channel.get_types()):
+                if ch_type.is_recommended_to(user):
+                    recommended_channels.append(ch_type)
+                elif ch_type.is_available_beta(user) and ch_type.is_available_to(user) and ch_type.category:
+                    types_by_category[ch_type.category.name].append(ch_type)
+
+            return recommended_channels, types_by_category, True
+
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             user = self.request.user
@@ -1810,18 +1825,26 @@ class ChannelCRUDL(SmartCRUDL):
             context["brand"] = org.get_branding()
 
             # fetch channel types, sorted by category and name
+            recommended_channels, types_by_category, only_regional_channels = self.channel_types_groups()
+
+            context["recommended_channels"] = recommended_channels
+            context["channel_types"] = types_by_category
+            context["only_regional_channels"] = only_regional_channels
+            return context
+
+    class ClaimAll(Claim):
+        def channel_types_groups(self):
+            user = self.request.user
+
             types_by_category = defaultdict(list)
             recommended_channels = []
             for ch_type in list(Channel.get_types()):
                 if ch_type.is_recommended_to(user):
                     recommended_channels.append(ch_type)
-                elif ch_type.is_available_to(user) and ch_type.category:
-                    if ch_type.name != "Twitter Legacy":
-                        types_by_category[ch_type.category.name].append(ch_type)
+                elif ch_type.is_available_beta(user) and ch_type.category:
+                    types_by_category[ch_type.category.name].append(ch_type)
 
-            context["recommended_channels"] = recommended_channels
-            context["channel_types"] = types_by_category
-            return context
+            return recommended_channels, types_by_category, False
 
     class BulkSenderOptions(OrgPermsMixin, SmartTemplateView):
         pass

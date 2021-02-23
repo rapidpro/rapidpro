@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-18 16:52+0000\n"
+"POT-Creation-Date: 2021-02-23 21:05+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -6067,6 +6067,17 @@ msgstr ""
 msgid "API Channels"
 msgstr "Transmisor"
 
+msgid "More"
+msgstr "Más"
+
+#, python-format
+msgid ""
+"\n"
+"          The channels above are those supported in your region. Click <a class=\"inline\" href=\"%(claim_all_url)s\"> here</a> to see all possible channel types.\n"
+"\n"
+"        "
+msgstr ""
+
 msgid "Enter your credentials to add your number."
 msgstr ""
 
@@ -10482,9 +10493,6 @@ msgstr ""
 "      Aunque no es obligatorio, lo más recomendable es que vea estos videos en orden, ya que se complementan.\n"
 "\n"
 "    "
-
-msgid "More"
-msgstr "Más"
 
 #, fuzzy, python-format
 msgid ""

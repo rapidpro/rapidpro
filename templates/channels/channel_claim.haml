@@ -99,6 +99,15 @@
             .mt-2
               {% include ch_type.get_claim_blurb %}
 
+      -if only_regional_channels
+
+        .title.mt-8
+          -trans "More"
+
+        {% url 'channels.channel_claim_all' as claim_all_url %}
+        -blocktrans
+          The channels above are those supported in your region. Click <a class="inline" href="{{claim_all_url}}"> here</a> to see all possible channel types.
+
 -block form-buttons
 
 -block extra-script
