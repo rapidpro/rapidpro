@@ -292,9 +292,6 @@ class UserTest(TembaTest):
         self.assertFalse(self.admin.get_settings().two_factor_enabled)
 
     def test_two_factor_views(self):
-        # 2FA still only accessible to beta users
-        Group.objects.get(name="Beta").user_set.add(self.admin)
-
         enable_url = reverse("orgs.user_two_factor_enable")
         tokens_url = reverse("orgs.user_two_factor_tokens")
         disable_url = reverse("orgs.user_two_factor_disable")
