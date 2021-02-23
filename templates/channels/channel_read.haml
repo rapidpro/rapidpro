@@ -7,7 +7,7 @@
       -if object.parent
         {{ object.parent.name }}
       -else
-        {{ object.name }}
+        {{ object.name|default:object.get_address_display }}
 
 -block subtitle
   -if object.get_channel_type_display != object.name
@@ -20,7 +20,7 @@
             {{ object.get_channel_type_display }}
             -trans "Channel"
 
-  -if object.name != object.get_address_display
+  -if object.name
     .text-gray-500.text-base
       {{ object.get_address_display }}
 
@@ -95,8 +95,8 @@
       .device
         -if channel.name
           {{ channel.name }}
-        -if channel.device != channel.name
-          \- {{ channel.device }}
+          \-
+        {{ channel.device }}
         -if channel.os
           .inline-block
             (v{{channel.os}})
