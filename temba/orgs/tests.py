@@ -1594,6 +1594,22 @@ class OrgTest(TembaTest):
                 f"user_{self.user.id}_role": "E",
                 f"user_{self.agent.id}_role": "T",
                 f"user_{user.id}_role": "A",
+                "invite_emails": "code@temba.com, code@temba.com",
+                "invite_role": "A",
+            },
+        )
+
+        self.assertFormError(response, "form", "invite_emails", "One of the emails you entered is duplicated.")
+
+        # no error for inactive invite
+        response = self.client.post(
+            url,
+            {
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.editor.id}_role": "E",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.agent.id}_role": "T",
+                f"user_{user.id}_role": "A",
                 "invite_emails": "code@temba.com",
                 "invite_role": "A",
             },
