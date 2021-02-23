@@ -572,13 +572,12 @@ class ChannelTest(TembaTest):
 
     def sync(self, channel, post_data=None, signature=None):
         if not post_data:
-            post_data = "{}"
-        else:
-            post_data = json.dumps(post_data)
+            post_data = {}
 
+        post_data = json.dumps(post_data)
         ts = int(time.time())
-        if not signature:
 
+        if not signature:
             # sign the request
             key = str(channel.secret) + str(ts)
             signature = hmac.new(key=force_bytes(key), msg=force_bytes(post_data), digestmod=hashlib.sha256).digest()
@@ -587,7 +586,7 @@ class ChannelTest(TembaTest):
             signature = quote(base64.urlsafe_b64encode(signature))
 
         return self.client.post(
-            "%s?signature=%s&ts=%d" % (reverse("sync", args=[channel.pk]), signature, ts),
+            "%s?signature=%s&ts=%d" % (reverse("sync", args=[channel.id]), signature, ts),
             content_type="application/json",
             data=post_data,
         )
@@ -1096,15 +1095,68 @@ class ChannelTest(TembaTest):
         # should be an error response
         self.assertEqual({"error": "Can't sync unclaimed channel", "error_id": 4, "cmds": []}, response.json())
 
-    def test_sync_released(self):
-        self.unclaimed_channel.is_active = False
-        self.unclaimed_channel.save(update_fields=("is_active",))
+    @mock_mailroom
+    def test_sync_released(self, mr_mocks):
+        # register an Android channel
+        self.client.post(
+            reverse("register"),
+            data=json.dumps(
+                {
+                    "cmds": [
+                        {"cmd": "fcm", "fcm_id": "FCM111", "uuid": "uuid"},
+                        {"cmd": "status", "cc": "RW", "dev": "Nexus"},
+                    ]
+                }
+            ),
+            content_type="application/json",
+        )
+        android = Channel.objects.order_by("id").last()
 
-        response = self.sync(self.unclaimed_channel)
+        # claim it
+        self.login(self.admin)
+        self.client.post(
+            reverse("channels.types.android.claim"), {"claim_code": android.claim_code, "phone_number": "0788123123"}
+        )
+        android.refresh_from_db()
+
+        # release it
+        android.release()
+
+        response = self.sync(android)
         self.assertEqual(200, response.status_code)
 
         # should be a rel cmd to instruct app to reset
-        self.assertEqual({"cmds": [{"cmd": "rel", "relayer_id": str(self.unclaimed_channel.id)}]}, response.json())
+        self.assertEqual({"cmds": [{"cmd": "rel", "relayer_id": str(android.id)}]}, response.json())
+
+    @mock_mailroom
+    def test_sync_client_reset(self, mr_mocks):
+        # register an Android channel
+        self.client.post(
+            reverse("register"),
+            data=json.dumps(
+                {
+                    "cmds": [
+                        {"cmd": "fcm", "fcm_id": "FCM111", "uuid": "uuid"},
+                        {"cmd": "status", "cc": "RW", "dev": "Nexus"},
+                    ]
+                }
+            ),
+            content_type="application/json",
+        )
+        android = Channel.objects.order_by("id").last()
+
+        # claim it
+        self.login(self.admin)
+        self.client.post(
+            reverse("channels.types.android.claim"), {"claim_code": android.claim_code, "phone_number": "0788123123"}
+        )
+        android.refresh_from_db()
+
+        response = self.sync(android, post_data={"cmds": [{"cmd": "reset"}]})
+        self.assertEqual(200, response.status_code)
+
+        android.refresh_from_db()
+        self.assertFalse(android.is_active)
 
     def test_no_topup_quota_exceeded(self):
         # reduce out credits to 10
