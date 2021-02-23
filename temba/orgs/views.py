@@ -1653,7 +1653,7 @@ class OrgCRUDL(SmartCRUDL):
                 emails = self.cleaned_data["invite_emails"].lower().strip()
                 existing_users_emails = set(
                     list(self.org.get_users().values_list("username", flat=True))
-                    + list(self.org.invitations.values_list("email"))
+                    + list(self.org.invitations.filter(is_active=True).values_list("email", flat=True))
                 )
                 if emails:
                     email_list = emails.split(",")
