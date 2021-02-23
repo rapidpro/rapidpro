@@ -1653,11 +1653,13 @@ class OrgCRUDL(SmartCRUDL):
                 emails = self.cleaned_data["invite_emails"].lower().strip()
                 existing_users_emails = set(
                     list(self.org.get_users().values_list("username", flat=True))
-                    + list(self.org.invitations.values_list("email"))
+                    + list(self.org.invitations.filter(is_active=True).values_list("email", flat=True))
                 )
+                cleaned_emails = []
                 if emails:
                     email_list = emails.split(",")
                     for email in email_list:
+                        email = email.strip()
                         try:
                             validate_email(email)
                         except ValidationError:
@@ -1668,7 +1670,12 @@ class OrgCRUDL(SmartCRUDL):
                                 _("One of the emails you entered has an existing user on the workspace.")
                             )
 
-                return emails
+                        if email in cleaned_emails:
+                            raise forms.ValidationError(_("One of the emails you entered is duplicated."))
+
+                        cleaned_emails.append(email)
+
+                return ",".join(cleaned_emails)
 
             def get_submitted_roles(self) -> dict:
                 """
