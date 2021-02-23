@@ -1,3 +1,9 @@
+v6.1.45
+----------
+ * Open up 2FA to all users
+ * Do not allow duplicates invites
+ * Never respond with registration commands in sync handler
+
 v6.1.44
 ----------
  * Enforce time limit between login and two factor verification

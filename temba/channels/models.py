@@ -789,20 +789,6 @@ class Channel(TembaModel):
 
         return self.address
 
-    def build_registration_command(self):
-        # create a claim code if we don't have one
-        if not self.claim_code:
-            self.claim_code = self.generate_claim_code()
-            self.save(update_fields=("claim_code",))
-
-        # create a secret if we don't have one
-        if not self.secret:
-            self.secret = self.generate_secret()
-            self.save(update_fields=("secret",))
-
-        # return our command
-        return dict(cmd="reg", relayer_claim_code=self.claim_code, relayer_secret=self.secret, relayer_id=self.id)
-
     def get_last_sent_message(self):
         from temba.msgs.models import SENT, DELIVERED, OUTGOING
 

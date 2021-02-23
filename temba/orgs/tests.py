@@ -292,9 +292,6 @@ class UserTest(TembaTest):
         self.assertFalse(self.admin.get_settings().two_factor_enabled)
 
     def test_two_factor_views(self):
-        # 2FA still only accessible to beta users
-        Group.objects.get(name="Beta").user_set.add(self.admin)
-
         enable_url = reverse("orgs.user_two_factor_enable")
         tokens_url = reverse("orgs.user_two_factor_tokens")
         disable_url = reverse("orgs.user_two_factor_disable")
@@ -1547,6 +1544,8 @@ class OrgTest(TembaTest):
         self.org.administrators.add(user)
         self.login(user)
 
+        self.assertEqual(1, Invitation.objects.filter(is_active=True).count())
+
         # include multiple emails on the form
         response = self.client.post(
             url,
@@ -1564,6 +1563,58 @@ class OrgTest(TembaTest):
         self.assertFormError(
             response, "form", "invite_emails", "One of the emails you entered has an existing user on the workspace."
         )
+
+        # do not allow multiple invite on the same email
+        response = self.client.post(
+            url,
+            {
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.editor.id}_role": "E",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.agent.id}_role": "T",
+                f"user_{user.id}_role": "A",
+                "invite_emails": "norbert@temba.com,code@temba.com",
+                "invite_role": "A",
+            },
+        )
+
+        self.assertFormError(
+            response, "form", "invite_emails", "One of the emails you entered has an existing user on the workspace."
+        )
+
+        # no error for inactive invite
+        response = self.client.post(
+            url,
+            {
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.editor.id}_role": "E",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.agent.id}_role": "T",
+                f"user_{user.id}_role": "A",
+                "invite_emails": "code@temba.com, code@temba.com",
+                "invite_role": "A",
+            },
+        )
+
+        self.assertFormError(response, "form", "invite_emails", "One of the emails you entered is duplicated.")
+
+        # no error for inactive invite
+        response = self.client.post(
+            url,
+            {
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.editor.id}_role": "E",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.agent.id}_role": "T",
+                f"user_{user.id}_role": "A",
+                "invite_emails": "code@temba.com",
+                "invite_role": "A",
+            },
+        )
+
+        self.assertEqual(2, Invitation.objects.filter(is_active=True).count())
+        self.assertTrue(Invitation.objects.filter(is_active=True, email="code@temba.com").exists())
+        self.assertEqual(4, len(mail.outbox))
 
     @patch("temba.utils.email.send_temba_email")
     def test_join(self, mock_send_temba_email):
