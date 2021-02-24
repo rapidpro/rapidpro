@@ -1,6 +1,5 @@
 import itertools
 import json
-from collections import OrderedDict
 
 import regex
 import requests
@@ -4337,8 +4336,6 @@ class ContactsReportEndpoint(BaseAPIView):
                 search_query += f'{" AND " if search_query else ""}group != "{exclude}"'
 
         if search_query:
-            # is this request is part of a bulk action, get the ids that were modified so we can check which ones
-            # should no longer appear in this view, even though ES won't have caught up yet
             try:
                 group = ContactGroup.all_groups.get(org=org, group_type='A')
                 parsed_query, contact_ids = query_contact_ids(org, search_query, group=group, return_parsed_query=True)
