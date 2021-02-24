@@ -105,7 +105,7 @@
           -trans "More"
 
         {% url 'channels.channel_claim_all' as claim_all_url %}
-        -blocktrans
+        -blocktrans trimmed
           The channels above are those supported in your region. Click <a class="inline" href="{{claim_all_url}}"> here</a> to see all possible channel types.
 
 -block form-buttons
