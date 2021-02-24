@@ -98,7 +98,7 @@ class ChannelType(metaclass=ABCMeta):
         """
         Determines whether this channel type is available to the given user considering the region and when not considering region, e.g. check timezone
         """
-        region_ignore_visible = (not self.beta_only) or user.groups.filter(name="Beta")
+        region_ignore_visible = (not self.beta_only) or user.is_beta()
         region_aware_visible = True
 
         if self.available_timezones is not None:
