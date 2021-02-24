@@ -1790,9 +1790,11 @@ class ChannelCRUDL(SmartCRUDL):
             types_by_category = defaultdict(list)
             recommended_channels = []
             for ch_type in list(Channel.get_types()):
+                region_aware_visible, region_ignore_visible = ch_type.is_available_to(user)
+
                 if ch_type.is_recommended_to(user):
                     recommended_channels.append(ch_type)
-                elif ch_type.is_available_beta(user) and ch_type.is_available_to(user) and ch_type.category:
+                elif region_ignore_visible and region_aware_visible and ch_type.category:
                     types_by_category[ch_type.category.name].append(ch_type)
 
             return recommended_channels, types_by_category, True
@@ -1828,9 +1830,10 @@ class ChannelCRUDL(SmartCRUDL):
             types_by_category = defaultdict(list)
             recommended_channels = []
             for ch_type in list(Channel.get_types()):
+                region_aware_visible, region_ignore_visible = ch_type.is_available_to(user)
                 if ch_type.is_recommended_to(user):
                     recommended_channels.append(ch_type)
-                elif ch_type.is_available_beta(user) and ch_type.category:
+                elif region_ignore_visible and ch_type.category:
                     types_by_category[ch_type.category.name].append(ch_type)
 
             return recommended_channels, types_by_category, False

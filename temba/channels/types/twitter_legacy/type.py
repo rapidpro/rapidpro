@@ -20,8 +20,5 @@ class TwitterLegacyType(ChannelType):
     free_sending = True
     quick_reply_text_size = 36
 
-    def is_available_to(self, user):  # pragma: no cover
-        return False
-
-    def is_available_beta(self, user):
-        return False
+    def is_available_to(self, user):
+        return False, False

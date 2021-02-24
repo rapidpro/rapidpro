@@ -94,18 +94,18 @@ class ChannelType(metaclass=ABCMeta):
     redact_request_keys = set()
     redact_response_keys = set()
 
-    def is_available_beta(self, user):
-        return (not self.beta_only) or user.groups.filter(name="Beta")
-
     def is_available_to(self, user):
         """
-        Determines whether this channel type is available to the given user, e.g. check timezone
+        Determines whether this channel type is available to the given user considering the region and when not considering region, e.g. check timezone
         """
+        region_ignore_visible = (not self.beta_only) or user.groups.filter(name="Beta")
+        region_aware_visible = True
+
         if self.available_timezones is not None:
             timezone = user.get_org().timezone
-            return timezone and str(timezone) in self.available_timezones
-        else:
-            return True
+            region_aware_visible = timezone and str(timezone) in self.available_timezones
+
+        return region_aware_visible, region_ignore_visible
 
     def is_recommended_to(self, user):
         """
