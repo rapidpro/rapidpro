@@ -1,3 +1,29 @@
+v6.1.46
+----------
+ * Update to smartmin 2.3.5
+ * Fix handling of attempts to sync old unclaimed channels
+ * Add view to list all possible channel types
+ * Fix rendering of nameless channels
+
+v6.1.45
+----------
+ * Open up 2FA to all users
+ * Do not allow duplicates invites
+ * Never respond with registration commands in sync handler
+
+v6.1.44
+----------
+ * Enforce time limit between login and two factor verification
+ * Prevent inviting existing users
+ * Add disabled textinputs and better expression selection on selects
+ * Create failed login records when users enter incorrect backup tokens too many times
+ * Logout user to force login to accept invite and require invite email account exactly
+
+v6.1.43
+----------
+ * Backup tokens can only be used once
+ * Add new 2FA management views
+
 v6.1.42
 ----------
  * Use Twilio API to determine capabilities of new Twilio channels

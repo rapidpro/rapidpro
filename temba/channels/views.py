@@ -725,21 +725,15 @@ def sync(request, channel_id):
         return HttpResponse(status=500, content="POST Required")
 
     commands = []
-    channel = Channel.objects.filter(pk=channel_id, is_active=True)
+    channel = Channel.objects.filter(id=channel_id, is_active=True).first()
     if not channel:
         return JsonResponse(dict(cmds=[dict(cmd="rel", relayer_id=channel_id)]))
-
-    channel = channel[0]
 
     request_time = request.GET.get("ts", "")
     request_signature = force_bytes(request.GET.get("signature", ""))
 
-    if not channel.secret or not channel.org:
-        return JsonResponse(dict(cmds=[channel.build_registration_command()]))
-
-    # print "\n\nSECRET: '%s'" % channel.secret
-    # print "TS: %s" % request_time
-    # print "BODY: '%s'\n\n" % request.body
+    if not channel.org or not channel.secret:
+        return JsonResponse({"error_id": 4, "error": "Can't sync unclaimed channel", "cmds": []}, status=401)
 
     # check that the request isn't too old (15 mins)
     now = time.time()
@@ -769,11 +763,7 @@ def sync(request, channel_id):
 
     # Take the update from the client
     if request.body:
-
         client_updates = json.loads(request.body)
-
-        print("==GOT SYNC")
-        print(json.dumps(client_updates, indent=2))
 
         if "cmds" in client_updates:
             cmds = client_updates["cmds"]
@@ -883,9 +873,6 @@ def sync(request, channel_id):
         sync_event.outgoing_command_count = len([_ for _ in outgoing_cmds if _["cmd"] != "ack"])
         sync_event.save()
 
-    print("==RESPONDING WITH:")
-    print(json.dumps(result, indent=2))
-
     # keep track of how long a sync takes
     analytics.gauge("temba.relayer_sync", time.time() - start)
 
@@ -906,7 +893,9 @@ def register(request):
     try:
         # look up a channel with that id
         channel = Channel.get_or_create_android(cmds[0], cmds[1])
-        cmd = channel.build_registration_command()
+        cmd = dict(
+            cmd="reg", relayer_claim_code=channel.claim_code, relayer_secret=channel.secret, relayer_id=channel.id
+        )
     except UnsupportedAndroidChannelError:
         cmd = dict(cmd="reg", relayer_claim_code="*********", relayer_secret="0" * 64, relayer_id=-1)
 
@@ -1288,6 +1277,7 @@ class ChannelCRUDL(SmartCRUDL):
     actions = (
         "list",
         "claim",
+        "claim_all",
         "update",
         "read",
         "delete",
@@ -1793,6 +1783,22 @@ class ChannelCRUDL(SmartCRUDL):
             return obj
 
     class Claim(OrgPermsMixin, SmartTemplateView):
+        def channel_types_groups(self):
+            user = self.request.user
+
+            # fetch channel types, sorted by category and name
+            types_by_category = defaultdict(list)
+            recommended_channels = []
+            for ch_type in list(Channel.get_types()):
+                region_aware_visible, region_ignore_visible = ch_type.is_available_to(user)
+
+                if ch_type.is_recommended_to(user):
+                    recommended_channels.append(ch_type)
+                elif region_ignore_visible and region_aware_visible and ch_type.category:
+                    types_by_category[ch_type.category.name].append(ch_type)
+
+            return recommended_channels, types_by_category, True
+
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             user = self.request.user
@@ -1810,18 +1816,27 @@ class ChannelCRUDL(SmartCRUDL):
             context["brand"] = org.get_branding()
 
             # fetch channel types, sorted by category and name
-            types_by_category = defaultdict(list)
-            recommended_channels = []
-            for ch_type in list(Channel.get_types()):
-                if ch_type.is_recommended_to(user):
-                    recommended_channels.append(ch_type)
-                elif ch_type.is_available_to(user) and ch_type.category:
-                    if ch_type.name != "Twitter Legacy":
-                        types_by_category[ch_type.category.name].append(ch_type)
+            recommended_channels, types_by_category, only_regional_channels = self.channel_types_groups()
 
             context["recommended_channels"] = recommended_channels
             context["channel_types"] = types_by_category
+            context["only_regional_channels"] = only_regional_channels
             return context
+
+    class ClaimAll(Claim):
+        def channel_types_groups(self):
+            user = self.request.user
+
+            types_by_category = defaultdict(list)
+            recommended_channels = []
+            for ch_type in list(Channel.get_types()):
+                region_aware_visible, region_ignore_visible = ch_type.is_available_to(user)
+                if ch_type.is_recommended_to(user):
+                    recommended_channels.append(ch_type)
+                elif region_ignore_visible and ch_type.category:
+                    types_by_category[ch_type.category.name].append(ch_type)
+
+            return recommended_channels, types_by_category, False
 
     class BulkSenderOptions(OrgPermsMixin, SmartTemplateView):
         pass

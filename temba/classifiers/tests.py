@@ -146,7 +146,7 @@ class ClassifierCRUDLTest(TembaTest, CRUDLTestMixin):
             # request a sync
             response = self.client.post(reverse("classifiers.classifier_sync", args=[self.c1.id]), follow=True)
             self.assertEqual(200, response.status_code)
-            self.assertContains(response, "Your classifier has been synched.")
+            self.assertContains(response, "Your classifier has been synced.")
 
             mock_sync.assert_called_once()
 

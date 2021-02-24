@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-11 18:54+0000\n"
+"POT-Creation-Date: 2021-02-24 22:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -897,8 +897,9 @@ msgstr "Le nom de la page Facebook"
 msgid "Reconnect Facebook Page"
 msgstr "Reconnecter la page Facebook"
 
-#, python-format
-msgid "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect."
+#, fuzzy, python-format
+#| msgid "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect."
+msgid "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect. On the Facebook page, navigate Settings > Page roles and verify you have an admin page role on the page."
 msgstr "Ajoutez un bot %(link)s pour envoyer et recevoir gratuitement des messages au nom de l'une de vos pages Facebook. Vous devrez connecter votre page en vous connectant à votre Facebook et en vérifiant la page Facebook pour vous connecter."
 
 msgid "The User Access Token"
@@ -2063,7 +2064,9 @@ msgstr "Journal"
 msgid "Sync"
 msgstr "Synchroniser"
 
-msgid "Your classifier has been synched."
+#, fuzzy
+#| msgid "Your classifier has been synched."
+msgid "Your classifier has been synced."
 msgstr "Votre classificateur a été synchronisé."
 
 msgid "Unable to sync classifier. See the log for details."
@@ -3523,6 +3526,16 @@ msgid "One of the emails you entered is invalid."
 msgstr "L'un des e-mails que vous avez inscrits est invalide."
 
 #, fuzzy
+#| msgid "One of the emails you entered is invalid."
+msgid "One of the emails you entered has an existing user on the workspace."
+msgstr "L'un des e-mails que vous avez inscrits est invalide."
+
+#, fuzzy
+#| msgid "One of the emails you entered is invalid."
+msgid "One of the emails you entered is duplicated."
+msgstr "L'un des e-mails que vous avez inscrits est invalide."
+
+#, fuzzy
 #| msgid "You must have at least one administator"
 msgid "A workspace must have at least one administrator."
 msgstr "Vous devez avoir au moins un administateur"
@@ -3555,11 +3568,16 @@ msgstr "Votre lien d'invitation n'est pas valide. Veuillez contacter votre admin
 msgid "Join %(name)s"
 msgstr "Rejoignez %(name)s"
 
-msgid "Join"
-msgstr "Rejoignez"
+#, fuzzy
+#| msgid "Please click Join to accept the invitation."
+msgid "Sign in with your account to accept the invitation"
+msgstr "S'il vous plaît cliquer S'inscrire pour accepter l'invitation."
 
 msgid "Your invitation link has expired. Please contact your workspace administrator."
 msgstr "Votre lien d'invitation a expiré. Veuillez contacter votre administrateur d'espace de travail."
+
+msgid "Join"
+msgstr "Rejoignez"
 
 msgid "Invalid surveyor password, please check with your project leader and try again."
 msgstr "Mot de passe d'enquêteur invalide, veuillez vérifier auprès de votre chef de projet et réessayer."
@@ -4337,6 +4355,15 @@ msgstr "Fonctionne dans n'importe quel pays et utilise le forfait de téléphoni
 
 msgid "API Channels"
 msgstr "Canaux API"
+
+#, fuzzy
+#| msgid "API Channels"
+msgid "All Channels"
+msgstr "Canaux API"
+
+#, python-format
+msgid "The channels above are the available channels for your region, but you can also <a class=\"inline\" href=\"%(claim_all_url)s\">view all channels</a>."
+msgstr ""
 
 msgid "Enter your credentials to add your number."
 msgstr "Entrez vos informations d'identification pour ajouter votre numéro."
@@ -6790,12 +6817,6 @@ msgstr "Modifier les alias"
 msgid "Choose a country to enable location support in your flows."
 msgstr "Choisissez un pays pour activer le support de l'emplacement géographique dans vos flux."
 
-msgid "Create new login"
-msgstr "Créer une nouvelle connexion"
-
-msgid "Sign in"
-msgstr "Connectez-vous"
-
 msgid "Add Credits"
 msgstr "Ajouter Crédits"
 
@@ -6927,6 +6948,9 @@ msgstr "Si vous avez des flux ou des campagnes portant les mêmes noms ou les m�
 
 msgid "Do not proceed unless you are willing to replace your existing flows and campaigns."
 msgstr "Ne procédez pas à moins que vous ne souhaitiez remplacer vos flux et campagnes existants."
+
+msgid "Sign in"
+msgstr "Connectez-vous"
 
 #, python-format
 msgid "You have been invited to join %(name)s."
@@ -7854,18 +7878,9 @@ msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
 
 #, fuzzy
-#~| msgid "Enter the code from your authentication application"
-#~ msgid "Enter the one-time password from your authentication application."
-#~ msgstr "Entrez le code de votre application d'authentification"
-
-#~ msgid "Two Factor Authentication"
-#~ msgstr "Authentification à deux facteurs"
-
-#~ msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
-#~ msgstr "Les jetons de sauvegarde peuvent être utilisés si vous n'avez plus accès à l'application d'authentification configurée pour votre compte."
-
-#~ msgid "Any tokens you may have previously generated are invalid."
-#~ msgstr "Tous les jetons que vous avez déjà générés ne sont pas valides."
+#~| msgid "Your invitation link has expired. Please contact your workspace administrator."
+#~ msgid "You are the only administrator on this workspace. Please add other workspace administrators first."
+#~ msgstr "Votre lien d'invitation a expiré. Veuillez contacter votre administrateur d'espace de travail."
 
 #~ msgid "Your preferred language"
 #~ msgstr "Langue de votre choix"
@@ -7876,30 +7891,39 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Phone number for testing and recording voice flows"
 #~ msgstr "Numéro de téléphone pour les essais et l'enregistrement des flux voix "
 
-#~ msgid "Two Factor Enabled"
-#~ msgstr "Deux facteurs activé"
-
-#~ msgid "Start Call"
-#~ msgstr "Lancer des appels"
-
-#~ msgid "Disable Two Factor"
-#~ msgstr "Désactiver deux facteurs"
-
 #~ msgid "OTP Secret"
 #~ msgstr "Secret OTP"
+
+#~ msgid "Two Factor Enabled"
+#~ msgstr "Deux facteurs activé"
 
 #~ msgid "Used"
 #~ msgstr "Utilisé"
 
-#, python-format
+#~ msgid "Start Call"
+#~ msgstr "Lancer des appels"
+
+#~ msgid "Enter the code from your authentication application"
+#~ msgstr "Entrez le code de votre application d'authentification"
+
+#~ msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
+#~ msgstr "Les jetons de sauvegarde peuvent être utilisés si vous n'avez plus accès à l'application d'authentification configurée pour votre compte."
+
+#~ msgid "Any tokens you may have previously generated are invalid."
+#~ msgstr "Tous les jetons que vous avez déjà générés ne sont pas valides."
+
+#~ msgid "Disable Two Factor"
+#~ msgstr "Désactiver deux facteurs"
+
+#~ msgid "Create new login"
+#~ msgstr "Créer une nouvelle connexion"
+
 #~ msgid "%(value)s must be http or https scheme"
 #~ msgstr "%(value)s doit être un schéma http ou https"
 
-#, python-format
 #~ msgid "%(value)s host cannot be resolved"
 #~ msgstr "L'hôte %(value)s ne peut pas être résolu"
 
-#, python-format
 #~ msgid "%(value)s cannot be localhost"
 #~ msgstr "%(value)s ne peut pas être localhost"
 
@@ -7939,7 +7963,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "after"
 #~ msgstr "après"
 
-#, python-format
 #~ msgid "Email sent with subject <b>%(subject)s</b>"
 #~ msgstr "E-mail envoyé avec objet <b>%(subject)s</b>"
 
@@ -7988,25 +8011,21 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "has"
 #~ msgstr "a"
 
-#, python-format
 #~ msgid "%(accounts)s Administrator,"
 #~ msgid_plural "%(accounts)s Administrators,"
 #~ msgstr[0] "%(accounts)s Administrateur,"
 #~ msgstr[1] "%(accounts)s Administrateurs,"
 
-#, python-format
 #~ msgid "%(accounts)s Editor,"
 #~ msgid_plural "%(accounts)s Editors,"
 #~ msgstr[0] "%(accounts)s Editeur,"
 #~ msgstr[1] "%(accounts)s Editeurs,"
 
-#, python-format
 #~ msgid "%(accounts)s Viewer,"
 #~ msgid_plural "%(accounts)s Viewers,"
 #~ msgstr[0] "%(accounts)s Observateur,"
 #~ msgstr[1] "%(accounts)s Observateurs,"
 
-#, python-format
 #~ msgid "%(accounts)s Surveyor."
 #~ msgid_plural "%(accounts)s Surveyors."
 #~ msgstr[0] "%(accounts)s Enquêteurs."
@@ -8084,7 +8103,6 @@ msgstr "${count} trouvé pour ${query}"
 #~ msgid "Are you sure you want to delete"
 #~ msgstr "Etes-vous sûr que vous voulez supprimer"
 
-#, python-format
 #~ msgid "<b>%(name)s</b> cannot be deleted since it is currently in use. Usage %%summary:"
 #~ msgstr "<b>%(name)s</b> ne peut pas être supprimé car il est actuellement utilisé. Résumé de l'utilisation %%:"
 

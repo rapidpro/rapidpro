@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-11 18:54+0000\n"
+"POT-Creation-Date: 2021-02-24 22:07+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -875,7 +875,7 @@ msgid "Reconnect Facebook Page"
 msgstr ""
 
 #, python-format
-msgid "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect."
+msgid "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect. On the Facebook page, navigate Settings > Page roles and verify you have an admin page role on the page."
 msgstr ""
 
 msgid "The User Access Token"
@@ -2023,7 +2023,7 @@ msgstr ""
 msgid "Sync"
 msgstr ""
 
-msgid "Your classifier has been synched."
+msgid "Your classifier has been synced."
 msgstr ""
 
 msgid "Unable to sync classifier. See the log for details."
@@ -3452,6 +3452,12 @@ msgstr ""
 msgid "One of the emails you entered is invalid."
 msgstr ""
 
+msgid "One of the emails you entered has an existing user on the workspace."
+msgstr ""
+
+msgid "One of the emails you entered is duplicated."
+msgstr ""
+
 msgid "A workspace must have at least one administrator."
 msgstr ""
 
@@ -3483,10 +3489,13 @@ msgstr ""
 msgid "Join %(name)s"
 msgstr ""
 
-msgid "Join"
+msgid "Sign in with your account to accept the invitation"
 msgstr ""
 
 msgid "Your invitation link has expired. Please contact your workspace administrator."
+msgstr ""
+
+msgid "Join"
 msgstr ""
 
 msgid "Invalid surveyor password, please check with your project leader and try again."
@@ -4262,6 +4271,13 @@ msgid "Works in any country and uses the cell phone plan you already have. You j
 msgstr ""
 
 msgid "API Channels"
+msgstr ""
+
+msgid "All Channels"
+msgstr ""
+
+#, python-format
+msgid "The channels above are the available channels for your region, but you can also <a class=\"inline\" href=\"%(claim_all_url)s\">view all channels</a>."
 msgstr ""
 
 msgid "Enter your credentials to add your number."
@@ -6405,12 +6421,6 @@ msgstr ""
 msgid "Choose a country to enable location support in your flows."
 msgstr ""
 
-msgid "Create new login"
-msgstr ""
-
-msgid "Sign in"
-msgstr ""
-
 msgid "Add Credits"
 msgstr ""
 
@@ -6535,6 +6545,9 @@ msgid "If you have flows or campaigns with the same names or UUIDs as the ones y
 msgstr ""
 
 msgid "Do not proceed unless you are willing to replace your existing flows and campaigns."
+msgstr ""
+
+msgid "Sign in"
 msgstr ""
 
 #, python-format

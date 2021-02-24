@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-11 18:54+0000\n"
+"POT-Creation-Date: 2021-02-24 22:07+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -1229,7 +1229,7 @@ msgid "Reconnect Facebook Page"
 msgstr "O nome do vídeo"
 
 #, python-format
-msgid "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect."
+msgid "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect. On the Facebook page, navigate Settings > Page roles and verify you have an admin page role on the page."
 msgstr ""
 
 #, fuzzy
@@ -2969,7 +2969,7 @@ msgid "Sync"
 msgstr "Sincronizado em"
 
 #, fuzzy
-msgid "Your classifier has been synched."
+msgid "Your classifier has been synced."
 msgstr "Seu número de telefone agora está conectado"
 
 #, fuzzy
@@ -4669,6 +4669,16 @@ msgid "One of the emails you entered is invalid."
 msgstr "Um dos e-mails que você digitou é inválido."
 
 #, fuzzy
+#| msgid "One of the emails you entered is invalid."
+msgid "One of the emails you entered has an existing user on the workspace."
+msgstr "Um dos e-mails que você digitou é inválido."
+
+#, fuzzy
+#| msgid "One of the emails you entered is invalid."
+msgid "One of the emails you entered is duplicated."
+msgstr "Um dos e-mails que você digitou é inválido."
+
+#, fuzzy
 #| msgid "You must have at least one administator"
 msgid "A workspace must have at least one administrator."
 msgstr "Você deve ter pelo menos um administator"
@@ -4715,13 +4725,18 @@ msgstr "O link do seu convite não é válido. Por favor, contate o administrado
 msgid "Join %(name)s"
 msgstr "Junte-se a %(name)s"
 
-msgid "Join"
-msgstr "Junte-se"
+#, fuzzy
+#| msgid "Please click Join to accept the invitation."
+msgid "Sign in with your account to accept the invitation"
+msgstr "Por favor, clique em Juntar-se para aceitar o convite."
 
 #, fuzzy
 #| msgid "Your invitation link has expired. Please contact your organization administrator."
 msgid "Your invitation link has expired. Please contact your workspace administrator."
 msgstr "O link do seu convite expirou. Por favor, contate o administrador da organização."
+
+msgid "Join"
+msgstr "Junte-se"
 
 #, fuzzy
 #| msgid "Invalid claim code, please check and try again."
@@ -5714,6 +5729,14 @@ msgstr ""
 #, fuzzy
 msgid "API Channels"
 msgstr "Transmissor"
+
+#, fuzzy
+msgid "All Channels"
+msgstr "Transmissor"
+
+#, python-format
+msgid "The channels above are the available channels for your region, but you can also <a class=\"inline\" href=\"%(claim_all_url)s\">view all channels</a>."
+msgstr ""
 
 msgid "Enter your credentials to add your number."
 msgstr ""
@@ -8773,14 +8796,6 @@ msgstr "Editar nome"
 msgid "Choose a country to enable location support in your flows."
 msgstr ""
 
-#, fuzzy
-#| msgid "Create new account"
-msgid "Create new login"
-msgstr "Criar nova conta"
-
-msgid "Sign in"
-msgstr "Entrar"
-
 msgid "Add Credits"
 msgstr "Adicionar créditos"
 
@@ -8943,6 +8958,9 @@ msgstr ""
 
 msgid "Do not proceed unless you are willing to replace your existing flows and campaigns."
 msgstr ""
+
+msgid "Sign in"
+msgstr "Entrar"
 
 #, fuzzy, python-format
 #| msgid "You have been invited to join"
@@ -9213,10 +9231,8 @@ msgstr ""
 msgid "To enable two-factor authentication on your login, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below."
 msgstr ""
 
-#, fuzzy
-#| msgid "Invalid claim code, please check and try again."
 msgid "Two-factor authentication is <b>disabled</b>."
-msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
+msgstr ""
 
 msgid "Two-factor authentication is currently enabled for your login. Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
 msgstr ""
@@ -9227,10 +9243,8 @@ msgstr ""
 msgid "Regenerate Tokens"
 msgstr ""
 
-#, fuzzy
-#| msgid "Invalid claim code, please check and try again."
 msgid "Two-factor authentication is <b>enabled</b>."
-msgstr "Código de requisição inválido, por favor, verifique-o e tente novamente."
+msgstr ""
 
 #, fuzzy
 msgid "Policies"
@@ -9972,6 +9986,11 @@ msgstr "Insira o seu código de requisição"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#, fuzzy
+#~| msgid "Your invitation link has expired. Please contact your organization administrator."
+#~ msgid "You are the only administrator on this workspace. Please add other workspace administrators first."
+#~ msgstr "O link do seu convite expirou. Por favor, contate o administrador da organização."
+
 #~ msgid "Your preferred language"
 #~ msgstr "Seu idioma preferido"
 
@@ -9981,13 +10000,18 @@ msgstr ""
 #~ msgid "Phone number for testing and recording voice flows"
 #~ msgstr "Número do telefone para testar e gravar fluxos de voz"
 
-#~ msgid "Start Call"
-#~ msgstr "Iniciar chamada"
-
 #, fuzzy
 #~| msgid "API Secret:"
 #~ msgid "OTP Secret"
 #~ msgstr "Segredo da API:"
+
+#~ msgid "Start Call"
+#~ msgstr "Iniciar chamada"
+
+#, fuzzy
+#~| msgid "Create new account"
+#~ msgid "Create new login"
+#~ msgstr "Criar nova conta"
 
 #, fuzzy
 #~| msgid "users"
@@ -10012,7 +10036,7 @@ msgstr ""
 #~ msgid "days"
 #~ msgstr "dias"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          Install the %(name)s app\n"
@@ -10073,7 +10097,7 @@ msgstr ""
 #~ msgid "has"
 #~ msgstr "tem"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "No Administrator"
 #~ msgid "%(accounts)s Administrator,"
 #~ msgid_plural "%(accounts)s Administrators,"
@@ -10623,7 +10647,7 @@ msgstr ""
 #~ "número curto da <a href=\"http://www.take.net/\"> Take.net </a> e conectá-lo ao Textit \n"
 #~ "em poucos passos simples. "
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "      After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
@@ -10678,7 +10702,7 @@ msgstr ""
 #~ msgid "Create a message keyword to allow people to join a group."
 #~ msgstr "Criar uma palavra-chave SMS que permita às pessoas participarem de um grupo"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                    %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -10688,7 +10712,7 @@ msgstr ""
 #~ "\n"
 #~ "Contatos %(contacts_count)s importados com sucesso para"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                    %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -10697,7 +10721,7 @@ msgstr ""
 #~ "\n"
 #~ "Contatos %(contacts_count)s importados com sucesso para"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "              Used by %(num_flows)s flow:\n"
@@ -10713,7 +10737,7 @@ msgstr ""
 #~ "\n"
 #~ "%(sms_sent)s Enviadas"
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "        To get started you need to add a channel to your workspace. A channel is a phone number or social network\n"
