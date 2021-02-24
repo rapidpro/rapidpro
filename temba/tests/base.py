@@ -154,6 +154,14 @@ class TembaTestMixin:
         """
         shutil.rmtree("%s/%s" % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR), ignore_errors=True)
 
+    def login(self, user, update_last_auth_on: bool = True):
+        self.assertTrue(
+            self.client.login(username=user.username, password=user.username),
+            "Couldn't login as %(user)s:%(user)s" % dict(user=user.username),
+        )
+        if update_last_auth_on:
+            user.record_auth()
+
     def import_file(self, filename, site="http://rapidpro.io", substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
         self.org.import_app(data, self.admin, site=site)

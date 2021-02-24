@@ -387,7 +387,7 @@ class UserTest(TembaTest):
         tokens_url = reverse("orgs.user_two_factor_tokens")
 
         self.admin.enable_2fa()
-        self.login(self.admin)  # doesn't update last_auth_on
+        self.login(self.admin, update_last_auth_on=False)
 
         # org home page tells us 2FA is enabled, links to page manage tokens
         response = self.client.get(reverse("orgs.org_home"))
