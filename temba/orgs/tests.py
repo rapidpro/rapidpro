@@ -5142,14 +5142,13 @@ class EmailContextProcessorsTest(TembaTest):
         with self.settings(HOSTNAME="rapidpro.io"):
             forget_url = reverse("users.user_forget")
 
-            post_data = dict()
-            post_data["email"] = "nouser@nouser.com"
-
-            self.client.post(forget_url, post_data, follow=True)
+            response = self.client.post(forget_url, {"email": "Administrator@nyaruka.com"})
+            self.assertLoginRedirect(response)
             self.assertEqual(1, len(mail.outbox))
+
             sent_email = mail.outbox[0]
             self.assertEqual(len(sent_email.to), 1)
-            self.assertEqual(sent_email.to[0], "nouser@nouser.com")
+            self.assertEqual(sent_email.to[0], "Administrator@nyaruka.com")
 
             # we have the domain of rapipro.io brand
             self.assertIn("app.rapidpro.io", sent_email.body)
