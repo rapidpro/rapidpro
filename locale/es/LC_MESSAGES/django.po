@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-24 15:31+0000\n"
+"POT-Creation-Date: 2021-02-24 20:52+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -1319,7 +1319,7 @@ msgid "Reconnect Facebook Page"
 msgstr "El nombre del video"
 
 #, python-format
-msgid "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect."
+msgid "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect. On the Facebook page, navigate Settings > Page roles and verify you have an admin page role on the page."
 msgstr ""
 
 #, fuzzy
@@ -6071,6 +6071,14 @@ msgstr ""
 #, fuzzy
 msgid "API Channels"
 msgstr "Transmisor"
+
+#, fuzzy
+msgid "All Channels"
+msgstr "Transmisor"
+
+#, python-format
+msgid "The channels above are the available channels for your region, but you can also <a class=\"inline\" href=\"%(claim_all_url)s\">view all channels</a>."
+msgstr ""
 
 msgid "Enter your credentials to add your number."
 msgstr ""

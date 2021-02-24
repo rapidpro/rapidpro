@@ -416,8 +416,10 @@ class UserTest(TembaTest):
         response = self.client.get(tokens_url)
         self.assertEqual(200, response.status_code)
 
+    @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
     def test_confirm_access(self):
         confirm_url = reverse("users.confirm_access") + f"?next=/msg/inbox/"
+        failed_url = reverse("users.user_failed")
 
         # try to access before logging in
         response = self.client.get(confirm_url)
@@ -432,7 +434,22 @@ class UserTest(TembaTest):
         response = self.client.post(confirm_url, {"password": "nope"})
         self.assertFormError(response, "form", "password", "Password incorrect.")
 
-        # submit with real password
+        # 2 more times..
+        self.client.post(confirm_url, {"password": "nope"})
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertRedirect(response, failed_url)
+
+        # even correct password now redirects to failed page
+        response = self.client.post(confirm_url, {"password": "Administrator"})
+        self.assertRedirect(response, failed_url)
+
+        FailedLogin.objects.all().delete()
+
+        # can once again submit incorrect passwords
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # and also correct ones
         response = self.client.post(confirm_url, {"password": "Administrator"})
         self.assertRedirect(response, "/msg/inbox/")
 
@@ -5196,14 +5213,13 @@ class EmailContextProcessorsTest(TembaTest):
         with self.settings(HOSTNAME="rapidpro.io"):
             forget_url = reverse("users.user_forget")
 
-            post_data = dict()
-            post_data["email"] = "nouser@nouser.com"
-
-            self.client.post(forget_url, post_data, follow=True)
+            response = self.client.post(forget_url, {"email": "Administrator@nyaruka.com"})
+            self.assertLoginRedirect(response)
             self.assertEqual(1, len(mail.outbox))
+
             sent_email = mail.outbox[0]
             self.assertEqual(len(sent_email.to), 1)
-            self.assertEqual(sent_email.to[0], "nouser@nouser.com")
+            self.assertEqual(sent_email.to[0], "Administrator@nyaruka.com")
 
             # we have the domain of rapipro.io brand
             self.assertIn("app.rapidpro.io", sent_email.body)
