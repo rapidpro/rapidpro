@@ -746,6 +746,7 @@ class UserCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             self.request.user.enable_2fa()
+            self.request.user.record_auth()
 
             return super().form_valid(form)
 
@@ -782,6 +783,7 @@ class UserCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             self.request.user.disable_2fa()
+            self.request.user.record_auth()
 
             return super().form_valid(form)
 

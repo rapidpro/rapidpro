@@ -296,8 +296,7 @@ class UserTest(TembaTest):
         tokens_url = reverse("orgs.user_two_factor_tokens")
         disable_url = reverse("orgs.user_two_factor_disable")
 
-        self.login(self.admin)
-        self.admin.record_auth()
+        self.login(self.admin, update_last_auth_on=False)
 
         # org home page tells us 2FA is disabled, links to page to enable it
         response = self.client.get(reverse("orgs.org_home"))
