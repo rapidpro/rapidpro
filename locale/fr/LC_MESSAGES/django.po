@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-24 17:35+0000\n"
+"POT-Creation-Date: 2021-02-24 18:38+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -4354,11 +4354,13 @@ msgstr "Fonctionne dans n'importe quel pays et utilise le forfait de téléphoni
 msgid "API Channels"
 msgstr "Canaux API"
 
-msgid "More"
-msgstr "Plus"
+#, fuzzy
+#| msgid "API Channels"
+msgid "All Channels"
+msgstr "Canaux API"
 
 #, python-format
-msgid "The channels above are those supported in your region. Click <a class=\"inline\" href=\"%(claim_all_url)s\"> here</a> to see all possible channel types."
+msgid "The channels above are the available channels for your region, but you can also <a class=\"inline\" href=\"%(claim_all_url)s\">view all channels</a>."
 msgstr ""
 
 msgid "Enter your credentials to add your number."
@@ -7570,6 +7572,9 @@ msgid ""
 msgstr ""
 "\n"
 "Vous n'êtes pas obligés, mais il est préférable que ceux-ci soient visualiser dans l'ordre puisqu'ils s'appuient les uns sur les autres asu cours de votre progréssion. "
+
+msgid "More"
+msgstr "Plus"
 
 #, python-format
 msgid ""

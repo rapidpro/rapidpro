@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-24 17:35+0000\n"
+"POT-Creation-Date: 2021-02-24 18:38+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -5730,11 +5730,12 @@ msgstr ""
 msgid "API Channels"
 msgstr "Transmissor"
 
-msgid "More"
-msgstr "Mais"
+#, fuzzy
+msgid "All Channels"
+msgstr "Transmissor"
 
 #, python-format
-msgid "The channels above are those supported in your region. Click <a class=\"inline\" href=\"%(claim_all_url)s\"> here</a> to see all possible channel types."
+msgid "The channels above are the available channels for your region, but you can also <a class=\"inline\" href=\"%(claim_all_url)s\">view all channels</a>."
 msgstr ""
 
 msgid "Enter your credentials to add your number."
@@ -9637,6 +9638,9 @@ msgid ""
 msgstr ""
 "\n"
 "Não é necessário, mas é melhor se você assisti-los em ordem, uma vez que construirão sobre os outros à medida que você avançar."
+
+msgid "More"
+msgstr "Mais"
 
 #, fuzzy, python-format
 msgid ""

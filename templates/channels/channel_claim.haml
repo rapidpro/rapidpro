@@ -102,11 +102,11 @@
       -if only_regional_channels
 
         .title.mt-8
-          -trans "More"
+          -trans "All Channels"
 
         {% url 'channels.channel_claim_all' as claim_all_url %}
         -blocktrans trimmed
-          The channels above are those supported in your region. Click <a class="inline" href="{{claim_all_url}}"> here</a> to see all possible channel types.
+          The channels above are the available channels for your region, but you can also <a class="inline" href="{{claim_all_url}}">view all channels</a>.
 
 -block form-buttons
 

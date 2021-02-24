@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-24 17:35+0000\n"
+"POT-Creation-Date: 2021-02-24 18:38+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4273,11 +4273,11 @@ msgstr ""
 msgid "API Channels"
 msgstr ""
 
-msgid "More"
+msgid "All Channels"
 msgstr ""
 
 #, python-format
-msgid "The channels above are those supported in your region. Click <a class=\"inline\" href=\"%(claim_all_url)s\"> here</a> to see all possible channel types."
+msgid "The channels above are the available channels for your region, but you can also <a class=\"inline\" href=\"%(claim_all_url)s\">view all channels</a>."
 msgstr ""
 
 msgid "Enter your credentials to add your number."
@@ -7046,6 +7046,9 @@ msgid ""
 "      You don't have to, but it's best if these are watched in order since they build on each other as you go.\n"
 "\n"
 "    "
+msgstr ""
+
+msgid "More"
 msgstr ""
 
 #, python-format
