@@ -269,11 +269,11 @@ six==1.10.0
     #   python-intercom
     #   responses
     #   twilio
-smartmin==2.3.0
+smartmin==2.3.4
     # via -r pip-requires.txt
 soupsieve==1.6.2
     # via beautifulsoup4
-sqlparse==0.2.3
+sqlparse==0.4.1
     # via
     #   django
     #   smartmin
@@ -299,13 +299,13 @@ urllib3==1.26.2
     #   sentry-sdk
 vine==1.1.3
     # via amqp
-xlrd==1.2.0
+xlrd==2.0.1
     # via
     #   pyexcel-xls
     #   smartmin
 xlsxlite==0.2.0
     # via -r pip-requires.txt
-xlwt==1.2.0
+xlwt==1.3.0
     # via
     #   pyexcel-xls
     #   smartmin

@@ -410,10 +410,10 @@ class BaseTwoFactorView(AuthLoginView):
         lockout_timeout = getattr(settings, "USER_LOCKOUT_TIMEOUT", 10)
         failed_login_limit = getattr(settings, "USER_FAILED_LOGIN_LIMIT", 5)
 
-        FailedLogin.objects.create(user=user)
+        FailedLogin.objects.create(username=user.username)
 
         bad_interval = timezone.now() - timedelta(minutes=lockout_timeout)
-        failures = FailedLogin.objects.filter(user=user)
+        failures = FailedLogin.objects.filter(username__iexact=user.username)
 
         # if the failures reset after a period of time, then limit our query to that interval
         if lockout_timeout > 0:
@@ -438,7 +438,7 @@ class BaseTwoFactorView(AuthLoginView):
         self.reset_user()
 
         # cleanup any failed logins
-        FailedLogin.objects.filter(user=user).delete()
+        FailedLogin.objects.filter(username__iexact=user.username).delete()
 
         return HttpResponseRedirect(self.get_success_url())
 
@@ -523,6 +523,9 @@ class ConfirmAccessView(Login):
             return HttpResponseRedirect(resolve_url(settings.LOGIN_URL))
 
         return super().dispatch(request, *args, **kwargs)
+
+    def get_username(self, form):
+        return self.request.user.username
 
     def form_valid(self, form):
         form.get_user().record_auth()
