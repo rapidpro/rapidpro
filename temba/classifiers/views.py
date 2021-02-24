@@ -115,7 +115,7 @@ class ClassifierCRUDL(SmartCRUDL):
 
             try:
                 self.object.sync()
-                messages.info(self.request, _("Your classifier has been synched."))
+                messages.info(self.request, _("Your classifier has been synced."))
             except Exception:
                 messages.error(self.request, _("Unable to sync classifier. See the log for details."))
 
