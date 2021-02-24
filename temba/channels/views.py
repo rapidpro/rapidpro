@@ -732,7 +732,7 @@ def sync(request, channel_id):
     request_time = request.GET.get("ts", "")
     request_signature = force_bytes(request.GET.get("signature", ""))
 
-    if not channel.secret:
+    if not channel.org or not channel.secret:
         return JsonResponse({"error_id": 4, "error": "Can't sync unclaimed channel", "cmds": []}, status=401)
 
     # check that the request isn't too old (15 mins)

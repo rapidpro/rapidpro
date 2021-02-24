@@ -1095,6 +1095,15 @@ class ChannelTest(TembaTest):
         # should be an error response
         self.assertEqual({"error": "Can't sync unclaimed channel", "error_id": 4, "cmds": []}, response.json())
 
+        self.unclaimed_channel.secret = "12345674674"
+        self.unclaimed_channel.save(update_fields=("secret",))
+
+        response = self.sync(self.unclaimed_channel)
+        self.assertEqual(401, response.status_code)
+
+        # should be an error response
+        self.assertEqual({"error": "Can't sync unclaimed channel", "error_id": 4, "cmds": []}, response.json())
+
     @mock_mailroom
     def test_sync_released(self, mr_mocks):
         # register an Android channel
