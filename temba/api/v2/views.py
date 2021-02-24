@@ -1,5 +1,6 @@
 import itertools
 import json
+from collections import OrderedDict
 
 import regex
 import requests
@@ -19,7 +20,7 @@ from smartmin.views import SmartFormView, SmartTemplateView
 
 from django import forms
 from django.contrib.auth import authenticate, login
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch, Q, Count
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -43,10 +44,11 @@ from temba.contacts.tasks import release_group_task
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
+from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel, FAILED, ERRORED
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticketer
 from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool, dates
+from .validators import is_uuid_valid
 
 from ..models import SSLPermission
 from ..support import InvalidQueryError
@@ -4326,7 +4328,13 @@ class ContactsReportEndpoint(BaseAPIView):
             contacts = contacts.filter(runs__flow__uuid=flow)
 
         # contact list views don't use regular field searching but use more complex contact searching
-        search_query = self.request.GET.get("search_query", self.request.data.get("search_query"))
+        search_query = self.request.GET.get("search_query", self.request.data.get("search_query", ""))
+        exclude = self.request.GET.get("exclude", self.request.data.get("exclude"))
+        if exclude:
+            if is_uuid_valid(exclude):
+                contacts = contacts.exclude(all_groups__uuid=exclude)
+            else:
+                search_query += f'{" AND " if search_query else ""}group != "{exclude}"'
 
         if search_query:
             # is this request is part of a bulk action, get the ids that were modified so we can check which ones
@@ -4354,3 +4362,56 @@ class ContactsReportEndpoint(BaseAPIView):
             "results": [{"totalUniqueContacts": count}]
         }
         return Response(response_data)
+
+
+class MessagesReportEndpoint(BaseAPIView):
+    permission = "orgs.org_api"
+    applied_filters = None
+
+    def get_flow_messages(self, org, flow, qs):
+        runs = FlowRun.objects.filter(
+            org=org,
+            flow__uuid=flow,
+            status__in=[
+                FlowRun.STATUS_COMPLETED, FlowRun.STATUS_INTERRUPTED, FlowRun.STATUS_FAILED, FlowRun.STATUS_EXPIRED
+            ],
+            **{
+                f"exited_on__{'gte' if item[0] == 'after' else 'lte'}": item[1]
+                for item in [(x, org.parse_datetime(self.request.data.get(x, ""))) for x in ["after", "before"]]
+                if item[1]
+            }
+        )
+        messages_uuids = []
+        for run in runs:
+            messages_uuids += [evt["msg"].get("uuid") for evt in run.get_msg_events() if
+                               evt["msg"].get("uuid") not in [None, "None", ""]]
+        return qs.filter(uuid__in=messages_uuids)
+
+    def get_queryset(self):
+        org = self.request.user.get_org()
+        queryset = Msg.objects.filter(org=org)
+        self.applied_filters = {}
+        filters = (
+            ("channel", lambda x: queryset.filter(Q(channel__uuid=x) | Q(channel__name=x))),
+            ("after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
+            ("before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
+            ("exclude", lambda x: queryset.exclude(contact__all_groups__name=x)),
+            ("flow", lambda x: self.get_flow_messages(org, x, queryset))
+        )
+        for name, _filter in filters:
+            filter_value = self.request.data.get(name)
+            if filter_value:
+                queryset = _filter(filter_value)
+                self.applied_filters[name] = filter_value
+        return queryset
+
+    def get(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        return Response({
+            **self.applied_filters,
+            "results": queryset.aggregate(
+                inbox_count=Count('id', filter=Q(direction="I")),
+                outbox_count=Count('id', filter=Q(direction="O")),
+                failed_count=Count('id', filter=Q(status__in=[FAILED, ERRORED]))
+            )
+        })
