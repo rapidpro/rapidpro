@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-23 21:42+0000\n"
+"POT-Creation-Date: 2021-02-24 15:31+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -4108,6 +4108,9 @@ msgstr "Неверный токен МФА. Пожалуйста, попробу
 msgid "Invalid backup token. Please try again."
 msgstr "Неверный токен МФА. Пожалуйста, попробуйте еще раз."
 
+msgid "Password incorrect."
+msgstr ""
+
 #, python-brace-format
 msgid "Deleted user {username}"
 msgstr "Удаленный пользователь {username}"
@@ -4166,9 +4169,6 @@ msgstr "Текущий пароль (обязательно)"
 msgid "OTP incorrect. Please try again."
 msgstr "Неверный токен МФА. Пожалуйста, попробуйте еще раз."
 
-msgid "Password incorrect."
-msgstr ""
-
 #, fuzzy
 #| msgid "Two Factor Authentication"
 msgid "Two-factor authentication enabled"
@@ -4206,11 +4206,6 @@ msgstr "Двухфакторная аутентификация"
 #| msgid "Two Factor Authentication"
 msgid "Two-factor authentication backup tokens changed."
 msgstr "Двухфакторная аутентификация"
-
-#, fuzzy
-#| msgid "Password"
-msgid "Confirm Password"
-msgstr "Пароль"
 
 msgid "The import file"
 msgstr "Импортированный файл"
@@ -8851,11 +8846,7 @@ msgstr ""
 msgid "Confirm Access"
 msgstr "Пароль"
 
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
+msgid "To access this page please confirm your current password."
 msgstr ""
 
 #, fuzzy
@@ -8867,6 +8858,9 @@ msgstr "Конфигурация"
 #| msgid "Welcome!"
 msgid "Welcome Back"
 msgstr "Добро пожаловать!"
+
+msgid "Please sign in with your email address and password."
+msgstr ""
 
 #, fuzzy
 #| msgid "Sign in"
@@ -9595,9 +9589,6 @@ msgstr ""
 "              Дополнительные кредиты, спасибо за опробование %(brand)s.\n"
 "\n"
 "            "
-
-msgid "To access this page please confirm your current password."
-msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""
@@ -10442,6 +10433,11 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, fuzzy
+#~| msgid "Password"
+#~ msgid "Confirm Password"
+#~ msgstr "Пароль"
 
 #, fuzzy
 #~| msgid "Your invitation link has expired. Please contact your organization administrator."

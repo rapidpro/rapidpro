@@ -47,7 +47,7 @@ from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_text
 from django.utils.html import escape
-from django.utils.http import is_safe_url, urlquote
+from django.utils.http import urlquote
 from django.utils.safestring import mark_safe
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
@@ -491,6 +491,45 @@ class TwoFactorBackupView(BaseTwoFactorView):
     template_name = "orgs/login/two_factor_backup.haml"
 
 
+class ConfirmAccessView(Login):
+    """
+    Overrides the smartmin login view to provide a view for an already logged in user to re-authenticate.
+    """
+
+    class Form(forms.Form):
+        password = forms.CharField(
+            label=" ", widget=InputWidget(attrs={"placeholder": _("Password"), "password": True}), required=True
+        )
+
+        def __init__(self, request, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+            self.user = request.user
+
+        def clean_password(self):
+            data = self.cleaned_data["password"]
+            if not self.user.check_password(data):
+                raise forms.ValidationError(_("Password incorrect."))
+            return data
+
+        def get_user(self):
+            return self.user
+
+    template_name = "orgs/login/confirm_access.haml"
+    form_class = Form
+
+    def dispatch(self, request, *args, **kwargs):
+        if not self.request.user.is_authenticated:
+            return HttpResponseRedirect(resolve_url(settings.LOGIN_URL))
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        form.get_user().record_auth()
+
+        return super().form_valid(form)
+
+
 class InferOrgMixin:
     @classmethod
     def derive_url_pattern(cls, path, action):
@@ -502,7 +541,7 @@ class InferOrgMixin:
 
 class UserCRUDL(SmartCRUDL):
     model = User
-    actions = ("list", "edit", "delete", "two_factor_enable", "two_factor_disable", "two_factor_tokens", "auth")
+    actions = ("list", "edit", "delete", "two_factor_enable", "two_factor_disable", "two_factor_tokens")
 
     class List(SmartListView):
         fields = ("username", "orgs", "date_joined")
@@ -770,49 +809,6 @@ class UserCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             context["backup_tokens"] = self.get_user().backup_tokens.order_by("id")
             return context
-
-    class Auth(SmartFormView):
-        class Form(forms.Form):
-            password = forms.CharField(
-                label=" ", widget=InputWidget(attrs={"placeholder": _("Password"), "password": True}), required=True
-            )
-
-            def __init__(self, user, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-                self.user = user
-
-            def clean_password(self):
-                data = self.cleaned_data["password"]
-                if not self.user.check_password(data):
-                    raise forms.ValidationError(_("Password incorrect."))
-                return data
-
-        form_class = Form
-        submit_button_name = _("Confirm Password")
-
-        def has_permission(self, request, *args, **kwargs):
-            return request.user.is_authenticated
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
-            return kwargs
-
-        def form_valid(self, form):
-            self.request.user.record_auth()
-
-            return super().form_valid(form)
-
-        def get_success_url(self):
-            return self.get_redirect_url() or resolve_url(settings.LOGIN_REDIRECT_URL)
-
-        def get_redirect_url(self):
-            redirect_to = self.request.GET.get("next", "")
-            url_is_safe = is_safe_url(
-                url=redirect_to, allowed_hosts={self.request.get_host()}, require_https=self.request.is_secure()
-            )
-            return redirect_to if url_is_safe else ""
 
 
 class OrgCRUDL(SmartCRUDL):

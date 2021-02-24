@@ -203,7 +203,7 @@ class RequireRecentAuthMixin:
         if not is_formax or self.recent_auth_includes_formax:
             last_auth_on = request.user.get_settings().last_auth_on
             if not last_auth_on or (timezone.now() - last_auth_on).total_seconds() > self.recent_auth_seconds:
-                return HttpResponseRedirect(reverse("orgs.user_auth") + f"?next={urlquote(request.path)}")
+                return HttpResponseRedirect(reverse("users.confirm_access") + f"?next={urlquote(request.path)}")
 
         return super().pre_process(request, *args, **kwargs)
 

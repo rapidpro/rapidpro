@@ -383,7 +383,7 @@ class UserTest(TembaTest):
         response = self.client.get(backup_url)
         self.assertRedirect(response, login_url)
 
-    def test_two_factor_recent_auth(self):
+    def test_two_factor_confirm_access(self):
         tokens_url = reverse("orgs.user_two_factor_tokens")
 
         self.admin.enable_2fa()
@@ -397,24 +397,44 @@ class UserTest(TembaTest):
         # but navigating to tokens page redirects to confirm auth
         response = self.client.get(tokens_url)
         self.assertEqual(302, response.status_code)
-        self.assertTrue(response.url.endswith("/user/auth/?next=/user/two_factor_tokens/"))
+        self.assertTrue(response.url.endswith("/users/confirm-access/?next=/user/two_factor_tokens/"))
 
-        auth_url = response.url
+        confirm_url = response.url
 
-        # view auth page
-        response = self.client.get(auth_url)
-        self.assertEqual(["password", "loc"], list(response.context["form"].fields.keys()))
+        # view confirm access page
+        response = self.client.get(confirm_url)
+        self.assertEqual(["password"], list(response.context["form"].fields.keys()))
 
         # try to submit with incorrect password
-        response = self.client.post(auth_url, {"password": "nope"})
+        response = self.client.post(confirm_url, {"password": "nope"})
         self.assertFormError(response, "form", "password", "Password incorrect.")
 
         # submit with real password
-        response = self.client.post(auth_url, {"password": "Administrator"})
+        response = self.client.post(confirm_url, {"password": "Administrator"})
         self.assertRedirect(response, tokens_url)
 
         response = self.client.get(tokens_url)
         self.assertEqual(200, response.status_code)
+
+    def test_confirm_access(self):
+        confirm_url = reverse("users.confirm_access") + f"?next=/msg/inbox/"
+
+        # try to access before logging in
+        response = self.client.get(confirm_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.get(confirm_url)
+        self.assertEqual(["password"], list(response.context["form"].fields.keys()))
+
+        # try to submit with incorrect password
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # submit with real password
+        response = self.client.post(confirm_url, {"password": "Administrator"})
+        self.assertRedirect(response, "/msg/inbox/")
 
     def test_ui_permissions(self):
         # non-logged in users can't go here

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-23 21:42+0000\n"
+"POT-Creation-Date: 2021-02-24 15:31+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4739,6 +4739,9 @@ msgstr "Número de teléfono inválido, inténtelo nuevamente."
 msgid "Invalid backup token. Please try again."
 msgstr "Número de teléfono inválido, inténtelo nuevamente."
 
+msgid "Password incorrect."
+msgstr ""
+
 #, python-brace-format
 msgid "Deleted user {username}"
 msgstr ""
@@ -4795,9 +4798,6 @@ msgstr "Contraseña actual (requerida)"
 msgid "OTP incorrect. Please try again."
 msgstr "Número de teléfono inválido, inténtelo nuevamente."
 
-msgid "Password incorrect."
-msgstr ""
-
 msgid "Two-factor authentication enabled"
 msgstr ""
 
@@ -4825,11 +4825,6 @@ msgstr ""
 #| msgid "Invalid claim code, please check and try again."
 msgid "Two-factor authentication backup tokens changed."
 msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
-
-#, fuzzy
-#| msgid "Password"
-msgid "Confirm Password"
-msgstr "Contraseña"
 
 msgid "The import file"
 msgstr "El archivo de importación"
@@ -9424,11 +9419,7 @@ msgstr ""
 msgid "Confirm Access"
 msgstr "Contraseña"
 
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
+msgid "To access this page please confirm your current password."
 msgstr ""
 
 #, fuzzy
@@ -9440,6 +9431,9 @@ msgstr "Configuración"
 #| msgid "Flow Message"
 msgid "Welcome Back"
 msgstr "Mensaje del flujo"
+
+msgid "Please sign in with your email address and password."
+msgstr ""
 
 #, fuzzy
 #| msgid "Sign in"
@@ -10025,9 +10019,6 @@ msgstr ""
 #, fuzzy, python-format
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Créditos complementarios, gracias por usar TextIt."
-
-msgid "To access this page please confirm your current password."
-msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""
@@ -10856,6 +10847,11 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Password"
+#~ msgid "Confirm Password"
+#~ msgstr "Contraseña"
 
 #, fuzzy
 #~| msgid "Your invitation link has expired. Please contact your organization administrator."

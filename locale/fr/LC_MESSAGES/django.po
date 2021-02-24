@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-23 21:42+0000\n"
+"POT-Creation-Date: 2021-02-24 15:31+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3305,6 +3305,11 @@ msgstr "Jeton MFA non valide. Veuillez réessayer."
 msgid "Invalid backup token. Please try again."
 msgstr "Jeton MFA non valide. Veuillez réessayer."
 
+#, fuzzy
+#| msgid "Secret is incorrect."
+msgid "Password incorrect."
+msgstr "Le secret est incorrect."
+
 #, python-brace-format
 msgid "Deleted user {username}"
 msgstr "Utilisateur supprimé {username}"
@@ -3356,11 +3361,6 @@ msgid "OTP incorrect. Please try again."
 msgstr "Jeton MFA non valide. Veuillez réessayer."
 
 #, fuzzy
-#| msgid "Secret is incorrect."
-msgid "Password incorrect."
-msgstr "Le secret est incorrect."
-
-#, fuzzy
 #| msgid "Two Factor Authentication"
 msgid "Two-factor authentication enabled"
 msgstr "Authentification à deux facteurs"
@@ -3395,11 +3395,6 @@ msgstr "Authentification à deux facteurs"
 #| msgid "Two Factor Authentication"
 msgid "Two-factor authentication backup tokens changed."
 msgstr "Authentification à deux facteurs"
-
-#, fuzzy
-#| msgid "Confirm new password"
-msgid "Confirm Password"
-msgstr "Confirmer le nouveau mot de passe"
 
 msgid "The import file"
 msgstr "Le fichier d'importation"
@@ -6714,16 +6709,8 @@ msgstr ""
 msgid "Confirm Access"
 msgstr "Confirmer le nouveau mot de passe"
 
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
+msgid "To access this page please confirm your current password."
 msgstr ""
-"\n"
-"    Veuillez vous connecter avec votre adresse e-mail et votre mot de passe.\n"
-"\n"
-"  "
 
 #, fuzzy
 #| msgid "Configuration"
@@ -6732,6 +6719,19 @@ msgstr "Configuration"
 
 msgid "Welcome Back"
 msgstr "Re-Bienvenu"
+
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "    Please sign in with your email address and password.\n"
+#| "\n"
+#| "  "
+msgid "Please sign in with your email address and password."
+msgstr ""
+"\n"
+"    Veuillez vous connecter avec votre adresse e-mail et votre mot de passe.\n"
+"\n"
+"  "
 
 msgid "Sign In"
 msgstr "Se connecter"
@@ -7152,9 +7152,6 @@ msgstr "Merci de soutenir %(brand)s."
 #, python-format
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Crédits complémentaires, merci d'essayer %(brand)s."
-
-msgid "To access this page please confirm your current password."
-msgstr ""
 
 #, python-format
 msgid ""
@@ -7882,6 +7879,11 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#~| msgid "Confirm new password"
+#~ msgid "Confirm Password"
+#~ msgstr "Confirmer le nouveau mot de passe"
 
 #, fuzzy
 #~| msgid "Your invitation link has expired. Please contact your workspace administrator."
