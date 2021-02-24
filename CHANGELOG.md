@@ -1,3 +1,10 @@
+v6.1.46
+----------
+ * Update to smartmin 2.3.5
+ * Fix handling of attempts to sync old unclaimed channels
+ * Add view to list all possible channel types
+ * Fix rendering of nameless channels
+
 v6.1.45
 ----------
  * Open up 2FA to all users
