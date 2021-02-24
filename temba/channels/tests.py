@@ -12,7 +12,7 @@ from django_redis import get_redis_connection
 from smartmin.tests import SmartminTest
 
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.template import loader
 from django.test import RequestFactory
@@ -891,6 +891,53 @@ class ChannelTest(TembaTest):
         self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "I2")
         self.assertEqual(response.context["channel_types"]["PHONE"][3].code, "IB")
         self.assertEqual(response.context["channel_types"]["PHONE"][4].code, "JS")
+
+    def test_claim_all(self):
+        # no access for regular users
+        self.login(self.user)
+        response = self.client.get(reverse("channels.channel_claim_all"))
+        self.assertLoginRedirect(response)
+
+        # editor can access
+        self.login(self.editor)
+        response = self.client.get(reverse("channels.channel_claim_all"))
+        self.assertEqual(200, response.status_code)
+
+        # as can admins
+        self.login(self.admin)
+        response = self.client.get(reverse("channels.channel_claim_all"))
+        self.assertEqual(200, response.status_code)
+
+        # should see all channel types not for beta only and having a category
+        self.assertEqual(len(response.context["recommended_channels"]), 2)
+
+        self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "AC")
+        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "T")
+        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "TMS")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-2].code, "YO")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "ZV")
+
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "D3")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "TWA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "FBA")
+
+        self.admin.groups.add(Group.objects.get(name="Beta"))
+
+        response = self.client.get(reverse("channels.channel_claim_all"))
+        self.assertEqual(200, response.status_code)
+
+        # should see all channel types having a category including beta only channel types
+        self.assertEqual(len(response.context["recommended_channels"]), 2)
+
+        self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "AC")
+        self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "T")
+        self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "TMS")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-2].code, "YO")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "ZV")
+
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "WA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "D3")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "TWA")
 
     def test_register_unsupported_android(self):
         # remove our explicit country so it needs to be derived from channels
