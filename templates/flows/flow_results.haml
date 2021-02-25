@@ -23,6 +23,12 @@
           border: 1px solid var(--color-widget-border);
           color: var(--color-widget-text);
           outline: none;
+          margin-top: 5px;
+        }
+
+        .filter-btn {
+          margin-top: 5px;
+          margin-left: 10px;
         }
 
         .page-content {
@@ -618,11 +624,11 @@
 
     $(document).ready(function() {
       $(".flatpickr").flatpickr({
-          wrap: true,
-          altInput: true,
-          altFormat: 'F j, Y',
-          dateFormat: 'Y-m-d',
-          allowInput: true
+        wrap: true,
+        altInput: true,
+        altFormat: 'F j, Y',
+        dateFormat: 'Y-m-d',
+        allowInput: true
       });
 
       $('.time').live('mouseover', function() {
@@ -649,18 +655,16 @@
         %div{class: "w-1/2 flex pr-3"}
           %label{class: "w-1/4 flex justify-center items-center m-0"}
             -trans "After"
-          .flatpickr{class: "w-3/4 flex justify-center items-center"}
-            %input(type="text" class="custom-date-field" name="after" placeholder="Select a date" data-input)
+          -include "includes/flatpickr_field.haml" with parent_classes="w-3/4 flex justify-center items-center" field_name="after" field_placeholder="Select a date" field_value=request.GET.after
         %div{class: "w-1/2 flex pr-3"}
           %label{class: "w-1/4 flex justify-center items-center m-0"}
             -trans "Before"
-          .flatpickr{class: "w-3/4 flex justify-center items-center"}
-            %input(type="text" class="custom-date-field" name="before" placeholder="Select a date" data-input)
+          -include "includes/flatpickr_field.haml" with parent_classes="w-3/4 flex justify-center items-center" field_name="before" field_placeholder="Select a date" field_value=request.GET.before
       %div{class: "w-1/2 flex flex-grow"}
         %div{class: "w-10/12"}
-          %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="search" value="{{search}}" clearable)
+          %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="q" value="{{ request.GET.q }}" clearable)
         %div{class: "w-1/12 flex-grow"}
-          %button.button-primary(type='submit')
+          %button.button-primary.filter-btn(type='submit')
             -trans "Filter"
 
   .bg-white.p-4.rounded-lg
