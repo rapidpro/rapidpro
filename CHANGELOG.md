@@ -1,3 +1,9 @@
+v6.1.47
+----------
+ * Change synched to synced
+ * Update to smartmin 2.3.5
+ * Require recent authentication to view backup tokens
+
 v6.1.46
 ----------
  * Update to smartmin 2.3.5
