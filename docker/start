@@ -16,7 +16,6 @@ fi
 
 echo "Starting nginx..."
 service nginx start  # TODO: Update after change the user from root
-#exec /usr/sbin/nginx -c $PROJECT_CONF/nginx.conf
 echo "Done!"
 
 echo "Starting server..."
@@ -25,7 +24,7 @@ gunicorn temba.wsgi:application \
   --name=$PROJECT \
   --user=$PROJECT_USER \
   --chdir=$PROJECT_PATH \
-  --bind=unix:$PROJECT_CONF/gunicorn.sock \
+  --bind=0.0.0.0:8001 \
   --timeout=120 \
   --log-level=info \
   --log-config=$PROJECT_PATH/docker/gunicorn/gunicorn-logging.conf \
