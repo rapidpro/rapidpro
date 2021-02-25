@@ -4384,10 +4384,10 @@ class MessagesReportEndpoint(BaseAPIView):
                                evt["msg"].get("uuid") not in [None, "None", ""]]
         return qs.filter(uuid__in=messages_uuids)
 
-    def get_queryset(self):
+    def get(self, request, *args, **kwargs):
         org = self.request.user.get_org()
         queryset = Msg.objects.filter(org=org)
-        self.applied_filters = {}
+        applied_filters = {}
         filters = (
             ("channel", lambda x: queryset.filter(Q(channel__uuid=x) | Q(channel__name=x))),
             ("after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
@@ -4399,16 +4399,37 @@ class MessagesReportEndpoint(BaseAPIView):
             filter_value = self.request.data.get(name)
             if filter_value:
                 queryset = _filter(filter_value)
-                self.applied_filters[name] = filter_value
-        return queryset
+                applied_filters[name] = filter_value
 
-    def get(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
         return Response({
-            **self.applied_filters,
+            **applied_filters,
             "results": queryset.aggregate(
                 inbox_count=Count('id', filter=Q(direction="I")),
                 outbox_count=Count('id', filter=Q(direction="O")),
                 failed_count=Count('id', filter=Q(status__in=[FAILED, ERRORED]))
+            )
+        })
+
+
+class FlowReportEndpoint(BaseAPIView):
+    permission = "orgs.org_api"
+
+    def get(self, request, *args, **kwargs):
+        org = self.request.user.get_org()
+        try:
+            flow = Flow.objects.get(uuid=self.request.data.get("flow"))
+        except Flow.DoesNotExist:
+            return Response({
+                "errors": {
+                    "flow": _("Please enter valid flow UUID.")
+                }
+            })
+        queryset = FlowRun.objects.filter(org=org, flow=flow)
+        return Response({
+            "results": queryset.aggregate(
+                total_contacts=Count('contact_id', distinct=True),
+                total_completes=Count('id', filter=Q(exit_type=FlowRun.EXIT_TYPE_COMPLETED)),
+                total_expired=Count('id', filter=Q(exit_type=FlowRun.EXIT_TYPE_EXPIRED)),
+                total_interrupts=Count('id', filter=Q(exit_type=FlowRun.STATUS_INTERRUPTED)),
             )
         })
