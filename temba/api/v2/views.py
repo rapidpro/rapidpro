@@ -4425,7 +4425,22 @@ class FlowReportEndpoint(BaseAPIView):
                 }
             })
         queryset = FlowRun.objects.filter(org=org, flow=flow)
+        filters = (
+            ("channel", lambda x: queryset.filter(Q(contact__urns__channel__uuid=x) | Q(contact__urns__channel__name=x))),
+            ("started_after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
+            ("started_before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
+            ("exited_after", lambda x: queryset.filter(exited_on__gte=org.parse_datetime(x))),
+            ("exited_before", lambda x: queryset.filter(exited_on__lte=org.parse_datetime(x))),
+            ("exclude", lambda x: queryset.exclude(contact__all_groups__name=x)),
+        )
+        applied_filters = {}
+        for name, _filter in filters:
+            filter_value = self.request.data.get(name)
+            if filter_value:
+                queryset = _filter(filter_value)
+                applied_filters[name] = filter_value
         return Response({
+            **applied_filters,
             "results": queryset.aggregate(
                 total_contacts=Count('contact_id', distinct=True),
                 total_completes=Count('id', filter=Q(exit_type=FlowRun.EXIT_TYPE_COMPLETED)),
