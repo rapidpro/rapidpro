@@ -296,7 +296,7 @@ class UserTest(TembaTest):
         tokens_url = reverse("orgs.user_two_factor_tokens")
         disable_url = reverse("orgs.user_two_factor_disable")
 
-        self.login(self.admin)
+        self.login(self.admin, update_last_auth_on=False)
 
         # org home page tells us 2FA is disabled, links to page to enable it
         response = self.client.get(reverse("orgs.org_home"))
@@ -381,6 +381,76 @@ class UserTest(TembaTest):
 
         response = self.client.get(backup_url)
         self.assertRedirect(response, login_url)
+
+    def test_two_factor_confirm_access(self):
+        tokens_url = reverse("orgs.user_two_factor_tokens")
+
+        self.admin.enable_2fa()
+        self.login(self.admin, update_last_auth_on=False)
+
+        # org home page tells us 2FA is enabled, links to page manage tokens
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, "Two-factor authentication is <b>enabled</b>")
+        self.assertContains(response, tokens_url)
+
+        # but navigating to tokens page redirects to confirm auth
+        response = self.client.get(tokens_url)
+        self.assertEqual(302, response.status_code)
+        self.assertTrue(response.url.endswith("/users/confirm-access/?next=/user/two_factor_tokens/"))
+
+        confirm_url = response.url
+
+        # view confirm access page
+        response = self.client.get(confirm_url)
+        self.assertEqual(["password"], list(response.context["form"].fields.keys()))
+
+        # try to submit with incorrect password
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # submit with real password
+        response = self.client.post(confirm_url, {"password": "Administrator"})
+        self.assertRedirect(response, tokens_url)
+
+        response = self.client.get(tokens_url)
+        self.assertEqual(200, response.status_code)
+
+    @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
+    def test_confirm_access(self):
+        confirm_url = reverse("users.confirm_access") + f"?next=/msg/inbox/"
+        failed_url = reverse("users.user_failed")
+
+        # try to access before logging in
+        response = self.client.get(confirm_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.get(confirm_url)
+        self.assertEqual(["password"], list(response.context["form"].fields.keys()))
+
+        # try to submit with incorrect password
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # 2 more times..
+        self.client.post(confirm_url, {"password": "nope"})
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertRedirect(response, failed_url)
+
+        # even correct password now redirects to failed page
+        response = self.client.post(confirm_url, {"password": "Administrator"})
+        self.assertRedirect(response, failed_url)
+
+        FailedLogin.objects.all().delete()
+
+        # can once again submit incorrect passwords
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # and also correct ones
+        response = self.client.post(confirm_url, {"password": "Administrator"})
+        self.assertRedirect(response, "/msg/inbox/")
 
     def test_ui_permissions(self):
         # non-logged in users can't go here

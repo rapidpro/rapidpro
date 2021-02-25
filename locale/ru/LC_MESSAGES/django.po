@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-24 22:07+0000\n"
+"POT-Creation-Date: 2021-02-24 23:38+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -4110,6 +4110,9 @@ msgstr "Неверный токен МФА. Пожалуйста, попробу
 msgid "Invalid backup token. Please try again."
 msgstr "Неверный токен МФА. Пожалуйста, попробуйте еще раз."
 
+msgid "Password incorrect."
+msgstr ""
+
 #, python-brace-format
 msgid "Deleted user {username}"
 msgstr "Удаленный пользователь {username}"
@@ -4167,9 +4170,6 @@ msgstr "Текущий пароль (обязательно)"
 #| msgid "Invalid MFA token. Please try again."
 msgid "OTP incorrect. Please try again."
 msgstr "Неверный токен МФА. Пожалуйста, попробуйте еще раз."
-
-msgid "Password incorrect."
-msgstr ""
 
 #, fuzzy
 #| msgid "Two Factor Authentication"
@@ -8853,15 +8853,24 @@ msgstr ""
 "\n"
 
 #, fuzzy
+#| msgid "Password"
+msgid "Confirm Access"
+msgstr "Пароль"
+
+msgid "To access this page please confirm your current password."
+msgstr ""
+
+#, fuzzy
+#| msgid "Config"
+msgid "Confirm"
+msgstr "Конфигурация"
+
+#, fuzzy
 #| msgid "Welcome!"
 msgid "Welcome Back"
 msgstr "Добро пожаловать!"
 
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
+msgid "Please sign in with your email address and password."
 msgstr ""
 
 #, fuzzy
@@ -10437,6 +10446,11 @@ msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
 #, fuzzy
+#~| msgid "Password"
+#~ msgid "Confirm Password"
+#~ msgstr "Пароль"
+
+#, fuzzy
 #~| msgid "Your invitation link has expired. Please contact your organization administrator."
 #~ msgid "You are the only administrator on this workspace. Please add other workspace administrators first."
 #~ msgstr "Срок действия Вашей пригласительной ссылки истек. Пожалуйста, свяжитесь с администратором Вашей организации."
@@ -10806,9 +10820,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "Organization using this channel"
 #~ msgstr "Организация, использующая данный канал"
-
-#~ msgid "Config"
-#~ msgstr "Конфигурация"
 
 #~ msgid "Any channel specific configuration, used for the various aggregators"
 #~ msgstr "Любая специфическая для канала конфигурация, используемая для различных агрегаторов"

@@ -42,6 +42,7 @@ from django.db import IntegrityError
 from django.db.models import ExpressionWrapper, F, IntegerField, Q, Sum
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.shortcuts import resolve_url
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_text
@@ -70,7 +71,7 @@ from temba.utils.fields import (
 )
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
-from temba.utils.views import ComponentFormMixin, NonAtomicMixin
+from temba.utils.views import ComponentFormMixin, NonAtomicMixin, RequireRecentAuthMixin
 
 from .models import BackupToken, Invitation, Org, OrgCache, OrgRole, TopUp, get_stripe_credentials
 from .tasks import apply_topups_task
@@ -362,6 +363,7 @@ class LoginView(Login):
 
     def form_valid(self, form):
         user = form.get_user()
+
         if user.get_settings().two_factor_enabled:
             self.request.session[TWO_FACTOR_USER_SESSION_KEY] = str(user.id)
             self.request.session[TWO_FACTOR_STARTED_SESSION_KEY] = timezone.now().isoformat()
@@ -373,6 +375,7 @@ class LoginView(Login):
 
             return HttpResponseRedirect(verify_url)
 
+        user.record_auth()
         return super().form_valid(form)
 
 
@@ -429,6 +432,7 @@ class BaseTwoFactorView(AuthLoginView):
 
         # set the user as actually authenticated now
         login(self.request, user)
+        user.record_auth()
 
         # remove our session key so if the user comes back this page they'll get directed to the login view
         self.reset_user()
@@ -485,6 +489,48 @@ class TwoFactorBackupView(BaseTwoFactorView):
 
     form_class = Form
     template_name = "orgs/login/two_factor_backup.haml"
+
+
+class ConfirmAccessView(Login):
+    """
+    Overrides the smartmin login view to provide a view for an already logged in user to re-authenticate.
+    """
+
+    class Form(forms.Form):
+        password = forms.CharField(
+            label=" ", widget=InputWidget(attrs={"placeholder": _("Password"), "password": True}), required=True
+        )
+
+        def __init__(self, request, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+            self.user = request.user
+
+        def clean_password(self):
+            data = self.cleaned_data["password"]
+            if not self.user.check_password(data):
+                raise forms.ValidationError(_("Password incorrect."))
+            return data
+
+        def get_user(self):
+            return self.user
+
+    template_name = "orgs/login/confirm_access.haml"
+    form_class = Form
+
+    def dispatch(self, request, *args, **kwargs):
+        if not self.request.user.is_authenticated:
+            return HttpResponseRedirect(resolve_url(settings.LOGIN_URL))
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_username(self, form):
+        return self.request.user.username
+
+    def form_valid(self, form):
+        form.get_user().record_auth()
+
+        return super().form_valid(form)
 
 
 class InferOrgMixin:
@@ -700,6 +746,7 @@ class UserCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             self.request.user.enable_2fa()
+            self.request.user.record_auth()
 
             return super().form_valid(form)
 
@@ -736,10 +783,11 @@ class UserCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             self.request.user.disable_2fa()
+            self.request.user.record_auth()
 
             return super().form_valid(form)
 
-    class TwoFactorTokens(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
+    class TwoFactorTokens(RequireRecentAuthMixin, InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         permission = "orgs.org_two_factor"
         title = _("Two-factor Authentication")
 

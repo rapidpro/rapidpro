@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-24 22:07+0000\n"
+"POT-Creation-Date: 2021-02-24 23:38+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -4739,6 +4739,9 @@ msgstr "Número de teléfono inválido, inténtelo nuevamente."
 msgid "Invalid backup token. Please try again."
 msgstr "Número de teléfono inválido, inténtelo nuevamente."
 
+msgid "Password incorrect."
+msgstr ""
+
 #, python-brace-format
 msgid "Deleted user {username}"
 msgstr ""
@@ -4794,9 +4797,6 @@ msgstr "Contraseña actual (requerida)"
 #| msgid "Invalid phone number, try again."
 msgid "OTP incorrect. Please try again."
 msgstr "Número de teléfono inválido, inténtelo nuevamente."
-
-msgid "Password incorrect."
-msgstr ""
 
 msgid "Two-factor authentication enabled"
 msgstr ""
@@ -9423,15 +9423,24 @@ msgid ""
 msgstr ""
 
 #, fuzzy
+#| msgid "Password"
+msgid "Confirm Access"
+msgstr "Contraseña"
+
+msgid "To access this page please confirm your current password."
+msgstr ""
+
+#, fuzzy
+#| msgid "Config"
+msgid "Confirm"
+msgstr "Configuración"
+
+#, fuzzy
 #| msgid "Flow Message"
 msgid "Welcome Back"
 msgstr "Mensaje del flujo"
 
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
+msgid "Please sign in with your email address and password."
 msgstr ""
 
 #, fuzzy
@@ -10848,6 +10857,11 @@ msgid "Found ${count} for ${query}"
 msgstr ""
 
 #, fuzzy
+#~| msgid "Password"
+#~ msgid "Confirm Password"
+#~ msgstr "Contraseña"
+
+#, fuzzy
 #~| msgid "Your invitation link has expired. Please contact your organization administrator."
 #~ msgid "You are the only administrator on this workspace. Please add other workspace administrators first."
 #~ msgstr "El enlace de su invitación ha vencido. Por favor, contacte al administrador de su organización."
@@ -11065,9 +11079,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "Organization using this channel"
 #~ msgstr "La organización que usa este transmisor"
-
-#~ msgid "Config"
-#~ msgstr "Configuración"
 
 #~ msgid "Any channel specific configuration, used for the various aggregators"
 #~ msgstr "Cualquier configuración específica al transmisor, usada para los diferentes agregadores"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-24 22:07+0000\n"
+"POT-Creation-Date: 2021-02-24 23:38+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3253,6 +3253,9 @@ msgstr ""
 msgid "Invalid backup token. Please try again."
 msgstr ""
 
+msgid "Password incorrect."
+msgstr ""
+
 #, python-brace-format
 msgid "Deleted user {username}"
 msgstr ""
@@ -3297,9 +3300,6 @@ msgid "Current password"
 msgstr ""
 
 msgid "OTP incorrect. Please try again."
-msgstr ""
-
-msgid "Password incorrect."
 msgstr ""
 
 msgid "Two-factor authentication enabled"
@@ -6331,14 +6331,19 @@ msgid ""
 "\n"
 msgstr ""
 
+msgid "Confirm Access"
+msgstr ""
+
+msgid "To access this page please confirm your current password."
+msgstr ""
+
+msgid "Confirm"
+msgstr ""
+
 msgid "Welcome Back"
 msgstr ""
 
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
+msgid "Please sign in with your email address and password."
 msgstr ""
 
 msgid "Sign In"

@@ -24,13 +24,11 @@ from twilio.rest import Client as TwilioClient
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
-from django.contrib.auth.signals import user_logged_in
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
 from django.db.models import Count, F, Prefetch, Q, Sum
-from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.text import slugify
@@ -65,13 +63,6 @@ ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY = "org:%d:cache:low_credits_threshold"
 
 ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
-
-
-@receiver(user_logged_in)
-def my_callback(sender, request, user, **kwargs):
-    user_settings = user.get_settings()
-    user_settings.last_auth_on = timezone.now()
-    user_settings.save(update_fields=("last_auth_on",))
 
 
 class OrgRole(Enum):
@@ -2194,6 +2185,12 @@ def _user_get_settings(user):
     return UserSettings.get_or_create(user)
 
 
+def _user_record_auth(user):
+    user_settings = user.get_settings()
+    user_settings.last_auth_on = timezone.now()
+    user_settings.save(update_fields=("last_auth_on",))
+
+
 def _user_enable_2fa(user):
     """
     Enables 2FA for this user
@@ -2244,6 +2241,7 @@ User.get_org_group = get_org_group
 User.get_owned_orgs = get_owned_orgs
 User.has_org_perm = _user_has_org_perm
 User.get_settings = _user_get_settings
+User.record_auth = _user_record_auth
 User.enable_2fa = _user_enable_2fa
 User.disable_2fa = _user_disable_2fa
 User.verify_2fa = _user_verify_2fa
