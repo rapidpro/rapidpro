@@ -9,9 +9,9 @@
     %tbody
       -for broadcast in pending_broadcasts
         %tr.broadcast
-          %td.value-phone.field_phone
+          %td.value-recipient
             -include "includes/recipients.haml" with groups=broadcast.groups.all contacts=broadcast.contacts.all urns=broadcast.raw_urns
-          %td.value-text.field_text.wrapped
+          %td.value-text
             {{ broadcast.get_default_text }}
           %td.created_on
             %span.time
@@ -19,11 +19,10 @@
 
       -for object in object_list
         %tr
-          %td.whitespace-no-wrap
-            .px-6.py-3
-              .hover-linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
-                {{ object.contact|short_name:user_org }}
-          %td.w-full
+          %td.value-recipient
+            .hover-linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
+              {{ object.contact|short_name:user_org }}
+          %td.value-text
             {% get_value object 'text' %}
 
             - if 'label' in actions
