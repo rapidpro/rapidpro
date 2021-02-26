@@ -1,3 +1,4 @@
+-load contacts
 
 .flex.flex-wrap.max-w-full
   -for group in groups
@@ -7,7 +8,11 @@
   -for contact in contacts
     .item.contact.lbl.linked.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_read' contact.uuid %}")
       .icon.icon-user.text-dark-alpha-300.-mb-1
-      {{ contact.get_display }}
+      {{ contact|name_or_urn:user_org }}
+
+  -for urn in urns
+    .item.urn.lbl.mr-2.mb-2
+      {{ urn|format_urn:user_org }}
 
   -if query
     .item.query.lbl.linked.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_list' %}?search={{ query|urlencode }}")
