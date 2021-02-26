@@ -1426,22 +1426,34 @@ class ContactCRUDL(SmartCRUDL):
                 if m.broadcast and m.broadcast.created_by:
                     sender = {"id": m.broadcast.created_by.id, "email": m.broadcast.created_by.email}
 
-                return {
+                msg = {
                     "text": m.text,
                     "direction": m.direction,
                     "type": m.msg_type,
+                    "created_on": m.created_on,
                     "sender": sender,
                 }
 
+                return msg
+
             def contact_as_json(c):
                 last_msg = context["last_msgs"].get(c)
-                return {"uuid": str(c.uuid), "name": c.name, "last_msg": msg_as_json(last_msg) if last_msg else None}
+                return {
+                    "uuid": str(c.uuid),
+                    "name": c.get_display(),
+                    "modified_on": c.modified_on,
+                    "last_msg": msg_as_json(last_msg) if last_msg else None,
+                }
+            response = {"results": [contact_as_json(c) for c in context["object_list"]]}
 
-            return {
-                "page": context["page_obj"].number,
-                "has_next": context["page_obj"].has_next(),
-                "contacts": [contact_as_json(c) for c in context["object_list"]],
-            }
+            # build up our next link if we have more
+            if context["page_obj"].has_next():
+                query_string = (
+                    f"_format=json&folder={self.request.GET.get('folder', '')}&page={context['page_obj'].number + 1}"
+                )
+                response["next"] = f"{reverse('contacts.contact_tickets')}?{query_string}"
+
+            return response
 
 
 class ContactGroupCRUDL(SmartCRUDL):
