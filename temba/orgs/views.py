@@ -54,7 +54,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
-from temba.api.models import APIToken
+from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroupCount
@@ -2504,20 +2504,21 @@ class OrgCRUDL(SmartCRUDL):
 
     class Resthooks(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class ResthookForm(forms.ModelForm):
-            resthook = forms.SlugField(
+            new_slug = forms.SlugField(
                 required=False,
                 label=_("New Event"),
                 help_text="Enter a name for your event. ex: new-registration",
                 widget=InputWidget(),
+                max_length=Resthook._meta.get_field("slug").max_length,
             )
 
-            def add_resthook_fields(self):
+            def add_remove_fields(self):
                 resthooks = []
                 field_mapping = []
 
                 for resthook in self.instance.get_resthooks():
                     check_field = forms.BooleanField(required=False)
-                    field_name = "resthook_%d" % resthook.pk
+                    field_name = "resthook_%d" % resthook.id
 
                     field_mapping.append((field_name, check_field))
                     resthooks.append(dict(resthook=resthook, field=field_name))
@@ -2525,25 +2526,25 @@ class OrgCRUDL(SmartCRUDL):
                 self.fields = OrderedDict(list(self.fields.items()) + field_mapping)
                 return resthooks
 
-            def clean_resthook(self):
-                new_resthook = self.data.get("resthook")
+            def clean_new_slug(self):
+                new_slug = self.data.get("new_slug")
 
-                if new_resthook:
-                    if self.instance.resthooks.filter(is_active=True, slug__iexact=new_resthook):
-                        raise ValidationError("This event name has already been used")
+                if new_slug:
+                    if self.instance.resthooks.filter(is_active=True, slug__iexact=new_slug):
+                        raise ValidationError("This event name has already been used.")
 
-                return new_resthook
+                return new_slug
 
             class Meta:
                 model = Org
-                fields = ("id", "resthook")
+                fields = ("id", "new_slug")
 
         form_class = ResthookForm
         success_message = ""
 
         def get_form(self):
             form = super().get_form()
-            self.current_resthooks = form.add_resthook_fields()
+            self.current_resthooks = form.add_remove_fields()
             return form
 
         def get_context_data(self, **kwargs):
@@ -2552,11 +2553,9 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def pre_save(self, obj):
-            from temba.api.models import Resthook
-
-            new_resthook = self.form.data.get("resthook")
-            if new_resthook:
-                Resthook.get_or_create(obj, new_resthook, self.request.user)
+            new_slug = self.form.data.get("new_slug")
+            if new_slug:
+                Resthook.get_or_create(obj, new_slug, self.request.user)
 
             # release any resthooks that the user removed
             for resthook in self.current_resthooks:

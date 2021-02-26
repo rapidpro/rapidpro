@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-24 23:38+0000\n"
+"POT-Creation-Date: 2021-02-26 15:57+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -9364,17 +9364,21 @@ msgstr ""
 "\n"
 "  "
 
-msgid "no flow events"
-msgstr "нет событий потока"
+#, fuzzy
+#| msgid "You have <b>%(counter)s global</b> configured"
+#| msgid_plural "You have <b>%(counter)s globals</b> configured"
+msgid "You have <b>no flow events</b> configured."
+msgstr "У Вас есть настроенный <b>%(counter)s глобальный объект</b> "
 
-msgid "one flow event"
-msgstr "одно событие потока"
-
-msgid "flow events"
-msgstr "события потока"
-
-msgid "configured."
-msgstr "настроено."
+#, fuzzy, python-format
+#| msgid "You have <b>%(counter)s global</b> configured"
+#| msgid_plural "You have <b>%(counter)s globals</b> configured"
+msgid "You have <b>1 flow event</b> configured."
+msgid_plural "You have <b>%(counter)s flow events</b> configured."
+msgstr[0] "У Вас есть настроенный <b>%(counter)s глобальный объект</b> "
+msgstr[1] "У Вас есть настроенные <b>%(counter)s глобальные объекты</b> "
+msgstr[2] "У Вас есть настроенные <b>%(counter)s глобальные объекты</b> "
+msgstr[3] "У Вас есть настроенные <b>%(counter)s глобальные объекты</b> "
 
 msgid "Create Account"
 msgstr "Создать Учетную запись"
@@ -10444,6 +10448,18 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "no flow events"
+#~ msgstr "нет событий потока"
+
+#~ msgid "one flow event"
+#~ msgstr "одно событие потока"
+
+#~ msgid "flow events"
+#~ msgstr "события потока"
+
+#~ msgid "configured."
+#~ msgstr "настроено."
 
 #, fuzzy
 #~| msgid "Password"
