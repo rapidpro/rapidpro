@@ -1,3 +1,8 @@
+v6.1.48
+----------
+ * Update editor with dial router changes
+ * Fix resthook formax validation
+
 v6.1.47
 ----------
  * Change synched to synced
