@@ -1,10 +1,40 @@
+FROM python:3.6-slim as build-apps
+
+
+ARG RAPIDPRO_APPS_GIT_URL
+ARG RAPIDPRO_APPS_GIT_BRANCH
+ARG PROTOBUFFERS_URL
+
+RUN apt-get update \
+ && apt-get install --no-install-recommends --no-install-suggests -y apt-utils \
+ && apt-get install --no-install-recommends --no-install-suggests -y git
+
+# get protobuffers
+WORKDIR /protos
+RUN git clone --depth 1 -- ${PROTOBUFFERS_URL} . \
+ && cd rapidpro-org 
+
+WORKDIR /src
+
+# clone rapidpro-apps
+RUN git clone -- ${RAPIDPRO_APPS_GIT_URL} . \
+ && git checkout ${RAPIDPRO_APPS_GIT_BRANCH}
+
+RUN cp /protos/rapidpro-org/org.proto weni/org_grpc/grpc_gen/ 
+RUN pip install grpcio grpcio-tools
+RUN python -m grpc_tools.protoc \
+    --grpc_python_out=./weni/org_grpc/grpc_gen/org.proto \
+    --proto_path=./ \
+    --python_out=./ \
+    --experimental_allow_proto3_optional
+
+RUN python setup.py sdist .
+
+
 FROM python:3.6-slim
 
 ARG COMPRESS_ENABLED
 ARG BRANDING_ENABLED
-
-ARG RAPIDPRO_APPS_GIT_URL
-ARG RAPIDPRO_APPS_GIT_BRANCH
 
 ENV PYTHONUNBUFFERED 1
 ENV DEBIAN_FRONTEND  noninteractive
@@ -38,10 +68,11 @@ RUN mkdir $PROJECT_PATH \
 
 RUN rm /etc/nginx/sites-enabled/default
 
+COPY --from=0 /src/dist .
 COPY ./docker/pip-freeze.txt /tmp/dep/
 COPY ./pip-freeze.txt ./docker/nginx.site.conf /tmp/
 RUN pip install --no-cache-dir -r /tmp/dep/pip-freeze.txt && \
-    pip install -e git+$RAPIDPRO_APPS_GIT_URL@$RAPIDPRO_APPS_GIT_BRANCH#egg=rapidpro_apps
+    pip install rapidpro-apps-0.1.tar.gz
 
 RUN cp /tmp/nginx.site.conf /etc/nginx/sites-available/$PROJECT.conf \
  && ln -s /etc/nginx/sites-available/$PROJECT.conf /etc/nginx/sites-enabled/$PROJECT.conf
