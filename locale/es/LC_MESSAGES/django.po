@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-26 15:57+0000\n"
+"POT-Creation-Date: 2021-02-26 19:09+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -9158,19 +9158,6 @@ msgstr[1] ""
 "\n"
 "         "
 
-#, fuzzy, python-format
-msgid "%(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
-msgstr ""
-"\n"
-"                    %(sms_failed)s Error\n"
-"\n"
-"         "
-
-#, fuzzy
-#| msgid "Pending"
-msgid "(sending)"
-msgstr "Pendiente"
-
 msgid "No matching messages."
 msgstr "Ningún mensaje corresponde."
 
@@ -10847,6 +10834,19 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy, python-format
+#~ msgid "%(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
+#~ msgstr ""
+#~ "\n"
+#~ "                    %(sms_failed)s Error\n"
+#~ "\n"
+#~ "         "
+
+#, fuzzy
+#~| msgid "Pending"
+#~ msgid "(sending)"
+#~ msgstr "Pendiente"
 
 #, fuzzy
 #~| msgid "Run flow over"
