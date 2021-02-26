@@ -10,7 +10,7 @@ if [ ! -z "${BRANDING_FILES}" ]; then
 fi
 
 if [ ! -z "${ENABLE_TEMPLATES}" ]; then
-    git clone -b $TEMPLATE_BRANCH $TEMPLATE_REPO $PROJECT_PATH
+    git clone -b $TEMPLATE_BRANCH $TEMPLATE_REPO
     rm -rf $PROJECT_PATH/templates
     mv $PROJECT_PATH/weni-rp-templates/templates $PROJECT_PATH
 fi
