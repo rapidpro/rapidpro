@@ -28,6 +28,8 @@ RUN python -m grpc_tools.protoc \
  ./weni/org_grpc/grpc_gen/org.proto \
  --experimental_allow_proto3_optional
 
+RUN ls -l weni/org_grpc/grpc_gen/
+
 RUN python setup.py sdist
 
 
@@ -71,8 +73,9 @@ RUN rm /etc/nginx/sites-enabled/default
 COPY ./docker/pip-freeze.txt /tmp/dep/
 COPY ./pip-freeze.txt ./docker/nginx.site.conf /tmp/
 COPY --from=build-apps /src/dist .
-RUN pip install --no-cache-dir -r /tmp/dep/pip-freeze.txt && \
-    pip install rapidpro-apps-0.1.tar.gz
+RUN pip install --no-cache-dir -U pip==20.2.2 setuptools==49.6.0 && \
+    pip install --no-cache-dir -r /tmp/dep/pip-freeze.txt && \
+    pip install --no-cache-dir rapidpro-apps-0.1.tar.gz
 
 RUN cp /tmp/nginx.site.conf /etc/nginx/sites-available/$PROJECT.conf \
  && ln -s /etc/nginx/sites-available/$PROJECT.conf /etc/nginx/sites-enabled/$PROJECT.conf
