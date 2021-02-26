@@ -3,6 +3,7 @@ import json
 
 import regex
 import requests
+from collections import defaultdict, Counter
 from enum import Enum
 from mimetypes import guess_extension
 
@@ -4403,11 +4404,11 @@ class MessagesReportEndpoint(BaseAPIView):
 
         return Response({
             **applied_filters,
-            "results": queryset.aggregate(
+            "results": [queryset.aggregate(
                 inbox_count=Count('id', filter=Q(direction="I")),
                 outbox_count=Count('id', filter=Q(direction="O")),
                 failed_count=Count('id', filter=Q(status__in=[FAILED, ERRORED]))
-            )
+            )]
         })
 
 
@@ -4426,7 +4427,8 @@ class FlowReportEndpoint(BaseAPIView):
             })
         queryset = FlowRun.objects.filter(org=org, flow=flow)
         filters = (
-            ("channel", lambda x: queryset.filter(Q(contact__urns__channel__uuid=x) | Q(contact__urns__channel__name=x))),
+            ("channel",
+             lambda x: queryset.filter(Q(contact__urns__channel__uuid=x) | Q(contact__urns__channel__name=x))),
             ("started_after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
             ("started_before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
             ("exited_after", lambda x: queryset.filter(exited_on__gte=org.parse_datetime(x))),
@@ -4441,10 +4443,80 @@ class FlowReportEndpoint(BaseAPIView):
                 applied_filters[name] = filter_value
         return Response({
             **applied_filters,
-            "results": queryset.aggregate(
+            "results": [queryset.aggregate(
                 total_contacts=Count('contact_id', distinct=True),
                 total_completes=Count('id', filter=Q(exit_type=FlowRun.EXIT_TYPE_COMPLETED)),
                 total_expired=Count('id', filter=Q(exit_type=FlowRun.EXIT_TYPE_EXPIRED)),
                 total_interrupts=Count('id', filter=Q(exit_type=FlowRun.STATUS_INTERRUPTED)),
-            )
+            )]
+        })
+
+
+class FlowVariableReportEndpoint(BaseAPIView):
+    permission = "orgs.org_api"
+
+    def get(self, request, *args, **kwargs):
+        applied_filters = {}
+        org = self.request.user.get_org()
+        try:
+            flow = Flow.objects.get(uuid=self.request.data.get("flow"))
+            applied_filters["flow"] = flow.uuid
+        except Flow.DoesNotExist:
+            return Response({
+                "errors": {
+                    "flow": _("Please enter valid flow UUID.")
+                }
+            })
+        queryset = FlowRun.objects.filter(org=org, flow=flow)
+        filters = (
+            ("channel",
+             lambda x: queryset.filter(Q(contact__urns__channel__uuid=x) | Q(contact__urns__channel__name=x))),
+            ("started_after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
+            ("started_before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
+            ("exited_after", lambda x: queryset.filter(exited_on__gte=org.parse_datetime(x))),
+            ("exited_before", lambda x: queryset.filter(exited_on__lte=org.parse_datetime(x))),
+            ("exclude", lambda x: queryset.exclude(contact__all_groups__name=x)),
+        )
+
+        for name, _filter in filters:
+            filter_value = self.request.data.get(name)
+            if filter_value:
+                queryset = _filter(filter_value)
+                applied_filters[name] = filter_value
+
+        counts = defaultdict(lambda: Counter())
+        requested_variables = self.request.data.get("variables")
+        existing_variables = {result.get("key", ""): result for result in flow.metadata.get("results", [])}
+        variable_filters = {}
+        top_ordering = {}
+        if not (requested_variables and type(requested_variables) is dict):
+            return Response({"errors": {"variables": _("Filter 'variables' invalid or not provided.")}})
+
+        for variable, conf in requested_variables.items():
+            if variable not in existing_variables:
+                return Response(
+                    {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}}
+                )
+            _format = conf.get("format", "").lower()
+            if _format not in ["category", "value"]:
+                _format = "category"
+            variable_filters[variable] = {"format": _format}
+            if _format == "value" and type(conf.get("top")) is int:
+                variable_filters[variable]["top"] = conf.get("top")
+                top_ordering[variable] = conf.get("top")
+            if _format == "category":
+                counts[variable] = Counter({category: 0 for category in existing_variables[variable]["categories"]})
+        applied_filters["variables"] = variable_filters
+
+        for flow_run in queryset:
+            for result_name, result in flow_run.results.items():
+                if result_name in variable_filters:
+                    counts[result_name][result[variable_filters[result_name]["format"]]] += 1
+
+        for variable, top_x in top_ordering.items():
+            counts[variable] = dict(counts[variable].most_common(top_x))
+
+        return Response({
+            **applied_filters,
+            "results": [counts]
         })

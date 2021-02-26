@@ -40,6 +40,7 @@ from .views import (
     ContactsReportEndpoint,
     MessagesReportEndpoint,
     FlowReportEndpoint,
+    FlowVariableReportEndpoint,
 )
 
 urlpatterns = [
@@ -81,6 +82,7 @@ urlpatterns = [
     url(r"^contacts_report$", ContactsReportEndpoint.as_view(), name="api.v2.contacts_report"),
     url(r"^messages_report$", MessagesReportEndpoint.as_view(), name="api.v2.messages_report"),
     url(r"^flow_report$", FlowReportEndpoint.as_view(), name="api.v2.flow_report"),
+    url(r"^flow_variable_report$", FlowVariableReportEndpoint.as_view(), name="api.v2.flow_variable_report"),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns, allowed=["json", "api"])
