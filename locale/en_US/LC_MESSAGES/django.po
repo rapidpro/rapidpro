@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-26 15:57+0000\n"
+"POT-Creation-Date: 2021-02-26 19:09+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6088,13 +6088,6 @@ msgid_plural ""
 "                  "
 msgstr[0] ""
 msgstr[1] ""
-
-#, python-format
-msgid "%(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
-msgstr ""
-
-msgid "(sending)"
-msgstr ""
 
 msgid "No matching messages."
 msgstr ""

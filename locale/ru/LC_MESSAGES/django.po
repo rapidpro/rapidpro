@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-26 15:57+0000\n"
+"POT-Creation-Date: 2021-02-26 19:09+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -8356,20 +8356,6 @@ msgstr[3] ""
 "                      %(counter)s получателей\n"
 "                  "
 
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "                    %(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns\n"
-#| "\n"
-#| "                  "
-msgid "%(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
-msgstr ""
-"\n"
-"                    %(recipient_counts.groups)s групп, %(recipient_counts.contacts)s контактов, %(recipient_counts.urns)s urn"
-
-msgid "(sending)"
-msgstr "(отправляется)"
-
 msgid "No matching messages."
 msgstr "Нет соответствующих сообщений."
 
@@ -10448,6 +10434,20 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "                    %(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns\n"
+#~| "\n"
+#~| "                  "
+#~ msgid "%(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
+#~ msgstr ""
+#~ "\n"
+#~ "                    %(recipient_counts.groups)s групп, %(recipient_counts.contacts)s контактов, %(recipient_counts.urns)s urn"
+
+#~ msgid "(sending)"
+#~ msgstr "(отправляется)"
 
 #~ msgid "no flow events"
 #~ msgstr "нет событий потока"

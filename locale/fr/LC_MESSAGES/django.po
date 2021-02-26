@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-26 15:57+0000\n"
+"POT-Creation-Date: 2021-02-26 19:09+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -6336,13 +6336,6 @@ msgstr[1] ""
 "                      %(counter)s destinataires\n"
 "                  "
 
-#, python-format
-msgid "%(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
-msgstr "%(recipient_counts.groups)s groupes, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
-
-msgid "(sending)"
-msgstr "(Envoi)"
-
 msgid "No matching messages."
 msgstr "Aucun message correspondant."
 
@@ -7893,6 +7886,13 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, python-format
+#~ msgid "%(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
+#~ msgstr "%(recipient_counts.groups)s groupes, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
+
+#~ msgid "(sending)"
+#~ msgstr "(Envoi)"
 
 #~ msgid "no flow events"
 #~ msgstr "aucun événement de flux"

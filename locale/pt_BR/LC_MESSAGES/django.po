@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-26 15:57+0000\n"
+"POT-Creation-Date: 2021-02-26 19:09+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -8422,17 +8422,6 @@ msgstr[1] ""
 "\n"
 "%(label)s coluna como"
 
-#, fuzzy, python-format
-msgid "%(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
-msgstr ""
-"\n"
-"Contatos %(contacts_count)s importados com sucesso para"
-
-#, fuzzy
-#| msgid "Pending"
-msgid "(sending)"
-msgstr "Pendente"
-
 msgid "No matching messages."
 msgstr "Nenhuma mensagem correspondente."
 
@@ -9986,6 +9975,17 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy, python-format
+#~ msgid "%(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
+#~ msgstr ""
+#~ "\n"
+#~ "Contatos %(contacts_count)s importados com sucesso para"
+
+#, fuzzy
+#~| msgid "Pending"
+#~ msgid "(sending)"
+#~ msgstr "Pendente"
 
 #, fuzzy
 #~| msgid "flows"
