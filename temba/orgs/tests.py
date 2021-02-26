@@ -2700,8 +2700,10 @@ class OrgTest(TembaTest):
         self.assertEqual((None, None), self.org.get_chatbase_credentials())
 
     def test_resthooks(self):
-        # no hitting this page without auth
+        home_url = reverse("orgs.org_home")
         resthook_url = reverse("orgs.org_resthooks")
+
+        # no hitting this page without auth
         response = self.client.get(resthook_url)
         self.assertLoginRedirect(response)
 
@@ -2713,22 +2715,37 @@ class OrgTest(TembaTest):
         # shouldn't have any resthooks listed yet
         self.assertFalse(response.context["current_resthooks"])
 
-        # ok, let's create one
-        self.client.post(resthook_url, dict(resthook="mother-registration "))
+        response = self.client.get(home_url)
+        self.assertContains(response, "You have <b>no flow events</b> configured.")
+
+        # try to create one with name that's too long
+        response = self.client.post(resthook_url, {"new_slug": "x" * 100})
+        self.assertFormError(response, "form", "new_slug", "Ensure this value has at most 50 characters (it has 100).")
+
+        # now try to create with valid name/slug
+        response = self.client.post(resthook_url, {"new_slug": "mother-registration "})
+        self.assertEqual(302, response.status_code)
 
         # should now have a resthook
-        resthook = Resthook.objects.get()
-        self.assertEqual(resthook.slug, "mother-registration")
-        self.assertEqual(resthook.org, self.org)
-        self.assertEqual(resthook.created_by, self.admin)
+        mother_reg = Resthook.objects.get()
+        self.assertEqual(mother_reg.slug, "mother-registration")
+        self.assertEqual(mother_reg.org, self.org)
+        self.assertEqual(mother_reg.created_by, self.admin)
 
         # fetch our read page, should have have our resthook
         response = self.client.get(resthook_url)
-        self.assertTrue(response.context["current_resthooks"])
+        self.assertEqual(
+            [{"field": f"resthook_{mother_reg.id}", "resthook": mother_reg}],
+            list(response.context["current_resthooks"]),
+        )
+
+        # and summarized on org home page
+        response = self.client.get(home_url)
+        self.assertContains(response, "You have <b>1 flow event</b> configured.")
 
         # let's try to create a repeat, should fail due to duplicate slug
-        response = self.client.post(resthook_url, dict(resthook="Mother-Registration"))
-        self.assertTrue(response.context["form"].errors)
+        response = self.client.post(resthook_url, {"new_slug": "Mother-Registration"})
+        self.assertFormError(response, "form", "new_slug", "This event name has already been used.")
 
         # hit our list page used by select2, checking it lists our resthook
         response = self.client.get(reverse("api.resthook_list") + "?_format=select2")
@@ -2737,20 +2754,20 @@ class OrgTest(TembaTest):
         self.assertEqual(results[0], dict(text="mother-registration", id="mother-registration"))
 
         # add a subscriber
-        subscriber = resthook.add_subscriber("http://foo", self.admin)
+        subscriber = mother_reg.add_subscriber("http://foo", self.admin)
 
         # finally, let's remove that resthook
-        self.client.post(resthook_url, {"resthook_%d" % resthook.id: "checked"})
+        self.client.post(resthook_url, {"resthook_%d" % mother_reg.id: "checked"})
 
-        resthook.refresh_from_db()
-        self.assertFalse(resthook.is_active)
+        mother_reg.refresh_from_db()
+        self.assertFalse(mother_reg.is_active)
 
         subscriber.refresh_from_db()
         self.assertFalse(subscriber.is_active)
 
         # no more resthooks!
         response = self.client.get(resthook_url)
-        self.assertFalse(response.context["current_resthooks"])
+        self.assertEqual([], list(response.context["current_resthooks"]))
 
     @override_settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True)
     def test_smtp_server(self):

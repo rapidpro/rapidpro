@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-24 23:38+0000\n"
+"POT-Creation-Date: 2021-02-26 15:57+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6636,17 +6636,14 @@ msgstr ""
 msgid "You can create flow events which external services can subscribe to. For example, Zapier can subscribe to flow events you create and trigger any number of Zapier integrations when they occur in your flows."
 msgstr ""
 
-msgid "no flow events"
+msgid "You have <b>no flow events</b> configured."
 msgstr ""
 
-msgid "one flow event"
-msgstr ""
-
-msgid "flow events"
-msgstr ""
-
-msgid "configured."
-msgstr ""
+#, python-format
+msgid "You have <b>1 flow event</b> configured."
+msgid_plural "You have <b>%(counter)s flow events</b> configured."
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Create Account"
 msgstr ""

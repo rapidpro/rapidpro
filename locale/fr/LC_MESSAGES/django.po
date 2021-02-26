@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-24 23:38+0000\n"
+"POT-Creation-Date: 2021-02-26 15:57+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -7048,17 +7048,19 @@ msgstr "Vous n'avez pas activé la surveillance de %(prometheus)s sur votre espa
 msgid "You can create flow events which external services can subscribe to. For example, Zapier can subscribe to flow events you create and trigger any number of Zapier integrations when they occur in your flows."
 msgstr "Vous pouvez créer des événements de flux auxquels les services externes peuvent s'abonner. Par exemple, Zapier peut s'abonner aux événements de flux que vous créez et déclencher n'importe quel nombre d'intégrations Zapier lorsqu'elles se produisent dans vos flux."
 
-msgid "no flow events"
-msgstr "aucun événement de flux"
+#, fuzzy
+#| msgid "You have <b>%(counter)s global</b> configured"
+#| msgid_plural "You have <b>%(counter)s globals</b> configured"
+msgid "You have <b>no flow events</b> configured."
+msgstr "Vous avez <b>%(counter)s variable globale</b> configurée"
 
-msgid "one flow event"
-msgstr "un événement de flux"
-
-msgid "flow events"
-msgstr "événements de flux"
-
-msgid "configured."
-msgstr "configuré."
+#, fuzzy, python-format
+#| msgid "You have <b>%(counter)s global</b> configured"
+#| msgid_plural "You have <b>%(counter)s globals</b> configured"
+msgid "You have <b>1 flow event</b> configured."
+msgid_plural "You have <b>%(counter)s flow events</b> configured."
+msgstr[0] "Vous avez <b>%(counter)s variable globale</b> configurée"
+msgstr[1] "Vous avez <b>%(counter)s variables globales</b> configurées"
 
 msgid "Create Account"
 msgstr "Créer un compte"
@@ -7891,6 +7893,18 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "no flow events"
+#~ msgstr "aucun événement de flux"
+
+#~ msgid "one flow event"
+#~ msgstr "un événement de flux"
+
+#~ msgid "flow events"
+#~ msgstr "événements de flux"
+
+#~ msgid "configured."
+#~ msgstr "configuré."
 
 #, fuzzy
 #~| msgid "Confirm new password"

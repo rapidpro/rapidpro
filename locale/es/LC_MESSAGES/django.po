@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-24 23:38+0000\n"
+"POT-Creation-Date: 2021-02-26 15:57+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -9859,22 +9859,14 @@ msgid "You can create flow events which external services can subscribe to. For 
 msgstr ""
 
 #, fuzzy
-#| msgid "Run flow over"
-msgid "no flow events"
-msgstr "Correr flujo"
+msgid "You have <b>no flow events</b> configured."
+msgstr "Debe elegir un país para su organización."
 
-#, fuzzy
-#| msgid "Run flow over"
-msgid "one flow event"
-msgstr "Correr flujo"
-
-#, fuzzy
-#| msgid "flows"
-msgid "flow events"
-msgstr "flujos"
-
-msgid "configured."
-msgstr "configurado"
+#, fuzzy, python-format
+msgid "You have <b>1 flow event</b> configured."
+msgid_plural "You have <b>%(counter)s flow events</b> configured."
+msgstr[0] "Debe elegir un país para su organización."
+msgstr[1] "Debe elegir un país para su organización."
 
 #, fuzzy
 #| msgid "Create new account"
@@ -10855,6 +10847,24 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid "Run flow over"
+#~ msgid "no flow events"
+#~ msgstr "Correr flujo"
+
+#, fuzzy
+#~| msgid "Run flow over"
+#~ msgid "one flow event"
+#~ msgstr "Correr flujo"
+
+#, fuzzy
+#~| msgid "flows"
+#~ msgid "flow events"
+#~ msgstr "flujos"
+
+#~ msgid "configured."
+#~ msgstr "configurado"
 
 #, fuzzy
 #~| msgid "Password"
