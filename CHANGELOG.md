@@ -1,3 +1,8 @@
+v6.2.0
+----------
+ * Update translations for es, fr and pt-BR
+ * Fix rendering of pending broadcasts in outbox view
+
 v6.1.48
 ----------
  * Update editor with dial router changes
