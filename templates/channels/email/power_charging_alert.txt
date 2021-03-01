@@ -3,7 +3,7 @@
 {% blocktrans with org_name=org.name %}
 Hi {{ org_name }},
 
-We've noticed that the Android phone for {{ org.name }} is now charging the battery.
+We've noticed that the Android phone for {{ org_name }} is now charging the battery.
 This email is to announce that your android phone battery low reported last time was resolved. Now the battery is charging.
 {% endblocktrans %}
 
