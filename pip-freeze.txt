@@ -166,16 +166,16 @@ pycparser==2.17
     # via cffi
 pycrypto==2.6.1
     # via -r pip-requires.txt
-pyexcel-io==0.5.20
+pyexcel-io==0.6.4
     # via
     #   pyexcel
     #   pyexcel-xls
     #   pyexcel-xlsx
-pyexcel-xls==0.5.9
+pyexcel-xls==0.6.2
     # via -r pip-requires.txt
-pyexcel-xlsx==0.5.8
+pyexcel-xlsx==0.6.0
     # via -r pip-requires.txt
-pyexcel==0.6.4
+pyexcel==0.6.6
     # via -r pip-requires.txt
 pyfcm==1.3.1
     # via -r pip-requires.txt
@@ -269,11 +269,11 @@ six==1.10.0
     #   python-intercom
     #   responses
     #   twilio
-smartmin==2.3.0
+smartmin==2.3.5
     # via -r pip-requires.txt
 soupsieve==1.6.2
     # via beautifulsoup4
-sqlparse==0.2.3
+sqlparse==0.4.1
     # via
     #   django
     #   smartmin
@@ -305,7 +305,7 @@ xlrd==1.2.0
     #   smartmin
 xlsxlite==0.2.0
     # via -r pip-requires.txt
-xlwt==1.2.0
+xlwt==1.3.0
     # via
     #   pyexcel-xls
     #   smartmin

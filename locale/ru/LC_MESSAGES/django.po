@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-11 18:54+0000\n"
+"POT-Creation-Date: 2021-02-26 19:09+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1132,7 +1132,7 @@ msgstr ""
 #| "Add a <a href=\"http://facebook.com\">Facebook</a> bot to send and receive messages on behalf\n"
 #| "    of one of your Facebook pages for free. You will need to create a Facebook application on their\n"
 #| "    <a href=\"http://developers.facebook.com\">developers</a> site first."
-msgid "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect."
+msgid "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect. On the Facebook page, navigate Settings > Page roles and verify you have an admin page role on the page."
 msgstr ""
 "Добавьте бота <a href=\"http://facebook.com\">Facebook</a> для бесплатной отправки и получения сообщений от имени \n"
 "    одной из Ваших страниц на Facebook. Вам сначала потребуется создать приложение Facebook на их \n"
@@ -2769,7 +2769,9 @@ msgstr "Логин"
 msgid "Sync"
 msgstr "Синхронизировать"
 
-msgid "Your classifier has been synched."
+#, fuzzy
+#| msgid "Your classifier has been synched."
+msgid "Your classifier has been synced."
 msgstr "Ваш классификатор был синхронизирован."
 
 msgid "Unable to sync classifier. See the log for details."
@@ -4108,6 +4110,9 @@ msgstr "Неверный токен МФА. Пожалуйста, попробу
 msgid "Invalid backup token. Please try again."
 msgstr "Неверный токен МФА. Пожалуйста, попробуйте еще раз."
 
+msgid "Password incorrect."
+msgstr ""
+
 #, python-brace-format
 msgid "Deleted user {username}"
 msgstr "Удаленный пользователь {username}"
@@ -4165,9 +4170,6 @@ msgstr "Текущий пароль (обязательно)"
 #| msgid "Invalid MFA token. Please try again."
 msgid "OTP incorrect. Please try again."
 msgstr "Неверный токен МФА. Пожалуйста, попробуйте еще раз."
-
-msgid "Password incorrect."
-msgstr ""
 
 #, fuzzy
 #| msgid "Two Factor Authentication"
@@ -4338,6 +4340,16 @@ msgid "One of the emails you entered is invalid."
 msgstr "Один из адресов электронной почты, который Вы ввели, является недопустимым."
 
 #, fuzzy
+#| msgid "One of the emails you entered is invalid."
+msgid "One of the emails you entered has an existing user on the workspace."
+msgstr "Один из адресов электронной почты, который Вы ввели, является недопустимым."
+
+#, fuzzy
+#| msgid "One of the emails you entered is invalid."
+msgid "One of the emails you entered is duplicated."
+msgstr "Один из адресов электронной почты, который Вы ввели, является недопустимым."
+
+#, fuzzy
 #| msgid "You must have at least one administator"
 msgid "A workspace must have at least one administrator."
 msgstr "У Вас должен быть хотя бы один администратор"
@@ -4382,13 +4394,18 @@ msgstr "Ваша пригласительная ссылка недействи�
 msgid "Join %(name)s"
 msgstr "Присоединиться к %(name)s"
 
-msgid "Join"
-msgstr "Присоединиться"
+#, fuzzy
+#| msgid "Please click Join to accept the invitation."
+msgid "Sign in with your account to accept the invitation"
+msgstr "Пожалуйста, для принятия приглашения нажмите «Присоединиться»."
 
 #, fuzzy
 #| msgid "Your invitation link has expired. Please contact your organization administrator."
 msgid "Your invitation link has expired. Please contact your workspace administrator."
 msgstr "Срок действия Вашей пригласительной ссылки истек. Пожалуйста, свяжитесь с администратором Вашей организации."
+
+msgid "Join"
+msgstr "Присоединиться"
 
 msgid "Invalid surveyor password, please check with your project leader and try again."
 msgstr "Недействительный пароль наблюдателя. Пожалуйста, уточните его у руководителя проекта и повторите попытку."
@@ -5248,6 +5265,15 @@ msgstr "Работает в любой стране и использует та
 
 msgid "API Channels"
 msgstr "Каналы API"
+
+#, fuzzy
+#| msgid "API Channels"
+msgid "All Channels"
+msgstr "Каналы API"
+
+#, python-format
+msgid "The channels above are the available channels for your region, but you can also <a class=\"inline\" href=\"%(claim_all_url)s\">view all channels</a>."
+msgstr ""
 
 msgid "Enter your credentials to add your number."
 msgstr ""
@@ -8330,20 +8356,6 @@ msgstr[3] ""
 "                      %(counter)s получателей\n"
 "                  "
 
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "                    %(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns\n"
-#| "\n"
-#| "                  "
-msgid "%(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
-msgstr ""
-"\n"
-"                    %(recipient_counts.groups)s групп, %(recipient_counts.contacts)s контактов, %(recipient_counts.urns)s urn"
-
-msgid "(sending)"
-msgstr "(отправляется)"
-
 msgid "No matching messages."
 msgstr "Нет соответствующих сообщений."
 
@@ -8827,15 +8839,24 @@ msgstr ""
 "\n"
 
 #, fuzzy
+#| msgid "Password"
+msgid "Confirm Access"
+msgstr "Пароль"
+
+msgid "To access this page please confirm your current password."
+msgstr ""
+
+#, fuzzy
+#| msgid "Config"
+msgid "Confirm"
+msgstr "Конфигурация"
+
+#, fuzzy
 #| msgid "Welcome!"
 msgid "Welcome Back"
 msgstr "Добро пожаловать!"
 
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
+msgid "Please sign in with your email address and password."
 msgstr ""
 
 #, fuzzy
@@ -8985,14 +9006,6 @@ msgstr "Редактировать Псевдонимы "
 
 msgid "Choose a country to enable location support in your flows."
 msgstr "Выберите страну для включения поддержки местоположения в Ваших потоках."
-
-#, fuzzy
-#| msgid "Create new account"
-msgid "Create new login"
-msgstr "Создать новую учетную запись"
-
-msgid "Sign in"
-msgstr "Войти"
 
 msgid "Add Credits"
 msgstr "Добавить Кредиты"
@@ -9209,6 +9222,9 @@ msgstr "Если у Вас есть потоки или кампании с та
 msgid "Do not proceed unless you are willing to replace your existing flows and campaigns."
 msgstr "Не продолжайте, если Вы не хотите заменить свои существующие потоки и кампании."
 
+msgid "Sign in"
+msgstr "Войти"
+
 #, fuzzy, python-format
 #| msgid "You have been invited to join"
 msgid "You have been invited to join %(name)s."
@@ -9334,17 +9350,21 @@ msgstr ""
 "\n"
 "  "
 
-msgid "no flow events"
-msgstr "нет событий потока"
+#, fuzzy
+#| msgid "You have <b>%(counter)s global</b> configured"
+#| msgid_plural "You have <b>%(counter)s globals</b> configured"
+msgid "You have <b>no flow events</b> configured."
+msgstr "У Вас есть настроенный <b>%(counter)s глобальный объект</b> "
 
-msgid "one flow event"
-msgstr "одно событие потока"
-
-msgid "flow events"
-msgstr "события потока"
-
-msgid "configured."
-msgstr "настроено."
+#, fuzzy, python-format
+#| msgid "You have <b>%(counter)s global</b> configured"
+#| msgid_plural "You have <b>%(counter)s globals</b> configured"
+msgid "You have <b>1 flow event</b> configured."
+msgid_plural "You have <b>%(counter)s flow events</b> configured."
+msgstr[0] "У Вас есть настроенный <b>%(counter)s глобальный объект</b> "
+msgstr[1] "У Вас есть настроенные <b>%(counter)s глобальные объекты</b> "
+msgstr[2] "У Вас есть настроенные <b>%(counter)s глобальные объекты</b> "
+msgstr[3] "У Вас есть настроенные <b>%(counter)s глобальные объекты</b> "
 
 msgid "Create Account"
 msgstr "Создать Учетную запись"
@@ -10415,16 +10435,41 @@ msgstr "Ввести запрос"
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "                    %(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns\n"
+#~| "\n"
+#~| "                  "
+#~ msgid "%(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
+#~ msgstr ""
+#~ "\n"
+#~ "                    %(recipient_counts.groups)s групп, %(recipient_counts.contacts)s контактов, %(recipient_counts.urns)s urn"
+
+#~ msgid "(sending)"
+#~ msgstr "(отправляется)"
+
+#~ msgid "no flow events"
+#~ msgstr "нет событий потока"
+
+#~ msgid "one flow event"
+#~ msgstr "одно событие потока"
+
+#~ msgid "flow events"
+#~ msgstr "события потока"
+
+#~ msgid "configured."
+#~ msgstr "настроено."
+
 #, fuzzy
-#~| msgid "Enter the code from your authentication application"
-#~ msgid "Enter the one-time password from your authentication application."
-#~ msgstr "Введите код из Вашего приложения по аутентификации"
+#~| msgid "Password"
+#~ msgid "Confirm Password"
+#~ msgstr "Пароль"
 
-#~ msgid "Two Factor Authentication"
-#~ msgstr "Двухфакторная аутентификация"
-
-#~ msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
-#~ msgstr "Резервные токены можно использовать, если у Вас больше нет доступа к приложению аутентификации, настроенному для Вашей учетной записи."
+#, fuzzy
+#~| msgid "Your invitation link has expired. Please contact your organization administrator."
+#~ msgid "You are the only administrator on this workspace. Please add other workspace administrators first."
+#~ msgstr "Срок действия Вашей пригласительной ссылки истек. Пожалуйста, свяжитесь с администратором Вашей организации."
 
 #~ msgid "Your preferred language"
 #~ msgstr "Предпочитаемый Вами язык"
@@ -10435,30 +10480,38 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Phone number for testing and recording voice flows"
 #~ msgstr "Номер телефона для тестирования и записи голосовых потоков"
 
-#~ msgid "Two Factor Enabled"
-#~ msgstr "Включена двухфакторная"
-
-#~ msgid "Start Call"
-#~ msgstr "Начать Вызов"
-
-#~ msgid "Disable Two Factor"
-#~ msgstr "Отключить двухфакторную"
-
 #~ msgid "OTP Secret"
 #~ msgstr "Секретный ключ OTP"
+
+#~ msgid "Two Factor Enabled"
+#~ msgstr "Включена двухфакторная"
 
 #~ msgid "Used"
 #~ msgstr "Использовано"
 
-#, python-format
+#~ msgid "Start Call"
+#~ msgstr "Начать Вызов"
+
+#~ msgid "Enter the code from your authentication application"
+#~ msgstr "Введите код из Вашего приложения по аутентификации"
+
+#~ msgid "Backup tokens can be used if you no longer have access to the authentication application configured for your account."
+#~ msgstr "Резервные токены можно использовать, если у Вас больше нет доступа к приложению аутентификации, настроенному для Вашей учетной записи."
+
+#~ msgid "Disable Two Factor"
+#~ msgstr "Отключить двухфакторную"
+
+#, fuzzy
+#~| msgid "Create new account"
+#~ msgid "Create new login"
+#~ msgstr "Создать новую учетную запись"
+
 #~ msgid "%(value)s must be http or https scheme"
 #~ msgstr "%(value)s должны быть по схеме http или https "
 
-#, python-format
 #~ msgid "%(value)s host cannot be resolved"
 #~ msgstr "Хост %(value)s не может быть разрешен"
 
-#, python-format
 #~ msgid "%(value)s cannot be localhost"
 #~ msgstr "%(value)s не может быть локальным хостом"
 
@@ -10495,7 +10548,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "hours"
 #~ msgstr "часы"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          Email sent with subject <b>%(subject)s</b>\n"
@@ -10555,7 +10608,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "has"
 #~ msgstr "содержит"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "    %(accounts)s Administrator,\n"
@@ -10587,7 +10640,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "  "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "    %(accounts)s Editor,\n"
@@ -10619,7 +10672,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "  "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "    %(accounts)s Viewer,\n"
@@ -10651,7 +10704,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "  "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "    %(accounts)s Surveyor.\n"
@@ -10783,9 +10836,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "Organization using this channel"
 #~ msgstr "Организация, использующая данный канал"
-
-#~ msgid "Config"
-#~ msgstr "Конфигурация"
 
 #~ msgid "Any channel specific configuration, used for the various aggregators"
 #~ msgstr "Любая специфическая для канала конфигурация, используемая для различных агрегаторов"
@@ -10985,7 +11035,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "    код у <a href=\"http://dmarkmobile.com/\">DMark Mobile</a> и подключить его,\n"
 #~ "    выполнив несколько простых шагов."
 
-#, python-format
 #~ msgid "Unable to update call to action: %s"
 #~ msgstr "Невозможно обновить вызов действия: %s"
 
@@ -11087,7 +11136,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "If you are based in Brazil, you can purchase a short code from <a href=\"http://www.zenvia.com.br/\">Zenvia</a> and connect it in a few simple steps."
 #~ msgstr "Если Вы находитесь в Бразилии, вы можете приобрести короткий код у <a href=\"http://www.zenvia.com.br/\">Zenvia</a> и подключить его, выполнив несколько простых шагов."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          When submitting your application for approval, make sure to include the <code>pages_messaging</code>\n"
@@ -11107,7 +11156,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "        "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
@@ -11186,7 +11235,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid "Create a message keyword to allow people to join a group."
 #~ msgstr "Создать ключевое слово сообщения, чтобы люди могли присоединяться к группе."
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -11203,7 +11252,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "                "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -11219,7 +11268,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ "\n"
 #~ "                "
 
-#, python-format
 #~ msgid ""
 #~ "\n"
 #~ "              Used by %(num_flows)s flow:\n"
@@ -11245,7 +11293,7 @@ msgstr "Найдено ${count} по ${query}"
 #~ "              Используется %(num_flows)s потоками:\n"
 #~ "              "
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "        To get started you need to add a channel to your account. A channel is a phone number or social network\n"

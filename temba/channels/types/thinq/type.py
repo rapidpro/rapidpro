@@ -58,9 +58,11 @@ class ThinQType(ChannelType):
     )
 
     def is_available_to(self, user):
+        region_aware_visible, region_ignore_visible = super().is_available_to(user)
         org = user.get_org()
         countrycode = timezone_to_country_code(org.timezone)
-        return countrycode in ["US"]
+        region_aware_visible = countrycode in ["US"]
+        return region_aware_visible, region_ignore_visible
 
     def is_recommended_to(self, user):
         return False

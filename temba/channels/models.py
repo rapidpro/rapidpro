@@ -54,6 +54,7 @@ class ChannelType(metaclass=ABCMeta):
     code = None
     slug = None
     category = None
+    beta_only = False
 
     # the courier handling URL, will be wired automatically for use in templates, but wired to a null handler
     courier_url = None
@@ -95,13 +96,16 @@ class ChannelType(metaclass=ABCMeta):
 
     def is_available_to(self, user):
         """
-        Determines whether this channel type is available to the given user, e.g. check timezone
+        Determines whether this channel type is available to the given user considering the region and when not considering region, e.g. check timezone
         """
+        region_ignore_visible = (not self.beta_only) or user.is_beta()
+        region_aware_visible = True
+
         if self.available_timezones is not None:
             timezone = user.get_org().timezone
-            return timezone and str(timezone) in self.available_timezones
-        else:
-            return True
+            region_aware_visible = timezone and str(timezone) in self.available_timezones
+
+        return region_aware_visible, region_ignore_visible
 
     def is_recommended_to(self, user):
         """
@@ -784,20 +788,6 @@ class Channel(TembaModel):
             return "%s (%s)" % (self.config.get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
 
         return self.address
-
-    def build_registration_command(self):
-        # create a claim code if we don't have one
-        if not self.claim_code:
-            self.claim_code = self.generate_claim_code()
-            self.save(update_fields=("claim_code",))
-
-        # create a secret if we don't have one
-        if not self.secret:
-            self.secret = self.generate_secret()
-            self.save(update_fields=("secret",))
-
-        # return our command
-        return dict(cmd="reg", relayer_claim_code=self.claim_code, relayer_secret=self.secret, relayer_id=self.id)
 
     def get_last_sent_message(self):
         from temba.msgs.models import SENT, DELIVERED, OUTGOING

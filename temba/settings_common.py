@@ -416,6 +416,7 @@ PERMISSIONS = {
         "home",
         "import",
         "join",
+        "join_accept",
         "languages",
         "manage",
         "manage_accounts",
@@ -523,7 +524,7 @@ PERMISSIONS = {
 GROUP_PERMISSIONS = {
     "Service Users": ("flows.flow_assets", "msgs.msg_create"),  # internal Temba services have limited permissions
     "Alpha": (),
-    "Beta": ("orgs.org_two_factor",),
+    "Beta": (),
     "Dashboard": ("orgs.org_dashboard",),
     "Surveyors": (
         "contacts.contact_api",
@@ -647,6 +648,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_transfer_credits",
         "orgs.org_twilio_account",
         "orgs.org_twilio_connect",
+        "orgs.org_two_factor",
         "orgs.org_token",
         "orgs.topup_list",
         "orgs.topup_read",
@@ -756,6 +758,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_import",
         "orgs.org_profile",
         "orgs.org_resthooks",
+        "orgs.org_two_factor",
         "orgs.org_token",
         "orgs.topup_list",
         "orgs.topup_read",
@@ -834,6 +837,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_export",
         "orgs.org_home",
         "orgs.org_profile",
+        "orgs.org_two_factor",
         "orgs.topup_list",
         "orgs.topup_read",
         "channels.channel_list",

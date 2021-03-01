@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-11 18:54+0000\n"
+"POT-Creation-Date: 2021-02-26 19:09+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -1319,7 +1319,7 @@ msgid "Reconnect Facebook Page"
 msgstr "El nombre del video"
 
 #, python-format
-msgid "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect."
+msgid "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect. On the Facebook page, navigate Settings > Page roles and verify you have an admin page role on the page."
 msgstr ""
 
 #, fuzzy
@@ -3246,7 +3246,7 @@ msgstr "Sincronizado el"
 
 #, fuzzy
 #| msgid "Your flow has been removed."
-msgid "Your classifier has been synched."
+msgid "Your classifier has been synced."
 msgstr "Su flujo ha sido retirado."
 
 #, fuzzy
@@ -4739,6 +4739,9 @@ msgstr "Número de teléfono inválido, inténtelo nuevamente."
 msgid "Invalid backup token. Please try again."
 msgstr "Número de teléfono inválido, inténtelo nuevamente."
 
+msgid "Password incorrect."
+msgstr ""
+
 #, python-brace-format
 msgid "Deleted user {username}"
 msgstr ""
@@ -4794,9 +4797,6 @@ msgstr "Contraseña actual (requerida)"
 #| msgid "Invalid phone number, try again."
 msgid "OTP incorrect. Please try again."
 msgstr "Número de teléfono inválido, inténtelo nuevamente."
-
-msgid "Password incorrect."
-msgstr ""
 
 msgid "Two-factor authentication enabled"
 msgstr ""
@@ -4974,6 +4974,16 @@ msgid "One of the emails you entered is invalid."
 msgstr "Uno de los correos electrónicos que ingresó es inválido."
 
 #, fuzzy
+#| msgid "One of the emails you entered is invalid."
+msgid "One of the emails you entered has an existing user on the workspace."
+msgstr "Uno de los correos electrónicos que ingresó es inválido."
+
+#, fuzzy
+#| msgid "One of the emails you entered is invalid."
+msgid "One of the emails you entered is duplicated."
+msgstr "Uno de los correos electrónicos que ingresó es inválido."
+
+#, fuzzy
 #| msgid "You must have at least one administator"
 msgid "A workspace must have at least one administrator."
 msgstr "Debe tener al menos un administrador"
@@ -5022,13 +5032,18 @@ msgstr "El enlace de su invitación es inválido. Por favor, contacte al adminis
 msgid "Join %(name)s"
 msgstr "Participar en %(name)s"
 
-msgid "Join"
-msgstr "Participar"
+#, fuzzy
+#| msgid "Please click Join to accept the invitation."
+msgid "Sign in with your account to accept the invitation"
+msgstr "Por favor, haga clic en Participar para aceptar la invitación."
 
 #, fuzzy
 #| msgid "Your invitation link has expired. Please contact your organization administrator."
 msgid "Your invitation link has expired. Please contact your workspace administrator."
 msgstr "El enlace de su invitación ha vencido. Por favor, contacte al administrador de su organización."
+
+msgid "Join"
+msgstr "Participar"
 
 #, fuzzy
 #| msgid "Invalid claim code, please check and try again."
@@ -6056,6 +6071,14 @@ msgstr ""
 #, fuzzy
 msgid "API Channels"
 msgstr "Transmisor"
+
+#, fuzzy
+msgid "All Channels"
+msgstr "Transmisor"
+
+#, python-format
+msgid "The channels above are the available channels for your region, but you can also <a class=\"inline\" href=\"%(claim_all_url)s\">view all channels</a>."
+msgstr ""
 
 msgid "Enter your credentials to add your number."
 msgstr ""
@@ -9135,19 +9158,6 @@ msgstr[1] ""
 "\n"
 "         "
 
-#, fuzzy, python-format
-msgid "%(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
-msgstr ""
-"\n"
-"                    %(sms_failed)s Error\n"
-"\n"
-"         "
-
-#, fuzzy
-#| msgid "Pending"
-msgid "(sending)"
-msgstr "Pendiente"
-
 msgid "No matching messages."
 msgstr "Ningún mensaje corresponde."
 
@@ -9400,15 +9410,24 @@ msgid ""
 msgstr ""
 
 #, fuzzy
+#| msgid "Password"
+msgid "Confirm Access"
+msgstr "Contraseña"
+
+msgid "To access this page please confirm your current password."
+msgstr ""
+
+#, fuzzy
+#| msgid "Config"
+msgid "Confirm"
+msgstr "Configuración"
+
+#, fuzzy
 #| msgid "Flow Message"
 msgid "Welcome Back"
 msgstr "Mensaje del flujo"
 
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
+msgid "Please sign in with your email address and password."
 msgstr ""
 
 #, fuzzy
@@ -9523,14 +9542,6 @@ msgstr "Editar apelativos"
 
 msgid "Choose a country to enable location support in your flows."
 msgstr "Elija un país para recibir ayuda sobre la ubicación en sus flujos."
-
-#, fuzzy
-#| msgid "Create new account"
-msgid "Create new login"
-msgstr "Crear cuenta nueva"
-
-msgid "Sign in"
-msgstr "Registrarse"
 
 msgid "Add Credits"
 msgstr "Agregar créditos"
@@ -9716,6 +9727,9 @@ msgstr "Si tiene flujos o campañas cuyo nombre es igual al de los que está imp
 msgid "Do not proceed unless you are willing to replace your existing flows and campaigns."
 msgstr "No continúe, a no ser que desee reemplazar sus flujos y campañas actuales."
 
+msgid "Sign in"
+msgstr "Registrarse"
+
 #, fuzzy, python-format
 #| msgid "You have been invited to join"
 msgid "You have been invited to join %(name)s."
@@ -9832,22 +9846,14 @@ msgid "You can create flow events which external services can subscribe to. For 
 msgstr ""
 
 #, fuzzy
-#| msgid "Run flow over"
-msgid "no flow events"
-msgstr "Correr flujo"
+msgid "You have <b>no flow events</b> configured."
+msgstr "Debe elegir un país para su organización."
 
-#, fuzzy
-#| msgid "Run flow over"
-msgid "one flow event"
-msgstr "Correr flujo"
-
-#, fuzzy
-#| msgid "flows"
-msgid "flow events"
-msgstr "flujos"
-
-msgid "configured."
-msgstr "configurado"
+#, fuzzy, python-format
+msgid "You have <b>1 flow event</b> configured."
+msgid_plural "You have <b>%(counter)s flow events</b> configured."
+msgstr[0] "Debe elegir un país para su organización."
+msgstr[1] "Debe elegir un país para su organización."
 
 #, fuzzy
 #| msgid "Create new account"
@@ -10024,10 +10030,8 @@ msgstr ""
 msgid "To enable two-factor authentication on your login, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below."
 msgstr ""
 
-#, fuzzy
-#| msgid "Invalid claim code, please check and try again."
 msgid "Two-factor authentication is <b>disabled</b>."
-msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
+msgstr ""
 
 msgid "Two-factor authentication is currently enabled for your login. Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
 msgstr ""
@@ -10038,10 +10042,8 @@ msgstr ""
 msgid "Regenerate Tokens"
 msgstr ""
 
-#, fuzzy
-#| msgid "Invalid claim code, please check and try again."
 msgid "Two-factor authentication is <b>enabled</b>."
-msgstr "Código de pedido inválido, por favor, verifique e inténtelo nuevamente."
+msgstr ""
 
 #, fuzzy
 #| msgid "No Editors"
@@ -10833,6 +10835,47 @@ msgstr "Ingrese el código de pedido"
 msgid "Found ${count} for ${query}"
 msgstr ""
 
+#, fuzzy, python-format
+#~ msgid "%(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
+#~ msgstr ""
+#~ "\n"
+#~ "                    %(sms_failed)s Error\n"
+#~ "\n"
+#~ "         "
+
+#, fuzzy
+#~| msgid "Pending"
+#~ msgid "(sending)"
+#~ msgstr "Pendiente"
+
+#, fuzzy
+#~| msgid "Run flow over"
+#~ msgid "no flow events"
+#~ msgstr "Correr flujo"
+
+#, fuzzy
+#~| msgid "Run flow over"
+#~ msgid "one flow event"
+#~ msgstr "Correr flujo"
+
+#, fuzzy
+#~| msgid "flows"
+#~ msgid "flow events"
+#~ msgstr "flujos"
+
+#~ msgid "configured."
+#~ msgstr "configurado"
+
+#, fuzzy
+#~| msgid "Password"
+#~ msgid "Confirm Password"
+#~ msgstr "Contraseña"
+
+#, fuzzy
+#~| msgid "Your invitation link has expired. Please contact your organization administrator."
+#~ msgid "You are the only administrator on this workspace. Please add other workspace administrators first."
+#~ msgstr "El enlace de su invitación ha vencido. Por favor, contacte al administrador de su organización."
+
 #~ msgid "Your preferred language"
 #~ msgstr "Su idioma preferido"
 
@@ -10842,13 +10885,18 @@ msgstr ""
 #~ msgid "Phone number for testing and recording voice flows"
 #~ msgstr "Número de teléfono para probar y grabar los flujos de voz"
 
-#~ msgid "Start Call"
-#~ msgstr "Empezar llamada"
-
 #, fuzzy
 #~| msgid "API Secret:"
 #~ msgid "OTP Secret"
 #~ msgstr "Código secreto API:"
+
+#~ msgid "Start Call"
+#~ msgstr "Empezar llamada"
+
+#, fuzzy
+#~| msgid "Create new account"
+#~ msgid "Create new login"
+#~ msgstr "Crear cuenta nueva"
 
 #, fuzzy
 #~| msgid "users"
@@ -10878,7 +10926,7 @@ msgstr ""
 #~ msgid "minutes"
 #~ msgstr "Después de 5 minutos"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid ""
 #~| "\n"
 #~| "          Install the %(name)s app\n"
@@ -10942,7 +10990,7 @@ msgstr ""
 #~ msgid "has"
 #~ msgstr "tiene"
 
-#, fuzzy, python-format
+#, fuzzy
 #~| msgid "No Administrator"
 #~ msgid "%(accounts)s Administrator,"
 #~ msgid_plural "%(accounts)s Administrators,"
@@ -11041,9 +11089,6 @@ msgstr ""
 #, fuzzy
 #~ msgid "Organization using this channel"
 #~ msgstr "La organización que usa este transmisor"
-
-#~ msgid "Config"
-#~ msgstr "Configuración"
 
 #~ msgid "Any channel specific configuration, used for the various aggregators"
 #~ msgstr "Cualquier configuración específica al transmisor, usada para los diferentes agregadores"
@@ -11532,7 +11577,7 @@ msgstr ""
 #~ "\n"
 #~ "                "
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "      After connecting your service we will provide URLs for the endpoints for InfoBip to call when they want\n"
@@ -11596,7 +11641,7 @@ msgstr ""
 #~ msgid "Create a message keyword to allow people to join a group."
 #~ msgstr "Crear una palabre clave de mensajería para que las personas participen en un grupo."
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                    %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -11608,7 +11653,7 @@ msgstr ""
 #~ "\n"
 #~ "         "
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "                    %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -11619,7 +11664,7 @@ msgstr ""
 #~ "\n"
 #~ "         "
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "              Used by %(num_flows)s flow:\n"
@@ -11637,7 +11682,7 @@ msgstr ""
 #~ "                Llamada saliente (%(duration)s seconds)\n"
 #~ "              "
 
-#, fuzzy, python-format
+#, fuzzy
 #~ msgid ""
 #~ "\n"
 #~ "        To get started you need to add a channel to your workspace. A channel is a phone number or social network\n"

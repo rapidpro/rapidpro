@@ -25,6 +25,8 @@ class ZenviaType(ChannelType):
     schemes = [URN.TEL_SCHEME]
     max_length = 150
 
+    available_timezones = ["America/Sao_Paulo"]
+
     attachment_support = False
 
     configuration_blurb = _(
@@ -47,7 +49,3 @@ class ZenviaType(ChannelType):
             description=_("To receive incoming messages, you need to set the receive URL for your Zenvia account."),
         ),
     )
-
-    def is_available_to(self, user):
-        org = user.get_org()
-        return org.timezone and str(org.timezone) in ["America/Sao_Paulo"]
