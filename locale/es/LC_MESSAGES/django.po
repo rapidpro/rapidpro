@@ -5676,7 +5676,7 @@ msgid ""
 "You can check the current status of your %(channel.get_name)s by visiting "
 "its"
 msgstr ""
-"Puede comprobar el estado actual de su% (channel.get_name) s visitando su"
+"Puede comprobar el estado actual de su %(channel.get_name)s visitando su"
 
 #, python-format
 msgid ""
