@@ -374,7 +374,7 @@
         in this flow and no translation exists for their language or the default language of the workspace,
         communication with that contact will default to <b>{{ language }}</b>.
 
-  %temba-dialog.hide#combine-flows(header='{{_("Combine Flows")|escapejs}}s' primaryButtonName='{{_("OK")|escapejs}}')
+  %temba-dialog.hide#combine-flows(header='{{_("Combine Flows")|escapejs}}' primaryButtonName='{{_("OK")|escapejs}}')
     .p-6.body
       %form#select-source-form{action: "{% url 'flows.flow_merge_flows' %}"}
         %label
