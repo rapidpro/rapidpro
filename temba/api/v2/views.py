@@ -4520,3 +4520,97 @@ class FlowVariableReportEndpoint(BaseAPIView):
             **applied_filters,
             "results": [counts]
         })
+
+
+class ContactVariablesReportEndpoint(BaseAPIView):
+    permission = "orgs.org_api"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.applied_filters = {}
+
+    def get_queryset(self):
+        from temba.contacts.search import SearchException
+        from temba.contacts.search.elastic import query_contact_ids
+
+        org = self.request.user.get_org()
+        contacts = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True).distinct()
+
+        flow = self.request.GET.get("flow", self.request.data.get("flow"))
+        if flow:
+            contacts = contacts.filter(runs__flow__uuid=flow)
+            self.applied_filters["flow"] = flow
+
+        # contact list views don't use regular field searching but use more complex contact searching
+        search_query = self.request.GET.get("search_query", self.request.data.get("search_query", ""))
+        exclude = self.request.GET.get("exclude", self.request.data.get("exclude"))
+        if exclude:
+            if is_uuid_valid(exclude):
+                contacts = contacts.exclude(all_groups__uuid=exclude)
+            else:
+                search_query += f'{" AND " if search_query else ""}group != "{exclude}"'
+
+        if search_query:
+            try:
+                group = ContactGroup.all_groups.get(org=org, group_type='A')
+                parsed_query, contact_ids = query_contact_ids(org, search_query, group=group, return_parsed_query=True)
+                if parsed_query:
+                    self.applied_filters["search_query"] = parsed_query
+                contacts = contacts.filter(id__in=contact_ids)
+
+                return contacts
+            except SearchException as e:
+                self.applied_filters["search_query"] = f"Error: {e.message}"
+                # this should be an empty resultset
+                return Contact.objects.none()
+        else:
+            # if user search is not defined, use DB to select contacts
+            return contacts
+
+    def get(self, request, *args, **kwargs):
+        org = request.user.get_org()
+        queryset = self.get_queryset()
+        counts = defaultdict(lambda: Counter())
+
+        requested_variables = self.request.data.get("variables")
+        existing_variables = dict(ContactField.user_fields.filter(org=org).values_list("key", "uuid"))
+        variable_filters = {}
+        top_ordering = {}
+        if not (requested_variables and type(requested_variables) is dict):
+            return Response(
+                {
+                    "errors": {
+                        "variables": _("Filter 'variables' invalid or not provided. Available variables are [{}]")
+                        .format(", ".join(existing_variables.keys()))
+                    }
+                }
+            )
+
+        for variable, conf in requested_variables.items():
+            if variable not in existing_variables:
+                return Response(
+                    {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}}
+                )
+            variable_uuid = str(existing_variables[variable])
+            variable_filters[variable_uuid] = {"key":  variable}
+            if type(conf.get("top")) is int:
+                variable_filters[variable_uuid]["top"] = conf.get("top")
+                top_ordering[variable] = conf.get("top")
+
+        self.applied_filters["variables"] = variable_filters
+
+        queryset = queryset.filter(fields__has_any_keys=variable_filters.keys())
+
+        for contact in queryset:
+            for field_uuid, field_value in (contact.fields or {}).items():
+                if field_uuid in variable_filters:
+                    counts[variable_filters[field_uuid]["key"]][field_value["text"]] += 1
+
+        for variable, top_x in top_ordering.items():
+            counts[variable] = dict(counts[variable].most_common(top_x))
+
+        response_data = {
+            **self.applied_filters,
+            "results": [counts]
+        }
+        return Response(response_data)
