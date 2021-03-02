@@ -89,6 +89,7 @@ from .serializers import (
     UrlAttachmentValidationSerializer,
     WebHookEventReadSerializer,
 )
+from ...links.models import Link
 from ...orgs.models import LOOKUPS, DEFAULT_FIELDS_PAYLOAD_LOOKUPS, DEFAULT_INDEXES_FIELDS_PAYLOAD_LOOKUPS
 
 
@@ -4580,8 +4581,9 @@ class ContactVariablesReportEndpoint(BaseAPIView):
             return Response(
                 {
                     "errors": {
-                        "variables": _("Filter 'variables' invalid or not provided. Available variables are [{}]")
-                        .format(", ".join(existing_variables.keys()))
+                        "variables":
+                            _("Filter 'variables' invalid or not provided. Available variables are [{}]")
+                            .format(", ".join(existing_variables.keys()))
                     }
                 }
             )
@@ -4592,7 +4594,7 @@ class ContactVariablesReportEndpoint(BaseAPIView):
                     {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}}
                 )
             variable_uuid = str(existing_variables[variable])
-            variable_filters[variable_uuid] = {"key":  variable}
+            variable_filters[variable_uuid] = {"key": variable}
             if type(conf.get("top")) is int:
                 variable_filters[variable_uuid]["top"] = conf.get("top")
                 top_ordering[variable] = conf.get("top")
@@ -4612,5 +4614,38 @@ class ContactVariablesReportEndpoint(BaseAPIView):
         response_data = {
             **self.applied_filters,
             "results": [counts]
+        }
+        return Response(response_data)
+
+
+class TrackableLinkReportEndpoint(BaseAPIView):
+    permission = "orgs.org_api"
+
+    def get(self, *args, **kwargs):
+        org = self.request.user.get_org()
+        link_name = self.request.data.get("link_name", "")
+        link = Link.objects.filter(org=org, name__icontains=link_name).first()
+        if not link_name or link is None:
+            errors = {
+                status.HTTP_400_BAD_REQUEST: _("Parameter 'link_name' is not provider."),
+                status.HTTP_404_NOT_FOUND: _("Link with name '{}' not found.").format(link_name),
+            }
+            code = status.HTTP_404_NOT_FOUND if link is None else status.HTTP_400_BAD_REQUEST
+            return Response({"error": errors[code]}, status=code)
+
+        response_data = {
+            "name": link.name,
+            "destination": link.destination,
+            "related_flow": getattr(link.related_flow, "uuid", None),
+            "results": [
+                {
+                    "total_clicks": link.clicks_count,
+                    "unique_clicks": link.contacts.count(),
+                    "unique_contacts": (
+                        link.related_flow.runs.aggregate(count=Count("contact", distinct=True))["count"]
+                        if link.related_flow else None
+                    )
+                }
+            ]
         }
         return Response(response_data)
