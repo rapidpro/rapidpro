@@ -126,6 +126,12 @@ class RootView(views.APIView):
      * [/api/v2/templates](/api/v2/templates) - to list current WhatsApp templates on your account
      * [/api/v2/ticketers](/api/v2/ticketers) - to list ticketing services
      * [/api/v2/workspace](/api/v2/workspace) - to view your workspace
+     * [/api/v2/contacts_report](/api/v2/contacts_report) - to generate a report about contacts in org
+     * [/api/v2/contact_variable_report](/api/v2/contact_variable_report) - to generate a report about contacts filtered by contact fields
+     * [/api/v2/flow_report](/api/v2/flow_report) - to generate a report about flow
+     * [/api/v2/flow_variable_report](/api/v2/flow_variable_report) - to generate a report about flow variable
+     * [/api/v2/messages_report](/api/v2/messages_report) - to generate a report about messages
+     * [/api/v2/trackable_link_report](/api/v2/trackable_link_report) - to generate a report about trackable links
 
     To use the endpoint simply append _.json_ to the URL. For example [/api/v2/flows](/api/v2/flows) will return the
     documentation for that endpoint but a request to [/api/v2/flows.json](/api/v2/flows.json) will return a JSON list of
@@ -4315,6 +4321,36 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
 
 
 class ContactsReportEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to number of contacts, in the org, that satisfy provided query.
+
+    A **GET** returns total number of contacts that satisfy query.
+
+    * **search_query** - allows to filter contact by search request (equivalent of search field on contacts page)
+    * **flow** - UUID of flow to select only contacts that have runs in that flow
+    * **exclude** - UUID or Name of contact group to select only contacts that not belong to that group
+
+    Example:
+
+        GET /api/v2/contacts_report.json
+        {
+            "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
+            "search_query": "created_on < 2021-01-01",
+            "exclude": "Restaurant Contacts"
+        }
+
+    Response:
+
+        {
+            "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
+            "search_query": "created_on < \\"2021-01-01\\" AND group != \\"Restaurant Contacts\\"",
+            "results": [
+                {
+                    "total_unique_contacts": 2
+                }
+            ]
+        }
+    """
     permission = "orgs.org_api"
 
     def get_queryset(self):
@@ -4371,6 +4407,45 @@ class ContactsReportEndpoint(BaseAPIView):
 
 
 class MessagesReportEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to generate a short report about messages that were sent or received in that org.
+
+    A **GET** returns numbers of sent, received, and failed messages.
+
+    * **flow** - UUID of flow to select only messages related to specific flow
+    * **exclude** - UUID or Name of contact group, messages of contacts from which are not supposed to be included in the report
+    * **channel** - UUID or Name of channel to select only messages related to specific channel
+    * **after** - Date, excludes all messages from the report that were created earlier a certain date
+    * **before** - Date, excludes all messages from the report that were created later a certain date
+
+    Example:
+
+        GET /api/v2/messages_report.json
+        {
+            "flow": "6683f3e3-3445-438a-b94f-137cf22aa36a",
+            "after": "2020-01-01",
+            "before": "2022-01-13",
+            "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+            "exclude": "Testers"
+        }
+
+    Response:
+
+        {
+            "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+            "after": "2020-01-01",
+            "before": "2022-01-13",
+            "exclude": "Testers",
+            "flow": "6683f3e3-3445-438a-b94f-137cf22aa36a",
+            "results": [
+                {
+                    "inbox_count": 0,
+                    "outbox_count": 3,
+                    "failed_count": 0
+                }
+            ]
+        }
+    """
     permission = "orgs.org_api"
     applied_filters = None
 
@@ -4428,6 +4503,51 @@ class MessagesReportEndpoint(BaseAPIView):
 
 
 class FlowReportEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to generate short report about flow runs for a certain flow.
+
+    A **GET** returns numbers of contacts that have completed, interrupted or expired flow runs.
+
+    * **flow** - UUID of flow to which is need to prepare report
+    * **channel** - UUID or Name of channel to select only the contacts that received messages via that channel
+    * **exclude** - UUID or Name of contact group to select only contacts that not belong to that group
+    * **started_after** - Date, excludes all runs from the report that were started earlier a certain date
+    * **started_before** - Date, excludes all runs from the report that were started later a certain date
+    * **exited_after** - Date, excludes all runs from the report that were exited earlier a certain date
+    * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
+
+    Example:
+
+        GET /api/v2/flow_report.json
+        {
+            "flow": "92b0dd89-485f-4fab-aeb5-564eb97cd73c",
+            "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+            "exclude": "Testers",
+            "started_after": "2021-02-01",
+            "started_before": "2021-03-13",
+            "exited_after": "2021-02-01",
+            "exited_before": "2021-03-13"
+        }
+
+    Response:
+
+        {
+            "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+            "started_after": "2021-02-01",
+            "started_before": "2021-03-13",
+            "exited_after": "2021-02-01",
+            "exited_before": "2021-03-13",
+            "exclude": "Testers",
+            "results": [
+                {
+                    "total_contacts": 1,
+                    "total_completes": 0,
+                    "total_expired": 0,
+                    "total_interrupts": 15
+                }
+            ]
+        }
+    """
     permission = "orgs.org_api"
 
     @csv_response_wrapper
@@ -4475,6 +4595,54 @@ class FlowReportEndpoint(BaseAPIView):
 
 
 class FlowVariableReportEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to generate a report based on contact responses.
+
+    A **GET** returns groups split by results that contacts had responded
+
+    * **flow** - UUID of flow to which is need to prepare report
+    * **channel** - UUID or Name of channel to select only the contacts that received messages via that channel
+    * **exclude** - UUID or Name of contact group to select only contacts that not belong to that group
+    * **started_after** - Date, excludes all runs from the report that were started earlier a certain date
+    * **started_before** - Date, excludes all runs from the report that were started later a certain date
+    * **exited_after** - Date, excludes all runs from the report that were exited earlier a certain date
+    * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
+    * **variables** - configuration which define the fields to be included in the report
+
+    Example:
+
+        GET /api/v2/flow_variable_report.json
+        {
+            "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
+            "variables": {
+                "result_1": {
+                    "format": "value",
+                    "top": 3
+                }
+            }
+        }
+
+    Response:
+
+        {
+            "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
+            "variables": {
+                "result_1": {
+                    "format": "value",
+                    "top": 3
+                }
+            },
+            "results": [
+                {
+                    "result_1": {
+                        "No": 1,
+                        "Yes": 1,
+                        "Other": 1
+                    }
+                }
+            ]
+        }
+    """
     permission = "orgs.org_api"
 
     @csv_response_wrapper
@@ -4557,6 +4725,57 @@ class FlowVariableReportEndpoint(BaseAPIView):
 
 
 class ContactVariablesReportEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to generate a report based on contact fields
+
+    A **GET** returns groups split by contacts values
+
+    * **search_query** - allows to filter contact by search request (equivalent of search field on contacts page)
+    * **flow** - UUID of flow to select only contacts that have runs in that flow
+    * **exclude** - UUID or Name of contact group to select only contacts that not belong to that group
+    * **variables** - the values configuration to be included into report
+
+    Example:
+
+        GET /api/v2/contact_variable_report.json
+        {
+            "variables": {
+                "zipcode": {
+                    "top": 4
+                },
+                "state": {}
+            }
+        }
+
+    Response:
+
+        {
+            "variables": {
+                "9402ac3d-4efb-448a-b0d6-6b219c5c21ff": {
+                    "key": "zipcode"
+                },
+                "0c34148e-e892-4b3b-981a-47730eb86004": {
+                    "key": "state"
+                }
+            },
+            "results": [
+                {
+                    "state": {
+                        "CA": 1,
+                        "MA": 116,
+                        "FL": 1268,
+                        "VA": 99,
+                        "NY": 278
+                    },
+                    "zipcode": {
+                        "02151": 20,
+                        "02472": 1,
+                        "02155": 27,
+                    }
+                }
+            ]
+        }
+    """
     permission = "orgs.org_api"
 
     def __init__(self, *args, **kwargs):
@@ -4664,6 +4883,35 @@ class ContactVariablesReportEndpoint(BaseAPIView):
 
 
 class TrackableLinkReportEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to generate report about clicks on trackable links
+
+    A **GET** returns numbers of click and contacts who received link
+
+    * **link_name** - Name of link to generate report for
+
+    Example:
+
+        GET /api/v2/endpoint.json
+        {
+            "link_name": "google"
+        }
+
+    Response:
+
+        {
+            "name": "google.com",
+            "destination": "https://www.google.com",
+            "related_flow": "f14b5744-bef4-4f56-a936-a684f5da013f",
+            "results": [
+                {
+                    "total_clicks": 0,
+                    "unique_clicks": 1,
+                    "unique_contacts": 1
+                }
+            ]
+        }
+    """
     permission = "orgs.org_api"
 
     @csv_response_wrapper
