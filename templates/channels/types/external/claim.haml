@@ -69,27 +69,35 @@
 
     function updateFormForScheme(scheme) {
       var numberCtrlGroup = $('#id_number').parents('.control-group');
-      var handleCtrlGroup = $('#id_handle').parents('.control-group');
       var addressCtrlGroup = $('#id_address').parents('.control-group');
       var countryCtrlGroup = $('#id_country').parents('.control-group');
 
       if (scheme == 'tel') {
         numberCtrlGroup.show();
-        handleCtrlGroup.hide();
         addressCtrlGroup.hide();
         countryCtrlGroup.show();
-      } else if (scheme == 'twitter') {
+      } else {
         numberCtrlGroup.hide();
-        handleCtrlGroup.show();
-        addressCtrlGroup.hide();
-        countryCtrlGroup.hide();
-      } else if (scheme == 'ext') {
-        numberCtrlGroup.hide();
-        handleCtrlGroup.hide();
         addressCtrlGroup.show();
         countryCtrlGroup.hide();
       }
     }
+
+    $(function() {
+      var methodSelect = document.querySelector("temba-select[name='method']");
+      methodSelect.addEventListener('change', function(event) {
+        updateFormForMethod(event.target.values[0].value);
+      });
+
+      updateFormForMethod('POST');
+
+      var schemeSelect = document.querySelector("temba-select[name='scheme']");
+      schemeSelect.addEventListener('change', function(event) {
+        updateFormForScheme(event.target.values[0].value);
+      });
+
+      updateFormForScheme('{{ form.scheme.value }}');
+    });
 
 -block extra-style
   {{ block.super }}

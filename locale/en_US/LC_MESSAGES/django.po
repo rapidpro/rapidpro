@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-26 20:40+0000\n"
+"POT-Creation-Date: 2021-03-02 18:56+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -799,12 +799,6 @@ msgstr ""
 msgid "The phone number or that this channel will send from"
 msgstr ""
 
-msgid "Handle"
-msgstr ""
-
-msgid "The Twitter handle that this channel will send from"
-msgstr ""
-
 msgid "The external address that this channel will send from"
 msgstr ""
 
@@ -845,6 +839,9 @@ msgid "MT Response check"
 msgstr ""
 
 msgid "The content that must be in the response to consider the request successful"
+msgstr ""
+
+msgid "This field is required."
 msgstr ""
 
 msgid "The URL we will POST to when sending messages, with variable substitutions"
@@ -1637,6 +1634,9 @@ msgid "Environment Name"
 msgstr ""
 
 msgid "The provided Twitter credentials do not appear to be valid."
+msgstr ""
+
+msgid "Handle"
 msgstr ""
 
 msgid "Twitter handle of this channel"
@@ -4597,7 +4597,7 @@ msgid ""
 "\n"
 "Hi %(org_name)s,\n"
 "\n"
-"We've noticed that the Android phone for %(org.name)s is now charging the battery.\n"
+"We've noticed that the Android phone for %(org_name)s is now charging the battery.\n"
 "This email is to announce that your android phone battery low reported last time was resolved. Now the battery is charging.\n"
 msgstr ""
 

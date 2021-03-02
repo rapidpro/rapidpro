@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-26 20:40+0000\n"
+"POT-Creation-Date: 2021-03-02 18:56+0000\n"
 "PO-Revision-Date: 2014-04-14 20:37+0000\n"
 "Last-Translator: produtos <produtos.ti@takenet.com.br>\n"
 "Language-Team: Portuguese (Brazil) (http://www.transifex.com/projects/p/textit/language/pt_BR/)\n"
@@ -1127,14 +1127,6 @@ msgid "The phone number or that this channel will send from"
 msgstr "O número de telefone para esta chamada"
 
 #, fuzzy
-msgid "Handle"
-msgstr "Tratado"
-
-#, fuzzy
-msgid "The Twitter handle that this channel will send from"
-msgstr "O nome deste rótulo"
-
-#, fuzzy
 #| msgid "The type of alert the channel is sending"
 msgid "The external address that this channel will send from"
 msgstr "Tipo de alerta que o transmissor está enviando"
@@ -1189,6 +1181,9 @@ msgstr "Respondido para"
 #| msgid "The secret token this channel should use when signing requests"
 msgid "The content that must be in the response to consider the request successful"
 msgstr "O token secreto que este transmissor deve usar ao assinar os pedidos."
+
+msgid "This field is required."
+msgstr ""
 
 #, fuzzy
 msgid "The URL we will POST to when sending messages, with variable substitutions"
@@ -2425,6 +2420,10 @@ msgstr "Editar nome"
 
 msgid "The provided Twitter credentials do not appear to be valid."
 msgstr ""
+
+#, fuzzy
+msgid "Handle"
+msgstr "Tratado"
 
 #, fuzzy
 msgid "Twitter handle of this channel"
@@ -6209,7 +6208,7 @@ msgid ""
 "\n"
 "Hi %(org_name)s,\n"
 "\n"
-"We've noticed that the Android phone for %(org.name)s is now charging the battery.\n"
+"We've noticed that the Android phone for %(org_name)s is now charging the battery.\n"
 "This email is to announce that your android phone battery low reported last time was resolved. Now the battery is charging.\n"
 msgstr "Este e-mail é para informar que o último aviso de bateria baixa de seu telefone android foi resolvido. Agora a bateria está carregando."
 
@@ -9921,6 +9920,10 @@ msgstr "Insira o seu código de requisição"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~ msgid "The Twitter handle that this channel will send from"
+#~ msgstr "O nome deste rótulo"
 
 #, fuzzy, python-format
 #~ msgid "%(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns"

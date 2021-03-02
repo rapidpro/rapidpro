@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-26 20:40+0000\n"
+"POT-Creation-Date: 2021-03-02 18:56+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -822,12 +822,6 @@ msgstr "Le type d'URN géré par ce canal"
 msgid "The phone number or that this channel will send from"
 msgstr "Le numéro de téléphone ou celui depuis lequel ce canal enverra"
 
-msgid "Handle"
-msgstr "Manipuler"
-
-msgid "The Twitter handle that this channel will send from"
-msgstr "Le compte Twitter d'où ce canal enverra"
-
 msgid "The external address that this channel will send from"
 msgstr "L'adresse externe d'où ce canal enverra"
 
@@ -869,6 +863,9 @@ msgstr "Contrôle de réponse MT"
 
 msgid "The content that must be in the response to consider the request successful"
 msgstr "Le contenu qui doit figurer dans la réponse pour que la demande soit considérée comme réussie"
+
+msgid "This field is required."
+msgstr ""
 
 msgid "The URL we will POST to when sending messages, with variable substitutions"
 msgstr "L'URL vers laquelle nous allons effectuer une requête POST lors de l'envoi de messages, avec des substitutions de variables"
@@ -1679,6 +1676,9 @@ msgstr "Nom de l'environnement"
 
 msgid "The provided Twitter credentials do not appear to be valid."
 msgstr "Les informations d'identification Twitter fournies ne semblent pas être valides."
+
+msgid "Handle"
+msgstr "Manipuler"
 
 msgid "Twitter handle of this channel"
 msgstr "Nom d'utilisateur Twitter de ce canal"
@@ -4724,12 +4724,18 @@ msgstr "Nous avons remarqué que le téléphone Android pour %(org_name)s charge
 msgid "This email is to announce that your android phone battery low reported last time was resolved. Now the battery is charging."
 msgstr "Cet e-mail est de vous annoncer que le niveau de la batterie de votre téléphone android signalé la dernière fois a été résolu. Maintenant, la batterie est en charge."
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "Hi %(org_name)s,\n"
+#| "\n"
+#| "We've noticed that the Android phone for %(org.name)s is now charging the battery.\n"
+#| "This email is to announce that your android phone battery low reported last time was resolved. Now the battery is charging.\n"
 msgid ""
 "\n"
 "Hi %(org_name)s,\n"
 "\n"
-"We've noticed that the Android phone for %(org.name)s is now charging the battery.\n"
+"We've noticed that the Android phone for %(org_name)s is now charging the battery.\n"
 "This email is to announce that your android phone battery low reported last time was resolved. Now the battery is charging.\n"
 msgstr ""
 "\n"
@@ -7828,6 +7834,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "The Twitter handle that this channel will send from"
+#~ msgstr "Le compte Twitter d'où ce canal enverra"
 
 #, python-format
 #~ msgid "%(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns"
