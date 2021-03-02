@@ -120,6 +120,23 @@ class ExternalTypeTest(TembaTest):
         response = self.client.get(config_url)
         self.assertEqual(response.status_code, 200)
 
+        # now claim a non-tel external channel
+        response = self.client.get(url)
+        post_data = response.context["form"].initial
+
+        post_data["scheme"] = "ext"
+        post_data["address"] = "123456789"
+        post_data["url"] = "http://test.com/send.php?from={{from}}&text={{text}}&to={{to}}"
+        post_data["method"] = "GET"
+        post_data["content_type"] = Channel.CONTENT_TYPE_JSON
+        post_data["max_length"] = 180
+        post_data["encoding"] = Channel.ENCODING_SMART
+
+        self.client.post(url, post_data)
+        channel = Channel.objects.get(schemes=["ext"])
+        self.assertEqual("123456789", channel.address)
+        self.assertIsNone(channel.country.code)
+
     def test_claim_bulk_sender(self):
         url = reverse("channels.types.external.claim") + "?role=S&channel=%s" % self.channel.pk
 
