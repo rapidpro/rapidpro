@@ -2,13 +2,10 @@
 
 .flex.flex-wrap.max-w-full
   -for group in groups
-    .lbl-group.linked.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_filter' group.uuid %}" class="{% if group.is_dynamic%}lbl-group-dynamic{%endif%}")
-      {{ group.name }}
-  
+    -include "includes/recipients_group.haml" with group=group
+
   -for contact in contacts
-    .item.contact.lbl.linked.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_read' contact.uuid %}")
-      .icon.icon-user.text-dark-alpha-300.-mb-1
-      {{ contact|name_or_urn:user_org }}
+    -include "includes/recipients_contact.haml" with contact=contact
 
   -for urn in urns
     .item.urn.lbl.mr-2.mb-2

@@ -8,9 +8,12 @@
   %table.mt-4.object-list.list.lined
     %tbody
       -for broadcast in pending_broadcasts
-        %tr.broadcast
+        %tr
+          %td.value-icon(style="width: 20px")
+            %span.glyph.icon-bullhorn.text-gray-500
           %td.value-recipient
-            -include "includes/recipients.haml" with groups=broadcast.groups.all contacts=broadcast.contacts.all urns=broadcast.raw_urns
+            .pt-1
+              -include "includes/recipients.haml" with groups=broadcast.groups.all contacts=broadcast.contacts.all urns=broadcast.raw_urns
           %td.value-text
             {{ broadcast.get_default_text }}
           %td.created_on
@@ -19,9 +22,9 @@
 
       -for object in object_list
         %tr
-          %td.value-recipient
-            .hover-linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
-              {{ object.contact|short_name:user_org }}
+          %td.value-recipient(colspan="2")
+            .pt-1
+              -include "includes/recipients_contact.haml" with contact=object.contact
           %td.value-text
             {% get_value object 'text' %}
 
@@ -54,12 +57,3 @@
     -if object_list.count
       .paginator
         -include "smartmin/sidebar_pagination.haml"
-
--block extra-style
-  {{ block.super }}
-
-  :css
-    .table.list-table tr.broadcast:hover td, .table.list-table tr.broadcast td {
-      color: #aaa
-    }
-
