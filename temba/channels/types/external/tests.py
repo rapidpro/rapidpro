@@ -21,25 +21,34 @@ class ExternalTypeTest(TembaTest):
         response = self.client.get(url)
         post_data = response.context["form"].initial
 
-        post_data["number"] = "12345"
+        post_data["scheme"] = "tel"
         post_data["country"] = "RW"
         post_data["url"] = "http://localhost:8000/foo"
         post_data["method"] = "POST"
         post_data["body"] = "send=true"
-        post_data["scheme"] = "tel"
         post_data["content_type"] = Channel.CONTENT_TYPE_JSON
         post_data["max_length"] = 180
         post_data["send_authorization"] = "Token 123"
         post_data["encoding"] = Channel.ENCODING_SMART
         post_data["mt_response_check"] = "SENT"
 
-        # fail due to invalid URL
+        # fail due to missing number and invalid URL
         response = self.client.post(url, post_data)
         self.assertFormError(response, "form", "url", "Cannot be a local or private host.")
+        self.assertFormError(response, "form", "number", "This field is required.")
 
-        # update to valid URL
+        # change scheme to Ext and add valid URL
         ext_url = "http://test.com/send.php?from={{from}}&text={{text}}&to={{to}}"
         post_data["url"] = ext_url
+        post_data["scheme"] = "ext"
+
+        # fail due to missing address
+        response = self.client.post(url, post_data)
+        self.assertFormError(response, "form", "address", "This field is required.")
+
+        # update to valid number
+        post_data["scheme"] = "tel"
+        post_data["number"] = "12345"
         response = self.client.post(url, post_data)
         channel = Channel.objects.get()
 
