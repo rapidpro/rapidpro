@@ -162,3 +162,19 @@ def temba_exception_handler(exc, context):
 
         # respond with simple message
         return HttpResponseServerError("Server Error. Site administrators have been notified.")
+
+
+def csv_response_wrapper(func):
+    def handler(view, *args, **kwargs):
+        json_http_response = func(view, *args, **kwargs)
+        export_csv = view.request.query_params.get("export_csv", "").lower() == "true"
+        result_to_convert = next(iter(json_http_response.data.get("results", [])), None)
+        if export_csv and result_to_convert:
+            from django.http import HttpResponse
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="report.csv"'
+            result_to_convert = json_http_response.data["results"][0]
+            getattr(view, "csv_convertor", lambda *_: None)(result_to_convert, response)
+            return response
+        return json_http_response
+    return handler

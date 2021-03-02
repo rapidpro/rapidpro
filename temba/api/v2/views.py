@@ -51,7 +51,7 @@ from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool, d
 from .validators import is_uuid_valid
 
 from ..models import SSLPermission
-from ..support import InvalidQueryError
+from ..support import InvalidQueryError, csv_response_wrapper
 from .serializers import (
     AdminBoundaryReadSerializer,
     ArchiveReadSerializer,
@@ -4353,14 +4353,21 @@ class ContactsReportEndpoint(BaseAPIView):
             # if user search is not defined, use DB to select contacts
             return contacts
 
+    @csv_response_wrapper
     def get(self, request, *args, **kwargs):
         count = self.get_queryset().count()
         response_data = {
             "flow": self.request.GET.get("flow", self.request.data.get("flow")),
             "search_query": getattr(self, "search_query", ""),
-            "results": [{"totalUniqueContacts": count}]
+            "results": [{"total_unique_contacts": count}]
         }
         return Response(response_data)
+
+    @staticmethod
+    def csv_convertor(result, response):
+        import csv
+        writer = csv.writer(response)
+        writer.writerows(list(result.items()))
 
 
 class MessagesReportEndpoint(BaseAPIView):
@@ -4386,6 +4393,7 @@ class MessagesReportEndpoint(BaseAPIView):
                                evt["msg"].get("uuid") not in [None, "None", ""]]
         return qs.filter(uuid__in=messages_uuids)
 
+    @csv_response_wrapper
     def get(self, request, *args, **kwargs):
         org = self.request.user.get_org()
         queryset = Msg.objects.filter(org=org)
@@ -4412,10 +4420,17 @@ class MessagesReportEndpoint(BaseAPIView):
             )]
         })
 
+    @staticmethod
+    def csv_convertor(result, response):
+        import csv
+        writer = csv.writer(response)
+        writer.writerows([("Message type", "Number"), *result.items()])
+
 
 class FlowReportEndpoint(BaseAPIView):
     permission = "orgs.org_api"
 
+    @csv_response_wrapper
     def get(self, request, *args, **kwargs):
         org = self.request.user.get_org()
         try:
@@ -4452,10 +4467,17 @@ class FlowReportEndpoint(BaseAPIView):
             )]
         })
 
+    @staticmethod
+    def csv_convertor(result, response):
+        import csv
+        writer = csv.writer(response)
+        writer.writerows([("Contacts", "Number"), *result.items()])
+
 
 class FlowVariableReportEndpoint(BaseAPIView):
     permission = "orgs.org_api"
 
+    @csv_response_wrapper
     def get(self, request, *args, **kwargs):
         applied_filters = {}
         org = self.request.user.get_org()
@@ -4522,6 +4544,17 @@ class FlowVariableReportEndpoint(BaseAPIView):
             "results": [counts]
         })
 
+    @staticmethod
+    def csv_convertor(result, response):
+        import csv
+        writer = csv.writer(response)
+        rows = [
+            (variable_name, value, responders)
+            for variable_name, values in result.items()
+            for value, responders in values.items()
+        ]
+        writer.writerows([("Variable", "Value", "Responders"), *rows])
+
 
 class ContactVariablesReportEndpoint(BaseAPIView):
     permission = "orgs.org_api"
@@ -4568,6 +4601,7 @@ class ContactVariablesReportEndpoint(BaseAPIView):
             # if user search is not defined, use DB to select contacts
             return contacts
 
+    @csv_response_wrapper
     def get(self, request, *args, **kwargs):
         org = request.user.get_org()
         queryset = self.get_queryset()
@@ -4617,10 +4651,22 @@ class ContactVariablesReportEndpoint(BaseAPIView):
         }
         return Response(response_data)
 
+    @staticmethod
+    def csv_convertor(result, response):
+        import csv
+        writer = csv.writer(response)
+        rows = [
+            (variable_name, value, responders)
+            for variable_name, values in result.items()
+            for value, responders in values.items()
+        ]
+        writer.writerows([("Variable", "Value", "Responders"), *rows])
+
 
 class TrackableLinkReportEndpoint(BaseAPIView):
     permission = "orgs.org_api"
 
+    @csv_response_wrapper
     def get(self, *args, **kwargs):
         org = self.request.user.get_org()
         link_name = self.request.data.get("link_name", "")
@@ -4649,3 +4695,9 @@ class TrackableLinkReportEndpoint(BaseAPIView):
             ]
         }
         return Response(response_data)
+
+    @staticmethod
+    def csv_convertor(result, response):
+        import csv
+        writer = csv.writer(response)
+        writer.writerows([("Variable", "Value"), *result.items()])
