@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-01 17:12+0000\n"
+"POT-Creation-Date: 2021-03-02 16:37+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1038,12 +1038,6 @@ msgstr "Тип URN, которые обрабатываются данным к�
 msgid "The phone number or that this channel will send from"
 msgstr "Номер телефона или того, с чего будет происходить отправка этим каналом"
 
-msgid "Handle"
-msgstr "Дескриптор"
-
-msgid "The Twitter handle that this channel will send from"
-msgstr "Дескриптор Twitter, с которого будет происходить отправка этим каналом"
-
 msgid "The external address that this channel will send from"
 msgstr "Внешний адрес, с которого будет происходить отправка этим каналом"
 
@@ -1085,6 +1079,9 @@ msgstr "Проверка Ответа MT"
 
 msgid "The content that must be in the response to consider the request successful"
 msgstr "Контент, который должен присутствовать в ответе для того, чтобы запрос считался успешным"
+
+msgid "This field is required."
+msgstr ""
 
 msgid "The URL we will POST to when sending messages, with variable substitutions"
 msgstr "URL, который мы будем выполнять POST при отправке сообщений, с подстановкой переменных"
@@ -2303,6 +2300,9 @@ msgstr "Название среды"
 
 msgid "The provided Twitter credentials do not appear to be valid."
 msgstr "Предоставленные идентификационные данные Twitter не являются действительными."
+
+msgid "Handle"
+msgstr "Дескриптор"
 
 msgid "Twitter handle of this channel"
 msgstr "Дескриптор Twitter данного канала"
@@ -10440,6 +10440,9 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "The Twitter handle that this channel will send from"
+#~ msgstr "Дескриптор Twitter, с которого будет происходить отправка этим каналом"
 
 #, fuzzy, python-format
 #~| msgid ""
