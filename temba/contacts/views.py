@@ -22,7 +22,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, F
 from django.db.models.aggregates import Max
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
@@ -1393,14 +1393,24 @@ class ContactCRUDL(SmartCRUDL):
 
             folder = self.request.GET.get("folder", "")
             if folder == self.FOLDER_OPEN:
-                qs = qs.filter(tickets__status=Ticket.STATUS_OPEN).distinct()
+                qs = (
+                    qs.filter(tickets__status=Ticket.STATUS_OPEN)
+                    .annotate(ticket_uuid=F("tickets__uuid"), ticket_status=F("tickets__status"))
+                    .distinct("last_seen_on", "id")
+                )
+
             elif folder == self.FOLDER_CLOSED:
-                qs = qs.exclude(tickets=None).exclude(tickets__status=Ticket.STATUS_OPEN).distinct()
+                qs = (
+                    qs.exclude(tickets=None)
+                    .exclude(tickets__status=Ticket.STATUS_OPEN)
+                    .annotate(ticket_uuid=F("tickets__uuid"), ticket_status=F("tickets__status"))
+                    .distinct("last_seen_on", "id")
+                )
             else:
                 raise Http404("'%' is not valid ticket folder", folder)
 
             # TODO we probably want ordering by last message in either direction
-            return qs.order_by("-last_seen_on")
+            return qs.order_by("-last_seen_on", "id")
 
         def get_context_data(self, **kwargs):
             from temba.msgs.models import Msg
@@ -1409,6 +1419,7 @@ class ContactCRUDL(SmartCRUDL):
 
             # convert queryset to list so it can't change later
             contacts = list(context["object_list"])
+
             context["object_list"] = contacts
 
             last_msg_ids = Msg.objects.filter(contact__in=contacts).values("contact").annotate(last_msg_id=Max("id"))
@@ -1421,6 +1432,13 @@ class ContactCRUDL(SmartCRUDL):
             return context
 
         def as_json(self, context):
+            def ticket_as_json(c):
+                return {
+                    "uuid": c.ticket_uuid,
+                    "status": c.ticket_status,
+                    "contact": contact_as_json(c),
+                }
+
             def msg_as_json(m):
                 sender = None
                 if m.broadcast and m.broadcast.created_by:
@@ -1442,9 +1460,11 @@ class ContactCRUDL(SmartCRUDL):
                     "uuid": str(c.uuid),
                     "name": c.get_display(),
                     "modified_on": c.modified_on,
+                    "last_seen_on": c.last_seen_on,
                     "last_msg": msg_as_json(last_msg) if last_msg else None,
                 }
-            response = {"results": [contact_as_json(c) for c in context["object_list"]]}
+
+            response = {"results": [ticket_as_json(t) for t in context["object_list"]]}
 
             # build up our next link if we have more
             if context["page_obj"].has_next():
