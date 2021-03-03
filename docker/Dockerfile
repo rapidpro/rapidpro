@@ -19,17 +19,6 @@ WORKDIR /src
 RUN git clone -- ${RAPIDPRO_APPS_GIT_URL} . \
  && git checkout ${RAPIDPRO_APPS_GIT_BRANCH}
 
-RUN cp /protos/rapidpro-org/org.proto weni/org_grpc/grpc_gen/ 
-RUN pip install grpcio grpcio-tools
-RUN python -m grpc_tools.protoc \
- --proto_path=./ \
- --python_out=./ \
- --grpc_python_out=./ \
- ./weni/org_grpc/grpc_gen/org.proto \
- --experimental_allow_proto3_optional
-
-RUN ls -l weni/org_grpc/grpc_gen/
-
 RUN python setup.py sdist
 
 
