@@ -1,3 +1,10 @@
+v6.2.1
+----------
+ * Return registration details to Android if have the same UUID
+ * Add spacing between individual channel log events
+ * Fix external channel claim form
+ * Do not track Android channels creation by anon user
+
 v6.2.0
 ----------
  * Update translations for es, fr and pt-BR
