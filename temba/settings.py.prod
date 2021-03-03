@@ -252,7 +252,14 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 FLOW_SESSION_TRIM_DAYS = env.int("FLOW_SESSION_TRIM_DAYS", default=7)
 
 # GRPC
-INSTALLED_APPS += ("django_grpc_framework", "weni.grpc_central", "weni.org_grpc")
+INSTALLED_APPS += (
+    "django_grpc_framework",
+    "weni.grpc_central",
+    "weni.org_grpc",
+    "weni.user_grpc",
+    "weni.flow_grpc",
+    "weni.billing",
+)
 
 
 GRPC_FRAMEWORK = {
