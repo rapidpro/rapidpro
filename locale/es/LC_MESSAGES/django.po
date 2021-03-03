@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-02 16:37+0000\n"
+"POT-Creation-Date: 2021-03-03 16:46+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -848,7 +848,7 @@ msgid "The content that must be in the response to consider the request successf
 msgstr "El contenido que debe estar en la respuesta para considerar la solicitud exitosa"
 
 msgid "This field is required."
-msgstr ""
+msgstr "Este campo es obligatorio."
 
 msgid "The URL we will POST to when sending messages, with variable substitutions"
 msgstr "La URL a la que llamaremos (POST) cuando enviemos mensajes, con sustituciones de variables"
@@ -879,7 +879,7 @@ msgstr "Volver a conectar la página de Facebook"
 
 #, python-format
 msgid "Add a %(link)s bot to send and receive messages on behalf of one of your Facebook pages for free. You will need to connect your page by logging into your Facebook and checking the Facebook page to connect. On the Facebook page, navigate Settings > Page roles and verify you have an admin page role on the page."
-msgstr ""
+msgstr "Agregue un bot%(link)s para enviar y recibir mensajes en nombre de una de sus páginas de Facebook de forma gratuita. Deberá conectar su página iniciando sesión en su Facebook y revisando la página de Facebook para conectarse. En la página de Facebook, navegue a Configuración> Roles de página y verifique que tenga un rol de página de administrador en la página."
 
 msgid "The User Access Token"
 msgstr "El token de acceso de usuario"
@@ -1115,25 +1115,25 @@ msgid "The token Junebug should use to authenticate"
 msgstr "El token que Junebug debería usar para autenticarse"
 
 msgid "Activate your own enterprise WhatsApp account in Kaleyra to communicate with your contacts. <a href=\"https://www.kaleyra.com/whatsapp/\">Learn more about Kaleyra WhatsApp"
-msgstr ""
+msgstr "Active su propia cuenta de WhatsApp empresarial en Kaleyra para comunicarse con sus contactos. <a href=\"https://www.kaleyra.com/whatsapp/\"> Más información sobre Kaleyra WhatsApp"
 
 msgid "To finish configuring your Kaleyra connection you'll need to set the following callback URL on your Kaleyra account."
-msgstr ""
+msgstr "Para terminar de configurar su conexión de Kaleyra, deberá configurar la siguiente URL de devolución de llamadas en su cuenta de Kaleyra."
 
 msgid "To receive incoming messages, you need to set the receive URL for your Kaleyra account."
-msgstr ""
+msgstr "Para recibir mensajes entrantes, debe configurar la URL de recepción para su cuenta de Kaleyra."
 
 msgid "Account SID"
 msgstr "SID de cuenta"
 
 msgid "Your Kaleyra Account SID"
-msgstr ""
+msgstr "Su SID de cuenta de Kaleyra "
 
 msgid "Your Kaleyra API Key"
-msgstr ""
+msgstr "Su clave API de Kaleyra"
 
 msgid "No org for this user, cannot claim"
-msgstr ""
+msgstr "No hay organización para este usuario, no se puede reclamar"
 
 #, python-format
 msgid "Connect your %(link)s instance, we'll walk you through the steps necessary to get your SMSC connection working in a few minutes."
@@ -2030,7 +2030,7 @@ msgid "Sync"
 msgstr "Sincronizar"
 
 msgid "Your classifier has been synced."
-msgstr ""
+msgstr "Tu clasificador ha sido sincronizado."
 
 msgid "Unable to sync classifier. See the log for details."
 msgstr "No se pudo sincronizar el clasificador. Consulte el registro para obtener más detalles."
@@ -3254,13 +3254,13 @@ msgid "Password required for new login."
 msgstr "Se requiere contraseña para un nuevo login."
 
 msgid "Incorrect OTP. Please try again."
-msgstr ""
+msgstr "OTP incorrecto, intente de nuevo"
 
 msgid "Invalid backup token. Please try again."
-msgstr ""
+msgstr "Código de respaldo inválido. Por favor intente de nuevo"
 
 msgid "Password incorrect."
-msgstr ""
+msgstr "Contraseña incorrecta"
 
 #, python-brace-format
 msgid "Deleted user {username}"
@@ -3300,37 +3300,37 @@ msgid "Sorry, that email address is already taken."
 msgstr "Lo sentimos, esta dirección de correo electrónico ya ha sido elegida."
 
 msgid "6-digit code"
-msgstr ""
+msgstr "Código de 6 dígitos"
 
 msgid "Current password"
 msgstr "Contraseña actual"
 
 msgid "OTP incorrect. Please try again."
-msgstr ""
+msgstr "OTP incorrecto. Por favor intente de nuevo"
 
 msgid "Two-factor authentication enabled"
-msgstr ""
+msgstr "Autenticación de dos factores habilitada"
 
 msgid "Enable"
-msgstr ""
+msgstr "Habilitar"
 
 msgid "Enable Two-factor Authentication"
-msgstr ""
+msgstr "Habilitar autenticación de dos factores"
 
 msgid "Two-factor authentication disabled"
-msgstr ""
+msgstr "Autenticación de dos factoras deshabilitada"
 
 msgid "Disable"
-msgstr ""
+msgstr "Deshabililitar"
 
 msgid "Disable Two-factor Authentication"
-msgstr ""
+msgstr "Deshabilitar autenticación de dos factores"
 
 msgid "Two-factor Authentication"
-msgstr ""
+msgstr "Autenticación de dos factores"
 
 msgid "Two-factor authentication backup tokens changed."
-msgstr ""
+msgstr "Los tokens de la autenticación de dos factores cambiaron"
 
 msgid "The import file"
 msgstr "El archivo de importación"
@@ -3459,13 +3459,13 @@ msgid "One of the emails you entered is invalid."
 msgstr "Uno de los correos electrónicos que ingresó es inválido."
 
 msgid "One of the emails you entered has an existing user on the workspace."
-msgstr ""
+msgstr "Uno de los correos electrónicos que ingresó tiene un usuario existente en el espacio de trabajo."
 
 msgid "One of the emails you entered is duplicated."
-msgstr ""
+msgstr "Uno de los correos electrónicos que ingresó está duplicado."
 
 msgid "A workspace must have at least one administrator."
-msgstr ""
+msgstr "Un espacio de trabajo debe tener al menos un administrador."
 
 msgid "Manage Logins"
 msgstr "Administrar logins"
@@ -3496,7 +3496,7 @@ msgid "Join %(name)s"
 msgstr "Participar en %(name)s"
 
 msgid "Sign in with your account to accept the invitation"
-msgstr ""
+msgstr "Inicie sesión con su cuenta para aceptar la invitación"
 
 msgid "Your invitation link has expired. Please contact your workspace administrator."
 msgstr "Su enlace de invitación ha caducado. Comuníquese con el administrador de su Workspace."
@@ -3520,7 +3520,7 @@ msgid "Your password, at least eight letters please"
 msgstr "Su contraseña, como mínimo ocho letras por favor"
 
 msgid "Welcome!"
-msgstr "¡Bienvenidos!"
+msgstr "¡Bienvenido!"
 
 msgid "Create Workspace Account"
 msgstr "Crear cuenta de Workspace"
@@ -3782,11 +3782,11 @@ msgid "Closed"
 msgstr "Cerrado"
 
 msgid "Enabling this will allow you to handle tickets within this application."
-msgstr ""
+msgstr "Habilitar esto le permitirá manejar tickets dentro de esta aplicación."
 
 #, python-format
 msgid "This will enable handling tickets internally in %(brand)s."
-msgstr ""
+msgstr "Esto permitirá el manejo de tickets internamente en %(brand)s"
 
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr "Al conectar una dirección de correo electrónico, se enviarán todos los tickets nuevos y sus respuestas a esa dirección de correo electrónico. Podrás responderles directamente y tus respuestas se enviarán al contacto."
@@ -4023,13 +4023,13 @@ msgid "The organization of the user."
 msgstr "La organización del usuario."
 
 msgid "Must use HTTP or HTTPS."
-msgstr ""
+msgstr "Debe utilizar HTTP o HTTPS."
 
 msgid "Unable to resolve host."
-msgstr ""
+msgstr "Incapaz de resolver el host."
 
 msgid "Cannot be a local or private host."
-msgstr ""
+msgstr "No puede ser un host local o privado."
 
 msgid "Unique Identifier"
 msgstr "Identificador único"
@@ -4280,11 +4280,11 @@ msgid "API Channels"
 msgstr "Canales API"
 
 msgid "All Channels"
-msgstr ""
+msgstr "Todos los canales"
 
 #, python-format
 msgid "The channels above are the available channels for your region, but you can also <a class=\"inline\" href=\"%(claim_all_url)s\">view all channels</a>."
-msgstr ""
+msgstr "Los canales anteriores son los canales disponibles para su región, pero también puede <a class=\"inline\" href=\"%(claim_all_url)s\">ver todos los canales</a>."
 
 msgid "Enter your credentials to add your number."
 msgstr "Ingrese sus credenciales para agregar su número."
@@ -4642,6 +4642,11 @@ msgid ""
 "We've noticed that the Android phone for %(org_name)s is now charging the battery.\n"
 "This email is to announce that your android phone battery low reported last time was resolved. Now the battery is charging.\n"
 msgstr ""
+"\n"
+"Hola %(org_name)s,\n"
+"\n"
+"Hemos notado que el teléfono Android para %(org_name)s ahora está cargando la batería.\n"
+"Este correo electrónico es para anunciar que la última vez que se informó que la batería de su teléfono Android estaba baja se resolvió. Ahora la batería se está cargando.\n"
 
 #, python-format
 msgid ""
@@ -5235,7 +5240,7 @@ msgid "Select your provider below to get started."
 msgstr "Seleccione su proveedor a continuación para comenzar."
 
 msgid "Unable to delete classifier still being used by"
-msgstr ""
+msgstr "No se puede eliminar el clasificador ya que aún está siendo utilizado por"
 
 #, python-format
 msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
@@ -5905,7 +5910,7 @@ msgid "<b>%(name)s</b> cannot be deleted since it is a parent to other labels."
 msgstr " <b> %(name)s </b> no se puede eliminar porque es un elemento principal de otras etiquetas."
 
 msgid "Manual"
-msgstr ""
+msgstr "Manual"
 
 #, python-format
 msgid "was started by %(user)s for"
@@ -6037,12 +6042,12 @@ msgstr "Su teléfono no puede enviar mensajes"
 #, python-format
 msgid "%(count)s result"
 msgid_plural "%(count)s results"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%(count)s resultados"
+msgstr[1] "%(count)s resultados"
 
 #, python-format
 msgid "Results %(start)s - %(end)s of %(total)s"
-msgstr ""
+msgstr "Resultados %(start)s - %(end)s de %(total)s"
 
 #, python-format
 msgid "Aliases for %(name)s"
@@ -6584,19 +6589,19 @@ msgstr ""
 "\n"
 
 msgid "Confirm Access"
-msgstr ""
+msgstr "Confirmar acceso"
 
 msgid "To access this page please confirm your current password."
-msgstr ""
+msgstr "Para acceder a esta página, confirme su contraseña actual."
 
 msgid "Confirm"
-msgstr ""
+msgstr "Confirmar"
 
 msgid "Welcome Back"
-msgstr "Dar una buena acogida"
+msgstr "Bienvenido de nuevo"
 
 msgid "Please sign in with your email address and password."
-msgstr ""
+msgstr "Inicie sesión con su dirección de correo electrónico y contraseña."
 
 msgid "Sign In"
 msgstr "Registrarse"
@@ -6608,29 +6613,29 @@ msgid "Sign up"
 msgstr "Regístrate"
 
 msgid "If you no longer have access to the device with which you setup two-factor authentication on your login, you can enter one of your backup tokens below."
-msgstr ""
+msgstr "Si ya no tiene acceso al dispositivo con el que configuró la autenticación de dos factores en su inicio de sesión, puede ingresar uno de sus tokens de respaldo a continuación."
 
 msgid "8-character token"
-msgstr ""
+msgstr "Token de 8 carácteres"
 
 msgid "Use Device"
-msgstr ""
+msgstr "Usar dispositivo"
 
 msgid "Open the one-time password application with which you setup two-factor authentication on your account and enter the code below to verify your identity."
-msgstr ""
+msgstr "Abra la aplicación de contraseña de un solo uso con la que configuró la autenticación de dos factores en su cuenta e ingrese el código a continuación para verificar su identidad."
 
 msgid "Use Backup Token"
-msgstr ""
+msgstr "Usar token de respaldo"
 
 msgid "Your workspace can have logins with various roles. You can use the Manage Logins page to view all existing logins or to add new logins to your workspace."
 msgstr "Su Workspace puede tener logins con varios roles. Puede utilizar la página Administrar logins para ver todos los logins existentes o para agregar nuevos logins a su Workspace."
 
 #, python-format
 msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join your workspace as a surveyor."
-msgstr ""
+msgstr "Si utiliza la aplicación %(brand)s Surveyor para ejecutar flujos sin conexión, le recomendamos que permita a los usuarios crear cuentas desde la aplicación de Android. Establecer una contraseña de Surveyor permitirá que cualquier persona con esa contraseña se una a su espacio de trabajo como surveyor."
 
 msgid "Your workspace has"
-msgstr ""
+msgstr "Tu espacio de trabajo tiene"
 
 msgid "Chatbase Account"
 msgstr "Cuenta de Chatbase"
@@ -6895,13 +6900,13 @@ msgid "You can create flow events which external services can subscribe to. For 
 msgstr "Puede crear eventos de flujo a los que se puedan suscribir servicios externos. Por ejemplo, Zapier puede suscribirse a los eventos de flujo que cree y activar cualquier número de integraciones de Zapier cuando ocurran en sus flujos."
 
 msgid "You have <b>no flow events</b> configured."
-msgstr ""
+msgstr "No tiene <b>eventos de flujo</b> configurados."
 
 #, python-format
 msgid "You have <b>1 flow event</b> configured."
 msgid_plural "You have <b>%(counter)s flow events</b> configured."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Tiene <b>1 flow event</b> configured."
+msgstr[1] "Tiene <b>%(counter)s eventos de flujo</b> configurados."
 
 msgid "Create Account"
 msgstr "Crear una cuenta"
@@ -7019,26 +7024,26 @@ msgstr ""
 "  "
 
 msgid "To disable two-factor authentication for your login, enter your current password."
-msgstr ""
+msgstr "Para deshabilitar la autenticación de dos factores para su inicio de sesión, ingrese su contraseña actual."
 
 #, python-format
 msgid "To enable two-factor authentication on your login, use a one-time password (OTP) application such as <a href=\"%(ga_url)s\">Google Authenticator</a> or <a href=\"%(authy_url)s\">Authy</a> to scan the QR code below."
-msgstr ""
+msgstr "Para habilitar la autenticación de dos factores en su inicio de sesión, use una aplicación de contraseña de un solo uso (OTP) como <a href=\"%(ga_url)s\">Google Authenticator</a> o <a href=\"%(authy_url)s\">Authy</a> para escanear el código QR a continuación."
 
 msgid "Two-factor authentication is <b>disabled</b>."
-msgstr ""
+msgstr "La autenticación de dos factores está <b>deshabilitada</b>."
 
 msgid "Two-factor authentication is currently enabled for your login. Below are your backup tokens which you can use if you lose access to the device with which you setup two-factor authentication. Each token can only be used once and tokens which have already been used are showed with a line through them. You should record these tokens in a secure place."
-msgstr ""
+msgstr "La autenticación de dos factores está habilitada actualmente para su inicio de sesión. A continuación, se muestran sus tokens de respaldo que puede usar si pierde el acceso al dispositivo con el que configuró la autenticación de dos factores. Cada token solo se puede utilizar una vez y los tokens que ya se han utilizado se muestran con una línea que las atraviesa. Debe registrar estos tokens en un lugar seguro."
 
 msgid "You can generate new backup tokens but remember that the current tokens will be no longer be usable if you do this."
-msgstr ""
+msgstr "Puede generar nuevos tokens de respaldo, pero recuerde que los tokens actuales ya no se podrán utilizar si hace esto."
 
 msgid "Regenerate Tokens"
-msgstr ""
+msgstr "Regenerar Tokens"
 
 msgid "Two-factor authentication is <b>enabled</b>."
-msgstr ""
+msgstr "La autenticación de dos factores está <b>habilitada</b>"
 
 msgid "Policies"
 msgstr "Políticas"
@@ -7734,6 +7739,3 @@ msgstr "Ingrese una consulta"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Se encontró $ {count} por $ {query}"
-
-#~ msgid "The Twitter handle that this channel will send from"
-#~ msgstr "El identificador de Twitter desde el que enviará este canal"
