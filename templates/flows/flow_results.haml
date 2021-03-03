@@ -603,9 +603,21 @@
       }, 5000);
     }
 
+    function setRunsTab() {
+      $("ul.nav-tabs li").removeClass("active");
+      $("ul.nav-tabs li.runs-tab").addClass("active");
+      $("#overview").removeClass("active");
+      $("#runs").addClass("active");
+    }
+
     $(document).ready(function() {
       updateCharts();
       localStorage.setItem("responded", "true");
+
+      {% if request.GET.q or request.GET.after or request.GET.before %}
+      setRunsTab();
+      {% endif %}
+
     });
 
     $(function(){
@@ -646,27 +658,6 @@
     .p-6
       -trans "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
 
-  .bg-white.p-4.rounded-lg.mb-5
-    .page-subtitle
-      -trans "Filter Results"
-
-    %form#search-form.max-w-full.mt-2.flex(method="get")
-      %div{class: "w-1/2 flex"}
-        %div{class: "w-1/2 flex pr-3"}
-          %label{class: "w-1/4 flex justify-center items-center m-0"}
-            -trans "After"
-          -include "includes/flatpickr_field.haml" with parent_classes="w-3/4 flex justify-center items-center" field_name="after" field_placeholder="Select a date" field_value=request.GET.after
-        %div{class: "w-1/2 flex pr-3"}
-          %label{class: "w-1/4 flex justify-center items-center m-0"}
-            -trans "Before"
-          -include "includes/flatpickr_field.haml" with parent_classes="w-3/4 flex justify-center items-center" field_name="before" field_placeholder="Select a date" field_value=request.GET.before
-      %div{class: "w-1/2 flex flex-grow"}
-        %div{class: "w-10/12"}
-          %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="q" value="{{ request.GET.q }}" clearable)
-        %div{class: "w-1/12 flex-grow"}
-          %button.button-primary.filter-btn(type='submit')
-            -trans "Filter"
-
   .bg-white.p-4.rounded-lg
     %ul.nav.nav-tabs.mb-0
       %li.active
@@ -677,7 +668,7 @@
         %a{href: '#analytics', data-toggle:'tab'}
           -trans "Analytics"
 
-      %li
+      %li.runs-tab
         %a{href: '#runs', data-toggle:'tab', onclick:"updateColumnSelect();"}
           -trans "Runs"
 
@@ -699,10 +690,31 @@
       #category-charts
 
     #runs.tab-pane
+      .bg-white.p-4.rounded-lg.mt-5
+        .page-subtitle
+          -trans "Filter"
+
+        %form#search-form.max-w-full.mt-2.flex(method="get")
+          %div{class: "w-1/2 flex"}
+            %div{class: "w-1/2 flex pr-3"}
+              %label{class: "w-1/4 flex justify-center items-center m-0"}
+                -trans "After"
+              -include "includes/flatpickr_field.haml" with parent_classes="w-3/4 flex justify-center items-center" field_name="after" field_placeholder="Select a date" field_value=request.GET.after
+            %div{class: "w-1/2 flex pr-3"}
+              %label{class: "w-1/4 flex justify-center items-center m-0"}
+                -trans "Before"
+              -include "includes/flatpickr_field.haml" with parent_classes="w-3/4 flex justify-center items-center" field_name="before" field_placeholder="Select a date" field_value=request.GET.before
+          %div{class: "w-1/2 flex flex-grow"}
+            %div{class: "w-10/12"}
+              %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="q" value="{{ request.GET.q }}" clearable)
+            %div{class: "w-1/12 flex-grow"}
+              %button.button-primary.filter-btn(type='submit')
+                -trans "Filter"
+
       .scroll-x
         .responded-checkbox.items-center.py-3.w-full
           .runs-show#show-all-runs{
-            ic-get-from:"/flow/run_table/{{object.id}}/",
+            ic-get-from:"/flow/run_table/{{object.id}}/?after={{request.GET.after}}&before={{request.GET.before}}&q={{request.GET.q}}",
             ic-on-beforeSend:'$("#results_run_table").empty();',
             ic-on-beforeTrigger: 'localStorage.setItem("responded", "false");',
             ic-trigger-on:"click",
@@ -712,7 +724,7 @@
           .runs-show-sep
             |
           .runs-show.active{
-              ic-get-from:"/flow/run_table/{{object.id}}/",
+              ic-get-from:"/flow/run_table/{{object.id}}/?after={{request.GET.after}}&before={{request.GET.before}}&q={{request.GET.q}}",
               ic-on-beforeSend:'$("#results_run_table").empty();',
               ic-on-beforeTrigger: 'localStorage.setItem("responded", "true");',
               ic-trigger-on:"click",
@@ -747,7 +759,7 @@
                     .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
 
             %tbody{id:"results_run_table"}
-              %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator"}
+              %tr{ic-append-from:"/flow/run_table/{{object.id}}?after={{request.GET.after}}&before={{request.GET.before}}&q={{request.GET.q}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator"}
 
     #links.tab-pane
       - if trackable_links

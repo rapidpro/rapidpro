@@ -62,6 +62,7 @@ from temba.utils.fields import (
     SelectMultipleWidget,
     SelectWidget,
 )
+from temba.utils.dates import str_to_datetime
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.utils.uuid import uuid4
@@ -2149,10 +2150,34 @@ class FlowCRUDL(SmartCRUDL):
 
         paginate_by = 50
 
+        @classmethod
+        def search_query(cls, query, base_queryset):
+            from .search.parser import FlowRunSearch
+            runs_search = FlowRunSearch(query=query, base_queryset=base_queryset)
+            return runs_search.search()
+
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
             flow = self.get_object()
+
+            after = self.request.GET.get("after")
+            before = self.request.GET.get("before")
+            search_query = self.request.GET.get("q")
+
             runs = flow.runs.all()
+
+            if after:
+                after = str_to_datetime(after, tz=flow.org.timezone, dayfirst=flow.org.date_format == "D")
+                runs = runs.filter(created_on__gte=after)
+
+            if before:
+                before = str_to_datetime(before, tz=flow.org.timezone, dayfirst=flow.org.date_format == "D")
+                runs = runs.filter(created_on__lte=before)
+
+            if search_query:
+                runs, query_error = FlowCRUDL.RunTable.search_query(query=search_query, base_queryset=runs)
+                if query_error:
+                    context["query_error"] = query_error
 
             if str_to_bool(self.request.GET.get("responded", "true")):
                 runs = runs.filter(responded=True)
