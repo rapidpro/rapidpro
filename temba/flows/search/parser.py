@@ -11,6 +11,9 @@ class FlowRunSearch(object):
     }
 
     def __init__(self, query, base_queryset):
+        if not str(query).startswith("("):
+            query = f"({query})"
+
         self.query = query
         self.base_queryset = base_queryset
 
