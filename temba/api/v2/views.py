@@ -301,6 +301,12 @@ class ExplorerView(SmartTemplateView):
             TemplatesEndpoint.get_read_explorer(),
             TicketersEndpoint.get_read_explorer(),
             WorkspaceEndpoint.get_read_explorer(),
+            ContactsReportEndpoint.get_read_explorer(),
+            ContactVariablesReportEndpoint.get_read_explorer(),
+            MessagesReportEndpoint.get_read_explorer(),
+            FlowReportEndpoint.get_read_explorer(),
+            FlowVariableReportEndpoint.get_read_explorer(),
+            TrackableLinkReportEndpoint.get_read_explorer(),
         ]
         return context
 
@@ -4405,6 +4411,211 @@ class ContactsReportEndpoint(BaseAPIView):
         writer = csv.writer(response)
         writer.writerows(list(result.items()))
 
+    @classmethod
+    def get_read_explorer(cls):
+        return dict(
+            method="GET",
+            title="Contacts Report",
+            url=reverse("api.v2.contacts_report"),
+            slug="contacts-report",
+            fields=[
+                dict(name="search_query", required=False, help="Search query for contacts"),
+                dict(name="flow", required=False, help="Flow filter"),
+                dict(name="exclude", required=False, help="Contact Group to exclude"),
+            ],
+            example=dict(body=json.dumps({
+                "search_query": "created_on < 2021-01-01",
+                "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
+                "exclude": "Restaurant Contacts"
+            })),
+        )
+
+
+class ContactVariablesReportEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to generate a report based on contact fields
+
+    A **GET** returns groups split by contacts values
+
+    * **search_query** - allows to filter contact by search request (equivalent of search field on contacts page)
+    * **flow** - UUID of flow to select only contacts that have runs in that flow
+    * **exclude** - UUID or Name of contact group to select only contacts that not belong to that group
+    * **variables** - the values configuration to be included into report
+
+    Example:
+
+        POST /api/v2/contact_variable_report.json
+        {
+            "variables": {
+                "zipcode": {
+                    "top": 4
+                },
+                "state": {}
+            }
+        }
+
+    Response:
+
+        {
+            "variables": {
+                "9402ac3d-4efb-448a-b0d6-6b219c5c21ff": {
+                    "key": "zipcode"
+                },
+                "0c34148e-e892-4b3b-981a-47730eb86004": {
+                    "key": "state"
+                }
+            },
+            "results": [
+                {
+                    "state": {
+                        "CA": 1,
+                        "MA": 116,
+                        "FL": 1268,
+                        "VA": 99,
+                        "NY": 278
+                    },
+                    "zipcode": {
+                        "02151": 20,
+                        "02472": 1,
+                        "02155": 27,
+                    }
+                }
+            ]
+        }
+    """
+    permission = "orgs.org_api"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.applied_filters = {}
+
+    def get_queryset(self):
+        from temba.contacts.search import SearchException
+        from temba.contacts.search.elastic import query_contact_ids
+
+        org = self.request.user.get_org()
+        contacts = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True).distinct()
+
+        flow = self.request.GET.get("flow", self.request.data.get("flow"))
+        if flow:
+            contacts = contacts.filter(runs__flow__uuid=flow)
+            self.applied_filters["flow"] = flow
+
+        # contact list views don't use regular field searching but use more complex contact searching
+        search_query = self.request.GET.get("search_query", self.request.data.get("search_query", ""))
+        exclude = self.request.GET.get("exclude", self.request.data.get("exclude"))
+        if exclude:
+            if is_uuid_valid(exclude):
+                contacts = contacts.exclude(all_groups__uuid=exclude)
+            else:
+                search_query += f'{" AND " if search_query else ""}group != "{exclude}"'
+
+        if search_query:
+            try:
+                group = ContactGroup.all_groups.get(org=org, group_type='A')
+                parsed_query, contact_ids = query_contact_ids(org, search_query, group=group, return_parsed_query=True)
+                if parsed_query:
+                    self.applied_filters["search_query"] = parsed_query
+                contacts = contacts.filter(id__in=contact_ids)
+
+                return contacts
+            except SearchException as e:
+                self.applied_filters["search_query"] = f"Error: {e.message}"
+                # this should be an empty resultset
+                return Contact.objects.none()
+        else:
+            # if user search is not defined, use DB to select contacts
+            return contacts
+
+    @csv_response_wrapper
+    def post(self, request, *args, **kwargs):
+        org = request.user.get_org()
+        queryset = self.get_queryset()
+        counts = defaultdict(lambda: Counter())
+
+        requested_variables = self.request.GET.get("variables", self.request.data.get("variables"))
+        existing_variables = dict(ContactField.user_fields.filter(org=org).values_list("key", "uuid"))
+        variable_filters = {}
+        top_ordering = {}
+        if not (requested_variables and type(requested_variables) is dict):
+            return Response(
+                {
+                    "errors": {
+                        "variables":
+                            _("Filter 'variables' invalid or not provided. Available variables are [{}]")
+                                .format(", ".join(existing_variables.keys()))
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        for variable, conf in requested_variables.items():
+            if variable not in existing_variables:
+                return Response(
+                    {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            variable_uuid = str(existing_variables[variable])
+            variable_filters[variable_uuid] = {"key": variable}
+            if type(conf.get("top")) is int:
+                variable_filters[variable_uuid]["top"] = conf.get("top")
+                top_ordering[variable] = conf.get("top")
+
+        self.applied_filters["variables"] = variable_filters
+
+        queryset = queryset.filter(fields__has_any_keys=variable_filters.keys())
+
+        for contact in queryset:
+            for field_uuid, field_value in (contact.fields or {}).items():
+                if field_uuid in variable_filters:
+                    counts[variable_filters[field_uuid]["key"]][field_value["text"]] += 1
+
+        for variable, top_x in top_ordering.items():
+            counts[variable] = dict(counts[variable].most_common(top_x))
+
+        response_data = {
+            **self.applied_filters,
+            "results": [counts]
+        }
+        return Response(response_data)
+
+    @staticmethod
+    def csv_convertor(result, response):
+        import csv
+        writer = csv.writer(response)
+        rows = [
+            (variable_name, value, responders)
+            for variable_name, values in result.items()
+            for value, responders in values.items()
+        ]
+        writer.writerows([("Variable", "Value", "Responders"), *rows])
+
+    @classmethod
+    def get_read_explorer(cls):
+        return dict(
+            method="POST",
+            title="Contact Variables Report",
+            url=reverse("api.v2.contact_variable_report"),
+            slug="contact-variable-report",
+            fields=[
+                dict(name="search_query", required=False, help="Contact search query"),
+                dict(name="flow", required=False, help="Flow filter"),
+                dict(name="exclude", required=False, help="Contact Group to exclude"),
+                dict(name="variables", required=True, help="Configuration for fields to generate report"),
+            ],
+            example=dict(body=json.dumps({
+                "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
+                "search_query": "created_on < 2021-01-01",
+                "exclude": "Restaurant Contacts",
+                "variables": {
+                    "state": {},
+                    "zipcode": {
+                        "top": 5
+                    }
+                }
+            })),
+        )
+
 
 class MessagesReportEndpoint(BaseAPIView):
     """
@@ -4501,6 +4712,29 @@ class MessagesReportEndpoint(BaseAPIView):
         writer = csv.writer(response)
         writer.writerows([("Message type", "Number"), *result.items()])
 
+    @classmethod
+    def get_read_explorer(cls):
+        return dict(
+            method="GET",
+            title="Messages Report",
+            url=reverse("api.v2.messages_report"),
+            slug="messages-report",
+            fields=[
+                dict(name="flow", required=False, help="UUID of flow to select only messages related to specific flow"),
+                dict(name="after", required=False, help="Select messages since specific date"),
+                dict(name="before", required=False, help="Select messages until specific date"),
+                dict(name="channel", required=False, help="Select messages sent via specific channel"),
+                dict(name="exclude", required=False, help="Contact group to exclude"),
+            ],
+            example=dict(body=json.dumps({
+                "flow": "6683f3e3-3445-438a-b94f-137cf22aa36a",
+                "after": "2020-01-01",
+                "before": "2022-01-13",
+                "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+                "exclude": "Testers"
+            })),
+        )
+
 
 class FlowReportEndpoint(BaseAPIView):
     """
@@ -4554,13 +4788,13 @@ class FlowReportEndpoint(BaseAPIView):
     def get(self, request, *args, **kwargs):
         org = self.request.user.get_org()
         try:
-            flow = Flow.objects.get(uuid=self.request.data.get("flow"))
+            flow = Flow.objects.get(uuid=self.request.data.get("flow", self.request.query_params.get("flow")))
         except Flow.DoesNotExist:
             return Response({
                 "errors": {
                     "flow": _("Please enter valid flow UUID.")
                 }
-            })
+            }, status=status.HTTP_400_BAD_REQUEST)
         queryset = FlowRun.objects.filter(org=org, flow=flow)
         filters = (
             ("channel",
@@ -4573,7 +4807,7 @@ class FlowReportEndpoint(BaseAPIView):
         )
         applied_filters = {}
         for name, _filter in filters:
-            filter_value = self.request.data.get(name)
+            filter_value = self.request.data.get(name, self.request.query_params.get("name"))
             if filter_value:
                 queryset = _filter(filter_value)
                 applied_filters[name] = filter_value
@@ -4593,6 +4827,37 @@ class FlowReportEndpoint(BaseAPIView):
         writer = csv.writer(response)
         writer.writerows([("Contacts", "Number"), *result.items()])
 
+    @classmethod
+    def get_read_explorer(cls):
+        return dict(
+            method="GET",
+            title="Flow Report",
+            url=reverse("api.v2.flow_report"),
+            slug="flow-report",
+            fields=[
+                dict(name="flow", required=True, help="UUID of flow"),
+                dict(name="channel", required=False, help="Count only contacts that use a certain channel"),
+                dict(name="exclude", required=False, help="Count only contacts that not in a certain group"),
+                dict(name="started_after", required=False,
+                     help="Count only runs that were started after a certain date"),
+                dict(name="started_before", required=False,
+                     help="Count only runs that were started before a certain date"),
+                dict(name="exited_after", required=False,
+                     help="Count only runs that were exited after a certain date"),
+                dict(name="exited_before", required=False,
+                     help="Count only runs that were exited before a certain date"),
+            ],
+            example=dict(body=json.dumps({
+                "flow": "92b0dd89-485f-4fab-aeb5-564eb97cd73c",
+                "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+                "exclude": "Testers",
+                "started_after": "2021-02-01",
+                "started_before": "2021-03-13",
+                "exited_after": "2021-02-01",
+                "exited_before": "2021-03-13"
+            })),
+        )
+
 
 class FlowVariableReportEndpoint(BaseAPIView):
     """
@@ -4611,7 +4876,7 @@ class FlowVariableReportEndpoint(BaseAPIView):
 
     Example:
 
-        GET /api/v2/flow_variable_report.json
+        POST /api/v2/flow_variable_report.json
         {
             "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
             "variables": {
@@ -4646,7 +4911,7 @@ class FlowVariableReportEndpoint(BaseAPIView):
     permission = "orgs.org_api"
 
     @csv_response_wrapper
-    def get(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         applied_filters = {}
         org = self.request.user.get_org()
         try:
@@ -4657,7 +4922,7 @@ class FlowVariableReportEndpoint(BaseAPIView):
                 "errors": {
                     "flow": _("Please enter valid flow UUID.")
                 }
-            })
+            }, status=status.HTTP_400_BAD_REQUEST)
         queryset = FlowRun.objects.filter(org=org, flow=flow)
         filters = (
             ("channel",
@@ -4723,163 +4988,37 @@ class FlowVariableReportEndpoint(BaseAPIView):
         ]
         writer.writerows([("Variable", "Value", "Responders"), *rows])
 
-
-class ContactVariablesReportEndpoint(BaseAPIView):
-    """
-    This endpoint allows you to generate a report based on contact fields
-
-    A **GET** returns groups split by contacts values
-
-    * **search_query** - allows to filter contact by search request (equivalent of search field on contacts page)
-    * **flow** - UUID of flow to select only contacts that have runs in that flow
-    * **exclude** - UUID or Name of contact group to select only contacts that not belong to that group
-    * **variables** - the values configuration to be included into report
-
-    Example:
-
-        GET /api/v2/contact_variable_report.json
-        {
-            "variables": {
-                "zipcode": {
-                    "top": 4
-                },
-                "state": {}
-            }
-        }
-
-    Response:
-
-        {
-            "variables": {
-                "9402ac3d-4efb-448a-b0d6-6b219c5c21ff": {
-                    "key": "zipcode"
-                },
-                "0c34148e-e892-4b3b-981a-47730eb86004": {
-                    "key": "state"
-                }
-            },
-            "results": [
-                {
-                    "state": {
-                        "CA": 1,
-                        "MA": 116,
-                        "FL": 1268,
-                        "VA": 99,
-                        "NY": 278
-                    },
-                    "zipcode": {
-                        "02151": 20,
-                        "02472": 1,
-                        "02155": 27,
+    @classmethod
+    def get_read_explorer(cls):
+        return dict(
+            method="POST",
+            title="Flow Variables Report",
+            url=reverse("api.v2.flow_variable_report"),
+            slug="flow-variable-report",
+            fields=[
+                dict(name="flow", required=True, help="UUID of flow"),
+                dict(name="channel", required=False, help="Count only contacts that use a certain channel"),
+                dict(name="exclude", required=False, help="Count only contacts that not in a certain group"),
+                dict(name="started_after", required=False,
+                     help="Count only runs that were started after a certain date"),
+                dict(name="started_before", required=False,
+                     help="Count only runs that were started before a certain date"),
+                dict(name="exited_after", required=False,
+                     help="Count only runs that were exited after a certain date"),
+                dict(name="exited_before", required=False,
+                     help="Count only runs that were exited before a certain date"),
+                dict(name="variables", required=True, help="Configuration for fields to generate report"),
+            ],
+            example=dict(body=json.dumps({
+                "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
+                "variables": {
+                    "result_1": {
+                        "format": "value",
+                        "top": 3
                     }
                 }
-            ]
-        }
-    """
-    permission = "orgs.org_api"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.applied_filters = {}
-
-    def get_queryset(self):
-        from temba.contacts.search import SearchException
-        from temba.contacts.search.elastic import query_contact_ids
-
-        org = self.request.user.get_org()
-        contacts = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True).distinct()
-
-        flow = self.request.GET.get("flow", self.request.data.get("flow"))
-        if flow:
-            contacts = contacts.filter(runs__flow__uuid=flow)
-            self.applied_filters["flow"] = flow
-
-        # contact list views don't use regular field searching but use more complex contact searching
-        search_query = self.request.GET.get("search_query", self.request.data.get("search_query", ""))
-        exclude = self.request.GET.get("exclude", self.request.data.get("exclude"))
-        if exclude:
-            if is_uuid_valid(exclude):
-                contacts = contacts.exclude(all_groups__uuid=exclude)
-            else:
-                search_query += f'{" AND " if search_query else ""}group != "{exclude}"'
-
-        if search_query:
-            try:
-                group = ContactGroup.all_groups.get(org=org, group_type='A')
-                parsed_query, contact_ids = query_contact_ids(org, search_query, group=group, return_parsed_query=True)
-                if parsed_query:
-                    self.applied_filters["search_query"] = parsed_query
-                contacts = contacts.filter(id__in=contact_ids)
-
-                return contacts
-            except SearchException as e:
-                self.applied_filters["search_query"] = f"Error: {e.message}"
-                # this should be an empty resultset
-                return Contact.objects.none()
-        else:
-            # if user search is not defined, use DB to select contacts
-            return contacts
-
-    @csv_response_wrapper
-    def get(self, request, *args, **kwargs):
-        org = request.user.get_org()
-        queryset = self.get_queryset()
-        counts = defaultdict(lambda: Counter())
-
-        requested_variables = self.request.data.get("variables")
-        existing_variables = dict(ContactField.user_fields.filter(org=org).values_list("key", "uuid"))
-        variable_filters = {}
-        top_ordering = {}
-        if not (requested_variables and type(requested_variables) is dict):
-            return Response(
-                {
-                    "errors": {
-                        "variables":
-                            _("Filter 'variables' invalid or not provided. Available variables are [{}]")
-                            .format(", ".join(existing_variables.keys()))
-                    }
-                }
-            )
-
-        for variable, conf in requested_variables.items():
-            if variable not in existing_variables:
-                return Response(
-                    {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}}
-                )
-            variable_uuid = str(existing_variables[variable])
-            variable_filters[variable_uuid] = {"key": variable}
-            if type(conf.get("top")) is int:
-                variable_filters[variable_uuid]["top"] = conf.get("top")
-                top_ordering[variable] = conf.get("top")
-
-        self.applied_filters["variables"] = variable_filters
-
-        queryset = queryset.filter(fields__has_any_keys=variable_filters.keys())
-
-        for contact in queryset:
-            for field_uuid, field_value in (contact.fields or {}).items():
-                if field_uuid in variable_filters:
-                    counts[variable_filters[field_uuid]["key"]][field_value["text"]] += 1
-
-        for variable, top_x in top_ordering.items():
-            counts[variable] = dict(counts[variable].most_common(top_x))
-
-        response_data = {
-            **self.applied_filters,
-            "results": [counts]
-        }
-        return Response(response_data)
-
-    @staticmethod
-    def csv_convertor(result, response):
-        import csv
-        writer = csv.writer(response)
-        rows = [
-            (variable_name, value, responders)
-            for variable_name, values in result.items()
-            for value, responders in values.items()
-        ]
-        writer.writerows([("Variable", "Value", "Responders"), *rows])
+            }))
+        )
 
 
 class TrackableLinkReportEndpoint(BaseAPIView):
@@ -4917,7 +5056,7 @@ class TrackableLinkReportEndpoint(BaseAPIView):
     @csv_response_wrapper
     def get(self, *args, **kwargs):
         org = self.request.user.get_org()
-        link_name = self.request.data.get("link_name", "")
+        link_name = self.request.data.get("link_name", self.request.GET.get("link_name", ""))
         link = Link.objects.filter(org=org, name__icontains=link_name).first()
         if not link_name or link is None:
             errors = {
@@ -4949,3 +5088,18 @@ class TrackableLinkReportEndpoint(BaseAPIView):
         import csv
         writer = csv.writer(response)
         writer.writerows([("Variable", "Value"), *result.items()])
+
+    @classmethod
+    def get_read_explorer(cls):
+        return dict(
+            method="GET",
+            title="Trackable Link Report",
+            url=reverse("api.v2.trackable_link_report"),
+            slug="trackable-link-report",
+            fields=[
+                dict(name="link_name", required=True, help="The name of the link"),
+            ],
+            example=dict(body=json.dumps({
+                "link_name": "Test Link Name"
+            })),
+        )
