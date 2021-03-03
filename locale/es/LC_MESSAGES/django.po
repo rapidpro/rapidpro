@@ -5,17 +5,17 @@
 # 
 # Translators:
 # Rowan Seymour <rowanseymour@gmail.com>, 2020
-# Nyaruka <info@textit.in>, 2021
 # Moy Moussan <moymoussan@gmail.com>, 2021
+# Nyaruka <info@textit.in>, 2021
 # 
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-01 17:12+0000\n"
+"POT-Creation-Date: 2021-03-02 16:37+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
-"Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
+"Last-Translator: Nyaruka <info@textit.in>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -995,12 +995,6 @@ msgstr "El tipo de URN manejados por este canal"
 msgid "The phone number or that this channel will send from"
 msgstr "El número de teléfono o desde el que enviará este canal"
 
-msgid "Handle"
-msgstr "Identificador"
-
-msgid "The Twitter handle that this channel will send from"
-msgstr "El identificador de Twitter desde el que enviará este canal"
-
 msgid "The external address that this channel will send from"
 msgstr "La dirección externa desde la que enviará este canal"
 
@@ -1058,6 +1052,9 @@ msgid ""
 msgstr ""
 "El contenido que debe estar en la respuesta para considerar la solicitud "
 "exitosa"
+
+msgid "This field is required."
+msgstr "Este campo es obligatorio."
 
 msgid ""
 "The URL we will POST to when sending messages, with variable substitutions"
@@ -2278,6 +2275,9 @@ msgstr "Nombre del entorno"
 
 msgid "The provided Twitter credentials do not appear to be valid."
 msgstr "Las credenciales de Twitter proporcionadas no parecen ser válidas."
+
+msgid "Handle"
+msgstr "Identificador"
 
 msgid "Twitter handle of this channel"
 msgstr "Twitter identificador de este canal"
