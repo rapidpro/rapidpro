@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-03 18:30+0000\n"
+"POT-Creation-Date: 2021-03-04 14:42+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -1479,7 +1479,7 @@ msgid "The Authentication token for your Telegram Bot"
 msgstr "El token de autenticación para su Telegram Bot"
 
 msgid "A telegram channel for this bot already exists on your account."
-msgstr "Ya existe un canal de telegramas para este bot en su cuenta."
+msgstr "Ya existe un canal de Telegram para este bot en su cuenta."
 
 msgid "Your authentication token is invalid, please check and try again"
 msgstr "Su token de autenticación no es válido, verifique y vuelva a intentarlo"
@@ -1847,7 +1847,7 @@ msgid "You can connect your number by entering your credentials here."
 msgstr "Puede conectar su número ingresando sus credenciales aquí."
 
 msgid "Sorry, you need to have a workspace to add numbers. You can still test things out for free using an Android phone."
-msgstr "Lo siento, necesita tener un Workspace para agregar números. Aún puedes probar cosas gratis usando un teléfono Android."
+msgstr "Lo siento, necesita tener un workspace para agregar números. Aún puedes probar cosas gratis usando un teléfono Android."
 
 msgid "Sorry, the number you chose is not supported. You can still deploy in any country using your own SIM card and an Android phone."
 msgstr "Lo sentimos, el número que eligió no es compatible. Aún puede implementar en cualquier país usando su propia tarjeta SIM y un teléfono Android."
@@ -1879,7 +1879,7 @@ msgid "Channel Log"
 msgstr "Registro de canales"
 
 msgid "Call Log"
-msgstr "Registro de llamadas"
+msgstr "Registro de Llamadas"
 
 msgid "Edit Channel"
 msgstr "Editar canal"
@@ -2054,7 +2054,7 @@ msgid "LINE identifier"
 msgstr "Identificador de LINE"
 
 msgid "Telegram identifier"
-msgstr "Identificador de telegrama"
+msgstr "Identificador de telegram"
 
 msgid "Email address"
 msgstr "Dirección de correo electrónico"
@@ -2216,7 +2216,7 @@ msgid "Can't resolve '%(property)s' to a field or URN scheme"
 msgstr "No se puede resolver '%(property)s' en un campo o esquema URN"
 
 msgid "Can't query on URNs in an anonymous workspace"
-msgstr "No se pueden consultar URN en un Workspace anónimo"
+msgstr "No se pueden consultar URN en un workspace anónimo"
 
 msgid "Name is used by another group"
 msgstr "Otro grupo usa el nombre"
@@ -2318,7 +2318,7 @@ msgid "Save as Group"
 msgstr "Guardar como grupo"
 
 msgid "Manage Fields"
-msgstr "Manejar campos"
+msgstr "Manejar Campos"
 
 msgid "Export Contacts"
 msgstr "Exportar contactos"
@@ -2380,7 +2380,7 @@ msgstr "Usos del campo de contacto"
 
 #, python-format
 msgid "This workspace has reached the limit of %(count)d groups. You must delete existing ones before you can perform an import."
-msgstr "Este Workspace ha alcanzado el límite de grupos %(count)d. Debe eliminar los existentes antes de poder realizar una importación."
+msgstr "Este workspace ha alcanzado el límite de grupos %(count)d. Debe eliminar los existentes antes de poder realizar una importación."
 
 #, python-format
 msgid "Field name for '%(header)s' can't be empty."
@@ -2771,10 +2771,10 @@ msgid "This flow is already being started, please wait until that process is com
 msgstr "Este flujo ya se está iniciando, espere hasta que se complete el proceso antes de iniciar más contactos."
 
 msgid "Sorry, your workspace is currently suspended. To enable starting flows, please contact support."
-msgstr "Lo sentimos, su Workspace está suspendido actualmente. Para habilitar los flujos iniciales, comuníquese con el soporte."
+msgstr "Lo sentimos, su workspace está suspendido actualmente. Para habilitar los flujos iniciales, comuníquese con el soporte."
 
 msgid "Sorry, your workspace is currently flagged. To enable starting flows, please contact support."
-msgstr "Lo sentimos, tu Workspace está marcado actualmente. Para habilitar los flujos iniciales, comuníquese con el soporte."
+msgstr "Lo sentimos, tu workspace está marcado actualmente. Para habilitar los flujos iniciales, comuníquese con el soporte."
 
 msgid "This flow does not specify a Facebook topic. You may still start this flow but Facebook contacts who have not sent an incoming message in the last 24 hours may not receive it."
 msgstr "Este flujo no especifica un tema de Facebook. Aún puede iniciar este flujo, pero es posible que los contactos de Facebook que no hayan enviado un mensaje entrante en las últimas 24 horas no lo reciban."
@@ -2836,7 +2836,7 @@ msgid "Home"
 msgstr "Casa"
 
 msgid "You must select a country for your workspace."
-msgstr "Debes seleccionar un país para tu Workspace."
+msgstr "Debes seleccionar un país para tu workspace."
 
 msgid "Queued"
 msgstr "En cola"
@@ -2899,10 +2899,10 @@ msgid "At least one recipient is required"
 msgstr "Se requiere un destinatario como mínimo"
 
 msgid "Sorry, your workspace is currently suspended. To enable sending messages, please contact support."
-msgstr "Lo sentimos, su Workspace está suspendido actualmente. Para habilitar el envío de mensajes, comuníquese con el soporte."
+msgstr "Lo sentimos, su workspace está suspendido actualmente. Para habilitar el envío de mensajes, comuníquese con el soporte."
 
 msgid "Sorry, your workspace is currently flagged. To enable sending messages, please contact support."
-msgstr "Lo sentimos, tu Workspace está marcado actualmente. Para habilitar el envío de mensajes, comuníquese con el soporte."
+msgstr "Lo sentimos, tu workspace está marcado actualmente. Para habilitar el envío de mensajes, comuníquese con el soporte."
 
 msgid "Inbox"
 msgstr "Bandeja de entrada"
@@ -3209,7 +3209,7 @@ msgid "name@domain.com"
 msgstr "name@domain.com"
 
 msgid "The timezone for your workspace"
-msgstr "La zona horaria de tu Workspace"
+msgstr "La zona horaria de tu workspace"
 
 msgid "At least eight characters or more"
 msgstr "Al menos ocho caracteres o más"
@@ -3218,7 +3218,7 @@ msgid "Workspace"
 msgstr "Espacio de trabajo"
 
 msgid "A workspace is usually the name of a company or project"
-msgstr "Un Workspace suele ser el nombre de una empresa o proyecto."
+msgstr "Un workspace suele ser el nombre de una empresa o proyecto."
 
 msgid "My Company, Inc."
 msgstr "Mi empresa, Inc."
@@ -3227,25 +3227,25 @@ msgid "That email address is already used"
 msgstr "Esta dirección de correo electrónico ya ha sido usada"
 
 msgid "The first name of the workspace administrator"
-msgstr "El nombre del administrador del Workspace"
+msgstr "El nombre del administrador del workspace"
 
 msgid "Your last name of the workspace administrator"
-msgstr "Su apellido del administrador del Workspace"
+msgstr "Su apellido del administrador del workspace"
 
 msgid "Their email address"
 msgstr "Su dirección de correo electrónico"
 
 msgid "The timezone for the workspace"
-msgstr "La zona horaria del Workspace"
+msgstr "La zona horaria del workspace"
 
 msgid "Their password, at least eight letters please. (leave blank for existing login)"
 msgstr "Su contraseña, al menos ocho letras por favor. (déjelo en blanco para el login existente)"
 
 msgid "The name of the new workspace"
-msgstr "El nombre del nuevo Workspace"
+msgstr "El nombre del nuevo workspace"
 
 msgid "The initial number of credits granted to this workspace"
-msgstr "El número inicial de créditos otorgados a este Workspace."
+msgstr "El número inicial de créditos otorgados a este workspace."
 
 msgid "Login already exists, please do not include password."
 msgstr "El login ya existe, no incluya la contraseña."
@@ -3471,7 +3471,7 @@ msgid "Manage Logins"
 msgstr "Administrar logins"
 
 msgid "Dashboard"
-msgstr "Tablero"
+msgstr "Panel"
 
 msgid "New Workspace"
 msgstr "Nuevo Workspace"
@@ -3480,7 +3480,7 @@ msgid "Transfer Credits"
 msgstr "Transferencia de créditos"
 
 msgid "The name of your workspace"
-msgstr "El nombre de tu Workspace"
+msgstr "El nombre de tu workspace"
 
 msgid "Select your Workspace"
 msgstr "Seleccione su Workspace"
@@ -3489,7 +3489,7 @@ msgid "No organizations for this account, please contact your administrator."
 msgstr "No hay organizaciones para esta cuenta, comuníquese con su administrador."
 
 msgid "Your invitation link is invalid. Please contact your workspace administrator."
-msgstr "Su enlace de invitación no es válido. Comuníquese con el administrador de su Workspace."
+msgstr "Su enlace de invitación no es válido. Comuníquese con el administrador de su workspace."
 
 #, python-format
 msgid "Join %(name)s"
@@ -3499,7 +3499,7 @@ msgid "Sign in with your account to accept the invitation"
 msgstr "Inicie sesión con su cuenta para aceptar la invitación"
 
 msgid "Your invitation link has expired. Please contact your workspace administrator."
-msgstr "Su enlace de invitación ha caducado. Comuníquese con el administrador de su Workspace."
+msgstr "Su enlace de invitación ha caducado. Comuníquese con el administrador de su workspace."
 
 msgid "Join"
 msgstr "Participar"
@@ -3523,7 +3523,7 @@ msgid "Welcome!"
 msgstr "¡Bienvenido!"
 
 msgid "Create Workspace Account"
-msgstr "Crear cuenta de Workspace"
+msgstr "Crear Cuenta de Workspace"
 
 msgid "Sign Up"
 msgstr "Registrarse"
@@ -3584,20 +3584,20 @@ msgid "From Workspace"
 msgstr "Desde el Workspace"
 
 msgid "Select which workspace to take credits from"
-msgstr "Seleccione de qué Workspace tomar créditos"
+msgstr "Seleccione de qué workspace tomar créditos"
 
 msgid "To Workspace"
 msgstr "Al Workspace"
 
 msgid "Select which workspace to receive the credits"
-msgstr "Seleccione el Workspace para recibir los créditos"
+msgstr "Seleccione el workspace para recibir los créditos"
 
 msgid "How many credits to transfer"
 msgstr "Cuántos créditos transferir"
 
 #, python-format
 msgid "Sorry, %(org_name)s doesn't have enough credits for this transfer. Pick a different workspace to transfer from or reduce the transfer amount."
-msgstr "Lo sentimos, %(org_name)s no tiene suficientes créditos para esta transferencia. Elija un Workspace diferente para transferir o reduzca el monto de la transferencia."
+msgstr "Lo sentimos, %(org_name)s no tiene suficientes créditos para esta transferencia. Elija un workspace diferente para transferir o reduzca el monto de la transferencia."
 
 msgid "The country used for location values. (optional)"
 msgstr "El país usado para los valores de ubicación. (opcional)"
@@ -3623,7 +3623,7 @@ msgstr "%(lang1)s y %(lang2)s"
 
 #, python-format
 msgid "Cleared %(name)s cache for this workspace (%(count)d keys)"
-msgstr "Se borró la caché %(name)s para este Workspace (claves %(count)d)"
+msgstr "Se borró la caché %(name)s para este workspace (claves %(count)d)"
 
 msgid "Privacy Policy"
 msgstr "Política de privacidad"
@@ -3786,7 +3786,7 @@ msgstr "Habilitar esto le permitirá manejar tickets dentro de esta aplicación.
 
 #, python-format
 msgid "This will enable handling tickets internally in %(brand)s."
-msgstr "Esto permitirá el manejo de tickets internamente en %(brand)s"
+msgstr "Esto permitirá el manejo de tickets internamente en %(brand)s."
 
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr "Al conectar una dirección de correo electrónico, se enviarán todos los tickets nuevos y sus respuestas a esa dirección de correo electrónico. Podrás responderles directamente y tus respuestas se enviarán al contacto."
@@ -3816,8 +3816,7 @@ msgstr "Los nuevos tickets y respuestas se enviarán a la dirección de correo e
 msgid "Verify your email address for tickets"
 msgstr "Verifique su dirección de correo electrónico para tickets"
 
-#, fuzzy, python-format
-#| msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket servicethrough its omnichannel feature."
+#, python-format
 msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket service through its omnichannel feature."
 msgstr "%(link)s es una solución gratuita de código abierto para comunicaciones en equipo que se puede conectar como un servicio de tickets a través de su función omnicanal."
 
@@ -3869,7 +3868,7 @@ msgid "Connect %(ticketer)s"
 msgstr "Conectar %(ticketer)s"
 
 msgid "Open Tickets"
-msgstr "Tickets abiertas"
+msgstr "Tickets Abiertas"
 
 msgid "Closed Tickets"
 msgstr "Tickets Cerradas"
@@ -4000,7 +3999,7 @@ msgid "The referrer id that will trigger us"
 msgstr "La identificación de referencia que nos activará"
 
 msgid "Create Trigger"
-msgstr "Crear activadores"
+msgstr "Crear Activador"
 
 msgid "Triggers"
 msgstr "Activadores"
@@ -4012,10 +4011,10 @@ msgid "The first word of the message"
 msgstr "La primera palabra del mensaje"
 
 msgid "Create Referral Trigger"
-msgstr "Crear activador de referencias"
+msgstr "Crear Activador de Referencias"
 
 msgid "Create Schedule"
-msgstr "Crear cronograma"
+msgstr "Crear Cronograma"
 
 msgid "Processing"
 msgstr "Procesando"
@@ -4193,7 +4192,7 @@ msgid "Campaigns"
 msgstr "Campañas"
 
 msgid "Create Campaign"
-msgstr "Crear campaña"
+msgstr "Crear Campaña"
 
 msgid "Search"
 msgstr "Buscar"
@@ -4257,7 +4256,7 @@ msgstr "Agregar un canal"
 
 #, python-format
 msgid "To get started you need to add a channel to your workspace. A channel is a phone number or social network account which %(name)s can use to send and receive messages on your behalf. You can choose to use an Android phone and your own cell phone plan, or we can connect you with a service provider in your country directly."
-msgstr "Para comenzar, debe agregar un canal a su Workspace. Un canal es un número de teléfono o una cuenta de red social que puede usar %(name)s para enviar y recibir mensajes en su nombre. Puede optar por utilizar un teléfono Android y su propio plan de teléfono celular, o podemos conectarlo con un proveedor de servicios en su país directamente."
+msgstr "Para comenzar, debe agregar un canal a su workspace. Un canal es un número de teléfono o una cuenta de red social que puede usar %(name)s para enviar y recibir mensajes en su nombre. Puede optar por utilizar un teléfono Android y su propio plan de teléfono celular, o podemos conectarlo con un proveedor de servicios en su país directamente."
 
 msgid "Recommendations"
 msgstr "Recomendaciones"
@@ -4955,7 +4954,7 @@ msgstr "Volver a conectar la página de Facebook"
 
 #, python-format
 msgid "You can to connect using a <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> Firebase Cloud Messaging App</a> to your %(name)s workspace to automate sending notifications."
-msgstr "Puede conectarse mediante una aplicación de mensajería en la nube de Firebase <a href=\"https://firebase.google.com/docs/cloud-messaging/\"> </a> a su Workspace %(name)s para automatizar el envío de notificaciones."
+msgstr "Puede conectarse mediante una aplicación de <a href=\"https://firebase.google.com/docs/cloud-messaging/\">Firebase Cloud Messaging</a>  a su workspace %(name)s para automatizar el envío de notificaciones."
 
 msgid "You will need to create a new App on Firebase Console and get its key. To do so:"
 msgstr "Deberá crear una nueva aplicación en Firebase Console y obtener su clave. Para hacerlo:"
@@ -4997,7 +4996,7 @@ msgstr "Después de conectar su servicio, proporcionaremos las URL de los puntos
 
 #, python-format
 msgid "You can connect a <a href=\"https://jiochat.com\">JioChat Channel</a> to your %(name)s workspace to automate sending and receiving JioChat messages."
-msgstr "Puede conectar un canal JioChat <a href=\"https://jiochat.com\"> </a> a su Workspace %(name)s para automatizar el envío y la recepción de mensajes JioChat."
+msgstr "Puede conectar un canal JioChat <a href=\"https://jiochat.com\"> </a> a su workspace %(name)s para automatizar el envío y la recepción de mensajes JioChat."
 
 msgid "To start copy the App ID and App Secret from the Developer Center into the form below and click Submit."
 msgstr "Para comenzar, copie el ID de la aplicación y el secret de la aplicación desde el Centro de desarrolladores en el formulario a continuación y haga clic en Enviar."
@@ -5013,7 +5012,7 @@ msgstr "Asegúrese de cambiar los valores de forced-smsc y default-smsc a los va
 
 #, python-format
 msgid "You can connect a <a href=\"https://developers.line.me/messaging-api/overview\">LINE Bot</a> to your %(name)s workspace to automate sending and receiving LINE messages."
-msgstr "Puede conectar un bot de LINE <a href=\"https://developers.line.me/messaging-api/overview\"> </a> a su Workspace %(name)s para automatizar el envío y la recepción de mensajes LINE."
+msgstr "Puede conectar un bot de LINE <a href=\"https://developers.line.me/messaging-api/overview\"> </a> a su workspace %(name)s para automatizar el envío y la recepción de mensajes LINE."
 
 msgid "To start creating a LINE bot, go to <a href=\"https://developers.line.me/messaging-api/getting-started\">Getting started with the Messaging API</a>."
 msgstr "Para comenzar a crear un bot de LINE, vaya a <a href=\"https://developers.line.me/messaging-api/getting-started\"> Introducción a la API de mensajería </a>."
@@ -5119,7 +5118,7 @@ msgstr "También necesitará un token de autenticación y una identificación de
 
 #, python-format
 msgid "You can connect a <a href=\"https://core.telegram.org/bots\">Telegram Bot</a> to your %(name)s workspace to automate sending and receiving Telegram messages."
-msgstr "Puede conectar un Telegram Bot <a href=\"https://core.telegram.org/bots\"> </a> a su Workspace %(name)s para automatizar el envío y la recepción de mensajes de Telegram."
+msgstr "Puede conectar un <a href=\"https://core.telegram.org/bots\">Telegram Bot</a> a su workspace %(name)s para automatizar el envío y la recepción de mensajes de Telegram."
 
 msgid "You will need to <a href=\"https://core.telegram.org/bots#create-a-new-bot\">create a new Telegram bot</a> and get its Authentication Token. To do so:"
 msgstr "Deberá <a href=\"https://core.telegram.org/bots#create-a-new-bot\"> crear un nuevo bot de Telegram </a> y obtener su Token de autenticación. Para hacerlo:"
@@ -5254,7 +5253,7 @@ msgid "External ID"
 msgstr "ID externo"
 
 msgid "Created On"
-msgstr "Creado el"
+msgstr "Creado El"
 
 msgid "No synced intents at this time."
 msgstr "No hay intenciones sincronizadas en este momento."
@@ -5491,14 +5490,14 @@ msgstr[1] "Usado en los grupos"
 
 #, python-format
 msgid "You have reached the limit of %(limit)s fields per workspace. Please remove fields that you are no longer using."
-msgstr "Ha alcanzado el límite de campos %(limit)s por Workspace. Elimine los campos que ya no utilice."
+msgstr "Ha alcanzado el límite de campos %(limit)s por workspace. Elimine los campos que ya no utilice."
 
 #, python-format
 msgid "You are approaching the limit of %(limit)s fields per workspace. You should remove fields that you are no longer using."
-msgstr "Se está acercando al límite de campos %(limit)s por Workspace. Debe eliminar los campos que ya no usa."
+msgstr "Se está acercando al límite de campos %(limit)s por workspace. Debe eliminar los campos que ya no usa."
 
 msgid "Create Field"
-msgstr "Crear campo"
+msgstr "Crear Campo"
 
 msgid "Featured Fields"
 msgstr "Campos destacados"
@@ -5741,7 +5740,7 @@ msgid ""
 "    "
 msgstr ""
 "\n"
-"      Para comenzar, debe agregar un canal a su Workspace. Un canal es un número de teléfono o una red social.\n"
+"      Para comenzar, debe agregar un canal a su workspace. Un canal es un número de teléfono o una red social.\n"
 "      cuenta que %(name)s puede usar para enviar y recibir mensajes en su nombre. Puede optar por utilizar un\n"
 "      Teléfono Android y su propio plan de teléfono celular, o podemos conectarlo con un proveedor de servicios en su país\n"
 "      directamente.\n"
@@ -5755,7 +5754,7 @@ msgstr "en la derecha para abrirlo."
 
 #, python-format
 msgid "To get started you need to add a voice-enabled channel to your workspace. A voice-enabled channel is a phone number which %(name)s can use to make and receive phone calls on your behalf. For example, Twilio is a service which provides voice-enabled numbers which you can add as channels in your %(name)s workspace."
-msgstr "Para comenzar, debe agregar un canal habilitado por voz a su Workspace. Un canal habilitado para voz es un número de teléfono que puede usar %(name)s para realizar y recibir llamadas telefónicas en su nombre. Por ejemplo, Twilio es un servicio que proporciona números habilitados para voz que puede agregar como canales en su Workspace %(name)s."
+msgstr "Para comenzar, debe agregar un canal habilitado por voz a su workspace. Un canal habilitado para voz es un número de teléfono que puede usar %(name)s para realizar y recibir llamadas telefónicas en su nombre. Por ejemplo, Twilio es un servicio que proporciona números habilitados para voz que puede agregar como canales en su Workspace %(name)s."
 
 #, python-format
 msgid ""
@@ -5807,7 +5806,7 @@ msgstr "Cambiar idioma"
 
 #, python-format
 msgid "This will change the default language of the flow to <b>%(language)s</b>. This means that by default the flow will be appear in that language and can be translated into other languages. Also if a contact is in this flow and no translation exists for their language or the default language of the workspace, communication with that contact will default to <b>%(language)s</b>."
-msgstr "Esto cambiará el idioma predeterminado del flujo a <b> %(language)s </b>. Esto significa que, de forma predeterminada, el flujo aparecerá en ese idioma y se puede traducir a otros idiomas. Además, si un contacto está en este flujo y no existe una traducción para su idioma o el idioma predeterminado del Workspace, la comunicación con ese contacto se establecerá de manera predeterminada en <b> %(language)s </b>."
+msgstr "Esto cambiará el idioma predeterminado del flujo a <b> %(language)s </b>. Esto significa que, de forma predeterminada, el flujo aparecerá en ese idioma y se puede traducir a otros idiomas. Además, si un contacto está en este flujo y no existe una traducción para su idioma o el idioma predeterminado del workspace, la comunicación con ese contacto se establecerá de manera predeterminada en <b> %(language)s </b>."
 
 msgid "Sorry, this flow cannot be exported because it references another flow. To export it, please remove any actions that reference other flows and try again."
 msgstr "Lo sentimos, este flujo no se puede exportar porque hace referencia a otro flujo. Para exportarlo, elimine cualquier acción que haga referencia a otros flujos y vuelva a intentarlo."
@@ -5855,13 +5854,13 @@ msgid "Back"
 msgstr "atrás"
 
 msgid "Create Label"
-msgstr "Crear etiqueta"
+msgstr "Crear Etiqueta"
 
 msgid "Create Flow"
 msgstr "Crear Flujos"
 
 msgid "Webhook Call Log"
-msgstr "Registro de llamadas de webhook"
+msgstr "Registro de Webhook"
 
 msgid "New Label"
 msgstr "Nueva etiqueta"
@@ -5954,7 +5953,7 @@ msgid "You do not have any globals configured."
 msgstr "No tiene ningún global configurado."
 
 msgid "Create Global"
-msgstr "Crear global"
+msgstr "Crear Global"
 
 msgid "Globals"
 msgstr "Globals"
@@ -5993,7 +5992,7 @@ msgid "triggers"
 msgstr "activadores"
 
 msgid "tickets"
-msgstr "Tickets"
+msgstr "tickets"
 
 msgid "channels"
 msgstr "canales"
@@ -6008,7 +6007,7 @@ msgid "android"
 msgstr "androide"
 
 msgid "dashboard"
-msgstr "Panel"
+msgstr "panel"
 
 msgid "orgs"
 msgstr "organizaciones"
@@ -6020,7 +6019,7 @@ msgid "sign out"
 msgstr "desconectar"
 
 msgid "sign in"
-msgstr "entrar"
+msgstr "ingresar"
 
 msgid "You are out of credits, add more to resume your service"
 msgstr "No tienes créditos, agrega más para reanudar tu servicio"
@@ -6154,7 +6153,7 @@ msgid "Numeric Value:"
 msgstr "Valor numérico:"
 
 msgid "Create Folder"
-msgstr "Crear carpeta"
+msgstr "Crear Carpeta"
 
 msgid "Restore"
 msgstr "Restaurar"
@@ -6217,7 +6216,7 @@ msgid "No matching messages."
 msgstr "Ningún mensaje corresponde."
 
 msgid "Your workspace is suspended and no longer processing messages."
-msgstr "Su Workspace está suspendido y ya no procesa mensajes."
+msgstr "Su workspace está suspendido y ya no procesa mensajes."
 
 #, python-format
 msgid ""
@@ -6244,7 +6243,7 @@ msgid ""
 msgstr ""
 "\n"
 "\n"
-"Su Workspace %(brand)s para %(org)s no tiene crédito. Ya no podrá enviar mensajes y los usuarios ya no podrán interactuar en los flujos.\n"
+"Su workspace %(brand)s para %(org)s no tiene crédito. Ya no podrá enviar mensajes y los usuarios ya no podrán interactuar en los flujos.\n"
 "\n"
 
 msgid ""
@@ -6253,7 +6252,7 @@ msgid ""
 "    "
 msgstr ""
 "\n"
-"    Para reanudar su servicio, visite la página de su Workspace para comprar una recarga.\n"
+"    Para reanudar su servicio, visite la página de su workspace para comprar una recarga.\n"
 "    "
 
 msgid ""
@@ -6273,7 +6272,7 @@ msgid ""
 msgstr ""
 "\n"
 "\n"
-"Su Workspace %(brand)s para %(org)s tiene créditos que vencen en menos de un mes.\n"
+"Su workspace %(brand)s para %(org)s tiene créditos que vencen en menos de un mes.\n"
 
 msgid ""
 "\n"
@@ -6281,7 +6280,7 @@ msgid ""
 "    "
 msgstr ""
 "\n"
-"      Ya no se enviarán mensajes cuando caduquen sus créditos, para evitar una interrupción en su servicio, visite la página de su Workspace para comprar una recarga.\n"
+"      Ya no se enviarán mensajes cuando caduquen sus créditos, para evitar una interrupción en su servicio, visite la página de su workspace para comprar una recarga.\n"
 "    "
 
 msgid ""
@@ -6299,7 +6298,7 @@ msgid ""
 "Your %(brand)s workspace for %(org)s is running low on credits, you currently only have %(remaining)s credits remaining.\n"
 msgstr ""
 "\n"
-"Su Workspace %(brand)s para %(org)s se está quedando sin créditos, actualmente solo le quedan %(remaining)s créditos.\n"
+"Su workspace %(brand)s para %(org)s se está quedando sin créditos, actualmente solo le quedan %(remaining)s créditos.\n"
 
 msgid ""
 "\n"
@@ -6307,7 +6306,7 @@ msgid ""
 "    "
 msgstr ""
 "\n"
-"      Ya no se enviarán mensajes cuando sus créditos lleguen a cero, para evitar una interrupción en su servicio, visite la página de su Workspace para comprar una recarga.\n"
+"      Ya no se enviarán mensajes cuando sus créditos lleguen a cero, para evitar una interrupción en su servicio, visite la página de su workspace para comprar una recarga.\n"
 "    "
 
 msgid ""
@@ -6356,7 +6355,7 @@ msgid ""
 "To resume your service please visit your workspace page to purchase a top up.\n"
 msgstr ""
 "\n"
-"Para reanudar su servicio, visite la página de su Workspace para comprar una recarga.\n"
+"Para reanudar su servicio, visite la página de su workspace para comprar una recarga.\n"
 
 msgid ""
 "\n"
@@ -6374,7 +6373,7 @@ msgid ""
 msgstr ""
 "\n"
 "\n"
-"Su Workspace %(brand)s para %(org)s tiene créditos que vencen en menos de un mes.\n"
+"Su workspace %(brand)s para %(org)s tiene créditos que vencen en menos de un mes.\n"
 "\n"
 
 msgid ""
@@ -6382,7 +6381,7 @@ msgid ""
 "Messages will no longer be sent when your credits expire, to prevent an interruption in your service visit your workspace page to purchase a top up.\n"
 msgstr ""
 "\n"
-"Ya no se enviarán mensajes cuando caduquen sus créditos, para evitar una interrupción en su servicio, visite la página de su Workspace para comprar una recarga.\n"
+"Ya no se enviarán mensajes cuando caduquen sus créditos, para evitar una interrupción en su servicio, visite la página de su workspace para comprar una recarga.\n"
 
 msgid ""
 "\n"
@@ -6400,7 +6399,7 @@ msgid ""
 msgstr ""
 "\n"
 "\n"
-"Su Workspace %(brand)s para %(org)s se está quedando sin créditos, actualmente solo le quedan %(remaining)s créditos.\n"
+"Su workspace %(brand)s para %(org)s se está quedando sin créditos, actualmente solo le quedan %(remaining)s créditos.\n"
 "\n"
 
 msgid ""
@@ -6408,7 +6407,7 @@ msgid ""
 "Messages will no longer be sent when your credits reach zero, to prevent an interruption in your service visit your workspace page to purchase a top up.\n"
 msgstr ""
 "\n"
-"Ya no se enviarán mensajes cuando sus créditos lleguen a cero, para evitar una interrupción en su servicio, visite la página de su Workspace para comprar una recarga.\n"
+"Ya no se enviarán mensajes cuando sus créditos lleguen a cero, para evitar una interrupción en su servicio, visite la página de su workspace para comprar una recarga.\n"
 
 msgid ""
 "\n"
@@ -6602,7 +6601,7 @@ msgid "Please sign in with your email address and password."
 msgstr "Inicie sesión con su dirección de correo electrónico y contraseña."
 
 msgid "Sign In"
-msgstr "Registrarse"
+msgstr "Ingresar"
 
 msgid "Don't have an account yet?"
 msgstr "¿Aún no tienes una cuenta?"
@@ -6626,7 +6625,7 @@ msgid "Use Backup Token"
 msgstr "Usar token de respaldo"
 
 msgid "Your workspace can have logins with various roles. You can use the Manage Logins page to view all existing logins or to add new logins to your workspace."
-msgstr "Su Workspace puede tener logins con varios roles. Puede utilizar la página Administrar logins para ver todos los logins existentes o para agregar nuevos logins a su Workspace."
+msgstr "Su workspace puede tener logins con varios roles. Puede utilizar la página Administrar logins para ver todos los logins existentes o para agregar nuevos logins a su Workspace."
 
 #, python-format
 msgid "If you use the %(brand)s Surveyor application to run flows offline, we recommend enabling users to create accounts from within the Android application. Setting a Surveyor password will allow anybody with that password to join your workspace as a surveyor."
@@ -6669,7 +6668,7 @@ msgid "Choose Workspace"
 msgstr "Elija el Workspace"
 
 msgid "Your login is not associated with any workspace. Please contact your administrator to receive an invitation to a workspace."
-msgstr "Su login no está asociado con ningún Workspace. Comuníquese con su administrador para recibir una invitación a un Workspace."
+msgstr "Su login no está asociado con ningún workspace. Comuníquese con su administrador para recibir una invitación a un Workspace."
 
 #, python-format
 msgid "Responses to location questions must be in <b>%(country)s</b>."
@@ -6700,7 +6699,7 @@ msgid "You are about to delete"
 msgstr "Estás a punto de borrar"
 
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
-msgstr "¿Está seguro de que desea eliminar todo para esta organización? Esto no se puede deshacer. También se eliminarán todos los logins que solo pertenezcan a este Workspace."
+msgstr "¿Está seguro de que desea eliminar todo para esta organización? Esto no se puede deshacer. También se eliminarán todos los logins que solo pertenezcan a este workspace."
 
 msgid "DT One Account"
 msgstr "Cuenta DT One"
@@ -6738,7 +6737,7 @@ msgstr "Esto desconectará su cuenta de DT One. Las acciones de pago ya no se pr
 
 #, python-format
 msgid "Your workspace is <b>%(org)s</b>"
-msgstr "Su Workspace es <b> %(org)s </b>"
+msgstr "Su workspace es <b> %(org)s </b>"
 
 #, python-format
 msgid "which is in the <b>%(timezone)s</b> timezone."
@@ -6763,10 +6762,10 @@ msgstr[1] ""
 "          "
 
 msgid "Manage Workspaces"
-msgstr "Administrar espacios de trabajo"
+msgstr "Administrar Espacios de Trabajo"
 
 msgid "Create Export"
-msgstr "Crear exportación"
+msgstr "Crear Exportación"
 
 msgid "Show Archived"
 msgstr "Mostrar archivado"
@@ -6802,7 +6801,7 @@ msgid "Import Flows and Campaigns"
 msgstr "Importar Flujos y Campañas"
 
 msgid "If you have an export file with flows and or campaigns, select it below to import it into your workspace."
-msgstr "Si tiene un archivo de exportación con flujos o campañas, selecciónelo a continuación para importarlo a su Workspace."
+msgstr "Si tiene un archivo de exportación con flujos o campañas, selecciónelo a continuación para importarlo a su workspace."
 
 msgid "Warning!"
 msgstr "¡Atención!"
@@ -6814,7 +6813,7 @@ msgid "Do not proceed unless you are willing to replace your existing flows and 
 msgstr "No continúe, a no ser que desee reemplazar sus flujos y campañas actuales."
 
 msgid "Sign in"
-msgstr "Registrarse"
+msgstr "Ingresar"
 
 #, python-format
 msgid "You have been invited to join %(name)s."
@@ -6832,7 +6831,7 @@ msgid "Translations are provided in <b>%(lang)s</b>."
 msgstr "Las traducciones se proporcionan en <b> %(lang)s </b>."
 
 msgid "Your workspace is configured to use a single language."
-msgstr "Su Workspace está configurado para utilizar un solo idioma."
+msgstr "Su workspace está configurado para utilizar un solo idioma."
 
 msgid "Remove"
 msgstr "Retirar"
@@ -6875,7 +6874,7 @@ msgstr "Panel de Plivo"
 
 #, python-format
 msgid "You can monitor contact group counts and channel message counts on your workspace using your %(prometheus)s endpoint. This will let you monitor usage over time using graphs and alerts in a dashboard such as %(grafana)s."
-msgstr "Puede monitorear los recuentos de grupos de contactos y de mensajes de canal en su Workspace utilizando su punto final %(prometheus)s. Esto le permitirá monitorear el uso a lo largo del tiempo mediante gráficos y alertas en un tablero como %(grafana)s."
+msgstr "Puede monitorear los recuentos de grupos de contactos y de mensajes de canal en su workspace utilizando su punto final %(prometheus)s. Esto le permitirá monitorear el uso a lo largo del tiempo mediante gráficos y alertas en un tablero como %(grafana)s."
 
 msgid "Endpoint"
 msgstr "Punto final"
@@ -6888,11 +6887,11 @@ msgstr "Habilitar Prometheus"
 
 #, python-format
 msgid "You are monitoring your workspace using %(prometheus)s."
-msgstr "Está supervisando su Workspace mediante %(prometheus)s."
+msgstr "Está supervisando su workspace mediante %(prometheus)s."
 
 #, python-format
 msgid "You have not enabled %(prometheus)s monitoring on your workspace."
-msgstr "No ha habilitado la supervisión %(prometheus)s en su Workspace."
+msgstr "No ha habilitado la supervisión %(prometheus)s en su workspace."
 
 msgid "You can create flow events which external services can subscribe to. For example, Zapier can subscribe to flow events you create and trigger any number of Zapier integrations when they occur in your flows."
 msgstr "Puede crear eventos de flujo a los que se puedan suscribir servicios externos. Por ejemplo, Zapier puede suscribirse a los eventos de flujo que cree y activar cualquier número de integraciones de Zapier cuando ocurran en sus flujos."
@@ -6907,7 +6906,7 @@ msgstr[0] "Tiene <b>1 flow event</b> configured."
 msgstr[1] "Tiene <b>%(counter)s eventos de flujo</b> configurados."
 
 msgid "Create Account"
-msgstr "Crear una cuenta"
+msgstr "Crear Cuenta"
 
 #, python-format
 msgid "Creating a %(brand)s account is free and only takes a minute."
@@ -6962,16 +6961,16 @@ msgid "Disconnecting your Twilio account will also remove any Twilio channels co
 msgstr "La desconexión de su cuenta Twilio también eliminará los canales Twilio conectados a ella. ¿Estas seguro que deseas continuar?"
 
 msgid "This workspace has been suspended"
-msgstr "Este Workspace ha sido suspendido"
+msgstr "Este workspace ha sido suspendido"
 
 msgid "This workspace has been flagged for possible spamming"
-msgstr "Este Workspace ha sido marcado por posible envío de spam"
+msgstr "Este workspace ha sido marcado por posible envío de spam"
 
 msgid "This workspace has been verified"
-msgstr "Este Workspace ha sido verificado"
+msgstr "Este workspace ha sido verificado"
 
 msgid "This workspace has been scheduled for deletion"
-msgstr "Se ha programado la eliminación de este Workspace"
+msgstr "Se ha programado la eliminación de este workspace"
 
 msgid "Top Ups"
 msgstr "Recargas"
@@ -7130,7 +7129,7 @@ msgid ""
 "      "
 msgstr ""
 "\n"
-"        Para usar un teléfono Android con su Workspace %(brand)s para enviar mensajes, debe descargar la aplicación de relé %(brand)s\n"
+"        Para usar un teléfono Android con su workspace %(brand)s para enviar mensajes, debe descargar la aplicación de relé %(brand)s\n"
 "\n"
 "      "
 
@@ -7573,7 +7572,7 @@ msgid ""
 "                "
 msgstr ""
 "\n"
-"                  también será eliminado. Todos los datos del Workspace se eliminarán y no\n"
+"                  también será eliminado. Todos los datos del workspace se eliminarán y no\n"
 "                  volver. Esto incluye todos los flujos, contactos, mensajes, etc.\n"
 "                "
 
@@ -7737,6 +7736,3 @@ msgstr "Ingrese una consulta"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Se encontró $ {count} por $ {query}"
-
-#~ msgid ", and "
-#~ msgstr "y"
