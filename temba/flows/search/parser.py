@@ -3,6 +3,8 @@ import re
 from django.db.models import Q, QuerySet
 from django.utils.translation import ugettext_lazy as _
 
+from temba.utils.text import slugify_with
+
 
 class FlowRunSearch(object):
     LOOKUPS = {
@@ -18,17 +20,26 @@ class FlowRunSearch(object):
         self.base_queryset = base_queryset
 
     def search(self) -> (QuerySet, str):
-        queryset = self.base_queryset
+        from django.db.models.functions import Cast
+        from django.contrib.postgres.fields import JSONField
 
-        # TODO Apply query
+        queryset = self.base_queryset.annotate(results_json=Cast('results', JSONField()))
+
+        keys_for_searching = []
         queries, e = self._parse_query()
-        query_set = dict()
 
         for item in queries:
-            if item.get("type") == "lookup":
-                print(item.get("field"), item.get("operator"), item.get("value"))
-            else:
-                print(item.get("conditional"))
+            if item.get("type") != "lookup":
+                continue
+            keys_for_searching.append(slugify_with(item.get("field"), "_"))
+
+        # for item in queryset:
+        #     for key in keys_for_searching:
+        #         print(item.results[key])
+
+        # TODO apply the filter following the queryset below
+        for item in queryset.filter(Q(results_json__response_1__name="Response 1") & Q(results_json__response_1__value="No")):
+            print(item.results_json)
 
         return queryset, str(e) if e else ""
 
@@ -46,7 +57,7 @@ class FlowRunSearch(object):
         conditional_matches_length = len([*conditional_matches_copy])
 
         if query_matches_length - conditional_matches_length != 1:
-            return [], Exception(_("Something is wrong with your query, please review it."))
+            return [], Exception(_("Something is wrong with your query, please review the syntax."))
 
         conditional_items = []
         for item in conditional_matches:
