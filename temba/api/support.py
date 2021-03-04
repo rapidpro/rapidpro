@@ -171,10 +171,12 @@ def csv_response_wrapper(func):
         result_to_convert = next(iter(json_http_response.data.get("results", [])), None)
         if export_csv and result_to_convert:
             from django.http import HttpResponse
-            response = HttpResponse(content_type='text/csv')
-            response['Content-Disposition'] = f'attachment; filename="report.csv"'
+
+            response = HttpResponse(content_type="text/csv")
+            response["Content-Disposition"] = f'attachment; filename="report.csv"'
             result_to_convert = json_http_response.data["results"][0]
             getattr(view, "csv_convertor", lambda *_: None)(result_to_convert, response)
             return response
         return json_http_response
+
     return handler

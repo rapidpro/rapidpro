@@ -24,6 +24,7 @@ class UniqueForOrgValidator(UniqueValidator):
 
 def is_uuid_valid(val):
     from uuid import UUID
+
     try:
         UUID(str(val))
         return True

@@ -4356,7 +4356,12 @@ class ContactsReportEndpoint(BaseAPIView):
                 }
             ]
         }
+
+    To generate report in CSV format pass query parameter 'export_csv':
+
+        GET /api/v2/contacts_report.json?export_csv=true
     """
+
     permission = "orgs.org_api"
 
     def get_queryset(self):
@@ -4381,7 +4386,7 @@ class ContactsReportEndpoint(BaseAPIView):
 
         if search_query:
             try:
-                group = ContactGroup.all_groups.get(org=org, group_type='A')
+                group = ContactGroup.all_groups.get(org=org, group_type="A")
                 parsed_query, contact_ids = query_contact_ids(org, search_query, group=group, return_parsed_query=True)
                 setattr(self, "search_query", parsed_query if len(parsed_query) > 0 else None)
                 contacts = contacts.filter(id__in=contact_ids)
@@ -4401,13 +4406,14 @@ class ContactsReportEndpoint(BaseAPIView):
         response_data = {
             "flow": self.request.GET.get("flow", self.request.data.get("flow")),
             "search_query": getattr(self, "search_query", ""),
-            "results": [{"total_unique_contacts": count}]
+            "results": [{"total_unique_contacts": count}],
         }
         return Response(response_data)
 
     @staticmethod
     def csv_convertor(result, response):
         import csv
+
         writer = csv.writer(response)
         writer.writerows(list(result.items()))
 
@@ -4423,11 +4429,15 @@ class ContactsReportEndpoint(BaseAPIView):
                 dict(name="flow", required=False, help="Flow filter"),
                 dict(name="exclude", required=False, help="Contact Group to exclude"),
             ],
-            example=dict(body=json.dumps({
-                "search_query": "created_on < 2021-01-01",
-                "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
-                "exclude": "Restaurant Contacts"
-            })),
+            example=dict(
+                body=json.dumps(
+                    {
+                        "search_query": "created_on < 2021-01-01",
+                        "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
+                        "exclude": "Restaurant Contacts",
+                    }
+                )
+            ),
         )
 
 
@@ -4482,7 +4492,12 @@ class ContactVariablesReportEndpoint(BaseAPIView):
                 }
             ]
         }
+
+    To generate report in CSV format pass query parameter 'export_csv':
+
+        POST /api/v2/contact_variable_report.json?export_csv=true
     """
+
     permission = "orgs.org_api"
 
     def __init__(self, *args, **kwargs):
@@ -4512,7 +4527,7 @@ class ContactVariablesReportEndpoint(BaseAPIView):
 
         if search_query:
             try:
-                group = ContactGroup.all_groups.get(org=org, group_type='A')
+                group = ContactGroup.all_groups.get(org=org, group_type="A")
                 parsed_query, contact_ids = query_contact_ids(org, search_query, group=group, return_parsed_query=True)
                 if parsed_query:
                     self.applied_filters["search_query"] = parsed_query
@@ -4541,19 +4556,19 @@ class ContactVariablesReportEndpoint(BaseAPIView):
             return Response(
                 {
                     "errors": {
-                        "variables":
-                            _("Filter 'variables' invalid or not provided. Available variables are [{}]")
-                                .format(", ".join(existing_variables.keys()))
+                        "variables": _(
+                            "Filter 'variables' invalid or not provided. Available variables are [{}]"
+                        ).format(", ".join(existing_variables.keys()))
                     }
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         for variable, conf in requested_variables.items():
             if variable not in existing_variables:
                 return Response(
                     {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}},
-                    status=status.HTTP_400_BAD_REQUEST
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
             variable_uuid = str(existing_variables[variable])
             variable_filters[variable_uuid] = {"key": variable}
@@ -4573,15 +4588,13 @@ class ContactVariablesReportEndpoint(BaseAPIView):
         for variable, top_x in top_ordering.items():
             counts[variable] = dict(counts[variable].most_common(top_x))
 
-        response_data = {
-            **self.applied_filters,
-            "results": [counts]
-        }
+        response_data = {**self.applied_filters, "results": [counts]}
         return Response(response_data)
 
     @staticmethod
     def csv_convertor(result, response):
         import csv
+
         writer = csv.writer(response)
         rows = [
             (variable_name, value, responders)
@@ -4603,17 +4616,16 @@ class ContactVariablesReportEndpoint(BaseAPIView):
                 dict(name="exclude", required=False, help="Contact Group to exclude"),
                 dict(name="variables", required=True, help="Configuration for fields to generate report"),
             ],
-            example=dict(body=json.dumps({
-                "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
-                "search_query": "created_on < 2021-01-01",
-                "exclude": "Restaurant Contacts",
-                "variables": {
-                    "state": {},
-                    "zipcode": {
-                        "top": 5
+            example=dict(
+                body=json.dumps(
+                    {
+                        "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
+                        "search_query": "created_on < 2021-01-01",
+                        "exclude": "Restaurant Contacts",
+                        "variables": {"state": {}, "zipcode": {"top": 5}},
                     }
-                }
-            })),
+                )
+            ),
         )
 
 
@@ -4656,7 +4668,12 @@ class MessagesReportEndpoint(BaseAPIView):
                 }
             ]
         }
+
+    To generate report in CSV format pass query parameter 'export_csv':
+
+        GET /api/v2/messages_report.json?export_csv=true
     """
+
     permission = "orgs.org_api"
     applied_filters = None
 
@@ -4665,18 +4682,24 @@ class MessagesReportEndpoint(BaseAPIView):
             org=org,
             flow__uuid=flow,
             status__in=[
-                FlowRun.STATUS_COMPLETED, FlowRun.STATUS_INTERRUPTED, FlowRun.STATUS_FAILED, FlowRun.STATUS_EXPIRED
+                FlowRun.STATUS_COMPLETED,
+                FlowRun.STATUS_INTERRUPTED,
+                FlowRun.STATUS_FAILED,
+                FlowRun.STATUS_EXPIRED,
             ],
             **{
                 f"exited_on__{'gte' if item[0] == 'after' else 'lte'}": item[1]
                 for item in [(x, org.parse_datetime(self.request.data.get(x, ""))) for x in ["after", "before"]]
                 if item[1]
-            }
+            },
         )
         messages_uuids = []
         for run in runs:
-            messages_uuids += [evt["msg"].get("uuid") for evt in run.get_msg_events() if
-                               evt["msg"].get("uuid") not in [None, "None", ""]]
+            messages_uuids += [
+                evt["msg"].get("uuid")
+                for evt in run.get_msg_events()
+                if evt["msg"].get("uuid") not in [None, "None", ""]
+            ]
         return qs.filter(uuid__in=messages_uuids)
 
     @csv_response_wrapper
@@ -4689,7 +4712,7 @@ class MessagesReportEndpoint(BaseAPIView):
             ("after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
             ("before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
             ("exclude", lambda x: queryset.exclude(contact__all_groups__name=x)),
-            ("flow", lambda x: self.get_flow_messages(org, x, queryset))
+            ("flow", lambda x: self.get_flow_messages(org, x, queryset)),
         )
         for name, _filter in filters:
             filter_value = self.request.data.get(name)
@@ -4697,18 +4720,23 @@ class MessagesReportEndpoint(BaseAPIView):
                 queryset = _filter(filter_value)
                 applied_filters[name] = filter_value
 
-        return Response({
-            **applied_filters,
-            "results": [queryset.aggregate(
-                inbox_count=Count('id', filter=Q(direction="I")),
-                outbox_count=Count('id', filter=Q(direction="O")),
-                failed_count=Count('id', filter=Q(status__in=[FAILED, ERRORED]))
-            )]
-        })
+        return Response(
+            {
+                **applied_filters,
+                "results": [
+                    queryset.aggregate(
+                        inbox_count=Count("id", filter=Q(direction="I")),
+                        outbox_count=Count("id", filter=Q(direction="O")),
+                        failed_count=Count("id", filter=Q(status__in=[FAILED, ERRORED])),
+                    )
+                ],
+            }
+        )
 
     @staticmethod
     def csv_convertor(result, response):
         import csv
+
         writer = csv.writer(response)
         writer.writerows([("Message type", "Number"), *result.items()])
 
@@ -4720,19 +4748,25 @@ class MessagesReportEndpoint(BaseAPIView):
             url=reverse("api.v2.messages_report"),
             slug="messages-report",
             fields=[
-                dict(name="flow", required=False, help="UUID of flow to select only messages related to specific flow"),
+                dict(
+                    name="flow", required=False, help="UUID of flow to select only messages related to specific flow"
+                ),
                 dict(name="after", required=False, help="Select messages since specific date"),
                 dict(name="before", required=False, help="Select messages until specific date"),
                 dict(name="channel", required=False, help="Select messages sent via specific channel"),
                 dict(name="exclude", required=False, help="Contact group to exclude"),
             ],
-            example=dict(body=json.dumps({
-                "flow": "6683f3e3-3445-438a-b94f-137cf22aa36a",
-                "after": "2020-01-01",
-                "before": "2022-01-13",
-                "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
-                "exclude": "Testers"
-            })),
+            example=dict(
+                body=json.dumps(
+                    {
+                        "flow": "6683f3e3-3445-438a-b94f-137cf22aa36a",
+                        "after": "2020-01-01",
+                        "before": "2022-01-13",
+                        "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+                        "exclude": "Testers",
+                    }
+                )
+            ),
         )
 
 
@@ -4781,7 +4815,12 @@ class FlowReportEndpoint(BaseAPIView):
                 }
             ]
         }
+
+    To generate report in CSV format pass query parameter 'export_csv':
+
+        GET /api/v2/flow_report.json?export_csv=true
     """
+
     permission = "orgs.org_api"
 
     @csv_response_wrapper
@@ -4790,15 +4829,15 @@ class FlowReportEndpoint(BaseAPIView):
         try:
             flow = Flow.objects.get(uuid=self.request.data.get("flow", self.request.query_params.get("flow")))
         except Flow.DoesNotExist:
-            return Response({
-                "errors": {
-                    "flow": _("Please enter valid flow UUID.")
-                }
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
+            )
         queryset = FlowRun.objects.filter(org=org, flow=flow)
         filters = (
-            ("channel",
-             lambda x: queryset.filter(Q(contact__urns__channel__uuid=x) | Q(contact__urns__channel__name=x))),
+            (
+                "channel",
+                lambda x: queryset.filter(Q(contact__urns__channel__uuid=x) | Q(contact__urns__channel__name=x)),
+            ),
             ("started_after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
             ("started_before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
             ("exited_after", lambda x: queryset.filter(exited_on__gte=org.parse_datetime(x))),
@@ -4811,19 +4850,24 @@ class FlowReportEndpoint(BaseAPIView):
             if filter_value:
                 queryset = _filter(filter_value)
                 applied_filters[name] = filter_value
-        return Response({
-            **applied_filters,
-            "results": [queryset.aggregate(
-                total_contacts=Count('contact_id', distinct=True),
-                total_completes=Count('id', filter=Q(exit_type=FlowRun.EXIT_TYPE_COMPLETED)),
-                total_expired=Count('id', filter=Q(exit_type=FlowRun.EXIT_TYPE_EXPIRED)),
-                total_interrupts=Count('id', filter=Q(exit_type=FlowRun.STATUS_INTERRUPTED)),
-            )]
-        })
+        return Response(
+            {
+                **applied_filters,
+                "results": [
+                    queryset.aggregate(
+                        total_contacts=Count("contact_id", distinct=True),
+                        total_completes=Count("id", filter=Q(exit_type=FlowRun.EXIT_TYPE_COMPLETED)),
+                        total_expired=Count("id", filter=Q(exit_type=FlowRun.EXIT_TYPE_EXPIRED)),
+                        total_interrupts=Count("id", filter=Q(exit_type=FlowRun.STATUS_INTERRUPTED)),
+                    )
+                ],
+            }
+        )
 
     @staticmethod
     def csv_convertor(result, response):
         import csv
+
         writer = csv.writer(response)
         writer.writerows([("Contacts", "Number"), *result.items()])
 
@@ -4838,24 +4882,34 @@ class FlowReportEndpoint(BaseAPIView):
                 dict(name="flow", required=True, help="UUID of flow"),
                 dict(name="channel", required=False, help="Count only contacts that use a certain channel"),
                 dict(name="exclude", required=False, help="Count only contacts that not in a certain group"),
-                dict(name="started_after", required=False,
-                     help="Count only runs that were started after a certain date"),
-                dict(name="started_before", required=False,
-                     help="Count only runs that were started before a certain date"),
-                dict(name="exited_after", required=False,
-                     help="Count only runs that were exited after a certain date"),
-                dict(name="exited_before", required=False,
-                     help="Count only runs that were exited before a certain date"),
+                dict(
+                    name="started_after", required=False, help="Count only runs that were started after a certain date"
+                ),
+                dict(
+                    name="started_before",
+                    required=False,
+                    help="Count only runs that were started before a certain date",
+                ),
+                dict(
+                    name="exited_after", required=False, help="Count only runs that were exited after a certain date"
+                ),
+                dict(
+                    name="exited_before", required=False, help="Count only runs that were exited before a certain date"
+                ),
             ],
-            example=dict(body=json.dumps({
-                "flow": "92b0dd89-485f-4fab-aeb5-564eb97cd73c",
-                "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
-                "exclude": "Testers",
-                "started_after": "2021-02-01",
-                "started_before": "2021-03-13",
-                "exited_after": "2021-02-01",
-                "exited_before": "2021-03-13"
-            })),
+            example=dict(
+                body=json.dumps(
+                    {
+                        "flow": "92b0dd89-485f-4fab-aeb5-564eb97cd73c",
+                        "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+                        "exclude": "Testers",
+                        "started_after": "2021-02-01",
+                        "started_before": "2021-03-13",
+                        "exited_after": "2021-02-01",
+                        "exited_before": "2021-03-13",
+                    }
+                )
+            ),
         )
 
 
@@ -4907,7 +4961,12 @@ class FlowVariableReportEndpoint(BaseAPIView):
                 }
             ]
         }
+
+    To generate report in CSV format pass query parameter 'export_csv':
+
+        POST /api/v2/flow_variable_report.json?export_csv=true
     """
+
     permission = "orgs.org_api"
 
     @csv_response_wrapper
@@ -4918,15 +4977,15 @@ class FlowVariableReportEndpoint(BaseAPIView):
             flow = Flow.objects.get(uuid=self.request.data.get("flow"))
             applied_filters["flow"] = flow.uuid
         except Flow.DoesNotExist:
-            return Response({
-                "errors": {
-                    "flow": _("Please enter valid flow UUID.")
-                }
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
+            )
         queryset = FlowRun.objects.filter(org=org, flow=flow)
         filters = (
-            ("channel",
-             lambda x: queryset.filter(Q(contact__urns__channel__uuid=x) | Q(contact__urns__channel__name=x))),
+            (
+                "channel",
+                lambda x: queryset.filter(Q(contact__urns__channel__uuid=x) | Q(contact__urns__channel__name=x)),
+            ),
             ("started_after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
             ("started_before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
             ("exited_after", lambda x: queryset.filter(exited_on__gte=org.parse_datetime(x))),
@@ -4972,14 +5031,12 @@ class FlowVariableReportEndpoint(BaseAPIView):
         for variable, top_x in top_ordering.items():
             counts[variable] = dict(counts[variable].most_common(top_x))
 
-        return Response({
-            **applied_filters,
-            "results": [counts]
-        })
+        return Response({**applied_filters, "results": [counts]})
 
     @staticmethod
     def csv_convertor(result, response):
         import csv
+
         writer = csv.writer(response)
         rows = [
             (variable_name, value, responders)
@@ -4999,25 +5056,30 @@ class FlowVariableReportEndpoint(BaseAPIView):
                 dict(name="flow", required=True, help="UUID of flow"),
                 dict(name="channel", required=False, help="Count only contacts that use a certain channel"),
                 dict(name="exclude", required=False, help="Count only contacts that not in a certain group"),
-                dict(name="started_after", required=False,
-                     help="Count only runs that were started after a certain date"),
-                dict(name="started_before", required=False,
-                     help="Count only runs that were started before a certain date"),
-                dict(name="exited_after", required=False,
-                     help="Count only runs that were exited after a certain date"),
-                dict(name="exited_before", required=False,
-                     help="Count only runs that were exited before a certain date"),
+                dict(
+                    name="started_after", required=False, help="Count only runs that were started after a certain date"
+                ),
+                dict(
+                    name="started_before",
+                    required=False,
+                    help="Count only runs that were started before a certain date",
+                ),
+                dict(
+                    name="exited_after", required=False, help="Count only runs that were exited after a certain date"
+                ),
+                dict(
+                    name="exited_before", required=False, help="Count only runs that were exited before a certain date"
+                ),
                 dict(name="variables", required=True, help="Configuration for fields to generate report"),
             ],
-            example=dict(body=json.dumps({
-                "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
-                "variables": {
-                    "result_1": {
-                        "format": "value",
-                        "top": 3
+            example=dict(
+                body=json.dumps(
+                    {
+                        "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
+                        "variables": {"result_1": {"format": "value", "top": 3}},
                     }
-                }
-            }))
+                )
+            ),
         )
 
 
@@ -5031,7 +5093,7 @@ class TrackableLinkReportEndpoint(BaseAPIView):
 
     Example:
 
-        GET /api/v2/endpoint.json
+        GET /api/v2/trackable_link_report.json
         {
             "link_name": "google"
         }
@@ -5050,7 +5112,12 @@ class TrackableLinkReportEndpoint(BaseAPIView):
                 }
             ]
         }
+
+    To generate report in CSV format pass query parameter 'export_csv':
+
+        GET /api/v2/trackable_link_report.json?export_csv=true
     """
+
     permission = "orgs.org_api"
 
     @csv_response_wrapper
@@ -5076,16 +5143,18 @@ class TrackableLinkReportEndpoint(BaseAPIView):
                     "unique_clicks": link.contacts.count(),
                     "unique_contacts": (
                         link.related_flow.runs.aggregate(count=Count("contact", distinct=True))["count"]
-                        if link.related_flow else None
-                    )
+                        if link.related_flow
+                        else None
+                    ),
                 }
-            ]
+            ],
         }
         return Response(response_data)
 
     @staticmethod
     def csv_convertor(result, response):
         import csv
+
         writer = csv.writer(response)
         writer.writerows([("Variable", "Value"), *result.items()])
 
@@ -5099,7 +5168,5 @@ class TrackableLinkReportEndpoint(BaseAPIView):
             fields=[
                 dict(name="link_name", required=True, help="The name of the link"),
             ],
-            example=dict(body=json.dumps({
-                "link_name": "Test Link Name"
-            })),
+            example=dict(body=json.dumps({"link_name": "Test Link Name"})),
         )
