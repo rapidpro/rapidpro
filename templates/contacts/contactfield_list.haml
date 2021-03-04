@@ -26,7 +26,7 @@
             -if org_perms.contacts.contactfield_create
               .w-64.mr-5
                 %temba-modax#create-field-modal{ header:'{% trans "Create Field" %}', endpoint:"{% url 'contacts.contactfield_create' %}"}
-                  .button-primary.mb-3
+                  .block.button-primary.mb-3
                     - trans "Create Field"
 
             .lp-nav.upper
@@ -70,8 +70,6 @@
                       - if org_perms.contacts.contactfield_update_priority and is_featured_category
                         %td.drag-icon.pl-2(style="padding:0px;padding-left:5px;")
                           .drag-handle.icon.icon-menu
-                      - else
-                        %td(style="padding:3px")
 
                       %td(style="{%if org_perms.contacts.contactfield_update_priority and is_featured_category%}padding-left:0px;{%endif%}")
                         .w-full
