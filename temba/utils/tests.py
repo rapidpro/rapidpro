@@ -23,7 +23,7 @@ from django.db import connection, models
 from django.forms import ValidationError
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import timezone, translation
 
 from celery.app.task import Task
 
@@ -64,7 +64,7 @@ from .gsm7 import calculate_num_segments, is_gsm7, replace_non_gsm7_accents
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import IDSliceQuerySet, JSONAsTextField, patch_queryset_count
-from .templatetags.temba import short_datetime
+from .templatetags.temba import oxford, short_datetime
 from .text import (
     clean_string,
     decode_base64,
@@ -605,8 +605,6 @@ class TemplateTagTestSimple(TestCase):
         self.assertEqual("", delta_filter("Invalid"))
 
     def test_oxford(self):
-        from temba.utils.templatetags.temba import oxford
-
         def forloop(idx, total):
             """
             Creates a dict like that available inside a template tag
@@ -627,6 +625,16 @@ class TemplateTagTestSimple(TestCase):
         self.assertEqual(", ", oxford(forloop(1, 4)))
         self.assertEqual(", and ", oxford(forloop(2, 4)))
         self.assertEqual(".", oxford(forloop(3, 4), "."))
+
+        with translation.override("es"):
+            self.assertEqual(", ", oxford(forloop(0, 3)))
+            self.assertEqual(" y ", oxford(forloop(0, 2)))
+            self.assertEqual(", y ", oxford(forloop(1, 3)))
+
+        with translation.override("fr"):
+            self.assertEqual(", ", oxford(forloop(0, 3)))
+            self.assertEqual(" et ", oxford(forloop(0, 2)))
+            self.assertEqual(", et ", oxford(forloop(1, 3)))
 
     def test_to_json(self):
         from temba.utils.templatetags.temba import to_json
