@@ -1,0 +1,89 @@
+
+
+from django.utils.translation import ugettext_lazy as _
+
+from temba.contacts.models import URN
+
+from ...models import ChannelType, Channel
+from .views import ClaimView
+
+ZENVIA_MESSAGE_SUBSCRIPTION_ID = "zenvia_message_subscription_id"
+ZENVIA_STATUS_SUBSCRIPTION_ID = "zenvia_status_subscription_id"
+
+class ZenviaWhatsAppType(ChannelType):
+    """
+    An Zenvia WhatsApp channel
+    """
+
+    code = "ZVW"
+    category = ChannelType.Category.SOCIAL_MEDIA
+
+    courier_url = r"^zvw/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive|status)$"
+
+    name = "Zenvia WhatsApp"
+    icon = "icon-whatsapp"
+
+    claim_blurb = _(
+        "If you have a %(link)s number, you can connect it to communicate with your WhatsApp contacts."
+    ) % {"link": '<a href="https://www.zenvia.com/">Zenvia WhatsApp</a>'}
+
+    claim_view = ClaimView
+
+    schemes = [URN.WHATSAPP_SCHEME]
+    max_length = 1600
+
+
+    def update_webhook(self, channel, url, event_type):
+        headers = {
+            "X-API-TOKEN:": channel.config[Channel.CONFIG_API_KEY],
+            "Content-Type": "application/json",
+        }
+
+        conf_url = "https://api.zenvia.com/v2/subscriptions"
+
+        # set our webhook
+        payload = {
+            "eventType": event_type,
+            "webhook": {
+                "url": url,
+                "headers": { }
+            },
+            "status": "ACTIVE",
+            "version": "v2",
+            "criteria": {
+                "channel": channel.address,
+                "direction": "IN"
+            }
+        }
+        resp = requests.post(conf_url, json=payload, headers=headers)
+
+        if resp.status_code != 200:
+            raise ValidationError(_("Unable to register callbacks: %(resp)s"), params={"resp": resp.content})
+
+    def deactivate(self, channel):
+        headers = {
+            "X-API-TOKEN:": channel.config[Channel.CONFIG_API_KEY],
+            "Content-Type": "application/json",
+        }
+
+        subscriptionIds = [channel.config.get(ZENVIA_MESSAGE_SUBSCRIPTION_ID), channel.config.get(ZENVIA_STATUS_SUBSCRIPTION_ID)]
+
+        for subscriptionId in subscriptionIds:
+            if not subscriptionId:
+                continue
+            
+            conf_url = f"https://api.zenvia.com/v2/subscriptions/{subscriptionId}"
+            resp = requests.delete(conf_url, headers=headers)
+            
+            if resp.status_code != 204:
+                raise ValidationError(_("Unable to register callbacks: %(resp)s"), params={"resp": resp.content})
+
+    def activate(self, channel):
+        domain = channel.org.get_brand_domain()
+
+        receive_url = "https://" + domain + reverse("courier.zvw", args=[channel.uuid, "receive"])
+        self.update_webhook(channel, receive_url, "MESSAGE")
+
+        status_url = "https://" + domain + reverse("courier.zvw", args=[channel.uuid, "status"])
+        self.update_webhook(channel, status_url, "MESSAGE_STATUS")
+
