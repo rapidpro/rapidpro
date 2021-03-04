@@ -1,3 +1,10 @@
+v6.2.2
+----------
+ * Update to flow editor v1.13.3
+ * Update Spanish translation
+ * Disable old Zenvia channel type
+ * Fix styles on fields list
+
 v6.2.1
 ----------
  * Return registration details to Android if have the same UUID
