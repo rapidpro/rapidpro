@@ -49,3 +49,6 @@ class ZenviaType(ChannelType):
             description=_("To receive incoming messages, you need to set the receive URL for your Zenvia account."),
         ),
     )
+
+    def is_available_to(self, user):
+        return False, False
