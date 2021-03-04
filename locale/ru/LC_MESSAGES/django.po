@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-02 16:37+0000\n"
+"POT-Creation-Date: 2021-03-03 18:30+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -4749,7 +4749,7 @@ msgid "Verify your email address for tickets"
 msgstr ""
 
 #, python-format
-msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket servicethrough its omnichannel feature."
+msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket service through its omnichannel feature."
 msgstr ""
 
 #, fuzzy
@@ -5035,9 +5035,6 @@ msgstr[0] "%d секунда"
 msgstr[1] "%d секунд"
 msgstr[2] "%d секунд"
 msgstr[3] "%d секунд"
-
-msgid ", and "
-msgstr ", и"
 
 msgid "0 seconds"
 msgstr "0 секунд"
@@ -10440,6 +10437,9 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid ", and "
+#~ msgstr ", и"
 
 #~ msgid "The Twitter handle that this channel will send from"
 #~ msgstr "Дескриптор Twitter, с которого будет происходить отправка этим каналом"

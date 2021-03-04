@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-02 16:37+0000\n"
+"POT-Creation-Date: 2021-03-03 18:30+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3811,7 +3811,7 @@ msgid "Verify your email address for tickets"
 msgstr ""
 
 #, python-format
-msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket servicethrough its omnichannel feature."
+msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket service through its omnichannel feature."
 msgstr ""
 
 msgid "URL of the Rocket.Chat Tickets app"
@@ -4075,9 +4075,6 @@ msgid "%d second"
 msgid_plural "%d seconds"
 msgstr[0] ""
 msgstr[1] ""
-
-msgid ", and "
-msgstr ""
 
 msgid "0 seconds"
 msgstr ""
