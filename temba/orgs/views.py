@@ -42,6 +42,7 @@ from django.db import IntegrityError
 from django.db.models import ExpressionWrapper, F, IntegerField, Q, Sum
 from django.forms import Form
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.shortcuts import resolve_url
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.encoding import DjangoUnicodeDecodeError, force_text
@@ -53,7 +54,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
-from temba.api.models import APIToken
+from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroupCount
@@ -70,7 +71,7 @@ from temba.utils.fields import (
 )
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
-from temba.utils.views import ComponentFormMixin, NonAtomicMixin
+from temba.utils.views import ComponentFormMixin, NonAtomicMixin, RequireRecentAuthMixin
 
 from .models import BackupToken, Invitation, Org, OrgCache, OrgRole, TopUp, get_stripe_credentials
 from .tasks import apply_topups_task
@@ -362,6 +363,7 @@ class LoginView(Login):
 
     def form_valid(self, form):
         user = form.get_user()
+
         if user.get_settings().two_factor_enabled:
             self.request.session[TWO_FACTOR_USER_SESSION_KEY] = str(user.id)
             self.request.session[TWO_FACTOR_STARTED_SESSION_KEY] = timezone.now().isoformat()
@@ -373,6 +375,7 @@ class LoginView(Login):
 
             return HttpResponseRedirect(verify_url)
 
+        user.record_auth()
         return super().form_valid(form)
 
 
@@ -429,6 +432,7 @@ class BaseTwoFactorView(AuthLoginView):
 
         # set the user as actually authenticated now
         login(self.request, user)
+        user.record_auth()
 
         # remove our session key so if the user comes back this page they'll get directed to the login view
         self.reset_user()
@@ -485,6 +489,48 @@ class TwoFactorBackupView(BaseTwoFactorView):
 
     form_class = Form
     template_name = "orgs/login/two_factor_backup.haml"
+
+
+class ConfirmAccessView(Login):
+    """
+    Overrides the smartmin login view to provide a view for an already logged in user to re-authenticate.
+    """
+
+    class Form(forms.Form):
+        password = forms.CharField(
+            label=" ", widget=InputWidget(attrs={"placeholder": _("Password"), "password": True}), required=True
+        )
+
+        def __init__(self, request, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+            self.user = request.user
+
+        def clean_password(self):
+            data = self.cleaned_data["password"]
+            if not self.user.check_password(data):
+                raise forms.ValidationError(_("Password incorrect."))
+            return data
+
+        def get_user(self):
+            return self.user
+
+    template_name = "orgs/login/confirm_access.haml"
+    form_class = Form
+
+    def dispatch(self, request, *args, **kwargs):
+        if not self.request.user.is_authenticated:
+            return HttpResponseRedirect(resolve_url(settings.LOGIN_URL))
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_username(self, form):
+        return self.request.user.username
+
+    def form_valid(self, form):
+        form.get_user().record_auth()
+
+        return super().form_valid(form)
 
 
 class InferOrgMixin:
@@ -700,6 +746,7 @@ class UserCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             self.request.user.enable_2fa()
+            self.request.user.record_auth()
 
             return super().form_valid(form)
 
@@ -736,10 +783,11 @@ class UserCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             self.request.user.disable_2fa()
+            self.request.user.record_auth()
 
             return super().form_valid(form)
 
-    class TwoFactorTokens(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
+    class TwoFactorTokens(RequireRecentAuthMixin, InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         permission = "orgs.org_two_factor"
         title = _("Two-factor Authentication")
 
@@ -2456,20 +2504,21 @@ class OrgCRUDL(SmartCRUDL):
 
     class Resthooks(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class ResthookForm(forms.ModelForm):
-            resthook = forms.SlugField(
+            new_slug = forms.SlugField(
                 required=False,
                 label=_("New Event"),
                 help_text="Enter a name for your event. ex: new-registration",
                 widget=InputWidget(),
+                max_length=Resthook._meta.get_field("slug").max_length,
             )
 
-            def add_resthook_fields(self):
+            def add_remove_fields(self):
                 resthooks = []
                 field_mapping = []
 
                 for resthook in self.instance.get_resthooks():
                     check_field = forms.BooleanField(required=False)
-                    field_name = "resthook_%d" % resthook.pk
+                    field_name = "resthook_%d" % resthook.id
 
                     field_mapping.append((field_name, check_field))
                     resthooks.append(dict(resthook=resthook, field=field_name))
@@ -2477,25 +2526,25 @@ class OrgCRUDL(SmartCRUDL):
                 self.fields = OrderedDict(list(self.fields.items()) + field_mapping)
                 return resthooks
 
-            def clean_resthook(self):
-                new_resthook = self.data.get("resthook")
+            def clean_new_slug(self):
+                new_slug = self.data.get("new_slug")
 
-                if new_resthook:
-                    if self.instance.resthooks.filter(is_active=True, slug__iexact=new_resthook):
-                        raise ValidationError("This event name has already been used")
+                if new_slug:
+                    if self.instance.resthooks.filter(is_active=True, slug__iexact=new_slug):
+                        raise ValidationError("This event name has already been used.")
 
-                return new_resthook
+                return new_slug
 
             class Meta:
                 model = Org
-                fields = ("id", "resthook")
+                fields = ("id", "new_slug")
 
         form_class = ResthookForm
         success_message = ""
 
         def get_form(self):
             form = super().get_form()
-            self.current_resthooks = form.add_resthook_fields()
+            self.current_resthooks = form.add_remove_fields()
             return form
 
         def get_context_data(self, **kwargs):
@@ -2504,11 +2553,9 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def pre_save(self, obj):
-            from temba.api.models import Resthook
-
-            new_resthook = self.form.data.get("resthook")
-            if new_resthook:
-                Resthook.get_or_create(obj, new_resthook, self.request.user)
+            new_slug = self.form.data.get("new_slug")
+            if new_slug:
+                Resthook.get_or_create(obj, new_slug, self.request.user)
 
             # release any resthooks that the user removed
             for resthook in self.current_resthooks:

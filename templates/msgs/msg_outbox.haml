@@ -13,19 +13,18 @@
 
           %td.value-phone.field_phone
             %nobr
-              -with recipient_counts=broadcast.get_recipients_counts
+              -with recipient_counts=broadcast.get_recipient_counts
                 -if recipient_counts.recipients > 0
                   -blocktrans count counter=recipient_counts.recipients
                     1 recipient
                     - plural
                       {{counter}} recipients
                 -else
-                  -blocktrans trimmed
-                    {{recipient_counts.groups}} groups, {{recipient_counts.contacts}} contacts, {{recipient_counts.urns}} urns
+                  -blocktrans trimmed with group_count=recipient_counts.groups contact_count=recipient_counts.contacts urn_count=recipient_counts.urns
+                    {{ group_count }} groups, {{ contact_count }} contacts, {{ urn_count }} urns
 
           %td.value-text.field_text.wrapped
             {{ broadcast.get_default_text }}
-            -trans "(sending)"
 
           %td.created_on
             %span.time

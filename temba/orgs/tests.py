@@ -296,7 +296,7 @@ class UserTest(TembaTest):
         tokens_url = reverse("orgs.user_two_factor_tokens")
         disable_url = reverse("orgs.user_two_factor_disable")
 
-        self.login(self.admin)
+        self.login(self.admin, update_last_auth_on=False)
 
         # org home page tells us 2FA is disabled, links to page to enable it
         response = self.client.get(reverse("orgs.org_home"))
@@ -381,6 +381,76 @@ class UserTest(TembaTest):
 
         response = self.client.get(backup_url)
         self.assertRedirect(response, login_url)
+
+    def test_two_factor_confirm_access(self):
+        tokens_url = reverse("orgs.user_two_factor_tokens")
+
+        self.admin.enable_2fa()
+        self.login(self.admin, update_last_auth_on=False)
+
+        # org home page tells us 2FA is enabled, links to page manage tokens
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, "Two-factor authentication is <b>enabled</b>")
+        self.assertContains(response, tokens_url)
+
+        # but navigating to tokens page redirects to confirm auth
+        response = self.client.get(tokens_url)
+        self.assertEqual(302, response.status_code)
+        self.assertTrue(response.url.endswith("/users/confirm-access/?next=/user/two_factor_tokens/"))
+
+        confirm_url = response.url
+
+        # view confirm access page
+        response = self.client.get(confirm_url)
+        self.assertEqual(["password"], list(response.context["form"].fields.keys()))
+
+        # try to submit with incorrect password
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # submit with real password
+        response = self.client.post(confirm_url, {"password": "Administrator"})
+        self.assertRedirect(response, tokens_url)
+
+        response = self.client.get(tokens_url)
+        self.assertEqual(200, response.status_code)
+
+    @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
+    def test_confirm_access(self):
+        confirm_url = reverse("users.confirm_access") + f"?next=/msg/inbox/"
+        failed_url = reverse("users.user_failed")
+
+        # try to access before logging in
+        response = self.client.get(confirm_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.get(confirm_url)
+        self.assertEqual(["password"], list(response.context["form"].fields.keys()))
+
+        # try to submit with incorrect password
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # 2 more times..
+        self.client.post(confirm_url, {"password": "nope"})
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertRedirect(response, failed_url)
+
+        # even correct password now redirects to failed page
+        response = self.client.post(confirm_url, {"password": "Administrator"})
+        self.assertRedirect(response, failed_url)
+
+        FailedLogin.objects.all().delete()
+
+        # can once again submit incorrect passwords
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # and also correct ones
+        response = self.client.post(confirm_url, {"password": "Administrator"})
+        self.assertRedirect(response, "/msg/inbox/")
 
     def test_ui_permissions(self):
         # non-logged in users can't go here
@@ -2630,8 +2700,10 @@ class OrgTest(TembaTest):
         self.assertEqual((None, None), self.org.get_chatbase_credentials())
 
     def test_resthooks(self):
-        # no hitting this page without auth
+        home_url = reverse("orgs.org_home")
         resthook_url = reverse("orgs.org_resthooks")
+
+        # no hitting this page without auth
         response = self.client.get(resthook_url)
         self.assertLoginRedirect(response)
 
@@ -2643,22 +2715,37 @@ class OrgTest(TembaTest):
         # shouldn't have any resthooks listed yet
         self.assertFalse(response.context["current_resthooks"])
 
-        # ok, let's create one
-        self.client.post(resthook_url, dict(resthook="mother-registration "))
+        response = self.client.get(home_url)
+        self.assertContains(response, "You have <b>no flow events</b> configured.")
+
+        # try to create one with name that's too long
+        response = self.client.post(resthook_url, {"new_slug": "x" * 100})
+        self.assertFormError(response, "form", "new_slug", "Ensure this value has at most 50 characters (it has 100).")
+
+        # now try to create with valid name/slug
+        response = self.client.post(resthook_url, {"new_slug": "mother-registration "})
+        self.assertEqual(302, response.status_code)
 
         # should now have a resthook
-        resthook = Resthook.objects.get()
-        self.assertEqual(resthook.slug, "mother-registration")
-        self.assertEqual(resthook.org, self.org)
-        self.assertEqual(resthook.created_by, self.admin)
+        mother_reg = Resthook.objects.get()
+        self.assertEqual(mother_reg.slug, "mother-registration")
+        self.assertEqual(mother_reg.org, self.org)
+        self.assertEqual(mother_reg.created_by, self.admin)
 
         # fetch our read page, should have have our resthook
         response = self.client.get(resthook_url)
-        self.assertTrue(response.context["current_resthooks"])
+        self.assertEqual(
+            [{"field": f"resthook_{mother_reg.id}", "resthook": mother_reg}],
+            list(response.context["current_resthooks"]),
+        )
+
+        # and summarized on org home page
+        response = self.client.get(home_url)
+        self.assertContains(response, "You have <b>1 flow event</b> configured.")
 
         # let's try to create a repeat, should fail due to duplicate slug
-        response = self.client.post(resthook_url, dict(resthook="Mother-Registration"))
-        self.assertTrue(response.context["form"].errors)
+        response = self.client.post(resthook_url, {"new_slug": "Mother-Registration"})
+        self.assertFormError(response, "form", "new_slug", "This event name has already been used.")
 
         # hit our list page used by select2, checking it lists our resthook
         response = self.client.get(reverse("api.resthook_list") + "?_format=select2")
@@ -2667,20 +2754,20 @@ class OrgTest(TembaTest):
         self.assertEqual(results[0], dict(text="mother-registration", id="mother-registration"))
 
         # add a subscriber
-        subscriber = resthook.add_subscriber("http://foo", self.admin)
+        subscriber = mother_reg.add_subscriber("http://foo", self.admin)
 
         # finally, let's remove that resthook
-        self.client.post(resthook_url, {"resthook_%d" % resthook.id: "checked"})
+        self.client.post(resthook_url, {"resthook_%d" % mother_reg.id: "checked"})
 
-        resthook.refresh_from_db()
-        self.assertFalse(resthook.is_active)
+        mother_reg.refresh_from_db()
+        self.assertFalse(mother_reg.is_active)
 
         subscriber.refresh_from_db()
         self.assertFalse(subscriber.is_active)
 
         # no more resthooks!
         response = self.client.get(resthook_url)
-        self.assertFalse(response.context["current_resthooks"])
+        self.assertEqual([], list(response.context["current_resthooks"]))
 
     @override_settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True)
     def test_smtp_server(self):

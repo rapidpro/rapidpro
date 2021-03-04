@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-24 22:07+0000\n"
+"POT-Creation-Date: 2021-03-03 18:30+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1038,12 +1038,6 @@ msgstr "Тип URN, которые обрабатываются данным к�
 msgid "The phone number or that this channel will send from"
 msgstr "Номер телефона или того, с чего будет происходить отправка этим каналом"
 
-msgid "Handle"
-msgstr "Дескриптор"
-
-msgid "The Twitter handle that this channel will send from"
-msgstr "Дескриптор Twitter, с которого будет происходить отправка этим каналом"
-
 msgid "The external address that this channel will send from"
 msgstr "Внешний адрес, с которого будет происходить отправка этим каналом"
 
@@ -1085,6 +1079,9 @@ msgstr "Проверка Ответа MT"
 
 msgid "The content that must be in the response to consider the request successful"
 msgstr "Контент, который должен присутствовать в ответе для того, чтобы запрос считался успешным"
+
+msgid "This field is required."
+msgstr ""
 
 msgid "The URL we will POST to when sending messages, with variable substitutions"
 msgstr "URL, который мы будем выполнять POST при отправке сообщений, с подстановкой переменных"
@@ -2303,6 +2300,9 @@ msgstr "Название среды"
 
 msgid "The provided Twitter credentials do not appear to be valid."
 msgstr "Предоставленные идентификационные данные Twitter не являются действительными."
+
+msgid "Handle"
+msgstr "Дескриптор"
 
 msgid "Twitter handle of this channel"
 msgstr "Дескриптор Twitter данного канала"
@@ -4110,6 +4110,9 @@ msgstr "Неверный токен МФА. Пожалуйста, попробу
 msgid "Invalid backup token. Please try again."
 msgstr "Неверный токен МФА. Пожалуйста, попробуйте еще раз."
 
+msgid "Password incorrect."
+msgstr ""
+
 #, python-brace-format
 msgid "Deleted user {username}"
 msgstr "Удаленный пользователь {username}"
@@ -4167,9 +4170,6 @@ msgstr "Текущий пароль (обязательно)"
 #| msgid "Invalid MFA token. Please try again."
 msgid "OTP incorrect. Please try again."
 msgstr "Неверный токен МФА. Пожалуйста, попробуйте еще раз."
-
-msgid "Password incorrect."
-msgstr ""
 
 #, fuzzy
 #| msgid "Two Factor Authentication"
@@ -4749,7 +4749,7 @@ msgid "Verify your email address for tickets"
 msgstr ""
 
 #, python-format
-msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket servicethrough its omnichannel feature."
+msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket service through its omnichannel feature."
 msgstr ""
 
 #, fuzzy
@@ -5035,9 +5035,6 @@ msgstr[0] "%d секунда"
 msgstr[1] "%d секунд"
 msgstr[2] "%d секунд"
 msgstr[3] "%d секунд"
-
-msgid ", and "
-msgstr ", и"
 
 msgid "0 seconds"
 msgstr "0 секунд"
@@ -5690,12 +5687,18 @@ msgstr "Мы заметили, что аккумулятор телефона An
 msgid "This email is to announce that your android phone battery low reported last time was resolved. Now the battery is charging."
 msgstr "Это электронное письмо уведомляет Вас о том, что проблема низкого заряда аккумулятора Вашего телефона Android, о которой сообщалось в прошлый раз, решена. Теперь аккумулятор заряжается."
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "Hi %(org_name)s,\n"
+#| "\n"
+#| "We've noticed that the Android phone for %(org.name)s is now charging the battery.\n"
+#| "This email is to announce that your android phone battery low reported last time was resolved. Now the battery is charging.\n"
 msgid ""
 "\n"
 "Hi %(org_name)s,\n"
 "\n"
-"We've noticed that the Android phone for %(org.name)s is now charging the battery.\n"
+"We've noticed that the Android phone for %(org_name)s is now charging the battery.\n"
 "This email is to announce that your android phone battery low reported last time was resolved. Now the battery is charging.\n"
 msgstr ""
 "\n"
@@ -8356,20 +8359,6 @@ msgstr[3] ""
 "                      %(counter)s получателей\n"
 "                  "
 
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "                    %(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns\n"
-#| "\n"
-#| "                  "
-msgid "%(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
-msgstr ""
-"\n"
-"                    %(recipient_counts.groups)s групп, %(recipient_counts.contacts)s контактов, %(recipient_counts.urns)s urn"
-
-msgid "(sending)"
-msgstr "(отправляется)"
-
 msgid "No matching messages."
 msgstr "Нет соответствующих сообщений."
 
@@ -8853,15 +8842,24 @@ msgstr ""
 "\n"
 
 #, fuzzy
+#| msgid "Password"
+msgid "Confirm Access"
+msgstr "Пароль"
+
+msgid "To access this page please confirm your current password."
+msgstr ""
+
+#, fuzzy
+#| msgid "Config"
+msgid "Confirm"
+msgstr "Конфигурация"
+
+#, fuzzy
 #| msgid "Welcome!"
 msgid "Welcome Back"
 msgstr "Добро пожаловать!"
 
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
+msgid "Please sign in with your email address and password."
 msgstr ""
 
 #, fuzzy
@@ -9355,17 +9353,21 @@ msgstr ""
 "\n"
 "  "
 
-msgid "no flow events"
-msgstr "нет событий потока"
+#, fuzzy
+#| msgid "You have <b>%(counter)s global</b> configured"
+#| msgid_plural "You have <b>%(counter)s globals</b> configured"
+msgid "You have <b>no flow events</b> configured."
+msgstr "У Вас есть настроенный <b>%(counter)s глобальный объект</b> "
 
-msgid "one flow event"
-msgstr "одно событие потока"
-
-msgid "flow events"
-msgstr "события потока"
-
-msgid "configured."
-msgstr "настроено."
+#, fuzzy, python-format
+#| msgid "You have <b>%(counter)s global</b> configured"
+#| msgid_plural "You have <b>%(counter)s globals</b> configured"
+msgid "You have <b>1 flow event</b> configured."
+msgid_plural "You have <b>%(counter)s flow events</b> configured."
+msgstr[0] "У Вас есть настроенный <b>%(counter)s глобальный объект</b> "
+msgstr[1] "У Вас есть настроенные <b>%(counter)s глобальные объекты</b> "
+msgstr[2] "У Вас есть настроенные <b>%(counter)s глобальные объекты</b> "
+msgstr[3] "У Вас есть настроенные <b>%(counter)s глобальные объекты</b> "
 
 msgid "Create Account"
 msgstr "Создать Учетную запись"
@@ -10436,6 +10438,43 @@ msgstr "Ввести запрос"
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
+#~ msgid ", and "
+#~ msgstr ", и"
+
+#~ msgid "The Twitter handle that this channel will send from"
+#~ msgstr "Дескриптор Twitter, с которого будет происходить отправка этим каналом"
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "                    %(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns\n"
+#~| "\n"
+#~| "                  "
+#~ msgid "%(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
+#~ msgstr ""
+#~ "\n"
+#~ "                    %(recipient_counts.groups)s групп, %(recipient_counts.contacts)s контактов, %(recipient_counts.urns)s urn"
+
+#~ msgid "(sending)"
+#~ msgstr "(отправляется)"
+
+#~ msgid "no flow events"
+#~ msgstr "нет событий потока"
+
+#~ msgid "one flow event"
+#~ msgstr "одно событие потока"
+
+#~ msgid "flow events"
+#~ msgstr "события потока"
+
+#~ msgid "configured."
+#~ msgstr "настроено."
+
+#, fuzzy
+#~| msgid "Password"
+#~ msgid "Confirm Password"
+#~ msgstr "Пароль"
+
 #, fuzzy
 #~| msgid "Your invitation link has expired. Please contact your organization administrator."
 #~ msgid "You are the only administrator on this workspace. Please add other workspace administrators first."
@@ -10806,9 +10845,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "Organization using this channel"
 #~ msgstr "Организация, использующая данный канал"
-
-#~ msgid "Config"
-#~ msgstr "Конфигурация"
 
 #~ msgid "Any channel specific configuration, used for the various aggregators"
 #~ msgstr "Любая специфическая для канала конфигурация, используемая для различных агрегаторов"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-02-24 22:07+0000\n"
+"POT-Creation-Date: 2021-03-03 18:30+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -799,12 +799,6 @@ msgstr ""
 msgid "The phone number or that this channel will send from"
 msgstr ""
 
-msgid "Handle"
-msgstr ""
-
-msgid "The Twitter handle that this channel will send from"
-msgstr ""
-
 msgid "The external address that this channel will send from"
 msgstr ""
 
@@ -845,6 +839,9 @@ msgid "MT Response check"
 msgstr ""
 
 msgid "The content that must be in the response to consider the request successful"
+msgstr ""
+
+msgid "This field is required."
 msgstr ""
 
 msgid "The URL we will POST to when sending messages, with variable substitutions"
@@ -1637,6 +1634,9 @@ msgid "Environment Name"
 msgstr ""
 
 msgid "The provided Twitter credentials do not appear to be valid."
+msgstr ""
+
+msgid "Handle"
 msgstr ""
 
 msgid "Twitter handle of this channel"
@@ -3253,6 +3253,9 @@ msgstr ""
 msgid "Invalid backup token. Please try again."
 msgstr ""
 
+msgid "Password incorrect."
+msgstr ""
+
 #, python-brace-format
 msgid "Deleted user {username}"
 msgstr ""
@@ -3297,9 +3300,6 @@ msgid "Current password"
 msgstr ""
 
 msgid "OTP incorrect. Please try again."
-msgstr ""
-
-msgid "Password incorrect."
 msgstr ""
 
 msgid "Two-factor authentication enabled"
@@ -3811,7 +3811,7 @@ msgid "Verify your email address for tickets"
 msgstr ""
 
 #, python-format
-msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket servicethrough its omnichannel feature."
+msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket service through its omnichannel feature."
 msgstr ""
 
 msgid "URL of the Rocket.Chat Tickets app"
@@ -4075,9 +4075,6 @@ msgid "%d second"
 msgid_plural "%d seconds"
 msgstr[0] ""
 msgstr[1] ""
-
-msgid ", and "
-msgstr ""
 
 msgid "0 seconds"
 msgstr ""
@@ -4597,7 +4594,7 @@ msgid ""
 "\n"
 "Hi %(org_name)s,\n"
 "\n"
-"We've noticed that the Android phone for %(org.name)s is now charging the battery.\n"
+"We've noticed that the Android phone for %(org_name)s is now charging the battery.\n"
 "This email is to announce that your android phone battery low reported last time was resolved. Now the battery is charging.\n"
 msgstr ""
 
@@ -6089,13 +6086,6 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#, python-format
-msgid "%(recipient_counts.groups)s groups, %(recipient_counts.contacts)s contacts, %(recipient_counts.urns)s urns"
-msgstr ""
-
-msgid "(sending)"
-msgstr ""
-
 msgid "No matching messages."
 msgstr ""
 
@@ -6331,14 +6321,19 @@ msgid ""
 "\n"
 msgstr ""
 
+msgid "Confirm Access"
+msgstr ""
+
+msgid "To access this page please confirm your current password."
+msgstr ""
+
+msgid "Confirm"
+msgstr ""
+
 msgid "Welcome Back"
 msgstr ""
 
-msgid ""
-"\n"
-"    Please sign in with your email address and password.\n"
-"\n"
-"  "
+msgid "Please sign in with your email address and password."
 msgstr ""
 
 msgid "Sign In"
@@ -6631,17 +6626,14 @@ msgstr ""
 msgid "You can create flow events which external services can subscribe to. For example, Zapier can subscribe to flow events you create and trigger any number of Zapier integrations when they occur in your flows."
 msgstr ""
 
-msgid "no flow events"
+msgid "You have <b>no flow events</b> configured."
 msgstr ""
 
-msgid "one flow event"
-msgstr ""
-
-msgid "flow events"
-msgstr ""
-
-msgid "configured."
-msgstr ""
+#, python-format
+msgid "You have <b>1 flow event</b> configured."
+msgid_plural "You have <b>%(counter)s flow events</b> configured."
+msgstr[0] ""
+msgstr[1] ""
 
 msgid "Create Account"
 msgstr ""
