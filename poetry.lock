@@ -244,20 +244,6 @@ optional = false
 python-versions = ">=3.6, <3.7"
 
 [[package]]
-name = "deprecated"
-version = "1.2.11"
-description = "Python @deprecated decorator to deprecate old python classes, functions or methods."
-category = "main"
-optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-
-[package.dependencies]
-wrapt = ">=1.10,<2"
-
-[package.extras]
-dev = ["tox", "bump2version (<1)", "sphinx (<2)", "importlib-metadata (<3)", "importlib-resources (<4)", "configparser (<5)", "sphinxcontrib-websupport (<2)", "zipp (<2)", "PyTest (<5)", "PyTest-Cov (<2.6)", "pytest", "pytest-cov"]
-
-[[package]]
 name = "dj-database-url"
 version = "0.5.0"
 description = "Use Database URLs in your Django Application."
@@ -661,14 +647,13 @@ python-versions = "*"
 
 [[package]]
 name = "nexmo"
-version = "2.5.2"
+version = "2.4.0"
 description = "Nexmo Client Library for Python"
 category = "main"
 optional = false
-python-versions = ">=3, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
 [package.dependencies]
-Deprecated = "*"
 PyJWT = {version = ">=1.6.4", extras = ["crypto"]}
 pytz = ">=2018.5"
 requests = ">=2.4.2"
@@ -751,7 +736,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
 [[package]]
 name = "pycountry"
-version = "20.7.3"
+version = "18.12.8"
 description = "ISO country, subdivision, language, currency and script definitions and their translations"
 category = "main"
 optional = false
@@ -879,6 +864,14 @@ optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
+name = "pysocks"
+version = "1.7.1"
+description = "A Python SOCKS client module. See https://github.com/Anorov/PySocks for more information."
+category = "main"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+
+[[package]]
 name = "python-dateutil"
 version = "2.2"
 description = "Extensions to the standard Python datetime module"
@@ -947,7 +940,7 @@ python-versions = "*"
 
 [[package]]
 name = "redis"
-version = "2.10.6"
+version = "2.10.5"
 description = "Python client for Redis key-value store"
 category = "main"
 optional = false
@@ -1146,29 +1139,30 @@ python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
 name = "twilio"
-version = "6.53.0"
+version = "6.24.0"
 description = "Twilio API client and TwiML generator"
 category = "main"
 optional = false
 python-versions = "*"
 
 [package.dependencies]
-PyJWT = "1.7.1"
+PyJWT = ">=1.4.2"
+pysocks = {version = "*", markers = "python_version >= \"3.0\""}
 pytz = "*"
 requests = {version = ">=2.0.0", markers = "python_version >= \"3.0\""}
 six = "*"
 
 [[package]]
 name = "twython"
-version = "3.8.2"
-description = "Actively maintained, pure Python wrapper for the Twitter API. Supports both normal and streaming Twitter APIs"
+version = "3.5.0"
+description = "Actively maintained, pure Python wrapper for the     Twitter API. Supports both normal and streaming Twitter APIs"
 category = "main"
 optional = false
 python-versions = "*"
 
 [package.dependencies]
 requests = ">=2.1.0"
-requests-oauthlib = ">=0.4.0"
+requests_oauthlib = ">=0.4.0"
 
 [[package]]
 name = "typed-ast"
@@ -1206,14 +1200,6 @@ description = "Promises, promises, promises."
 category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-
-[[package]]
-name = "wrapt"
-version = "1.12.1"
-description = "Module for decorators, wrappers and monkey patching."
-category = "main"
-optional = false
-python-versions = "*"
 
 [[package]]
 name = "xlrd"
@@ -1254,7 +1240,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "9d217077f2638c5112f34219464c5e6cdd18a951a81f978cc2ffe8d84e438f46"
+content-hash = "f3eed04224b3884356950c8dd7925b4f91d21042df3e0c573ba388534b080700"
 
 [metadata.files]
 amqp = [
@@ -1432,10 +1418,6 @@ dataclasses = [
     {file = "dataclasses-0.8-py3-none-any.whl", hash = "sha256:0201d89fa866f68c8ebd9d08ee6ff50c0b255f8ec63a71c16fda7af82bb887bf"},
     {file = "dataclasses-0.8.tar.gz", hash = "sha256:8479067f342acf957dc82ec415d355ab5edb7e7646b90dc6e2fd1d96ad084c97"},
 ]
-deprecated = [
-    {file = "Deprecated-1.2.11-py2.py3-none-any.whl", hash = "sha256:924b6921f822b64ec54f49be6700a126bab0640cfafca78f22c9d429ed590560"},
-    {file = "Deprecated-1.2.11.tar.gz", hash = "sha256:471ec32b2755172046e28102cd46c481f21c6036a0ec027521eba8521aa4ef35"},
-]
 dj-database-url = [
     {file = "dj-database-url-0.5.0.tar.gz", hash = "sha256:4aeaeb1f573c74835b0686a2b46b85990571159ffc21aa57ecd4d1e1cb334163"},
     {file = "dj_database_url-0.5.0-py2.py3-none-any.whl", hash = "sha256:851785365761ebe4994a921b433062309eb882fedd318e1b0fcecc607ed02da9"},
@@ -1573,8 +1555,8 @@ mypy-extensions = [
     {file = "mypy_extensions-0.4.3.tar.gz", hash = "sha256:2d82818f5bb3e369420cb3c4060a7970edba416647068eb4c5343488a6c604a8"},
 ]
 nexmo = [
-    {file = "nexmo-2.5.2-py2.py3-none-any.whl", hash = "sha256:f68b8524c3a57f65bcbb02b69f22ec908907d9e5a60f4e92bcb291f51d24a7ed"},
-    {file = "nexmo-2.5.2.tar.gz", hash = "sha256:b5083bf4b58336ffec34e188330e871d2688c5635ba76d1bda374460f1f05a74"},
+    {file = "nexmo-2.4.0-py2.py3-none-any.whl", hash = "sha256:6f7d44d898f1c022b62ea5440e48d089feda4e0dc3b460746ff376c6196eb355"},
+    {file = "nexmo-2.4.0.tar.gz", hash = "sha256:f430289aa8f4fba7928dfc646c53db43115241535cc8a328b7fbbb0d0923e489"},
 ]
 oauthlib = [
     {file = "oauthlib-3.1.0-py2.py3-none-any.whl", hash = "sha256:df884cd6cbe20e32633f1db1072e9356f53638e4361bef4e8b03c9127c9328ea"},
@@ -1642,7 +1624,8 @@ pycodestyle = [
     {file = "pycodestyle-2.5.0.tar.gz", hash = "sha256:e40a936c9a450ad81df37f549d676d127b1b66000a6c500caa2b085bc0ca976c"},
 ]
 pycountry = [
-    {file = "pycountry-20.7.3.tar.gz", hash = "sha256:81084a53d3454344c0292deebc20fcd0a1488c136d4900312cbd465cf552cb42"},
+    {file = "pycountry-18.12.8-py2.py3-none-any.whl", hash = "sha256:104a8ca94c700898c42a0172da2eab5a5675c49637b729a11db9e1dac2d983cd"},
+    {file = "pycountry-18.12.8.tar.gz", hash = "sha256:8ec4020b2b15cd410893d573820d42ee12fe50365332e58c0975c953b60a16de"},
 ]
 pycparser = [
     {file = "pycparser-2.20-py2.py3-none-any.whl", hash = "sha256:7582ad22678f0fcd81102833f60ef8d0e57288b6b5fb00323d101be910e35705"},
@@ -1684,6 +1667,11 @@ pyparsing = [
     {file = "pyparsing-2.4.7-py2.py3-none-any.whl", hash = "sha256:ef9d7589ef3c200abe66653d3f1ab1033c3c419ae9b9bdb1240a85b024efc88b"},
     {file = "pyparsing-2.4.7.tar.gz", hash = "sha256:c203ec8783bf771a155b207279b9bccb8dea02d8f0c9e5f8ead507bc3246ecc1"},
 ]
+pysocks = [
+    {file = "PySocks-1.7.1-py27-none-any.whl", hash = "sha256:08e69f092cc6dbe92a0fdd16eeb9b9ffbc13cadfe5ca4c7bd92ffb078b293299"},
+    {file = "PySocks-1.7.1-py3-none-any.whl", hash = "sha256:2725bd0a9925919b9b51739eea5f9e2bae91e83288108a9ad338b2e3a4435ee5"},
+    {file = "PySocks-1.7.1.tar.gz", hash = "sha256:3f8804571ebe159c380ac6de37643bb4685970655d3bba243530d6558b799aa0"},
+]
 python-dateutil = [
     {file = "python-dateutil-2.2.tar.gz", hash = "sha256:eec865307ebe7f329a6a9945c15453265a449cdaaf3710340828a1934d53e468"},
 ]
@@ -1706,8 +1694,8 @@ rcssmin = [
     {file = "rcssmin-1.0.6.tar.gz", hash = "sha256:ca87b695d3d7864157773a61263e5abb96006e9ff0e021eff90cbe0e1ba18270"},
 ]
 redis = [
-    {file = "redis-2.10.6-py2.py3-none-any.whl", hash = "sha256:8a1900a9f2a0a44ecf6e8b5eb3e967a9909dfed219ad66df094f27f7d6f330fb"},
-    {file = "redis-2.10.6.tar.gz", hash = "sha256:a22ca993cea2962dbb588f9f30d0015ac4afcc45bee27d3978c0dbe9e97c6c0f"},
+    {file = "redis-2.10.5-py2.py3-none-any.whl", hash = "sha256:97156b37d7cda4e7d8658be1148c983984e1a975090ba458cc7e244025191dbd"},
+    {file = "redis-2.10.5.tar.gz", hash = "sha256:5dfbae6acfc54edf0a7a415b99e0b21c0a3c27a7f787b292eea727b1facc5533"},
 ]
 regex = [
     {file = "regex-2020.11.13-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:8b882a78c320478b12ff024e81dc7d43c1462aa4a3341c754ee65d857a521f85"},
@@ -1868,11 +1856,11 @@ toml = [
     {file = "toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f"},
 ]
 twilio = [
-    {file = "twilio-6.53.0.tar.gz", hash = "sha256:f2de0b83e3a2092cb7dee5a90c972db174c3e50e057163ea8858b95423493f84"},
+    {file = "twilio-6.24.0-py2.py3-none-any.whl", hash = "sha256:68323becb99a9b960c9a0b92164288bceba4886ca0230daf4f591286bb224916"},
+    {file = "twilio-6.24.0.tar.gz", hash = "sha256:cff699b660dcfb0f1e225a37b1586cd0ebcae634c3af91cd7a07b787807d744a"},
 ]
 twython = [
-    {file = "twython-3.8.2-py3-none-any.whl", hash = "sha256:a469d673fdd20d1c346e9b9f784212db521aa611bbdfc4912229ab701b36002b"},
-    {file = "twython-3.8.2.tar.gz", hash = "sha256:c6ca64309260e0ab47267f76217c80812f591991437f376fc61498816384f9e7"},
+    {file = "twython-3.5.0.tar.gz", hash = "sha256:01ad5ed21f3da641a3dc58a814b435aac4cf91c691b1afc5a8dc0ca4e1affe47"},
 ]
 typed-ast = [
     {file = "typed_ast-1.4.2-cp35-cp35m-manylinux1_i686.whl", hash = "sha256:7703620125e4fb79b64aa52427ec192822e9f45d37d4b6625ab37ef403e1df70"},
@@ -1918,9 +1906,6 @@ urllib3 = [
 vine = [
     {file = "vine-1.3.0-py2.py3-none-any.whl", hash = "sha256:ea4947cc56d1fd6f2095c8d543ee25dad966f78692528e68b4fada11ba3f98af"},
     {file = "vine-1.3.0.tar.gz", hash = "sha256:133ee6d7a9016f177ddeaf191c1f58421a1dcc6ee9a42c58b34bed40e1d2cd87"},
-]
-wrapt = [
-    {file = "wrapt-1.12.1.tar.gz", hash = "sha256:b62ffa81fb85f4332a4f609cab4ac40709470da05643a082ec1eb88e6d9b97d7"},
 ]
 xlrd = [
     {file = "xlrd-1.2.0-py2.py3-none-any.whl", hash = "sha256:e551fb498759fa3a5384a94ccd4c3c02eb7c00ea424426e212ac0c57be9dfbde"},
