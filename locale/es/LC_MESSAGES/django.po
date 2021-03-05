@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: TextIt\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-02 18:56+0000\n"
+"POT-Creation-Date: 2021-03-05 17:21+0000\n"
 "PO-Revision-Date: 2014-09-24 19:56+0000\n"
 "Last-Translator: TextIt <info@textit.in>\n"
 "Language-Team: Spanish (http://www.transifex.com/projects/p/textit/language/es/)\n"
@@ -5412,7 +5412,7 @@ msgid "Verify your email address for tickets"
 msgstr "Su dirección de correo electrónico"
 
 #, python-format
-msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket servicethrough its omnichannel feature."
+msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket service through its omnichannel feature."
 msgstr ""
 
 msgid "URL of the Rocket.Chat Tickets app"
@@ -5721,11 +5721,6 @@ msgid "%d second"
 msgid_plural "%d seconds"
 msgstr[0] ""
 msgstr[1] ""
-
-#, fuzzy
-#| msgid " and "
-msgid ", and "
-msgstr "y"
 
 msgid "0 seconds"
 msgstr ""
@@ -10765,6 +10760,11 @@ msgstr "Ingrese el código de pedido"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr ""
+
+#, fuzzy
+#~| msgid " and "
+#~ msgid ", and "
+#~ msgstr "y"
 
 #, fuzzy
 #~ msgid "The Twitter handle that this channel will send from"

@@ -1,3 +1,17 @@
+v6.2.2
+----------
+ * Update to flow editor v1.13.3
+ * Update Spanish translation
+ * Disable old Zenvia channel type
+ * Fix styles on fields list
+
+v6.2.1
+----------
+ * Return registration details to Android if have the same UUID
+ * Add spacing between individual channel log events
+ * Fix external channel claim form
+ * Do not track Android channels creation by anon user
+
 v6.2.0
 ----------
  * Update translations for es, fr and pt-BR
