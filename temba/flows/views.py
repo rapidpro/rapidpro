@@ -927,7 +927,7 @@ class FlowCRUDL(SmartCRUDL):
                 ).order_by("created_on")
 
                 keyword_triggers = self.fields["keyword_triggers"]
-                keyword_triggers.initial = ",".join(t.keyword for t in flow_triggers)
+                keyword_triggers.initial = list([t.keyword for t in flow_triggers])
 
             class Meta:
                 model = Flow
