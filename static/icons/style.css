@@ -15,6 +15,10 @@ Single-colored icons can be modified like so:
 }
 ========================================== */
 
+.icon-users1 {
+  width: 1.125em;
+}
+
 .icon-rocketchat {
   width: 1.13671875em;
 }
