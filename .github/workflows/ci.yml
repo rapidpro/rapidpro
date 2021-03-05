@@ -85,6 +85,7 @@ jobs:
         poetry run coverage run manage.py test --keepdb --noinput --verbosity=2
         poetry run coverage report -i
         poetry run coverage report -i --rcfile .coveragerc_todo
+        poetry run coverage xml
 
     - name: Mailroom log
       if: failure()
