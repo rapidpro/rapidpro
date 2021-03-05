@@ -6,127 +6,126 @@
 
 -block page-top
 
--block content
-  #pjax
-    -block pjax
-
-      .lp-frame
-        .left(style="width:20rem")
-          .flex.flex-col
-            .lp-nav.upper
-              .lp-nav-item(class="{% if folder == 'open' %}font-normal{% endif %}")
-                .name(onclick="goto(event)" href="{% url 'tickets.ticket_open' %}")
-                  -trans "Open"
-              .lp-nav-item(class="{% if folder == 'closed' %}font-normal{% endif %}")
-                .name(onclick="goto(event)" href="{% url 'tickets.ticket_closed' %}")
-                  -trans "Closed"
-
-            -if ticketers
-              .lp-nav.lower(style="width:20rem")
-                .font-normal.uppercase.text-xs.text-gray-500.pb-1
-                  -trans "Services"
-                .inner-scroll
-                  -for t in ticketers
-                    .lp-nav-item(class="{% if ticketer == t %}font-normal{% endif %}")
-                      .name(onclick="goto(event)" href="{% url 'tickets.ticket_filter' t.uuid %}")
-                        {{ t.name }}
-
-        .right.ml-6
-          .flex.w-full.items-end.mb-4
-            -block action-buttons
-              -if org_perms.tickets.ticket_update
-                .action-buttons.list-buttons-container.h-full.mr-2.flex-grow
-                  .list-buttons.flex.items-center.-mx-2.h-full
-                    -if 'close' in actions
-                      .button-action.object-btn-close
-                        .mr-3.glyph.text-xl.-mt-1.icon-checkmark
-                        -trans "Close"
-
-                    -if 'reopen' in actions
-                      .button-action.object-btn-reopen
-                        .-mt-1.mr-2.glyph.icon-folder-open
-                        -trans "Reopen"
-
-            .flex-grow.ml-2.items-center
-              .page-title.leading-tight
-                -block title-text
-                  {{ title }}
-            .gear-links
-              -include "gear_links_include.haml"
-
-
-          %table.list.object-list.lined(class='{% if org_perms.tickets.ticket_update %}selectable{% endif %}')
-            %tbody
-              -for object in object_list
-                %tr.ticket.object-row.select-row(data-object-id="{{ object.id }}" onrowclick='handleRowClicked("{{object.contact.uuid}}")')
-                  -if actions and org_perms.tickets.ticket_update
-                    %td.campaign.checkbox.object-row-checkbox
-                      %temba-checkbox{onclick:"handleRowSelection(this)"}
-
-                  %td.whitespace-no-wrap
-                    {{ object.contact|short_name:user_org }}
-
-                  -if not ticketer
-                    %td.ticket-ticketer
-                      -if object.ticketer.is_active
-                        %a(href="{% url 'tickets.ticket_filter' object.ticketer.uuid %}")
-                          {{ object.ticketer.name }}
-                      -else
-                        %span.ticketer-inactive
-                          {{ object.ticketer.name }}
-
-                  %td
-                    {{ object.subject }}
-                  %td
-                    {{ object.body }}
-
-                  -if not folder
-                    %td
-                      .lbl(class="status-{{object.status}}")
-                        {{ object.get_status_display }}
-
-                  %td
-                    .flex.w-full.items-end.justify-end.pr-4
-                      .time.whitespace-no-wrap
-                        {% short_datetime object.opened_on %}
-
-              -empty
-                %tr.empty
-                  %td(colspan=5)
-                    -trans "No tickets."
-
-          .flex.flex-col.mx-4.mt-3.mb-16
-            -include "includes/pagination.haml"
-
-
--block extra-script
-  {{ block.super }}
-  :javascript
-    function handleRowClicked(uuid) {
-      gotoLink("/contact/read/" + uuid + "/");
-    }
-
-
 -block extra-style
-  {{ block.super }}
+  {{block.super}}
 
   :css
-    .ticketer-inactive {
-      color: #AAA;
+
+    temba-select[name='ticket-filter'] {
+      margin-bottom: 0.5em;
+      margin-top: -1.3em;
     }
 
+    .example {
+      padding: 20px;
+      border: 1px solid #e6e6e6;
+      margin: 10px;
+      border-radius: 3px;
+    }
 
--block extra-less
-  {{ block.super }}
-  -compress css inline
-    {% lessblock %}
-      :plain
-        .lbl.status-O {
-          background-color: rgb(var(--success-rgb));
-          color: #fff;
-        }
-        .lbl.status-C {
-          background-color: rgb(var(--error-rgb));
-          color: #fff;
-        }
-    {% endlessblock %}
+    .example-header {
+      padding-bottom: 10px;
+      font-size: 12px;
+    }
+
+    html {
+      --color-text-dark: #555;
+    }
+
+    .ticket-list {
+      flex-basis: 300px; 
+      flex-grow: 0; 
+      flex-shrink: 0;
+      transition: all 200ms ease-in;
+    }
+
+    @media only screen and (max-width: 1024px) {
+      .ticket-list {
+        flex-basis: 200px; 
+      }
+    }
+
+    @media only screen and (max-width: 768px) {
+      .ticket-list {
+        flex-basis: 125px; 
+      }
+    }
+
+-block extra-script
+  {{block.super}}
+  :javascript
+    function handleContactChanged(event) {
+      var ticket = event.target.value;
+      var chat = document.querySelector("temba-contact-chat");
+      chat.ticket = ticket;
+    }
+    
+    function handleContactHistoryUpdated(event) {
+      // tell our list to refresh since we know things happened
+      var tickets = document.querySelector("temba-tickets");
+      tickets.refresh();
+    }
+
+    function handleTicketsRefreshed(event) {
+      // tell our chat to refresh since we know things are new in our list
+      var chat = document.querySelector("temba-contact-chat");
+      chat.refresh();
+    }
+
+    function handleFilterChanged(event) {
+      var tickets = document.querySelector("temba-tickets");
+      var chat = document.querySelector("temba-contact-chat");
+
+      // if we have auto selecting, don't clear the chat
+      if (!tickets.nextSelection) {
+        chat.ticket = null;
+      }
+
+      var filter = event.target.values[0].value;
+      if (filter === "O") {
+        tickets.endpoint = "/contact/tickets/?_format=json&folder=open"
+      } else {
+        tickets.endpoint = "/contact/tickets/?_format=json&folder=closed"
+      }
+    }
+
+    function handleTicketChanged(event) {
+      var ticket = event.detail.ticket;
+      var focus = event.detail.focus;
+
+      var filter = document.querySelector('temba-select[name="ticket-filter"]');
+      var tickets = document.querySelector("temba-tickets");
+
+      if (focus) {
+        tickets.setNextSelection(ticket.uuid);
+        filter.setSelection(ticket.status);
+      } else {
+        // no focus, just refresh
+        tickets.refresh();
+      }
+    }
+
+-block temba-store
+  %temba-store(
+    completions="/mr/docs/{{ LANGUAGE_CODE }}/completion.json"
+    functions="/mr/docs/{{ LANGUAGE_CODE }}/functions.json"
+    fields="/api/v2/fields.json"
+    globals="/api/v2/globals.json"
+    groups="/api/v2/groups.json")
+      
+-block page-container
+
+  .flex-col
+    .flex(style="height:100vh;margin-top:-121px;padding-top:121px;")
+      .ticket-list.flex.flex-col.m-4.mr-2.pt-4
+        %temba-select(name="ticket-filter" onchange="handleFilterChanged(event)")
+          %temba-option(name="Open" value="O" icon="inbox")
+          %temba-option(name="Closed" value="C" icon="check")
+        
+        .flex.flex-grow
+          %temba-tickets(endpoint="/contact/tickets/?_format=json&folder=open" -temba-refreshed="handleTicketsRefreshed(event)" onchange="handleContactChanged(event)")
+
+      .flex-grow.flex-col.h-full.py-4.pb-4.pr-4
+        %temba-contact-chat(-temba-refreshed="handleContactHistoryUpdated(event)" -temba-content-changed="handleTicketChanged(event)")
+
+-block footer

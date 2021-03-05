@@ -82,7 +82,10 @@ class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("open", "closed", "filter", "update")
+    actions = ("list", "open", "closed", "filter", "update")
+
+    class List(OrgPermsMixin, SmartListView):
+        pass
 
     class Update(OrgObjPermsMixin, SmartUpdateView):
         slug_url_kwarg = "uuid"
