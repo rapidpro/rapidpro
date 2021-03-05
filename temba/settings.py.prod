@@ -264,7 +264,7 @@ INSTALLED_APPS += (
 
 
 GRPC_FRAMEWORK = {
-    "ROOT_HANDLERS_HOOK": "weni.org_grpc.urls.grpc_handlers",
+    "ROOT_HANDLERS_HOOK": "weni.grpc_central.urls.grpc_handlers",
 }
 
 # -----------------------------------------------------------------------------------
