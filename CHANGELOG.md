@@ -1,3 +1,7 @@
+v6.2.3
+----------
+ * Update to latest floweditor v1.13.4
+
 v6.2.2
 ----------
  * Update to flow editor v1.13.3
