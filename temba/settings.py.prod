@@ -259,6 +259,7 @@ INSTALLED_APPS += (
     "weni.user_grpc",
     "weni.flow_grpc",
     "weni.billing",
+    "weni.statistic_grpc",
 )
 
 
