@@ -588,17 +588,21 @@ class ContactCRUDLTest(TembaTest):
 
         # contact 1 has two open tickets
         Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact1, subject="Question 1", status="O")
-        Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact1, subject="Question 2", status="O")
+        ticket1 = Ticket.objects.create(
+            org=self.org, ticketer=ticketer, contact=contact1, subject="Question 2", status="O"
+        )
 
         self.create_incoming_msg(contact1, "I have an issue")
-        self.create_broadcast(self.admin, "We can help", contacts=[contact1])
+        outbound = self.create_broadcast(self.admin, "We can help", contacts=[contact1]).msgs.first()
 
         # contact 2 has an open ticket and a closed ticket
-        Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact2, subject="Question 3", status="O")
+        ticket2 = Ticket.objects.create(
+            org=self.org, ticketer=ticketer, contact=contact2, subject="Question 3", status="O"
+        )
         Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact2, subject="Question 4", status="C")
 
         self.create_incoming_msg(contact2, "Anyone there?")
-        self.create_incoming_msg(contact2, "Hello?")
+        inbound = self.create_incoming_msg(contact2, "Hello?")
 
         # contact 3 has two closed tickets
         Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact3, subject="Question 5", status="C")
@@ -614,29 +618,47 @@ class ContactCRUDLTest(TembaTest):
 
         # can request page as JSON
         response = self.client.get(tickets_url + "?folder=open&_format=json")
-        self.assertEqual(
-            {
-                "page": 1,
-                "has_next": False,
-                "contacts": [
-                    {
+
+        expected_json = {
+            "results": [
+                {
+                    "uuid": str(ticket2.uuid),
+                    "status": "O",
+                    "contact": {
                         "uuid": str(contact2.uuid),
                         "name": "Frank",
-                        "last_msg": {"text": "Hello?", "direction": "I", "type": "I", "sender": None},
+                        "last_seen_on": contact2.last_seen_on,
+                        "last_msg": {
+                            "text": "Hello?",
+                            "direction": "I",
+                            "type": "I",
+                            "created_on": inbound.created_on,
+                            "sender": None,
+                        },
                     },
-                    {
+                },
+                {
+                    "uuid": str(ticket1.uuid),
+                    "status": "O",
+                    "contact": {
                         "uuid": str(contact1.uuid),
                         "name": "Joe",
+                        "last_seen_on": contact1.last_seen_on,
                         "last_msg": {
                             "text": "We can help",
                             "direction": "O",
                             "type": "I",
+                            "created_on": outbound.created_on,
                             "sender": {"id": self.admin.id, "email": "Administrator@nyaruka.com"},
                         },
                     },
-                ],
-            },
-            response.json(),
+                },
+            ]
+        }
+
+        self.assertEqual(
+            json.dumps(expected_json),
+            json.dumps(response.json()),
         )
 
 

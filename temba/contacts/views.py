@@ -1459,7 +1459,6 @@ class ContactCRUDL(SmartCRUDL):
                 return {
                     "uuid": str(c.uuid),
                     "name": c.get_display(),
-                    "modified_on": c.modified_on,
                     "last_seen_on": c.last_seen_on,
                     "last_msg": msg_as_json(last_msg) if last_msg else None,
                 }
