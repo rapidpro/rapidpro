@@ -770,6 +770,14 @@ class OrgCRUDL(SmartCRUDL):
             return super().form_valid(form)  # pragma: needs cover
 
     class Export(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
+        def get_gear_links(self):
+            include_archived = bool(int(self.request.GET.get("archived", 0)))
+            return [{
+                "id": "archived-trigger",
+                "title": _("Hide Archived") if include_archived else _("Show Archived"),
+                "href": "?" if include_archived else "?archived=1"
+            }]
+
         def post(self, request, *args, **kwargs):
             org = self.get_object()
 

@@ -27,6 +27,10 @@
 -block content
   %h5
     -trans "Contacts"
+
+  %form#search-form.mb-4(method="get")
+    %temba-textinput.w-full(placeholder='{% trans "Search" %}' name="search" value="{{ request.GET.search }}")
+
   %table.activity.history{style:'padding:0;margin:0'}
 
     %tr.poll{ ic-src:"/link/history/{{link.uuid}}/?after={{recent_start}}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}",
