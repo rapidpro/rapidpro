@@ -23,6 +23,9 @@ class BoundaryCRUDL(SmartCRUDL):
             # in, that is derived
             return r"^%s/%s/$" % (path, action)
 
+        def get_gear_links(self):
+            return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"))]
+
         def pre_process(self, request, *args, **kwargs):
             response = super().pre_process(self, request, *args, **kwargs)
 
@@ -71,6 +74,7 @@ class BoundaryCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             def update_aliases(boundary, new_aliases):
+                boundary_siblings = boundary.parent.children.all()
                 # for now, nuke and recreate all aliases
                 BoundaryAlias.objects.filter(boundary=boundary, org=org).delete()
                 unique_new_aliases = list(set(new_aliases.split("\n")))
@@ -78,8 +82,8 @@ class BoundaryCRUDL(SmartCRUDL):
                     if new_alias:
                         new_alias = new_alias.strip()
 
-                        # aliases are only allowed to exist on one boundary at a time
-                        BoundaryAlias.objects.filter(name=new_alias, org=org).delete()
+                        # aliases are only allowed to exist on one boundary with same parent at a time
+                        BoundaryAlias.objects.filter(name=new_alias, boundary__in=boundary_siblings, org=org).delete()
 
                         BoundaryAlias.objects.create(
                             boundary=boundary,

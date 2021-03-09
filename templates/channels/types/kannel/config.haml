@@ -1,36 +1,39 @@
 -load i18n
 
-%h4
-  -blocktrans
+.card
+  -blocktrans trimmed
     As a last step you'll need to configure Kannel to send and receive messages. Here is a stanza you
     can add to your Kannel configuration to enable sending and receiving.
 
-%b
-  -trans "Make sure to change the forced-smsc and default-smsc values to the appropriate values for your configuration."
+  .alert-warning.my-6
+    -trans "Make sure to change the forced-smsc and default-smsc values to the appropriate values for your configuration."
 
-%pre
-  :escaped
-    ######################################################################
-    # {{channel.address}} - {{channel.org.name}}
-    ######################################################################
 
-    group = sendsms-user
-    username = "{{channel.config.username}}"
-    password = "{{channel.config.password}}"
-    concatenation = true
-    max-messages = 10
-    user-allow-ip = "*.*.*.*"
-    faked-sender = {{channel.address}}
-    forced-smsc = YOUR-SMSC
-    default-smsc = YOUR-SMSC
+  .bleed-x.bleed-b.text-white.bg-black
+    .code.p-0.break-all.bg-black.text-white
+      .whitespace-pre-wrap.p-0.-ml-12
+        :escaped
+          ######################################################################
+          # {{channel.address}} - {{channel.org.name}}
+          ######################################################################
 
-    group = sms-service
-    keyword = default
-    allowed-receiver-prefix = {{channel.address}}
-    max-messages = 0
-    post-url = "https://{{ channel.callback_domain }}{% url 'courier.kn' channel.uuid 'receive' %}?backend=%i&sender=%p&message=%b&ts=%T&id=%I&to=%P"
-    concatenation = true
-    assume-plain-text = true
-    accept-x-kannel-headers = true
-    omit-empty = true
-    accepted-smsc = YOUR-SMSC
+          group = sendsms-user
+          username = "{{channel.config.username}}"
+          password = "{{channel.config.password}}"
+          concatenation = true
+          max-messages = 10
+          user-allow-ip = "*.*.*.*"
+          faked-sender = {{channel.address}}
+          forced-smsc = YOUR-SMSC
+          default-smsc = YOUR-SMSC
+
+          group = sms-service
+          keyword = default
+          allowed-receiver-prefix = {{channel.address}}
+          max-messages = 0
+          post-url = "https://{{ channel.callback_domain }}{% url 'courier.kn' channel.uuid 'receive' %}?backend=%i&sender=%p&message=%b&ts=%T&id=%I&to=%P"
+          concatenation = true
+          assume-plain-text = true
+          accept-x-kannel-headers = true
+          omit-empty = true
+          accepted-smsc = YOUR-SMSC

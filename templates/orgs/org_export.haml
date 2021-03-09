@@ -3,8 +3,86 @@
 -load temba compress i18n humanize
 
 -block title
-  %h1
-    Create Export
+  -trans "Create Export"
+
+-block content
+
+  %div.hidden
+    .float-right
+      -if not archived
+        .button-light{onclick:"goto(event)", href:'?archived=1'}
+          -trans "Show Archived"
+
+      -else
+        .button-light{onclick:"goto(event)", href:'?'}
+          -trans "Hide Archived"
+
+  .flex.w-full.mb-4.items-end.flex-wrap.justify-end{style:"min-height:41px"}
+    -blocktrans trimmed
+      Select all of the items below that you would like to include in your export. We've grouped them
+      together based on which flows and campaigns work with each other. Any related triggers will automatically
+      be included in the export.
+
+  .flex.w-full.mb-4.items-end.flex-wrap.justify-end{style:"min-height:41px"}
+    %form.export.w-full{method:'POST'}
+      -csrf_token
+      .flex.flex-col
+        -for bucket in buckets
+          .bucket.card
+            .mb-6.justify-between.bleed-x.bleed-t.bg-gray-100
+              .flex.items-center.py-4.px-8
+                .title.flex-grow
+                  -trans "Group"
+                  {{ forloop.counter|apnumber|capfirst }}
+                .button-light.select-section.px-3.py-2.text-base.bg-white
+                  -trans "Select Group"
+                  {{ forloop.counter|apnumber|capfirst }}
+
+            .exportables-grp.px-2
+              -for exportable in bucket
+                -ifchanged exportable|verbose_name_plural|capfirst
+                  %h4.flex
+                    %input.toggle-all(type="checkbox" id="{{forloop.parentloop.counter0}}-{{ exportable|verbose_name_plural}}" style="margin-top: 8px !important;")
+                    .pl-2.leading-loose.font-normal
+                      {{ exportable|verbose_name_plural|capfirst }}
+                .exportable-item.inline-flex.pl-8.mb-2(class="w-2/5 {{forloop.parentloop.counter0}}-{{ exportable|verbose_name_plural }}")
+                  %input(name="{{exportable|verbose_name_plural}}" value="{{exportable.pk}}" id="{{exportable|verbose_name_plural}}-{{exportable.pk}}" type="checkbox")
+                  .pl-2
+                    {{ exportable.name }}
+
+        -if singles
+          .bucket.card
+            .mb-6.justify-between.bleed-x.bleed-t.bg-gray-100
+              .flex.items-center.py-4.px-8
+                .title.flex-grow
+                  -if buckets
+                    -trans "Everything Else"
+                  -else
+                    -trans "Flows and Campaigns"
+
+                -if buckets
+                  .button-light.select-section.px-3.py-2.text-base.bg-white
+                    -trans "Select Everthing Else"
+
+            .mb-12.exportables-grp.px-2
+              -for exportable in singles
+                -ifchanged exportable|verbose_name_plural|capfirst
+                  %h4.flex
+                    %input.toggle-all(type="checkbox" name="selector" id="{{ exportable|verbose_name_plural}}" style="margin-top: 8px !important;")
+                    .pl-2.leading-loose.font-normal
+                      {{ exportable|verbose_name_plural|capfirst }}
+                .exportable-item.inline-flex.pl-8.mb-2(class="w-2/5 {{ exportable|verbose_name_plural }}")
+                  %input{name:'{{exportable|verbose_name_plural}}', value:'{{exportable.pk}}', id:'{{exportable|verbose_name_plural}}_{{exportable.pk}}', type:'checkbox'}
+                  .pl-2
+                    {{ exportable.name }}
+
+      .flex.mb-24.mt-6
+        .button-light.select-all
+          -trans "Select All"
+
+        .ml-4.button-primary.submit
+          -trans "Export"
+
 
 -block extra-script
   {{ block.super }}
@@ -17,13 +95,13 @@
 
 
       // check the entire group if it's bucketed
-      $('#flows-' + flow_id).parents('.exportables.bucket').each(function(){
+      $('#flows-' + flow_id).parents('.exportable-item').parent('.exportables-grp').parents('.bucket').each(function(){
         $(this).find('.select-section').each(function() {
           $(this).click();
         })
       })
 
-      $('#campaigns-' + campaign_id).parents('.exportables.bucket').each(function(){
+      $('#campaigns-' + campaign_id).parents('.exportable-item').parent('.exportables-grp').parents('.bucket').each(function(){
         $(this).find('.select-section').each(function() {
           $(this).click();
         })
@@ -35,187 +113,34 @@
       $('#campaigns_' + campaign_id).each(function(){$(this).click()});
     });
 
-    $('.toggle-all').on('change', function() {
+    $('.toggle-all').on('click', function() {
       var checked = 'checked' == $(this).attr('checked');
       var id = $(this).attr('id');
-      $(this).parents('.exportables').find('.exportable.' + id + ' input').each(function(){
+      $(this).parents('.exportables-grp').find('.exportable-item.' + id + ' input').each(function(){
          $(this).attr('checked', checked);
       });
     })
 
     $('.select-all').on('click', function(){
       $('.toggle-all').each(function(){
-        $(this).attr('checked', true).trigger('change');
+        $(this).attr('checked', true);
+        $(this).parents('.exportables-grp').find('.exportable-item input').each(function(){
+         $(this).attr('checked', true);
+        });
+
       });
     });
 
     $('.select-section').on('click', function() {
-      $(this).parents('.exportables').find('.toggle-all').each(function(){
-         $(this).attr('checked', true).trigger('change');
+      $(this).parents('.bucket').find('.exportables-grp').find('.toggle-all').each(function(){
+        $(this).attr('checked', true);
+        $(this).parents('.exportables-grp').find('.exportable-item input').each(function(){
+         $(this).attr('checked', true);
+        });
       });
     });
 
     $('.submit').on('click', function() {
       $('form.export').submit();
     });
-
-
-
--block extra-less
-  -compress css
-    {% lessblock %}
-      :plain
-
-        .select-section {
-          margin-top: -80px;
-          margin-right: -20px;
-        }
-
-        h3 {
-          margin-top:30px;
-        }
-
-        .exportables {
-          border-top: 1px solid #ccc;
-          padding:0px 20px;
-          .exportable {
-            vertical-align:top;
-            width: 350px;
-            display:inline-block;
-            padding-left:23px;
-            margin-bottom:10px;
-          }
-
-          h4 {
-            font-size:13px;
-            font-weight:500;
-            color: #999;
-            padding-top:10px;
-          }
-
-          input[type=checkbox] {
-            display: inline-block;
-            margin-top:3px;
-            margin-right: 5px;
-            vertical-align:top;
-
-          }
-
-          label {
-            display: inline-block;
-            width: 290px;
-          }
-
-          .icon {
-
-          }
-        }
-
-
-
-        .dependencies {
-          color: @flat-darkwhite - #222;
-          margin-left: 25px;
-          font-size:12px;
-
-          p {
-            display: inline;
-            font-weight: 500;
-            margin: 0;
-            padding: 0;
-          }
-
-          .icon {
-
-          }
-
-          .list {
-            display: inline;
-            margin-right: 2px;
-            margin-left: 2px;
-          }
-
-        }
-    {% endlessblock %}
-
--block page-top
-  -if not archived
-    .pull-right
-      %a.btn.btn-secondary{href:'?archived=1'}
-        -trans "Show Archived"
-  -else
-    .pull-right
-      %a.btn.btn-secondary{href:'?'}
-        -trans "Hide Archived"
-
-
-  {{ block.super }}
-
--block content
-
-
-  -blocktrans
-    Select all of the items below that you would like to include in your export. We've grouped them
-    together based on which flows and campaigns work with each other. Any related triggers will automatically
-    be included in the export.
-
-  %form.export{method:'POST'}
-    {%csrf_token%}
-    -for bucket in buckets
-      %h3
-        -trans "Group"
-        {{ forloop.counter|apnumber|capfirst }}
-
-      .exportables.bucket
-        .pull-right
-          %a.btn.btn-tiny.select-section
-            -trans "Select Group"
-            {{ forloop.counter|apnumber|capfirst }}
-
-        -for exportable in bucket
-          -ifchanged
-            %h4
-              %input.toggle-all{type:'checkbox', id:'{{forloop.parentloop.counter0}}-{{ exportable|verbose_name_plural}}'}
-              %label{for:'{{forloop.parentloop.counter0}}-{{ exportable|verbose_name_plural}}'}
-                .icon{class:"{{ exportable|icon }}"}
-                {{ exportable|verbose_name_plural|capfirst }}
-          .exportable{class:'{{forloop.parentloop.counter0}}-{{ exportable|verbose_name_plural }}'}
-            %input{name:'{{exportable|verbose_name_plural}}', value:'{{exportable.pk}}', id:'{{exportable|verbose_name_plural}}-{{exportable.pk}}', type:'checkbox'}
-            %label{for: '{{exportable|verbose_name_plural}}-{{exportable.pk}}'}
-              {{ exportable.name }}
-
-    -if singles
-
-      -if buckets
-        %h3
-          -trans "Everything Else"
-      -else
-        %h3
-          -trans "Flows and Campaigns"
-
-      .exportables
-        -if buckets
-          .pull-right
-            %a.btn.btn-tiny.select-section
-              -if buckets
-                -trans "Select Everthing Else"
-
-        -for exportable in singles
-          -ifchanged
-            %h4
-              %input.toggle-all{type:'checkbox', id:'{{ exportable|verbose_name_plural}}'}
-              %label{for:'{{ exportable|verbose_name_plural}}'}
-                .icon{class:"{{ exportable|icon }}"}
-                {{ exportable|verbose_name_plural|capfirst }}
-          .exportable{class:'{{ exportable|verbose_name_plural }}'}
-            %input{name:'{{exportable|verbose_name_plural}}', value:'{{exportable.pk}}', id:'{{exportable|verbose_name_plural}}_{{exportable.pk}}', type:'checkbox'}
-            %label{for: '{{exportable|verbose_name_plural}}_{{exportable.pk}}'}
-              {{ exportable.name }}
-
-    %hr
-    %a.btn.select-all
-      -trans "Select All"
-
-    %a.btn.btn-success.submit
-      -trans "Export"
 

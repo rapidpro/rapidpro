@@ -3,43 +3,31 @@ from collections import defaultdict
 from .models import get_stripe_credentials
 
 
-class GroupPermWrapper(object):
+class GroupPermWrapper:
+    """
+    Provides access in templates to the permissions granted to an auth group.
+    """
+
     def __init__(self, group):
         self.group = group
         self.empty = defaultdict(lambda: False)
-
         self.apps = dict()
-        if self.group:
-            for perm in self.group.permissions.all().select_related("content_type"):
-                app_name = perm.content_type.app_label
-                app_perms = self.apps.get(app_name, None)
 
-                if not app_perms:
-                    app_perms = defaultdict(lambda: False)
-                    self.apps[app_name] = app_perms
+        for perm in self.group.permissions.all().select_related("content_type"):
+            app_name = perm.content_type.app_label
+            app_perms = self.apps.get(app_name, None)
 
-                app_perms[perm.codename] = True
+            if not app_perms:
+                app_perms = defaultdict(lambda: False)
+                self.apps[app_name] = app_perms
+
+            app_perms[perm.codename] = True
 
     def __getitem__(self, module_name):
         return self.apps.get(module_name, self.empty)
 
-    def __iter__(self):  # pragma: needs cover
-        # I am large, I contain multitudes.
-        raise TypeError("GroupPermWrapper is not iterable.")
-
-    def __contains__(self, perm_name):
-        """
-        Lookup by "someapp" or "someapp.someperm" in perms.
-        """
-        if "." not in perm_name:  # pragma: needs cover
-            return perm_name in self.apps
-
-        else:  # pragma: needs cover
-            module_name, perm_name = perm_name.split(".", 1)
-            if module_name in self.apps:
-                return perm_name in self.apps[module_name]
-            else:
-                return False
+    def __iter__(self):
+        raise TypeError(f"{type(self)} is not iterable.")  # I am large, I contain multitudes
 
 
 def user_orgs_for_brand(request):
@@ -52,7 +40,7 @@ def user_orgs_for_brand(request):
 
 def user_group_perms_processor(request):
     """
-    return context variables with org permissions to the user.
+    Sets org_org in the context, and org_perms if user belongs to an auth group.
     """
     org = None
     group = None

@@ -1,4 +1,4 @@
-from temba.contacts.models import TWITTER_SCHEME, TWITTERID_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 
@@ -14,11 +14,11 @@ class TwitterLegacyType(ChannelType):
     name = "Twitter Legacy"
     icon = "icon-twitter"
 
-    schemes = [TWITTER_SCHEME, TWITTERID_SCHEME]
+    schemes = [URN.TWITTER_SCHEME, URN.TWITTERID_SCHEME]
     max_length = 10000
     show_config_page = False
     free_sending = True
     quick_reply_text_size = 36
 
     def is_available_to(self, user):
-        return False
+        return False, False

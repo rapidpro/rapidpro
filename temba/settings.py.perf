@@ -11,6 +11,7 @@
 import warnings
 
 from .settings_common import *  # noqa
+from .security_settings import *  # noqa
 
 # -----------------------------------------------------------------------------------
 # Mimic a production instance - disable debuging and enable compression

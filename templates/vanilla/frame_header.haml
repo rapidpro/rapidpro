@@ -1,0 +1,30 @@
+#header.bg-primary
+  .text-color-white
+    -block user-chooser
+      -if user_org
+        .absolute.right-0
+          #org-chooser.bg-dark-alpha.mx-12.py-1.px-16.rounded-b.text-sm
+            .org
+              %a{href:"{% url 'orgs.org_home' %}"}
+                {{ user_org.name|truncatechars:30 }}
+
+            -if user_orgs|length > 1
+              .other-orgs.hide
+                -for org in user_orgs
+                  -if org != user_org
+                    .org
+                      %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
+                        {{ org.name }}
+
+    #header-sections.flex.flex-row.items-stretch
+      #header-logo.py-5.px-10
+        -block logo
+          %a#big-logo.logo.icon-logo{href:"/", title:"{{brand.name}}"}
+
+      #header-nav.flex-grow.hidden{class:"md:block"}
+        -block nav
+          -include 'vanilla/frame_nav.html'
+
+    .mobile-nav{class:"md:hidden"}
+      -block mobile-nav
+        -include 'vanilla/frame_nav_mobile.html'

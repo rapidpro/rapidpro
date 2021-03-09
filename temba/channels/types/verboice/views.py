@@ -5,6 +5,7 @@ from django import forms
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.views import ALL_COUNTRIES, ClaimViewMixin
+from temba.utils.fields import SelectWidget
 
 from ...models import Channel
 
@@ -12,7 +13,10 @@ from ...models import Channel
 class ClaimView(ClaimViewMixin, SmartFormView):
     class VerboiceClaimForm(ClaimViewMixin.Form):
         country = forms.ChoiceField(
-            choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in")
+            choices=ALL_COUNTRIES,
+            widget=SelectWidget(attrs={"searchable": True}),
+            label=_("Country"),
+            help_text=_("The country this phone number is used in"),
         )
         number = forms.CharField(
             max_length=14,
@@ -56,16 +60,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def form_valid(self, form):
         org = self.request.user.get_org()
 
-        if not org:  # pragma: no cover
-            raise Exception(_("No org for this user, cannot claim"))
-
         data = form.cleaned_data
         self.object = Channel.add_config_external_channel(
             org,
             self.request.user,
             data["country"],
             data["number"],
-            "VB",
+            self.channel_type,
             dict(username=data["username"], password=data["password"], channel=data["channel"]),
             role=Channel.ROLE_CALL + Channel.ROLE_ANSWER,
         )

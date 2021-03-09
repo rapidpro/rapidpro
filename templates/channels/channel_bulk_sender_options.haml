@@ -1,92 +1,64 @@
 -extends "smartmin/base.html"
 -load i18n
 
--block page-top
-  .row
-    .span12
-      %h2
-        -trans "Add Bulk Sender"
-      .instructions
-        %p
-          -blocktrans trimmed
-            Bulk senders typically can send a higher volume of messages and in some cases are even cheaper than
-            local messaging rates. If you have an account with a bulk sender, you can use your local Android phone
-            number to receive messages, and use a bulk sender for your outgoing messages.
+-block title
+  -trans "Add Bulk Sender"
 
 -block content
 
+  .mb-4
+    -blocktrans trimmed
+      Bulk senders typically can send a higher volume of messages and in some cases are even cheaper than
+      local messaging rates. If you have an account with a bulk sender, you can use your local Android phone
+      number to receive messages, and use a bulk sender for your outgoing messages.
+
   -if not user_org.is_connected_to_nexmo
-    .row.claim-row
-      .span3
-        %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-nexmo{href:"#"}
-          .claim-glyph.icon-channel-nexmo
-          %p.claim-text
+    %temba-modax.inline-block.mb-1(endpoint="{% url 'orgs.org_nexmo_connect'%}" header='{{_("Connect Nexmo")|escapejs}}')
+      .card.link
+        .relative
+          .text-base.absolute.text-gray-100.bg-icon.icon-channel-nexmo
+        .flex.flex-col.mx-20.relative
+          .title
             -trans "Connect Nexmo"
 
-      .span9
-        .claim-description
-          %div
+          .mt-2
             -blocktrans trimmed
               A great way to connect if you are outside the United States or UK. Connect a Nexmo Account to send
               messages to over 200 countries worldwide.
 
-
-  .row.claim-row{class:'{% if not user_org.is_connected_to_nexmo %}hide{%endif%}'}
-    .span3
-      %a.btn.btn-primary.btn-primary-muted.btn-claim.btn-create-sender.posterize{href:"{% url 'channels.channel_create_bulk_sender' %}?connection=NX&channel={{request.GET.channel}}"}
-        .claim-glyph.icon-channel-nexmo
-        %p.claim-text
+  .nexmo-connected{class:'{% if not user_org.is_connected_to_nexmo %}hide{%endif%}'}
+    .card.link.posterize{href:"{% url 'channels.channel_create_bulk_sender' %}?connection=NX&channel={{request.GET.channel}}"}
+      .relative
+        .text-base.absolute.text-gray-100.bg-icon.icon-channel-nexmo
+      .flex.flex-col.mx-20.relative
+        .title
           -trans "Send with Nexmo"
-
-    .span9
-      .claim-description
-        %div
+        .mt-2
           -blocktrans trimmed
             Instead of using your Android phone to send messages, you can use your
-            <a class='nexmo-account' href='#'>Nexmo Account</a> to send messages to over 200 countries.
+            Nexmo Account to send messages to over 200 countries.
 
-  .row.claim-row
-    .span3
-      %a.btn.btn-primary.btn-primary-muted.btn-claim.connect-external{href:"{% url 'channels.types.external.claim' %}?role=S&channel={{request.GET.channel}}"}
-        .claim-glyph.icon-channel-external
-        %p.claim-text Connect External API
 
-    .span9
-      .claim-description
-        %div
-          -blocktrans trimmed
-            If you have an external provider you want to use to send messages, you can connect it
-            using our External API.
+  .card.link{onclick:"goto(event, this)", href:"{% url 'channels.types.external.claim' %}?role=S&channel={{request.GET.channel}}"}
+    .relative
+      .text-base.absolute.text-gray-100.bg-icon.icon-channel-external
+    .flex.flex-col.mx-20.relative
+      .title
+        -trans "Connect External API"
+      .mt-2
+        -blocktrans trimmed
+          If you have an external provider you want to use to send messages, you can connect it using our External API.
 
 
 -block form-buttons
 
--block extra-script
-  {{block.super}}
-  :javascript
-    $(".connect-nexmo").live('click', function() {
-      var modal = new Modax('{{ _("Connect Nexmo")|escapejs }}', '{% url "orgs.org_nexmo_connect" %}');
-      modal.setIcon("icon-nexmo");
-      modal.setListeners({onCompleted: function() {
-        $('.btn-create-sender').click();
-      },
-      onFormLoaded: function() {
-        form = modal.ele.find("form");
-        form.attr('autocomplete', 'off');
-      }})
-      modal.show();
-    });
-
-    $(".nexmo-account").live('click', function() {
-      var modal = new Modax('{{ _("Disconnect Nexmo")|escapejs }}', '{% url "orgs.org_nexmo_account" %}');
-      modal.setIcon("icon-nexmo");
-      modal.addClass("alert");
-      modal.setRedirectOnSuccess(true);
-      modal.show();
-    });
-
 -block extra-style
   :css
+    .bg-icon {
+      transform: translate(-65px, -35px) rotate(0deg); 
+      font-size:120px;
+    }
+
     .horizontal-channel {
       margin-top: 30px;
     }

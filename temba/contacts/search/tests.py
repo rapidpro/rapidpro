@@ -1,7 +1,7 @@
 from temba.mailroom import MailroomException
-from temba.tests import TembaTest
+from temba.tests import TembaTest, mock_mailroom
 
-from . import SearchException
+from . import SearchException, elastic
 
 
 class SearchExceptionTest(TembaTest):
@@ -91,7 +91,7 @@ class SearchExceptionTest(TembaTest):
                 {"error": "cannot query on redacted URNs", "code": "redacted_urns"},
                 "Can't query on URNs in an anonymous workspace",
             ),
-            ({"error": "no code here"}, "no code here",),
+            ({"error": "no code here"}, "no code here"),
         )
 
         for response, message in tests:
@@ -99,3 +99,11 @@ class SearchExceptionTest(TembaTest):
             e = SearchException.from_mailroom_exception(e)
 
             self.assertEqual(message, str(e))
+
+
+class TestElastic(TembaTest):
+    @mock_mailroom
+    def test_query_elasticsearch_for_ids_bad_query(self, mr_mocks):
+        with self.assertRaises(SearchException):
+            mr_mocks.error("bad field <> error")
+            elastic.query_contact_ids(self.org, "bad_field <> error")

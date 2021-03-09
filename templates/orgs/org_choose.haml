@@ -1,20 +1,18 @@
 -extends "smartmin/base.html"
 -load i18n
 
--block title-icon
-  %span.title-icon
-    .glyph.icon-users
+-block title
+  .page-title
+    -trans "Choose Workspace"
 
 -block content
   -if not orgs
-    .
+    .my-6
       -trans "Your login is not associated with any workspace. Please contact your administrator to receive an invitation to a workspace."
 
   -for org in orgs
-    %a.org-choose.posterize{ href: "?organization={{ org.id }}" }
-      .icon-home
-      .name
-        {{ org.name }}
+    %a.button-light.mr-3.inline-block.posterize(href="?organization={{ org.id }}")
+      {{ org.name }}
 
 -block extra-style
   :css

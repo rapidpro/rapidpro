@@ -31,25 +31,6 @@ class ExceptionMiddleware:
         return None
 
 
-class OrgHeaderMiddleware:
-    """
-    Simple middleware to add a response header with the current org id, which can then be included in logs
-    """
-
-    def __init__(self, get_response=None):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        response = self.get_response(request)
-
-        if hasattr(request, "user") and request.user.is_authenticated:
-            org = request.user.get_org()
-            if org:
-                response["X-Temba-Org"] = org.id
-
-        return response
-
-
 class BrandingMiddleware:
     def __init__(self, get_response=None):
         self.get_response = get_response
@@ -102,7 +83,7 @@ class BrandingMiddleware:
 
 class ConsentMiddleware:  # pragma: no cover
 
-    REQUIRES_CONSENT = ("/msg", "/contact", "/flow", "/trigger", "/org/home", "/campaign", "/channel")
+    REQUIRES_CONSENT = ("/msg", "/contact", "/flow", "/trigger", "/org/home", "/campaign", "/channel", "/welcome")
 
     def __init__(self, get_response=None):
         self.get_response = get_response
@@ -112,66 +93,99 @@ class ConsentMiddleware:  # pragma: no cover
             for path in ConsentMiddleware.REQUIRES_CONSENT:
                 if request.path.startswith(path):
                     if Policy.get_policies_needing_consent(request.user):
-                        return HttpResponseRedirect(reverse("policies.policy_list"))
+                        return HttpResponseRedirect(reverse("policies.policy_list") + "?next=" + request.path)
         response = self.get_response(request)
         return response
 
 
-class ActivateLanguageMiddleware:
+class OrgMiddleware:
+    """
+    Determines the current org for this request and sets it on the user object on the request
+    """
+
     def __init__(self, get_response=None):
         self.get_response = get_response
 
     def __call__(self, request):
-        user = request.user
-        language = request.branding.get("language", settings.DEFAULT_LANGUAGE)
-        if user.is_anonymous or user.is_superuser:
-            translation.activate(language)
+        assert hasattr(request, "user"), "must be called after django.contrib.auth.middleware.AuthenticationMiddleware"
 
+        org = self.determine_org(request)
+        request.org = org
+
+        if request.user.is_authenticated:
+            request.user.set_org(org)
+
+        response = self.get_response(request)
+
+        # set a response header to make it easier to find the current org id
+        if org:
+            response["X-Temba-Org"] = org.id
+
+        return response
+
+    def determine_org(self, request):
+        user = request.user
+
+        if not user.is_authenticated:
+            return None
+
+        # check for value in session
+        org_id = request.session.get("org_id", None)
+        if org_id:
+            org = Org.objects.filter(is_active=True, id=org_id).first()
+
+            # only use if user actually belongs to this org
+            if org and (user.is_superuser or user.is_staff or org.has_user(user)):
+                return org
+
+        # otherwise if user only belongs to one org, we can use that
+        user_orgs = user.get_user_orgs()
+        if user_orgs.count() == 1:
+            return user_orgs[0]
+
+        return None
+
+
+class TimezoneMiddleware:
+    """
+    Activates the timezone for the current org
+    """
+
+    def __init__(self, get_response=None):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        assert hasattr(request, "org"), "must be called after temba.middleware.OrgMiddleware"
+
+        if request.org:
+            timezone.activate(request.org.timezone)
+        else:
+            timezone.activate(settings.USER_TIME_ZONE)
+
+        return self.get_response(request)
+
+
+class LanguageMiddleware:
+    """
+    Activates the translation language for the current user
+    """
+
+    def __init__(self, get_response=None):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        assert hasattr(request, "user"), "must be called after django.contrib.auth.middleware.AuthenticationMiddleware"
+
+        user = request.user
+
+        if not user.is_authenticated or user.is_superuser:
+            language = request.branding.get("language", settings.DEFAULT_LANGUAGE)
+            translation.activate(language)
         else:
             user_settings = user.get_settings()
             translation.activate(user_settings.language)
 
-        response = self.get_response(request)
-        return response
-
-
-class OrgTimezoneMiddleware:
-    def __init__(self, get_response=None):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        user = request.user
-        org = None
-
-        if not user.is_anonymous:
-
-            org_id = request.session.get("org_id", None)
-            if org_id:
-                org = Org.objects.filter(is_active=True, pk=org_id).first()
-
-            # only set the org if they are still a user or an admin
-            if org and (user.is_superuser or user.is_staff or user in org.get_org_users()):
-                user.set_org(org)
-
-            # otherwise, show them what orgs are available
-            else:
-                user_orgs = (
-                    user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
-                )
-                user_orgs = user_orgs.distinct("pk")
-
-                if user_orgs.count() == 1:
-                    user.set_org(user_orgs[0])
-
-            org = request.user.get_org()
-
-        if org:
-            timezone.activate(org.timezone)
-        else:
-            timezone.activate(settings.USER_TIME_ZONE)
-
-        response = self.get_response(request)
-        return response
+        return self.get_response(request)
 
 
 class ProfilerMiddleware:  # pragma: no cover

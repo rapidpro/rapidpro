@@ -543,7 +543,6 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
       * **contacts** - the UUIDs of contacts to send to (array of up to 100 strings, optional)
       * **groups** - the UUIDs of contact groups to send to (array of up to 100 strings, optional)
       * **channel** - the UUID of the channel to use. Contacts which can't be reached with this channel are ignored (string, optional)
-      * **new_expressions** - the whether **text** contains new style expressions (boolean, default: false)
 
     Example:
 
@@ -814,7 +813,6 @@ class CampaignEventsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAP
     * **delivery_hour** - the hour of the day to deliver the message (integer 0-24, -1 indicates send at the same hour as the field)
     * **message** - the message to send to the contact (string, required if flow is not specified)
     * **flow** - the UUID of the flow to start the contact down (string, required if message is not specified)
-    * **new_expressions** - the whether **message** contains new style expressions (boolean, default: false)
 
     Example:
 
@@ -989,7 +987,7 @@ class ChannelsEndpoint(ListAPIMixin, BaseAPIView):
      * **device** - information about the device if this is an Android channel:
         * **name** - the name of the device (string).
         * **power_level** - the power level of the device (int).
-        * **power_status** - the power status, either ```STATUS_DISCHARGING``` or ```STATUS_CHARGING``` (string).
+        * **power_status** - the power status, either ```CHA``` (charging) or ```DIS``` (discharging) (string).
         * **power_source** - the source of power as reported by Android (string).
         * **network_type** - the type of network the device is connected to as reported by Android (string).
      * **last_seen** - the datetime when this channel was last seen (datetime).
@@ -1524,7 +1522,7 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
         * _block_ - Block the contacts
         * _unblock_ - Un-block the contacts
         * _interrupt_ - Interrupt and end any of the contacts' active flow runs
-        * _archive_ - Archive all of the contacts' messages
+        * _archive_messages_ - Archive all of the contacts' messages
         * _delete_ - Permanently delete the contacts
 
     * **group** - the UUID or name of a contact group (string, optional)
@@ -1563,7 +1561,8 @@ class ContactActionsEndpoint(BulkWriteAPIMixin, BaseAPIView):
 
 class DefinitionsEndpoint(BaseAPIView):
     """
-    This endpoint allows you to export definitions of flows, campaigns and triggers in your account.
+    This endpoint allows you to export definitions of flows, campaigns and triggers in your account. Note that the
+    schema of flow definitions may change over time.
 
     ## Exporting Definitions
 
@@ -1581,70 +1580,37 @@ class DefinitionsEndpoint(BaseAPIView):
     Response is a collection of definitions:
 
         {
-          version: 8,
-          campaigns: [],
-          triggers: [],
-          flows: [{
-            metadata: {
-              "name": "Water Point Survey",
-              "uuid": "f14e4ff0-724d-43fe-a953-1d16aefd1c0b",
-              "saved_on": "2015-09-23T00:25:50.709164Z",
-              "revision": 28,
-              "expires": 7880,
-              "id": 12712,
-            },
-            "version": 7,
-            "flow_type": "S",
-            "base_language": "eng",
-            "entry": "87929095-7d13-4003-8ee7-4c668b736419",
-            "action_sets": [
-              {
-                "y": 0,
-                "x": 100,
-                "destination": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
-                "uuid": "87929095-7d13-4003-8ee7-4c668b736419",
-                "actions": [
-                  {
-                    "msg": {
-                      "eng": "What is your name?"
-                    },
-                    "type": "reply"
-                  }
-                ]
-              },
-              ...
+            "version": "13",
+            "site": "https://app.rapidpro.io",
+            "flows": [
+                {
+                    "uuid": "7adbf194-a05c-4fe0-bd22-a178e24bee5e",
+                    "name": "My Flow",
+                    "spec_version": "13.1.0",
+                    "language": "eng",
+                    "type": "messaging",
+                    "nodes": [
+                        {
+                            "uuid": "d2240abf-8c70-4cb4-96e9-c7e67ccb0e2a",
+                            "actions": [
+                                {
+                                    "attachments": [],
+                                    "text": "Hi @contact! Which state do you live in?",
+                                    "type": "send_msg",
+                                    "quick_replies": [],
+                                    "uuid": "9012e709-76c8-4f2f-aea9-c1f7a31e7bb0"
+                                }
+                            ],
+                            "exits": [
+                                {
+                                    "uuid": "81683d94-9623-4706-8878-e314beb9325c"
+                                }
+                            ]
+                        }
+                    ]
+                }
             ],
-            "rule_sets": [
-              {
-                "uuid": "32d415f8-6d31-4b82-922e-a93416d5aa0a",
-                "webhook_action": null,
-                "rules": [
-                  {
-                    "test": {
-                      "test": "true",
-                      "type": "true"
-                    },
-                      "category": {
-                      "eng": "All Responses"
-                    },
-                    "destination": null,
-                    "uuid": "5fa6e9ae-e78e-4e38-9c66-3acf5e32fcd2",
-                    "destination_type": null
-                  }
-                ],
-                "webhook": null,
-                "ruleset_type": "wait_message",
-                "label": "Name",
-                "operand": "@step.value",
-                "finished_key": null,
-                "y": 162,
-                "x": 62,
-                "config": {}
-              },
-              ...
-            ]
-            }
-          }]
+            ...
         }
     """
 
@@ -1806,7 +1772,7 @@ class FieldsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
     def get_queryset(self):
         org = self.request.user.get_org()
-        return getattr(self.model, "user_fields").filter(org=org)
+        return self.model.user_fields.filter(org=org, is_active=True)
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
@@ -3440,9 +3406,11 @@ class TicketersEndpoint(ListAPIMixin, BaseAPIView):
      * **created_on** - when this ticketer was created
 
     Example:
+
         GET /api/v2/ticketers.json
 
     Response:
+
         {
             "next": null,
             "previous": null,
@@ -3536,7 +3504,7 @@ class WorkspaceEndpoint(BaseAPIView):
         data = {
             "uuid": str(org.uuid),
             "name": org.name,
-            "country": org.get_country_code(),
+            "country": org.default_country_code,
             "languages": [l.iso_code for l in org.languages.order_by("iso_code")],
             "primary_language": org.primary_language.iso_code if org.primary_language else None,
             "timezone": str(org.timezone),

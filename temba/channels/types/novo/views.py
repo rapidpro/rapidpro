@@ -30,9 +30,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         data = form.cleaned_data
         org = user.get_org()
 
-        if not org:  # pragma: no cover
-            raise Exception(_("No org for this user, cannot claim"))
-
         from .type import NovoType
 
         config = {
@@ -42,7 +39,13 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         }
 
         self.object = Channel.create(
-            org, user, "TT", "NV", name="Novo: %s" % data["shortcode"], address=data["shortcode"], config=config
+            org,
+            user,
+            "TT",
+            self.channel_type,
+            name="Novo: %s" % data["shortcode"],
+            address=data["shortcode"],
+            config=config,
         )
 
         return super(ClaimView, self).form_valid(form)

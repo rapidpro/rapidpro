@@ -16,66 +16,73 @@
       -if link.modax
         %temba-modax{ header:'{{link.modax}}', endpoint:"{{link.href}}", id:"{{link.id}}"}
 
-    #gear-container
+    #gear-container.flex.items-center.text-gray-700
       -if gear_links|length == 1
         -with link=gear_links|first
           -if link.modax
+            .button-light{onclick:'showModax("{{link.id}}")', class:'{{ link|gear_link_classes:True }}'}
+              {{link.title}}
+              %span{class:'gear-flag'}
+                {{link.flag}}
 
           -else
-            %a.btn{href:'{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
+            .button-light{onclick:'goto(event)', href:'{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
               {{link.title}}
+
       - else
         -with link=gear_links|first
           -if link.modax
-            %a.btn.btn-primary{href:'javascript:showModax("{{link.href}}")', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
-                {{link.title}}
+            .button-light{onclick:'javascript:showModax("{{link.id}}")', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
+              {{link.title}}
                 %span{class:'gear-flag'}
                   {{link.flag}}
 
           -else
-            %a.btn{href:'{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
-              {{link.title}}
+            -if link.js_class
+              .button-light{class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
+                {{link.title}}
 
-        %span.btn-group.gear-menu
-          %button.btn.dropdown-toggle{ data-toggle:"dropdown" }
-            .glyph.icon-cog
-            %span.caret
-          %ul.dropdown-menu.label-menu{'role':'menu', 'aria-labelledby':'dlabel'}
+            -else
+              .button-light{onclick:'goto(event)', href:'{{link.href}}', class:'{{ link|gear_link_classes:True }}', data-success-url:'{{ link.success_url }}'}
+                {{link.title}}
 
-            // If we are inside an angular controller, let it insert options
-            %li.dynamic-item.hide{ ng-repeat:'link in $root.gearLinks', ng-class:'{divider:link.id=="divider"}'}
-              %a{href:'javascript:void(0);', ng-click:'clickGearMenuItem(link.id)'}
-                [[link.title]]
-
+        .btn-group.gear-menu.ml-3
+          .button-light.p-icon.dropdown-toggle.text-center{ data-toggle:"dropdown" }
+            .icon-menu-3.text-gray-500(style="margin-left:-2px;margin-top:1px")
+          %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3{'role':'menu', 'aria-labelledby':'dlabel'}
             -for link in gear_links
               -if not forloop.first
                 -if link.divider
-                  %li.divider
+                  %li.separator.-mx-4.border-b.my-3.border-gray-200
                 -else
-                  %li
+                  %li.py-1
                     -if link.ngClick
-                      %a{href:'{{link.href}}', ng-click:'{{link.ngClick}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
+                      .hover-linked.font-normal{onclick:"goto(event);", href:'{{link.href}}', ng-click:'{{link.ngClick}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
                         {{link.title}}
                         .gear-flag
                           {{link.flag}}
                     -elif link.modax
-
-                      %a{href:'javascript:showModax("{{link.href}}")', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
-                          {{link.title}}
-                          %span{class:'gear-flag'}
-                            {{link.flag}}
-
-                    -else
-                      %a{href:'{{link.href}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
+                      .hover-linked.font-normal{onclick:'javascript:showModax("{{link.id}}")', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
                         {{link.title}}
                         %span{class:'gear-flag'}
                           {{link.flag}}
 
+                    -else
+                      -if link.js_class
+                        .hover-linked.font-normal{class:'{{ link|gear_link_classes }}', href:'{{link.href}}', data-success-url:'{{ link.success_url }}'}
+                          {{link.title}}
+                          %span{class:'gear-flag'}
+                            {{link.flag}}
+                      -else
+                        .hover-linked.font-normal{onclick:"goto(event);", href:'{{link.href}}', class:'{{ link|gear_link_classes }}', data-success-url:'{{ link.success_url }}'}
+                          {{link.title}}
+                          %span{class:'gear-flag'}
+                            {{link.flag}}
+
 
       :javascript
         function showModax(endpoint) {
-          const modax = document.querySelector("temba-modax[endpoint='" + endpoint + "']");
-
+          const modax = document.querySelector("temba-modax[id='" + endpoint + "']");
           if(modax) {
             modax.setAttribute("open", "true");
           }
@@ -102,17 +109,4 @@
            return false;
         });
 
-        $("#gear-container .gear-modal").on('click', function(e){
-          e.stopPropagation();
-          var modal = new Modax($(this).text(), $(this).attr('href'));
-          modal.show();
 
-          var successUrl = $(this).data('success-url');
-          if (successUrl){
-            modal.setListeners({ onSuccess: function(){ document.location.href = successUrl; } });
-          } else {
-            modal.setListeners({ onSuccess: function(){ modal.dismiss() } });
-          }
-
-          return false;
-        });

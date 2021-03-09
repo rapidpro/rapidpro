@@ -1,14 +1,21 @@
 -extends "smartmin/read.html"
 -load smartmin sms compress temba contacts i18n
 
--block page-title
+-block title
+  {{object.name}}
+-block subtitle
   -trans "Results"
-  \- {{object.name}}
+  
 -block extra-less
 
   -compress css inline
     {% lessblock %}
       :plain
+
+        .page-content {
+          align-self: auto;
+          max-width: 100%;
+        }
 
         .archive-note {
           text-align: center;
@@ -18,6 +25,15 @@
 
         .nav.nav-tabs > li > a:hover {
           margin-right: 2px;
+          background: transparent;
+          border-color: transparent;
+        }
+
+        .nav.nav-tabs > li.active > a:hover {
+          margin-right: 2px;
+          background: #fff;
+          border-color: inherit;
+          border-bottom: 1px solid #fff;
         }
          
         .after {
@@ -77,6 +93,7 @@
           padding: 10px 10px;
           border-top: 1px solid rgb(239, 239, 239);
           min-width: 150px;
+          background: #fff;
 
           &.collapse {
             width:0px;
@@ -234,41 +251,51 @@
 
   :javascript
 
+    function updateColumnSelect() {
+      var select = document.getElementById("select-columns");
+      if (select) {
+        var options = [];
+        for (var col of columns) {
+          if (col.hidden) {
+            options.push({name: col.text, value: col.id});
+          }
+        }
+        select.setOptions(options);
+      }
+    }
+
+    function handleColumnSelection(select) {
+      if (select.values.length > 0) {
+        var option = select.values[0];
+        columns[option.value].hidden = false;
+        select.values = [];
+        updateColumnSelect();
+        updateCols();
+      }
+    }
+
     Intercooler.ready(function() {
       updateCols();
     });
 
     function hideColumn(idx) {
       columns[idx].hidden = true
+      updateColumnSelect();
       updateCols();
     }
 
     function toggleValue(idx) {
       columns[idx].category = !columns[idx].category
       updateCols();
-
     }
 
     function deleteRun(id) {
-
-      var modal = new ConfirmationModal("Delete Run", "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever.");
-      modal.addClass('alert');
-      modal.setListeners({
-        onPrimary: function(){
-          $("#run_" + id).fadeOut();
-
-          $.post('/flowrun/delete/' + id + '/').fail(function() {
-            // in the off chance we failed, bring it back
-            $("#run_" + id).fadeIn();
-          });
-
-          modal.dismiss();
-        }}, false);
-      modal.setPrimaryButton("Delete Run");
-      modal.show();
+      var dialog = document.getElementById("confirm-run-delete");
+      dialog.run = id;
+      dialog.open = true;
     }
 
-    function updateCols() {
+    function updateCols() {      
       var hidden = false;
       for (var idx=0; idx < columns.length; idx++) {
         var col = columns[idx];
@@ -310,32 +337,16 @@
           "category": {{result_field.has_categories}}
         },
       {% endfor %}
-    ]
+    ];
+
+    // alpha sort our result names
+    columns.sort(function(a, b){
+      a = a.text.toLowerCase();
+      b = b.text.toLowerCase();
+      return (a < b) ? -1 : a > b ? 1 : 0;
+    });
 
     $(document).ready(function() {
-      $("#columns").select2({ placeholder:'More Columns', data: columns, minimumResultsForSearch: -1, query: function(q){
-        var results = [];
-        for (var i=0; i < this.data.length; i++) {
-          if (this.data[i].hidden) {
-            results.push(this.data[i]);
-          }
-        }
-        q.callback({results:results, more: false});
-      }});
-
-      $("#columns").on("change", function(e) {
-        columns[e.val].hidden = false;
-        $(this).select2('val', '');
-        updateCols();
-      });
-
-      $(".download-results").on("click", function() {
-        var modal = new Modax('{{ _("Export Flow Results")|escapejs }}', '{% url "flows.flow_export_results" %}?ids={{object.id}}');
-        modal.setIcon('icon-excel');
-        modal.setRedirectOnSuccess(true);
-        modal.show();
-      });
-
       Highcharts.setOptions({
         global: {
           timezoneOffset: -1 * {{utcoffset}}
@@ -417,6 +428,20 @@
     }
 
   :javascript
+
+    document.addEventListener("DOMContentLoaded", function() {
+      var dialog = document.getElementById("confirm-run-delete");
+      dialog.addEventListener("temba-button-clicked", function(event){
+        var id = dialog.run;
+        $("#run_" + id).fadeOut();        
+        if (!event.detail.button.secondary) {
+          $.post('/flowrun/delete/' + id + '/').fail(function() {
+            $("#run_" + id).fadeIn();
+          });
+        }
+        dialog.open = false;
+      });
+    });
 
     $('a[data-toggle="tab"]').on('shown.bs.tab', function(e){
       // reflow our charts when analytics is shown on the chance their dimensions have changed
@@ -579,75 +604,82 @@
 
 -block content
 
-  %ul.nav.nav-tabs
-    %li.active
-      %a{href: '#overview', data-toggle:'tab'}
-        -trans "Overview"
-
-    %li
-      %a{href: '#analytics', data-toggle:'tab'}
-        -trans "Analytics"
-
-    %li
-      %a{href: '#runs', data-toggle:'tab'}
-        -trans "Runs"
-
-  .tab-content
-    #overview.tab-pane.active
-      .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
-        %i.fa.fa-spinner.fa-spin.fa-2x
+  %temba-dialog#confirm-run-delete(header='{{ _("Delete Run")|escapejs }}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+    .p-6
+      -trans "Deleting this run will remove it from your flow's results. While the messages for the contact will remain, any record of this flow run will be gone forever."
     
-    #analytics.tab-pane
-      #category-charts
+  .bg-white.p-4.rounded-lg
+    %ul.nav.nav-tabs.mb-0
+      %li.active
+        %a{href: '#overview', data-toggle:'tab'}
+          -trans "Overview"
 
-    #runs.tab-pane
-      .scroll-x
-        .responded-checkbox
-          .runs-show#show-all-runs{
-                                      ic-get-from:"/flow/run_table/{{object.id}}/",
-                                      ic-on-beforeSend:'$("#results_run_table").empty();',
-                                      ic-on-beforeTrigger: 'localStorage.setItem("responded", "false");',
-                                      ic-trigger-on:"click",
-                                      ic-target:"#results_run_table",
-                                      ic-indicator:"#indicator"}
-            -trans "All"
-          .runs-show-sep
-            |
-          .runs-show.active{
-                                      ic-get-from:"/flow/run_table/{{object.id}}/",
-                                      ic-on-beforeSend:'$("#results_run_table").empty();',
-                                      ic-on-beforeTrigger: 'localStorage.setItem("responded", "true");',
-                                      ic-trigger-on:"click",
-                                      ic-target:"#results_run_table",
-                                      ic-indicator:"#indicator"}
-            -trans "Responded"
-            
-          .add-columns.select
-            .selection
-              %input#columns{type:'hidden', style:'width:150px'}
+      %li
+        %a{href: '#analytics', data-toggle:'tab'}
+          -trans "Analytics"
 
-        %table
-          %tr
-            %td.header.started
-              .details
-                .text{style:"margin-left:10px;"}
-                  -trans "Last Activity"
-            %td.header
-              .details
-                .text
-                  -trans "Contact"
+      %li
+        %a{href: '#runs', data-toggle:'tab', onclick:"updateColumnSelect();"}
+          -trans "Runs"
 
-            -for result_field in result_fields
-              %td.header
-                .details{ onclick: 'toggleValue({{forloop.counter0}});'}
-                  .icons
-                    .icon-tree-2.category
-                    .icon-bubble-2.text
-                  {{result_field.name}}
-                .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
+    .tab-content
+      #overview.tab-pane.active.py-4
+        .text-center{ic-get-from:'/flow/activity_chart/{{object.id}}', ic-trigger-on:'load'}
+          %i.fa.fa-spinner.fa-spin.fa-2x
+      
+      #analytics.tab-pane
+        #category-charts
 
-          %tbody{id:"results_run_table"}
-            %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator"}
+      #runs.tab-pane
+        .scroll-x
+          .responded-checkbox.flex.items-center.py-3.w-full
+            .runs-show#show-all-runs{
+                                        ic-get-from:"/flow/run_table/{{object.id}}/",
+                                        ic-on-beforeSend:'$("#results_run_table").empty();',
+                                        ic-on-beforeTrigger: 'localStorage.setItem("responded", "false");',
+                                        ic-trigger-on:"click",
+                                        ic-target:"#results_run_table",
+                                        ic-indicator:"#indicator"}
+              -trans "All"
+            .runs-show-sep
+              |
+            .runs-show.active{
+                                        ic-get-from:"/flow/run_table/{{object.id}}/",
+                                        ic-on-beforeSend:'$("#results_run_table").empty();',
+                                        ic-on-beforeTrigger: 'localStorage.setItem("responded", "true");',
+                                        ic-trigger-on:"click",
+                                        ic-target:"#results_run_table",
+                                        ic-indicator:"#indicator"}
+              -trans "Responded"
+              
+            .flex-grow
+            .add-columns.select.flex-grow.pl-12.pr-4
+              .selection
+                %temba-select#select-columns(searchable="true" onchange="handleColumnSelection(this)" placeholder='{{_("More Columns")|escapejs}}')
+
+          %table
+            %thead
+              %tr
+                %td.header.started
+                  .details
+                    .text{style:"margin-left:10px;"}
+                      -trans "Last Activity"
+                %td.header
+                  .details
+                    .text
+                      -trans "Contact"
+
+                -for result_field in result_fields
+                  %td.header
+                    .details{ onclick: 'toggleValue({{forloop.counter0}});'}
+                      .icons
+                        .icon-flow.category
+                        .icon-bubble-2.text
+                      {{result_field.name}}
+                    .remove.icon-close{ onclick: 'hideColumn({{forloop.counter0}});' }
+
+            %tbody{id:"results_run_table"}
+              %tr{ic-append-from:"/flow/run_table/{{object.id}}", ic-trigger-on:"load", ic-target:"#results_run_table", ic-indicator:"#indicator"}
 
   #indicator{style:"display:none"}
     .loader

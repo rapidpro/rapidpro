@@ -1,6 +1,6 @@
 from django.utils.translation import ugettext_lazy as _
 
-from temba.contacts.models import DISCORD_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 from .views import ClaimView
@@ -24,7 +24,7 @@ class DiscordType(ChannelType):
     claim_blurb = _("""A channel type that allows you to use the Discord proxy TODO link""")
     claim_view = ClaimView
 
-    schemes = [DISCORD_SCHEME]
+    schemes = [URN.DISCORD_SCHEME]
     max_length = 1600
     attachment_support = True
     free_sending = True

@@ -2,12 +2,55 @@ import logging
 
 from django import forms
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect
+from django.urls import reverse
+from django.utils import timezone
+from django.utils.http import urlquote
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
+from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
+
 logger = logging.getLogger(__name__)
+
+
+class ComponentFormMixin(View):
+    """
+    Mixin to replace form field controls with component based widgets
+    """
+
+    def customize_form_field(self, name, field):
+        attrs = field.widget.attrs if field.widget.attrs else {}
+
+        # don't replace the widget if it is already one of us
+        if isinstance(
+            field.widget, (forms.widgets.HiddenInput, CheckboxWidget, InputWidget, SelectWidget, SelectMultipleWidget)
+        ):
+            return field
+
+        if isinstance(field.widget, (forms.widgets.Textarea,)):
+            attrs["textarea"] = True
+            field.widget = InputWidget(attrs=attrs)
+        elif isinstance(field.widget, (forms.widgets.PasswordInput,)):  # pragma: needs cover
+            attrs["password"] = True
+            field.widget = InputWidget(attrs=attrs)
+        elif isinstance(
+            field.widget,
+            (forms.widgets.TextInput, forms.widgets.EmailInput, forms.widgets.URLInput, forms.widgets.NumberInput),
+        ):
+            field.widget = InputWidget(attrs=attrs)
+        elif isinstance(field.widget, (forms.widgets.Select,)):
+            if isinstance(field, (forms.models.ModelMultipleChoiceField,)):
+                field.widget = SelectMultipleWidget(attrs)  # pragma: needs cover
+            else:
+                field.widget = SelectWidget(attrs)
+
+            field.widget.choices = field.choices
+        elif isinstance(field.widget, (forms.widgets.CheckboxInput,)):
+            field.widget = CheckboxWidget(attrs)
+
+        return field
 
 
 class PostOnlyMixin(View):
@@ -42,7 +85,8 @@ class BulkActionMixin:
             super().__init__(*args, **kwargs)
 
             self.fields["action"] = forms.ChoiceField(choices=[(a, a) for a in actions], required=True)
-            self.fields["objects"] = forms.ModelMultipleChoiceField(queryset=queryset, required=True)
+            self.fields["objects"] = forms.ModelMultipleChoiceField(queryset=queryset, required=False)
+            self.fields["all"] = forms.BooleanField(required=False)
 
             if label_queryset:
                 self.fields["label"] = forms.ModelChoiceField(label_queryset, required=False)
@@ -69,17 +113,24 @@ class BulkActionMixin:
         user = self.get_user()
         org = user.get_org()
         form = BulkActionMixin.Form(
-            self.get_bulk_actions(), self.get_queryset(), self.get_bulk_action_labels(), data=self.request.POST,
+            self.get_bulk_actions(), self.get_queryset(), self.get_bulk_action_labels(), data=self.request.POST
         )
         action_error = None
 
         if form.is_valid():
             action = form.cleaned_data["action"]
             objects = form.cleaned_data["objects"]
+            all_objects = form.cleaned_data["all"]
             label = form.cleaned_data.get("label")
 
-            # convert objects queryset to one based only on org + ids
-            objects = self.model._default_manager.filter(org=org, id__in=[o.id for o in objects])
+            if all_objects:
+                objects = self.get_queryset()
+            else:
+                objects_ids = [o.id for o in objects]
+                self.kwargs["bulk_action_ids"] = objects_ids  # include in kwargs so is accessible in get call below
+
+                # convert objects queryset to one based only on org + ids
+                objects = self.model._default_manager.filter(org=org, id__in=objects_ids)
 
             # check we have the required permission for this action
             permission = self.get_bulk_action_permission(action)
@@ -137,6 +188,24 @@ class BulkActionMixin:
         args = [label] if label else []
 
         model_func(user, objects, *args)
+
+
+class RequireRecentAuthMixin:
+    """
+    Mixin that redirects the user to a authentication page if they haven't authenticated recently.
+    """
+
+    recent_auth_seconds = 10 * 60
+    recent_auth_includes_formax = False
+
+    def pre_process(self, request, *args, **kwargs):
+        is_formax = "HTTP_X_FORMAX" in request.META
+        if not is_formax or self.recent_auth_includes_formax:
+            last_auth_on = request.user.get_settings().last_auth_on
+            if not last_auth_on or (timezone.now() - last_auth_on).total_seconds() > self.recent_auth_seconds:
+                return HttpResponseRedirect(reverse("users.confirm_access") + f"?next={urlquote(request.path)}")
+
+        return super().pre_process(request, *args, **kwargs)
 
 
 class ExternalURLHandler(View):

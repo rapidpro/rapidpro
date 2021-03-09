@@ -69,3 +69,12 @@ class Datetime(MatcherMixin, datetime):
 
     def __eq__(self, other):
         return isinstance(other, datetime)
+
+
+class Int(MatcherMixin, int):
+    """
+    Matches any int
+    """
+
+    def __eq__(self, other):
+        return isinstance(other, int)

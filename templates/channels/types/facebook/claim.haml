@@ -1,39 +1,26 @@
 -extends "channels/channel_claim_form.html"
 -load i18n compress temba
 
--block title
-  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
-
-  %h2.font_normalize.header-margin
-    {{ title }}
-
 -block pre-form
-  .info
-    %p
-      -blocktrans with name=brand.name
-        In order to connect your Facebook page to {{ name }} you will need to
-        <a href="https://developer.facebook.com/">create a new Facebook application</a> that
-        has messaging permissions.
+  -blocktrans trimmed with name=brand.name
+    In order to connect your Facebook page to {{ name }} you will need to
+    <a href="https://developer.facebook.com/">create a new Facebook application</a> that
+    has messaging permissions.
 
-    %p
-      -blocktrans
-        On the Messenger section of your application, you can create a Page Access Token for the page you wish
-        to connect. Enter that Page Access Token below.
+  .mt-2
+    -blocktrans trimmed
+      On the Messenger section of your application, you can create a Page Access Token for the page you wish
+      to connect. Enter that Page Access Token below.
+    -blocktrans trimmed
+      To get your Facebook Page ID, go to your Facebook page and click the About tab in the left column.
+    -blocktrans trimmed
+      Until your Facebook application is approved by Facebook you will only be able to send and receive messages
+      with administrators of your application.
 
-    %p
-      -blocktrans
-        To get your Facebook Page ID, go to your Facebook page and click the About tab in the left column.
-
-    .important
-      %p
-        -blocktrans
-          Until your Facebook application is approved by Facebook you will only be able to send and receive messages
-          with administrators of your application.
-
-      %p
-        -blocktrans
-          When submitting your application for approval, make sure to include the <code>pages_messaging</code>
-          and <code>pages_messaging_subscriptions</code> permissions so that you are able to initiate conversations with your contacts.
+  .mt-4.card
+    -blocktrans trimmed with subscriptions='<div class="code inline py-1 px-2">pages_messaging_subscriptions</div>' messaging='<div class="code inline py-1 px-2">pages_messaging</div>'
+      When submitting your application for approval, make sure to include the {{messaging}}
+      and {{subscriptions}} permissions so that you are able to initiate conversations with your contacts.
 
 -block extra-style
   {{ block.super }}

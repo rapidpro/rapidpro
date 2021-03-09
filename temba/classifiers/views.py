@@ -8,16 +8,17 @@ from smartmin.views import (
 )
 
 from django.contrib import messages
-from django.http import HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.utils.views import ComponentFormMixin
 
 from .models import Classifier
 
 
-class BaseConnectView(OrgPermsMixin, SmartFormView):
+class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
     permission = "classifiers.classifier_connect"
     classifier_type = None
 
@@ -52,7 +53,13 @@ class ClassifierCRUDL(SmartCRUDL):
         cancel_url = "uuid@classifiers.classifier_read"
         title = _("Delete Classifier")
         success_message = ""
+        submit_button_name = _("Delete")
         fields = ("uuid",)
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["used_by_flows"] = self.get_object().dependent_flows.all()[:5]
+            return context
 
         def get_success_url(self):
             return reverse("orgs.org_home")
@@ -62,14 +69,17 @@ class ClassifierCRUDL(SmartCRUDL):
             classifier.release()
 
             messages.info(request, _("Your classifier has been deleted."))
-            return HttpResponseRedirect(self.get_success_url())
+            response = HttpResponse()
+            response["Temba-Success"] = self.get_success_url()
+            return response
 
     class Read(OrgObjPermsMixin, SmartReadView):
         slug_url_kwarg = "uuid"
         exclude = ("id", "is_active", "created_by", "modified_by", "modified_on")
 
         def get_gear_links(self):
-            links = []
+            links = [dict(title=_("Log"), href=reverse("request_logs.httplog_classifier", args=[self.object.uuid]))]
+
             if self.has_org_perm("classifiers.classifier_sync"):
                 links.append(
                     dict(
@@ -80,7 +90,14 @@ class ClassifierCRUDL(SmartCRUDL):
                     )
                 )
             if self.has_org_perm("classifiers.classifier_delete"):
-                links.append(dict(title=_("Delete"), js_class="delete-classifier", href="#"))
+                links.append(
+                    dict(
+                        id="ticketer-delete",
+                        title=_("Delete"),
+                        modax=_("Delete Classifier"),
+                        href=reverse("classifiers.classifier_delete", args=[self.object.uuid]),
+                    )
+                )
 
             return links
 
@@ -98,7 +115,7 @@ class ClassifierCRUDL(SmartCRUDL):
 
             try:
                 self.object.sync()
-                messages.info(self.request, _("Your classifier has been synched."))
+                messages.info(self.request, _("Your classifier has been synced."))
             except Exception:
                 messages.error(self.request, _("Unable to sync classifier. See the log for details."))
 

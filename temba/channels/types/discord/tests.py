@@ -88,9 +88,9 @@ class DiscordTypeTest(TembaTest):
             response.context["form"].errors["auth_token"][0],
         )
 
-        contact = self.create_contact("Discord User", urn=URN.from_discord("750841288886321253"))
+        contact = self.create_contact("Discord User", urns=[URN.from_discord("750841288886321253")])
 
-        # make sure we our telegram channel satisfies as a send channel
+        # make sure we our discord channel satisfies as a send channel
         response = self.client.get(reverse("contacts.contact_read", args=[contact.uuid]))
         send_channel = response.context["send_channel"]
         self.assertIsNotNone(send_channel)

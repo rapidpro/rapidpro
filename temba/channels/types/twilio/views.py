@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.models import Org
+from temba.utils.fields import SelectWidget
 from temba.utils.timezones import timezone_to_country_code
 from temba.utils.uuid import uuid4
 
@@ -25,7 +26,7 @@ from ...views import (
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
-        country = forms.ChoiceField(choices=ALL_COUNTRIES)
+        country = forms.ChoiceField(choices=ALL_COUNTRIES, widget=SelectWidget(attrs={"searchable": True}))
         phone_number = forms.CharField(help_text=_("The phone number being added"))
 
         def clean_phone_number(self):
@@ -50,10 +51,12 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         try:
             self.client = org.get_twilio_client()
             if not self.client:
-                return HttpResponseRedirect(reverse("orgs.org_twilio_connect"))
+                return HttpResponseRedirect(
+                    f'{reverse("orgs.org_twilio_connect")}?claim_type={self.channel_type.slug}'
+                )
             self.account = self.client.api.account.fetch()
         except TwilioRestException:
-            return HttpResponseRedirect(reverse("orgs.org_twilio_connect"))
+            return HttpResponseRedirect(f'{reverse("orgs.org_twilio_connect")}?claim_type={self.channel_type.slug}')
 
     def get_search_countries_tuple(self):
         return TWILIO_SEARCH_COUNTRIES
@@ -168,6 +171,12 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
                 phonenumbers.parse(phone_number, None), phonenumbers.PhoneNumberFormat.NATIONAL
             )
 
+            role = ""
+            if twilio_phone.capabilities.get("voice", False):
+                role += Channel.ROLE_CALL + Channel.ROLE_ANSWER
+            if twilio_phone.capabilities.get("sms", False):
+                role += Channel.ROLE_SEND + Channel.ROLE_RECEIVE
+
             number_sid = twilio_phone.sid
 
         org_config = org.config
@@ -183,7 +192,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             org,
             user,
             country,
-            "T",
+            self.channel_type,
             name=phone,
             address=phone_number,
             role=role,

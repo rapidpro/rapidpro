@@ -9,7 +9,7 @@ from temba.contacts.models import URN
 from temba.orgs.views import OrgPermsMixin
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import TemplateTranslation
-from temba.utils.fields import ExternalURLField
+from temba.utils.fields import ExternalURLField, SelectWidget
 from temba.utils.views import PostOnlyMixin
 
 from ...models import Channel
@@ -110,7 +110,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
         number = forms.CharField(help_text=_("Your enterprise WhatsApp number"))
         country = forms.ChoiceField(
-            choices=ALL_COUNTRIES, label=_("Country"), help_text=_("The country this phone number is used in")
+            widget=SelectWidget(attrs={"searchable": True}),
+            choices=ALL_COUNTRIES,
+            label=_("Country"),
+            help_text=_("The country this phone number is used in"),
         )
         base_url = ExternalURLField(help_text=_("The base URL for your WhatsApp enterprise installation"))
         username = forms.CharField(
@@ -138,10 +141,11 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         def clean(self):
             # first check that our phone number looks sane
-            number, valid = URN.normalize_number(self.cleaned_data["number"], self.cleaned_data["country"])
-            if not valid:
+            country = self.cleaned_data["country"]
+            normalized = URN.normalize_number(self.cleaned_data["number"], country)
+            if not URN.validate(URN.from_parts(URN.TEL_SCHEME, normalized), country):
                 raise forms.ValidationError(_("Please enter a valid phone number"))
-            self.cleaned_data["number"] = number
+            self.cleaned_data["number"] = normalized
 
             try:
                 resp = requests.post(
@@ -191,9 +195,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         user = self.request.user
         org = user.get_org()
 
-        if not org:  # pragma: no cover
-            raise Exception(_("No org for this user, cannot claim"))
-
         data = form.cleaned_data
 
         config = {
@@ -211,7 +212,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             org,
             user,
             data["country"],
-            "WA",
+            self.channel_type,
             name="WhatsApp: %s" % data["number"],
             address=data["number"],
             config=config,

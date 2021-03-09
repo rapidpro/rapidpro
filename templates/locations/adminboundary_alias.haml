@@ -1,23 +1,28 @@
 -extends "smartmin/read.haml"
 
 -load compress i18n
--block page-top
--block content
 
-  :css  
-    .details {
-      margin-bottom: 30px;
+-block extra-style
+  {{block.super}}
+  :css
+    .page-content {
+      align-self: auto;
+      max-width: 100%;
     }
 
-  #editor
-    .details
-      %h3
-        -blocktrans with name=object.name
-          Aliases for {{ name }}
-      %h5
-        -blocktrans with brand=brand.name
-          Often certain regions are known by more than one name. In {{ brand }}, we call these alternate names for
-          regions, aliases.
+    alias-editor {
+      --textarea-height: 130px;
+    }
 
-    <alias-editor endpoint="/adminboundary/" osmid="{{ object.osm_id }}"></alias-editor>
+-block title
+  -blocktrans trimmed with name=object.name
+    Aliases for {{ name }}
+
+-block content
+  .my-4
+    -blocktrans trimmed with brand=brand.name
+      Often certain regions are known by more than one name. In {{ brand }}, we call these alternate names for
+      regions, aliases.
+    
+  <alias-editor endpoint="/adminboundary/" osmid="{{ object.osm_id }}"></alias-editor>
 

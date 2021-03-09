@@ -1,15 +1,14 @@
 import copy
 import datetime
+import io
 import os
 from collections import OrderedDict
 from decimal import Decimal
-from io import StringIO
 from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import intercom.errors
-import iso8601
 import pycountry
 import pytz
 from django_redis import get_redis_connection
@@ -24,7 +23,7 @@ from django.db import connection, models
 from django.forms import ValidationError
 from django.test import TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import timezone, translation
 
 from celery.app.task import Task
 
@@ -51,13 +50,12 @@ from .celery import nonoverlapping_task
 from .currencies import currency_for_country
 from .dates import (
     date_to_day_range_utc,
-    datetime_to_epoch,
-    datetime_to_ms,
     datetime_to_str,
-    ms_to_datetime,
+    datetime_to_timestamp,
     str_to_date,
     str_to_datetime,
     str_to_time,
+    timestamp_to_datetime,
 )
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
@@ -66,8 +64,17 @@ from .gsm7 import calculate_num_segments, is_gsm7, replace_non_gsm7_accents
 from .http import http_headers
 from .locks import LockNotAcquiredException, NonBlockingLock
 from .models import IDSliceQuerySet, JSONAsTextField, patch_queryset_count
-from .templatetags.temba import short_datetime
-from .text import clean_string, decode_base64, generate_token, random_string, slugify_with, truncate, unsnakify
+from .templatetags.temba import oxford, short_datetime
+from .text import (
+    clean_string,
+    decode_base64,
+    decode_stream,
+    generate_token,
+    random_string,
+    slugify_with,
+    truncate,
+    unsnakify,
+)
 from .timezones import TimeZoneFormField, timezone_to_country_code
 
 
@@ -188,6 +195,13 @@ class InitTest(TembaTest):
         self.assertEqual(1000, len(rs))
         self.assertFalse("1" in rs or "I" in rs or "0" in rs or "O" in rs)
 
+    def test_decode_stream(self):
+        self.assertEqual("", decode_stream(io.BytesIO(b"")).read())
+        self.assertEqual("hello", decode_stream(io.BytesIO(b"hello")).read())
+        self.assertEqual("hello👋", decode_stream(io.BytesIO(b"hello\xf0\x9f\x91\x8b")).read())  # UTF-8
+        self.assertEqual("hello", decode_stream(io.BytesIO(b"\xff\xfeh\x00e\x00l\x00l\x00o\x00")).read())  # UTF-16
+        self.assertEqual("hèllo", decode_stream(io.BytesIO(b"h\xe8llo")).read())  # ISO8859-1
+
     def test_percentage(self):
         self.assertEqual(0, percentage(0, 100))
         self.assertEqual(0, percentage(0, 0))
@@ -223,15 +237,15 @@ class InitTest(TembaTest):
 
 
 class DatesTest(TembaTest):
-    def test_datetime_to_ms(self):
-        d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, tzinfo=pytz.utc)
-        self.assertEqual(datetime_to_ms(d1), 1_388_631_845_000)  # from http://unixtimestamp.50x.eu
-        self.assertEqual(ms_to_datetime(1_388_631_845_000), d1)
+    def test_datetime_to_timestamp(self):
+        d1 = datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_456, tzinfo=pytz.utc)
+        self.assertEqual(datetime_to_timestamp(d1), 1_388_631_845_123_456)  # from http://unixtimestamp.50x.eu
+        self.assertEqual(timestamp_to_datetime(1_388_631_845_123_456), d1)
 
         tz = pytz.timezone("Africa/Kigali")
-        d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5))
-        self.assertEqual(datetime_to_ms(d2), 1_388_624_645_000)
-        self.assertEqual(ms_to_datetime(1_388_624_645_000), d2.astimezone(pytz.utc))
+        d2 = tz.localize(datetime.datetime(2014, 1, 2, 3, 4, 5, microsecond=123_456))
+        self.assertEqual(datetime_to_timestamp(d2), 1_388_624_645_123_456)
+        self.assertEqual(timestamp_to_datetime(1_388_624_645_123_456), d2.astimezone(pytz.utc))
 
     def test_datetime_to_str(self):
         tz = pytz.timezone("Africa/Kigali")
@@ -240,10 +254,6 @@ class DatesTest(TembaTest):
         self.assertIsNone(datetime_to_str(None, "%Y-%m-%d %H:%M", tz=tz))
         self.assertEqual(datetime_to_str(d2, "%Y-%m-%d %H:%M", tz=tz), "2014-01-02 03:04")
         self.assertEqual(datetime_to_str(d2, "%Y/%m/%d %H:%M", tz=pytz.UTC), "2014/01/02 01:04")
-
-    def test_datetime_to_epoch(self):
-        dt = iso8601.parse_date("2014-01-02T01:04:05.000Z")
-        self.assertEqual(1_388_624_645, datetime_to_epoch(dt))
 
     def test_str_to_date(self):
         self.assertIsNone(str_to_date(""))
@@ -471,9 +481,9 @@ class TemplateTagTest(TembaTest):
             org=self.org, keyword="trigger", flow=flow, created_by=self.admin, modified_by=self.admin
         )
 
-        self.assertEqual("icon-instant", icon(campaign))
+        self.assertEqual("icon-campaign", icon(campaign))
         self.assertEqual("icon-feed", icon(trigger))
-        self.assertEqual("icon-tree", icon(flow))
+        self.assertEqual("icon-flow", icon(flow))
         self.assertEqual("", icon(None))
 
     def test_format_datetime(self):
@@ -595,8 +605,6 @@ class TemplateTagTestSimple(TestCase):
         self.assertEqual("", delta_filter("Invalid"))
 
     def test_oxford(self):
-        from temba.utils.templatetags.temba import oxford
-
         def forloop(idx, total):
             """
             Creates a dict like that available inside a template tag
@@ -617,6 +625,16 @@ class TemplateTagTestSimple(TestCase):
         self.assertEqual(", ", oxford(forloop(1, 4)))
         self.assertEqual(", and ", oxford(forloop(2, 4)))
         self.assertEqual(".", oxford(forloop(3, 4), "."))
+
+        with translation.override("es"):
+            self.assertEqual(", ", oxford(forloop(0, 3)))
+            self.assertEqual(" y ", oxford(forloop(0, 2)))
+            self.assertEqual(", y ", oxford(forloop(1, 3)))
+
+        with translation.override("fr"):
+            self.assertEqual(", ", oxford(forloop(0, 3)))
+            self.assertEqual(" et ", oxford(forloop(0, 2)))
+            self.assertEqual(", et ", oxford(forloop(1, 3)))
 
     def test_to_json(self):
         from temba.utils.templatetags.temba import to_json
@@ -640,7 +658,7 @@ class TemplateTagTestSimple(TestCase):
 
 class CacheTest(TembaTest):
     def test_get_cacheable_result(self):
-        self.create_contact("Bob", number="1234")
+        self.create_contact("Bob", phone="1234")
 
         def calculate():
             return Contact.objects.all().count(), 60
@@ -650,7 +668,7 @@ class CacheTest(TembaTest):
         with self.assertNumQueries(0):
             self.assertEqual(get_cacheable_result("test_contact_count", calculate), 1)  # from cache
 
-        self.create_contact("Jim", number="2345")
+        self.create_contact("Jim", phone="2345")
 
         with self.assertNumQueries(0):
             self.assertEqual(get_cacheable_result("test_contact_count", calculate), 1)  # not updated
@@ -939,7 +957,7 @@ class GSM7Test(TembaTest):
 
 class ModelsTest(TembaTest):
     def test_require_update_fields(self):
-        contact = self.create_contact("Bob", twitter="bobby")
+        contact = self.create_contact("Bob", urns=["twitter:bobby"])
         flow = self.get_flow("color")
         run = FlowRun.objects.create(org=self.org, flow=flow, contact=contact)
 
@@ -969,8 +987,8 @@ class ModelsTest(TembaTest):
         self.assertEqual(curr, 100)
 
     def test_patch_queryset_count(self):
-        self.create_contact("Ann", twitter="ann")
-        self.create_contact("Bob", twitter="bob")
+        self.create_contact("Ann", urns=["twitter:ann"])
+        self.create_contact("Bob", urns=["twitter:bob"])
 
         with self.assertNumQueries(0):
             qs = Contact.objects.all()
@@ -1150,17 +1168,17 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
         )
         assertOrgCounts(ContactField.user_fields.all(), [6, 6, 6])
         assertOrgCounts(ContactGroup.user_groups.all(), [10, 10, 10])
-        assertOrgCounts(Contact.objects.all(), [12, 11, 7])
+        assertOrgCounts(Contact.objects.all(), [13, 13, 4])
 
-        org_1_all_contacts = ContactGroup.system_groups.get(org=org1, name="All Contacts")
+        org_1_active_contacts = ContactGroup.system_groups.get(org=org1, name="Active")
 
-        self.assertEqual(org_1_all_contacts.contacts.count(), 12)
+        self.assertEqual(org_1_active_contacts.contacts.count(), 12)
         self.assertEqual(
-            list(ContactGroupCount.objects.filter(group=org_1_all_contacts).values_list("count")), [(12,)]
+            list(ContactGroupCount.objects.filter(group=org_1_active_contacts).values_list("count")), [(12,)]
         )
 
         # same seed should generate objects with same UUIDs
-        self.assertEqual(ContactGroup.user_groups.order_by("id").first().uuid, "086dde0d-eb11-4413-aa44-6896fef91f7f")
+        self.assertEqual(ContactGroup.user_groups.order_by("id").first().uuid, "86f15ec5-3a37-431c-a891-f9f4ff519987")
 
         # check if contact fields are serialized
         self.assertIsNotNone(Contact.objects.first().fields)
@@ -1172,7 +1190,7 @@ class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
 
 class PreDeployTest(TembaTest):
     def test_command(self):
-        buffer = StringIO()
+        buffer = io.StringIO()
         call_command("pre_deploy", stdout=buffer)
 
         self.assertEqual("", buffer.getvalue())
@@ -1180,7 +1198,7 @@ class PreDeployTest(TembaTest):
         ExportContactsTask.create(self.org, self.admin)
         ExportContactsTask.create(self.org, self.admin)
 
-        buffer = StringIO()
+        buffer = io.StringIO()
         call_command("pre_deploy", stdout=buffer)
 
         self.assertEqual(
@@ -1304,7 +1322,7 @@ class TestJSONAsTextField(TestCase):
 
 class TestJSONField(TembaTest):
     def test_jsonfield_decimal_encoding(self):
-        contact = self.create_contact("Xavier", number="+5939790990001")
+        contact = self.create_contact("Xavier", phone="+5939790990001")
 
         with connection.cursor() as cur:
             cur.execute(
@@ -1389,7 +1407,10 @@ class NonBlockingLockTest(TestCase):
 class JSONTest(TestCase):
     def test_json(self):
         self.assertEqual(OrderedDict({"one": 1, "two": Decimal("0.2")}), json.loads('{"one": 1, "two": 0.2}'))
-        self.assertEqual('{"dt": "2018-08-27T20:41:28.123Z"}', json.dumps(dict(dt=ms_to_datetime(1_535_402_488_123))))
+        self.assertEqual(
+            '{"dt": "2018-08-27T20:41:28.123Z"}',
+            json.dumps({"dt": datetime.datetime(2018, 8, 27, 20, 41, 28, 123000, tzinfo=pytz.UTC)}),
+        )
 
 
 class AnalyticsTest(TestCase):
@@ -1672,14 +1693,19 @@ class AnalyticsTest(TestCase):
         )
 
 
-class IDSliceQuerySetTest(TestCase):
-    def test_query_set(self):
-        users = IDSliceQuerySet(User, [1], 0, 1)
-        self.assertEqual(1, users[0].id)
-        self.assertEqual(1, users[0:1][0].id)
+class IDSliceQuerySetTest(TembaTest):
+    def test_slicing(self):
+        empty = IDSliceQuerySet(User, [], 0, 0)
+        self.assertEqual(0, len(empty))
+
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], 0, 3)
+        self.assertEqual(self.user.id, users[0].id)
+        self.assertEqual(self.editor.id, users[0:3][1].id)
+        self.assertEqual(0, users.offset)
+        self.assertEqual(3, users.total)
 
         with self.assertRaises(IndexError):
-            users[2]
+            users[4]
 
         with self.assertRaises(IndexError):
             users[-1]
@@ -1690,9 +1716,9 @@ class IDSliceQuerySetTest(TestCase):
         with self.assertRaises(TypeError):
             users["foo"]
 
-        users = IDSliceQuerySet(User, [1], 10, 100)
-        self.assertEqual(1, users[10].id)
-        self.assertEqual(1, users[10:11][0].id)
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], 10, 100)
+        self.assertEqual(self.user.id, users[10].id)
+        self.assertEqual(self.user.id, users[10:11][0].id)
 
         with self.assertRaises(IndexError):
             users[0]
@@ -1700,8 +1726,34 @@ class IDSliceQuerySetTest(TestCase):
         with self.assertRaises(IndexError):
             users[11:15]
 
-        users = IDSliceQuerySet(User, [], 0, 0)
-        self.assertEqual(0, len(users))
+    def test_filter(self):
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id, self.admin.id], 10, 100)
+
+        filtered = users.filter(pk=self.user.id)
+        self.assertEqual(User, filtered.model)
+        self.assertEqual([self.user.id], filtered.ids)
+        self.assertEqual(0, filtered.offset)
+        self.assertEqual(1, filtered.total)
+
+        filtered = users.filter(pk__in=[self.user.id, self.admin.id])
+        self.assertEqual(User, filtered.model)
+        self.assertEqual([self.user.id, self.admin.id], filtered.ids)
+        self.assertEqual(0, filtered.offset)
+        self.assertEqual(2, filtered.total)
+
+        # pks can be strings
+        filtered = users.filter(pk=str(self.user.id))
+        self.assertEqual([self.user.id], filtered.ids)
+
+        # only filtering by pk is supported
+        with self.assertRaises(ValueError):
+            users.filter(name="Bob")
+
+    def test_none(self):
+        users = IDSliceQuerySet(User, [self.user.id, self.editor.id], 0, 2)
+        empty = users.none()
+        self.assertEqual([], empty.ids)
+        self.assertEqual(0, empty.total)
 
 
 class RedactTest(TestCase):
@@ -1838,30 +1890,31 @@ class RedactTest(TestCase):
 class TestValidators(TestCase):
     def test_validate_external_url(self):
         cases = (
-            dict(url="ftp://localhost/foo", error="must be http or https scheme"),
-            dict(url="http://localhost/foo", error="cannot be localhost"),
-            dict(url="http://localhost:80/foo", error="cannot be localhost"),
-            dict(url="https://localhost/foo", error="cannot be localhost"),
-            dict(url="http://127.0.00.1/foo", error="cannot be localhost"),
-            dict(url="http://::1:80/foo", error="host cannot be resolved"),  # no ipv6 addresses for now
+            dict(url="ftp://google.com", error="Must use HTTP or HTTPS."),
+            dict(url="http://localhost/foo", error="Cannot be a local or private host."),
+            dict(url="http://localhost:80/foo", error="Cannot be a local or private host."),
+            dict(url="http://127.0.00.1/foo", error="Cannot be a local or private host."),  # loop back
+            dict(url="http://192.168.0.0/foo", error="Cannot be a local or private host."),  # private
+            dict(url="http://255.255.255.255", error="Cannot be a local or private host."),  # multicast
+            dict(url="http://169.254.169.254/latest", error="Cannot be a local or private host."),  # link local
+            dict(url="http://::1:80/foo", error="Unable to resolve host."),  # no ipv6 addresses for now
             dict(url="http://google.com/foo", error=None),
             dict(url="http://google.com:8000/foo", error=None),
             dict(url="HTTP://google.com:8000/foo", error=None),
+            dict(url="HTTP://8.8.8.8/foo", error=None),
         )
 
-        for case in cases:
-            if not case["error"]:
-                try:
-                    validate_external_url(case["url"])
-                except Exception as e:
-                    self.assertIsNone(e)
-
-            else:
+        for tc in cases:
+            if tc["error"]:
                 with self.assertRaises(ValidationError) as cm:
-                    cm.expected.__name__ = f'ValueError for {case["url"]}'
-                    validate_external_url(case["url"])
+                    validate_external_url(tc["url"])
 
-                self.assertTrue(case["error"] in str(cm.exception), f"{case['error']} not in {cm.exception}")
+                self.assertEqual(tc["error"], cm.exception.message)
+            else:
+                try:
+                    validate_external_url(tc["url"])
+                except Exception:
+                    self.fail(f"unexpected validation error for URL '{tc['url']}'")
 
 
 class TestUUIDs(TembaTest):

@@ -39,7 +39,7 @@
             {% if current_label.dependent_flows.count == 0 %}
               -trans "Once it is removed, it will be gone forever. There is no way to undo this operation."
             {% else %}
-              {% blocktrans count num_flows=current_label.dependent_flows.count %}
+              {% blocktrans trimmed count num_flows=current_label.dependent_flows.count %}
               Used by {{num_flows}} flow:
               {% plural %}
               Used by {{num_flows}} flows:
@@ -54,59 +54,3 @@
             {% endif %}
 
       %a#delete-form.posterize{href:'{% url "msgs.label_delete" current_label.pk %}'}
-
--block extra-script
-  {{ block.super }}
-
-  :javascript
-    {% if org_perms.msgs.label_delete %}
-    $(".remove-label").live('click', function(){
-      modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
-      modal.addClass('alert');
-
-      {% if current_label.dependent_flows.count == 0 %}
-          modal.setListeners({onPrimary: function(){
-            $('#delete-form').click();
-          }}, false);
-          modal.setPrimaryButton('{{ _("Remove")|escapejs }}');
-
-      {% else %}
-          modal.setListeners({onPrimary: function(){
-            modal.dismiss();
-          }}, false);
-          modal.setPrimaryButton('{{ _("Ok")|escapejs }}');
-      {% endif %}
-
-      modal.show();
-      });
-    {% endif %}
-
-    {% if org_perms.msgs.label_update %}
-    $(".page-content").on('click', ".label-update-btn", function() {
-      var modal = new Modax('{{ _("Update Label")|escapejs }}', '{% url "msgs.label_update" current_label.pk %}')
-      modal.setIcon('icon-tag');
-      modal.setListeners({
-        onFormLoaded: function(){
-          // convert folder select to select2 or hide if there are no folders
-          if ($('#id_folder').find('option').length > 1) {
-            select2div('#id_folder');
-          } else {
-            $('#id_folder').parents('.control-group').hide();
-          }
-        },
-        onSuccess: function() { location.reload(); }
-      });
-
-      modal.show();
-    });
-
-    $(".page-content").on('click', ".folder-update-btn", function() {
-      var modal = new Modax('{{ _("Update Folder")|escapejs }}', '{% url "msgs.label_update" current_label.pk %}')
-      modal.setIcon('icon-folder');
-      modal.setListeners({
-        onSuccess: function() { location.reload(); }
-      });
-
-      modal.show();
-    });
-    {% endif %}

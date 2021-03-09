@@ -1,7 +1,7 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.views import AuthenticatedExternalClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 
@@ -16,15 +16,15 @@ class RedRabbitType(ChannelType):
 
     name = "Red Rabbit"
 
-    claim_blurb = _(
-        """Easily add a two way number you have configured with <a href="http://www.redrabbitsms.com/">Red Rabbit</a> using their APIs."""
-    )
+    claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
+        "link": '<a href="http://www.redrabbitsms.com/">Red Rabbit</a>'
+    }
 
     claim_view = AuthenticatedExternalClaimView
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 1600
     attachment_support = False
 
     def is_available_to(self, user):
-        return False  # Hidden since it is MT only
+        return False, False  # Hidden since it is MT only

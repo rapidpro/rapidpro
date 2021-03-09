@@ -33,6 +33,8 @@ class BatchTask(Enum):
     SEND_BROADCAST = "send_broadcast"
     INTERRUPT_SESSIONS = "interrupt_sessions"
     POPULATE_DYNAMIC_GROUP = "populate_dynamic_group"
+    SCHEDULE_CAMPAIGN_EVENT = "schedule_campaign_event"
+    IMPORT_CONTACT_BATCH = "import_contact_batch"
 
 
 def queue_msg_handling(msg):
@@ -51,7 +53,7 @@ def queue_msg_handling(msg):
         "urn_id": msg.contact_urn_id,
         "text": msg.text,
         "attachments": msg.attachments,
-        "new_contact": getattr(msg.contact, "is_new", False),
+        "new_contact": False,  # only used by courier
     }
 
     _queue_handler_task(msg.org_id, msg.contact_id, ContactEvent.MSG, msg_task)
@@ -68,10 +70,10 @@ def queue_mo_miss_event(event):
         "org_id": event.org_id,
         "channel_id": event.channel_id,
         "contact_id": event.contact_id,
-        "urn": str(event.contact_urn),
         "urn_id": event.contact_urn_id,
         "extra": event.extra,
-        "new_contact": getattr(event.contact, "is_new", False),
+        "occurred_on": event.occurred_on,
+        "new_contact": False,  # only used by courier
     }
 
     _queue_handler_task(event.org_id, event.contact_id, ContactEvent.MO_MISS, event_task)
@@ -86,7 +88,7 @@ def queue_broadcast(broadcast):
         "translations": {lang: {"text": text} for lang, text in broadcast.text.items()},
         "template_state": broadcast.get_template_state(),
         "base_language": broadcast.base_language,
-        "urns": [u.urn for u in broadcast.urns.all()],
+        "urns": broadcast.raw_urns or [],
         "contact_ids": list(broadcast.contacts.values_list("id", flat=True)),
         "group_ids": list(broadcast.groups.values_list("id", flat=True)),
         "broadcast_id": broadcast.id,
@@ -105,6 +107,17 @@ def queue_populate_dynamic_group(group):
     _queue_batch_task(group.org_id, BatchTask.POPULATE_DYNAMIC_GROUP, task, HIGH_PRIORITY)
 
 
+def queue_schedule_campaign_event(event):
+    """
+    Queues a task to schedule a new campaign event for all contacts in the campaign
+    """
+
+    org_id = event.campaign.org_id
+    task = {"org_id": org_id, "campaign_event_id": event.id}
+
+    _queue_batch_task(org_id, BatchTask.SCHEDULE_CAMPAIGN_EVENT, task, HIGH_PRIORITY)
+
+
 def queue_flow_start(start):
     """
     Queues the passed in flow start for starting by mailroom
@@ -121,6 +134,7 @@ def queue_flow_start(start):
         "flow_type": start.flow.flow_type,
         "contact_ids": list(start.contacts.values_list("id", flat=True)),
         "group_ids": list(start.groups.values_list("id", flat=True)),
+        "urns": start.urns or [],
         "query": start.query,
         "restart_participants": start.restart_participants,
         "include_active": start.include_active,
@@ -128,6 +142,16 @@ def queue_flow_start(start):
     }
 
     _queue_batch_task(org_id, BatchTask.START_FLOW, task, HIGH_PRIORITY)
+
+
+def queue_contact_import_batch(batch):
+    """
+    Queues a task to import a batch of contacts
+    """
+
+    task = {"contact_import_batch_id": batch.id}
+
+    _queue_batch_task(batch.contact_import.org.id, BatchTask.IMPORT_CONTACT_BATCH, task, DEFAULT_PRIORITY)
 
 
 def queue_interrupt(org, *, contacts=None, channel=None, flow=None, session=None):

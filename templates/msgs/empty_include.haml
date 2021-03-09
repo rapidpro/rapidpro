@@ -1,21 +1,17 @@
 -load i18n
 
-.span3
-  #big-help.glyph.icon-download
-                
-.span5
-  %h2
+.flex.flex-col.p-12
+  .page-title            
     -trans "Your Message Hub"
+    
+  .mt-2
+    -blocktrans trimmed with name=brand.name
+      This message pane lets you keep track of everything coming in and out of {{name}}.  As you send and receive messages, they will be listed here.
 
-  #little-help
-    %p
-      -blocktrans with name=brand.name
-        This message pane lets you keep track of everything coming in and out of {{name}}.  As you send and receive messages, they will be listed here.
+  .mt-2
+    -blocktrans trimmed with name=brand.name
+      Just like your email, {{name}} lets you view, label and archive messages as you receive them.  {{name}} uses labels to classify responses, so you can view and manage those messages here.  You can also create your own labels to keep track of topical messages as you receive them.
 
-    %p
-      -blocktrans with name=brand.name
-        Just like your email, {{name}} lets you view, label and archive messages as you receive them.  {{name}} uses labels to classify responses, so you can view and manage those messages here.  You can also create your own labels to keep track of topical messages as you receive them.
-
-    %p
-      -blocktrans with name=brand.name
-        {{name}} also keeps track of calls that are received on your channel so you can return any calls which may have been made to it.
+  .mt-2
+    -blocktrans trimmed with name=brand.name
+      {{name}} also keeps track of calls that are received on your channel so you can return any calls which may have been made to it.

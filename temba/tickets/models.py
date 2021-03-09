@@ -36,9 +36,9 @@ class TicketerType(metaclass=ABCMeta):
     # the view that handles connection of a new service
     connect_view = None
 
-    def is_available(self):
+    def is_available_to(self, user):
         """
-        Determines whether this ticketer type is available
+        Determines whether this ticketer type is available to the given user
         """
         return True  # pragma: no cover
 
@@ -82,7 +82,7 @@ class Ticketer(SmartModel):
     config = JSONField()
 
     @classmethod
-    def create(cls, org, user, ticketer_type, name, config):
+    def create(cls, org, user, ticketer_type: str, name: str, config: dict):
         return cls.objects.create(
             uuid=uuid4(),
             ticketer_type=ticketer_type,

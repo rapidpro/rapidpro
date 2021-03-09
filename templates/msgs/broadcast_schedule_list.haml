@@ -9,33 +9,34 @@
 -block action-buttons
 
 -block message-list
-  %table.list-table.sms_list.list_rsms_message.table.table-condensed{style: '{% if not org_perms.msgs.broadcast_send %}margin-top:10px{% endif %}'}
-    %tbody
-      -for object in object_list
-        %tr.select-row{class:'{% cycle row1 row1 %}', onClick:'document.location="{% url "msgs.broadcast_schedule_read" object.id %}"'}
+  .mt-4
+    %table.list.lined.w-full
+      %tbody
+        -for object in object_list
+          %tr.select-row.cursor-pointer{class:'{% cycle row1 row1 %}', onclick:'document.location="{% url "msgs.broadcast_schedule_read" object.id %}"'}
 
-          %td.value-contacts.field_phone
-            -with recipient_counts=object.get_recipient_counts
-              -if recipient_counts.recipients > 0
-                -blocktrans with count_comma=recipient_counts.recipients|intcomma count counter=recipient_counts.recipients
-                  {{ count_comma }} recipient
-                  -plural
-                    {{ count_comma }} recipients
-              -else
-                -blocktrans with group_count=recipient_counts.groups contact_count=recipient_counts.contacts urn_count=recipient_counts.urns
-                  {{ group_count }} groups, {{ contact_count }} contacts, {{ urn_count }} urns
+            %td.value-contacts.field_phone
+              -with recipient_counts=object.get_recipient_counts
+                -if recipient_counts.recipients > 0
+                  -blocktrans trimmed with count_comma=recipient_counts.recipients|intcomma count counter=recipient_counts.recipients
+                    {{ count_comma }} recipient
+                    -plural
+                      {{ count_comma }} recipients
+                -else
+                  -blocktrans trimmed with group_count=recipient_counts.groups contact_count=recipient_counts.contacts urn_count=recipient_counts.urns
+                    {{ group_count }} groups, {{ contact_count }} contacts, {{ urn_count }} urns
 
-          %td.value-text.field_text
-            {{ object.get_default_text }}
-          %td.value-next
-            -if object.schedule.next_fire
-              .glyph.icon-clock
-              {{object.schedule.next_fire|timeuntil}}
+            %td.value-text.field_text
+              {{ object.get_default_text }}
+            %td.value-next
+              -if object.schedule.next_fire
+                .glyph.icon-clock
+                {{object.schedule.next_fire|timeuntil}}
 
-        -empty
-          %tr
-            %td{colspan:3}
-              -trans "No Matching schedules"
+          -empty
+            %tr
+              %td{colspan:3}
+                -trans "No Matching schedules"
 
   - block paginator
     -if object_list.count

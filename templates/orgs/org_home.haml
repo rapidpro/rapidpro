@@ -6,11 +6,10 @@
   {{user_org.name|capfirst}}
   
 -block title
-  .medium-help.icon-home{ style:'float:left;' }
-  %h2.header-margin
-    {{user_org.name|capfirst}}
-  %h5.header-margin
-    -trans "Workspace Settings"
+  {{user_org.name|capfirst}}
+
+-block subtitle
+  -trans "Workspace Settings"
 
 -block above-bar
   .pull-right
@@ -19,11 +18,15 @@
         -include "gear_links_include.haml"
 
 -block content
+  -for channel in channels
+    .mt-2
+      {{channel.name}}
+
   -include "formax.haml"
 
 -block extra-script
   {{ block.super }}
-  // make sure that this view have djangojs gettext view to process translations in js or coffee
+  // make sure that this view have djangojs gettext view to process translations in js
   <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
   :javascript
 
@@ -130,6 +133,11 @@
 -block extra-style
   {{ block.super }}
   :css
+    .page-content {
+      max-width: 768px !important;
+      margin-left: auto;
+      margin-right: auto;
+    }
 
     /* The icon we are using for channels is not the same size */
     .formax .formax-icon.icon-everywhere {

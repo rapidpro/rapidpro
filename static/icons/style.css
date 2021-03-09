@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?lllxvg');
-  src:  url('fonts/temba.eot?lllxvg#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?lllxvg') format('truetype'),
-    url('fonts/temba.woff?lllxvg') format('woff'),
-    url('fonts/temba.svg?lllxvg#temba') format('svg');
+  src:  url('fonts/temba.eot?7ma4jw');
+  src:  url('fonts/temba.eot?7ma4jw#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?7ma4jw') format('truetype'),
+    url('fonts/temba.woff?7ma4jw') format('woff'),
+    url('fonts/temba.svg?7ma4jw#temba') format('svg');
   font-weight: normal;
   font-style: normal;
   font-display: block;
@@ -13,7 +13,7 @@
 [class^="icon-"], [class*=" icon-"] {
   /* use !important to prevent issues with browser extensions that change fonts */
   font-family: 'temba' !important;
-  speak: none;
+  speak: never;
   font-style: normal;
   font-weight: normal;
   font-variant: normal;
@@ -25,6 +25,9 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-rocketchat:before {
+  content: "\e916";
+}
 .icon-prometheus:before {
   content: "\e915";
 }

@@ -1,101 +1,39 @@
 -extends 'smartmin/form.html'
--load i18n
-
--block form-span
-
-
--block extra-style
-  :css
-    #trigger_flow .control-group .control-label, 
-    #trigger_omnibox .control-group .control-label {
-      float: none;
-      text-align: left;
-      width: 160px;
-    }
-
-    #trigger_flow .control-group .controls, 
-    #trigger_omnibox .control-group .controls {
-      margin-left: 0px;
-    }
-
-    #trigger_flow {
-      width: 430px;
-    }
-
-    #trigger_omnibox {
-      width: 430px;
-    }
-
-    #start-datetime {
-
-    }
-
+-load i18n smartmin
 
 -block extra-script
-  {{ block.super }}
-  %script{src:"{{ STATIC_URL }}js/schedules-ui.js"}
-
+  {{ block.super }}  
   <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
+
   :javascript
-    var user_tz = "{{ user_tz }}";
-    var user_tz_offset = {{ user_tz_offset }};
+    document.addEventListener("DOMContentLoaded", function(){
+      var repeatPeriod = document.querySelector("#id_schedule_repeat_period");
+      if (repeatPeriod) {
+        repeatPeriod.addEventListener("change", function(event){
+          
+          var currentRepeat = event.currentTarget.values[0].value;
+          if (currentRepeat == 'W') {
+            document.querySelector(".weekly-repeat-options").classList.remove("hidden");
+          } else {
+            document.querySelector(".weekly-repeat-options").classList.add("hidden");
+          }
+        });
+      }
 
-    $(document).ready(function() {
-        var initialDate;
-        {% if form.start_datetime_value.value %}
-          initialDate = new Date({{form.start_datetime_value.value}} * 1000);
-        {% endif %}
-        
-        var minDate = new Date();
-        var minutes = minDate.getMinutes();
-        if (minutes > 0) {
-            minDate.setMinutes(0);
-            minDate.setHours(minDate.getHours() + 1);
-        }
-
-        initializeDatetimePicker(minDate, initialDate, false);
+  
     });
-
-
 -block fields
-  -load smartmin
-
   #trigger_flow
     - render_field 'flow'
   #trigger_omnibox
     - render_field 'omnibox'
-    
   #schedule-options
-    %label.schedule-options-label{for:"later-option"}
-      #start-datetime{ name:'start_datetime', disabled:'true', value:'{% trans "Select a date" %}'}
-    %input#start-datetime-value{ hidden:'true', name:'start_datetime_value', value:''}
-    %input#later-option{name:'start',type:'hidden',value:'later'}
-
-
+    -render_field 'start_datetime'
   #recurrence
     .repeat-period
-      %p.instructions
-        -render_field 'repeat_period'
-    .weekly-repeat-options{class:'{% if form.repeat_period.value == "W" %}{% else%}hide{%endif%}'}
-      .btn-group{'data-toggle':'buttons-checkbox'}
-        #mon.btn{value:"M", class:'{% if "M" in form.repeat_days_of_week.value %}active{% endif %}'}
-          -trans "Mon"
-        #tue.btn{value:"T", class:'{% if "T" in form.repeat_days_of_week.value %}active{% endif %}'}
-          -trans "Tue"
-        #wed.btn{value:"W", class:'{% if "W" in form.repeat_days_of_week.value %}active{% endif %}'}
-          -trans "Wed"
-        #thu.btn{value:"R", class:'{% if "R" in form.repeat_days_of_week.value %}active{% endif %}'}
-          -trans "Thu"
-        #fri.btn{value:"F", class:'{% if "F" in form.repeat_days_of_week.value %}active{% endif %}'}
-          -trans "Fri"
-        #sat.btn{value:"S", class:'{% if "S" in form.repeat_days_of_week.value %}active{% endif %}'}
-          -trans "Sat"
-        #sun.btn{value:"U", class:'{% if "U" in form.repeat_days_of_week.value %}active{% endif %}'}
-          -trans "Sun"
-
-      %input#repeat-days-value{name:'repeat_days_of_week', type:'hidden', value:'{{form.repeat_days_of_week.value|default:""}}'}
-
--load humanize
+      -render_field 'repeat_period'
+    .weekly-repeat-options{class:'{% if form.repeat_period.value == "W" %}{% else%}hidden{%endif%}'}
+      -render_field 'repeat_days_of_week'    
 
 -block summary
   -trans "Start a flow in the future or on a schedule."

@@ -1,50 +1,12 @@
 -extends "smartmin/form.html"
+-load smartmin
 
 -block title
-  .medium-help.float-left{class:"{{ view.channel_type.icon }}"}
-
-  %h2.font_normalize.header-margin
-    {{ title }}
-
+  {{ title }}
 
 -block pre-form
-  .info
-    %p
-      {{ form_blurb }}
+  {{ form_blurb }}
 
--block extra-style
-  :css
-    .form-horizontal input + .help-block,
-    .form-horizontal select + .help-block,
-    .form-horizontal .uneditable-input + .help-block {
-      margin-left: 150px;
-    }
-
-    .form-horizontal input[type="checkbox"] + .help-block {
-      display: inline;
-      margin-left: 5px !important;
-      vertical-align: middle;
-    }
-
-    #s2id_id_country {
-      width: 370px;
-    }
-
-    .medium-help {
-      font-size: 50px;
-      height: 50px;
-    }
-
-    .header-margin {
-      margin-left: 60px;
-    }
-
-
-
--block extra-script
-  {{ block.super }}
-
-  :javascript
-    $(function(){
-      $("#id_country").select2();
-    });
+-block form
+  .card
+    {{ block.super }}

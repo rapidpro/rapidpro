@@ -28,9 +28,9 @@ class RunAuditTest(TembaTest):
 
 class RecalcNodeCountsTest(TembaTest):
     def test_recalc_node_counts(self):
-        contact1 = self.create_contact("Ben Haggerty", number="+12065552020")
-        contact2 = self.create_contact("Joe", number="+12065550002")
-        contact3 = self.create_contact("Frank", number="+12065550003")
+        contact1 = self.create_contact("Ben Haggerty", phone="+12065552020")
+        contact2 = self.create_contact("Joe", phone="+12065550002")
+        contact3 = self.create_contact("Frank", phone="+12065550003")
 
         def check_node_count_rebuild(flow, assert_count):
             node_counts = FlowNodeCount.get_totals(flow)
@@ -42,7 +42,7 @@ class RecalcNodeCountsTest(TembaTest):
             self.assertEqual(assert_count, sum(new_counts.values()))
 
         flow = self.get_flow("favorites_v13")
-        nodes = flow.as_json()["nodes"]
+        nodes = flow.get_definition()["nodes"]
 
         color_prompt = nodes[0]
         color_other = nodes[1]

@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.test.utils import override_settings
 from django.urls import reverse
 
@@ -40,13 +42,13 @@ class ClientTest(TembaTest):
 
 
 class ZendeskTypeTest(TembaTest):
-    def test_is_available(self):
+    def test_is_available_to(self):
         with override_settings(ZENDESK_CLIENT_ID="", ZENDESK_CLIENT_SECRET=""):
-            self.assertFalse(ZendeskType().is_available())
+            self.assertFalse(ZendeskType().is_available_to(self.admin))
         with override_settings(ZENDESK_CLIENT_ID="temba", ZENDESK_CLIENT_SECRET=""):
-            self.assertFalse(ZendeskType().is_available())
+            self.assertFalse(ZendeskType().is_available_to(self.admin))
         with override_settings(ZENDESK_CLIENT_ID="temba", ZENDESK_CLIENT_SECRET="sesame"):
-            self.assertTrue(ZendeskType().is_available())
+            self.assertTrue(ZendeskType().is_available_to(self.admin))
 
     @override_settings(ZENDESK_CLIENT_ID="temba", ZENDESK_CLIENT_SECRET="sesame")
     @patch("temba.tickets.types.zendesk.views.random_string")
@@ -138,7 +140,7 @@ class ZendeskTypeTest(TembaTest):
                 "id": "app.rapidpro.io",
                 "author": "Nyaruka",
                 "version": "v0.0.1",
-                "channelback_files": False,
+                "channelback_files": True,
                 "push_client_id": "temba",
                 "urls": {
                     "admin_ui": f"https://app.rapidpro.io/tickets/types/zendesk/admin_ui",
@@ -253,3 +255,15 @@ class ZendeskTypeTest(TembaTest):
         self.assertEqual(
             {"ticketer": str(ticketer.uuid), "secret": "SECRET346"}, json.loads(response.context["metadata"])
         )
+
+    def test_file_view(self):
+        # save a text file as an attachment to storage
+        path = f"attachments/{self.org.id}/01c1/1aa4/01c11aa4.txt"
+        if not default_storage.exists(path):
+            default_storage.save(path, ContentFile(b"HELLO"))
+
+        file_url = reverse("tickets.types.zendesk.file_callback", args=[f"{self.org.id}/01c1/1aa4/01c11aa4.txt"])
+        response = self.client.post(file_url)
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(b"HELLO", b"".join(response.streaming_content))

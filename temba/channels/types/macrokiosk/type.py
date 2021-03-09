@@ -1,7 +1,7 @@
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.types.macrokiosk.views import ClaimView
-from temba.contacts.models import TEL_SCHEME
+from temba.contacts.models import URN
 
 from ...models import ChannelType
 
@@ -18,20 +18,18 @@ class MacrokioskType(ChannelType):
 
     name = "Macrokiosk"
 
-    claim_blurb = _(
-        """Easily add a two way number you have configured with <a href="http://macrokiosk.com/">Macrokiosk</a> using their APIs."""
-    )
+    claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
+        "link": '<a href="http://macrokiosk.com/">Macrokiosk</a>'
+    }
     claim_view = ClaimView
 
-    schemes = [TEL_SCHEME]
+    schemes = [URN.TEL_SCHEME]
     max_length = 1600
 
     attachment_support = False
 
     configuration_blurb = _(
-        """
-        To finish configuring your MACROKIOSK connection you'll need to notify MACROKIOSK of the following URLs.
-        """
+        "To finish configuring your MACROKIOSK connection you'll need to notify MACROKIOSK of the following URLs."
     )
 
     configuration_urls = (
@@ -51,6 +49,4 @@ class MacrokioskType(ChannelType):
         ),
     )
 
-    def is_available_to(self, user):
-        org = user.get_org()
-        return org.timezone and str(org.timezone) in ["Asia/Kuala_Lumpur"]
+    available_timezones = ["Asia/Kuala_Lumpur"]

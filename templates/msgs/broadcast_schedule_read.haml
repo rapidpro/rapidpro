@@ -1,89 +1,36 @@
--extends "smartmin/list.html"
+-extends "smartmin/read.html"
 -load smartmin sms temba compress
 -load i18n humanize
 
--block page-top
-  %h2
-    {{ title }}
-
--block title-icon
-  %span.title-icon
-    .glyph.icon-clock
-
--block top-form
+-block title
+  {{title}}
 
 -block content
-
   -include "formax.haml"
-
   -if object_list
-    %br
-    %br
-    .row
-      .span12
-        %h3
-          -trans "Send History"
+    .mt-8.mb-4
+      .title
+        -trans "Send History"
+    %table.list{style: '{% if not org_perms.msgs.broadcast_send %}margin-top:10px{% endif %}'}
+      %tbody
+        -for object in object_list
+          %tr
+            %td
+              -with recipient_counts=object.get_recipient_counts
+                -if recipient_counts.recipients > 0
+                  -blocktrans with count_comma=recipient_counts.recipients|intcomma count counter=recipient_counts.recipients
+                    {{ count_comma }} recipient
+                    -plural
+                      {{ count_comma }} recipients
+                -else
+                  -blocktrans trimmed with group_count=recipient_counts.groups contact_count=recipient_counts.contacts urn_count=recipient_counts.urns
+                    {{ group_count }} groups, {{ contact_count }} contacts, {{ urn_count }} urns
+            %td
+              {{ object.get_default_text }}
+            %td
+              %nobr
+                {% short_datetime object.created_on %}
 
-      .span12
-        %table.list-table.sms_list.table.table-condensed{style: '{% if not org_perms.msgs.broadcast_send %}margin-top:10px{% endif %}'}
-          %tbody
-            -for object in object_list
-              %tr{class:'{% cycle row1 row2 %}'}
-                %td
-                  -with recipient_counts=object.get_recipient_counts
-                    -if recipient_counts.recipients > 0
-                      -blocktrans with count_comma=recipient_counts.recipients|intcomma count counter=recipient_counts.recipients
-                        {{ count_comma }} recipient
-                        -plural
-                          {{ count_comma }} recipients
-                    -else
-                      -blocktrans with group_count=recipient_counts.groups contact_count=recipient_counts.contacts urn_count=recipient_counts.urns
-                        {{ group_count }} groups, {{ contact_count }} contacts, {{ urn_count }} urns
-                %td
-                  {{ object.get_default_text }}
-                %td
-                  %nobr
-                    {% short_datetime object.created_on %}
-
-        -block paginator
-          = block.super
-
--block extra-script
-  {{block.super}}
-
--block extra-less
-  -compress css inline
-    {% lessblock %}
-      :plain
-        h2 {
-          margin-bottom:30px;
-        }
-
-        .list-table {
-          margin-top:0;
-        }
-
-        ul {
-          list-style: none;
-        }
-
-        li {
-          padding: 5px 0px;
-        }
-
-        .schedule-detail {
-          font-size: 16px;
-
-          a {
-            text-decoration: none;
-          }
-        }
-
-        .sends-to {
-          margin-left: 20px;
-        }
-
-        .value-icon {
-          display:none;
-        }
-    {% endlessblock %}
+    .mx-8
+      -block paginator
+        = block.super

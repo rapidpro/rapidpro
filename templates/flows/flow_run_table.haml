@@ -39,8 +39,9 @@
     -if start_date
       %tr
         %td.archive-note(colspan=100)><
-          -blocktrans with start=start_date
-            Any runs prior to {{start}} can be found in your
+          .inline
+            -blocktrans trimmed with start=start_date
+              Any runs prior to {{start}} can be found in your
           %a(href="{% url 'archives.archive_run'%}")><
             -trans "archive"
           \.

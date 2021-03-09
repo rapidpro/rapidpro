@@ -1,56 +1,40 @@
-{% extends "smartmin/delete_confirm.html" %}
-
-{% load smartmin %}
-{% load i18n %}
-
--block page-top
+-extends 'includes/modal.html'
+-load i18n temba
 
 -block modal
-  -if object.is_bulk_sender
-    .text-center
-      Are you sure you want to disable bulk sending for
-      .number
-        {{ object.get_address_display }}
+  {{block.super}}
+    
+  -with flows=object.dependent_flows.all
+    -if flows
+      -blocktrans count counter=flows|length
+        There is an active flow using this channel. It cannot be deleted until it is removed from the
+      
+      -plural
+        There are {{counter}} flows using this flow. It cannot be deleted until it is removed from the
 
-    :css
-      .number {
-        font-size:18px;
-        padding:10px;
-      }
+      -for flow in flows
+        <a href="{%url 'flows.flow_editor' flow.uuid%}">{{flow.name}}</a>{{forloop|oxford}}
+      
+      -blocktrans count counter=flows|length
+        flow.
+      -plural
+        flows.
+    -else
+      -if object.is_bulk_sender
+        -blocktrans trimmed
+          You are about to disable bulk sending for
+          %span.font-normal
+            {{object}}.
+          There is no way to undo this. Are you sure?
+      -else
+        -blocktrans trimmed
+          You are about to delete the channel
+          %span.font-normal
+            {{object}}.
+          There is no way to undo this. Are you sure?
 
--block content
-  -block pjax
-
-    :css
-      .icon-android {
-       font-size:160px;
-       color:#888;
-      }
-
-    .row
-      .span2
-        .glyph.icon-android
-      .span9
-        <div class="confirmation">
-
-
-          <h2>{% trans "Remove" %} {% if object.name %}{{object.name}}{% else %}Phone{%endif%}</h2>
-
-          .text-center
-          %p
-            {% trans "Are you sure you want to remove this number from your workspace?" %}
-            .number
-              {{ object.get_channel_type_display }} {{ object.get_address_display }}
-
-          <form method="POST">
-
-            {% block delete_form %}{% endblock %}
-
-            <div class="buttons">
-              <a class="btn" href="{{ cancel_url }}">{% trans "Cancel" %}</a>
-              {% csrf_token %}
-                <input type="submit" class="btn btn-danger" value="{% trans 'Remove Phone' %}"/>
-            </div>
-          </form>
-
-        </div>
+      .hidden
+        %form(method="POST")
+          %input(type="submit" value="{{submit_button_name}}")
+      
+      

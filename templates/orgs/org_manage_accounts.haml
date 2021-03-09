@@ -1,292 +1,76 @@
-- extends 'smartmin/form.html'
-- load smartmin temba compress
-- load i18n
+-extends 'smartmin/form.html'
+-load smartmin temba compress i18n
 
--block page-title
+-block title
+  -if parent
+    {{org.name}}
+  -else
+    {{user_org.name|capfirst}}
+
+-block subtitle
   -trans "Manage Logins"
-  \- {{user_org.name|capfirst}}
-
--block extra-less
-  -compress css inline
-    {% lessblock %}
-      :plain
-
-        #id-channel {
-          a {
-            text-decoration:none;
-            &:hover {
-              text-decoration:none;
-            }
-          }
-        }
-
-        tr.invites-title th {
-          border: none
-        }
-
-        tr.invite td {
-          color: #ddd;
-
-          &.invite-remove {
-            color: #999999;
-          }
-        }
-
-        .glyph.level-checkbox:before {
-          content: "\e004";
-        }
-
-        td.check.checked .glyph.level-checkbox:before {
-          content: "\e05a";
-        }
-
-        .glyph.level-checkbox.checked:before {
-          content: "\e05a";
-        }
-
-        .glyph.level-checkbox {
-          font-family: 'temba';
-          speak: none;
-          font-style: normal;
-          font-weight: normal;
-          line-height: 1;
-          -webkit-font-smoothing: antialiased;
-          margin-top: 6px;
-          margin-right: 5px;
-          margin-top:2px;
-        }
-
-        .formax-form .table th, .table td {
-          border: 0px;
-        }
-
-        td.permission, th.permission {
-          text-align:center;
-        }
-
-        th.permission {
-          width:80px;
-        }
-
-        td.form {
-          border-top: 1px solid #eee;
-        }
-
-        #plan-form ul.errorlist li {
-          color: #fff;
-        }
-    {% endlessblock %}
 
 -block extra-style
-  {{ block.super }}
+  {{block.super}}
   :css
-    th, td {
-      width: inherit;
-      color: #999999;
+    .role .control-group {
+      margin-bottom: 0;
+    }
+    temba-checkbox {
+      --fa-icon-fill-color: #999;
     }
 
-- block form-span
-  span8
-
-- block fields
-
-  -if parent
-    %h4
-      <a href="{% url 'orgs.org_sub_orgs'%}">{%blocktrans%}Workspaces{%endblocktrans%}</a> &raquo; {{org.name}}
-
-  %table.table.table-condensed{style:"margin-bottom:0px;"}
+-block fields
+  %table.list.mb-0
     %thead
       %tr
         %th
-          -trans "Logins"
-        %th.permission
-          -trans "Admins"
-        %th.permission
-          -trans "Editors"
-        %th.permission
-          -trans "Viewers"
-        %th.permission
-          -trans "Surveyors"
-        %th.permission
-          -trans "Remove"
+          -trans "Login"
+        %th
+          -trans "Role"
+        %th
+          .text-center
+            -trans "Remove"
+
     %tbody
-      %tr#admin-error.hide
-        %td.alert.alert-error{colspan: 6}
-          -trans "You must have at least one administator"
-      - for user in org_users
+      -for row in form.user_rows
         %tr
+          %td.login-user
+            {{ row.user.email }}
+            -if row.user.first_name or row.user.last_name
+              ({{ row.user.first_name }} {{ row.user.last_name }})
+          %td.role(style="padding-top:6px")
+            {% render_field row.role_field %}
           %td
-            {{user.email}}
-            - if user.first_name or user.last_name
-              ({{user.first_name}} {{ user.last_name}})
-          - with group_fields|get:user as row_fields
-            - for check_name in row_fields
-              %td.check.permission
-                .hidden-input.hide
-                  {{form|field:check_name}}
-                .glyph.level-checkbox
-          %td.check.permission
-            .hidden-input.hide
-              %input{type: 'checkbox'}
-            .glyph.level-checkbox
+            .m-auto.mt-4(style="width:24px")
+              {% render_field row.remove_field %}
 
       // pending invites
-      %tr
-      %tr.invites-title
-        %th
-          -trans "Invites"
+      -if has_invites
+        %tr.invites-title
+          %th(colspan=3)
+            -trans "Pending Invitations"
 
-      -for invite in invites
-        %tr.invite
+      -for row in form.invite_rows
+        %tr
+          %td.opacity-50
+            {{ row.invite.email }} (Invite Sent)
+          %td.role.w-48.opacity-50(style="padding-top:6px")
+            {% render_field row.role_field %}
           %td
-            {{invite.email}} (Invite Sent)
-          %td.permission
-            .glyph.level-checkbox{class:'{% if invite.user_group == "A"%}checked{%endif%}'}
-          %td.permission
-            .glyph.level-checkbox{class:'{% if invite.user_group == "E"%}checked{%endif%}'}
-          %td.permission
-            .glyph.level-checkbox{class:'{% if invite.user_group == "V"%}checked{%endif%}'}
-          %td.permission
-            .glyph.level-checkbox{class:'{% if invite.user_group == "S"%}checked{%endif%}'}
-          - with invites_fields|get:invite as check_name
-            %td.check.permission.invite-remove
-              .hidden-input.hide
-                {{form|field:check_name}}
-              .glyph.level-checkbox
+            .m-auto.mt-4(style="width:24px")
+              {% render_field row.remove_field %}
 
-      %tr
-        %td{height:'3px', colspan:6}
+  .card
+    .title.mb-0.pb-0
+      -trans "Invite New Users"
 
-      // add a new user
-      %tr
-        %td.form{colspan: 1}
-          .field.formax-vertical
-            {% render_field 'invite_emails' %}
-        %td.form{colspan: 3}
-          .field.formax-vertical
-            {% render_field 'invite_group' %}
+    .flex.w-full.items-end
+      .pr-4.flex-grow
+        {% render_field 'invite_emails' %}
+      .group.w-48
+        {% render_field 'invite_role' %}
 
-
-- block summary
-  %span.attn= object.name
-  -trans "has"
-
-  -if org.administrators.count == 1
-    %span.attn= org.administrators.count
-      -trans "Administrator"
-    -trans ","
-  -elif org.admnistrators.count == 0
-    %span.attn
-      -trans "No Administrator"
-    -trans ","
-  -else
-    %span.attn= org.administrators.count
-      -trans "Administrators"
-    -trans ","
-
-  -if org.editors.count == 1
-    %span.attn= org.editors.count
-      -trans "Editor"
-    -trans ","
-  -elif org.editors.count == 0
-    %span.attn
-      -trans "No Editors"
-    -trans ","
-  -else
-    %span.attn= org.editors.count
-      -trans "Editors"
-    -trans ","
-
-  -if org.viewers.count == 1
-    %span.attn= org.viewers.count
-      -trans "Viewer"
-    -trans "and"
-  -elif org.viewers.count == 0
-    %span.attn
-      -trans "No Viewers"
-    -trans "and"
-  -else
-    %span.attn= org.viewers.count
-      -trans "Viewers"
-    -trans "and"
-
-  -if org.surveyors.count == 1
-    %span.attn= org.surveyors.count
-      -trans "Surveyor."
-  -elif org.surveyors.count == 0
-    %span.attn
-      -trans "No Surveyors."
-  -else
-    %span.attn= org.surveyors.count
-      -trans "Surveyors."
-
-- block extra-script
-  {{block.super}}
-  :javascript
-    $(function() {
-      // initialize the glyph checkboxes
-      var boxes = $("td.check");
-      boxes.each(function() {
-        var list_input = $(this).children().children("input[type='checkbox']");
-        if (list_input[0].checked) {
-          $(this).addClass("checked");
-        } else {
-          $(this).removeClass("checked");
-        }
-      });
-    });
-
-    $(function() {
-      // update the glyph checkbox on click
-
-      $("td.check .glyph").on('click', function(){
-        var cell = $(this).parent("td.check");
-        var ipt = cell.find("input[type='checkbox']");
-
-        if (!cell.hasClass("checked")) {
-          allCells = cell.parent().children('td.check');
-          allHiddenInputs = allCells.find("input[type='checkbox']");
-
-          // Uncheck everything First
-          allCells.removeClass('checked');
-          allHiddenInputs.prop('checked', false);
-
-          // Check the clicked cell
-          cell.addClass('checked');
-          ipt.prop('checked', true);
-
-        } else if (cell.hasClass("invite-remove")) {
-          cell.removeClass('checked');
-          ipt.prop('checked', false);
-        }
-
-        hasAdmin = false;
-        // validate that we always have an admin first
-        // to show error if no admin is remaining
-        $("td.check").parent().find("input[id*='administrators']").each(function() {
-           hasAdmin = hasAdmin || $(this).prop('checked')
-        })
-
-        if (!hasAdmin) {
-          $('#admin-error').show();
-        } else {
-          $('#admin-error').hide();
-        }
-
-      });
-    });
-
-    $(document).ready(function() {
-      $("#did_emails").select2({
-        containerCssClass: 'select2-temba-field',
-        tags: [],
-        selectOnBlur: true,
-        placeholder: '{{ _("Enter emails of people to invite")|escapejs }}',
-      });
-
-      $("#id_user_group").select2({
-        containerCssClass: 'select2-temba-user-group-field',
-        minimumResultsForSearch: -1,
-        width:'300px',
-      });
-    });
+-block form-buttons
+  .form-actions.mt-4.ml-2
+    %input.button-primary(type="submit" value="{{ submit_button_name }}")

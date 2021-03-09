@@ -5,15 +5,39 @@ import iso8601
 import pytz
 
 from django.conf import settings
+from django.contrib.auth.models import User
 from django.utils import timezone
 
 from celery.task import task
 
+from temba.utils import chunk_list
 from temba.utils.celery import nonoverlapping_task
 
-from .models import Contact, ContactGroup, ContactGroupCount, ExportContactsTask
+from .models import Contact, ContactGroup, ContactGroupCount, ContactImport, ExportContactsTask
+from .search import elastic
 
 logger = logging.getLogger(__name__)
+
+
+@task(track_started=True)
+def release_contacts(user_id, contact_ids):
+    """
+    Releases the given contacts
+    """
+    user = User.objects.get(pk=user_id)
+
+    for id_batch in chunk_list(contact_ids, 100):
+        batch = Contact.objects.filter(id__in=id_batch, is_active=True).prefetch_related("urns")
+        for contact in batch:
+            contact.release(user)
+
+
+@task(track_started=True)
+def import_contacts_task(import_id):
+    """
+    Import contacts from a spreadsheet
+    """
+    ContactImport.objects.get(id=import_id).start()
 
 
 @task(track_started=True, name="export_contacts_task")
@@ -51,24 +75,13 @@ def full_release_contact(contact_id):
 @task(name="check_elasticsearch_lag")
 def check_elasticsearch_lag():
     if settings.ELASTICSEARCH_URL:
-        from temba.utils.es import ES, ModelESSearch
+        es_last_modified_contact = elastic.get_last_modified()
 
-        # get the modified_on of the last synced contact
-        res = (
-            ModelESSearch(model=Contact, index="contacts")
-            .params(size=1)
-            .sort("-modified_on_mu")
-            .source(include=["modified_on", "id"])
-            .using(ES)
-            .execute()
-        )
-
-        es_hits = res["hits"]["hits"]
-        if es_hits:
+        if es_last_modified_contact:
             # if we have elastic results, make sure they aren't more than five minutes behind
             db_contact = Contact.objects.order_by("-modified_on").first()
-            es_modified_on = iso8601.parse_date(es_hits[0]["_source"]["modified_on"], pytz.utc)
-            es_id = es_hits[0]["_source"]["id"]
+            es_modified_on = iso8601.parse_date(es_last_modified_contact["modified_on"], pytz.utc)
+            es_id = es_last_modified_contact["id"]
 
             # no db contact is an error, ES should be empty as well
             if not db_contact:

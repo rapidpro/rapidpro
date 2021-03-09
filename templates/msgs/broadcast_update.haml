@@ -1,62 +1,23 @@
 -extends 'smartmin/form.html'
+-load smartmin i18n humanize
 
--load smartmin
--load i18n humanize
-
--block form-span
-  span8
 -block fields
-  .instructions
-    -trans "Write the message that will get sent when the scheduled time arrives"
-    %fieldset
-      -render_field 'message'
-      -render_field 'omnibox'
-
--block extra-script
-  :javascript
-    prepareOmnibox();
-    $("#id_message").trigger('keyup');
-
--block extra-style
-  :css
-    #broadcast_preview {
-      font-style:italic;
-      font-size:14px;
-    }
-
-    #counter {
-      display:block;
-      padding-top:10px;
-      height:20px;
-      font-size: 12px;
-      float:left;
-      width:84%;
-      text-align:right;
-      margin-top:-10px;
-    }
-
-    #id_message {
-      width:90%;
-      height:100px;
-    }
-
+  .title
+    -trans "Message Details"
+  %fieldset
+    -render_field 'omnibox'
+    -render_field 'message'
 
 -block summary
   -with recipient_counts=broadcast.get_recipient_counts
     -if recipient_counts.recipients > 0
       -blocktrans with count_comma=recipient_counts.recipients|intcomma count counter=recipient_counts.recipients
-        The message will be sent to
-        %span.attn
-          {{ count_comma }} recipients
+        {{ count_comma }} recipients
         -plural
-          The message will be sent to
-          %span.attn
-            {{ count_comma }} recipients
+          {{ count_comma }} recipients
     -else
-      -blocktrans with group_count=recipient_counts.groups contact_count=recipient_counts.contacts urn_count=recipient_counts.urns
-        The message will be sent to
-        %span.attn
-          {{ group_count }} groups, {{ contact_count }} contacts, {{ urn_count }} urns
+      -blocktrans trimmed with group_count=recipient_counts.groups contact_count=recipient_counts.contacts urn_count=recipient_counts.urns
+        {{ group_count }} groups, {{ contact_count }} contacts, {{ urn_count }} urns
 
   #broadcast_preview
     {{ object.get_default_text }}

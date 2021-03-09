@@ -77,25 +77,10 @@ td.value-received {
   text-align: right;
 }
 
-td.checkbox .glyph {
-  font-size: 14px;
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-}
-
 .radio,
 .checkbox {
-  min-height: 18px;
-  padding-left: 18px;
-}
-
-tr.sms:hover {
-  cursor: pointer;
-}
-
-tr.sms.checked .glyph.message-checkbox:before {
-  content: "\e05a";
+  min-height: initial;
+  padding-left: initial;
 }
 
 .sms_list tbody td.checkbox {
@@ -378,36 +363,6 @@ textarea {
 
 .controls .uneditable-input {
   width: 350px;
-}
-
-select,
-textarea,
-input[type="text"],
-input[type="password"],
-input[type="datetime"],
-input[type="datetime-local"],
-input[type="date"],
-input[type="month"],
-input[type="time"],
-input[type="week"],
-input[type="number"],
-input[type="email"],
-input[type="url"],
-input[type="search"],
-input[type="tel"],
-input[type="color"],
-.uneditable-input {
-  display: inline-block;
-  height: 25px;
-  padding: 4px 6px;
-  margin-bottom: 5px;
-  font-size: 14px;
-  color: #555;
-  .rounded-corners(0);
-}
-
-.uneditable-input {
-  line-height: 25px;
 }
 
 form.form-horizontal textarea,
@@ -728,7 +683,7 @@ h5 {
 
 a.logo {
   color: #fff;
-  font-size: 96px;
+  font-size: 84px;
   margin-top: -2px;
   text-decoration: none;
 
@@ -748,13 +703,6 @@ a.logo {
 // *******************************
 // The list tables we use on messages, contacts etc..
 // *******************************
-
-.search-details {
-  float: left;
-  padding-top: 20px;
-  margin-bottom: -10px;
-}
-
 
 .list-container {
   .scroll-x();
@@ -778,11 +726,6 @@ table.list-table {
 
   tr:hover td {
     color: #000;
-  }
-
-  tr td.checkbox {
-    cursor: pointer;
-    color: @color-font-lightgrey;
   }
 
   tr:hover td.checkbox {
@@ -1094,14 +1037,10 @@ a.org-choose {
 
 #header {
 
-  background-color: @color-navbar;
-  padding-top: 32px;
-  padding-bottom: 20px;
-  margin-bottom: 30px;
+  background-color: var(--header-bg);
   border: 0px solid pink;
   z-index: 0;
   position: relative;
-  height: 80px;
 
   @media all and (max-width: 940px) and (min-width: 767px) {
     min-width: 940px;
@@ -1176,10 +1115,6 @@ form.smartmin-form {
 
   select {
     margin-bottom: 9px;
-  }
-
-  .select2-container {
-    margin-bottom: 5px;
   }
 
   ul.errorlist {
@@ -1313,7 +1248,7 @@ input[type='text'].search-query {
     display: none;
   }
 
-  &.icon-vcard {
+  &.icon-contact {
     margin-top: -30px;
   }
 }
@@ -1358,171 +1293,6 @@ input[type='text'].search-query {
   margin-bottom: 0px;
 }
 
-tr.checked {
-  td {
-    background-color: @color-selected;
-    color: @color-selected-font;
-  }
-}
-
-// *******************************
-// Select2, Omnibox
-// *******************************
-
-#omni {
-
-  #omni-select2 {
-    margin-top: 30px;
-  }
-
-  #loading {
-    font-size: 14px;
-    border: 1px solid @color-bg-lightgrey;
-    padding: 10px 0;
-    color: @color-font-lightestgrey;
-    margin-top: 30px;
-    background-image: url('../images/loader-bars.gif');
-    background-repeat: no-repeat;
-    background-position: 97% 50%;
-
-    &:after {
-      content: 'Loading recipients..';
-      padding-left: 10px;
-    }
-  }
-}
-
-.select2-container-multi .select2-choices .select2-search-field input.select2-active {
-  background: #fff url('../images/loader-bars.gif?asdfasdf') no-repeat 100% !important;
-  box-shadow: none;
-}
-
-.select2tag {
-  width: 50%;
-}
-
-.select2-match {
-  text-decoration: underline;
-}
-
-// the input box inside, which guides the height of the unselected
-.select2-container-multi .select2-choices .select2-search-field input {
-  margin: 0 0;
-  font-family: sans-serif;
-  font-size: 14px;
-  height: 20px;
-  width: 100%;
-  padding: 8px 4px;
-}
-
-// the item buttons that are selected
-.select2-container-multi .select2-choices .select2-search-choice {
-  margin-top: 6px;
-  margin-bottom: -2px;
-  line-height: 14px;
-  font-size: 14px;
-  height: 16px;
-  color: #333;
-  cursor: default;
-}
-
-.select2-container-multi .select2-choices {
-  position: static;
-}
-
-.select2-container .select2-choice .select2-arrow {
-  .rounded-corners(0);
-}
-
-.select2-choices,
-.select2-results {
-  .omni-option:before {
-    font-family: temba;
-    color: #999;
-    font-size: 14px;
-    margin-right: 5px;
-  }
-
-  .omni-group:before {
-    content: "\e03c";
-  }
-
-  .omni-contact:before {
-    content: "\e03b";
-  }
-
-  .omni-tel:before {
-    content: "\e04a";
-  }
-
-  .omni-twitter:before {
-    content: "\e007";
-  }
-
-  .omni-telegram:before {
-    content: "\e900";
-    padding-top: 5px;
-  }
-}
-
-.select2-temba-field,
-.select2-temba-user-group-field {
-  width: 520px;
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
-  border-radius: 0px;
-  -webkit-border-radius: 0px;
-  margin-bottom: 5px;
-}
-
-.controls .select2-temba-field input:focus {
-  box-shadow: none !important;
-}
-
-.select2-no-search {
-  .select2-search {
-    display: none;
-  }
-}
-
-.select2-container .select2-choice {
-  border-radius: 0px;
-  -webkit-border-radius: 0px;
-  -moz-border-radius: 0px;
-  padding: 3px 5px;
-  background: #FFFFFF;
-  overflow: inherit;
-  font-weight: 200;
-
-  div {
-    width: 20px;
-    padding: 2px 5px;
-    border-radius: 0px;
-    -webkit-border-radius: 0px;
-    -moz-border-radius: 0px;
-    background-color: @color-bg-lightgrey;
-    background-image: none;
-  }
-}
-
-.select2-container {
-  font-size: 14px;
-}
-
-.select2-highlighted {
-  .omni-option:before {
-    color: #eee;
-  }
-}
-
-.select2-container .select2-choice .select2-arrow b {
-  margin-top: 3px;
-  margin-left: 3px;
-}
-
-.select2-container .select2-choice .select2-arrow {
-  width: 23px;
-}
-
 #send-message {
   label {
     margin-top: 0px;
@@ -1547,31 +1317,6 @@ tr.checked {
 .control-group.error .help-block,
 .control-group.error .help-inline {
   color: var(--color-error);
-}
-
-.controls {
-
-  input,
-  textarea,
-  select {
-    margin-bottom: 0px !important;
-
-    &:focus {
-      border-color: var(--color-focus) !important;
-      box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6) !important;
-    }
-  }
-}
-
-
-input:focus:invalid,
-textarea:focus:invalid,
-select:focus:invalid {
-  // border-color: var(--color-error)!important;
-  // color: var(--color-error) !important;
-  color: var(--color-text) !important;
-  border-color: var(--color-focus) !important;
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6) !important;
 }
 
 .controls {
@@ -1606,7 +1351,7 @@ select:focus:invalid {
 form.smartmin-form .alert-error {
   background: rgba(255, 181, 181, .17);
   border: none;
-  border-left: 6px solid var(--color-error);
+  border-left: 0px solid var(--color-error);
   color: var(--color-error);
   padding: 10px;
   margin-bottom: 10px;
@@ -1969,10 +1714,6 @@ background: #624e87;
 
 }
 
-.select-row:hover {
-  cursor: pointer;
-}
-
 .span9 .list-table {
   margin-top: 48px;
 }
@@ -1991,13 +1732,6 @@ background: #624e87;
     input {
       width: inherit;
     }
-  }
-
-  .select2-container {
-    /* Headsup this is select2 the style for width is inline this is the only way for now. */
-    // width: 520px !important;
-    width: 520px;
-    margin-bottom: 5px;
   }
 
   .loader {
@@ -2150,13 +1884,13 @@ input[type='radio'] {
   &.form-group {
     // padding:0;
     color: @color-alert-error;
-    background-color: #fff;
+    background-color: inherit;
     border: 0;
     box-shadow: none;
 
     --focus-rgb: var(--error-rgb);
     --color-focus: var(--color-error);
-    --widget-box-shadow-focused: inset 0 1px 1px rgba(0, 0, 0, 0.075), 0 0 8px rgba(var(--focus-rgb), 0.6);
+    --widget-box-shadow-focused: 0 0 0 3px rgba(var(--error-rgb), .25);
     --color-widget-border: var(--color-error);
   }
 }
@@ -2175,11 +1909,6 @@ input[type='radio'] {
       box-shadow: none;
     }
   }
-}
-
-.select2-container.error {
-  background-color: #fff;
-  padding: 0px;
 }
 
 .login {
@@ -2277,138 +2006,29 @@ input[type='radio'] {
   }
 }
 
-.span9 {
 
-  .table {
-    td {
-      border-top: 0;
-      border-bottom: 1px solid #ddd;
-    }
+.list-buttons-container {
+  height: 35px;
+  display: none;
 
-    tr:first-child {
-      border-top: 1px solid #ddd;
-    }
+  &.visible {
+    display: block;
   }
 
-  .object-list {
-    margin-top: 14px;
+  .list-buttons {
 
-    tbody {
+    button {
+      min-width: 70px;
 
-      tr.new {
-        td {
-          font-weight: bold;
-        }
+      .glyph {
+        margin-right: 3px;
       }
 
-      td {
-
-        &.checkbox {
-          padding-left: 6px;
-          color: #777;
-          width: 10px;
-
-          &:hover {
-            color: #6885c7;
-          }
-
-          .glyph {
-            margin-top: 3px;
-          }
-        }
-
-        &.field_name {
-          white-space: nowrap;
-        }
-
-        &.value-text {
-          width: 75%;
-
-          .value-labels {
-            float: right;
-            white-space: nowrap;
-          }
-        }
-
-        &.value-name {
-          width: 90%;
-
-          .icon-phone {
-            color: @color-font-lightgrey;
-            font-size: 16px;
-            margin-right: 5px;
-            margin-top: -1px;
-          }
-
-          .icon-mobile {
-            color: @color-font-lightgrey;
-            font-size: 16px;
-            margin-right: 5px;
-          }
-        }
-
-        &.value-status {
-          white-space: nowrap;
-          text-align: right;
-        }
-
-        &.value-phone {
-          a {
-            &:hover {
-              text-decoration: none;
-            }
-
-          }
-        }
-
-        &.value-received {
-          text-align: right;
-        }
-
-        .last-triggered {
-          font-size: 13px;
-        }
-
-        .count {
-          font-size: 11px;
-          margin-left: 5px;
-        }
+      .glyph.icon-excel {
+        margin-left: -2px;
       }
     }
   }
-
-  .list-buttons-container {
-    height: 35px;
-    visibility: hidden;
-
-    .list-buttons {
-
-      button {
-        min-width: 70px;
-
-        .glyph {
-          margin-right: 3px;
-        }
-
-        .glyph.icon-excel {
-          margin-left: -2px;
-        }
-      }
-    }
-  }
-}
-
-tr.object-row:hover {
-  cursor: pointer;
-}
-
-tr.object-row {
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  -khtml-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
 }
 
 .glyph.label-checkbox:before {
@@ -2417,10 +2037,6 @@ tr.object-row {
 
 .glyph.object-row-checkbox:before {
   content: "\e004";
-}
-
-tr.checked td .glyph.object-row-checkbox:before {
-  content: "\e05a";
 }
 
 .glyph.label-checkbox.checked:before {
@@ -2437,19 +2053,6 @@ tr.checked td .glyph.object-row-checkbox:before {
 
 .glyph.checked:before {
   content: "\e05a";
-}
-
-.glyph.object-row-checkbox,
-.glyph.label-checkbox {
-  font-family: 'temba';
-  speak: none;
-  font-style: normal;
-  font-weight: normal;
-  line-height: 1;
-  -webkit-font-smoothing: antialiased;
-  float: left;
-  margin-top: 6px;
-  margin-right: 5px;
 }
 
 .form #number {
@@ -2699,10 +2302,6 @@ span.label a {
 
 }
 
-.select2-hidden-accessible {
-  display: none;
-}
-
 .wrapped {
   /* forces wrapping of messages with no spaces, see http://stackoverflow.com/questions/26292408/ */
   max-width: 0;
@@ -2808,7 +2407,7 @@ span.label a {
     /* Opera/IE 8+ */
 }
 
-/* Message Bubble Colors */
+/* Message bubble colors */
 .queued {
   color: @color-status-queued
 }

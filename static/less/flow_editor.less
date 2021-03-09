@@ -54,7 +54,6 @@
   background-image: linear-gradient(0deg, transparent 24%, rgba(@intensity, @intensity, @intensity, .05) 25%, rgba(@intensity, @intensity, @intensity, .05) 26%, transparent 27%, transparent 74%, rgba(@intensity, @intensity, @intensity, .05) 75%, rgba(@intensity, @intensity, @intensity, .05) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(@intensity, @intensity, @intensity, .05) 25%, rgba(@intensity, @intensity, @intensity, .05) 26%, transparent 27%, transparent 74%, rgba(@intensity, @intensity, @intensity, .05) 75%, rgba(@intensity, @intensity, @intensity, .05) 76%, transparent 77%, transparent);
   height:100%;
   background-size: 50px 50px;
-  // background: #e6e6e6;
 }
 
 .help-text {
@@ -755,7 +754,7 @@
   font-weight:500;
 }
 
-#footer {
+.footer {
   display: none;
 }
 
@@ -1106,22 +1105,6 @@
   }
 }
 
-/*.select2-container-multi .select2-choices.select2-required {
-  border: 1px solid #e9322d !important;
-  -webkit-box-shadow: 0 0 6px #f8b9b7;
-  -moz-box-shadow: 0 0 6px #f8b9b7;
-  box-shadow: 0 0 6px #f8b9b7;
-}
-
-.ng-invalid-required > .select2-choice {
-  border: 1px solid #e9322d;
-  &:focus {
-    -webkit-box-shadow: 0 0 6px #f8b9b7;
-    -moz-box-shadow: 0 0 6px #f8b9b7;
-    box-shadow: 0 0 6px #f8b9b7;
-  }
-}*/
-
 .group-membership {
   .ui-sortable-helper {
     white-space: nowrap !important;
@@ -1238,10 +1221,6 @@
 
   .split-margin {
     padding: 0 20px;
-
-    .select2-container {
-      width: 100%;
-    }
   }
 
   .country-config {
@@ -1311,6 +1290,7 @@
     .operator-select {
       width: 190px;
       height: 30px;
+      margin-bottom: 5px;
     }
 
     .ordinals {
@@ -1404,10 +1384,6 @@
 
   &.trigger-flow .modal-body {
     min-height: 225px;
-  }
-
-  .select2-container {
-    margin-top: 5px;
   }
 
   textarea {
@@ -2057,7 +2033,7 @@ div.modal[role="dialog"] {
   position: relative;
   margin: 50px auto;
 
-  .card.flipped {
+  .flip-card.flipped {
     -o-transform: rotateX(-180deg);
     -moz-transform: rotateX(-180deg);
     -webkit-transform: rotateX(-180deg);
@@ -2076,7 +2052,7 @@ div.modal[role="dialog"] {
       }
     }
   }
-  .card {
+  .flip-card {
     width: 100%;
     height: 100%;
     transform-style: preserve-3d;
@@ -2144,8 +2120,8 @@ div.modal[role="dialog"] {
 
 .flip-button {
   position:absolute;
-  right:10px;
-  top:12px;
+  right:8px;
+  top:8px;
   z-index:@z-flip-button;
 
   .rounded-corners(3px);

@@ -3,56 +3,13 @@
 
 -block summary
   -if object.primary_language
-    -blocktrans with lang=object.primary_language.name
-      The primary language is <span class='attn'>{{ lang }}</span>.
+    -blocktrans trimmed with lang=object.primary_language.name
+      The primary language is <b>{{ lang }}</b>.
     -if languages
-      -blocktrans with lang=languages
-        Translations are provided in <span class='attn'>{{lang}}</span>.
+      -blocktrans trimmed with lang=languages
+        Translations are provided in <b>{{lang}}</b>.
   -else
     -trans "Your workspace is configured to use a single language."
 
--block extra-script
-  {{ block.super }}
-  :javascript
 
-    function enableLanguages(selector, multi) {
-      $(selector).select2({
-        selectOnBlur: false,
-        multiple:multi,
-        allowClear:true,
-        placeholder: 'Select a language',
-        quietMillis: 200,
-        minimumInputLength: 0,
-        ajax: {
-            url: "{% url 'orgs.org_languages' %}",
-            dataType: 'json',
-            data: function (term, page, context) {
-                return {
-                    search: term,
-                    page: page
-                };
-            },
-            results: function (response, page, context) {
-                return response;
-            }
-        },
-        initSelection: function(element, callback) {
-          var codes = $(element).val();
-          if (codes !== "") {
-            $.getJSON("{% url 'orgs.org_languages' %}", {initial: codes}).done(function(data) {
-              if (multi){
-                callback(data.results);
-              } else {
-                callback(data.results[0]);
-              }
-            });
-          }
-        },
-        containerCssClass: 'select2-temba-field'
-      })
-    }
-
-    $(document).ready(function(){
-      enableLanguages('#id_primary_lang', false)
-      enableLanguages('#id_languages', true)
-    });
+    
