@@ -25,21 +25,15 @@ class FlowRunSearch(object):
 
         queryset = self.base_queryset.annotate(results_json=Cast('results', JSONField()))
 
-        keys_for_searching = []
         queries, e = self._parse_query()
+        keys_for_searching = [slugify_with(item.get("field"), "_") for item in queries if item.get("type") == "lookup"]
 
-        for item in queries:
-            if item.get("type") != "lookup":
-                continue
-            keys_for_searching.append(slugify_with(item.get("field"), "_"))
-
-        # for item in queryset:
-        #     for key in keys_for_searching:
-        #         print(item.results[key])
-
-        # TODO apply the filter following the queryset below
-        for item in queryset.filter(Q(results_json__response_1__name="Response 1") & Q(results_json__response_1__value="No")):
-            print(item.results_json)
+        for key in keys_for_searching:
+            # TODO apply the filter following the queryset below
+            for item in queryset.filter(
+                    Q(**{f"results_json__{key}__name": "Response 1"}) & Q(**{f"results_json__{key}__value": "No"})
+            ):
+                print(item.results_json)
 
         return queryset, str(e) if e else ""
 
