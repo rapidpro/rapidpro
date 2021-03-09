@@ -1,3 +1,8 @@
+v6.2.4
+----------
+ * Update Portuguese translation
+ * Update to floweditor v1.13.5
+
 v6.2.3
 ----------
  * Update to latest floweditor v1.13.4
