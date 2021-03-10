@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-10 13:47+0000\n"
+"POT-Creation-Date: 2021-03-10 15:43+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1819,6 +1819,14 @@ msgid "The account username provided by Zenvia"
 msgstr ""
 
 msgid "The account password provided by Zenvia"
+msgstr ""
+
+#, python-format
+msgid "Unable to register webhook subscriptions: %(resp)s"
+msgstr ""
+
+#, python-format
+msgid "Unable to remove webhook subscriptions: %(resp)s"
 msgstr ""
 
 msgid "API Token"

@@ -58,5 +58,22 @@ class ZenviaWhatsAppTypeTest(TembaTest):
             ]
             ZenviaWhatsAppType().activate(channel)
 
+            self.assertEqual("12345", mock_post.call_args_list[0][1]["headers"]["X-API-TOKEN"])
+
             self.assertEqual("message_123", channel.config.get(ZENVIA_MESSAGE_SUBSCRIPTION_ID))
             self.assertEqual("status_123", channel.config.get(ZENVIA_STATUS_SUBSCRIPTION_ID))
+
+        with patch("requests.delete") as mock_delete:
+            mock_delete.return_value = MockResponse(204, "")
+
+            # deactivate our channel
+            with self.settings(IS_PROD=True):
+                channel.release()
+
+            self.assertEqual(2, mock_delete.call_count)
+            self.assertEqual(
+                "https://api.zenvia.com/v2/subscriptions/message_123", mock_delete.call_args_list[0][0][0]
+            )
+            self.assertEqual("12345", mock_delete.call_args_list[0][1]["headers"]["X-API-TOKEN"])
+
+            self.assertEqual("https://api.zenvia.com/v2/subscriptions/status_123", mock_delete.call_args_list[1][0][0])

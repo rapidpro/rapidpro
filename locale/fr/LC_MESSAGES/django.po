@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-10 13:47+0000\n"
+"POT-Creation-Date: 2021-03-10 15:43+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1825,6 +1825,16 @@ msgstr "Le nom d'utilisateur du compte fourni par Zenvia"
 
 msgid "The account password provided by Zenvia"
 msgstr "Le mot de passe du compte fourni par Zenvia"
+
+#, fuzzy, python-format
+#| msgid "Unable to register callbacks: %(resp)s"
+msgid "Unable to register webhook subscriptions: %(resp)s"
+msgstr "Impossible d'enregistrer les rappels: %(resp)s"
+
+#, fuzzy, python-format
+#| msgid "Unable to register callbacks: %(resp)s"
+msgid "Unable to remove webhook subscriptions: %(resp)s"
+msgstr "Impossible d'enregistrer les rappels: %(resp)s"
 
 msgid "API Token"
 msgstr "Signal API"

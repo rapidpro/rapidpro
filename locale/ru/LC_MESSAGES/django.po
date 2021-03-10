@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-10 13:47+0000\n"
+"POT-Creation-Date: 2021-03-10 15:43+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2554,6 +2554,16 @@ msgstr "Имя пользователя учетной записи, предо�
 
 msgid "The account password provided by Zenvia"
 msgstr "Пароль учетной записи, предоставленный Zenvia"
+
+#, fuzzy, python-format
+#| msgid "Unable to register callbacks: %s"
+msgid "Unable to register webhook subscriptions: %(resp)s"
+msgstr "Невозможно зарегистрировать обратные вызовы: %s"
+
+#, fuzzy, python-format
+#| msgid "Unable to register callbacks: %s"
+msgid "Unable to remove webhook subscriptions: %(resp)s"
+msgstr "Невозможно зарегистрировать обратные вызовы: %s"
 
 msgid "API Token"
 msgstr "Токен API"
