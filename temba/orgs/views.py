@@ -416,7 +416,7 @@ class UserCRUDL(SmartCRUDL):
         fields = ("username", "orgs", "date_joined")
         link_fields = ("username",)
         ordering = ("-date_joined",)
-        search_fields = ('username__icontains', 'first_name__icontains', 'last_name__icontains')
+        search_fields = ("username__icontains", "first_name__icontains", "last_name__icontains")
         template_name = "smartmin/users/user_list.haml"
 
         def get_username(self, user):
@@ -773,11 +773,13 @@ class OrgCRUDL(SmartCRUDL):
     class Export(InferOrgMixin, OrgPermsMixin, SmartTemplateView):
         def get_gear_links(self):
             include_archived = bool(int(self.request.GET.get("archived", 0)))
-            return [{
-                "id": "archived-trigger",
-                "title": _("Hide Archived") if include_archived else _("Show Archived"),
-                "href": "?" if include_archived else "?archived=1"
-            }]
+            return [
+                {
+                    "id": "archived-trigger",
+                    "title": _("Hide Archived") if include_archived else _("Show Archived"),
+                    "href": "?" if include_archived else "?archived=1",
+                }
+            ]
 
         def post(self, request, *args, **kwargs):
             org = self.get_object()
