@@ -4,7 +4,7 @@
 
 - block pre-form
   .pull-right
-    %a.btn.btn-alert.delete
+    %a.button.button-danger.delete
       -with user.get_owned_orgs as orgs
         -if orgs
           -trans "Delete "
@@ -23,7 +23,7 @@
         %label.col-sm-2.control-label
           Login as
         %div.col-sm-10
-          %button{type:"submit", class:"btn btn-primary"}
+          %button{type:"submit", class:"button button-primary"}
             {{object|user_as_string}}
 
   - with user.get_owned_orgs as orgs

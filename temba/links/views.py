@@ -156,6 +156,7 @@ class LinkCRUDL(SmartCRUDL):
             link_creation = link.created_on - timedelta(hours=1)
 
             search = self.request.GET.get("search", None)
+            search = search.strip() if search else search
 
             before = int(self.request.GET.get("before", 0))
             after = int(self.request.GET.get("after", 0))

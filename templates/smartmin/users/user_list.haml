@@ -1,1 +1,15 @@
 -extends "smartmin/list.html"
+
+-load i18n
+
+-block title
+  .align-center
+    -trans "Users"
+
+-block gear-menu
+  .search-box
+    %form#search-form(method='get')
+      %temba-textinput(name='search' value='{{request.GET.search}}' placeholder='{{ _("Search") }}')
+  {{ block.super }}
+
+- block table-buttons
