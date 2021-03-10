@@ -416,7 +416,8 @@ class UserCRUDL(SmartCRUDL):
         fields = ("username", "orgs", "date_joined")
         link_fields = ("username",)
         ordering = ("-date_joined",)
-        search_fields = ("username",)
+        search_fields = ('username__icontains', 'first_name__icontains', 'last_name__icontains')
+        template_name = "smartmin/users/user_list.haml"
 
         def get_username(self, user):
             return mark_safe(f"<a href='{reverse('users.user_update', args=(user.id,))}'>{user.username}</a>")

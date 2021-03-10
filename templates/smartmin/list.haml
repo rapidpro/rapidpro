@@ -9,11 +9,11 @@
 
 -block content
   -block table-controls
-    .row
-      .span12.table-buttons
+    .flex.justify-end.mb-2
+      .table-buttons
         - block table-buttons
           - if view.add_button
-            %a.btn.btn-primary.pull-right{ href:"./create/" } Add
+            %a.button.button-primary.pull-right{ href:"./create/" } Add
   {% block pjax %}
   #pjax
     -block pre-table
