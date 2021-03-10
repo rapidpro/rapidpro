@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-09 21:44+0000\n"
+"POT-Creation-Date: 2021-03-10 00:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -774,7 +774,8 @@ msgstr "La clave API de 360 Dialog generada después del registro de la cuenta"
 msgid "Please enter a valid phone number"
 msgstr "Por favor ingrese un número de teléfono válido"
 
-msgid "A channel type that allows you to use the Discord proxy TODO link"
+#, python-format
+msgid "Add a %(link)s bot to send messages to Discord users for free. Your users will need a Discord account and a compatible device to send/recieve messages. This channel type is only available if your instance has been configured with the Discord proxy application, available %(proxy_link)s."
 msgstr ""
 
 msgid "Authentication Token"

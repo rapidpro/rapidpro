@@ -16,7 +16,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-09 21:44+0000\n"
+"POT-Creation-Date: 2021-03-10 00:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Matheus Soares <matheus.soares@ilhasoft.com.br>, 2020\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -777,7 +777,8 @@ msgstr ""
 msgid "Please enter a valid phone number"
 msgstr "Por favor insira um número de telefone válido"
 
-msgid "A channel type that allows you to use the Discord proxy TODO link"
+#, python-format
+msgid "Add a %(link)s bot to send messages to Discord users for free. Your users will need a Discord account and a compatible device to send/recieve messages. This channel type is only available if your instance has been configured with the Discord proxy application, available %(proxy_link)s."
 msgstr ""
 
 msgid "Authentication Token"

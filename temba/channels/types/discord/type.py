@@ -17,11 +17,19 @@ class DiscordType(ChannelType):
     courier_url = r"^ds/(?P<uuid>[a-z0-9\-]+)/receive$"
 
     name = "Discord"
-    icon = "icon-exernal"
+    icon = "icon-discord"
     show_config_page = False
 
-    # TODO
-    claim_blurb = _("""A channel type that allows you to use the Discord proxy TODO link""")
+    claim_blurb = _(
+        "Add a %(link)s bot to send messages to Discord users for free. "
+        "Your users will need a Discord account and a compatible device to send/recieve messages. "
+        "This channel type is only available if your instance has been "
+        "configured with the Discord proxy application, available %(proxy_link)s."
+        % {
+            "link": '<a href="https://discord.com/">Discord</a>',
+            "proxy_link": '<a href="https://github.com/releaseplatform/RapidPro-Discord-Proxy">here</a>',
+        }
+    )
     claim_view = ClaimView
 
     schemes = [URN.DISCORD_SCHEME]
@@ -29,7 +37,6 @@ class DiscordType(ChannelType):
     attachment_support = True
     free_sending = True
 
-    # TODO
     redact_response_keys = {"first_name", "last_name", "username"}
 
     def activate(self, channel):
