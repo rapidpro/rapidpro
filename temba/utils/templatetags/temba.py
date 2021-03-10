@@ -38,11 +38,11 @@ def oxford(forloop, punctuation=""):
     """
     # there are only two items
     if forloop["counter"] == 1 and forloop["revcounter"] == 2:
-        return _(" and ")
+        return f' {_("and")} '
 
     # we are the last in a list of 3 or more
     if forloop["revcounter"] == 2:
-        return _(", and ")
+        return f', {_("and")} '
 
     if not forloop["last"]:
         return ", "

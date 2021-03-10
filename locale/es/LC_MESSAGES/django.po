@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-10 13:35+0000\n"
+"POT-Creation-Date: 2021-03-10 13:47+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -3821,8 +3821,9 @@ msgstr "Los nuevos tickets y respuestas se enviarán a la dirección de correo e
 msgid "Verify your email address for tickets"
 msgstr "Verifique su dirección de correo electrónico para tickets"
 
-#, python-format
-msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket servicethrough its omnichannel feature."
+#, fuzzy, python-format
+#| msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket servicethrough its omnichannel feature."
+msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket service through its omnichannel feature."
 msgstr "%(link)s es una solución gratuita de código abierto para comunicaciones en equipo que se puede conectar como un servicio de tickets a través de su función omnicanal."
 
 msgid "URL of the Rocket.Chat Tickets app"
@@ -4086,9 +4087,6 @@ msgid "%d second"
 msgid_plural "%d seconds"
 msgstr[0] "%d segundo"
 msgstr[1] "%d segundos"
-
-msgid ", and "
-msgstr "y"
 
 msgid "0 seconds"
 msgstr "0 segundos"
@@ -7739,6 +7737,9 @@ msgstr "Ingrese una consulta"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Se encontró $ {count} por $ {query}"
+
+#~ msgid ", and "
+#~ msgstr "y"
 
 #~ msgid "The Twitter handle that this channel will send from"
 #~ msgstr "El identificador de Twitter desde el que enviará este canal"

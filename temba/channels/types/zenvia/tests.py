@@ -23,8 +23,7 @@ class ZenviaTypeTest(TembaTest):
         self.org.save()
 
         response = self.client.get(reverse("channels.channel_claim"))
-        self.assertContains(response, "Zenvia")
-        self.assertContains(response, url)
+        self.assertNotContains(response, url)
 
         # try to claim a channel
         response = self.client.get(url)
