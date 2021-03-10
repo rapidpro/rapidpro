@@ -1,12 +1,10 @@
-
 import phonenumbers
-
 from smartmin.views import SmartFormView
 
 from django import forms
 from django.utils.translation import ugettext_lazy as _
-from temba.utils.fields import SelectWidget
 
+from temba.utils.fields import SelectWidget
 
 from ...models import Channel
 from ...views import ALL_COUNTRIES, ClaimViewMixin
@@ -45,7 +43,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                     )
             else:  # pragma: needs cover
                 return number
-    
+
     form_class = Form
 
     def form_valid(self, form):

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-02 16:37+0000\n"
+"POT-Creation-Date: 2021-03-10 13:35+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1821,6 +1821,12 @@ msgstr ""
 msgid "The account password provided by Zenvia"
 msgstr ""
 
+msgid "API Token"
+msgstr ""
+
+msgid "The API token for your integration as provided by Zenvia"
+msgstr ""
+
 msgid "United Kingdom"
 msgstr ""
 
@@ -3556,9 +3562,6 @@ msgid "Sign Out"
 msgstr ""
 
 msgid "Login"
-msgstr ""
-
-msgid "API Token"
 msgstr ""
 
 msgid "Your DT One API key and secret seem invalid. Please check them again and retry."

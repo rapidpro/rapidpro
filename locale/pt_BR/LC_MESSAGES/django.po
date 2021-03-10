@@ -16,7 +16,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-02 16:37+0000\n"
+"POT-Creation-Date: 2021-03-10 13:35+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Matheus Soares <matheus.soares@ilhasoft.com.br>, 2020\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -1832,6 +1832,14 @@ msgstr "O nome de usuário da conta fornecida pela Zenvia"
 msgid "The account password provided by Zenvia"
 msgstr "A senha da conta fornecida pela Zenvia"
 
+msgid "API Token"
+msgstr "Token API"
+
+#, fuzzy
+#| msgid "The API key for your integration as provided by Clickatell"
+msgid "The API token for your integration as provided by Zenvia"
+msgstr "A chave da API para sua integração conforme fornecido pela Clickatell"
+
 msgid "United Kingdom"
 msgstr "Reino Unido"
 
@@ -3568,9 +3576,6 @@ msgstr ""
 
 msgid "Login"
 msgstr "Login"
-
-msgid "API Token"
-msgstr "Token API"
 
 msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
 msgstr "Sua chave de API do DT One e o secret parecem inválidos. Por favor cheque-os novamente e tente novamente."

@@ -1,14 +1,13 @@
-
 from unittest.mock import patch
 
-from django.urls import reverse
-
 from django.forms import ValidationError
+from django.urls import reverse
 
 from temba.tests import MockResponse, TembaTest
 
 from ...models import Channel
-from .type import ZenviaWhatsAppType, ZENVIA_MESSAGE_SUBSCRIPTION_ID, ZENVIA_STATUS_SUBSCRIPTION_ID
+from .type import ZENVIA_MESSAGE_SUBSCRIPTION_ID, ZENVIA_STATUS_SUBSCRIPTION_ID, ZenviaWhatsAppType
+
 
 class ZenviaWhatsAppTypeTest(TembaTest):
     def test_claim(self):
@@ -53,7 +52,10 @@ class ZenviaWhatsAppTypeTest(TembaTest):
             self.assertFalse(channel.config.get(ZENVIA_STATUS_SUBSCRIPTION_ID))
 
         with patch("requests.post") as mock_post:
-            mock_post.side_effect = [MockResponse(200, '{"id": "message_123"}'), MockResponse(200, '{"id": "status_123"}')]
+            mock_post.side_effect = [
+                MockResponse(200, '{"id": "message_123"}'),
+                MockResponse(200, '{"id": "status_123"}'),
+            ]
             ZenviaWhatsAppType().activate(channel)
 
             self.assertEqual("message_123", channel.config.get(ZENVIA_MESSAGE_SUBSCRIPTION_ID))

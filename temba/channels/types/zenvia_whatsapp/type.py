@@ -1,17 +1,17 @@
-
 import requests
 
+from django.forms import ValidationError
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
-from django.forms import ValidationError
 
 from temba.contacts.models import URN
 
-from ...models import ChannelType, Channel
+from ...models import Channel, ChannelType
 from .views import ClaimView
 
 ZENVIA_MESSAGE_SUBSCRIPTION_ID = "zenvia_message_subscription_id"
 ZENVIA_STATUS_SUBSCRIPTION_ID = "zenvia_status_subscription_id"
+
 
 class ZenviaWhatsAppType(ChannelType):
     """
@@ -35,7 +35,6 @@ class ZenviaWhatsAppType(ChannelType):
     schemes = [URN.WHATSAPP_SCHEME]
     max_length = 1600
 
-
     def update_webhook(self, channel, url, event_type):
         headers = {
             "X-API-TOKEN:": channel.config[Channel.CONFIG_API_KEY],
@@ -47,16 +46,10 @@ class ZenviaWhatsAppType(ChannelType):
         # set our webhook
         payload = {
             "eventType": event_type,
-            "webhook": {
-                "url": url,
-                "headers": { }
-            },
+            "webhook": {"url": url, "headers": {}},
             "status": "ACTIVE",
             "version": "v2",
-            "criteria": {
-                "channel": channel.address,
-                "direction": "IN"
-            }
+            "criteria": {"channel": channel.address, "direction": "IN"},
         }
         resp = requests.post(conf_url, json=payload, headers=headers)
 
@@ -71,15 +64,18 @@ class ZenviaWhatsAppType(ChannelType):
             "Content-Type": "application/json",
         }
 
-        subscriptionIds = [channel.config.get(ZENVIA_MESSAGE_SUBSCRIPTION_ID), channel.config.get(ZENVIA_STATUS_SUBSCRIPTION_ID)]
+        subscriptionIds = [
+            channel.config.get(ZENVIA_MESSAGE_SUBSCRIPTION_ID),
+            channel.config.get(ZENVIA_STATUS_SUBSCRIPTION_ID),
+        ]
 
         for subscriptionId in subscriptionIds:
             if not subscriptionId:
                 continue
-            
+
             conf_url = f"https://api.zenvia.com/v2/subscriptions/{subscriptionId}"
             resp = requests.delete(conf_url, headers=headers)
-            
+
             if resp.status_code != 204:
                 raise ValidationError(_("Unable to register callbacks: %(resp)s"), params={"resp": resp.content})
 
