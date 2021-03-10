@@ -1,6 +1,9 @@
 
+import requests
 
+from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
+from django.forms import ValidationError
 
 from temba.contacts.models import URN
 
@@ -60,6 +63,8 @@ class ZenviaWhatsAppType(ChannelType):
         if resp.status_code != 200:
             raise ValidationError(_("Unable to register callbacks: %(resp)s"), params={"resp": resp.content})
 
+        return resp.json()["id"]
+
     def deactivate(self, channel):
         headers = {
             "X-API-TOKEN:": channel.config[Channel.CONFIG_API_KEY],
@@ -82,8 +87,13 @@ class ZenviaWhatsAppType(ChannelType):
         domain = channel.org.get_brand_domain()
 
         receive_url = "https://" + domain + reverse("courier.zvw", args=[channel.uuid, "receive"])
-        self.update_webhook(channel, receive_url, "MESSAGE")
+        messageSubscriptionId = self.update_webhook(channel, receive_url, "MESSAGE")
+
+        channel.config[ZENVIA_MESSAGE_SUBSCRIPTION_ID] = messageSubscriptionId
 
         status_url = "https://" + domain + reverse("courier.zvw", args=[channel.uuid, "status"])
-        self.update_webhook(channel, status_url, "MESSAGE_STATUS")
+        statusSubscriptionId = self.update_webhook(channel, status_url, "MESSAGE_STATUS")
 
+        channel.config[ZENVIA_STATUS_SUBSCRIPTION_ID] = statusSubscriptionId
+
+        channel.save()
