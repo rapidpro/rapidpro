@@ -41,6 +41,8 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ContactURN
 from temba.contacts.tasks import release_group_task
+from temba.contacts.search import SearchException
+from temba.contacts.search.elastic import query_contact_ids
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -4365,9 +4367,6 @@ class ContactsReportEndpoint(BaseAPIView):
     permission = "orgs.org_api"
 
     def get_queryset(self):
-        from temba.contacts.search import SearchException
-        from temba.contacts.search.elastic import query_contact_ids
-
         org = self.request.user.get_org()
         contacts = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True).distinct()
 
@@ -4387,7 +4386,7 @@ class ContactsReportEndpoint(BaseAPIView):
         if search_query:
             try:
                 group = ContactGroup.all_groups.get(org=org, group_type="A")
-                parsed_query, contact_ids = query_contact_ids(org, search_query, group=group, return_parsed_query=True)
+                contact_ids, parsed_query = query_contact_ids(org, search_query, group=group, return_parsed_query=True)
                 setattr(self, "search_query", parsed_query if len(parsed_query) > 0 else None)
                 contacts = contacts.filter(id__in=contact_ids)
 
@@ -4505,9 +4504,6 @@ class ContactVariablesReportEndpoint(BaseAPIView):
         self.applied_filters = {}
 
     def get_queryset(self):
-        from temba.contacts.search import SearchException
-        from temba.contacts.search.elastic import query_contact_ids
-
         org = self.request.user.get_org()
         contacts = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True).distinct()
 
@@ -4528,7 +4524,7 @@ class ContactVariablesReportEndpoint(BaseAPIView):
         if search_query:
             try:
                 group = ContactGroup.all_groups.get(org=org, group_type="A")
-                parsed_query, contact_ids = query_contact_ids(org, search_query, group=group, return_parsed_query=True)
+                contact_ids, parsed_query = query_contact_ids(org, search_query, group=group, return_parsed_query=True)
                 if parsed_query:
                     self.applied_filters["search_query"] = parsed_query
                 contacts = contacts.filter(id__in=contact_ids)

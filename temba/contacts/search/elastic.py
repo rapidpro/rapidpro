@@ -17,8 +17,10 @@ def query_contact_ids(org, query, *, group=None, return_parsed_query=False):
         es_Search(index="contacts").source(include=["id"]).params(routing=org.id).using(ES).query(parsed.elastic_query)
     )
 
+    # In case if you also need to return parsed query (e.g. to display it to users)
+    # you just need to pass `return_parsed_query` in kwargs as `True`
     if return_parsed_query:
-        return parsed.query, [int(r.id) for r in results.scan()]
+        return [int(r.id) for r in results.scan()], parsed.query
 
     return [int(r.id) for r in results.scan()]
 

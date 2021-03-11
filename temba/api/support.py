@@ -7,7 +7,7 @@ from rest_framework.renderers import BrowsableAPIRenderer
 from rest_framework.throttling import ScopedRateThrottle
 
 from django.conf import settings
-from django.http import HttpResponseServerError
+from django.http import HttpResponse, HttpResponseServerError
 
 from .models import APIToken
 
@@ -170,8 +170,6 @@ def csv_response_wrapper(func):
         export_csv = view.request.query_params.get("export_csv", "").lower() == "true"
         result_to_convert = next(iter(json_http_response.data.get("results", [])), None)
         if export_csv and result_to_convert:
-            from django.http import HttpResponse
-
             response = HttpResponse(content_type="text/csv")
             response["Content-Disposition"] = f'attachment; filename="report.csv"'
             result_to_convert = json_http_response.data["results"][0]
