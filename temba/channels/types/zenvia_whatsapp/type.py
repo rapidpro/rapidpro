@@ -71,6 +71,8 @@ class ZenviaWhatsAppType(ChannelType):
             channel.config.get(ZENVIA_STATUS_SUBSCRIPTION_ID),
         ]
 
+        errored = False
+
         for subscriptionId in subscriptionIds:
             if not subscriptionId:
                 continue
@@ -79,9 +81,10 @@ class ZenviaWhatsAppType(ChannelType):
             resp = requests.delete(conf_url, headers=headers)
 
             if resp.status_code != 204:
-                raise ValidationError(
-                    _("Unable to remove webhook subscriptions: %(resp)s"), params={"resp": resp.content}
-                )
+                errored = True
+
+        if errored:
+            raise ValidationError(_("Unable to remove webhook subscriptions: %(resp)s"), params={"resp": resp.content})
 
     def activate(self, channel):
         domain = channel.org.get_brand_domain()
