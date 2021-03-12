@@ -1,7 +1,8 @@
-import re
+import sqlparse
 
 from django.db.models import Q, QuerySet
 from django.utils.translation import ugettext_lazy as _
+from sqlparse.exceptions import SQLParseError
 
 from temba.utils.text import slugify_with
 
@@ -13,10 +14,7 @@ class FlowRunSearch(object):
     }
 
     def __init__(self, query, base_queryset):
-        if not str(query).startswith("("):
-            query = f"({query})"
-
-        self.query = query
+        self.query = self._preprocess_query(query)
         self.base_queryset = base_queryset
 
     def search(self) -> (QuerySet, str):
@@ -26,66 +24,117 @@ class FlowRunSearch(object):
         queryset = self.base_queryset.annotate(results_json=Cast('results', JSONField()))
 
         queries, e = self._parse_query()
-        keys_for_searching = [slugify_with(item.get("field"), "_") for item in queries if item.get("type") == "lookup"]
+        queries_iterator = iter(queries)
 
-        for key in keys_for_searching:
-            # TODO apply the filter following the queryset below
-            for item in queryset.filter(
-                    Q(**{f"results_json__{key}__name": "Response 1"}) & Q(**{f"results_json__{key}__value": "No"})
-            ):
-                print(item.results_json)
+        filters = []
+        previous_condition = {}
+        while True:
+            try:
+                item = next(queries_iterator)
+                if item.get("type") == "lookup":
+                    _filter = Q(**{
+                        f'results_json__{slugify_with(item.get("field"), "_")}'
+                        f'__value{self.LOOKUPS.get(item.get("operator"))}':
+                            item.get("value")
+                    })
+                    if previous_condition:
+                        if previous_condition.get("conditional") == "OR":
+                            filters[-1] |= _filter
+                        elif previous_condition.get("conditional") == "AND":
+                            filters[-1] &= _filter
+                        elif previous_condition.get("conditional") == "NOT":
+                            filters.append(~_filter)
+                        previous_condition = {}
+                    else:
+                        filters.append(_filter)
+                else:
+                    previous_condition = item
+            except StopIteration:
+                break
+
+        if filters:
+            queryset = queryset.filter(*filters)
 
         return queryset, str(e) if e else ""
 
-    def _parse_query(self) -> (list, Exception):
-        query_regex = r"\(([^)]+)\)"
-        conditional_regex = r"(?:OR|AND|NOT)"
+    @staticmethod
+    def _preprocess_query(query: str) -> str:
+        """
+        This method adds spaces around operator and wrap keys and values into quotes
+        so `sqlparse` will be able to parse it correctly.
+        :param query: Query string received from client.
+        :return: Processed query string.
+        """
+        query = (
+            query
+            .replace("!=", " <> ")
+            .replace("=", " = ")
+            .replace("~", " ~ ")
+            .replace("(", " ( ")
+            .replace(")", " ) ")
+        )
 
-        query_matches = re.finditer(query_regex, self.query, re.IGNORECASE)
-        query_matches_copy = re.finditer(query_regex, self.query, re.IGNORECASE)
+        operators = ["=", "!=", "~", "<>", "not", "and", "or", "(", ")"]
+        query_list = []
+        need_quotes = set()
+        previous_is_operator = False
 
-        conditional_matches = re.finditer(conditional_regex, self.query, re.IGNORECASE)
-        conditional_matches_copy = re.finditer(conditional_regex, self.query, re.IGNORECASE)
-
-        query_matches_length = len([*query_matches_copy])
-        conditional_matches_length = len([*conditional_matches_copy])
-
-        if query_matches_length - conditional_matches_length != 1:
-            return [], Exception(_("Something is wrong with your query, please review the syntax."))
-
-        conditional_items = []
-        for item in conditional_matches:
-            conditional_items.append(item.group())
-
-        queries = []
-
-        for idx, item in enumerate(query_matches):
-            match = str(item.group()).replace("(", "").replace(")", "")
-            if "=" in match:
-                match_splitted = str(match).split("=")
-                operator = "="
-            elif "~" in match:
-                match_splitted = str(match).split("~")
-                operator = "~"
+        for item in query.split():
+            if item.lower() in operators:
+                query_list.append(item)
+                previous_is_operator = True
+            elif previous_is_operator or not query_list:
+                query_list.append(item)
+                previous_is_operator = False
+                need_quotes.add(len(query_list) - 1)
             else:
-                continue
+                query_list[-1] = " ".join((query_list[-1], item))
+                previous_is_operator = False
+                need_quotes.add(len(query_list) - 1)
 
-            (field, value, *rest) = match_splitted
+        for index in need_quotes:
+            query_list[index] = f"'{query_list[index]}'"
 
-            queries.append(
-                dict(
-                    field=str(field).strip(),
-                    value=str(value).strip(),
-                    operator=operator,
-                    type="lookup"
-                )
-            )
-            if idx < conditional_matches_length:
-                queries.append(
-                    dict(
-                        type="conditional",
-                        conditional=str(conditional_items[idx]).upper().strip(),
-                    )
-                )
+        return " ".join(query_list)
+
+    def _parse_query(self) -> (list, Exception):
+        queries = []
+        try:
+            parsed_query = sqlparse.parse(self.query)[0]
+        except SQLParseError:
+            return queries, Exception(_("Something is wrong with your query, please review the syntax."))
+        for token in parsed_query.tokens:
+            if token.is_keyword:
+                queries.append({
+                    "type": "conditional",
+                    "conditional": str(token).upper()
+                })
+            else:
+                match = str(token)
+                if "=" in match:
+                    match_splitted = str(match).split("=")
+                    operator = "="
+                elif "~" in match:
+                    match_splitted = str(match).split("~")
+                    operator = "~"
+                elif "<>" in match:
+                    match_splitted = str(match).split("<>")
+                    operator = "="
+                    if queries and queries[-1].get("conditional", "") == "NOT":
+                        queries.pop()
+                    else:
+                        queries.append({
+                            "type": "conditional",
+                            "conditional": "NOT"
+                        })
+                else:
+                    continue
+                (field, value, *rest) = match_splitted
+                queries.append({
+                    "field": str(field).strip(" '"),
+                    "value": str(value).strip(" '"),
+                    "operator": operator,
+                    "type": "lookup"
+                })
 
         return queries, None
