@@ -40,8 +40,79 @@ from .search import SearchException, elastic, parse_query
 
 logger = logging.getLogger(__name__)
 
+<<<<<<< ours
+# phone number for every org's test contact
+OLD_TEST_CONTACT_TEL = "12065551212"
+
+# how many sequential contacts on import triggers suspension
+SEQUENTIAL_CONTACTS_THRESHOLD = 250
+
+DELETED_SCHEME = "deleted"
+EMAIL_SCHEME = "mailto"
+EXTERNAL_SCHEME = "ext"
+FACEBOOK_SCHEME = "facebook"
+JIOCHAT_SCHEME = "jiochat"
+LINE_SCHEME = "line"
+TEL_SCHEME = "tel"
+TELEGRAM_SCHEME = "telegram"
+TWILIO_SCHEME = "twilio"
+TWITTER_SCHEME = "twitter"
+TWITTERID_SCHEME = "twitterid"
+VIBER_SCHEME = "viber"
+VK_SCHEME = "vk"
+FCM_SCHEME = "fcm"
+WHATSAPP_SCHEME = "whatsapp"
+WECHAT_SCHEME = "wechat"
+FRESHCHAT_SCHEME = "freshchat"
+DISCORD_SCHEME = "discord"
+
+FACEBOOK_PATH_REF_PREFIX = "ref:"
+
+# Scheme, Label, Export/Import Header, Context Key
+URN_SCHEME_CONFIG = (
+    (TEL_SCHEME, _("Phone number"), "tel_e164"),
+    (FACEBOOK_SCHEME, _("Facebook identifier"), FACEBOOK_SCHEME),
+    (TWITTER_SCHEME, _("Twitter handle"), TWITTER_SCHEME),
+    (TWITTERID_SCHEME, _("Twitter ID"), TWITTERID_SCHEME),
+    (VIBER_SCHEME, _("Viber identifier"), VIBER_SCHEME),
+    (LINE_SCHEME, _("LINE identifier"), LINE_SCHEME),
+    (TELEGRAM_SCHEME, _("Telegram identifier"), TELEGRAM_SCHEME),
+    (EMAIL_SCHEME, _("Email address"), EMAIL_SCHEME),
+    (EXTERNAL_SCHEME, _("External identifier"), EXTERNAL_SCHEME),
+    (JIOCHAT_SCHEME, _("JioChat identifier"), JIOCHAT_SCHEME),
+    (WECHAT_SCHEME, _("WeChat identifier"), WECHAT_SCHEME),
+    (FCM_SCHEME, _("Firebase Cloud Messaging identifier"), FCM_SCHEME),
+    (WHATSAPP_SCHEME, _("WhatsApp identifier"), WHATSAPP_SCHEME),
+    (FRESHCHAT_SCHEME, _("Freshchat identifier"), FRESHCHAT_SCHEME),
+    (VK_SCHEME, _("VK identifier"), VK_SCHEME),
+    (DISCORD_SCHEME, _("Discord identifier"), DISCORD_SCHEME),
+)
+
+
+IMPORT_HEADERS = tuple((f"URN:{c[0]}", c[0]) for c in URN_SCHEME_CONFIG)
+
+# events from sessions to include in contact history
+HISTORY_INCLUDE_EVENTS = {
+    "contact_language_changed",
+    "contact_field_changed",
+    "contact_groups_changed",
+    "contact_name_changed",
+    "contact_urns_changed",
+    "email_created",  # no longer generated but exists in old sessions
+    "email_sent",
+    "error",
+    "failure",
+    "input_labels_added",
+    "run_result_changed",
+    "ticket_opened",
+}
+
+
+class URN(object):
+=======
 
 class URN:
+>>>>>>> theirs
     """
     Support class for URN strings. We differ from the strict definition of a URN (https://tools.ietf.org/html/rfc2141)
     in that:
@@ -68,7 +139,6 @@ class URN:
     WECHAT_SCHEME = "wechat"
     FRESHCHAT_SCHEME = "freshchat"
     ROCKETCHAT_SCHEME = "rocketchat"
-    DISCORD_SCHEME = "discord"
 
     SCHEME_CHOICES = (
         (TEL_SCHEME, _("Phone number")),
@@ -87,7 +157,6 @@ class URN:
         (FRESHCHAT_SCHEME, _("Freshchat identifier")),
         (VK_SCHEME, _("VK identifier")),
         (ROCKETCHAT_SCHEME, _("RocketChat identifier")),
-        (DISCORD_SCHEME, _("Discord Identifier")),
     )
 
     VALID_SCHEMES = {s[0] for s in SCHEME_CHOICES}
@@ -216,7 +285,7 @@ class URN:
                 regex.V0,
             )
         # Discord IDs are snowflakes, which are int64s internally
-        elif scheme == cls.DISCORD_SCHEME:
+        elif scheme == DISCORD_SCHEME:
             try:
                 int(path)
                 return True
@@ -305,7 +374,7 @@ class URN:
 
     @classmethod
     def from_discord(cls, path):
-        return cls.from_parts(cls.DISCORD_SCHEME, path)
+        return cls.from_parts(DISCORD_SCHEME, path)
 
 
 class UserContactFieldsQuerySet(models.QuerySet):
@@ -1277,11 +1346,34 @@ class ContactURN(models.Model):
     """
 
     # schemes that support "new conversation" triggers
+<<<<<<< ours
+    SCHEMES_SUPPORTING_NEW_CONVERSATION = {FACEBOOK_SCHEME, VIBER_SCHEME, TELEGRAM_SCHEME}
+    SCHEMES_SUPPORTING_REFERRALS = {FACEBOOK_SCHEME}  # schemes that support "referral" triggers
+
+    EXPORT_SCHEME_HEADERS = tuple((c[0], c[1]) for c in URN_SCHEME_CONFIG)
+
+    PRIORITY_LOWEST = 1
+    PRIORITY_STANDARD = 50
+    PRIORITY_HIGHEST = 99
+
+    PRIORITY_DEFAULTS = {
+        TEL_SCHEME: PRIORITY_STANDARD,
+        TWITTER_SCHEME: 90,
+        TWITTERID_SCHEME: 90,
+        FACEBOOK_SCHEME: 90,
+        TELEGRAM_SCHEME: 90,
+        VIBER_SCHEME: 90,
+        FCM_SCHEME: 90,
+        FRESHCHAT_SCHEME: 90,
+        DISCORD_SCHEME: 90,
+    }
+=======
     SCHEMES_SUPPORTING_NEW_CONVERSATION = {URN.FACEBOOK_SCHEME, URN.VIBER_SCHEME, URN.TELEGRAM_SCHEME}
     SCHEMES_SUPPORTING_REFERRALS = {URN.FACEBOOK_SCHEME}  # schemes that support "referral" triggers
 
     # mailroom sets priorites like 1000, 999, ...
     PRIORITY_HIGHEST = 1000
+>>>>>>> theirs
 
     ANON_MASK = "*" * 8  # Returned instead of URN values for anon orgs
     ANON_MASK_HTML = "•" * 8  # Pretty HTML version of anon mask

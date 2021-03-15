@@ -53,7 +53,9 @@ class Migration(migrations.Migration):
             model_name="backuptoken",
             name="settings",
             field=models.ForeignKey(
-                on_delete=django.db.models.deletion.PROTECT, related_name="backups", to="orgs.UserSettings"
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="backups",
+                to="orgs.UserSettings",
             ),
         ),
         migrations.AlterField(
