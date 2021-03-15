@@ -3008,7 +3008,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
 
      * **uuid** - the ID of the run (string), filterable as `uuid`.
      * **flow** - the UUID and name of the flow (object), filterable as `flow` with UUID.
-     * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
+     * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID or `contact_urn`.
      * **start** - the UUID of the flow start (object)
      * **responded** - whether the contact responded (boolean), filterable as `responded`.
      * **path** - the contact's path through the flow nodes (array of objects)
@@ -3083,6 +3083,8 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         params = self.request.query_params
         org = self.request.user.get_org()
 
+
+
         # filter by flow (optional)
         flow_uuid = params.get("flow")
         if flow_uuid:
@@ -3102,12 +3104,27 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         if run_uuid:
             queryset = queryset.filter(uuid=run_uuid)
 
-        # filter by contact (optional)
         contact_uuid = params.get("contact")
+        contact_urn_identity = params.get("contact_urn")
+
+        if contact_uuid and contact_urn_identity:
+            raise InvalidQueryError(
+                "Please use only contact or contact_urn, we can't handle using both"
+            )
+
+        # filter by contact (optional)
         if contact_uuid:
             contact = Contact.objects.filter(org=org, is_active=True, uuid=contact_uuid).first()
             if contact:
                 queryset = queryset.filter(contact=contact)
+            else:
+                queryset = queryset.filter(pk=-1)
+
+        # filter by contact urn (optional)
+        elif contact_urn_identity:
+            contact_urn = ContactURN.objects.filter(identity=contact_urn_identity).exclude(contact__isnull=True).first()
+            if contact_urn:
+                queryset = queryset.filter(contact=contact_urn.contact)
             else:
                 queryset = queryset.filter(pk=-1)
 
@@ -3143,6 +3160,11 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                     "name": "contact",
                     "required": False,
                     "help": "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+                },
+                {
+                    "name": "contact_urn",
+                    "required": False,
+                    "help": "A contact URN to filter by, ex: ext:3NXhl6z3HbvvpLHFAACh",
                 },
                 {"name": "responded", "required": False, "help": "Whether to only return runs with contact responses"},
                 {
