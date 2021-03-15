@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-03 18:30+0000\n"
+"POT-Creation-Date: 2021-03-15 19:56+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -774,6 +774,37 @@ msgid "Please enter a valid phone number"
 msgstr "s'il vous plaît entrer un numéro de téléphone valide"
 
 #, python-format
+msgid "Add a %(link)s bot to send messages to Discord users for free. Your users will need a Discord account and a compatible device to send/recieve messages. This channel type is only available if your instance has been configured with the Discord proxy application, available %(proxy_link)s."
+msgstr ""
+
+msgid "Authentication Token"
+msgstr "Jeton d'authentification"
+
+msgid "The discord bot token"
+msgstr ""
+
+msgid "Proxy URL"
+msgstr ""
+
+msgid "The URL on which the discord proxy is running"
+msgstr ""
+
+#, fuzzy
+#| msgid "A telegram channel for this bot already exists on your account."
+msgid "A Discord channel for this bot already exists on your account."
+msgstr "Un canal Telegram pour ce bot existe déjà sur votre compte."
+
+#, fuzzy
+#| msgid "Your authentication token is invalid, please check and try again"
+msgid "Couldn't log in using that bot token. Please check and try again"
+msgstr "Votre jeton d'authentification n'est pas valide. Veuillez vérifier et réessayer"
+
+#, fuzzy
+#| msgid "An error occurred while making your changes. Please try again."
+msgid "An error occurred accessing the Discord API. Please try again"
+msgstr "Une erreur s'est produite lors de vos modifications. Veuillez réessayer."
+
+#, python-format
 msgid "If you are based in Uganda or DRC you can purchase a short code from %(link)s and connect it in a few simple steps."
 msgstr "Si vous êtes basé en Ouganda ou en RDC, vous pouvez acheter un code court auprès de %(link)s et le connecter en quelques étapes simples."
 
@@ -1471,9 +1502,6 @@ msgstr "Start doit appeler ce noeud final lorsque de nouveaux messages sont reç
 msgid "Add a %(link)s bot to send and receive messages to Telegram users for free. Your users will need an Android, Windows or iOS device and a Telegram account to send and receive messages."
 msgstr "Ajoutez un bot %(link)s pour envoyer et recevoir gratuitement des messages aux utilisateurs de Telegram. Vos utilisateurs auront besoin d'un appareil Android, Windows ou iOS et d'un compte Telegram pour envoyer et recevoir des messages."
 
-msgid "Authentication Token"
-msgstr "Jeton d'authentification"
-
 msgid "The Authentication token for your Telegram Bot"
 msgstr "Le jeton d'authentification pour votre bot Telegram"
 
@@ -2081,6 +2109,11 @@ msgstr "Identifiant VK"
 
 msgid "RocketChat identifier"
 msgstr "Identifiant RocketChat"
+
+#, fuzzy
+#| msgid "Viber identifier"
+msgid "Discord Identifier"
+msgstr "Identifiant Viber"
 
 msgid "Text"
 msgstr "Texte"
