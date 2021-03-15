@@ -8,7 +8,7 @@
   -for run in runs
     <tr id="run_{{run.id}}" class="run exit-{{run.exit_type}}"
       {% if forloop.last and more %}
-        ic-append-from="/flow/run_table/{{object.id}}/?modified_on={{run.modified_on|utc|date:'Y-m-d\TH:i:s.u'|urlencode}}&id={{run.id}}&q={{request.GET.q}}" ic-trigger-on="scrolled-into-view"
+        ic-append-from="/flow/run_table/{{object.id}}/?modified_on={{run.modified_on|utc|date:'Y-m-d\TH:i:s.u'|urlencode}}&id={{run.id}}&q={{request.GET.q}}&contact_query={{request.GET.contact_query}}" ic-trigger-on="scrolled-into-view"
         ic-target="#results_run_table"
         ic-template="results_run_table"
         ic-indicator="#indicator"

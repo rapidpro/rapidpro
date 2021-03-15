@@ -42,6 +42,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.contacts.search import SearchException, parse_query
+from temba.contacts.search.elastic import query_contact_ids
 from temba.contacts.search.omnibox import omnibox_deserialize
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task, download_flow_images_task
@@ -2163,6 +2164,7 @@ class FlowCRUDL(SmartCRUDL):
             after = self.request.GET.get("after")
             before = self.request.GET.get("before")
             search_query = self.request.GET.get("q")
+            contact_query = self.request.GET.get("contact_query")
 
             runs = flow.runs.all()
 
@@ -2178,6 +2180,12 @@ class FlowCRUDL(SmartCRUDL):
                 runs, query_error = FlowCRUDL.RunTable.search_query(query=search_query, base_queryset=runs)
                 if query_error:
                     context["query_error"] = query_error
+
+            if contact_query:
+                org = flow.org
+                group = org.all_groups.filter(group_type='A').first()
+                contact_ids = query_contact_ids(org, contact_query, group=group)
+                runs = runs.filter(contact_id__in=contact_ids)
 
             if str_to_bool(self.request.GET.get("responded", "true")):
                 runs = runs.filter(responded=True)
