@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-15 19:56+0000\n"
+"POT-Creation-Date: 2021-03-15 20:39+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5975,16 +5975,6 @@ msgstr ""
 msgid "Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for regions, aliases."
 msgstr ""
 
-#, python-format
-msgid "%(count_comma)s recipient"
-msgid_plural "%(count_comma)s recipients"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid "%(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns"
-msgstr ""
-
 msgid "No Matching schedules"
 msgstr ""
 
@@ -5992,14 +5982,8 @@ msgid "Send History"
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"                    %(count_comma)s recipient\n"
-"                    "
-msgid_plural ""
-"\n"
-"                      %(count_comma)s recipients\n"
-"                  "
+msgid "%(count_comma)s recipient"
+msgid_plural "%(count_comma)s recipients"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -6011,18 +5995,6 @@ msgstr[1] ""
 
 msgid "Message Details"
 msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"        %(count_comma)s recipients\n"
-"        "
-msgid_plural ""
-"\n"
-"          %(count_comma)s recipients\n"
-"      "
-msgstr[0] ""
-msgstr[1] ""
 
 msgid "Your message export is ready."
 msgstr ""
@@ -6096,18 +6068,6 @@ msgstr ""
 #, python-format
 msgid "Used by %(num_flows)s flow:"
 msgid_plural "Used by %(num_flows)s flows:"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid ""
-"\n"
-"                    1 recipient\n"
-"                    "
-msgid_plural ""
-"\n"
-"                      %(counter)s recipients\n"
-"                  "
 msgstr[0] ""
 msgstr[1] ""
 

@@ -19,8 +19,7 @@
 
   .mt-2
     -if object.campaign.group.is_active
-      .lbl-group.linked(onclick="goto(event)" href="{% url 'contacts.contact_filter' object.campaign.group.uuid %}")
-        {{object.campaign.group.name}}
+      -include "includes/recipients_group.haml" with group=object.campaign.group
 
 -block content
   .event-details.p-4.bg-gray-100.rounded-lg.mb-6

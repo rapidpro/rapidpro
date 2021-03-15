@@ -1,6 +1,5 @@
-{% extends "msgs/message_box.html" %}
--load smartmin sms temba compress contacts
--load i18n humanize
+-extends "msgs/message_box.html"
+-load smartmin sms temba contacts i18n humanize
 
 -block search-details
   .search-details
@@ -9,34 +8,24 @@
   %table.mt-4.object-list.list.lined
     %tbody
       -for broadcast in pending_broadcasts
-        %tr.broadcast
-
-          %td.value-phone.field_phone
-            %nobr
-              -with recipient_counts=broadcast.get_recipient_counts
-                -if recipient_counts.recipients > 0
-                  -blocktrans count counter=recipient_counts.recipients
-                    1 recipient
-                    - plural
-                      {{counter}} recipients
-                -else
-                  -blocktrans trimmed with group_count=recipient_counts.groups contact_count=recipient_counts.contacts urn_count=recipient_counts.urns
-                    {{ group_count }} groups, {{ contact_count }} contacts, {{ urn_count }} urns
-
-          %td.value-text.field_text.wrapped
+        %tr
+          %td.value-icon(style="width: 20px")
+            %span.glyph.icon-bullhorn.text-gray-500
+          %td.value-recipient
+            .pt-1
+              -include "includes/recipients.haml" with groups=broadcast.groups.all contacts=broadcast.contacts.all urns=broadcast.raw_urns
+          %td.value-text
             {{ broadcast.get_default_text }}
-
           %td.created_on
             %span.time
               {% short_datetime broadcast.created_on %}
 
       -for object in object_list
         %tr
-          %td.whitespace-no-wrap
-            .px-6.py-3
-              .hover-linked{onclick:"goto(event)", href:"/contact/read/{{object.contact.uuid}}/"}
-                {{ object.contact|short_name:user_org }}
-          %td.w-full
+          %td.value-recipient(colspan="2")
+            .pt-1
+              -include "includes/recipients_contact.haml" with contact=object.contact
+          %td.value-text
             {% get_value object 'text' %}
 
             - if 'label' in actions
@@ -68,13 +57,3 @@
     -if object_list.count
       .paginator
         -include "smartmin/sidebar_pagination.haml"
-
--block extra-style
-  {{ block.super }}
-
-
-  :css
-    .table.list-table tr.broadcast:hover td, .table.list-table tr.broadcast td {
-      color: #aaa
-    }
-
