@@ -27,7 +27,7 @@ class FlowRunSearch(object):
         queries_iterator = iter(queries)
 
         filters = []
-        previous_condition = {}
+        previous_conditions = []
         while True:
             try:
                 item = next(queries_iterator)
@@ -37,18 +37,21 @@ class FlowRunSearch(object):
                         f'__value{self.LOOKUPS.get(item.get("operator"))}':
                             item.get("value")
                     })
-                    if previous_condition:
+                    if previous_conditions:
+                        previous_condition = previous_conditions.pop()
+                        if previous_condition.get("conditional") == "NOT" and previous_conditions:
+                            _filter = ~_filter
+                            previous_condition = previous_conditions.pop()
                         if previous_condition.get("conditional") == "OR":
                             filters[-1] |= _filter
                         elif previous_condition.get("conditional") == "AND":
                             filters[-1] &= _filter
                         elif previous_condition.get("conditional") == "NOT":
                             filters.append(~_filter)
-                        previous_condition = {}
                     else:
                         filters.append(_filter)
                 else:
-                    previous_condition = item
+                    previous_conditions.append(item)
             except StopIteration:
                 break
 
@@ -99,6 +102,8 @@ class FlowRunSearch(object):
 
     def _parse_query(self) -> (list, Exception):
         queries = []
+        if "(" in self.query or ")" in self.query:
+            return queries, Exception(_("Characters '(' and ')' are not allowed in results query."))
         try:
             parsed_query = sqlparse.parse(self.query)[0]
         except SQLParseError:
