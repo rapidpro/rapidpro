@@ -170,6 +170,12 @@ class Org(SmartModel):
     LIMIT_GLOBALS = "globals"
     LIMIT_GROUPS = "groups"
 
+    LIMIT_DEFAULTS = {
+        LIMIT_FIELDS: settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG,
+        LIMIT_GLOBALS: settings.MAX_ACTIVE_GLOBALS_PER_ORG,
+        LIMIT_GROUPS: settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG,
+    }
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     name = models.CharField(verbose_name=_("Name"), max_length=128)
@@ -393,21 +399,12 @@ class Org(SmartModel):
         )
 
     def get_limit(self, limit_type):
-        if limit_type not in [Org.LIMIT_FIELDS, Org.LIMIT_GROUPS, Org.LIMIT_GLOBALS]:
-            raise ValueError("Invalid org limit type")
+        assert limit_type in (Org.LIMIT_FIELDS, Org.LIMIT_GROUPS, Org.LIMIT_GLOBALS)
 
-        if self.limits.get(limit_type):
-            try:
-                return int(self.limits.get(limit_type))
-            except ValueError:
-                pass
-
-        if limit_type == Org.LIMIT_FIELDS:
-            return settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG
-        if limit_type == Org.LIMIT_GROUPS:
-            return settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG
-        if limit_type == Org.LIMIT_GLOBALS:
-            return settings.MAX_ACTIVE_GLOBALS_PER_ORG
+        try:
+            return int(self.limits.get(limit_type, self.LIMIT_DEFAULTS.get(limit_type)))
+        except ValueError:
+            return int(self.LIMIT_DEFAULTS.get(limit_type))
 
     def flag(self):
         self.is_flagged = True

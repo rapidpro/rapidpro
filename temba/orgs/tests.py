@@ -3209,7 +3209,7 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 500)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(AssertionError):
             self.org.get_limit("unknown")
 
     def test_sub_orgs_management(self):
