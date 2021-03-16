@@ -904,9 +904,10 @@ class FlowReadSerializer(ReadSerializer):
 
 class FlowRunReadSerializer(ReadSerializer):
     EXIT_TYPES = {
-        FlowRun.EXIT_TYPE_COMPLETED: "completed",
-        FlowRun.EXIT_TYPE_INTERRUPTED: "interrupted",
-        FlowRun.EXIT_TYPE_EXPIRED: "expired",
+        FlowRun.STATUS_COMPLETED: "completed",
+        FlowRun.STATUS_INTERRUPTED: "interrupted",
+        FlowRun.STATUS_EXPIRED: "expired",
+        FlowRun.STATUS_FAILED: "failed",
     }
 
     flow = fields.FlowField()
@@ -944,7 +945,7 @@ class FlowRunReadSerializer(ReadSerializer):
         return {k: convert_result(r) for k, r in obj.results.items()}
 
     def get_exit_type(self, obj):
-        return self.EXIT_TYPES.get(obj.exit_type)
+        return self.EXIT_TYPES.get(obj.status)
 
     class Meta:
         model = FlowRun
