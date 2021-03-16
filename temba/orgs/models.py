@@ -399,12 +399,7 @@ class Org(SmartModel):
         )
 
     def get_limit(self, limit_type):
-        assert limit_type in (Org.LIMIT_FIELDS, Org.LIMIT_GROUPS, Org.LIMIT_GLOBALS)
-
-        try:
-            return int(self.limits.get(limit_type, self.LIMIT_DEFAULTS.get(limit_type)))
-        except ValueError:
-            return int(self.LIMIT_DEFAULTS.get(limit_type))
+        return int(self.limits.get(limit_type, self.LIMIT_DEFAULTS.get(limit_type)))
 
     def flag(self):
         self.is_flagged = True

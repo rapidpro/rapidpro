@@ -3202,15 +3202,12 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 250)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)
 
-        self.org.limits = dict(fields=500, groups=500, globals="foo")
+        self.org.limits = dict(fields=500, groups=500)
         self.org.save()
 
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 500)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 500)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)
-
-        with self.assertRaises(AssertionError):
-            self.org.get_limit("unknown")
 
     def test_sub_orgs_management(self):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
