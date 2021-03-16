@@ -615,7 +615,7 @@
       updateCharts();
       localStorage.setItem("responded", "true");
 
-      {% if request.GET.q or request.GET.after or request.GET.before %}
+      {% if request.GET.q or request.GET.after or request.GET.before or request.GET.contact_query %}
       setRunsTab();
       {% endif %}
 
@@ -696,21 +696,25 @@
           -trans "Filter"
 
         %form#search-form.max-w-full.mt-2.flex(method="get")
-          %div{class: "w-1/2 flex"}
-            %div{class: "w-1/2 flex pr-3"}
-              %label{class: "w-1/4 flex justify-center items-center m-0"}
+          %div{class: "w-1/4 flex"}
+            %div{class: "w-1/2 flex flex-col pr-3"}
+              %label{class: "flex m-0"}
                 -trans "After"
-              -include "includes/flatpickr_field.haml" with parent_classes="w-3/4 flex justify-center items-center" field_name="after" field_placeholder="Select a date" field_value=request.GET.after
-            %div{class: "w-1/2 flex pr-3"}
-              %label{class: "w-1/4 flex justify-center items-center m-0"}
+              -include "includes/flatpickr_field.haml" with parent_classes="flex justify-center items-center" field_name="after" field_placeholder="Select a date" field_value=request.GET.after
+            %div{class: "w-1/2 flex flex-col pr-3"}
+              %label{class: "flex m-0"}
                 -trans "Before"
-              -include "includes/flatpickr_field.haml" with parent_classes="w-3/4 flex justify-center items-center" field_name="before" field_placeholder="Select a date" field_value=request.GET.before
-          %div{class: "w-1/2 flex flex-grow"}
-            %div{class: "w-5/12 mr-2", "data-toggle":"tooltip", title:"{{ request.GET.contact_query }}"}
-              %temba-textinput(type='text' placeholder='{% trans "Search by Contact Fields" %}' name="contact_query" value="{{ request.GET.contact_query }}" clearable)
-            %div{class: "w-5/12", "data-toggle":"tooltip", title:"{{ request.GET.q }}"}
-              %temba-textinput(type='text' placeholder='{% trans "Search by Responses" %}' name="q" value="{{ request.GET.q }}" clearable)
-            %div{class: "w-1/12 flex-grow"}
+              -include "includes/flatpickr_field.haml" with parent_classes="flex justify-center items-center" field_name="before" field_placeholder="Select a date" field_value=request.GET.before
+          %div{class: "w-3/4 flex flex-grow"}
+            %div{class: "w-6/12 mr-2", "data-toggle":"tooltip", title:"{{ request.GET.contact_query }}"}
+              %label{class: "flex m-0"}
+                -trans "Search by Contact Fields"
+              %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="contact_query" value="{{ request.GET.contact_query }}" clearable)
+            %div{class: "w-6/12", "data-toggle":"tooltip", title:"{{ request.GET.q }}"}
+              %label{class: "flex m-0"}
+                -trans "Search by Responses"
+              %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="q" value="{{ request.GET.q }}" clearable)
+            %div.flex.flex-col.justify-end{class: "w-1/10"}
               %button.button-primary.filter-btn(type='submit')
                 -trans "Filter"
 
