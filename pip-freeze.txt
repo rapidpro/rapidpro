@@ -219,7 +219,7 @@ pytz
     #   twilio
 rcssmin==1.0.6
     # via django-compressor
-redis==2.10.5
+redis==3.5.3
     # via
     #   -r pip-requires.txt
     #   celery
@@ -269,7 +269,7 @@ six==1.10.0
     #   python-intercom
     #   responses
     #   twilio
-smartmin==2.3.5
+smartmin==2.3.8
     # via -r pip-requires.txt
 soupsieve==1.6.2
     # via beautifulsoup4
