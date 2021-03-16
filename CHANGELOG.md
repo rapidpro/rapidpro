@@ -1,3 +1,10 @@
+v6.3.0
+----------
+ * Update stable versions and coverage badge link
+ * Style Outbox broadcasts with megaphone icons and use includes for other places we render contacts and groups
+ * Fix spacing on outbox view
+ * Add discord channel type
+
 v6.2.4
 ----------
  * Update Portuguese translation

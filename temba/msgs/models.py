@@ -228,23 +228,6 @@ class Broadcast(models.Model):
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
 
-    def get_recipient_counts(self):
-        if self.status in (WIRED, SENT, DELIVERED):
-            return {"recipients": self.get_message_count(), "groups": 0, "contacts": 0, "urns": 0}
-
-        group_count = self.groups.count()
-        contact_count = self.contacts.count()
-        urn_count = len(self.raw_urns) if self.raw_urns else 0
-
-        if group_count == 1 and contact_count == 0 and urn_count == 0:
-            return {"recipients": self.groups.first().get_member_count(), "groups": 0, "contacts": 0, "urns": 0}
-        if group_count == 0 and urn_count == 0:
-            return {"recipients": contact_count, "groups": 0, "contacts": 0, "urns": 0}
-        if group_count == 0 and contact_count == 0:
-            return {"recipients": urn_count, "groups": 0, "contacts": 0, "urns": 0}
-
-        return {"recipients": 0, "groups": group_count, "contacts": contact_count, "urns": urn_count}
-
     def get_default_text(self):
         """
         Gets the appropriate display text for the broadcast without a contact

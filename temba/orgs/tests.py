@@ -1253,6 +1253,11 @@ class OrgTest(TembaTest):
         response = self.client.get(update_url)
         self.assertEqual(200, response.status_code)
 
+        # We should have the limits fields
+        self.assertTrue("fields_limit" in response.context["form"].fields.keys())
+        self.assertTrue("globals_limit" in response.context["form"].fields.keys())
+        self.assertTrue("groups_limit" in response.context["form"].fields.keys())
+
         parent = Org.objects.create(
             name="Parent",
             timezone=pytz.timezone("Africa/Kigali"),
@@ -1280,10 +1285,14 @@ class OrgTest(TembaTest):
             "administrators": [self.admin.id],
             "surveyors": [self.surveyor.id],
             "surveyor_password": "",
+            "fields_limit": 300,
         }
 
         response = self.client.post(update_url, post_data)
         self.assertEqual(302, response.status_code)
+
+        self.org.refresh_from_db()
+        self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
 
         # unflag org
         post_data["action"] = "unflag"
@@ -3193,8 +3202,12 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 250)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)
 
-        with self.assertRaises(ValueError):
-            self.org.get_limit("unknown")
+        self.org.limits = dict(fields=500, groups=500)
+        self.org.save()
+
+        self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 500)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 500)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)
 
     def test_sub_orgs_management(self):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)

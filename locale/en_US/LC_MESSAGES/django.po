@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-10 15:43+0000\n"
+"POT-Creation-Date: 2021-03-16 15:59+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -769,6 +769,31 @@ msgid "Please enter a valid phone number"
 msgstr ""
 
 #, python-format
+msgid "Add a %(link)s bot to send messages to Discord users for free. Your users will need a Discord account and a compatible device to send/recieve messages. This channel type is only available if your instance has been configured with the Discord proxy application, available %(proxy_link)s."
+msgstr ""
+
+msgid "Authentication Token"
+msgstr ""
+
+msgid "The discord bot token"
+msgstr ""
+
+msgid "Proxy URL"
+msgstr ""
+
+msgid "The URL on which the discord proxy is running"
+msgstr ""
+
+msgid "A Discord channel for this bot already exists on your account."
+msgstr ""
+
+msgid "Couldn't log in using that bot token. Please check and try again"
+msgstr ""
+
+msgid "An error occurred accessing the Discord API. Please try again"
+msgstr ""
+
+#, python-format
 msgid "If you are based in Uganda or DRC you can purchase a short code from %(link)s and connect it in a few simple steps."
 msgstr ""
 
@@ -1466,9 +1491,6 @@ msgstr ""
 msgid "Add a %(link)s bot to send and receive messages to Telegram users for free. Your users will need an Android, Windows or iOS device and a Telegram account to send and receive messages."
 msgstr ""
 
-msgid "Authentication Token"
-msgstr ""
-
 msgid "The Authentication token for your Telegram Bot"
 msgstr ""
 
@@ -2089,6 +2111,9 @@ msgid "VK identifier"
 msgstr ""
 
 msgid "RocketChat identifier"
+msgstr ""
+
+msgid "Discord Identifier"
 msgstr ""
 
 msgid "Text"
@@ -5961,16 +5986,6 @@ msgstr ""
 msgid "Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for regions, aliases."
 msgstr ""
 
-#, python-format
-msgid "%(count_comma)s recipient"
-msgid_plural "%(count_comma)s recipients"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid "%(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns"
-msgstr ""
-
 msgid "No Matching schedules"
 msgstr ""
 
@@ -5978,14 +5993,8 @@ msgid "Send History"
 msgstr ""
 
 #, python-format
-msgid ""
-"\n"
-"                    %(count_comma)s recipient\n"
-"                    "
-msgid_plural ""
-"\n"
-"                      %(count_comma)s recipients\n"
-"                  "
+msgid "%(count_comma)s recipient"
+msgid_plural "%(count_comma)s recipients"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -5997,18 +6006,6 @@ msgstr[1] ""
 
 msgid "Message Details"
 msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"        %(count_comma)s recipients\n"
-"        "
-msgid_plural ""
-"\n"
-"          %(count_comma)s recipients\n"
-"      "
-msgstr[0] ""
-msgstr[1] ""
 
 msgid "Your message export is ready."
 msgstr ""
@@ -6082,18 +6079,6 @@ msgstr ""
 #, python-format
 msgid "Used by %(num_flows)s flow:"
 msgid_plural "Used by %(num_flows)s flows:"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid ""
-"\n"
-"                    1 recipient\n"
-"                    "
-msgid_plural ""
-"\n"
-"                      %(counter)s recipients\n"
-"                  "
 msgstr[0] ""
 msgstr[1] ""
 

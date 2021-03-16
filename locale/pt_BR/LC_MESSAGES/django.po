@@ -16,7 +16,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-10 15:43+0000\n"
+"POT-Creation-Date: 2021-03-16 15:59+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Matheus Soares <matheus.soares@ilhasoft.com.br>, 2020\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -778,6 +778,37 @@ msgid "Please enter a valid phone number"
 msgstr "Por favor insira um número de telefone válido"
 
 #, python-format
+msgid "Add a %(link)s bot to send messages to Discord users for free. Your users will need a Discord account and a compatible device to send/recieve messages. This channel type is only available if your instance has been configured with the Discord proxy application, available %(proxy_link)s."
+msgstr ""
+
+msgid "Authentication Token"
+msgstr "Token de autenticação"
+
+msgid "The discord bot token"
+msgstr ""
+
+msgid "Proxy URL"
+msgstr ""
+
+msgid "The URL on which the discord proxy is running"
+msgstr ""
+
+#, fuzzy
+#| msgid "A telegram channel for this bot already exists on your account."
+msgid "A Discord channel for this bot already exists on your account."
+msgstr "O canal Telegram para este bot já existe na sua conta."
+
+#, fuzzy
+#| msgid "Your authentication token is invalid, please check and try again"
+msgid "Couldn't log in using that bot token. Please check and try again"
+msgstr "Seu token de autenticação é inválido, verifique e tente novamente"
+
+#, fuzzy
+#| msgid "An error occurred while making your changes. Please try again."
+msgid "An error occurred accessing the Discord API. Please try again"
+msgstr "Um erro ocorreu enquanto realizava suas alterações. Por favor, tente novamente."
+
+#, python-format
 msgid "If you are based in Uganda or DRC you can purchase a short code from %(link)s and connect it in a few simple steps."
 msgstr ""
 
@@ -1477,9 +1508,6 @@ msgstr "      Este terminal deve ser chamado pela Start quando novas mensagens s
 msgid "Add a %(link)s bot to send and receive messages to Telegram users for free. Your users will need an Android, Windows or iOS device and a Telegram account to send and receive messages."
 msgstr ""
 
-msgid "Authentication Token"
-msgstr "Token de autenticação"
-
 msgid "The Authentication token for your Telegram Bot"
 msgstr "O token de autenticação para o seu Telegram Bot"
 
@@ -2104,6 +2132,11 @@ msgstr "Identificador VK"
 
 msgid "RocketChat identifier"
 msgstr ""
+
+#, fuzzy
+#| msgid "Viber identifier"
+msgid "Discord Identifier"
+msgstr "Identificador Viber"
 
 msgid "Text"
 msgstr "Texto"
@@ -6038,16 +6071,6 @@ msgstr ""
 msgid "Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for regions, aliases."
 msgstr ""
 
-#, python-format
-msgid "%(count_comma)s recipient"
-msgid_plural "%(count_comma)s recipients"
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid "%(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns"
-msgstr ""
-
 msgid "No Matching schedules"
 msgstr "Nenhum agendamento correspondente"
 
@@ -6055,14 +6078,8 @@ msgid "Send History"
 msgstr "Enviar Histórico"
 
 #, python-format
-msgid ""
-"\n"
-"                    %(count_comma)s recipient\n"
-"                    "
-msgid_plural ""
-"\n"
-"                      %(count_comma)s recipients\n"
-"                  "
+msgid "%(count_comma)s recipient"
+msgid_plural "%(count_comma)s recipients"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -6074,18 +6091,6 @@ msgstr[1] "%(recipients)s destinatários atualmente nesse passo do fluxo"
 
 msgid "Message Details"
 msgstr ""
-
-#, python-format
-msgid ""
-"\n"
-"        %(count_comma)s recipients\n"
-"        "
-msgid_plural ""
-"\n"
-"          %(count_comma)s recipients\n"
-"      "
-msgstr[0] ""
-msgstr[1] ""
 
 msgid "Your message export is ready."
 msgstr "Sua exportação de mensagem está pronta."
@@ -6165,24 +6170,6 @@ msgid "Used by %(num_flows)s flow:"
 msgid_plural "Used by %(num_flows)s flows:"
 msgstr[0] "Utilizado por %(num_flows)s fluxo:"
 msgstr[1] "Utilizado po %(num_flows)s fluxos:"
-
-#, python-format
-msgid ""
-"\n"
-"                    1 recipient\n"
-"                    "
-msgid_plural ""
-"\n"
-"                      %(counter)s recipients\n"
-"                  "
-msgstr[0] ""
-"\n"
-"                      1 destinatário\n"
-"                    "
-msgstr[1] ""
-"\n"
-"                      %(counter)s destinatários\n"
-"                    "
 
 msgid "No matching messages."
 msgstr "Nenhuma mensagem correspondente."
@@ -7611,6 +7598,24 @@ msgstr "Adicione uma dúvida"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Encontrado ${count} para ${query}"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "                    1 recipient\n"
+#~ "                    "
+#~ msgid_plural ""
+#~ "\n"
+#~ "                      %(counter)s recipients\n"
+#~ "                  "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "                      1 destinatário\n"
+#~ "                    "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "                      %(counter)s destinatários\n"
+#~ "                    "
 
 #~ msgid ", and "
 #~ msgstr ", e"

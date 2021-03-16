@@ -32,7 +32,7 @@ from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
-from temba.orgs.models import Language
+from temba.orgs.models import Language, Org
 from temba.templates.models import TemplateTranslation
 from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
@@ -2401,6 +2401,7 @@ class APITest(TembaTest):
         self.assertResponseError(response, None, "dependencies must be one of none, flows, all")
 
     @override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=10)
+    @patch.object(Org, "LIMIT_DEFAULTS", dict(fields=10))
     def test_fields(self):
         url = reverse("api.v2.fields")
 
@@ -2654,6 +2655,7 @@ class APITest(TembaTest):
         self.assertResultsByUUID(response, [color, survey])
 
     @override_settings(MAX_ACTIVE_GLOBALS_PER_ORG=3)
+    @patch.object(Org, "LIMIT_DEFAULTS", dict(globals=3))
     def test_globals(self):
         url = reverse("api.v2.globals")
         self.assertEndpointAccess(url)
@@ -2793,6 +2795,7 @@ class APITest(TembaTest):
         )
 
     @override_settings(MAX_ACTIVE_CONTACTGROUPS_PER_ORG=10)
+    @patch.object(Org, "LIMIT_DEFAULTS", dict(groups=10))
     @mock_mailroom
     def test_groups(self, mr_mocks):
         url = reverse("api.v2.groups")

@@ -43,7 +43,7 @@ from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_e
 from temba.utils.currencies import currency_for_country
 from temba.utils.dates import datetime_to_str, str_to_datetime
 from temba.utils.email import send_template_email
-from temba.utils.models import JSONAsTextField, SquashableModel
+from temba.utils.models import JSONAsTextField, JSONField, SquashableModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import generate_token, random_string
 from temba.utils.timezones import timezone_to_country_code
@@ -166,9 +166,15 @@ class Org(SmartModel):
     EARLIEST_IMPORT_VERSION = "3"
     CURRENT_EXPORT_VERSION = "13"
 
-    LIMIT_FIELDS = "limit_fields"
-    LIMIT_GLOBALS = "limit_globals"
-    LIMIT_GROUPS = "limit_groups"
+    LIMIT_FIELDS = "fields"
+    LIMIT_GLOBALS = "globals"
+    LIMIT_GROUPS = "groups"
+
+    LIMIT_DEFAULTS = {
+        LIMIT_FIELDS: settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG,
+        LIMIT_GLOBALS: settings.MAX_ACTIVE_GLOBALS_PER_ORG,
+        LIMIT_GROUPS: settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG,
+    }
 
     uuid = models.UUIDField(unique=True, default=uuid4)
 
@@ -239,6 +245,8 @@ class Org(SmartModel):
         unique=True,
         error_messages=dict(unique=_("This slug is not available")),
     )
+
+    limits = JSONField(default=dict)
 
     is_anon = models.BooleanField(
         default=False, help_text=_("Whether this organization anonymizes the phone numbers of contacts within it")
@@ -391,15 +399,7 @@ class Org(SmartModel):
         )
 
     def get_limit(self, limit_type):
-
-        if limit_type == Org.LIMIT_FIELDS:
-            return settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG
-        if limit_type == Org.LIMIT_GROUPS:
-            return settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG
-        if limit_type == Org.LIMIT_GLOBALS:
-            return settings.MAX_ACTIVE_GLOBALS_PER_ORG
-
-        raise ValueError("Invalid org limit type")
+        return int(self.limits.get(limit_type, self.LIMIT_DEFAULTS.get(limit_type)))
 
     def flag(self):
         self.is_flagged = True

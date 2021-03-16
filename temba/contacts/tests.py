@@ -984,6 +984,7 @@ class ContactGroupCRUDLTest(TembaTest):
         self.other_org_group = self.create_group("Customers", contacts=[], org=self.org2)
 
     @override_settings(MAX_ACTIVE_CONTACTGROUPS_PER_ORG=10)
+    @patch.object(Org, "LIMIT_DEFAULTS", dict(groups=10))
     @mock_mailroom
     def test_create(self, mr_mocks):
         url = reverse("contacts.contactgroup_create")
@@ -4422,13 +4423,14 @@ class ContactFieldTest(TembaTest):
         self.assertFormError(response, "form", None, "Can't be a reserved word")
 
         with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=2):
-            # a valid form, but ORG has reached max active fields limit
-            post_data = {"label": "teefilter", "value_type": "T"}
+            with patch.object(Org, "LIMIT_DEFAULTS", dict(fields=2)):
+                # a valid form, but ORG has reached max active fields limit
+                post_data = {"label": "teefilter", "value_type": "T"}
 
-            response = self.client.post(create_cf_url, post_data)
+                response = self.client.post(create_cf_url, post_data)
 
-            self.assertEqual(response.status_code, 200)
-            self.assertFormError(response, "form", None, "Cannot create a new field as limit is 2.")
+                self.assertEqual(response.status_code, 200)
+                self.assertFormError(response, "form", None, "Cannot create a new field as limit is 2.")
 
         # value_type not supported
         post_data = {"label": "teefilter", "value_type": "J"}
@@ -4761,19 +4763,26 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, "You are approaching the limit")
 
         with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=10):
-            response = self.requestView(list_url, self.admin)
+            with patch.object(Org, "LIMIT_DEFAULTS", dict(fields=10)):
+                response = self.requestView(list_url, self.admin)
 
-            self.assertContains(response, "You are approaching the limit")
+                self.assertContains(response, "You are approaching the limit")
 
         with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=3):
-            response = self.requestView(list_url, self.admin)
+            with patch.object(Org, "LIMIT_DEFAULTS", dict(fields=3)):
+                response = self.requestView(list_url, self.admin)
 
-            self.assertContains(response, "You have reached the limit")
+                self.assertContains(response, "You have reached the limit")
 
 
 class URNTest(TembaTest):
     def test_facebook_urn(self):
         self.assertTrue(URN.validate("facebook:ref:asdf"))
+
+    def test_discord_urn(self):
+        self.assertEqual("discord:750841288886321253", URN.from_discord("750841288886321253"))
+        self.assertTrue(URN.validate(URN.from_discord("750841288886321253")))
+        self.assertFalse(URN.validate(URN.from_discord("not-a-discord-id")))
 
     def test_whatsapp_urn(self):
         self.assertTrue(URN.validate("whatsapp:12065551212"))
@@ -5716,14 +5725,15 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         # try uploading when we've already reached our group limit
         self.create_group("Testers", contacts=[])
         with override_settings(MAX_ACTIVE_CONTACTGROUPS_PER_ORG=1):
-            response = self.client.post(create_url, {"file": upload("media/test_imports/simple.xlsx")})
-            self.assertFormError(
-                response,
-                "form",
-                "__all__",
-                "This workspace has reached the limit of 1 groups. "
-                "You must delete existing ones before you can perform an import.",
-            )
+            with patch.object(Org, "LIMIT_DEFAULTS", dict(groups=1)):
+                response = self.client.post(create_url, {"file": upload("media/test_imports/simple.xlsx")})
+                self.assertFormError(
+                    response,
+                    "form",
+                    "__all__",
+                    "This workspace has reached the limit of 1 groups. "
+                    "You must delete existing ones before you can perform an import.",
+                )
 
         # try uploading an empty CSV file
         response = self.client.post(create_url, {"file": upload("media/test_imports/empty.csv")})

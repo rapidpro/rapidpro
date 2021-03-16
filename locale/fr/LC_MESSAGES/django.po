@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-10 15:43+0000\n"
+"POT-Creation-Date: 2021-03-16 15:59+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -774,6 +774,37 @@ msgid "Please enter a valid phone number"
 msgstr "s'il vous plaît entrer un numéro de téléphone valide"
 
 #, python-format
+msgid "Add a %(link)s bot to send messages to Discord users for free. Your users will need a Discord account and a compatible device to send/recieve messages. This channel type is only available if your instance has been configured with the Discord proxy application, available %(proxy_link)s."
+msgstr ""
+
+msgid "Authentication Token"
+msgstr "Jeton d'authentification"
+
+msgid "The discord bot token"
+msgstr ""
+
+msgid "Proxy URL"
+msgstr ""
+
+msgid "The URL on which the discord proxy is running"
+msgstr ""
+
+#, fuzzy
+#| msgid "A telegram channel for this bot already exists on your account."
+msgid "A Discord channel for this bot already exists on your account."
+msgstr "Un canal Telegram pour ce bot existe déjà sur votre compte."
+
+#, fuzzy
+#| msgid "Your authentication token is invalid, please check and try again"
+msgid "Couldn't log in using that bot token. Please check and try again"
+msgstr "Votre jeton d'authentification n'est pas valide. Veuillez vérifier et réessayer"
+
+#, fuzzy
+#| msgid "An error occurred while making your changes. Please try again."
+msgid "An error occurred accessing the Discord API. Please try again"
+msgstr "Une erreur s'est produite lors de vos modifications. Veuillez réessayer."
+
+#, python-format
 msgid "If you are based in Uganda or DRC you can purchase a short code from %(link)s and connect it in a few simple steps."
 msgstr "Si vous êtes basé en Ouganda ou en RDC, vous pouvez acheter un code court auprès de %(link)s et le connecter en quelques étapes simples."
 
@@ -1471,9 +1502,6 @@ msgstr "Start doit appeler ce noeud final lorsque de nouveaux messages sont reç
 msgid "Add a %(link)s bot to send and receive messages to Telegram users for free. Your users will need an Android, Windows or iOS device and a Telegram account to send and receive messages."
 msgstr "Ajoutez un bot %(link)s pour envoyer et recevoir gratuitement des messages aux utilisateurs de Telegram. Vos utilisateurs auront besoin d'un appareil Android, Windows ou iOS et d'un compte Telegram pour envoyer et recevoir des messages."
 
-msgid "Authentication Token"
-msgstr "Jeton d'authentification"
-
 msgid "The Authentication token for your Telegram Bot"
 msgstr "Le jeton d'authentification pour votre bot Telegram"
 
@@ -2099,6 +2127,11 @@ msgstr "Identifiant VK"
 
 msgid "RocketChat identifier"
 msgstr "Identifiant RocketChat"
+
+#, fuzzy
+#| msgid "Viber identifier"
+msgid "Discord Identifier"
+msgstr "Identifiant Viber"
 
 msgid "Text"
 msgstr "Texte"
@@ -6064,16 +6097,6 @@ msgstr "Alias pour %(name)s"
 msgid "Often certain regions are known by more than one name. In %(brand)s, we call these alternate names for regions, aliases."
 msgstr "Souvent, certaines régions sont connues sous plusieurs noms. Dans %(brand)s, nous appelons ces noms alternatifs pour les régions, les alias."
 
-#, python-format
-msgid "%(count_comma)s recipient"
-msgid_plural "%(count_comma)s recipients"
-msgstr[0] "%(count_comma)s destinataire"
-msgstr[1] "%(count_comma)s destinataires"
-
-#, python-format
-msgid "%(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns"
-msgstr "%(group_count)s groupes, %(contact_count)s contacts, %(urn_count)s urns"
-
 msgid "No Matching schedules"
 msgstr "Pas d'horaires assortis"
 
@@ -6081,22 +6104,10 @@ msgid "Send History"
 msgstr "Historique d'envoi"
 
 #, python-format
-msgid ""
-"\n"
-"                    %(count_comma)s recipient\n"
-"                    "
-msgid_plural ""
-"\n"
-"                      %(count_comma)s recipients\n"
-"                  "
-msgstr[0] ""
-"\n"
-"                    %(count_comma)s destinataire\n"
-"                    "
-msgstr[1] ""
-"\n"
-"                      %(count_comma)s recipients\n"
-"                  "
+msgid "%(count_comma)s recipient"
+msgid_plural "%(count_comma)s recipients"
+msgstr[0] "%(count_comma)s destinataire"
+msgstr[1] "%(count_comma)s destinataires"
 
 #, python-format
 msgid "%(recipients)s recipient currently at this step in the flow"
@@ -6106,24 +6117,6 @@ msgstr[1] "%(recipients)s destinataires actuellement à cette étape du flux"
 
 msgid "Message Details"
 msgstr "Détails du message"
-
-#, python-format
-msgid ""
-"\n"
-"        %(count_comma)s recipients\n"
-"        "
-msgid_plural ""
-"\n"
-"          %(count_comma)s recipients\n"
-"      "
-msgstr[0] ""
-"\n"
-"        %(count_comma)s destinataire\n"
-"        "
-msgstr[1] ""
-"\n"
-"          %(count_comma)s destinataires\n"
-"      "
 
 msgid "Your message export is ready."
 msgstr "L'exportation de vos messages est prête."
@@ -6203,24 +6196,6 @@ msgid "Used by %(num_flows)s flow:"
 msgid_plural "Used by %(num_flows)s flows:"
 msgstr[0] "Utilisé par %(num_flows)s flux:"
 msgstr[1] "Utilisé par %(num_flows)s flux:"
-
-#, python-format
-msgid ""
-"\n"
-"                    1 recipient\n"
-"                    "
-msgid_plural ""
-"\n"
-"                      %(counter)s recipients\n"
-"                  "
-msgstr[0] ""
-"\n"
-"                    1 destinataire\n"
-"                    "
-msgstr[1] ""
-"\n"
-"                      %(counter)s destinataires\n"
-"                  "
 
 msgid "No matching messages."
 msgstr "Aucun message correspondant."
@@ -7738,6 +7713,64 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, python-format
+#~ msgid "%(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns"
+#~ msgstr "%(group_count)s groupes, %(contact_count)s contacts, %(urn_count)s urns"
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "                    %(count_comma)s recipient\n"
+#~ "                    "
+#~ msgid_plural ""
+#~ "\n"
+#~ "                      %(count_comma)s recipients\n"
+#~ "                  "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "                    %(count_comma)s destinataire\n"
+#~ "                    "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "                      %(count_comma)s recipients\n"
+#~ "                  "
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "        %(count_comma)s recipients\n"
+#~ "        "
+#~ msgid_plural ""
+#~ "\n"
+#~ "          %(count_comma)s recipients\n"
+#~ "      "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "        %(count_comma)s destinataire\n"
+#~ "        "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "          %(count_comma)s destinataires\n"
+#~ "      "
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "                    1 recipient\n"
+#~ "                    "
+#~ msgid_plural ""
+#~ "\n"
+#~ "                      %(counter)s recipients\n"
+#~ "                  "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "                    1 destinataire\n"
+#~ "                    "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "                      %(counter)s destinataires\n"
+#~ "                  "
 
 #~ msgid ", and "
 #~ msgstr ", et"
