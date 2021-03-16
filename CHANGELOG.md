@@ -1,3 +1,8 @@
+v6.3.1
+----------
+ * Add support for runs with exit_type=F
+ * Support customization for org limits
+
 v6.3.0
 ----------
  * Update stable versions and coverage badge link
