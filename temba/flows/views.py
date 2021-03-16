@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from django_redis import get_redis_connection
 from packaging.version import Version
+from simplejson import JSONDecodeError
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -1907,6 +1908,13 @@ class FlowCRUDL(SmartCRUDL):
                 widget=CheckboxWidget(),
             )
 
+            extra_queries = JSONField(
+                required=False,
+                label=_("Extra Query Parameters"),
+                help_text=_("Configuration to filter runs by contact fields or responses"),
+                widget=forms.HiddenInput()
+            )
+
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.user = user
@@ -1946,6 +1954,12 @@ class FlowCRUDL(SmartCRUDL):
                             f"You can only include up to {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groups for group memberships in your export"
                         )
                     )
+
+                if cleaned_data.get("extra_queries"):
+                    try:
+                        cleaned_data["extra_queries"] = json.loads(cleaned_data["extra_queries"])
+                    except JSONDecodeError:
+                        cleaned_data["extra_queries"] = {}
 
                 return cleaned_data
 
@@ -1995,6 +2009,7 @@ class FlowCRUDL(SmartCRUDL):
                     responded_only=form.cleaned_data[ExportFlowResultsTask.RESPONDED_ONLY],
                     extra_urns=form.cleaned_data[ExportFlowResultsTask.EXTRA_URNS],
                     group_memberships=form.cleaned_data[ExportFlowResultsTask.GROUP_MEMBERSHIPS],
+                    extra_queries=form.cleaned_data[ExportFlowResultsTask.EXTRA_QUERIES],
                 )
                 on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
 

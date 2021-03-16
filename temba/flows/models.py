@@ -1977,6 +1977,7 @@ class ExportFlowResultsTask(BaseExportTask):
     GROUP_MEMBERSHIPS = "group_memberships"
     RESPONDED_ONLY = "responded_only"
     EXTRA_URNS = "extra_urns"
+    EXTRA_QUERIES = "extra_queries"
     FLOWS = "flows"
 
     MAX_GROUP_MEMBERSHIPS_COLS = 25
@@ -1987,13 +1988,15 @@ class ExportFlowResultsTask(BaseExportTask):
     config = JSONAsTextField(null=True, default=dict, help_text=_("Any configuration options for this flow export"))
 
     @classmethod
-    def create(cls, org, user, flows, contact_fields, responded_only, include_msgs, extra_urns, group_memberships):
+    def create(cls, org, user, flows, contact_fields, responded_only, include_msgs, extra_urns, group_memberships,
+               extra_queries):
         config = {
             ExportFlowResultsTask.INCLUDE_MSGS: include_msgs,
             ExportFlowResultsTask.CONTACT_FIELDS: [c.id for c in contact_fields],
             ExportFlowResultsTask.RESPONDED_ONLY: responded_only,
             ExportFlowResultsTask.EXTRA_URNS: extra_urns,
             ExportFlowResultsTask.GROUP_MEMBERSHIPS: [g.id for g in group_memberships],
+            ExportFlowResultsTask.EXTRA_QUERIES: extra_queries,
         }
 
         export = cls.objects.create(org=org, created_by=user, modified_by=user, config=config)

@@ -9,4 +9,20 @@
     include up to 10 contact fields whose values will also be exported with each run.
 
 
-
+-block modal-script
+  {{block.super}}
+  :javascript
+    var modax = document.querySelector("#download-results")
+    var body = modax.shadowRoot.querySelector(".modax-body");
+    var loc = document.createElement('a'); loc.href = body.querySelector("#id_loc").value;
+    var searchParams = new URLSearchParams(loc.search);
+    var extraQueries = {"response": {}, "contact": {}};
+    for (const [key, value] of searchParams.entries()) {
+      if (["q", "after", "before"].includes(key) && value != null && value !== "") {
+        extraQueries["response"][key === "q" ? "query": key] = value;
+      } else if (key === "contact_query" && value != null && value !== "") {
+        extraQueries["contact"]["query"] = value;
+      }
+    }
+    var extraQueriesEl = body.querySelector("#id_extra_queries");
+    extraQueriesEl.value = JSON.stringify(extraQueries);
