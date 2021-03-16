@@ -24,5 +24,24 @@
         extraQueries["contact"]["query"] = value;
       }
     }
-    var extraQueriesEl = body.querySelector("#id_extra_queries");
-    extraQueriesEl.value = JSON.stringify(extraQueries);
+    if (Object.keys(extraQueries["response"]).length !== 0 || Object.keys(extraQueries["contact"]).length !== 0) {
+      if (!body.querySelector("#extra-queries")) {
+        var extraQueriesEl = body.querySelector("#id_extra_queries");
+        var extraQueriesCheckbox = document.createElement("temba-checkbox");
+        extraQueriesCheckbox.id = "extra-queries";
+        extraQueriesCheckbox.label = "{{_('Apply Runs Filters')}}";
+        extraQueriesCheckbox.helpText = "{{_('Flow runs will be filtrated by the filters on the runs tab.')}}";
+        extraQueriesCheckbox.checked = true;
+        extraQueriesEl.value = JSON.stringify(extraQueries);
+        extraQueriesCheckbox.onclick = (event) => {
+          let checkbox = event.target;
+          if (checkbox.checked) {
+            extraQueriesEl.value = JSON.stringify(extraQueries);
+          } else {
+            extraQueriesEl.value = "{}";
+          }
+        }
+        body.append(extraQueriesCheckbox);
+      }
+    }
+
