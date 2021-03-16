@@ -2091,6 +2091,8 @@ class ExportFlowResultsTask(BaseExportTask):
         contact_field_ids = config.get(ExportFlowResultsTask.CONTACT_FIELDS, [])
         extra_urns = config.get(ExportFlowResultsTask.EXTRA_URNS, [])
         group_memberships = config.get(ExportFlowResultsTask.GROUP_MEMBERSHIPS, [])
+        extra_queries = config.get(ExportFlowResultsTask.EXTRA_QUERIES, {})
+        setattr(self, "extra_queries", extra_queries)
 
         contact_fields = ContactField.user_fields.active_for_org(org=self.org).filter(id__in=contact_field_ids)
 
@@ -2201,6 +2203,33 @@ class ExportFlowResultsTask(BaseExportTask):
         runs = FlowRun.objects.filter(flow__in=flows).order_by("modified_on")
         if responded_only:
             runs = runs.filter(responded=True)
+
+        # filter runs by extra queries
+        extra_queries = getattr(self, "extra_queries", {})
+        if extra_queries.get("response"):
+            response_queries = extra_queries.get("response", {})
+            if response_queries.get("after"):
+                after = self.org.parse_datetime(response_queries.get("after"))
+                runs = runs.filter(created_on__gte=after)
+
+            if response_queries.get("before"):
+                before = self.org.parse_datetime(response_queries.get("before"))
+                runs = runs.filter(created_on__lte=before)
+
+            if response_queries.get("query"):
+                from .search.parser import FlowRunSearch
+                runs_search = FlowRunSearch(query=response_queries.get("query"), base_queryset=runs)
+                filtered_runs, error = runs_search.search()
+                if not error:
+                    runs = filtered_runs
+
+        if extra_queries.get("contact", {}).get("query"):
+            from temba.contacts.search.elastic import query_contact_ids
+            group = self.org.all_groups.filter(group_type='A').first()
+            contact_query = extra_queries["contact"]["query"]
+            contact_ids = query_contact_ids(self.org, contact_query, group=group)
+            runs = runs.filter(contact_id__in=contact_ids)
+
         run_ids = array(str("l"), runs.values_list("id", flat=True))
 
         logger.info(
