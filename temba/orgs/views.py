@@ -1483,10 +1483,38 @@ class OrgCRUDL(SmartCRUDL):
             parent = forms.IntegerField(required=False)
             plan_end = forms.DateTimeField(required=False)
 
+            def __init__(self, org, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                self.limits_rows = []
+                self.add_limits_fields(org)
+
             def clean_parent(self):
                 parent = self.cleaned_data.get("parent")
                 if parent:
                     return Org.objects.filter(pk=parent).first()
+
+            def clean(self):
+                super().clean()
+
+                limits_json_update = dict()
+                for row in self.limits_rows:
+                    if self.cleaned_data.get(row["limit_field_key"]):
+                        limits_json_update[row["limit_type"]] = self.cleaned_data.get(row["limit_field_key"])
+
+                self.cleaned_data["limits_json_update"] = limits_json_update
+
+                return self.cleaned_data
+
+            def add_limits_fields(self, org: Org):
+                for limit_type in [Org.LIMIT_FIELDS, Org.LIMIT_GROUPS, Org.LIMIT_GLOBALS]:
+                    initial = org.limits.get(limit_type)
+                    limit_field = forms.IntegerField(required=False, initial=initial)
+                    field_key = f"{limit_type}_limit"
+
+                    self.fields.update(OrderedDict([(field_key, limit_field)]))
+
+                    self.limits_rows.append({"limit_type": limit_type, "limit_field_key": field_key})
 
             class Meta:
                 model = Org
@@ -1503,6 +1531,11 @@ class OrgCRUDL(SmartCRUDL):
                 )
 
         form_class = Form
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.get_object()
+            return kwargs
 
         def get_success_url(self):
             return reverse("orgs.org_update", args=[self.get_object().pk])
@@ -1572,6 +1605,14 @@ class OrgCRUDL(SmartCRUDL):
                     self.get_object().unflag()
                 return HttpResponseRedirect(self.get_success_url())
             return super().post(request, *args, **kwargs)
+
+        def pre_save(self, obj):
+            obj = super().pre_save(obj)
+
+            cleaned_data = self.form.cleaned_data
+
+            obj.limits.update(cleaned_data["limits_json_update"])
+            return obj
 
     class Delete(ModalMixin, SmartDeleteView):
         cancel_url = "id@orgs.org_update"
