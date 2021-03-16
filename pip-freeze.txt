@@ -63,7 +63,7 @@ django-hamlpy==1.3
     # via -r pip-requires.txt
 django-mptt==0.8.7
     # via -r pip-requires.txt
-django-redis==4.10.0
+django-redis==4.12.1
     # via -r pip-requires.txt
 django-storages==1.11.1
     # via -r pip-requires.txt
