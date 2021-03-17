@@ -66,98 +66,99 @@
                         %a#id_open_in_flow_editor.btn-block{'data-href-template':"{% url 'flows.flow_editor' 'uuid' %}", 'target': "_blank"}
                           -trans "Open in the flow editor"
 
-                  %table.list.object-list.lined
-                    - if object_list
-                      %tr.contacts
-                        %th
-                        %th
-                        -for field in contact_fields
-                          -if field.show_in_table
-                            %th
-                              -if sort_field == field.key
-                                -if sort_direction == 'desc'
-                                  %a.sort-link(href="sort_on={{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
-                                    %div
-                                      {{ field.label }}
-                                      %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                  .table-container
+                    %table.list.object-list.lined
+                      - if object_list
+                        %tr.contacts
+                          %th
+                          %th
+                          -for field in contact_fields
+                            -if field.show_in_table
+                              %th
+                                -if sort_field == field.key
+                                  -if sort_direction == 'desc'
+                                    %a.sort-link(href="sort_on={{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
+                                      %div
+                                        {{ field.label }}
+                                        %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                                  -else
+                                    %a.sort-link{href:"sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}"}
+                                      %div
+                                        {{ field.label }}
+                                        %span.sort.icon.icon-arrow-up5.sort-desc.visible
                                 -else
                                   %a.sort-link{href:"sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}"}
                                     %div
                                       {{ field.label }}
-                                      %span.sort.icon.icon-arrow-up5.sort-desc.visible
-                              -else
-                                %a.sort-link{href:"sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}"}
-                                  %div
-                                    {{ field.label }}
-                                    %span.sort.icon.icon-arrow-down-2.sort-desc
-                        %th
-                          - if object_list
+                                      %span.sort.icon.icon-arrow-down-2.sort-desc
+                          %th
+                            - if object_list
 
-                            -if sort_field == 'created_on'
-                              -if sort_direction == 'desc'
-                                %a.sort-link{href:"sort_on=created_on{% if search %}&search={{ search|escape }}{% endif %}"}
-                                  %div
-                                    -trans "Created On"
-                                    %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                              -if sort_field == 'created_on'
+                                -if sort_direction == 'desc'
+                                  %a.sort-link{href:"sort_on=created_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                                    %div
+                                      -trans "Created On"
+                                      %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                                -else
+                                  %a.sort-link{href:"sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}"}
+                                    %div
+                                      -trans "Created On"
+                                      %span.sort.icon.icon-arrow-up5.sort-desc.visible
                               -else
                                 %a.sort-link{href:"sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}"}
                                   %div
                                     -trans "Created On"
-                                    %span.sort.icon.icon-arrow-up5.sort-desc.visible
-                            -else
-                              %a.sort-link{href:"sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}"}
-                                %div
-                                  -trans "Created On"
-                                  %span.sort.icon.icon-arrow-down-2.sort-desc
-                          %th.invite-column
+                                    %span.sort.icon.icon-arrow-down-2.sort-desc
+                            %th.invite-column
 
-                    %tbody
-                      - for object in contacts
-                        %tr.contact.select-row.object-row{'class':'{% cycle row1 row2 %}', 'data-uuid': '{{object.uuid}}', 'data-object-id': '{{object.id}}'}
+                      %tbody
+                        - for object in contacts
+                          %tr.contact.select-row.object-row{'class':'{% cycle row1 row2 %}', 'data-uuid': '{{object.uuid}}', 'data-object-id': '{{object.id}}'}
 
-                          %td.value-text.field_name
-                            {{ object|name:user_org }}
+                            %td.value-text.field_name
+                              {{ object|name:user_org }}
 
-                          %td.value-phone.field_phone
-                            %nobr
-                              {{ object|urn:user_org }}
-
-                          -for field in contact_fields
-                            -if field.show_in_table
-                              %td.field
-                                {{ object|contact_field:field.key }}
-
-                          %td.field_received
-                            %nobr
-                              {% short_datetime object.created_on %}
-
-                          %td.invite-column.value-received.field_received
-                            - if object|has_connection
-                              %a.invite.button.button-primary(
-                                href="{% url 'contacts.contact_invite_participants' %}"
-                                data-uuid="{{object.uuid}}"
-                                status="active"
-                              )
-                                -trans "Invite"
-
-                          // This is needed for action buttons
-                          %td.hide
-                            .value-labels
+                            %td.value-phone.field_phone
                               %nobr
-                                - for group in object.all_groups.all
-                                  - if group.group_type == 'U'
-                                    %span.label.label-info.lbl{ data-id: '{{group.id}}'}
-                                      %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
-                                        {{group.name}}
+                                {{ object|urn:user_org }}
 
-                      -empty
-                        %tr
-                          %td{colspan:3}
-                            -trans "No matching contacts."
-                          -for field in contact_fields
-                            -if field.show_in_table
-                              %td.field
-                          %td
+                            -for field in contact_fields
+                              -if field.show_in_table
+                                %td.field
+                                  {{ object|contact_field:field.key }}
+
+                            %td.field_received
+                              %nobr
+                                {% short_datetime object.created_on %}
+
+                            %td.invite-column.value-received.field_received
+                              - if object|has_connection
+                                %a.invite.button.button-primary(
+                                  href="{% url 'contacts.contact_invite_participants' %}"
+                                  data-uuid="{{object.uuid}}"
+                                  status="active"
+                                )
+                                  -trans "Invite"
+
+                            // This is needed for action buttons
+                            %td.hide
+                              .value-labels
+                                %nobr
+                                  - for group in object.all_groups.all
+                                    - if group.group_type == 'U'
+                                      %span.label.label-info.lbl{ data-id: '{{group.id}}'}
+                                        %a{'href':'{% url "contacts.contact_filter" group.uuid %}'}
+                                          {{group.name}}
+
+                        -empty
+                          %tr
+                            %td{colspan:3}
+                              -trans "No matching contacts."
+                            -for field in contact_fields
+                              -if field.show_in_table
+                                %td.field
+                            %td
 
                   .flex.flex-col.mb-16
                     -include "includes/pagination.haml"
@@ -186,52 +187,13 @@
 
 -block extra-style
   :css
-    @media only screen and (max-width: 1600px) {
-      th:nth-child(n+9), td:nth-child(n+9) {
-        display:none;
-      }
-    }
-
-    @media only screen and (max-width: 1500px) {
-      th:nth-child(n+8), td:nth-child(n+8) {
-        display:none;
-      }
-    }
-
-    @media only screen and (max-width: 1450px) {
-      th:nth-child(n+7), td:nth-child(n+7) {
-        display:none;
-      }
-    }
-
-    @media only screen and (max-width: 1300px) {
-      th:nth-child(n+6), td:nth-child(n+6) {
-        display:none;
-      }
-    }
-
-    @media only screen and (max-width: 1150px) {
-      th:nth-child(n+5), td:nth-child(n+5) {
-        display:none;
-      }
-    }
-
-    @media only screen and (max-width: 1000px) {
-      th:nth-child(n+4), td:nth-child(n+4) {
-        display:none;
-      }
-    }
-
-    @media only screen and (max-width: 850px) {
-      th:nth-child(n+3), td:nth-child(n+3) {
-        display:none;
-      }
-    }
-
-    @media only screen and (max-width: 700px) {
-      th:nth-child(n+2), td:nth-child(n+2) {
-        display:none;
-      }
+    .table-container {
+      position: relative;
+      overflow-x: auto;
+      max-width: calc(100vw - 330px);
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+      border-radius: 0.5rem;
+      margin: 0 2.5px;
     }
 
     tr.contacts th a span.icon {
