@@ -1775,8 +1775,8 @@ class OrgCRUDL(SmartCRUDL):
                 roles = {}
 
                 for row in self.user_rows:
-                    role = self.cleaned_data[row["role_field"]]
-                    remove = self.cleaned_data[row["remove_field"]]
+                    role = self.cleaned_data.get(row["role_field"])
+                    remove = self.cleaned_data.get(row["remove_field"])
                     roles[row["user"]] = OrgRole.from_code(role) if not remove else None
                 return roles
 

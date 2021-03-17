@@ -1582,6 +1582,24 @@ class OrgTest(TembaTest):
         invites_on_form = [row["invite"].email for row in response.context["form"].invite_rows]
         self.assertEqual(["code@temba.com", "norbert@temba.com"], invites_on_form)
 
+        # users for whom nothing is submitted for remain unchanged
+        response = self.client.post(
+            url,
+            {
+                f"user_{self.admin.id}_role": "A",
+                "invite_emails": "",
+                "invite_role": "A",
+            },
+        )
+        self.assertEqual(200, response.status_code)
+
+        self.org.refresh_from_db()
+        self.assertEqual(set(self.org.administrators.all()), {self.admin})
+        self.assertEqual(set(self.org.editors.all()), {self.user, self.editor})
+        self.assertFalse(set(self.org.viewers.all()), set())
+        self.assertEqual(set(self.org.surveyors.all()), set())
+        self.assertEqual(set(self.org.agents.all()), {self.agent})
+
         # try to remove ourselves as admin
         response = self.client.post(
             url,
