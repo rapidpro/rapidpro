@@ -1,3 +1,7 @@
+v6.3.4
+----------
+ * Update to latest celery 4.x
+
 v6.3.2
 ----------
  * Support reseting the org limits to the default settings by clearing the form field
