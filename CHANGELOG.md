@@ -1,3 +1,9 @@
+v6.3.2
+----------
+ * Support reseting the org limits to the default settings by clearing the form field
+ * Update redis client to latest v3.5.3
+ * Fix manage accounts form blowing up when new user has been created in background
+
 v6.3.1
 ----------
  * Add support for runs with exit_type=F
