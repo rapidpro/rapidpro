@@ -1497,12 +1497,12 @@ class OrgCRUDL(SmartCRUDL):
             def clean(self):
                 super().clean()
 
-                limits_json_update = dict()
+                limits = dict()
                 for row in self.limits_rows:
                     if self.cleaned_data.get(row["limit_field_key"]):
-                        limits_json_update[row["limit_type"]] = self.cleaned_data.get(row["limit_field_key"])
+                        limits[row["limit_type"]] = self.cleaned_data.get(row["limit_field_key"])
 
-                self.cleaned_data["limits_json_update"] = limits_json_update
+                self.cleaned_data["limits"] = limits
 
                 return self.cleaned_data
 
@@ -1611,7 +1611,7 @@ class OrgCRUDL(SmartCRUDL):
 
             cleaned_data = self.form.cleaned_data
 
-            obj.limits.update(cleaned_data["limits_json_update"])
+            obj.limits = cleaned_data["limits"]
             return obj
 
     class Delete(ModalMixin, SmartDeleteView):
