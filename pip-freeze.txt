@@ -4,7 +4,7 @@
 #
 #    ./freeze-python-deps.sh
 #
-amqp==2.1.4
+amqp==2.6.1
     # via kombu
 analytics-python==1.2.9
     # via -r pip-requires.txt
@@ -12,7 +12,7 @@ appdirs==1.4.3
     # via black
 beautifulsoup4==4.7.1
     # via -r pip-requires.txt
-billiard==3.5.0.2
+billiard==3.6.3.0
     # via celery
 black==20.8b1
     # via -r pip-requires.txt
@@ -22,7 +22,7 @@ botocore==1.19.63
     # via
     #   boto3
     #   s3transfer
-celery[redis]==4.2.1
+celery==4.4.6
     # via
     #   -r pip-requires.txt
     #   smartmin
@@ -98,7 +98,7 @@ flake8==3.7.7
     #   -r pip-requires.txt
     #   flake8-deprecated
     #   flake8-print
-future==0.16.0
+future==0.18.2
     # via python-telegram-bot
 geojson==2.4.1
     # via -r pip-requires.txt
@@ -122,7 +122,7 @@ jmespath==0.9.3
     # via
     #   boto3
     #   botocore
-kombu==4.2.1
+kombu==4.6.11
     # via celery
 librato-bg==1.0.6
     # via -r pip-requires.txt
@@ -297,7 +297,7 @@ urllib3==1.26.2
     #   elasticsearch
     #   requests
     #   sentry-sdk
-vine==1.1.3
+vine==1.3.0
     # via amqp
 xlrd==1.2.0
     # via
