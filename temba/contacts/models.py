@@ -68,6 +68,7 @@ class URN:
     WECHAT_SCHEME = "wechat"
     FRESHCHAT_SCHEME = "freshchat"
     ROCKETCHAT_SCHEME = "rocketchat"
+    DISCORD_SCHEME = "discord"
 
     SCHEME_CHOICES = (
         (TEL_SCHEME, _("Phone number")),
@@ -86,6 +87,7 @@ class URN:
         (FRESHCHAT_SCHEME, _("Freshchat identifier")),
         (VK_SCHEME, _("VK identifier")),
         (ROCKETCHAT_SCHEME, _("RocketChat identifier")),
+        (DISCORD_SCHEME, _("Discord Identifier")),
     )
 
     VALID_SCHEMES = {s[0] for s in SCHEME_CHOICES}
@@ -120,7 +122,6 @@ class URN:
 
         if parsed.scheme not in cls.VALID_SCHEMES and parsed.scheme != cls.DELETED_SCHEME:
             raise ValueError("URN contains an invalid scheme component: '%s'" % parsed.scheme)
-
         return parsed.scheme, parsed.path, parsed.query or None, parsed.fragment or None
 
     @classmethod
@@ -214,6 +215,13 @@ class URN:
                 path,
                 regex.V0,
             )
+        # Discord IDs are snowflakes, which are int64s internally
+        elif scheme == cls.DISCORD_SCHEME:
+            try:
+                int(path)
+                return True
+            except ValueError:
+                return False
 
         # anything goes for external schemes
         return True
@@ -294,6 +302,10 @@ class URN:
     @classmethod
     def from_twitterid(cls, id, screen_name=None):
         return cls.from_parts(cls.TWITTERID_SCHEME, id, display=screen_name)
+
+    @classmethod
+    def from_discord(cls, path):
+        return cls.from_parts(cls.DISCORD_SCHEME, path)
 
 
 class UserContactFieldsQuerySet(models.QuerySet):

@@ -1150,6 +1150,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia.ZenviaType",
     "temba.channels.types.android.AndroidType",
+    "temba.channels.types.discord.DiscordType",
     "temba.channels.types.rocketchat.RocketChatType",
 ]
 
