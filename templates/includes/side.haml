@@ -1,0 +1,111 @@
+-load smartmin i18n humanize temba compress
+
+#unnnic-menu
+  -if org_perms.msgs.msg_inbox and not request.user.is_superuser
+    %a{href:"{% url 'msgs.msg_inbox' %}", class:"{% active request 'inbox|outbox|broadcast|call|msg/filter|msg/flow|msg/archived|failed' %}"}
+      .circle.unnnic-icon-message-bubble-3.unnnic-icon-ant{class:"{% active request 'inbox|outbox|broadcast|call|msg/filter|msg/flow|msg/archived|failed' %}"}
+      .title 
+        -trans "messages"
+
+  -if org_perms.contacts.contact_list and not request.user.is_superuser
+    %a{href:"{% url 'contacts.contact_list' %}", class:"{% active request 'contact|imports' %}"}
+      .circle.unnnic-icon-book-address-1-2.unnnic-icon-ant{class:"{% active request 'contact|imports' %}"}
+      .title 
+        -trans "contacts"
+
+  -if org_perms.flows.flow_list and not request.user.is_superuser
+    %a{href:"{% url 'flows.flow_list' %}", class:"{% active request '(?<!msg)/flow' %}"}
+      .circle.unnnic-icon-hierarchy-3-2.unnnic-icon-ant{class:"{% active request '(?<!msg)/flow' %}"}
+      .title 
+        -trans "flows"
+
+  -if org_perms.campaigns.campaign_list and not request.user.is_superuser
+    %a{href:"{% url 'campaigns.campaign_list' %}", class:"{% active request 'campaign' %}"}
+      .circle.unnnic-icon-synchronize-arrow-clock-4.unnnic-icon-ant{class:"{% active request 'campaign' %}"}
+      .title
+        -trans "campaigns"
+
+  -if org_perms.triggers.trigger_list and not request.user.is_superuser
+    %a{href:"{% url 'triggers.trigger_list' %}", class:"{% active request 'trigger' %}"}
+      .circle.unnnic-icon-flash-1-3.unnnic-icon-ant{class:"{% active request 'trigger' %}"}
+      .title
+        -trans "triggers"
+
+  -if org_perms.tickets.ticket_open and not request.user.is_superuser and user_org and user_org.has_ticketer
+    %a{href:"{% url 'tickets.ticket_open' %}", class:"{% active request 'ticket' %}"}
+      .circle.unnnic-icon-ticket-1.unnnic-icon-ant{class:"{% active request 'ticket' %}"}
+      .title
+        -trans "tickets"
+
+  -if org_perms.channels.channel_list or request.user.is_superuser
+    -if not has_outgoing_channel and org_perms.channels.channel_claim
+      %a{href:"{% url 'channels.channel_list' %}", class:"{% active request 'channels' %}"}
+        .circle.unnnic-icon-phone-3.unnnic-icon-ant{class:"{% active request 'channels' %}"}
+        .title
+          -trans "channels"
+
+  -if request.user.is_superuser or perms.auth.user_list
+    -if not user_org
+      %a{href:"{% url 'orgs.user_list' %}", class:"{% active request 'users' %}"}
+        .circle
+          .icon-users-2.icon-3
+        .title
+          -trans "users"
+
+  -if request.user.is_superuser or perms.orgs.org_manage
+    -if not user_org
+      %a{href:"{% url 'orgs.org_manage' %}", class:"{% active request 'org' %}"}
+        .circle
+          .icon-office.icon-2
+        .title
+          -trans "workspaces"
+
+  -if request.user.is_superuser or perms.apks.apk_list
+    %a{href:"{% url 'apks.apk_list' %}", class:"{% active request 'apk' %}"}
+      .circle
+        .icon-channel-android
+      .title
+        -trans "android"
+
+  -if request.user.is_superuser or perms.orgs.org_dashboard
+    %a{href:"{% url 'dashboard.dashboard_home' %}", class:"{% active request 'dashboard(?!/flows)' %}"}
+      .circle
+        .icon-bars-3.icon-1
+      .title
+        -trans "dashboard"
+
+  %a{href:"#", class:"unnnic-shrink-button", onclick:'resizeSidebar()'}
+    #unnnic-shrink-button.circle.unnnic-expand-8-1.unnnic-icon-ant
+    .title
+      -trans "Shrink"
+
+-if user_org and user_org.has_low_credits and not user.is_superuser
+  -if user_org.get_credits_remaining <= 0
+    .nav-alert.interrupted
+      %a{href:'{% url "orgs.topup_list" %}'}
+        {% blocktrans %}You are out of credits, add more to resume your service{% endblocktrans %}
+  -else
+    .nav-alert
+      %a{href:'{% url "orgs.topup_list" %}'}
+        {% blocktrans count credits=user_org.get_credits_remaining %}You have {{ credits }} credit remaining, add credits to prevent interruption{%plural%}You have {{ credits }} credits remaining, add credits to prevent interruption{% endblocktrans %}</a>
+
+-elif user_org and user_org.has_expiring_credits and not user.is_superuser
+  .nav-alert
+    -blocktrans trimmed
+      Your active credits will expire soon, add credits to prevent interruption.
+
+-elif unsent_msgs or delayed_syncevents
+  .nav-alert
+    %a{href:'{% url "orgs.org_home" %}'}
+      .icon-warning
+      -trans "Your phone is having difficulty relaying messages"
+
+-block extra-script
+  :javascript
+
+    function resizeSidebar() {
+      $("#unnnic-sidebar").toggleClass("reduced")
+      $("#unnnic-content").toggleClass("reduced")
+      $("#unnnic-menu").toggleClass("reduced")
+      $("#unnnic-shrink-button").toggleClass("reduced")
+    }

@@ -77,6 +77,7 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2.messages"] = env("V2_MESSAGES", def
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2.broadcasts"] = env("V2_BROADCASTS", default="36000/hour")
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2.runs"] = env("V2_RUNS", default="3000/hour")
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2.api"] = env("V2_API", default="3000/hour")
+REST_FRAMEWORK["PAGE_SIZE"] = env.int('REST_FRAMEWORK_PAGE_SIZE', default=250)
 
 
 # EMAIL
@@ -290,3 +291,9 @@ SECRET_KEY_CHECK_LEGACY_USER = env("SECRET_KEY_CHECK_LEGACY_USER")
 # Ensures https connection
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Enable Weni Templates
+INSTALLED_APPS += ('macros')
+TEMPLATES[0]["OPTIONS"]["context_processors"].append("weni.templates.context_processors.enable_weni_layout")
+
+WENI_DOMAINS = {"weni": env("WENI_DOMAIN", default="weni.ai")}
