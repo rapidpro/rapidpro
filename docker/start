@@ -9,12 +9,6 @@ if [ ! -z "${BRANDING_FILES}" ]; then
     mv $PROJECT_PATH/$BRANDING_SLUG/$BRANDING_SLUG/ $PROJECT_PATH/static/brands/
 fi
 
-if [ "${ENABLE_TEMPLATES}" = true ]; then
-    git clone -b $TEMPLATE_BRANCH $TEMPLATE_REPO
-    rm -rf $PROJECT_PATH/templates
-    mv $PROJECT_PATH/weni-rp-templates/templates $PROJECT_PATH
-fi
-
 su $PROJECT_USER -c "python manage.py collectstatic --noinput"
 if [ "${COMPRESS_ENABLED}" = true ]; then
     python manage.py compress --extension=.haml,.html --force
