@@ -279,7 +279,7 @@ OIDC_OP_USER_ENDPOINT = env("OIDC_OP_USER_ENDPOINT")
 OIDC_OP_JWKS_ENDPOINT = env("OIDC_OP_JWKS_ENDPOINT")
 OIDC_RP_SIGN_ALGO = env("OIDC_RP_SIGN_ALGO", default="RS256")
 OIDC_DRF_AUTH_BACKEND = "weni.auth.backends.WeniOIDCAuthenticationBackend"
-AUTHENTICATION_BACKENDS = ("weni.auth.backends.WeniOIDCAuthenticationBackend",)
+AUTHENTICATION_BACKENDS += ("weni.auth.backends.WeniOIDCAuthenticationBackend",)
 REST_FRAMEWORK["REST_FRAMEWORK"] = (tuple(("mozilla_django_oidc.contrib.drf.OIDCAuthentication","temba.api.support.APISessionAuthentication", "temba.api.support.APITokenAuthentication", "temba.api.support.APIBasicAuthentication")))
 MIDDLEWARE = MIDDLEWARE + ("mozilla_django_oidc.middleware.SessionRefresh",)
 INSTALLED_APPS += ("mozilla_django_oidc", "weni.auth")
