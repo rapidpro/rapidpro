@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-15 20:39+0000\n"
+"POT-Creation-Date: 2021-03-18 13:41+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2454,15 +2454,6 @@ msgid "The authoring language, additional languages can be added later"
 msgstr ""
 
 msgid "The flow version this definition is in"
-msgstr ""
-
-msgid "Completed"
-msgstr ""
-
-msgid "Interrupted"
-msgstr ""
-
-msgid "Expired"
 msgstr ""
 
 msgid "Archive delete"
@@ -5319,6 +5310,15 @@ msgstr ""
 msgid "with subject"
 msgstr ""
 
+msgid "Interrupted"
+msgstr ""
+
+msgid "Expired"
+msgstr ""
+
+msgid "Completed"
+msgstr ""
+
 msgid "Started"
 msgstr ""
 
@@ -5671,6 +5671,9 @@ msgid "Day of Week"
 msgstr ""
 
 msgid "Time of Day"
+msgstr ""
+
+msgid "Interrupted, Expired and Failed"
 msgstr ""
 
 #, python-format

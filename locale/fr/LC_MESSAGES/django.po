@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-15 20:39+0000\n"
+"POT-Creation-Date: 2021-03-18 13:41+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2468,15 +2468,6 @@ msgstr "La langue de création, des langues supplémentaires peuvent être ajout
 
 msgid "The flow version this definition is in"
 msgstr "La version de flux dans laquelle cette définition se trouve"
-
-msgid "Completed"
-msgstr "Terminé"
-
-msgid "Interrupted"
-msgstr "Interrompu"
-
-msgid "Expired"
-msgstr "Expiré"
 
 msgid "Archive delete"
 msgstr "Supprimer l'archive"
@@ -5389,6 +5380,15 @@ msgstr "Email envoyé à"
 msgid "with subject"
 msgstr "avec sujet"
 
+msgid "Interrupted"
+msgstr "Interrompu"
+
+msgid "Expired"
+msgstr "Expiré"
+
+msgid "Completed"
+msgstr "Terminé"
+
 msgid "Started"
 msgstr "Démarré"
 
@@ -5757,6 +5757,9 @@ msgstr "Jour de la semaine"
 
 msgid "Time of Day"
 msgstr "Moment de la journée"
+
+msgid "Interrupted, Expired and Failed"
+msgstr ""
 
 #, python-format
 msgid ""
