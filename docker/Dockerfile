@@ -2,16 +2,10 @@ FROM python:3.6-slim as build-apps
 
 ARG RAPIDPRO_APPS_GIT_URL
 ARG RAPIDPRO_APPS_GIT_BRANCH
-ARG PROTOBUFFERS_URL
 
 RUN apt-get update \
  && apt-get install --no-install-recommends --no-install-suggests -y apt-utils \
  && apt-get install --no-install-recommends --no-install-suggests -y git
-
-# get protobuffers
-WORKDIR /protos
-RUN git clone ${PROTOBUFFERS_URL} . \
- && cd rapidpro-org 
 
 WORKDIR /src
 
