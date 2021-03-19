@@ -6,11 +6,15 @@
       .circle.unnnic-icon-message-bubble-3.unnnic-icon-ant{class:"{% active request 'inbox|outbox|broadcast|call|msg/filter|msg/flow|msg/archived|failed' %}"}
       .title 
         -trans "Messages"
+      .unnnic-tooltip
+        -trans "Messages"
 
   -if org_perms.contacts.contact_list and not request.user.is_superuser
     %a{href:"{% url 'contacts.contact_list' %}", class:"{% active request 'contact|imports' %}"}
       .circle.unnnic-icon-book-address-1-2.unnnic-icon-ant{class:"{% active request 'contact|imports' %}"}
       .title 
+        -trans "Contacts"
+      .unnnic-tooltip
         -trans "Contacts"
 
   -if org_perms.flows.flow_list and not request.user.is_superuser
@@ -18,11 +22,15 @@
       .circle.unnnic-icon-hierarchy-3-2.unnnic-icon-ant{class:"{% active request '(?<!msg)/flow' %}"}
       .title 
         -trans "Flows"
+      .unnnic-tooltip
+        -trans "Flows"
 
   -if org_perms.campaigns.campaign_list and not request.user.is_superuser
     %a{href:"{% url 'campaigns.campaign_list' %}", class:"{% active request 'campaign' %}"}
       .circle.unnnic-icon-synchronize-arrow-clock-4.unnnic-icon-ant{class:"{% active request 'campaign' %}"}
       .title
+        -trans "Campaigns"
+      .unnnic-tooltip
         -trans "Campaigns"
 
   -if org_perms.triggers.trigger_list and not request.user.is_superuser
@@ -30,11 +38,15 @@
       .circle.unnnic-icon-flash-1-3.unnnic-icon-ant{class:"{% active request 'trigger' %}"}
       .title
         -trans "Triggers"
+      .unnnic-tooltip
+        -trans "Triggers"
 
   -if org_perms.tickets.ticket_open and not request.user.is_superuser and user_org and user_org.has_ticketer
     %a{href:"{% url 'tickets.ticket_open' %}", class:"{% active request 'ticket' %}"}
       .circle.unnnic-icon-ticket-1.unnnic-icon-ant{class:"{% active request 'ticket' %}"}
       .title
+        -trans "Tickets"
+      .unnnic-tooltip
         -trans "Tickets"
 
   -if org_perms.channels.channel_list or request.user.is_superuser
@@ -42,6 +54,8 @@
       %a{href:"{% url 'channels.channel_list' %}", class:"{% active request 'channels' %}"}
         .circle.unnnic-icon-phone-3.unnnic-icon-ant{class:"{% active request 'channels' %}"}
         .title
+          -trans "Channels"
+        .unnnic-tooltip
           -trans "Channels"
 
   -if request.user.is_superuser or perms.auth.user_list
@@ -78,6 +92,8 @@
     #unnnic-shrink-button.circle.unnnic-expand-8-1.unnnic-icon-ant
     .title
       -trans "Shrink"
+    .unnnic-tooltip
+        -trans "Shrink"
 
 -if user_org and user_org.has_low_credits and not user.is_superuser
   -if user_org.get_credits_remaining <= 0
