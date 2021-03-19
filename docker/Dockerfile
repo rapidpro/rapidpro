@@ -1,10 +1,31 @@
+FROM python:3.6-slim as build-apps
+
+ARG RAPIDPRO_APPS_GIT_URL
+ARG RAPIDPRO_APPS_GIT_BRANCH
+ARG PROTOBUFFERS_URL
+
+RUN apt-get update \
+ && apt-get install --no-install-recommends --no-install-suggests -y apt-utils \
+ && apt-get install --no-install-recommends --no-install-suggests -y git
+
+# get protobuffers
+WORKDIR /protos
+RUN git clone ${PROTOBUFFERS_URL} . \
+ && cd rapidpro-org 
+
+WORKDIR /src
+
+# clone rapidpro-apps
+RUN git clone -- ${RAPIDPRO_APPS_GIT_URL} . \
+ && git checkout ${RAPIDPRO_APPS_GIT_BRANCH}
+
+RUN python setup.py sdist
+
+
 FROM python:3.6-slim
 
 ARG COMPRESS_ENABLED
 ARG BRANDING_ENABLED
-
-ARG RAPIDPRO_APPS_GIT_URL
-ARG RAPIDPRO_APPS_GIT_BRANCH
 
 ENV PYTHONUNBUFFERED 1
 ENV DEBIAN_FRONTEND  noninteractive
@@ -33,36 +54,25 @@ RUN useradd -Ums /bin/bash $PROJECT_USER \
 RUN mkdir $PROJECT_PATH \
  && mkdir $PROJECT_CONF \
  && mkdir $NPM_CONFIG_PREFIX \
-# && mkdir -p /var/www \
  && chown -R $PROJECT_USER:$PROJECT_GROUP $PROJECT_PATH \
  && chown -R $PROJECT_USER:$PROJECT_GROUP $NPM_CONFIG_PREFIX
-# && chown -R $PROJECT_USER:$PROJECT_GROUP /var/www
 
 RUN rm /etc/nginx/sites-enabled/default
 
 COPY ./docker/pip-freeze.txt /tmp/dep/
 COPY ./pip-freeze.txt ./docker/nginx.site.conf /tmp/
-RUN pip install --no-cache-dir -r /tmp/dep/pip-freeze.txt && \
-    pip install -e git+$RAPIDPRO_APPS_GIT_URL@$RAPIDPRO_APPS_GIT_BRANCH#egg=rapidpro_apps
+COPY --from=build-apps /src/dist .
+RUN pip install --no-cache-dir -U pip==20.2.2 setuptools==49.6.0 && \
+    pip install --no-cache-dir -r /tmp/dep/pip-freeze.txt && \
+    pip install --no-cache-dir rapidpro-apps-0.1.tar.gz
 
 RUN cp /tmp/nginx.site.conf /etc/nginx/sites-available/$PROJECT.conf \
  && ln -s /etc/nginx/sites-available/$PROJECT.conf /etc/nginx/sites-enabled/$PROJECT.conf
 
-#RUN envsubst < /tmp/nginx.conf > $PROJECT_CONF/nginx.conf \
-# && envsubst < /tmp/nginx.site.conf > $PROJECT_CONF/$PROJECT.conf \
-# && chown -R $PROJECT_USER:$PROJECT_GROUP $PROJECT_CONF
-
 COPY . $PROJECT_PATH
 RUN chown -R $PROJECT_USER:$PROJECT_GROUP $PROJECT_PATH
 
-#COPY --chown=$PROJECT_USER:$PROJECT_GROUP ./docker/nginx.start.sh /etc/init.d/$PROJECT
-#RUN chmod +x /etc/init.d/$PROJECT \
-# && cat /etc/init.d/$PROJECT \
-# && update-rc.d /etc/init.d/$PROJECT enable
-#RUN update-rc.d /etc/init.d/nginx enable
-
 WORKDIR $PROJECT_PATH
-#USER $PROJECT_USER
 
 RUN su $PROJECT_USER -c "npm install --global \
   coffeescript \
@@ -75,4 +85,5 @@ RUN su $PROJECT_USER -c "npm install \
 RUN su $PROJECT_USER -c "ln -s $PROJECT_PATH/temba/settings.py.prod $PROJECT_PATH/temba/settings.py"
 
 EXPOSE 8000
+EXPOSE 8001
 ENTRYPOINT ["sh", "./docker/start"]

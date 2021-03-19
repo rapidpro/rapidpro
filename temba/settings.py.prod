@@ -252,6 +252,46 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # -----------------------------------------------------------------------------------
 FLOW_SESSION_TRIM_DAYS = env.int("FLOW_SESSION_TRIM_DAYS", default=7)
 
+# GRPC
+INSTALLED_APPS += (
+    "django_grpc_framework",
+    "weni.grpc_central",
+    "weni.org_grpc",
+    "weni.user_grpc",
+    "weni.flow_grpc",
+    "weni.billing",
+    "weni.statistic_grpc",
+)
+
+
+GRPC_FRAMEWORK = {
+    "ROOT_HANDLERS_HOOK": "weni.grpc_central.urls.grpc_handlers",
+}
+
+# -----------------------------------------------------------------------------------
+# Weni Connect
+# -----------------------------------------------------------------------------------
+OIDC_RP_CLIENT_ID = env("OIDC_RP_CLIENT_ID")
+OIDC_RP_CLIENT_SECRET = env("OIDC_RP_CLIENT_SECRET")
+OIDC_OP_AUTHORIZATION_ENDPOINT = env("OIDC_OP_AUTHORIZATION_ENDPOINT")
+OIDC_OP_TOKEN_ENDPOINT = env("OIDC_OP_TOKEN_ENDPOINT")
+OIDC_OP_USER_ENDPOINT = env("OIDC_OP_USER_ENDPOINT")
+OIDC_OP_JWKS_ENDPOINT = env("OIDC_OP_JWKS_ENDPOINT")
+OIDC_RP_SIGN_ALGO = env("OIDC_RP_SIGN_ALGO", default="RS256")
+OIDC_DRF_AUTH_BACKEND = "weni.auth.backends.WeniOIDCAuthenticationBackend"
+AUTHENTICATION_BACKENDS += ("weni.auth.backends.WeniOIDCAuthenticationBackend",)
+REST_FRAMEWORK["REST_FRAMEWORK"] = (tuple(("mozilla_django_oidc.contrib.drf.OIDCAuthentication","temba.api.support.APISessionAuthentication", "temba.api.support.APITokenAuthentication", "temba.api.support.APIBasicAuthentication")))
+MIDDLEWARE = MIDDLEWARE + ("mozilla_django_oidc.middleware.SessionRefresh",)
+INSTALLED_APPS += ("mozilla_django_oidc", "weni.auth")
+LOGGING["loggers"]["mozilla_django_oidc"] = {"level": "DEBUG", "handlers": ["console"], "propagate": False}
+LOGGING["loggers"]["weni_django_oidc"] = {"level": "DEBUG", "handlers": ["console"], "propagate": False}
+X_FRAME_OPTIONS = env("X_FRAME_OPTIONS", default="ALLOW-FROM https://{}/").format(HOSTNAME)
+SECRET_KEY_CHECK_LEGACY_USER = env("SECRET_KEY_CHECK_LEGACY_USER")
+
+# Ensures https connection
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # Enable Weni Templates
 INSTALLED_APPS += ('macros',)
 TEMPLATES[0]["OPTIONS"]["context_processors"].append("weni.templates.context_processors.enable_weni_layout")
