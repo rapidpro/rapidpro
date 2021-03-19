@@ -343,6 +343,19 @@
 
     showFlowEditor(document.getElementById('rp-flow-editor'), config);
 
+    {% if immutable_alert %}
+      let immutableAlertModal = document.querySelector("#immutable_alert");
+      immutableAlertModal.header = gettext("You can't edit this flow");
+      immutableAlertModal.primaryButtonName = gettext("OK");
+      immutableAlertModal.addEventListener("temba-button-clicked", function(event) {
+        if (event.detail.button.secondary) {
+          window.history.back();
+        }
+        immutableAlertModal.open = false;
+      });
+      immutableAlertModal.open = true;
+    {% endif %}
+
 -block page-container
 
   %temba-modax#send-message-modal{ header:"Send Message" }
@@ -389,6 +402,12 @@
           .icon-help.inverted(data-toggle="tooltip" data-placement="bottom" title="{% trans 'This is the flow that will have the combined data from the original flow' %}")
         %temba-select(name="target")
           %temba-option(name="{{ object.name }}" value="{{ object.uuid }}" selected)
+
+  - if immutable_alert
+    %temba-dialog#immutable_alert
+      .p-6.body
+        = immutable_alert
+
 
   #grid.h-full
     <temba-loading units="10" size="8"></temba-loading>
