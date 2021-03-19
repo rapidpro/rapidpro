@@ -19,13 +19,6 @@
             },
             "type": "execute_actions"
           },
-          "5d741d44-8922-4d1a-8a7d-9ffdb5afaf71": {
-            "position": {
-              "left": 441,
-              "top": 381
-            },
-            "type": "execute_actions"
-          },
           "6a6971b5-dc28-4a84-baa1-48b5d33e51e0": {
             "position": {
               "left": 424,
@@ -111,7 +104,7 @@
         {
           "exits": [
             {
-              "destination_uuid": "5d741d44-8922-4d1a-8a7d-9ffdb5afaf71",
+              "destination_uuid": "6a6971b5-dc28-4a84-baa1-48b5d33e51e0",
               "uuid": "0110652d-f7a0-4419-b219-8070533b172c"
             },
             {
@@ -168,22 +161,6 @@
             }
           },
           "uuid": "b7b04770-23eb-4568-aeb0-342a16cbd607"
-        },
-        {
-          "actions": [
-            {
-              "all_groups": true,
-              "type": "remove_contact_groups",
-              "uuid": "fc88e49d-e8a1-4f4e-8b26-4ceb3c687406"
-            }
-          ],
-          "exits": [
-            {
-              "destination_uuid": "6a6971b5-dc28-4a84-baa1-48b5d33e51e0",
-              "uuid": "2fcd9838-21d9-4314-9094-80eacfaaddeb"
-            }
-          ],
-          "uuid": "5d741d44-8922-4d1a-8a7d-9ffdb5afaf71"
         },
         {
           "actions": [
