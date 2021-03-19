@@ -2762,6 +2762,17 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             .save()
         )
 
+        john = self.create_contact("John", phone="+12065553028")
+        (
+            MockSessionWriter(john, flow)
+            .visit(color_prompt)
+            .send_msg("What is your favorite color?", self.channel)
+            .visit(color_split)
+            .wait()
+            .fail("some error")
+            .save()
+        )
+
         self.login(self.admin)
 
         with patch("temba.flows.views.FlowCRUDL.RunTable.paginate_by", 1):

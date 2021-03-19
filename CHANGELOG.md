@@ -1,3 +1,7 @@
+v6.3.5
+----------
+ * Fix broken flow results charts
+
 v6.3.4
 ----------
  * Update to latest celery 4.x
