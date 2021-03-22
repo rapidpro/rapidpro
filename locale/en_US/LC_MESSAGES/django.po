@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-19 14:08+0000\n"
+"POT-Creation-Date: 2021-03-16 15:59+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1843,6 +1843,20 @@ msgstr ""
 msgid "The account password provided by Zenvia"
 msgstr ""
 
+#, python-format
+msgid "Unable to register webhook subscriptions: %(resp)s"
+msgstr ""
+
+#, python-format
+msgid "Unable to remove webhook subscriptions: %(resp)s"
+msgstr ""
+
+msgid "API Token"
+msgstr ""
+
+msgid "The API token for your integration as provided by Zenvia"
+msgstr ""
+
 msgid "United Kingdom"
 msgstr ""
 
@@ -2454,6 +2468,15 @@ msgid "The authoring language, additional languages can be added later"
 msgstr ""
 
 msgid "The flow version this definition is in"
+msgstr ""
+
+msgid "Completed"
+msgstr ""
+
+msgid "Interrupted"
+msgstr ""
+
+msgid "Expired"
 msgstr ""
 
 msgid "Archive delete"
@@ -3572,9 +3595,6 @@ msgid "Sign Out"
 msgstr ""
 
 msgid "Login"
-msgstr ""
-
-msgid "API Token"
 msgstr ""
 
 msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
@@ -5308,15 +5328,6 @@ msgid "Email sent to"
 msgstr ""
 
 msgid "with subject"
-msgstr ""
-
-msgid "Interrupted"
-msgstr ""
-
-msgid "Expired"
-msgstr ""
-
-msgid "Completed"
 msgstr ""
 
 msgid "Started"
