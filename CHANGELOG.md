@@ -1,3 +1,7 @@
+v6.3.8
+----------
+ * Convert to poetry
+
 v6.3.6
 ----------
  * Update pt_BR translation
