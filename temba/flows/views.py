@@ -1912,7 +1912,7 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 label=_("Extra Query Parameters"),
                 help_text=_("Configuration to filter runs by contact fields or responses"),
-                widget=forms.HiddenInput()
+                widget=forms.HiddenInput(),
             )
 
             def __init__(self, user, *args, **kwargs):
@@ -2169,6 +2169,7 @@ class FlowCRUDL(SmartCRUDL):
         @classmethod
         def search_query(cls, query, base_queryset):
             from .search.parser import FlowRunSearch
+
             runs_search = FlowRunSearch(query=query, base_queryset=base_queryset)
             return runs_search.search()
 
@@ -2198,7 +2199,7 @@ class FlowCRUDL(SmartCRUDL):
 
             if contact_query:
                 org = flow.org
-                group = org.all_groups.filter(group_type='A').first()
+                group = org.all_groups.filter(group_type="A").first()
                 contact_ids = query_contact_ids(org, contact_query, group=group)
                 runs = runs.filter(contact_id__in=contact_ids)
 

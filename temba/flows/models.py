@@ -1988,8 +1988,18 @@ class ExportFlowResultsTask(BaseExportTask):
     config = JSONAsTextField(null=True, default=dict, help_text=_("Any configuration options for this flow export"))
 
     @classmethod
-    def create(cls, org, user, flows, contact_fields, responded_only, include_msgs, extra_urns, group_memberships,
-               extra_queries):
+    def create(
+        cls,
+        org,
+        user,
+        flows,
+        contact_fields,
+        responded_only,
+        include_msgs,
+        extra_urns,
+        group_memberships,
+        extra_queries,
+    ):
         config = {
             ExportFlowResultsTask.INCLUDE_MSGS: include_msgs,
             ExportFlowResultsTask.CONTACT_FIELDS: [c.id for c in contact_fields],
@@ -2218,6 +2228,7 @@ class ExportFlowResultsTask(BaseExportTask):
 
             if response_queries.get("query"):
                 from .search.parser import FlowRunSearch
+
                 runs_search = FlowRunSearch(query=response_queries.get("query"), base_queryset=runs)
                 filtered_runs, error = runs_search.search()
                 if not error:
@@ -2225,7 +2236,8 @@ class ExportFlowResultsTask(BaseExportTask):
 
         if extra_queries.get("contact", {}).get("query"):
             from temba.contacts.search.elastic import query_contact_ids
-            group = self.org.all_groups.filter(group_type='A').first()
+
+            group = self.org.all_groups.filter(group_type="A").first()
             contact_query = extra_queries["contact"]["query"]
             contact_ids = query_contact_ids(self.org, contact_query, group=group)
             runs = runs.filter(contact_id__in=contact_ids)

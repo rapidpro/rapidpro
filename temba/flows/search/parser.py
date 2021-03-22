@@ -8,10 +8,7 @@ from temba.utils.text import slugify_with
 
 
 class FlowRunSearch(object):
-    LOOKUPS = {
-        "=": "__iexact",
-        "~": "__icontains"
-    }
+    LOOKUPS = {"=": "__iexact", "~": "__icontains"}
 
     def __init__(self, query, base_queryset):
         self.query = self._preprocess_query(query)
@@ -21,7 +18,7 @@ class FlowRunSearch(object):
         from django.db.models.functions import Cast
         from django.contrib.postgres.fields import JSONField
 
-        queryset = self.base_queryset.annotate(results_json=Cast('results', JSONField()))
+        queryset = self.base_queryset.annotate(results_json=Cast("results", JSONField()))
 
         queries, e = self._parse_query()
         queries_iterator = iter(queries)
@@ -32,11 +29,12 @@ class FlowRunSearch(object):
             try:
                 item = next(queries_iterator)
                 if item.get("type") == "lookup":
-                    _filter = Q(**{
-                        f'results_json__{slugify_with(item.get("field"), "_")}'
-                        f'__value{self.LOOKUPS.get(item.get("operator"))}':
-                            item.get("value")
-                    })
+                    _filter = Q(
+                        **{
+                            f'results_json__{slugify_with(item.get("field"), "_")}'
+                            f'__value{self.LOOKUPS.get(item.get("operator"))}': item.get("value")
+                        }
+                    )
                     if previous_conditions:
                         previous_condition = previous_conditions.pop()
                         if previous_condition.get("conditional") == "NOT" and previous_conditions:
@@ -69,12 +67,7 @@ class FlowRunSearch(object):
         :return: Processed query string.
         """
         query = (
-            query
-            .replace("!=", " <> ")
-            .replace("=", " = ")
-            .replace("~", " ~ ")
-            .replace("(", " ( ")
-            .replace(")", " ) ")
+            query.replace("!=", " <> ").replace("=", " = ").replace("~", " ~ ").replace("(", " ( ").replace(")", " ) ")
         )
 
         operators = ["=", "!=", "~", "<>", "not", "and", "or", "(", ")"]
@@ -110,10 +103,7 @@ class FlowRunSearch(object):
             return queries, Exception(_("Something is wrong with your query, please review the syntax."))
         for token in parsed_query.tokens:
             if token.is_keyword:
-                queries.append({
-                    "type": "conditional",
-                    "conditional": str(token).upper()
-                })
+                queries.append({"type": "conditional", "conditional": str(token).upper()})
             else:
                 match = str(token)
                 if "=" in match:
@@ -128,18 +118,17 @@ class FlowRunSearch(object):
                     if queries and queries[-1].get("conditional", "") == "NOT":
                         queries.pop()
                     else:
-                        queries.append({
-                            "type": "conditional",
-                            "conditional": "NOT"
-                        })
+                        queries.append({"type": "conditional", "conditional": "NOT"})
                 else:
                     continue
                 (field, value, *rest) = match_splitted
-                queries.append({
-                    "field": str(field).strip(" '"),
-                    "value": str(value).strip(" '"),
-                    "operator": operator,
-                    "type": "lookup"
-                })
+                queries.append(
+                    {
+                        "field": str(field).strip(" '"),
+                        "value": str(value).strip(" '"),
+                        "operator": operator,
+                        "type": "lookup",
+                    }
+                )
 
         return queries, None

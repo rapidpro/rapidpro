@@ -3084,8 +3084,6 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         params = self.request.query_params
         org = self.request.user.get_org()
 
-
-
         # filter by flow (optional)
         flow_uuid = params.get("flow")
         if flow_uuid:
@@ -3117,9 +3115,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
         contact_urn_identity = params.get("contact_urn")
 
         if contact_uuid and contact_urn_identity:
-            raise InvalidQueryError(
-                "Please use only contact or contact_urn, we can't handle using both"
-            )
+            raise InvalidQueryError("Please use only contact or contact_urn, we can't handle using both")
 
         # filter by contact (optional)
         if contact_uuid:
@@ -3131,7 +3127,9 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
 
         # filter by contact urn (optional)
         elif contact_urn_identity:
-            contact_urn = ContactURN.objects.filter(identity=contact_urn_identity).exclude(contact__isnull=True).first()
+            contact_urn = (
+                ContactURN.objects.filter(identity=contact_urn_identity).exclude(contact__isnull=True).first()
+            )
             if contact_urn:
                 queryset = queryset.filter(contact=contact_urn.contact)
             else:
@@ -3163,7 +3161,7 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
                 {
                     "name": "query",
                     "required": False,
-                    "help": "A query to filter by flow run results, ex: Result 1=Yes AND Result 2=No"
+                    "help": "A query to filter by flow run results, ex: Result 1=Yes AND Result 2=No",
                 },
                 {
                     "name": "flow",
