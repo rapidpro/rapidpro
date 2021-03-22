@@ -1,3 +1,10 @@
+v6.3.6
+----------
+ * Update pt_BR translation
+ * Update to use latest API version to get WA templates
+ * Display failed on flow results charts, more translations
+ * Zenvia WhatsApp
+
 v6.3.5
 ----------
  * Fix broken flow results charts
