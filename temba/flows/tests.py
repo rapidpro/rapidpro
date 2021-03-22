@@ -2814,8 +2814,12 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             # and some charts
             response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
 
-            # we have two active runs
-            self.assertContains(response, "name: 'Active', y: 2")
+            # we have two active runs, one failed run
+            self.assertEqual(response.context["failed"], 1)
+            self.assertEqual(response.context["active"], 2)
+            self.assertEqual(response.context["completed"], 0)
+            self.assertEqual(response.context["expired"], 0)
+            self.assertEqual(response.context["interrupted"], 0)
             self.assertContains(response, "3 Responses")
 
             # now complete the flow for Pete
@@ -2847,10 +2851,14 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             self.assertEqual(1, len(response.context["runs"]))
             self.assertContains(response, "Jimmy")
 
-            # now only one active, one completed, and 5 total responses
+            # now only one active, one completed, one failed and 5 total responses
             response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
-            self.assertContains(response, "name: 'Active', y: 1")
-            self.assertContains(response, "name: 'Completed', y: 1")
+
+            self.assertEqual(response.context["failed"], 1)
+            self.assertEqual(response.context["active"], 1)
+            self.assertEqual(response.context["completed"], 1)
+            self.assertEqual(response.context["expired"], 0)
+            self.assertEqual(response.context["interrupted"], 0)
             self.assertContains(response, "5 Responses")
 
             # they all happened on the same day

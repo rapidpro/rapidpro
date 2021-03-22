@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-19 14:08+0000\n"
+"POT-Creation-Date: 2021-03-16 15:59+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1854,6 +1854,24 @@ msgstr "Le nom d'utilisateur du compte fourni par Zenvia"
 msgid "The account password provided by Zenvia"
 msgstr "Le mot de passe du compte fourni par Zenvia"
 
+#, fuzzy, python-format
+#| msgid "Unable to register callbacks: %(resp)s"
+msgid "Unable to register webhook subscriptions: %(resp)s"
+msgstr "Impossible d'enregistrer les rappels: %(resp)s"
+
+#, fuzzy, python-format
+#| msgid "Unable to register callbacks: %(resp)s"
+msgid "Unable to remove webhook subscriptions: %(resp)s"
+msgstr "Impossible d'enregistrer les rappels: %(resp)s"
+
+msgid "API Token"
+msgstr "Signal API"
+
+#, fuzzy
+#| msgid "The API key for your integration as provided by Clickatell"
+msgid "The API token for your integration as provided by Zenvia"
+msgstr "La clé API de votre intégration telle que fournie par Clickatell"
+
 msgid "United Kingdom"
 msgstr "Royaume-Uni"
 
@@ -2468,6 +2486,15 @@ msgstr "La langue de création, des langues supplémentaires peuvent être ajout
 
 msgid "The flow version this definition is in"
 msgstr "La version de flux dans laquelle cette définition se trouve"
+
+msgid "Completed"
+msgstr "Terminé"
+
+msgid "Interrupted"
+msgstr "Interrompu"
+
+msgid "Expired"
+msgstr "Expiré"
 
 msgid "Archive delete"
 msgstr "Supprimer l'archive"
@@ -3586,9 +3613,6 @@ msgstr "Déconnexion"
 
 msgid "Login"
 msgstr "S'identifier"
-
-msgid "API Token"
-msgstr "Signal API"
 
 msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
 msgstr "Votre clé API et votre secret DT One semblent invalides. Veuillez les vérifier à nouveau et réessayer."
@@ -5380,15 +5404,6 @@ msgstr "Email envoyé à"
 msgid "with subject"
 msgstr "avec sujet"
 
-msgid "Interrupted"
-msgstr "Interrompu"
-
-msgid "Expired"
-msgstr "Expiré"
-
-msgid "Completed"
-msgstr "Terminé"
-
 msgid "Started"
 msgstr "Démarré"
 
@@ -5757,6 +5772,9 @@ msgstr "Jour de la semaine"
 
 msgid "Time of Day"
 msgstr "Moment de la journée"
+
+msgid "Interrupted, Expired and Failed"
+msgstr ""
 
 #, python-format
 msgid ""
