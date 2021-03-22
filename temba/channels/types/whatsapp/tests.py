@@ -81,7 +81,7 @@ class WhatsAppTypeTest(TembaTest):
         #         self.assertEqual(200, response.status_code)
         #         self.assertFalse(Channel.objects.all())
         #         mock_get.assert_called_with(
-        #             "https://graph.facebook.com/v3.3/1234/message_templates", params={"access_token": "token123"}
+        #             "https://graph.facebook.com/v10.0/1234/message_templates", params={"access_token": "token123"}
         #         )
         #
         #         self.assertContains(response, "check user id and access token")
@@ -330,7 +330,7 @@ class WhatsAppTypeTest(TembaTest):
             ]
             refresh_whatsapp_templates()
             mock_get.assert_called_with(
-                "https://graph.facebook.com/v3.3/1234/message_templates",
+                "https://graph.facebook.com/v10.0/1234/message_templates",
                 params={"access_token": "token123", "limit": 255},
             )
 
@@ -480,7 +480,7 @@ class WhatsAppTypeTest(TembaTest):
                 self.assertEqual(200, response.status_code)
                 self.assertFalse(Channel.objects.all())
                 mock_get.assert_called_with(
-                    "https://example.org/v3.3/1234/message_templates", params={"access_token": "token123"}
+                    "https://example.org/v10.0/1234/message_templates", params={"access_token": "token123"}
                 )
 
                 self.assertContains(response, "check user id and access token")
@@ -495,7 +495,7 @@ class WhatsAppTypeTest(TembaTest):
                 response = self.client.post(url, post_data)
                 self.assertEqual(302, response.status_code)
                 mock_get.assert_called_with(
-                    "https://example.org/v3.3/1234/message_templates", params={"access_token": "token123"}
+                    "https://example.org/v10.0/1234/message_templates", params={"access_token": "token123"}
                 )
 
         # test the template syncing task calls the correct domain
@@ -503,7 +503,7 @@ class WhatsAppTypeTest(TembaTest):
             mock_get.return_value = MockResponse(200, '{"data": []}')
             refresh_whatsapp_templates()
             mock_get.assert_called_with(
-                "https://example.org/v3.3/1234/message_templates", params={"access_token": "token123", "limit": 255}
+                "https://example.org/v10.0/1234/message_templates", params={"access_token": "token123", "limit": 255}
             )
 
         channel = Channel.objects.get()
@@ -524,7 +524,7 @@ class WhatsAppTypeTest(TembaTest):
 
         response = self.client.get(log_url)
         self.assertContains(response, "200")
-        self.assertContains(response, "https://example.org/v3.3/1234/message_templates")
+        self.assertContains(response, "https://example.org/v10.0/1234/message_templates")
 
         with patch("requests.get") as mock_get:
             # use fake response to simulate the exception request
@@ -536,7 +536,7 @@ class WhatsAppTypeTest(TembaTest):
         log_url = reverse("request_logs.httplog_read", args=[sync_log.id])
         response = self.client.get(log_url)
         self.assertContains(response, "Connection Error")
-        self.assertContains(response, "https://example.org/v3.3/1234/message_templates")
+        self.assertContains(response, "https://example.org/v10.0/1234/message_templates")
 
         with patch("requests.get") as mock_get:
             mock_get.side_effect = Exception("Random Error")
