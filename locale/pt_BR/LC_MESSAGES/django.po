@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-18 13:41+0000\n"
+"POT-Creation-Date: 2021-03-19 14:08+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -5899,10 +5899,10 @@ msgid "Create Label"
 msgstr "Criar rótulo"
 
 msgid "Create Flow"
-msgstr "Criar fluxo"
+msgstr "Criar Fluxo"
 
 msgid "Webhook Call Log"
-msgstr "Log de chamadas do Webhook"
+msgstr "Chamadas do Webhook"
 
 msgid "New Label"
 msgstr "Novo Rótulo"
@@ -6019,22 +6019,22 @@ msgid "No globals"
 msgstr "Nenhuma global"
 
 msgid "messages"
-msgstr "Mensagens"
+msgstr "mensagens"
 
 msgid "contacts"
-msgstr "Contatos"
+msgstr "contatos"
 
 msgid "flows"
-msgstr "Fluxos"
+msgstr "fluxos"
 
 msgid "campaigns"
-msgstr "Campanhas"
+msgstr "campanhas"
 
 msgid "triggers"
-msgstr "Disparadores"
+msgstr "disparadores"
 
 msgid "tickets"
-msgstr "Tickets"
+msgstr "tickets"
 
 msgid "channels"
 msgstr "canais"
