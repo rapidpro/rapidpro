@@ -5769,6 +5769,9 @@ msgstr "Dia da Semana"
 msgid "Time of Day"
 msgstr "Tempo do Dia"
 
+msgid "Interrupted, Expired and Failed"
+msgstr ""
+
 #, python-format
 msgid ""
 "\n"

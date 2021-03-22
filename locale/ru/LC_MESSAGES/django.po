@@ -7675,6 +7675,9 @@ msgstr "День недели"
 msgid "Time of Day"
 msgstr "Время суток"
 
+msgid "Interrupted, Expired and Failed"
+msgstr ""
+
 #, fuzzy, python-format
 #| msgid ""
 #| "\n"

@@ -5758,6 +5758,9 @@ msgstr "Jour de la semaine"
 msgid "Time of Day"
 msgstr "Moment de la journée"
 
+msgid "Interrupted, Expired and Failed"
+msgstr ""
+
 #, python-format
 msgid ""
 "\n"
