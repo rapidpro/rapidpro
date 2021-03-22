@@ -1286,6 +1286,7 @@ class OrgTest(TembaTest):
             "surveyors": [self.surveyor.id],
             "surveyor_password": "",
             "fields_limit": 300,
+            "groups_limit": 400,
         }
 
         response = self.client.post(update_url, post_data)
@@ -1293,6 +1294,36 @@ class OrgTest(TembaTest):
 
         self.org.refresh_from_db()
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 400)
+
+        # reset groups limit
+        post_data = {
+            "name": "Temba",
+            "brand": "rapidpro.io",
+            "plan": "TRIAL",
+            "plan_end": "",
+            "language": "",
+            "country": "",
+            "primary_language": "",
+            "timezone": pytz.timezone("Africa/Kigali"),
+            "config": "{}",
+            "date_format": "D",
+            "parent": parent.id,
+            "viewers": [self.user.id],
+            "editors": [self.editor.id],
+            "administrators": [self.admin.id],
+            "surveyors": [self.surveyor.id],
+            "surveyor_password": "",
+            "fields_limit": 300,
+            "groups_limit": "",
+        }
+
+        response = self.client.post(update_url, post_data)
+        self.assertEqual(302, response.status_code)
+
+        self.org.refresh_from_db()
+        self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 250)
 
         # unflag org
         post_data["action"] = "unflag"
@@ -1550,6 +1581,24 @@ class OrgTest(TembaTest):
         # invites ordered by email as well
         invites_on_form = [row["invite"].email for row in response.context["form"].invite_rows]
         self.assertEqual(["code@temba.com", "norbert@temba.com"], invites_on_form)
+
+        # users for whom nothing is submitted for remain unchanged
+        response = self.client.post(
+            url,
+            {
+                f"user_{self.admin.id}_role": "A",
+                "invite_emails": "",
+                "invite_role": "A",
+            },
+        )
+        self.assertEqual(200, response.status_code)
+
+        self.org.refresh_from_db()
+        self.assertEqual(set(self.org.administrators.all()), {self.admin})
+        self.assertEqual(set(self.org.editors.all()), {self.user, self.editor})
+        self.assertFalse(set(self.org.viewers.all()), set())
+        self.assertEqual(set(self.org.surveyors.all()), set())
+        self.assertEqual(set(self.org.agents.all()), {self.agent})
 
         # try to remove ourselves as admin
         response = self.client.post(

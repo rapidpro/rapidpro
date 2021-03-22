@@ -30,6 +30,7 @@ EXIT_TYPES = {
     "completed": FlowRun.EXIT_TYPE_COMPLETED,
     "interrupted": FlowRun.EXIT_TYPE_INTERRUPTED,
     "expired": FlowRun.EXIT_TYPE_EXPIRED,
+    "failed": FlowRun.EXIT_TYPE_FAILED,
 }
 
 PERSIST_EVENTS = {"msg_created", "msg_received"}

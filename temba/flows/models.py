@@ -658,14 +658,16 @@ class Flow(TembaModel):
     def get_run_stats(self):
         totals_by_exit = FlowRunCount.get_totals(self)
         total_runs = sum(totals_by_exit.values())
+        completed = totals_by_exit.get(FlowRun.EXIT_TYPE_COMPLETED, 0)
 
         return {
             "total": total_runs,
-            "active": totals_by_exit[FlowRun.STATE_ACTIVE],
-            "completed": totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED],
-            "expired": totals_by_exit[FlowRun.EXIT_TYPE_EXPIRED],
-            "interrupted": totals_by_exit[FlowRun.EXIT_TYPE_INTERRUPTED],
-            "completion": int(totals_by_exit[FlowRun.EXIT_TYPE_COMPLETED] * 100 // total_runs) if total_runs else 0,
+            "active": totals_by_exit.get(None, 0),
+            "completed": completed,
+            "expired": totals_by_exit.get(FlowRun.EXIT_TYPE_EXPIRED, 0),
+            "interrupted": totals_by_exit.get(FlowRun.EXIT_TYPE_INTERRUPTED, 0),
+            "failed": totals_by_exit.get(FlowRun.EXIT_TYPE_FAILED, 0),
+            "completion": int(completed * 100 // total_runs) if total_runs else 0,
         }
 
     def async_start(self, user, groups, contacts, query=None, restart_participants=False, include_active=True):
@@ -1060,15 +1062,15 @@ class FlowRun(RequireUpdateFieldsMixin, models.Model):
         (STATUS_FAILED, "Failed"),
     )
 
-    STATE_ACTIVE = "A"
-
     EXIT_TYPE_COMPLETED = "C"
     EXIT_TYPE_INTERRUPTED = "I"
     EXIT_TYPE_EXPIRED = "E"
+    EXIT_TYPE_FAILED = "F"
     EXIT_TYPE_CHOICES = (
-        (EXIT_TYPE_COMPLETED, _("Completed")),
-        (EXIT_TYPE_INTERRUPTED, _("Interrupted")),
-        (EXIT_TYPE_EXPIRED, _("Expired")),
+        (EXIT_TYPE_COMPLETED, "Completed"),
+        (EXIT_TYPE_INTERRUPTED, "Interrupted"),
+        (EXIT_TYPE_EXPIRED, "Expired"),
+        (EXIT_TYPE_FAILED, "Failed"),
     )
 
     RESULT_NAME = "name"
@@ -1713,17 +1715,7 @@ class FlowRunCount(SquashableModel):
     @classmethod
     def get_totals(cls, flow):
         totals = list(cls.objects.filter(flow=flow).values_list("exit_type").annotate(replies=Sum("count")))
-        totals = {t[0]: t[1] for t in totals}
-
-        # for convenience, ensure dict contains all possible states
-        all_states = (None, FlowRun.EXIT_TYPE_COMPLETED, FlowRun.EXIT_TYPE_EXPIRED, FlowRun.EXIT_TYPE_INTERRUPTED)
-        totals = {s: totals.get(s, 0) for s in all_states}
-
-        # we record active runs as exit_type=None but replace with actual constant for clarity
-        totals[FlowRun.STATE_ACTIVE] = totals[None]
-        del totals[None]
-
-        return totals
+        return {t[0]: t[1] for t in totals}
 
     def __str__(self):  # pragma: needs cover
         return "RunCount[%d:%s:%d]" % (self.flow_id, self.exit_type, self.count)
