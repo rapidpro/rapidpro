@@ -287,7 +287,7 @@ LOGGING["loggers"]["mozilla_django_oidc"] = {"level": "DEBUG", "handlers": ["con
 LOGGING["loggers"]["weni_django_oidc"] = {"level": "DEBUG", "handlers": ["console"], "propagate": False}
 X_FRAME_OPTIONS = env("X_FRAME_OPTIONS", default="ALLOW-FROM https://{}/").format(HOSTNAME)
 SECRET_KEY_CHECK_LEGACY_USER = env("SECRET_KEY_CHECK_LEGACY_USER")
-
+OIDC_AUTHENTICATION_CALLBACK_URL = "msgs.msg_inbox"
 # Ensures https connection
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
