@@ -737,6 +737,9 @@ class OrgDeleteTest(TembaNonAtomicTest):
         self.create_outgoing_msg(parent_contact, "Hola hija!", channel=self.channel)
         self.create_outgoing_msg(child_contact, "Hola mama!", channel=self.child_channel)
 
+        # create a broadcast and some counts
+        self.create_broadcast(self.user, "Broadcast with messages", contacts=[parent_contact])
+
         # create some archives
         self.mock_s3 = MockS3Client()
 
