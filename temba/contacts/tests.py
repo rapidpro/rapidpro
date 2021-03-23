@@ -26,7 +26,7 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.search import SearchException, SearchResults, search_contacts
 from temba.contacts.views import ContactListView
-from temba.flows.models import Flow
+from temba.flows.models import Flow, FlowStart
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.mailroom import MailroomException, modifiers
@@ -61,7 +61,7 @@ from .tasks import check_elasticsearch_lag, squash_contactgroupcounts
 from .templatetags.contacts import contact_field, history_class, history_icon
 
 
-class ContactCRUDLTest(TembaTest):
+class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
     def setUp(self):
         super().setUp()
 
@@ -564,6 +564,38 @@ class ContactCRUDLTest(TembaTest):
         # contact should be unchanged
         other_org_contact.refresh_from_db()
         self.assertTrue(other_org_contact.is_active)
+
+    @mock_mailroom
+    def test_start(self, mr_mocks):
+        sample_flows = list(self.org.flows.order_by("name"))
+        background_flow = self.get_flow("background")
+        self.get_flow("media_survey")
+        archived_flow = self.get_flow("color")
+        archived_flow.archive()
+
+        contact = self.create_contact("Joe", phone="+593979000111")
+        start_url = reverse("contacts.contact_start", args=[contact.id])
+
+        response = self.assertUpdateFetch(start_url, allow_viewers=False, allow_editors=True, form_fields=["flow"])
+        self.assertEqual([background_flow] + sample_flows, list(response.context["form"].fields["flow"].queryset))
+
+        # try to submit without specifying a flow
+        self.assertUpdateSubmit(
+            start_url, data={}, form_errors={"flow": "This field is required."}, object_unchanged=contact
+        )
+
+        # submit with flow...
+        self.assertUpdateSubmit(start_url, data={"flow": background_flow.id})
+
+        # should now have a flow start
+        start = FlowStart.objects.get()
+        self.assertEqual(background_flow, start.flow)
+        self.assertEqual({contact}, set(start.contacts.all()))
+        self.assertTrue(start.restart_participants)
+        self.assertTrue(start.include_active)
+
+        # that has been queued to mailroom
+        self.assertEqual("start_flow", mr_mocks.queued_batch_tasks[-1]["type"])
 
 
 class ContactGroupTest(TembaTest):

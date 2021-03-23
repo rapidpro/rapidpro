@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-16 15:59+0000\n"
+"POT-Creation-Date: 2021-03-23 20:51+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2349,6 +2349,9 @@ msgstr "Exportation terminée, vous pouvez le trouver ici: %s (les utilisateurs 
 msgid "Send Message"
 msgstr "Envoyer un message"
 
+msgid "Start Flow"
+msgstr "Lancer un Flux"
+
 msgid "Edit Contact"
 msgstr "Modifier le contact"
 
@@ -2399,6 +2402,13 @@ msgstr "Une erreur s'est produite lors de la mise à jour de votre contact. Veui
 
 msgid "Select a field to update"
 msgstr "Sélectionnez un champ à mettre à jour"
+
+msgid "Start"
+msgstr "Démarrer"
+
+#, python-format
+msgid "Your contact has been started in %(flow)s."
+msgstr ""
 
 msgid "Can only contain letters, numbers and hypens."
 msgstr "Ne peut contenir que des lettres, des chiffres et des tirets."
@@ -2486,15 +2496,6 @@ msgstr "La langue de création, des langues supplémentaires peuvent être ajout
 
 msgid "The flow version this definition is in"
 msgstr "La version de flux dans laquelle cette définition se trouve"
-
-msgid "Completed"
-msgstr "Terminé"
-
-msgid "Interrupted"
-msgstr "Interrompu"
-
-msgid "Expired"
-msgstr "Expiré"
 
 msgid "Archive delete"
 msgstr "Supprimer l'archive"
@@ -2659,9 +2660,6 @@ msgstr "Modifier l'étiquette"
 
 msgid "Delete Label"
 msgstr "Supprimer l'étiquette"
-
-msgid "Start Flow"
-msgstr "Lancer un Flux"
 
 msgid "Results"
 msgstr "Resultats"
@@ -5404,6 +5402,15 @@ msgstr "Email envoyé à"
 msgid "with subject"
 msgstr "avec sujet"
 
+msgid "Interrupted"
+msgstr "Interrompu"
+
+msgid "Expired"
+msgstr "Expiré"
+
+msgid "Completed"
+msgstr "Terminé"
+
 msgid "Started"
 msgstr "Démarré"
 
@@ -5489,9 +5496,6 @@ msgstr "Identifiant de contact"
 
 msgid "Upcoming"
 msgstr "À venir"
-
-msgid "Start"
-msgstr "Démarrer"
 
 msgid "repeats daily"
 msgstr "répète quotidiennement"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-16 15:59+0000\n"
+"POT-Creation-Date: 2021-03-23 20:51+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2332,6 +2332,9 @@ msgstr ""
 msgid "Send Message"
 msgstr ""
 
+msgid "Start Flow"
+msgstr ""
+
 msgid "Edit Contact"
 msgstr ""
 
@@ -2381,6 +2384,13 @@ msgid "An error occurred updating your contact. Please try again later."
 msgstr ""
 
 msgid "Select a field to update"
+msgstr ""
+
+msgid "Start"
+msgstr ""
+
+#, python-format
+msgid "Your contact has been started in %(flow)s."
 msgstr ""
 
 msgid "Can only contain letters, numbers and hypens."
@@ -2468,15 +2478,6 @@ msgid "The authoring language, additional languages can be added later"
 msgstr ""
 
 msgid "The flow version this definition is in"
-msgstr ""
-
-msgid "Completed"
-msgstr ""
-
-msgid "Interrupted"
-msgstr ""
-
-msgid "Expired"
 msgstr ""
 
 msgid "Archive delete"
@@ -2641,9 +2642,6 @@ msgid "Edit Label"
 msgstr ""
 
 msgid "Delete Label"
-msgstr ""
-
-msgid "Start Flow"
 msgstr ""
 
 msgid "Results"
@@ -5330,6 +5328,15 @@ msgstr ""
 msgid "with subject"
 msgstr ""
 
+msgid "Interrupted"
+msgstr ""
+
+msgid "Expired"
+msgstr ""
+
+msgid "Completed"
+msgstr ""
+
 msgid "Started"
 msgstr ""
 
@@ -5407,9 +5414,6 @@ msgid "Contact Id"
 msgstr ""
 
 msgid "Upcoming"
-msgstr ""
-
-msgid "Start"
 msgstr ""
 
 msgid "repeats daily"
