@@ -378,11 +378,14 @@ rest_framework = ["djangorestframework (>=3.0.0)"]
 
 [[package]]
 name = "djangorestframework"
-version = "3.9.2"
+version = "3.12.2"
 description = "Web APIs for Django, made easy."
 category = "main"
 optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+python-versions = ">=3.5"
+
+[package.dependencies]
+django = ">=2.2"
 
 [[package]]
 name = "elasticsearch"
@@ -1239,7 +1242,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "f401ba87c37e95eb1cc787601c3a1b291ebbbc8274ee83b6f359cf74f570f8a2"
+content-hash = "4fc09e78ddf6617f5fcf0aab2ffc910a5fc945e9abe40d5c4b62a3296d643d98"
 
 [metadata.files]
 amqp = [
@@ -1458,8 +1461,8 @@ django-timezone-field = [
     {file = "django_timezone_field-4.1.2-py3-none-any.whl", hash = "sha256:897c06e40b619cf5731a30d6c156886a7c64cba3a90364832148da7ef32ccf36"},
 ]
 djangorestframework = [
-    {file = "djangorestframework-3.9.2-py2.py3-none-any.whl", hash = "sha256:8a435df9007c8b7d8e69a21ef06650e3c0cbe0d4b09e55dd1bd74c89a75a9fcd"},
-    {file = "djangorestframework-3.9.2.tar.gz", hash = "sha256:f7a266260d656e1cf4ca54d7a7349609dc8af4fe2590edd0ecd7d7643ea94a17"},
+    {file = "djangorestframework-3.12.2-py3-none-any.whl", hash = "sha256:0209bafcb7b5010fdfec784034f059d512256424de2a0f084cb82b096d6dd6a7"},
+    {file = "djangorestframework-3.12.2.tar.gz", hash = "sha256:0898182b4737a7b584a2c73735d89816343369f259fea932d90dc78e35d8ac33"},
 ]
 elasticsearch = [
     {file = "elasticsearch-7.11.0-py2.py3-none-any.whl", hash = "sha256:a113cfcee9ba8565cd48a67b60e9903b67a81b3b80ddc6d3fb2c16789a58b763"},
