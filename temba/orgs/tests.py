@@ -852,7 +852,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
     def test_release_child_immediately(self):
         # 300 credits were given to our child org and each used one
-        self.assertEqual(698, self.parent_org.get_credits_remaining())
+        self.assertEqual(697, self.parent_org.get_credits_remaining())
         self.assertEqual(299, self.child_org.get_credits_remaining())
 
         # release our child org
