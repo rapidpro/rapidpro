@@ -2027,8 +2027,8 @@ class Org(SmartModel):
         self.languages.all().delete()
 
         # release our broadcasts
-        # for bcast in self.broadcast_set.all():
-        #    bcast.release()
+        for bcast in self.broadcast_set.all():
+            bcast.release()
 
         # delete other related objects
         self.api_tokens.all().delete()
@@ -2036,7 +2036,6 @@ class Org(SmartModel):
         self.credit_alerts.all().delete()
         self.schedules.all().delete()
         self.boundaryalias_set.all().delete()
-        self.broadcast_set.all().delete()
 
         # needs to come after deletion of msgs and broadcasts as those insert new counts
         self.system_labels.all().delete()
