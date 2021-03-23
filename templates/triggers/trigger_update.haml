@@ -107,8 +107,8 @@
     setTimeout(() => {
       var idFlowVal = flowField.values[0].value;
       {% if flow_parameters_fields and flow_parameters_values %}
-          var flowParamsFields = "{{ flow_parameters_fields }}".split(",");
-          var flowParamsValues = "{{ flow_parameters_values }}".split(",");
+          var flowParamsFields = "{{ flow_parameters_fields }}".split("|");
+          var flowParamsValues = "{{ flow_parameters_values }}".split("|");
           _requestAndBuildFlowParams(idFlowVal, flowParamsFields, flowParamsValues);
       {% else %}
         _requestAndBuildFlowParams(idFlowVal);
