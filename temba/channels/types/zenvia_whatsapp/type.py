@@ -49,8 +49,11 @@ class ZenviaWhatsAppType(ChannelType):
             "webhook": {"url": url, "headers": {}},
             "status": "ACTIVE",
             "version": "v2",
-            "criteria": {"channel": channel.address, "direction": "IN"},
+            "criteria": {"channel": "whatsapp"},
         }
+        if event_type == "MESSAGE":
+            payload["criteria"]["direction"] = "IN"
+
         resp = requests.post(conf_url, json=payload, headers=headers)
 
         if resp.status_code != 200:
