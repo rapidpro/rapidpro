@@ -1,3 +1,9 @@
+v6.3.9
+----------
+ * Revert update to use latest API version to get WA templates
+ * Fix setting Zenvia webhooks
+ * Update Django and Django REST Framework
+
 v6.3.8
 ----------
  * Convert to poetry
