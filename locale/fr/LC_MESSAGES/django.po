@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-23 20:51+0000\n"
+"POT-Creation-Date: 2021-03-23 22:23+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2349,7 +2349,9 @@ msgstr "Exportation terminée, vous pouvez le trouver ici: %s (les utilisateurs 
 msgid "Send Message"
 msgstr "Envoyer un message"
 
-msgid "Start Flow"
+#, fuzzy
+#| msgid "Start Flow"
+msgid "Start In Flow"
 msgstr "Lancer un Flux"
 
 msgid "Edit Contact"
@@ -2660,6 +2662,9 @@ msgstr "Modifier l'étiquette"
 
 msgid "Delete Label"
 msgstr "Supprimer l'étiquette"
+
+msgid "Start Flow"
+msgstr "Lancer un Flux"
 
 msgid "Results"
 msgstr "Resultats"

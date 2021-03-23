@@ -804,9 +804,9 @@ class ContactCRUDL(SmartCRUDL):
                     links.append(
                         dict(
                             id="start-flow",
-                            title=_("Start Flow"),
+                            title=_("Start In Flow"),
                             href=f"{reverse('contacts.contact_start', args=[self.object.id])}",
-                            modax=_("Start Flow"),
+                            modax=_("Start In Flow"),
                         )
                     )
 

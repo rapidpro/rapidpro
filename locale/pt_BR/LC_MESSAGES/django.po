@@ -16,7 +16,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-23 20:51+0000\n"
+"POT-Creation-Date: 2021-03-23 22:23+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Matheus Soares <matheus.soares@ilhasoft.com.br>, 2020\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -2354,7 +2354,9 @@ msgstr "Exportação completa, você pode encontrar aqui: %s (usuários de produ
 msgid "Send Message"
 msgstr "Enviar mensagem"
 
-msgid "Start Flow"
+#, fuzzy
+#| msgid "Start Flow"
+msgid "Start In Flow"
 msgstr "Começar fluxo"
 
 msgid "Edit Contact"
@@ -2665,6 +2667,9 @@ msgstr ""
 
 msgid "Delete Label"
 msgstr ""
+
+msgid "Start Flow"
+msgstr "Começar fluxo"
 
 msgid "Results"
 msgstr "Resultados"
