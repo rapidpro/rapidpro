@@ -542,7 +542,6 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
       * **urns** - the URNs of contacts to send to (array of up to 100 strings, optional)
       * **contacts** - the UUIDs of contacts to send to (array of up to 100 strings, optional)
       * **groups** - the UUIDs of contact groups to send to (array of up to 100 strings, optional)
-      * **channel** - the UUID of the channel to use. Contacts which can't be reached with this channel are ignored (string, optional)
 
     Example:
 
@@ -628,7 +627,6 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                 {"name": "urns", "required": False, "help": "The URNs of contacts you want to send to"},
                 {"name": "contacts", "required": False, "help": "The UUIDs of contacts you want to send to"},
                 {"name": "groups", "required": False, "help": "The UUIDs of contact groups you want to send to"},
-                {"name": "channel", "required": False, "help": "The UUID of the channel you want to use for sending"},
             ],
         }
 

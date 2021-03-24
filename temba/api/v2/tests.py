@@ -737,7 +737,6 @@ class APITest(TembaTest):
                 "urns": ["twitter:franky"],
                 "contacts": [self.joe.uuid, self.frank.uuid],
                 "groups": [reporters.uuid],
-                "channel": self.channel.uuid,
             },
         )
 
@@ -746,7 +745,6 @@ class APITest(TembaTest):
         self.assertEqual(["twitter:franky"], broadcast.raw_urns)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
         self.assertEqual({reporters}, set(broadcast.groups.all()))
-        self.assertEqual(self.channel, broadcast.channel)
 
         mock_queue_broadcast.assert_called_once_with(broadcast)
 
