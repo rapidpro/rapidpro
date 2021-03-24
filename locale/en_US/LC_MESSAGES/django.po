@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-24 17:23+0000\n"
+"POT-Creation-Date: 2021-03-24 22:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3591,14 +3591,7 @@ msgstr ""
 msgid "Sign Out"
 msgstr ""
 
-msgid "Login"
-msgstr ""
-
 msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
-msgstr ""
-
-#, python-format
-msgid "Connecting to your DT One account failed with error text: %s"
 msgstr ""
 
 msgid "Account Token"
@@ -6442,8 +6435,7 @@ msgstr ""
 msgid "DT One Account"
 msgstr ""
 
-#, python-format
-msgid "Connected to DT One account <b>%(login)s</b>."
+msgid "Connected to a <b>DT One</b> account."
 msgstr ""
 
 msgid "Transfer Log"
@@ -6452,16 +6444,15 @@ msgstr ""
 msgid "No DT One account connected."
 msgstr ""
 
-msgid "Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your Flows. To signup for an account, visit"
+#, python-format
+msgid "Adding a DT One account will allow you to send airtime credit over 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your flows. To signup for an account, visit %(link)s."
 msgstr ""
 
-msgid "You can find your API Token by clicking on "
+#, python-format
+msgid "You can find your credentials on the Developer tab on your %(link)s page."
 msgstr ""
 
-msgid " on the DT One site."
-msgstr ""
-
-msgid "Your account is connected to a DT One account"
+msgid "Your account is connected to a DT One account."
 msgstr ""
 
 msgid "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
@@ -6563,6 +6554,9 @@ msgid "Translations are provided in <b>%(lang)s</b>."
 msgstr ""
 
 msgid "Your workspace is configured to use a single language."
+msgstr ""
+
+msgid "Login"
 msgstr ""
 
 msgid "Remove"

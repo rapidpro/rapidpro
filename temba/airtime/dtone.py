@@ -1,44 +1,33 @@
-import hashlib
-import time
-
 import requests
-
-from django.utils.encoding import force_bytes, force_text
 
 
 class DTOneClient:
-    API_URL = "https://airtime-api.dtone.com/cgi-bin/shop/topup"
+    """
+    Barebones client for DTOne
+    """
 
-    def __init__(self, login, token):
-        self.login = login
-        self.token = token
+    class Exception(BaseException):
+        def __init__(self, errors):
+            self.errors = errors
 
-    def ping(self):
-        return self._request(action="ping")
+        def __str__(self):
+            return ",".join([e["message"] for e in self.errors])
 
-    def check_wallet(self):
-        return self._request(action="check_wallet")
+    API_URL = "https://dvs-api.dtone.com/v1/"
 
-    def _request(self, **kwargs):
-        key = self._request_key()
-        md5 = hashlib.md5()
-        md5.update(force_bytes(self.login + self.token + key))
-        md5 = md5.hexdigest()
+    def __init__(self, key, secret):
+        self.key = key
+        self.secret = secret
 
-        response = requests.post(self.API_URL, {"login": self.login, "key": key, "md5": md5, **kwargs})
-
-        lines = force_text(response.content).split("\r\n")
-        parsed = {}
-
-        for elt in lines:
-            if elt and elt.find("=") > 0:
-                key, val = tuple(elt.split("="))
-                parsed[key] = val
-
-        return parsed
-
-    def _request_key(self):
+    def get_balances(self):
         """
-        Every request needs a unique, sequential key value
+        See https://dvs-api-doc.dtone.com/#tag/Balances
         """
-        return str(int(time.time() * 1000))
+        return self._get("balances")
+
+    def _get(self, endpoint: str):
+        response = requests.get(self.API_URL + endpoint, auth=(self.key, self.secret))
+        if response.status_code // 100 != 2:
+            raise DTOneClient.Exception(response.json()["errors"])
+
+        return response.json()

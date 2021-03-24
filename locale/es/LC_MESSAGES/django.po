@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-24 17:23+0000\n"
+"POT-Creation-Date: 2021-03-24 22:15+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -3611,15 +3611,8 @@ msgstr "Ayuda"
 msgid "Sign Out"
 msgstr "Desconectar"
 
-msgid "Login"
-msgstr "Login"
-
 msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
 msgstr "Su clave y API Secret de DT One parecen no válidos. Revíselos de nuevo y vuelva a intentarlo."
-
-#, python-format
-msgid "Connecting to your DT One account failed with error text: %s"
-msgstr "La conexión a su cuenta de DT One falló con el texto de error: %s"
 
 msgid "Account Token"
 msgstr "Token de cuenta"
@@ -6698,9 +6691,10 @@ msgstr "¿Está seguro de que desea eliminar todo para esta organización? Esto 
 msgid "DT One Account"
 msgstr "Cuenta DT One"
 
-#, python-format
-msgid "Connected to DT One account <b>%(login)s</b>."
-msgstr "Conectado a la cuenta DT One <b> %(login)s </b>."
+#, fuzzy
+#| msgid "Connected to Chatbase Account"
+msgid "Connected to a <b>DT One</b> account."
+msgstr "Conectado a la cuenta de Chatbase"
 
 msgid "Transfer Log"
 msgstr "Registro de transferencia"
@@ -6708,16 +6702,18 @@ msgstr "Registro de transferencia"
 msgid "No DT One account connected."
 msgstr "No hay ninguna cuenta de DT One conectada."
 
-msgid "Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your Flows. To signup for an account, visit"
+#, fuzzy, python-format
+#| msgid "Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your Flows. To signup for an account, visit"
+msgid "Adding a DT One account will allow you to send airtime credit over 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your flows. To signup for an account, visit %(link)s."
 msgstr "Agregar una cuenta DT One le permitirá enviar crédito de tiempo aire para más de 400 operadores en más de 100 países. Una vez conectado, puede transferir crédito de tiempo aire dentro de sus Flows. Para registrarse para obtener una cuenta, visite"
 
-msgid "You can find your API Token by clicking on "
-msgstr "Puede encontrar su token API haciendo clic en"
+#, python-format
+msgid "You can find your credentials on the Developer tab on your %(link)s page."
+msgstr ""
 
-msgid " on the DT One site."
-msgstr " en el sitio de DT One."
-
-msgid "Your account is connected to a DT One account"
+#, fuzzy
+#| msgid "Your account is connected to a DT One account"
+msgid "Your account is connected to a DT One account."
 msgstr "Su cuenta está conectada a una cuenta DT One"
 
 msgid "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
@@ -6826,6 +6822,9 @@ msgstr "Las traducciones se proporcionan en <b> %(lang)s </b>."
 
 msgid "Your workspace is configured to use a single language."
 msgstr "Su Workspace está configurado para utilizar un solo idioma."
+
+msgid "Login"
+msgstr "Login"
 
 msgid "Remove"
 msgstr "Retirar"
@@ -7730,6 +7729,20 @@ msgstr "Ingrese una consulta"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Se encontró $ {count} por $ {query}"
+
+#, python-format
+#~ msgid "Connecting to your DT One account failed with error text: %s"
+#~ msgstr "La conexión a su cuenta de DT One falló con el texto de error: %s"
+
+#, python-format
+#~ msgid "Connected to DT One account <b>%(login)s</b>."
+#~ msgstr "Conectado a la cuenta DT One <b> %(login)s </b>."
+
+#~ msgid "You can find your API Token by clicking on "
+#~ msgstr "Puede encontrar su token API haciendo clic en"
+
+#~ msgid " on the DT One site."
+#~ msgstr " en el sitio de DT One."
 
 #, python-format
 #~ msgid "%(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns"

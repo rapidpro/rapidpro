@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-24 17:23+0000\n"
+"POT-Creation-Date: 2021-03-24 22:15+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3610,15 +3610,8 @@ msgstr "Aide"
 msgid "Sign Out"
 msgstr "Déconnexion"
 
-msgid "Login"
-msgstr "S'identifier"
-
 msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
 msgstr "Votre clé API et votre secret DT One semblent invalides. Veuillez les vérifier à nouveau et réessayer."
-
-#, python-format
-msgid "Connecting to your DT One account failed with error text: %s"
-msgstr "La connexion à votre compte DT One a échoué avec un texte d'erreur: %s"
 
 msgid "Account Token"
 msgstr "Jeton de compte"
@@ -6697,9 +6690,10 @@ msgstr "Voulez-vous vraiment tout supprimer pour cette organisation? Ça ne peut
 msgid "DT One Account"
 msgstr "Compte DT One"
 
-#, python-format
-msgid "Connected to DT One account <b>%(login)s</b>."
-msgstr "Connecté au compte DT One <b>%(login)s</b>."
+#, fuzzy
+#| msgid "Connected to Chatbase Account"
+msgid "Connected to a <b>DT One</b> account."
+msgstr "Connecté au compte Chatbase"
 
 msgid "Transfer Log"
 msgstr "Journal Transfert"
@@ -6707,16 +6701,18 @@ msgstr "Journal Transfert"
 msgid "No DT One account connected."
 msgstr "Aucun compte DT One connecté."
 
-msgid "Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your Flows. To signup for an account, visit"
+#, fuzzy, python-format
+#| msgid "Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your Flows. To signup for an account, visit"
+msgid "Adding a DT One account will allow you to send airtime credit over 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your flows. To signup for an account, visit %(link)s."
 msgstr "L'ajout d'un compte DT One vous permettra d'envoyer des crédits de temps d'antenne à plus de 400 opérateurs dans plus de 100 pays. Une fois connecté, vous pouvez transférer des crédits de temps d'antenne dans vos flux. Pour vous inscrire à un compte, visitez"
 
-msgid "You can find your API Token by clicking on "
-msgstr "Vous pouvez trouver votre jeton d’API en cliquant sur"
+#, python-format
+msgid "You can find your credentials on the Developer tab on your %(link)s page."
+msgstr ""
 
-msgid " on the DT One site."
-msgstr "sur le site DT One."
-
-msgid "Your account is connected to a DT One account"
+#, fuzzy
+#| msgid "Your account is connected to a DT One account"
+msgid "Your account is connected to a DT One account."
 msgstr "Votre compte est connecté à un compte DT One"
 
 msgid "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
@@ -6825,6 +6821,9 @@ msgstr "Les traductions sont fournies en <b>%(lang)s</b>."
 
 msgid "Your workspace is configured to use a single language."
 msgstr "Votre espace de travail est configuré pour utiliser une seule langue."
+
+msgid "Login"
+msgstr "S'identifier"
 
 msgid "Remove"
 msgstr "Supprimer"
@@ -7721,6 +7720,20 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, python-format
+#~ msgid "Connecting to your DT One account failed with error text: %s"
+#~ msgstr "La connexion à votre compte DT One a échoué avec un texte d'erreur: %s"
+
+#, python-format
+#~ msgid "Connected to DT One account <b>%(login)s</b>."
+#~ msgstr "Connecté au compte DT One <b>%(login)s</b>."
+
+#~ msgid "You can find your API Token by clicking on "
+#~ msgstr "Vous pouvez trouver votre jeton d’API en cliquant sur"
+
+#~ msgid " on the DT One site."
+#~ msgstr "sur le site DT One."
 
 #, python-format
 #~ msgid "%(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns"
