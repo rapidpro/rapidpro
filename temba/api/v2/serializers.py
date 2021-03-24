@@ -1008,6 +1008,7 @@ class FlowStartWriteSerializer(WriteSerializer):
     groups = fields.ContactGroupField(many=True, required=False)
     urns = fields.URNListField(required=False)
     restart_participants = serializers.BooleanField(required=False)
+    exclude_active = serializers.BooleanField(required=False)
     extra = serializers.JSONField(required=False)
     params = serializers.JSONField(required=False)
 
@@ -1035,6 +1036,7 @@ class FlowStartWriteSerializer(WriteSerializer):
         contacts = self.validated_data.get("contacts", [])
         groups = self.validated_data.get("groups", [])
         restart_participants = self.validated_data.get("restart_participants", True)
+        exclude_active = self.validated_data.get("exclude_active", False)
         extra = self.validated_data.get("extra")
 
         params = self.validated_data.get("params")
@@ -1047,6 +1049,7 @@ class FlowStartWriteSerializer(WriteSerializer):
             self.context["user"],
             start_type=FlowStart.TYPE_API_ZAPIER if self.context["is_zapier"] else FlowStart.TYPE_API,
             restart_participants=restart_participants,
+            include_active=not exclude_active,
             contacts=contacts,
             groups=groups,
             urns=urns,
