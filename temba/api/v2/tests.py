@@ -3985,6 +3985,7 @@ class APITest(TembaTest):
         self.assertEqual({self.joe}, set(start3.contacts.all()))
         self.assertEqual({hans_group}, set(start3.groups.all()))
         self.assertFalse(start3.restart_participants)
+        self.assertTrue(start3.include_active)
         self.assertTrue(start3.extra, {"first_name": "Bob", "last_name": "Marley"})
 
         # check we tried to start the new flow start
@@ -4130,6 +4131,48 @@ class APITest(TembaTest):
         # check filtering by id (deprecated)
         response = self.fetchJSON(url, "id=%d" % start2.id)
         self.assertResultsById(response, [start2])
+
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "urns": ["tel:+12067791212"],
+                "contacts": [self.joe.uuid],
+                "groups": [hans_group.uuid],
+                "flow": flow.uuid,
+                "restart_participants": True,
+                "exclude_active": False,
+                "extra": {"first_name": "Ryan", "last_name": "Lewis"},
+                "params": {"first_name": "Bob", "last_name": "Marley"},
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+        start4 = flow.starts.get(pk=response.json()["id"])
+        self.assertTrue(start4.restart_participants)
+        self.assertTrue(start4.include_active)
+
+        response = self.postJSON(
+            url,
+            None,
+            {
+                "urns": ["tel:+12067791212"],
+                "contacts": [self.joe.uuid],
+                "groups": [hans_group.uuid],
+                "flow": flow.uuid,
+                "restart_participants": True,
+                "exclude_active": True,
+                "extra": {"first_name": "Ryan", "last_name": "Lewis"},
+                "params": {"first_name": "Bob", "last_name": "Marley"},
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+        start5 = flow.starts.get(pk=response.json()["id"])
+        self.assertTrue(start5.restart_participants)
+        self.assertFalse(start5.include_active)
 
     def test_templates(self):
         url = reverse("api.v2.templates")
