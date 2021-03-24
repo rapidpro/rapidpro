@@ -36,6 +36,7 @@ from django.views import View
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
+from temba.flows.models import Flow, FlowStart
 from temba.mailroom.events import Event
 from temba.msgs.views import SendMessageForm
 from temba.orgs.models import Org
@@ -549,6 +550,7 @@ class ContactCRUDL(SmartCRUDL):
         "archive",
         "delete",
         "history",
+        "start",
     )
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
@@ -786,21 +788,29 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm("msgs.broadcast_send") and self.object.status == Contact.STATUS_ACTIVE:
-                links.append(
-                    dict(
-                        id="send-message",
-                        title=_("Send Message"),
-                        style="button-primary",
-                        href=f"{reverse('msgs.broadcast_send')}?c={self.object.uuid}",
-                        modax=_("Send Message"),
+            if self.object.status == Contact.STATUS_ACTIVE:
+                if self.has_org_perm("msgs.broadcast_send"):
+                    links.append(
+                        dict(
+                            id="send-message",
+                            title=_("Send Message"),
+                            style="button-primary",
+                            href=f"{reverse('msgs.broadcast_send')}?c={self.object.uuid}",
+                            modax=_("Send Message"),
+                        )
                     )
-                )
+
+                if self.has_org_perm("contacts.contact_start"):
+                    links.append(
+                        dict(
+                            id="start-flow",
+                            title=_("Start In Flow"),
+                            href=f"{reverse('contacts.contact_start', args=[self.object.id])}",
+                            modax=_("Start In Flow"),
+                        )
+                    )
 
             if self.has_org_perm("contacts.contact_update"):
-
-                # links.append(dict(title=_("Edit"), style="btn-primary", js_class="update-contact", href="#"))
-
                 links.append(
                     dict(
                         id="edit-contact",
@@ -1373,6 +1383,40 @@ class ContactCRUDL(SmartCRUDL):
         def save(self, obj):
             obj.release(self.request.user)
             return obj
+
+    class Start(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
+        """
+        Starts this contact in a flow
+        """
+
+        class Form(forms.Form):
+            flow = forms.ModelChoiceField(
+                queryset=Flow.objects.none(),
+                widget=SelectWidget(
+                    attrs={"placeholder": _("Select a flow to start"), "widget_only": True, "searchable": True}
+                ),
+            )
+
+            def __init__(self, instance, **kwargs):
+                super().__init__(**kwargs)
+
+                self.fields["flow"].queryset = instance.org.flows.filter(
+                    flow_type__in=(Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND),
+                    is_archived=False,
+                    is_system=False,
+                    is_active=True,
+                ).order_by("name")
+
+        form_class = Form
+        submit_button_name = _("Start")
+
+        def derive_success_message(self):
+            return _(f"Your contact has been started in %(flow)s.") % {"flow": self.flow.name}
+
+        def save(self, obj):
+            self.flow = self.form.cleaned_data["flow"]
+            start = FlowStart.create(self.flow, self.request.user, FlowStart.TYPE_MANUAL, contacts=[obj])
+            start.async_start()
 
 
 class ContactGroupCRUDL(SmartCRUDL):
