@@ -2941,11 +2941,11 @@ class OrgCRUDL(SmartCRUDL):
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=False)
 
             def clean(self):
-                super().clean()
+                cleaned_data = super().clean()
 
-                if self.cleaned_data.get("disconnect", "false") == "false":
-                    api_key = self.cleaned_data.get("api_key")
-                    api_secret = self.cleaned_data.get("api_secret")
+                if cleaned_data["disconnect"] != "true":
+                    api_key = cleaned_data.get("api_key")
+                    api_secret = cleaned_data.get("api_secret")
                     client = DTOneClient(api_key, api_secret)
 
                     try:
@@ -2954,8 +2954,6 @@ class OrgCRUDL(SmartCRUDL):
                         raise ValidationError(
                             _("Your DT One API key and secret seem invalid. Please check them again and retry.")
                         )
-
-                return self.cleaned_data
 
             class Meta:
                 model = Org

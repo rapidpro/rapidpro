@@ -2632,7 +2632,7 @@ class OrgTest(TembaTest):
         home_url = reverse("orgs.org_home")
 
         response = self.client.get(home_url)
-        self.assertContains(response, "No DT One account connected.")
+        self.assertContains(response, "Connect your DT One account.")
 
         # formax includes form to connect DT One
         response = self.client.get(dtone_url, HTTP_X_FORMAX=True)
@@ -2661,7 +2661,7 @@ class OrgTest(TembaTest):
 
         # and that stated on home page
         response = self.client.get(home_url)
-        self.assertContains(response, "Connected to a <b>DT One</b> account.")
+        self.assertContains(response, "Connected to your <b>DT One</b> account.")
         self.assertContains(response, reverse("airtime.airtimetransfer_list"))
 
         # formax includes the disconnect link

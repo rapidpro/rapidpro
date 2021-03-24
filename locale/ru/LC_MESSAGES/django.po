@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-24 22:15+0000\n"
+"POT-Creation-Date: 2021-03-24 22:35+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -8879,7 +8879,9 @@ msgstr "Учетная запись Chatbase"
 msgid "Connected to Chatbase Account"
 msgstr "Подключено к учетной записи Chatbase"
 
-msgid "Connect your Chatbase account"
+#, fuzzy
+#| msgid "Connect your Chatbase account"
+msgid "Connect your Chatbase account."
 msgstr "Подключить Вашу учетную запись Chatbase"
 
 #, fuzzy
@@ -8980,14 +8982,16 @@ msgstr "Учетная запись DT One"
 
 #, fuzzy
 #| msgid "Connected to Chatbase Account"
-msgid "Connected to a <b>DT One</b> account."
+msgid "Connected to your <b>DT One</b> account."
 msgstr "Подключено к учетной записи Chatbase"
 
 msgid "Transfer Log"
 msgstr "Журнал передачи"
 
-msgid "No DT One account connected."
-msgstr "Подключенных учетных записей DT One нет."
+#, fuzzy
+#| msgid "Connect your Chatbase account"
+msgid "Connect your DT One account."
+msgstr "Подключить Вашу учетную запись Chatbase"
 
 #, fuzzy, python-format
 #| msgid ""
@@ -9011,7 +9015,9 @@ msgstr ""
 msgid "Your account is connected to a DT One account."
 msgstr "Ваша учетная запись подключена к учетной записи DT One"
 
-msgid "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
+#, fuzzy, python-format
+#| msgid "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
+msgid "If you no longer want it connected, you can <a href=\"%(disconnect_url)s\">disconnect</a> it. Doing so will cause the payment actions in your flows to no longer be processed."
 msgstr "Вашу учетную запись DT One. Это приведет к тому, что платежные действия в Ваших потоках больше не будут обрабатываться."
 
 msgid "Disconnect DT One"
@@ -10376,6 +10382,9 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "No DT One account connected."
+#~ msgstr "Подключенных учетных записей DT One нет."
 
 #, python-format
 #~ msgid "Connecting to your DT One account failed with error text: %s"

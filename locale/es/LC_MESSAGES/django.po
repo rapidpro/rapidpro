@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-24 22:15+0000\n"
+"POT-Creation-Date: 2021-03-24 22:35+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -6627,7 +6627,9 @@ msgstr "Cuenta de Chatbase"
 msgid "Connected to Chatbase Account"
 msgstr "Conectado a la cuenta de Chatbase"
 
-msgid "Connect your Chatbase account"
+#, fuzzy
+#| msgid "Connect your Chatbase account"
+msgid "Connect your Chatbase account."
 msgstr "Conecte su cuenta de Chatbase"
 
 msgid "Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences and better understand your users. To signup for an account, visit"
@@ -6693,14 +6695,16 @@ msgstr "Cuenta DT One"
 
 #, fuzzy
 #| msgid "Connected to Chatbase Account"
-msgid "Connected to a <b>DT One</b> account."
+msgid "Connected to your <b>DT One</b> account."
 msgstr "Conectado a la cuenta de Chatbase"
 
 msgid "Transfer Log"
 msgstr "Registro de transferencia"
 
-msgid "No DT One account connected."
-msgstr "No hay ninguna cuenta de DT One conectada."
+#, fuzzy
+#| msgid "Connect your Chatbase account"
+msgid "Connect your DT One account."
+msgstr "Conecte su cuenta de Chatbase"
 
 #, fuzzy, python-format
 #| msgid "Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your Flows. To signup for an account, visit"
@@ -6716,7 +6720,9 @@ msgstr ""
 msgid "Your account is connected to a DT One account."
 msgstr "Su cuenta está conectada a una cuenta DT One"
 
-msgid "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
+#, fuzzy, python-format
+#| msgid "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
+msgid "If you no longer want it connected, you can <a href=\"%(disconnect_url)s\">disconnect</a> it. Doing so will cause the payment actions in your flows to no longer be processed."
 msgstr "su cuenta DT One. Si lo hace, las acciones de pago de sus flujos dejarán de procesarse."
 
 msgid "Disconnect DT One"
@@ -7729,6 +7735,9 @@ msgstr "Ingrese una consulta"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Se encontró $ {count} por $ {query}"
+
+#~ msgid "No DT One account connected."
+#~ msgstr "No hay ninguna cuenta de DT One conectada."
 
 #, python-format
 #~ msgid "Connecting to your DT One account failed with error text: %s"

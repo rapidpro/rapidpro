@@ -11,12 +11,12 @@
   -if object.is_connected_to_dtone
     .flex.items-center
       .flex-grow.mr-4
-        -trans "Connected to a <b>DT One</b> account."
+        -trans "Connected to your <b>DT One</b> account."
       .buttons
         .button-light(onclick="goto(event)" href='{% url "airtime.airtimetransfer_list" %}')
           -trans "Transfer Log"
   -else
-    -trans "No DT One account connected."
+    -trans "Connect your DT One account."
 
 -block pre-form
   .mb-4
@@ -41,10 +41,9 @@
     .mt-4
       -trans "Your account is connected to a DT One account."
     .mt-4
-      -trans "If you no longer want it connected, you can"
-      %a(href="javascript:confirmDTOneDisconnect();")
-        -trans "disconnect"
-      -trans "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
+      -blocktrans trimmed with disconnect_url='javascript:confirmDTOneDisconnect();'
+        If you no longer want it connected, you can <a href="{{ disconnect_url }}">disconnect</a> it.
+        Doing so will cause the payment actions in your flows to no longer be processed.
 
     .disconnect-dtone.hide
       .title
