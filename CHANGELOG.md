@@ -1,3 +1,10 @@
+v6.3.10
+----------
+ * Add support to exclude active contacts in other flows when starting a flow on API
+ * Remove unsupported channel field on broadcast create API endpoint
+ * Add Start Flow modal to contact read page
+ * Fix lock file being out of sync with pyproject
+
 v6.3.9
 ----------
  * Revert update to use latest API version to get WA templates
