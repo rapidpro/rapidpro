@@ -305,7 +305,7 @@ class CampaignEventForm(forms.ModelForm):
         ),
         required=False,
         label=_("If the contact is already active in a flow"),
-        widget=SelectWidget(attrs={"placeholder": _("Flow starting rules"), "widget_only": False}),
+        widget=SelectWidget,
     )
 
     message_start_mode = forms.ChoiceField(
@@ -595,8 +595,8 @@ class CampaignEventCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             obj = self.get_object()
             if obj.extra:
-                context["flow_parameters_fields"] = ",".join([f"@trigger.params.{key}" for key in obj.extra.keys()])
-                context["flow_parameters_values"] = ",".join(obj.extra.values())
+                context["flow_parameters_fields"] = "|".join([f"@trigger.params.{key}" for key in obj.extra.keys()])
+                context["flow_parameters_values"] = "|".join(obj.extra.values())
             params_context = flow_params_context(self.request)
             context.update(params_context)
             return context
@@ -744,6 +744,7 @@ class CampaignEventCRUDL(SmartCRUDL):
             initial["event_type"] = "M"
             initial["message_start_mode"] = "I"
             initial["delivery_hour"] = "-1"
+            initial["flow_start_mode"] = "I"
 
             # default to our first date field
             initial["relative_to"] = ContactField.all_fields.filter(

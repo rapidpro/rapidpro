@@ -468,8 +468,8 @@ class TriggerCRUDL(SmartCRUDL):
                 context["days"] = self.get_object().schedule.repeat_days_of_week or ""
 
             if obj.extra:
-                context["flow_parameters_fields"] = ",".join([f"@trigger.params.{key}" for key in obj.extra.keys()])
-                context["flow_parameters_values"] = ",".join(obj.extra.values())
+                context["flow_parameters_fields"] = "|".join([f"@trigger.params.{key}" for key in obj.extra.keys()])
+                context["flow_parameters_values"] = "|".join(obj.extra.values())
 
             params_context = flow_params_context(self.request)
             context.update(params_context)
