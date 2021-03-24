@@ -165,6 +165,8 @@
       margin-left: 0px !important;
     }
 
-    #id-user, #id-accounts {
-      display: none;
-    }
+    {% if use_weni_layout %}
+      #id-user, #id-accounts {
+        display: none;
+      }
+    {% endif %}
