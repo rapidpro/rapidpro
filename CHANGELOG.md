@@ -1,3 +1,7 @@
+v6.3.11
+----------
+ * Fix redirect after submitting Start In Flow modal
+
 v6.3.10
 ----------
  * Add support to exclude active contacts in other flows when starting a flow on API
