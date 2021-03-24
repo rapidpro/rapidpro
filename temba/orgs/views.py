@@ -3711,11 +3711,7 @@ class OrgCRUDL(SmartCRUDL):
                 if self.initial.get("email"):
                     self.fields["email"].widget.attrs["readonly"] = True
 
-            email = forms.EmailField(
-                label=_("Invite people to your organization"),
-                widget=InputWidget,
-                required=True
-            )
+            email = forms.EmailField(label=_("Invite people to your organization"), widget=InputWidget, required=True)
             user_group = forms.ChoiceField(
                 choices=(("A", _("Administrators")), ("E", _("Editors")), ("V", _("Viewers")), ("S", _("Surveyors"))),
                 required=True,
