@@ -1408,10 +1408,9 @@ class ContactCRUDL(SmartCRUDL):
                 ).order_by("name")
 
         form_class = Form
+        success_url = "hide"
+        success_message = ""
         submit_button_name = _("Start")
-
-        def derive_success_message(self):
-            return _(f"Your contact has been started in %(flow)s.") % {"flow": self.flow.name}
 
         def save(self, obj):
             self.flow = self.form.cleaned_data["flow"]

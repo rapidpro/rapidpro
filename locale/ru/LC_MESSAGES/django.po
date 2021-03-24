@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-23 22:23+0000\n"
+"POT-Creation-Date: 2021-03-24 17:23+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3170,11 +3170,6 @@ msgstr "Выберите поток для запуска"
 
 msgid "Start"
 msgstr "Начать"
-
-#, fuzzy, python-format
-#| msgid "Interrupt contacts currently active in flows"
-msgid "Your contact has been started in %(flow)s."
-msgstr "Прервать контакты, в настоящее время активные в потоках"
 
 msgid "Can only contain letters, numbers and hypens."
 msgstr "Может содержать только буквы, числа и дефисы."
@@ -10391,6 +10386,11 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, fuzzy, python-format
+#~| msgid "Interrupt contacts currently active in flows"
+#~ msgid "Your contact has been started in %(flow)s."
+#~ msgstr "Прервать контакты, в настоящее время активные в потоках"
 
 #, fuzzy, python-format
 #~| msgid ""
