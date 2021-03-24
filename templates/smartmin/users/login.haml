@@ -54,8 +54,12 @@
 
     %div{class:"md\:w-full"}
       %div(class='w-5/12 mt-2 text-right float-right')
-        %a(href="/users/user/forget/")
-          Forgot your password?
+        -if no_authy_code
+          %a(href="javascript:changePhoneNumberProcess();")
+            Change phone number?
+        -else
+          %a(href="/users/user/forget/")
+            Forgot your password?
 
       %div(class='mt-6 w-6/12')
         %input.button-primary(type="submit" value='{{_("Sign In")}}')
