@@ -305,7 +305,7 @@ class CampaignEventForm(forms.ModelForm):
         ),
         required=False,
         label=_("If the contact is already active in a flow"),
-        widget=SelectWidget(attrs={"placeholder": _("Flow starting rules"), "widget_only": False}),
+        widget=SelectWidget,
     )
 
     message_start_mode = forms.ChoiceField(
