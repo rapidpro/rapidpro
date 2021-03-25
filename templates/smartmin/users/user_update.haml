@@ -27,14 +27,8 @@
             {{object|user_as_string}}
 
   - with user.get_owned_orgs as orgs
-    .deletion.hide
-      .title
-        -if orgs
-          -trans "Delete Workspace"
-        -else
-          -trans "Delete Login"
-
-      .body
+    %temba-dialog#delete-confirmation(header='{% if orgs %}{{_("Delete Workspace")}}{% else %}{{_("Delete Login")}}{% endif %}' primaryButtonName='{{ _("Delete")|escapejs }}' destructive='true')
+      .p-6.body
         - with user.get_owned_orgs as orgs
           -if orgs
             .delete-warning
@@ -59,14 +53,14 @@
 
     $(document).ready(()=>{
       $('.delete').live('click', () => {
-        modal = new ConfirmationModal($('.deletion > .title').html(), $('.deletion > .body').html());
-        modal.addClass('alert');
-        modal.setListeners({onPrimary: function(){
-          $('#delete-form').click();
-        }}, false);
-        modal.setPrimaryButton('{{ _("Delete")|escapejs }}');
-        modal.show();
-
+        let deleteConfirmation = document.querySelector("#delete-confirmation")
+        deleteConfirmation.addEventListener("temba-button-clicked", function(event){
+          if (!event.detail.button.secondary) {
+            $('#delete-form').click();
+          }
+          deleteConfirmation.open = false;
+        });
+        deleteConfirmation.open = true;
       });
     });
 

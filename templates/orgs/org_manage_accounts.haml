@@ -22,6 +22,11 @@
       opacity: 0.5;
     }
 
+    .link {
+      color: rgb(var(--primary-rgb));
+      cursor: pointer;
+    }
+
 -block fields
   %table.list{style:"margin-bottom:0px;"}
     %thead
@@ -66,8 +71,12 @@
 
       -for invite in invites
         %tr.invite
-          %td.opacity-50
-            {{invite.email}} (Invite Sent)
+          %td
+            .float-left.opacity-50.mr-1
+              {{invite.email}}
+            %temba-modax(header='{{_("Resend Invite")}}' endpoint="{% url 'orgs.org_send_invite' %}?id={{invite.id}}")
+              .link
+                - trans "Resend Invite"
           %td.permission
             .flex.justify-center.opacity-25.pointer-events-none
               -if invite.user_group == "A"
