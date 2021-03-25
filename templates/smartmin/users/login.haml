@@ -9,7 +9,7 @@
   -blocktrans
     Please sign in with your email address and password.
 
-  %form#login-form(method="POST" action="/users/login/" onsubmit="return validateRecaptcha();")
+  %form#login-form(method="POST" action="/users/login/?next={{ request.GET.next }}" onsubmit="return validateRecaptcha();")
     -csrf_token
     -for field, errors in form.errors.items
       -if field == '__all__'
@@ -73,7 +73,7 @@
     }
     function resendCode() {
       $('form#login-form').removeAttr('onsubmit');
-      $('#id_authy_code').val('');
+      $('[name="authy_code"]').val('');
       $('form#login-form').submit();
     }
   -if not no_recaptcha
