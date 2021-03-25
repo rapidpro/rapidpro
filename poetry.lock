@@ -78,20 +78,20 @@ d = ["aiohttp (>=3.3.2)", "aiohttp-cors"]
 
 [[package]]
 name = "boto3"
-version = "1.17.30"
+version = "1.17.35"
 description = "The AWS SDK for Python"
 category = "main"
 optional = false
 python-versions = ">= 2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
 
 [package.dependencies]
-botocore = ">=1.20.30,<1.21.0"
+botocore = ">=1.20.35,<1.21.0"
 jmespath = ">=0.7.1,<1.0.0"
 s3transfer = ">=0.3.0,<0.4.0"
 
 [[package]]
 name = "botocore"
-version = "1.20.30"
+version = "1.20.35"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
@@ -389,7 +389,7 @@ django = ">=2.2"
 
 [[package]]
 name = "elasticsearch"
-version = "7.11.0"
+version = "7.12.0"
 description = "Python client for Elasticsearch"
 category = "main"
 optional = false
@@ -703,7 +703,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
 name = "phonenumbers"
-version = "8.12.19"
+version = "8.12.20"
 description = "Python version of Google's common library for parsing, formatting, storing and validating international phone numbers."
 category = "main"
 optional = false
@@ -1026,7 +1026,7 @@ python-versions = "*"
 
 [[package]]
 name = "s3transfer"
-version = "0.3.4"
+version = "0.3.6"
 description = "An Amazon S3 Transfer Manager"
 category = "main"
 optional = false
@@ -1098,7 +1098,7 @@ xlwt = ">=1.3.0,<2.0.0"
 
 [[package]]
 name = "soupsieve"
-version = "2.2"
+version = "2.2.1"
 description = "A modern CSS selector implementation for Beautiful Soup."
 category = "dev"
 optional = false
@@ -1242,7 +1242,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "4fc09e78ddf6617f5fcf0aab2ffc910a5fc945e9abe40d5c4b62a3296d643d98"
+content-hash = "5fa25cfb32a8f814dec71a008b8fc7a96c15f71a086793e820b71492c922cec9"
 
 [metadata.files]
 amqp = [
@@ -1270,12 +1270,12 @@ black = [
     {file = "black-20.8b1.tar.gz", hash = "sha256:1c02557aa099101b9d21496f8a914e9ed2222ef70336404eeeac8edba836fbea"},
 ]
 boto3 = [
-    {file = "boto3-1.17.30-py2.py3-none-any.whl", hash = "sha256:fe1898c5b10035528207995c9931b78f2f50bb70cf93bac353152aea47c04780"},
-    {file = "boto3-1.17.30.tar.gz", hash = "sha256:d39c04b51e60197f5503f8489f043bc904981567cc8431d389367767dc3fd5ae"},
+    {file = "boto3-1.17.35-py2.py3-none-any.whl", hash = "sha256:1e6e06b2f1eee5a76acdde1e7b4f57c93c1bf2905341207d74f2a140ce060cd8"},
+    {file = "boto3-1.17.35.tar.gz", hash = "sha256:40e84a5f7888924db74a2710dbe48d066b51fe1f5549efaffe90e6efe813f37b"},
 ]
 botocore = [
-    {file = "botocore-1.20.30-py2.py3-none-any.whl", hash = "sha256:63951595a736dfc9759f57e33bec6eaea4f09c4800626ef5309437060b263e48"},
-    {file = "botocore-1.20.30.tar.gz", hash = "sha256:98ff1eb210d394a1ffe736b33c8a7be68f30f0a03550b559c5bb6fdf0c29328d"},
+    {file = "botocore-1.20.35-py2.py3-none-any.whl", hash = "sha256:e34bbb7d7de154c2ff2a73ae0691c601a69c5bda887374c8a6a23072380b07a4"},
+    {file = "botocore-1.20.35.tar.gz", hash = "sha256:9119ffb231145ffadd55391c9356dcdb18e3de65c3a7c82844634e949f0ca5a0"},
 ]
 celery = [
     {file = "celery-4.4.6-py2.py3-none-any.whl", hash = "sha256:ef17d7dffde7fc73ecab3a3b6389d93d3213bac53fa7f28e68e33647ad50b916"},
@@ -1465,8 +1465,8 @@ djangorestframework = [
     {file = "djangorestframework-3.12.2.tar.gz", hash = "sha256:0898182b4737a7b584a2c73735d89816343369f259fea932d90dc78e35d8ac33"},
 ]
 elasticsearch = [
-    {file = "elasticsearch-7.11.0-py2.py3-none-any.whl", hash = "sha256:a113cfcee9ba8565cd48a67b60e9903b67a81b3b80ddc6d3fb2c16789a58b763"},
-    {file = "elasticsearch-7.11.0.tar.gz", hash = "sha256:1e24b33a82bf381b42d3b0d390f76fdb9d6a9d47b310dea8eaeb0a5933c394c0"},
+    {file = "elasticsearch-7.12.0-py2.py3-none-any.whl", hash = "sha256:c67b0f6541eda6de9f92eaea319c070aa2710c5d4d4ee5e3dfa3c21bd95aa378"},
+    {file = "elasticsearch-7.12.0.tar.gz", hash = "sha256:9a77172be02bc4855210d83f0f1346a1e7d421e3cb2ca47ba81ac0c5a717b3a0"},
 ]
 elasticsearch-dsl = [
     {file = "elasticsearch-dsl-7.3.0.tar.gz", hash = "sha256:0ed75f6ff037e36b2397a8e92cae0ddde79b83adc70a154b8946064cb62f7301"},
@@ -1573,8 +1573,8 @@ pathspec = [
     {file = "pathspec-0.8.1.tar.gz", hash = "sha256:86379d6b86d75816baba717e64b1a3a3469deb93bb76d613c9ce79edc5cb68fd"},
 ]
 phonenumbers = [
-    {file = "phonenumbers-8.12.19-py2.py3-none-any.whl", hash = "sha256:dadc72b81effefa499f2ee7f77fcad601fb725c024f444c9ea60500e4d79aa4e"},
-    {file = "phonenumbers-8.12.19.tar.gz", hash = "sha256:0f597b602e64af90c06b14c8223e94fdb0ed20f203e1c9785a8bbe4de00c45e8"},
+    {file = "phonenumbers-8.12.20-py2.py3-none-any.whl", hash = "sha256:7c2b26ee026f765a8032fc2a333b46fa1860445c7ce6df3b717b9f6985106084"},
+    {file = "phonenumbers-8.12.20.tar.gz", hash = "sha256:ee5a8508c4a414262abad92ec33f050347f681973ed0fb36e98b52bfe159f6b8"},
 ]
 polib = [
     {file = "polib-1.1.0-py2.py3-none-any.whl", hash = "sha256:93b730477c16380c9a96726c54016822ff81acfa553977fdd131f2b90ba858d7"},
@@ -1771,8 +1771,8 @@ rjsmin = [
     {file = "rjsmin-1.1.0.tar.gz", hash = "sha256:b15dc75c71f65d9493a8c7fa233fdcec823e3f1b88ad84a843ffef49b338ac32"},
 ]
 s3transfer = [
-    {file = "s3transfer-0.3.4-py2.py3-none-any.whl", hash = "sha256:1e28620e5b444652ed752cf87c7e0cb15b0e578972568c6609f0f18212f259ed"},
-    {file = "s3transfer-0.3.4.tar.gz", hash = "sha256:7fdddb4f22275cf1d32129e21f056337fd2a80b6ccef1664528145b72c49e6d2"},
+    {file = "s3transfer-0.3.6-py2.py3-none-any.whl", hash = "sha256:5d48b1fd2232141a9d5fb279709117aaba506cacea7f86f11bc392f06bfa8fc2"},
+    {file = "s3transfer-0.3.6.tar.gz", hash = "sha256:c5dadf598762899d8cfaecf68eba649cd25b0ce93b6c954b156aaa3eed160547"},
 ]
 sentry-sdk = [
     {file = "sentry-sdk-1.0.0.tar.gz", hash = "sha256:71de00c9711926816f750bc0f57ef2abbcb1bfbdf5378c601df7ec978f44857a"},
@@ -1834,8 +1834,8 @@ smartmin = [
     {file = "smartmin-2.3.8.tar.gz", hash = "sha256:eef5d07862967b3ff9e1a681aa0324bc479466294a34b7563ce596fa0c334aef"},
 ]
 soupsieve = [
-    {file = "soupsieve-2.2-py3-none-any.whl", hash = "sha256:d3a5ea5b350423f47d07639f74475afedad48cf41c0ad7a82ca13a3928af34f6"},
-    {file = "soupsieve-2.2.tar.gz", hash = "sha256:407fa1e8eb3458d1b5614df51d9651a1180ea5fedf07feb46e45d7e25e6d6cdd"},
+    {file = "soupsieve-2.2.1-py3-none-any.whl", hash = "sha256:c2c1c2d44f158cdbddab7824a9af8c4f83c76b1e23e049479aa432feb6c4c23b"},
+    {file = "soupsieve-2.2.1.tar.gz", hash = "sha256:052774848f448cf19c7e959adf5566904d525f33a3f8b6ba6f6f8f26ec7de0cc"},
 ]
 sqlparse = [
     {file = "sqlparse-0.4.1-py3-none-any.whl", hash = "sha256:017cde379adbd6a1f15a61873f43e8274179378e95ef3fede90b5aa64d304ed0"},

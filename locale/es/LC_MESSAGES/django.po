@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-16 15:59+0000\n"
+"POT-Creation-Date: 2021-03-24 17:23+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Nyaruka <info@textit.in>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -2350,6 +2350,11 @@ msgstr "Exportación completa, puede encontrarla aquí: %s (los usuarios de prod
 msgid "Send Message"
 msgstr "Enviar mensaje"
 
+#, fuzzy
+#| msgid "Start Flow"
+msgid "Start In Flow"
+msgstr "Empezar flujo"
+
 msgid "Edit Contact"
 msgstr "Editar contacto"
 
@@ -2400,6 +2405,9 @@ msgstr "Se produjo un error al actualizar su contacto. Por favor, inténtelo de 
 
 msgid "Select a field to update"
 msgstr "Seleccione un campo para actualizar"
+
+msgid "Start"
+msgstr "comienzo"
 
 msgid "Can only contain letters, numbers and hypens."
 msgstr "Solo puede contener letras, números y guiones."
@@ -2487,15 +2495,6 @@ msgstr "El idioma de autor, se pueden agregar idiomas adicionales más tarde"
 
 msgid "The flow version this definition is in"
 msgstr "La versión de flujo en la que se encuentra esta definición"
-
-msgid "Completed"
-msgstr "Terminado"
-
-msgid "Interrupted"
-msgstr "Interrumpido"
-
-msgid "Expired"
-msgstr "Caducado"
 
 msgid "Archive delete"
 msgstr "Eliminar archivo"
@@ -5405,6 +5404,15 @@ msgstr "Correo electrónico enviado a"
 msgid "with subject"
 msgstr "con tema"
 
+msgid "Interrupted"
+msgstr "Interrumpido"
+
+msgid "Expired"
+msgstr "Caducado"
+
+msgid "Completed"
+msgstr "Terminado"
+
 msgid "Started"
 msgstr "Empezado"
 
@@ -5490,9 +5498,6 @@ msgstr "ID de contacto"
 
 msgid "Upcoming"
 msgstr "Próximamente"
-
-msgid "Start"
-msgstr "comienzo"
 
 msgid "repeats daily"
 msgstr "se repite a diario"

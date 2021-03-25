@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-16 15:59+0000\n"
+"POT-Creation-Date: 2021-03-24 17:23+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3105,6 +3105,11 @@ msgid "Send Message"
 msgstr "Отправить Сообщение"
 
 #, fuzzy
+#| msgid "Start Flow"
+msgid "Start In Flow"
+msgstr "Начать поток"
+
+#, fuzzy
 #| msgid "Update Contact"
 msgid "Edit Contact"
 msgstr "Обновить Контакт"
@@ -3162,6 +3167,9 @@ msgstr "При обновлении Вашего контакта произош
 #| msgid "Select a flow to start"
 msgid "Select a field to update"
 msgstr "Выберите поток для запуска"
+
+msgid "Start"
+msgstr "Начать"
 
 msgid "Can only contain letters, numbers and hypens."
 msgstr "Может содержать только буквы, числа и дефисы."
@@ -3254,15 +3262,6 @@ msgstr ""
 
 msgid "The flow version this definition is in"
 msgstr "Версия потока, в которой находится это определение"
-
-msgid "Completed"
-msgstr "Завершено"
-
-msgid "Interrupted"
-msgstr "Прервано"
-
-msgid "Expired"
-msgstr "Истекло."
 
 msgid "Archive delete"
 msgstr "Удалить архив"
@@ -7175,6 +7174,15 @@ msgstr "Отправлено электронное письмо по адрес
 msgid "with subject"
 msgstr "с темой"
 
+msgid "Interrupted"
+msgstr "Прервано"
+
+msgid "Expired"
+msgstr "Истекло."
+
+msgid "Completed"
+msgstr "Завершено"
+
 msgid "Started"
 msgstr "Начато"
 
@@ -7294,9 +7302,6 @@ msgstr "Контакт"
 
 msgid "Upcoming"
 msgstr "Ожидается"
-
-msgid "Start"
-msgstr "Начать"
 
 msgid "repeats daily"
 msgstr "повторяется ежедневно"
@@ -10383,6 +10388,11 @@ msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
 
 #, fuzzy, python-format
+#~| msgid "Interrupt contacts currently active in flows"
+#~ msgid "Your contact has been started in %(flow)s."
+#~ msgstr "Прервать контакты, в настоящее время активные в потоках"
+
+#, fuzzy, python-format
 #~| msgid ""
 #~| "\n"
 #~| "                  %(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns\n"
@@ -13203,9 +13213,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "Restart contacts who have already entered this flow"
 #~ msgstr "Перезапустить контакты, которые уже вошли в этот поток"
-
-#~ msgid "Interrupt contacts currently active in flows"
-#~ msgstr "Прервать контакты, в настоящее время активные в потоках"
 
 #~ msgid "Unlabel"
 #~ msgstr "Снять метку"
