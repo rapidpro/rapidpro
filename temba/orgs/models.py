@@ -139,7 +139,24 @@ class Org(SmartModel):
 
     DATE_FORMAT_DAY_FIRST = "D"
     DATE_FORMAT_MONTH_FIRST = "M"
-    DATE_FORMATS = ((DATE_FORMAT_DAY_FIRST, "DD-MM-YYYY"), (DATE_FORMAT_MONTH_FIRST, "MM-DD-YYYY"))
+    DATE_FORMAT_YEAR_FIRST = "Y"
+    DATE_FORMATS_CHOICES = (
+        (DATE_FORMAT_DAY_FIRST, "DD-MM-YYYY"),
+        (DATE_FORMAT_MONTH_FIRST, "MM-DD-YYYY"),
+        (DATE_FORMAT_YEAR_FIRST, "YYYY-MM-DD"),
+    )
+
+    DATE_FORMATS_PYTHON = {
+        DATE_FORMAT_DAY_FIRST: "%d-%m-%Y",
+        DATE_FORMAT_MONTH_FIRST: "%m-%d-%Y",
+        DATE_FORMAT_YEAR_FIRST: "%Y-%m-%d",
+    }
+
+    DATE_FORMATS_ENGINE = {
+        DATE_FORMAT_DAY_FIRST: "DD-MM-YYYY",
+        DATE_FORMAT_MONTH_FIRST: "MM-DD-YYYY",
+        DATE_FORMAT_YEAR_FIRST: "YYYY-MM-DD",
+    }
 
     CONFIG_VERIFIED = "verified"
     CONFIG_SMTP_SERVER = "smtp_server"
@@ -217,7 +234,7 @@ class Org(SmartModel):
     date_format = models.CharField(
         verbose_name=_("Date Format"),
         max_length=1,
-        choices=DATE_FORMATS,
+        choices=DATE_FORMATS_CHOICES,
         default=DATE_FORMAT_DAY_FIRST,
         help_text=_("Whether day comes first or month comes first in dates"),
     )
@@ -973,17 +990,9 @@ class Org(SmartModel):
         if hasattr(self, "_language_codes"):  # invalidate language cache if set
             delattr(self, "_language_codes")
 
-    def get_dayfirst(self):
-        return self.date_format == Org.DATE_FORMAT_DAY_FIRST
-
     def get_datetime_formats(self):
-        if self.date_format == Org.DATE_FORMAT_DAY_FIRST:
-            format_date = "%d-%m-%Y"
-        else:
-            format_date = "%m-%d-%Y"
-
+        format_date = Org.DATE_FORMATS_PYTHON.get(self.date_format)
         format_datetime = format_date + " %H:%M"
-
         return format_date, format_datetime
 
     def format_datetime(self, d, show_time=True):
@@ -997,7 +1006,7 @@ class Org(SmartModel):
     def parse_datetime(self, s):
         assert isinstance(s, str)
 
-        return str_to_datetime(s, self.timezone, self.get_dayfirst())
+        return str_to_datetime(s, self.timezone, self.date_format == Org.DATE_FORMAT_DAY_FIRST)
 
     def parse_number(self, s):
         assert isinstance(s, str)
@@ -2062,7 +2071,7 @@ class Org(SmartModel):
         """
 
         return {
-            "date_format": "DD-MM-YYYY" if self.date_format == Org.DATE_FORMAT_DAY_FIRST else "MM-DD-YYYY",
+            "date_format": Org.DATE_FORMATS_ENGINE.get(self.date_format),
             "time_format": "tt:mm",
             "timezone": str(self.timezone),
             "default_language": self.primary_language.iso_code if self.primary_language else None,

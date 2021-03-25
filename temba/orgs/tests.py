@@ -4070,6 +4070,16 @@ class OrgCRUDLTest(TembaTest):
         created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
         self.assertContains(response, created_on.strftime("%I:%M %p").lower().lstrip("0"))
 
+        self.org.date_format = "Y"
+        self.org.save()
+
+        self.assertEqual(("%Y-%m-%d", "%Y-%m-%d %H:%M"), self.org.get_datetime_formats())
+
+        response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
+
+        created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
+        self.assertContains(response, created_on.strftime("%H:%M").lower())
+
     def test_urn_schemes(self):
         # remove existing channels
         Channel.objects.all().update(is_active=False, org=None)

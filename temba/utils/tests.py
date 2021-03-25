@@ -521,6 +521,17 @@ class TemplateTagTest(TembaTest):
             test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
             self.assertEqual("07-20-2012 19:05", format_datetime(context, test_date))
 
+            # the org has year first configured
+            self.org.date_format = "Y"
+            self.org.save()
+
+            # date without timezone
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0)
+            self.assertEqual("2012-07-20 19:05", format_datetime(context, test_date))
+
+            test_date = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            self.assertEqual("2012-07-20 19:05", format_datetime(context, test_date))
+
     def test_short_datetime(self):
         with patch.object(timezone, "now", return_value=datetime.datetime(2015, 9, 15, 0, 0, 0, 0, pytz.UTC)):
             self.org.date_format = "D"
@@ -538,11 +549,11 @@ class TemplateTagTest(TembaTest):
             self.assertEqual("08:10", short_datetime(context, now.replace(hour=6, minute=10)))
             self.assertEqual("19:05", short_datetime(context, now.replace(hour=17, minute=5)))
 
-            # given the time beyond 12 hours ago within the same month, should display "MonthName DayOfMonth" eg. "Jan 2"
+            # given the time beyond 12 hours ago within the same month, should display "DayOfMonth MonthName" eg. "2 Jan"
             test_date = now.replace(day=2)
             self.assertEqual("2 " + test_date.strftime("%b"), short_datetime(context, test_date))
 
-            # last month should still be pretty
+            # last February should still be pretty
             test_date = test_date.replace(month=2)
             self.assertEqual("2 " + test_date.strftime("%b"), short_datetime(context, test_date))
 
@@ -563,13 +574,39 @@ class TemplateTagTest(TembaTest):
             test_date = now.replace(day=2)
             self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
 
-            # last month should still be pretty
+            # last February should still be pretty
             test_date = test_date.replace(month=2)
             self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
 
             # but a different year is different
             jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
             self.assertEqual("7/20/12", short_datetime(context, jan_2))
+
+            # the org has year first configured
+            self.org.date_format = "Y"
+            self.org.save()
+
+            # date without timezone
+            test_date = datetime.datetime.now()
+            modified_now = test_date.replace(hour=17, minute=5)
+            self.assertEqual("19:05", short_datetime(context, modified_now))
+
+            # given the time as now, should display as 24 hour time
+            now = timezone.now()
+            self.assertEqual("08:10", short_datetime(context, now.replace(hour=6, minute=10)))
+            self.assertEqual("19:05", short_datetime(context, now.replace(hour=17, minute=5)))
+
+            # given the time beyond 12 hours ago within the same month, should display "MonthName DayOfMonth" eg. "Jan 2"
+            test_date = now.replace(day=2)
+            self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
+
+            # last February should still be pretty
+            test_date = test_date.replace(month=2)
+            self.assertEqual(test_date.strftime("%b") + " 2", short_datetime(context, test_date))
+
+            # but a different year is different
+            jan_2 = datetime.datetime(2012, 7, 20, 17, 5, 0, 0).replace(tzinfo=pytz.utc)
+            self.assertEqual("2012/7/20", short_datetime(context, jan_2))
 
 
 class TemplateTagTestSimple(TestCase):
