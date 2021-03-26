@@ -169,5 +169,5 @@ class GlobalCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["dep_flows"] = list(self.object.dependent_flows.filter(is_active=True))
+            context["dep_flows"] = list(self.object.dependent_flows.filter(is_active=True, is_system=False))
             return context

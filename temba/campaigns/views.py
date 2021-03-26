@@ -336,7 +336,9 @@ class CampaignEventForm(forms.ModelForm):
                     )
         elif self.data["event_type"] == CampaignEvent.TYPE_FLOW:
             # validate flow parameters
-            flow_params_values = [self.data.get(field) for field in self.data.keys() if "flow_parameter_value" in field]
+            flow_params_values = [
+                self.data.get(field) for field in self.data.keys() if "flow_parameter_value" in field
+            ]
             if flow_params_values and not all(flow_params_values):
                 raise ValidationError(_("Flow Parameters are not provided."))
 
