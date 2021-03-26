@@ -975,6 +975,7 @@ class FlowStartReadSerializer(ReadSerializer):
     status = serializers.SerializerMethodField()
     groups = fields.ContactGroupField(many=True)
     contacts = fields.ContactField(many=True)
+    exclude_active = serializers.SerializerMethodField()
     extra = serializers.JSONField(required=False)
     params = serializers.JSONField(required=False, source="extra")
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
@@ -982,6 +983,9 @@ class FlowStartReadSerializer(ReadSerializer):
 
     def get_status(self, obj):
         return FlowStartReadSerializer.STATUSES.get(obj.status)
+
+    def get_exclude_active(self, obj):
+        return not obj.include_active
 
     class Meta:
         model = FlowStart
@@ -993,6 +997,7 @@ class FlowStartReadSerializer(ReadSerializer):
             "groups",
             "contacts",
             "restart_participants",
+            "exclude_active",
             "extra",
             "params",
             "created_on",

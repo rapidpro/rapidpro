@@ -4112,6 +4112,7 @@ class APITest(TembaTest):
                 "contacts": [{"uuid": self.joe.uuid, "name": "Joe Blow"}],
                 "groups": [{"uuid": hans_group.uuid, "name": "hans"}],
                 "restart_participants": False,
+                "exclude_active": False,
                 "status": "pending",
                 "extra": {"first_name": "Bob", "last_name": "Marley"},
                 "params": {"first_name": "Bob", "last_name": "Marley"},
