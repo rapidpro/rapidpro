@@ -78,20 +78,20 @@ d = ["aiohttp (>=3.3.2)", "aiohttp-cors"]
 
 [[package]]
 name = "boto3"
-version = "1.17.35"
+version = "1.17.38"
 description = "The AWS SDK for Python"
 category = "main"
 optional = false
 python-versions = ">= 2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
 
 [package.dependencies]
-botocore = ">=1.20.35,<1.21.0"
+botocore = ">=1.20.38,<1.21.0"
 jmespath = ">=0.7.1,<1.0.0"
 s3transfer = ">=0.3.0,<0.4.0"
 
 [[package]]
 name = "botocore"
-version = "1.20.35"
+version = "1.20.38"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
@@ -378,7 +378,7 @@ rest_framework = ["djangorestframework (>=3.0.0)"]
 
 [[package]]
 name = "djangorestframework"
-version = "3.12.2"
+version = "3.12.4"
 description = "Web APIs for Django, made easy."
 category = "main"
 optional = false
@@ -623,11 +623,17 @@ python-versions = "*"
 
 [[package]]
 name = "markdown"
-version = "2.6.11"
+version = "3.3.4"
 description = "Python implementation of Markdown."
 category = "main"
 optional = false
-python-versions = "*"
+python-versions = ">=3.6"
+
+[package.dependencies]
+importlib-metadata = {version = "*", markers = "python_version < \"3.8\""}
+
+[package.extras]
+testing = ["coverage", "pyyaml"]
 
 [[package]]
 name = "mccabe"
@@ -1242,7 +1248,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "5fa25cfb32a8f814dec71a008b8fc7a96c15f71a086793e820b71492c922cec9"
+content-hash = "5b9edf31d7ddd9c2080fa1f742d33db7b658fca6e4c684a0a2ade6cf61b50468"
 
 [metadata.files]
 amqp = [
@@ -1270,12 +1276,12 @@ black = [
     {file = "black-20.8b1.tar.gz", hash = "sha256:1c02557aa099101b9d21496f8a914e9ed2222ef70336404eeeac8edba836fbea"},
 ]
 boto3 = [
-    {file = "boto3-1.17.35-py2.py3-none-any.whl", hash = "sha256:1e6e06b2f1eee5a76acdde1e7b4f57c93c1bf2905341207d74f2a140ce060cd8"},
-    {file = "boto3-1.17.35.tar.gz", hash = "sha256:40e84a5f7888924db74a2710dbe48d066b51fe1f5549efaffe90e6efe813f37b"},
+    {file = "boto3-1.17.38-py2.py3-none-any.whl", hash = "sha256:f427d7f001f457bd2693411396897624a081d0d6a9f6c1fabf6ef565238f5282"},
+    {file = "boto3-1.17.38.tar.gz", hash = "sha256:d891964c43de16f0b43a8fa87ae786abfd4166222b5e53c1e1164514cde12073"},
 ]
 botocore = [
-    {file = "botocore-1.20.35-py2.py3-none-any.whl", hash = "sha256:e34bbb7d7de154c2ff2a73ae0691c601a69c5bda887374c8a6a23072380b07a4"},
-    {file = "botocore-1.20.35.tar.gz", hash = "sha256:9119ffb231145ffadd55391c9356dcdb18e3de65c3a7c82844634e949f0ca5a0"},
+    {file = "botocore-1.20.38-py2.py3-none-any.whl", hash = "sha256:6e6107109abad89d95c829b2c3c281d353113d4b54fcfeb65d71e58e8ebd77ed"},
+    {file = "botocore-1.20.38.tar.gz", hash = "sha256:da447f46d412749720ca08e19bf14487d35e23f2378f7245975e4f55af7570dd"},
 ]
 celery = [
     {file = "celery-4.4.6-py2.py3-none-any.whl", hash = "sha256:ef17d7dffde7fc73ecab3a3b6389d93d3213bac53fa7f28e68e33647ad50b916"},
@@ -1461,8 +1467,8 @@ django-timezone-field = [
     {file = "django_timezone_field-4.1.2-py3-none-any.whl", hash = "sha256:897c06e40b619cf5731a30d6c156886a7c64cba3a90364832148da7ef32ccf36"},
 ]
 djangorestframework = [
-    {file = "djangorestframework-3.12.2-py3-none-any.whl", hash = "sha256:0209bafcb7b5010fdfec784034f059d512256424de2a0f084cb82b096d6dd6a7"},
-    {file = "djangorestframework-3.12.2.tar.gz", hash = "sha256:0898182b4737a7b584a2c73735d89816343369f259fea932d90dc78e35d8ac33"},
+    {file = "djangorestframework-3.12.4-py3-none-any.whl", hash = "sha256:6d1d59f623a5ad0509fe0d6bfe93cbdfe17b8116ebc8eda86d45f6e16e819aaf"},
+    {file = "djangorestframework-3.12.4.tar.gz", hash = "sha256:f747949a8ddac876e879190df194b925c177cdeb725a099db1460872f7c0a7f2"},
 ]
 elasticsearch = [
     {file = "elasticsearch-7.12.0-py2.py3-none-any.whl", hash = "sha256:c67b0f6541eda6de9f92eaea319c070aa2710c5d4d4ee5e3dfa3c21bd95aa378"},
@@ -1541,8 +1547,8 @@ lml = [
     {file = "lml-0.1.0.tar.gz", hash = "sha256:57a085a29bb7991d70d41c6c3144c560a8e35b4c1030ffb36d85fa058773bcc5"},
 ]
 markdown = [
-    {file = "Markdown-2.6.11-py2.py3-none-any.whl", hash = "sha256:9ba587db9daee7ec761cfc656272be6aabe2ed300fece21208e4aab2e457bc8f"},
-    {file = "Markdown-2.6.11.tar.gz", hash = "sha256:a856869c7ff079ad84a3e19cd87a64998350c2b94e9e08e44270faef33400f81"},
+    {file = "Markdown-3.3.4-py3-none-any.whl", hash = "sha256:96c3ba1261de2f7547b46a00ea8463832c921d3f9d6aba3f255a6f71386db20c"},
+    {file = "Markdown-3.3.4.tar.gz", hash = "sha256:31b5b491868dcc87d6c24b7e3d19a0d730d59d3e46f4eea6430a321bed387a49"},
 ]
 mccabe = [
     {file = "mccabe-0.6.1-py2.py3-none-any.whl", hash = "sha256:ab8a6258860da4b6677da4bd2fe5dc2c659cff31b3ee4f7f5d64e79735b80d42"},
