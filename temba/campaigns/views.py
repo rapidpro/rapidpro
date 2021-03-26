@@ -334,6 +334,11 @@ class CampaignEventForm(forms.ModelForm):
                         _("Translation for '%(language)s' exceeds the %(limit)d character limit.")
                         % dict(language=lang["name"], limit=Msg.MAX_TEXT_LEN)
                     )
+        elif self.data["event_type"] == CampaignEvent.TYPE_FLOW:
+            # validate flow parameters
+            flow_params_values = [self.data.get(field) for field in self.data.keys() if "flow_parameter_value" in field]
+            if flow_params_values and not all(flow_params_values):
+                raise ValidationError(_("Flow Parameters are not provided."))
 
         return data
 
