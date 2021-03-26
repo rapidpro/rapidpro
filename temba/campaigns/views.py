@@ -102,20 +102,20 @@ class CampaignCRUDL(SmartCRUDL):
             links = []
 
             if self.object.is_archived:
+                if self.has_org_perm("orgs.org_export"):
+                    links.append(
+                        dict(
+                            title=_("Export"),
+                            href=f"{reverse('orgs.org_export')}?campaign={self.object.id}&archived=1",
+                        )
+                    )
+
                 if self.has_org_perm("campaigns.campaign_activate"):
                     links.append(
                         dict(
                             title="Activate",
                             js_class="posterize activate-campaign",
                             href=reverse("campaigns.campaign_activate", args=[self.object.id]),
-                        )
-                    )
-
-                if self.has_org_perm("orgs.org_export"):
-                    links.append(
-                        dict(
-                            title=_("Export"),
-                            href=f"{reverse('orgs.org_export')}?campaign={self.object.id}&archived=1",
                         )
                     )
 
