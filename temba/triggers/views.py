@@ -165,6 +165,14 @@ class KeywordTriggerForm(GroupBasedTriggerForm):
             existing = existing.filter(keyword__iexact=keyword)
         return existing
 
+    def clean(self):
+        cleaned_data = super().clean()
+        # validate flow parameters
+        flow_params_values = [self.data.get(field) for field in self.data.keys() if "flow_parameter_value" in field]
+        if flow_params_values and not all(flow_params_values):
+            raise forms.ValidationError(_("Flow Parameters are not provided."))
+        return cleaned_data
+
     class Meta(BaseTriggerForm.Meta):
         fields = ("keyword", "match_type", "flow", "groups")
         widgets = {"keyword": InputWidget(), "match_type": SelectWidget()}
