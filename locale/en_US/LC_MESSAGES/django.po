@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-23 18:08+0000\n"
+"POT-Creation-Date: 2020-11-26 21:46+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -4842,7 +4842,8 @@ msgstr ""
 msgid "You can connect a <a href=\"https://www.freshworks.com/live-chat-software/\">FreshChat</a> Account to your %(name)s account to automate sending and receiving messages via FreshChat. This will also support Apple Business Chat if it's been configured on your FreshChat account."
 msgstr ""
 
-msgid "You will need to have a  FreshChat account and get an authentication token and setup a webhook."
+#, python-format
+msgid "Each message sent to the channel will have a URN in the format %(format)s where the channel UUID is the FreshChat channel's UUID."
 msgstr ""
 
 msgid "In the FreshChat web interface, under Settings, API Tokens, select Generate Token. Once the token is created you'll enter it below."
@@ -4852,14 +4853,10 @@ msgid "Under Settings again, select Webhooks and copy the Public Key and paste i
 msgstr ""
 
 #, python-format
-msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat Message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\">FreshChat API</a>."
+msgid "Lastly, you'll need the UUID of the Agent that %(name)s will use when it sends FreshChat message. This is available via the <a href=\"https://developers.freshchat.com/api/#agent\">FreshChat API</a>."
 msgstr ""
 
 msgid "Once you press Submit below with all the information configured, the confirmation page will give you the URL to use for the FreshChat Webhooks. Enter this URL on the Settings page, under Webhooks where the Public Key was copied from before."
-msgstr ""
-
-#, python-format
-msgid "Each Message sent to the channel will have a URN that's in the format of %(uuid)s where the channel uuid is the FreshChat Message Channels uuid."
 msgstr ""
 
 #, python-format
@@ -4905,19 +4902,19 @@ msgstr ""
 msgid "Create a Line account using the application on your smartphone"
 msgstr ""
 
-msgid "Activate the permission to login via web application in the \"Settings > Account > Allow login\""
+msgid "Activate the permission to login via web application in the <i>Settings</i> &gt; <i>Account</i> &gt; <i>Allow login</i>"
 msgstr ""
 
-msgid "Register your email and password via the application \"Settings > Account > Email Account\""
+msgid "Register your email and password via the application <i>Settings</i> &gt; <i>Account</i> &gt; <i>Email Account</i>"
 msgstr ""
 
 msgid "Create a new business account Line (With Messaging API enabled)"
 msgstr ""
 
-msgid "In <a href=\"https://business.line.me/en/\">LINE Business Center</a>, select \"Messaging API\" in the \"Services\""
+msgid "In <a href=\"https://business.line.me/en/\">LINE Business Center</a>, select <i>Messaging API</i> in <i>Services</i>"
 msgstr ""
 
-msgid "Select \"Start using Messaging API\""
+msgid "Select <i>Start using Messaging API</i>"
 msgstr ""
 
 msgid "Enter your credentials created through the application and wait for the confirmation code in it."
@@ -4926,16 +4923,16 @@ msgstr ""
 msgid "Note: At this time you must create a LINE business account and some information, for example, address, phone, etc., will be requested."
 msgstr ""
 
-msgid "After the creation process of the LINE business account, you will see the page to add a new channel of communication \"Messaging API.\" Enter the name and select the appropriate category and click OK."
+msgid "After the creation process of the LINE business account, you will see the page to add a new channel of communication <i>Messaging API</i>. Enter the name and select the appropriate category and click OK."
 msgstr ""
 
-msgid "In the next step, click the \"LINE @ Manager\" and it will redirect you to the API activation page."
+msgid "In the next step, click the <i>LINE @ Manager</i> and it will redirect you to the API activation page."
 msgstr ""
 
-msgid "Click \"Enable API\" and confirm. (By doing so, the status of your API will be \"Valid\")"
+msgid "Click \"Enable API\" and confirm. (By doing so, the status of your API will be <i>Valid</i>)"
 msgstr ""
 
-msgid "Enable the option to allow the use of Webhooks and click \"Save.\""
+msgid "Enable the option to allow the use of Webhooks and click <i>Save</i>."
 msgstr ""
 
 msgid "Set your bot:"
@@ -4944,10 +4941,10 @@ msgstr ""
 msgid "Click on the menu \"Accounts\" at the top of the page at the link <a href=\"https://business.line.me\">https://business.line.me</a>"
 msgstr ""
 
-msgid "In the communication channel of your choice, click on the \"LINE Developers\" button, accept the terms, and it will direct you to a page with the information needed to fill out in the form below (Channel ID, Channel Name, Channel Secret and Channel Access Token)."
+msgid "In the communication channel of your choice, click on the <i>LINE Developers</i> button, accept the terms, and it will direct you to a page with the information needed to fill out in the form below (Channel ID, Channel Name, Channel Secret and Channel Access Token)."
 msgstr ""
 
-msgid "Note: To generate the Channel Access Token click on \"Issue\" button"
+msgid "Note: To generate the Channel Access Token click on <i>Issue</i> button"
 msgstr ""
 
 msgid "To finish the configuration of Line channel you'll need to set the following callback URL in the Line Bot settings page, following the steps below:"
@@ -5005,7 +5002,7 @@ msgstr ""
 msgid "You will need to <a href=\"https://core.telegram.org/bots#create-a-new-bot\">create a new Telegram bot</a> and get its Authentication Token. To do so:"
 msgstr ""
 
-msgid "Start a new chat with the <a href=\"https://telegram.me/botfather\">BotFather</a>. You can do so on your device by searching for \"botfather\" and starting a new chat.</li>"
+msgid "Start a new chat with the <a href=\"https://telegram.me/botfather\">BotFather</a>. You can do so on your device by searching for \"botfather\" and starting a new chat."
 msgstr ""
 
 msgid "In your @botfather chat, type in the command <code>/newbot</code>. Follow the instructions to name your bot and choose a username for it."
@@ -5590,17 +5587,11 @@ msgid ""
 "You can download your %(brand)s flow results by clicking on the following link:\n"
 msgstr ""
 
-msgid "What is a Flow?"
-msgstr ""
-
 msgid "Flows let you easily pose a set of questions to a group of users. When you send people through a flow over SMS, it is natural just like any other conversation."
 msgstr ""
 
 #, python-format
 msgid "A flow gives you the power to model complex interactions by simply drawing a flowchart. With %(brand)s's drag-and-drop interface, you can easily build branches based on how people respond to your messages. This means it's easy to create highly personal and engaging experiences for your users."
-msgstr ""
-
-msgid "Create Flow"
 msgstr ""
 
 msgid "No results yet"
@@ -5679,10 +5670,10 @@ msgid ""
 "      "
 msgstr ""
 
-msgid "Change Language"
+msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
 msgstr ""
 
-msgid "This flow is in the process of being sent, this message will disappear once all contacts have been added to the flow."
+msgid "Change Language"
 msgstr ""
 
 #, python-format
@@ -5732,6 +5723,9 @@ msgid "Back"
 msgstr ""
 
 msgid "Create Label"
+msgstr ""
+
+msgid "Create Flow"
 msgstr ""
 
 msgid "Webhook Call Log"

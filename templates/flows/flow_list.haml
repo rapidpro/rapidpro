@@ -13,85 +13,82 @@
     %temba-modax#export-results{ header:'{% trans "Download Flow Results" %}' }
     %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'flows.flowlabel_create' %}", onloaded: "handleCreateLabelModalLoaded", onsubmitted: "handleCreateLabelModalSubmitted"}
 
-  -if not org_has_flows
-    -include "flows/empty_include.html"
-  -else
-    #pjax
-      -block pjax
-        .lp-frame
-          .left
-            .flex.flex-col
-              -if org_perms.flows.flow_create
-                .w-64.mr-5
-                  %temba-modax#create-flow-modal{ header:'{% trans "Create Flow" %}', endpoint:"{% url 'flows.flow_create' %}" }
-                    .button-primary
-                      -trans "Create Flow"
-            
-            .lp-nav.upper
-              -for folder in folders
-                .lp-nav-item{'class': '{% if folder.url == request_url %}font-normal{% endif %}' }
-                  .name{onclick:"goto(event)", href:'{{folder.url}}'}
-                    {{folder.label}}
-                  .count{onclick:"goto(event)", href:'{{folder.url}}'}
-                    {{ folder.count | intcomma }}
+  #pjax
+    -block pjax
+      .lp-frame
+        .left
+          .flex.flex-col
+            -if org_perms.flows.flow_create
+              .w-64.mr-5
+                %temba-modax#create-flow-modal{ header:'{% trans "Create Flow" %}', endpoint:"{% url 'flows.flow_create' %}" }
+                  .button-primary
+                    -trans "Create Flow"
 
-            -if campaigns
-              .lp-nav.lower
+          .lp-nav.upper
+            -for folder in folders
+              .lp-nav-item{'class': '{% if folder.url == request_url %}font-normal{% endif %}' }
+                .name{onclick:"goto(event)", href:'{{folder.url}}'}
+                  {{folder.label}}
+                .count{onclick:"goto(event)", href:'{{folder.url}}'}
+                  {{ folder.count | intcomma }}
+
+          -if campaigns
+            .lp-nav.lower
+              .font-normal.uppercase.text-xs.text-gray-500.pb-1
+                -trans "Campaigns"
+              -for campaign in campaigns
+                .lp-nav-item{'class': '{%if current_campaign.id == campaign.campaign__id %}font-normal{% endif %}' }
+                  .name{onclick:"goto(event)", href:'{% url "flows.flow_campaign" campaign.campaign__id %}'}
+                    {{campaign.campaign__name}}
+                  .count{onclick:"goto(event)", href:'{% url "flows.flow_campaign" campaign.campaign__id %}'}
+                    {{ campaign.count | intcomma }}
+
+          -if labels
+            .lp-nav.lower
+
+              .inner-scroll
                 .font-normal.uppercase.text-xs.text-gray-500.pb-1
-                  -trans "Campaigns"
-                -for campaign in campaigns
-                  .lp-nav-item{'class': '{%if current_campaign.id == campaign.campaign__id %}font-normal{% endif %}' }
-                    .name{onclick:"goto(event)", href:'{% url "flows.flow_campaign" campaign.campaign__id %}'}
-                      {{campaign.campaign__name}}
-                    .count{onclick:"goto(event)", href:'{% url "flows.flow_campaign" campaign.campaign__id %}'}
-                      {{ campaign.count | intcomma }}
+                  - trans "Labels"
 
-            -if labels
-              .lp-nav.lower
+                -for label in labels
+                  -if label.children
+                    .lp-nav-item{ class:'{% if current_label.pk == label.pk %}font-normal{% endif %}' }
+                      .name{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.pk %}'}
+                        {{ label.label }}
+                      .count.-mr-1.text-gray-400
+                        -if current_label.pk == label.pk or current_label.parent_id == label.pk
+                          .glyph.icon-arrow-down-2{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.pk %}'}
+                        -else
+                          .glyph.icon-arrow-right-8{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.pk %}'}
 
-                .inner-scroll
-                  .font-normal.uppercase.text-xs.text-gray-500.pb-1
-                    - trans "Labels"
+                    -if current_label.pk == label.pk or current_label.parent_id == label.pk
+                      .pl-2.mt-1.level2.font-light
+                        -for child in label.children
+                          .lp-nav-item{ class:'{% if current_label.pk == child.pk %}font-normal{% endif %}' }
+                            .name{onclick:"goto(event)",  href:"{% url 'flows.flow_filter' child.pk %}" }
+                              {{ child.name }}
+                            .count{onclick:"goto(event)", href:"{% url 'flows.flow_filter' child.pk %}" }
+                              {{ child.get_flows_count | intcomma }}
 
-                  -for label in labels
-                    -if label.children
-                      .lp-nav-item{ class:'{% if current_label.pk == label.pk %}font-normal{% endif %}' }
-                        .name{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.pk %}'}
-                          {{ label.label }}
-                        .count.-mr-1.text-gray-400
-                          -if current_label.pk == label.pk or current_label.parent_id == label.pk
-                            .glyph.icon-arrow-down-2{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.pk %}'}
-                          -else
-                            .glyph.icon-arrow-right-8{onclick:"goto(event)", 'href':'{% url "flows.flow_filter" label.pk %}'}
+                -for label in labels
+                  -if not label.children
+                    .lp-nav-item{ class:'{% if current_label.pk == label.pk %}font-normal{% endif %}' }
+                      .name{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.pk %}", class:'{% if current_label.pk == label.pk %}font-normal active{% endif %}' }
+                        {{ label.label }}
+                      .count{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.pk %}", class:'{% if current_label.pk == label.pk %}font-normal active{% endif %}' }
+                        {{ label.count | intcomma }}
 
-                      -if current_label.pk == label.pk or current_label.parent_id == label.pk
-                        .pl-2.mt-1.level2.font-light
-                          -for child in label.children
-                            .lp-nav-item{ class:'{% if current_label.pk == child.pk %}font-normal{% endif %}' }
-                              .name{onclick:"goto(event)",  href:"{% url 'flows.flow_filter' child.pk %}" }
-                                {{ child.name }}
-                              .count{onclick:"goto(event)", href:"{% url 'flows.flow_filter' child.pk %}" }
-                                {{ child.get_flows_count | intcomma }}
-                  
-                  -for label in labels
-                    -if not label.children
-                      .lp-nav-item{ class:'{% if current_label.pk == label.pk %}font-normal{% endif %}' }
-                        .name{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.pk %}", class:'{% if current_label.pk == label.pk %}font-normal active{% endif %}' }
-                          {{ label.label }} 
-                        .count{onclick:"goto(event)", href:"{% url 'flows.flow_filter' label.pk %}", class:'{% if current_label.pk == label.pk %}font-normal active{% endif %}' }
-                          {{ label.count | intcomma }}
+          .flex-grow
+            -if org_perms.flows.flowstart_list
+              .button-light.mt-3(onclick="goto(event)" href="{% url 'flows.flowstart_list' %}")
+                -trans "Flow Start Log"
 
-            .flex-grow
-              -if org_perms.flows.flowstart_list
-                .button-light.mt-3(onclick="goto(event)" href="{% url 'flows.flowstart_list' %}")
-                  -trans "Flow Start Log"
+            -if org_perms.api.webhookresult_list
+              .mt-3.button-light.mt-3(onclick="goto(event)" href="{% url 'api.webhookresult_list' %}")
+                -trans "Webhook Call Log"
 
-              -if org_perms.api.webhookresult_list
-                .mt-3.button-light.mt-3(onclick="goto(event)" href="{% url 'api.webhookresult_list' %}")
-                  -trans "Webhook Call Log"
-
-          .right
-
+        .right
+          -if org_has_flows
             .flex.w-full.items-end.mb-4
               -block action-buttons
                 .action-buttons.list-buttons-container.h-full.mr-2.flex-grow
@@ -103,21 +100,21 @@
                           -trans "Remove Label"
 
                     - if 'restore' in actions and org_perms.flows.flow_update
-                        .button-action.object-btn-restore
-                          .-mt-1.mr-2.glyph.icon-checkmark
-                          -trans "Activate"
+                      .button-action.object-btn-restore
+                        .-mt-1.mr-2.glyph.icon-checkmark
+                        -trans "Activate"
 
                     - if 'archive' in actions and org_perms.flows.flow_update
-                        .button-action.object-btn-archive
-                          .-mt-1.mr-2.glyph.icon-box
-                          -trans "Archive"
+                      .button-action.object-btn-archive
+                        .-mt-1.mr-2.glyph.icon-box
+                        -trans "Archive"
 
                     - if 'label' in actions and org_perms.flows.flow_update
                       %span.btn-group
                         .button-action.dropdown-toggle{data-toggle:"dropdown"}
                           .-mt-1.mr-2.glyph.icon-tag
                           -trans "Label"
-                        
+
                         %ul.dropdown-menu.label-menu.rounded-lg.border-none.px-4.py-3
                           -for label in labels
                             -with label.children as children
@@ -138,7 +135,7 @@
                                           .flex.items-center.py-1.linked
                                             .glyph.message-label
                                             = child.name
-                          
+
                           -for label in labels
                             -if not label.children
                               %li
@@ -214,8 +211,8 @@
                             -if object.run_stats.total
                               .linked.mr-2.whitespace-no-wrap{onclick:"goto(event)", href:'{% url "flows.flow_results" object.uuid %}'}
                                 {{object.run_stats.total|intcomma}}
-                      
-                              \/ 
+
+                              \/
                               .text-center.linked.mx-2.whitespace-no-wrap{onclick:"goto(event)", href:'{% url "flows.flow_results" object.uuid %}'}
                                 {{object.run_stats.completion}}%
 
@@ -224,8 +221,11 @@
                       %td{ colspan:'99' }
                         -trans "No matching flows."
 
-              - block paginator
-                -include "includes/pagination.haml"
+            -block paginator
+              -include "includes/pagination.haml"
+
+          -else
+            -include "flows/empty_include.html"
 
 -block extra-script
   {{ block.super }}
