@@ -1,4 +1,3 @@
-import datetime
 import io
 import smtplib
 from datetime import timedelta
@@ -5537,15 +5536,6 @@ class ParsingTest(TembaTest):
         self.assertEqual(self.org.parse_number("Infinity"), None)
 
         self.assertRaises(AssertionError, self.org.parse_number, 0.001)
-
-    def test_parse_datetime(self):
-        self.assertEqual(self.org.parse_datetime("Not num"), None)
-        self.assertEqual(
-            self.org.parse_datetime("0001-01-09T03:25:12.000Z"),
-            datetime.datetime(1, 1, 9, 3, 25, 12, tzinfo=datetime.timezone.utc),
-        )
-
-        self.assertRaises(AssertionError, self.org.parse_datetime, timezone.now())
 
 
 class OrgActivityTest(TembaTest):
