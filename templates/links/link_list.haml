@@ -109,6 +109,16 @@
             .flex.flex-col.mb-16
               -include "includes/pagination.haml"
 
+-block extra-style
+  {{ block.super }}
+  :css
+    .link.checkbox {
+      width: 20px;
+    }
+    .value-status {
+      text-align: right;
+    }
+
 -block extra-script
   {{ block.super }}
 
