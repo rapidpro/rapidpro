@@ -342,26 +342,37 @@ TWILIO_SUPPORTED_COUNTRIES_CONFIG = (
     "AT",  # Austria
     "BE",  # Belgium
     "CA",  # Canada
-    "CL",  # Chile  # Beta
-    "CZ",  # Czech Republic  # Beta
+    "CL",  # Chile
+    "CZ",  # Czech Republic
     "DK",  # Denmark  # Beta
     "EE",  # Estonia
     "FI",  # Finland
     "FR",  # France  # Beta
     "DE",  # Germany
+    "EE",  # Estonia
     "HK",  # Hong Kong
     "HU",  # Hungary  # Beta
     "IE",  # Ireland,
     "IL",  # Israel  # Beta
+    "IT",  # Italy  #Beta
     "LT",  # Lithuania
+    "MY",  # Malaysia
     "MX",  # Mexico  # Beta
+    "NL",  # Netherlands
     "NO",  # Norway
+    "PH",  # Philippines  # Beta
     "PL",  # Poland
+    "PR",  # Puerto Rico
+    "PT",  # Portugal
     "ES",  # Spain
     "SE",  # Sweden
+    "SG",  # Singapore  # Beta
     "CH",  # Switzerland
     "GB",  # United Kingdom
     "US",  # United States
+    "VI",  # Virgin Islands
+    "VN",  # Vietnam  # Beta
+    "ZA",  # South Africa  # Beta
 )
 
 TWILIO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in TWILIO_SUPPORTED_COUNTRIES_CONFIG])
@@ -714,21 +725,15 @@ def sync(request, channel_id):
         return HttpResponse(status=500, content="POST Required")
 
     commands = []
-    channel = Channel.objects.filter(pk=channel_id, is_active=True)
+    channel = Channel.objects.filter(id=channel_id, is_active=True).first()
     if not channel:
         return JsonResponse(dict(cmds=[dict(cmd="rel", relayer_id=channel_id)]))
-
-    channel = channel[0]
 
     request_time = request.GET.get("ts", "")
     request_signature = force_bytes(request.GET.get("signature", ""))
 
-    if not channel.secret or not channel.org:
-        return JsonResponse(dict(cmds=[channel.build_registration_command()]))
-
-    # print "\n\nSECRET: '%s'" % channel.secret
-    # print "TS: %s" % request_time
-    # print "BODY: '%s'\n\n" % request.body
+    if not channel.secret:
+        return JsonResponse({"error_id": 4, "error": "Can't sync unclaimed channel", "cmds": []}, status=401)
 
     # check that the request isn't too old (15 mins)
     now = time.time()
@@ -757,113 +762,122 @@ def sync(request, channel_id):
     sync_event = None
 
     # Take the update from the client
+    cmds = []
     if request.body:
+        body_parsed = json.loads(request.body)
 
-        client_updates = json.loads(request.body)
+        # all valid requests have to begin with a FCM command
+        if "cmds" not in body_parsed or len(body_parsed["cmds"]) < 1 or body_parsed["cmds"][0]["cmd"] != "fcm":
+            return JsonResponse({"error_id": 4, "error": "Missing FCM command", "cmds": []}, status=401)
 
-        print("==GOT SYNC")
-        print(json.dumps(client_updates, indent=2))
+        cmds = body_parsed["cmds"]
 
-        if "cmds" in client_updates:
-            cmds = client_updates["cmds"]
+    if not channel.org and channel.uuid == cmds[0].get("uuid"):
+        # Unclaimed channel with same UUID resend the registration commmands
+        cmd = dict(
+            cmd="reg", relayer_claim_code=channel.claim_code, relayer_secret=channel.secret, relayer_id=channel.id
+        )
+        return JsonResponse(dict(cmds=[cmd]))
+    elif not channel.org:
+        return JsonResponse({"error_id": 4, "error": "Can't sync unclaimed channel", "cmds": []}, status=401)
 
-            unique_calls = set()
+    unique_calls = set()
 
-            for cmd in cmds:
+    for cmd in cmds:
+        handled = False
+        extra = None
+
+        if "cmd" in cmd:
+            keyword = cmd["cmd"]
+
+            # catchall for commands that deal with a single message
+            if "msg_id" in cmd:
+                msg = Msg.objects.filter(id=cmd["msg_id"], org=channel.org).first()
+                if msg:
+                    if msg.direction == OUTGOING:
+                        handled = msg.update(cmd)
+                    else:
+                        handled = True
+
+            # creating a new message
+            elif keyword == "mo_sms":
+                date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
+
+                # it is possible to receive spam SMS messages from no number on some carriers
+                tel = cmd["phone"] if cmd["phone"] else "empty"
+                try:
+                    urn = URN.normalize(URN.from_tel(tel), channel.country.code)
+
+                    if "msg" in cmd:
+                        msg = Msg.create_relayer_incoming(channel.org, channel, urn, cmd["msg"], date)
+                        extra = dict(msg_id=msg.id)
+                except ValueError:
+                    pass
+
+                handled = True
+
+            # phone event
+            elif keyword == "call":
+                call_tuple = (cmd["ts"], cmd["type"], cmd["phone"])
+                date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
+
+                duration = 0
+                if cmd["type"] != "miss":
+                    duration = cmd["dur"]
+
+                # Android sometimes will pass us a call from an 'unknown number', which is null
+                # ignore these events on our side as they have no purpose and break a lot of our
+                # assumptions
+                if cmd["phone"] and call_tuple not in unique_calls:
+                    urn = URN.from_tel(cmd["phone"])
+                    try:
+                        ChannelEvent.create_relayer_event(
+                            channel, urn, cmd["type"], date, extra=dict(duration=duration)
+                        )
+                    except ValueError:
+                        # in some cases Android passes us invalid URNs, in those cases just ignore them
+                        pass
+                    unique_calls.add(call_tuple)
+                handled = True
+
+            elif keyword == "fcm":
+                # update our fcm and uuid
+
+                config = channel.config
+                config.update({Channel.CONFIG_FCM_ID: cmd["fcm_id"]})
+                channel.config = config
+                channel.uuid = cmd.get("uuid", None)
+                channel.save(update_fields=["uuid", "config"])
+
+                # no acking the fcm
                 handled = False
-                extra = None
 
-                if "cmd" in cmd:
-                    keyword = cmd["cmd"]
+            elif keyword == "reset":
+                # release this channel
+                channel.release(False)
+                channel.save()
 
-                    # catchall for commands that deal with a single message
-                    if "msg_id" in cmd:
-                        msg = Msg.objects.filter(id=cmd["msg_id"], org=channel.org).first()
-                        if msg:
-                            if msg.direction == OUTGOING:
-                                handled = msg.update(cmd)
-                            else:
-                                handled = True
+                # ack that things got handled
+                handled = True
 
-                    # creating a new message
-                    elif keyword == "mo_sms":
-                        date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
+            elif keyword == "status":
+                sync_event = SyncEvent.create(channel, cmd, cmds)
+                Alert.check_power_alert(sync_event)
 
-                        # it is possible to receive spam SMS messages from no number on some carriers
-                        tel = cmd["phone"] if cmd["phone"] else "empty"
-                        try:
-                            urn = URN.normalize(URN.from_tel(tel), channel.country.code)
+                # tell the channel to update its org if this channel got moved
+                if channel.org and "org_id" in cmd and channel.org.pk != cmd["org_id"]:
+                    commands.append(dict(cmd="claim", org_id=channel.org.pk))
 
-                            if "msg" in cmd:
-                                msg = Msg.create_relayer_incoming(channel.org, channel, urn, cmd["msg"], date)
-                                extra = dict(msg_id=msg.id)
-                        except ValueError:
-                            pass
+                # we don't ack status messages since they are always included
+                handled = False
 
-                        handled = True
+        # is this something we can ack?
+        if "p_id" in cmd and handled:
+            ack = dict(p_id=cmd["p_id"], cmd="ack")
+            if extra:
+                ack["extra"] = extra
 
-                    # phone event
-                    elif keyword == "call":
-                        call_tuple = (cmd["ts"], cmd["type"], cmd["phone"])
-                        date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
-
-                        duration = 0
-                        if cmd["type"] != "miss":
-                            duration = cmd["dur"]
-
-                        # Android sometimes will pass us a call from an 'unknown number', which is null
-                        # ignore these events on our side as they have no purpose and break a lot of our
-                        # assumptions
-                        if cmd["phone"] and call_tuple not in unique_calls:
-                            urn = URN.from_tel(cmd["phone"])
-                            try:
-                                ChannelEvent.create_relayer_event(
-                                    channel, urn, cmd["type"], date, extra=dict(duration=duration)
-                                )
-                            except ValueError:
-                                # in some cases Android passes us invalid URNs, in those cases just ignore them
-                                pass
-                            unique_calls.add(call_tuple)
-                        handled = True
-
-                    elif keyword == "fcm":
-                        # update our fcm and uuid
-
-                        config = channel.config
-                        config.update({Channel.CONFIG_FCM_ID: cmd["fcm_id"]})
-                        channel.config = config
-                        channel.uuid = cmd.get("uuid", None)
-                        channel.save(update_fields=["uuid", "config"])
-
-                        # no acking the fcm
-                        handled = False
-
-                    elif keyword == "reset":
-                        # release this channel
-                        channel.release(False)
-                        channel.save()
-
-                        # ack that things got handled
-                        handled = True
-
-                    elif keyword == "status":
-                        sync_event = SyncEvent.create(channel, cmd, cmds)
-                        Alert.check_power_alert(sync_event)
-
-                        # tell the channel to update its org if this channel got moved
-                        if channel.org and "org_id" in cmd and channel.org.pk != cmd["org_id"]:
-                            commands.append(dict(cmd="claim", org_id=channel.org.pk))
-
-                        # we don't ack status messages since they are always included
-                        handled = False
-
-                # is this something we can ack?
-                if "p_id" in cmd and handled:
-                    ack = dict(p_id=cmd["p_id"], cmd="ack")
-                    if extra:
-                        ack["extra"] = extra
-
-                    commands.append(ack)
+            commands.append(ack)
 
     outgoing_cmds = get_commands(channel, commands, sync_event)
     result = dict(cmds=outgoing_cmds)
@@ -871,9 +885,6 @@ def sync(request, channel_id):
     if sync_event:
         sync_event.outgoing_command_count = len([_ for _ in outgoing_cmds if _["cmd"] != "ack"])
         sync_event.save()
-
-    print("==RESPONDING WITH:")
-    print(json.dumps(result, indent=2))
 
     # keep track of how long a sync takes
     analytics.gauge("temba.relayer_sync", time.time() - start)
@@ -895,7 +906,9 @@ def register(request):
     try:
         # look up a channel with that id
         channel = Channel.get_or_create_android(cmds[0], cmds[1])
-        cmd = channel.build_registration_command()
+        cmd = dict(
+            cmd="reg", relayer_claim_code=channel.claim_code, relayer_secret=channel.secret, relayer_id=channel.id
+        )
     except UnsupportedAndroidChannelError:
         cmd = dict(cmd="reg", relayer_claim_code="*********", relayer_secret="0" * 64, relayer_id=-1)
 
@@ -1277,6 +1290,7 @@ class ChannelCRUDL(SmartCRUDL):
     actions = (
         "list",
         "claim",
+        "claim_all",
         "update",
         "read",
         "delete",
@@ -1319,7 +1333,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             if channel.get_type().show_config_page:
                 links.append(
-                    dict(title=_("Settings"), href=reverse("channels.channel_configuration", args=[channel.uuid]),)
+                    dict(title=_("Settings"), href=reverse("channels.channel_configuration", args=[channel.uuid]))
                 )
 
             if not channel.is_android():
@@ -1782,6 +1796,22 @@ class ChannelCRUDL(SmartCRUDL):
             return obj
 
     class Claim(OrgPermsMixin, SmartTemplateView):
+        def channel_types_groups(self):
+            user = self.request.user
+
+            # fetch channel types, sorted by category and name
+            types_by_category = defaultdict(list)
+            recommended_channels = []
+            for ch_type in list(Channel.get_types()):
+                region_aware_visible, region_ignore_visible = ch_type.is_available_to(user)
+
+                if ch_type.is_recommended_to(user):
+                    recommended_channels.append(ch_type)
+                elif region_ignore_visible and region_aware_visible and ch_type.category:
+                    types_by_category[ch_type.category.name].append(ch_type)
+
+            return recommended_channels, types_by_category, True
+
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             user = self.request.user
@@ -1799,18 +1829,27 @@ class ChannelCRUDL(SmartCRUDL):
             context["brand"] = org.get_branding()
 
             # fetch channel types, sorted by category and name
-            types_by_category = defaultdict(list)
-            recommended_channels = []
-            for ch_type in list(Channel.get_types()):
-                if ch_type.is_recommended_to(user):
-                    recommended_channels.append(ch_type)
-                elif ch_type.is_available_to(user) and ch_type.category:
-                    if ch_type.name != "Twitter Legacy":
-                        types_by_category[ch_type.category.name].append(ch_type)
+            recommended_channels, types_by_category, only_regional_channels = self.channel_types_groups()
 
             context["recommended_channels"] = recommended_channels
             context["channel_types"] = types_by_category
+            context["only_regional_channels"] = only_regional_channels
             return context
+
+    class ClaimAll(Claim):
+        def channel_types_groups(self):
+            user = self.request.user
+
+            types_by_category = defaultdict(list)
+            recommended_channels = []
+            for ch_type in list(Channel.get_types()):
+                region_aware_visible, region_ignore_visible = ch_type.is_available_to(user)
+                if ch_type.is_recommended_to(user):
+                    recommended_channels.append(ch_type)
+                elif region_ignore_visible and ch_type.category:
+                    types_by_category[ch_type.category.name].append(ch_type)
+
+            return recommended_channels, types_by_category, False
 
     class BulkSenderOptions(OrgPermsMixin, SmartTemplateView):
         pass
@@ -2166,7 +2205,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             links = []
 
             if self.request.GET.get("connections") or self.request.GET.get("others"):
-                links.append(dict(title=_("Messages"), href=reverse("channels.channellog_list", args=[channel.uuid]),))
+                links.append(dict(title=_("Messages"), href=reverse("channels.channellog_list", args=[channel.uuid])))
 
             if not self.request.GET.get("connections"):
                 if channel.supports_ivr():  # pragma: needs cover

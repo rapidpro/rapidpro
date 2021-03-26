@@ -23,9 +23,7 @@ from ...views import (
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
-        country = forms.ChoiceField(
-            choices=NEXMO_SUPPORTED_COUNTRIES, widget=SelectWidget(attrs={"searchable": True}),
-        )
+        country = forms.ChoiceField(choices=NEXMO_SUPPORTED_COUNTRIES, widget=SelectWidget(attrs={"searchable": True}))
         phone_number = forms.CharField(help_text=_("The phone number being added"))
 
         def clean_phone_number(self):

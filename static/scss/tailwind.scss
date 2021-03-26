@@ -95,7 +95,7 @@ a {
 }
 
 .button {
-  @apply px-6 py-3 leading-none text-lg shadow transition duration-300 text-center rounded-lg select-none whitespace-no-wrap font-normal;
+  @apply px-6 py-3 leading-none text-lg shadow transition duration-300 text-center rounded-lg select-none whitespace-no-wrap font-normal inline-block;
   margin-top: 1px;
 
   &:active {
@@ -172,6 +172,7 @@ a {
 }
 
 .lift {
+  will-change: transform, opacity;
   &:hover {
     @apply shadow-lg;
     transform: translateY(-1px);
@@ -554,6 +555,18 @@ table.list {
         }
       }
 
+    }
+  }
+}
+
+.flow-start-type-selector {
+  a {
+    display: inline-block;
+    &.is-active {
+      cursor: none;
+      color: #999999;
+      cursor: text;
+      text-decoration: none;
     }
   }
 }

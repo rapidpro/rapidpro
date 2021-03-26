@@ -204,7 +204,6 @@ class BroadcastWriteSerializer(WriteSerializer):
     urns = fields.URNListField(required=False)
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
-    channel = fields.ChannelField(required=False)
 
     def validate(self, data):
         if not (data.get("urns") or data.get("contacts") or data.get("groups")):
@@ -228,7 +227,6 @@ class BroadcastWriteSerializer(WriteSerializer):
             groups=self.validated_data.get("groups", []),
             contacts=self.validated_data.get("contacts", []),
             urns=self.validated_data.get("urns", []),
-            channel=self.validated_data.get("channel"),
             template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
         )
 
@@ -847,7 +845,12 @@ class ContactBulkActionSerializer(WriteSerializer):
 
 
 class FlowReadSerializer(ReadSerializer):
-    FLOW_TYPES = {Flow.TYPE_MESSAGE: "message", Flow.TYPE_VOICE: "voice", Flow.TYPE_SURVEY: "survey"}
+    FLOW_TYPES = {
+        Flow.TYPE_MESSAGE: "message",
+        Flow.TYPE_VOICE: "voice",
+        Flow.TYPE_BACKGROUND: "background",
+        Flow.TYPE_SURVEY: "survey",
+    }
 
     type = serializers.SerializerMethodField()
     archived = serializers.ReadOnlyField(source="is_archived")
@@ -899,9 +902,10 @@ class FlowReadSerializer(ReadSerializer):
 
 class FlowRunReadSerializer(ReadSerializer):
     EXIT_TYPES = {
-        FlowRun.EXIT_TYPE_COMPLETED: "completed",
-        FlowRun.EXIT_TYPE_INTERRUPTED: "interrupted",
-        FlowRun.EXIT_TYPE_EXPIRED: "expired",
+        FlowRun.STATUS_COMPLETED: "completed",
+        FlowRun.STATUS_INTERRUPTED: "interrupted",
+        FlowRun.STATUS_EXPIRED: "expired",
+        FlowRun.STATUS_FAILED: "failed",
     }
 
     flow = fields.FlowField()
@@ -939,7 +943,7 @@ class FlowRunReadSerializer(ReadSerializer):
         return {k: convert_result(r) for k, r in obj.results.items()}
 
     def get_exit_type(self, obj):
-        return self.EXIT_TYPES.get(obj.exit_type)
+        return self.EXIT_TYPES.get(obj.status)
 
     class Meta:
         model = FlowRun
@@ -971,6 +975,7 @@ class FlowStartReadSerializer(ReadSerializer):
     status = serializers.SerializerMethodField()
     groups = fields.ContactGroupField(many=True)
     contacts = fields.ContactField(many=True)
+    exclude_active = serializers.SerializerMethodField()
     extra = serializers.JSONField(required=False)
     params = serializers.JSONField(required=False, source="extra")
     created_on = serializers.DateTimeField(default_timezone=pytz.UTC)
@@ -978,6 +983,9 @@ class FlowStartReadSerializer(ReadSerializer):
 
     def get_status(self, obj):
         return FlowStartReadSerializer.STATUSES.get(obj.status)
+
+    def get_exclude_active(self, obj):
+        return not obj.include_active
 
     class Meta:
         model = FlowStart
@@ -989,6 +997,7 @@ class FlowStartReadSerializer(ReadSerializer):
             "groups",
             "contacts",
             "restart_participants",
+            "exclude_active",
             "extra",
             "params",
             "created_on",
@@ -1002,6 +1011,7 @@ class FlowStartWriteSerializer(WriteSerializer):
     groups = fields.ContactGroupField(many=True, required=False)
     urns = fields.URNListField(required=False)
     restart_participants = serializers.BooleanField(required=False)
+    exclude_active = serializers.BooleanField(required=False)
     extra = serializers.JSONField(required=False)
     params = serializers.JSONField(required=False)
 
@@ -1029,6 +1039,7 @@ class FlowStartWriteSerializer(WriteSerializer):
         contacts = self.validated_data.get("contacts", [])
         groups = self.validated_data.get("groups", [])
         restart_participants = self.validated_data.get("restart_participants", True)
+        exclude_active = self.validated_data.get("exclude_active", False)
         extra = self.validated_data.get("extra")
 
         params = self.validated_data.get("params")
@@ -1041,6 +1052,7 @@ class FlowStartWriteSerializer(WriteSerializer):
             self.context["user"],
             start_type=FlowStart.TYPE_API_ZAPIER if self.context["is_zapier"] else FlowStart.TYPE_API,
             restart_participants=restart_participants,
+            include_active=not exclude_active,
             contacts=contacts,
             groups=groups,
             urns=urns,
@@ -1057,7 +1069,7 @@ class GlobalReadSerializer(ReadSerializer):
 
 
 class GlobalWriteSerializer(WriteSerializer):
-    value = serializers.CharField(required=True)
+    value = serializers.CharField(required=True, max_length=Global.MAX_VALUE_LEN)
     name = serializers.CharField(
         required=False,
         max_length=Global.MAX_NAME_LEN,

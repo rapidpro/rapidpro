@@ -1,6 +1,7 @@
 import json
 from datetime import timedelta
 
+import iso8601
 import pytz
 
 from django import template
@@ -37,11 +38,11 @@ def oxford(forloop, punctuation=""):
     """
     # there are only two items
     if forloop["counter"] == 1 and forloop["revcounter"] == 2:
-        return _(" and ")
+        return f' {_("and")} '
 
     # we are the last in a list of 3 or more
     if forloop["revcounter"] == 2:
-        return _(", and ")
+        return f', {_("and")} '
 
     if not forloop["last"]:
         return ", "
@@ -233,3 +234,8 @@ def format_datetime(context, dtime):
     if org:
         return org.format_datetime(dtime)
     return datetime_to_str(dtime, "%d-%m-%Y %H:%M", tz)
+
+
+@register.filter
+def parse_isodate(value):
+    return iso8601.parse_date(value)

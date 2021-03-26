@@ -1,5 +1,7 @@
+import functools
 import itertools
 import logging
+import operator
 import os
 from collections import defaultdict
 from datetime import timedelta
@@ -8,6 +10,7 @@ from enum import Enum
 from urllib.parse import quote, urlencode, urlparse
 
 import pycountry
+import pyotp
 import pytz
 import regex
 import stripe
@@ -40,7 +43,7 @@ from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_e
 from temba.utils.currencies import currency_for_country
 from temba.utils.dates import datetime_to_str, str_to_datetime
 from temba.utils.email import send_template_email
-from temba.utils.models import JSONAsTextField, SquashableModel
+from temba.utils.models import JSONAsTextField, JSONField, SquashableModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import generate_token, random_string
 from temba.utils.timezones import timezone_to_country_code
@@ -60,6 +63,48 @@ ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY = "org:%d:cache:low_credits_threshold"
 
 ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
+
+
+class OrgRole(Enum):
+    ADMINISTRATOR = ("A", _("Administrator"), _("Administrators"), "Administrators", "administrators", "org_admins")
+    EDITOR = ("E", _("Editor"), _("Editors"), "Editors", "editors", "org_editors")
+    VIEWER = ("V", _("Viewer"), _("Viewers"), "Viewers", "viewers", "org_viewers")
+    AGENT = ("T", _("Agent"), _("Agents"), "Agents", "agents", "org_agents")
+    SURVEYOR = ("S", _("Surveyor"), _("Surveyors"), "Surveyors", "surveyors", "org_surveyors")
+
+    def __init__(self, code: str, display: str, display_plural: str, group_name: str, m2m_name: str, rel_name: str):
+        self.code = code
+        self.display = display
+        self.display_plural = display_plural
+        self.group_name = group_name
+        self.m2m_name = m2m_name
+        self.rel_name = rel_name
+
+    @classmethod
+    def from_code(cls, code: str):
+        for role in cls:
+            if role.code == code:
+                return role
+        return None
+
+    @cached_property
+    def group(self):
+        """
+        Gets the auth group which defines the permissions for this role
+        """
+        return Group.objects.get(name=self.group_name)
+
+    def get_users(self, org):
+        """
+        The users with this role in the given org
+        """
+        return getattr(org, self.m2m_name).all()
+
+    def get_orgs(self, user):
+        """
+        The orgs which the given user belongs to with this role
+        """
+        return getattr(user, self.rel_name).all()
 
 
 class OrgLock(Enum):
@@ -121,9 +166,15 @@ class Org(SmartModel):
     EARLIEST_IMPORT_VERSION = "3"
     CURRENT_EXPORT_VERSION = "13"
 
-    LIMIT_FIELDS = "limit_fields"
-    LIMIT_GLOBALS = "limit_globals"
-    LIMIT_GROUPS = "limit_groups"
+    LIMIT_FIELDS = "fields"
+    LIMIT_GLOBALS = "globals"
+    LIMIT_GROUPS = "groups"
+
+    LIMIT_DEFAULTS = {
+        LIMIT_FIELDS: settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG,
+        LIMIT_GLOBALS: settings.MAX_ACTIVE_GLOBALS_PER_ORG,
+        LIMIT_GROUPS: settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG,
+    }
 
     uuid = models.UUIDField(unique=True, default=uuid4)
 
@@ -145,27 +196,12 @@ class Org(SmartModel):
         help_text=_("Our Stripe customer id for your organization"),
     )
 
-    administrators = models.ManyToManyField(
-        User,
-        verbose_name=_("Administrators"),
-        related_name="org_admins",
-        help_text=_("The administrators in your organization"),
-    )
-
-    viewers = models.ManyToManyField(
-        User, verbose_name=_("Viewers"), related_name="org_viewers", help_text=_("The viewers in your organization")
-    )
-
-    editors = models.ManyToManyField(
-        User, verbose_name=_("Editors"), related_name="org_editors", help_text=_("The editors in your organization")
-    )
-
-    surveyors = models.ManyToManyField(
-        User,
-        verbose_name=_("Surveyors"),
-        related_name="org_surveyors",
-        help_text=_("The users can login via Android for your organization"),
-    )
+    # user role m2ms
+    administrators = models.ManyToManyField(User, related_name=OrgRole.ADMINISTRATOR.rel_name)
+    editors = models.ManyToManyField(User, related_name=OrgRole.EDITOR.rel_name)
+    viewers = models.ManyToManyField(User, related_name=OrgRole.VIEWER.rel_name)
+    agents = models.ManyToManyField(User, related_name=OrgRole.AGENT.rel_name)
+    surveyors = models.ManyToManyField(User, related_name=OrgRole.SURVEYOR.rel_name)
 
     language = models.CharField(
         verbose_name=_("Language"),
@@ -209,6 +245,8 @@ class Org(SmartModel):
         unique=True,
         error_messages=dict(unique=_("This slug is not available")),
     )
+
+    limits = JSONField(default=dict)
 
     is_anon = models.BooleanField(
         default=False, help_text=_("Whether this organization anonymizes the phone numbers of contacts within it")
@@ -285,6 +323,10 @@ class Org(SmartModel):
             brand = settings.BRANDING[self.brand]
             plan = brand.get("default_plan", settings.DEFAULT_PLAN)
 
+            # if parent are on topups keep using those
+            if self.plan == settings.TOPUP_PLAN:
+                plan = settings.TOPUP_PLAN
+
             org = Org.objects.create(
                 name=name,
                 timezone=timezone,
@@ -298,7 +340,7 @@ class Org(SmartModel):
                 is_multi_org=self.is_multi_org,
             )
 
-            org.administrators.add(created_by)
+            org.add_user(created_by, OrgRole.ADMINISTRATOR)
 
             # initialize our org, but without any credits
             org.initialize(branding=org.get_branding(), topup_size=0)
@@ -357,15 +399,7 @@ class Org(SmartModel):
         )
 
     def get_limit(self, limit_type):
-
-        if limit_type == Org.LIMIT_FIELDS:
-            return settings.MAX_ACTIVE_CONTACTFIELDS_PER_ORG
-        if limit_type == Org.LIMIT_GROUPS:
-            return settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG
-        if limit_type == Org.LIMIT_GLOBALS:
-            return settings.MAX_ACTIVE_GLOBALS_PER_ORG
-
-        raise ValueError("Invalid org limit type")
+        return int(self.limits.get(limit_type, self.LIMIT_DEFAULTS.get(limit_type)))
 
     def flag(self):
         self.is_flagged = True
@@ -1076,50 +1110,81 @@ class Org(SmartModel):
 
         return boundary
 
-    def get_org_admins(self):
-        return self.administrators.all()
+    def get_users_with_role(self, role: OrgRole):
+        """
+        Gets the users who have the given role in this org
+        """
+        return role.get_users(self)
 
-    def get_org_editors(self):
-        return self.editors.all()
+    def get_admins(self):
+        """
+        Convenience method for getting all org administrators
+        """
+        return self.get_users_with_role(OrgRole.ADMINISTRATOR)
 
-    def get_org_viewers(self):
-        return self.viewers.all()
+    def get_users(self):
+        """
+        Gets all of the users across all roles for this org
+        """
+        user_sets = [role.get_users(self) for role in OrgRole]
+        all_users = functools.reduce(operator.or_, user_sets)
+        return all_users.distinct().order_by("email")
 
-    def get_org_surveyors(self):
-        return self.surveyors.all()
+    def has_user(self, user: User) -> bool:
+        """
+        Returns whether the given user has a role in this org (only explicit roles, so doesn't include customer support)
+        """
+        return self.get_users().filter(id=user.id).exists()
 
-    def get_org_users(self):
-        org_users = self.get_org_admins() | self.get_org_editors() | self.get_org_viewers() | self.get_org_surveyors()
-        return org_users.distinct().order_by("email")
+    def add_user(self, user: User, role: OrgRole):
+        """
+        Adds the given user to this org with the given role
+        """
 
-    def latest_admin(self):
-        admin = self.get_org_admins().last()
+        # remove user from any existing roles
+        if self.has_user(user):
+            self.remove_user(user)
 
-        # no admins? try editors
-        if not admin:  # pragma: needs cover
-            admin = self.get_org_editors().last()
+        getattr(self, role.m2m_name).add(user)
 
-        # no editors? try viewers
-        if not admin:  # pragma: needs cover
-            admin = self.get_org_viewers().last()
+    def remove_user(self, user: User):
+        """
+        Removes the given user from this org by removing them from any roles
+        """
+        for role in OrgRole:
+            getattr(self, role.m2m_name).remove(user)
 
-        return admin
+    def get_owner(self) -> User:
+        # look thru roles in order for the first added user
+        for role in OrgRole:
+            user = self.get_users_with_role(role).order_by("id").first()
+            if user:
+                return user
 
-    def get_user_org_group(self, user):
-        if user in self.get_org_admins():
-            user._org_group = Group.objects.get(name="Administrators")
-        elif user in self.get_org_editors():
-            user._org_group = Group.objects.get(name="Editors")
-        elif user in self.get_org_viewers():
-            user._org_group = Group.objects.get(name="Viewers")
-        elif user in self.get_org_surveyors():
-            user._org_group = Group.objects.get(name="Surveyors")
-        elif user.is_staff:
-            user._org_group = Group.objects.get(name="Administrators")
-        else:
-            user._org_group = None
+        # default to user that created this org
+        return self.created_by
 
-        return getattr(user, "_org_group", None)
+    def get_user_role(self, user: User):
+        if user.is_staff:
+            return OrgRole.ADMINISTRATOR
+
+        for role in OrgRole:
+            if self.get_users_with_role(role).filter(id=user.id).exists():
+                return role
+
+        return None
+
+    def get_user_org_group(self, user: User):
+        role = self.get_user_role(user)
+
+        user._org_group = role.group if role else None
+
+        return user._org_group
+
+    def has_internal_ticketing(self):
+        from temba.tickets.types.internal import InternalType
+
+        return self.ticketers.filter(ticketer_type=InternalType.slug).exists()
 
     def has_twilio_number(self):  # pragma: needs cover
         return self.channels.filter(channel_type="T")
@@ -1145,7 +1210,7 @@ class Org(SmartModel):
         with open(filename, "r") as example_file:
             samples = example_file.read()
 
-        user = self.get_user()
+        user = self.get_admins().first()
         if user:
             # some some substitutions
             samples = samples.replace("{{EMAIL}}", user.username).replace("{{API_URL}}", api_url)
@@ -1158,9 +1223,6 @@ class Org(SmartModel):
                     exc_info=True,
                     extra=dict(definition=json.loads(samples)),
                 )
-
-    def get_user(self):
-        return self.administrators.filter(is_active=True).first()
 
     def has_low_credits(self):
         return self.get_credits_remaining() <= self.get_low_credits_threshold()
@@ -1830,17 +1892,15 @@ class Org(SmartModel):
 
         # release any user that belongs only to us
         if release_users:
-            for user in self.get_org_users():
+            for user in self.get_users():
                 # check if this user is a member of any org on any brand
                 other_orgs = user.get_user_orgs().exclude(id=self.id)
                 if not other_orgs:
                     user.release(self.brand)
 
-        # clear out all of our users
-        self.administrators.clear()
-        self.editors.clear()
-        self.viewers.clear()
-        self.surveyors.clear()
+        # remove all the org users
+        for user in self.get_users():
+            self.remove_user(user)
 
         if immediately:
             self._full_release()
@@ -1966,11 +2026,14 @@ class Org(SmartModel):
         Org.objects.filter(id=self.id).update(primary_language=None)
         self.languages.all().delete()
 
+        # release our broadcasts
+        for bcast in self.broadcast_set.all():
+            bcast.release()
+
         # delete other related objects
         self.api_tokens.all().delete()
         self.invitations.all().delete()
         self.credit_alerts.all().delete()
-        self.broadcast_set.all().delete()
         self.schedules.all().delete()
         self.boundaryalias_set.all().delete()
 
@@ -1982,8 +2045,7 @@ class Org(SmartModel):
 
     @classmethod
     def create_user(cls, email, password):
-        user = User.objects.create_user(username=email, email=email, password=password)
-        return user
+        return User.objects.create_user(username=email, email=email, password=password)
 
     @classmethod
     def get_org(cls, user):
@@ -2036,19 +2098,17 @@ def release(user, brand):
     for org in user.get_owned_orgs([brand]):
         org.release(release_users=False)
 
-    # remove us as a user on any org for our brand
+    # remove user from all roles on any org for our brand
     for org in user.get_user_orgs([brand]):
-        org.administrators.remove(user)
-        org.editors.remove(user)
-        org.viewers.remove(user)
-        org.surveyors.remove(user)
+        org.remove_user(user)
 
 
 def get_user_orgs(user, brands=None):
     if user.is_superuser:
         return Org.objects.all()
 
-    user_orgs = user.org_admins.all() | user.org_editors.all() | user.org_viewers.all() | user.org_surveyors.all()
+    org_sets = [role.get_orgs(user) for role in OrgRole]
+    user_orgs = functools.reduce(operator.or_, org_sets)
 
     if brands:
         user_orgs = user_orgs.filter(brand__in=brands)
@@ -2062,7 +2122,7 @@ def get_owned_orgs(user, brands=None):
     """
     owned_orgs = []
     for org in user.get_user_orgs(brands=brands):
-        if not org.get_org_users().exclude(id=user.id).exists():
+        if not org.get_users().exclude(id=user.id).exists():
             owned_orgs.append(org)
     return owned_orgs
 
@@ -2081,18 +2141,6 @@ def is_beta_user(user):  # pragma: needs cover
 
 def is_support_user(user):
     return user.groups.filter(name="Customer Support").exists()
-
-
-def get_settings(user):
-    if not user:  # pragma: needs cover
-        return None
-
-    settings = UserSettings.objects.filter(user=user).first()
-
-    if not settings:
-        settings = UserSettings.objects.create(user=user)
-
-    return settings
 
 
 def set_org(obj, org):
@@ -2131,19 +2179,75 @@ def _user_has_org_perm(user, org, permission):
     return org_group.permissions.filter(content_type__app_label=app_label, codename=codename).exists()
 
 
+def _user_get_settings(user):
+    """
+    Gets or creates user settings for this user
+    """
+    assert user and user.is_authenticated, "can't fetch user settings for anonymous users"
+
+    return UserSettings.get_or_create(user)
+
+
+def _user_record_auth(user):
+    user_settings = user.get_settings()
+    user_settings.last_auth_on = timezone.now()
+    user_settings.save(update_fields=("last_auth_on",))
+
+
+def _user_enable_2fa(user):
+    """
+    Enables 2FA for this user
+    """
+    user_settings = user.get_settings()
+    user_settings.two_factor_enabled = True
+    user_settings.save(update_fields=("two_factor_enabled",))
+
+    BackupToken.generate_for_user(user)
+
+
+def _user_disable_2fa(user):
+    """
+    Disables 2FA for this user
+    """
+    user_settings = user.get_settings()
+    user_settings.two_factor_enabled = False
+    user_settings.save(update_fields=("two_factor_enabled",))
+
+    user.backup_tokens.all().delete()
+
+
+def _user_verify_2fa(user, *, otp: str = None, backup_token: str = None) -> bool:
+    """
+    Verifies a user using a 2FA mechanism (OTP or backup token)
+    """
+    if otp:
+        secret = user.get_settings().otp_secret
+        return pyotp.TOTP(secret).verify(otp, valid_window=2)
+    elif backup_token:
+        token = user.backup_tokens.filter(token=backup_token, is_used=False).first()
+        if token:
+            token.is_used = True
+            token.save(update_fields=("is_used",))
+            return True
+
+    return False
+
+
 User.release = release
 User.get_org = get_org
 User.set_org = set_org
 User.is_alpha = is_alpha_user
 User.is_beta = is_beta_user
 User.is_support = is_support_user
-User.get_settings = get_settings
 User.get_user_orgs = get_user_orgs
 User.get_org_group = get_org_group
 User.get_owned_orgs = get_owned_orgs
 User.has_org_perm = _user_has_org_perm
-
-USER_GROUPS = (("A", _("Administrator")), ("E", _("Editor")), ("V", _("Viewer")), ("S", _("Surveyor")))
+User.get_settings = _user_get_settings
+User.record_auth = _user_record_auth
+User.enable_2fa = _user_enable_2fa
+User.disable_2fa = _user_disable_2fa
+User.verify_2fa = _user_verify_2fa
 
 
 def get_stripe_credentials():
@@ -2209,30 +2313,25 @@ class Invitation(SmartModel):
     An Invitation to an e-mail address to join an Org with specific roles.
     """
 
-    org = models.ForeignKey(
-        Org,
-        on_delete=models.PROTECT,
-        verbose_name=_("Org"),
-        related_name="invitations",
-        help_text=_("The organization to which the account is invited to view"),
-    )
+    ROLE_CHOICES = [(r.code, r.display) for r in OrgRole]
 
-    email = models.EmailField(
-        verbose_name=_("Email"), help_text=_("The email to which we send the invitation of the viewer")
-    )
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="invitations")
 
-    secret = models.CharField(
-        verbose_name=_("Secret"),
-        max_length=64,
-        unique=True,
-        help_text=_("a unique code associated with this invitation"),
-    )
+    email = models.EmailField()
 
-    user_group = models.CharField(max_length=1, choices=USER_GROUPS, default="V", verbose_name=_("User Role"))
+    secret = models.CharField(max_length=64, unique=True)
+
+    user_group = models.CharField(max_length=1, choices=ROLE_CHOICES, default=OrgRole.VIEWER.code)
 
     @classmethod
-    def create(cls, org, user, email, user_group):
-        return cls.objects.create(org=org, email=email, user_group=user_group, created_by=user, modified_by=user)
+    def create(cls, org, user, email, role: OrgRole):
+        return cls.objects.create(org=org, email=email, user_group=role.code, created_by=user, modified_by=user)
+
+    @classmethod
+    def bulk_create_or_update(cls, org, user, emails: list, role: OrgRole):
+        for email in emails:
+            invitation = cls.create(org, user, email, role)
+            invitation.send()
 
     def save(self, *args, **kwargs):
         if not self.secret:
@@ -2245,7 +2344,14 @@ class Invitation(SmartModel):
 
         return super().save(*args, **kwargs)
 
-    def send_invitation(self):
+    @property
+    def role(self):
+        return OrgRole.from_code(self.user_group)
+
+    def send(self):
+        """
+        Sends this invitation as an email to the user
+        """
         from .tasks import send_invitation_email_task
 
         send_invitation_email_task(self.id)
@@ -2272,25 +2378,18 @@ class UserSettings(models.Model):
     """
 
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="settings")
-    language = models.CharField(
-        max_length=8, choices=settings.LANGUAGES, default="en-us", help_text=_("Your preferred language")
-    )
-    tel = models.CharField(
-        verbose_name=_("Phone Number"),
-        max_length=16,
-        null=True,
-        blank=True,
-        help_text=_("Phone number for testing and recording voice flows"),
-    )
-    otp_secret = models.CharField(verbose_name=_("OTP Secret"), max_length=18, null=True, blank=True)
-    two_factor_enabled = models.BooleanField(verbose_name=_("Two Factor Enabled"), default=False)
+    language = models.CharField(max_length=8, choices=settings.LANGUAGES, default="en-us")
+    otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
+    two_factor_enabled = models.BooleanField(default=False)
+    last_auth_on = models.DateTimeField(null=True)
 
-    def get_tel_formatted(self):
-        if self.tel:
-            import phonenumbers
+    @classmethod
+    def get_or_create(cls, user):
+        existing = UserSettings.objects.filter(user=user).first()
+        if existing:
+            return existing
 
-            normalized = phonenumbers.parse(self.tel, None)
-            return phonenumbers.format_number(normalized, phonenumbers.PhoneNumberFormat.INTERNATIONAL)
+        return cls.objects.create(user=user)
 
 
 class TopUp(SmartModel):
@@ -2567,7 +2666,7 @@ class CreditAlert(SmartModel):
 
         logging.info(f"triggering {alert_type} credits alert type for {org.name}")
 
-        admin = org.get_org_admins().first()
+        admin = org.get_admins().first()
 
         if admin:
             # Otherwise, create our alert objects and trigger our event
@@ -2581,7 +2680,7 @@ class CreditAlert(SmartModel):
         send_alert_email_task(self.id)
 
     def send_email(self):
-        admin_emails = [admin.email for admin in self.org.get_org_admins().order_by("email")]
+        admin_emails = [admin.email for admin in self.org.get_admins().order_by("email")]
 
         if len(admin_emails) == 0:
             return
@@ -2648,15 +2747,25 @@ class CreditAlert(SmartModel):
             CreditAlert.trigger_credit_alert(topup.org, CreditAlert.TYPE_EXPIRING)
 
 
-class BackupToken(SmartModel):
-    settings = models.ForeignKey(
-        UserSettings, verbose_name=_("Settings"), related_name="backups", on_delete=models.CASCADE
-    )
-    token = models.CharField(verbose_name=_("Token"), max_length=18, unique=True, default=generate_token)
-    used = models.BooleanField(verbose_name=_("Used"), default=False)
+class BackupToken(models.Model):
+    """
+    A 2FA backup token for a user
+    """
 
-    def __str__(self):  # pragma: no cover
-        return f"{self.token}"
+    user = models.ForeignKey(User, related_name="backup_tokens", on_delete=models.PROTECT)
+    token = models.CharField(max_length=18, unique=True, default=generate_token)
+    is_used = models.BooleanField(default=False)
+    created_on = models.DateTimeField(default=timezone.now)
+
+    @classmethod
+    def generate_for_user(cls, user, count: int = 10):
+        # delete any existing tokens for this user
+        user.backup_tokens.all().delete()
+
+        return [cls.objects.create(user=user) for i in range(count)]
+
+    def __str__(self):
+        return self.token
 
 
 class OrgActivity(models.Model):

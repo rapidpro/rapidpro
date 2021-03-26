@@ -21,7 +21,7 @@ from temba.flows.models import Flow, FlowRun, FlowSession, clear_flow_users
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Label, Msg
-from temba.orgs.models import Org
+from temba.orgs.models import Org, OrgRole
 from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
 
@@ -47,9 +47,10 @@ class TembaTestMixin:
 
         # create different user types
         self.non_org_user = self.create_user("NonOrg")
-        self.user = self.create_user("User", ("Viewers",))
-        self.editor = self.create_user("Editor")
         self.admin = self.create_user("Administrator")
+        self.editor = self.create_user("Editor")
+        self.user = self.create_user("User", ("Viewers",))
+        self.agent = self.create_user("Agent")
         self.surveyor = self.create_user("Surveyor")
         self.customer_support = self.create_user("support", ("Customer Support",))
 
@@ -71,6 +72,9 @@ class TembaTestMixin:
 
         self.admin.set_org(self.org)
         self.org.administrators.add(self.admin)
+
+        self.agent.set_org(self.org)
+        self.org.agents.add(self.agent)
 
         self.surveyor.set_org(self.org)
         self.org.surveyors.add(self.surveyor)
@@ -149,6 +153,14 @@ class TembaTestMixin:
         If a test has written files to storage, it should remove them by calling this
         """
         shutil.rmtree("%s/%s" % (settings.MEDIA_ROOT, settings.STORAGE_ROOT_DIR), ignore_errors=True)
+
+    def login(self, user, update_last_auth_on: bool = True):
+        self.assertTrue(
+            self.client.login(username=user.username, password=user.username),
+            "Couldn't login as %(user)s:%(user)s" % dict(user=user.username),
+        )
+        if update_last_auth_on:
+            user.record_auth()
 
     def import_file(self, filename, site="http://rapidpro.io", substitutions=None):
         data = self.get_import_json(filename, substitutions=substitutions)
@@ -265,6 +277,7 @@ class TembaTestMixin:
         channel=None,
         msg_type=INBOX,
         attachments=(),
+        quick_replies=(),
         status=SENT,
         created_on=None,
         sent_on=None,
@@ -274,6 +287,10 @@ class TembaTestMixin:
     ):
         if status == SENT and not sent_on:
             sent_on = timezone.now()
+
+        metadata = {}
+        if quick_replies:
+            metadata["quick_replies"] = quick_replies
 
         return self._create_msg(
             contact,
@@ -288,6 +305,7 @@ class TembaTestMixin:
             high_priority=high_priority,
             response_to=response_to,
             surveyor=surveyor,
+            metadata=metadata,
         )
 
     def _create_msg(
@@ -307,6 +325,7 @@ class TembaTestMixin:
         response_to=None,
         surveyor=False,
         broadcast=None,
+        metadata=None,
     ):
         assert not (surveyor and channel), "surveyor messages don't have channels"
         assert not channel or channel.org == contact.org, "channel belong to different org than contact"
@@ -346,6 +365,7 @@ class TembaTestMixin:
             created_on=created_on or timezone.now(),
             sent_on=sent_on,
             broadcast=broadcast,
+            metadata=metadata,
         )
 
     def create_broadcast(self, user, text, contacts=(), groups=(), response_to=None, msg_status=SENT):
@@ -565,6 +585,11 @@ class TembaTest(TembaTestMixin, SmartminTest):
 
     def setUp(self):
         self.setUpOrgs()
+
+        # OrgRole.group is a cached property so get that cached before test starts to avoid query count differences
+        # when a test is first to request it and when it's not.
+        for role in OrgRole:
+            role.group  # noqa
 
     def tearDown(self):
         clear_flow_users()

@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-import six
-
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import ChannelType
@@ -50,6 +48,4 @@ class MessangiType(ChannelType):
         ),
     )
 
-    def is_available_to(self, user):
-        org = user.get_org()
-        return org.timezone and six.text_type(org.timezone) in ["America/Jamaica"]
+    available_timezones = ["America/Jamaica"]

@@ -289,12 +289,12 @@ class AndroidTypeTest(TembaTest):
         self.assertEqual(Channel.objects.filter(org=self.org, is_active=True).count(), 2)
 
         # normalize a URN with a fully qualified number
-        number, valid = URN.normalize_number("+12061112222", None)
-        self.assertTrue(valid)
+        normalized = URN.normalize_number("+12061112222", "")
+        self.assertEqual("+12061112222", normalized)
 
         # not international format
-        number, valid = URN.normalize_number("0788383383", None)
-        self.assertFalse(valid)
+        normalized = URN.normalize_number("0788383383", "")
+        self.assertEqual("0788383383", normalized)
 
         # get our send channel without a URN, should just default to last
         default_channel = self.org.get_send_channel(URN.TEL_SCHEME)
@@ -350,5 +350,5 @@ class AndroidTypeTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(update_url)
         self.assertEqual(
-            ["name", "alert_email", "allow_international", "loc"], list(response.context["form"].fields.keys()),
+            ["name", "alert_email", "allow_international", "loc"], list(response.context["form"].fields.keys())
         )

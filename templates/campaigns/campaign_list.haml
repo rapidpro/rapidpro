@@ -29,7 +29,7 @@
               -if org_perms.flows.flow_create
                 .w-64.mr-5
                   %temba-modax{ header:"Create Campaign", endpoint:"/campaign/create/" }
-                    .button-primary
+                    .button-primary.block
                       -trans "Create Campaign"
               
               .lp-nav.upper
@@ -77,8 +77,7 @@
                       {{obj.name}}
 
                     %td.whitespace-no-wrap
-                      %span.linked{onclick:'goto(event)', href:"{% url 'contacts.contact_filter' obj.group.uuid%}"}
-                        {{ obj.group.name }}
+                      -include "includes/recipients_group.haml" with group=obj.group
 
                     %td.whitespace-no-wrap
                       {{ obj.get_events|length }} event{{ obj.get_events|length|pluralize }}

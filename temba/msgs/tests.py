@@ -308,7 +308,7 @@ class MsgTest(TembaTest):
 
         (msg1,) = tuple(Msg.objects.filter(broadcast=broadcast1))
 
-        with self.assertNumQueries(44):
+        with self.assertNumQueries(39):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
         self.assertEqual(1, response.context_data["folders"][3]["count"])  # Outbox
@@ -332,7 +332,7 @@ class MsgTest(TembaTest):
         broadcast4.schedule = Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_DAILY)
         broadcast4.save(update_fields=["schedule"])
 
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(37):
             response = self.client.get(reverse("msgs.msg_outbox"))
 
         self.assertEqual(5, response.context_data["folders"][3]["count"])  # Outbox
@@ -382,8 +382,9 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit inbox page as a manager of the organization
-        with self.assertNumQueries(61):
-            response = self.fetch_protected(inbox_url + "?refresh=10000", self.admin)
+        self.login(self.admin)
+        with self.assertNumQueries(36):
+            response = self.client.get(inbox_url + "?refresh=10000")
 
         # make sure that we embed refresh script if View.refresh is set
         self.assertContains(response, "function refresh")
@@ -466,8 +467,9 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit archived page as a manager of the organization
-        with self.assertNumQueries(53):
-            response = self.fetch_protected(archive_url, self.admin)
+        self.login(self.admin)
+        with self.assertNumQueries(29):
+            response = self.client.get(archive_url)
 
         self.assertEqual(response.context["object_list"].count(), 1)
         self.assertEqual(response.context["actions"], ("restore", "label", "delete"))
@@ -548,7 +550,7 @@ class MsgTest(TembaTest):
         # org viewer can
         self.login(self.admin)
 
-        with self.assertNumQueries(41):
+        with self.assertNumQueries(36):
             response = self.client.get(url)
 
         self.assertEqual(set(response.context["object_list"]), {msg3, msg2, msg1})
@@ -613,8 +615,9 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
 
         # visit failed page as an administrator
-        with self.assertNumQueries(64):
-            response = self.fetch_protected(failed_url, self.admin)
+        self.login(self.admin)
+        with self.assertNumQueries(39):
+            response = self.client.get(failed_url)
 
         self.assertEqual(response.context["object_list"].count(), 3)
         self.assertEqual(response.context["actions"], ("resend",))
@@ -754,7 +757,7 @@ class MsgTest(TembaTest):
             return load_workbook(filename=filename)
 
         # export all visible messages (i.e. not msg3) using export_all param
-        with self.assertNumQueries(31):
+        with self.assertNumQueries(29):
             with patch("temba.archives.models.Archive.s3_client", return_value=mock_s3):
                 workbook = request_export("?l=I", {"export_all": 1})
 
@@ -1214,7 +1217,7 @@ class MsgTest(TembaTest):
                 # make sure that we trigger logger
                 log_info_threshold.return_value = 5
 
-                with self.assertNumQueries(30):
+                with self.assertNumQueries(29):
                     self.assertExcelSheet(
                         request_export("?l=I", {"export_all": 1}),
                         [
@@ -1663,6 +1666,25 @@ class MsgTest(TembaTest):
         self.assertEqual(302, response.status_code)
         self.assertEqual("/msg/inbox/", response.url)
 
+    def test_big_ids(self):
+        # create an incoming message with big id
+        msg = Msg.objects.create(
+            id=3_000_000_000,
+            org=self.org,
+            direction="I",
+            contact=self.joe,
+            contact_urn=self.joe.urns.first(),
+            text="Hi there",
+            channel=self.channel,
+            status="H",
+            msg_type="I",
+            visibility="V",
+            created_on=timezone.now(),
+        )
+        ChannelLog.objects.create(id=3_000_000_000, channel=msg.channel, msg=msg, is_error=True, description="Boom")
+        spam = Label.get_or_create(self.org, self.admin, "Spam")
+        msg.labels.add(spam)
+
 
 class MsgCRUDLTest(TembaTest):
     def setUp(self):
@@ -1846,59 +1868,6 @@ class BroadcastTest(TembaTest):
             ChannelCount.get_day_count(self.twitter, ChannelCount.OUTGOING_MSG_TYPE, today),
             tc["twitter_outgoing_count"],
         )
-
-    def test_get_recipient_counts(self):
-        contact = self.create_contact("", phone="250788382382")
-
-        broadcast1 = self.create_broadcast(
-            self.user, "Very old broadcast", groups=[self.joe_and_frank], contacts=[self.kevin, self.lucy]
-        )
-        self.assertEqual({"recipients": 4, "groups": 0, "contacts": 0, "urns": 0}, broadcast1.get_recipient_counts())
-
-        broadcast2 = Broadcast.create(
-            self.org,
-            self.user,
-            {"eng": "Hello everyone", "spa": "Hola a todos", "fra": "Salut à tous"},
-            base_language="eng",
-            groups=[self.joe_and_frank],
-            contacts=[],
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
-        )
-        self.assertEqual({"recipients": 2, "groups": 0, "contacts": 0, "urns": 0}, broadcast2.get_recipient_counts())
-
-        broadcast3 = Broadcast.create(
-            self.org,
-            self.user,
-            {"eng": "Hello everyone", "spa": "Hola a todos", "fra": "Salut à tous"},
-            base_language="eng",
-            groups=[],
-            contacts=[self.kevin, self.lucy, self.joe],
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
-        )
-        self.assertEqual({"recipients": 3, "groups": 0, "contacts": 0, "urns": 0}, broadcast3.get_recipient_counts())
-
-        broadcast4 = Broadcast.create(
-            self.org,
-            self.user,
-            {"eng": "Hello everyone", "spa": "Hola a todos", "fra": "Salut à tous"},
-            base_language="eng",
-            groups=[],
-            contacts=[],
-            urns=[contact.urns.get()],
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
-        )
-        self.assertEqual({"recipients": 1, "groups": 0, "contacts": 0, "urns": 0}, broadcast4.get_recipient_counts())
-
-        broadcast5 = Broadcast.create(
-            self.org,
-            self.user,
-            {"eng": "Hello everyone", "spa": "Hola a todos", "fra": "Salut à tous"},
-            base_language="eng",
-            groups=[self.joe_and_frank],
-            contacts=[self.kevin, self.lucy],
-            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
-        )
-        self.assertEqual({"recipients": 0, "groups": 1, "contacts": 2, "urns": 0}, broadcast5.get_recipient_counts())
 
     def test_archive_release(self):
         self.run_msg_release_test(
@@ -2524,7 +2493,12 @@ class LabelTest(TembaTest):
         label3.toggle_label([msg3], add=True)
 
         ExportMessagesTask.create(self.org, self.admin, label=label1)
+        with self.assertRaises(ValueError):
+            folder1.release(self.admin)
 
+        # can only release a folder once all its children are released
+        label1.release(self.admin)
+        label2.release(self.admin)
         folder1.release(self.admin)
         folder1.refresh_from_db()
 

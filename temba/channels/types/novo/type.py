@@ -39,6 +39,4 @@ class NovoType(ChannelType):
         ),
     )
 
-    def is_available_to(self, user):
-        org = user.get_org()
-        return org.timezone and str(org.timezone) in ["America/Port_of_Spain"]
+    available_timezones = ["America/Port_of_Spain"]

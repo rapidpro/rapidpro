@@ -106,6 +106,46 @@ class LocationTest(TembaTest):
             response_json,
         )
 
+        # update our alias for east
+        with self.assertNumQueries(15):
+            response = self.client.post(
+                reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]),
+                json.dumps(dict(osm_id=self.state2.osm_id, aliases="kigs\n")),
+                content_type="application/json",
+            )
+
+        self.assertEqual(200, response.status_code)
+
+        # fetch our aliases
+        with self.assertNumQueries(20):
+            response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
+        response_json = response.json()
+
+        # now have kigs as an alias
+        children = response_json[0]["children"]
+        self.assertEqual("Eastern Province", children[0]["name"])
+        self.assertEqual("kigs", children[0]["aliases"])
+
+        # update our alias for Nyarugenge
+        with self.assertNumQueries(15):
+            response = self.client.post(
+                reverse("locations.adminboundary_boundaries", args=[self.state1.osm_id]),
+                json.dumps(dict(osm_id=self.district3.osm_id, aliases="kigs\n")),
+                content_type="application/json",
+            )
+
+        self.assertEqual(200, response.status_code)
+
+        # fetch our aliases
+        with self.assertNumQueries(27):
+            response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.state1.osm_id]))
+        response_json = response.json()
+
+        # now have kigs as an alias
+        children = response_json[1]["children"]
+        self.assertEqual("Nyarugenge", children[0]["name"])
+        self.assertEqual("kigs", children[0]["aliases"])
+
         # update our alias for kigali
         with self.assertNumQueries(17):
             response = self.client.post(
@@ -116,8 +156,18 @@ class LocationTest(TembaTest):
 
         self.assertEqual(200, response.status_code)
 
+        # fetch our aliases
+        with self.assertNumQueries(27):
+            response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.state1.osm_id]))
+        response_json = response.json()
+
+        # now have kigs as an alias
+        children = response_json[1]["children"]
+        self.assertEqual("Nyarugenge", children[0]["name"])
+        self.assertEqual("kigs", children[0]["aliases"])
+
         # fetch our aliases again
-        with self.assertNumQueries(21):
+        with self.assertNumQueries(20):
             response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
         response_json = response.json()
 
@@ -125,6 +175,19 @@ class LocationTest(TembaTest):
         children = response_json[0]["children"]
         self.assertEqual("Kigali City", children[1]["name"])
         self.assertEqual("kig\nkigs", children[1]["aliases"])
+        self.assertEqual(
+            "", children[0]["aliases"]
+        )  # kigs alias should have been moved from the eastern province boundary
+
+        # fetch our aliases
+        with self.assertNumQueries(27):
+            response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.state1.osm_id]))
+        response_json = response.json()
+
+        # now have kigs still as an alias on Nyarugenge
+        children = response_json[1]["children"]
+        self.assertEqual("Nyarugenge", children[0]["name"])
+        self.assertEqual("kigs", children[0]["aliases"])
 
         # query for our alias
         search_result = self.client.get(
@@ -147,7 +210,7 @@ class LocationTest(TembaTest):
         )
 
         # fetch our aliases again
-        with self.assertNumQueries(21):
+        with self.assertNumQueries(20):
             response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
         response_json = response.json()
 
@@ -187,7 +250,7 @@ class LocationTest(TembaTest):
         )
 
         # fetch our aliases again
-        with self.assertNumQueries(21):
+        with self.assertNumQueries(20):
             response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
         response_json = response.json()
 

@@ -32,6 +32,3 @@ class RocketChatType(ChannelType):
     }
     claim_view = ClaimView
     schemes = [URN.ROCKETCHAT_SCHEME]
-
-    def is_available_to(self, user):
-        return user.is_beta()
