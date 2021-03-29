@@ -2220,11 +2220,11 @@ class ExportFlowResultsTask(BaseExportTask):
             response_queries = extra_queries.get("response", {})
             if response_queries.get("after"):
                 after = self.org.parse_datetime(response_queries.get("after"))
-                runs = runs.filter(created_on__gte=after)
+                runs = runs.filter(modified_on__gte=after)
 
             if response_queries.get("before"):
                 before = self.org.parse_datetime(response_queries.get("before"))
-                runs = runs.filter(created_on__lte=before)
+                runs = runs.filter(modified_on__lte=before)
 
             if response_queries.get("query"):
                 from .search.parser import FlowRunSearch

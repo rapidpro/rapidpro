@@ -2186,11 +2186,11 @@ class FlowCRUDL(SmartCRUDL):
 
             if after:
                 after = str_to_datetime(after, tz=flow.org.timezone, dayfirst=flow.org.date_format == "D")
-                runs = runs.filter(created_on__gte=after)
+                runs = runs.filter(modified_on__gte=after)
 
             if before:
                 before = str_to_datetime(before, tz=flow.org.timezone, dayfirst=flow.org.date_format == "D")
-                runs = runs.filter(created_on__lte=before)
+                runs = runs.filter(modified_on__lte=before)
 
             if search_query:
                 runs, query_error = FlowCRUDL.RunTable.search_query(query=search_query, base_queryset=runs)
