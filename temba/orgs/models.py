@@ -41,7 +41,7 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.utils import chunk_list, json, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
-from temba.utils.dates import datetime_to_str, str_to_datetime
+from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, JSONField, SquashableModel
 from temba.utils.s3 import public_file_storage
@@ -1002,11 +1002,6 @@ class Org(SmartModel):
         formats = self.get_datetime_formats()
         format = formats[1] if show_time else formats[0]
         return datetime_to_str(d, format, self.timezone)
-
-    def parse_datetime(self, s):
-        assert isinstance(s, str)
-
-        return str_to_datetime(s, self.timezone, self.date_format == Org.DATE_FORMAT_DAY_FIRST)
 
     def parse_number(self, s):
         assert isinstance(s, str)
