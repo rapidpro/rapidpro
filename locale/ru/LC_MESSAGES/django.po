@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-19 14:08+0000\n"
+"POT-Creation-Date: 2021-03-24 22:35+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2583,6 +2583,24 @@ msgstr "Имя пользователя учетной записи, предо�
 msgid "The account password provided by Zenvia"
 msgstr "Пароль учетной записи, предоставленный Zenvia"
 
+#, fuzzy, python-format
+#| msgid "Unable to register callbacks: %s"
+msgid "Unable to register webhook subscriptions: %(resp)s"
+msgstr "Невозможно зарегистрировать обратные вызовы: %s"
+
+#, fuzzy, python-format
+#| msgid "Unable to register callbacks: %s"
+msgid "Unable to remove webhook subscriptions: %(resp)s"
+msgstr "Невозможно зарегистрировать обратные вызовы: %s"
+
+msgid "API Token"
+msgstr "Токен API"
+
+#, fuzzy
+#| msgid "The API key for your integration as provided by Clickatell"
+msgid "The API token for your integration as provided by Zenvia"
+msgstr "Ключ API для Вашей интеграции, предоставленный Clickatell"
+
 msgid "United Kingdom"
 msgstr "Великобритания"
 
@@ -3087,6 +3105,11 @@ msgid "Send Message"
 msgstr "Отправить Сообщение"
 
 #, fuzzy
+#| msgid "Start Flow"
+msgid "Start In Flow"
+msgstr "Начать поток"
+
+#, fuzzy
 #| msgid "Update Contact"
 msgid "Edit Contact"
 msgstr "Обновить Контакт"
@@ -3144,6 +3167,9 @@ msgstr "При обновлении Вашего контакта произош
 #| msgid "Select a flow to start"
 msgid "Select a field to update"
 msgstr "Выберите поток для запуска"
+
+msgid "Start"
+msgstr "Начать"
 
 msgid "Can only contain letters, numbers and hypens."
 msgstr "Может содержать только буквы, числа и дефисы."
@@ -4492,18 +4518,8 @@ msgstr "Помощь"
 msgid "Sign Out"
 msgstr "Зарегистрироваться"
 
-msgid "Login"
-msgstr "Логин"
-
-msgid "API Token"
-msgstr "Токен API"
-
 msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
 msgstr "Ключ и секрет API Вашей учетной записи DT On являются недействительными. Пожалуйста, проверьте их и попробуйте снова."
-
-#, python-format
-msgid "Connecting to your DT One account failed with error text: %s"
-msgstr "Подключение к Вашей учетной записи DT On не удалось. Текст ошибки: %s"
 
 msgid "Account Token"
 msgstr "Токен Учетной записи"
@@ -7280,9 +7296,6 @@ msgstr "Контакт"
 msgid "Upcoming"
 msgstr "Ожидается"
 
-msgid "Start"
-msgstr "Начать"
-
 msgid "repeats daily"
 msgstr "повторяется ежедневно"
 
@@ -7674,6 +7687,9 @@ msgstr "День недели"
 
 msgid "Time of Day"
 msgstr "Время суток"
+
+msgid "Interrupted, Expired and Failed"
+msgstr ""
 
 #, fuzzy, python-format
 #| msgid ""
@@ -8863,7 +8879,9 @@ msgstr "Учетная запись Chatbase"
 msgid "Connected to Chatbase Account"
 msgstr "Подключено к учетной записи Chatbase"
 
-msgid "Connect your Chatbase account"
+#, fuzzy
+#| msgid "Connect your Chatbase account"
+msgid "Connect your Chatbase account."
 msgstr "Подключить Вашу учетную запись Chatbase"
 
 #, fuzzy
@@ -8962,46 +8980,44 @@ msgstr ""
 msgid "DT One Account"
 msgstr "Учетная запись DT One"
 
-#, fuzzy, python-format
-#| msgid ""
-#| "\n"
-#| "      Connected to DT One account <b>%(login)s</b>.\n"
-#| "    "
-msgid "Connected to DT One account <b>%(login)s</b>."
-msgstr ""
-"\n"
-"      Подключено к учетной записи DT One <b>%(login)s</b>.\n"
-"    "
+#, fuzzy
+#| msgid "Connected to Chatbase Account"
+msgid "Connected to your <b>DT One</b> account."
+msgstr "Подключено к учетной записи Chatbase"
 
 msgid "Transfer Log"
 msgstr "Журнал передачи"
 
-msgid "No DT One account connected."
-msgstr "Подключенных учетных записей DT One нет."
-
 #, fuzzy
+#| msgid "Connect your Chatbase account"
+msgid "Connect your DT One account."
+msgstr "Подключить Вашу учетную запись Chatbase"
+
+#, fuzzy, python-format
 #| msgid ""
 #| "\n"
 #| "      Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected\n"
 #| "      you can transfer airtime credit within your Flows. To signup for an account, visit\n"
 #| "    "
-msgid "Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your Flows. To signup for an account, visit"
+msgid "Adding a DT One account will allow you to send airtime credit over 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your flows. To signup for an account, visit %(link)s."
 msgstr ""
 "\n"
 "      Добавление учетной записи DT One позволит Вам отправлять кредиты на эфирное время более 400 операторов в более чем 100 странах. После подключения\n"
 "      Вы сможете переводить кредит на эфирное время в рамках Ваших Потоков. Для регистрации учетной записи, посетите\n"
 "    "
 
-msgid "You can find your API Token by clicking on "
-msgstr "Вы можете узнать свой Токен API, нажав на"
+#, python-format
+msgid "You can find your credentials on the Developer tab on your %(link)s page."
+msgstr ""
 
-msgid " on the DT One site."
-msgstr "на сайте DT One."
-
-msgid "Your account is connected to a DT One account"
+#, fuzzy
+#| msgid "Your account is connected to a DT One account"
+msgid "Your account is connected to a DT One account."
 msgstr "Ваша учетная запись подключена к учетной записи DT One"
 
-msgid "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
+#, fuzzy, python-format
+#| msgid "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
+msgid "If you no longer want it connected, you can <a href=\"%(disconnect_url)s\">disconnect</a> it. Doing so will cause the payment actions in your flows to no longer be processed."
 msgstr "Вашу учетную запись DT One. Это приведет к тому, что платежные действия в Ваших потоках больше не будут обрабатываться."
 
 msgid "Disconnect DT One"
@@ -9188,6 +9204,9 @@ msgstr ""
 #| msgid "Your organization is configured to use a single language."
 msgid "Your workspace is configured to use a single language."
 msgstr "Ваша организация настроена на использование одного языка."
+
+msgid "Login"
+msgstr "Логин"
 
 msgid "Remove"
 msgstr "Удалить"
@@ -10363,6 +10382,35 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "No DT One account connected."
+#~ msgstr "Подключенных учетных записей DT One нет."
+
+#, python-format
+#~ msgid "Connecting to your DT One account failed with error text: %s"
+#~ msgstr "Подключение к Вашей учетной записи DT On не удалось. Текст ошибки: %s"
+
+#, fuzzy, python-format
+#~| msgid ""
+#~| "\n"
+#~| "      Connected to DT One account <b>%(login)s</b>.\n"
+#~| "    "
+#~ msgid "Connected to DT One account <b>%(login)s</b>."
+#~ msgstr ""
+#~ "\n"
+#~ "      Подключено к учетной записи DT One <b>%(login)s</b>.\n"
+#~ "    "
+
+#~ msgid "You can find your API Token by clicking on "
+#~ msgstr "Вы можете узнать свой Токен API, нажав на"
+
+#~ msgid " on the DT One site."
+#~ msgstr "на сайте DT One."
+
+#, fuzzy, python-format
+#~| msgid "Interrupt contacts currently active in flows"
+#~ msgid "Your contact has been started in %(flow)s."
+#~ msgstr "Прервать контакты, в настоящее время активные в потоках"
 
 #, fuzzy, python-format
 #~| msgid ""
@@ -13185,9 +13233,6 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "Restart contacts who have already entered this flow"
 #~ msgstr "Перезапустить контакты, которые уже вошли в этот поток"
-
-#~ msgid "Interrupt contacts currently active in flows"
-#~ msgstr "Прервать контакты, в настоящее время активные в потоках"
 
 #~ msgid "Unlabel"
 #~ msgstr "Снять метку"

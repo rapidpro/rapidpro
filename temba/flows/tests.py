@@ -2814,8 +2814,12 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             # and some charts
             response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
 
-            # we have two active runs
-            self.assertContains(response, "name: 'Active', y: 2")
+            # we have two active runs, one failed run
+            self.assertEqual(response.context["failed"], 1)
+            self.assertEqual(response.context["active"], 2)
+            self.assertEqual(response.context["completed"], 0)
+            self.assertEqual(response.context["expired"], 0)
+            self.assertEqual(response.context["interrupted"], 0)
             self.assertContains(response, "3 Responses")
 
             # now complete the flow for Pete
@@ -2847,10 +2851,14 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             self.assertEqual(1, len(response.context["runs"]))
             self.assertContains(response, "Jimmy")
 
-            # now only one active, one completed, and 5 total responses
+            # now only one active, one completed, one failed and 5 total responses
             response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
-            self.assertContains(response, "name: 'Active', y: 1")
-            self.assertContains(response, "name: 'Completed', y: 1")
+
+            self.assertEqual(response.context["failed"], 1)
+            self.assertEqual(response.context["active"], 1)
+            self.assertEqual(response.context["completed"], 1)
+            self.assertEqual(response.context["expired"], 0)
+            self.assertEqual(response.context["interrupted"], 0)
             self.assertContains(response, "5 Responses")
 
             # they all happened on the same day
@@ -5595,19 +5603,26 @@ class FlowStartCRUDLTest(TembaTest, CRUDLTestMixin):
 class AssetServerTest(TembaTest):
     def test_environment(self):
         self.login(self.admin)
-        response = self.client.get("/flow/assets/%d/1234/environment/" % self.org.id)
-        self.assertEqual(
-            response.json(),
-            {
-                "date_format": "DD-MM-YYYY",
-                "time_format": "tt:mm",
-                "timezone": "Africa/Kigali",
-                "default_language": None,
-                "allowed_languages": [],
-                "default_country": "RW",
-                "redaction_policy": "none",
-            },
-        )
+
+        date_formats = {"D": "DD-MM-YYYY", "M": "MM-DD-YYYY", "Y": "YYYY-MM-DD"}
+
+        for org_date_format, date_format in date_formats.items():
+            self.org.date_format = org_date_format
+            self.org.save()
+
+            response = self.client.get("/flow/assets/%d/1234/environment/" % self.org.id)
+            self.assertEqual(
+                response.json(),
+                {
+                    "date_format": date_format,
+                    "time_format": "tt:mm",
+                    "timezone": "Africa/Kigali",
+                    "default_language": None,
+                    "allowed_languages": [],
+                    "default_country": "RW",
+                    "redaction_policy": "none",
+                },
+            )
 
     def test_languages(self):
         self.login(self.admin)

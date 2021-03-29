@@ -11,46 +11,39 @@
   -if object.is_connected_to_dtone
     .flex.items-center
       .flex-grow.mr-4
-        -blocktrans trimmed with login=dtone_account_login
-          Connected to DT One account <b>{{ login }}</b>.
+        -trans "Connected to your <b>DT One</b> account."
       .buttons
         .button-light(onclick="goto(event)" href='{% url "airtime.airtimetransfer_list" %}')
           -trans "Transfer Log"
   -else
-    -trans "No DT One account connected."
+    -trans "Connect your DT One account."
 
 -block pre-form
   .mb-4
     -if not object.is_connected_to_dtone
-      -blocktrans trimmed
-        Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected
-        you can transfer airtime credit within your Flows. To signup for an account, visit
-      <a target='_new' href='https://www.dtone.com/'>DT One</a>.
+      -blocktrans trimmed with link='<a target="_new" href="https://www.dtone.com/">DT One</a>'
+        Adding a DT One account will allow you to send airtime credit over 400+ operators in over 100 countries.
+        Once connected you can transfer airtime credit within your flows. To signup for an account, visit {{ link }}.
 
 -block fields
   -if not object.is_connected_to_dtone
-    -render_field 'account_login'
+    -render_field 'api_key'
+    -render_field 'api_secret'
 
-    -render_field 'airtime_api_token'
     .my-4
-      -trans "You can find your API Token by clicking on "
-      %a{href:'https://tshop-app.dtone.com', target:'_new'}><
-        Developer
-      -trans " on the DT One site."
+      -blocktrans trimmed with link='<a target="_new" href="https://dtshop.dtone.com/account">account settings</a>'
+        You can find your credentials on the Developer tab on your {{ link }} page.
 
 -block form-buttons
 
 -block post-form
-  -if object.is_connected_to_dtone and request.META.HTTP_X_FORMAX
+  -if object.is_connected_to_dtone
     .mt-4
-      -trans "Your account is connected to a DT One account"
-      {{ dtone_account_login }}.
-
+      -trans "Your account is connected to a DT One account."
     .mt-4
-      -trans "If you no longer want it connected, you can"
-      %a{href:'javascript:confirmDTOneDisconnect();'}
-        -trans "disconnect"
-      -trans "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
+      -blocktrans trimmed with disconnect_url='javascript:confirmDTOneDisconnect();'
+        If you no longer want it connected, you can <a href="{{ disconnect_url }}">disconnect</a> it.
+        Doing so will cause the payment actions in your flows to no longer be processed.
 
     .disconnect-dtone.hide
       .title
@@ -59,9 +52,8 @@
         -blocktrans trimmed
           This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?
     
-    #disconnect-dtone-form{href:'{% url "orgs.org_dtone_account" %}?disconnect=true'}
-  
-  -else
+    #disconnect-dtone-form(href='{% url "orgs.org_dtone_account" %}?disconnect=true')
+
 
 -block extra-script
   {{block.super}}

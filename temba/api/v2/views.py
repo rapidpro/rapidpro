@@ -77,6 +77,7 @@ from .serializers import (
     TemplateReadSerializer,
     TicketerReadSerializer,
     WebHookEventReadSerializer,
+    WorkspaceReadSerializer,
 )
 
 
@@ -542,7 +543,6 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
       * **urns** - the URNs of contacts to send to (array of up to 100 strings, optional)
       * **contacts** - the UUIDs of contacts to send to (array of up to 100 strings, optional)
       * **groups** - the UUIDs of contact groups to send to (array of up to 100 strings, optional)
-      * **channel** - the UUID of the channel to use. Contacts which can't be reached with this channel are ignored (string, optional)
 
     Example:
 
@@ -628,7 +628,6 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                 {"name": "urns", "required": False, "help": "The URNs of contacts you want to send to"},
                 {"name": "contacts", "required": False, "help": "The UUIDs of contacts you want to send to"},
                 {"name": "groups", "required": False, "help": "The UUIDs of contact groups you want to send to"},
-                {"name": "channel", "required": False, "help": "The UUID of the channel you want to use for sending"},
             ],
         }
 
@@ -3153,6 +3152,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **contacts** - the list of contacts that were started in the flow (objects)
      * **groups** - the list of groups that were started in the flow (objects)
      * **restart_participants** - whether the contacts were restarted in this flow (boolean)
+     * **exclude_active** - whether the active contacts in other flows were excluded in this flow start (boolean)
      * **status** - the status of this flow start
      * **params** - the dictionary of extra parameters passed to the flow start (object)
      * **created_on** - the datetime when this flow start was created (datetime)
@@ -3178,6 +3178,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
                          {"uuid": "f5901b62-ba76-4003-9c62-fjjajdsi15553", "name": "Wanz"}
                     ],
                     "restart_participants": true,
+                    "exclude_active": false,
                     "status": "complete",
                     "params": {
                         "first_name": "Ryan",
@@ -3201,6 +3202,7 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
      * **contacts** - the UUIDs of the contacts you want to start in this flow (array of up to 100 strings, optional)
      * **urns** - the URNs you want to start in this flow (array of up to 100 strings, optional)
      * **restart_participants** - whether to restart participants already in this flow (optional, defaults to true)
+     * **exclude_active** - whether to exclude contacts currently in other flow (optional, defaults to false)
      * **params** - a dictionary of extra parameters to pass to the flow start (accessible via @trigger.params in your flow)
 
     Example:
@@ -3500,20 +3502,8 @@ class WorkspaceEndpoint(BaseAPIView):
 
     def get(self, request, *args, **kwargs):
         org = request.user.get_org()
-
-        data = {
-            "uuid": str(org.uuid),
-            "name": org.name,
-            "country": org.default_country_code,
-            "languages": [l.iso_code for l in org.languages.order_by("iso_code")],
-            "primary_language": org.primary_language.iso_code if org.primary_language else None,
-            "timezone": str(org.timezone),
-            "date_style": ("day_first" if org.get_dayfirst() else "month_first"),
-            "credits": {"used": org.get_credits_used(), "remaining": org.get_credits_remaining()},
-            "anon": org.is_anon,
-        }
-
-        return Response(data, status=status.HTTP_200_OK)
+        serializer = WorkspaceReadSerializer(org)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @classmethod
     def get_read_explorer(cls):

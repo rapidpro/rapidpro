@@ -41,7 +41,7 @@ from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.utils import chunk_list, json, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.currencies import currency_for_country
-from temba.utils.dates import datetime_to_str, str_to_datetime
+from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, JSONField, SquashableModel
 from temba.utils.s3 import public_file_storage
@@ -139,7 +139,24 @@ class Org(SmartModel):
 
     DATE_FORMAT_DAY_FIRST = "D"
     DATE_FORMAT_MONTH_FIRST = "M"
-    DATE_FORMATS = ((DATE_FORMAT_DAY_FIRST, "DD-MM-YYYY"), (DATE_FORMAT_MONTH_FIRST, "MM-DD-YYYY"))
+    DATE_FORMAT_YEAR_FIRST = "Y"
+    DATE_FORMAT_CHOICES = (
+        (DATE_FORMAT_DAY_FIRST, "DD-MM-YYYY"),
+        (DATE_FORMAT_MONTH_FIRST, "MM-DD-YYYY"),
+        (DATE_FORMAT_YEAR_FIRST, "YYYY-MM-DD"),
+    )
+
+    DATE_FORMATS_PYTHON = {
+        DATE_FORMAT_DAY_FIRST: "%d-%m-%Y",
+        DATE_FORMAT_MONTH_FIRST: "%m-%d-%Y",
+        DATE_FORMAT_YEAR_FIRST: "%Y-%m-%d",
+    }
+
+    DATE_FORMATS_ENGINE = {
+        DATE_FORMAT_DAY_FIRST: "DD-MM-YYYY",
+        DATE_FORMAT_MONTH_FIRST: "MM-DD-YYYY",
+        DATE_FORMAT_YEAR_FIRST: "YYYY-MM-DD",
+    }
 
     CONFIG_VERIFIED = "verified"
     CONFIG_SMTP_SERVER = "smtp_server"
@@ -147,9 +164,8 @@ class Org(SmartModel):
     CONFIG_TWILIO_TOKEN = "ACCOUNT_TOKEN"
     CONFIG_NEXMO_KEY = "NEXMO_KEY"
     CONFIG_NEXMO_SECRET = "NEXMO_SECRET"
-    CONFIG_DTONE_LOGIN = "TRANSFERTO_ACCOUNT_LOGIN"
-    CONFIG_DTONE_API_TOKEN = "TRANSFERTO_AIRTIME_API_TOKEN"
-    CONFIG_DTONE_CURRENCY = "TRANSFERTO_ACCOUNT_CURRENCY"
+    CONFIG_DTONE_KEY = "dtone_key"
+    CONFIG_DTONE_SECRET = "dtone_secret"
     CONFIG_CHATBASE_AGENT_NAME = "CHATBASE_AGENT_NAME"
     CONFIG_CHATBASE_API_KEY = "CHATBASE_API_KEY"
     CONFIG_CHATBASE_VERSION = "CHATBASE_VERSION"
@@ -217,7 +233,7 @@ class Org(SmartModel):
     date_format = models.CharField(
         verbose_name=_("Date Format"),
         max_length=1,
-        choices=DATE_FORMATS,
+        choices=DATE_FORMAT_CHOICES,
         default=DATE_FORMAT_DAY_FIRST,
         help_text=_("Whether day comes first or month comes first in dates"),
     )
@@ -791,10 +807,8 @@ class Org(SmartModel):
         self.modified_by = user
         self.save(update_fields=("config", "modified_by", "modified_on"))
 
-    def connect_dtone(self, account_login, airtime_api_token, user):
-        self.config.update(
-            {Org.CONFIG_DTONE_LOGIN: account_login.strip(), Org.CONFIG_DTONE_API_TOKEN: airtime_api_token.strip()}
-        )
+    def connect_dtone(self, api_key: str, api_secret: str, user):
+        self.config.update({Org.CONFIG_DTONE_KEY: api_key, Org.CONFIG_DTONE_SECRET: api_secret})
         self.modified_by = user
         self.save(update_fields=("config", "modified_by", "modified_on"))
 
@@ -819,10 +833,11 @@ class Org(SmartModel):
             return self.config.get(Org.CONFIG_TWILIO_SID) and self.config.get(Org.CONFIG_TWILIO_TOKEN)
         return False
 
-    def is_connected_to_dtone(self):
-        if self.config:
-            return self.config.get(Org.CONFIG_DTONE_LOGIN) and self.config.get(Org.CONFIG_DTONE_API_TOKEN)
-        return False
+    def is_connected_to_dtone(self) -> bool:
+        if not self.config:
+            return False
+
+        return bool(self.config.get(Org.CONFIG_DTONE_KEY) and self.config.get(Org.CONFIG_DTONE_SECRET))
 
     def remove_nexmo_account(self, user):
         if self.config:
@@ -848,9 +863,8 @@ class Org(SmartModel):
 
     def remove_dtone_account(self, user):
         if self.config:
-            self.config.pop(Org.CONFIG_DTONE_LOGIN, None)
-            self.config.pop(Org.CONFIG_DTONE_API_TOKEN, None)
-            self.config.pop(Org.CONFIG_DTONE_CURRENCY, None)
+            self.config.pop(Org.CONFIG_DTONE_KEY, None)
+            self.config.pop(Org.CONFIG_DTONE_SECRET, None)
             self.modified_by = user
             self.save(update_fields=("config", "modified_by", "modified_on"))
 
@@ -861,14 +875,6 @@ class Org(SmartModel):
             self.config.pop(Org.CONFIG_CHATBASE_VERSION, None)
             self.modified_by = user
             self.save(update_fields=("config", "modified_by", "modified_on"))
-
-    def refresh_dtone_account_currency(self):
-        client = self.get_dtone_client()
-        response = client.check_wallet()
-        account_currency = response.get("currency", "")
-
-        self.config.update({Org.CONFIG_DTONE_CURRENCY: account_currency})
-        self.save(update_fields=("config", "modified_on"))
 
     def get_twilio_client(self):
         account_sid = self.config.get(Org.CONFIG_TWILIO_SID)
@@ -884,16 +890,6 @@ class Org(SmartModel):
         api_secret = self.config.get(Org.CONFIG_NEXMO_SECRET)
         if api_key and api_secret:
             return NexmoClient(api_key, api_secret)
-        return None
-
-    def get_dtone_client(self):
-        from temba.airtime.dtone import DTOneClient
-
-        login = self.config.get(Org.CONFIG_DTONE_LOGIN)
-        api_token = self.config.get(Org.CONFIG_DTONE_API_TOKEN)
-
-        if login and api_token:
-            return DTOneClient(login, api_token)
         return None
 
     def get_chatbase_credentials(self):
@@ -973,17 +969,9 @@ class Org(SmartModel):
         if hasattr(self, "_language_codes"):  # invalidate language cache if set
             delattr(self, "_language_codes")
 
-    def get_dayfirst(self):
-        return self.date_format == Org.DATE_FORMAT_DAY_FIRST
-
     def get_datetime_formats(self):
-        if self.date_format == Org.DATE_FORMAT_DAY_FIRST:
-            format_date = "%d-%m-%Y"
-        else:
-            format_date = "%m-%d-%Y"
-
+        format_date = Org.DATE_FORMATS_PYTHON.get(self.date_format)
         format_datetime = format_date + " %H:%M"
-
         return format_date, format_datetime
 
     def format_datetime(self, d, show_time=True):
@@ -993,11 +981,6 @@ class Org(SmartModel):
         formats = self.get_datetime_formats()
         format = formats[1] if show_time else formats[0]
         return datetime_to_str(d, format, self.timezone)
-
-    def parse_datetime(self, s):
-        assert isinstance(s, str)
-
-        return str_to_datetime(s, self.timezone, self.get_dayfirst())
 
     def parse_number(self, s):
         assert isinstance(s, str)
@@ -2026,11 +2009,14 @@ class Org(SmartModel):
         Org.objects.filter(id=self.id).update(primary_language=None)
         self.languages.all().delete()
 
+        # release our broadcasts
+        for bcast in self.broadcast_set.all():
+            bcast.release()
+
         # delete other related objects
         self.api_tokens.all().delete()
         self.invitations.all().delete()
         self.credit_alerts.all().delete()
-        self.broadcast_set.all().delete()
         self.schedules.all().delete()
         self.boundaryalias_set.all().delete()
 
@@ -2062,7 +2048,7 @@ class Org(SmartModel):
         """
 
         return {
-            "date_format": "DD-MM-YYYY" if self.date_format == Org.DATE_FORMAT_DAY_FIRST else "MM-DD-YYYY",
+            "date_format": Org.DATE_FORMATS_ENGINE.get(self.date_format),
             "time_format": "tt:mm",
             "timezone": str(self.timezone),
             "default_language": self.primary_language.iso_code if self.primary_language else None,

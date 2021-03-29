@@ -1654,7 +1654,7 @@ class FlowCRUDL(SmartCRUDL):
                 total_runs += count["count__sum"]
 
             # make sure we have a value for each one
-            for state in ("expired", "interrupted", "completed", "active"):
+            for state in ("expired", "interrupted", "completed", "active", "failed"):
                 if state not in context:
                     context[state] = 0
 
