@@ -22,6 +22,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba import mailroom
+from temba.airtime.dtone import DTOneClient
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
@@ -2569,27 +2570,6 @@ class OrgTest(TembaTest):
 
         self.assertTrue(self.org.has_airtime_transfers())
 
-    def test_dtone_model_methods(self):
-        org = self.org
-
-        org.refresh_from_db()
-        self.assertFalse(org.is_connected_to_dtone())
-        self.assertIsNone(org.get_dtone_client())
-
-        org.connect_dtone("login", "token", self.admin)
-        org.refresh_from_db()
-
-        self.assertTrue(org.is_connected_to_dtone())
-        self.assertIsNotNone(org.get_dtone_client())
-        self.assertEqual(org.modified_by, self.admin)
-
-        org.remove_dtone_account(self.admin)
-        org.refresh_from_db()
-
-        self.assertFalse(org.is_connected_to_dtone())
-        self.assertIsNone(org.get_dtone_client())
-        self.assertEqual(org.modified_by, self.admin)
-
     def test_prometheus(self):
         # visit as viewer, no prometheus section
         self.login(self.user)
@@ -2628,97 +2608,76 @@ class OrgTest(TembaTest):
         self.assertFalse(APIToken.objects.filter(org=self.org, role=prometheus_group, is_active=True))
         self.assertContains(response, "Enable Prometheus")
 
-    def test_dtone_account(self):
+    def test_dtone_connect(self):
+        org = self.org
+
+        org.refresh_from_db()
+        self.assertFalse(org.is_connected_to_dtone())
+
+        org.connect_dtone("key123", "sesame", self.admin)
+        org.refresh_from_db()
+
+        self.assertTrue(org.is_connected_to_dtone())
+        self.assertEqual(org.modified_by, self.admin)
+
+        org.remove_dtone_account(self.admin)
+        org.refresh_from_db()
+
+        self.assertFalse(org.is_connected_to_dtone())
+        self.assertEqual(org.modified_by, self.admin)
+
+    @patch("temba.airtime.dtone.DTOneClient.get_balances")
+    def test_dtone_account(self, mock_get_balances):
         self.login(self.admin)
 
-        # connect DT One
-        dtone_account_url = reverse("orgs.org_dtone_account")
-        org_home_url = reverse("orgs.org_home")
+        dtone_url = reverse("orgs.org_dtone_account")
+        home_url = reverse("orgs.org_home")
 
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, "Unexpected content")
-            response = self.client.post(
-                dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
-            )
+        response = self.client.get(home_url)
+        self.assertContains(response, "Connect your DT One account.")
 
-            self.assertContains(response, "Your DT One API key and secret seem invalid.")
-            self.assertFalse(self.org.is_connected_to_dtone())
+        # formax includes form to connect DT One
+        response = self.client.get(dtone_url, HTTP_X_FORMAX=True)
+        self.assertEqual(["api_key", "api_secret", "disconnect", "loc"], list(response.context["form"].fields.keys()))
 
-            mock_post.return_value = MockResponse(
-                200, "authentication_key=123\r\nerror_code=400\r\nerror_txt=Failed Authentication\r\n"
-            )
+        # simulate credentials being rejected
+        mock_get_balances.side_effect = DTOneClient.Exception(errors=[{"code": 1000401, "message": "Unauthorized"}])
 
-            response = self.client.post(
-                dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
-            )
+        response = self.client.post(dtone_url, {"api_key": "key123", "api_secret": "wrong", "disconnect": "false"})
 
-            self.assertContains(
-                response, "Connecting to your DT One account failed with error text: Failed Authentication"
-            )
+        self.assertContains(response, "Your DT One API key and secret seem invalid.")
+        self.assertFalse(self.org.is_connected_to_dtone())
 
-            self.assertFalse(self.org.is_connected_to_dtone())
+        # simulate credentials being accepted
+        mock_get_balances.side_effect = None
+        mock_get_balances.return_value = [{"available": 10, "unit": "USD", "unit_type": "CURRENCY"}]
 
-            mock_post.return_value = MockResponse(
-                200,
-                "info_txt=pong\r\n"
-                "authentication_key=123\r\n"
-                "error_code=0\r\n"
-                "error_txt=Transaction successful\r\n",
-            )
+        response = self.client.post(dtone_url, {"api_key": "key123", "api_secret": "sesame", "disconnect": "false"})
+        self.assertNoFormErrors(response)
 
-            response = self.client.post(
-                dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
-            )
-            self.assertNoFormErrors(response)
-            # DT One should be connected
-            self.org = Org.objects.get(pk=self.org.pk)
-            self.assertTrue(self.org.is_connected_to_dtone())
-            self.assertEqual(self.org.config["TRANSFERTO_ACCOUNT_LOGIN"], "login")
-            self.assertEqual(self.org.config["TRANSFERTO_AIRTIME_API_TOKEN"], "token")
+        # DT One should now be connected
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.is_connected_to_dtone())
+        self.assertEqual(self.org.config["dtone_key"], "key123")
+        self.assertEqual(self.org.config["dtone_secret"], "sesame")
 
-            response = self.client.get(dtone_account_url)
-            self.assertEqual(response.context["dtone_account_login"], "login")
+        # and that stated on home page
+        response = self.client.get(home_url)
+        self.assertContains(response, "Connected to your <b>DT One</b> account.")
+        self.assertContains(response, reverse("airtime.airtimetransfer_list"))
 
-            # and disconnect
-            response = self.client.post(
-                dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="true")
-            )
-
-            self.assertNoFormErrors(response)
-            self.org = Org.objects.get(pk=self.org.pk)
-            self.assertFalse(self.org.is_connected_to_dtone())
-            self.assertNotIn("TRANSFERTO_ACCOUNT_LOGIN", self.org.config)
-            self.assertNotIn("TRANSFERTO_AIRTIME_API_TOKEN", self.org.config)
-
-            mock_post.side_effect = Exception("foo")
-            response = self.client.post(
-                dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
-            )
-            self.assertContains(response, "Your DT One API key and secret seem invalid.")
-            self.assertFalse(self.org.is_connected_to_dtone())
-
-        # no account connected, do not show the button to Transfer logs
-        response = self.client.get(dtone_account_url, HTTP_X_FORMAX=True)
-        self.assertNotContains(response, reverse("airtime.airtimetransfer_list"))
-        self.assertNotContains(response, "%s?disconnect=true" % reverse("orgs.org_dtone_account"))
-
-        response = self.client.get(dtone_account_url)
-        self.assertNotContains(response, reverse("airtime.airtimetransfer_list"))
-        self.assertNotContains(response, "%s?disconnect=true" % reverse("orgs.org_dtone_account"))
-
-        self.org.connect_dtone("login", "token", self.admin)
-
-        # links not show if request is not from formax
-        response = self.client.get(dtone_account_url)
-        self.assertNotContains(response, reverse("airtime.airtimetransfer_list"))
-        self.assertNotContains(response, "%s?disconnect=true" % reverse("orgs.org_dtone_account"))
-
-        # link show for formax requests
-        response = self.client.get(dtone_account_url, HTTP_X_FORMAX=True)
+        # formax includes the disconnect link
+        response = self.client.get(dtone_url, HTTP_X_FORMAX=True)
         self.assertContains(response, "%s?disconnect=true" % reverse("orgs.org_dtone_account"))
 
-        response = self.client.get(org_home_url)
-        self.assertContains(response, reverse("airtime.airtimetransfer_list"))
+        # now disconnect
+        response = self.client.post(dtone_url, {"api_key": "", "api_secret": "", "disconnect": "true"})
+        self.assertNoFormErrors(response)
+
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_connected_to_dtone())
+        self.assertNotIn("dtone_key", self.org.config)
+        self.assertNotIn("dtone_secret", self.org.config)
 
     def test_chatbase_account(self):
         self.login(self.admin)

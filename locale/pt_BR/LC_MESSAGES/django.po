@@ -16,7 +16,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-24 17:23+0000\n"
+"POT-Creation-Date: 2021-03-24 22:35+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Matheus Soares <matheus.soares@ilhasoft.com.br>, 2020\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3615,15 +3615,8 @@ msgstr "Ajuda"
 msgid "Sign Out"
 msgstr ""
 
-msgid "Login"
-msgstr "Login"
-
 msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
 msgstr "Sua chave de API do DT One e o secret parecem inválidos. Por favor cheque-os novamente e tente novamente."
-
-#, python-format
-msgid "Connecting to your DT One account failed with error text: %s"
-msgstr "Uma falha ocorreu ao conectar com a sua conta DT One com mensagem de erro: %s"
 
 msgid "Account Token"
 msgstr "Token de conta"
@@ -6606,7 +6599,9 @@ msgstr "Conta do Chatbase"
 msgid "Connected to Chatbase Account"
 msgstr "Conecte com uma conta Chatbase"
 
-msgid "Connect your Chatbase account"
+#, fuzzy
+#| msgid "Connect your Chatbase account"
+msgid "Connect your Chatbase account."
 msgstr "Conecte sua conta do Chatbase"
 
 msgid "Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences and better understand your users. To signup for an account, visit"
@@ -6670,29 +6665,35 @@ msgstr ""
 msgid "DT One Account"
 msgstr "Conta DT One"
 
-#, python-format
-msgid "Connected to DT One account <b>%(login)s</b>."
-msgstr ""
+#, fuzzy
+#| msgid "Connected to Chatbase Account"
+msgid "Connected to your <b>DT One</b> account."
+msgstr "Conecte com uma conta Chatbase"
 
 msgid "Transfer Log"
 msgstr "Transfer Log"
 
-msgid "No DT One account connected."
-msgstr "Nenhuma conta DT One conectada."
+#, fuzzy
+#| msgid "Connect your Chatbase account"
+msgid "Connect your DT One account."
+msgstr "Conecte sua conta do Chatbase"
 
-msgid "Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your Flows. To signup for an account, visit"
+#, python-format
+msgid "Adding a DT One account will allow you to send airtime credit over 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your flows. To signup for an account, visit %(link)s."
 msgstr ""
 
-msgid "You can find your API Token by clicking on "
-msgstr "Você pode encontrar o seu Token da API clicando em"
+#, python-format
+msgid "You can find your credentials on the Developer tab on your %(link)s page."
+msgstr ""
 
-msgid " on the DT One site."
-msgstr "no site do DT One."
-
-msgid "Your account is connected to a DT One account"
+#, fuzzy
+#| msgid "Your account is connected to a DT One account"
+msgid "Your account is connected to a DT One account."
 msgstr "Sua conta está conectada a uma conta DT One"
 
-msgid "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
+#, fuzzy, python-format
+#| msgid "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
+msgid "If you no longer want it connected, you can <a href=\"%(disconnect_url)s\">disconnect</a> it. Doing so will cause the payment actions in your flows to no longer be processed."
 msgstr "Sua conta DT One.  Fazer isso fará com que as ações de pagamento em seus fluxos não sejam mais processadas."
 
 msgid "Disconnect DT One"
@@ -6792,6 +6793,9 @@ msgstr ""
 
 msgid "Your workspace is configured to use a single language."
 msgstr "Sua área de trabalho está configurada para usar um único idioma."
+
+msgid "Login"
+msgstr "Login"
 
 msgid "Remove"
 msgstr "Remover"
@@ -7606,6 +7610,19 @@ msgstr "Adicione uma dúvida"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Encontrado ${count} para ${query}"
+
+#~ msgid "No DT One account connected."
+#~ msgstr "Nenhuma conta DT One conectada."
+
+#, python-format
+#~ msgid "Connecting to your DT One account failed with error text: %s"
+#~ msgstr "Uma falha ocorreu ao conectar com a sua conta DT One com mensagem de erro: %s"
+
+#~ msgid "You can find your API Token by clicking on "
+#~ msgstr "Você pode encontrar o seu Token da API clicando em"
+
+#~ msgid " on the DT One site."
+#~ msgstr "no site do DT One."
 
 #, python-format
 #~ msgid ""

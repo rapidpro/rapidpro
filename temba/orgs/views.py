@@ -54,6 +54,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
+from temba.airtime.dtone import DTOneClient
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
@@ -2934,64 +2935,40 @@ class OrgCRUDL(SmartCRUDL):
             formax.add_section("archives", reverse("archives.archive_message"), icon="icon-box", action="link")
 
     class DtoneAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-
-        success_message = ""
-
-        class DTOneAccountForm(forms.ModelForm):
-            account_login = forms.CharField(label=_("Login"), required=False, widget=InputWidget())
-            airtime_api_token = forms.CharField(label=_("API Token"), required=False, widget=InputWidget())
+        class Form(forms.ModelForm):
+            api_key = forms.CharField(label=_("API Key"), required=False, widget=InputWidget())
+            api_secret = forms.CharField(label=_("API Secret"), required=False, widget=InputWidget())
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=False)
 
             def clean(self):
-                super().clean()
-                if self.cleaned_data.get("disconnect", "false") == "false":
-                    account_login = self.cleaned_data.get("account_login", None)
-                    airtime_api_token = self.cleaned_data.get("airtime_api_token", None)
+                cleaned_data = super().clean()
+
+                if cleaned_data["disconnect"] != "true":
+                    api_key = cleaned_data.get("api_key")
+                    api_secret = cleaned_data.get("api_secret")
+                    client = DTOneClient(api_key, api_secret)
 
                     try:
-                        from temba.airtime.dtone import DTOneClient
-
-                        client = DTOneClient(account_login, airtime_api_token)
-                        response = client.ping()
-
-                        error_code = int(response.get("error_code", None))
-                        info_txt = response.get("info_txt", None)
-                        error_txt = response.get("error_txt", None)
-
-                    except Exception:
+                        client.get_balances()
+                    except DTOneClient.Exception:
                         raise ValidationError(
                             _("Your DT One API key and secret seem invalid. Please check them again and retry.")
                         )
 
-                    if error_code != 0 and info_txt != "pong":
-                        raise ValidationError(
-                            _("Connecting to your DT One account failed with error text: %s") % error_txt
-                        )
-
-                return self.cleaned_data
-
             class Meta:
                 model = Org
-                fields = ("account_login", "airtime_api_token", "disconnect")
+                fields = ("api_key", "api_secret", "disconnect")
 
-        form_class = DTOneAccountForm
+        form_class = Form
         submit_button_name = "Save"
+        success_message = ""
         success_url = "@orgs.org_home"
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            if self.object.is_connected_to_dtone():
-                config = self.object.config
-                account_login = config.get(Org.CONFIG_DTONE_LOGIN)
-                context["dtone_account_login"] = account_login
-
-            return context
 
         def derive_initial(self):
             initial = super().derive_initial()
             config = self.object.config
-            initial["account_login"] = config.get(Org.CONFIG_DTONE_LOGIN)
-            initial["airtime_api_token"] = config.get(Org.CONFIG_DTONE_API_TOKEN)
+            initial["api_key"] = config.get(Org.CONFIG_DTONE_KEY)
+            initial["api_secret"] = config.get(Org.CONFIG_DTONE_SECRET)
             initial["disconnect"] = "false"
             return initial
 
@@ -3003,11 +2980,7 @@ class OrgCRUDL(SmartCRUDL):
                 org.remove_dtone_account(user)
                 return HttpResponseRedirect(reverse("orgs.org_home"))
             else:
-                account_login = form.cleaned_data["account_login"]
-                airtime_api_token = form.cleaned_data["airtime_api_token"]
-
-                org.connect_dtone(account_login, airtime_api_token, user)
-                org.refresh_dtone_account_currency()
+                org.connect_dtone(form.cleaned_data["api_key"], form.cleaned_data["api_secret"], user)
                 return super().form_valid(form)
 
     class TwilioAccount(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
