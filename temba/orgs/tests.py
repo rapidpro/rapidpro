@@ -1,4 +1,3 @@
-import datetime
 import io
 import smtplib
 from datetime import timedelta
@@ -4073,6 +4072,16 @@ class OrgCRUDLTest(TembaTest):
         created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
         self.assertContains(response, created_on.strftime("%I:%M %p").lower().lstrip("0"))
 
+        self.org.date_format = "Y"
+        self.org.save()
+
+        self.assertEqual(("%Y-%m-%d", "%Y-%m-%d %H:%M"), self.org.get_datetime_formats())
+
+        response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
+
+        created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
+        self.assertContains(response, created_on.strftime("%H:%M").lower())
+
     def test_urn_schemes(self):
         # remove existing channels
         Channel.objects.all().update(is_active=False, org=None)
@@ -5530,15 +5539,6 @@ class ParsingTest(TembaTest):
         self.assertEqual(self.org.parse_number("Infinity"), None)
 
         self.assertRaises(AssertionError, self.org.parse_number, 0.001)
-
-    def test_parse_datetime(self):
-        self.assertEqual(self.org.parse_datetime("Not num"), None)
-        self.assertEqual(
-            self.org.parse_datetime("0001-01-09T03:25:12.000Z"),
-            datetime.datetime(1, 1, 9, 3, 25, 12, tzinfo=datetime.timezone.utc),
-        )
-
-        self.assertRaises(AssertionError, self.org.parse_datetime, timezone.now())
 
 
 class OrgActivityTest(TembaTest):

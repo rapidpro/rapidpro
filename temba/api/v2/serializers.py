@@ -1412,3 +1412,54 @@ class TicketerReadSerializer(ReadSerializer):
     class Meta:
         model = Ticketer
         fields = ("uuid", "name", "type", "created_on")
+
+
+class WorkspaceReadSerializer(ReadSerializer):
+    DATE_STYLES = {
+        Org.DATE_FORMAT_DAY_FIRST: "day_first",
+        Org.DATE_FORMAT_MONTH_FIRST: "month_first",
+        Org.DATE_FORMAT_YEAR_FIRST: "year_first",
+    }
+
+    country = serializers.SerializerMethodField()
+    languages = serializers.SerializerMethodField()
+    primary_language = serializers.SerializerMethodField()
+    timezone = serializers.SerializerMethodField()
+    date_style = serializers.SerializerMethodField()
+    credits = serializers.SerializerMethodField()
+    anon = serializers.SerializerMethodField()
+
+    def get_country(self, obj):
+        return obj.default_country_code
+
+    def get_languages(self, obj):
+        return [l.iso_code for l in obj.languages.order_by("iso_code")]
+
+    def get_primary_language(self, obj):
+        return obj.primary_language.iso_code if obj.primary_language else None
+
+    def get_timezone(self, obj):
+        return str(obj.timezone)
+
+    def get_date_style(self, obj):
+        return self.DATE_STYLES.get(obj.date_format)
+
+    def get_credits(self, obj):
+        return {"used": obj.get_credits_used(), "remaining": obj.get_credits_remaining()}
+
+    def get_anon(self, obj):
+        return obj.is_anon
+
+    class Meta:
+        model = Org
+        fields = (
+            "uuid",
+            "name",
+            "country",
+            "languages",
+            "primary_language",
+            "timezone",
+            "date_style",
+            "credits",
+            "anon",
+        )

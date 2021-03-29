@@ -77,6 +77,7 @@ from .serializers import (
     TemplateReadSerializer,
     TicketerReadSerializer,
     WebHookEventReadSerializer,
+    WorkspaceReadSerializer,
 )
 
 
@@ -3501,20 +3502,8 @@ class WorkspaceEndpoint(BaseAPIView):
 
     def get(self, request, *args, **kwargs):
         org = request.user.get_org()
-
-        data = {
-            "uuid": str(org.uuid),
-            "name": org.name,
-            "country": org.default_country_code,
-            "languages": [l.iso_code for l in org.languages.order_by("iso_code")],
-            "primary_language": org.primary_language.iso_code if org.primary_language else None,
-            "timezone": str(org.timezone),
-            "date_style": ("day_first" if org.get_dayfirst() else "month_first"),
-            "credits": {"used": org.get_credits_used(), "remaining": org.get_credits_remaining()},
-            "anon": org.is_anon,
-        }
-
-        return Response(data, status=status.HTTP_200_OK)
+        serializer = WorkspaceReadSerializer(org)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @classmethod
     def get_read_explorer(cls):
