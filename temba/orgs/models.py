@@ -140,7 +140,7 @@ class Org(SmartModel):
     DATE_FORMAT_DAY_FIRST = "D"
     DATE_FORMAT_MONTH_FIRST = "M"
     DATE_FORMAT_YEAR_FIRST = "Y"
-    DATE_FORMATS_CHOICES = (
+    DATE_FORMAT_CHOICES = (
         (DATE_FORMAT_DAY_FIRST, "DD-MM-YYYY"),
         (DATE_FORMAT_MONTH_FIRST, "MM-DD-YYYY"),
         (DATE_FORMAT_YEAR_FIRST, "YYYY-MM-DD"),
@@ -234,7 +234,7 @@ class Org(SmartModel):
     date_format = models.CharField(
         verbose_name=_("Date Format"),
         max_length=1,
-        choices=DATE_FORMATS_CHOICES,
+        choices=DATE_FORMAT_CHOICES,
         default=DATE_FORMAT_DAY_FIRST,
         help_text=_("Whether day comes first or month comes first in dates"),
     )
