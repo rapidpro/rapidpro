@@ -2660,11 +2660,20 @@ class ChannelLogCRUDL(SmartCRUDL):
             channel = self.derive_channel()
 
             if self.request.GET.get("connections"):
-                logs = (
-                    ChannelLog.objects.filter(channel=channel)
-                    .exclude(connection=None)
-                    .values_list("connection_id", flat=True)
-                )
+                if self.request.GET.get("response_status"):
+                    logs = (
+                        ChannelLog.objects.filter(channel=channel)
+                        .filter(response_status=self.request.GET.get("response_status"))
+                        .exclude(connection=None)
+                        .values_list("connection_id", flat=True)
+                    )
+                else:
+                    logs = (
+                        ChannelLog.objects.filter(channel=channel)
+                        .exclude(connection=None)
+                        .values_list("connection_id", flat=True)
+                    )
+
                 events = ChannelConnection.objects.filter(id__in=logs).order_by("-created_on")
 
                 if self.request.GET.get("errors"):
@@ -2672,6 +2681,8 @@ class ChannelLogCRUDL(SmartCRUDL):
 
             elif self.request.GET.get("others"):
                 events = ChannelLog.objects.filter(channel=channel, connection=None, msg=None).order_by("-created_on")
+                if self.request.GET.get("response_status"):
+                    events = events.filter(response_status=self.request.GET.get("response_status"))
 
             else:
                 events = (
@@ -2680,6 +2691,8 @@ class ChannelLogCRUDL(SmartCRUDL):
                     .order_by("-created_on")
                     .select_related("msg", "msg__contact", "msg__contact_urn", "channel", "channel__org")
                 )
+                if self.request.GET.get("response_status"):
+                    events = events.filter(response_status=self.request.GET.get("response_status"))
                 patch_queryset_count(events, channel.get_non_ivr_log_count)
 
             return events

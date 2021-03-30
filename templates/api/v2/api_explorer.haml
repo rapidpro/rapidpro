@@ -133,6 +133,16 @@
 
       var query = queryEditor.length ? ensureQueryPrefix(queryEditor.val()) : '';
       var body = bodyEditor.length ? bodyEditor.val() : null;
+      var dataType = "text";
+
+      try {
+        if (body && method === "GET") {
+          body = JSON.parse(body);
+          dataType = "json";
+        }
+      } catch {
+        dataType = "text";
+      }
 
       $("#result-" + slug).text("Requesting...");
 
@@ -144,8 +154,9 @@
           Accept : "application/json; charset=utf-8; indent=4;",
           "Content-Type": "application/json; charset=utf-8; indent=4;"
         },
-        dataType: "text",
+        dataType: dataType,
         success: function(data, textStatus, xhr){
+          data = dataType === "json" ? JSON.stringify(data, null, 2) : data;
           var trace = "HTTP/1.0 " + xhr.status + " " + textStatus.toUpperCase() + "\n" + data;
           $("#result-" + slug).show().text(trace);
         },
