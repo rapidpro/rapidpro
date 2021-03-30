@@ -1,0 +1,53 @@
+-extends "channels/channel_claim_form.html"
+-load i18n compress temba
+
+-block pre-form
+    -blocktrans with name=brand.name trimmed
+      Commodo ipsum culpa non aliquip nulla. Consectetur et esse cillum consequat ea magna ullamco aliqua officia.
+  .mt-2
+    -blocktrans trimmed
+      Ullamco aute pariatur qui elit ex exercitation consequat laboris nulla dolor sit nulla. 
+      Ut minim non in dolor sunt consequat aliqua reprehenderit excepteur labore occaecat.
+      
+
+  .mt-2
+
+    -blocktrans trimmed
+      consequat deserunt sunt. Voluptate ea consequat adipisicing qui.
+  .mt-2
+
+    -blocktrans trimmed
+      Non laborum elit exercitation eu dolor irure fugiat nisi ut nisi mollit aliquip ut.
+
+  .mt-2
+
+    .alert-warning
+      -blocktrans trimmed
+        Nisi Lorem do laboris nisi incididunt fugiat. Magna irure veniam consequat aliqua ex sit ipsum ut. Irure reprehenderit ex veniam labore.
+
+
+-block extra-style
+  {{ block.super }}
+
+  :css
+    .info {
+      width: 800px;
+      margin-bottom: 20px;
+    }
+
+    .important {
+      background-color: #efefef;
+      border: 1px solid #ccc;
+      padding: 10px 10px 0px 10px;
+      margin-bottom: 10px;
+    }
+
+    .medium-help {
+      font-size: 50px;
+      height: 50px;
+    }
+
+    .header-margin {
+      margin-left: 60px;
+    }
+
