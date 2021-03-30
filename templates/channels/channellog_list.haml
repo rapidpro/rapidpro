@@ -24,6 +24,13 @@
       .lp-frame
 
         .right
+          .mt-4
+            %temba-select#status-filter(searchable="true" placeholder="Status Filter" onchange="handleFilterSet(this)" tags="true" spaceSelect="true")
+              %temba-option(name="All" value="")
+              %temba-option(name="200" value="200")
+              %temba-option(name="400" value="400")
+              %temba-option(name="500" value="500")
+
           %table.list.object-list.lined.mt-4
             %thead
               %tr
@@ -104,3 +111,27 @@
 
           .flex.flex-col.mb-16
             -include "includes/pagination.haml"
+
+
+-block extra-script
+  {{ block.super }}
+  :javascript
+    document.addEventListener("DOMContentLoaded", () => {
+      let urlParams = new URLSearchParams(location.search);
+      let responseStatus = urlParams.get("response_status");
+      if (responseStatus) {
+        document.querySelector("#status-filter").setValue({name: responseStatus, value: responseStatus});
+      }
+    });
+    function handleFilterSet(select) {
+      if (select.values.length > 0) {
+        let option = select.values[0].value;
+        let urlParams = new URLSearchParams(location.search);
+        urlParams.delete("page");
+        urlParams.delete("response_status")
+        if (option) {
+          urlParams.set("response_status", option);
+        }
+        location.replace(`${location.origin}${location.pathname}?${urlParams.toString()}`);
+      }
+    }
