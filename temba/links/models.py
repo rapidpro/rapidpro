@@ -52,10 +52,23 @@ class Link(TembaModel):
 
     clicks_count = models.PositiveIntegerField(default=0, help_text="Clicks count for this trackable link")
 
+    send_full_link = models.BooleanField(
+        default=False,
+        help_text=_(
+            "This option sends your link as displayed above but is not recommended as full links are more susceptible to be flagged as spam by carriers. We recommend this option only if the link is already short and if there is a need to maintain branding."
+        ),
+    )
+
     @classmethod
-    def create(cls, org, user, name, destination, related_flow=None):
+    def create(cls, org, user, name, destination, related_flow=None, send_full_link=False):
         links_arg = dict(
-            org=org, name=name, destination=destination, related_flow=related_flow, created_by=user, modified_by=user
+            org=org,
+            name=name,
+            destination=destination,
+            related_flow=related_flow,
+            created_by=user,
+            modified_by=user,
+            send_full_link=send_full_link,
         )
         return Link.objects.create(**links_arg)
 
