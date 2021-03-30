@@ -39,6 +39,7 @@ brand_info = env.dict("BRANDING_INFO", default={
 })
 
 DEFAULT_BRAND = env("DEFAULT_BRAND", default="rapidpro.io")
+DEFAULT_PLAN = env("DEFAULT_PLAN", default=TOPUP_PLAN)
 BRANDING = {
     DEFAULT_BRAND: {
         "slug": brand_info.get("slug"),
@@ -46,6 +47,7 @@ BRANDING = {
         "org": brand_info.get("org"),
         "colors": env.dict("BRANDING_COLORS", default=dict(primary="#0c6596")),
         "styles": env.list("BRANDING_STYLES", default=["brands/rapidpro/font/style.css"]),
+        "default_plan": DEFAULT_PLAN,
         "welcome_topup": 1000,
         "email": brand_info.get("email"),
         "support_email": brand_info.get("email"),
