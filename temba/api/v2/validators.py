@@ -20,3 +20,13 @@ class UniqueForOrgValidator(UniqueValidator):
     def filter_queryset(self, value, queryset):
         queryset = super().filter_queryset(value, queryset)
         return qs_filter(queryset, **{"org": self.org})
+
+
+def is_uuid_valid(val):
+    from uuid import UUID
+
+    try:
+        UUID(str(val))
+        return True
+    except ValueError:
+        return False

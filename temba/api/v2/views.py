@@ -3,6 +3,7 @@ import json
 
 import regex
 import requests
+from collections import defaultdict, Counter
 from enum import Enum
 from mimetypes import guess_extension
 
@@ -19,7 +20,7 @@ from smartmin.views import SmartFormView, SmartTemplateView
 
 from django import forms
 from django.contrib.auth import authenticate, login
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch, Q, Count
 from django.http import HttpResponse, JsonResponse
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -40,16 +41,19 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ContactURN
 from temba.contacts.tasks import release_group_task
+from temba.contacts.search import SearchException
+from temba.contacts.search.elastic import query_contact_ids
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
-from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
+from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel, FAILED, ERRORED
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticketer
 from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool, dates
+from .validators import is_uuid_valid
 
 from ..models import SSLPermission
-from ..support import InvalidQueryError
+from ..support import InvalidQueryError, csv_response_wrapper
 from .serializers import (
     AdminBoundaryReadSerializer,
     ArchiveReadSerializer,
@@ -87,6 +91,7 @@ from .serializers import (
     UrlAttachmentValidationSerializer,
     WebHookEventReadSerializer,
 )
+from ...links.models import Link
 from ...orgs.models import LOOKUPS, DEFAULT_FIELDS_PAYLOAD_LOOKUPS, DEFAULT_INDEXES_FIELDS_PAYLOAD_LOOKUPS
 
 
@@ -123,6 +128,12 @@ class RootView(views.APIView):
      * [/api/v2/templates](/api/v2/templates) - to list current WhatsApp templates on your account
      * [/api/v2/ticketers](/api/v2/ticketers) - to list ticketing services
      * [/api/v2/workspace](/api/v2/workspace) - to view your workspace
+     * [/api/v2/contacts_report](/api/v2/contacts_report) - to generate a report about contacts in org
+     * [/api/v2/contact_variable_report](/api/v2/contact_variable_report) - to generate a report about contacts filtered by contact fields
+     * [/api/v2/flow_report](/api/v2/flow_report) - to generate a report about flow
+     * [/api/v2/flow_variable_report](/api/v2/flow_variable_report) - to generate a report about flow variable
+     * [/api/v2/messages_report](/api/v2/messages_report) - to generate a report about messages
+     * [/api/v2/trackable_link_report](/api/v2/trackable_link_report) - to generate a report about trackable links
 
     To use the endpoint simply append _.json_ to the URL. For example [/api/v2/flows](/api/v2/flows) will return the
     documentation for that endpoint but a request to [/api/v2/flows.json](/api/v2/flows.json) will return a JSON list of
@@ -292,6 +303,12 @@ class ExplorerView(SmartTemplateView):
             TemplatesEndpoint.get_read_explorer(),
             TicketersEndpoint.get_read_explorer(),
             WorkspaceEndpoint.get_read_explorer(),
+            ContactsReportEndpoint.get_read_explorer(),
+            ContactVariablesReportEndpoint.get_read_explorer(),
+            MessagesReportEndpoint.get_read_explorer(),
+            FlowReportEndpoint.get_read_explorer(),
+            FlowVariableReportEndpoint.get_read_explorer(),
+            TrackableLinkReportEndpoint.get_read_explorer(),
         ]
         return context
 
@@ -4308,4 +4325,844 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
 
         return Response(
             response.json(), status=status.HTTP_202_ACCEPTED if response.status_code == 200 else response.status_code
+        )
+
+
+class ContactsReportEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to number of contacts, in the org, that satisfy provided query.
+
+    A **GET** returns total number of contacts that satisfy query.
+
+    * **search_query** - allows to filter contact by search request (equivalent of search field on contacts page)
+    * **flow** - UUID of flow to select only contacts that have runs in that flow
+    * **exclude** - UUID or Name of contact group to select only contacts that not belong to that group
+
+    Example:
+
+        GET /api/v2/contacts_report.json
+        {
+            "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
+            "search_query": "created_on < 2021-01-01",
+            "exclude": "Restaurant Contacts"
+        }
+
+    Response:
+
+        {
+            "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
+            "search_query": "created_on < \\"2021-01-01\\" AND group != \\"Restaurant Contacts\\"",
+            "results": [
+                {
+                    "total_unique_contacts": 2
+                }
+            ]
+        }
+
+    To generate report in CSV format pass query parameter 'export_csv':
+
+        GET /api/v2/contacts_report.json?export_csv=true
+    """
+
+    permission = "orgs.org_api"
+
+    def get_queryset(self):
+        org = self.request.user.get_org()
+        contacts = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True).distinct()
+
+        flow = self.request.GET.get("flow", self.request.data.get("flow"))
+        if flow:
+            contacts = contacts.filter(runs__flow__uuid=flow)
+
+        # contact list views don't use regular field searching but use more complex contact searching
+        search_query = self.request.GET.get("search_query", self.request.data.get("search_query", ""))
+        exclude = self.request.GET.get("exclude", self.request.data.get("exclude"))
+        if exclude:
+            if is_uuid_valid(exclude):
+                contacts = contacts.exclude(all_groups__uuid=exclude)
+            else:
+                search_query += f'{" AND " if search_query else ""}group != "{exclude}"'
+
+        if search_query:
+            try:
+                group = ContactGroup.all_groups.get(org=org, group_type="A")
+                contact_ids, parsed_query = query_contact_ids(org, search_query, group=group, return_parsed_query=True)
+                setattr(self, "search_query", parsed_query if len(parsed_query) > 0 else None)
+                contacts = contacts.filter(id__in=contact_ids)
+
+                return contacts
+            except SearchException as e:
+                setattr(self, "search_query", f"Error: {e.message}")
+                # this should be an empty resultset
+                return Contact.objects.none()
+        else:
+            # if user search is not defined, use DB to select contacts
+            return contacts
+
+    @csv_response_wrapper
+    def get(self, request, *args, **kwargs):
+        count = self.get_queryset().count()
+        response_data = {
+            "flow": self.request.GET.get("flow", self.request.data.get("flow")),
+            "search_query": getattr(self, "search_query", ""),
+            "results": [{"total_unique_contacts": count}],
+        }
+        return Response(response_data)
+
+    @staticmethod
+    def csv_convertor(result, response):
+        import csv
+
+        writer = csv.writer(response)
+        writer.writerows(list(result.items()))
+
+    @classmethod
+    def get_read_explorer(cls):
+        return dict(
+            method="GET",
+            title="Contacts Report",
+            url=reverse("api.v2.contacts_report"),
+            slug="contacts-report",
+            fields=[
+                dict(name="search_query", required=False, help="Search query for contacts"),
+                dict(name="flow", required=False, help="Flow filter"),
+                dict(name="exclude", required=False, help="Contact Group to exclude"),
+            ],
+            example=dict(
+                body=json.dumps(
+                    {
+                        "search_query": "created_on < 2021-01-01",
+                        "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
+                        "exclude": "Restaurant Contacts",
+                    }
+                )
+            ),
+        )
+
+
+class ContactVariablesReportEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to generate a report based on contact fields
+
+    A **GET** returns groups split by contacts values
+
+    * **search_query** - allows to filter contact by search request (equivalent of search field on contacts page)
+    * **flow** - UUID of flow to select only contacts that have runs in that flow
+    * **exclude** - UUID or Name of contact group to select only contacts that not belong to that group
+    * **variables** - the values configuration to be included into report
+
+    Example:
+
+        POST /api/v2/contact_variable_report.json
+        {
+            "variables": {
+                "zipcode": {
+                    "top": 4
+                },
+                "state": {}
+            }
+        }
+
+    Response:
+
+        {
+            "variables": {
+                "9402ac3d-4efb-448a-b0d6-6b219c5c21ff": {
+                    "key": "zipcode"
+                },
+                "0c34148e-e892-4b3b-981a-47730eb86004": {
+                    "key": "state"
+                }
+            },
+            "results": [
+                {
+                    "state": {
+                        "CA": 1,
+                        "MA": 116,
+                        "FL": 1268,
+                        "VA": 99,
+                        "NY": 278
+                    },
+                    "zipcode": {
+                        "02151": 20,
+                        "02472": 1,
+                        "02155": 27,
+                    }
+                }
+            ]
+        }
+
+    To generate report in CSV format pass query parameter 'export_csv':
+
+        POST /api/v2/contact_variable_report.json?export_csv=true
+    """
+
+    permission = "orgs.org_api"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.applied_filters = {}
+
+    def get_queryset(self):
+        org = self.request.user.get_org()
+        contacts = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True).distinct()
+
+        flow = self.request.GET.get("flow", self.request.data.get("flow"))
+        if flow:
+            contacts = contacts.filter(runs__flow__uuid=flow)
+            self.applied_filters["flow"] = flow
+
+        # contact list views don't use regular field searching but use more complex contact searching
+        search_query = self.request.GET.get("search_query", self.request.data.get("search_query", ""))
+        exclude = self.request.GET.get("exclude", self.request.data.get("exclude"))
+        if exclude:
+            if is_uuid_valid(exclude):
+                contacts = contacts.exclude(all_groups__uuid=exclude)
+            else:
+                search_query += f'{" AND " if search_query else ""}group != "{exclude}"'
+
+        if search_query:
+            try:
+                group = ContactGroup.all_groups.get(org=org, group_type="A")
+                contact_ids, parsed_query = query_contact_ids(org, search_query, group=group, return_parsed_query=True)
+                if parsed_query:
+                    self.applied_filters["search_query"] = parsed_query
+                contacts = contacts.filter(id__in=contact_ids)
+
+                return contacts
+            except SearchException as e:
+                self.applied_filters["search_query"] = f"Error: {e.message}"
+                # this should be an empty resultset
+                return Contact.objects.none()
+        else:
+            # if user search is not defined, use DB to select contacts
+            return contacts
+
+    @csv_response_wrapper
+    def post(self, request, *args, **kwargs):
+        org = request.user.get_org()
+        queryset = self.get_queryset()
+        counts = defaultdict(lambda: Counter())
+
+        requested_variables = self.request.GET.get("variables", self.request.data.get("variables"))
+        existing_variables = dict(ContactField.user_fields.filter(org=org).values_list("key", "uuid"))
+        variable_filters = {}
+        top_ordering = {}
+        if not (requested_variables and type(requested_variables) is dict):
+            return Response(
+                {
+                    "errors": {
+                        "variables": _(
+                            "Filter 'variables' invalid or not provided. Available variables are [{}]"
+                        ).format(", ".join(existing_variables.keys()))
+                    }
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        for variable, conf in requested_variables.items():
+            if variable not in existing_variables:
+                return Response(
+                    {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            variable_uuid = str(existing_variables[variable])
+            variable_filters[variable_uuid] = {"key": variable}
+            if type(conf.get("top")) is int:
+                variable_filters[variable_uuid]["top"] = conf.get("top")
+                top_ordering[variable] = conf.get("top")
+
+        self.applied_filters["variables"] = variable_filters
+
+        queryset = queryset.filter(fields__has_any_keys=variable_filters.keys())
+
+        for contact in queryset:
+            for field_uuid, field_value in (contact.fields or {}).items():
+                if field_uuid in variable_filters:
+                    counts[variable_filters[field_uuid]["key"]][field_value["text"]] += 1
+
+        for variable, top_x in top_ordering.items():
+            counts[variable] = dict(counts[variable].most_common(top_x))
+
+        response_data = {**self.applied_filters, "results": [counts]}
+        return Response(response_data)
+
+    @staticmethod
+    def csv_convertor(result, response):
+        import csv
+
+        writer = csv.writer(response)
+        rows = [
+            (variable_name, value, responders)
+            for variable_name, values in result.items()
+            for value, responders in values.items()
+        ]
+        writer.writerows([("Variable", "Value", "Responders"), *rows])
+
+    @classmethod
+    def get_read_explorer(cls):
+        return dict(
+            method="POST",
+            title="Contact Variables Report",
+            url=reverse("api.v2.contact_variable_report"),
+            slug="contact-variable-report",
+            fields=[
+                dict(name="search_query", required=False, help="Contact search query"),
+                dict(name="flow", required=False, help="Flow filter"),
+                dict(name="exclude", required=False, help="Contact Group to exclude"),
+                dict(name="variables", required=True, help="Configuration for fields to generate report"),
+            ],
+            example=dict(
+                body=json.dumps(
+                    {
+                        "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
+                        "search_query": "created_on < 2021-01-01",
+                        "exclude": "Restaurant Contacts",
+                        "variables": {"state": {}, "zipcode": {"top": 5}},
+                    }
+                )
+            ),
+        )
+
+
+class MessagesReportEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to generate a short report about messages that were sent or received in that org.
+
+    A **GET** returns numbers of sent, received, and failed messages.
+
+    * **flow** - UUID of flow to select only messages related to specific flow
+    * **exclude** - UUID or Name of contact group, messages of contacts from which are not supposed to be included in the report
+    * **channel** - UUID or Name of channel to select only messages related to specific channel
+    * **after** - Date, excludes all messages from the report that were created earlier a certain date
+    * **before** - Date, excludes all messages from the report that were created later a certain date
+
+    Example:
+
+        GET /api/v2/messages_report.json
+        {
+            "flow": "6683f3e3-3445-438a-b94f-137cf22aa36a",
+            "after": "2020-01-01",
+            "before": "2022-01-13",
+            "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+            "exclude": "Testers"
+        }
+
+    Response:
+
+        {
+            "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+            "after": "2020-01-01",
+            "before": "2022-01-13",
+            "exclude": "Testers",
+            "flow": "6683f3e3-3445-438a-b94f-137cf22aa36a",
+            "results": [
+                {
+                    "inbox_count": 0,
+                    "outbox_count": 3,
+                    "failed_count": 0
+                }
+            ]
+        }
+
+    To generate report in CSV format pass query parameter 'export_csv':
+
+        GET /api/v2/messages_report.json?export_csv=true
+    """
+
+    permission = "orgs.org_api"
+    applied_filters = None
+
+    def get_flow_messages(self, org, flow, qs):
+        runs = FlowRun.objects.filter(
+            org=org,
+            flow__uuid=flow,
+            status__in=[
+                FlowRun.STATUS_COMPLETED,
+                FlowRun.STATUS_INTERRUPTED,
+                FlowRun.STATUS_FAILED,
+                FlowRun.STATUS_EXPIRED,
+            ],
+            **{
+                f"exited_on__{'gte' if item[0] == 'after' else 'lte'}": item[1]
+                for item in [(x, org.parse_datetime(self.request.data.get(x, ""))) for x in ["after", "before"]]
+                if item[1]
+            },
+        )
+        messages_uuids = []
+        for run in runs:
+            messages_uuids += [
+                evt["msg"].get("uuid")
+                for evt in run.get_msg_events()
+                if evt["msg"].get("uuid") not in [None, "None", ""]
+            ]
+        return qs.filter(uuid__in=messages_uuids)
+
+    @csv_response_wrapper
+    def get(self, request, *args, **kwargs):
+        org = self.request.user.get_org()
+        queryset = Msg.objects.filter(org=org)
+        applied_filters = {}
+        filters = (
+            ("channel", lambda x: queryset.filter(Q(channel__uuid=x) | Q(channel__name=x))),
+            ("after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
+            ("before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
+            ("exclude", lambda x: queryset.exclude(contact__all_groups__name=x)),
+            ("flow", lambda x: self.get_flow_messages(org, x, queryset)),
+        )
+        for name, _filter in filters:
+            filter_value = self.request.data.get(name)
+            if filter_value:
+                queryset = _filter(filter_value)
+                applied_filters[name] = filter_value
+
+        return Response(
+            {
+                **applied_filters,
+                "results": [
+                    queryset.aggregate(
+                        inbox_count=Count("id", filter=Q(direction="I")),
+                        outbox_count=Count("id", filter=Q(direction="O")),
+                        failed_count=Count("id", filter=Q(status__in=[FAILED, ERRORED])),
+                    )
+                ],
+            }
+        )
+
+    @staticmethod
+    def csv_convertor(result, response):
+        import csv
+
+        writer = csv.writer(response)
+        writer.writerows([("Message type", "Number"), *result.items()])
+
+    @classmethod
+    def get_read_explorer(cls):
+        return dict(
+            method="GET",
+            title="Messages Report",
+            url=reverse("api.v2.messages_report"),
+            slug="messages-report",
+            fields=[
+                dict(
+                    name="flow", required=False, help="UUID of flow to select only messages related to specific flow"
+                ),
+                dict(name="after", required=False, help="Select messages since specific date"),
+                dict(name="before", required=False, help="Select messages until specific date"),
+                dict(name="channel", required=False, help="Select messages sent via specific channel"),
+                dict(name="exclude", required=False, help="Contact group to exclude"),
+            ],
+            example=dict(
+                body=json.dumps(
+                    {
+                        "flow": "6683f3e3-3445-438a-b94f-137cf22aa36a",
+                        "after": "2020-01-01",
+                        "before": "2022-01-13",
+                        "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+                        "exclude": "Testers",
+                    }
+                )
+            ),
+        )
+
+
+class FlowReportEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to generate short report about flow runs for a certain flow.
+
+    A **GET** returns numbers of contacts that have completed, interrupted or expired flow runs.
+
+    * **flow** - UUID of flow to which is need to prepare report
+    * **channel** - UUID or Name of channel to select only the contacts that received messages via that channel
+    * **exclude** - UUID or Name of contact group to select only contacts that not belong to that group
+    * **started_after** - Date, excludes all runs from the report that were started earlier a certain date
+    * **started_before** - Date, excludes all runs from the report that were started later a certain date
+    * **exited_after** - Date, excludes all runs from the report that were exited earlier a certain date
+    * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
+
+    Example:
+
+        GET /api/v2/flow_report.json
+        {
+            "flow": "92b0dd89-485f-4fab-aeb5-564eb97cd73c",
+            "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+            "exclude": "Testers",
+            "started_after": "2021-02-01",
+            "started_before": "2021-03-13",
+            "exited_after": "2021-02-01",
+            "exited_before": "2021-03-13"
+        }
+
+    Response:
+
+        {
+            "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+            "started_after": "2021-02-01",
+            "started_before": "2021-03-13",
+            "exited_after": "2021-02-01",
+            "exited_before": "2021-03-13",
+            "exclude": "Testers",
+            "results": [
+                {
+                    "total_contacts": 1,
+                    "total_completes": 0,
+                    "total_expired": 0,
+                    "total_interrupts": 15
+                }
+            ]
+        }
+
+    To generate report in CSV format pass query parameter 'export_csv':
+
+        GET /api/v2/flow_report.json?export_csv=true
+    """
+
+    permission = "orgs.org_api"
+
+    @csv_response_wrapper
+    def get(self, request, *args, **kwargs):
+        org = self.request.user.get_org()
+        try:
+            flow = Flow.objects.get(uuid=self.request.data.get("flow", self.request.query_params.get("flow")))
+        except Flow.DoesNotExist:
+            return Response(
+                {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
+            )
+        queryset = FlowRun.objects.filter(org=org, flow=flow)
+        filters = (
+            (
+                "channel",
+                lambda x: queryset.filter(Q(contact__urns__channel__uuid=x) | Q(contact__urns__channel__name=x)),
+            ),
+            ("started_after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
+            ("started_before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
+            ("exited_after", lambda x: queryset.filter(exited_on__gte=org.parse_datetime(x))),
+            ("exited_before", lambda x: queryset.filter(exited_on__lte=org.parse_datetime(x))),
+            ("exclude", lambda x: queryset.exclude(contact__all_groups__name=x)),
+        )
+        applied_filters = {}
+        for name, _filter in filters:
+            filter_value = self.request.data.get(name, self.request.query_params.get("name"))
+            if filter_value:
+                queryset = _filter(filter_value)
+                applied_filters[name] = filter_value
+        return Response(
+            {
+                **applied_filters,
+                "results": [
+                    queryset.aggregate(
+                        total_contacts=Count("contact_id", distinct=True),
+                        total_completes=Count("id", filter=Q(exit_type=FlowRun.EXIT_TYPE_COMPLETED)),
+                        total_expired=Count("id", filter=Q(exit_type=FlowRun.EXIT_TYPE_EXPIRED)),
+                        total_interrupts=Count("id", filter=Q(exit_type=FlowRun.STATUS_INTERRUPTED)),
+                    )
+                ],
+            }
+        )
+
+    @staticmethod
+    def csv_convertor(result, response):
+        import csv
+
+        writer = csv.writer(response)
+        writer.writerows([("Contacts", "Number"), *result.items()])
+
+    @classmethod
+    def get_read_explorer(cls):
+        return dict(
+            method="GET",
+            title="Flow Report",
+            url=reverse("api.v2.flow_report"),
+            slug="flow-report",
+            fields=[
+                dict(name="flow", required=True, help="UUID of flow"),
+                dict(name="channel", required=False, help="Count only contacts that use a certain channel"),
+                dict(name="exclude", required=False, help="Count only contacts that not in a certain group"),
+                dict(
+                    name="started_after", required=False, help="Count only runs that were started after a certain date"
+                ),
+                dict(
+                    name="started_before",
+                    required=False,
+                    help="Count only runs that were started before a certain date",
+                ),
+                dict(
+                    name="exited_after", required=False, help="Count only runs that were exited after a certain date"
+                ),
+                dict(
+                    name="exited_before", required=False, help="Count only runs that were exited before a certain date"
+                ),
+            ],
+            example=dict(
+                body=json.dumps(
+                    {
+                        "flow": "92b0dd89-485f-4fab-aeb5-564eb97cd73c",
+                        "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+                        "exclude": "Testers",
+                        "started_after": "2021-02-01",
+                        "started_before": "2021-03-13",
+                        "exited_after": "2021-02-01",
+                        "exited_before": "2021-03-13",
+                    }
+                )
+            ),
+        )
+
+
+class FlowVariableReportEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to generate a report based on contact responses.
+
+    A **GET** returns groups split by results that contacts had responded
+
+    * **flow** - UUID of flow to which is need to prepare report
+    * **channel** - UUID or Name of channel to select only the contacts that received messages via that channel
+    * **exclude** - UUID or Name of contact group to select only contacts that not belong to that group
+    * **started_after** - Date, excludes all runs from the report that were started earlier a certain date
+    * **started_before** - Date, excludes all runs from the report that were started later a certain date
+    * **exited_after** - Date, excludes all runs from the report that were exited earlier a certain date
+    * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
+    * **variables** - configuration which define the fields to be included in the report
+
+    Example:
+
+        POST /api/v2/flow_variable_report.json
+        {
+            "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
+            "variables": {
+                "result_1": {
+                    "format": "value",
+                    "top": 3
+                }
+            }
+        }
+
+    Response:
+
+        {
+            "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
+            "variables": {
+                "result_1": {
+                    "format": "value",
+                    "top": 3
+                }
+            },
+            "results": [
+                {
+                    "result_1": {
+                        "No": 1,
+                        "Yes": 1,
+                        "Other": 1
+                    }
+                }
+            ]
+        }
+
+    To generate report in CSV format pass query parameter 'export_csv':
+
+        POST /api/v2/flow_variable_report.json?export_csv=true
+    """
+
+    permission = "orgs.org_api"
+
+    @csv_response_wrapper
+    def post(self, request, *args, **kwargs):
+        applied_filters = {}
+        org = self.request.user.get_org()
+        try:
+            flow = Flow.objects.get(uuid=self.request.data.get("flow"))
+            applied_filters["flow"] = flow.uuid
+        except Flow.DoesNotExist:
+            return Response(
+                {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
+            )
+        queryset = FlowRun.objects.filter(org=org, flow=flow)
+        filters = (
+            (
+                "channel",
+                lambda x: queryset.filter(Q(contact__urns__channel__uuid=x) | Q(contact__urns__channel__name=x)),
+            ),
+            ("started_after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
+            ("started_before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
+            ("exited_after", lambda x: queryset.filter(exited_on__gte=org.parse_datetime(x))),
+            ("exited_before", lambda x: queryset.filter(exited_on__lte=org.parse_datetime(x))),
+            ("exclude", lambda x: queryset.exclude(contact__all_groups__name=x)),
+        )
+
+        for name, _filter in filters:
+            filter_value = self.request.data.get(name)
+            if filter_value:
+                queryset = _filter(filter_value)
+                applied_filters[name] = filter_value
+
+        counts = defaultdict(lambda: Counter())
+        requested_variables = self.request.data.get("variables")
+        existing_variables = {result.get("key", ""): result for result in flow.metadata.get("results", [])}
+        variable_filters = {}
+        top_ordering = {}
+        if not (requested_variables and type(requested_variables) is dict):
+            return Response({"errors": {"variables": _("Filter 'variables' invalid or not provided.")}})
+
+        for variable, conf in requested_variables.items():
+            if variable not in existing_variables:
+                return Response(
+                    {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}}
+                )
+            _format = conf.get("format", "").lower()
+            if _format not in ["category", "value"]:
+                _format = "category"
+            variable_filters[variable] = {"format": _format}
+            if _format == "value" and type(conf.get("top")) is int:
+                variable_filters[variable]["top"] = conf.get("top")
+                top_ordering[variable] = conf.get("top")
+            if _format == "category":
+                counts[variable] = Counter({category: 0 for category in existing_variables[variable]["categories"]})
+        applied_filters["variables"] = variable_filters
+
+        for flow_run in queryset:
+            for result_name, result in flow_run.results.items():
+                if result_name in variable_filters:
+                    counts[result_name][result[variable_filters[result_name]["format"]]] += 1
+
+        for variable, top_x in top_ordering.items():
+            counts[variable] = dict(counts[variable].most_common(top_x))
+
+        return Response({**applied_filters, "results": [counts]})
+
+    @staticmethod
+    def csv_convertor(result, response):
+        import csv
+
+        writer = csv.writer(response)
+        rows = [
+            (variable_name, value, responders)
+            for variable_name, values in result.items()
+            for value, responders in values.items()
+        ]
+        writer.writerows([("Variable", "Value", "Responders"), *rows])
+
+    @classmethod
+    def get_read_explorer(cls):
+        return dict(
+            method="POST",
+            title="Flow Variables Report",
+            url=reverse("api.v2.flow_variable_report"),
+            slug="flow-variable-report",
+            fields=[
+                dict(name="flow", required=True, help="UUID of flow"),
+                dict(name="channel", required=False, help="Count only contacts that use a certain channel"),
+                dict(name="exclude", required=False, help="Count only contacts that not in a certain group"),
+                dict(
+                    name="started_after", required=False, help="Count only runs that were started after a certain date"
+                ),
+                dict(
+                    name="started_before",
+                    required=False,
+                    help="Count only runs that were started before a certain date",
+                ),
+                dict(
+                    name="exited_after", required=False, help="Count only runs that were exited after a certain date"
+                ),
+                dict(
+                    name="exited_before", required=False, help="Count only runs that were exited before a certain date"
+                ),
+                dict(name="variables", required=True, help="Configuration for fields to generate report"),
+            ],
+            example=dict(
+                body=json.dumps(
+                    {
+                        "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
+                        "variables": {"result_1": {"format": "value", "top": 3}},
+                    }
+                )
+            ),
+        )
+
+
+class TrackableLinkReportEndpoint(BaseAPIView):
+    """
+    This endpoint allows you to generate report about clicks on trackable links
+
+    A **GET** returns numbers of click and contacts who received link
+
+    * **link_name** - Name of link to generate report for
+
+    Example:
+
+        GET /api/v2/trackable_link_report.json
+        {
+            "link_name": "google"
+        }
+
+    Response:
+
+        {
+            "name": "google.com",
+            "destination": "https://www.google.com",
+            "related_flow": "f14b5744-bef4-4f56-a936-a684f5da013f",
+            "results": [
+                {
+                    "total_clicks": 0,
+                    "unique_clicks": 1,
+                    "unique_contacts": 1
+                }
+            ]
+        }
+
+    To generate report in CSV format pass query parameter 'export_csv':
+
+        GET /api/v2/trackable_link_report.json?export_csv=true
+    """
+
+    permission = "orgs.org_api"
+
+    @csv_response_wrapper
+    def get(self, *args, **kwargs):
+        org = self.request.user.get_org()
+        link_name = self.request.data.get("link_name", self.request.GET.get("link_name", ""))
+        link = Link.objects.filter(org=org, name__icontains=link_name).first()
+        if not link_name or link is None:
+            errors = {
+                status.HTTP_400_BAD_REQUEST: _("Parameter 'link_name' is not provider."),
+                status.HTTP_404_NOT_FOUND: _("Link with name '{}' not found.").format(link_name),
+            }
+            code = status.HTTP_404_NOT_FOUND if link is None else status.HTTP_400_BAD_REQUEST
+            return Response({"error": errors[code]}, status=code)
+
+        response_data = {
+            "name": link.name,
+            "destination": link.destination,
+            "related_flow": getattr(link.related_flow, "uuid", None),
+            "results": [
+                {
+                    "total_clicks": link.clicks_count,
+                    "unique_clicks": link.contacts.count(),
+                    "unique_contacts": (
+                        link.related_flow.runs.aggregate(count=Count("contact", distinct=True))["count"]
+                        if link.related_flow
+                        else None
+                    ),
+                }
+            ],
+        }
+        return Response(response_data)
+
+    @staticmethod
+    def csv_convertor(result, response):
+        import csv
+
+        writer = csv.writer(response)
+        writer.writerows([("Variable", "Value"), *result.items()])
+
+    @classmethod
+    def get_read_explorer(cls):
+        return dict(
+            method="GET",
+            title="Trackable Link Report",
+            url=reverse("api.v2.trackable_link_report"),
+            slug="trackable-link-report",
+            fields=[
+                dict(name="link_name", required=True, help="The name of the link"),
+            ],
+            example=dict(body=json.dumps({"link_name": "Test Link Name"})),
         )
