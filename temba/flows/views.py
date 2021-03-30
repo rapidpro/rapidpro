@@ -1955,11 +1955,10 @@ class FlowCRUDL(SmartCRUDL):
                         )
                     )
 
-                if cleaned_data.get("extra_queries"):
-                    try:
-                        cleaned_data["extra_queries"] = json.loads(cleaned_data["extra_queries"])
-                    except JSONDecodeError:
-                        cleaned_data["extra_queries"] = {}
+                try:
+                    cleaned_data["extra_queries"] = json.loads(cleaned_data["extra_queries"])
+                except JSONDecodeError:
+                    cleaned_data["extra_queries"] = {}
 
                 return cleaned_data
 
