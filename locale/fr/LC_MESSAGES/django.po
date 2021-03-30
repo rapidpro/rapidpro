@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-24 22:35+0000\n"
+"POT-Creation-Date: 2021-03-31 15:51+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2375,8 +2375,10 @@ msgstr "Enregistrer en tant que groupe"
 msgid "Manage Fields"
 msgstr "Gérer les champs"
 
+#, fuzzy
+#| msgid "Import Contacts"
 msgid "Export Contacts"
-msgstr "Exporter des contacts"
+msgstr "Importer des contacts"
 
 msgid "Blocked Contacts"
 msgstr "Contacts Bloqués"
@@ -2653,6 +2655,9 @@ msgstr "Mots clés"
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr "Les flux suivants sont toujours utilisés par les campagnes et n'ont donc pas pu être archivés: %(flows)s"
 
+msgid "Import"
+msgstr "Importer"
+
 msgid "Edit Label"
 msgstr "Modifier l'étiquette"
 
@@ -2662,8 +2667,8 @@ msgstr "Supprimer l'étiquette"
 msgid "Start Flow"
 msgstr "Lancer un Flux"
 
-msgid "Results"
-msgstr "Resultats"
+msgid "Download Results"
+msgstr "Télécharger les résultats"
 
 msgid "Edit Flow"
 msgstr "Editer le flux"
@@ -2712,9 +2717,6 @@ msgstr "Contient des traductions en %(lang)s ui n'est pas une langue de traducti
 msgid "Replace flow translations in this language."
 msgstr "Remplacez les traductions de flux dans cette langue."
 
-msgid "Import"
-msgstr "Importer"
-
 msgid "Optional: Group memberships"
 msgstr "Facultatif: appartenances aux groupes"
 
@@ -2747,9 +2749,6 @@ msgstr "Vous ne pouvez inclure que jusqu'à {ExportFlowResultsTask.MAX_CONTACT_F
 msgid "You can only include up to {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groups for group memberships in your export"
 msgstr "Vous ne pouvez inclure que jusqu'à {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groupes d'adhésions à des groupes dans votre exportation"
 
-msgid "Download Results"
-msgstr "Télécharger les résultats"
-
 msgid "Sunday"
 msgstr "Dimanche"
 
@@ -2773,9 +2772,6 @@ msgstr "Samedi"
 
 msgid "Download"
 msgstr "Télécharger"
-
-msgid "Download Flow Results"
-msgstr "Télécharger les résultats du flux"
 
 msgid "Contacts & Groups"
 msgstr "Contacts & Groupes"
@@ -2962,8 +2958,10 @@ msgstr "Boîte d'Envoi"
 msgid "Schedules"
 msgstr "Planning"
 
-msgid "Export Messages"
-msgstr "Exporter des messages"
+#, fuzzy
+#| msgid "Flow Messages"
+msgid "Download Messages"
+msgstr "Flux messages"
 
 msgid "Schedule Message"
 msgstr "Messages planning"
@@ -5909,11 +5907,11 @@ msgstr "Journal des appels Webhook"
 msgid "New Label"
 msgstr "Nouvelle étiquette"
 
-msgid "Export Results"
-msgstr "Exporter les résultats"
-
 msgid "No matching flows."
 msgstr "Aucun flux correspondant"
+
+msgid "Results"
+msgstr "Resultats"
 
 msgid "Delete Run"
 msgstr "Supprimer l'exécution"
@@ -7726,6 +7724,20 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Export Messages"
+#~ msgstr "Exporter des messages"
+
+#, fuzzy
+#~| msgid "Export Contacts"
+#~ msgid "Export Contact Data"
+#~ msgstr "Exporter des contacts"
+
+#~ msgid "Download Flow Results"
+#~ msgstr "Télécharger les résultats du flux"
+
+#~ msgid "Export Results"
+#~ msgstr "Exporter les résultats"
 
 #~ msgid "No DT One account connected."
 #~ msgstr "Aucun compte DT One connecté."

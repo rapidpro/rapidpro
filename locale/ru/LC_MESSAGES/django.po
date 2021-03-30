@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-24 22:35+0000\n"
+"POT-Creation-Date: 2021-03-31 15:51+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3132,8 +3132,10 @@ msgstr "Сохранить как Группу"
 msgid "Manage Fields"
 msgstr "Управление Полями"
 
+#, fuzzy
+#| msgid "Import Contacts"
 msgid "Export Contacts"
-msgstr "Экспортировать Контакты"
+msgstr "Импортировать Контакты"
 
 msgid "Blocked Contacts"
 msgstr "Заблокированные Контакты"
@@ -3427,6 +3429,9 @@ msgstr "Ключевое слово"
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr ""
 
+msgid "Import"
+msgstr "Импорт"
+
 #, fuzzy
 #| msgid "Add Label"
 msgid "Edit Label"
@@ -3440,8 +3445,8 @@ msgstr "Создать Метку"
 msgid "Start Flow"
 msgstr "Начать поток"
 
-msgid "Results"
-msgstr "Результаты"
+msgid "Download Results"
+msgstr "Скачать Результаты"
 
 msgid "Edit Flow"
 msgstr "Редактировать Поток"
@@ -3492,9 +3497,6 @@ msgstr "Содержит переводы на %(lang)s, который не я�
 msgid "Replace flow translations in this language."
 msgstr "Заменить переводы потока на этот язык."
 
-msgid "Import"
-msgstr "Импорт"
-
 #, fuzzy
 #| msgid "Group Memberships for"
 msgid "Optional: Group memberships"
@@ -3531,9 +3533,6 @@ msgstr "В свой экспорт Вы можете включить тольк
 msgid "You can only include up to {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groups for group memberships in your export"
 msgstr "В свой экспорт Вы можете включить только до {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} групп для членства групп"
 
-msgid "Download Results"
-msgstr "Скачать Результаты"
-
 msgid "Sunday"
 msgstr "Воскресенье"
 
@@ -3557,11 +3556,6 @@ msgstr "Суббота"
 
 msgid "Download"
 msgstr "Скачать"
-
-#, fuzzy
-#| msgid "Download Results"
-msgid "Download Flow Results"
-msgstr "Скачать Результаты"
 
 msgid "Contacts & Groups"
 msgstr "Контакты и Группы"
@@ -3760,8 +3754,10 @@ msgstr "Исходящие"
 msgid "Schedules"
 msgstr "Расписания"
 
-msgid "Export Messages"
-msgstr "Экспортировать Сообщения"
+#, fuzzy
+#| msgid "Flow Messages"
+msgid "Download Messages"
+msgstr "Сообщения Потока"
 
 msgid "Schedule Message"
 msgstr "Запланировать сообщение"
@@ -7892,13 +7888,11 @@ msgstr "Журнал Вебхука"
 msgid "New Label"
 msgstr "Новая Метка..."
 
-#, fuzzy
-#| msgid "Export Flow Results"
-msgid "Export Results"
-msgstr "Экспортировать Результаты Потока"
-
 msgid "No matching flows."
 msgstr "Нет соответствующих потоков"
+
+msgid "Results"
+msgstr "Результаты"
 
 #, fuzzy
 #| msgid "Delete "
@@ -10382,6 +10376,24 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Export Messages"
+#~ msgstr "Экспортировать Сообщения"
+
+#, fuzzy
+#~| msgid "Export Contacts"
+#~ msgid "Export Contact Data"
+#~ msgstr "Экспортировать Контакты"
+
+#, fuzzy
+#~| msgid "Download Results"
+#~ msgid "Download Flow Results"
+#~ msgstr "Скачать Результаты"
+
+#, fuzzy
+#~| msgid "Export Flow Results"
+#~ msgid "Export Results"
+#~ msgstr "Экспортировать Результаты Потока"
 
 #~ msgid "No DT One account connected."
 #~ msgstr "Подключенных учетных записей DT One нет."

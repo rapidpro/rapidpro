@@ -1108,7 +1108,7 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm("flows.flow_results"):
                 links.append(
                     dict(
-                        title=_("Results"),
+                        title=_("Download Results"),
                         style="button-primary",
                         href=reverse("flows.flow_results", args=[flow.uuid]),
                     )
@@ -1733,7 +1733,7 @@ class FlowCRUDL(SmartCRUDL):
                     dict(
                         id="download-results",
                         title=_("Download"),
-                        modax=_("Download Flow Results"),
+                        modax=_("Download Results"),
                         href=f"{reverse('flows.flow_export_results')}?ids={self.get_object().pk}",
                     )
                 )
