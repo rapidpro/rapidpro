@@ -48,6 +48,7 @@ from temba.flows.tasks import export_flow_results_task, download_flow_images_tas
 from temba.ivr.models import IVRCall
 from temba.links.models import Link, LinkContacts
 from temba.mailroom import FlowValidationException
+from temba.msgs.models import Attachment
 from temba.orgs.models import Org, LOOKUPS, GIFTCARDS
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
@@ -585,6 +586,7 @@ class FlowCRUDL(SmartCRUDL):
                     *metadata.get("issues", []),
                     *Link.check_misstyped_links(flow, definition),
                     *Trigger.check_used_trigger_words(flow, definition),
+                    *Attachment.validate_fields(flow.org, definition),
                 ]
                 return JsonResponse(dict(definition=definition, metadata=metadata))
 
@@ -634,6 +636,7 @@ class FlowCRUDL(SmartCRUDL):
                     *metadata.get("issues", []),
                     *Link.check_misstyped_links(flow, definition),
                     *Trigger.check_used_trigger_words(flow, definition),
+                    *Attachment.validate_fields(flow.org, definition),
                 ]
                 return JsonResponse(
                     {
