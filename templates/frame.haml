@@ -149,43 +149,46 @@
 -load smartmin
 -load macros
 -macro messages
-  -if messages
-    -for msg in messages
-      %div{class:"alert alert-{{ message.tags }}"}
-        {{ msg }}
+  -block messages
+    -if messages
+      -for msg in messages
+        %div{class:"alert alert-{{ message.tags }}"}
+          {{ msg }}
 
 -macro post-header
+  -block post-header
 
 -macro page-container
-  .flex-grow
-    .page-content
-      -block suspension
-        {% if user_org.is_suspended %}
-          .px-12.-mt-4
-            -include "org_suspended_include.haml"
-        {% endif %}
+  -block page-container
+    .flex-grow
+      .page-content
+        -block suspension
+          {% if user_org.is_suspended %}
+            .px-12.-mt-4
+              -include "org_suspended_include.haml"
+          {% endif %}
 
-      .px-12.py-4
-        -block page-top
-          .flex.items-start
-            .flex.flex-col.mr-5.leading-tight
-              .page-title
-                -block title
-                  
-              .page-subtitle
-                -block subtitle
+        .px-12.py-4
+          -block page-top
+            .flex.items-start
+              .flex.flex-col.mr-5.leading-tight
+                .page-title
+                  -block title
 
-            .flex-grow
-              .flex.justify-end.w-full
-                -block gear-menu
-                  -include "gear_links_include.haml"
+                .page-subtitle
+                  -block subtitle
 
-          -block post-title
+              .flex-grow
+                .flex.justify-end.w-full
+                  -block gear-menu
+                    -include "gear_links_include.haml"
 
-        .mt-6
-          -block content
-        
-        -block post-content
+            -block post-title
+
+          .mt-6
+            -block content
+          
+          -block post-content
 
 {% block body %}
 
