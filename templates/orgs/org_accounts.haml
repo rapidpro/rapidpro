@@ -15,45 +15,45 @@
 
 
 -block pre-form
+  -if not use_weni_layout
+    .mb-2
+      -blocktrans trimmed
+        Your workspace can have logins with various roles. You can use the Manage Logins page
+        to view all existing logins or to add new logins to your workspace.
+    
+    .inline-block
+      .button-light(onclick="goto(event)" href="{%url 'orgs.org_manage_accounts'%}")
+        -trans "Manage Logins"
 
-  .mb-2
-    -blocktrans trimmed
-      Your workspace can have logins with various roles. You can use the Manage Logins page
-      to view all existing logins or to add new logins to your workspace.
-  
-  .inline-block
-    .button-light(onclick="goto(event)" href="{%url 'orgs.org_manage_accounts'%}")
-      -trans "Manage Logins"
+    .mt-8
 
-  .mt-8
-
-  .mb-3
-    -blocktrans trimmed with org=org.name brand=brand.name
-      If you use the {{ brand }} Surveyor application to run flows offline, we recommend enabling
-      users to create accounts from within the Android application. Setting a Surveyor password will
-      allow anybody with that password to join {{org}} as a surveyor.
+    .mb-3
+      -blocktrans trimmed with org=org.name brand=brand.name
+        If you use the {{ brand }} Surveyor application to run flows offline, we recommend enabling
+        users to create accounts from within the Android application. Setting a Surveyor password will
+        allow anybody with that password to join {{org}} as a surveyor.
 
 -block summary
+  -if not use_weni_layout
+    %b= object.name
+    -trans "has"
 
-  %b= object.name
-  -trans "has"
+    -blocktrans trimmed count org.administrators.count as accounts
+      {{accounts}} Administrator,
+      -plural
+        {{accounts}} Administrators,
 
-  -blocktrans trimmed count org.administrators.count as accounts
-    {{accounts}} Administrator,
-    -plural
-      {{accounts}} Administrators,
+    -blocktrans trimmed count org.editors.count as accounts
+      {{accounts}} Editor,
+      -plural
+        {{accounts}} Editors,
 
-  -blocktrans trimmed count org.editors.count as accounts
-    {{accounts}} Editor,
-    -plural
-      {{accounts}} Editors,
+    -blocktrans trimmed count org.viewers.count as accounts
+      {{accounts}} Viewer,
+      -plural
+        {{accounts}} Viewers,
 
-  -blocktrans trimmed count org.viewers.count as accounts
-    {{accounts}} Viewer,
-    -plural
-      {{accounts}} Viewers,
-
-  -blocktrans trimmed count org.surveyors.count as accounts
-    {{accounts}} Surveyor.
-    -plural
-      {{accounts}} Surveyors.
+    -blocktrans trimmed count org.surveyors.count as accounts
+      {{accounts}} Surveyor.
+      -plural
+        {{accounts}} Surveyors.
