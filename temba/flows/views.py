@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from django_redis import get_redis_connection
 from packaging.version import Version
+from simplejson import JSONDecodeError
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -42,6 +43,7 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.contacts.search import SearchException, parse_query
+from temba.contacts.search.elastic import query_contact_ids
 from temba.contacts.search.omnibox import omnibox_deserialize
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task, download_flow_images_task
@@ -62,6 +64,7 @@ from temba.utils.fields import (
     SelectMultipleWidget,
     SelectWidget,
 )
+from temba.utils.dates import str_to_datetime
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.utils.uuid import uuid4
@@ -1905,6 +1908,13 @@ class FlowCRUDL(SmartCRUDL):
                 widget=CheckboxWidget(),
             )
 
+            extra_queries = JSONField(
+                required=False,
+                label=_("Extra Query Parameters"),
+                help_text=_("Configuration to filter runs by contact fields or responses"),
+                widget=forms.HiddenInput(),
+            )
+
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.user = user
@@ -1944,6 +1954,12 @@ class FlowCRUDL(SmartCRUDL):
                             f"You can only include up to {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groups for group memberships in your export"
                         )
                     )
+
+                if cleaned_data.get("extra_queries"):
+                    try:
+                        cleaned_data["extra_queries"] = json.loads(cleaned_data["extra_queries"])
+                    except JSONDecodeError:
+                        cleaned_data["extra_queries"] = {}
 
                 return cleaned_data
 
@@ -1993,6 +2009,7 @@ class FlowCRUDL(SmartCRUDL):
                     responded_only=form.cleaned_data[ExportFlowResultsTask.RESPONDED_ONLY],
                     extra_urns=form.cleaned_data[ExportFlowResultsTask.EXTRA_URNS],
                     group_memberships=form.cleaned_data[ExportFlowResultsTask.GROUP_MEMBERSHIPS],
+                    extra_queries=form.cleaned_data[ExportFlowResultsTask.EXTRA_QUERIES],
                 )
                 on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
 
@@ -2149,10 +2166,42 @@ class FlowCRUDL(SmartCRUDL):
 
         paginate_by = 50
 
+        @classmethod
+        def search_query(cls, query, base_queryset):
+            from .search.parser import FlowRunSearch
+
+            runs_search = FlowRunSearch(query=query, base_queryset=base_queryset)
+            return runs_search.search()
+
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
             flow = self.get_object()
+
+            after = self.request.GET.get("after")
+            before = self.request.GET.get("before")
+            search_query = self.request.GET.get("q")
+            contact_query = self.request.GET.get("contact_query")
+
             runs = flow.runs.all()
+
+            if after:
+                after = str_to_datetime(after, tz=flow.org.timezone, dayfirst=flow.org.date_format == "D")
+                runs = runs.filter(modified_on__gte=after)
+
+            if before:
+                before = str_to_datetime(before, tz=flow.org.timezone, dayfirst=flow.org.date_format == "D")
+                runs = runs.filter(modified_on__lte=before)
+
+            if search_query:
+                runs, query_error = FlowCRUDL.RunTable.search_query(query=search_query, base_queryset=runs)
+                if query_error:
+                    context["query_error"] = query_error
+
+            if contact_query:
+                org = flow.org
+                group = org.all_groups.filter(group_type="A").first()
+                contact_ids = query_contact_ids(org, contact_query, group=group)
+                runs = runs.filter(contact_id__in=contact_ids)
 
             if str_to_bool(self.request.GET.get("responded", "true")):
                 runs = runs.filter(responded=True)
