@@ -737,7 +737,6 @@ class APITest(TembaTest):
                 "urns": ["twitter:franky"],
                 "contacts": [self.joe.uuid, self.frank.uuid],
                 "groups": [reporters.uuid],
-                "channel": self.channel.uuid,
             },
         )
 
