@@ -8,7 +8,7 @@
 
     %td.details.wrapped.w-full
       -if event.type == 'airtime_transferred'
-        -if transfer.actual_amount > 0
+        -if event.actual_amount > 0
           -blocktrans trimmed with amount=event.actual_amount currency=event.currency
             Transferred <b>{{ amount }}</b> <b>{{ currency }}</b> of airtime
         -else
