@@ -1213,10 +1213,8 @@ class OrgCRUDL(SmartCRUDL):
             return HttpResponseRedirect(self.get_success_url())
 
     class SmtpServer(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        success_message = ""
-
-        class SmtpConfig(forms.ModelForm):
-            smtp_from_email = forms.CharField(
+        class Form(forms.ModelForm):
+            from_email = forms.CharField(
                 max_length=128,
                 label=_("Email Address"),
                 required=False,
@@ -1246,7 +1244,7 @@ class OrgCRUDL(SmartCRUDL):
             def clean(self):
                 super().clean()
                 if self.cleaned_data.get("disconnect", "false") == "false":
-                    smtp_from_email = self.cleaned_data.get("smtp_from_email", None)
+                    from_email = self.cleaned_data.get("from_email", None)
                     smtp_host = self.cleaned_data.get("smtp_host", None)
                     smtp_username = self.cleaned_data.get("smtp_username", None)
                     smtp_password = self.cleaned_data.get("smtp_password", None)
@@ -1260,10 +1258,10 @@ class OrgCRUDL(SmartCRUDL):
                     if not smtp_password and existing_username == smtp_username and existing_smtp_server.password:
                         smtp_password = unquote(existing_smtp_server.password)
 
-                    if not smtp_from_email:
+                    if not from_email:
                         raise ValidationError(_("You must enter a from email"))
 
-                    parsed = parseaddr(smtp_from_email)
+                    parsed = parseaddr(from_email)
                     if not is_valid_address(parsed[1]):
                         raise ValidationError(_("Please enter a valid email address"))
 
@@ -1299,12 +1297,12 @@ class OrgCRUDL(SmartCRUDL):
                             admin_emails,
                             subject,
                             body,
-                            smtp_from_email,
+                            from_email,
                             smtp_host,
                             smtp_port,
                             smtp_username,
                             smtp_password,
-                            True,
+                            use_tls=True,
                         )
 
                     except smtplib.SMTPException as e:
@@ -1318,9 +1316,10 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
-                fields = ("smtp_from_email", "smtp_host", "smtp_username", "smtp_password", "smtp_port", "disconnect")
+                fields = ("from_email", "smtp_host", "smtp_username", "smtp_password", "smtp_port", "disconnect")
 
-        form_class = SmtpConfig
+        form_class = Form
+        success_message = ""
 
         def derive_initial(self):
             initial = super().derive_initial()
@@ -1334,7 +1333,7 @@ class OrgCRUDL(SmartCRUDL):
             if parsed_smtp_server.password:
                 smtp_password = unquote(parsed_smtp_server.password)
 
-            initial["smtp_from_email"] = parse_qs(parsed_smtp_server.query).get("from", [None])[0]
+            initial["from_email"] = parse_qs(parsed_smtp_server.query).get("from", [None])[0]
             initial["smtp_host"] = parsed_smtp_server.hostname
             initial["smtp_username"] = smtp_username
             initial["smtp_password"] = smtp_password
@@ -1351,7 +1350,7 @@ class OrgCRUDL(SmartCRUDL):
                 org.remove_smtp_config(user)
                 return HttpResponseRedirect(reverse("orgs.org_home"))
             else:
-                smtp_from_email = form.cleaned_data["smtp_from_email"]
+                smtp_from_email = form.cleaned_data["from_email"]
                 smtp_host = form.cleaned_data["smtp_host"]
                 smtp_username = form.cleaned_data["smtp_username"]
                 smtp_password = form.cleaned_data["smtp_password"]
@@ -1363,19 +1362,17 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-
             org = self.get_object()
+            from_email = None
+
             if org.has_smtp_config():
                 smtp_server = org.config.get(Org.CONFIG_SMTP_SERVER)
                 parsed_smtp_server = urlparse(smtp_server)
+                from_email_params = parse_qs(parsed_smtp_server.query).get("from")
+                if from_email_params:
+                    from_email = parseaddr(from_email_params[0])[1]  # extract address only
 
-                from_email = parse_qs(parsed_smtp_server.query).get("from", [None])[0]
-            else:
-                from_email = settings.FLOW_FROM_EMAIL
-
-            # populate our context with the from email (just the address)
-            context["flow_from_email"] = parseaddr(from_email)[1]
-
+            context["flow_from_email"] = from_email
             return context
 
     class Manage(SmartListView):
