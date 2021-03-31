@@ -2747,17 +2747,6 @@ class FlowCRUDL(SmartCRUDL):
                                 value_field, ValidationError(_("You must specify the value for this field."))
                             )
 
-                def validate_omnibox():
-                    starting = cleaned_data["omnibox"]
-                    start_type = cleaned_data["start_type"]
-                    if (
-                        start_type == "select" and not starting["groups"] and not starting["contacts"]
-                    ):  # pragma: needs cover
-                        self.add_error(
-                            "omnibox",
-                            ValidationError(_("You must specify at least one contact or one group to start a flow.")),
-                        )
-
                 def validate_contact_query():
                     start_type = cleaned_data["start_type"]
                     contact_query = cleaned_data["contact_query"]
@@ -2778,7 +2767,6 @@ class FlowCRUDL(SmartCRUDL):
 
                 if cleaned_data["start_type"] == "select":
                     validate_flow_params()
-                    validate_omnibox()
                 else:
                     validate_flow_params()
                     validate_contact_query()
