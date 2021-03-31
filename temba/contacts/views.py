@@ -1029,7 +1029,7 @@ class ContactCRUDL(SmartCRUDL):
                 links.append(
                     dict(
                         id="export-contacts",
-                        title=_("Export Contacts"),
+                        title=_("Export"),
                         modax=_("Export Contacts"),
                         href=self.derive_export_url(),
                     )
@@ -1122,7 +1122,7 @@ class ContactCRUDL(SmartCRUDL):
                 links.append(
                     dict(
                         id="export-contacts",
-                        title=_("Export Contacts"),
+                        title=_("Export"),
                         modax=_("Export Contacts"),
                         href=self.derive_export_url(),
                     )
