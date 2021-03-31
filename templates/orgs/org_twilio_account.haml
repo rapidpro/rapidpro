@@ -1,20 +1,12 @@
 -extends "smartmin/form.html"
-
 -load compress temba smartmin i18n
-
--block title-icon
-  .title-icon
-    %span.glyph.icon-twilio
-
--block title-text
-  .title-text
-    %h1 Disconnect Twilio
 
 -block summary
   -if object.is_connected_to_twilio
-    Connected to Twilio Account {{account_sid}}
+    -blocktrans trimmed
+      Connected to Twilio Account {{ account_sid }}
   -else
-    Disconnected from Twilio
+    -trans "Disconnected from Twilio"
 
 -block post-form
   .mt-4
@@ -38,7 +30,7 @@
       %input.btn.btn-danger{type:"submit", value:"{{ submit_button_name }}"}
     -else
       %a.btn.btn-primary{href:"{% url 'orgs.org_twilio_connect'%}"}
-        Connect Twilio
+        -trans "Connect Twilio"
 
 -block extra-script
   {{block.super}}

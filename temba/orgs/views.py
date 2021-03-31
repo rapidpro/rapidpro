@@ -3258,19 +3258,9 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            languages = [
-                lang.name for lang in self.request.user.get_org().languages.filter(orgs=None).order_by("name")
-            ]
-            lang_count = len(languages)
+            org = self.request.user.get_org()
 
-            if lang_count == 2:
-                context["languages"] = _(" and ").join(languages)
-            elif lang_count > 2:
-                context["languages"] = _("%(lang1)s and %(lang2)s") % dict(
-                    lang1=", ".join(languages[:-1]), lang2=languages[-1]
-                )
-            elif lang_count == 1:
-                context["languages"] = languages[0]
+            context["languages"] = [lang.name for lang in org.languages.filter(orgs=None).order_by("name")]
             return context
 
         def get(self, request, *args, **kwargs):

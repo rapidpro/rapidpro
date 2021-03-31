@@ -1,21 +1,12 @@
 -extends "smartmin/form.html"
-
 -load compress temba smartmin i18n
-
--block title-icon
-  .title-icon
-    %span.glyph.icon-nexmo
-
--block title-text
-  .title-text
-    %h1
-      -trans "Disconnect Nexmo"
 
 -block summary
   -if object.is_connected_to_nexmo
-    Connected to Nexmo Account with API key {{ api_key }}
+    -blocktrans trimmed
+      Connected to Nexmo Account with API key {{ api_key }}
   -else
-    Disconnected from Nexmo
+    -trans "Disconnected from Nexmo"
 
 -block post-form
   .mt-4
