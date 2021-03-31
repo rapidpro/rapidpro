@@ -669,13 +669,17 @@ class ContactFieldReadSerializer(ReadSerializer):
     }
 
     value_type = serializers.SerializerMethodField()
+    pinned = serializers.SerializerMethodField()
 
     def get_value_type(self, obj):
         return self.VALUE_TYPES[obj.value_type]
 
+    def get_pinned(self, obj):
+        return obj.show_in_table
+
     class Meta:
         model = ContactField
-        fields = ("key", "label", "value_type")
+        fields = ("key", "label", "value_type", "pinned")
 
 
 class ContactFieldWriteSerializer(WriteSerializer):

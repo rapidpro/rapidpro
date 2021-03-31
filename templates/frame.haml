@@ -31,7 +31,6 @@
         (function() { document.write(unescape('%3Cscript src="' + src + '"%3E%3C/script%3E')); })();
       }
 
-
     // ==== JQUERY ====
     :javascript
       conditionalLoad('bower/jquery/jquery.js', '//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.js');
@@ -39,7 +38,6 @@
 
     -# this view make it possible to process translations from javascript land
     <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
-
     -compress js
       :javascript
         var static_url = '{{STATIC_URL}}';
@@ -72,8 +70,10 @@
       %script{src:"{{ STATIC_URL }}js/labels.js"}
       %script{src:"{{ STATIC_URL }}js/formax.js"}
     
-    -include "components-head.html"
     -include "includes/frame_top.html"
+
+    -if not COMPONENTS_DEV_MODE
+      -include "components-head.html"
 
     -if brand.favico
       %link{type:"image/ico", rel:"shortcut icon", href:"{{ STATIC_URL }}{{ brand.favico }}"}
@@ -134,8 +134,14 @@
 {% block body %}
 
 %body#pageBody.bg-gradient
-  -include "components-body.html"
 
+  -if COMPONENTS_DEV_MODE
+    <script type="module">
+      import '../out-tsc/temba-modules.js';
+    </script>
+  -else 
+    -include "components-body.html"
+  
   -block temba-store
     
     -if user.is_authenticated
@@ -365,5 +371,6 @@
 
       });
 {% endblock body %}
+
 
 </html>

@@ -156,6 +156,7 @@ STATICFILES_DIRS = (
     os.path.join(PROJECT_DIR, "../static"),
     os.path.join(PROJECT_DIR, "../media"),
     os.path.join(PROJECT_DIR, "../node_modules/@nyaruka/flow-editor/build"),
+    os.path.join(PROJECT_DIR, "../node_modules/@nyaruka/temba-components/dist/static"),
     os.path.join(PROJECT_DIR, "../node_modules"),
     os.path.join(PROJECT_DIR, "../node_modules/react/umd"),
     os.path.join(PROJECT_DIR, "../node_modules/react-dom/umd"),
@@ -177,7 +178,7 @@ TEMPLATES = [
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [
             os.path.join(PROJECT_DIR, "../templates"),
-            os.path.join(PROJECT_DIR, "../node_modules/@nyaruka/temba-components/build/templates"),
+            os.path.join(PROJECT_DIR, "../node_modules/@nyaruka/temba-components/dist/templates"),
         ],
         "OPTIONS": {
             "context_processors": [
@@ -190,6 +191,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "temba.context_processors.branding",
                 "temba.context_processors.analytics",
+                "temba.context_processors.config",
                 "temba.orgs.context_processors.user_group_perms_processor",
                 "temba.channels.views.channel_status_processor",
                 "temba.orgs.context_processors.settings_includer",
