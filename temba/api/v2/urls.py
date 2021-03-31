@@ -32,6 +32,7 @@ from .views import (
     RunsEndpoint,
     TemplatesEndpoint,
     TicketersEndpoint,
+    TicketsEndpoint,
     WorkspaceEndpoint,
 )
 
@@ -67,6 +68,7 @@ urlpatterns = [
     url(r"^runs$", RunsEndpoint.as_view(), name="api.v2.runs"),
     url(r"^templates$", TemplatesEndpoint.as_view(), name="api.v2.templates"),
     url(r"^ticketers$", TicketersEndpoint.as_view(), name="api.v2.ticketers"),
+    url(r"^tickets$", TicketsEndpoint.as_view(), name="api.v2.tickets"),
     url(r"^workspace$", WorkspaceEndpoint.as_view(), name="api.v2.workspace"),
 ]
 
