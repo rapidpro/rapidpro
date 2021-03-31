@@ -1393,18 +1393,11 @@ class ContactCRUDL(SmartCRUDL):
 
             folder = self.request.GET.get("folder", "")
             if folder == self.FOLDER_OPEN:
-                qs = (
-                    qs.filter(tickets__status=Ticket.STATUS_OPEN)
-                    .annotate(ticket_uuid=F("tickets__uuid"), ticket_status=F("tickets__status"))
-                    .distinct("last_seen_on", "id")
-                )
+                qs = qs.filter(tickets__status=Ticket.STATUS_OPEN).distinct("last_seen_on", "id")
 
             elif folder == self.FOLDER_CLOSED:
                 qs = (
-                    qs.exclude(tickets=None)
-                    .exclude(tickets__status=Ticket.STATUS_OPEN)
-                    .annotate(ticket_uuid=F("tickets__uuid"), ticket_status=F("tickets__status"))
-                    .distinct("last_seen_on", "id")
+                    qs.exclude(tickets=None).exclude(tickets__status=Ticket.STATUS_OPEN).distinct("last_seen_on", "id")
                 )
             else:
                 raise Http404("'%' is not valid ticket folder", folder)
@@ -1433,11 +1426,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def as_json(self, context):
             def ticket_as_json(c):
-                return {
-                    "uuid": c.ticket_uuid,
-                    "status": c.ticket_status,
-                    "contact": contact_as_json(c),
-                }
+                return contact_as_json(c)
 
             def msg_as_json(m):
                 sender = None

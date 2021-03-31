@@ -55,14 +55,14 @@
   {{block.super}}
   :javascript
     function handleContactChanged(event) {
-      var ticket = event.target.value;
+      var contact = event.target.value;
       var chat = document.querySelector("temba-contact-chat");
-      chat.ticket = ticket;
+      chat.contact = contact;
     }
     
     function handleContactHistoryUpdated(event) {
       // tell our list to refresh since we know things happened
-      var tickets = document.querySelector("temba-tickets");
+      var tickets = document.querySelector("temba-contacts");
       tickets.refresh();
     }
 
@@ -73,12 +73,12 @@
     }
 
     function handleFilterChanged(event) {
-      var tickets = document.querySelector("temba-tickets");
+      var tickets = document.querySelector("temba-contacts");
       var chat = document.querySelector("temba-contact-chat");
 
       // if we have auto selecting, don't clear the chat
       if (!tickets.nextSelection) {
-        chat.ticket = null;
+        chat.contact = null;
       }
 
       var filter = event.target.values[0].value;
@@ -90,15 +90,14 @@
     }
 
     function handleTicketChanged(event) {
-      var ticket = event.detail.ticket;
+      var contact = event.detail.contact;
       var focus = event.detail.focus;
 
       var filter = document.querySelector('temba-select[name="ticket-filter"]');
-      var tickets = document.querySelector("temba-tickets");
+      var contacts = document.querySelector("temba-contacts");
 
       if (focus) {
-        tickets.setNextSelection(ticket.uuid);
-        filter.setSelection(ticket.status);
+        contacts.setNextSelection(contact.uuid);
       } else {
         // no focus, just refresh
         tickets.refresh();
@@ -122,7 +121,7 @@
           %temba-option(name="Closed" value="C" icon="check")
         
         .flex.flex-grow
-          %temba-tickets(endpoint="/contact/tickets/?_format=json&folder=open" -temba-refreshed="handleTicketsRefreshed(event)" onchange="handleContactChanged(event)")
+          %temba-contacts(endpoint="/contact/tickets/?_format=json&folder=open" -temba-refreshed="handleTicketsRefreshed(event)" onchange="handleContactChanged(event)")
 
       .flex-grow.flex-col.h-full.py-4.pb-4.pr-4
         %temba-contact-chat(-temba-refreshed="handleContactHistoryUpdated(event)" -temba-content-changed="handleTicketChanged(event)")
