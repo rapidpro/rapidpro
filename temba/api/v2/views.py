@@ -24,6 +24,7 @@ from temba.api.v2.views_base import (
     DeleteAPIMixin,
     ListAPIMixin,
     ModifiedOnCursorPagination,
+    OpenedOnCursorPagination,
     WriteAPIMixin,
 )
 from temba.archives.models import Archive
@@ -37,7 +38,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import Broadcast, Label, LabelCount, Msg, SystemLabel
 from temba.templates.models import Template, TemplateTranslation
-from temba.tickets.models import Ticketer
+from temba.tickets.models import Ticket, Ticketer
 from temba.utils import on_transaction_commit, splitting_getlist, str_to_bool
 
 from ..models import SSLPermission
@@ -76,6 +77,7 @@ from .serializers import (
     ResthookSubscriberWriteSerializer,
     TemplateReadSerializer,
     TicketerReadSerializer,
+    TicketReadSerializer,
     WebHookEventReadSerializer,
     WorkspaceReadSerializer,
 )
@@ -215,6 +217,7 @@ class RootView(views.APIView):
                 "runs": reverse("api.v2.runs", request=request),
                 "templates": reverse("api.v2.templates", request=request),
                 "ticketers": reverse("api.v2.ticketers", request=request),
+                # "tickets": reverse("api.v2.tickets", request=request),
                 "workspace": reverse("api.v2.workspace", request=request),
             }
         )
@@ -270,6 +273,7 @@ class ExplorerView(SmartTemplateView):
             RunsEndpoint.get_read_explorer(),
             TemplatesEndpoint.get_read_explorer(),
             TicketersEndpoint.get_read_explorer(),
+            # TicketsEndpoint.get_read_explorer(),
             WorkspaceEndpoint.get_read_explorer(),
         ]
         return context
@@ -3222,10 +3226,10 @@ class FlowStartsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
             "uuid": "09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
             "flow": {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Thrift Shop"},
             "groups": [
-                 {"uuid": "f5901b62-ba76-4003-9c62-72fdacc1b7b7", "name": "Ryan & Macklemore"}
+                 {"uuid": "c24813d2-3bc7-4467-8916-255b6525c6be", "name": "Ryan & Macklemore"}
             ],
             "contacts": [
-                 {"uuid": "f5901b62-ba76-4003-9c62-fjjajdsi15553", "name": "Wanz"}
+                 {"uuid": "f1ea776e-c923-4c1a-b3a3-0c466932b2cc", "name": "Wanz"}
             ],
             "restart_participants": true,
             "status": "complete",
@@ -3403,9 +3407,9 @@ class TicketersEndpoint(ListAPIMixin, BaseAPIView):
     A **GET** returns the ticketers for your organization, most recent first.
 
      * **uuid** - the UUID of the ticketer, filterable as `uuid`.
-     * **name** - the name of the ticketer
-     * **type** - the type of the ticketer, e.g. 'mailgun' or 'zendesk'
-     * **created_on** - when this ticketer was created
+     * **name** - the name of the ticketer.
+     * **type** - the type of the ticketer, e.g. 'mailgun' or 'zendesk'.
+     * **created_on** - when this ticketer was created.
 
     Example:
 
@@ -3469,6 +3473,88 @@ class TicketersEndpoint(ListAPIMixin, BaseAPIView):
                 },
             ],
         }
+
+
+class TicketsEndpoint(ListAPIMixin, BaseAPIView):
+    """
+    This endpoint allows you to list the tickets opened on your account.
+
+    ## Listing Tickets
+
+    A **GET** returns the tickets for your organization, most recent first.
+
+     * **uuid** - the UUID of the ticket, filterable as `uuid`.
+     * **ticketer** - the UUID and name of the ticketer (object).
+     * **contact** - the UUID and name of the contact (object), filterable as `contact` with UUID.
+     * **status** - the status of the ticket, e.g. 'open' or 'closed'.
+     * **subject** - the subject of the ticket.
+     * **body** - the body of the ticket.
+     * **opened_on** - when this ticket was opened.
+
+    Example:
+
+        GET /api/v2/tickets.json
+
+    Response:
+
+        {
+            "next": null,
+            "previous": null,
+            "results": [
+            {
+                "uuid": "9a8b001e-a913-486c-80f4-1356e23f582e",
+                "ticketer": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Email (bob@acme.com)"},
+                "contact": {"uuid": "f1ea776e-c923-4c1a-b3a3-0c466932b2cc", "name": "Jim"},
+                "status": "open",
+                "subject": "Need help",
+                "body": "Where did I leave my shorts?",
+                "opened_on": "2013-02-27T09:06:15.456"
+            },
+            ...
+    """
+
+    permission = "tickets.ticket_api"
+    model = Ticket
+    serializer_class = TicketReadSerializer
+    pagination_class = OpenedOnCursorPagination
+
+    def filter_queryset(self, queryset):
+        params = self.request.query_params
+        org = self.request.user.get_org()
+
+        queryset = queryset.filter(org=org)
+
+        # filter by contact (optional)
+        contact_uuid = params.get("contact")
+        if contact_uuid:
+            contact = org.contacts.filter(is_active=True, uuid=contact_uuid).first()
+            if contact:
+                queryset = queryset.filter(contact=contact)
+            else:
+                queryset = queryset.filter(id=-1)
+
+        queryset = queryset.prefetch_related(
+            Prefetch("ticketer", queryset=Ticketer.objects.only("uuid", "name")),
+            Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),
+        )
+
+        return queryset
+
+    # @classmethod
+    # def get_read_explorer(cls):
+    #     return {
+    #         "method": "GET",
+    #         "title": "List Tickets",
+    #         "url": reverse("api.v2.tickets"),
+    #         "slug": "ticket-list",
+    #         "params": [
+    #             {
+    #                 "name": "contact",
+    #                 "required": False,
+    #                 "help": "A contact UUID to filter by, ex: 09d23a05-47fe-11e4-bfe9-b8f6b119e9ab",
+    #             },
+    #         ],
+    #     }
 
 
 class WorkspaceEndpoint(BaseAPIView):
