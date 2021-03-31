@@ -859,6 +859,17 @@ class FlowCRUDL(SmartCRUDL):
                 ),
             ]
 
+        def get_gear_links(self):
+            links = []
+
+            if self.has_org_perm("orgs.org_import"):
+                links.append(dict(title=_("Import"), href=reverse("orgs.org_import")))
+
+            if self.has_org_perm("orgs.org_export"):
+                links.append(dict(title=_("Export"), href=reverse("orgs.org_export")))
+
+            return links
+
     class Archived(BaseList):
         bulk_actions = ("restore",)
         default_order = ("-created_on",)
@@ -1097,7 +1108,7 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm("flows.flow_results"):
                 links.append(
                     dict(
-                        title=_("Results"),
+                        title=_("Download Results"),
                         style="button-primary",
                         href=reverse("flows.flow_results", args=[flow.uuid]),
                     )
@@ -1722,7 +1733,7 @@ class FlowCRUDL(SmartCRUDL):
                     dict(
                         id="download-results",
                         title=_("Download"),
-                        modax=_("Download Flow Results"),
+                        modax=_("Download Results"),
                         href=f"{reverse('flows.flow_export_results')}?ids={self.get_object().pk}",
                     )
                 )
