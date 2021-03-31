@@ -54,6 +54,7 @@ class Link(TembaModel):
 
     send_full_link = models.BooleanField(
         default=False,
+        verbose_name="Do not shorten link",
         help_text=_(
             "This option sends your link as displayed above but is not recommended as full links are more susceptible to be flagged as spam by carriers. We recommend this option only if the link is already short and if there is a need to maintain branding."
         ),

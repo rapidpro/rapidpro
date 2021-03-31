@@ -2321,7 +2321,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 node_corrected = node_result.get("corrected", "")
                 result_values += [node_category, node_value, node_input, node_corrected]
 
-            flow_params_values, trigger_params = [], run["trigger_params"]
+            flow_params_values, trigger_params = [], run.get("trigger_params", {})
             for flow_params_field in getattr(self, "flow_params_fields", []):
                 flow_params_values.append(trigger_params.get(flow_params_field, ""))
 
