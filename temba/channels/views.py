@@ -16,6 +16,7 @@ import requests
 
 import twilio.base.exceptions
 from django_countries.data import COUNTRIES
+from rest_framework import status
 from smartmin.views import (
     SmartCRUDL,
     SmartDeleteView,
@@ -2658,12 +2659,16 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             channel = self.derive_channel()
+            try:
+                response_status = int(self.request.GET.get("response_status", ""))
+            except ValueError:
+                response_status = None
 
             if self.request.GET.get("connections"):
-                if self.request.GET.get("response_status"):
+                if response_status:
                     logs = (
                         ChannelLog.objects.filter(channel=channel)
-                        .filter(response_status=self.request.GET.get("response_status"))
+                        .filter(response_status=response_status)
                         .exclude(connection=None)
                         .values_list("connection_id", flat=True)
                     )
@@ -2681,8 +2686,8 @@ class ChannelLogCRUDL(SmartCRUDL):
 
             elif self.request.GET.get("others"):
                 events = ChannelLog.objects.filter(channel=channel, connection=None, msg=None).order_by("-created_on")
-                if self.request.GET.get("response_status"):
-                    events = events.filter(response_status=self.request.GET.get("response_status"))
+                if response_status:
+                    events = events.filter(response_status=response_status)
 
             else:
                 events = (
@@ -2691,8 +2696,8 @@ class ChannelLogCRUDL(SmartCRUDL):
                     .order_by("-created_on")
                     .select_related("msg", "msg__contact", "msg__contact_urn", "channel", "channel__org")
                 )
-                if self.request.GET.get("response_status"):
-                    events = events.filter(response_status=self.request.GET.get("response_status"))
+                if response_status:
+                    events = events.filter(response_status=response_status)
                 patch_queryset_count(events, channel.get_non_ivr_log_count)
 
             return events
@@ -2708,6 +2713,10 @@ class ChannelLogCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["channel"] = self.derive_channel()
+            context["statuses"] = [
+                (key, getattr(status, key, None))
+                for key in filter(lambda x: x.startswith("HTTP_"), dir(status))
+            ]
             return context
 
     class Connection(AnonMixin, SmartReadView):

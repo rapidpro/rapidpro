@@ -27,9 +27,8 @@
           .mt-4
             %temba-select#status-filter(searchable="true" placeholder="Status Filter" onchange="handleFilterSet(this)" tags="true" spaceSelect="true")
               %temba-option(name="All" value="")
-              %temba-option(name="200" value="200")
-              %temba-option(name="400" value="400")
-              %temba-option(name="500" value="500")
+              - for name, value in statuses
+                %temba-option(name="{{ name }}" value="{{ value }}")
 
           %table.list.object-list.lined.mt-4
             %thead
@@ -119,9 +118,14 @@
     document.addEventListener("DOMContentLoaded", () => {
       let urlParams = new URLSearchParams(location.search);
       let responseStatus = urlParams.get("response_status");
-      if (responseStatus) {
-        document.querySelector("#status-filter").setValue({name: responseStatus, value: responseStatus});
-      }
+      let filterEl = document.querySelector("#status-filter");
+      setTimeout(() => {
+        let option = filterEl.getStaticOptions().find((el) => el.value === responseStatus)
+        if (filterEl && responseStatus && option) {
+          filterEl.setValue(option);
+        }
+      }, 100);
+
     });
     function handleFilterSet(select) {
       if (select.values.length > 0) {
