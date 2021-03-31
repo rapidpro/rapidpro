@@ -1,3 +1,9 @@
+v6.3.13
+----------
+ * Clarify terms for exports vs downloads
+ * Fix rendering of airtime events in contact history
+ * Add flows import and flow exports links in the flows tab
+
 v6.3.12
 ----------
  * Update to latest flow-editor
