@@ -1997,7 +1997,7 @@ class ContactTest(TembaTest):
         )
 
         # create an airtime transfer
-        AirtimeTransfer.objects.create(
+        transfer = AirtimeTransfer.objects.create(
             org=self.org,
             status="S",
             contact=self.joe,
@@ -2073,6 +2073,8 @@ class ContactTest(TembaTest):
         )
         self.assertContains(response, reverse("channels.channellog_read", args=[log.id]))
         self.assertContains(response, reverse("channels.channellog_connection", args=[call.id]))
+        self.assertContains(response, "Transferred <b>100.00</b> <b>RWF</b> of airtime")
+        self.assertContains(response, reverse("airtime.airtimetransfer_read", args=[transfer.id]))
 
         # can also fetch same page as JSON
         response_json = self.client.get(url + "?limit=100&_format=json").json()

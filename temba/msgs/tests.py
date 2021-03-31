@@ -621,7 +621,7 @@ class MsgTest(TembaTest):
 
         self.assertEqual(response.context["object_list"].count(), 3)
         self.assertEqual(response.context["actions"], ("resend",))
-        self.assertContains(response, "Export")
+        self.assertContains(response, "Download")
 
         self.assertContains(response, reverse("channels.channellog_read", args=[log.id]))
 
@@ -1392,7 +1392,7 @@ class MsgTest(TembaTest):
 
         # filter page should have an export option
         response = self.client.get(reverse("msgs.msg_filter", args=[label.uuid]))
-        self.assertContains(response, "Export")
+        self.assertContains(response, "Download")
 
         # try export with user label
         self.assertExcelSheet(

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-24 22:35+0000\n"
+"POT-Creation-Date: 2021-03-31 15:51+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2634,6 +2634,9 @@ msgstr ""
 msgid "The following flows are still used by campaigns so could not be archived: %(flows)s"
 msgstr ""
 
+msgid "Import"
+msgstr ""
+
 msgid "Edit Label"
 msgstr ""
 
@@ -2643,7 +2646,7 @@ msgstr ""
 msgid "Start Flow"
 msgstr ""
 
-msgid "Results"
+msgid "Download Results"
 msgstr ""
 
 msgid "Edit Flow"
@@ -2693,9 +2696,6 @@ msgstr ""
 msgid "Replace flow translations in this language."
 msgstr ""
 
-msgid "Import"
-msgstr ""
-
 msgid "Optional: Group memberships"
 msgstr ""
 
@@ -2728,9 +2728,6 @@ msgstr ""
 msgid "You can only include up to {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groups for group memberships in your export"
 msgstr ""
 
-msgid "Download Results"
-msgstr ""
-
 msgid "Sunday"
 msgstr ""
 
@@ -2753,9 +2750,6 @@ msgid "Saturday"
 msgstr ""
 
 msgid "Download"
-msgstr ""
-
-msgid "Download Flow Results"
 msgstr ""
 
 msgid "Contacts & Groups"
@@ -2943,7 +2937,7 @@ msgstr ""
 msgid "Schedules"
 msgstr ""
 
-msgid "Export Messages"
+msgid "Download Messages"
 msgstr ""
 
 msgid "Schedule Message"
@@ -5796,10 +5790,10 @@ msgstr ""
 msgid "New Label"
 msgstr ""
 
-msgid "Export Results"
+msgid "No matching flows."
 msgstr ""
 
-msgid "No matching flows."
+msgid "Results"
 msgstr ""
 
 msgid "Delete Run"
