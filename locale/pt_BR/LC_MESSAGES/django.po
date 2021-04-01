@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-31 21:00+0000\n"
+"POT-Creation-Date: 2021-03-31 22:03+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -6890,23 +6890,32 @@ msgstr "Criar uma Conta"
 msgid "Creating a %(brand)s account is free and only takes a minute."
 msgstr "Criar uma conta %(brand)s é gratuito e leva somente um minuto."
 
-msgid "Remove SMTP configuration"
-msgstr "Remova a configuração SMTP"
-
-#, python-format
-msgid "Emails sent from flows will come from <b>%(from_email)s</b>."
+#, fuzzy, python-format
+#| msgid "Emails sent from flows will come from <b>%(from_email)s</b>."
+msgid "Emails sent from flows will be sent from <b>%(from_email)s</b>."
 msgstr "Emails enviados de fluxos virão de <b>%(from_email)s</b>."
 
-#, python-format
-msgid "You can configure %(brand)s to send emails generated within flows from an email address of your choosing. <br/> This will let you receive replies from your recipients."
+msgid "Configure email settings to enable sending of emails from flows."
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "You can configure %(brand)s to send emails generated within flows from an email address of your choosing. <br/> This will let you receive replies from your recipients."
+msgid "You can configure %(brand)s to send emails generated within flows from an email address of your choosing."
 msgstr "Você pode configurar o %(brand)s para enviar e-mails gerados em fluxos a partir de um endereço de e-mail de sua escolha. <br/> Isso permitirá que você receba as respostas dos seus destinatários."
 
-#, python-format
-msgid "If you no longer want to use %(from_email)s to send emails, you can <a href='javascript:confirmSMTPRemove();'>remove your SMTP configuration</a>."
+#, fuzzy, python-format
+#| msgid "If you no longer want to use %(from_email)s to send emails, you can <a href='javascript:confirmSMTPRemove();'>remove your SMTP configuration</a>."
+msgid "If you no longer want to use %(from_email)s to send emails, you can <a href='javascript:confirmSMTPRemove();'>remove your SMTP settings</a>."
 msgstr "Se você não deseja mais usar %(from_email)s para enviar e-mails, você pode  <a href='javascript:confirmSMTPRemove();'>remover sua configuração SMTP</a>."
 
-#, python-format
-msgid "Removing your SMTP configuration will result in emails being delivered from %(brand)s that cannot be replied to. Are you sure you want to continue?"
+#, fuzzy
+#| msgid "Remove SMTP configuration"
+msgid "Remove SMTP Settings"
+msgstr "Remova a configuração SMTP"
+
+#, fuzzy
+#| msgid "Removing your SMTP configuration will result in emails being delivered from %(brand)s that cannot be replied to. Are you sure you want to continue?"
+msgid "Removing these settings will prevent emails being sent from flows. Are you sure you want to continue?"
 msgstr "A remoção da sua configuração SMTP resultará em e-mails enviados do %(brand)sque não poderão ser respondidos. Você tem certeza que quer continuar?"
 
 #, python-format

@@ -2792,30 +2792,30 @@ class OrgTest(TembaTest):
     def test_smtp_server(self):
         self.login(self.admin)
 
-        smtp_server_url = reverse("orgs.org_smtp_server")
+        home_url = reverse("orgs.org_home")
+        config_url = reverse("orgs.org_smtp_server")
 
-        self.org.refresh_from_db()
+        # by default orgs can't send emails from flows
+        response = self.client.get(home_url)
+        self.assertContains(response, "Configure email settings to enable sending of emails from flows.")
+
         self.assertFalse(self.org.has_smtp_config())
 
-        response = self.client.post(smtp_server_url, dict(disconnect="false"), follow=True)
+        response = self.client.post(config_url, dict(disconnect="false"), follow=True)
         self.assertEqual(
             '[{"message": "You must enter a from email", "code": ""}]',
             response.context["form"].errors["__all__"].as_json(),
         )
         self.assertEqual(len(mail.outbox), 0)
 
-        response = self.client.post(
-            smtp_server_url, {"smtp_from_email": "foobar.com", "disconnect": "false"}, follow=True
-        )
+        response = self.client.post(config_url, {"from_email": "foobar.com", "disconnect": "false"}, follow=True)
         self.assertEqual(
             '[{"message": "Please enter a valid email address", "code": ""}]',
             response.context["form"].errors["__all__"].as_json(),
         )
         self.assertEqual(len(mail.outbox), 0)
 
-        response = self.client.post(
-            smtp_server_url, {"smtp_from_email": "foo@bar.com", "disconnect": "false"}, follow=True
-        )
+        response = self.client.post(config_url, {"from_email": "foo@bar.com", "disconnect": "false"}, follow=True)
         self.assertEqual(
             '[{"message": "You must enter the SMTP host", "code": ""}]',
             response.context["form"].errors["__all__"].as_json(),
@@ -2823,8 +2823,8 @@ class OrgTest(TembaTest):
         self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
-            smtp_server_url,
-            {"smtp_from_email": "foo@bar.com", "smtp_host": "smtp.example.com", "disconnect": "false"},
+            config_url,
+            {"from_email": "foo@bar.com", "smtp_host": "smtp.example.com", "disconnect": "false"},
             follow=True,
         )
         self.assertEqual(
@@ -2834,9 +2834,9 @@ class OrgTest(TembaTest):
         self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "foo@bar.com",
+                "from_email": "foo@bar.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "disconnect": "false",
@@ -2850,9 +2850,9 @@ class OrgTest(TembaTest):
         self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "foo@bar.com",
+                "from_email": "foo@bar.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secret",
@@ -2869,9 +2869,9 @@ class OrgTest(TembaTest):
         with patch("temba.utils.email.send_custom_smtp_email") as mock_send_smtp_email:
             mock_send_smtp_email.side_effect = smtplib.SMTPException("SMTP Error")
             response = self.client.post(
-                smtp_server_url,
+                config_url,
                 {
-                    "smtp_from_email": "foo@bar.com",
+                    "from_email": "foo@bar.com",
                     "smtp_host": "smtp.example.com",
                     "smtp_username": "support@example.com",
                     "smtp_password": "secret",
@@ -2888,9 +2888,9 @@ class OrgTest(TembaTest):
 
             mock_send_smtp_email.side_effect = Exception("Unexpected Error")
             response = self.client.post(
-                smtp_server_url,
+                config_url,
                 {
-                    "smtp_from_email": "foo@bar.com",
+                    "from_email": "foo@bar.com",
                     "smtp_host": "smtp.example.com",
                     "smtp_username": "support@example.com",
                     "smtp_password": "secret",
@@ -2906,9 +2906,9 @@ class OrgTest(TembaTest):
             self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "foo@bar.com",
+                "from_email": "foo@bar.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secret",
@@ -2927,13 +2927,13 @@ class OrgTest(TembaTest):
             "smtp://support%40example.com:secret@smtp.example.com:465/?from=foo%40bar.com&tls=true",
         )
 
-        response = self.client.get(smtp_server_url)
+        response = self.client.get(config_url)
         self.assertEqual("foo@bar.com", response.context["flow_from_email"])
 
         self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "support@example.com",
+                "from_email": "support@example.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secret",
@@ -2950,9 +2950,9 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.has_smtp_config())
 
         self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "support@example.com",
+                "from_email": "support@example.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "",
@@ -2971,9 +2971,9 @@ class OrgTest(TembaTest):
         )
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "support@example.com",
+                "from_email": "support@example.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "help@example.com",
                 "smtp_password": "",
@@ -2989,15 +2989,15 @@ class OrgTest(TembaTest):
             response.context["form"].errors["__all__"].as_json(),
         )
 
-        self.client.post(smtp_server_url, dict(disconnect="true"), follow=True)
+        self.client.post(config_url, dict(disconnect="true"), follow=True)
 
         self.org.refresh_from_db()
         self.assertFalse(self.org.has_smtp_config())
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": " support@example.com",
+                "from_email": " support@example.com",
                 "smtp_host": " smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secret ",
@@ -3016,9 +3016,9 @@ class OrgTest(TembaTest):
         )
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "support@example.com",
+                "from_email": "support@example.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secre/t",
@@ -3036,11 +3036,11 @@ class OrgTest(TembaTest):
             "smtp://support%40example.com:secre%2Ft@smtp.example.com:465/?from=support%40example.com&tls=true",
         )
 
-        response = self.client.get(smtp_server_url)
+        response = self.client.get(config_url)
         self.assertDictEqual(
             response.context["view"].derive_initial(),
             {
-                "smtp_from_email": "support@example.com",
+                "from_email": "support@example.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secre/t",
