@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-01 15:04+0000\n"
+"POT-Creation-Date: 2021-04-01 16:58+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -6808,14 +6808,15 @@ msgstr "Convites Pendentes"
 msgid "Invite New Users"
 msgstr "Convidar Novos Usuários"
 
-#, python-format
-msgid "Connected to Nexmo Account with API key %(api_key)s"
-msgstr ""
+#, fuzzy, python-format
+#| msgid "A connection to a Twilio account is required"
+msgid "Connected to Nexmo account with API key %(api_key)s."
+msgstr "É necessária uma conexão com uma conta Twilio"
 
-#, fuzzy
-#| msgid "Disconnect Nexmo"
-msgid "Disconnected from Nexmo"
-msgstr "Desconectar Nexmo"
+#, fuzzy, python-format
+#| msgid "If you no longer want it connected, you can"
+msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Nexmo account</a>."
+msgstr "Se você não quiser mais ele conectado, você pode"
 
 msgid "Disconnect Nexmo"
 msgstr "Desconectar Nexmo"
@@ -6823,17 +6824,9 @@ msgstr "Desconectar Nexmo"
 msgid "Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?"
 msgstr "Desconectar sua conta Nexmo também removerá todos os canais Nexmo conectados a ele. Tem certeza de que deseja prosseguir?"
 
-msgid "To connect your Nexmo Account you will need to provide us your Nexmo API key and secret."
-msgstr "Para se conectar a sua conta Nexmo você deverá nos fornecer a sua chave da API e segredo Nexmo."
-
-msgid "Both values can be found on your"
-msgstr "Ambos os valores podem ser encontrados em seu"
-
-msgid "Nexmo Settings Page"
-msgstr "Nexmo Settings Page"
-
-msgid "in the API Settings section."
-msgstr "Na seção Configurações da API (API Settings)."
+#, python-format
+msgid "To connect your Nexmo Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"nexmo\" href=\"%(settings_url)s\">Nexmo settings</a> page in the API Settings section."
+msgstr ""
 
 msgid "You are currently on the {{org.plan}} plan."
 msgstr "Você está atualmente no plano {{org.plan}}."
@@ -6843,6 +6836,9 @@ msgstr "Connect Plivo"
 
 msgid "To connect your Plivo Account you will need to provide us your Plivo AUTH ID and AUTH TOKEN."
 msgstr "Para conectar sua Conta Plivo você precisará fornecer-nos o seu Plivo AUTH ID e AUTH TOKEN."
+
+msgid "Both values can be found on your"
+msgstr "Ambos os valores podem ser encontrados em seu"
 
 msgid "Plivo Dashboard"
 msgstr "Plivo Dashboard"
@@ -6940,13 +6936,13 @@ msgstr "Seu Token de API é <b>%(token)s</b>."
 
 #, fuzzy, python-format
 #| msgid "A connection to a Twilio account is required"
-msgid "Connected to Twilio Account %(account_sid)s"
+msgid "Connected to Twilio Account <b>%(account_sid)s</b>."
 msgstr "É necessária uma conexão com uma conta Twilio"
 
-#, fuzzy
-#| msgid "Disconnect Twilio"
-msgid "Disconnected from Twilio"
-msgstr "Desconectar Twilio "
+#, fuzzy, python-format
+#| msgid "If you no longer want it connected, you can"
+msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Twilio account</a>."
+msgstr "Se você não quiser mais ele conectado, você pode"
 
 msgid "Disconnect Twilio"
 msgstr "Desconectar Twilio "
@@ -6958,6 +6954,10 @@ msgstr "Desconectar sua conta Twilio também removerá todos os canais Twilio co
 #| msgid "Disconnect Twilio"
 msgid "Connect Twilio"
 msgstr "Desconectar Twilio "
+
+#, python-format
+msgid "To connect your Twilio Account you will need to provide us your Twilio account SID and auth token. Both values can be found on your <a target=\"twilio\" href=\"%(settings_url)s\">Twilio account page</a>."
+msgstr ""
 
 msgid "This workspace has been suspended"
 msgstr "Essa área de trabalho foi suspensa"
@@ -7717,6 +7717,25 @@ msgstr "Adicione uma dúvida"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Encontrado ${count} para ${query}"
+
+#~ msgid "To connect your Nexmo Account you will need to provide us your Nexmo API key and secret."
+#~ msgstr "Para se conectar a sua conta Nexmo você deverá nos fornecer a sua chave da API e segredo Nexmo."
+
+#~ msgid "Nexmo Settings Page"
+#~ msgstr "Nexmo Settings Page"
+
+#~ msgid "in the API Settings section."
+#~ msgstr "Na seção Configurações da API (API Settings)."
+
+#, fuzzy
+#~| msgid "Disconnect Nexmo"
+#~ msgid "Disconnected from Nexmo"
+#~ msgstr "Desconectar Nexmo"
+
+#, fuzzy
+#~| msgid "Disconnect Twilio"
+#~ msgid "Disconnected from Twilio"
+#~ msgstr "Desconectar Twilio "
 
 #~ msgid " and "
 #~ msgstr "e"

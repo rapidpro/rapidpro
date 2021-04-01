@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-01 15:04+0000\n"
+"POT-Creation-Date: 2021-04-01 16:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -6550,10 +6550,11 @@ msgid "Invite New Users"
 msgstr ""
 
 #, python-format
-msgid "Connected to Nexmo Account with API key %(api_key)s"
+msgid "Connected to Nexmo account with API key %(api_key)s."
 msgstr ""
 
-msgid "Disconnected from Nexmo"
+#, python-format
+msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Nexmo account</a>."
 msgstr ""
 
 msgid "Disconnect Nexmo"
@@ -6562,16 +6563,8 @@ msgstr ""
 msgid "Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?"
 msgstr ""
 
-msgid "To connect your Nexmo Account you will need to provide us your Nexmo API key and secret."
-msgstr ""
-
-msgid "Both values can be found on your"
-msgstr ""
-
-msgid "Nexmo Settings Page"
-msgstr ""
-
-msgid "in the API Settings section."
+#, python-format
+msgid "To connect your Nexmo Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"nexmo\" href=\"%(settings_url)s\">Nexmo settings</a> page in the API Settings section."
 msgstr ""
 
 msgid "You are currently on the {{org.plan}} plan."
@@ -6581,6 +6574,9 @@ msgid "Connect Plivo"
 msgstr ""
 
 msgid "To connect your Plivo Account you will need to provide us your Plivo AUTH ID and AUTH TOKEN."
+msgstr ""
+
+msgid "Both values can be found on your"
 msgstr ""
 
 msgid "Plivo Dashboard"
@@ -6671,10 +6667,11 @@ msgid "Your API Token is <b>%(token)s</b>."
 msgstr ""
 
 #, python-format
-msgid "Connected to Twilio Account %(account_sid)s"
+msgid "Connected to Twilio Account <b>%(account_sid)s</b>."
 msgstr ""
 
-msgid "Disconnected from Twilio"
+#, python-format
+msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Twilio account</a>."
 msgstr ""
 
 msgid "Disconnect Twilio"
@@ -6684,6 +6681,10 @@ msgid "Disconnecting your Twilio account will also remove any Twilio channels co
 msgstr ""
 
 msgid "Connect Twilio"
+msgstr ""
+
+#, python-format
+msgid "To connect your Twilio Account you will need to provide us your Twilio account SID and auth token. Both values can be found on your <a target=\"twilio\" href=\"%(settings_url)s\">Twilio account page</a>."
 msgstr ""
 
 msgid "This workspace has been suspended"

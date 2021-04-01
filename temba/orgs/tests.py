@@ -4217,7 +4217,7 @@ class LanguageTest(TembaTest):
 
         # check that the last load shows our new languages
         response = self.client.get(url)
-        self.assertEqual(response.context["languages"], "Haitian and Official Aramaic (700-300 BCE)")
+        self.assertEqual(response.context["languages"], ["Haitian", "Official Aramaic (700-300 BCE)"])
         self.assertContains(response, "fra")
         # self.assertContains(response, "hat,arc")
 
@@ -4234,14 +4234,14 @@ class LanguageTest(TembaTest):
             ),
         )
         response = self.client.get(reverse("orgs.org_languages"))
-        self.assertEqual(response.context["languages"], "Haitian, Official Aramaic (700-300 BCE) and Spanish")
+        self.assertEqual(response.context["languages"], ["Haitian", "Official Aramaic (700-300 BCE)", "Spanish"])
 
         # one translation language
         self.client.post(
             url, dict(primary_lang='{"name":"French", "value":"fra"}', languages=['{"name":"Haitian", "value":"hat"}'])
         )
         response = self.client.get(reverse("orgs.org_languages"))
-        self.assertEqual(response.context["languages"], "Haitian")
+        self.assertEqual(response.context["languages"], ["Haitian"])
 
         # remove all languages
         self.client.post(url, dict(primary_lang="{}", languages=[]))
