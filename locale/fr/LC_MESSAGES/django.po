@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-31 22:03+0000\n"
+"POT-Creation-Date: 2021-04-01 15:04+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3633,13 +3633,6 @@ msgstr "Langues supplémentaires"
 msgid "Additional languages you would like to provid translations for"
 msgstr "Langues supplémentaires pour lesquelles vous souhaitez fournir des traductions"
 
-msgid " and "
-msgstr "et"
-
-#, python-format
-msgid "%(lang1)s and %(lang2)s"
-msgstr "%(lang1)s et %(lang2)s"
-
 #, python-format
 msgid "Cleared %(name)s cache for this workspace (%(count)d keys)"
 msgstr "Vider le cache de %(name)s pour cet espace de travail (%(count)d clés)"
@@ -6599,9 +6592,6 @@ msgstr ""
 msgid "Your workspace has"
 msgstr ""
 
-msgid "Chatbase Account"
-msgstr "Compte Chatbase"
-
 msgid "Connected to Chatbase Account"
 msgstr "Connecté au compte Chatbase"
 
@@ -6665,9 +6655,6 @@ msgstr "Vous êtes sur le point de supprimer"
 
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
 msgstr "Voulez-vous vraiment tout supprimer pour cette organisation? Ça ne peut pas être annulé. Toutes les connexions n'appartenant qu'à cet espace de travail seront également supprimées."
-
-msgid "DT One Account"
-msgstr "Compte DT One"
 
 msgid "Connected to your <b>DT One</b> account."
 msgstr ""
@@ -6790,8 +6777,9 @@ msgstr "S'il vous plaît cliquer S'inscrire pour accepter l'invitation."
 msgid "The primary language is <b>%(lang)s</b>."
 msgstr "La langue principale est <b>%(lang)s</b>."
 
-#, python-format
-msgid "Translations are provided in <b>%(lang)s</b>."
+#, fuzzy
+#| msgid "Translations are provided in <b>%(lang)s</b>."
+msgid "Translations are provided in"
 msgstr "Les traductions sont fournies en <b>%(lang)s</b>."
 
 msgid "Your workspace is configured to use a single language."
@@ -6808,6 +6796,15 @@ msgstr "Invitations en attente"
 
 msgid "Invite New Users"
 msgstr "Inviter de nouveaux utilisateurs"
+
+#, python-format
+msgid "Connected to Nexmo Account with API key %(api_key)s"
+msgstr ""
+
+#, fuzzy
+#| msgid "Disconnect Nexmo"
+msgid "Disconnected from Nexmo"
+msgstr "Déconnectez Nexmo"
 
 msgid "Disconnect Nexmo"
 msgstr "Déconnectez Nexmo"
@@ -6930,11 +6927,26 @@ msgstr "Explorateur d'API"
 msgid "Your API Token is <b>%(token)s</b>."
 msgstr "Votre jeton API est <b>%(token)s</b>."
 
+#, fuzzy, python-format
+#| msgid "A connection to a Twilio account is required"
+msgid "Connected to Twilio Account %(account_sid)s"
+msgstr "Une connexion à un compte Twilio est requise"
+
+#, fuzzy
+#| msgid "Disconnect Twilio"
+msgid "Disconnected from Twilio"
+msgstr "Déconnecter Twilio"
+
 msgid "Disconnect Twilio"
 msgstr "Déconnecter Twilio"
 
 msgid "Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?"
 msgstr "La déconnexion de votre compte Twilio supprimera également toutes les chaînes Twilio qui y sont connectées. Êtes-vous sur de vouloir continuer?"
+
+#, fuzzy
+#| msgid "Disconnect Twilio"
+msgid "Connect Twilio"
+msgstr "Déconnecter Twilio"
 
 msgid "This workspace has been suspended"
 msgstr "Cet espace de travail a été suspendu"
@@ -7704,3 +7716,16 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid " and "
+#~ msgstr "et"
+
+#, python-format
+#~ msgid "%(lang1)s and %(lang2)s"
+#~ msgstr "%(lang1)s et %(lang2)s"
+
+#~ msgid "Chatbase Account"
+#~ msgstr "Compte Chatbase"
+
+#~ msgid "DT One Account"
+#~ msgstr "Compte DT One"

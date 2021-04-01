@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-31 22:03+0000\n"
+"POT-Creation-Date: 2021-04-01 15:04+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3628,13 +3628,6 @@ msgstr ""
 msgid "Additional languages you would like to provid translations for"
 msgstr ""
 
-msgid " and "
-msgstr ""
-
-#, python-format
-msgid "%(lang1)s and %(lang2)s"
-msgstr ""
-
 #, python-format
 msgid "Cleared %(name)s cache for this workspace (%(count)d keys)"
 msgstr ""
@@ -6359,9 +6352,6 @@ msgstr ""
 msgid "Your workspace has"
 msgstr ""
 
-msgid "Chatbase Account"
-msgstr ""
-
 msgid "Connected to Chatbase Account"
 msgstr ""
 
@@ -6424,9 +6414,6 @@ msgid "You are about to delete"
 msgstr ""
 
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
-msgstr ""
-
-msgid "DT One Account"
 msgstr ""
 
 msgid "Connected to your <b>DT One</b> account."
@@ -6544,8 +6531,7 @@ msgstr ""
 msgid "The primary language is <b>%(lang)s</b>."
 msgstr ""
 
-#, python-format
-msgid "Translations are provided in <b>%(lang)s</b>."
+msgid "Translations are provided in"
 msgstr ""
 
 msgid "Your workspace is configured to use a single language."
@@ -6561,6 +6547,13 @@ msgid "Pending Invitations"
 msgstr ""
 
 msgid "Invite New Users"
+msgstr ""
+
+#, python-format
+msgid "Connected to Nexmo Account with API key %(api_key)s"
+msgstr ""
+
+msgid "Disconnected from Nexmo"
 msgstr ""
 
 msgid "Disconnect Nexmo"
@@ -6677,10 +6670,20 @@ msgstr ""
 msgid "Your API Token is <b>%(token)s</b>."
 msgstr ""
 
+#, python-format
+msgid "Connected to Twilio Account %(account_sid)s"
+msgstr ""
+
+msgid "Disconnected from Twilio"
+msgstr ""
+
 msgid "Disconnect Twilio"
 msgstr ""
 
 msgid "Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?"
+msgstr ""
+
+msgid "Connect Twilio"
 msgstr ""
 
 msgid "This workspace has been suspended"
