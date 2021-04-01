@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-31 15:51+0000\n"
+"POT-Creation-Date: 2021-03-31 22:03+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -789,20 +789,14 @@ msgstr ""
 msgid "The URL on which the discord proxy is running"
 msgstr ""
 
-#, fuzzy
-#| msgid "A telegram channel for this bot already exists on your account."
 msgid "A Discord channel for this bot already exists on your account."
-msgstr "Un canal Telegram pour ce bot existe déjà sur votre compte."
+msgstr ""
 
-#, fuzzy
-#| msgid "Your authentication token is invalid, please check and try again"
 msgid "Couldn't log in using that bot token. Please check and try again"
-msgstr "Votre jeton d'authentification n'est pas valide. Veuillez vérifier et réessayer"
+msgstr ""
 
-#, fuzzy
-#| msgid "An error occurred while making your changes. Please try again."
 msgid "An error occurred accessing the Discord API. Please try again"
-msgstr "Une erreur s'est produite lors de vos modifications. Veuillez réessayer."
+msgstr ""
 
 #, python-format
 msgid "If you are based in Uganda or DRC you can purchase a short code from %(link)s and connect it in a few simple steps."
@@ -1854,23 +1848,19 @@ msgstr "Le nom d'utilisateur du compte fourni par Zenvia"
 msgid "The account password provided by Zenvia"
 msgstr "Le mot de passe du compte fourni par Zenvia"
 
-#, fuzzy, python-format
-#| msgid "Unable to register callbacks: %(resp)s"
+#, python-format
 msgid "Unable to register webhook subscriptions: %(resp)s"
-msgstr "Impossible d'enregistrer les rappels: %(resp)s"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "Unable to register callbacks: %(resp)s"
+#, python-format
 msgid "Unable to remove webhook subscriptions: %(resp)s"
-msgstr "Impossible d'enregistrer les rappels: %(resp)s"
+msgstr ""
 
 msgid "API Token"
 msgstr "Signal API"
 
-#, fuzzy
-#| msgid "The API key for your integration as provided by Clickatell"
 msgid "The API token for your integration as provided by Zenvia"
-msgstr "La clé API de votre intégration telle que fournie par Clickatell"
+msgstr ""
 
 msgid "United Kingdom"
 msgstr "Royaume-Uni"
@@ -2128,10 +2118,8 @@ msgstr "Identifiant VK"
 msgid "RocketChat identifier"
 msgstr "Identifiant RocketChat"
 
-#, fuzzy
-#| msgid "Viber identifier"
 msgid "Discord Identifier"
-msgstr "Identifiant Viber"
+msgstr ""
 
 msgid "Text"
 msgstr "Texte"
@@ -2349,10 +2337,8 @@ msgstr "Exportation terminée, vous pouvez le trouver ici: %s (les utilisateurs 
 msgid "Send Message"
 msgstr "Envoyer un message"
 
-#, fuzzy
-#| msgid "Start Flow"
 msgid "Start In Flow"
-msgstr "Lancer un Flux"
+msgstr ""
 
 msgid "Edit Contact"
 msgstr "Modifier le contact"
@@ -2375,10 +2361,8 @@ msgstr "Enregistrer en tant que groupe"
 msgid "Manage Fields"
 msgstr "Gérer les champs"
 
-#, fuzzy
-#| msgid "Import Contacts"
 msgid "Export Contacts"
-msgstr "Importer des contacts"
+msgstr "Exporter des contacts"
 
 msgid "Blocked Contacts"
 msgstr "Contacts Bloqués"
@@ -2958,10 +2942,8 @@ msgstr "Boîte d'Envoi"
 msgid "Schedules"
 msgstr "Planning"
 
-#, fuzzy
-#| msgid "Flow Messages"
 msgid "Download Messages"
-msgstr "Flux messages"
+msgstr ""
 
 msgid "Schedule Message"
 msgstr "Messages planning"
@@ -3853,10 +3835,9 @@ msgstr "Les nouveaux tickets et réponses seront envoyés à l'adresse e-mail qu
 msgid "Verify your email address for tickets"
 msgstr "Vérifiez votre adresse e-mail pour les billets"
 
-#, fuzzy, python-format
-#| msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket servicethrough its omnichannel feature."
+#, python-format
 msgid "%(link)s is a free open source solution for team communications which can be connected as a ticket service through its omnichannel feature."
-msgstr "%(link)s est une solution open source gratuite pour les communications d'équipe qui peut être connectée en tant que service de ticket via sa fonction omnicanal."
+msgstr ""
 
 msgid "URL of the Rocket.Chat Tickets app"
 msgstr "URL de l'application Rocket.Chat Tickets"
@@ -6624,10 +6605,8 @@ msgstr "Compte Chatbase"
 msgid "Connected to Chatbase Account"
 msgstr "Connecté au compte Chatbase"
 
-#, fuzzy
-#| msgid "Connect your Chatbase account"
 msgid "Connect your Chatbase account."
-msgstr "Connectez votre compte Chatbase"
+msgstr ""
 
 msgid "Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences and better understand your users. To signup for an account, visit"
 msgstr "La connexion de votre compte Chatbase vous permettra de surveiller votre bot, de corriger les expériences interrompues et de mieux comprendre vos utilisateurs. Pour vous inscrire à un compte, visitez"
@@ -6690,37 +6669,29 @@ msgstr "Voulez-vous vraiment tout supprimer pour cette organisation? Ça ne peut
 msgid "DT One Account"
 msgstr "Compte DT One"
 
-#, fuzzy
-#| msgid "Connected to Chatbase Account"
 msgid "Connected to your <b>DT One</b> account."
-msgstr "Connecté au compte Chatbase"
+msgstr ""
 
 msgid "Transfer Log"
 msgstr "Journal Transfert"
 
-#, fuzzy
-#| msgid "Connect your Chatbase account"
 msgid "Connect your DT One account."
-msgstr "Connectez votre compte Chatbase"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "Adding a DT One account will allow you to send airtime credit for 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your Flows. To signup for an account, visit"
+#, python-format
 msgid "Adding a DT One account will allow you to send airtime credit over 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your flows. To signup for an account, visit %(link)s."
-msgstr "L'ajout d'un compte DT One vous permettra d'envoyer des crédits de temps d'antenne à plus de 400 opérateurs dans plus de 100 pays. Une fois connecté, vous pouvez transférer des crédits de temps d'antenne dans vos flux. Pour vous inscrire à un compte, visitez"
+msgstr ""
 
 #, python-format
 msgid "You can find your credentials on the Developer tab on your %(link)s page."
 msgstr ""
 
-#, fuzzy
-#| msgid "Your account is connected to a DT One account"
 msgid "Your account is connected to a DT One account."
-msgstr "Votre compte est connecté à un compte DT One"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "your DT One account. Doing so will cause the payment actions in your flows to no longer be processed."
+#, python-format
 msgid "If you no longer want it connected, you can <a href=\"%(disconnect_url)s\">disconnect</a> it. Doing so will cause the payment actions in your flows to no longer be processed."
-msgstr "votre compte DT One. Cela entraînera la fin du traitement des actions de paiement dans vos flux."
+msgstr ""
 
 msgid "Disconnect DT One"
 msgstr "Déconnectez DT One"
@@ -6908,23 +6879,32 @@ msgstr "Créer un compte"
 msgid "Creating a %(brand)s account is free and only takes a minute."
 msgstr "La création d'un compte %(brand)s est gratuite et ne prend qu'une minute."
 
-msgid "Remove SMTP configuration"
-msgstr "Supprimer la configuration SMTP"
-
-#, python-format
-msgid "Emails sent from flows will come from <b>%(from_email)s</b>."
+#, fuzzy, python-format
+#| msgid "Emails sent from flows will come from <b>%(from_email)s</b>."
+msgid "Emails sent from flows will be sent from <b>%(from_email)s</b>."
 msgstr "Les e-mails envoyés depuis les flux proviendront de <b>%(from_email)s</b>."
 
-#, python-format
-msgid "You can configure %(brand)s to send emails generated within flows from an email address of your choosing. <br/> This will let you receive replies from your recipients."
+msgid "Configure email settings to enable sending of emails from flows."
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "You can configure %(brand)s to send emails generated within flows from an email address of your choosing. <br/> This will let you receive replies from your recipients."
+msgid "You can configure %(brand)s to send emails generated within flows from an email address of your choosing."
 msgstr "Vous pouvez configurer %(brand)s pour envoyer des e-mails générés dans les flux à partir d'une adresse e-mail de votre choix. <br/> Cela vous permettra de recevoir les réponses de vos destinataires."
 
-#, python-format
-msgid "If you no longer want to use %(from_email)s to send emails, you can <a href='javascript:confirmSMTPRemove();'>remove your SMTP configuration</a>."
+#, fuzzy, python-format
+#| msgid "If you no longer want to use %(from_email)s to send emails, you can <a href='javascript:confirmSMTPRemove();'>remove your SMTP configuration</a>."
+msgid "If you no longer want to use %(from_email)s to send emails, you can <a href='javascript:confirmSMTPRemove();'>remove your SMTP settings</a>."
 msgstr "Si vous ne souhaitez plus utiliser %(from_email)s pour envoyer des e-mails, vous pouvez <a href='javascript:confirmSMTPRemove();'>supprimer votre configuration SMTP</a>."
 
-#, python-format
-msgid "Removing your SMTP configuration will result in emails being delivered from %(brand)s that cannot be replied to. Are you sure you want to continue?"
+#, fuzzy
+#| msgid "Remove SMTP configuration"
+msgid "Remove SMTP Settings"
+msgstr "Supprimer la configuration SMTP"
+
+#, fuzzy
+#| msgid "Removing your SMTP configuration will result in emails being delivered from %(brand)s that cannot be replied to. Are you sure you want to continue?"
+msgid "Removing these settings will prevent emails being sent from flows. Are you sure you want to continue?"
 msgstr "La suppression de votre configuration SMTP entraînera l'envoi d'e-mails de %(brand)s auxquels il ne sera pas possible de répondre. Es-tu sur de vouloir continuer?"
 
 #, python-format
@@ -7724,98 +7704,3 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
-
-#~ msgid "Export Messages"
-#~ msgstr "Exporter des messages"
-
-#, fuzzy
-#~| msgid "Export Contacts"
-#~ msgid "Export Contact Data"
-#~ msgstr "Exporter des contacts"
-
-#~ msgid "Download Flow Results"
-#~ msgstr "Télécharger les résultats du flux"
-
-#~ msgid "Export Results"
-#~ msgstr "Exporter les résultats"
-
-#~ msgid "No DT One account connected."
-#~ msgstr "Aucun compte DT One connecté."
-
-#, python-format
-#~ msgid "Connecting to your DT One account failed with error text: %s"
-#~ msgstr "La connexion à votre compte DT One a échoué avec un texte d'erreur: %s"
-
-#, python-format
-#~ msgid "Connected to DT One account <b>%(login)s</b>."
-#~ msgstr "Connecté au compte DT One <b>%(login)s</b>."
-
-#~ msgid "You can find your API Token by clicking on "
-#~ msgstr "Vous pouvez trouver votre jeton d’API en cliquant sur"
-
-#~ msgid " on the DT One site."
-#~ msgstr "sur le site DT One."
-
-#, python-format
-#~ msgid "%(group_count)s groups, %(contact_count)s contacts, %(urn_count)s urns"
-#~ msgstr "%(group_count)s groupes, %(contact_count)s contacts, %(urn_count)s urns"
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "                    %(count_comma)s recipient\n"
-#~ "                    "
-#~ msgid_plural ""
-#~ "\n"
-#~ "                      %(count_comma)s recipients\n"
-#~ "                  "
-#~ msgstr[0] ""
-#~ "\n"
-#~ "                    %(count_comma)s destinataire\n"
-#~ "                    "
-#~ msgstr[1] ""
-#~ "\n"
-#~ "                      %(count_comma)s recipients\n"
-#~ "                  "
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "        %(count_comma)s recipients\n"
-#~ "        "
-#~ msgid_plural ""
-#~ "\n"
-#~ "          %(count_comma)s recipients\n"
-#~ "      "
-#~ msgstr[0] ""
-#~ "\n"
-#~ "        %(count_comma)s destinataire\n"
-#~ "        "
-#~ msgstr[1] ""
-#~ "\n"
-#~ "          %(count_comma)s destinataires\n"
-#~ "      "
-
-#, python-format
-#~ msgid ""
-#~ "\n"
-#~ "                    1 recipient\n"
-#~ "                    "
-#~ msgid_plural ""
-#~ "\n"
-#~ "                      %(counter)s recipients\n"
-#~ "                  "
-#~ msgstr[0] ""
-#~ "\n"
-#~ "                    1 destinataire\n"
-#~ "                    "
-#~ msgstr[1] ""
-#~ "\n"
-#~ "                      %(counter)s destinataires\n"
-#~ "                  "
-
-#~ msgid ", and "
-#~ msgstr ", et"
-
-#~ msgid "The Twitter handle that this channel will send from"
-#~ msgstr "Le compte Twitter d'où ce canal enverra"

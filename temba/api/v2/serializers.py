@@ -24,7 +24,7 @@ from temba.mailroom import modifiers
 from temba.msgs.models import ERRORED, FAILED, INITIALIZING, PENDING, QUEUED, SENT, Broadcast, Label, Msg
 from temba.orgs.models import Org
 from temba.templates.models import Template, TemplateTranslation
-from temba.tickets.models import Ticketer
+from temba.tickets.models import Ticket, Ticketer
 from temba.utils import extract_constants, json, on_transaction_commit
 
 from . import fields
@@ -1412,6 +1412,22 @@ class TicketerReadSerializer(ReadSerializer):
     class Meta:
         model = Ticketer
         fields = ("uuid", "name", "type", "created_on")
+
+
+class TicketReadSerializer(ReadSerializer):
+    STATUSES = {Ticket.STATUS_OPEN: "open", Ticket.STATUS_CLOSED: "closed"}
+
+    ticketer = fields.TicketerField()
+    contact = fields.ContactField()
+    status = serializers.SerializerMethodField()
+    opened_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    def get_status(self, obj):
+        return self.STATUSES.get(obj.status)
+
+    class Meta:
+        model = Ticket
+        fields = ("uuid", "ticketer", "contact", "status", "subject", "body", "opened_on")
 
 
 class WorkspaceReadSerializer(ReadSerializer):

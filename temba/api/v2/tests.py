@@ -36,8 +36,9 @@ from temba.orgs.models import Language, Org
 from temba.templates.models import TemplateTranslation
 from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
-from temba.tickets.models import Ticketer
+from temba.tickets.models import Ticket, Ticketer
 from temba.tickets.types.mailgun import MailgunType
+from temba.tickets.types.zendesk import ZendeskType
 from temba.triggers.models import Trigger
 from temba.utils import json
 
@@ -4305,7 +4306,7 @@ class APITest(TembaTest):
         c3.save()
 
         # on another org
-        Ticketer.create(self.org2, self.admin, LuisType.slug, "Mailgun", {})
+        Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
@@ -4344,3 +4345,78 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(1, len(resp_json["results"]))
         self.assertEqual("Mailgun (bob@acme.com)", resp_json["results"][0]["name"])
+
+    def test_tickets(self):
+        url = reverse("api.v2.tickets")
+        self.assertEndpointAccess(url)
+
+        # create some tickets
+        mailgun = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun", {})
+        ann = self.create_contact("Ann", urns=["twitter:annie"])
+        bob = self.create_contact("Bob", urns=["twitter:bobby"])
+        ticket1 = Ticket.objects.create(
+            org=self.org, ticketer=mailgun, contact=ann, subject="Need help", body="Now", status=Ticket.STATUS_CLOSED
+        )
+        ticket2 = Ticket.objects.create(
+            org=self.org,
+            ticketer=mailgun,
+            contact=bob,
+            subject="Need help again",
+            body="Now",
+            status=Ticket.STATUS_OPEN,
+        )
+
+        # on another org
+        zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
+        Ticket.objects.create(
+            org=self.org2,
+            ticketer=zendesk,
+            contact=self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2),
+            subject="Need help",
+            body="Now",
+            status=Ticket.STATUS_CLOSED,
+        )
+
+        # no filtering
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
+            response = self.fetchJSON(url)
+
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertEqual(
+            resp_json["results"],
+            [
+                {
+                    "uuid": str(ticket2.uuid),
+                    "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
+                    "contact": {"uuid": str(bob.uuid), "name": "Bob"},
+                    "status": "open",
+                    "subject": "Need help again",
+                    "body": "Now",
+                    "opened_on": format_datetime(ticket2.opened_on),
+                },
+                {
+                    "uuid": str(ticket1.uuid),
+                    "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
+                    "contact": {"uuid": str(ann.uuid), "name": "Ann"},
+                    "status": "closed",
+                    "subject": "Need help",
+                    "body": "Now",
+                    "opened_on": format_datetime(ticket1.opened_on),
+                },
+            ],
+        )
+
+        # filter by contact uuid (not there)
+        response = self.fetchJSON(url, "contact=09d23a05-47fe-11e4-bfe9-b8f6b119e9ab")
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(0, len(resp_json["results"]))
+
+        # filter by contact uuid present
+        response = self.fetchJSON(url, "contact=" + str(bob.uuid))
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(1, len(resp_json["results"]))
+        self.assertEqual("Bob", resp_json["results"][0]["contact"]["name"])

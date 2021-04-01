@@ -61,10 +61,6 @@ EMAIL_HOST_PASSWORD = "mypassword"
 EMAIL_USE_TLS = True
 EMAIL_TIMEOUT = 10
 
-# Used when sending email from within a flow and the user hasn't configured
-# their own SMTP server.
-FLOW_FROM_EMAIL = "no-reply@temba.io"
-
 # HTTP Headers using for outgoing requests to other services
 OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
 
@@ -504,7 +500,7 @@ PERMISSIONS = {
     "policies.policy": ("admin", "history", "give_consent"),
     "request_logs.httplog": ("classifier", "ticketer"),
     "templates.template": ("api",),
-    "tickets.ticket": ("open", "closed", "filter", "update"),
+    "tickets.ticket": ("api", "open", "closed", "filter", "update"),
     "tickets.ticketer": ("api", "connect", "configure"),
     "triggers.trigger": (
         "archived",
@@ -804,6 +800,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
+        "tickets.ticket_api",
         "tickets.ticket_closed",
         "tickets.ticket_filter",
         "tickets.ticket_open",
@@ -878,6 +875,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "tickets.ticket_api",
         "tickets.ticket_closed",
         "tickets.ticket_filter",
         "tickets.ticket_open",
