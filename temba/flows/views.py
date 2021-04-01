@@ -50,6 +50,7 @@ from temba.flows.tasks import export_flow_results_task, download_flow_images_tas
 from temba.ivr.models import IVRCall
 from temba.links.models import Link, LinkContacts
 from temba.mailroom import FlowValidationException
+from temba.msgs.models import Attachment
 from temba.orgs.models import Org, LOOKUPS, GIFTCARDS
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
@@ -588,6 +589,7 @@ class FlowCRUDL(SmartCRUDL):
                     *metadata.get("issues", []),
                     *Link.check_misstyped_links(flow, definition),
                     *Trigger.check_used_trigger_words(flow, definition),
+                    *Attachment.validate_fields(flow.org, definition),
                 ]
                 return JsonResponse(dict(definition=definition, metadata=metadata))
 
@@ -637,6 +639,7 @@ class FlowCRUDL(SmartCRUDL):
                     *metadata.get("issues", []),
                     *Link.check_misstyped_links(flow, definition),
                     *Trigger.check_used_trigger_words(flow, definition),
+                    *Attachment.validate_fields(flow.org, definition),
                 ]
                 return JsonResponse(
                     {
@@ -2744,17 +2747,6 @@ class FlowCRUDL(SmartCRUDL):
                                 value_field, ValidationError(_("You must specify the value for this field."))
                             )
 
-                def validate_omnibox():
-                    starting = cleaned_data["omnibox"]
-                    start_type = cleaned_data["start_type"]
-                    if (
-                        start_type == "select" and not starting["groups"] and not starting["contacts"]
-                    ):  # pragma: needs cover
-                        self.add_error(
-                            "omnibox",
-                            ValidationError(_("You must specify at least one contact or one group to start a flow.")),
-                        )
-
                 def validate_contact_query():
                     start_type = cleaned_data["start_type"]
                     contact_query = cleaned_data["contact_query"]
@@ -2775,7 +2767,6 @@ class FlowCRUDL(SmartCRUDL):
 
                 if cleaned_data["start_type"] == "select":
                     validate_flow_params()
-                    validate_omnibox()
                 else:
                     validate_flow_params()
                     validate_contact_query()

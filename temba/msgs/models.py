@@ -350,6 +350,31 @@ class Attachment(object):
     def __eq__(self, other):
         return self.content_type == other.content_type and self.url == other.url
 
+    @classmethod
+    def validate_fields(cls, org, definition: dict) -> list:
+        contact_fields = list(map(lambda x: f"@fields.{x}", org.contactfields.filter(field_type="U").values_list("key", flat=True)))
+        contact_fields += list(map(lambda x: x.replace("@", "@contact."), contact_fields))
+        issues = []
+        for node in definition.get("nodes", []):
+            for action in node.get("actions", []):
+                if action.get("attachments"):
+                    for attachment in cls.parse_all(action.get("attachments", [])):
+                        if attachment.url.startswith("@") and attachment.url not in contact_fields:
+                            _url = attachment.url.replace("contact.", "")
+                            issues.append(
+                                {
+                                    "type": "missing_dependency",
+                                    "node_uuid": node.get("uuid"),
+                                    "action_uuid": action.get("uuid"),
+                                    "dependency": {
+                                        "key": f'attachment: {_url.replace("@fields.", "")}',
+                                        "type": "field",
+                                        "name": "",
+                                    }
+                                }
+                            )
+        return issues
+
 
 class Msg(models.Model):
     """
