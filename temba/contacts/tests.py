@@ -26,7 +26,7 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.search import SearchException, SearchResults, search_contacts
 from temba.contacts.views import ContactListView
-from temba.flows.models import Flow
+from temba.flows.models import Flow, FlowStart
 from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary
 from temba.mailroom import MailroomException, modifiers
@@ -62,7 +62,7 @@ from .tasks import check_elasticsearch_lag, squash_contactgroupcounts
 from .templatetags.contacts import contact_field, history_class, history_icon
 
 
-class ContactCRUDLTest(TembaTest):
+class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
     def setUp(self):
         super().setUp()
 
@@ -660,6 +660,37 @@ class ContactCRUDLTest(TembaTest):
             json.dumps(expected_json),
             json.dumps(response.json()),
         )
+    @mock_mailroom
+    def test_start(self, mr_mocks):
+        sample_flows = list(self.org.flows.order_by("name"))
+        background_flow = self.get_flow("background")
+        self.get_flow("media_survey")
+        archived_flow = self.get_flow("color")
+        archived_flow.archive()
+
+        contact = self.create_contact("Joe", phone="+593979000111")
+        start_url = reverse("contacts.contact_start", args=[contact.id])
+
+        response = self.assertUpdateFetch(start_url, allow_viewers=False, allow_editors=True, form_fields=["flow"])
+        self.assertEqual([background_flow] + sample_flows, list(response.context["form"].fields["flow"].queryset))
+
+        # try to submit without specifying a flow
+        self.assertUpdateSubmit(
+            start_url, data={}, form_errors={"flow": "This field is required."}, object_unchanged=contact
+        )
+
+        # submit with flow...
+        self.assertUpdateSubmit(start_url, data={"flow": background_flow.id})
+
+        # should now have a flow start
+        start = FlowStart.objects.get()
+        self.assertEqual(background_flow, start.flow)
+        self.assertEqual({contact}, set(start.contacts.all()))
+        self.assertTrue(start.restart_participants)
+        self.assertTrue(start.include_active)
+
+        # that has been queued to mailroom
+        self.assertEqual("start_flow", mr_mocks.queued_batch_tasks[-1]["type"])
 
 
 class ContactGroupTest(TembaTest):
@@ -1080,6 +1111,7 @@ class ContactGroupCRUDLTest(TembaTest):
         self.other_org_group = self.create_group("Customers", contacts=[], org=self.org2)
 
     @override_settings(MAX_ACTIVE_CONTACTGROUPS_PER_ORG=10)
+    @patch.object(Org, "LIMIT_DEFAULTS", dict(groups=10))
     @mock_mailroom
     def test_create(self, mr_mocks):
         url = reverse("contacts.contactgroup_create")
@@ -2060,7 +2092,7 @@ class ContactTest(TembaTest):
         )
 
         # create an airtime transfer
-        AirtimeTransfer.objects.create(
+        transfer = AirtimeTransfer.objects.create(
             org=self.org,
             status="S",
             contact=self.joe,
@@ -2136,6 +2168,8 @@ class ContactTest(TembaTest):
         )
         self.assertContains(response, reverse("channels.channellog_read", args=[log.id]))
         self.assertContains(response, reverse("channels.channellog_connection", args=[call.id]))
+        self.assertContains(response, "Transferred <b>100.00</b> <b>RWF</b> of airtime")
+        self.assertContains(response, reverse("airtime.airtimetransfer_read", args=[transfer.id]))
 
         # can also fetch same page as JSON
         response_json = self.client.get(url + "?limit=100&_format=json").json()
@@ -4518,13 +4552,14 @@ class ContactFieldTest(TembaTest):
         self.assertFormError(response, "form", None, "Can't be a reserved word")
 
         with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=2):
-            # a valid form, but ORG has reached max active fields limit
-            post_data = {"label": "teefilter", "value_type": "T"}
+            with patch.object(Org, "LIMIT_DEFAULTS", dict(fields=2)):
+                # a valid form, but ORG has reached max active fields limit
+                post_data = {"label": "teefilter", "value_type": "T"}
 
-            response = self.client.post(create_cf_url, post_data)
+                response = self.client.post(create_cf_url, post_data)
 
-            self.assertEqual(response.status_code, 200)
-            self.assertFormError(response, "form", None, "Cannot create a new field as limit is 2.")
+                self.assertEqual(response.status_code, 200)
+                self.assertFormError(response, "form", None, "Cannot create a new field as limit is 2.")
 
         # value_type not supported
         post_data = {"label": "teefilter", "value_type": "J"}
@@ -4857,19 +4892,26 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertNotContains(response, "You are approaching the limit")
 
         with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=10):
-            response = self.requestView(list_url, self.admin)
+            with patch.object(Org, "LIMIT_DEFAULTS", dict(fields=10)):
+                response = self.requestView(list_url, self.admin)
 
-            self.assertContains(response, "You are approaching the limit")
+                self.assertContains(response, "You are approaching the limit")
 
         with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=3):
-            response = self.requestView(list_url, self.admin)
+            with patch.object(Org, "LIMIT_DEFAULTS", dict(fields=3)):
+                response = self.requestView(list_url, self.admin)
 
-            self.assertContains(response, "You have reached the limit")
+                self.assertContains(response, "You have reached the limit")
 
 
 class URNTest(TembaTest):
     def test_facebook_urn(self):
         self.assertTrue(URN.validate("facebook:ref:asdf"))
+
+    def test_discord_urn(self):
+        self.assertEqual("discord:750841288886321253", URN.from_discord("750841288886321253"))
+        self.assertTrue(URN.validate(URN.from_discord("750841288886321253")))
+        self.assertFalse(URN.validate(URN.from_discord("not-a-discord-id")))
 
     def test_whatsapp_urn(self):
         self.assertTrue(URN.validate("whatsapp:12065551212"))
@@ -5812,14 +5854,15 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         # try uploading when we've already reached our group limit
         self.create_group("Testers", contacts=[])
         with override_settings(MAX_ACTIVE_CONTACTGROUPS_PER_ORG=1):
-            response = self.client.post(create_url, {"file": upload("media/test_imports/simple.xlsx")})
-            self.assertFormError(
-                response,
-                "form",
-                "__all__",
-                "This workspace has reached the limit of 1 groups. "
-                "You must delete existing ones before you can perform an import.",
-            )
+            with patch.object(Org, "LIMIT_DEFAULTS", dict(groups=1)):
+                response = self.client.post(create_url, {"file": upload("media/test_imports/simple.xlsx")})
+                self.assertFormError(
+                    response,
+                    "form",
+                    "__all__",
+                    "This workspace has reached the limit of 1 groups. "
+                    "You must delete existing ones before you can perform an import.",
+                )
 
         # try uploading an empty CSV file
         response = self.client.post(create_url, {"file": upload("media/test_imports/empty.csv")})

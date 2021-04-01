@@ -859,6 +859,17 @@ class FlowCRUDL(SmartCRUDL):
                 ),
             ]
 
+        def get_gear_links(self):
+            links = []
+
+            if self.has_org_perm("orgs.org_import"):
+                links.append(dict(title=_("Import"), href=reverse("orgs.org_import")))
+
+            if self.has_org_perm("orgs.org_export"):
+                links.append(dict(title=_("Export"), href=reverse("orgs.org_export")))
+
+            return links
+
     class Archived(BaseList):
         bulk_actions = ("restore",)
         default_order = ("-created_on",)
@@ -1096,7 +1107,7 @@ class FlowCRUDL(SmartCRUDL):
             if self.has_org_perm("flows.flow_results"):
                 links.append(
                     dict(
-                        title=_("Results"),
+                        title=_("Download Results"),
                         style="button-primary",
                         href=reverse("flows.flow_results", args=[flow.uuid]),
                     )
@@ -1560,6 +1571,7 @@ class FlowCRUDL(SmartCRUDL):
             FlowRun.EXIT_TYPE_COMPLETED: "completed",
             FlowRun.EXIT_TYPE_INTERRUPTED: "interrupted",
             FlowRun.EXIT_TYPE_EXPIRED: "expired",
+            FlowRun.EXIT_TYPE_FAILED: "failed",
         }
 
         def get_context_data(self, *args, **kwargs):
@@ -1652,7 +1664,7 @@ class FlowCRUDL(SmartCRUDL):
                 total_runs += count["count__sum"]
 
             # make sure we have a value for each one
-            for state in ("expired", "interrupted", "completed", "active"):
+            for state in ("expired", "interrupted", "completed", "active", "failed"):
                 if state not in context:
                     context[state] = 0
 
@@ -1720,7 +1732,7 @@ class FlowCRUDL(SmartCRUDL):
                     dict(
                         id="download-results",
                         title=_("Download"),
-                        modax=_("Download Flow Results"),
+                        modax=_("Download Results"),
                         href=f"{reverse('flows.flow_export_results')}?ids={self.get_object().pk}",
                     )
                 )

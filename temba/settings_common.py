@@ -61,10 +61,6 @@ EMAIL_HOST_PASSWORD = "mypassword"
 EMAIL_USE_TLS = True
 EMAIL_TIMEOUT = 10
 
-# Used when sending email from within a flow and the user hasn't configured
-# their own SMTP server.
-FLOW_FROM_EMAIL = "no-reply@temba.io"
-
 # HTTP Headers using for outgoing requests to other services
 OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
 
@@ -390,6 +386,7 @@ PERMISSIONS = {
         "restore",
         "search",
         "tickets",
+        "start",
         "update_fields",
         "update_fields_input",
     ),
@@ -506,7 +503,7 @@ PERMISSIONS = {
     "policies.policy": ("admin", "history", "give_consent"),
     "request_logs.httplog": ("classifier", "ticketer"),
     "templates.template": ("api",),
-    "tickets.ticket": ("list", "open", "closed", "filter", "update"),
+    "tickets.ticket": ("api", "list", "open", "closed", "filter", "update"),
     "tickets.ticketer": ("api", "connect", "configure"),
     "triggers.trigger": (
         "archived",
@@ -609,6 +606,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_read",
         "contacts.contact_restore",
         "contacts.contact_search",
+        "contacts.contact_start",
         "contacts.contact_stopped",
         "contacts.contact_tickets",
         "contacts.contact_update",
@@ -741,6 +739,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_read",
         "contacts.contact_restore",
         "contacts.contact_search",
+        "contacts.contact_start",
         "contacts.contact_stopped",
         "contacts.contact_tickets",
         "contacts.contact_update",
@@ -806,6 +805,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
+        "tickets.ticket_api",
         "tickets.ticket_closed",
         "tickets.ticket_filter",
         "tickets.ticket_open",
@@ -882,6 +882,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "tickets.ticket_api",
         "tickets.ticket_closed",
         "tickets.ticket_filter",
         "tickets.ticket_open",
@@ -1157,7 +1158,9 @@ CHANNEL_TYPES = [
     "temba.channels.types.wechat.WeChatType",
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia.ZenviaType",
+    "temba.channels.types.zenvia_whatsapp.ZenviaWhatsAppType",
     "temba.channels.types.android.AndroidType",
+    "temba.channels.types.discord.DiscordType",
     "temba.channels.types.rocketchat.RocketChatType",
 ]
 

@@ -17,6 +17,7 @@ from temba.locations.models import AdminBoundary
 from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
+from temba.tests.dates import parse_datetime
 from temba.tickets.models import Ticket
 from temba.utils import format_number, get_anonymous_user, json
 
@@ -351,7 +352,7 @@ def update_field_locally(user, contact, key, value, label=None):
     events = CampaignEvent.objects.filter(relative_to=field, campaign__group__in=contact.user_groups.all())
     for event in events:
         EventFire.objects.filter(contact=contact, event=event).delete()
-        date_value = org.parse_datetime(value)
+        date_value = parse_datetime(org, value)
         if date_value:
             scheduled = date_value + timedelta(**{event_units[event.unit]: event.offset})
             if scheduled > timezone.now():
@@ -411,7 +412,7 @@ def serialize_field_value(contact, field, value):
 
     # parse as all value data types
     str_value = str(value)[:640]
-    dt_value = org.parse_datetime(value)
+    dt_value = parse_datetime(org, value)
     num_value = org.parse_number(value)
     loc_value = None
 

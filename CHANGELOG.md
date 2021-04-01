@@ -1,3 +1,90 @@
+v6.3.14
+----------
+ * Fix locale files
+ * Fix SMTP server settings views to explain that we don't send emails if you don't have a config
+ * Add API endpoint to fetch tickets filterable by contact
+
+v6.3.13
+----------
+ * Clarify terms for exports vs downloads
+ * Fix rendering of airtime events in contact history
+ * Add flows import and flow exports links in the flows tab
+
+v6.3.12
+----------
+ * Update to latest flow-editor
+ * Cleanup unused dates methods
+ * Update markdown dependency
+ * Expose exclude_active on flow start read API
+ * Support 3 digits short code on Jasmin channel type
+ * Add support for YYYY-MM-DD date format
+ * Update DT One support to collect api key and secret to use with new API
+ * Update parent remaining credits
+ * Release broadcasts properly
+
+v6.3.11
+----------
+ * Fix redirect after submitting Start In Flow modal
+
+v6.3.10
+----------
+ * Add support to exclude active contacts in other flows when starting a flow on API
+ * Remove unsupported channel field on broadcast create API endpoint
+ * Add Start Flow modal to contact read page
+ * Fix lock file being out of sync with pyproject
+
+v6.3.9
+----------
+ * Revert update to use latest API version to get WA templates
+ * Fix setting Zenvia webhooks
+ * Update Django and Django REST Framework
+
+v6.3.8
+----------
+ * Convert to poetry
+
+v6.3.6
+----------
+ * Update pt_BR translation
+ * Update to use latest API version to get WA templates
+ * Display failed on flow results charts, more translations
+ * Zenvia WhatsApp
+
+v6.3.5
+----------
+ * Fix broken flow results charts
+
+v6.3.4
+----------
+ * Update to latest celery 4.x
+
+v6.3.2
+----------
+ * Support reseting the org limits to the default settings by clearing the form field
+ * Update redis client to latest v3.5.3
+ * Fix manage accounts form blowing up when new user has been created in background
+
+v6.3.1
+----------
+ * Add support for runs with exit_type=F
+ * Support customization for org limits
+
+v6.3.0
+----------
+ * Update stable versions and coverage badge link
+ * Style Outbox broadcasts with megaphone icons and use includes for other places we render contacts and groups
+ * Fix spacing on outbox view
+ * Add discord channel type
+
+v6.2.4
+----------
+ * Update Portuguese translation
+ * Update to floweditor v1.13.5
+
+v6.2.3
+----------
+ * Update to latest floweditor v1.13.4
+
 v6.2.2
 ----------
  * Update to flow editor v1.13.3

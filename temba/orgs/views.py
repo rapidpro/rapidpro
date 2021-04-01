@@ -54,6 +54,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
+from temba.airtime.dtone import DTOneClient
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
@@ -1212,10 +1213,8 @@ class OrgCRUDL(SmartCRUDL):
             return HttpResponseRedirect(self.get_success_url())
 
     class SmtpServer(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        success_message = ""
-
-        class SmtpConfig(forms.ModelForm):
-            smtp_from_email = forms.CharField(
+        class Form(forms.ModelForm):
+            from_email = forms.CharField(
                 max_length=128,
                 label=_("Email Address"),
                 required=False,
@@ -1245,7 +1244,7 @@ class OrgCRUDL(SmartCRUDL):
             def clean(self):
                 super().clean()
                 if self.cleaned_data.get("disconnect", "false") == "false":
-                    smtp_from_email = self.cleaned_data.get("smtp_from_email", None)
+                    from_email = self.cleaned_data.get("from_email", None)
                     smtp_host = self.cleaned_data.get("smtp_host", None)
                     smtp_username = self.cleaned_data.get("smtp_username", None)
                     smtp_password = self.cleaned_data.get("smtp_password", None)
@@ -1259,10 +1258,10 @@ class OrgCRUDL(SmartCRUDL):
                     if not smtp_password and existing_username == smtp_username and existing_smtp_server.password:
                         smtp_password = unquote(existing_smtp_server.password)
 
-                    if not smtp_from_email:
+                    if not from_email:
                         raise ValidationError(_("You must enter a from email"))
 
-                    parsed = parseaddr(smtp_from_email)
+                    parsed = parseaddr(from_email)
                     if not is_valid_address(parsed[1]):
                         raise ValidationError(_("Please enter a valid email address"))
 
@@ -1298,12 +1297,12 @@ class OrgCRUDL(SmartCRUDL):
                             admin_emails,
                             subject,
                             body,
-                            smtp_from_email,
+                            from_email,
                             smtp_host,
                             smtp_port,
                             smtp_username,
                             smtp_password,
-                            True,
+                            use_tls=True,
                         )
 
                     except smtplib.SMTPException as e:
@@ -1317,9 +1316,10 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
-                fields = ("smtp_from_email", "smtp_host", "smtp_username", "smtp_password", "smtp_port", "disconnect")
+                fields = ("from_email", "smtp_host", "smtp_username", "smtp_password", "smtp_port", "disconnect")
 
-        form_class = SmtpConfig
+        form_class = Form
+        success_message = ""
 
         def derive_initial(self):
             initial = super().derive_initial()
@@ -1333,7 +1333,7 @@ class OrgCRUDL(SmartCRUDL):
             if parsed_smtp_server.password:
                 smtp_password = unquote(parsed_smtp_server.password)
 
-            initial["smtp_from_email"] = parse_qs(parsed_smtp_server.query).get("from", [None])[0]
+            initial["from_email"] = parse_qs(parsed_smtp_server.query).get("from", [None])[0]
             initial["smtp_host"] = parsed_smtp_server.hostname
             initial["smtp_username"] = smtp_username
             initial["smtp_password"] = smtp_password
@@ -1350,7 +1350,7 @@ class OrgCRUDL(SmartCRUDL):
                 org.remove_smtp_config(user)
                 return HttpResponseRedirect(reverse("orgs.org_home"))
             else:
-                smtp_from_email = form.cleaned_data["smtp_from_email"]
+                smtp_from_email = form.cleaned_data["from_email"]
                 smtp_host = form.cleaned_data["smtp_host"]
                 smtp_username = form.cleaned_data["smtp_username"]
                 smtp_password = form.cleaned_data["smtp_password"]
@@ -1362,19 +1362,17 @@ class OrgCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-
             org = self.get_object()
+            from_email = None
+
             if org.has_smtp_config():
                 smtp_server = org.config.get(Org.CONFIG_SMTP_SERVER)
                 parsed_smtp_server = urlparse(smtp_server)
+                from_email_params = parse_qs(parsed_smtp_server.query).get("from")
+                if from_email_params:
+                    from_email = parseaddr(from_email_params[0])[1]  # extract address only
 
-                from_email = parse_qs(parsed_smtp_server.query).get("from", [None])[0]
-            else:
-                from_email = settings.FLOW_FROM_EMAIL
-
-            # populate our context with the from email (just the address)
-            context["flow_from_email"] = parseaddr(from_email)[1]
-
+            context["flow_from_email"] = from_email
             return context
 
     class Manage(SmartListView):
@@ -1483,10 +1481,38 @@ class OrgCRUDL(SmartCRUDL):
             parent = forms.IntegerField(required=False)
             plan_end = forms.DateTimeField(required=False)
 
+            def __init__(self, org, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                self.limits_rows = []
+                self.add_limits_fields(org)
+
             def clean_parent(self):
                 parent = self.cleaned_data.get("parent")
                 if parent:
                     return Org.objects.filter(pk=parent).first()
+
+            def clean(self):
+                super().clean()
+
+                limits = dict()
+                for row in self.limits_rows:
+                    if self.cleaned_data.get(row["limit_field_key"]):
+                        limits[row["limit_type"]] = self.cleaned_data.get(row["limit_field_key"])
+
+                self.cleaned_data["limits"] = limits
+
+                return self.cleaned_data
+
+            def add_limits_fields(self, org: Org):
+                for limit_type in [Org.LIMIT_FIELDS, Org.LIMIT_GROUPS, Org.LIMIT_GLOBALS]:
+                    initial = org.limits.get(limit_type)
+                    limit_field = forms.IntegerField(required=False, initial=initial)
+                    field_key = f"{limit_type}_limit"
+
+                    self.fields.update(OrderedDict([(field_key, limit_field)]))
+
+                    self.limits_rows.append({"limit_type": limit_type, "limit_field_key": field_key})
 
             class Meta:
                 model = Org
@@ -1503,6 +1529,11 @@ class OrgCRUDL(SmartCRUDL):
                 )
 
         form_class = Form
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["org"] = self.get_object()
+            return kwargs
 
         def get_success_url(self):
             return reverse("orgs.org_update", args=[self.get_object().pk])
@@ -1572,6 +1603,14 @@ class OrgCRUDL(SmartCRUDL):
                     self.get_object().unflag()
                 return HttpResponseRedirect(self.get_success_url())
             return super().post(request, *args, **kwargs)
+
+        def pre_save(self, obj):
+            obj = super().pre_save(obj)
+
+            cleaned_data = self.form.cleaned_data
+
+            obj.limits = cleaned_data["limits"]
+            return obj
 
     class Delete(ModalMixin, SmartDeleteView):
         cancel_url = "id@orgs.org_update"
@@ -1734,8 +1773,8 @@ class OrgCRUDL(SmartCRUDL):
                 roles = {}
 
                 for row in self.user_rows:
-                    role = self.cleaned_data[row["role_field"]]
-                    remove = self.cleaned_data[row["remove_field"]]
+                    role = self.cleaned_data.get(row["role_field"])
+                    remove = self.cleaned_data.get(row["remove_field"])
                     roles[row["user"]] = OrgRole.from_code(role) if not remove else None
                 return roles
 
@@ -2893,64 +2932,40 @@ class OrgCRUDL(SmartCRUDL):
             formax.add_section("archives", reverse("archives.archive_message"), icon="icon-box", action="link")
 
     class DtoneAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-
-        success_message = ""
-
-        class DTOneAccountForm(forms.ModelForm):
-            account_login = forms.CharField(label=_("Login"), required=False, widget=InputWidget())
-            airtime_api_token = forms.CharField(label=_("API Token"), required=False, widget=InputWidget())
+        class Form(forms.ModelForm):
+            api_key = forms.CharField(label=_("API Key"), required=False, widget=InputWidget())
+            api_secret = forms.CharField(label=_("API Secret"), required=False, widget=InputWidget())
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=False)
 
             def clean(self):
-                super().clean()
-                if self.cleaned_data.get("disconnect", "false") == "false":
-                    account_login = self.cleaned_data.get("account_login", None)
-                    airtime_api_token = self.cleaned_data.get("airtime_api_token", None)
+                cleaned_data = super().clean()
+
+                if cleaned_data["disconnect"] != "true":
+                    api_key = cleaned_data.get("api_key")
+                    api_secret = cleaned_data.get("api_secret")
+                    client = DTOneClient(api_key, api_secret)
 
                     try:
-                        from temba.airtime.dtone import DTOneClient
-
-                        client = DTOneClient(account_login, airtime_api_token)
-                        response = client.ping()
-
-                        error_code = int(response.get("error_code", None))
-                        info_txt = response.get("info_txt", None)
-                        error_txt = response.get("error_txt", None)
-
-                    except Exception:
+                        client.get_balances()
+                    except DTOneClient.Exception:
                         raise ValidationError(
                             _("Your DT One API key and secret seem invalid. Please check them again and retry.")
                         )
 
-                    if error_code != 0 and info_txt != "pong":
-                        raise ValidationError(
-                            _("Connecting to your DT One account failed with error text: %s") % error_txt
-                        )
-
-                return self.cleaned_data
-
             class Meta:
                 model = Org
-                fields = ("account_login", "airtime_api_token", "disconnect")
+                fields = ("api_key", "api_secret", "disconnect")
 
-        form_class = DTOneAccountForm
+        form_class = Form
         submit_button_name = "Save"
+        success_message = ""
         success_url = "@orgs.org_home"
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            if self.object.is_connected_to_dtone():
-                config = self.object.config
-                account_login = config.get(Org.CONFIG_DTONE_LOGIN)
-                context["dtone_account_login"] = account_login
-
-            return context
 
         def derive_initial(self):
             initial = super().derive_initial()
             config = self.object.config
-            initial["account_login"] = config.get(Org.CONFIG_DTONE_LOGIN)
-            initial["airtime_api_token"] = config.get(Org.CONFIG_DTONE_API_TOKEN)
+            initial["api_key"] = config.get(Org.CONFIG_DTONE_KEY)
+            initial["api_secret"] = config.get(Org.CONFIG_DTONE_SECRET)
             initial["disconnect"] = "false"
             return initial
 
@@ -2962,11 +2977,7 @@ class OrgCRUDL(SmartCRUDL):
                 org.remove_dtone_account(user)
                 return HttpResponseRedirect(reverse("orgs.org_home"))
             else:
-                account_login = form.cleaned_data["account_login"]
-                airtime_api_token = form.cleaned_data["airtime_api_token"]
-
-                org.connect_dtone(account_login, airtime_api_token, user)
-                org.refresh_dtone_account_currency()
+                org.connect_dtone(form.cleaned_data["api_key"], form.cleaned_data["api_secret"], user)
                 return super().form_valid(form)
 
     class TwilioAccount(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):

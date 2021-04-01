@@ -36,13 +36,10 @@
 
     -for group in contact_groups
       -if group.is_dynamic
-        .lbl-group-dynamic.mt-2.mr-2.linked{onclick:"goto(event)", href:"{% url 'contacts.contact_filter' group.uuid %}"}
-          = group.name
-  
+        -include "includes/recipients_group.haml" with group=group
     -for group in contact_groups
       -if not group.is_dynamic
-        .lbl-group.mt-2.mr-2.linked{onclick:"goto(event)", href:"{% url 'contacts.contact_filter' group.uuid %}"}
-          = group.name
+        -include "includes/recipients_group.haml" with group=group
 
 -block read-buttons
 

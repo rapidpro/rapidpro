@@ -13,8 +13,7 @@
   .flex.flex-col
     .summary
       -if object.group.is_active
-        .lbl-group.linked(onclick="goto(event)" href="{% url 'contacts.contact_filter' object.group.uuid %}")
-          {{object.group.name}}
+        -include "includes/recipients_group.haml" with group=object.group
       -else
         -trans "No group assigned to this campaign"
 
