@@ -1,3 +1,9 @@
+v6.3.14
+----------
+ * Fix locale files
+ * Fix SMTP server settings views to explain that we don't send emails if you don't have a config
+ * Add API endpoint to fetch tickets filterable by contact
+
 v6.3.13
 ----------
  * Clarify terms for exports vs downloads
