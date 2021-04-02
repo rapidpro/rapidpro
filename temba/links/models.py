@@ -197,6 +197,7 @@ class Link(TembaModel):
         return issues
 
     def update_flows(self):
+        # TODO: This method should be removed as we don't use `call_shorten_url` step anymore.
         from temba.flows.models import FlowRevision
 
         revisions = []
