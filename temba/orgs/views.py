@@ -1363,16 +1363,17 @@ class OrgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org = self.get_object()
-            from_email = None
+            from_email_custom = None
 
             if org.has_smtp_config():
                 smtp_server = org.config.get(Org.CONFIG_SMTP_SERVER)
                 parsed_smtp_server = urlparse(smtp_server)
                 from_email_params = parse_qs(parsed_smtp_server.query).get("from")
                 if from_email_params:
-                    from_email = parseaddr(from_email_params[0])[1]  # extract address only
+                    from_email_custom = parseaddr(from_email_params[0])[1]  # extract address only
 
-            context["flow_from_email"] = from_email
+            context["from_email_default"] = parseaddr(settings.FLOW_FROM_EMAIL)[1]
+            context["from_email_custom"] = from_email_custom
             return context
 
     class Manage(SmartListView):

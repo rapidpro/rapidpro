@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-31 22:03+0000\n"
+"POT-Creation-Date: 2021-04-02 17:41+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2646,7 +2646,7 @@ msgstr ""
 msgid "Start Flow"
 msgstr ""
 
-msgid "Download Results"
+msgid "Results"
 msgstr ""
 
 msgid "Edit Flow"
@@ -2726,6 +2726,9 @@ msgstr ""
 
 #, python-brace-format
 msgid "You can only include up to {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groups for group memberships in your export"
+msgstr ""
+
+msgid "Download Results"
 msgstr ""
 
 msgid "Sunday"
@@ -5793,9 +5796,6 @@ msgstr ""
 msgid "No matching flows."
 msgstr ""
 
-msgid "Results"
-msgstr ""
-
 msgid "Delete Run"
 msgstr ""
 
@@ -6637,9 +6637,6 @@ msgstr ""
 msgid "Emails sent from flows will be sent from <b>%(from_email)s</b>."
 msgstr ""
 
-msgid "Configure email settings to enable sending of emails from flows."
-msgstr ""
-
 #, python-format
 msgid "You can configure %(brand)s to send emails generated within flows from an email address of your choosing."
 msgstr ""
@@ -6651,7 +6648,8 @@ msgstr ""
 msgid "Remove SMTP Settings"
 msgstr ""
 
-msgid "Removing these settings will prevent emails being sent from flows. Are you sure you want to continue?"
+#, python-format
+msgid "Removing these settings will mean that emails sent from flows will come from %(from_email)s. Are you sure you want to continue?"
 msgstr ""
 
 #, python-format
