@@ -2246,7 +2246,7 @@ class Org(SmartModel):
             "default_country": self.default_country_code,
             "redaction_policy": "urns" if self.is_anon else "none",
             "links": [
-                f"{item.uuid}:{item.destination}:{'t' if item.send_full_link else 'f'}"
+                f"{item.uuid}:{item.destination}"
                 for item in self.links.filter(is_archived=False).only("uuid", "destination")
             ],
         }

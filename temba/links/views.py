@@ -65,13 +65,12 @@ class LinkCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Link
-                fields = ("name", "related_flow", "destination", "send_full_link")
+                fields = ("name", "related_flow", "destination")
                 widgets = {
                     "name": InputWidget,
                     "destination": InputWidget(
                         attrs={"placeholder": "E.g. http://example.com, https://example.com", "type": "url"}
                     ),
-                    "send_full_link": CheckboxWidget(),
                 }
 
         form_class = LinkCreateForm
@@ -98,7 +97,6 @@ class LinkCRUDL(SmartCRUDL):
                 name=obj.name,
                 related_flow=obj.related_flow,
                 destination=obj.destination,
-                send_full_link=obj.send_full_link,
             )
 
         def post_save(self, obj):
@@ -218,18 +216,17 @@ class LinkCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Link
-                fields = ("name", "related_flow", "destination", "send_full_link")
+                fields = ("name", "related_flow", "destination")
                 widgets = {
                     "name": InputWidget,
                     "destination": InputWidget(
                         attrs={"placeholder": "E.g. http://example.com, https://example.com", "type": "url"}
                     ),
-                    "send_full_link": CheckboxWidget(),
                 }
 
         success_message = ""
         success_url = "uuid@links.link_read"
-        fields = ("name", "related_flow", "destination", "send_full_link")
+        fields = ("name", "related_flow", "destination")
         form_class = LinkUpdateForm
 
         def derive_fields(self):
