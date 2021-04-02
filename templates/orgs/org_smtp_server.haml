@@ -2,11 +2,8 @@
 -load compress temba smartmin i18n
 
 -block summary
-  -if flow_from_email
-    -blocktrans trimmed with from_email=flow_from_email
-      Emails sent from flows will be sent from <b>{{ from_email }}</b>.
-  -else
-    -trans "Configure email settings to enable sending of emails from flows."
+  -blocktrans trimmed with from_email=from_email_custom|default:from_email_default
+    Emails sent from flows will be sent from <b>{{ from_email }}</b>.
 
 -block pre-form
   .mb-4
@@ -15,16 +12,17 @@
 
   -if object.has_smtp_config and request.META.HTTP_X_FORMAX
     .mb-4
-      -blocktrans trimmed with from_email=flow_from_email
+      -blocktrans trimmed with from_email=from_email_custom
         If you no longer want to use {{ from_email }} to send emails, you can <a href='javascript:confirmSMTPRemove();'>remove your SMTP settings</a>.
 
     .remove-smtp.hide
       .title
         -trans "Remove SMTP Settings"
       .body
-        -blocktrans trimmed
-          Removing these settings will prevent emails being sent from flows. Are you sure you want to continue?
-    
+        -blocktrans trimmed with from_email=from_email_default
+          Removing these settings will mean that emails sent from flows will come from {{ from_email }}.
+          Are you sure you want to continue?
+
       #remove-smtp-form{href:'{% url "orgs.org_smtp_server" %}?disconnect=true'}
 
 -block fields

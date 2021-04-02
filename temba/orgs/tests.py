@@ -2795,9 +2795,11 @@ class OrgTest(TembaTest):
         home_url = reverse("orgs.org_home")
         config_url = reverse("orgs.org_smtp_server")
 
-        # by default orgs can't send emails from flows
+        # orgs without SMTP settings see default from address
         response = self.client.get(home_url)
-        self.assertContains(response, "Configure email settings to enable sending of emails from flows.")
+        self.assertContains(response, "Emails sent from flows will be sent from <b>no-reply@temba.io</b>.")
+        self.assertEqual("no-reply@temba.io", response.context["from_email_default"])
+        self.assertEqual(None, response.context["from_email_custom"])
 
         self.assertFalse(self.org.has_smtp_config())
 
@@ -2928,7 +2930,8 @@ class OrgTest(TembaTest):
         )
 
         response = self.client.get(config_url)
-        self.assertEqual("foo@bar.com", response.context["flow_from_email"])
+        self.assertEqual("no-reply@temba.io", response.context["from_email_default"])
+        self.assertEqual("foo@bar.com", response.context["from_email_custom"])
 
         self.client.post(
             config_url,
