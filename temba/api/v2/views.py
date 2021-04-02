@@ -1,5 +1,6 @@
 import itertools
 import json
+import re
 
 import regex
 import requests
@@ -3932,6 +3933,24 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
         return org, collection_name, collections_list, None
 
     @staticmethod
+    def validate_field_names(field_names):
+        valid_field_regex = r"^[a-zA-Z][a-zA-Z0-9_ -]*$"
+        invalid_fields = [item for item in field_names if not re.match(valid_field_regex, item)]
+        reserved_keywords = ["class", "for", "return", "global", "pass", "or", "raise", "def", "id", "objectid"]
+
+        if not invalid_fields:
+            invalid_fields = [
+                item for item in field_names if item.replace("numeric_", "").replace("date_", "") in reserved_keywords
+            ]
+
+        if invalid_fields:
+            return _(
+                "The field names should only contain spaces, underscores, and alphanumeric characters. "
+                "They must begin with a letter and be unique. The following words are not allowed on the column names: "
+                "words such 'class', 'for', 'return', 'global', 'pass', 'or', 'raise', 'def', 'id' and 'objectid'."
+            )
+
+    @staticmethod
     def preprocess_date_fields(field_types: dict, request_body: dict, tz: object, dayfirst: bool):
         for key in request_body:
             if field_types.get(key) == "Date":
@@ -4032,6 +4051,14 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
         items_to_push = self.request.data.get("items", [])
         if not fields_to_create and not items_to_push:
             return Response({"error": "There are no items to insert."}, status=status.HTTP_400_BAD_REQUEST)
+
+        all_fields = {
+            *fields_to_create.keys(),
+            *itertools.chain.from_iterable(getattr(item, "keys", lambda: [])() for item in items_to_push)
+        }
+        error = self.validate_field_names(all_fields)
+        if error:
+            return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
 
         collection = self.get_collection_full_name(org, collection_name)
 
@@ -4295,6 +4322,11 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
         if not items_to_push:
             return Response({"error": "There are no items to insert."}, status=status.HTTP_400_BAD_REQUEST)
 
+        all_fields = set(itertools.chain.from_iterable(getattr(item, "keys", lambda: [])() for item in items_to_push))
+        error = self.validate_field_names(all_fields)
+        if error:
+            return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
+
         collection = self.get_collection_full_name(org=org, collection=collection_name)
         count_url = f"{settings.PARSE_URL}/classes/{collection}?count=1"
         count_response = requests.get(count_url, headers=self.parse_headers)
@@ -4350,6 +4382,11 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
         field_types = self.get_collection_fields(collection=collection)
         tz, dayfirst = org.timezone, org.get_dayfirst()
         data_to_replace: dict = self.request.data.get("item")
+
+        error = self.validate_field_names(data_to_replace.keys())
+        if error:
+            return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
+
         self.preprocess_date_fields(field_types, data_to_replace, tz, dayfirst)
 
         parse_url = f"{settings.PARSE_URL}/classes/{collection}/{object_id}"
