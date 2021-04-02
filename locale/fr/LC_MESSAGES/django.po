@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-01 16:58+0000\n"
+"POT-Creation-Date: 2021-04-02 18:41+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2651,8 +2651,8 @@ msgstr "Supprimer l'étiquette"
 msgid "Start Flow"
 msgstr "Lancer un Flux"
 
-msgid "Download Results"
-msgstr "Télécharger les résultats"
+msgid "Results"
+msgstr "Resultats"
 
 msgid "Edit Flow"
 msgstr "Editer le flux"
@@ -2732,6 +2732,9 @@ msgstr "Vous ne pouvez inclure que jusqu'à {ExportFlowResultsTask.MAX_CONTACT_F
 #, python-brace-format
 msgid "You can only include up to {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groups for group memberships in your export"
 msgstr "Vous ne pouvez inclure que jusqu'à {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groupes d'adhésions à des groupes dans votre exportation"
+
+msgid "Download Results"
+msgstr "Télécharger les résultats"
 
 msgid "Sunday"
 msgstr "Dimanche"
@@ -5884,9 +5887,6 @@ msgstr "Nouvelle étiquette"
 msgid "No matching flows."
 msgstr "Aucun flux correspondant"
 
-msgid "Results"
-msgstr "Resultats"
-
 msgid "Delete Run"
 msgstr "Supprimer l'exécution"
 
@@ -6877,9 +6877,6 @@ msgstr "La création d'un compte %(brand)s est gratuite et ne prend qu'une minut
 msgid "Emails sent from flows will be sent from <b>%(from_email)s</b>."
 msgstr "Les e-mails envoyés depuis les flux proviendront de <b>%(from_email)s</b>."
 
-msgid "Configure email settings to enable sending of emails from flows."
-msgstr ""
-
 #, fuzzy, python-format
 #| msgid "You can configure %(brand)s to send emails generated within flows from an email address of your choosing. <br/> This will let you receive replies from your recipients."
 msgid "You can configure %(brand)s to send emails generated within flows from an email address of your choosing."
@@ -6895,9 +6892,9 @@ msgstr "Si vous ne souhaitez plus utiliser %(from_email)s pour envoyer des e-mai
 msgid "Remove SMTP Settings"
 msgstr "Supprimer la configuration SMTP"
 
-#, fuzzy
+#, fuzzy, python-format
 #| msgid "Removing your SMTP configuration will result in emails being delivered from %(brand)s that cannot be replied to. Are you sure you want to continue?"
-msgid "Removing these settings will prevent emails being sent from flows. Are you sure you want to continue?"
+msgid "Removing these settings will mean that emails sent from flows will come from %(from_email)s. Are you sure you want to continue?"
 msgstr "La suppression de votre configuration SMTP entraînera l'envoi d'e-mails de %(brand)s auxquels il ne sera pas possible de répondre. Es-tu sur de vouloir continuer?"
 
 #, python-format

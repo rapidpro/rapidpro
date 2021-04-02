@@ -1,3 +1,8 @@
+v6.3.15
+----------
+ * Revert wording changes when orgs don't have email settings to clarify that we do send
+ * Fix wording of Results link in editor
+
 v6.3.14
 ----------
  * Fix locale files
