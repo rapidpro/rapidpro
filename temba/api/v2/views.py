@@ -3796,7 +3796,7 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
 
      * **collection_name** - the name of collection
 
-    Create new collection for current org:
+    Delete existing collection from the current org:
 
         DELETE /api/v2/database.json
         {
@@ -4192,7 +4192,7 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
      * **collection_name** - the name of collection
      * **objectId** - identifier of record to delete
 
-    Create new collection for current org:
+    Delete item from Lookups Collection:
 
         DELETE /api/v2/database_records.json
         {
@@ -4234,7 +4234,7 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
     def get_delete_explorer(cls):
         return dict(
             method="DELETE",
-            title="Append item from Lookups Collection",
+            title="Delete item from Lookups Collection",
             url=reverse("api.v2.parse_database_records"),
             slug="lookup-database-records-delete",
             fields=[
