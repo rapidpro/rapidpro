@@ -112,7 +112,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
                 raise Exception(
                     _(
                         "There was a problem claiming that number, please check the balance on your account. "
-                        "Note that you can only claim numbers after adding credit to your Nexmo account."
+                        "Note that you can only claim numbers after adding credit to your Vonage account."
                     )
                     + "\n"
                     + str(e)

@@ -3063,11 +3063,11 @@ class OrgTest(TembaTest):
             mock_get.return_value = MockResponse(401, '{"error-code": "401"}')
 
             response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
-            self.assertContains(response, "Your Nexmo API key and secret seem invalid.")
+            self.assertContains(response, "Your Vonage API key and secret seem invalid.")
             self.assertFalse(self.org.is_connected_to_nexmo())
 
             response = self.client.post(account_url, dict(api_key="key", api_secret="secret"))
-            self.assertContains(response, "Your Nexmo API key and secret seem invalid.")
+            self.assertContains(response, "Your Vonage API key and secret seem invalid.")
 
         # ok, now with a success
         with patch("requests.get") as nexmo_get, patch("requests.post") as nexmo_post:
@@ -3091,10 +3091,7 @@ class OrgTest(TembaTest):
 
             # post without api token, should get validation error
             response = self.client.post(account_url, dict(disconnect="false"), follow=True)
-            self.assertEqual(
-                '[{"message": "You must enter your Nexmo Account API Key", "code": ""}]',
-                response.context["form"].errors["__all__"].as_json(),
-            )
+            self.assertFormError(response, "form", "__all__", "You must enter your Vonage Account API Key")
 
             # nexmo config should remain the same
             self.org.refresh_from_db()
@@ -4057,7 +4054,7 @@ class OrgCRUDLTest(TembaTest):
             self.user,
             "RW",
             "T",
-            "Nexmo",
+            "Twilio",
             "0785551212",
             role="R",
             secret="45678",

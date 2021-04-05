@@ -24,9 +24,9 @@ class NexmoTypeTest(TembaTest):
         # remove any existing channels
         self.org.channels.update(is_active=False)
 
-        # make sure nexmo is on the claim page
+        # make sure Vonage is on the claim page
         response = self.client.get(reverse("channels.channel_claim"))
-        self.assertContains(response, "Nexmo")
+        self.assertContains(response, "Vonage")
 
         response = self.client.get(claim_nexmo)
         self.assertEqual(response.status_code, 302)
@@ -35,7 +35,7 @@ class NexmoTypeTest(TembaTest):
 
         self.org.connect_nexmo("nexmo-key", "nexmo-secret", self.admin)
 
-        # hit the claim page, should now have a claim nexmo link
+        # hit the claim page, should now have a claim link
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertContains(response, claim_nexmo)
 
@@ -107,7 +107,7 @@ class NexmoTypeTest(TembaTest):
                 "There was a problem claiming that number, "
                 "please check the balance on your account. "
                 "Note that you can only claim numbers after "
-                "adding credit to your Nexmo account.",
+                "adding credit to your Vonage account.",
             )
             Channel.objects.all().delete()
 
@@ -148,7 +148,7 @@ class NexmoTypeTest(TembaTest):
             self.assertEqual(channel.config[Channel.CONFIG_NEXMO_APP_ID], "myappid")
             self.assertEqual(channel.config[Channel.CONFIG_NEXMO_APP_PRIVATE_KEY], "private")
 
-            # test the update page for nexmo
+            # test the update page for vonage
             update_url = reverse("channels.channel_update", args=[channel.pk])
             response = self.client.get(update_url)
 
@@ -201,14 +201,14 @@ class NexmoTypeTest(TembaTest):
             self.assertContains(response, reverse("mailroom.ivr_handler", args=[channel.uuid, "incoming"]))
 
     def test_deactivate(self):
-        # convert our test channel to be a Nexmo channel
+        # convert our test channel to be a Vonage channel
         self.org.connect_nexmo("TEST_KEY", "TEST_SECRET", self.admin)
         channel = self.org.channels.all().first()
         channel.channel_type = "NX"
         channel.config = {Channel.CONFIG_NEXMO_APP_ID: "myappid", Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: "secret"}
         channel.save(update_fields=("channel_type", "config"))
 
-        # mock a 404 response from Nexmo during deactivation
+        # mock a 404 response from Vonage during deactivation
         with self.settings(IS_PROD=True):
             with patch("nexmo.Client.delete_application") as mock_delete_application:
                 mock_delete_application.side_effect = nexmo.ClientError("404 response")

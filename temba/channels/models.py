@@ -584,7 +584,7 @@ class Channel(TembaModel):
             user,
             channel.country,
             "NX",
-            name="Nexmo Sender",
+            name="Vonage Sender",
             config=config,
             tps=1,
             address=channel.address,

@@ -1867,7 +1867,7 @@ class ChannelCRUDL(SmartCRUDL):
             def clean_connection(self):
                 connection = self.cleaned_data["connection"]
                 if connection == "NX" and not self.org.is_connected_to_nexmo():
-                    raise forms.ValidationError(_("A connection to a Nexmo account is required"))
+                    raise forms.ValidationError(_("A connection to a Vonage account is required"))
                 return connection
 
             def clean_channel(self):

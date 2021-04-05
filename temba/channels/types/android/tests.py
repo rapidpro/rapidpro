@@ -209,7 +209,7 @@ class AndroidTypeTest(TembaTest):
         # try to claim a bulk Nexmo sender (without adding Nexmo account to org)
         claim_nexmo_url = reverse("channels.channel_create_bulk_sender") + "?connection=NX&channel=%d" % android2.pk
         response = self.client.post(claim_nexmo_url, dict(connection="NX", channel=android2.pk))
-        self.assertFormError(response, "form", "connection", "A connection to a Nexmo account is required")
+        self.assertFormError(response, "form", "connection", "A connection to a Vonage account is required")
 
         # send channel is still our Android device
         self.assertEqual(self.org.get_send_channel(URN.TEL_SCHEME), android2)

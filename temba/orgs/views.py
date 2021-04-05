@@ -1075,16 +1075,16 @@ class OrgCRUDL(SmartCRUDL):
                     api_secret = self.cleaned_data.get("api_secret", None)
 
                     if not api_key:
-                        raise ValidationError(_("You must enter your Nexmo Account API Key"))
+                        raise ValidationError(_("You must enter your Vonage Account API Key"))
 
                     if not api_secret:  # pragma: needs cover
-                        raise ValidationError(_("You must enter your Nexmo Account API Secret"))
+                        raise ValidationError(_("You must enter your Vonage Account API Secret"))
 
                     from temba.channels.types.nexmo.client import NexmoClient
 
                     if not NexmoClient(api_key, api_secret).check_credentials():
                         raise ValidationError(
-                            _("Your Nexmo API key and secret seem invalid. Please check them again and retry.")
+                            _("Your Vonage API key and secret seem invalid. Please check them again and retry.")
                         )
 
                 return self.cleaned_data
@@ -1132,8 +1132,8 @@ class OrgCRUDL(SmartCRUDL):
 
     class NexmoConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class NexmoConnectForm(forms.Form):
-            api_key = forms.CharField(help_text=_("Your Nexmo API key"), widget=InputWidget())
-            api_secret = forms.CharField(help_text=_("Your Nexmo API secret"), widget=InputWidget())
+            api_key = forms.CharField(help_text=_("Your Vonage API key"), widget=InputWidget())
+            api_secret = forms.CharField(help_text=_("Your Vonage API secret"), widget=InputWidget())
 
             def clean(self):
                 super().clean()
@@ -1145,7 +1145,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 if not NexmoClient(api_key, api_secret).check_credentials():
                     raise ValidationError(
-                        _("Your Nexmo API key and secret seem invalid. Please check them again and retry.")
+                        _("Your Vonage API key and secret seem invalid. Please check them again and retry.")
                     )
 
                 return self.cleaned_data
@@ -1154,7 +1154,7 @@ class OrgCRUDL(SmartCRUDL):
         submit_button_name = "Save"
         success_url = "@channels.types.nexmo.claim"
         field_config = dict(api_key=dict(label=""), api_secret=dict(label=""))
-        success_message = "Nexmo Account successfully connected."
+        success_message = "Vonage Account successfully connected."
 
         def form_valid(self, form):
             api_key = form.cleaned_data["api_key"]
@@ -2837,7 +2837,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 nexmo_client = org.get_nexmo_client()
                 if nexmo_client:  # pragma: needs cover
-                    formax.add_section("nexmo", reverse("orgs.org_nexmo_account"), icon="icon-channel-nexmo")
+                    formax.add_section("nexmo", reverse("orgs.org_nexmo_account"), icon="icon-vonage")
 
             if self.has_org_perm("classifiers.classifier_read"):
                 classifiers = org.classifiers.filter(is_active=True).order_by("created_on")

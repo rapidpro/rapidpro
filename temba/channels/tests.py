@@ -212,7 +212,7 @@ class ChannelTest(TembaTest):
     def test_get_channel_type_name(self):
         self.assertEqual(self.tel_channel.get_channel_type_name(), "Android Phone")
         self.assertEqual(self.twitter_channel.get_channel_type_name(), "Twitter Channel")
-        self.assertEqual(self.unclaimed_channel.get_channel_type_name(), "Nexmo Channel")
+        self.assertEqual(self.unclaimed_channel.get_channel_type_name(), "Vonage Channel")
 
     def test_ensure_normalization(self):
         self.tel_channel.country = "RW"
@@ -1099,7 +1099,7 @@ class ChannelTest(TembaTest):
         )
         android.refresh_from_db()
 
-        # connect org to Nexmo and add bulk sender
+        # connect org to Vonage and add bulk sender
         self.org.connect_nexmo("123", "456", self.admin)
 
         claim_nexmo_url = reverse("channels.channel_create_bulk_sender") + "?connection=NX&channel=%d" % android.pk
@@ -1112,7 +1112,7 @@ class ChannelTest(TembaTest):
         self.assertFalse(android.is_active)
         self.assertFalse(android.config.get(Channel.CONFIG_FCM_ID))
 
-        # Nexmo delegate should have been released as well
+        # Vonage delegate should have been released as well
         nexmo.refresh_from_db()
         self.assertFalse(nexmo.is_active)
 
