@@ -491,6 +491,7 @@ class TembaTestMixin:
             mappings, num_records = ContactImport.try_to_parse(self.org, f, path)
             return ContactImport.objects.create(
                 org=self.org,
+                original_filename=path,
                 file=SimpleUploadedFile(f.name, f.read()),
                 mappings=mappings,
                 num_records=num_records,
