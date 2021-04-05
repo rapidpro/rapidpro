@@ -56,7 +56,8 @@
                       (optional)
         -if endpoint.fields
           .title.my-4
-            -trans "Post Body Fields"
+            =endpoint.method|lower|capfirst
+            -trans "Body Fields"
           %table
             .tbody
               -for item in endpoint.fields
@@ -87,7 +88,8 @@
           -if endpoint.fields
             .form-group.mt-4.items-center(class="md:flex")
               %label.control-label.self-start.pt-4.w-56.pr-6(class="md:text-right")
-                -trans "Post Body"
+                =endpoint.method|lower|capfirst
+                -trans "Body"
               .flex-grow
                 %textarea.textinput.p-2.rounded.request-body(id="request-body-{{ endpoint.slug }}" rows="5")<
                   {{ endpoint.example.body }}

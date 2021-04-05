@@ -352,7 +352,9 @@ class Attachment(object):
 
     @classmethod
     def validate_fields(cls, org, definition: dict) -> list:
-        contact_fields = list(map(lambda x: f"@fields.{x}", org.contactfields.filter(field_type="U").values_list("key", flat=True)))
+        contact_fields = list(
+            map(lambda x: f"@fields.{x}", org.contactfields.filter(field_type="U").values_list("key", flat=True))
+        )
         contact_fields += list(map(lambda x: x.replace("@", "@contact."), contact_fields))
         issues = []
         for node in definition.get("nodes", []):
@@ -370,7 +372,7 @@ class Attachment(object):
                                         "key": f'attachment: {_url.replace("@fields.", "")}',
                                         "type": "field",
                                         "name": "",
-                                    }
+                                    },
                                 }
                             )
         return issues
