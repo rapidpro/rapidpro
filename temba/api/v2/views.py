@@ -4054,7 +4054,7 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
 
         all_fields = {
             *fields_to_create.keys(),
-            *itertools.chain.from_iterable(getattr(item, "keys", lambda: [])() for item in items_to_push)
+            *itertools.chain.from_iterable(getattr(item, "keys", lambda: [])() for item in items_to_push),
         }
         error = self.validate_field_names(all_fields)
         if error:

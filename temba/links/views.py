@@ -22,7 +22,7 @@ from temba.flows.models import Flow
 
 from .models import Link, ExportLinksTask
 from .tasks import export_link_task
-from ..utils.fields import SelectWidget, InputWidget, CheckboxWidget
+from ..utils.fields import SelectWidget, InputWidget
 from ..utils.views import BulkActionMixin
 
 logger = logging.getLogger(__name__)
