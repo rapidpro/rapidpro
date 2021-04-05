@@ -3946,7 +3946,7 @@ class ParseDatabaseEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPI
         if invalid_fields:
             return _(
                 "The field names should only contain spaces, underscores, and alphanumeric characters. "
-                "They must begin with a letter and be unique. The following words are not allowed on the column names: "
+                "They must begin with a letter and be unique. The following words are not allowed as field names: "
                 "words such 'class', 'for', 'return', 'global', 'pass', 'or', 'raise', 'def', 'id' and 'objectid'."
             )
 
@@ -5152,7 +5152,7 @@ class TrackableLinkReportEndpoint(BaseAPIView):
     """
     This endpoint allows you to generate report about clicks on trackable links
 
-    A **GET** returns numbers of click and contacts who received link
+    A **GET** returns numbers of clicks and contacts who received the link
 
     * **link_name** - Name of link to generate report for
 
@@ -5166,14 +5166,15 @@ class TrackableLinkReportEndpoint(BaseAPIView):
     Response:
 
         {
-            "name": "google.com",
+            "name": "Google",
             "destination": "https://www.google.com",
             "related_flow": "f14b5744-bef4-4f56-a936-a684f5da013f",
             "results": [
                 {
-                    "total_clicks": 0,
+                    "total_clicks": 1,
                     "unique_clicks": 1,
-                    "unique_contacts": 1
+                    "unique_contacts": 1,
+                    "clickthrough_rate": 1.0
                 }
             ]
         }
@@ -5198,6 +5199,12 @@ class TrackableLinkReportEndpoint(BaseAPIView):
             code = status.HTTP_404_NOT_FOUND if link is None else status.HTTP_400_BAD_REQUEST
             return Response({"error": errors[code]}, status=code)
 
+        unique_clicks = link.contacts.count()
+        unique_contacts = (
+            link.related_flow.runs.aggregate(count=Count("contact", distinct=True))["count"]
+            if link.related_flow
+            else None
+        )
         response_data = {
             "name": link.name,
             "destination": link.destination,
@@ -5205,12 +5212,9 @@ class TrackableLinkReportEndpoint(BaseAPIView):
             "results": [
                 {
                     "total_clicks": link.clicks_count,
-                    "unique_clicks": link.contacts.count(),
-                    "unique_contacts": (
-                        link.related_flow.runs.aggregate(count=Count("contact", distinct=True))["count"]
-                        if link.related_flow
-                        else None
-                    ),
+                    "unique_clicks": unique_clicks,
+                    "unique_contacts": unique_contacts,
+                    "clickthrough_rate": unique_clicks / unique_contacts,
                 }
             ],
         }
