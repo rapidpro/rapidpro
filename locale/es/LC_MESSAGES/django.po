@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-02 17:41+0000\n"
+"POT-Creation-Date: 2021-04-02 18:41+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -3637,13 +3637,6 @@ msgstr "Idiomas adicionales"
 msgid "Additional languages you would like to provid translations for"
 msgstr "Idiomas adicionales para los que le gustaría proporcionar traducciones"
 
-msgid " and "
-msgstr "y"
-
-#, python-format
-msgid "%(lang1)s and %(lang2)s"
-msgstr "%(lang1)s y %(lang2)s"
-
 #, python-format
 msgid "Cleared %(name)s cache for this workspace (%(count)d keys)"
 msgstr "Se borró la caché %(name)s para este workspace (claves %(count)d)"
@@ -6605,9 +6598,6 @@ msgstr "Si utiliza la aplicación %(brand)s Surveyor para ejecutar flujos sin co
 msgid "Your workspace has"
 msgstr "Tu espacio de trabajo tiene"
 
-msgid "Chatbase Account"
-msgstr "Cuenta de Chatbase"
-
 msgid "Connected to Chatbase Account"
 msgstr "Conectado a la cuenta de Chatbase"
 
@@ -6671,9 +6661,6 @@ msgstr "Estás a punto de borrar"
 
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
 msgstr "¿Está seguro de que desea eliminar todo para esta organización? Esto no se puede deshacer. También se eliminarán todos los logins que solo pertenezcan a este workspace."
-
-msgid "DT One Account"
-msgstr "Cuenta DT One"
 
 msgid "Connected to your <b>DT One</b> account."
 msgstr ""
@@ -6796,8 +6783,9 @@ msgstr "Por favor, haga clic en Participar para aceptar la invitación."
 msgid "The primary language is <b>%(lang)s</b>."
 msgstr "El idioma principal es <b> %(lang)s </b>."
 
-#, python-format
-msgid "Translations are provided in <b>%(lang)s</b>."
+#, fuzzy
+#| msgid "Translations are provided in <b>%(lang)s</b>."
+msgid "Translations are provided in"
 msgstr "Las traducciones se proporcionan en <b> %(lang)s </b>."
 
 msgid "Your workspace is configured to use a single language."
@@ -6815,23 +6803,25 @@ msgstr "Invitaciones pendientes"
 msgid "Invite New Users"
 msgstr "Invitar nuevos usuarios"
 
+#, fuzzy, python-format
+#| msgid "A connection to a Twilio account is required"
+msgid "Connected to Nexmo account with API key %(api_key)s."
+msgstr "Se requiere una conexión a una cuenta Twilio"
+
+#, fuzzy, python-format
+#| msgid "If you no longer want it connected, you can"
+msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Nexmo account</a>."
+msgstr "Si ya no lo quiere conectado, puede"
+
 msgid "Disconnect Nexmo"
 msgstr "Desconectar Nexmo"
 
 msgid "Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?"
 msgstr "La desconexión de su cuenta Nexmo también eliminará todos los canales Nexmo conectados a ella. ¿Estas seguro que deseas continuar?"
 
-msgid "To connect your Nexmo Account you will need to provide us your Nexmo API key and secret."
-msgstr "Para poder conectar su cuenta Nexmo, envíenos su clave y código secreto API de Nexmo."
-
-msgid "Both values can be found on your"
-msgstr "Ambos valores se pueden encontrar en su"
-
-msgid "Nexmo Settings Page"
-msgstr "Página de configuración de Nexmo"
-
-msgid "in the API Settings section."
-msgstr "en la sección Configuración de API."
+#, python-format
+msgid "To connect your Nexmo Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"nexmo\" href=\"%(settings_url)s\">Nexmo settings</a> page in the API Settings section."
+msgstr ""
 
 msgid "You are currently on the {{org.plan}} plan."
 msgstr "Actualmente estás en el plan {{org.plan}}."
@@ -6841,6 +6831,9 @@ msgstr "Conectar Plivo"
 
 msgid "To connect your Plivo Account you will need to provide us your Plivo AUTH ID and AUTH TOKEN."
 msgstr "Para conectar su cuenta de Plivo, deberá proporcionarnos su ID de AUTH de Plivo y el TOKEN de AUTH."
+
+msgid "Both values can be found on your"
+msgstr "Ambos valores se pueden encontrar en su"
 
 msgid "Plivo Dashboard"
 msgstr "Panel de Plivo"
@@ -6933,11 +6926,30 @@ msgstr "Explorador de API"
 msgid "Your API Token is <b>%(token)s</b>."
 msgstr "Su token de API es <b> %(token)s </b>."
 
+#, fuzzy, python-format
+#| msgid "A connection to a Twilio account is required"
+msgid "Connected to Twilio Account <b>%(account_sid)s</b>."
+msgstr "Se requiere una conexión a una cuenta Twilio"
+
+#, fuzzy, python-format
+#| msgid "If you no longer want it connected, you can"
+msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Twilio account</a>."
+msgstr "Si ya no lo quiere conectado, puede"
+
 msgid "Disconnect Twilio"
 msgstr "Desconectar Twilio"
 
 msgid "Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?"
 msgstr "La desconexión de su cuenta Twilio también eliminará los canales Twilio conectados a ella. ¿Estas seguro que deseas continuar?"
+
+#, fuzzy
+#| msgid "Disconnect Twilio"
+msgid "Connect Twilio"
+msgstr "Desconectar Twilio"
+
+#, python-format
+msgid "To connect your Twilio Account you will need to provide us your Twilio account SID and auth token. Both values can be found on your <a target=\"twilio\" href=\"%(settings_url)s\">Twilio account page</a>."
+msgstr ""
 
 msgid "This workspace has been suspended"
 msgstr "Este workspace ha sido suspendido"
@@ -7715,3 +7727,35 @@ msgstr "Ingrese una consulta"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Se encontró $ {count} por $ {query}"
+
+#~ msgid "To connect your Nexmo Account you will need to provide us your Nexmo API key and secret."
+#~ msgstr "Para poder conectar su cuenta Nexmo, envíenos su clave y código secreto API de Nexmo."
+
+#~ msgid "Nexmo Settings Page"
+#~ msgstr "Página de configuración de Nexmo"
+
+#~ msgid "in the API Settings section."
+#~ msgstr "en la sección Configuración de API."
+
+#, fuzzy
+#~| msgid "Disconnect Nexmo"
+#~ msgid "Disconnected from Nexmo"
+#~ msgstr "Desconectar Nexmo"
+
+#, fuzzy
+#~| msgid "Disconnect Twilio"
+#~ msgid "Disconnected from Twilio"
+#~ msgstr "Desconectar Twilio"
+
+#~ msgid " and "
+#~ msgstr "y"
+
+#, python-format
+#~ msgid "%(lang1)s and %(lang2)s"
+#~ msgstr "%(lang1)s y %(lang2)s"
+
+#~ msgid "Chatbase Account"
+#~ msgstr "Cuenta de Chatbase"
+
+#~ msgid "DT One Account"
+#~ msgstr "Cuenta DT One"
