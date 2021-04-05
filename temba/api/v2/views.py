@@ -1092,7 +1092,7 @@ class ChannelEventsEndpoint(ListAPIMixin, BaseAPIView):
             "results": [
             {
                 "id": 4,
-                "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Nexmo"},
+                "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Vonage"},
                 "type": "call-in"
                 "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
                 "extra": { "duration": 606 },
@@ -2482,7 +2482,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 "broadcast": 2690007,
                 "contact": {"uuid": "d33e9ad5-5c35-414c-abd4-e7451c69ff1d", "name": "Bob McFlow"},
                 "urn": "twitter:textitin",
-                "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Nexmo"},
+                "channel": {"uuid": "9a8b001e-a913-486c-80f4-1356e23f582e", "name": "Vonage"},
                 "direction": "out",
                 "type": "inbox",
                 "status": "wired",

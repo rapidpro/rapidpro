@@ -28,9 +28,9 @@ RECOMMENDED_COUNTRIES = {
 }
 
 
-class NexmoType(ChannelType):
+class VonageType(ChannelType):
     """
-    An Vonage (formerly Nexmo) channel
+    A Vonage (formerly Nexmo) channel
 
     Callback status information (https://developer.nexmo.com/api/voice#status-values):
 
@@ -98,7 +98,7 @@ class NexmoType(ChannelType):
         return country_code in RECOMMENDED_COUNTRIES
 
     def deactivate(self, channel):
-        app_id = channel.config.get(Channel.CONFIG_NEXMO_APP_ID)
+        app_id = channel.config.get(Channel.CONFIG_VONAGE_APP_ID)
         if app_id:
-            client = channel.org.get_nexmo_client()
+            client = channel.org.get_vonage_client()
             client.delete_application(app_id)

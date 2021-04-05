@@ -279,10 +279,10 @@ class Channel(TembaModel):
     CONFIG_MAX_CONCURRENT_EVENTS = "max_concurrent_events"
     CONFIG_ALLOW_INTERNATIONAL = "allow_international"
 
-    CONFIG_NEXMO_API_KEY = "nexmo_api_key"
-    CONFIG_NEXMO_API_SECRET = "nexmo_api_secret"
-    CONFIG_NEXMO_APP_ID = "nexmo_app_id"
-    CONFIG_NEXMO_APP_PRIVATE_KEY = "nexmo_app_private_key"
+    CONFIG_VONAGE_API_KEY = "nexmo_api_key"
+    CONFIG_VONAGE_API_SECRET = "nexmo_api_secret"
+    CONFIG_VONAGE_APP_ID = "nexmo_app_id"
+    CONFIG_VONAGE_APP_PRIVATE_KEY = "nexmo_app_private_key"
 
     CONFIG_SHORTCODE_MATCHING_PREFIXES = "matching_prefixes"
 
@@ -567,15 +567,15 @@ class Channel(TembaModel):
         )
 
     @classmethod
-    def add_nexmo_bulk_sender(cls, user, channel):
-        # nexmo ships numbers around as E164 without the leading +
+    def add_vonage_bulk_sender(cls, user, channel):
+        # vonage ships numbers around as E164 without the leading +
         parsed = phonenumbers.parse(channel.address, None)
-        nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip("+")
+        vonage_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip("+")
 
         org = user.get_org()
         config = {
-            Channel.CONFIG_NEXMO_API_KEY: org.config[Org.CONFIG_NEXMO_KEY],
-            Channel.CONFIG_NEXMO_API_SECRET: org.config[Org.CONFIG_NEXMO_SECRET],
+            Channel.CONFIG_VONAGE_API_KEY: org.config[Org.CONFIG_VONAGE_KEY],
+            Channel.CONFIG_VONAGE_API_SECRET: org.config[Org.CONFIG_VONAGE_SECRET],
             Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
         }
 
@@ -590,7 +590,7 @@ class Channel(TembaModel):
             address=channel.address,
             role=Channel.ROLE_SEND,
             parent=channel,
-            bod=nexmo_phone_number,
+            bod=vonage_phone_number,
         )
 
     @classmethod

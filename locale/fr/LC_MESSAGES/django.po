@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-02 18:41+0000\n"
+"POT-Creation-Date: 2021-04-05 16:46+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1304,39 +1304,6 @@ msgstr "Statut URL"
 msgid "The service ID as provided by Mtarget"
 msgstr "L'identifiant du service fourni par Mtarget"
 
-msgid "Your Nexmo configuration URLs are as follows. These should have been set up automatically when claiming your number, but if not you can set them from your Nexmo dashboard."
-msgstr "Vos URL de configuration Nexmo sont les suivantes. Ceux-ci auraient dû être configurés automatiquement lors de la revendication de votre numéro, mais sinon, vous pouvez les définir à partir de votre tableau de bord Nexmo."
-
-msgid "Callback URL for Inbound Messages"
-msgstr "URL de rappel pour les messages entrants"
-
-msgid "The callback URL is called by Nexmo when you receive new incoming messages."
-msgstr "L'URL de rappel est appelée par Nexmo lorsque vous recevez de nouveaux messages entrants."
-
-msgid "Callback URL for Delivery Receipt"
-msgstr "URL de rappel pour l'accusé de réception"
-
-msgid "The delivery URL is called by Nexmo when a message is successfully delivered to a recipient."
-msgstr "L'URL de livraison est appelée par Nexmo lorsqu'un message est remis avec succès à un destinataire."
-
-msgid "Callback URL for Incoming Call"
-msgstr "URL de rappel pour l'appel entrant"
-
-msgid "The callback URL is called by Nexmo when you receive an incoming call."
-msgstr "L'URL de rappel est appelée par Nexmo lorsque vous recevez un appel entrant."
-
-msgid "The phone number being added"
-msgstr "Le numéro de téléphone est ajouté"
-
-msgid "That number is not currently supported."
-msgstr "Ce numéro n'est actuellement pas pris en charge."
-
-msgid "There was a problem claiming that number, please check the balance on your account. Note that you can only claim numbers after adding credit to your Nexmo account."
-msgstr "Il y a eu un problème pour valider ce numéro, veuillez vérifier le solde de votre compte. Prière de noter que vous ne pouvez réclamer des numéros qu'après avoir rajouter du crédit à votre compte Nexmo."
-
-msgid "There was a problem claiming that number, please check the balance on your account."
-msgstr "Il y a eu un problème pour réclamer ce numéro, prière de verifier le solde de votre compte."
-
 #, python-format
 msgid "If you are based in Trinidad & Tobago, you can purchase a short code from %(link)s and connect it in a few simple steps."
 msgstr "Si vous êtes basé à Trinidad & Tobago, vous pouvez acheter un code court auprès de %(link)s et le connecter en quelques étapes simples."
@@ -1377,6 +1344,15 @@ msgstr "L'URL de base pour PlayMobile"
 
 msgid "Shortcode"
 msgstr "Code court"
+
+msgid "The phone number being added"
+msgstr "Le numéro de téléphone est ajouté"
+
+msgid "That number is not currently supported."
+msgstr "Ce numéro n'est actuellement pas pris en charge."
+
+msgid "There was a problem claiming that number, please check the balance on your account."
+msgstr "Il y a eu un problème pour réclamer ce numéro, prière de verifier le solde de votre compte."
 
 msgid "There was a problem updating that number, please try again."
 msgstr "Un problème est survenu lors de la mise à jour de ce numéro. Veuillez réessayer."
@@ -1720,6 +1696,40 @@ msgstr "L'ID de communauté"
 msgid "The callback verification string"
 msgstr "La chaîne de vérification de rappel"
 
+#, fuzzy
+#| msgid "Your Nexmo configuration URLs are as follows. These should have been set up automatically when claiming your number, but if not you can set them from your Nexmo dashboard."
+msgid "Your Vonage configuration URLs are as follows. These should have been set up automatically when claiming your number, but if not you can set them from your Vonage dashboard."
+msgstr "Vos URL de configuration Nexmo sont les suivantes. Ceux-ci auraient dû être configurés automatiquement lors de la revendication de votre numéro, mais sinon, vous pouvez les définir à partir de votre tableau de bord Nexmo."
+
+msgid "Callback URL for Inbound Messages"
+msgstr "URL de rappel pour les messages entrants"
+
+#, fuzzy
+#| msgid "The callback URL is called by Nexmo when you receive new incoming messages."
+msgid "The callback URL is called by Vonage when you receive new incoming messages."
+msgstr "L'URL de rappel est appelée par Nexmo lorsque vous recevez de nouveaux messages entrants."
+
+msgid "Callback URL for Delivery Receipt"
+msgstr "URL de rappel pour l'accusé de réception"
+
+#, fuzzy
+#| msgid "The delivery URL is called by Nexmo when a message is successfully delivered to a recipient."
+msgid "The delivery URL is called by Vonage when a message is successfully delivered to a recipient."
+msgstr "L'URL de livraison est appelée par Nexmo lorsqu'un message est remis avec succès à un destinataire."
+
+msgid "Callback URL for Incoming Call"
+msgstr "URL de rappel pour l'appel entrant"
+
+#, fuzzy
+#| msgid "The callback URL is called by Nexmo when you receive an incoming call."
+msgid "The callback URL is called by Vonage when you receive an incoming call."
+msgstr "L'URL de rappel est appelée par Nexmo lorsque vous recevez un appel entrant."
+
+#, fuzzy
+#| msgid "There was a problem claiming that number, please check the balance on your account. Note that you can only claim numbers after adding credit to your Nexmo account."
+msgid "There was a problem claiming that number, please check the balance on your account. Note that you can only claim numbers after adding credit to your Vonage account."
+msgstr "Il y a eu un problème pour valider ce numéro, veuillez vérifier le solde de votre compte. Prière de noter que vous ne pouvez réclamer des numéros qu'après avoir rajouter du crédit à votre compte Nexmo."
+
 msgid "To finish connecting your channel, you need to have Movile/Wavy configure the URL below for your number."
 msgstr "Pour terminer la connexion de votre chaîne, vous devez demander à Movile / Wavy de configurer l'URL ci-dessous pour votre numéro."
 
@@ -1974,7 +1984,9 @@ msgstr "Enregistrer les modifications"
 msgid "or"
 msgstr "ou"
 
-msgid "A connection to a Nexmo account is required"
+#, fuzzy
+#| msgid "A connection to a Nexmo account is required"
+msgid "A connection to a Vonage account is required"
 msgstr "Une connexion à un compte Nexmo est nécessaire"
 
 msgid "A connection to a Twilio account is required"
@@ -3397,19 +3409,29 @@ msgstr "Vous devez entrer votre Twilio compte Token"
 msgid "The Twilio account SID and Token seem invalid. Please check them again and retry."
 msgstr "Le compte Twilio SID et Token ne semble pas valide. S'il vous plaît vérifier à nouveau et réessayez."
 
-msgid "You must enter your Nexmo Account API Key"
+#, fuzzy
+#| msgid "You must enter your Nexmo Account API Key"
+msgid "You must enter your account API Key"
 msgstr "Vous devez entrer votre clé API de compte Nexmo"
 
-msgid "You must enter your Nexmo Account API Secret"
+#, fuzzy
+#| msgid "You must enter your Nexmo Account API Secret"
+msgid "You must enter your account API Secret"
 msgstr "Vous devez entrer le secret de votre API de compte Nexmo"
 
-msgid "Your Nexmo API key and secret seem invalid. Please check them again and retry."
+#, fuzzy
+#| msgid "Your Nexmo API key and secret seem invalid. Please check them again and retry."
+msgid "Your API key and secret seem invalid. Please check them again and retry."
 msgstr "Votre clé API Nexmo et secret semblent invalide. S'il vous plaît vérifier à nouveau et réessayez."
 
-msgid "Your Nexmo API key"
+#, fuzzy
+#| msgid "Your Nexmo API key"
+msgid "Your Vonage API key"
 msgstr "Votre clé API Nexmo"
 
-msgid "Your Nexmo API secret"
+#, fuzzy
+#| msgid "Your Nexmo API secret"
+msgid "Your Vonage API secret"
 msgstr "Votre API secrète Nexmo"
 
 msgid "Your Plivo AUTH ID"
@@ -4248,16 +4270,24 @@ msgstr "Ajouter l'expéditeur en vrac"
 msgid "Bulk senders typically can send a higher volume of messages and in some cases are even cheaper than local messaging rates. If you have an account with a bulk sender, you can use your local Android phone number to receive messages, and use a bulk sender for your outgoing messages."
 msgstr "Les expéditeurs en masse peuvent généralement envoyer un volume de messages plus élevé et, dans certains cas, sont encore moins chers que les tarifs de messagerie locaux. Si vous avez un compte avec un expéditeur groupé, vous pouvez utiliser votre numéro de téléphone Android local pour recevoir des messages et utiliser un expéditeur groupé pour vos messages sortants."
 
-msgid "Connect Nexmo"
+#, fuzzy
+#| msgid "Connect Nexmo"
+msgid "Connect Vonage"
 msgstr "Connectez Nexmo"
 
-msgid "A great way to connect if you are outside the United States or UK. Connect a Nexmo Account to send messages to over 200 countries worldwide."
+#, fuzzy
+#| msgid "A great way to connect if you are outside the United States or UK. Connect a Nexmo Account to send messages to over 200 countries worldwide."
+msgid "A great way to connect if you are outside the United States or UK. Connect a Vonage Account to send messages to over 200 countries worldwide."
 msgstr "Un excellent moyen de se connecter si vous êtes en dehors des États-Unis ou du Royaume-Uni. Connectez un compte Nexmo pour envoyer des messages dans plus de 200 pays à travers le monde."
 
-msgid "Send with Nexmo"
+#, fuzzy
+#| msgid "Send with Nexmo"
+msgid "Send with Vonage"
 msgstr "Envoyer avec Nexmo"
 
-msgid "Instead of using your Android phone to send messages, you can use your Nexmo Account to send messages to over 200 countries."
+#, fuzzy
+#| msgid "Instead of using your Android phone to send messages, you can use your Nexmo Account to send messages to over 200 countries."
+msgid "Instead of using your Android phone to send messages, you can use your Vonage Account to send messages to over 200 countries."
 msgstr "Au lieu d'utiliser votre téléphone Android pour envoyer des messages, vous pouvez utiliser votre compte Nexmo pour envoyer des messages dans plus de 200 pays."
 
 msgid "Connect External API"
@@ -6799,22 +6829,26 @@ msgstr "Inviter de nouveaux utilisateurs"
 
 #, fuzzy, python-format
 #| msgid "A connection to a Twilio account is required"
-msgid "Connected to Nexmo account with API key %(api_key)s."
+msgid "Connected to Vonage account with API key %(api_key)s."
 msgstr "Une connexion à un compte Twilio est requise"
 
 #, fuzzy, python-format
 #| msgid "If you no longer want it connected, you can"
-msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Nexmo account</a>."
+msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Vonage account</a>."
 msgstr "Si vous ne voulez plus le connecter, vous pouvez"
 
-msgid "Disconnect Nexmo"
-msgstr "Déconnectez Nexmo"
+#, fuzzy
+#| msgid "Disconnect DT One"
+msgid "Disconnect Vonage"
+msgstr "Déconnectez DT One"
 
-msgid "Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?"
+#, fuzzy
+#| msgid "Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?"
+msgid "Disconnecting your Vonage account will also remove any Vonage channels connected to it. Are you sure you want to proceed?"
 msgstr "La déconnexion de votre compte Nexmo supprimera également tous les canaux Nexmo qui y sont connectés. Êtes-vous sur de vouloir continuer?"
 
 #, python-format
-msgid "To connect your Nexmo Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"nexmo\" href=\"%(settings_url)s\">Nexmo settings</a> page in the API Settings section."
+msgid "To connect your Vonage Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"vonage\" href=\"%(settings_url)s\">Vonage settings</a> page in the API Settings section."
 msgstr ""
 
 msgid "You are currently on the {{org.plan}} plan."
@@ -7713,6 +7747,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "Disconnect Nexmo"
+#~ msgstr "Déconnectez Nexmo"
 
 #~ msgid "To connect your Nexmo Account you will need to provide us your Nexmo API key and secret."
 #~ msgstr "Pour connecter votre compte Nexmo vous devrez nous fournir votre clé API Nexmo et secret."
