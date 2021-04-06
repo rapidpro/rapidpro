@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-08 21:00+0000\n"
+"POT-Creation-Date: 2021-04-06 20:03+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -1859,11 +1859,6 @@ msgstr "El nombre de usuario de la cuenta proporcionado por Zenvia"
 msgid "The account password provided by Zenvia"
 msgstr "La contraseña de la cuenta proporcionada por Zenvia"
 
-#, fuzzy, python-format
-#| msgid "If you have a %(link)s number, you can connect it to communicate with your WhatsApp contacts."
-msgid "If you have a %(link)s number, you can connect it to communicate with your contacts."
-msgstr "Si tiene un número %(link)s, puede conectarlo para comunicarse con sus contactos de WhatsApp."
-
 #, python-format
 msgid "Unable to register webhook subscriptions: %(resp)s"
 msgstr ""
@@ -2481,9 +2476,6 @@ msgstr "Necesario"
 msgid "Invalid group name."
 msgstr "No es un nombre valido"
 
-msgid "Already exists."
-msgstr ""
-
 #, fuzzy, python-format
 #| msgid "This workspace has reached the limit of %(count)d groups. You must delete existing ones before you can perform an import."
 msgid "This workspace has reached the limit of %(count)d groups."
@@ -2655,6 +2647,12 @@ msgstr "Elija el método para su flujo"
 msgid "Choose a name to describe this flow, e.g. Demographic Survey"
 msgstr "Elegir un nombre para describir este flujo, por ejemplo, Encuesta demográfica"
 
+msgid "Expire inactive contacts"
+msgstr "Vencimiento de contactos inactivos"
+
+msgid "When inactive contacts should be removed from the flow"
+msgstr "Cuándo los contactos inactivos serán retirados del flujo"
+
 msgid "Create a contact "
 msgstr "Crear un contacto"
 
@@ -2672,12 +2670,6 @@ msgstr "Vuelva a intentar llamar si no puede conectarse"
 
 msgid "Retries call three times for the chosen interval"
 msgstr "Los reintentos llaman tres veces para el intervalo elegido"
-
-msgid "Expire inactive contacts"
-msgstr "Vencimiento de contactos inactivos"
-
-msgid "When inactive contacts should be removed from the flow"
-msgstr "Cuándo los contactos inactivos serán retirados del flujo"
 
 msgid "Keywords"
 msgstr "Palabras clave"
@@ -4087,17 +4079,6 @@ msgstr "Crear Activador de Referencias"
 
 msgid "Create Schedule"
 msgstr "Crear Cronograma"
-
-msgid "Submit"
-msgstr ""
-
-#, fuzzy
-#| msgid "Account Key"
-msgid "Backup Token"
-msgstr "Clave de la cuenta"
-
-msgid "Enter one of the tokens generated when activating the two-factor login"
-msgstr ""
 
 msgid "Processing"
 msgstr "Procesando"
