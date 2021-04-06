@@ -5209,9 +5209,38 @@ class TrackableLinkReportEndpoint(BaseAPIView):
             code = status.HTTP_404_NOT_FOUND if link is None else status.HTTP_400_BAD_REQUEST
             return Response({"error": errors[code]}, status=code)
 
-        unique_clicks = link.contacts.count()
+        groups_to_exclude = defaultdict(list)
+        for group in self.request.data.get("exclude", self.request.GET.get("exclude", "")).split(","):
+            group = group.strip()
+            if is_uuid_valid(group):
+                groups_to_exclude["uuids"].append(group)
+            elif group:
+                groups_to_exclude["names"].append(group)
+
+        contact_filters = Q()
+
+        if groups_to_exclude["uuids"]:
+            contact_filters |= Q(contact__all_groups__uuid__in=groups_to_exclude["uuids"])
+
+        if groups_to_exclude["names"]:
+            for name in groups_to_exclude["names"]:
+                contact_filters |= Q(contact__all_groups__name__icontains=name)
+
+        time_filters = Q()
+        before = self.request.data.get("before", self.request.GET.get("before", ""))
+        after = self.request.data.get("after", self.request.GET.get("after", ""))
+
+        if before:
+            time_filters &= Q(modified_on__lte=org.parse_datetime(before))
+
+        if after:
+            time_filters &= Q(modified_on__gte=org.parse_datetime(after))
+
+        unique_clicks = link.contacts.filter(time_filters).exclude(contact_filters).distinct().count()
         unique_contacts = (
-            link.related_flow.runs.aggregate(count=Count("contact", distinct=True))["count"]
+            link.related_flow.runs.filter(time_filters)
+            .exclude(contact_filters)
+            .aggregate(count=Count("contact", distinct=True))["count"]
             if link.related_flow
             else None
         )
@@ -5224,7 +5253,7 @@ class TrackableLinkReportEndpoint(BaseAPIView):
                     "total_clicks": link.clicks_count,
                     "unique_clicks": unique_clicks,
                     "unique_contacts": unique_contacts,
-                    "clickthrough_rate": unique_clicks / unique_contacts,
+                    "clickthrough_rate": unique_clicks / unique_contacts if unique_clicks and unique_contacts else 0,
                 }
             ],
         }
@@ -5248,5 +5277,8 @@ class TrackableLinkReportEndpoint(BaseAPIView):
                 dict(name="link_name", required=True, help="The name of the link"),
             ],
             params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
-            example=dict(body=json.dumps({"link_name": "Test Link Name"}), query="export_csv=false",),
+            example=dict(
+                body=json.dumps({"link_name": "Test Link Name"}),
+                query="export_csv=false",
+            ),
         )
