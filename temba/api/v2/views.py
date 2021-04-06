@@ -4492,6 +4492,7 @@ class ContactsReportEndpoint(BaseAPIView):
             title="Contacts Report",
             url=reverse("api.v2.contacts_report"),
             slug="contacts-report",
+            params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             fields=[
                 dict(name="search_query", required=False, help="Search query for contacts"),
                 dict(name="flow", required=False, help="Flow filter"),
@@ -4504,7 +4505,8 @@ class ContactsReportEndpoint(BaseAPIView):
                         "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
                         "exclude": "Restaurant Contacts",
                     }
-                )
+                ),
+                query="export_csv=false",
             ),
         )
 
@@ -4681,6 +4683,7 @@ class ContactVariablesReportEndpoint(BaseAPIView):
                 dict(name="exclude", required=False, help="Contact Group to exclude"),
                 dict(name="variables", required=True, help="Configuration for fields to generate report"),
             ],
+            params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
                 body=json.dumps(
                     {
@@ -4689,7 +4692,8 @@ class ContactVariablesReportEndpoint(BaseAPIView):
                         "exclude": "Restaurant Contacts",
                         "variables": {"state": {}, "zipcode": {"top": 5}},
                     }
-                )
+                ),
+                query="export_csv=false",
             ),
         )
 
@@ -4821,6 +4825,7 @@ class MessagesReportEndpoint(BaseAPIView):
                 dict(name="channel", required=False, help="Select messages sent via specific channel"),
                 dict(name="exclude", required=False, help="Contact group to exclude"),
             ],
+            params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
                 body=json.dumps(
                     {
@@ -4830,7 +4835,8 @@ class MessagesReportEndpoint(BaseAPIView):
                         "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
                         "exclude": "Testers",
                     }
-                )
+                ),
+                query="export_csv=false",
             ),
         )
 
@@ -4962,6 +4968,7 @@ class FlowReportEndpoint(BaseAPIView):
                     name="exited_before", required=False, help="Count only runs that were exited before a certain date"
                 ),
             ],
+            params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
                 body=json.dumps(
                     {
@@ -4973,7 +4980,8 @@ class FlowReportEndpoint(BaseAPIView):
                         "exited_after": "2021-02-01",
                         "exited_before": "2021-03-13",
                     }
-                )
+                ),
+                query="export_csv=false",
             ),
         )
 
@@ -5137,13 +5145,15 @@ class FlowVariableReportEndpoint(BaseAPIView):
                 ),
                 dict(name="variables", required=True, help="Configuration for fields to generate report"),
             ],
+            params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
                 body=json.dumps(
                     {
                         "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
                         "variables": {"result_1": {"format": "value", "top": 3}},
                     }
-                )
+                ),
+                query="export_csv=false",
             ),
         )
 
@@ -5237,5 +5247,6 @@ class TrackableLinkReportEndpoint(BaseAPIView):
             fields=[
                 dict(name="link_name", required=True, help="The name of the link"),
             ],
-            example=dict(body=json.dumps({"link_name": "Test Link Name"})),
+            params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
+            example=dict(body=json.dumps({"link_name": "Test Link Name"}), query="export_csv=false",),
         )
