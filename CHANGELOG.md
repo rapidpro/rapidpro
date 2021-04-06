@@ -1,3 +1,7 @@
+v6.3.18
+----------
+ * Fix template names
+
 v6.3.17
 ----------
  * Fix font reference in scss
