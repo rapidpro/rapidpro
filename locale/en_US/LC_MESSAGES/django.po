@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-05 16:46+0000\n"
+"POT-Creation-Date: 2021-04-06 20:03+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2417,8 +2417,13 @@ msgstr ""
 msgid "Contact field uses"
 msgstr ""
 
-#, python-format
-msgid "This workspace has reached the limit of %(count)d groups. You must delete existing ones before you can perform an import."
+msgid "new group"
+msgstr ""
+
+msgid "existing group"
+msgstr ""
+
+msgid "Select a group"
 msgstr ""
 
 #, python-format
@@ -2435,6 +2440,16 @@ msgstr ""
 
 #, python-format
 msgid "Field name '%(name)s' is repeated."
+msgstr ""
+
+msgid "Required."
+msgstr ""
+
+msgid "Invalid group name."
+msgstr ""
+
+#, python-format
+msgid "This workspace has reached the limit of %(count)d groups."
 msgstr ""
 
 msgid "Phone Call"
@@ -5577,6 +5592,12 @@ msgstr ""
 msgid "a <strong>%(scheme)s</strong> URN"
 msgstr ""
 
+msgid "Add contacts to"
+msgstr ""
+
+msgid "called"
+msgstr ""
+
 msgid "Contact Import"
 msgstr ""
 
@@ -6549,24 +6570,6 @@ msgstr ""
 msgid "Invite New Users"
 msgstr ""
 
-#, python-format
-msgid "Connected to Vonage account with API key %(api_key)s."
-msgstr ""
-
-#, python-format
-msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Vonage account</a>."
-msgstr ""
-
-msgid "Disconnect Vonage"
-msgstr ""
-
-msgid "Disconnecting your Vonage account will also remove any Vonage channels connected to it. Are you sure you want to proceed?"
-msgstr ""
-
-#, python-format
-msgid "To connect your Vonage Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"vonage\" href=\"%(settings_url)s\">Vonage settings</a> page in the API Settings section."
-msgstr ""
-
 msgid "You are currently on the {{org.plan}} plan."
 msgstr ""
 
@@ -6695,6 +6698,24 @@ msgid "This workspace has been verified"
 msgstr ""
 
 msgid "This workspace has been scheduled for deletion"
+msgstr ""
+
+#, python-format
+msgid "Connected to Vonage account with API key %(api_key)s."
+msgstr ""
+
+#, python-format
+msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Vonage account</a>."
+msgstr ""
+
+msgid "Disconnect Vonage"
+msgstr ""
+
+msgid "Disconnecting your Vonage account will also remove any Vonage channels connected to it. Are you sure you want to proceed?"
+msgstr ""
+
+#, python-format
+msgid "To connect your Vonage Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"vonage\" href=\"%(settings_url)s\">Vonage settings</a> page in the API Settings section."
 msgstr ""
 
 msgid "Top Ups"

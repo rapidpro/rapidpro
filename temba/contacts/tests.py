@@ -5770,19 +5770,6 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
             with open(path, "rb") as f:
                 return SimpleUploadedFile(path, content=f.read())
 
-        # try uploading when we've already reached our group limit
-        self.create_group("Testers", contacts=[])
-        with override_settings(MAX_ACTIVE_CONTACTGROUPS_PER_ORG=1):
-            with patch.object(Org, "LIMIT_DEFAULTS", dict(groups=1)):
-                response = self.client.post(create_url, {"file": upload("media/test_imports/simple.xlsx")})
-                self.assertFormError(
-                    response,
-                    "form",
-                    "__all__",
-                    "This workspace has reached the limit of 1 groups. "
-                    "You must delete existing ones before you can perform an import.",
-                )
-
         # try uploading an empty CSV file
         response = self.client.post(create_url, {"file": upload("media/test_imports/empty.csv")})
         self.assertFormError(response, "form", "file", "Import file doesn't contain any records.")
@@ -5821,6 +5808,70 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(302, response.status_code)
         self.assertEqual(read_url, response.url)
 
+    @mock_mailroom
+    def test_creating_new_group(self, mr_mocks):
+        self.login(self.admin)
+        imp = self.create_contact_import("media/test_imports/simple.csv")
+        preview_url = reverse("contacts.contactimport_preview", args=[imp.id])
+        read_url = reverse("contacts.contactimport_read", args=[imp.id])
+
+        # create some groups
+        self.create_group("Testers", contacts=[])
+        self.create_group("Doctors", contacts=[])
+
+        # try creating new group but not providing a name
+        response = self.client.post(preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "  "})
+        self.assertFormError(response, "form", "new_group_name", "Required.")
+
+        # try creating new group but providing an invalid name
+        response = self.client.post(preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "????"})
+        self.assertFormError(response, "form", "new_group_name", "Invalid group name.")
+
+        # try creating new group when we've already reached our group limit
+        with patch.object(Org, "LIMIT_DEFAULTS", {"groups": 2}):
+            response = self.client.post(
+                preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "Import"}
+            )
+            self.assertFormError(response, "form", "__all__", "This workspace has reached the limit of 2 groups.")
+
+        # finally create new group...
+        response = self.client.post(preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "Import"})
+        self.assertRedirect(response, read_url)
+
+        new_group = ContactGroup.user_groups.get(name="Import")
+        imp.refresh_from_db()
+        self.assertEqual(new_group, imp.group)
+
+    @mock_mailroom
+    def test_using_existing_group(self, mr_mocks):
+        self.login(self.admin)
+        imp = self.create_contact_import("media/test_imports/simple.csv")
+        preview_url = reverse("contacts.contactimport_preview", args=[imp.id])
+        read_url = reverse("contacts.contactimport_read", args=[imp.id])
+
+        # create some groups
+        self.create_field("age", "Age", ContactField.TYPE_NUMBER)
+        testers = self.create_group("Testers", contacts=[])
+        doctors = self.create_group("Doctors", contacts=[])
+        self.create_group("No Age", query='age = ""')
+
+        # only static groups appear as options
+        response = self.client.get(preview_url)
+        self.assertEqual([doctors, testers], list(response.context["form"].fields["existing_group"].queryset))
+
+        # try submitting without group
+        response = self.client.post(preview_url, {"add_to_group": True, "group_mode": "E", "existing_group": ""})
+        self.assertFormError(response, "form", "existing_group", "Required.")
+
+        # finally try with actual group...
+        response = self.client.post(
+            preview_url, {"add_to_group": True, "group_mode": "E", "existing_group": doctors.id}
+        )
+        self.assertRedirect(response, read_url)
+
+        imp.refresh_from_db()
+        self.assertEqual(doctors, imp.group)
+
     def test_preview_with_mappings(self):
         self.create_field("age", "Age", ContactField.TYPE_NUMBER)
 
@@ -5833,6 +5884,10 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
             allow_viewers=False,
             allow_editors=True,
             form_fields=[
+                "add_to_group",
+                "group_mode",
+                "new_group_name",
+                "existing_group",
                 "column_4_include",
                 "column_4_name",
                 "column_4_value_type",
@@ -5852,6 +5907,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
                 "column_5_include": True,
                 "column_5_name": "age",
                 "column_5_value_type": "N",
+                "add_to_group": False,
             },
         )
         self.assertEqual(1, len(response.context["form"].errors))
@@ -5867,6 +5923,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
                 "column_5_include": True,
                 "column_5_name": "goats",
                 "column_5_value_type": "N",
+                "add_to_group": False,
             },
         )
         self.assertEqual(1, len(response.context["form"].errors))
@@ -5882,6 +5939,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
                 "column_5_include": True,
                 "column_5_name": "#$%^@",
                 "column_5_value_type": "N",
+                "add_to_group": False,
             },
         )
         self.assertEqual(1, len(response.context["form"].errors))
@@ -5899,6 +5957,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
                 "column_5_include": True,
                 "column_5_name": "",
                 "column_5_value_type": "T",
+                "add_to_group": False,
             },
         )
         self.assertEqual(1, len(response.context["form"].errors))
@@ -5914,6 +5973,7 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
                 "column_5_include": False,
                 "column_5_name": "",
                 "column_5_value_type": "T",
+                "add_to_group": False,
             },
         )
         self.assertEqual(302, response.status_code)
