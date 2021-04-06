@@ -4731,9 +4731,9 @@ class MessagesReportEndpoint(BaseAPIView):
             "flow": "6683f3e3-3445-438a-b94f-137cf22aa36a",
             "results": [
                 {
-                    "inbox_count": 0,
-                    "outbox_count": 3,
-                    "failed_count": 0
+                    "total_inbound_messages": 0,
+                    "total_outbound_messages": 3,
+                    "total_outbound_message_failures": 0
                 }
             ]
         }
@@ -4794,9 +4794,9 @@ class MessagesReportEndpoint(BaseAPIView):
                 **applied_filters,
                 "results": [
                     queryset.aggregate(
-                        inbox_count=Count("id", filter=Q(direction="I")),
-                        outbox_count=Count("id", filter=Q(direction="O")),
-                        failed_count=Count("id", filter=Q(status__in=[FAILED, ERRORED])),
+                        total_inbound_messages=Count("id", filter=Q(direction="I")),
+                        total_outbound_messages=Count("id", filter=Q(direction="O")),
+                        total_outbound_message_failures=Count("id", filter=Q(status__in=[FAILED, ERRORED])),
                     )
                 ],
             }
