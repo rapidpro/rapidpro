@@ -15,12 +15,12 @@ class WeniWebChatType(ChannelType):
     A Weni Web Chat channel
     """
 
-    code = "WN"
+    code = "WWN"
     category = ChannelType.Category.API
 
     CONFIG_COMMUNITY_NAME = "community_name"
 
-    courier_url = r"^wn/(?P<uuid>[a-z0-9\-]+)/receive"
+    courier_url = r"^wwn/(?P<uuid>[a-z0-9\-]+)/receive"
 
     name = "Weni Web Chat"
     # icon = "icon-vk"
