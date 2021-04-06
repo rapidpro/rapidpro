@@ -6,10 +6,31 @@ from temba.utils.timezones import timezone_to_country_code
 
 from .views import ClaimView, UpdateForm
 
+RECOMMENDED_COUNTRIES = {
+    "US",
+    "CA",
+    "GB",
+    "AU",
+    "AT",
+    "FI",
+    "DE",
+    "HK",
+    "HU",
+    "LT",
+    "NL",
+    "NO",
+    "PL",
+    "SE",
+    "CH",
+    "BE",
+    "ES",
+    "ZA",
+}
 
-class NexmoType(ChannelType):
+
+class VonageType(ChannelType):
     """
-    An Nexmo channel
+    A Vonage (formerly Nexmo) channel
 
     Callback status information (https://developer.nexmo.com/api/voice#status-values):
 
@@ -31,11 +52,11 @@ class NexmoType(ChannelType):
 
     courier_url = r"^nx/(?P<uuid>[a-z0-9\-]+)/(?P<action>status|receive)$"
 
-    name = "Nexmo"
-    icon = "icon-channel-nexmo"
+    name = "Vonage"
+    icon = "icon-vonage"
 
     claim_blurb = _("Easily add a two way number you have configured with %(link)s using their APIs.") % {
-        "link": '<a href="https://www.nexmo.com/">Nexmo</a>'
+        "link": '<a href="https://www.vonage.com/">Vonage</a>'
     }
     claim_view = ClaimView
     update_form = UpdateForm
@@ -47,57 +68,37 @@ class NexmoType(ChannelType):
     ivr_protocol = ChannelType.IVRProtocol.IVR_PROTOCOL_NCCO
 
     configuration_blurb = _(
-        "Your Nexmo configuration URLs are as follows. These should have been set up automatically when claiming your "
-        "number, but if not you can set them from your Nexmo dashboard."
+        "Your Vonage configuration URLs are as follows. These should have been set up automatically when claiming your "
+        "number, but if not you can set them from your Vonage dashboard."
     )
 
     configuration_urls = (
         dict(
             label=_("Callback URL for Inbound Messages"),
             url="https://{{ channel.callback_domain }}{% url 'courier.nx' channel.uuid 'receive' %}",
-            description=_("The callback URL is called by Nexmo when you receive new incoming messages."),
+            description=_("The callback URL is called by Vonage when you receive new incoming messages."),
         ),
         dict(
             label=_("Callback URL for Delivery Receipt"),
             url="https://{{ channel.callback_domain }}{% url 'courier.nx' channel.uuid 'status' %}",
             description=_(
-                "The delivery URL is called by Nexmo when a message is successfully delivered to a recipient."
+                "The delivery URL is called by Vonage when a message is successfully delivered to a recipient."
             ),
         ),
         dict(
             label=_("Callback URL for Incoming Call"),
             url="https://{{ channel.callback_domain }}{% url 'mailroom.ivr_handler' channel.uuid 'incoming' %}",
-            description=_("The callback URL is called by Nexmo when you receive an incoming call."),
+            description=_("The callback URL is called by Vonage when you receive an incoming call."),
         ),
     )
 
     def is_recommended_to(self, user):
-        NEXMO_RECOMMENDED_COUNTRIES = [
-            "US",
-            "CA",
-            "GB",
-            "AU",
-            "AT",
-            "FI",
-            "DE",
-            "HK",
-            "HU",
-            "LT",
-            "NL",
-            "NO",
-            "PL",
-            "SE",
-            "CH",
-            "BE",
-            "ES",
-            "ZA",
-        ]
         org = user.get_org()
-        countrycode = timezone_to_country_code(org.timezone)
-        return countrycode in NEXMO_RECOMMENDED_COUNTRIES
+        country_code = timezone_to_country_code(org.timezone)
+        return country_code in RECOMMENDED_COUNTRIES
 
     def deactivate(self, channel):
-        app_id = channel.config.get(Channel.CONFIG_NEXMO_APP_ID)
+        app_id = channel.config.get(Channel.CONFIG_VONAGE_APP_ID)
         if app_id:
-            client = channel.org.get_nexmo_client()
+            client = channel.org.get_vonage_client()
             client.delete_application(app_id)

@@ -2,13 +2,13 @@
 -load i18n
 
 -block title
-  -trans "Connect Nexmo"
+  -trans "Connect Vonage"
 
 -block pre-form
   .mb-4
     -blocktrans trimmed with settings_url='https://dashboard.nexmo.com/settings'
-      To connect your Nexmo Account you will need to provide us your API key and secret. Both values can be found
-      on your <a target="nexmo" href="{{ settings_url }}">Nexmo settings</a> page in the API Settings section.
+      To connect your Vonage Account you will need to provide us your API key and secret. Both values can be found
+      on your <a target="vonage" href="{{ settings_url }}">Vonage settings</a> page in the API Settings section.
 
 -block extra-script
   {{block.super}}

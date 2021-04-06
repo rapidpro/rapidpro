@@ -5,9 +5,9 @@ import nexmo
 from django.urls import reverse
 
 
-class NexmoClient:
+class VonageClient:
     """
-    Wrapper for the actual Nexmo client that adds some functionality and retries
+    Wrapper for the actual Vonage client that adds some functionality and retries
     """
 
     RATE_LIMIT_PAUSE = 2
@@ -106,7 +106,7 @@ class NexmoClient:
 
     def _with_retry(self, action, **kwargs):
         """
-        Utility to perform something using the Nexmo API, and if it errors with a rate-limit response, try again
+        Utility to perform something using the API, and if it errors with a rate-limit response, try again
         after a small delay.
         """
         func = getattr(self.base, action)
@@ -116,7 +116,7 @@ class NexmoClient:
         except nexmo.ClientError as e:
             message = str(e)
             if message.startswith("420") or message.startswith("429"):
-                time.sleep(NexmoClient.RATE_LIMIT_PAUSE)
+                time.sleep(self.RATE_LIMIT_PAUSE)
                 return func(**kwargs)
             else:  # pragma: no cover
                 raise e
