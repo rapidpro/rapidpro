@@ -4397,33 +4397,70 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
         )
 
 
-class ContactsReportEndpoint(BaseAPIView):
+class ReportEndpointMixin:
+    def request__get_separated_names_and_uuids(self, field_name):
+        separated_values = defaultdict(list)
+        for value in self.request.data.get(field_name, self.request.GET.get(field_name, "")).split(","):
+            value = value.strip()
+            if is_uuid_valid(value):
+                separated_values["uuids"].append(value)
+            elif value:
+                separated_values["names"].append(value)
+        return separated_values
+
+
+class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
     """
     This endpoint allows you to number of contacts, in the org, that satisfy provided query.
 
     A **GET** returns total number of contacts that satisfy query.
 
     * **search_query** - allows to filter contact by search request (equivalent of search field on contacts page)
-    * **flow** - UUID of flow to select only contacts that have runs in that flow
-    * **exclude** - UUID or Name of contact group to select only contacts that not belong to that group
+    * **flow** - UUID of the flow to select only contacts that have runs in that flow
+    * **group** - UUID or Name of the contact group to select only contacts that belong to that group
+    * **exclude** - UUID or Name of the contact group to select only contacts that not belong to that group
+    * **channel** - UUID or Name of the channel to select only contacts that belong to that channel
+    * **before** - Date, excludes all contacts from the report that were modified later a certain date
+    * **after** - Date, excludes all contacts from the report that were modified earlier a certain date
 
     Example:
 
         GET /api/v2/contacts_report.json
         {
             "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
-            "search_query": "created_on < 2021-01-01",
-            "exclude": "Restaurant Contacts"
+            "search_query": "name ~ \"john dou\"",
+            "group": "Contacts",
+            "exclude": "Restaurant Contacts",
+            "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+            "after": "2021-01-01",
+            "before": "2022-01-01",
         }
 
     Response:
 
         {
             "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
-            "search_query": "created_on < \\"2021-01-01\\" AND group != \\"Restaurant Contacts\\"",
+            "channel": {
+                "uuids": [
+                    "43cd6c9e-25cd-4512-bf29-d2999a4a27a3"
+                ]
+            },
+            "group": {
+                "names": [
+                    "Contacts"
+                ]
+            },
+            "exclude": {
+                "names": [
+                    "Restaurant Contacts"
+                ]
+            },
+            "before": "2022-01-01T22:50:21.061616+02:00",
+            "after": "2021-01-01T22:50:21.061907+02:00",
+            "search_query": "name ~ \"john dou\"",
             "results": [
                 {
-                    "total_unique_contacts": 2
+                    "total_unique_contacts": 1
                 }
             ]
         }
@@ -4435,6 +4472,10 @@ class ContactsReportEndpoint(BaseAPIView):
 
     permission = "orgs.org_api"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.applied_filters = {}
+
     def get_queryset(self):
         org = self.request.user.get_org()
         contacts = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True).distinct()
@@ -4442,21 +4483,54 @@ class ContactsReportEndpoint(BaseAPIView):
         flow = self.request.GET.get("flow", self.request.data.get("flow"))
         if flow:
             contacts = contacts.filter(runs__flow__uuid=flow)
+            self.applied_filters["flow"] = flow
 
         # contact list views don't use regular field searching but use more complex contact searching
         search_query = self.request.GET.get("search_query", self.request.data.get("search_query", ""))
-        exclude = self.request.GET.get("exclude", self.request.data.get("exclude"))
-        if exclude:
-            if is_uuid_valid(exclude):
-                contacts = contacts.exclude(all_groups__uuid=exclude)
-            else:
-                search_query += f'{" AND " if search_query else ""}group != "{exclude}"'
+
+        def contacts_name_uuid_filter(args):
+            nonlocal contacts
+            field_name, uuid_key, name_key, filter_type = args
+            values_fo_filter_by = self.request__get_separated_names_and_uuids(field_name)
+            if values_fo_filter_by["uuids"]:
+                contacts = getattr(contacts, filter_type)(**{f"{uuid_key}__in": values_fo_filter_by["uuids"]})
+            if values_fo_filter_by["names"]:
+                filters_by_name = Q()
+                for filter_value in values_fo_filter_by["names"]:
+                    filters_by_name |= Q(**{f"{name_key}__icontains": filter_value})
+                contacts = getattr(contacts, filter_type)(filters_by_name)
+
+            if any(values_fo_filter_by.values()):
+                self.applied_filters[field_name] = dict(item for item in values_fo_filter_by.items() if item[1])
+
+        filtering_params = (
+            ("channel", "urns__channel__uuid", "urns__channel__name", "filter"),
+            ("group", "all_groups__uuid", "all_groups__name", "filter"),
+            ("exclude", "all_groups__uuid", "all_groups__name", "exclude"),
+        )
+        for configuration in filtering_params:
+            contacts_name_uuid_filter(configuration)
+
+        time_filters = Q()
+        before = self.request.data.get("before", self.request.GET.get("before", ""))
+        after = self.request.data.get("after", self.request.GET.get("after", ""))
+        if before:
+            before = org.parse_datetime(before)
+            time_filters &= Q(modified_on__lte=before)
+            self.applied_filters["before"] = before
+        if after:
+            after = org.parse_datetime(after)
+            time_filters &= Q(modified_on__gte=after)
+            self.applied_filters["after"] = after
+        if time_filters:
+            contacts = contacts.filter(time_filters)
 
         if search_query:
             try:
                 group = ContactGroup.all_groups.get(org=org, group_type="A")
                 contact_ids, parsed_query = query_contact_ids(org, search_query, group=group, return_parsed_query=True)
-                setattr(self, "search_query", parsed_query if len(parsed_query) > 0 else None)
+                if parsed_query:
+                    self.applied_filters["search_query"] = parsed_query
                 contacts = contacts.filter(id__in=contact_ids)
 
                 return contacts
@@ -4471,11 +4545,7 @@ class ContactsReportEndpoint(BaseAPIView):
     @csv_response_wrapper
     def get(self, request, *args, **kwargs):
         count = self.get_queryset().count()
-        response_data = {
-            "flow": self.request.GET.get("flow", self.request.data.get("flow")),
-            "search_query": getattr(self, "search_query", ""),
-            "results": [{"total_unique_contacts": count}],
-        }
+        response_data = {**self.applied_filters, "results": [{"total_unique_contacts": count}]}
         return Response(response_data)
 
     @staticmethod
@@ -5158,7 +5228,7 @@ class FlowVariableReportEndpoint(BaseAPIView):
         )
 
 
-class TrackableLinkReportEndpoint(BaseAPIView):
+class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
     """
     This endpoint allows you to generate report about clicks on trackable links
 
@@ -5209,37 +5279,26 @@ class TrackableLinkReportEndpoint(BaseAPIView):
             code = status.HTTP_404_NOT_FOUND if link is None else status.HTTP_400_BAD_REQUEST
             return Response({"error": errors[code]}, status=code)
 
-        groups_to_exclude = defaultdict(list)
-        for group in self.request.data.get("exclude", self.request.GET.get("exclude", "")).split(","):
-            group = group.strip()
-            if is_uuid_valid(group):
-                groups_to_exclude["uuids"].append(group)
-            elif group:
-                groups_to_exclude["names"].append(group)
-
-        contact_filters = Q()
-
+        groups_to_exclude = self.request__get_separated_names_and_uuids("exclude")
+        group_exclude_filters = Q()
         if groups_to_exclude["uuids"]:
-            contact_filters |= Q(contact__all_groups__uuid__in=groups_to_exclude["uuids"])
-
+            group_exclude_filters |= Q(contact__all_groups__uuid__in=groups_to_exclude["uuids"])
         if groups_to_exclude["names"]:
             for name in groups_to_exclude["names"]:
-                contact_filters |= Q(contact__all_groups__name__icontains=name)
+                group_exclude_filters |= Q(contact__all_groups__name__icontains=name)
 
         time_filters = Q()
         before = self.request.data.get("before", self.request.GET.get("before", ""))
         after = self.request.data.get("after", self.request.GET.get("after", ""))
-
         if before:
             time_filters &= Q(modified_on__lte=org.parse_datetime(before))
-
         if after:
             time_filters &= Q(modified_on__gte=org.parse_datetime(after))
 
-        unique_clicks = link.contacts.filter(time_filters).exclude(contact_filters).distinct().count()
+        unique_clicks = link.contacts.filter(time_filters).exclude(group_exclude_filters).distinct().count()
         unique_contacts = (
             link.related_flow.runs.filter(time_filters)
-            .exclude(contact_filters)
+            .exclude(group_exclude_filters)
             .aggregate(count=Count("contact", distinct=True))["count"]
             if link.related_flow
             else None
