@@ -3052,30 +3052,30 @@ class OrgTest(TembaTest):
             },
         )
 
-    def test_connect_nexmo(self):
+    def test_connect_vonage(self):
         self.login(self.admin)
 
-        connect_url = reverse("orgs.org_nexmo_connect")
-        account_url = reverse("orgs.org_nexmo_account")
+        connect_url = reverse("orgs.org_vonage_connect")
+        account_url = reverse("orgs.org_vonage_account")
 
         # simulate invalid credentials on both pages
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(401, '{"error-code": "401"}')
 
             response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
-            self.assertContains(response, "Your Nexmo API key and secret seem invalid.")
-            self.assertFalse(self.org.is_connected_to_nexmo())
+            self.assertContains(response, "Your API key and secret seem invalid.")
+            self.assertFalse(self.org.is_connected_to_vonage())
 
             response = self.client.post(account_url, dict(api_key="key", api_secret="secret"))
-            self.assertContains(response, "Your Nexmo API key and secret seem invalid.")
+            self.assertContains(response, "Your API key and secret seem invalid.")
 
         # ok, now with a success
-        with patch("requests.get") as nexmo_get, patch("requests.post") as nexmo_post:
-            # believe it or not nexmo returns 'error-code' 200
-            nexmo_get.return_value = MockResponse(
+        with patch("requests.get") as mock_get, patch("requests.post") as mock_post:
+            # believe it or not vonage returns 'error-code' 200
+            mock_get.return_value = MockResponse(
                 200, '{"error-code": "200"}', headers={"content-type": "application/json"}
             )
-            nexmo_post.return_value = MockResponse(
+            mock_post.return_value = MockResponse(
                 200, '{"error-code": "200"}', headers={"content-type": "application/json"}
             )
             response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
@@ -3086,21 +3086,18 @@ class OrgTest(TembaTest):
 
             self.org.refresh_from_db()
             config = self.org.config
-            self.assertEqual("key", config[Org.CONFIG_NEXMO_KEY])
-            self.assertEqual("secret", config[Org.CONFIG_NEXMO_SECRET])
+            self.assertEqual("key", config[Org.CONFIG_VONAGE_KEY])
+            self.assertEqual("secret", config[Org.CONFIG_VONAGE_SECRET])
 
             # post without api token, should get validation error
             response = self.client.post(account_url, dict(disconnect="false"), follow=True)
-            self.assertEqual(
-                '[{"message": "You must enter your Nexmo Account API Key", "code": ""}]',
-                response.context["form"].errors["__all__"].as_json(),
-            )
+            self.assertFormError(response, "form", "__all__", "You must enter your account API Key")
 
-            # nexmo config should remain the same
+            # vonage config should remain the same
             self.org.refresh_from_db()
             config = self.org.config
-            self.assertEqual("key", config[Org.CONFIG_NEXMO_KEY])
-            self.assertEqual("secret", config[Org.CONFIG_NEXMO_SECRET])
+            self.assertEqual("key", config[Org.CONFIG_VONAGE_KEY])
+            self.assertEqual("secret", config[Org.CONFIG_VONAGE_SECRET])
 
             # now try with all required fields, and a bonus field we shouldn't change
             self.client.post(
@@ -3112,7 +3109,7 @@ class OrgTest(TembaTest):
             self.org.refresh_from_db()
             self.assertEqual(self.org.name, "Temba")
 
-            # should change nexmo config
+            # should change vonage config
             with patch("nexmo.Client.get_balance") as mock_get_balance:
                 mock_get_balance.return_value = 120
                 self.client.post(
@@ -3121,18 +3118,18 @@ class OrgTest(TembaTest):
 
                 self.org.refresh_from_db()
                 config = self.org.config
-                self.assertEqual("other_key", config[Org.CONFIG_NEXMO_KEY])
-                self.assertEqual("secret-too", config[Org.CONFIG_NEXMO_SECRET])
+                self.assertEqual("other_key", config[Org.CONFIG_VONAGE_KEY])
+                self.assertEqual("secret-too", config[Org.CONFIG_VONAGE_SECRET])
 
-            self.assertTrue(self.org.is_connected_to_nexmo())
+            self.assertTrue(self.org.is_connected_to_vonage())
             self.client.post(account_url, dict(disconnect="true"), follow=True)
 
             self.org.refresh_from_db()
-            self.assertFalse(self.org.is_connected_to_nexmo())
+            self.assertFalse(self.org.is_connected_to_vonage())
 
         # and disconnect
-        self.org.remove_nexmo_account(self.admin)
-        self.assertFalse(self.org.is_connected_to_nexmo())
+        self.org.remove_vonage_account(self.admin)
+        self.assertFalse(self.org.is_connected_to_vonage())
         self.assertNotIn("NEXMO_KEY", self.org.config)
         self.assertNotIn("NEXMO_SECRET", self.org.config)
 
@@ -4057,7 +4054,7 @@ class OrgCRUDLTest(TembaTest):
             self.user,
             "RW",
             "T",
-            "Nexmo",
+            "Twilio",
             "0785551212",
             role="R",
             secret="45678",

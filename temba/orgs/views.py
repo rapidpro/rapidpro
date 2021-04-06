@@ -841,8 +841,8 @@ class OrgCRUDL(SmartCRUDL):
         "clear_cache",
         "twilio_connect",
         "twilio_account",
-        "nexmo_account",
-        "nexmo_connect",
+        "vonage_account",
+        "vonage_connect",
         "plan",
         "sub_orgs",
         "create_sub_org",
@@ -1060,10 +1060,8 @@ class OrgCRUDL(SmartCRUDL):
 
             return HttpResponseRedirect(self.get_success_url())
 
-    class NexmoAccount(InferOrgMixin, ComponentFormMixin, OrgPermsMixin, SmartUpdateView):
-        success_message = ""
-
-        class NexmoKeys(forms.ModelForm):
+    class VonageAccount(InferOrgMixin, ComponentFormMixin, OrgPermsMixin, SmartUpdateView):
+        class Form(forms.ModelForm):
             api_key = forms.CharField(max_length=128, label=_("API Key"), required=False)
             api_secret = forms.CharField(max_length=128, label=_("API Secret"), required=False)
             disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
@@ -1075,16 +1073,16 @@ class OrgCRUDL(SmartCRUDL):
                     api_secret = self.cleaned_data.get("api_secret", None)
 
                     if not api_key:
-                        raise ValidationError(_("You must enter your Nexmo Account API Key"))
+                        raise ValidationError(_("You must enter your account API Key"))
 
                     if not api_secret:  # pragma: needs cover
-                        raise ValidationError(_("You must enter your Nexmo Account API Secret"))
+                        raise ValidationError(_("You must enter your account API Secret"))
 
-                    from temba.channels.types.nexmo.client import NexmoClient
+                    from temba.channels.types.vonage.client import VonageClient
 
-                    if not NexmoClient(api_key, api_secret).check_credentials():
+                    if not VonageClient(api_key, api_secret).check_credentials():
                         raise ValidationError(
-                            _("Your Nexmo API key and secret seem invalid. Please check them again and retry.")
+                            _("Your API key and secret seem invalid. Please check them again and retry.")
                         )
 
                 return self.cleaned_data
@@ -1093,14 +1091,15 @@ class OrgCRUDL(SmartCRUDL):
                 model = Org
                 fields = ("api_key", "api_secret", "disconnect")
 
-        form_class = NexmoKeys
+        form_class = Form
+        success_message = ""
 
         def derive_initial(self):
             initial = super().derive_initial()
             org = self.get_object()
             config = org.config
-            initial["api_key"] = config.get(Org.CONFIG_NEXMO_KEY, "")
-            initial["api_secret"] = config.get(Org.CONFIG_NEXMO_SECRET, "")
+            initial["api_key"] = config.get(Org.CONFIG_VONAGE_KEY, "")
+            initial["api_secret"] = config.get(Org.CONFIG_VONAGE_SECRET, "")
             initial["disconnect"] = "false"
             return initial
 
@@ -1110,30 +1109,30 @@ class OrgCRUDL(SmartCRUDL):
             org = user.get_org()
 
             if disconnect:
-                org.remove_nexmo_account(user)
+                org.remove_vonage_account(user)
                 return HttpResponseRedirect(reverse("orgs.org_home"))
             else:
                 api_key = form.cleaned_data["api_key"]
                 api_secret = form.cleaned_data["api_secret"]
 
-                org.connect_nexmo(api_key, api_secret, user)
+                org.connect_vonage(api_key, api_secret, user)
                 return super().form_valid(form)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
 
             org = self.get_object()
-            client = org.get_nexmo_client()
+            client = org.get_vonage_client()
             if client:
                 config = org.config
-                context["api_key"] = config.get(Org.CONFIG_NEXMO_KEY, "--")
+                context["api_key"] = config.get(Org.CONFIG_VONAGE_KEY, "--")
 
             return context
 
-    class NexmoConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
-        class NexmoConnectForm(forms.Form):
-            api_key = forms.CharField(help_text=_("Your Nexmo API key"), widget=InputWidget())
-            api_secret = forms.CharField(help_text=_("Your Nexmo API secret"), widget=InputWidget())
+    class VonageConnect(ModalMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
+        class Form(forms.Form):
+            api_key = forms.CharField(help_text=_("Your Vonage API key"), widget=InputWidget())
+            api_secret = forms.CharField(help_text=_("Your Vonage API secret"), widget=InputWidget())
 
             def clean(self):
                 super().clean()
@@ -1141,20 +1140,20 @@ class OrgCRUDL(SmartCRUDL):
                 api_key = self.cleaned_data.get("api_key")
                 api_secret = self.cleaned_data.get("api_secret")
 
-                from temba.channels.types.nexmo.client import NexmoClient
+                from temba.channels.types.vonage.client import VonageClient
 
-                if not NexmoClient(api_key, api_secret).check_credentials():
+                if not VonageClient(api_key, api_secret).check_credentials():
                     raise ValidationError(
-                        _("Your Nexmo API key and secret seem invalid. Please check them again and retry.")
+                        _("Your API key and secret seem invalid. Please check them again and retry.")
                     )
 
                 return self.cleaned_data
 
-        form_class = NexmoConnectForm
+        form_class = Form
         submit_button_name = "Save"
-        success_url = "@channels.types.nexmo.claim"
+        success_url = "@channels.types.vonage.claim"
         field_config = dict(api_key=dict(label=""), api_secret=dict(label=""))
-        success_message = "Nexmo Account successfully connected."
+        success_message = "Vonage Account successfully connected."
 
         def form_valid(self, form):
             api_key = form.cleaned_data["api_key"]
@@ -1162,7 +1161,7 @@ class OrgCRUDL(SmartCRUDL):
 
             org = self.get_object()
 
-            org.connect_nexmo(api_key, api_secret, self.request.user)
+            org.connect_vonage(api_key, api_secret, self.request.user)
 
             org.save()
 
@@ -2835,9 +2834,9 @@ class OrgCRUDL(SmartCRUDL):
                 if twilio_client:  # pragma: needs cover
                     formax.add_section("twilio", reverse("orgs.org_twilio_account"), icon="icon-channel-twilio")
 
-                nexmo_client = org.get_nexmo_client()
-                if nexmo_client:  # pragma: needs cover
-                    formax.add_section("nexmo", reverse("orgs.org_nexmo_account"), icon="icon-channel-nexmo")
+                vonage_client = org.get_vonage_client()
+                if vonage_client:  # pragma: needs cover
+                    formax.add_section("vonage", reverse("orgs.org_vonage_account"), icon="icon-vonage")
 
             if self.has_org_perm("classifiers.classifier_read"):
                 classifiers = org.classifiers.filter(is_active=True).order_by("created_on")
