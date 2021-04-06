@@ -5827,6 +5827,12 @@ class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "????"})
         self.assertFormError(response, "form", "new_group_name", "Invalid group name.")
 
+        # try creating new group but providing a name of an existing group
+        response = self.client.post(
+            preview_url, {"add_to_group": True, "group_mode": "N", "new_group_name": "testERs"}
+        )
+        self.assertFormError(response, "form", "new_group_name", "Already exists.")
+
         # try creating new group when we've already reached our group limit
         with patch.object(Org, "LIMIT_DEFAULTS", {"groups": 2}):
             response = self.client.post(

@@ -54,18 +54,22 @@
                         {{ column.mapping.name }}
         %hr.m-5
         %fieldset.mb-5
-          %table
-            %tr.mapping.w-full.items-center
-              %td.p-1
-                -render_field 'add_to_group'
-              %td
-                -trans "Add contacts to"
-              %td
-                -render_field 'group_mode'
-                %span.new-group-controls
-                  -trans "called"
-                  -render_field 'new_group_name'
-                %span.existing-group-controls.hide
+          .inline-flex
+            .flex-none.pl-1.pt-2
+              -render_field 'add_to_group'
+            .flex-none.pr-2.pt-2
+              -trans "Add contacts to"
+            .flex-none
+              .inline-flex
+                .flex-none
+                  -render_field 'group_mode'
+                .flex-none
+                  .inline-flex.new-group-controls
+                    .flex-none.p-2
+                      -trans "called"
+                    .flex-none
+                      -render_field 'new_group_name'
+                .flex-none.existing-group-controls.pl-2.hide
                   -render_field 'existing_group'
 
       .flex.mt-4
@@ -89,8 +93,8 @@
     }
 
     $(function() {
-      var groupModeSelect = document.querySelector("temba-select[name='group_mode']");
-      groupModeSelect.addEventListener('change', function(event) {
+      var groupMode = document.querySelector("temba-select[name='group_mode']");
+      groupMode.addEventListener('change', function(event) {
         updateGroupMode(event.target.values[0].value);
       });
 
@@ -127,18 +131,13 @@
       width: 120px;
       margin: 0 3px;
     }
-    .mapping .field_group_mode {
-      display: inline-block;
+    .field_group_mode {
       width: 160px;
-      margin: 0 3px;
     }
-    .mapping .field_new_group_name {
-      display: inline-block;
+    .field_new_group_name {
       width: 200px;
-      margin: 0 3px;
+      margin-top: -4px;
     }
-    .mapping .field_existing_group {
-      display: inline-block;
+    .field_existing_group {
       width: 200px;
-      margin: 0 3px;
     }

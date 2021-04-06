@@ -2029,6 +2029,8 @@ class ContactImportCRUDL(SmartCRUDL):
                             self.add_error("new_group_name", _("Required."))
                         elif not ContactGroup.is_valid_name(new_group_name):
                             self.add_error("new_group_name", _("Invalid group name."))
+                        elif ContactGroup.get_user_group_by_name(self.org, new_group_name):
+                            self.add_error("new_group_name", _("Already exists."))
                     else:
                         existing_group = self.cleaned_data.get("existing_group")
                         if not existing_group:
