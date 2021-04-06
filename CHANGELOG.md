@@ -1,3 +1,10 @@
+v6.3.16
+----------
+ * Add group name field to contact imports so that it can be customized
+ * Rename Nexmo to Vonage, update icon
+ * Merge the two used icomoon sets into one and delete unused one
+ * Cleanup problems in org view templates
+
 v6.3.15
 ----------
  * Revert wording changes when orgs don't have email settings to clarify that we do send
