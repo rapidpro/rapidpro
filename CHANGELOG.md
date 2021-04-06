@@ -1,3 +1,7 @@
+v6.3.17
+----------
+ * Fix font reference in scss
+
 v6.3.16
 ----------
  * Add group name field to contact imports so that it can be customized
