@@ -8,40 +8,40 @@ from temba.channels.models import Channel
 from temba.tests import MockResponse, TembaTest
 from temba.utils import json
 
-from .client import NexmoClient
+from .client import VonageClient
 
 
 def mock_json_response(status_code, data):
     return MockResponse(status_code, json.dumps(data), headers={"Content-Type": "application/json"})
 
 
-class NexmoTypeTest(TembaTest):
+class VonageTypeTest(TembaTest):
     def test_claim(self):
         self.login(self.admin)
 
-        claim_nexmo = reverse("channels.types.nexmo.claim")
+        claim_url = reverse("channels.types.vonage.claim")
 
         # remove any existing channels
         self.org.channels.update(is_active=False)
 
-        # make sure nexmo is on the claim page
+        # make sure Vonage is on the claim page
         response = self.client.get(reverse("channels.channel_claim"))
-        self.assertContains(response, "Nexmo")
+        self.assertContains(response, "Vonage")
 
-        response = self.client.get(claim_nexmo)
+        response = self.client.get(claim_url)
         self.assertEqual(response.status_code, 302)
-        response = self.client.get(claim_nexmo, follow=True)
-        self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_nexmo_connect"))
+        response = self.client.get(claim_url, follow=True)
+        self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_vonage_connect"))
 
-        self.org.connect_nexmo("nexmo-key", "nexmo-secret", self.admin)
+        self.org.connect_vonage("key123", "sesame", self.admin)
 
-        # hit the claim page, should now have a claim nexmo link
+        # hit the claim page, should now have a claim link
         response = self.client.get(reverse("channels.channel_claim"))
-        self.assertContains(response, claim_nexmo)
+        self.assertContains(response, claim_url)
 
         # try adding a shortcode
-        with patch("requests.get") as nexmo_get, patch("requests.post") as nexmo_post:
-            nexmo_get.side_effect = [
+        with patch("requests.get") as mock_get, patch("requests.post") as mock_post:
+            mock_get.side_effect = [
                 mock_json_response(200, {"count": 0, "numbers": []}),
                 mock_json_response(
                     200,
@@ -58,8 +58,8 @@ class NexmoTypeTest(TembaTest):
                     },
                 ),
             ]
-            nexmo_post.return_value = mock_json_response(200, {"error-code": "200"})
-            response = self.client.post(claim_nexmo, dict(country="US", phone_number="8080"))
+            mock_post.return_value = mock_json_response(200, {"error-code": "200"})
+            response = self.client.post(claim_url, dict(country="US", phone_number="8080"))
             self.assertRedirects(response, reverse("public.public_welcome") + "?success")
             channel = Channel.objects.filter(address="8080").first()
             self.assertTrue(Channel.ROLE_SEND in channel.role)
@@ -69,8 +69,8 @@ class NexmoTypeTest(TembaTest):
             Channel.objects.all().delete()
 
         # try buying a number not on the account
-        with patch("requests.get") as nexmo_get, patch("requests.post") as nexmo_post:
-            nexmo_get.side_effect = [
+        with patch("requests.get") as mock_get, patch("requests.post") as mock_post:
+            mock_get.side_effect = [
                 mock_json_response(200, {"count": 0, "numbers": []}),
                 mock_json_response(200, {"count": 0, "numbers": []}),
                 mock_json_response(
@@ -83,9 +83,9 @@ class NexmoTypeTest(TembaTest):
                     },
                 ),
             ]
-            nexmo_post.return_value = mock_json_response(200, {"error-code": "200"})
+            mock_post.return_value = mock_json_response(200, {"error-code": "200"})
 
-            response = self.client.post(claim_nexmo, dict(country="US", phone_number="+12065551212"))
+            response = self.client.post(claim_url, dict(country="US", phone_number="+12065551212"))
             self.assertRedirects(response, reverse("public.public_welcome") + "?success")
 
             channel = Channel.objects.filter(address="+12065551212").first()
@@ -94,26 +94,26 @@ class NexmoTypeTest(TembaTest):
             Channel.objects.all().delete()
 
         # try failing to buy a number not on the account
-        with patch("requests.get") as nexmo_get, patch("requests.post") as nexmo_post:
-            nexmo_get.side_effect = [
+        with patch("requests.get") as mock_get, patch("requests.post") as mock_post:
+            mock_get.side_effect = [
                 mock_json_response(200, {"count": 0, "numbers": []}),
                 mock_json_response(200, {"count": 0, "numbers": []}),
             ]
-            nexmo_post.side_effect = Exception("Error")
-            response = self.client.post(claim_nexmo, dict(country="US", phone_number="+12065551212"))
+            mock_post.side_effect = Exception("Error")
+            response = self.client.post(claim_url, dict(country="US", phone_number="+12065551212"))
             self.assertTrue(response.context["form"].errors)
             self.assertContains(
                 response,
                 "There was a problem claiming that number, "
                 "please check the balance on your account. "
                 "Note that you can only claim numbers after "
-                "adding credit to your Nexmo account.",
+                "adding credit to your Vonage account.",
             )
             Channel.objects.all().delete()
 
         # let's add a number already connected to the account
-        with patch("requests.get") as nexmo_get, patch("requests.post") as nexmo_post:
-            nexmo_get.return_value = mock_json_response(
+        with patch("requests.get") as mock_get, patch("requests.post") as mock_post:
+            mock_get.return_value = mock_json_response(
                 200,
                 {
                     "count": 1,
@@ -122,18 +122,18 @@ class NexmoTypeTest(TembaTest):
                     ],
                 },
             )
-            nexmo_post.side_effect = [
+            mock_post.side_effect = [
                 mock_json_response(200, {"error-code": "200", "id": "myappid", "keys": {"private_key": "private"}}),
                 mock_json_response(200, {"error-code": "200"}),
             ]
 
             # make sure our number appears on the claim page
-            response = self.client.get(claim_nexmo)
+            response = self.client.get(claim_url)
             self.assertNotIn("account_trial", response.context)
             self.assertContains(response, "360-788-4540")
 
             # claim it
-            response = self.client.post(claim_nexmo, dict(country="US", phone_number="13607884540"))
+            response = self.client.post(claim_url, dict(country="US", phone_number="13607884540"))
             self.assertRedirects(response, reverse("public.public_welcome") + "?success")
 
             # make sure it is actually connected
@@ -143,12 +143,12 @@ class NexmoTypeTest(TembaTest):
             self.assertTrue(Channel.ROLE_ANSWER in channel.role)
             self.assertTrue(Channel.ROLE_CALL in channel.role)
 
-            self.assertEqual(channel.config[Channel.CONFIG_NEXMO_API_KEY], "nexmo-key")
-            self.assertEqual(channel.config[Channel.CONFIG_NEXMO_API_SECRET], "nexmo-secret")
-            self.assertEqual(channel.config[Channel.CONFIG_NEXMO_APP_ID], "myappid")
-            self.assertEqual(channel.config[Channel.CONFIG_NEXMO_APP_PRIVATE_KEY], "private")
+            self.assertEqual(channel.config[Channel.CONFIG_VONAGE_API_KEY], "key123")
+            self.assertEqual(channel.config[Channel.CONFIG_VONAGE_API_SECRET], "sesame")
+            self.assertEqual(channel.config[Channel.CONFIG_VONAGE_APP_ID], "myappid")
+            self.assertEqual(channel.config[Channel.CONFIG_VONAGE_APP_PRIVATE_KEY], "private")
 
-            # test the update page for nexmo
+            # test the update page for vonage
             update_url = reverse("channels.channel_update", args=[channel.pk])
             response = self.client.get(update_url)
 
@@ -162,27 +162,27 @@ class NexmoTypeTest(TembaTest):
             self.assertEqual("+13607884540", channel.address)
             self.assertEqual("foo@bar.com", channel.alert_email)
 
-            nexmo_get.reset_mock()
-            nexmo_post.reset_mock()
+            mock_get.reset_mock()
+            mock_post.reset_mock()
 
             # add a canada number
-            nexmo_get.return_value = mock_json_response(
+            mock_get.return_value = mock_json_response(
                 200,
                 {
                     "count": 1,
                     "numbers": [{"features": ["SMS"], "type": "mobile-lvn", "country": "CA", "msisdn": "15797884540"}],
                 },
             )
-            nexmo_post.side_effect = None
-            nexmo_post.return_value = mock_json_response(200, {"error-code": "200"})
+            mock_post.side_effect = None
+            mock_post.return_value = mock_json_response(200, {"error-code": "200"})
 
             # make sure our number appears on the claim page
-            response = self.client.get(claim_nexmo)
+            response = self.client.get(claim_url)
             self.assertNotIn("account_trial", response.context)
             self.assertContains(response, "579-788-4540")
 
             # claim it
-            response = self.client.post(claim_nexmo, dict(country="CA", phone_number="15797884540"))
+            response = self.client.post(claim_url, dict(country="CA", phone_number="15797884540"))
 
             self.assertRedirects(response, reverse("public.public_welcome") + "?success")
 
@@ -201,14 +201,14 @@ class NexmoTypeTest(TembaTest):
             self.assertContains(response, reverse("mailroom.ivr_handler", args=[channel.uuid, "incoming"]))
 
     def test_deactivate(self):
-        # convert our test channel to be a Nexmo channel
-        self.org.connect_nexmo("TEST_KEY", "TEST_SECRET", self.admin)
+        # convert our test channel to be a Vonage channel
+        self.org.connect_vonage("TEST_KEY", "TEST_SECRET", self.admin)
         channel = self.org.channels.all().first()
         channel.channel_type = "NX"
-        channel.config = {Channel.CONFIG_NEXMO_APP_ID: "myappid", Channel.CONFIG_NEXMO_APP_PRIVATE_KEY: "secret"}
+        channel.config = {Channel.CONFIG_VONAGE_APP_ID: "myappid", Channel.CONFIG_VONAGE_APP_PRIVATE_KEY: "secret"}
         channel.save(update_fields=("channel_type", "config"))
 
-        # mock a 404 response from Nexmo during deactivation
+        # mock a 404 response from Vonage during deactivation
         with self.settings(IS_PROD=True):
             with patch("nexmo.Client.delete_application") as mock_delete_application:
                 mock_delete_application.side_effect = nexmo.ClientError("404 response")
@@ -235,7 +235,7 @@ class ClientTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.client = NexmoClient("abc123", "asecret")
+        self.client = VonageClient("abc123", "asecret")
 
     @patch("nexmo.Client.get_balance")
     def test_check_credentials(self, mock_get_balance):
@@ -281,7 +281,7 @@ class ClientTest(TembaTest):
 
         mock_delete_application.assert_called_once_with(application_id="myappid")
 
-    @patch("temba.channels.types.nexmo.client.NexmoClient.RATE_LIMIT_PAUSE", 0)
+    @patch("temba.channels.types.vonage.client.VonageClient.RATE_LIMIT_PAUSE", 0)
     @patch("nexmo.Client.get_account_numbers")
     def test_retry(self, mock_get_account_numbers):
         mock_get_account_numbers.side_effect = [

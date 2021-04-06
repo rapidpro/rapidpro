@@ -3,26 +3,26 @@
 
 -block summary
   -blocktrans trimmed
-    Connected to Nexmo account with API key {{ api_key }}.
+    Connected to Vonage account with API key {{ api_key }}.
 
 -block post-form
   .mt-4
-    -if object.is_connected_to_nexmo and request.META.HTTP_X_FORMAX
-      -blocktrans trimmed with url='javascript:confirmNexmoDisconnect();'
-        If you no longer want it connected, you can <a href="{{ url }}">disconnect your Nexmo account</a>.
+    -if object.is_connected_to_vonage and request.META.HTTP_X_FORMAX
+      -blocktrans trimmed with url='javascript:confirmVonageDisconnect();'
+        If you no longer want it connected, you can <a href="{{ url }}">disconnect your Vonage account</a>.
 
     -if org_perms.channels.channel_delete
-      .disconnect-nexmo.hide
+      .disconnect-vonage.hide
         .title
-          -trans "Disconnect Nexmo"
+          -trans "Disconnect Vonage"
         .body
           -blocktrans trimmed
-            Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?
-      %a#disconnect-nexmo-form.posterize{href:'{% url "orgs.org_nexmo_account" %}?disconnect=true'}
+            Disconnecting your Vonage account will also remove any Vonage channels connected to it. Are you sure you want to proceed?
+      %a#disconnect-vonage-form.posterize{href:'{% url "orgs.org_vonage_account" %}?disconnect=true'}
 
 -block extra-script
   {{ block.super }}
   :javascript
-    function confirmNexmoDisconnect() {
-      removalConfirmation("disconnect-nexmo", "Disconnect");
+    function confirmVonageDisconnect() {
+      removalConfirmation("disconnect-vonage", "Disconnect");
     }

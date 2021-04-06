@@ -381,7 +381,7 @@ TWILIO_SUPPORTED_COUNTRY_CODES = list(
     set([code for elt in TWILIO_SUPPORTED_COUNTRIES_CONFIG for code in list(COUNTRY_CALLING_CODES[elt])])
 )
 
-NEXMO_SUPPORTED_COUNTRIES_CONFIG = (
+VONAGE_SUPPORTED_COUNTRIES_CONFIG = (
     "AC",  # scension Island
     "AD",  # Andorra
     "AE",  # United Arab Emirates
@@ -608,10 +608,10 @@ NEXMO_SUPPORTED_COUNTRIES_CONFIG = (
     "ZW",  # Zimbabwe
 )
 
-NEXMO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in NEXMO_SUPPORTED_COUNTRIES_CONFIG])
+VONAGE_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in VONAGE_SUPPORTED_COUNTRIES_CONFIG])
 
-NEXMO_SUPPORTED_COUNTRY_CODES = list(
-    set([code for elt in NEXMO_SUPPORTED_COUNTRIES_CONFIG for code in list(COUNTRY_CALLING_CODES[elt])])
+VONAGE_SUPPORTED_COUNTRY_CODES = list(
+    set([code for elt in VONAGE_SUPPORTED_COUNTRIES_CONFIG for code in list(COUNTRY_CALLING_CODES[elt])])
 )
 
 PLIVO_SUPPORTED_COUNTRIES_CONFIG = (
@@ -1296,7 +1296,7 @@ class ChannelCRUDL(SmartCRUDL):
         "delete",
         "search_numbers",
         "configuration",
-        "search_nexmo",
+        "search_vonage",
         "bulk_sender_options",
         "create_bulk_sender",
         "create_caller",
@@ -1866,8 +1866,8 @@ class ChannelCRUDL(SmartCRUDL):
 
             def clean_connection(self):
                 connection = self.cleaned_data["connection"]
-                if connection == "NX" and not self.org.is_connected_to_nexmo():
-                    raise forms.ValidationError(_("A connection to a Nexmo account is required"))
+                if connection == "NX" and not self.org.is_connected_to_vonage():
+                    raise forms.ValidationError(_("A connection to a Vonage account is required"))
                 return connection
 
             def clean_channel(self):
@@ -1889,7 +1889,7 @@ class ChannelCRUDL(SmartCRUDL):
             user = self.request.user
 
             channel = form.cleaned_data["channel"]
-            Channel.add_nexmo_bulk_sender(user, channel)
+            Channel.add_vonage_bulk_sender(user, channel)
             return super().form_valid(form)
 
         def form_invalid(self, form):
@@ -2080,18 +2080,18 @@ class ChannelCRUDL(SmartCRUDL):
 
             return JsonResponse(numbers, safe=False)
 
-    class SearchNexmo(SearchNumbers):
-        class SearchNexmoForm(forms.Form):
+    class SearchVonage(SearchNumbers):
+        class Form(forms.Form):
             area_code = forms.CharField(
                 max_length=7, required=False, help_text=_("The area code you want to search for a new number in")
             )
-            country = forms.ChoiceField(choices=NEXMO_SUPPORTED_COUNTRIES)
+            country = forms.ChoiceField(choices=VONAGE_SUPPORTED_COUNTRIES)
 
-        form_class = SearchNexmoForm
+        form_class = Form
 
         def form_valid(self, form, *args, **kwargs):  # pragma: needs cover
             org = self.request.user.get_org()
-            client = org.get_nexmo_client()
+            client = org.get_vonage_client()
             data = form.cleaned_data
 
             try:
@@ -2109,7 +2109,6 @@ class ChannelCRUDL(SmartCRUDL):
                 return JsonResponse(numbers, safe=False)
             except Exception as e:
                 raise e
-                # return JsonResponse(dict(error=str(e)))
 
     class SearchPlivo(SearchNumbers):
         class SearchPlivoForm(forms.Form):

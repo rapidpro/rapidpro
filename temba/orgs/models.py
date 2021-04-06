@@ -162,8 +162,8 @@ class Org(SmartModel):
     CONFIG_SMTP_SERVER = "smtp_server"
     CONFIG_TWILIO_SID = "ACCOUNT_SID"
     CONFIG_TWILIO_TOKEN = "ACCOUNT_TOKEN"
-    CONFIG_NEXMO_KEY = "NEXMO_KEY"
-    CONFIG_NEXMO_SECRET = "NEXMO_SECRET"
+    CONFIG_VONAGE_KEY = "NEXMO_KEY"
+    CONFIG_VONAGE_SECRET = "NEXMO_SECRET"
     CONFIG_DTONE_KEY = "dtone_key"
     CONFIG_DTONE_SECRET = "dtone_secret"
     CONFIG_CHATBASE_AGENT_NAME = "CHATBASE_AGENT_NAME"
@@ -797,8 +797,8 @@ class Org(SmartModel):
 
         return AirtimeTransfer.objects.filter(org=self).exists()
 
-    def connect_nexmo(self, api_key, api_secret, user):
-        self.config.update({Org.CONFIG_NEXMO_KEY: api_key.strip(), Org.CONFIG_NEXMO_SECRET: api_secret.strip()})
+    def connect_vonage(self, api_key, api_secret, user):
+        self.config.update({Org.CONFIG_VONAGE_KEY: api_key.strip(), Org.CONFIG_VONAGE_SECRET: api_secret.strip()})
         self.modified_by = user
         self.save(update_fields=("config", "modified_by", "modified_on"))
 
@@ -823,9 +823,9 @@ class Org(SmartModel):
         self.modified_by = user
         self.save(update_fields=("config", "modified_by", "modified_on"))
 
-    def is_connected_to_nexmo(self):
+    def is_connected_to_vonage(self):
         if self.config:
-            return self.config.get(Org.CONFIG_NEXMO_KEY) and self.config.get(Org.CONFIG_NEXMO_SECRET)
+            return self.config.get(Org.CONFIG_VONAGE_KEY) and self.config.get(Org.CONFIG_VONAGE_SECRET)
         return False
 
     def is_connected_to_twilio(self):
@@ -839,14 +839,14 @@ class Org(SmartModel):
 
         return bool(self.config.get(Org.CONFIG_DTONE_KEY) and self.config.get(Org.CONFIG_DTONE_SECRET))
 
-    def remove_nexmo_account(self, user):
+    def remove_vonage_account(self, user):
         if self.config:
-            # release any nexmo channels
+            # release any vonage channels
             for channel in self.channels.filter(is_active=True, channel_type="NX"):  # pragma: needs cover
                 channel.release()
 
-            self.config.pop(Org.CONFIG_NEXMO_KEY, None)
-            self.config.pop(Org.CONFIG_NEXMO_SECRET, None)
+            self.config.pop(Org.CONFIG_VONAGE_KEY, None)
+            self.config.pop(Org.CONFIG_VONAGE_SECRET, None)
             self.modified_by = user
             self.save(update_fields=("config", "modified_by", "modified_on"))
 
@@ -883,13 +883,13 @@ class Org(SmartModel):
             return TwilioClient(account_sid, auth_token)
         return None
 
-    def get_nexmo_client(self):
-        from temba.channels.types.nexmo.client import NexmoClient
+    def get_vonage_client(self):
+        from temba.channels.types.vonage.client import VonageClient
 
-        api_key = self.config.get(Org.CONFIG_NEXMO_KEY)
-        api_secret = self.config.get(Org.CONFIG_NEXMO_SECRET)
+        api_key = self.config.get(Org.CONFIG_VONAGE_KEY)
+        api_secret = self.config.get(Org.CONFIG_VONAGE_SECRET)
         if api_key and api_secret:
-            return NexmoClient(api_key, api_secret)
+            return VonageClient(api_key, api_secret)
         return None
 
     def get_chatbase_credentials(self):
@@ -1172,7 +1172,7 @@ class Org(SmartModel):
     def has_twilio_number(self):  # pragma: needs cover
         return self.channels.filter(channel_type="T")
 
-    def has_nexmo_number(self):  # pragma: needs cover
+    def has_vonage_number(self):  # pragma: needs cover
         return self.channels.filter(channel_type="NX")
 
     def init_topups(self, topup_size=None):
