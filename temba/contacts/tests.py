@@ -5714,6 +5714,20 @@ class ContactImportTest(TembaTest):
             batch.specs,
         )
 
+    @mock_mailroom
+    def test_group_uniqueness(self, mr_mocks):
+        imp = self.create_contact_import("media/test_imports/simple.xlsx")
+        imp.start()
+        self.assertEqual("Simple", imp.group_name)
+
+        imp = self.create_contact_import("media/test_imports/simple.xlsx")
+        imp.start()
+        self.assertEqual("Simple 1", imp.group_name)
+
+        imp = self.create_contact_import("media/test_imports/simple.xlsx")
+        imp.start()
+        self.assertEqual("Simple 2", imp.group_name)
+
     def test_parse_value(self):
         imp = self.create_contact_import("media/test_imports/simple.xlsx")
         kgl = pytz.timezone("Africa/Kigali")
