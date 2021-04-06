@@ -73,19 +73,19 @@
     }
 
     function handleFilterChanged(event) {
-      var tickets = document.querySelector("temba-contacts");
+      var contacts = document.querySelector("temba-contacts");
       var chat = document.querySelector("temba-contact-chat");
 
       // if we have auto selecting, don't clear the chat
-      if (!tickets.nextSelection) {
+      if (!contacts.nextSelection) {
         chat.contact = null;
       }
 
       var filter = event.target.values[0].value;
       if (filter === "O") {
-        tickets.endpoint = "/contact/tickets/?_format=json&folder=open"
+        contacts.endpoint = "/contact/tickets/?_format=json&folder=open"
       } else {
-        tickets.endpoint = "/contact/tickets/?_format=json&folder=closed"
+        contacts.endpoint = "/contact/tickets/?_format=json&folder=closed"
       }
     }
 
@@ -100,7 +100,7 @@
         contacts.setNextSelection(contact.uuid);
       } else {
         // no focus, just refresh
-        tickets.refresh();
+        contacts.refresh();
       }
     }
 

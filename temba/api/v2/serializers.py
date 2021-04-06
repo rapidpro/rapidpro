@@ -1425,13 +1425,14 @@ class TicketReadSerializer(ReadSerializer):
     contact = fields.ContactField()
     status = serializers.SerializerMethodField()
     opened_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    closed_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_status(self, obj):
         return self.STATUSES.get(obj.status)
 
     class Meta:
         model = Ticket
-        fields = ("uuid", "ticketer", "contact", "status", "subject", "body", "opened_on")
+        fields = ("uuid", "ticketer", "contact", "status", "subject", "body", "opened_on", "closed_on")
 
 
 class WorkspaceReadSerializer(ReadSerializer):
