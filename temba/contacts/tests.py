@@ -5714,20 +5714,6 @@ class ContactImportTest(TembaTest):
             batch.specs,
         )
 
-    @mock_mailroom
-    def test_group_uniqueness(self, mr_mocks):
-        imp = self.create_contact_import("media/test_imports/simple.xlsx")
-        imp.start()
-        self.assertEqual("Simple", imp.group_name)
-
-        imp = self.create_contact_import("media/test_imports/simple.xlsx")
-        imp.start()
-        self.assertEqual("Simple 1", imp.group_name)
-
-        imp = self.create_contact_import("media/test_imports/simple.xlsx")
-        imp.start()
-        self.assertEqual("Simple 2", imp.group_name)
-
     def test_parse_value(self):
         imp = self.create_contact_import("media/test_imports/simple.xlsx")
         kgl = pytz.timezone("Africa/Kigali")
@@ -5744,16 +5730,18 @@ class ContactImportTest(TembaTest):
         for test in tests:
             self.assertEqual(test[1], imp._parse_value(test[0], tz=kgl))
 
-    def test_default_group_name(self):
+    def test_get_default_group_name(self):
+        self.create_group("Testers", contacts=[])
         tests = [
             ("simple.csv", "Simple"),
+            ("testers.csv", "Testers 1"),  # group called Testers already exists
             ("contact-imports.csv", "Contact Imports"),
             ("abc_@@é.csv", "Abc É"),
             ("a_@@é.csv", "Import"),  # would be too short
             (f"{'x' * 100}.csv", "Xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"),  # truncated
         ]
         for test in tests:
-            self.assertEqual(test[1], ContactImport(original_filename=test[0])._default_group_name())
+            self.assertEqual(test[1], ContactImport(org=self.org, original_filename=test[0]).get_default_group_name())
 
 
 class ContactImportCRUDLTest(TembaTest, CRUDLTestMixin):
