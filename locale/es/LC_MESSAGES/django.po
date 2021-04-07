@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-05 16:46+0000\n"
+"POT-Creation-Date: 2021-04-07 20:20+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -3088,8 +3088,13 @@ msgstr "Stripe Customer"
 msgid "Our Stripe customer id for your organization"
 msgstr "Nuestro id de Stripe customer para su organización"
 
-msgid "The main language used by this organization"
-msgstr "El idioma principal usado por esta organización"
+#, fuzzy
+#| msgid "Base Language"
+msgid "Default Language"
+msgstr "Idioma base"
+
+msgid "The default website language for new users."
+msgstr ""
 
 msgid "Timezone"
 msgstr "Zona horaria"
@@ -6833,30 +6838,6 @@ msgstr "Invitaciones pendientes"
 msgid "Invite New Users"
 msgstr "Invitar nuevos usuarios"
 
-#, fuzzy, python-format
-#| msgid "A connection to a Twilio account is required"
-msgid "Connected to Vonage account with API key %(api_key)s."
-msgstr "Se requiere una conexión a una cuenta Twilio"
-
-#, fuzzy, python-format
-#| msgid "If you no longer want it connected, you can"
-msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Vonage account</a>."
-msgstr "Si ya no lo quiere conectado, puede"
-
-#, fuzzy
-#| msgid "Disconnect DT One"
-msgid "Disconnect Vonage"
-msgstr "Desconecte DT One"
-
-#, fuzzy
-#| msgid "Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?"
-msgid "Disconnecting your Vonage account will also remove any Vonage channels connected to it. Are you sure you want to proceed?"
-msgstr "La desconexión de su cuenta Nexmo también eliminará todos los canales Nexmo conectados a ella. ¿Estas seguro que deseas continuar?"
-
-#, python-format
-msgid "To connect your Vonage Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"vonage\" href=\"%(settings_url)s\">Vonage settings</a> page in the API Settings section."
-msgstr ""
-
 msgid "You are currently on the {{org.plan}} plan."
 msgstr "Actualmente estás en el plan {{org.plan}}."
 
@@ -6996,6 +6977,30 @@ msgstr "Este workspace ha sido verificado"
 
 msgid "This workspace has been scheduled for deletion"
 msgstr "Se ha programado la eliminación de este workspace"
+
+#, fuzzy, python-format
+#| msgid "A connection to a Twilio account is required"
+msgid "Connected to Vonage account with API key %(api_key)s."
+msgstr "Se requiere una conexión a una cuenta Twilio"
+
+#, fuzzy, python-format
+#| msgid "If you no longer want it connected, you can"
+msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Vonage account</a>."
+msgstr "Si ya no lo quiere conectado, puede"
+
+#, fuzzy
+#| msgid "Disconnect DT One"
+msgid "Disconnect Vonage"
+msgstr "Desconecte DT One"
+
+#, fuzzy
+#| msgid "Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?"
+msgid "Disconnecting your Vonage account will also remove any Vonage channels connected to it. Are you sure you want to proceed?"
+msgstr "La desconexión de su cuenta Nexmo también eliminará todos los canales Nexmo conectados a ella. ¿Estas seguro que deseas continuar?"
+
+#, python-format
+msgid "To connect your Vonage Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"vonage\" href=\"%(settings_url)s\">Vonage settings</a> page in the API Settings section."
+msgstr ""
 
 msgid "Top Ups"
 msgstr "Recargas"
@@ -7761,6 +7766,9 @@ msgstr "Ingrese una consulta"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Se encontró $ {count} por $ {query}"
+
+#~ msgid "The main language used by this organization"
+#~ msgstr "El idioma principal usado por esta organización"
 
 #~ msgid "Disconnect Nexmo"
 #~ msgstr "Desconectar Nexmo"

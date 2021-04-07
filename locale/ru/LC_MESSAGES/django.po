@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-05 16:46+0000\n"
+"POT-Creation-Date: 2021-04-07 20:20+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3101,8 +3101,13 @@ msgstr "Клиент Stripe "
 msgid "Our Stripe customer id for your organization"
 msgstr "Наш id клиента Stripe для Вашей организации"
 
-msgid "The main language used by this organization"
-msgstr "Основной язык, используемый этой организацией"
+#, fuzzy
+#| msgid "Base Language"
+msgid "Default Language"
+msgstr "Основной язык"
+
+msgid "The default website language for new users."
+msgstr ""
 
 msgid "Timezone"
 msgstr "Часовой пояс"
@@ -6784,28 +6789,6 @@ msgstr ""
 msgid "Invite New Users"
 msgstr ""
 
-#, fuzzy, python-format
-#| msgid "A connection to a Twilio account is required"
-msgid "Connected to Vonage account with API key %(api_key)s."
-msgstr "Требуется подключение к учетной записи Twilio "
-
-#, fuzzy, python-format
-#| msgid "If you no longer want it connected, you can"
-msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Vonage account</a>."
-msgstr "Если Вы больше не хотите, чтобы она была подключена, Вы можете"
-
-#, fuzzy
-#| msgid "Disconnect DT One"
-msgid "Disconnect Vonage"
-msgstr "Отключить DT One"
-
-msgid "Disconnecting your Vonage account will also remove any Vonage channels connected to it. Are you sure you want to proceed?"
-msgstr ""
-
-#, python-format
-msgid "To connect your Vonage Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"vonage\" href=\"%(settings_url)s\">Vonage settings</a> page in the API Settings section."
-msgstr ""
-
 msgid "You are currently on the {{org.plan}} plan."
 msgstr ""
 
@@ -6942,6 +6925,28 @@ msgid "This workspace has been verified"
 msgstr ""
 
 msgid "This workspace has been scheduled for deletion"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "A connection to a Twilio account is required"
+msgid "Connected to Vonage account with API key %(api_key)s."
+msgstr "Требуется подключение к учетной записи Twilio "
+
+#, fuzzy, python-format
+#| msgid "If you no longer want it connected, you can"
+msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Vonage account</a>."
+msgstr "Если Вы больше не хотите, чтобы она была подключена, Вы можете"
+
+#, fuzzy
+#| msgid "Disconnect DT One"
+msgid "Disconnect Vonage"
+msgstr "Отключить DT One"
+
+msgid "Disconnecting your Vonage account will also remove any Vonage channels connected to it. Are you sure you want to proceed?"
+msgstr ""
+
+#, python-format
+msgid "To connect your Vonage Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"vonage\" href=\"%(settings_url)s\">Vonage settings</a> page in the API Settings section."
 msgstr ""
 
 msgid "Top Ups"
@@ -7618,6 +7623,9 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "The main language used by this organization"
+#~ msgstr "Основной язык, используемый этой организацией"
 
 #~ msgid "Disconnect Nexmo"
 #~ msgstr "Отключить Nexmo"

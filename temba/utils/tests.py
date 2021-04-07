@@ -30,7 +30,7 @@ from celery.app.task import Task
 import temba.utils.analytics
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
 from temba.flows.models import FlowRun
-from temba.orgs.models import Org, UserSettings
+from temba.orgs.models import Org
 from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json, uuid
 from temba.utils.json import TembaJsonAdapter
@@ -945,7 +945,7 @@ class CurrencyTest(TembaTest):
 
 
 class MiddlewareTest(TembaTest):
-    def test_org_header(self):
+    def test_org(self):
         response = self.client.get(reverse("public.public_index"))
         self.assertFalse(response.has_header("X-Temba-Org"))
 
@@ -972,17 +972,25 @@ class MiddlewareTest(TembaTest):
         with self.settings(BRANDING=branding):
             self.assertRedirect(self.client.get(reverse("public.public_index")), "/redirect")
 
-    def test_activate_language(self):
-        self.assertContains(self.client.get(reverse("public.public_index")), "Sign Up")
+    def test_language(self):
+        def assert_text(text: str):
+            self.assertContains(self.client.get(reverse("public.public_index")), text)
 
+        # default is English
+        assert_text("Visually build nationally scalable mobile applications")
+
+        # can be overridden in Django settings
+        with override_settings(DEFAULT_LANGUAGE="es"):
+            assert_text("Cree visualmente aplicaciones móviles")
+
+        # if we have an authenticated user, their setting takes priority
         self.login(self.admin)
 
-        self.assertContains(self.client.get(reverse("public.public_index")), "Sign Up")
-        self.assertContains(self.client.get(reverse("contacts.contact_list")), "Import Contacts")
+        user_settings = self.admin.get_settings()
+        user_settings.language = "fr"
+        user_settings.save(update_fields=("language",))
 
-        UserSettings.objects.filter(user=self.admin).update(language="fr")
-
-        self.assertContains(self.client.get(reverse("contacts.contact_list")), "Importer des contacts")
+        assert_text("Créez visuellement des applications mobiles")
 
 
 class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
