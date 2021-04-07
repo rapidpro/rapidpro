@@ -122,6 +122,7 @@
     });
 
     function ensureQueryPrefix(query) {
+      query = query.replaceAll("+", "%2B");
       if (query && !query.startsWith('?')) {
         return '?' + query;
       } else {

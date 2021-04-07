@@ -3143,11 +3143,13 @@ class RunsEndpoint(ListAPIMixin, BaseAPIView):
 
         # filter by contact urn (optional)
         elif contact_urn_identity:
-            contact_urn = (
-                ContactURN.objects.filter(identity=contact_urn_identity).exclude(contact__isnull=True).first()
+            contact_urns = (
+                ContactURN.objects.filter(identity=contact_urn_identity)
+                .exclude(contact__isnull=True)
+                .values_list("contact_id", flat=True)
             )
-            if contact_urn:
-                queryset = queryset.filter(contact=contact_urn.contact)
+            if contact_urns:
+                queryset = queryset.filter(contact_id__in=contact_urns)
             else:
                 queryset = queryset.filter(pk=-1)
 
