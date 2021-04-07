@@ -7,7 +7,7 @@ from temba.contacts.models import URN
 from ...models import ChannelType
 from .views import ClaimView
 
-CONFIG_SOCKET_URL = "socket_url"
+CONFIG_BASE_URL = "base_url"
 
 
 class WeniWebChatType(ChannelType):
@@ -15,12 +15,12 @@ class WeniWebChatType(ChannelType):
     A Weni Web Chat channel
     """
 
-    code = "WWN"
+    code = "WWC"
     category = ChannelType.Category.API
 
     CONFIG_COMMUNITY_NAME = "community_name"
 
-    courier_url = r"^wwn/(?P<uuid>[a-z0-9\-]+)/receive"
+    courier_url = r"^wwc/(?P<uuid>[a-z0-9\-]+)/receive"
 
     name = "Weni Web Chat"
     # icon = "icon-vk"

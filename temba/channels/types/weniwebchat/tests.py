@@ -3,7 +3,7 @@ from django.urls import reverse
 from temba.tests import TembaTest
 
 from ...models import Channel
-from .type import CONFIG_SOCKET_URL
+from .type import CONFIG_BASE_URL
 
 
 class VKTypeTest(TembaTest):
@@ -17,11 +17,11 @@ class VKTypeTest(TembaTest):
 
         data = {
             "name": "Weni Testing",
-            "socket_url": "https://google.com",
+            "base_url": "https://google.com",
         }
 
         response = self.client.post(url, data, follow=True)
 
         channel = Channel.objects.get(name="Weni Testing")
 
-        self.assertEqual(channel.config[CONFIG_SOCKET_URL], "https://google.com")
+        self.assertEqual(channel.config[CONFIG_BASE_URL], "https://google.com")
