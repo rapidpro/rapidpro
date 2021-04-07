@@ -510,9 +510,10 @@ class FlowCRUDL(SmartCRUDL):
             return HttpResponseRedirect(reverse("flows.flow_editor", args=[copy.uuid]))
 
     class Update(AllowOnlyActiveFlowMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        class BaseUpdateFlowFormMixin:
-            def __init__(self, *args, **kwargs):
+        class BaseForm(BaseFlowForm):
+            def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+                self.user = user
 
                 # if we don't have a base language let them pick one (this is immutable)
                 if not self.instance.base_language:
@@ -524,16 +525,11 @@ class FlowCRUDL(SmartCRUDL):
                     self.fields["base_language"] = forms.ChoiceField(label=_("Language"), choices=choices)
 
             class Meta:
-                widgets = {"name": InputWidget(), "ignore_triggers": CheckboxWidget()}
+                model = Flow
+                fields = ("name",)
+                widgets = {"name": InputWidget()}
 
-        class SurveyFlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
-            expires_after_minutes = forms.ChoiceField(
-                label=_("Expire inactive contacts"),
-                help_text=_("When inactive contacts should be removed from the flow"),
-                initial=str(60 * 24 * 7),
-                choices=EXPIRES_CHOICES,
-                widget=SelectWidget(attrs={"widget_only": False}),
-            )
+        class SurveyForm(BaseForm):
             contact_creation = forms.ChoiceField(
                 label=_("Create a contact "),
                 help_text=_("Whether surveyor logins should be used as the contact for each run"),
@@ -541,21 +537,19 @@ class FlowCRUDL(SmartCRUDL):
                 widget=SelectWidget(attrs={"widget_only": False}),
             )
 
-            def __init__(self, user, *args, **kwargs):
+            def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.user = user
 
-                metadata = self.instance.metadata
-
-                contact_creation = self.fields["contact_creation"]
-                contact_creation.initial = metadata.get(Flow.CONTACT_CREATION, Flow.CONTACT_PER_RUN)
+                self.fields["contact_creation"].initial = self.instance.metadata.get(
+                    Flow.CONTACT_CREATION, Flow.CONTACT_PER_RUN
+                )
 
             class Meta:
                 model = Flow
-                fields = ("name", "contact_creation", "expires_after_minutes")
+                fields = ("name", "contact_creation")
                 widgets = {"name": InputWidget()}
 
-        class IVRFlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
+        class VoiceForm(BaseForm):
             ivr_retry = forms.ChoiceField(
                 label=_("Retry call if unable to connect"),
                 help_text=_("Retries call three times for the chosen interval"),
@@ -586,9 +580,8 @@ class FlowCRUDL(SmartCRUDL):
                 ),
             )
 
-            def __init__(self, user, *args, **kwargs):
+            def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.user = user
 
                 metadata = self.instance.metadata
 
@@ -612,7 +605,7 @@ class FlowCRUDL(SmartCRUDL):
                 fields = ("name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "ivr_retry")
                 widgets = {"name": InputWidget(), "ignore_triggers": CheckboxWidget()}
 
-        class FlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
+        class MessagingForm(BaseForm):
             keyword_triggers = forms.CharField(
                 required=False,
                 label=_("Global keyword triggers"),
@@ -637,9 +630,8 @@ class FlowCRUDL(SmartCRUDL):
                 widget=SelectWidget(attrs={"widget_only": False}),
             )
 
-            def __init__(self, user, *args, **kwargs):
+            def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.user = user
 
                 flow_triggers = Trigger.objects.filter(
                     org=self.instance.org,
@@ -659,16 +651,15 @@ class FlowCRUDL(SmartCRUDL):
 
         success_message = ""
         success_url = "uuid@flows.flow_editor"
+        form_classes = {
+            Flow.TYPE_MESSAGE: MessagingForm,
+            Flow.TYPE_VOICE: VoiceForm,
+            Flow.TYPE_SURVEY: SurveyForm,
+            Flow.TYPE_BACKGROUND: BaseForm,
+        }
 
         def get_form_class(self):
-            flow_type = self.object.flow_type
-
-            if flow_type == Flow.TYPE_VOICE:
-                return self.IVRFlowUpdateForm
-            elif flow_type == Flow.TYPE_SURVEY:
-                return self.SurveyFlowUpdateForm
-            else:
-                return self.FlowUpdateForm
+            return self.form_classes[self.object.flow_type]
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
