@@ -2144,7 +2144,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
                 "keyword_triggers": ["test", "help"],
                 "expires_after_minutes": 10,
                 "ignore_triggers": True,
-                "ivr_retry": 60,
+                "ivr_retry": 30,
             },
         )
 
@@ -2153,7 +2153,11 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(10, flow.expires_after_minutes)
         self.assertEqual({"test", "help"}, {t.keyword for t in flow.triggers.filter(is_active=True)})
         self.assertTrue(flow.ignore_triggers)
-        self.assertEqual(60, flow.metadata.get("ivr_retry"))
+        self.assertEqual(30, flow.metadata.get("ivr_retry"))
+
+        # check we still have that value after saving a new revision
+        flow.save_revision(self.admin, flow.get_definition())
+        self.assertEqual(30, flow.metadata["ivr_retry"])
 
     def test_update_surveyor_flow(self):
         flow = self.get_flow("media_survey")
