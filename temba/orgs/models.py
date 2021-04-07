@@ -3,6 +3,7 @@ import itertools
 import logging
 import operator
 import os
+from abc import ABCMeta
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
@@ -63,6 +64,44 @@ ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY = "org:%d:cache:low_credits_threshold"
 
 ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
+
+
+class IntegrationType(metaclass=ABCMeta):
+    """
+    IntegrationType is our abstract base type for third party integrations.
+    """
+
+    class Category(Enum):
+        EMAIL = 1
+        AIRTIME = 2
+
+    # the verbose name for this type
+    name = None
+
+    # the short code for this type (< 16 chars, lowercase)
+    slug = None
+
+    # the icon to show for this type
+    icon = "icon-plug"
+
+    category = None
+
+    def is_connected(self, org) -> bool:
+        """Returns whether the given org is connected to this integration"""
+        pass
+
+    def disconnect(self, org, user):
+        """Disconnects this integration on the given org"""
+        pass
+
+    @classmethod
+    def get_all(cls, category: Category) -> list:
+        """
+        Returns all possible types with the given category
+        """
+        from .integrations import TYPES
+
+        return [t for t in TYPES.values() if t.category == category]
 
 
 class OrgRole(Enum):
@@ -397,6 +436,13 @@ class Org(SmartModel):
         Gets whether this org has an active ticketer configured
         """
         return self.ticketers.filter(is_active=True)
+
+    def get_integrations(self, category: IntegrationType.Category) -> list:
+        """
+        Returns the connected integrations on this org of the given category
+        """
+
+        return [t for t in IntegrationType.get_all(category) if t.is_connected(self)]
 
     def clear_credit_cache(self):
         """
@@ -832,12 +878,6 @@ class Org(SmartModel):
         if self.config:
             return self.config.get(Org.CONFIG_TWILIO_SID) and self.config.get(Org.CONFIG_TWILIO_TOKEN)
         return False
-
-    def is_connected_to_dtone(self) -> bool:
-        if not self.config:
-            return False
-
-        return bool(self.config.get(Org.CONFIG_DTONE_KEY) and self.config.get(Org.CONFIG_DTONE_SECRET))
 
     def remove_vonage_account(self, user):
         if self.config:

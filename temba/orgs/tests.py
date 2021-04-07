@@ -37,7 +37,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
-from temba.orgs.models import BackupToken, Debit, OrgActivity
+from temba.orgs.models import BackupToken, Debit, IntegrationType, OrgActivity
 from temba.orgs.tasks import suspend_topup_orgs_task
 from temba.request_logs.models import HTTPLog
 from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers, mock_mailroom
@@ -2609,22 +2609,20 @@ class OrgTest(TembaTest):
         self.assertContains(response, "Enable Prometheus")
 
     def test_dtone_connect(self):
-        org = self.org
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.get_integrations(IntegrationType.Category.AIRTIME))
 
-        org.refresh_from_db()
-        self.assertFalse(org.is_connected_to_dtone())
+        self.org.connect_dtone("key123", "sesame", self.admin)
+        self.org.refresh_from_db()
 
-        org.connect_dtone("key123", "sesame", self.admin)
-        org.refresh_from_db()
+        self.assertTrue(self.org.get_integrations(IntegrationType.Category.AIRTIME))
+        self.assertEqual(self.org.modified_by, self.admin)
 
-        self.assertTrue(org.is_connected_to_dtone())
-        self.assertEqual(org.modified_by, self.admin)
+        self.org.remove_dtone_account(self.admin)
+        self.org.refresh_from_db()
 
-        org.remove_dtone_account(self.admin)
-        org.refresh_from_db()
-
-        self.assertFalse(org.is_connected_to_dtone())
-        self.assertEqual(org.modified_by, self.admin)
+        self.assertFalse(self.org.get_integrations(IntegrationType.Category.AIRTIME))
+        self.assertEqual(self.org.modified_by, self.admin)
 
     @patch("temba.airtime.dtone.DTOneClient.get_balances")
     def test_dtone_account(self, mock_get_balances):
@@ -2646,7 +2644,7 @@ class OrgTest(TembaTest):
         response = self.client.post(dtone_url, {"api_key": "key123", "api_secret": "wrong", "disconnect": "false"})
 
         self.assertContains(response, "Your DT One API key and secret seem invalid.")
-        self.assertFalse(self.org.is_connected_to_dtone())
+        self.assertFalse(self.org.get_integrations(IntegrationType.Category.AIRTIME))
 
         # simulate credentials being accepted
         mock_get_balances.side_effect = None
@@ -2657,7 +2655,7 @@ class OrgTest(TembaTest):
 
         # DT One should now be connected
         self.org.refresh_from_db()
-        self.assertTrue(self.org.is_connected_to_dtone())
+        self.assertTrue(self.org.get_integrations(IntegrationType.Category.AIRTIME))
         self.assertEqual(self.org.config["dtone_key"], "key123")
         self.assertEqual(self.org.config["dtone_secret"], "sesame")
 
@@ -2675,7 +2673,7 @@ class OrgTest(TembaTest):
         self.assertNoFormErrors(response)
 
         self.org.refresh_from_db()
-        self.assertFalse(self.org.is_connected_to_dtone())
+        self.assertFalse(self.org.get_integrations(IntegrationType.Category.AIRTIME))
         self.assertNotIn("dtone_key", self.org.config)
         self.assertNotIn("dtone_secret", self.org.config)
 

@@ -1085,6 +1085,10 @@ CLASSIFIER_TYPES = [
     "temba.classifiers.types.bothub.BothubType",
 ]
 
+INTEGRATION_TYPES = [
+    "temba.orgs.integrations.dtone.DTOneType",
+]
+
 TICKETER_TYPES = [
     "temba.tickets.types.internal.InternalType",
     "temba.tickets.types.mailgun.MailgunType",
