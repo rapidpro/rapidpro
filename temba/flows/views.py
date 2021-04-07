@@ -436,10 +436,6 @@ class FlowCRUDL(SmartCRUDL):
             analytics.track(self.request.user.username, "temba.flow_created", dict(name=obj.name))
             org = self.request.user.get_org()
 
-            # if we don't have a language, use base
-            if not obj.base_language:  # pragma: needs cover
-                obj.base_language = "base"
-
             # default expiration is a week
             expires_after_minutes = Flow.DEFAULT_EXPIRES_AFTER
             if obj.flow_type == Flow.TYPE_VOICE:
@@ -514,15 +510,6 @@ class FlowCRUDL(SmartCRUDL):
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.user = user
-
-                # if we don't have a base language let them pick one (this is immutable)
-                if not self.instance.base_language:
-                    choices = [("base", "No Preference")]
-                    choices += [
-                        (lang.iso_code, lang.name)
-                        for lang in self.instance.org.languages.all().order_by("orgs", "name")
-                    ]
-                    self.fields["base_language"] = forms.ChoiceField(label=_("Language"), choices=choices)
 
             class Meta:
                 model = Flow
