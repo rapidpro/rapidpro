@@ -3277,50 +3277,10 @@ class ContactTest(TembaTest):
         self.set_contact_field(self.joe, "cat", "")
         self.joe.refresh_from_db()
 
-        # we try a bit harder if we know it is a location field
-        state_uuid = str(
-            ContactField.get_or_create(self.org, self.user, "state", "State", value_type=ContactField.TYPE_STATE).uuid
-        )
-        self.set_contact_field(self.joe, "state", "i live in eastern province")
-        self.joe.refresh_from_db()
-        self.assertEqual(
-            self.joe.fields, {state_uuid: {"text": "i live in eastern province", "state": "Rwanda > Eastern Province"}}
-        )
-
-        # ok, let's test our other boundary levels
-        district_uuid = str(
-            ContactField.get_or_create(
-                self.org, self.user, "district", "District", value_type=ContactField.TYPE_DISTRICT
-            ).uuid
-        )
-        ward_uuid = str(
-            ContactField.get_or_create(self.org, self.user, "ward", "Ward", value_type=ContactField.TYPE_WARD).uuid
-        )
-        self.set_contact_field(self.joe, "district", "gatsibo")
-        self.set_contact_field(self.joe, "ward", "kageyo")
-        self.joe.refresh_from_db()
-
-        self.assertEqual(
-            self.joe.fields,
-            {
-                state_uuid: {"text": "i live in eastern province", "state": "Rwanda > Eastern Province"},
-                district_uuid: {
-                    "text": "gatsibo",
-                    "state": "Rwanda > Eastern Province",
-                    "district": "Rwanda > Eastern Province > Gatsibo",
-                },
-                ward_uuid: {
-                    "text": "kageyo",
-                    "state": "Rwanda > Eastern Province",
-                    "district": "Rwanda > Eastern Province > Gatsibo",
-                    "ward": "Rwanda > Eastern Province > Gatsibo > Kageyo",
-                },
-            },
-        )
-
-        # change our state to an invalid field value type
-        ContactField.user_fields.filter(key="state").update(value_type="Z")
-        bad_field = ContactField.user_fields.get(key="state")
+        # change a field to an invalid field value type
+        self.set_contact_field(self.joe, "cat", "xx")
+        ContactField.user_fields.filter(key="cat").update(value_type="Z")
+        bad_field = ContactField.user_fields.get(key="cat")
 
         with self.assertRaises(KeyError):
             self.joe.get_field_serialized(bad_field)

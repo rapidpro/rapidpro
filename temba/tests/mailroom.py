@@ -14,7 +14,7 @@ from django.utils import timezone
 
 from temba.campaigns.models import CampaignEvent, EventFire
 from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN
-from temba.locations.models import AdminBoundary, BoundaryAlias
+from temba.locations.models import AdminBoundary
 from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
@@ -482,10 +482,7 @@ def parse_number(s):
 
 def parse_location(org, location_string, level, parent=None):
     """
-    Attempts to parse the passed in location string at the passed in level. This does various tokenizing
-    of the string to try to find the best possible match.
-
-    @returns Iterable of matching boundaries
+    Simplified version of mailroom's location parsing
     """
     # no country? bail
     if not org.country_id or not isinstance(location_string, str):
@@ -508,23 +505,6 @@ def parse_location(org, location_string, level, parent=None):
         bare_name = re.sub(r"\W+", " ", location_string, flags=re.UNICODE).strip()
         boundary = find_boundary_by_name(org, bare_name, level, parent)
 
-    # if we didn't find it, tokenize it
-    if not boundary:
-        words = re.split(r"\W+", location_string.lower(), flags=re.UNICODE)
-        if len(words) > 1:
-            for word in words:
-                boundary = find_boundary_by_name(org, word, level, parent)
-                if boundary:
-                    break
-
-            if not boundary:
-                # still no boundary? try n-gram of 2
-                for i in range(0, len(words) - 1):
-                    bigram = " ".join(words[i : i + 2])
-                    boundary = find_boundary_by_name(org, bigram, level, parent)
-                    if boundary:  # pragma: needs cover
-                        break
-
     return boundary
 
 
@@ -539,36 +519,13 @@ def parse_location_path(org, location_string):
     )
 
 
-def generate_location_query(org, name, level, is_alias=False):
-    if is_alias:
-        query = dict(name__iexact=name, boundary__level=level)
-        query["__".join(["boundary"] + ["parent"] * level)] = org.country
-    else:
-        query = dict(name__iexact=name, level=level)
-        query["__".join(["parent"] * level)] = org.country
-
-    return query
-
-
 def find_boundary_by_name(org, name, level, parent):
     # first check if we have a direct name match
     if parent:
         boundary = parent.children.filter(name__iexact=name, level=level)
     else:
-        query = org.generate_location_query(name, level)
+        query = dict(name__iexact=name, level=level)
+        query["__".join(["parent"] * level)] = org.country
         boundary = AdminBoundary.objects.filter(**query)
-
-    # not found by name, try looking up by alias
-    if not boundary:
-        if parent:
-            alias = BoundaryAlias.objects.filter(
-                name__iexact=name, boundary__level=level, boundary__parent=parent
-            ).first()
-        else:
-            query = org.generate_location_query(name, level, True)
-            alias = BoundaryAlias.objects.filter(**query).first()
-
-        if alias:
-            boundary = [alias.boundary]
 
     return boundary
