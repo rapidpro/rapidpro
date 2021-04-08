@@ -2233,13 +2233,9 @@ class ContactImport(SmartModel):
                     self.org, self.created_by, mapping["key"], label=mapping["name"], value_type=mapping["value_type"]
                 )
 
-        # TODO move this to the UI
-        self.group_name = ContactGroup.get_unique_name(self.org, self._default_group_name())
-        self.save(update_fields=("group_name",))
-
-        # if user wants contacts added to a group, find or create it
-        if self.group_name:
-            self.group = ContactGroup.get_or_create(self.org, self.created_by, name=self.group_name)
+        # if user wants contacts added to a new group, create it
+        if self.group_name and not self.group:
+            self.group = ContactGroup.create_static(self.org, self.created_by, name=self.group_name)
             self.save(update_fields=("group",))
 
         # CSV reader expects str stream so wrap file
@@ -2451,7 +2447,7 @@ class ContactImport(SmartModel):
 
         return False
 
-    def _default_group_name(self):
+    def get_default_group_name(self):
         name = Path(self.original_filename).stem.title()
         name = name.replace("_", " ").replace("-", " ").strip()  # convert _- to spaces
         name = regex.sub(r"[^\w\s]", "", name)  # remove any non-word or non-space chars
@@ -2461,7 +2457,7 @@ class ContactImport(SmartModel):
         elif len(name) < 4:  # default if too short
             name = "Import"
 
-        return name
+        return ContactGroup.get_unique_name(self.org, name)
 
 
 class ContactImportBatch(models.Model):

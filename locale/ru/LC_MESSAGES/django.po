@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-05 16:46+0000\n"
+"POT-Creation-Date: 2021-04-06 21:32+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2448,9 +2448,18 @@ msgstr "Обновить"
 msgid "Contact field uses"
 msgstr "Использование поля контактов"
 
-#, python-format
-msgid "This workspace has reached the limit of %(count)d groups. You must delete existing ones before you can perform an import."
+#, fuzzy
+#| msgid "New Group..."
+msgid "new group"
+msgstr "Новая Группа..."
+
+msgid "existing group"
 msgstr ""
+
+#, fuzzy
+#| msgid "Select Group"
+msgid "Select a group"
+msgstr "Выбрать Группу"
 
 #, python-format
 msgid "Field name for '%(header)s' can't be empty."
@@ -2466,6 +2475,23 @@ msgstr ""
 
 #, python-format
 msgid "Field name '%(name)s' is repeated."
+msgstr ""
+
+#, fuzzy
+#| msgid "POST Required"
+msgid "Required."
+msgstr "Требуется POST"
+
+#, fuzzy
+#| msgid "Isn't a valid name"
+msgid "Invalid group name."
+msgstr "Не является допустимым именем"
+
+msgid "Already exists."
+msgstr ""
+
+#, python-format
+msgid "This workspace has reached the limit of %(count)d groups."
 msgstr ""
 
 msgid "Phone Call"
@@ -5725,6 +5751,16 @@ msgstr ""
 msgid "a <strong>%(scheme)s</strong> URN"
 msgstr ""
 
+#, fuzzy
+#| msgid "contacts"
+msgid "Add contacts to"
+msgstr "контакты"
+
+#, fuzzy
+#| msgid "Billed"
+msgid "called"
+msgstr "Платно"
+
 msgid "Contact Import"
 msgstr ""
 
@@ -6784,28 +6820,6 @@ msgstr ""
 msgid "Invite New Users"
 msgstr ""
 
-#, fuzzy, python-format
-#| msgid "A connection to a Twilio account is required"
-msgid "Connected to Vonage account with API key %(api_key)s."
-msgstr "Требуется подключение к учетной записи Twilio "
-
-#, fuzzy, python-format
-#| msgid "If you no longer want it connected, you can"
-msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Vonage account</a>."
-msgstr "Если Вы больше не хотите, чтобы она была подключена, Вы можете"
-
-#, fuzzy
-#| msgid "Disconnect DT One"
-msgid "Disconnect Vonage"
-msgstr "Отключить DT One"
-
-msgid "Disconnecting your Vonage account will also remove any Vonage channels connected to it. Are you sure you want to proceed?"
-msgstr ""
-
-#, python-format
-msgid "To connect your Vonage Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"vonage\" href=\"%(settings_url)s\">Vonage settings</a> page in the API Settings section."
-msgstr ""
-
 msgid "You are currently on the {{org.plan}} plan."
 msgstr ""
 
@@ -6942,6 +6956,28 @@ msgid "This workspace has been verified"
 msgstr ""
 
 msgid "This workspace has been scheduled for deletion"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "A connection to a Twilio account is required"
+msgid "Connected to Vonage account with API key %(api_key)s."
+msgstr "Требуется подключение к учетной записи Twilio "
+
+#, fuzzy, python-format
+#| msgid "If you no longer want it connected, you can"
+msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Vonage account</a>."
+msgstr "Если Вы больше не хотите, чтобы она была подключена, Вы можете"
+
+#, fuzzy
+#| msgid "Disconnect DT One"
+msgid "Disconnect Vonage"
+msgstr "Отключить DT One"
+
+msgid "Disconnecting your Vonage account will also remove any Vonage channels connected to it. Are you sure you want to proceed?"
+msgstr ""
+
+#, python-format
+msgid "To connect your Vonage Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"vonage\" href=\"%(settings_url)s\">Vonage settings</a> page in the API Settings section."
 msgstr ""
 
 msgid "Top Ups"

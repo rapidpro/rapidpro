@@ -931,50 +931,6 @@ class OrgTest(TembaTest):
         urn = ContactURN.get_or_create(self.org, joe, "tel:+250788383383")
         self.assertEqual(short_code, self.org.get_channel_for_role(Channel.ROLE_SEND, None, urn))
 
-    def test_get_channel_countries(self):
-        self.assertEqual(self.org.get_channel_countries(), [])
-
-        self.org.connect_dtone("mylogin", "api_token", self.admin)
-
-        self.assertEqual(
-            self.org.get_channel_countries(),
-            [dict(code="RW", name="Rwanda", currency_name="Rwanda Franc", currency_code="RWF")],
-        )
-
-        Channel.create(
-            self.org, self.user, "US", "A", None, "+12001112222", secret="asdf", config={Channel.CONFIG_FCM_ID: "1234"}
-        )
-
-        self.assertEqual(
-            self.org.get_channel_countries(),
-            [
-                dict(code="RW", name="Rwanda", currency_name="Rwanda Franc", currency_code="RWF"),
-                dict(code="US", name="United States", currency_name="US Dollar", currency_code="USD"),
-            ],
-        )
-
-        Channel.create(self.org, self.user, None, "TT", name="Twitter Channel", address="billy_bob", role="SR")
-
-        self.assertEqual(
-            self.org.get_channel_countries(),
-            [
-                dict(code="RW", name="Rwanda", currency_name="Rwanda Franc", currency_code="RWF"),
-                dict(code="US", name="United States", currency_name="US Dollar", currency_code="USD"),
-            ],
-        )
-
-        Channel.create(
-            self.org, self.user, "US", "A", None, "+12001113333", secret="qwer", config={Channel.CONFIG_FCM_ID: "qwer"}
-        )
-
-        self.assertEqual(
-            self.org.get_channel_countries(),
-            [
-                dict(code="RW", name="Rwanda", currency_name="Rwanda Franc", currency_code="RWF"),
-                dict(code="US", name="United States", currency_name="US Dollar", currency_code="USD"),
-            ],
-        )
-
     def test_edit(self):
         # use a manager now
         self.login(self.admin)
@@ -5459,43 +5415,6 @@ class StripeCreditsTest(TembaTest):
         # should have a different customer now
         org = Org.objects.get(id=self.org.id)
         self.assertEqual("stripe-cust-2", org.stripe_customer)
-
-
-class ParsingTest(TembaTest):
-    def test_parse_location_path(self):
-        country = AdminBoundary.create(osm_id="192787", name="Nigeria", level=0)
-        lagos = AdminBoundary.create(osm_id="3718182", name="Lagos", level=1, parent=country)
-        self.org.country = country
-
-        self.assertEqual(lagos, self.org.parse_location_path("Nigeria > Lagos"))
-        self.assertEqual(lagos, self.org.parse_location_path("Nigeria > Lagos "))
-        self.assertEqual(lagos, self.org.parse_location_path(" Nigeria > Lagos "))
-
-    def test_parse_location(self):
-        country = AdminBoundary.create(osm_id="192787", name="Nigeria", level=0)
-        lagos = AdminBoundary.create(osm_id="3718182", name="Lagos", level=1, parent=country)
-        self.org.country = None
-
-        # no country, no parsing
-        self.assertEqual([], list(self.org.parse_location("Lagos", AdminBoundary.LEVEL_STATE)))
-
-        self.org.country = country
-
-        self.assertEqual([lagos], list(self.org.parse_location("Nigeria > Lagos", AdminBoundary.LEVEL_STATE)))
-        self.assertEqual([lagos], list(self.org.parse_location("Lagos", AdminBoundary.LEVEL_STATE)))
-        self.assertEqual([lagos], list(self.org.parse_location("Lagos City", AdminBoundary.LEVEL_STATE)))
-
-    def test_parse_number(self):
-        self.assertEqual(self.org.parse_number("Not num"), None)
-        self.assertEqual(self.org.parse_number("00.123"), Decimal("0.123"))
-        self.assertEqual(self.org.parse_number("6e33"), None)
-        self.assertEqual(self.org.parse_number("6e5"), Decimal("600000"))
-        self.assertEqual(self.org.parse_number("9999999999999999999999999"), None)
-        self.assertEqual(self.org.parse_number(""), None)
-        self.assertEqual(self.org.parse_number("NaN"), None)
-        self.assertEqual(self.org.parse_number("Infinity"), None)
-
-        self.assertRaises(AssertionError, self.org.parse_number, 0.001)
 
 
 class OrgActivityTest(TembaTest):
