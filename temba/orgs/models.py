@@ -12,7 +12,6 @@ from urllib.parse import quote, urlencode, urlparse
 import pycountry
 import pyotp
 import pytz
-import regex
 import stripe
 import stripe.error
 from django_redis import get_redis_connection
@@ -37,10 +36,9 @@ from django.utils.translation import ugettext_lazy as _
 from temba import mailroom
 from temba.archives.models import Archive
 from temba.bundles import get_brand_bundles, get_bundle_map
-from temba.locations.models import AdminBoundary, BoundaryAlias
+from temba.locations.models import AdminBoundary
 from temba.utils import chunk_list, json, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
-from temba.utils.currencies import currency_for_country
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, JSONField, SquashableModel
@@ -712,25 +710,6 @@ class Org(SmartModel):
         """
         return self.resthooks.filter(is_active=True).order_by("slug")
 
-    def get_channel_countries(self):
-        channel_countries = []
-
-        if not self.is_connected_to_dtone():
-            return channel_countries
-
-        channel_country_codes = self.channels.filter(is_active=True).exclude(country=None)
-        channel_country_codes = set(channel_country_codes.values_list("country", flat=True))
-
-        for country_code in channel_country_codes:
-            country_obj = pycountry.countries.get(alpha_2=country_code)
-            country_name = country_obj.name
-            currency = currency_for_country(country_code)
-            channel_countries.append(
-                dict(code=country_code, name=country_name, currency_code=currency.alpha_3, currency_name=currency.name)
-            )
-
-        return sorted(channel_countries, key=lambda k: k["name"])
-
     @classmethod
     def get_possible_countries(cls):
         return AdminBoundary.objects.filter(level=0).order_by("name")
@@ -981,117 +960,6 @@ class Org(SmartModel):
         formats = self.get_datetime_formats()
         format = formats[1] if show_time else formats[0]
         return datetime_to_str(d, format, self.timezone)
-
-    def parse_number(self, s):
-        assert isinstance(s, str)
-
-        parsed = None
-        try:
-            parsed = Decimal(s)
-
-            if not parsed.is_finite() or parsed > Decimal("999999999999999999999999"):
-                parsed = None
-        except Exception:
-            pass
-
-        return parsed
-
-    def generate_location_query(self, name, level, is_alias=False):
-        if is_alias:
-            query = dict(name__iexact=name, boundary__level=level)
-            query["__".join(["boundary"] + ["parent"] * level)] = self.country
-        else:
-            query = dict(name__iexact=name, level=level)
-            query["__".join(["parent"] * level)] = self.country
-
-        return query
-
-    def find_boundary_by_name(self, name, level, parent):
-        """
-        Finds the boundary with the passed in name or alias on this organization at the stated level.
-
-        @returns Iterable of matching boundaries
-        """
-        # first check if we have a direct name match
-        if parent:
-            boundary = parent.children.filter(name__iexact=name, level=level)
-        else:
-            query = self.generate_location_query(name, level)
-            boundary = AdminBoundary.objects.filter(**query)
-
-        # not found by name, try looking up by alias
-        if not boundary:
-            if parent:
-                alias = BoundaryAlias.objects.filter(
-                    name__iexact=name, boundary__level=level, boundary__parent=parent
-                ).first()
-            else:
-                query = self.generate_location_query(name, level, True)
-                alias = BoundaryAlias.objects.filter(**query).first()
-
-            if alias:
-                boundary = [alias.boundary]
-
-        return boundary
-
-    def parse_location_path(self, location_string):
-        """
-        Parses a location path into a single location, returning None if not found
-        """
-        # while technically we could resolve a full boundary path without a country, our policy is that
-        # if you don't have a country set then you don't have locations
-        return (
-            AdminBoundary.objects.filter(path__iexact=location_string.strip()).first()
-            if self.country_id and isinstance(location_string, str)
-            else None
-        )
-
-    def parse_location(self, location_string, level, parent=None):
-        """
-        Attempts to parse the passed in location string at the passed in level. This does various tokenizing
-        of the string to try to find the best possible match.
-
-        @returns Iterable of matching boundaries
-        """
-        # no country? bail
-        if not self.country_id or not isinstance(location_string, str):
-            return []
-
-        boundary = None
-
-        # try it as a path first if it looks possible
-        if level == AdminBoundary.LEVEL_COUNTRY or AdminBoundary.PATH_SEPARATOR in location_string:
-            boundary = self.parse_location_path(location_string)
-            if boundary:
-                boundary = [boundary]
-
-        # try to look up it by full name
-        if not boundary:
-            boundary = self.find_boundary_by_name(location_string, level, parent)
-
-        # try removing punctuation and try that
-        if not boundary:
-            bare_name = regex.sub(r"\W+", " ", location_string, flags=regex.UNICODE | regex.V0).strip()
-            boundary = self.find_boundary_by_name(bare_name, level, parent)
-
-        # if we didn't find it, tokenize it
-        if not boundary:
-            words = regex.split(r"\W+", location_string.lower(), flags=regex.UNICODE | regex.V0)
-            if len(words) > 1:
-                for word in words:
-                    boundary = self.find_boundary_by_name(word, level, parent)
-                    if boundary:
-                        break
-
-                if not boundary:
-                    # still no boundary? try n-gram of 2
-                    for i in range(0, len(words) - 1):
-                        bigram = " ".join(words[i : i + 2])
-                        boundary = self.find_boundary_by_name(bigram, level, parent)
-                        if boundary:  # pragma: needs cover
-                            break
-
-        return boundary
 
     def get_users_with_role(self, role: OrgRole):
         """

@@ -9,7 +9,6 @@ from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import intercom.errors
-import pycountry
 import pytz
 from django_redis import get_redis_connection
 from openpyxl import load_workbook
@@ -47,7 +46,6 @@ from . import (
 )
 from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from .celery import nonoverlapping_task
-from .currencies import currency_for_country
 from .dates import datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
@@ -922,26 +920,6 @@ class ExportTest(TembaTest):
         self.assertEqual(32 + 16, len(list(sheet2.columns)))
 
         os.unlink(temp_file.name)
-
-
-class CurrencyTest(TembaTest):
-    def test_currencies(self):
-
-        self.assertEqual(currency_for_country("US").alpha_3, "USD")
-        self.assertEqual(currency_for_country("EC").alpha_3, "USD")
-        self.assertEqual(currency_for_country("FR").alpha_3, "EUR")
-        self.assertEqual(currency_for_country("DE").alpha_3, "EUR")
-        self.assertEqual(currency_for_country("YE").alpha_3, "YER")
-        self.assertEqual(currency_for_country("AF").alpha_3, "AFN")
-
-        for country in list(pycountry.countries):
-
-            currency = currency_for_country(country.alpha_2)
-            if currency is None:
-                self.fail(f"Country missing currency: {country}")
-
-        # a country that does not exist
-        self.assertIsNone(currency_for_country("XX"))
 
 
 class MiddlewareTest(TembaTest):
