@@ -4383,9 +4383,13 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
         collection = self.get_collection_full_name(org=org, collection=collection_name)
         field_types = self.get_collection_fields(collection=collection)
         tz, dayfirst = org.timezone, org.get_dayfirst()
-        data_to_replace: dict = self.request.data.get("item")
+        data_to_replace: dict = self.request.data.get("item", {})
 
-        error = self.validate_field_names(data_to_replace.keys())
+        try:
+            error = self.validate_field_names(data_to_replace.keys())
+        except AttributeError:
+            error = _("The 'item' property has been not provided or has wrong format.")
+
         if error:
             return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -4583,7 +4587,7 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
         )
 
 
-class ContactVariablesReportEndpoint(BaseAPIView):
+class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     """
     This endpoint allows you to generate a report based on contact fields
 
@@ -4591,7 +4595,11 @@ class ContactVariablesReportEndpoint(BaseAPIView):
 
     * **search_query** - allows to filter contact by search request (equivalent of search field on contacts page)
     * **flow** - UUID of flow to select only contacts that have runs in that flow
+    * **group** - UUID or Name of the contact group to select only contacts that belong to that group
     * **exclude** - UUID or Name of contact group to select only contacts that not belong to that group
+    * **channel** - UUID or Name of the channel to select only contacts that belong to that channel
+    * **before** - Date, excludes all contacts from the report that were modified later a certain date
+    * **after** - Date, excludes all contacts from the report that were modified earlier a certain date
     * **variables** - the values configuration to be included into report
 
     Example:
@@ -4657,12 +4665,43 @@ class ContactVariablesReportEndpoint(BaseAPIView):
 
         # contact list views don't use regular field searching but use more complex contact searching
         search_query = self.request.GET.get("search_query", self.request.data.get("search_query", ""))
-        exclude = self.request.GET.get("exclude", self.request.data.get("exclude"))
-        if exclude:
-            if is_uuid_valid(exclude):
-                contacts = contacts.exclude(all_groups__uuid=exclude)
-            else:
-                search_query += f'{" AND " if search_query else ""}group != "{exclude}"'
+
+        def contacts_name_uuid_filter(args):
+            nonlocal contacts
+            field_name, uuid_key, name_key, filter_type = args
+            values_fo_filter_by = self.request__get_separated_names_and_uuids(field_name)
+            if values_fo_filter_by["uuids"]:
+                contacts = getattr(contacts, filter_type)(**{f"{uuid_key}__in": values_fo_filter_by["uuids"]})
+            if values_fo_filter_by["names"]:
+                filters_by_name = Q()
+                for filter_value in values_fo_filter_by["names"]:
+                    filters_by_name |= Q(**{f"{name_key}__icontains": filter_value})
+                contacts = getattr(contacts, filter_type)(filters_by_name)
+
+            if any(values_fo_filter_by.values()):
+                self.applied_filters[field_name] = dict(item for item in values_fo_filter_by.items() if item[1])
+
+        filtering_params = (
+            ("channel", "urns__channel__uuid", "urns__channel__name", "filter"),
+            ("group", "all_groups__uuid", "all_groups__name", "filter"),
+            ("exclude", "all_groups__uuid", "all_groups__name", "exclude"),
+        )
+        for configuration in filtering_params:
+            contacts_name_uuid_filter(configuration)
+
+        time_filters = Q()
+        before = self.request.data.get("before", self.request.GET.get("before", ""))
+        after = self.request.data.get("after", self.request.GET.get("after", ""))
+        if before:
+            before = org.parse_datetime(before)
+            time_filters &= Q(modified_on__lte=before)
+            self.applied_filters["before"] = before
+        if after:
+            after = org.parse_datetime(after)
+            time_filters &= Q(modified_on__gte=after)
+            self.applied_filters["after"] = after
+        if time_filters:
+            contacts = contacts.filter(time_filters)
 
         if search_query:
             try:
