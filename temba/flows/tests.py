@@ -1291,7 +1291,6 @@ class FlowTest(TembaTest):
                 "name": "Flow With Keyword Triggers",
                 "keyword_triggers": ["it", "changes", "everything"],
                 "expires_after_minutes": 60 * 12,
-                "base_language": "base",
             },
         )
         self.assertEqual(response.status_code, 302)
@@ -1342,7 +1341,7 @@ class FlowTest(TembaTest):
         field_names = [field for field in response.context_data["form"].fields]
         self.assertEqual(
             field_names,
-            ["name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "base_language", "loc"],
+            ["name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "loc"],
         )
 
         # update flow triggers
@@ -1350,7 +1349,6 @@ class FlowTest(TembaTest):
         post_data["name"] = "Flow With Keyword Triggers"
         post_data["keyword_triggers"] = ["it", "join"]
         post_data["expires_after_minutes"] = 60 * 12
-        post_data["base_language"] = "base"
         response = self.client.post(reverse("flows.flow_update", args=[flow.pk]), post_data, follow=True)
 
         flow_with_keywords = Flow.objects.get(name=post_data["name"])
@@ -1972,70 +1970,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[flow3.uuid]))
         self.assertEqual(response.context["object"].triggers.count(), 3)
 
-        # update expiration for voice flow, and test if form has expected fields
-        post_data = dict()
-        response = self.client.get(reverse("flows.flow_update", args=[voice_flow.pk]), post_data, follow=True)
-
-        field_names = [field for field in response.context_data["form"].fields]
-        self.assertEqual(
-            field_names, ["name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "ivr_retry", "loc"]
-        )
-
-        choices = response.context["form"].fields["expires_after_minutes"].choices
-        self.assertEqual(7, len(choices))
-        self.assertEqual(1, choices[0][0])
-        self.assertEqual(2, choices[1][0])
-        self.assertEqual(3, choices[2][0])
-        self.assertEqual(4, choices[3][0])
-        self.assertEqual(5, choices[4][0])
-        self.assertEqual(10, choices[5][0])
-        self.assertEqual(15, choices[6][0])
-
-        # try updating with an sms type expiration to make sure it's restricted for voice flows
-        post_data["expires_after_minutes"] = 60 * 12
-        post_data["ivr_retry"] = 30
-        post_data["name"] = "Voice Flow"
-        response = self.client.post(reverse("flows.flow_update", args=[voice_flow.pk]), post_data, follow=True)
-
-        self.assertFormError(
-            response,
-            "form",
-            "expires_after_minutes",
-            "Select a valid choice. 720 is not one of the available choices.",
-        )
-
-        voice_flow.refresh_from_db()
-        self.assertEqual(5, voice_flow.expires_after_minutes)
-
-        # now do a valid value for voice
-        post_data["expires_after_minutes"] = 3
-        post_data["ivr_retry"] = 30
-        response = self.client.post(reverse("flows.flow_update", args=[voice_flow.pk]), post_data, follow=True)
-
-        voice_flow.refresh_from_db()
-        self.assertEqual(3, voice_flow.expires_after_minutes)
-
-        # invalid value for ivr_retry
-        post_data["expires_after_minutes"] = 3
-        post_data["ivr_retry"] = 123
-        response = self.client.post(reverse("flows.flow_update", args=[voice_flow.pk]), post_data, follow=True)
-
-        self.assertFormError(
-            response, "form", "ivr_retry", "Select a valid choice. 123 is not one of the available choices."
-        )
-
-        # now do a valid value for ivr_retry
-        post_data["expires_after_minutes"] = 3
-        post_data["ivr_retry"] = 1440
-        response = self.client.post(reverse("flows.flow_update", args=[voice_flow.pk]), post_data, follow=True)
-
-        voice_flow.refresh_from_db()
-        self.assertEqual(voice_flow.metadata["ivr_retry"], 1440)
-
-        # check we still have that value after saving a new revision
-        voice_flow.save_revision(self.admin, voice_flow.get_definition())
-        self.assertEqual(voice_flow.metadata["ivr_retry"], 1440)
-
         # update flow triggers, and test if form has expected fields
         post_data = dict()
         response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data, follow=True)
@@ -2062,7 +1996,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data)
         self.assertTrue(response.context["form"].errors)
 
-        # update flow with unformated keyword
+        # update flow with unformatted keyword
         post_data["keyword_triggers"] = ["it", "changes", "everything", "unique"]
         response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data)
         self.assertTrue(response.context["form"].errors)
@@ -2083,31 +2017,13 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(flow3.triggers.filter(is_archived=False).exclude(groups=None).count(), 1)
         self.assertEqual(flow3.triggers.filter(is_archived=False).exclude(groups=None)[0].keyword, "everything")
 
-        # make us a survey flow
-        flow3.flow_type = Flow.TYPE_SURVEY
-        flow3.save()
-
-        # we should get the contact creation option, and test if form has expected fields
-        response = self.client.get(reverse("flows.flow_update", args=[flow3.pk]))
-        self.assertContains(response, "contact_creation")
-
-        field_names = [field for field in response.context_data["form"].fields]
-        self.assertEqual(field_names, ["name", "contact_creation", "expires_after_minutes", "loc"])
-
-        # set contact creation to be per login
-        del post_data["keyword_triggers"]
-        post_data["contact_creation"] = Flow.CONTACT_PER_LOGIN
-        response = self.client.post(reverse("flows.flow_update", args=[flow3.pk]), post_data)
-        flow3.refresh_from_db()
-        self.assertEqual(Flow.CONTACT_PER_LOGIN, flow3.metadata.get("contact_creation"))
-
         # can see results for a flow
         response = self.client.get(reverse("flows.flow_results", args=[flow.uuid]))
         self.assertEqual(200, response.status_code)
 
         # check flow listing
         response = self.client.get(reverse("flows.flow_list"))
-        self.assertEqual(list(response.context["object_list"]), [voice_flow, flow3, flow2, flow1, flow])  # by saved_on
+        self.assertEqual(list(response.context["object_list"]), [flow3, voice_flow, flow2, flow1, flow])  # by saved_on
 
         # test update view
         response = self.client.post(reverse("flows.flow_update", args=[flow.id]))
@@ -2159,6 +2075,118 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[language_flow.uuid]))
         self.assertEqual(language_flow.base_language, language.iso_code)
+
+    def test_update_messaging_flow(self):
+        flow = self.get_flow("color_v13")
+        update_url = reverse("flows.flow_update", args=[flow.id])
+
+        # we should only see name and contact creation option on form
+        self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=["name", "keyword_triggers", "expires_after_minutes", "ignore_triggers"],
+        )
+
+        # try to update with empty name
+        self.assertUpdateSubmit(
+            update_url,
+            {"name": "", "expires_after_minutes": 10, "ignore_triggers": True},
+            form_errors={"name": "This field is required."},
+            object_unchanged=flow,
+        )
+
+        # update name and contact creation option to be per login
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "name": "New Name",
+                "keyword_triggers": ["test", "help"],
+                "expires_after_minutes": 10,
+                "ignore_triggers": True,
+            },
+        )
+
+        flow.refresh_from_db()
+        self.assertEqual("New Name", flow.name)
+        self.assertEqual(10, flow.expires_after_minutes)
+        self.assertEqual({"test", "help"}, {t.keyword for t in flow.triggers.filter(is_active=True)})
+        self.assertTrue(flow.ignore_triggers)
+
+    def test_update_voice_flow(self):
+        flow = self.get_flow("ivr")
+        update_url = reverse("flows.flow_update", args=[flow.id])
+
+        # check fields
+        self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=["name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "ivr_retry"],
+        )
+
+        # try to update with an expires value which is only for messaging flows and an invalid retry value
+        self.assertUpdateSubmit(
+            update_url,
+            {"name": "New Name", "expires_after_minutes": 720, "ignore_triggers": True, "ivr_retry": 1234},
+            form_errors={
+                "expires_after_minutes": "Select a valid choice. 720 is not one of the available choices.",
+                "ivr_retry": "Select a valid choice. 1234 is not one of the available choices.",
+            },
+            object_unchanged=flow,
+        )
+
+        # update name and contact creation option to be per login
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "name": "New Name",
+                "keyword_triggers": ["test", "help"],
+                "expires_after_minutes": 10,
+                "ignore_triggers": True,
+                "ivr_retry": 30,
+            },
+        )
+
+        flow.refresh_from_db()
+        self.assertEqual("New Name", flow.name)
+        self.assertEqual(10, flow.expires_after_minutes)
+        self.assertEqual({"test", "help"}, {t.keyword for t in flow.triggers.filter(is_active=True)})
+        self.assertTrue(flow.ignore_triggers)
+        self.assertEqual(30, flow.metadata.get("ivr_retry"))
+
+        # check we still have that value after saving a new revision
+        flow.save_revision(self.admin, flow.get_definition())
+        self.assertEqual(30, flow.metadata["ivr_retry"])
+
+    def test_update_surveyor_flow(self):
+        flow = self.get_flow("media_survey")
+        update_url = reverse("flows.flow_update", args=[flow.id])
+
+        # we should only see name and contact creation option on form
+        self.assertUpdateFetch(
+            update_url, allow_viewers=False, allow_editors=True, form_fields=["name", "contact_creation"]
+        )
+
+        # update name and contact creation option to be per login
+        self.assertUpdateSubmit(update_url, {"name": "New Name", "contact_creation": "login"})
+
+        flow.refresh_from_db()
+        self.assertEqual("New Name", flow.name)
+        self.assertEqual("login", flow.metadata.get("contact_creation"))
+
+    def test_update_background_flow(self):
+        flow = self.get_flow("background")
+        update_url = reverse("flows.flow_update", args=[flow.id])
+
+        # we should only see name on form
+        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=["name"])
+
+        # update name and contact creation option to be per login
+        self.assertUpdateSubmit(update_url, {"name": "New Name"})
+
+        flow.refresh_from_db()
+        self.assertEqual("New Name", flow.name)
 
     def test_list_views(self):
         flow1 = self.get_flow("color_v13")
