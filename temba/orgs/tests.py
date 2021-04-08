@@ -22,7 +22,6 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba import mailroom
-from temba.airtime.dtone import DTOneClient
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
@@ -37,7 +36,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
-from temba.orgs.models import BackupToken, Debit, IntegrationType, OrgActivity
+from temba.orgs.models import BackupToken, Debit, OrgActivity
 from temba.orgs.tasks import suspend_topup_orgs_task
 from temba.request_logs.models import HTTPLog
 from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers, mock_mailroom
@@ -2563,75 +2562,6 @@ class OrgTest(TembaTest):
         response = self.client.post(prometheus_url, {}, follow=True)
         self.assertFalse(APIToken.objects.filter(org=self.org, role=prometheus_group, is_active=True))
         self.assertContains(response, "Enable Prometheus")
-
-    def test_dtone_connect(self):
-        self.org.refresh_from_db()
-        self.assertFalse(self.org.get_integrations(IntegrationType.Category.AIRTIME))
-
-        self.org.connect_dtone("key123", "sesame", self.admin)
-        self.org.refresh_from_db()
-
-        self.assertTrue(self.org.get_integrations(IntegrationType.Category.AIRTIME))
-        self.assertEqual(self.org.modified_by, self.admin)
-
-        self.org.remove_dtone_account(self.admin)
-        self.org.refresh_from_db()
-
-        self.assertFalse(self.org.get_integrations(IntegrationType.Category.AIRTIME))
-        self.assertEqual(self.org.modified_by, self.admin)
-
-    @patch("temba.airtime.dtone.DTOneClient.get_balances")
-    def test_dtone_account(self, mock_get_balances):
-        self.login(self.admin)
-
-        dtone_url = reverse("orgs.org_dtone_account")
-        home_url = reverse("orgs.org_home")
-
-        response = self.client.get(home_url)
-        self.assertContains(response, "Connect your DT One account.")
-
-        # formax includes form to connect DT One
-        response = self.client.get(dtone_url, HTTP_X_FORMAX=True)
-        self.assertEqual(["api_key", "api_secret", "disconnect", "loc"], list(response.context["form"].fields.keys()))
-
-        # simulate credentials being rejected
-        mock_get_balances.side_effect = DTOneClient.Exception(errors=[{"code": 1000401, "message": "Unauthorized"}])
-
-        response = self.client.post(dtone_url, {"api_key": "key123", "api_secret": "wrong", "disconnect": "false"})
-
-        self.assertContains(response, "Your DT One API key and secret seem invalid.")
-        self.assertFalse(self.org.get_integrations(IntegrationType.Category.AIRTIME))
-
-        # simulate credentials being accepted
-        mock_get_balances.side_effect = None
-        mock_get_balances.return_value = [{"available": 10, "unit": "USD", "unit_type": "CURRENCY"}]
-
-        response = self.client.post(dtone_url, {"api_key": "key123", "api_secret": "sesame", "disconnect": "false"})
-        self.assertNoFormErrors(response)
-
-        # DT One should now be connected
-        self.org.refresh_from_db()
-        self.assertTrue(self.org.get_integrations(IntegrationType.Category.AIRTIME))
-        self.assertEqual(self.org.config["dtone_key"], "key123")
-        self.assertEqual(self.org.config["dtone_secret"], "sesame")
-
-        # and that stated on home page
-        response = self.client.get(home_url)
-        self.assertContains(response, "Connected to your <b>DT One</b> account.")
-        self.assertContains(response, reverse("airtime.airtimetransfer_list"))
-
-        # formax includes the disconnect link
-        response = self.client.get(dtone_url, HTTP_X_FORMAX=True)
-        self.assertContains(response, "%s?disconnect=true" % reverse("orgs.org_dtone_account"))
-
-        # now disconnect
-        response = self.client.post(dtone_url, {"api_key": "", "api_secret": "", "disconnect": "true"})
-        self.assertNoFormErrors(response)
-
-        self.org.refresh_from_db()
-        self.assertFalse(self.org.get_integrations(IntegrationType.Category.AIRTIME))
-        self.assertNotIn("dtone_key", self.org.config)
-        self.assertNotIn("dtone_secret", self.org.config)
 
     def test_chatbase_account(self):
         self.login(self.admin)

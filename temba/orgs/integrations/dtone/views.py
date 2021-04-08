@@ -36,6 +36,7 @@ class AccountView(IntegrationManagementViewMixin, SmartFormView):
     submit_button_name = "Save"
     success_message = ""
     success_url = "@orgs.org_home"
+    template_name = "orgs/integrations/dtone/account.haml"
 
     def derive_initial(self):
         initial = super().derive_initial()

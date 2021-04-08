@@ -6,7 +6,7 @@ from django.utils.module_loading import import_string
 TYPES = OrderedDict({})
 
 
-def register_ticketer_type(type_class):
+def register_integration_type(type_class):
     """
     Registers an integration type
     """
@@ -28,7 +28,7 @@ def reload_integration_types():
 
     TYPES = OrderedDict({})
     for class_name in settings.INTEGRATION_TYPES:
-        register_ticketer_type(import_string(class_name))
+        register_integration_type(import_string(class_name))
 
 
 reload_integration_types()
