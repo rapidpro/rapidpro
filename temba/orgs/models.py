@@ -72,8 +72,10 @@ class IntegrationType(metaclass=ABCMeta):
     """
 
     class Category(Enum):
-        EMAIL = 1
-        AIRTIME = 2
+        CHANNELS = 1
+        EMAIL = 2
+        AIRTIME = 3
+        MONITORING = 4
 
     # the verbose name for this type
     name = None
@@ -84,6 +86,7 @@ class IntegrationType(metaclass=ABCMeta):
     # the icon to show for this type
     icon = "icon-plug"
 
+    # the category of features this integration provides
     category = None
 
     def is_connected(self, org) -> bool:
@@ -94,14 +97,21 @@ class IntegrationType(metaclass=ABCMeta):
         """Disconnects this integration on the given org"""
         pass
 
+    def management_ui(self, org, formax):
+        """Adds formax sections to provide a UI to manage this integration"""
+        pass
+
+    def get_urls(self) -> list:
+        return []
+
     @classmethod
-    def get_all(cls, category: Category) -> list:
+    def get_all(cls, category: Category = None) -> list:
         """
         Returns all possible types with the given category
         """
         from .integrations import TYPES
 
-        return [t for t in TYPES.values() if t.category == category]
+        return [t for t in TYPES.values() if not category or t.category == category]
 
 
 class OrgRole(Enum):
@@ -203,8 +213,6 @@ class Org(SmartModel):
     CONFIG_TWILIO_TOKEN = "ACCOUNT_TOKEN"
     CONFIG_VONAGE_KEY = "NEXMO_KEY"
     CONFIG_VONAGE_SECRET = "NEXMO_SECRET"
-    CONFIG_DTONE_KEY = "dtone_key"
-    CONFIG_DTONE_SECRET = "dtone_secret"
     CONFIG_CHATBASE_AGENT_NAME = "CHATBASE_AGENT_NAME"
     CONFIG_CHATBASE_API_KEY = "CHATBASE_API_KEY"
     CONFIG_CHATBASE_VERSION = "CHATBASE_VERSION"
@@ -853,11 +861,6 @@ class Org(SmartModel):
         self.modified_by = user
         self.save(update_fields=("config", "modified_by", "modified_on"))
 
-    def connect_dtone(self, api_key: str, api_secret: str, user):
-        self.config.update({Org.CONFIG_DTONE_KEY: api_key, Org.CONFIG_DTONE_SECRET: api_secret})
-        self.modified_by = user
-        self.save(update_fields=("config", "modified_by", "modified_on"))
-
     def connect_chatbase(self, agent_name, api_key, version, user):
         self.config.update(
             {
@@ -898,13 +901,6 @@ class Org(SmartModel):
 
             self.config.pop(Org.CONFIG_TWILIO_SID, None)
             self.config.pop(Org.CONFIG_TWILIO_TOKEN, None)
-            self.modified_by = user
-            self.save(update_fields=("config", "modified_by", "modified_on"))
-
-    def remove_dtone_account(self, user):
-        if self.config:
-            self.config.pop(Org.CONFIG_DTONE_KEY, None)
-            self.config.pop(Org.CONFIG_DTONE_SECRET, None)
             self.modified_by = user
             self.save(update_fields=("config", "modified_by", "modified_on"))
 

@@ -54,7 +54,6 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
-from temba.airtime.dtone import DTOneClient
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
@@ -74,7 +73,7 @@ from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import ComponentFormMixin, NonAtomicMixin, RequireRecentAuthMixin
 
-from .models import BackupToken, Invitation, Org, OrgCache, OrgRole, TopUp, get_stripe_credentials
+from .models import BackupToken, IntegrationType, Invitation, Org, OrgCache, OrgRole, TopUp, get_stripe_credentials
 from .tasks import apply_topups_task
 
 # session key for storing a two-factor enabled user's id once we've checked their password
@@ -241,6 +240,27 @@ class ModalMixin(SmartFormView):
             message = getattr(e, "message", str(e).capitalize())
             self.form.add_error(None, message)
             return self.render_to_response(self.get_context_data(form=form))
+
+
+class IntegrationManagementViewMixin(OrgPermsMixin, ComponentFormMixin):
+    permission = "orgs.org_manage_integrations"
+    integration_type = None
+
+    class Form(forms.Form):
+        def __init__(self, request, integration_type, **kwargs):
+            self.request = request
+            self.channel_type = integration_type
+            super().__init__(**kwargs)
+
+    def __init__(self, integration_type):
+        self.integration_type = integration_type
+        super().__init__()
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["request"] = self.request
+        kwargs["integration_type"] = self.integration_type
+        return kwargs
 
 
 class OrgSignupForm(forms.ModelForm):
@@ -854,7 +874,6 @@ class OrgCRUDL(SmartCRUDL):
         "service",
         "surveyor",
         "transfer_credits",
-        "dtone_account",
         "smtp_server",
     )
 
@@ -2883,19 +2902,9 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_smtp_server"):
                 formax.add_section("email", reverse("orgs.org_smtp_server"), icon="icon-envelop")
 
-            if self.has_org_perm("orgs.org_dtone_account"):
-                if not self.object.is_connected_to_dtone():
-                    formax.add_section(
-                        "dtone",
-                        reverse("orgs.org_dtone_account"),
-                        icon="icon-dtone",
-                        action="redirect",
-                        button=_("Connect"),
-                    )
-                else:  # pragma: needs cover
-                    formax.add_section(
-                        "dtone", reverse("orgs.org_dtone_account"), icon="icon-dtone", action="redirect", nobutton=True
-                    )
+            if self.has_org_perm("orgs.org_manage_integrations"):
+                for integration in IntegrationType.get_all():
+                    integration.management_ui(self.object, formax)
 
             if self.has_org_perm("orgs.org_chatbase"):
                 (chatbase_api_key, chatbase_version) = self.object.get_chatbase_credentials()
@@ -2930,55 +2939,6 @@ class OrgCRUDL(SmartCRUDL):
             # show globals and archives
             formax.add_section("globals", reverse("globals.global_list"), icon="icon-global", action="link")
             formax.add_section("archives", reverse("archives.archive_message"), icon="icon-box", action="link")
-
-    class DtoneAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        class Form(forms.ModelForm):
-            api_key = forms.CharField(label=_("API Key"), required=False, widget=InputWidget())
-            api_secret = forms.CharField(label=_("API Secret"), required=False, widget=InputWidget())
-            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=False)
-
-            def clean(self):
-                cleaned_data = super().clean()
-
-                if cleaned_data["disconnect"] != "true":
-                    api_key = cleaned_data.get("api_key")
-                    api_secret = cleaned_data.get("api_secret")
-                    client = DTOneClient(api_key, api_secret)
-
-                    try:
-                        client.get_balances()
-                    except DTOneClient.Exception:
-                        raise ValidationError(
-                            _("Your DT One API key and secret seem invalid. Please check them again and retry.")
-                        )
-
-            class Meta:
-                model = Org
-                fields = ("api_key", "api_secret", "disconnect")
-
-        form_class = Form
-        submit_button_name = "Save"
-        success_message = ""
-        success_url = "@orgs.org_home"
-
-        def derive_initial(self):
-            initial = super().derive_initial()
-            config = self.object.config
-            initial["api_key"] = config.get(Org.CONFIG_DTONE_KEY)
-            initial["api_secret"] = config.get(Org.CONFIG_DTONE_SECRET)
-            initial["disconnect"] = "false"
-            return initial
-
-        def form_valid(self, form):
-            user = self.request.user
-            org = user.get_org()
-            disconnect = form.cleaned_data.get("disconnect", "false") == "true"
-            if disconnect:
-                org.remove_dtone_account(user)
-                return HttpResponseRedirect(reverse("orgs.org_home"))
-            else:
-                org.connect_dtone(form.cleaned_data["api_key"], form.cleaned_data["api_secret"], user)
-                return super().form_valid(form)
 
     class TwilioAccount(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
