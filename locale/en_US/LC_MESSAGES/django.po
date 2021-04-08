@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-08 20:26+0000\n"
+"POT-Creation-Date: 2021-04-08 21:55+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1841,6 +1841,10 @@ msgid "The account username provided by Zenvia"
 msgstr ""
 
 msgid "The account password provided by Zenvia"
+msgstr ""
+
+#, python-format
+msgid "If you have a %(link)s number, you can connect it to communicate with your contacts."
 msgstr ""
 
 #, python-format

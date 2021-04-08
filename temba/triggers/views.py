@@ -5,7 +5,7 @@ from django import forms
 from django.db.models import Min
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import ngettext_lazy, ugettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup, ContactURN
@@ -210,7 +210,7 @@ class RegisterTriggerForm(BaseTriggerForm):
     response = forms.CharField(
         widget=CompletionTextarea(attrs={"placeholder": _("Hi @contact.name!")}),
         required=False,
-        label=_("Response"),
+        label=ngettext_lazy("Response", "Responses", 1),
         help_text=_("The message to send in response after they join the group (optional)"),
     )
 

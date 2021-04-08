@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-08 20:26+0000\n"
+"POT-Creation-Date: 2021-04-08 21:55+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -1858,6 +1858,11 @@ msgstr "El nombre de usuario de la cuenta proporcionado por Zenvia"
 
 msgid "The account password provided by Zenvia"
 msgstr "La contraseña de la cuenta proporcionada por Zenvia"
+
+#, fuzzy, python-format
+#| msgid "If you have a %(link)s number, you can connect it to communicate with your WhatsApp contacts."
+msgid "If you have a %(link)s number, you can connect it to communicate with your contacts."
+msgstr "Si tiene un número %(link)s, puede conectarlo para comunicarse con sus contactos de WhatsApp."
 
 #, python-format
 msgid "Unable to register webhook subscriptions: %(resp)s"
