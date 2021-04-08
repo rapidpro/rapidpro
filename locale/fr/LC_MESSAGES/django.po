@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-05 16:46+0000\n"
+"POT-Creation-Date: 2021-04-06 21:32+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2434,9 +2434,20 @@ msgstr "Mettre à jour"
 msgid "Contact field uses"
 msgstr "Utilisation du champ de contact"
 
-#, python-format
-msgid "This workspace has reached the limit of %(count)d groups. You must delete existing ones before you can perform an import."
-msgstr "Cet espace de travail a atteint la limite de %(count)d groupes. Vous devez supprimer les fichiers existants avant de pouvoir effectuer une importation."
+#, fuzzy
+#| msgid "New Group..."
+msgid "new group"
+msgstr "Nouveau groupe..."
+
+#, fuzzy
+#| msgid "Existing Numbers"
+msgid "existing group"
+msgstr "Numéros existants"
+
+#, fuzzy
+#| msgid "Select Group"
+msgid "Select a group"
+msgstr "Sélectionner un groupe"
 
 #, python-format
 msgid "Field name for '%(header)s' can't be empty."
@@ -2453,6 +2464,24 @@ msgstr "Le nom de champ pour '%(header)s' est invalide ou un mot réservé."
 #, python-format
 msgid "Field name '%(name)s' is repeated."
 msgstr "Le nom de champ '%(name)s' est répété."
+
+#, fuzzy
+#| msgid "Required"
+msgid "Required."
+msgstr "Obligatoire"
+
+#, fuzzy
+#| msgid "Isn't a valid name"
+msgid "Invalid group name."
+msgstr "N'est pas un nom valide"
+
+msgid "Already exists."
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "This workspace has reached the limit of %(count)d groups. You must delete existing ones before you can perform an import."
+msgid "This workspace has reached the limit of %(count)d groups."
+msgstr "Cet espace de travail a atteint la limite de %(count)d groupes. Vous devez supprimer les fichiers existants avant de pouvoir effectuer une importation."
 
 msgid "Phone Call"
 msgstr ""
@@ -5675,6 +5704,16 @@ msgstr "champ"
 msgid "a <strong>%(scheme)s</strong> URN"
 msgstr "un <strong>%(scheme)s</strong> URN"
 
+#, fuzzy
+#| msgid "contacts"
+msgid "Add contacts to"
+msgstr "contacts"
+
+#, fuzzy
+#| msgid "Billed"
+msgid "called"
+msgstr "Facturé"
+
 msgid "Contact Import"
 msgstr "Importation de contacts"
 
@@ -6827,30 +6866,6 @@ msgstr "Invitations en attente"
 msgid "Invite New Users"
 msgstr "Inviter de nouveaux utilisateurs"
 
-#, fuzzy, python-format
-#| msgid "A connection to a Twilio account is required"
-msgid "Connected to Vonage account with API key %(api_key)s."
-msgstr "Une connexion à un compte Twilio est requise"
-
-#, fuzzy, python-format
-#| msgid "If you no longer want it connected, you can"
-msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Vonage account</a>."
-msgstr "Si vous ne voulez plus le connecter, vous pouvez"
-
-#, fuzzy
-#| msgid "Disconnect DT One"
-msgid "Disconnect Vonage"
-msgstr "Déconnectez DT One"
-
-#, fuzzy
-#| msgid "Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?"
-msgid "Disconnecting your Vonage account will also remove any Vonage channels connected to it. Are you sure you want to proceed?"
-msgstr "La déconnexion de votre compte Nexmo supprimera également tous les canaux Nexmo qui y sont connectés. Êtes-vous sur de vouloir continuer?"
-
-#, python-format
-msgid "To connect your Vonage Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"vonage\" href=\"%(settings_url)s\">Vonage settings</a> page in the API Settings section."
-msgstr ""
-
 msgid "You are currently on the {{org.plan}} plan."
 msgstr "Vous êtes actuellement sur le plan {{org.plan}}."
 
@@ -6990,6 +7005,30 @@ msgstr "Cet espace de travail a été vérifié"
 
 msgid "This workspace has been scheduled for deletion"
 msgstr "Cet espace de travail a été programmé pour la suppression"
+
+#, fuzzy, python-format
+#| msgid "A connection to a Twilio account is required"
+msgid "Connected to Vonage account with API key %(api_key)s."
+msgstr "Une connexion à un compte Twilio est requise"
+
+#, fuzzy, python-format
+#| msgid "If you no longer want it connected, you can"
+msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Vonage account</a>."
+msgstr "Si vous ne voulez plus le connecter, vous pouvez"
+
+#, fuzzy
+#| msgid "Disconnect DT One"
+msgid "Disconnect Vonage"
+msgstr "Déconnectez DT One"
+
+#, fuzzy
+#| msgid "Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?"
+msgid "Disconnecting your Vonage account will also remove any Vonage channels connected to it. Are you sure you want to proceed?"
+msgstr "La déconnexion de votre compte Nexmo supprimera également tous les canaux Nexmo qui y sont connectés. Êtes-vous sur de vouloir continuer?"
+
+#, python-format
+msgid "To connect your Vonage Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"vonage\" href=\"%(settings_url)s\">Vonage settings</a> page in the API Settings section."
+msgstr ""
 
 msgid "Top Ups"
 msgstr "Top Ups"
