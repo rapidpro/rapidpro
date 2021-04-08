@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-07 20:20+0000\n"
+"POT-Creation-Date: 2021-04-08 20:26+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2417,8 +2417,13 @@ msgstr ""
 msgid "Contact field uses"
 msgstr ""
 
-#, python-format
-msgid "This workspace has reached the limit of %(count)d groups. You must delete existing ones before you can perform an import."
+msgid "new group"
+msgstr ""
+
+msgid "existing group"
+msgstr ""
+
+msgid "Select a group"
 msgstr ""
 
 #, python-format
@@ -2435,6 +2440,19 @@ msgstr ""
 
 #, python-format
 msgid "Field name '%(name)s' is repeated."
+msgstr ""
+
+msgid "Required."
+msgstr ""
+
+msgid "Invalid group name."
+msgstr ""
+
+msgid "Already exists."
+msgstr ""
+
+#, python-format
+msgid "This workspace has reached the limit of %(count)d groups."
 msgstr ""
 
 msgid "Phone Call"
@@ -2603,12 +2621,6 @@ msgstr ""
 msgid "Choose a name to describe this flow, e.g. Demographic Survey"
 msgstr ""
 
-msgid "Expire inactive contacts"
-msgstr ""
-
-msgid "When inactive contacts should be removed from the flow"
-msgstr ""
-
 msgid "Create a contact "
 msgstr ""
 
@@ -2625,6 +2637,12 @@ msgid "Retry call if unable to connect"
 msgstr ""
 
 msgid "Retries call three times for the chosen interval"
+msgstr ""
+
+msgid "Expire inactive contacts"
+msgstr ""
+
+msgid "When inactive contacts should be removed from the flow"
 msgstr ""
 
 msgid "Keywords"
@@ -5578,6 +5596,12 @@ msgstr ""
 
 #, python-format
 msgid "a <strong>%(scheme)s</strong> URN"
+msgstr ""
+
+msgid "Add contacts to"
+msgstr ""
+
+msgid "called"
 msgstr ""
 
 msgid "Contact Import"

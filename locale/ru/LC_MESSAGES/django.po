@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-07 20:20+0000\n"
+"POT-Creation-Date: 2021-04-08 20:26+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2448,9 +2448,18 @@ msgstr "Обновить"
 msgid "Contact field uses"
 msgstr "Использование поля контактов"
 
-#, python-format
-msgid "This workspace has reached the limit of %(count)d groups. You must delete existing ones before you can perform an import."
+#, fuzzy
+#| msgid "New Group..."
+msgid "new group"
+msgstr "Новая Группа..."
+
+msgid "existing group"
 msgstr ""
+
+#, fuzzy
+#| msgid "Select Group"
+msgid "Select a group"
+msgstr "Выбрать Группу"
 
 #, python-format
 msgid "Field name for '%(header)s' can't be empty."
@@ -2466,6 +2475,23 @@ msgstr ""
 
 #, python-format
 msgid "Field name '%(name)s' is repeated."
+msgstr ""
+
+#, fuzzy
+#| msgid "POST Required"
+msgid "Required."
+msgstr "Требуется POST"
+
+#, fuzzy
+#| msgid "Isn't a valid name"
+msgid "Invalid group name."
+msgstr "Не является допустимым именем"
+
+msgid "Already exists."
+msgstr ""
+
+#, python-format
+msgid "This workspace has reached the limit of %(count)d groups."
 msgstr ""
 
 msgid "Phone Call"
@@ -2634,12 +2660,6 @@ msgstr "Выберите метод для Вашего потока"
 msgid "Choose a name to describe this flow, e.g. Demographic Survey"
 msgstr "Выберите название для описания этого потока, например, «Демографическое обследование»"
 
-msgid "Expire inactive contacts"
-msgstr "Аннулировать неактивные контакты"
-
-msgid "When inactive contacts should be removed from the flow"
-msgstr "Когда неактивные контакты должны быть удалены из потока"
-
 msgid "Create a contact "
 msgstr "Создать контакт"
 
@@ -2657,6 +2677,12 @@ msgstr "Повторить вызов, если не удается подсое
 
 msgid "Retries call three times for the chosen interval"
 msgstr "Повторяет вызов три раза с заданным интервалом"
+
+msgid "Expire inactive contacts"
+msgstr "Аннулировать неактивные контакты"
+
+msgid "When inactive contacts should be removed from the flow"
+msgstr "Когда неактивные контакты должны быть удалены из потока"
 
 msgid "Keywords"
 msgstr ""
@@ -5729,6 +5755,16 @@ msgstr ""
 #, python-format
 msgid "a <strong>%(scheme)s</strong> URN"
 msgstr ""
+
+#, fuzzy
+#| msgid "contacts"
+msgid "Add contacts to"
+msgstr "контакты"
+
+#, fuzzy
+#| msgid "Billed"
+msgid "called"
+msgstr "Платно"
 
 msgid "Contact Import"
 msgstr ""

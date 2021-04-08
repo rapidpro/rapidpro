@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-07 20:20+0000\n"
+"POT-Creation-Date: 2021-04-08 20:26+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -2441,9 +2441,20 @@ msgstr "Atualizar"
 msgid "Contact field uses"
 msgstr "Usos do campo de contato"
 
-#, python-format
-msgid "This workspace has reached the limit of %(count)d groups. You must delete existing ones before you can perform an import."
-msgstr "A área de trabalho alcançou o limte de %(count)d grupos. Você deve deletar grupos existentes antes de realizar uma importação."
+#, fuzzy
+#| msgid "New Group..."
+msgid "new group"
+msgstr "Novo Grupo..."
+
+#, fuzzy
+#| msgid "Existing Numbers"
+msgid "existing group"
+msgstr "Números Existentes"
+
+#, fuzzy
+#| msgid "Select Group"
+msgid "Select a group"
+msgstr "Selecionar Grupo"
 
 #, python-format
 msgid "Field name for '%(header)s' can't be empty."
@@ -2460,6 +2471,24 @@ msgstr "Nome do campo para '%(header)s' é inválido ou uma palavra reservada."
 #, python-format
 msgid "Field name '%(name)s' is repeated."
 msgstr "Nome do campo '%(name)s' é repetido."
+
+#, fuzzy
+#| msgid "Required"
+msgid "Required."
+msgstr "Requerido"
+
+#, fuzzy
+#| msgid "Isn't a valid name"
+msgid "Invalid group name."
+msgstr "Não é um nome válido"
+
+msgid "Already exists."
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "This workspace has reached the limit of %(count)d groups. You must delete existing ones before you can perform an import."
+msgid "This workspace has reached the limit of %(count)d groups."
+msgstr "A área de trabalho alcançou o limte de %(count)d grupos. Você deve deletar grupos existentes antes de realizar uma importação."
 
 msgid "Phone Call"
 msgstr "Chamada telefônica"
@@ -2627,12 +2656,6 @@ msgstr "Escolha o método para o seu fluxo"
 msgid "Choose a name to describe this flow, e.g. Demographic Survey"
 msgstr "Escolha um nome para descrever esse fluxo, exemplo: Pesquisa demográfica"
 
-msgid "Expire inactive contacts"
-msgstr "Contatos inativos expirados"
-
-msgid "When inactive contacts should be removed from the flow"
-msgstr "Quando contatos inativos devem ser removidos desse fluxo"
-
 msgid "Create a contact "
 msgstr "Criar um contato"
 
@@ -2650,6 +2673,12 @@ msgstr "Tente novamente a chamada se não conseguir se conectar"
 
 msgid "Retries call three times for the chosen interval"
 msgstr "Realize três novas tentativas de ligação para o intervalo escolhido"
+
+msgid "Expire inactive contacts"
+msgstr "Contatos inativos expirados"
+
+msgid "When inactive contacts should be removed from the flow"
+msgstr "Quando contatos inativos devem ser removidos desse fluxo"
 
 msgid "Keywords"
 msgstr "Palavras Chaves"
@@ -5691,6 +5720,16 @@ msgstr "campo"
 #, python-format
 msgid "a <strong>%(scheme)s</strong> URN"
 msgstr "uma URM <strong>%(scheme)s</strong>"
+
+#, fuzzy
+#| msgid "contacts"
+msgid "Add contacts to"
+msgstr "contatos"
+
+#, fuzzy
+#| msgid "Billed"
+msgid "called"
+msgstr "Faturado"
 
 msgid "Contact Import"
 msgstr "Importação de Contato"

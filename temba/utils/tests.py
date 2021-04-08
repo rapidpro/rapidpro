@@ -9,7 +9,6 @@ from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import intercom.errors
-import pycountry
 import pytz
 from django_redis import get_redis_connection
 from openpyxl import load_workbook
@@ -47,7 +46,6 @@ from . import (
 )
 from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from .celery import nonoverlapping_task
-from .currencies import currency_for_country
 from .dates import datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
 from .email import is_valid_address, send_simple_email
 from .export import TableExporter
@@ -924,26 +922,6 @@ class ExportTest(TembaTest):
         os.unlink(temp_file.name)
 
 
-class CurrencyTest(TembaTest):
-    def test_currencies(self):
-
-        self.assertEqual(currency_for_country("US").alpha_3, "USD")
-        self.assertEqual(currency_for_country("EC").alpha_3, "USD")
-        self.assertEqual(currency_for_country("FR").alpha_3, "EUR")
-        self.assertEqual(currency_for_country("DE").alpha_3, "EUR")
-        self.assertEqual(currency_for_country("YE").alpha_3, "YER")
-        self.assertEqual(currency_for_country("AF").alpha_3, "AFN")
-
-        for country in list(pycountry.countries):
-
-            currency = currency_for_country(country.alpha_2)
-            if currency is None:
-                self.fail(f"Country missing currency: {country}")
-
-        # a country that does not exist
-        self.assertIsNone(currency_for_country("XX"))
-
-
 class MiddlewareTest(TembaTest):
     def test_org(self):
         response = self.client.get(reverse("public.public_index"))
@@ -1140,12 +1118,32 @@ class TestJSONAsTextField(TestCase):
 
         self.assertRaises(Exception, model.save)
 
-    def test_read_None_value(self):
-        with connection.cursor() as null_cur:
-            null_cur.execute("DELETE FROM utils_jsonmodeltestnull")
-            null_cur.execute("INSERT INTO utils_jsonmodeltestnull (field) VALUES (%s)", (None,))
-
+    def test_read_values_db(self):
+        with connection.cursor() as cur:
+            # read a NULL as None
+            cur.execute("DELETE FROM utils_jsonmodeltestnull")
+            cur.execute("INSERT INTO utils_jsonmodeltestnull (field) VALUES (%s)", (None,))
             self.assertEqual(JsonModelTestNull.objects.first().field, None)
+
+            # read JSON object as dict
+            cur.execute("DELETE FROM utils_jsonmodeltestdefault")
+            cur.execute("INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)", ('{"foo": "bar"}',))
+            self.assertEqual({"foo": "bar"}, JsonModelTestDefault.objects.first().field)
+
+    def test_jsonb_columns(self):
+        with connection.cursor() as cur:
+            # simulate field being converted to actual JSONB
+            cur.execute("DELETE FROM utils_jsonmodeltestdefault")
+            cur.execute("INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)", ('{"foo": "bar"}',))
+            cur.execute("ALTER TABLE utils_jsonmodeltestdefault ALTER COLUMN field TYPE jsonb USING field::jsonb;")
+
+            obj = JsonModelTestDefault.objects.first()
+            self.assertEqual({"foo": "bar"}, obj.field)
+
+            obj.field = {"zed": "doh"}
+            obj.save()
+
+            self.assertEqual({"zed": "doh"}, JsonModelTestDefault.objects.first().field)
 
     def test_invalid_field_values_db(self):
         with connection.cursor() as cur:
@@ -1159,6 +1157,12 @@ class TestJSONAsTextField(TestCase):
 
             cur.execute("DELETE FROM utils_jsonmodeltestdefault")
             cur.execute("INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)", ("null",))
+            self.assertRaises(ValueError, JsonModelTestDefault.objects.first)
+
+            # simulate field being something non-JSON at db-level
+            cur.execute("DELETE FROM utils_jsonmodeltestdefault")
+            cur.execute("INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)", ("1234",))
+            cur.execute("ALTER TABLE utils_jsonmodeltestdefault ALTER COLUMN field TYPE int USING field::int;")
             self.assertRaises(ValueError, JsonModelTestDefault.objects.first)
 
 
