@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-06 20:03+0000\n"
+"POT-Creation-Date: 2021-04-08 21:00+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1844,6 +1844,10 @@ msgid "The account password provided by Zenvia"
 msgstr ""
 
 #, python-format
+msgid "If you have a %(link)s number, you can connect it to communicate with your contacts."
+msgstr ""
+
+#, python-format
 msgid "Unable to register webhook subscriptions: %(resp)s"
 msgstr ""
 
@@ -2448,6 +2452,9 @@ msgstr ""
 msgid "Invalid group name."
 msgstr ""
 
+msgid "Already exists."
+msgstr ""
+
 #, python-format
 msgid "This workspace has reached the limit of %(count)d groups."
 msgstr ""
@@ -2618,12 +2625,6 @@ msgstr ""
 msgid "Choose a name to describe this flow, e.g. Demographic Survey"
 msgstr ""
 
-msgid "Expire inactive contacts"
-msgstr ""
-
-msgid "When inactive contacts should be removed from the flow"
-msgstr ""
-
 msgid "Create a contact "
 msgstr ""
 
@@ -2640,6 +2641,12 @@ msgid "Retry call if unable to connect"
 msgstr ""
 
 msgid "Retries call three times for the chosen interval"
+msgstr ""
+
+msgid "Expire inactive contacts"
+msgstr ""
+
+msgid "When inactive contacts should be removed from the flow"
 msgstr ""
 
 msgid "Keywords"
