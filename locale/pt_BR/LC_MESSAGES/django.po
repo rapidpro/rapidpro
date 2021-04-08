@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-08 20:37+0000\n"
+"POT-Creation-Date: 2021-04-08 21:00+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -2661,12 +2661,6 @@ msgstr "Escolha o método para o seu fluxo"
 msgid "Choose a name to describe this flow, e.g. Demographic Survey"
 msgstr "Escolha um nome para descrever esse fluxo, exemplo: Pesquisa demográfica"
 
-msgid "Expire inactive contacts"
-msgstr "Contatos inativos expirados"
-
-msgid "When inactive contacts should be removed from the flow"
-msgstr "Quando contatos inativos devem ser removidos desse fluxo"
-
 msgid "Create a contact "
 msgstr "Criar um contato"
 
@@ -2684,6 +2678,12 @@ msgstr "Tente novamente a chamada se não conseguir se conectar"
 
 msgid "Retries call three times for the chosen interval"
 msgstr "Realize três novas tentativas de ligação para o intervalo escolhido"
+
+msgid "Expire inactive contacts"
+msgstr "Contatos inativos expirados"
+
+msgid "When inactive contacts should be removed from the flow"
+msgstr "Quando contatos inativos devem ser removidos desse fluxo"
 
 msgid "Keywords"
 msgstr "Palavras Chaves"
