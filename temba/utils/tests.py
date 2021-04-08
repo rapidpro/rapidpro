@@ -1110,12 +1110,32 @@ class TestJSONAsTextField(TestCase):
 
         self.assertRaises(Exception, model.save)
 
-    def test_read_None_value(self):
-        with connection.cursor() as null_cur:
-            null_cur.execute("DELETE FROM utils_jsonmodeltestnull")
-            null_cur.execute("INSERT INTO utils_jsonmodeltestnull (field) VALUES (%s)", (None,))
-
+    def test_read_values_db(self):
+        with connection.cursor() as cur:
+            # read a NULL as None
+            cur.execute("DELETE FROM utils_jsonmodeltestnull")
+            cur.execute("INSERT INTO utils_jsonmodeltestnull (field) VALUES (%s)", (None,))
             self.assertEqual(JsonModelTestNull.objects.first().field, None)
+
+            # read JSON object as dict
+            cur.execute("DELETE FROM utils_jsonmodeltestdefault")
+            cur.execute("INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)", ('{"foo": "bar"}',))
+            self.assertEqual({"foo": "bar"}, JsonModelTestDefault.objects.first().field)
+
+    def test_jsonb_columns(self):
+        with connection.cursor() as cur:
+            # simulate field being converted to actual JSONB
+            cur.execute("DELETE FROM utils_jsonmodeltestdefault")
+            cur.execute("INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)", ('{"foo": "bar"}',))
+            cur.execute("ALTER TABLE utils_jsonmodeltestdefault ALTER COLUMN field TYPE jsonb USING field::jsonb;")
+
+            obj = JsonModelTestDefault.objects.first()
+            self.assertEqual({"foo": "bar"}, obj.field)
+
+            obj.field = {"zed": "doh"}
+            obj.save()
+
+            self.assertEqual({"zed": "doh"}, JsonModelTestDefault.objects.first().field)
 
     def test_invalid_field_values_db(self):
         with connection.cursor() as cur:
@@ -1129,6 +1149,12 @@ class TestJSONAsTextField(TestCase):
 
             cur.execute("DELETE FROM utils_jsonmodeltestdefault")
             cur.execute("INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)", ("null",))
+            self.assertRaises(ValueError, JsonModelTestDefault.objects.first)
+
+            # simulate field being something non-JSON at db-level
+            cur.execute("DELETE FROM utils_jsonmodeltestdefault")
+            cur.execute("INSERT INTO utils_jsonmodeltestdefault (field) VALUES (%s)", ("1234",))
+            cur.execute("ALTER TABLE utils_jsonmodeltestdefault ALTER COLUMN field TYPE int USING field::int;")
             self.assertRaises(ValueError, JsonModelTestDefault.objects.first)
 
 
