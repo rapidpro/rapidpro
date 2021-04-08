@@ -88,19 +88,24 @@ class IntegrationType(metaclass=ABCMeta):
     category = None
 
     def is_connected(self, org) -> bool:
-        """Returns whether the given org is connected to this integration"""
-        pass
+        """
+        Returns whether the given org is connected to this integration
+        """
 
     def disconnect(self, org, user):
-        """Disconnects this integration on the given org"""
-        pass
+        """
+        Disconnects this integration on the given org
+        """
 
     def management_ui(self, org, formax):
-        """Adds formax sections to provide a UI to manage this integration"""
-        pass
+        """
+        Adds formax sections to provide a UI to manage this integration
+        """
 
     def get_urls(self) -> list:
-        return []
+        """
+        Returns the urls and views for this integration
+        """
 
     @classmethod
     def get_all(cls, category: Category = None) -> list:
