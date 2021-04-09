@@ -242,19 +242,27 @@ class ModalMixin(SmartFormView):
             return self.render_to_response(self.get_context_data(form=form))
 
 
-class IntegrationManagementViewMixin(OrgPermsMixin, ComponentFormMixin):
+class IntegrationViewMixin(OrgPermsMixin):
     permission = "orgs.org_manage_integrations"
     integration_type = None
 
+    def __init__(self, integration_type):
+        self.integration_type = integration_type
+        super().__init__()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["integration_type"] = self.integration_type
+        context["integration_connected"] = self.integration_type.is_connected(self.request.user.get_org())
+        return context
+
+
+class IntegrationFormaxView(IntegrationViewMixin, SmartFormView, ComponentFormMixin):
     class Form(forms.Form):
         def __init__(self, request, integration_type, **kwargs):
             self.request = request
             self.channel_type = integration_type
             super().__init__(**kwargs)
-
-    def __init__(self, integration_type):
-        self.integration_type = integration_type
-        super().__init__()
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -262,11 +270,10 @@ class IntegrationManagementViewMixin(OrgPermsMixin, ComponentFormMixin):
         kwargs["integration_type"] = self.integration_type
         return kwargs
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["integration_type"] = self.integration_type
-        context["integration_connected"] = self.integration_type.is_connected(self.request.user.get_org())
-        return context
+    def form_valid(self, form):
+        response = self.render_to_response(self.get_context_data(form=form))
+        response["REDIRECT"] = self.get_success_url()
+        return response
 
 
 class OrgSignupForm(forms.ModelForm):

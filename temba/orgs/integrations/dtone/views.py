@@ -1,5 +1,3 @@
-from smartmin.views import SmartFormView
-
 from django import forms
 from django.http import HttpResponseRedirect
 from django.urls import reverse
@@ -7,12 +5,12 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.utils.fields import InputWidget
 
-from ...views import IntegrationManagementViewMixin
+from ...views import IntegrationFormaxView
 from .client import DTOneClient
 
 
-class AccountView(IntegrationManagementViewMixin, SmartFormView):
-    class Form(IntegrationManagementViewMixin.Form):
+class AccountView(IntegrationFormaxView):
+    class Form(IntegrationFormaxView.Form):
         api_key = forms.CharField(label=_("API Key"), required=False, widget=InputWidget())
         api_secret = forms.CharField(label=_("API Secret"), required=False, widget=InputWidget())
         disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=False)
@@ -33,8 +31,6 @@ class AccountView(IntegrationManagementViewMixin, SmartFormView):
                     )
 
     form_class = Form
-    submit_button_name = "Save"
-    success_message = ""
     success_url = "@orgs.org_home"
     template_name = "orgs/integrations/dtone/account.haml"
 

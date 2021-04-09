@@ -46,7 +46,7 @@
         -blocktrans trimmed
           This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?
     
-    #disconnect-dtone-form(href='{{ request.path }}?disconnect=true')
+    #disconnect-dtone-form(href="{% url 'integrations.dtone.account' %}?disconnect=true")
 
 
 -block extra-script
