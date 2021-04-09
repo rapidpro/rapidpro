@@ -53,12 +53,18 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         config = {Channel.CONFIG_API_KEY: data["token"]}
 
+        channel_type_name = ""
+        if self.channel_type.code == "ZVW":
+            channel_type_name = "WhatsApp"
+        if self.channel_type.code == "ZVS":
+            channel_type_name = "SMS"
+
         self.object = Channel.create(
             org,
             user,
             data["country"],
             self.channel_type,
-            name="Zenvia WhatsApp: %s" % data["number"],
+            name=f"Zenvia {channel_type_name}: {data['number']}",
             address=data["number"],
             config=config,
         )

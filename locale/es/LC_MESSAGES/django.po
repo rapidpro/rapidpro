@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-03-31 21:00+0000\n"
+"POT-Creation-Date: 2021-04-08 21:00+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -1305,39 +1305,6 @@ msgstr "URL para el estátus"
 msgid "The service ID as provided by Mtarget"
 msgstr "El ID de servicio proporcionado por Mtarget"
 
-msgid "Your Nexmo configuration URLs are as follows. These should have been set up automatically when claiming your number, but if not you can set them from your Nexmo dashboard."
-msgstr "Sus URL de configuración de Nexmo son las siguientes. Estos deberían haberse configurado automáticamente al reclamar su número, pero si no, puede configurarlos desde su panel de Nexmo."
-
-msgid "Callback URL for Inbound Messages"
-msgstr "URL de Callback para mensajes entrantes"
-
-msgid "The callback URL is called by Nexmo when you receive new incoming messages."
-msgstr "Nexmo llama a la URL de Callback cuando recibe nuevos mensajes entrantes."
-
-msgid "Callback URL for Delivery Receipt"
-msgstr "URL de Callback para el recibo de entrega"
-
-msgid "The delivery URL is called by Nexmo when a message is successfully delivered to a recipient."
-msgstr "Nexmo llama a la URL de entrega cuando un mensaje se entrega correctamente a un destinatario."
-
-msgid "Callback URL for Incoming Call"
-msgstr "URL de Callback para llamada entrante"
-
-msgid "The callback URL is called by Nexmo when you receive an incoming call."
-msgstr "Nexmo llama a la URL de Callback cuando recibe una llamada entrante."
-
-msgid "The phone number being added"
-msgstr "El número de teléfono que se está agregando"
-
-msgid "That number is not currently supported."
-msgstr "Ese número no se admite actualmente."
-
-msgid "There was a problem claiming that number, please check the balance on your account. Note that you can only claim numbers after adding credit to your Nexmo account."
-msgstr "Hubo un problema al solicitar ese número, por favor, verifique el saldo en su cuenta. Observe que solamente puede pedir números después de agregar créditos a su cuenta Nexmo."
-
-msgid "There was a problem claiming that number, please check the balance on your account."
-msgstr "Hubo un problema al solicitar ese número, por favor, verifique el saldo en su cuenta."
-
 #, python-format
 msgid "If you are based in Trinidad & Tobago, you can purchase a short code from %(link)s and connect it in a few simple steps."
 msgstr "Si reside en Trinidad y Tobago, puede comprar un código corto de %(link)s y conectarlo en unos sencillos pasos."
@@ -1378,6 +1345,15 @@ msgstr "La URL base de PlayMobile"
 
 msgid "Shortcode"
 msgstr "Código corto"
+
+msgid "The phone number being added"
+msgstr "El número de teléfono que se está agregando"
+
+msgid "That number is not currently supported."
+msgstr "Ese número no se admite actualmente."
+
+msgid "There was a problem claiming that number, please check the balance on your account."
+msgstr "Hubo un problema al solicitar ese número, por favor, verifique el saldo en su cuenta."
 
 msgid "There was a problem updating that number, please try again."
 msgstr "Hubo un problema al actualizar ese número. Vuelve a intentarlo."
@@ -1721,6 +1697,40 @@ msgstr "La identificación de la comunidad"
 msgid "The callback verification string"
 msgstr "La cadena de verificación de Callback"
 
+#, fuzzy
+#| msgid "Your Nexmo configuration URLs are as follows. These should have been set up automatically when claiming your number, but if not you can set them from your Nexmo dashboard."
+msgid "Your Vonage configuration URLs are as follows. These should have been set up automatically when claiming your number, but if not you can set them from your Vonage dashboard."
+msgstr "Sus URL de configuración de Nexmo son las siguientes. Estos deberían haberse configurado automáticamente al reclamar su número, pero si no, puede configurarlos desde su panel de Nexmo."
+
+msgid "Callback URL for Inbound Messages"
+msgstr "URL de Callback para mensajes entrantes"
+
+#, fuzzy
+#| msgid "The callback URL is called by Nexmo when you receive new incoming messages."
+msgid "The callback URL is called by Vonage when you receive new incoming messages."
+msgstr "Nexmo llama a la URL de Callback cuando recibe nuevos mensajes entrantes."
+
+msgid "Callback URL for Delivery Receipt"
+msgstr "URL de Callback para el recibo de entrega"
+
+#, fuzzy
+#| msgid "The delivery URL is called by Nexmo when a message is successfully delivered to a recipient."
+msgid "The delivery URL is called by Vonage when a message is successfully delivered to a recipient."
+msgstr "Nexmo llama a la URL de entrega cuando un mensaje se entrega correctamente a un destinatario."
+
+msgid "Callback URL for Incoming Call"
+msgstr "URL de Callback para llamada entrante"
+
+#, fuzzy
+#| msgid "The callback URL is called by Nexmo when you receive an incoming call."
+msgid "The callback URL is called by Vonage when you receive an incoming call."
+msgstr "Nexmo llama a la URL de Callback cuando recibe una llamada entrante."
+
+#, fuzzy
+#| msgid "There was a problem claiming that number, please check the balance on your account. Note that you can only claim numbers after adding credit to your Nexmo account."
+msgid "There was a problem claiming that number, please check the balance on your account. Note that you can only claim numbers after adding credit to your Vonage account."
+msgstr "Hubo un problema al solicitar ese número, por favor, verifique el saldo en su cuenta. Observe que solamente puede pedir números después de agregar créditos a su cuenta Nexmo."
+
 msgid "To finish connecting your channel, you need to have Movile/Wavy configure the URL below for your number."
 msgstr "Para terminar de conectar su canal, debe hacer que Movile / Wavy configure la URL a continuación para su número."
 
@@ -1849,6 +1859,11 @@ msgstr "El nombre de usuario de la cuenta proporcionado por Zenvia"
 msgid "The account password provided by Zenvia"
 msgstr "La contraseña de la cuenta proporcionada por Zenvia"
 
+#, fuzzy, python-format
+#| msgid "If you have a %(link)s number, you can connect it to communicate with your WhatsApp contacts."
+msgid "If you have a %(link)s number, you can connect it to communicate with your contacts."
+msgstr "Si tiene un número %(link)s, puede conectarlo para comunicarse con sus contactos de WhatsApp."
+
 #, python-format
 msgid "Unable to register webhook subscriptions: %(resp)s"
 msgstr ""
@@ -1975,7 +1990,9 @@ msgstr "Guardar cambios"
 msgid "or"
 msgstr "o"
 
-msgid "A connection to a Nexmo account is required"
+#, fuzzy
+#| msgid "A connection to a Nexmo account is required"
+msgid "A connection to a Vonage account is required"
 msgstr "Se requiere una conexión a una cuenta Nexmo"
 
 msgid "A connection to a Twilio account is required"
@@ -2423,9 +2440,20 @@ msgstr "Actualizar"
 msgid "Contact field uses"
 msgstr "Usos del campo de contacto"
 
-#, python-format
-msgid "This workspace has reached the limit of %(count)d groups. You must delete existing ones before you can perform an import."
-msgstr "Este workspace ha alcanzado el límite de grupos %(count)d. Debe eliminar los existentes antes de poder realizar una importación."
+#, fuzzy
+#| msgid "New Group..."
+msgid "new group"
+msgstr "Nuevo grupo..."
+
+#, fuzzy
+#| msgid "Existing Numbers"
+msgid "existing group"
+msgstr "Números existentes"
+
+#, fuzzy
+#| msgid "Select Group"
+msgid "Select a group"
+msgstr "Elegir Grupo"
 
 #, python-format
 msgid "Field name for '%(header)s' can't be empty."
@@ -2442,6 +2470,24 @@ msgstr "El nombre de campo para '%(header)s' no es válido o es una palabra rese
 #, python-format
 msgid "Field name '%(name)s' is repeated."
 msgstr "Se repite el nombre de campo '%(name)s'."
+
+#, fuzzy
+#| msgid "Required"
+msgid "Required."
+msgstr "Necesario"
+
+#, fuzzy
+#| msgid "Isn't a valid name"
+msgid "Invalid group name."
+msgstr "No es un nombre valido"
+
+msgid "Already exists."
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "This workspace has reached the limit of %(count)d groups. You must delete existing ones before you can perform an import."
+msgid "This workspace has reached the limit of %(count)d groups."
+msgstr "Este workspace ha alcanzado el límite de grupos %(count)d. Debe eliminar los existentes antes de poder realizar una importación."
 
 msgid "Phone Call"
 msgstr "Llamada Telefónica"
@@ -2609,12 +2655,6 @@ msgstr "Elija el método para su flujo"
 msgid "Choose a name to describe this flow, e.g. Demographic Survey"
 msgstr "Elegir un nombre para describir este flujo, por ejemplo, Encuesta demográfica"
 
-msgid "Expire inactive contacts"
-msgstr "Vencimiento de contactos inactivos"
-
-msgid "When inactive contacts should be removed from the flow"
-msgstr "Cuándo los contactos inactivos serán retirados del flujo"
-
 msgid "Create a contact "
 msgstr "Crear un contacto"
 
@@ -2632,6 +2672,12 @@ msgstr "Vuelva a intentar llamar si no puede conectarse"
 
 msgid "Retries call three times for the chosen interval"
 msgstr "Los reintentos llaman tres veces para el intervalo elegido"
+
+msgid "Expire inactive contacts"
+msgstr "Vencimiento de contactos inactivos"
+
+msgid "When inactive contacts should be removed from the flow"
+msgstr "Cuándo los contactos inactivos serán retirados del flujo"
 
 msgid "Keywords"
 msgstr "Palabras clave"
@@ -2652,8 +2698,8 @@ msgstr "Eliminar etiqueta"
 msgid "Start Flow"
 msgstr "Empezar flujo"
 
-msgid "Download Results"
-msgstr "Descargar Resultados"
+msgid "Results"
+msgstr "Resultados"
 
 msgid "Edit Flow"
 msgstr "Editar flujo"
@@ -2733,6 +2779,9 @@ msgstr "Solo puede incluir hasta {ExportFlowResultsTask.MAX_CONTACT_FIELDS_COLS}
 #, python-brace-format
 msgid "You can only include up to {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groups for group memberships in your export"
 msgstr "Solo puede incluir hasta {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} grupos para membresías de grupo en su exportación"
+
+msgid "Download Results"
+msgstr "Descargar Resultados"
 
 msgid "Sunday"
 msgstr "domingo"
@@ -3395,19 +3444,29 @@ msgstr "Debe ingresar el Token de su Cuenta Twilio"
 msgid "The Twilio account SID and Token seem invalid. Please check them again and retry."
 msgstr "El SID y Token de su Cuenta Twilio son inválidos. Por favor, verifíquelos e inténtelo nuevamente."
 
-msgid "You must enter your Nexmo Account API Key"
+#, fuzzy
+#| msgid "You must enter your Nexmo Account API Key"
+msgid "You must enter your account API Key"
 msgstr "Debes ingresar la clave API de tu cuenta Nexmo"
 
-msgid "You must enter your Nexmo Account API Secret"
+#, fuzzy
+#| msgid "You must enter your Nexmo Account API Secret"
+msgid "You must enter your account API Secret"
 msgstr "Debes ingresar el API Secret de tu cuenta Nexmo"
 
-msgid "Your Nexmo API key and secret seem invalid. Please check them again and retry."
+#, fuzzy
+#| msgid "Your Nexmo API key and secret seem invalid. Please check them again and retry."
+msgid "Your API key and secret seem invalid. Please check them again and retry."
 msgstr "Su clave y código secreto API de Nexmo son inválidos. Por favor, verifíquelos e inténtelo nuevamente."
 
-msgid "Your Nexmo API key"
+#, fuzzy
+#| msgid "Your Nexmo API key"
+msgid "Your Vonage API key"
 msgstr "Su Clave API de Nexmo"
 
-msgid "Your Nexmo API secret"
+#, fuzzy
+#| msgid "Your Nexmo API secret"
+msgid "Your Vonage API secret"
 msgstr "Su código secreto API de Nexmo"
 
 msgid "Your Plivo AUTH ID"
@@ -3633,13 +3692,6 @@ msgstr "Idiomas adicionales"
 
 msgid "Additional languages you would like to provid translations for"
 msgstr "Idiomas adicionales para los que le gustaría proporcionar traducciones"
-
-msgid " and "
-msgstr "y"
-
-#, python-format
-msgid "%(lang1)s and %(lang2)s"
-msgstr "%(lang1)s y %(lang2)s"
 
 #, python-format
 msgid "Cleared %(name)s cache for this workspace (%(count)d keys)"
@@ -4253,16 +4305,24 @@ msgstr "Agregar envío masivo"
 msgid "Bulk senders typically can send a higher volume of messages and in some cases are even cheaper than local messaging rates. If you have an account with a bulk sender, you can use your local Android phone number to receive messages, and use a bulk sender for your outgoing messages."
 msgstr "Los remitentes masivos generalmente pueden enviar un mayor volumen de mensajes y, en algunos casos, son incluso más baratos que las tarifas de mensajería local. Si tiene una cuenta con un remitente masivo, puede usar su número de teléfono Android local para recibir mensajes y usar un remitente masivo para sus mensajes salientes."
 
-msgid "Connect Nexmo"
+#, fuzzy
+#| msgid "Connect Nexmo"
+msgid "Connect Vonage"
 msgstr "Conectar Nexmo"
 
-msgid "A great way to connect if you are outside the United States or UK. Connect a Nexmo Account to send messages to over 200 countries worldwide."
+#, fuzzy
+#| msgid "A great way to connect if you are outside the United States or UK. Connect a Nexmo Account to send messages to over 200 countries worldwide."
+msgid "A great way to connect if you are outside the United States or UK. Connect a Vonage Account to send messages to over 200 countries worldwide."
 msgstr "Una excelente manera de conectarse si se encuentra fuera de los Estados Unidos o el Reino Unido. Conecte una cuenta Nexmo para enviar mensajes a más de 200 países en todo el mundo."
 
-msgid "Send with Nexmo"
+#, fuzzy
+#| msgid "Send with Nexmo"
+msgid "Send with Vonage"
 msgstr "Enviar con Nexmo"
 
-msgid "Instead of using your Android phone to send messages, you can use your Nexmo Account to send messages to over 200 countries."
+#, fuzzy
+#| msgid "Instead of using your Android phone to send messages, you can use your Nexmo Account to send messages to over 200 countries."
+msgid "Instead of using your Android phone to send messages, you can use your Vonage Account to send messages to over 200 countries."
 msgstr "En lugar de usar su teléfono Android para enviar mensajes, puede usar su cuenta Nexmo para enviar mensajes a más de 200 países."
 
 msgid "Connect External API"
@@ -5655,6 +5715,16 @@ msgstr "campo"
 msgid "a <strong>%(scheme)s</strong> URN"
 msgstr "a <strong> %(scheme)s </strong> URN"
 
+#, fuzzy
+#| msgid "contacts"
+msgid "Add contacts to"
+msgstr "contactos"
+
+#, fuzzy
+#| msgid "Billed"
+msgid "called"
+msgstr "Facturado"
+
 msgid "Contact Import"
 msgstr "Importación de contactos"
 
@@ -5896,9 +5966,6 @@ msgstr "Nueva etiqueta"
 
 msgid "No matching flows."
 msgstr "Sin flujos que correspondan."
-
-msgid "Results"
-msgstr "Resultados"
 
 msgid "Delete Run"
 msgstr "Eliminar ejecución"
@@ -6605,9 +6672,6 @@ msgstr "Si utiliza la aplicación %(brand)s Surveyor para ejecutar flujos sin co
 msgid "Your workspace has"
 msgstr "Tu espacio de trabajo tiene"
 
-msgid "Chatbase Account"
-msgstr "Cuenta de Chatbase"
-
 msgid "Connected to Chatbase Account"
 msgstr "Conectado a la cuenta de Chatbase"
 
@@ -6671,9 +6735,6 @@ msgstr "Estás a punto de borrar"
 
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
 msgstr "¿Está seguro de que desea eliminar todo para esta organización? Esto no se puede deshacer. También se eliminarán todos los logins que solo pertenezcan a este workspace."
-
-msgid "DT One Account"
-msgstr "Cuenta DT One"
 
 msgid "Connected to your <b>DT One</b> account."
 msgstr ""
@@ -6796,8 +6857,9 @@ msgstr "Por favor, haga clic en Participar para aceptar la invitación."
 msgid "The primary language is <b>%(lang)s</b>."
 msgstr "El idioma principal es <b> %(lang)s </b>."
 
-#, python-format
-msgid "Translations are provided in <b>%(lang)s</b>."
+#, fuzzy
+#| msgid "Translations are provided in <b>%(lang)s</b>."
+msgid "Translations are provided in"
 msgstr "Las traducciones se proporcionan en <b> %(lang)s </b>."
 
 msgid "Your workspace is configured to use a single language."
@@ -6815,24 +6877,6 @@ msgstr "Invitaciones pendientes"
 msgid "Invite New Users"
 msgstr "Invitar nuevos usuarios"
 
-msgid "Disconnect Nexmo"
-msgstr "Desconectar Nexmo"
-
-msgid "Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?"
-msgstr "La desconexión de su cuenta Nexmo también eliminará todos los canales Nexmo conectados a ella. ¿Estas seguro que deseas continuar?"
-
-msgid "To connect your Nexmo Account you will need to provide us your Nexmo API key and secret."
-msgstr "Para poder conectar su cuenta Nexmo, envíenos su clave y código secreto API de Nexmo."
-
-msgid "Both values can be found on your"
-msgstr "Ambos valores se pueden encontrar en su"
-
-msgid "Nexmo Settings Page"
-msgstr "Página de configuración de Nexmo"
-
-msgid "in the API Settings section."
-msgstr "en la sección Configuración de API."
-
 msgid "You are currently on the {{org.plan}} plan."
 msgstr "Actualmente estás en el plan {{org.plan}}."
 
@@ -6841,6 +6885,9 @@ msgstr "Conectar Plivo"
 
 msgid "To connect your Plivo Account you will need to provide us your Plivo AUTH ID and AUTH TOKEN."
 msgstr "Para conectar su cuenta de Plivo, deberá proporcionarnos su ID de AUTH de Plivo y el TOKEN de AUTH."
+
+msgid "Both values can be found on your"
+msgstr "Ambos valores se pueden encontrar en su"
 
 msgid "Plivo Dashboard"
 msgstr "Panel de Plivo"
@@ -6885,23 +6932,29 @@ msgstr "Crear Cuenta"
 msgid "Creating a %(brand)s account is free and only takes a minute."
 msgstr "Crear una cuenta %(brand)s es gratis y solo toma un minuto."
 
-msgid "Remove SMTP configuration"
-msgstr "Eliminar la configuración de SMTP"
-
-#, python-format
-msgid "Emails sent from flows will come from <b>%(from_email)s</b>."
+#, fuzzy, python-format
+#| msgid "Emails sent from flows will come from <b>%(from_email)s</b>."
+msgid "Emails sent from flows will be sent from <b>%(from_email)s</b>."
 msgstr "Los correos electrónicos enviados desde flujos provendrán de <b> %(from_email)s </b>."
 
-#, python-format
-msgid "You can configure %(brand)s to send emails generated within flows from an email address of your choosing. <br/> This will let you receive replies from your recipients."
+#, fuzzy, python-format
+#| msgid "You can configure %(brand)s to send emails generated within flows from an email address of your choosing. <br/> This will let you receive replies from your recipients."
+msgid "You can configure %(brand)s to send emails generated within flows from an email address of your choosing."
 msgstr "Puede configurar %(brand)s para enviar correos electrónicos generados dentro de los flujos desde una dirección de correo electrónico de su elección. <br/> Esto le permitirá recibir respuestas de sus destinatarios."
 
-#, python-format
-msgid "If you no longer want to use %(from_email)s to send emails, you can <a href='javascript:confirmSMTPRemove();'>remove your SMTP configuration</a>."
+#, fuzzy, python-format
+#| msgid "If you no longer want to use %(from_email)s to send emails, you can <a href='javascript:confirmSMTPRemove();'>remove your SMTP configuration</a>."
+msgid "If you no longer want to use %(from_email)s to send emails, you can <a href='javascript:confirmSMTPRemove();'>remove your SMTP settings</a>."
 msgstr "Si ya no desea utilizar %(from_email)s para enviar correos electrónicos, puede <a href='javascript:confirmSMTPRemove();'> eliminar su configuración SMTP </a>."
 
-#, python-format
-msgid "Removing your SMTP configuration will result in emails being delivered from %(brand)s that cannot be replied to. Are you sure you want to continue?"
+#, fuzzy
+#| msgid "Remove SMTP configuration"
+msgid "Remove SMTP Settings"
+msgstr "Eliminar la configuración de SMTP"
+
+#, fuzzy, python-format
+#| msgid "Removing your SMTP configuration will result in emails being delivered from %(brand)s that cannot be replied to. Are you sure you want to continue?"
+msgid "Removing these settings will mean that emails sent from flows will come from %(from_email)s. Are you sure you want to continue?"
 msgstr "Si elimina su configuración SMTP, los correos electrónicos se entregarán desde %(brand)s a los que no se podrá responder. Estás seguro de que quieres continuar?"
 
 #, python-format
@@ -6927,11 +6980,30 @@ msgstr "Explorador de API"
 msgid "Your API Token is <b>%(token)s</b>."
 msgstr "Su token de API es <b> %(token)s </b>."
 
+#, fuzzy, python-format
+#| msgid "A connection to a Twilio account is required"
+msgid "Connected to Twilio Account <b>%(account_sid)s</b>."
+msgstr "Se requiere una conexión a una cuenta Twilio"
+
+#, fuzzy, python-format
+#| msgid "If you no longer want it connected, you can"
+msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Twilio account</a>."
+msgstr "Si ya no lo quiere conectado, puede"
+
 msgid "Disconnect Twilio"
 msgstr "Desconectar Twilio"
 
 msgid "Disconnecting your Twilio account will also remove any Twilio channels connected to it. Are you sure you want to proceed?"
 msgstr "La desconexión de su cuenta Twilio también eliminará los canales Twilio conectados a ella. ¿Estas seguro que deseas continuar?"
+
+#, fuzzy
+#| msgid "Disconnect Twilio"
+msgid "Connect Twilio"
+msgstr "Desconectar Twilio"
+
+#, python-format
+msgid "To connect your Twilio Account you will need to provide us your Twilio account SID and auth token. Both values can be found on your <a target=\"twilio\" href=\"%(settings_url)s\">Twilio account page</a>."
+msgstr ""
 
 msgid "This workspace has been suspended"
 msgstr "Este workspace ha sido suspendido"
@@ -6944,6 +7016,30 @@ msgstr "Este workspace ha sido verificado"
 
 msgid "This workspace has been scheduled for deletion"
 msgstr "Se ha programado la eliminación de este workspace"
+
+#, fuzzy, python-format
+#| msgid "A connection to a Twilio account is required"
+msgid "Connected to Vonage account with API key %(api_key)s."
+msgstr "Se requiere una conexión a una cuenta Twilio"
+
+#, fuzzy, python-format
+#| msgid "If you no longer want it connected, you can"
+msgid "If you no longer want it connected, you can <a href=\"%(url)s\">disconnect your Vonage account</a>."
+msgstr "Si ya no lo quiere conectado, puede"
+
+#, fuzzy
+#| msgid "Disconnect DT One"
+msgid "Disconnect Vonage"
+msgstr "Desconecte DT One"
+
+#, fuzzy
+#| msgid "Disconnecting your Nexmo account will also remove any Nexmo channels connected to it. Are you sure you want to proceed?"
+msgid "Disconnecting your Vonage account will also remove any Vonage channels connected to it. Are you sure you want to proceed?"
+msgstr "La desconexión de su cuenta Nexmo también eliminará todos los canales Nexmo conectados a ella. ¿Estas seguro que deseas continuar?"
+
+#, python-format
+msgid "To connect your Vonage Account you will need to provide us your API key and secret. Both values can be found on your <a target=\"vonage\" href=\"%(settings_url)s\">Vonage settings</a> page in the API Settings section."
+msgstr ""
 
 msgid "Top Ups"
 msgstr "Recargas"
@@ -7709,3 +7805,38 @@ msgstr "Ingrese una consulta"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Se encontró $ {count} por $ {query}"
+
+#~ msgid "Disconnect Nexmo"
+#~ msgstr "Desconectar Nexmo"
+
+#~ msgid "To connect your Nexmo Account you will need to provide us your Nexmo API key and secret."
+#~ msgstr "Para poder conectar su cuenta Nexmo, envíenos su clave y código secreto API de Nexmo."
+
+#~ msgid "Nexmo Settings Page"
+#~ msgstr "Página de configuración de Nexmo"
+
+#~ msgid "in the API Settings section."
+#~ msgstr "en la sección Configuración de API."
+
+#, fuzzy
+#~| msgid "Disconnect Nexmo"
+#~ msgid "Disconnected from Nexmo"
+#~ msgstr "Desconectar Nexmo"
+
+#, fuzzy
+#~| msgid "Disconnect Twilio"
+#~ msgid "Disconnected from Twilio"
+#~ msgstr "Desconectar Twilio"
+
+#~ msgid " and "
+#~ msgstr "y"
+
+#, python-format
+#~ msgid "%(lang1)s and %(lang2)s"
+#~ msgstr "%(lang1)s y %(lang2)s"
+
+#~ msgid "Chatbase Account"
+#~ msgstr "Cuenta de Chatbase"
+
+#~ msgid "DT One Account"
+#~ msgstr "Cuenta DT One"

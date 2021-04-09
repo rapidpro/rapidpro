@@ -63,7 +63,7 @@ EMAIL_TIMEOUT = 10
 
 # Used when sending email from within a flow and the user hasn't configured
 # their own SMTP server.
-FLOW_FROM_EMAIL = "no-reply@temba.io"
+FLOW_FROM_EMAIL = "Temba <no-reply@temba.io>"
 
 # HTTP Headers using for outgoing requests to other services
 OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
@@ -422,8 +422,8 @@ PERMISSIONS = {
         "manage",
         "manage_accounts",
         "manage_accounts_sub_org",
-        "nexmo_account",
-        "nexmo_connect",
+        "vonage_account",
+        "vonage_connect",
         "plan",
         "plivo_connect",
         "profile",
@@ -449,7 +449,7 @@ PERMISSIONS = {
         "create_caller",
         "errors",
         "facebook_whitelist",
-        "search_nexmo",
+        "search_vonage",
         "search_numbers",
     ),
     "channels.channellog": ("connection",),
@@ -504,7 +504,7 @@ PERMISSIONS = {
     "policies.policy": ("admin", "history", "give_consent"),
     "request_logs.httplog": ("classifier", "ticketer"),
     "templates.template": ("api",),
-    "tickets.ticket": ("open", "closed", "filter", "update"),
+    "tickets.ticket": ("api", "open", "closed", "filter", "update"),
     "tickets.ticketer": ("api", "connect", "configure"),
     "triggers.trigger": (
         "archived",
@@ -639,8 +639,8 @@ GROUP_PERMISSIONS = {
         "orgs.org_languages",
         "orgs.org_manage_accounts",
         "orgs.org_manage_accounts_sub_org",
-        "orgs.org_nexmo_account",
-        "orgs.org_nexmo_connect",
+        "orgs.org_vonage_account",
+        "orgs.org_vonage_connect",
         "orgs.org_plan",
         "orgs.org_plivo_connect",
         "orgs.org_profile",
@@ -665,7 +665,7 @@ GROUP_PERMISSIONS = {
         "channels.channel_delete",
         "channels.channel_list",
         "channels.channel_read",
-        "channels.channel_search_nexmo",
+        "channels.channel_search_vonage",
         "channels.channel_search_numbers",
         "channels.channel_update",
         "channels.channelevent.*",
@@ -804,6 +804,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
+        "tickets.ticket_api",
         "tickets.ticket_closed",
         "tickets.ticket_filter",
         "tickets.ticket_open",
@@ -878,6 +879,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "tickets.ticket_api",
         "tickets.ticket_closed",
         "tickets.ticket_filter",
         "tickets.ticket_open",
@@ -1095,11 +1097,12 @@ CHANNEL_TYPES = [
     "temba.channels.types.whatsapp.WhatsAppType",
     "temba.channels.types.textit_whatsapp.TextItWhatsAppType",
     "temba.channels.types.dialog360.Dialog360Type",
+    "temba.channels.types.zenvia_whatsapp.ZenviaWhatsAppType",
     "temba.channels.types.twilio.TwilioType",
     "temba.channels.types.twilio_whatsapp.TwilioWhatsappType",
     "temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType",
     "temba.channels.types.signalwire.SignalWireType",
-    "temba.channels.types.nexmo.NexmoType",
+    "temba.channels.types.vonage.VonageType",
     "temba.channels.types.africastalking.AfricasTalkingType",
     "temba.channels.types.blackmyna.BlackmynaType",
     "temba.channels.types.bongolive.BongoLiveType",
@@ -1152,7 +1155,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.wechat.WeChatType",
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia.ZenviaType",
-    "temba.channels.types.zenvia_whatsapp.ZenviaWhatsAppType",
+    "temba.channels.types.zenvia_sms.ZenviaSMSType",
     "temba.channels.types.android.AndroidType",
     "temba.channels.types.discord.DiscordType",
     "temba.channels.types.rocketchat.RocketChatType",

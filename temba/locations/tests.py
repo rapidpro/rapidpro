@@ -256,25 +256,6 @@ class LocationTest(TembaTest):
 
         self.assertEqual(response_json[0]["aliases"], "MyRwanda")
 
-        # exact match
-        boundary = self.org.find_boundary_by_name("kigali city", AdminBoundary.LEVEL_STATE, self.country)
-        self.assertEqual(len(boundary), 1)
-        self.assertEqual(boundary[0], self.state1)
-
-        # try to find the location by alias
-        boundary = self.org.find_boundary_by_name("kigs", AdminBoundary.LEVEL_STATE, self.country)
-        self.assertEqual(len(boundary), 1)
-        self.assertEqual(boundary[0], self.state1)
-
-        # also try with no parent
-        boundary = self.org.find_boundary_by_name("kigs", AdminBoundary.LEVEL_STATE, None)
-        self.assertEqual(len(boundary), 1)
-        self.assertEqual(boundary[0], self.state1)
-
-        # test no match
-        boundary = self.org.find_boundary_by_name("foobar", AdminBoundary.LEVEL_STATE, None)
-        self.assertFalse(boundary)
-
         # fetch aliases again
         response = self.client.get(reverse("locations.adminboundary_boundaries", args=[self.country.osm_id]))
         response_json = response.json()

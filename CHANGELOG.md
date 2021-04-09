@@ -1,3 +1,37 @@
+v6.3.19
+----------
+ * Add support for Zenvia SMS
+ * Cleanup parsing unused code on org model
+ * Fix flow update forms to show correct fields based on flow type
+ * Tweak JSONAsTextField to allow underlying DB column to be migrated to JSONB
+ * Add controls to import preview page for selecting existing groups etc
+
+v6.3.18
+----------
+ * Fix template names
+
+v6.3.17
+----------
+ * Fix font reference in scss
+
+v6.3.16
+----------
+ * Add group name field to contact imports so that it can be customized
+ * Rename Nexmo to Vonage, update icon
+ * Merge the two used icomoon sets into one and delete unused one
+ * Cleanup problems in org view templates
+
+v6.3.15
+----------
+ * Revert wording changes when orgs don't have email settings to clarify that we do send
+ * Fix wording of Results link in editor
+
+v6.3.14
+----------
+ * Fix locale files
+ * Fix SMTP server settings views to explain that we don't send emails if you don't have a config
+ * Add API endpoint to fetch tickets filterable by contact
+
 v6.3.13
 ----------
  * Clarify terms for exports vs downloads

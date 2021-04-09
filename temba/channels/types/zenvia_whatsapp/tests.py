@@ -38,6 +38,7 @@ class ZenviaWhatsAppTypeTest(TembaTest):
         self.assertEqual("+12065551212", channel.address)
         self.assertEqual("12345", channel.config["api_key"])
         self.assertEqual("ZVW", channel.channel_type)
+        self.assertEqual("Zenvia WhatsApp: +12065551212", channel.name)
 
         with patch("requests.post") as mock_patch:
             mock_patch.side_effect = [MockResponse(400, '{ "error": true }')]

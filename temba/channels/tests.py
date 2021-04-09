@@ -212,7 +212,7 @@ class ChannelTest(TembaTest):
     def test_get_channel_type_name(self):
         self.assertEqual(self.tel_channel.get_channel_type_name(), "Android Phone")
         self.assertEqual(self.twitter_channel.get_channel_type_name(), "Twitter Channel")
-        self.assertEqual(self.unclaimed_channel.get_channel_type_name(), "Nexmo Channel")
+        self.assertEqual(self.unclaimed_channel.get_channel_type_name(), "Vonage Channel")
 
     def test_ensure_normalization(self):
         self.tel_channel.country = "RW"
@@ -918,12 +918,13 @@ class ChannelTest(TembaTest):
         self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "AC")
         self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "T")
         self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "TMS")
-        self.assertEqual(response.context["channel_types"]["PHONE"][-2].code, "WV")
-        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "YO")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-2].code, "YO")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "ZVS")
 
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "D3")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "TWA")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "FBA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "ZVW")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "TWA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][3].code, "FBA")
 
         self.admin.groups.add(Group.objects.get(name="Beta"))
 
@@ -936,12 +937,13 @@ class ChannelTest(TembaTest):
         self.assertEqual(response.context["channel_types"]["PHONE"][0].code, "AC")
         self.assertEqual(response.context["channel_types"]["PHONE"][1].code, "T")
         self.assertEqual(response.context["channel_types"]["PHONE"][2].code, "TMS")
-        self.assertEqual(response.context["channel_types"]["PHONE"][-2].code, "WV")
-        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "YO")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-2].code, "YO")
+        self.assertEqual(response.context["channel_types"]["PHONE"][-1].code, "ZVS")
 
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][0].code, "WA")
         self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][1].code, "D3")
-        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "TWA")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][2].code, "ZVW")
+        self.assertEqual(response.context["channel_types"]["SOCIAL_MEDIA"][3].code, "TWA")
 
     def test_register_unsupported_android(self):
         # remove our explicit country so it needs to be derived from channels
@@ -973,23 +975,23 @@ class ChannelTest(TembaTest):
         with self.assertRaises(ValueError):
             self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
 
-    def test_search_nexmo(self):
+    def test_search_vonage(self):
         self.login(self.admin)
         self.org.channels.update(is_active=False)
         self.channel = Channel.create(
             self.org, self.user, "RW", "NX", None, "+250788123123", uuid="00000000-0000-0000-0000-000000001234"
         )
 
-        self.org.connect_nexmo("1234", "secret", self.admin)
+        self.org.connect_vonage("1234", "secret", self.admin)
 
-        search_nexmo_url = reverse("channels.channel_search_nexmo")
+        search_url = reverse("channels.channel_search_vonage")
 
-        response = self.client.get(search_nexmo_url)
+        response = self.client.get(search_url)
         self.assertIn("area_code", response.context["form"].fields)
         self.assertIn("country", response.context["form"].fields)
 
-        with patch("requests.get") as nexmo_get:
-            nexmo_get.side_effect = [
+        with patch("requests.get") as mock_get:
+            mock_get.side_effect = [
                 MockResponse(
                     200,
                     '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
@@ -1005,12 +1007,12 @@ class ChannelTest(TembaTest):
             ]
 
             post_data = dict(country="US", area_code="360")
-            response = self.client.post(search_nexmo_url, post_data, follow=True)
+            response = self.client.post(search_url, post_data, follow=True)
 
             self.assertEqual(response.json(), ["+1 360-788-4540", "+1 360-788-4550"])
 
-        with patch("requests.get") as nexmo_get:
-            nexmo_get.side_effect = [
+        with patch("requests.get") as mock_get:
+            mock_get.side_effect = [
                 nexmo.ClientError("429 Too many requests"),
                 MockResponse(
                     200,
@@ -1028,7 +1030,7 @@ class ChannelTest(TembaTest):
             ]
 
             post_data = dict(country="US", area_code="360")
-            response = self.client.post(search_nexmo_url, post_data, follow=True)
+            response = self.client.post(search_url, post_data, follow=True)
 
             self.assertEqual(response.json(), ["+1 360-788-4540", "+1 360-788-4550"])
 
@@ -1099,12 +1101,12 @@ class ChannelTest(TembaTest):
         )
         android.refresh_from_db()
 
-        # connect org to Nexmo and add bulk sender
-        self.org.connect_nexmo("123", "456", self.admin)
+        # connect org to Vonage and add bulk sender
+        self.org.connect_vonage("123", "456", self.admin)
 
-        claim_nexmo_url = reverse("channels.channel_create_bulk_sender") + "?connection=NX&channel=%d" % android.pk
-        self.client.post(claim_nexmo_url, dict(connection="NX", channel=android.pk))
-        nexmo = Channel.objects.get(channel_type="NX")
+        claim_url = reverse("channels.channel_create_bulk_sender") + "?connection=NX&channel=%d" % android.pk
+        self.client.post(claim_url, dict(connection="NX", channel=android.pk))
+        vonage = Channel.objects.get(channel_type="NX")
 
         android.release()
 
@@ -1112,14 +1114,14 @@ class ChannelTest(TembaTest):
         self.assertFalse(android.is_active)
         self.assertFalse(android.config.get(Channel.CONFIG_FCM_ID))
 
-        # Nexmo delegate should have been released as well
-        nexmo.refresh_from_db()
-        self.assertFalse(nexmo.is_active)
+        # bulk sender should have been released as well
+        vonage.refresh_from_db()
+        self.assertFalse(vonage.is_active)
 
         Channel.objects.all().delete()
 
         # check we queued session interrupt tasks for each channel
-        mock_queue_interrupt.assert_has_calls(calls=[call(self.org, channel=nexmo), call(self.org, channel=android)])
+        mock_queue_interrupt.assert_has_calls(calls=[call(self.org, channel=vonage), call(self.org, channel=android)])
 
         # register and claim an Android channel
         reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])

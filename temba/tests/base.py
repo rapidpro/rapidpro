@@ -1,5 +1,6 @@
 import shutil
 from datetime import datetime
+from pathlib import Path
 
 import pytz
 import redis
@@ -491,9 +492,11 @@ class TembaTestMixin:
             mappings, num_records = ContactImport.try_to_parse(self.org, f, path)
             return ContactImport.objects.create(
                 org=self.org,
+                original_filename=path,
                 file=SimpleUploadedFile(f.name, f.read()),
                 mappings=mappings,
                 num_records=num_records,
+                group_name=Path(path).stem.title(),
                 created_by=self.admin,
                 modified_by=self.admin,
             )

@@ -931,50 +931,6 @@ class OrgTest(TembaTest):
         urn = ContactURN.get_or_create(self.org, joe, "tel:+250788383383")
         self.assertEqual(short_code, self.org.get_channel_for_role(Channel.ROLE_SEND, None, urn))
 
-    def test_get_channel_countries(self):
-        self.assertEqual(self.org.get_channel_countries(), [])
-
-        self.org.connect_dtone("mylogin", "api_token", self.admin)
-
-        self.assertEqual(
-            self.org.get_channel_countries(),
-            [dict(code="RW", name="Rwanda", currency_name="Rwanda Franc", currency_code="RWF")],
-        )
-
-        Channel.create(
-            self.org, self.user, "US", "A", None, "+12001112222", secret="asdf", config={Channel.CONFIG_FCM_ID: "1234"}
-        )
-
-        self.assertEqual(
-            self.org.get_channel_countries(),
-            [
-                dict(code="RW", name="Rwanda", currency_name="Rwanda Franc", currency_code="RWF"),
-                dict(code="US", name="United States", currency_name="US Dollar", currency_code="USD"),
-            ],
-        )
-
-        Channel.create(self.org, self.user, None, "TT", name="Twitter Channel", address="billy_bob", role="SR")
-
-        self.assertEqual(
-            self.org.get_channel_countries(),
-            [
-                dict(code="RW", name="Rwanda", currency_name="Rwanda Franc", currency_code="RWF"),
-                dict(code="US", name="United States", currency_name="US Dollar", currency_code="USD"),
-            ],
-        )
-
-        Channel.create(
-            self.org, self.user, "US", "A", None, "+12001113333", secret="qwer", config={Channel.CONFIG_FCM_ID: "qwer"}
-        )
-
-        self.assertEqual(
-            self.org.get_channel_countries(),
-            [
-                dict(code="RW", name="Rwanda", currency_name="Rwanda Franc", currency_code="RWF"),
-                dict(code="US", name="United States", currency_name="US Dollar", currency_code="USD"),
-            ],
-        )
-
     def test_edit(self):
         # use a manager now
         self.login(self.admin)
@@ -2792,30 +2748,32 @@ class OrgTest(TembaTest):
     def test_smtp_server(self):
         self.login(self.admin)
 
-        smtp_server_url = reverse("orgs.org_smtp_server")
+        home_url = reverse("orgs.org_home")
+        config_url = reverse("orgs.org_smtp_server")
 
-        self.org.refresh_from_db()
+        # orgs without SMTP settings see default from address
+        response = self.client.get(home_url)
+        self.assertContains(response, "Emails sent from flows will be sent from <b>no-reply@temba.io</b>.")
+        self.assertEqual("no-reply@temba.io", response.context["from_email_default"])
+        self.assertEqual(None, response.context["from_email_custom"])
+
         self.assertFalse(self.org.has_smtp_config())
 
-        response = self.client.post(smtp_server_url, dict(disconnect="false"), follow=True)
+        response = self.client.post(config_url, dict(disconnect="false"), follow=True)
         self.assertEqual(
             '[{"message": "You must enter a from email", "code": ""}]',
             response.context["form"].errors["__all__"].as_json(),
         )
         self.assertEqual(len(mail.outbox), 0)
 
-        response = self.client.post(
-            smtp_server_url, {"smtp_from_email": "foobar.com", "disconnect": "false"}, follow=True
-        )
+        response = self.client.post(config_url, {"from_email": "foobar.com", "disconnect": "false"}, follow=True)
         self.assertEqual(
             '[{"message": "Please enter a valid email address", "code": ""}]',
             response.context["form"].errors["__all__"].as_json(),
         )
         self.assertEqual(len(mail.outbox), 0)
 
-        response = self.client.post(
-            smtp_server_url, {"smtp_from_email": "foo@bar.com", "disconnect": "false"}, follow=True
-        )
+        response = self.client.post(config_url, {"from_email": "foo@bar.com", "disconnect": "false"}, follow=True)
         self.assertEqual(
             '[{"message": "You must enter the SMTP host", "code": ""}]',
             response.context["form"].errors["__all__"].as_json(),
@@ -2823,8 +2781,8 @@ class OrgTest(TembaTest):
         self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
-            smtp_server_url,
-            {"smtp_from_email": "foo@bar.com", "smtp_host": "smtp.example.com", "disconnect": "false"},
+            config_url,
+            {"from_email": "foo@bar.com", "smtp_host": "smtp.example.com", "disconnect": "false"},
             follow=True,
         )
         self.assertEqual(
@@ -2834,9 +2792,9 @@ class OrgTest(TembaTest):
         self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "foo@bar.com",
+                "from_email": "foo@bar.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "disconnect": "false",
@@ -2850,9 +2808,9 @@ class OrgTest(TembaTest):
         self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "foo@bar.com",
+                "from_email": "foo@bar.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secret",
@@ -2869,9 +2827,9 @@ class OrgTest(TembaTest):
         with patch("temba.utils.email.send_custom_smtp_email") as mock_send_smtp_email:
             mock_send_smtp_email.side_effect = smtplib.SMTPException("SMTP Error")
             response = self.client.post(
-                smtp_server_url,
+                config_url,
                 {
-                    "smtp_from_email": "foo@bar.com",
+                    "from_email": "foo@bar.com",
                     "smtp_host": "smtp.example.com",
                     "smtp_username": "support@example.com",
                     "smtp_password": "secret",
@@ -2888,9 +2846,9 @@ class OrgTest(TembaTest):
 
             mock_send_smtp_email.side_effect = Exception("Unexpected Error")
             response = self.client.post(
-                smtp_server_url,
+                config_url,
                 {
-                    "smtp_from_email": "foo@bar.com",
+                    "from_email": "foo@bar.com",
                     "smtp_host": "smtp.example.com",
                     "smtp_username": "support@example.com",
                     "smtp_password": "secret",
@@ -2906,9 +2864,9 @@ class OrgTest(TembaTest):
             self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "foo@bar.com",
+                "from_email": "foo@bar.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secret",
@@ -2927,13 +2885,14 @@ class OrgTest(TembaTest):
             "smtp://support%40example.com:secret@smtp.example.com:465/?from=foo%40bar.com&tls=true",
         )
 
-        response = self.client.get(smtp_server_url)
-        self.assertEqual("foo@bar.com", response.context["flow_from_email"])
+        response = self.client.get(config_url)
+        self.assertEqual("no-reply@temba.io", response.context["from_email_default"])
+        self.assertEqual("foo@bar.com", response.context["from_email_custom"])
 
         self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "support@example.com",
+                "from_email": "support@example.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secret",
@@ -2950,9 +2909,9 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.has_smtp_config())
 
         self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "support@example.com",
+                "from_email": "support@example.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "",
@@ -2971,9 +2930,9 @@ class OrgTest(TembaTest):
         )
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "support@example.com",
+                "from_email": "support@example.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "help@example.com",
                 "smtp_password": "",
@@ -2989,15 +2948,15 @@ class OrgTest(TembaTest):
             response.context["form"].errors["__all__"].as_json(),
         )
 
-        self.client.post(smtp_server_url, dict(disconnect="true"), follow=True)
+        self.client.post(config_url, dict(disconnect="true"), follow=True)
 
         self.org.refresh_from_db()
         self.assertFalse(self.org.has_smtp_config())
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": " support@example.com",
+                "from_email": " support@example.com",
                 "smtp_host": " smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secret ",
@@ -3016,9 +2975,9 @@ class OrgTest(TembaTest):
         )
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "support@example.com",
+                "from_email": "support@example.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secre/t",
@@ -3036,11 +2995,11 @@ class OrgTest(TembaTest):
             "smtp://support%40example.com:secre%2Ft@smtp.example.com:465/?from=support%40example.com&tls=true",
         )
 
-        response = self.client.get(smtp_server_url)
+        response = self.client.get(config_url)
         self.assertDictEqual(
             response.context["view"].derive_initial(),
             {
-                "smtp_from_email": "support@example.com",
+                "from_email": "support@example.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secre/t",
@@ -3049,30 +3008,30 @@ class OrgTest(TembaTest):
             },
         )
 
-    def test_connect_nexmo(self):
+    def test_connect_vonage(self):
         self.login(self.admin)
 
-        connect_url = reverse("orgs.org_nexmo_connect")
-        account_url = reverse("orgs.org_nexmo_account")
+        connect_url = reverse("orgs.org_vonage_connect")
+        account_url = reverse("orgs.org_vonage_account")
 
         # simulate invalid credentials on both pages
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(401, '{"error-code": "401"}')
 
             response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
-            self.assertContains(response, "Your Nexmo API key and secret seem invalid.")
-            self.assertFalse(self.org.is_connected_to_nexmo())
+            self.assertContains(response, "Your API key and secret seem invalid.")
+            self.assertFalse(self.org.is_connected_to_vonage())
 
             response = self.client.post(account_url, dict(api_key="key", api_secret="secret"))
-            self.assertContains(response, "Your Nexmo API key and secret seem invalid.")
+            self.assertContains(response, "Your API key and secret seem invalid.")
 
         # ok, now with a success
-        with patch("requests.get") as nexmo_get, patch("requests.post") as nexmo_post:
-            # believe it or not nexmo returns 'error-code' 200
-            nexmo_get.return_value = MockResponse(
+        with patch("requests.get") as mock_get, patch("requests.post") as mock_post:
+            # believe it or not vonage returns 'error-code' 200
+            mock_get.return_value = MockResponse(
                 200, '{"error-code": "200"}', headers={"content-type": "application/json"}
             )
-            nexmo_post.return_value = MockResponse(
+            mock_post.return_value = MockResponse(
                 200, '{"error-code": "200"}', headers={"content-type": "application/json"}
             )
             response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
@@ -3083,21 +3042,18 @@ class OrgTest(TembaTest):
 
             self.org.refresh_from_db()
             config = self.org.config
-            self.assertEqual("key", config[Org.CONFIG_NEXMO_KEY])
-            self.assertEqual("secret", config[Org.CONFIG_NEXMO_SECRET])
+            self.assertEqual("key", config[Org.CONFIG_VONAGE_KEY])
+            self.assertEqual("secret", config[Org.CONFIG_VONAGE_SECRET])
 
             # post without api token, should get validation error
             response = self.client.post(account_url, dict(disconnect="false"), follow=True)
-            self.assertEqual(
-                '[{"message": "You must enter your Nexmo Account API Key", "code": ""}]',
-                response.context["form"].errors["__all__"].as_json(),
-            )
+            self.assertFormError(response, "form", "__all__", "You must enter your account API Key")
 
-            # nexmo config should remain the same
+            # vonage config should remain the same
             self.org.refresh_from_db()
             config = self.org.config
-            self.assertEqual("key", config[Org.CONFIG_NEXMO_KEY])
-            self.assertEqual("secret", config[Org.CONFIG_NEXMO_SECRET])
+            self.assertEqual("key", config[Org.CONFIG_VONAGE_KEY])
+            self.assertEqual("secret", config[Org.CONFIG_VONAGE_SECRET])
 
             # now try with all required fields, and a bonus field we shouldn't change
             self.client.post(
@@ -3109,7 +3065,7 @@ class OrgTest(TembaTest):
             self.org.refresh_from_db()
             self.assertEqual(self.org.name, "Temba")
 
-            # should change nexmo config
+            # should change vonage config
             with patch("nexmo.Client.get_balance") as mock_get_balance:
                 mock_get_balance.return_value = 120
                 self.client.post(
@@ -3118,18 +3074,18 @@ class OrgTest(TembaTest):
 
                 self.org.refresh_from_db()
                 config = self.org.config
-                self.assertEqual("other_key", config[Org.CONFIG_NEXMO_KEY])
-                self.assertEqual("secret-too", config[Org.CONFIG_NEXMO_SECRET])
+                self.assertEqual("other_key", config[Org.CONFIG_VONAGE_KEY])
+                self.assertEqual("secret-too", config[Org.CONFIG_VONAGE_SECRET])
 
-            self.assertTrue(self.org.is_connected_to_nexmo())
+            self.assertTrue(self.org.is_connected_to_vonage())
             self.client.post(account_url, dict(disconnect="true"), follow=True)
 
             self.org.refresh_from_db()
-            self.assertFalse(self.org.is_connected_to_nexmo())
+            self.assertFalse(self.org.is_connected_to_vonage())
 
         # and disconnect
-        self.org.remove_nexmo_account(self.admin)
-        self.assertFalse(self.org.is_connected_to_nexmo())
+        self.org.remove_vonage_account(self.admin)
+        self.assertFalse(self.org.is_connected_to_vonage())
         self.assertNotIn("NEXMO_KEY", self.org.config)
         self.assertNotIn("NEXMO_SECRET", self.org.config)
 
@@ -4054,7 +4010,7 @@ class OrgCRUDLTest(TembaTest):
             self.user,
             "RW",
             "T",
-            "Nexmo",
+            "Twilio",
             "0785551212",
             role="R",
             secret="45678",
@@ -4217,7 +4173,7 @@ class LanguageTest(TembaTest):
 
         # check that the last load shows our new languages
         response = self.client.get(url)
-        self.assertEqual(response.context["languages"], "Haitian and Official Aramaic (700-300 BCE)")
+        self.assertEqual(response.context["languages"], ["Haitian", "Official Aramaic (700-300 BCE)"])
         self.assertContains(response, "fra")
         # self.assertContains(response, "hat,arc")
 
@@ -4234,14 +4190,14 @@ class LanguageTest(TembaTest):
             ),
         )
         response = self.client.get(reverse("orgs.org_languages"))
-        self.assertEqual(response.context["languages"], "Haitian, Official Aramaic (700-300 BCE) and Spanish")
+        self.assertEqual(response.context["languages"], ["Haitian", "Official Aramaic (700-300 BCE)", "Spanish"])
 
         # one translation language
         self.client.post(
             url, dict(primary_lang='{"name":"French", "value":"fra"}', languages=['{"name":"Haitian", "value":"hat"}'])
         )
         response = self.client.get(reverse("orgs.org_languages"))
-        self.assertEqual(response.context["languages"], "Haitian")
+        self.assertEqual(response.context["languages"], ["Haitian"])
 
         # remove all languages
         self.client.post(url, dict(primary_lang="{}", languages=[]))
@@ -5461,43 +5417,6 @@ class StripeCreditsTest(TembaTest):
         # should have a different customer now
         org = Org.objects.get(id=self.org.id)
         self.assertEqual("stripe-cust-2", org.stripe_customer)
-
-
-class ParsingTest(TembaTest):
-    def test_parse_location_path(self):
-        country = AdminBoundary.create(osm_id="192787", name="Nigeria", level=0)
-        lagos = AdminBoundary.create(osm_id="3718182", name="Lagos", level=1, parent=country)
-        self.org.country = country
-
-        self.assertEqual(lagos, self.org.parse_location_path("Nigeria > Lagos"))
-        self.assertEqual(lagos, self.org.parse_location_path("Nigeria > Lagos "))
-        self.assertEqual(lagos, self.org.parse_location_path(" Nigeria > Lagos "))
-
-    def test_parse_location(self):
-        country = AdminBoundary.create(osm_id="192787", name="Nigeria", level=0)
-        lagos = AdminBoundary.create(osm_id="3718182", name="Lagos", level=1, parent=country)
-        self.org.country = None
-
-        # no country, no parsing
-        self.assertEqual([], list(self.org.parse_location("Lagos", AdminBoundary.LEVEL_STATE)))
-
-        self.org.country = country
-
-        self.assertEqual([lagos], list(self.org.parse_location("Nigeria > Lagos", AdminBoundary.LEVEL_STATE)))
-        self.assertEqual([lagos], list(self.org.parse_location("Lagos", AdminBoundary.LEVEL_STATE)))
-        self.assertEqual([lagos], list(self.org.parse_location("Lagos City", AdminBoundary.LEVEL_STATE)))
-
-    def test_parse_number(self):
-        self.assertEqual(self.org.parse_number("Not num"), None)
-        self.assertEqual(self.org.parse_number("00.123"), Decimal("0.123"))
-        self.assertEqual(self.org.parse_number("6e33"), None)
-        self.assertEqual(self.org.parse_number("6e5"), Decimal("600000"))
-        self.assertEqual(self.org.parse_number("9999999999999999999999999"), None)
-        self.assertEqual(self.org.parse_number(""), None)
-        self.assertEqual(self.org.parse_number("NaN"), None)
-        self.assertEqual(self.org.parse_number("Infinity"), None)
-
-        self.assertRaises(AssertionError, self.org.parse_number, 0.001)
 
 
 class OrgActivityTest(TembaTest):
