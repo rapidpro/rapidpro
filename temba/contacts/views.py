@@ -1,7 +1,6 @@
 import logging
 from collections import OrderedDict
 from datetime import timedelta
-from temba.tickets.types.internal.type import InternalType
 from typing import Dict, List
 
 import iso8601
@@ -44,6 +43,7 @@ from temba.msgs.views import SendMessageForm
 from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
+from temba.tickets.types.internal.type import InternalType
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget

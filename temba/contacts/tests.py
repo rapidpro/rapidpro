@@ -660,6 +660,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             json.dumps(expected_json),
             json.dumps(response.json()),
         )
+
     @mock_mailroom
     def test_start(self, mr_mocks):
         sample_flows = list(self.org.flows.order_by("name"))
