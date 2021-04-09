@@ -194,7 +194,7 @@ class Flow(TembaModel):
         name,
         flow_type=TYPE_MESSAGE,
         expires_after_minutes=DEFAULT_EXPIRES_AFTER,
-        base_language=None,
+        base_language="base",
         create_revision=False,
         **kwargs,
     ):

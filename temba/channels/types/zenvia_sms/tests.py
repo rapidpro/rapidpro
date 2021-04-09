@@ -6,16 +6,16 @@ from django.urls import reverse
 from temba.tests import MockResponse, TembaTest
 
 from ...models import Channel
-from .type import ZENVIA_MESSAGE_SUBSCRIPTION_ID, ZENVIA_STATUS_SUBSCRIPTION_ID, ZenviaWhatsAppType
+from .type import ZENVIA_MESSAGE_SUBSCRIPTION_ID, ZENVIA_STATUS_SUBSCRIPTION_ID, ZenviaSMSType
 
 
-class ZenviaWhatsAppTypeTest(TembaTest):
+class ZenviaSMSTypeTest(TembaTest):
     def test_claim(self):
         Channel.objects.all().delete()
 
         self.login(self.admin)
 
-        url = reverse("channels.types.zenvia_whatsapp.claim")
+        url = reverse("channels.types.zenvia_sms.claim")
 
         # should see the general channel claim page
         response = self.client.get(reverse("channels.channel_claim"))
@@ -37,14 +37,14 @@ class ZenviaWhatsAppTypeTest(TembaTest):
         self.assertTrue(channel.uuid)
         self.assertEqual("+12065551212", channel.address)
         self.assertEqual("12345", channel.config["api_key"])
-        self.assertEqual("ZVW", channel.channel_type)
-        self.assertEqual("Zenvia WhatsApp: +12065551212", channel.name)
+        self.assertEqual("ZVS", channel.channel_type)
+        self.assertEqual("Zenvia SMS: +12065551212", channel.name)
 
         with patch("requests.post") as mock_patch:
             mock_patch.side_effect = [MockResponse(400, '{ "error": true }')]
 
             try:
-                ZenviaWhatsAppType().activate(channel)
+                ZenviaSMSType().activate(channel)
                 self.fail("Should have thrown error activating channel")
             except ValidationError:
                 pass
@@ -58,7 +58,7 @@ class ZenviaWhatsAppTypeTest(TembaTest):
                 MockResponse(400, '{"error": "failed"}'),
             ]
             try:
-                ZenviaWhatsAppType().activate(channel)
+                ZenviaSMSType().activate(channel)
             except ValidationError:
                 pass
 
@@ -97,7 +97,7 @@ class ZenviaWhatsAppTypeTest(TembaTest):
                 MockResponse(200, '{"id": "message_123"}'),
                 MockResponse(200, '{"id": "status_123"}'),
             ]
-            ZenviaWhatsAppType().activate(channel)
+            ZenviaSMSType().activate(channel)
 
             self.assertEqual("12345", mock_post.call_args_list[0][1]["headers"]["X-API-TOKEN"])
 

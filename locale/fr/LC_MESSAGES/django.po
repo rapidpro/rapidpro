@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-06 21:32+0000\n"
+"POT-Creation-Date: 2021-04-08 21:00+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1858,6 +1858,11 @@ msgstr "Le nom d'utilisateur du compte fourni par Zenvia"
 msgid "The account password provided by Zenvia"
 msgstr "Le mot de passe du compte fourni par Zenvia"
 
+#, fuzzy, python-format
+#| msgid "If you have a %(link)s number, you can connect it to communicate with your WhatsApp contacts."
+msgid "If you have a %(link)s number, you can connect it to communicate with your contacts."
+msgstr "Si vous possédez un numéro %(link)s , vous pouvez le connecter pour communiquer avec vos contacts WhatsApp."
+
 #, python-format
 msgid "Unable to register webhook subscriptions: %(resp)s"
 msgstr ""
@@ -2649,12 +2654,6 @@ msgstr "Choisir la méthode pour votre flux"
 msgid "Choose a name to describe this flow, e.g. Demographic Survey"
 msgstr "Choisir un nom pour décrire ce flux, par exemple Enquête démographique"
 
-msgid "Expire inactive contacts"
-msgstr "Expiration des contacts inactifs"
-
-msgid "When inactive contacts should be removed from the flow"
-msgstr "Lorsque les contacts inactifs doivent être retirés du flux"
-
 msgid "Create a contact "
 msgstr "Créer un contact"
 
@@ -2672,6 +2671,12 @@ msgstr "Relancez l'appel si vous ne parvenez pas à vous connecter"
 
 msgid "Retries call three times for the chosen interval"
 msgstr "Relance l'appel trois fois pour l'intervalle choisi"
+
+msgid "Expire inactive contacts"
+msgstr "Expiration des contacts inactifs"
+
+msgid "When inactive contacts should be removed from the flow"
+msgstr "Lorsque les contacts inactifs doivent être retirés du flux"
 
 msgid "Keywords"
 msgstr "Mots clés"
