@@ -3533,6 +3533,11 @@ class TicketsEndpoint(ListAPIMixin, BaseAPIView):
             else:
                 queryset = queryset.filter(id=-1)
 
+        # filter by ticketer type if provided, unpublished support for agents
+        ticketer_type = params.get("ticketer_type")
+        if ticketer_type:
+            queryset = queryset.filter(ticketer__ticketer_type=ticketer_type)
+
         queryset = queryset.prefetch_related(
             Prefetch("ticketer", queryset=Ticketer.objects.only("uuid", "name")),
             Prefetch("contact", queryset=Contact.objects.only("uuid", "name")),

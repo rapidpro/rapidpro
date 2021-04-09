@@ -58,6 +58,8 @@
       var contact = event.target.value;
       var chat = document.querySelector("temba-contact-chat");
       chat.contact = contact;
+
+      
     }
     
     function handleContactHistoryUpdated(event) {
@@ -89,7 +91,7 @@
       }
     }
 
-    function handleTicketChanged(event) {
+    function handleTicketUpdated(event) {
       var contact = event.detail.contact;
       var focus = event.detail.focus;
 
@@ -121,9 +123,9 @@
           %temba-option(name="Closed" value="C" icon="check")
         
         .flex.flex-grow
-          %temba-contacts(endpoint="/contact/tickets/?_format=json&folder=open" -temba-refreshed="handleTicketsRefreshed(event)" onchange="handleContactChanged(event)")
+          %temba-contacts(endpoint="/contact/tickets/?_format=json&folder=open" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
 
       .flex-grow.flex-col.h-full.py-4.pb-4.pr-4
-        %temba-contact-chat(-temba-refreshed="handleContactHistoryUpdated(event)" -temba-content-changed="handleTicketChanged(event)")
+        %temba-contact-chat(-temba-refreshed="handleContactHistoryUpdated" -temba-content-changed="handleTicketUpdated")
 
 -block footer

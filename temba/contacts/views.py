@@ -1,6 +1,7 @@
 import logging
 from collections import OrderedDict
 from datetime import timedelta
+from temba.tickets.types.internal.type import InternalType
 from typing import Dict, List
 
 import iso8601
@@ -22,7 +23,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
-from django.db.models import Count, F
+from django.db.models import Count, F, query
 from django.db.models.aggregates import Max
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
@@ -1403,12 +1404,14 @@ class ContactCRUDL(SmartCRUDL):
 
             folder = self.request.GET.get("folder", "")
             if folder == self.FOLDER_OPEN:
-                qs = qs.filter(tickets__status=Ticket.STATUS_OPEN).distinct("last_seen_on", "id")
+                qs = qs.filter(
+                    tickets__status=Ticket.STATUS_OPEN, tickets__ticketer__ticketer_type=InternalType.slug
+                ).distinct("last_seen_on", "id")
 
             elif folder == self.FOLDER_CLOSED:
-                qs = (
-                    qs.exclude(tickets=None).exclude(tickets__status=Ticket.STATUS_OPEN).distinct("last_seen_on", "id")
-                )
+                qs = qs.filter(
+                    tickets__status=Ticket.STATUS_CLOSED, tickets__ticketer__ticketer_type=InternalType.slug
+                ).distinct("last_seen_on", "id")
             else:
                 raise Http404("'%' is not valid ticket folder", folder)
 
@@ -1472,8 +1475,7 @@ class ContactCRUDL(SmartCRUDL):
                 response["next"] = f"{reverse('contacts.contact_tickets')}?{query_string}"
 
             return response
-    
-    
+
     class Start(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         """
         Starts this contact in a flow
