@@ -2563,45 +2563,6 @@ class OrgTest(TembaTest):
         self.assertFalse(APIToken.objects.filter(org=self.org, role=prometheus_group, is_active=True))
         self.assertContains(response, "Enable Prometheus")
 
-    def test_chatbase_account(self):
-        self.login(self.admin)
-
-        self.org.refresh_from_db()
-        self.assertEqual((None, None), self.org.get_chatbase_credentials())
-
-        chatbase_account_url = reverse("orgs.org_chatbase")
-        response = self.client.get(chatbase_account_url)
-        self.assertContains(response, "Chatbase")
-
-        payload = dict(version="1.0", not_handled=True, feedback=False, disconnect="false")
-
-        response = self.client.post(chatbase_account_url, payload, follow=True)
-        self.assertContains(response, "Missing data: Agent Name or API Key.Please check them again and retry.")
-        self.assertEqual((None, None), self.org.get_chatbase_credentials())
-
-        payload.update(dict(api_key="api_key", agent_name="chatbase_agent", type="user"))
-
-        self.client.post(chatbase_account_url, payload, follow=True)
-
-        self.org.refresh_from_db()
-        self.assertEqual(("api_key", "1.0"), self.org.get_chatbase_credentials())
-
-        self.assertEqual(self.org.config["CHATBASE_API_KEY"], "api_key")
-        self.assertEqual(self.org.config["CHATBASE_AGENT_NAME"], "chatbase_agent")
-        self.assertEqual(self.org.config["CHATBASE_VERSION"], "1.0")
-
-        org_home_url = reverse("orgs.org_home")
-
-        response = self.client.get(org_home_url)
-        self.assertContains(response, self.org.config["CHATBASE_AGENT_NAME"])
-
-        payload.update(dict(disconnect="true"))
-
-        self.client.post(chatbase_account_url, payload, follow=True)
-
-        self.org.refresh_from_db()
-        self.assertEqual((None, None), self.org.get_chatbase_credentials())
-
     def test_resthooks(self):
         home_url = reverse("orgs.org_home")
         resthook_url = reverse("orgs.org_resthooks")

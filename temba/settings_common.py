@@ -403,7 +403,6 @@ PERMISSIONS = {
         "smtp_server",
         "api",
         "country",
-        "chatbase",
         "clear_cache",
         "create_login",
         "create_sub_org",
@@ -626,7 +625,6 @@ GROUP_PERMISSIONS = {
         "orgs.org_smtp_server",
         "orgs.org_api",
         "orgs.org_country",
-        "orgs.org_chatbase",
         "orgs.org_create_sub_org",
         "orgs.org_dashboard",
         "orgs.org_download",
@@ -1079,14 +1077,15 @@ SEND_EMAILS = False
 # Whether to send receipts on TopUp purchases
 SEND_RECEIPTS = True
 
+INTEGRATION_TYPES = [
+    "temba.orgs.integrations.dtone.DTOneType",
+    "temba.orgs.integrations.chatbase.ChatbaseType",
+]
+
 CLASSIFIER_TYPES = [
     "temba.classifiers.types.wit.WitType",
     "temba.classifiers.types.luis.LuisType",
     "temba.classifiers.types.bothub.BothubType",
-]
-
-INTEGRATION_TYPES = [
-    "temba.orgs.integrations.dtone.DTOneType",
 ]
 
 TICKETER_TYPES = [

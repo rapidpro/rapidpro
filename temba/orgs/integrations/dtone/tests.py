@@ -11,6 +11,8 @@ from .client import DTOneClient
 class DTOneTypeTest(TembaTest):
     @patch("temba.orgs.integrations.dtone.client.DTOneClient.get_balances")
     def test_account(self, mock_get_balances):
+        self.assertFalse(self.org.get_integrations(IntegrationType.Category.AIRTIME))
+
         self.login(self.admin)
 
         account_url = reverse("integrations.dtone.account")
@@ -19,7 +21,7 @@ class DTOneTypeTest(TembaTest):
         response = self.client.get(home_url)
         self.assertContains(response, "Connect your DT One account.")
 
-        # formax includes form to connect DT One
+        # formax includes form to connect account
         response = self.client.get(account_url, HTTP_X_FORMAX=True)
         self.assertEqual(["api_key", "api_secret", "disconnect", "loc"], list(response.context["form"].fields.keys()))
 
@@ -38,15 +40,15 @@ class DTOneTypeTest(TembaTest):
         response = self.client.post(account_url, {"api_key": "key123", "api_secret": "sesame", "disconnect": "false"})
         self.assertNoFormErrors(response)
 
-        # DT One should now be connected
+        # account should now be connected
         self.org.refresh_from_db()
         self.assertTrue(self.org.get_integrations(IntegrationType.Category.AIRTIME))
-        self.assertEqual(self.org.config["dtone_key"], "key123")
-        self.assertEqual(self.org.config["dtone_secret"], "sesame")
+        self.assertEqual("key123", self.org.config["dtone_key"])
+        self.assertEqual("sesame", self.org.config["dtone_secret"])
 
         # and that stated on home page
         response = self.client.get(home_url)
-        self.assertContains(response, "Connected to your <b>DT One</b> account.")
+        self.assertContains(response, "Connected to your DT One account.")
         self.assertContains(response, reverse("airtime.airtimetransfer_list"))
 
         # formax includes the disconnect link

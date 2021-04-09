@@ -257,12 +257,14 @@ class IntegrationViewMixin(OrgPermsMixin):
         return context
 
 
-class IntegrationFormaxView(IntegrationViewMixin, SmartFormView, ComponentFormMixin):
+class IntegrationFormaxView(IntegrationViewMixin, ComponentFormMixin, SmartFormView):
     class Form(forms.Form):
         def __init__(self, request, integration_type, **kwargs):
             self.request = request
             self.channel_type = integration_type
             super().__init__(**kwargs)
+
+    success_url = "@orgs.org_home"
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -862,7 +864,6 @@ class OrgCRUDL(SmartCRUDL):
         "grant",
         "accounts",
         "create_login",
-        "chatbase",
         "choose",
         "delete",
         "manage_accounts",
@@ -2690,80 +2691,6 @@ class OrgCRUDL(SmartCRUDL):
 
             return context
 
-    class Chatbase(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        class ChatbaseForm(forms.ModelForm):
-            agent_name = forms.CharField(
-                max_length=255, label=_("Agent Name"), required=False, help_text="Enter your Chatbase Agent's name"
-            )
-            api_key = forms.CharField(
-                max_length=255,
-                label=_("API Key"),
-                required=False,
-                help_text="You can find your Agent's API Key in your chatbase account",
-            )
-            version = forms.CharField(
-                max_length=10, label=_("Version"), required=False, help_text="Any will do, e.g. 1.0, 1.2.1"
-            )
-            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
-
-            def clean(self):
-                super().clean()
-                if self.cleaned_data.get("disconnect", "false") == "false":
-                    agent_name = self.cleaned_data.get("agent_name")
-                    api_key = self.cleaned_data.get("api_key")
-
-                    if not agent_name or not api_key:
-                        raise ValidationError(
-                            _("Missing data: Agent Name or API Key." "Please check them again and retry.")
-                        )
-
-                return self.cleaned_data
-
-            class Meta:
-                model = Org
-                fields = ("agent_name", "api_key", "version", "disconnect")
-
-        success_message = ""
-        success_url = "@orgs.org_home"
-        form_class = ChatbaseForm
-
-        def derive_initial(self):
-            initial = super().derive_initial()
-            org = self.get_object()
-            config = org.config
-            initial["agent_name"] = config.get(Org.CONFIG_CHATBASE_AGENT_NAME, "")
-            initial["api_key"] = config.get(Org.CONFIG_CHATBASE_API_KEY, "")
-            initial["version"] = config.get(Org.CONFIG_CHATBASE_VERSION, "")
-            initial["disconnect"] = "false"
-            return initial
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            (chatbase_api_key, chatbase_version) = self.object.get_chatbase_credentials()
-            if chatbase_api_key:
-                config = self.object.config
-                agent_name = config.get(Org.CONFIG_CHATBASE_AGENT_NAME)
-                context["chatbase_agent_name"] = agent_name
-
-            return context
-
-        def form_valid(self, form):
-            user = self.request.user
-            org = user.get_org()
-
-            agent_name = form.cleaned_data.get("agent_name")
-            api_key = form.cleaned_data.get("api_key")
-            version = form.cleaned_data.get("version")
-            disconnect = form.cleaned_data.get("disconnect", "false") == "true"
-
-            if disconnect:
-                org.remove_chatbase_account(user)
-                return HttpResponseRedirect(reverse("orgs.org_home"))
-            elif api_key:
-                org.connect_chatbase(agent_name, api_key, version, user)
-
-            return super().form_valid(form)
-
     class Home(FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
 
@@ -2918,25 +2845,6 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_manage_integrations"):
                 for integration in IntegrationType.get_all():
                     integration.management_ui(self.object, formax)
-
-            if self.has_org_perm("orgs.org_chatbase"):
-                (chatbase_api_key, chatbase_version) = self.object.get_chatbase_credentials()
-                if not chatbase_api_key:
-                    formax.add_section(
-                        "chatbase",
-                        reverse("orgs.org_chatbase"),
-                        icon="icon-chatbase",
-                        action="redirect",
-                        button=_("Connect"),
-                    )
-                else:  # pragma: needs cover
-                    formax.add_section(
-                        "chatbase",
-                        reverse("orgs.org_chatbase"),
-                        icon="icon-chatbase",
-                        action="redirect",
-                        nobutton=True,
-                    )
 
             if self.has_org_perm("orgs.org_token"):
                 formax.add_section("token", reverse("orgs.org_token"), icon="icon-cloud-upload", nobutton=True)

@@ -5,7 +5,7 @@
   -if integration_connected
     .flex.items-center
       .flex-grow.mr-4
-        -trans "Connected to your <b>DT One</b> account."
+        -trans "Connected to your DT One account."
       .buttons
         .button-light(onclick="goto(event)" href='{% url "airtime.airtimetransfer_list" %}')
           -trans "Transfer Log"
@@ -50,7 +50,7 @@
 
 
 -block extra-script
-  {{block.super}}
+  {{ block.super }}
   :javascript
     function confirmDTOneDisconnect() {
       removalConfirmation("disconnect-dtone", "Disconnect");

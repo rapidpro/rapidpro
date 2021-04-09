@@ -3,16 +3,14 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
-from temba.utils.fields import InputWidget
-
 from ...views import IntegrationFormaxView
 from .client import DTOneClient
 
 
 class AccountView(IntegrationFormaxView):
     class Form(IntegrationFormaxView.Form):
-        api_key = forms.CharField(label=_("API Key"), required=False, widget=InputWidget())
-        api_secret = forms.CharField(label=_("API Secret"), required=False, widget=InputWidget())
+        api_key = forms.CharField(label=_("API Key"), required=False)
+        api_secret = forms.CharField(label=_("API Secret"), required=False)
         disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=False)
 
         def clean(self):
@@ -31,7 +29,6 @@ class AccountView(IntegrationFormaxView):
                     )
 
     form_class = Form
-    success_url = "@orgs.org_home"
     template_name = "orgs/integrations/dtone/account.haml"
 
     def derive_initial(self):
