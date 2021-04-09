@@ -23,7 +23,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
-from django.db.models import Count, F, query
+from django.db.models import Count
 from django.db.models.aggregates import Max
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
