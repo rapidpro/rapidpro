@@ -42,7 +42,7 @@ from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSe
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
-from temba.orgs.models import Org
+from temba.orgs.models import IntegrationType, Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
@@ -1049,7 +1049,7 @@ class FlowCRUDL(SmartCRUDL):
             if whatsapp_channel is not None:
                 feature_filters.append("whatsapp")
 
-            if flow.org.is_connected_to_dtone():
+            if flow.org.get_integrations(IntegrationType.Category.AIRTIME):
                 feature_filters.append("airtime")
 
             if flow.org.classifiers.filter(is_active=True).exists():
