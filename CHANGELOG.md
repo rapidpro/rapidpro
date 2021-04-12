@@ -1,3 +1,8 @@
+v6.3.20
+----------
+ * Rework DT One and Chatbase into a new integrations framework
+ * Expose Org.language as default language for new users on org edit form
+
 v6.3.19
 ----------
  * Add support for Zenvia SMS
