@@ -267,12 +267,12 @@ class Org(SmartModel):
     surveyors = models.ManyToManyField(User, related_name=OrgRole.SURVEYOR.rel_name)
 
     language = models.CharField(
-        verbose_name=_("Language"),
+        verbose_name=_("Default Language"),
         max_length=64,
         null=True,
-        blank=True,
         choices=settings.LANGUAGES,
-        help_text=_("The main language used by this organization"),
+        default=settings.DEFAULT_LANGUAGE,
+        help_text=_("The default website language for new users."),
     )
 
     timezone = TimeZoneField(verbose_name=_("Timezone"))
@@ -393,6 +393,7 @@ class Org(SmartModel):
             org = Org.objects.create(
                 name=name,
                 timezone=timezone,
+                language=self.language,
                 brand=self.brand,
                 parent=self,
                 slug=slug,
@@ -1909,8 +1910,13 @@ class Org(SmartModel):
         self.delete()
 
     @classmethod
-    def create_user(cls, email, password):
-        return User.objects.create_user(username=email, email=email, password=password)
+    def create_user(cls, email: str, password: str, language: str = None) -> User:
+        user = User.objects.create_user(username=email, email=email, password=password)
+        if language:
+            user_settings = user.get_settings()
+            user_settings.language = language
+            user_settings.save(update_fields=("language",))
+        return user
 
     @classmethod
     def get_org(cls, user):
@@ -2243,7 +2249,7 @@ class UserSettings(models.Model):
     """
 
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="settings")
-    language = models.CharField(max_length=8, choices=settings.LANGUAGES, default="en-us")
+    language = models.CharField(max_length=8, choices=settings.LANGUAGES, default=settings.DEFAULT_LANGUAGE)
     otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
     two_factor_enabled = models.BooleanField(default=False)
     last_auth_on = models.DateTimeField(null=True)

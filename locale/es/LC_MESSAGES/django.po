@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-09 19:27+0000\n"
+"POT-Creation-Date: 2021-04-12 14:38+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -3142,8 +3142,13 @@ msgstr "Stripe Customer"
 msgid "Our Stripe customer id for your organization"
 msgstr "Nuestro id de Stripe customer para su organización"
 
-msgid "The main language used by this organization"
-msgstr "El idioma principal usado por esta organización"
+#, fuzzy
+#| msgid "Base Language"
+msgid "Default Language"
+msgstr "Idioma base"
+
+msgid "The default website language for new users."
+msgstr ""
 
 msgid "Timezone"
 msgstr "Zona horaria"
@@ -7817,6 +7822,9 @@ msgstr "Ingrese una consulta"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Se encontró $ {count} por $ {query}"
+
+#~ msgid "The main language used by this organization"
+#~ msgstr "El idioma principal usado por esta organización"
 
 #~ msgid "Missing data: Agent Name or API Key.Please check them again and retry."
 #~ msgstr "Datos faltantes: nombre del agente o clave de API. Vuelva a verificarlos y vuelva a intentarlo."

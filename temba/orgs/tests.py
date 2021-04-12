@@ -39,7 +39,15 @@ from temba.msgs.models import ExportMessagesTask, Label, Msg
 from temba.orgs.models import BackupToken, Debit, OrgActivity
 from temba.orgs.tasks import suspend_topup_orgs_task
 from temba.request_logs.models import HTTPLog
-from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers, mock_mailroom
+from temba.tests import (
+    CRUDLTestMixin,
+    ESMockWithScroll,
+    MockResponse,
+    TembaNonAtomicTest,
+    TembaTest,
+    matchers,
+    mock_mailroom,
+)
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -929,26 +937,6 @@ class OrgTest(TembaTest):
         joe = self.create_contact("Joe")
         urn = ContactURN.get_or_create(self.org, joe, "tel:+250788383383")
         self.assertEqual(short_code, self.org.get_channel_for_role(Channel.ROLE_SEND, None, urn))
-
-    def test_edit(self):
-        # use a manager now
-        self.login(self.admin)
-
-        # can we see the edit page
-        response = self.client.get(reverse("orgs.org_edit"))
-        self.assertEqual(200, response.status_code)
-
-        # update the name of the organization
-        data = dict(name="Temba", timezone="Bad/Timezone", date_format=Org.DATE_FORMAT_DAY_FIRST)
-        response = self.client.post(reverse("orgs.org_edit"), data)
-        self.assertIn("timezone", response.context["form"].errors)
-
-        data = dict(name="Temba", timezone="Africa/Kigali", date_format=Org.DATE_FORMAT_MONTH_FIRST)
-        response = self.client.post(reverse("orgs.org_edit"), data)
-        self.assertEqual(302, response.status_code)
-
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual("Temba", org.name)
 
     def test_country_view(self):
         self.setUpLocations()
@@ -3277,7 +3265,7 @@ class OrgTest(TembaTest):
         response = self.client.post(reverse("orgs.org_transfer_credits"), post_data)
         self.assertContains(response, "Pick a different workspace to transfer from")
 
-        # now transfer some creditos
+        # now transfer some credits
         post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=600)
         response = self.client.post(reverse("orgs.org_transfer_credits"), post_data)
 
@@ -3288,11 +3276,17 @@ class OrgTest(TembaTest):
         response = self.client.get("%s?org=%d" % (reverse("orgs.org_manage_accounts_sub_org"), sub_org.id))
         self.assertEqual(200, response.status_code)
 
-        # edit our sub org's name
-        new_org["name"] = "New Sub Org Name"
-        new_org["slug"] = "new-sub-org-name"
-        response = self.client.post("%s?org=%s" % (reverse("orgs.org_edit_sub_org"), sub_org.pk), new_org)
-        self.assertIsNotNone(Org.objects.filter(name="New Sub Org Name").first())
+        # edit our sub org's details
+        response = self.client.post(
+            f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}",
+            {"name": "New Sub Org Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
+        )
+
+        sub_org.refresh_from_db()
+        self.assertEqual("New Sub Org Name", sub_org.name)
+        self.assertEqual("Africa/Nairobi", str(sub_org.timezone))
+        self.assertEqual("Y", sub_org.date_format)
+        self.assertEqual("es", sub_org.language)
 
         # now we should see new topups on our sub org
         session["org_id"] = sub_org.id
@@ -3425,7 +3419,7 @@ class AnonOrgTest(TembaTest):
         self.assertContains(response, masked)
 
 
-class OrgCRUDLTest(TembaTest):
+class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_org_grant(self):
         grant_url = reverse("orgs.org_grant")
         response = self.client.get(grant_url)
@@ -3841,6 +3835,45 @@ class OrgCRUDLTest(TembaTest):
 
         user = User.objects.get(username="myal@wr.org")
         self.assertTrue(user.check_password("Password123"))
+
+    def test_edit(self):
+        edit_url = reverse("orgs.org_edit")
+
+        self.assertLoginRedirect(self.client.get(edit_url))
+
+        self.login(self.admin)
+        response = self.client.get(edit_url)
+        self.assertEqual(
+            ["name", "timezone", "date_format", "language", "loc"], list(response.context["form"].fields.keys())
+        )
+
+        # try submitting with errors
+        response = self.client.post(
+            reverse("orgs.org_edit"),
+            {"name": "", "timezone": "Bad/Timezone", "date_format": "X", "language": "klingon"},
+        )
+        self.assertFormError(response, "form", "name", "This field is required.")
+        self.assertFormError(
+            response, "form", "timezone", "Select a valid choice. Bad/Timezone is not one of the available choices."
+        )
+        self.assertFormError(
+            response, "form", "date_format", "Select a valid choice. X is not one of the available choices."
+        )
+        self.assertFormError(
+            response, "form", "language", "Select a valid choice. klingon is not one of the available choices."
+        )
+
+        response = self.client.post(
+            reverse("orgs.org_edit"),
+            {"name": "New Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
+        )
+        self.assertEqual(302, response.status_code)
+
+        self.org.refresh_from_db()
+        self.assertEqual("New Name", self.org.name)
+        self.assertEqual("Africa/Nairobi", str(self.org.timezone))
+        self.assertEqual("Y", self.org.date_format)
+        self.assertEqual("es", self.org.language)
 
     def test_org_timezone(self):
         self.assertEqual(self.org.timezone, pytz.timezone("Africa/Kigali"))
