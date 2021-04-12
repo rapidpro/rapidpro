@@ -1,3 +1,8 @@
+v6.3.21
+----------
+ * Fix Javascript error on two factor formax
+ * Beta-gate chatbase integration for now
+
 v6.3.20
 ----------
  * Rework DT One and Chatbase into a new integrations framework
