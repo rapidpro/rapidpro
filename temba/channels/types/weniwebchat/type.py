@@ -18,12 +18,10 @@ class WeniWebChatType(ChannelType):
     code = "WWC"
     category = ChannelType.Category.API
 
-    CONFIG_COMMUNITY_NAME = "community_name"
-
     courier_url = r"^wwc/(?P<uuid>[a-z0-9\-]+)/receive"
 
     name = "Weni Web Chat"
-    # icon = "icon-vk"
+    icon = "icon-weniwebchat"
     show_config_page = False
 
     claim_blurb = _(
@@ -35,5 +33,5 @@ class WeniWebChatType(ChannelType):
 
     schemes = [URN.WENIWEBCHAT_SCHEME]
     max_length = 320
-    # attachment_support = True
+    attachment_support = True
     free_sending = True

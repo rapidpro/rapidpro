@@ -12,9 +12,10 @@ from ...views import ClaimViewMixin
 
 class ClaimView(ClaimViewMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
-        name = forms.CharField(label=_("Name"), max_length=64, help_text=_("Incididunt irure reprehenderit consectetur duis non."))
+        name = forms.CharField(
+            label=_("Name"), max_length=64, help_text=_("This field will serve as name for your channel"))
         base_url = ExternalURLField(
-            help_text=_("Laborum cupidatat et aliqua nisi veniam excepteur voluptate reprehenderit.")
+            help_text=_("URL where socket communication will take place")
         )
 
     form_class = Form
