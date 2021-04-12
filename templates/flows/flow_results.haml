@@ -647,6 +647,7 @@
       localStorage.setItem("responded", "true");
 
       {% if request.GET.q or request.GET.after or request.GET.before or request.GET.contact_query %}
+      updateColumnSelect();
       setRunsTab();
       {% endif %}
 

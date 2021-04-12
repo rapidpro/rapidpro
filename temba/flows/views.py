@@ -2187,12 +2187,22 @@ class FlowCRUDL(SmartCRUDL):
             runs = flow.runs.all()
 
             if after:
-                after = str_to_datetime(after, tz=flow.org.timezone, dayfirst=flow.org.date_format == "D")
-                runs = runs.filter(modified_on__gte=after)
+                after = str_to_datetime(
+                    after, tz=flow.org.timezone, dayfirst=flow.org.date_format == "D", fill_time=False
+                )
+                if after:
+                    runs = runs.filter(modified_on__gte=after)
+                else:
+                    runs = runs.filter(id=-1)
 
             if before:
-                before = str_to_datetime(before, tz=flow.org.timezone, dayfirst=flow.org.date_format == "D")
-                runs = runs.filter(modified_on__lte=before)
+                before = str_to_datetime(
+                    before, tz=flow.org.timezone, dayfirst=flow.org.date_format == "D", fill_time=False
+                )
+                if before:
+                    runs = runs.filter(modified_on__lte=before)
+                else:
+                    runs = runs.filter(id=-1)
 
             if search_query:
                 runs, query_error = FlowCRUDL.RunTable.search_query(query=search_query, base_queryset=runs)
