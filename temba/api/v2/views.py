@@ -76,6 +76,7 @@ from .serializers import (
     ResthookSubscriberReadSerializer,
     ResthookSubscriberWriteSerializer,
     TemplateReadSerializer,
+    TicketWriteSerializer,
     TicketerReadSerializer,
     TicketReadSerializer,
     WebHookEventReadSerializer,
@@ -3475,7 +3476,7 @@ class TicketersEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class TicketsEndpoint(ListAPIMixin, BaseAPIView):
+class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list the tickets opened on your account.
 
@@ -3516,6 +3517,7 @@ class TicketsEndpoint(ListAPIMixin, BaseAPIView):
     permission = "tickets.ticket_api"
     model = Ticket
     serializer_class = TicketReadSerializer
+    write_serializer_class = TicketWriteSerializer
     pagination_class = OpenedOnCursorPagination
 
     def filter_queryset(self, queryset):

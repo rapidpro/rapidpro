@@ -1409,9 +1409,10 @@ class ContactCRUDL(SmartCRUDL):
                 ).distinct("last_seen_on", "id")
 
             elif folder == self.FOLDER_CLOSED:
-                qs = qs.filter(
-                    tickets__status=Ticket.STATUS_CLOSED, tickets__ticketer__ticketer_type=InternalType.slug
-                ).distinct("last_seen_on", "id")
+                # TODO: exclude non-internal tickets
+                qs = (
+                    qs.exclude(tickets=None).exclude(tickets__status=Ticket.STATUS_OPEN).distinct("last_seen_on", "id")
+                )
             else:
                 raise Http404("'%' is not valid ticket folder", folder)
 
