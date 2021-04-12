@@ -2837,7 +2837,8 @@ class OrgCRUDL(SmartCRUDL):
 
             if self.has_org_perm("orgs.org_manage_integrations"):
                 for integration in IntegrationType.get_all():
-                    integration.management_ui(self.object, formax)
+                    if integration.is_available_to(user):
+                        integration.management_ui(self.object, formax)
 
             if self.has_org_perm("orgs.org_token"):
                 formax.add_section("token", reverse("orgs.org_token"), icon="icon-cloud-upload", nobutton=True)

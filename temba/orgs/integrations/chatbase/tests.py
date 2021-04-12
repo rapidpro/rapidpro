@@ -1,3 +1,4 @@
+from django.contrib.auth.models import Group
 from django.urls import reverse
 
 from temba.tests import TembaTest
@@ -7,6 +8,9 @@ from ...models import IntegrationType
 
 class ChatbaseTypeTest(TembaTest):
     def test_account(self):
+        # beta gated for now
+        Group.objects.get(name="Beta").user_set.add(self.admin)
+
         self.assertFalse(self.org.get_integrations(IntegrationType.Category.MONITORING))
 
         self.login(self.admin)

@@ -87,6 +87,12 @@ class IntegrationType(metaclass=ABCMeta):
     # the category of features this integration provides
     category = None
 
+    def is_available_to(self, user) -> bool:
+        """
+        Determines whether this integration type is available to the given user
+        """
+        return True
+
     def is_connected(self, org) -> bool:
         """
         Returns whether the given org is connected to this integration
