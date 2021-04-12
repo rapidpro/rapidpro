@@ -740,7 +740,7 @@
             %div{class: "w-6/12 mr-2", "data-toggle":"tooltip", title:"{{ request.GET.contact_query }}"}
               %label.control-label.flex.m-0
                 -trans "Search by Contact Fields"
-              %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="contact_query" value="{{ request.GET.contact_query }}" clearable)
+              %temba-textinput(type='text' placeholder='{% trans "Search" %}' name="contact_query" value="{% if contact_query %}{{contact_query}}{% else %}{{ request.GET.contact_query }}{% endif %}" clearable)
             %div{class: "w-6/12", "data-toggle":"tooltip", title:"{{ request.GET.q }}"}
               %label.control-label.flex.m-0
                 -trans "Search by Responses"
