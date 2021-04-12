@@ -4448,7 +4448,7 @@ class ReportEndpointMixin:
             groups_query = "(%s)" % " AND ".join(map(lambda x: f'group = "{x}"', groups_filter["names"]))
             search_query += (" AND " if search_query else "") + groups_query
         if groups_exclude["names"]:
-            groups_query = "(%s)" % " AND ".join(map(lambda x: f'group != "{x}"', groups_filter["names"]))
+            groups_query = "(%s)" % " AND ".join(map(lambda x: f'group != "{x}"', groups_exclude["names"]))
             search_query += (" AND " if search_query else "") + groups_query
 
         # parse query
@@ -4611,8 +4611,12 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
             params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             fields=[
                 dict(name="search_query", required=False, help="Search query for contacts"),
-                dict(name="flow", required=False, help="Flow filter"),
-                dict(name="exclude", required=False, help="Contact Group to exclude"),
+                dict(name="flow", required=False, help="Flow to filter"),
+                dict(name="channel", required=False, help="Channel to filter"),
+                dict(name="group", required=False, help="Contact group to filter"),
+                dict(name="exclude", required=False, help="Contact group to exclude"),
+                dict(name="after", required=False, help="Last modified since"),
+                dict(name="before", required=False, help="Last modified until"),
             ],
             example=dict(
                 body=json.dumps(
@@ -4694,76 +4698,10 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         super().__init__(*args, **kwargs)
         self.applied_filters = {}
 
-    def get_queryset(self):
-        org = self.request.user.get_org()
-        contacts = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True).distinct()
-
-        flow = self.request.GET.get("flow", self.request.data.get("flow"))
-        if flow:
-            contacts = contacts.filter(runs__flow__uuid=flow)
-            self.applied_filters["flow"] = flow
-
-        # contact list views don't use regular field searching but use more complex contact searching
-        search_query = self.request.GET.get("search_query", self.request.data.get("search_query", ""))
-
-        def contacts_name_uuid_filter(args):
-            nonlocal contacts
-            field_name, uuid_key, name_key, filter_type = args
-            values_fo_filter_by = self.request__get_separated_names_and_uuids(field_name)
-            if values_fo_filter_by["uuids"]:
-                contacts = getattr(contacts, filter_type)(**{f"{uuid_key}__in": values_fo_filter_by["uuids"]})
-            if values_fo_filter_by["names"]:
-                filters_by_name = Q()
-                for filter_value in values_fo_filter_by["names"]:
-                    filters_by_name |= Q(**{f"{name_key}__icontains": filter_value})
-                contacts = getattr(contacts, filter_type)(filters_by_name)
-
-            if any(values_fo_filter_by.values()):
-                self.applied_filters[field_name] = dict(item for item in values_fo_filter_by.items() if item[1])
-
-        filtering_params = (
-            ("channel", "urns__channel__uuid", "urns__channel__name", "filter"),
-            ("group", "all_groups__uuid", "all_groups__name", "filter"),
-            ("exclude", "all_groups__uuid", "all_groups__name", "exclude"),
-        )
-        for configuration in filtering_params:
-            contacts_name_uuid_filter(configuration)
-
-        time_filters = Q()
-        before = self.request.data.get("before", self.request.GET.get("before", ""))
-        after = self.request.data.get("after", self.request.GET.get("after", ""))
-        if before:
-            before = org.parse_datetime(before)
-            time_filters &= Q(modified_on__lte=before)
-            self.applied_filters["before"] = before
-        if after:
-            after = org.parse_datetime(after)
-            time_filters &= Q(modified_on__gte=after)
-            self.applied_filters["after"] = after
-        if time_filters:
-            contacts = contacts.filter(time_filters)
-
-        if search_query:
-            try:
-                group = ContactGroup.all_groups.get(org=org, group_type="A")
-                contact_ids, parsed_query = query_contact_ids(org, search_query, group=group, return_parsed_query=True)
-                if parsed_query:
-                    self.applied_filters["search_query"] = parsed_query
-                contacts = contacts.filter(id__in=contact_ids)
-
-                return contacts
-            except SearchException as e:
-                self.applied_filters["search_query"] = f"Error: {e.message}"
-                # this should be an empty resultset
-                return Contact.objects.none()
-        else:
-            # if user search is not defined, use DB to select contacts
-            return contacts
-
     @csv_response_wrapper
     def post(self, request, *args, **kwargs):
-        org = request.user.get_org()
-        queryset = self.get_queryset()
+        org = self.request.user.get_org()
+        contacts = self.get_contacts()
         counts = defaultdict(lambda: Counter())
 
         requested_variables = self.request.GET.get("variables", self.request.data.get("variables"))
@@ -4796,9 +4734,9 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         self.applied_filters["variables"] = variable_filters
 
-        queryset = queryset.filter(fields__has_any_keys=variable_filters.keys())
+        contacts = contacts.filter(fields__has_any_keys=variable_filters.keys())
 
-        for contact in queryset:
+        for contact in contacts:
             for field_uuid, field_value in (contact.fields or {}).items():
                 if field_uuid in variable_filters:
                     counts[variable_filters[field_uuid]["key"]][field_value["text"]] += 1
@@ -4829,9 +4767,13 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
             url=reverse("api.v2.contact_variable_report"),
             slug="contact-variable-report",
             fields=[
-                dict(name="search_query", required=False, help="Contact search query"),
-                dict(name="flow", required=False, help="Flow filter"),
-                dict(name="exclude", required=False, help="Contact Group to exclude"),
+                dict(name="search_query", required=False, help="Search query for contacts"),
+                dict(name="flow", required=False, help="Flow to filter"),
+                dict(name="channel", required=False, help="Channel to filter"),
+                dict(name="group", required=False, help="Contact group to filter"),
+                dict(name="exclude", required=False, help="Contact group to exclude"),
+                dict(name="after", required=False, help="Last modified since"),
+                dict(name="before", required=False, help="Last modified until"),
                 dict(name="variables", required=True, help="Configuration for fields to generate report"),
             ],
             params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
