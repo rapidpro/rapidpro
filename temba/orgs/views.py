@@ -2138,7 +2138,7 @@ class OrgCRUDL(SmartCRUDL):
             self.invitation = self.get_invitation()
             email = self.invitation.email
 
-            user = Org.create_user(email, self.form.cleaned_data["password"])
+            user = Org.create_user(email, self.form.cleaned_data["password"], language=obj.language)
 
             user.first_name = self.form.cleaned_data["first_name"]
             user.last_name = self.form.cleaned_data["last_name"]
@@ -2395,10 +2395,11 @@ class OrgCRUDL(SmartCRUDL):
 
                 return self.render_to_response(context)
             else:
+                org = self.form.cleaned_data["org"]
 
                 # create our user
                 username = self.form.cleaned_data["email"]
-                user = Org.create_user(username, self.form.cleaned_data["password"])
+                user = Org.create_user(username, self.form.cleaned_data["password"], language=org.language)
 
                 user.first_name = self.form.cleaned_data["first_name"]
                 user.last_name = self.form.cleaned_data["last_name"]
@@ -2408,7 +2409,6 @@ class OrgCRUDL(SmartCRUDL):
                 user = authenticate(username=user.username, password=self.form.cleaned_data["password"])
                 login(self.request, user)
 
-                org = self.form.cleaned_data["org"]
                 org.surveyors.add(user)
 
                 surveyors_group = Group.objects.get(name="Surveyors")
@@ -2452,14 +2452,7 @@ class OrgCRUDL(SmartCRUDL):
 
             user.first_name = self.form.cleaned_data["first_name"]
             user.last_name = self.form.cleaned_data["last_name"]
-            user.save()
-
-            # set our language to the default for the site
-            language = self.request.branding.get("language", settings.DEFAULT_LANGUAGE)
-            user_settings = user.get_settings()
-            user_settings.language = language
-            user_settings.save()
-
+            user.save(update_fields=("first_name", "last_name"))
             return user
 
         def get_form_kwargs(self):
@@ -2468,7 +2461,6 @@ class OrgCRUDL(SmartCRUDL):
             return kwargs
 
         def pre_save(self, obj):
-
             obj = super().pre_save(obj)
 
             self.user = self.create_user()
@@ -2476,6 +2468,7 @@ class OrgCRUDL(SmartCRUDL):
             obj.created_by = self.user
             obj.modified_by = self.user
             obj.brand = self.request.branding.get("brand", settings.DEFAULT_BRAND)
+            obj.language = self.request.branding.get("language", settings.DEFAULT_LANGUAGE)
             obj.plan = self.request.branding.get("default_plan", settings.DEFAULT_PLAN)
 
             if obj.timezone.zone in pytz.country_timezones("US"):
@@ -3054,7 +3047,7 @@ class OrgCRUDL(SmartCRUDL):
                 return super().form_valid(form)
 
     class Edit(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        class OrgForm(forms.ModelForm):
+        class Form(forms.ModelForm):
             name = forms.CharField(max_length=128, label=_("Workspace Name"), help_text="", widget=InputWidget())
             timezone = TimeZoneFormField(
                 label=_("Timezone"), help_text="", widget=SelectWidget(attrs={"searchable": True})
@@ -3062,12 +3055,11 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
-                fields = ("name", "timezone", "date_format")
-                widgets = {"date_format": SelectWidget()}
+                fields = ("name", "timezone", "date_format", "language")
+                widgets = {"date_format": SelectWidget(), "language": SelectWidget()}
 
         success_message = ""
-        form_class = OrgForm
-        fields = ("name", "timezone", "date_format")
+        form_class = Form
 
         def has_permission(self, request, *args, **kwargs):
             self.org = self.derive_org()
@@ -3080,7 +3072,6 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
     class EditSubOrg(ModalMixin, Edit):
-
         success_url = "@orgs.org_sub_orgs"
 
         def get_object(self, *args, **kwargs):

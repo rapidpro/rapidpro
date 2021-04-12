@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-08 21:00+0000\n"
+"POT-Creation-Date: 2021-04-08 21:55+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3121,8 +3121,13 @@ msgstr "Bande consommateur"
 msgid "Our Stripe customer id for your organization"
 msgstr "Notre bande d'identification pour votre organisation"
 
-msgid "The main language used by this organization"
-msgstr "La langue principale utilisée par cette organisation"
+#, fuzzy
+#| msgid "Base Language"
+msgid "Default Language"
+msgstr "Langue de base"
+
+msgid "The default website language for new users."
+msgstr ""
 
 msgid "Timezone"
 msgstr "Fuseau horaire"
@@ -7791,6 +7796,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "The main language used by this organization"
+#~ msgstr "La langue principale utilisée par cette organisation"
 
 #~ msgid "Disconnect Nexmo"
 #~ msgstr "Déconnectez Nexmo"
