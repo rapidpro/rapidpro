@@ -4414,21 +4414,26 @@ class ReportEndpointMixin:
                 separated_values["names"].append(value)
         return separated_values
 
+    def name_uuid_filtering(self, queryset, field_name, uuid_key=None, name_key=None, filter_type="filter"):
+        values_fo_filter_by = self.request__get_separated_names_and_uuids(field_name)
+        if values_fo_filter_by["uuids"]:
+            queryset = getattr(queryset, filter_type)(**{f"{uuid_key}__in": values_fo_filter_by["uuids"]})
+        if values_fo_filter_by["names"]:
+            filters_by_name = Q()
+            for filter_value in values_fo_filter_by["names"]:
+                filters_by_name |= Q(**{f"{name_key}__iexact": filter_value})
+            queryset = getattr(queryset, filter_type)(filters_by_name)
+
+        if any(values_fo_filter_by.values()):
+            self.applied_filters[field_name] = dict(item for item in values_fo_filter_by.items() if item[1])
+        return queryset
+
     def get_contacts(self, count_only=False):
         org = self.request.user.get_org()
         contacts = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True).distinct()
 
         # filter by channel
-        channels_to_filter_by = self.request__get_separated_names_and_uuids("channel")
-        if channels_to_filter_by["uuids"]:
-            contacts = contacts.filter(urns__channel__uuid__in=channels_to_filter_by["uuids"])
-        if channels_to_filter_by["names"]:
-            filters_by_name = Q()
-            for filter_value in channels_to_filter_by["names"]:
-                filters_by_name |= Q(urns__channel__name__iexact=filter_value)
-            contacts = contacts.filter(filters_by_name)
-        if any(channels_to_filter_by.values()):
-            self.applied_filters["channel"] = dict(item for item in channels_to_filter_by.items() if item[1])
+        contacts = self.name_uuid_filtering(contacts, "channel", "urns__channel__uuid", "urns__channel__name")
 
         # filter by flow
         flow_uuid = self.request.GET.get("flow", self.request.data.get("flow"))
@@ -4791,7 +4796,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         )
 
 
-class MessagesReportEndpoint(BaseAPIView):
+class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     """
     This endpoint allows you to generate a short report about messages that were sent or received in that org.
 
@@ -4868,23 +4873,25 @@ class MessagesReportEndpoint(BaseAPIView):
     def get(self, request, *args, **kwargs):
         org = self.request.user.get_org()
         queryset = Msg.objects.filter(org=org)
-        applied_filters = {}
+        self.applied_filters = {}
         filters = (
-            ("channel", lambda x: queryset.filter(Q(channel__uuid=x) | Q(channel__name=x))),
+            ("flow", lambda x: self.get_flow_messages(org, x, queryset)),
             ("after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
             ("before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
-            ("exclude", lambda x: queryset.exclude(contact__all_groups__name=x)),
-            ("flow", lambda x: self.get_flow_messages(org, x, queryset)),
+            ("channel", lambda x: self.name_uuid_filtering(queryset, "channel", "channel__uuid", "channel__name")),
+            ("exclude", lambda x: self.name_uuid_filtering(
+                queryset, "exclude", "contact__all_groups__uuid", "contact__all_groups__name", "exclude"
+            )),
         )
         for name, _filter in filters:
-            filter_value = self.request.data.get(name)
+            filter_value = self.request.data.get(name, self.request.GET.get(name))
             if filter_value:
                 queryset = _filter(filter_value)
-                applied_filters[name] = filter_value
+                self.applied_filters[name] = filter_value
 
         return Response(
             {
-                **applied_filters,
+                **self.applied_filters,
                 "results": [
                     queryset.aggregate(
                         total_inbound_messages=Count("id", filter=Q(direction="I")),
@@ -4934,7 +4941,7 @@ class MessagesReportEndpoint(BaseAPIView):
         )
 
 
-class FlowReportEndpoint(BaseAPIView):
+class FlowReportEndpoint(BaseAPIView, ReportEndpointMixin):
     """
     This endpoint allows you to generate short report about flow runs for a certain flow.
 
@@ -4998,25 +5005,27 @@ class FlowReportEndpoint(BaseAPIView):
             )
         queryset = FlowRun.objects.filter(org=org, flow=flow)
         filters = (
-            (
-                "channel",
-                lambda x: queryset.filter(Q(contact__urns__channel__uuid=x) | Q(contact__urns__channel__name=x)),
-            ),
             ("started_after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
             ("started_before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
             ("exited_after", lambda x: queryset.filter(exited_on__gte=org.parse_datetime(x))),
             ("exited_before", lambda x: queryset.filter(exited_on__lte=org.parse_datetime(x))),
-            ("exclude", lambda x: queryset.exclude(contact__all_groups__name=x)),
+            ("channel", lambda x: self.name_uuid_filtering(
+                queryset, "channel", "contact__urns__channel__uuid", "contact__urns__channel__uuid"
+            )),
+            ("exclude", lambda x: self.name_uuid_filtering(
+                queryset, "exclude", "contact__all_groups__uuid", "contact__all_groups__name", "exclude"
+            ))
         )
-        applied_filters = {}
+        self.applied_filters = {}
         for name, _filter in filters:
-            filter_value = self.request.data.get(name, self.request.query_params.get("name"))
+            filter_value = self.request.data.get(name, self.request.GET.get(name))
             if filter_value:
                 queryset = _filter(filter_value)
-                applied_filters[name] = filter_value
+                self.applied_filters[name] = filter_value
+
         return Response(
             {
-                **applied_filters,
+                **self.applied_filters,
                 "results": [
                     queryset.aggregate(
                         total_contacts=Count("contact_id", distinct=True),
@@ -5079,7 +5088,7 @@ class FlowReportEndpoint(BaseAPIView):
         )
 
 
-class FlowVariableReportEndpoint(BaseAPIView):
+class FlowVariableReportEndpoint(BaseAPIView, ReportEndpointMixin):
     """
     This endpoint allows you to generate a report based on contact responses.
 
@@ -5137,33 +5146,34 @@ class FlowVariableReportEndpoint(BaseAPIView):
 
     @csv_response_wrapper
     def post(self, request, *args, **kwargs):
-        applied_filters = {}
+        self.applied_filters = {}
         org = self.request.user.get_org()
         try:
             flow = Flow.objects.get(uuid=self.request.data.get("flow"))
-            applied_filters["flow"] = flow.uuid
+            self.applied_filters["flow"] = flow.uuid
         except Flow.DoesNotExist:
             return Response(
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
         queryset = FlowRun.objects.filter(org=org, flow=flow)
         filters = (
-            (
-                "channel",
-                lambda x: queryset.filter(Q(contact__urns__channel__uuid=x) | Q(contact__urns__channel__name=x)),
-            ),
             ("started_after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
             ("started_before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
             ("exited_after", lambda x: queryset.filter(exited_on__gte=org.parse_datetime(x))),
             ("exited_before", lambda x: queryset.filter(exited_on__lte=org.parse_datetime(x))),
-            ("exclude", lambda x: queryset.exclude(contact__all_groups__name=x)),
+            ("channel", lambda x: self.name_uuid_filtering(
+                queryset, "channel", "contact__urns__channel__uuid", "contact__urns__channel__uuid"
+            )),
+            ("exclude", lambda x: self.name_uuid_filtering(
+                queryset, "exclude", "contact__all_groups__uuid", "contact__all_groups__name", "exclude"
+            ))
         )
 
         for name, _filter in filters:
             filter_value = self.request.data.get(name)
             if filter_value:
                 queryset = _filter(filter_value)
-                applied_filters[name] = filter_value
+                self.applied_filters[name] = filter_value
 
         counts = defaultdict(lambda: Counter())
         requested_variables = self.request.data.get("variables")
@@ -5187,7 +5197,7 @@ class FlowVariableReportEndpoint(BaseAPIView):
                 top_ordering[variable] = conf.get("top")
             if _format == "category":
                 counts[variable] = Counter({category: 0 for category in existing_variables[variable]["categories"]})
-        applied_filters["variables"] = variable_filters
+        self.applied_filters["variables"] = variable_filters
 
         for flow_run in queryset:
             for result_name, result in flow_run.results.items():
@@ -5197,7 +5207,7 @@ class FlowVariableReportEndpoint(BaseAPIView):
         for variable, top_x in top_ordering.items():
             counts[variable] = dict(counts[variable].most_common(top_x))
 
-        return Response({**applied_filters, "results": [counts]})
+        return Response({**self.applied_filters, "results": [counts]})
 
     @staticmethod
     def csv_convertor(result, response):
