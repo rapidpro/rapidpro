@@ -42,8 +42,8 @@ from temba.channels.models import Channel, ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ContactURN
 from temba.contacts.tasks import release_group_task
-from temba.contacts.search import SearchException
-from temba.contacts.search.elastic import query_contact_ids
+from temba.contacts.search import SearchException, parse_query
+from temba.contacts.search.elastic import query_contact_ids, query_contact_ids_from_elasticsearch
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.flows.search.parser import FlowRunSearch
 from temba.globals.models import Global
@@ -4414,6 +4414,109 @@ class ReportEndpointMixin:
                 separated_values["names"].append(value)
         return separated_values
 
+    def get_contacts(self, count_only=False):
+        org = self.request.user.get_org()
+        contacts = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True).distinct()
+
+        # filter by channel
+        channels_to_filter_by = self.request__get_separated_names_and_uuids("channel")
+        if channels_to_filter_by["uuids"]:
+            contacts = contacts.filter(urns__channel__uuid__in=channels_to_filter_by["uuids"])
+        if channels_to_filter_by["names"]:
+            filters_by_name = Q()
+            for filter_value in channels_to_filter_by["names"]:
+                filters_by_name |= Q(urns__channel__name__iexact=filter_value)
+            contacts = contacts.filter(filters_by_name)
+        if any(channels_to_filter_by.values()):
+            self.applied_filters["channel"] = dict(item for item in channels_to_filter_by.items() if item[1])
+
+        # filter by flow
+        flow_uuid = self.request.GET.get("flow", self.request.data.get("flow"))
+        if flow_uuid:
+            if not is_uuid_valid(flow_uuid):
+                raise SearchException(_("The `flow` parameter is not valid."))
+            contacts = contacts.filter(runs__flow__uuid=flow_uuid)
+            self.applied_filters["flow"] = flow_uuid
+
+        # get search query
+        search_query = self.request.GET.get("search_query", self.request.data.get("search_query", ""))
+
+        # append group conditions to search query
+        groups_filter = self.request__get_separated_names_and_uuids("group")
+        groups_exclude = self.request__get_separated_names_and_uuids("exclude")
+        if groups_filter["names"]:
+            groups_query = "(%s)" % " AND ".join(map(lambda x: f'group = "{x}"', groups_filter["names"]))
+            search_query += (" AND " if search_query else "") + groups_query
+        if groups_exclude["names"]:
+            groups_query = "(%s)" % " AND ".join(map(lambda x: f'group != "{x}"', groups_filter["names"]))
+            search_query += (" AND " if search_query else "") + groups_query
+
+        # parse query
+        group = ContactGroup.all_groups.get(org=org, group_type="A")
+        if search_query:
+            parsed_search_query = parse_query(org, search_query, group=group)
+            elastic_query_conf = parsed_search_query.elastic_query
+            self.applied_filters["search_query"] = parsed_search_query.query
+        else:
+            elastic_query_conf = {
+                "bool": {
+                    "must": [
+                        {"term": {"org_id": org.id}},
+                        {"term": {"is_active": True}},
+                        {"term": {"groups": group.uuid}},
+                    ]
+                }
+            }
+        main_conditions = elastic_query_conf.get("bool", {}).get("must", [])
+
+        # add group filter conditions
+        if groups_filter["uuids"]:
+            main_conditions.extend([{"term": {"groups": _uuid}} for _uuid in groups_filter["uuids"]])
+            self.applied_filters["group"] = groups_filter["uuids"]
+        if groups_exclude["uuids"]:
+            main_conditions.extend(
+                [{"bool": {"must_not": {"term": {"groups": _uuid}}}} for _uuid in groups_exclude["uuids"]]
+            )
+            self.applied_filters["exclude"] = groups_exclude["uuids"]
+
+        # add modified_on filter condition
+        modified_on_filter = {
+            "range": {
+                "modified_on": {
+                    "include_lower": True,
+                    "include_upper": True,
+                    "from": None,
+                    "to": None,
+                }
+            }
+        }
+
+        try:
+            after = self.request.data.get("after", self.request.GET.get("after", ""))
+            if after:
+                after = org.parse_datetime(after)
+                modified_on_filter["range"]["modified_on"]["from"] = after
+                self.applied_filters["after"] = after
+            before = self.request.data.get("before", self.request.GET.get("before", ""))
+            if before:
+                before = org.parse_datetime(before)
+                modified_on_filter["range"]["modified_on"]["to"] = before
+                self.applied_filters["before"] = before
+            if after or before:
+                main_conditions.append(modified_on_filter)
+        except AssertionError:
+            raise SearchException(_("Fields `before` or `after` are not valid."))
+
+        # get contact ids from elasticsearch database
+        contact_ids = query_contact_ids_from_elasticsearch(org, elastic_query_conf)
+
+        # return only count of contacts from elasticsearch id no need in actual records
+        if count_only and not {"flow", "channel"}.intersection(self.applied_filters):
+            contacts.count = lambda: len(contact_ids)
+            return contacts
+
+        return contacts.filter(id__in=contact_ids)
+
 
 class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
     """
@@ -4482,77 +4585,14 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
         super().__init__(*args, **kwargs)
         self.applied_filters = {}
 
-    def get_queryset(self):
-        org = self.request.user.get_org()
-        contacts = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True).distinct()
-
-        flow = self.request.GET.get("flow", self.request.data.get("flow"))
-        if flow:
-            contacts = contacts.filter(runs__flow__uuid=flow)
-            self.applied_filters["flow"] = flow
-
-        # contact list views don't use regular field searching but use more complex contact searching
-        search_query = self.request.GET.get("search_query", self.request.data.get("search_query", ""))
-
-        def contacts_name_uuid_filter(args):
-            nonlocal contacts
-            field_name, uuid_key, name_key, filter_type = args
-            values_fo_filter_by = self.request__get_separated_names_and_uuids(field_name)
-            if values_fo_filter_by["uuids"]:
-                contacts = getattr(contacts, filter_type)(**{f"{uuid_key}__in": values_fo_filter_by["uuids"]})
-            if values_fo_filter_by["names"]:
-                filters_by_name = Q()
-                for filter_value in values_fo_filter_by["names"]:
-                    filters_by_name |= Q(**{f"{name_key}__icontains": filter_value})
-                contacts = getattr(contacts, filter_type)(filters_by_name)
-
-            if any(values_fo_filter_by.values()):
-                self.applied_filters[field_name] = dict(item for item in values_fo_filter_by.items() if item[1])
-
-        filtering_params = (
-            ("channel", "urns__channel__uuid", "urns__channel__name", "filter"),
-            ("group", "all_groups__uuid", "all_groups__name", "filter"),
-            ("exclude", "all_groups__uuid", "all_groups__name", "exclude"),
-        )
-        for configuration in filtering_params:
-            contacts_name_uuid_filter(configuration)
-
-        time_filters = Q()
-        before = self.request.data.get("before", self.request.GET.get("before", ""))
-        after = self.request.data.get("after", self.request.GET.get("after", ""))
-        if before:
-            before = org.parse_datetime(before)
-            time_filters &= Q(modified_on__lte=before)
-            self.applied_filters["before"] = before
-        if after:
-            after = org.parse_datetime(after)
-            time_filters &= Q(modified_on__gte=after)
-            self.applied_filters["after"] = after
-        if time_filters:
-            contacts = contacts.filter(time_filters)
-
-        if search_query:
-            try:
-                group = ContactGroup.all_groups.get(org=org, group_type="A")
-                contact_ids, parsed_query = query_contact_ids(org, search_query, group=group, return_parsed_query=True)
-                if parsed_query:
-                    self.applied_filters["search_query"] = parsed_query
-                contacts = contacts.filter(id__in=contact_ids)
-
-                return contacts
-            except SearchException as e:
-                setattr(self, "search_query", f"Error: {e.message}")
-                # this should be an empty resultset
-                return Contact.objects.none()
-        else:
-            # if user search is not defined, use DB to select contacts
-            return contacts
-
     @csv_response_wrapper
     def get(self, request, *args, **kwargs):
-        count = self.get_queryset().count()
-        response_data = {**self.applied_filters, "results": [{"total_unique_contacts": count}]}
-        return Response(response_data)
+        try:
+            count = self.get_contacts(count_only=True).count()
+            response_data = {**self.applied_filters, "results": [{"total_unique_contacts": count}]}
+            return Response(response_data)
+        except SearchException as e:
+            return Response({"error": e.message}, status=status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
     def csv_convertor(result, response):
