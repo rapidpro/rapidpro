@@ -43,7 +43,7 @@ from temba.classifiers.models import Classifier
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ContactURN
 from temba.contacts.tasks import release_group_task
 from temba.contacts.search import SearchException, parse_query
-from temba.contacts.search.elastic import query_contact_ids, query_contact_ids_from_elasticsearch
+from temba.contacts.search.elastic import query_contact_ids_from_elasticsearch
 from temba.flows.models import Flow, FlowRun, FlowStart
 from temba.flows.search.parser import FlowRunSearch
 from temba.globals.models import Global
@@ -4879,9 +4879,12 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
             ("after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
             ("before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
             ("channel", lambda x: self.name_uuid_filtering(queryset, "channel", "channel__uuid", "channel__name")),
-            ("exclude", lambda x: self.name_uuid_filtering(
-                queryset, "exclude", "contact__all_groups__uuid", "contact__all_groups__name", "exclude"
-            )),
+            (
+                "exclude",
+                lambda x: self.name_uuid_filtering(
+                    queryset, "exclude", "contact__all_groups__uuid", "contact__all_groups__name", "exclude"
+                ),
+            ),
         )
         for name, _filter in filters:
             filter_value = self.request.data.get(name, self.request.GET.get(name))
@@ -5009,12 +5012,18 @@ class FlowReportEndpoint(BaseAPIView, ReportEndpointMixin):
             ("started_before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
             ("exited_after", lambda x: queryset.filter(exited_on__gte=org.parse_datetime(x))),
             ("exited_before", lambda x: queryset.filter(exited_on__lte=org.parse_datetime(x))),
-            ("channel", lambda x: self.name_uuid_filtering(
-                queryset, "channel", "contact__urns__channel__uuid", "contact__urns__channel__uuid"
-            )),
-            ("exclude", lambda x: self.name_uuid_filtering(
-                queryset, "exclude", "contact__all_groups__uuid", "contact__all_groups__name", "exclude"
-            ))
+            (
+                "channel",
+                lambda x: self.name_uuid_filtering(
+                    queryset, "channel", "contact__urns__channel__uuid", "contact__urns__channel__uuid"
+                ),
+            ),
+            (
+                "exclude",
+                lambda x: self.name_uuid_filtering(
+                    queryset, "exclude", "contact__all_groups__uuid", "contact__all_groups__name", "exclude"
+                ),
+            ),
         )
         self.applied_filters = {}
         for name, _filter in filters:
@@ -5161,12 +5170,18 @@ class FlowVariableReportEndpoint(BaseAPIView, ReportEndpointMixin):
             ("started_before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
             ("exited_after", lambda x: queryset.filter(exited_on__gte=org.parse_datetime(x))),
             ("exited_before", lambda x: queryset.filter(exited_on__lte=org.parse_datetime(x))),
-            ("channel", lambda x: self.name_uuid_filtering(
-                queryset, "channel", "contact__urns__channel__uuid", "contact__urns__channel__uuid"
-            )),
-            ("exclude", lambda x: self.name_uuid_filtering(
-                queryset, "exclude", "contact__all_groups__uuid", "contact__all_groups__name", "exclude"
-            ))
+            (
+                "channel",
+                lambda x: self.name_uuid_filtering(
+                    queryset, "channel", "contact__urns__channel__uuid", "contact__urns__channel__uuid"
+                ),
+            ),
+            (
+                "exclude",
+                lambda x: self.name_uuid_filtering(
+                    queryset, "exclude", "contact__all_groups__uuid", "contact__all_groups__name", "exclude"
+                ),
+            ),
         )
 
         for name, _filter in filters:
