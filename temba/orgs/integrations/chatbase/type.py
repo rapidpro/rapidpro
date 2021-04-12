@@ -20,6 +20,9 @@ class ChatbaseType(IntegrationType):
     icon = "icon-chatbase"
     category = IntegrationType.Category.MONITORING
 
+    def is_available_to(self, user) -> bool:
+        return user.is_beta()
+
     def connect(self, org, user, agent_name: str, api_key: str, version: str):
         org.config.update(
             {self.CONFIG_AGENT_NAME: agent_name, self.CONFIG_API_KEY: api_key, self.CONFIG_VERSION: version}
