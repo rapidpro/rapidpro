@@ -5,24 +5,30 @@ jobs:
     name: Test
     env:
       python_version: '3.6.x'
+      postgis_version: '2.5'
       redis_version: '5'
       node_version: '10'
-      elastic_version: '6.8.5'
-      rpindexer_version: '5.7.2'
-      mailroom_version: '5.7.40'
+      elastic_version: '7.10.1'
+      rpindexer_version: '6.2.0'
+      mailroom_version: '6.2.3'
       DJANGO_SETTINGS_MODULE: temba.settings_ci
     strategy:
       matrix:
-        pg_version: ['10', '11']
+        pg_version: ['11', '12']
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v1
 
-    - name: Install PostgreSQL
-      uses: nyaruka/postgis-action@v1
+    - name: Install PostgreSQL and PostGIS
+      uses: nyaruka/postgis-action@v2.1.0
       with:
         postgresql version: ${{ matrix.pg_version }}
+        postgis version: ${{ env.postgis_version }}
+        postgresql db: temba
+        postgresql user: temba
+        postgresql password: temba
+        postgresql arguments: '--jit=off'
 
     - name: Install Linux packages
       run: |
@@ -49,22 +55,15 @@ jobs:
       with:
         node-version: ${{ env.node_version }}
 
-    - name: Initialize database
-      run: |
-        psql -h localhost -U postgres -c "CREATE USER temba PASSWORD 'temba';"
-        psql -h localhost -U postgres -c "ALTER ROLE temba WITH SUPERUSER;"
-        psql -h localhost -U postgres -c "CREATE DATABASE temba;"
-
     - name: Initialize environment
       run: |
         echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
-        pip install --upgrade pip
-        pip install -r pip-freeze.txt
-        pip install codecov flake8
+        python -m pip install -U pip poetry
+        poetry install
         npm install
         sudo npm install -g less
         ln -s ${{ github.workspace }}/temba/settings.py.dev ${{ github.workspace }}/temba/settings.py
-        ./manage.py migrate
+        poetry run ./manage.py migrate
         # fetch and extract rp-indexer
         wget https://github.com/nyaruka/rp-indexer/releases/download/v${{ env.rpindexer_version }}/rp-indexer_${{ env.rpindexer_version }}_linux_amd64.tar.gz
         tar -xvf rp-indexer_${{ env.rpindexer_version }}_linux_amd64.tar.gz rp-indexer
@@ -76,16 +75,17 @@ jobs:
     - name: Run pre-test checks
       run: |
         # test that everything is well formatted, no missing migrations etc
-        ./code_check.py --debug $([[ "$BRANCH_NAME" == "translations_django-po" ]] && echo "--skip-compilemessages")
+        poetry run ./code_check.py --debug $([[ "$BRANCH_NAME" == "translations_django-po" ]] && echo "--skip-compilemessages")
         # check we can collect and compress all static files
-        ./manage.py collectstatic --noinput --verbosity=0
-        ./manage.py compress --extension=".haml" --settings=temba.settings_compress
+        poetry run ./manage.py collectstatic --noinput --verbosity=0
+        poetry run ./manage.py compress --extension=".haml" --settings=temba.settings_compress
 
     - name: Run tests
       run: |
-        coverage run manage.py test --keepdb --noinput --verbosity=2
-        coverage report -i
-        coverage report -i --rcfile .coveragerc_todo
+        poetry run coverage run manage.py test --keepdb --noinput --verbosity=2
+        poetry run coverage report -i
+        poetry run coverage report -i --rcfile .coveragerc_todo
+        poetry run coverage xml
 
     - name: Mailroom log
       if: failure()

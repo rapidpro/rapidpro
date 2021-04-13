@@ -1,4 +1,3 @@
-import datetime
 import io
 import smtplib
 from datetime import timedelta
@@ -6,12 +5,12 @@ from decimal import Decimal
 from unittest.mock import Mock, patch
 from urllib.parse import urlencode
 
-import pyotp
 import pytz
 import stripe
 import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
+from smartmin.users.models import FailedLogin
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
@@ -23,6 +22,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba import mailroom
+from temba.airtime.dtone import DTOneClient
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
@@ -37,7 +37,7 @@ from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
 from temba.msgs.models import ExportMessagesTask, Label, Msg
-from temba.orgs.models import BackupToken, Debit, OrgActivity, UserSettings
+from temba.orgs.models import BackupToken, Debit, OrgActivity
 from temba.orgs.tasks import suspend_topup_orgs_task
 from temba.request_logs.models import HTTPLog
 from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers, mock_mailroom
@@ -51,8 +51,18 @@ from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
 
 from .context_processors import GroupPermWrapper
-from .models import CreditAlert, Invitation, Language, Org, TopUp, TopUpCredits
+from .models import CreditAlert, Invitation, Language, Org, OrgRole, TopUp, TopUpCredits
 from .tasks import resume_failed_tasks, squash_topupcredits
+
+
+class OrgRoleTest(TembaTest):
+    def test_from_code(self):
+        self.assertEqual(OrgRole.EDITOR, OrgRole.from_code("E"))
+        self.assertIsNone(OrgRole.from_code("X"))
+
+    def test_group(self):
+        self.assertEqual(Group.objects.get(name="Editors"), OrgRole.EDITOR.group)
+        self.assertEqual(Group.objects.get(name="Agents"), OrgRole.AGENT.group)
 
 
 class OrgContextProcessorTest(TembaTest):
@@ -61,20 +71,387 @@ class OrgContextProcessorTest(TembaTest):
         editors = Group.objects.get(name="Editors")
         viewers = Group.objects.get(name="Viewers")
 
-        administrators_wrapper = GroupPermWrapper(administrators)
-        self.assertTrue(administrators_wrapper["msgs"]["msg_api"])
-        self.assertTrue(administrators_wrapper["msgs"]["msg_inbox"])
+        perms = GroupPermWrapper(administrators)
 
-        editors_wrapper = GroupPermWrapper(editors)
-        self.assertFalse(editors_wrapper["msgs"]["org_plan"])
-        self.assertTrue(editors_wrapper["msgs"]["msg_inbox"])
+        self.assertTrue(perms["msgs"]["msg_inbox"])
+        self.assertTrue(perms["contacts"]["contact_update"])
+        self.assertTrue(perms["orgs"]["org_country"])
+        self.assertTrue(perms["orgs"]["org_manage_accounts"])
+        self.assertFalse(perms["orgs"]["org_delete"])
 
-        viewers_wrapper = GroupPermWrapper(viewers)
-        self.assertFalse(viewers_wrapper["msgs"]["msg_api"])
-        self.assertTrue(viewers_wrapper["msgs"]["msg_inbox"])
+        perms = GroupPermWrapper(editors)
+
+        self.assertTrue(perms["msgs"]["msg_inbox"])
+        self.assertTrue(perms["contacts"]["contact_update"])
+        self.assertFalse(perms["orgs"]["org_manage_accounts"])
+        self.assertFalse(perms["orgs"]["org_delete"])
+
+        perms = GroupPermWrapper(viewers)
+
+        self.assertTrue(perms["msgs"]["msg_inbox"])
+        self.assertFalse(perms["contacts"]["contact_update"])
+        self.assertFalse(perms["orgs"]["org_manage_accounts"])
+        self.assertFalse(perms["orgs"]["org_delete"])
+
+        self.assertFalse(perms["msgs"]["foo"])  # no blow up if perm doesn't exist
+        self.assertFalse(perms["chickens"]["foo"])  # or app doesn't exist
+
+        with self.assertRaises(TypeError):
+            list(perms)
 
 
 class UserTest(TembaTest):
+    def test_login(self):
+        login_url = reverse("users.user_login")
+        verify_url = reverse("users.two_factor_verify")
+        backup_url = reverse("users.two_factor_backup")
+
+        user_settings = self.admin.get_settings()
+        self.assertIsNone(user_settings.last_auth_on)
+
+        # try to access a non-public page
+        response = self.client.get(reverse("msgs.msg_inbox"))
+        self.assertLoginRedirect(response)
+        self.assertTrue(response.url.endswith("?next=/msg/inbox/"))
+
+        # view login page
+        response = self.client.get(login_url)
+        self.assertEqual(200, response.status_code)
+
+        # submit incorrect username and password
+        response = self.client.post(login_url, {"username": "jim", "password": "pass123"})
+        self.assertEqual(200, response.status_code)
+        self.assertFormError(
+            response,
+            "form",
+            "__all__",
+            "Please enter a correct username and password. Note that both fields may be case-sensitive.",
+        )
+
+        # submit correct username and password
+        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        self.assertRedirect(response, reverse("orgs.org_choose"))
+
+        user_settings = self.admin.get_settings()
+        self.assertIsNotNone(user_settings.last_auth_on)
+
+        # logout and enable 2FA
+        self.client.logout()
+        self.admin.enable_2fa()
+
+        # can't access two-factor verify page yet
+        response = self.client.get(verify_url)
+        self.assertLoginRedirect(response)
+
+        # login via login page again
+        response = self.client.post(
+            login_url + "?next=/msg/inbox/", {"username": "Administrator", "password": "Administrator"}
+        )
+        self.assertRedirect(response, verify_url)
+        self.assertTrue(response.url.endswith("?next=/msg/inbox/"))
+
+        # view two-factor verify page
+        response = self.client.get(verify_url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(["otp"], list(response.context["form"].fields.keys()))
+        self.assertContains(response, backup_url)
+
+        # enter invalid OTP
+        response = self.client.post(verify_url, {"otp": "nope"})
+        self.assertFormError(response, "form", "otp", "Incorrect OTP. Please try again.")
+
+        # enter valid OTP
+        with patch("pyotp.TOTP.verify", return_value=True):
+            response = self.client.post(verify_url, {"otp": "123456"})
+        self.assertRedirect(response, reverse("orgs.org_choose"))
+
+        self.client.logout()
+
+        # login via login page again
+        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        self.assertRedirect(response, verify_url)
+
+        # but this time we've lost our phone so go to the page for backup tokens
+        response = self.client.get(backup_url)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(["token"], list(response.context["form"].fields.keys()))
+
+        # enter invalid backup token
+        response = self.client.post(backup_url, {"token": "nope"})
+        self.assertFormError(response, "form", "token", "Invalid backup token. Please try again.")
+
+        # enter valid backup token
+        response = self.client.post(backup_url, {"token": self.admin.backup_tokens.first()})
+        self.assertRedirect(response, reverse("orgs.org_choose"))
+
+        self.assertEqual(9, len(self.admin.backup_tokens.filter(is_used=False)))
+
+    @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
+    def test_login_lockouts(self):
+        login_url = reverse("users.user_login")
+        verify_url = reverse("users.two_factor_verify")
+        backup_url = reverse("users.two_factor_backup")
+        failed_url = reverse("users.user_failed")
+
+        # submit incorrect username and password 3 times
+        self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
+        self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
+        response = self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
+
+        self.assertRedirect(response, failed_url)
+        self.assertRedirect(self.client.get(reverse("msgs.msg_inbox")), login_url)
+
+        # simulate failed logins timing out by making them older
+        FailedLogin.objects.all().update(failed_on=timezone.now() - timedelta(minutes=3))
+
+        # now we're allowed to make failed logins again
+        response = self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
+        self.assertFormError(
+            response,
+            "form",
+            "__all__",
+            "Please enter a correct username and password. Note that both fields may be case-sensitive.",
+        )
+
+        # and successful logins
+        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        self.assertRedirect(response, reverse("orgs.org_choose"))
+
+        # try again with 2FA enabled
+        self.client.logout()
+        self.admin.enable_2fa()
+
+        # submit incorrect username and password 3 times
+        self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
+        self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
+        response = self.client.post(login_url, {"username": "Administrator", "password": "pass123"})
+
+        self.assertRedirect(response, failed_url)
+        self.assertRedirect(self.client.get(reverse("msgs.msg_inbox")), login_url)
+
+        # login correctly
+        FailedLogin.objects.all().delete()
+        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        self.assertRedirect(response, verify_url)
+
+        # now enter a backup token 3 times incorrectly
+        self.client.post(backup_url, {"token": "nope"})
+        self.client.post(backup_url, {"token": "nope"})
+        response = self.client.post(backup_url, {"token": "nope"})
+
+        self.assertRedirect(response, failed_url)
+        self.assertRedirect(self.client.get(verify_url), login_url)
+        self.assertRedirect(self.client.get(backup_url), login_url)
+        self.assertRedirect(self.client.get(reverse("msgs.msg_inbox")), login_url)
+
+        # simulate failed logins timing out by making them older
+        FailedLogin.objects.all().update(failed_on=timezone.now() - timedelta(minutes=3))
+
+        # we can't enter backup tokens again without going thru regular login first
+        response = self.client.post(backup_url, {"token": "nope"})
+        self.assertRedirect(response, login_url)
+
+        response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+        self.assertRedirect(response, verify_url)
+
+        response = self.client.post(backup_url, {"token": self.admin.backup_tokens.first()})
+        self.assertRedirect(response, reverse("orgs.org_choose"))
+
+    def test_two_factor(self):
+        self.assertFalse(self.admin.get_settings().two_factor_enabled)
+
+        self.admin.enable_2fa()
+
+        self.assertTrue(self.admin.get_settings().two_factor_enabled)
+        self.assertEqual(10, len(self.admin.backup_tokens.filter(is_used=False)))
+
+        # try to verify with.. nothing
+        self.assertFalse(self.admin.verify_2fa())
+
+        # try to verify with an invalid OTP
+        self.assertFalse(self.admin.verify_2fa(otp="nope"))
+
+        # try to verify with a valid OTP
+        with patch("pyotp.TOTP.verify", return_value=True):
+            self.assertTrue(self.admin.verify_2fa(otp="123456"))
+
+        # try to verify with an invalid backup token
+        self.assertFalse(self.admin.verify_2fa(backup_token="nope"))
+
+        # try to verify with a valid backup token
+        token = self.admin.backup_tokens.first().token
+        self.assertTrue(self.admin.verify_2fa(backup_token=token))
+
+        self.assertEqual(9, len(self.admin.backup_tokens.filter(is_used=False)))
+
+        # can't verify again with same backup token
+        self.assertFalse(self.admin.verify_2fa(backup_token=token))
+
+        self.admin.disable_2fa()
+
+        self.assertFalse(self.admin.get_settings().two_factor_enabled)
+
+    def test_two_factor_views(self):
+        enable_url = reverse("orgs.user_two_factor_enable")
+        tokens_url = reverse("orgs.user_two_factor_tokens")
+        disable_url = reverse("orgs.user_two_factor_disable")
+
+        self.login(self.admin, update_last_auth_on=False)
+
+        # org home page tells us 2FA is disabled, links to page to enable it
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, "Two-factor authentication is <b>disabled</b>")
+        self.assertContains(response, enable_url)
+
+        # view form to enable 2FA
+        response = self.client.get(enable_url)
+        self.assertEqual(["otp", "password", "loc"], list(response.context["form"].fields.keys()))
+
+        # try to submit with no OTP or password
+        response = self.client.post(enable_url, {})
+        self.assertFormError(response, "form", "otp", "This field is required.")
+        self.assertFormError(response, "form", "password", "This field is required.")
+
+        # try to submit with invalid OTP and password
+        response = self.client.post(enable_url, {"otp": "nope", "password": "wrong"})
+        self.assertFormError(response, "form", "otp", "OTP incorrect. Please try again.")
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # submit with valid OTP and password
+        with patch("pyotp.TOTP.verify", return_value=True):
+            response = self.client.post(enable_url, {"otp": "123456", "password": "Administrator"})
+        self.assertRedirect(response, tokens_url)
+        self.assertTrue(self.admin.get_settings().two_factor_enabled)
+
+        # org home page now tells us 2FA is enabled, links to page manage tokens
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, "Two-factor authentication is <b>enabled</b>")
+
+        # view backup tokens page
+        response = self.client.get(tokens_url)
+        self.assertContains(response, "Regenerate Tokens")
+        self.assertContains(response, disable_url)
+
+        tokens = [t.token for t in response.context["backup_tokens"]]
+
+        # posting to that page regenerates tokens
+        response = self.client.post(tokens_url)
+        self.assertContains(response, "Two-factor authentication backup tokens changed.")
+        self.assertNotEqual(tokens, [t.token for t in response.context["backup_tokens"]])
+
+        # view form to disable 2FA
+        response = self.client.get(disable_url)
+        self.assertEqual(["password", "loc"], list(response.context["form"].fields.keys()))
+
+        # try to submit with no password
+        response = self.client.post(disable_url, {})
+        self.assertFormError(response, "form", "password", "This field is required.")
+
+        # try to submit with invalid password
+        response = self.client.post(disable_url, {"password": "wrong"})
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # submit with valid password
+        response = self.client.post(disable_url, {"password": "Administrator"})
+        self.assertRedirect(response, reverse("orgs.org_home"))
+        self.assertFalse(self.admin.get_settings().two_factor_enabled)
+
+        # trying to view the tokens page now takes us to the enable form
+        response = self.client.get(tokens_url)
+        self.assertRedirect(response, enable_url)
+
+    def test_two_factor_time_limit(self):
+        login_url = reverse("users.user_login")
+        verify_url = reverse("users.two_factor_verify")
+        backup_url = reverse("users.two_factor_backup")
+
+        self.admin.enable_2fa()
+
+        # simulate a login for a 2FA user 10 minutes ago
+        with patch("django.utils.timezone.now", return_value=timezone.now() - timedelta(minutes=10)):
+            response = self.client.post(login_url, {"username": "Administrator", "password": "Administrator"})
+            self.assertRedirect(response, verify_url)
+
+            response = self.client.get(verify_url)
+            self.assertEqual(200, response.status_code)
+
+        # if they access the verify or backup page now, they are redirected back to the login page
+        response = self.client.get(verify_url)
+        self.assertRedirect(response, login_url)
+
+        response = self.client.get(backup_url)
+        self.assertRedirect(response, login_url)
+
+    def test_two_factor_confirm_access(self):
+        tokens_url = reverse("orgs.user_two_factor_tokens")
+
+        self.admin.enable_2fa()
+        self.login(self.admin, update_last_auth_on=False)
+
+        # org home page tells us 2FA is enabled, links to page manage tokens
+        response = self.client.get(reverse("orgs.org_home"))
+        self.assertContains(response, "Two-factor authentication is <b>enabled</b>")
+        self.assertContains(response, tokens_url)
+
+        # but navigating to tokens page redirects to confirm auth
+        response = self.client.get(tokens_url)
+        self.assertEqual(302, response.status_code)
+        self.assertTrue(response.url.endswith("/users/confirm-access/?next=/user/two_factor_tokens/"))
+
+        confirm_url = response.url
+
+        # view confirm access page
+        response = self.client.get(confirm_url)
+        self.assertEqual(["password"], list(response.context["form"].fields.keys()))
+
+        # try to submit with incorrect password
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # submit with real password
+        response = self.client.post(confirm_url, {"password": "Administrator"})
+        self.assertRedirect(response, tokens_url)
+
+        response = self.client.get(tokens_url)
+        self.assertEqual(200, response.status_code)
+
+    @override_settings(USER_LOCKOUT_TIMEOUT=1, USER_FAILED_LOGIN_LIMIT=3)
+    def test_confirm_access(self):
+        confirm_url = reverse("users.confirm_access") + f"?next=/msg/inbox/"
+        failed_url = reverse("users.user_failed")
+
+        # try to access before logging in
+        response = self.client.get(confirm_url)
+        self.assertLoginRedirect(response)
+
+        self.login(self.admin)
+
+        response = self.client.get(confirm_url)
+        self.assertEqual(["password"], list(response.context["form"].fields.keys()))
+
+        # try to submit with incorrect password
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # 2 more times..
+        self.client.post(confirm_url, {"password": "nope"})
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertRedirect(response, failed_url)
+
+        # even correct password now redirects to failed page
+        response = self.client.post(confirm_url, {"password": "Administrator"})
+        self.assertRedirect(response, failed_url)
+
+        FailedLogin.objects.all().delete()
+
+        # can once again submit incorrect passwords
+        response = self.client.post(confirm_url, {"password": "nope"})
+        self.assertFormError(response, "form", "password", "Password incorrect.")
+
+        # and also correct ones
+        response = self.client.post(confirm_url, {"password": "Administrator"})
+        self.assertRedirect(response, "/msg/inbox/")
+
     def test_ui_permissions(self):
         # non-logged in users can't go here
         response = self.client.get(reverse("orgs.user_list"))
@@ -193,6 +570,7 @@ class UserTest(TembaTest):
         self.surveyor.release(self.org.brand)
         self.editor.release(self.org.brand)
         self.user.release(self.org.brand)
+        self.agent.release(self.org.brand)
 
         # still a user left, our org remains active
         self.org.refresh_from_db()
@@ -359,6 +737,9 @@ class OrgDeleteTest(TembaNonAtomicTest):
         self.create_outgoing_msg(parent_contact, "Hola hija!", channel=self.channel)
         self.create_outgoing_msg(child_contact, "Hola mama!", channel=self.child_channel)
 
+        # create a broadcast and some counts
+        self.create_broadcast(self.user, "Broadcast with messages", contacts=[parent_contact])
+
         # create some archives
         self.mock_s3 = MockS3Client()
 
@@ -412,7 +793,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
             # save off the ids of our current users
-            org_user_ids = list(org.get_org_users().values_list("id", flat=True))
+            org_user_ids = list(org.get_users().values_list("id", flat=True))
 
             # we should be starting with some mock s3 objects
             self.assertEqual(5, len(self.mock_s3.objects))
@@ -471,7 +852,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
     def test_release_child_immediately(self):
         # 300 credits were given to our child org and each used one
-        self.assertEqual(698, self.parent_org.get_credits_remaining())
+        self.assertEqual(697, self.parent_org.get_credits_remaining())
         self.assertEqual(299, self.child_org.get_credits_remaining())
 
         # release our child org
@@ -479,22 +860,30 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         # our unused credits are returned to the parent
         self.parent_org.clear_credit_cache()
-        self.assertEqual(996, self.parent_org.get_credits_remaining())
+        self.assertEqual(995, self.parent_org.get_credits_remaining())
 
 
 class OrgTest(TembaTest):
-    def test_get_org_users(self):
-        org_users = self.org.get_org_users()
-        self.assertTrue(self.user in org_users)
-        self.assertTrue(self.surveyor in org_users)
-        self.assertTrue(self.editor in org_users)
-        self.assertTrue(self.admin in org_users)
+    def test_get_users(self):
+        # should return all org users ordered by email
+        self.assertEqual([self.admin, self.agent, self.editor, self.surveyor, self.user], list(self.org.get_users()))
 
-        # should be ordered by email
-        self.assertEqual(self.admin, org_users[0])
-        self.assertEqual(self.editor, org_users[1])
-        self.assertEqual(self.surveyor, org_users[2])
-        self.assertEqual(self.user, org_users[3])
+    def test_get_owner(self):
+        # admins take priority
+        self.assertEqual(self.admin, self.org.get_owner())
+
+        self.org.administrators.clear()
+
+        # then editors etc
+        self.assertEqual(self.editor, self.org.get_owner())
+
+        self.org.editors.clear()
+        self.org.viewers.clear()
+        self.org.agents.clear()
+        self.org.surveyors.clear()
+
+        # finally defaulting to org creator
+        self.assertEqual(self.user, self.org.get_owner())
 
     def test_get_unique_slug(self):
         self.org.slug = "allo"
@@ -542,50 +931,6 @@ class OrgTest(TembaTest):
         urn = ContactURN.get_or_create(self.org, joe, "tel:+250788383383")
         self.assertEqual(short_code, self.org.get_channel_for_role(Channel.ROLE_SEND, None, urn))
 
-    def test_get_channel_countries(self):
-        self.assertEqual(self.org.get_channel_countries(), [])
-
-        self.org.connect_dtone("mylogin", "api_token", self.admin)
-
-        self.assertEqual(
-            self.org.get_channel_countries(),
-            [dict(code="RW", name="Rwanda", currency_name="Rwanda Franc", currency_code="RWF")],
-        )
-
-        Channel.create(
-            self.org, self.user, "US", "A", None, "+12001112222", secret="asdf", config={Channel.CONFIG_FCM_ID: "1234"}
-        )
-
-        self.assertEqual(
-            self.org.get_channel_countries(),
-            [
-                dict(code="RW", name="Rwanda", currency_name="Rwanda Franc", currency_code="RWF"),
-                dict(code="US", name="United States", currency_name="US Dollar", currency_code="USD"),
-            ],
-        )
-
-        Channel.create(self.org, self.user, None, "TT", name="Twitter Channel", address="billy_bob", role="SR")
-
-        self.assertEqual(
-            self.org.get_channel_countries(),
-            [
-                dict(code="RW", name="Rwanda", currency_name="Rwanda Franc", currency_code="RWF"),
-                dict(code="US", name="United States", currency_name="US Dollar", currency_code="USD"),
-            ],
-        )
-
-        Channel.create(
-            self.org, self.user, "US", "A", None, "+12001113333", secret="qwer", config={Channel.CONFIG_FCM_ID: "qwer"}
-        )
-
-        self.assertEqual(
-            self.org.get_channel_countries(),
-            [
-                dict(code="RW", name="Rwanda", currency_name="Rwanda Franc", currency_code="RWF"),
-                dict(code="US", name="United States", currency_name="US Dollar", currency_code="USD"),
-            ],
-        )
-
     def test_edit(self):
         # use a manager now
         self.login(self.admin)
@@ -605,66 +950,6 @@ class OrgTest(TembaTest):
 
         org = Org.objects.get(pk=self.org.pk)
         self.assertEqual("Temba", org.name)
-
-    def test_two_factor(self):
-        # for now only Beta members have access
-        Group.objects.get(name="Beta").user_set.add(self.admin)
-        self.login(self.admin)
-
-        # create profile
-        response = self.client.get(reverse("orgs.org_two_factor"))
-        self.assertEqual(200, response.status_code)
-        self.assertEqual(UserSettings.objects.count(), 1)
-        self.assertEqual(UserSettings.objects.first().user, self.admin)
-
-        # validate token error
-        data = dict(token="12345")
-        response = self.client.post(reverse("orgs.org_two_factor"), data)
-        self.assertIn("token", response.context["form"].errors)
-        self.assertIn("Invalid MFA token. Please try again.", response.context["form"].errors["token"])
-
-        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 0)
-        data = dict(generate_backup_tokens=True)
-        response = self.client.post(reverse("orgs.org_two_factor"), data)
-        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 10)
-
-        # disable two factor
-        data = dict(disable_two_factor_auth=True)
-        user_settings = UserSettings.objects.get(user=self.admin)
-        response = self.client.post(reverse("orgs.org_two_factor"), data)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(BackupToken.objects.filter(settings__user=self.admin).count(), 0)
-        self.assertFalse(user_settings.two_factor_enabled)
-
-        # get backup tokens without backup tokens
-        data = dict(get_backup_tokens=True)
-        response = self.client.post(reverse("orgs.org_two_factor"), data)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"tokens": []})
-
-        # get backup tokens with backup tokens
-        backup_token = BackupToken.objects.create(
-            settings=self.admin.get_settings(), created_by=self.admin, modified_by=self.admin
-        )
-        data = dict(get_backup_tokens=True)
-        response = self.client.post(reverse("orgs.org_two_factor"), data)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"tokens": [f"{backup_token.token}"]})
-
-        # test form is valid
-        user_settings = UserSettings.objects.get(user=self.admin)
-        user_settings.two_factor_enabled = False
-        user_settings.save()
-        totp = pyotp.TOTP(self.admin.get_settings().otp_secret)
-        data = dict(token=totp.now())
-        response = self.client.post(reverse("orgs.org_two_factor"), data)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(BackupToken.objects.count(), 10)
-        self.assertEqual(self.admin.get_settings().two_factor_enabled, True)
-
-        # check backup tokens now listed on account home page
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertContains(response, "Backup tokens can be used")
 
     def test_country_view(self):
         self.setUpLocations()
@@ -740,19 +1025,8 @@ class OrgTest(TembaTest):
         self.assertRedirect(response, reverse("orgs.org_home"))
 
         # check that our user settings have changed
-        settings = self.admin.get_settings()
-        self.assertEqual("pt-br", settings.language)
-
-    def test_usersettings(self):
-        self.login(self.admin)
-
-        post_data = dict(tel="+250788382382")
-        self.client.post(reverse("orgs.usersettings_phone"), post_data)
-        self.assertEqual("+250 788 382 382", UserSettings.objects.get(user=self.admin).get_tel_formatted())
-
-        post_data = dict(tel="bad number")
-        response = self.client.post(reverse("orgs.usersettings_phone"), post_data)
-        self.assertEqual(response.context["form"].errors["tel"][0], "Invalid phone number, try again.")
+        user_settings = self.admin.get_settings()
+        self.assertEqual("pt-br", user_settings.language)
 
     @patch("temba.flows.models.FlowStart.async_start")
     def test_org_flagging_and_suspending(self, mock_async_start):
@@ -938,6 +1212,11 @@ class OrgTest(TembaTest):
         response = self.client.get(update_url)
         self.assertEqual(200, response.status_code)
 
+        # We should have the limits fields
+        self.assertTrue("fields_limit" in response.context["form"].fields.keys())
+        self.assertTrue("globals_limit" in response.context["form"].fields.keys())
+        self.assertTrue("groups_limit" in response.context["form"].fields.keys())
+
         parent = Org.objects.create(
             name="Parent",
             timezone=pytz.timezone("Africa/Kigali"),
@@ -965,10 +1244,45 @@ class OrgTest(TembaTest):
             "administrators": [self.admin.id],
             "surveyors": [self.surveyor.id],
             "surveyor_password": "",
+            "fields_limit": 300,
+            "groups_limit": 400,
         }
 
         response = self.client.post(update_url, post_data)
         self.assertEqual(302, response.status_code)
+
+        self.org.refresh_from_db()
+        self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 400)
+
+        # reset groups limit
+        post_data = {
+            "name": "Temba",
+            "brand": "rapidpro.io",
+            "plan": "TRIAL",
+            "plan_end": "",
+            "language": "",
+            "country": "",
+            "primary_language": "",
+            "timezone": pytz.timezone("Africa/Kigali"),
+            "config": "{}",
+            "date_format": "D",
+            "parent": parent.id,
+            "viewers": [self.user.id],
+            "editors": [self.editor.id],
+            "administrators": [self.admin.id],
+            "surveyors": [self.surveyor.id],
+            "surveyor_password": "",
+            "fields_limit": 300,
+            "groups_limit": "",
+        }
+
+        response = self.client.post(update_url, post_data)
+        self.assertEqual(302, response.status_code)
+
+        self.org.refresh_from_db()
+        self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 250)
 
         # unflag org
         post_data["action"] = "unflag"
@@ -1030,10 +1344,7 @@ class OrgTest(TembaTest):
 
         # fetch it as a formax so we can inspect the summary
         response = self.client.get(url, HTTP_X_FORMAX=1, HTTP_X_PJAX=1)
-        self.assertContains(response, "1 Administrator")
-        self.assertContains(response, "2 Editors")
-        self.assertContains(response, "1 Viewer")
-        self.assertContains(response, "0 Surveyors")
+        self.assertContains(response, "1 Administrator, 2 Editors, 1 Viewer, and 1 Agent.")
 
     def test_refresh_tokens(self):
         self.login(self.admin)
@@ -1084,10 +1395,32 @@ class OrgTest(TembaTest):
     def test_manage_accounts(self):
         url = reverse("orgs.org_manage_accounts")
 
+        # can't access as editor
+        self.login(self.editor)
+        response = self.client.get(url)
+        self.assertLoginRedirect(response)
+
+        # can access as admin
         self.login(self.admin)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        # because we don't have internal ticketing, don't yet see agent role
+        self.assertEqual(
+            [("A", "Administrator"), ("E", "Editor"), ("V", "Viewer"), ("S", "Surveyor")],
+            response.context["form"].fields["invite_role"].choices,
+        )
+
+        # add internal ticketer so that agent role appears
+        Ticketer.create(self.org, self.admin, "internal", "Internal", config={})
 
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(
+            [("A", "Administrator"), ("E", "Editor"), ("V", "Viewer"), ("T", "Agent"), ("S", "Surveyor")],
+            response.context["form"].fields["invite_role"].choices,
+        )
 
         # give users an API token and give admin and editor an additional surveyor-role token
         APIToken.get_or_create(self.org, self.admin)
@@ -1096,35 +1429,32 @@ class OrgTest(TembaTest):
         APIToken.get_or_create(self.org, self.admin, role=Group.objects.get(name="Surveyors"))
         APIToken.get_or_create(self.org, self.editor, role=Group.objects.get(name="Surveyors"))
 
-        # we have 19 fields in the form including 16 checkboxes for the four users, an email field, a user group field
-        # and 'loc' field.
-        expected_fields = {"invite_emails", "invite_group", "loc"}
-        for user in (self.surveyor, self.user, self.editor, self.admin):
-            for group in ("administrators", "editors", "viewers", "surveyors"):
-                expected_fields.add(group + "_%d" % user.pk)
+        actual_fields = response.context["form"].fields
+        expected_fields = ["loc", "invite_emails", "invite_role"]
+        for user in self.org.get_users():
+            expected_fields.extend([f"user_{user.id}_role", f"user_{user.id}_remove"])
 
-        self.assertEqual(set(response.context["form"].fields.keys()), expected_fields)
-        self.assertEqual(
-            response.context["form"].initial,
+        self.assertEqual(set(expected_fields), set(actual_fields.keys()))
+
+        self.assertEqual("A", actual_fields[f"user_{self.admin.id}_role"].initial)
+        self.assertEqual("E", actual_fields[f"user_{self.editor.id}_role"].initial)
+        self.assertEqual(None, actual_fields["invite_emails"].initial)
+        self.assertEqual("V", actual_fields["invite_role"].initial)
+
+        # leave admin, editor and agent as is, but change user to an editor too, and remove the surveyor user
+        response = self.client.post(
+            url,
             {
-                "administrators_%d" % self.admin.pk: True,
-                "editors_%d" % self.editor.pk: True,
-                "viewers_%d" % self.user.pk: True,
-                "surveyors_%d" % self.surveyor.pk: True,
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.editor.id}_role": "E",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.surveyor.id}_role": "S",
+                f"user_{self.surveyor.id}_remove": "1",
+                f"user_{self.agent.id}_role": "T",
+                "invite_emails": "",
+                "invite_role": "V",
             },
         )
-        self.assertEqual(response.context["form"].fields["invite_emails"].initial, None)
-        self.assertEqual(response.context["form"].fields["invite_group"].initial, "V")
-
-        # keep admin as admin, editor as editor, but make user an editor too, and remove surveyor
-        post_data = {
-            "administrators_%d" % self.admin.pk: "on",
-            "editors_%d" % self.editor.pk: "on",
-            "editors_%d" % self.user.pk: "on",
-            "invite_emails": "",
-            "invite_group": "V",
-        }
-        response = self.client.post(url, post_data)
         self.assertRedirect(response, reverse("orgs.org_manage_accounts"))
 
         self.org.refresh_from_db()
@@ -1132,95 +1462,160 @@ class OrgTest(TembaTest):
         self.assertEqual(set(self.org.editors.all()), {self.user, self.editor})
         self.assertFalse(set(self.org.viewers.all()), set())
         self.assertEqual(set(self.org.surveyors.all()), set())
+        self.assertEqual(set(self.org.agents.all()), {self.agent})
 
         # our surveyor's API token will have been deleted
         self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 2)
         self.assertEqual(self.editor.api_tokens.filter(is_active=True).count(), 2)
         self.assertEqual(self.surveyor.api_tokens.filter(is_active=True).count(), 0)
 
-        # next we leave existing roles unchanged, but try to invite new user to be admin with invalid email address
-        post_data["invite_emails"] = "norkans7gmail.com"
-        post_data["invite_group"] = "A"
-        response = self.client.post(url, post_data)
-
+        # next we leave existing roles unchanged, but try to invite new user to be admin with an invalid email address
+        response = self.client.post(
+            url,
+            {
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.editor.id}_role": "E",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.agent.id}_role": "T",
+                "invite_emails": "norkans7gmail.com",
+                "invite_role": "A",
+            },
+        )
         self.assertFormError(response, "form", "invite_emails", "One of the emails you entered is invalid.")
 
         # try again with valid email
-        post_data["invite_emails"] = "norkans7@gmail.com"
-        response = self.client.post(url, post_data)
+        response = self.client.post(
+            url,
+            {
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.editor.id}_role": "E",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.agent.id}_role": "T",
+                "invite_emails": "norkans7@gmail.com",
+                "invite_role": "A",
+            },
+        )
         self.assertRedirect(response, reverse("orgs.org_manage_accounts"))
 
         # an invitation is created
         invitation = Invitation.objects.get()
-        self.assertEqual(invitation.org, self.org)
-        self.assertEqual(invitation.email, "norkans7@gmail.com")
-        self.assertEqual(invitation.user_group, "A")
-
-        old_secret = invitation.secret
+        self.assertEqual(self.org, invitation.org)
+        self.assertEqual("norkans7@gmail.com", invitation.email)
+        self.assertEqual("A", invitation.user_group)
 
         # and sent by email
-        self.assertTrue(len(mail.outbox) == 1)
+        self.assertEqual(1, len(mail.outbox))
 
         # pretend our invite was acted on
         invitation.is_active = False
         invitation.save()
 
-        # send another invitation, different group
-        post_data["invite_emails"] = "norkans7@gmail.com"
-        post_data["invite_group"] = "E"
-        self.client.post(url, post_data)
-
-        # old invite should be updated
-        invitation.refresh_from_db()
-        self.assertEqual(invitation.user_group, "E")
-        self.assertTrue(invitation.is_active)
-        # make sure that new invitation has a new secret
-        self.assertNotEqual(old_secret, invitation.secret)
-
-        # and new email sent
-        self.assertEqual(len(mail.outbox), 2)
+        # no longer appears in list
+        response = self.client.get(url)
+        self.assertNotContains(response, "norkans7@gmail.com")
 
         # include multiple emails on the form
-        post_data["invite_emails"] = "norbert@temba.com,code@temba.com"
-        post_data["invite_group"] = "A"
-        self.client.post(url, post_data)
+        self.client.post(
+            url,
+            {
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.editor.id}_role": "E",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.agent.id}_role": "T",
+                "invite_emails": "norbert@temba.com,code@temba.com",
+                "invite_role": "A",
+            },
+        )
 
         # now 2 new invitations are created and sent
-        self.assertEqual(Invitation.objects.all().count(), 3)
-        self.assertEqual(len(mail.outbox), 4)
+        self.assertEqual(3, Invitation.objects.all().count())
+        self.assertEqual(3, len(mail.outbox))
 
         response = self.client.get(url)
 
         # user ordered by email
-        self.assertEqual(list(response.context["org_users"]), [self.admin, self.editor, self.user])
+        users_on_form = [row["user"] for row in response.context["form"].user_rows]
+        self.assertEqual([self.admin, self.agent, self.editor, self.user], users_on_form)
 
         # invites ordered by email as well
-        self.assertEqual(response.context["invites"][0].email, "code@temba.com")
-        self.assertEqual(response.context["invites"][1].email, "norbert@temba.com")
-        self.assertEqual(response.context["invites"][2].email, "norkans7@gmail.com")
+        invites_on_form = [row["invite"].email for row in response.context["form"].invite_rows]
+        self.assertEqual(["code@temba.com", "norbert@temba.com"], invites_on_form)
 
-        # finally downgrade the editor to a surveyor and remove ourselves entirely from this org
+        # users for whom nothing is submitted for remain unchanged
         response = self.client.post(
             url,
             {
-                "editors_%d" % self.user.pk: "on",
-                "surveyors_%d" % self.editor.pk: "on",
+                f"user_{self.admin.id}_role": "A",
                 "invite_emails": "",
-                "invite_group": "V",
-                "remove_invite_%s" % response.context["invites"][2].pk: True,
+                "invite_role": "A",
+            },
+        )
+        self.assertEqual(200, response.status_code)
+
+        self.org.refresh_from_db()
+        self.assertEqual(set(self.org.administrators.all()), {self.admin})
+        self.assertEqual(set(self.org.editors.all()), {self.user, self.editor})
+        self.assertFalse(set(self.org.viewers.all()), set())
+        self.assertEqual(set(self.org.surveyors.all()), set())
+        self.assertEqual(set(self.org.agents.all()), {self.agent})
+
+        # try to remove ourselves as admin
+        response = self.client.post(
+            url,
+            {
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.admin.id}_remove": "1",
+                f"user_{self.editor.id}_role": "S",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.agent.id}_role": "T",
+                "invite_emails": "",
+                "invite_role": "V",
+            },
+        )
+        self.assertFormError(response, "form", "__all__", "A workspace must have at least one administrator.")
+
+        # try to downgrade ourselves to an editor
+        response = self.client.post(
+            url,
+            {
+                f"user_{self.admin.id}_role": "E",
+                f"user_{self.editor.id}_role": "S",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.agent.id}_role": "T",
+                "invite_emails": "",
+                "invite_role": "V",
+            },
+        )
+        self.assertFormError(response, "form", "__all__", "A workspace must have at least one administrator.")
+
+        # finally upgrade agent to admin, downgrade editor to surveyor, remove ourselves entirely and remove last invite
+        last_invite = Invitation.objects.last()
+        response = self.client.post(
+            url,
+            {
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.admin.id}_remove": "1",
+                f"user_{self.editor.id}_role": "S",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.agent.id}_role": "A",
+                f"invite_{last_invite.id}_remove": "1",
+                "invite_emails": "",
+                "invite_role": "V",
             },
         )
 
-        self.assertEqual(Invitation.objects.all().count(), 2)
         # we should be redirected to chooser page
         self.assertRedirect(response, reverse("orgs.org_choose"))
 
+        self.assertEqual(2, Invitation.objects.all().count())
+
         # and removed from this org
         self.org.refresh_from_db()
-        self.assertEqual(set(self.org.administrators.all()), set())
+        self.assertEqual(set(self.org.administrators.all()), {self.agent})
         self.assertEqual(set(self.org.editors.all()), {self.user})
         self.assertEqual(set(self.org.viewers.all()), set())
         self.assertEqual(set(self.org.surveyors.all()), {self.editor})
+        self.assertEqual(set(self.org.agents.all()), set())
 
         # editor will have lost their editor API token, but not their surveyor token
         self.editor.refresh_from_db()
@@ -1230,19 +1625,103 @@ class OrgTest(TembaTest):
         self.admin.refresh_from_db()
         self.assertEqual(self.admin.api_tokens.filter(is_active=True).count(), 0)
 
+        # make sure an existing user can not be invited again
+        user = Org.create_user("admin1@temba.com", "admin1@temba.com")
+        user.set_org(self.org)
+        self.org.administrators.add(user)
+        self.login(user)
+
+        self.assertEqual(1, Invitation.objects.filter(is_active=True).count())
+
+        # include multiple emails on the form
+        response = self.client.post(
+            url,
+            {
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.editor.id}_role": "E",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.agent.id}_role": "T",
+                f"user_{user.id}_role": "A",
+                "invite_emails": "norbert@temba.com,code@temba.com,admin1@temba.com",
+                "invite_role": "A",
+            },
+        )
+
+        self.assertFormError(
+            response, "form", "invite_emails", "One of the emails you entered has an existing user on the workspace."
+        )
+
+        # do not allow multiple invite on the same email
+        response = self.client.post(
+            url,
+            {
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.editor.id}_role": "E",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.agent.id}_role": "T",
+                f"user_{user.id}_role": "A",
+                "invite_emails": "norbert@temba.com,code@temba.com",
+                "invite_role": "A",
+            },
+        )
+
+        self.assertFormError(
+            response, "form", "invite_emails", "One of the emails you entered has an existing user on the workspace."
+        )
+
+        # no error for inactive invite
+        response = self.client.post(
+            url,
+            {
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.editor.id}_role": "E",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.agent.id}_role": "T",
+                f"user_{user.id}_role": "A",
+                "invite_emails": "code@temba.com, code@temba.com",
+                "invite_role": "A",
+            },
+        )
+
+        self.assertFormError(response, "form", "invite_emails", "One of the emails you entered is duplicated.")
+
+        # no error for inactive invite
+        response = self.client.post(
+            url,
+            {
+                f"user_{self.admin.id}_role": "A",
+                f"user_{self.editor.id}_role": "E",
+                f"user_{self.user.id}_role": "E",
+                f"user_{self.agent.id}_role": "T",
+                f"user_{user.id}_role": "A",
+                "invite_emails": "code@temba.com",
+                "invite_role": "A",
+            },
+        )
+
+        self.assertEqual(2, Invitation.objects.filter(is_active=True).count())
+        self.assertTrue(Invitation.objects.filter(is_active=True, email="code@temba.com").exists())
+        self.assertEqual(4, len(mail.outbox))
+
     @patch("temba.utils.email.send_temba_email")
     def test_join(self, mock_send_temba_email):
-        def create_invite(group):
+        def create_invite(group, username):
             return Invitation.objects.create(
                 org=self.org,
                 user_group=group,
-                email="norkans7@gmail.com",
+                email=f"{username}@nyaruka.com",
                 created_by=self.admin,
                 modified_by=self.admin,
             )
 
-        editor_invitation = create_invite("E")
-        editor_invitation.send_invitation()
+        def create_user(username):
+            user = User.objects.create_user(f"{username}@nyaruka.com", f"{username}@nyaruka.com")
+            user.set_password(f"{username}@nyaruka.com")
+            user.save()
+            return user
+
+        editor_invitation = create_invite("E", "invitededitor")
+        editor_invitation.send()
         email_args = mock_send_temba_email.call_args[0]  # all positional args
 
         self.assertEqual(email_args[0], "RapidPro Invitation")
@@ -1263,10 +1742,35 @@ class OrgTest(TembaTest):
         )
 
         # a user is already logged in
-        self.invited_editor = self.create_user("InvitedEditor")
-        self.login(self.invited_editor)
+        self.invited_editor = create_user("invitededitor")
+
+        # different user login
+        self.login(self.admin)
 
         response = self.client.get(editor_join_url)
+        self.assertEqual(200, response.status_code)
+
+        # should be logged out to request login
+        self.assertEqual(0, len(self.client.session.keys()))
+
+        # login with a diffent user that the invited
+        self.login(self.admin)
+        response = self.client.get(reverse("orgs.org_join_accept", args=[editor_invitation.secret]), follow=True)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_join", args=[editor_invitation.secret]))
+
+        self.login(self.invited_editor)
+        response = self.client.get(editor_join_url)
+        self.assertEqual(302, response.status_code)
+        response = self.client.get(editor_join_url, follow=True)
+        self.assertEqual(
+            response.request["PATH_INFO"], reverse("orgs.org_join_accept", args=[editor_invitation.secret])
+        )
+
+        editor_join_accept_url = reverse("orgs.org_join_accept", args=[editor_invitation.secret])
+        self.login(self.invited_editor)
+
+        response = self.client.get(editor_join_accept_url)
         self.assertEqual(200, response.status_code)
 
         self.assertEqual(self.org.pk, response.context["org"].pk)
@@ -1274,7 +1778,7 @@ class OrgTest(TembaTest):
         self.assertEqual(1, len(response.context["form"].fields))
 
         post_data = dict()
-        response = self.client.post(editor_join_url, post_data, follow=True)
+        response = self.client.post(editor_join_accept_url, post_data, follow=True)
         self.assertEqual(200, response.status_code)
 
         self.assertIn(self.invited_editor, self.org.editors.all())
@@ -1289,22 +1793,29 @@ class OrgTest(TembaTest):
 
         # test it for each role
         for role in roles:
-            invite = create_invite(role[0])
-            user = self.create_user("User%s" % role[0])
+            invite = create_invite(role[0], "User%s" % role[0])
+            user = create_user("User%s" % role[0])
             self.login(user)
-            response = self.client.post(reverse("orgs.org_join", args=[invite.secret]), follow=True)
+            response = self.client.post(reverse("orgs.org_join_accept", args=[invite.secret]), follow=True)
             self.assertEqual(200, response.status_code)
             self.assertIsNotNone(role[1].filter(pk=user.pk).first())
 
         # try an expired invite
-        invite = create_invite("S")
+        invite = create_invite("S", "invitedexpired")
         invite.is_active = False
         invite.save()
-        expired_user = self.create_user("InvitedExpired")
+        expired_user = create_user("invitedexpired")
         self.login(expired_user)
-        response = self.client.post(reverse("orgs.org_join", args=[invite.secret]), follow=True)
+        response = self.client.post(reverse("orgs.org_join_accept", args=[invite.secret]), follow=True)
         self.assertEqual(200, response.status_code)
         self.assertIsNone(self.org.surveyors.filter(pk=expired_user.pk).first())
+
+        response = self.client.post(reverse("orgs.org_join", args=[invite.secret]))
+        self.assertEqual(302, response.status_code)
+
+        response = self.client.post(reverse("orgs.org_join", args=[invite.secret]), follow=True)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.request["PATH_INFO"], reverse("users.user_login"))
 
     def test_create_login(self):
         admin_invitation = Invitation.objects.create(
@@ -1319,17 +1830,15 @@ class OrgTest(TembaTest):
 
         self.assertEqual(self.org.pk, response.context["org"].pk)
 
-        # we have a form with 4 fields and one hidden 'loc'
-        self.assertEqual(5, len(response.context["form"].fields))
+        # we have a form with 3 fields and one hidden 'loc'
+        self.assertEqual(4, len(response.context["form"].fields))
         self.assertIn("first_name", response.context["form"].fields)
         self.assertIn("last_name", response.context["form"].fields)
-        self.assertIn("email", response.context["form"].fields)
         self.assertIn("password", response.context["form"].fields)
 
         post_data = dict()
         post_data["first_name"] = "Norbert"
         post_data["last_name"] = "Kwizera"
-        post_data["email"] = "norkans7@gmail.com"
         post_data["password"] = "norbertkwizeranorbert"
 
         response = self.client.post(admin_create_login_url, post_data, follow=True)
@@ -1339,6 +1848,28 @@ class OrgTest(TembaTest):
         self.assertTrue(new_invited_user in self.org.administrators.all())
         self.assertFalse(Invitation.objects.get(pk=admin_invitation.pk).is_active)
 
+        invitation = Invitation.objects.create(
+            org=self.org, user_group="E", email="norkans7@gmail.com", created_by=self.admin, modified_by=self.admin
+        )
+        create_login_url = reverse("orgs.org_create_login", args=[invitation.secret])
+
+        # we have a matching user so we redirect with the user logged in
+        response = self.client.get(create_login_url)
+        self.assertEqual(302, response.status_code)
+
+        response = self.client.get(create_login_url, follow=True)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.request["PATH_INFO"], reverse("orgs.org_join_accept", args=[invitation.secret]))
+
+        invitation.is_active = False
+        invitation.save()
+
+        response = self.client.get(create_login_url)
+        self.assertEqual(302, response.status_code)
+        response = self.client.get(create_login_url, follow=True)
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(response.request["PATH_INFO"], reverse("public.public_index"))
+
     def test_create_login_invalid_form(self):
         admin_invitation = Invitation.objects.create(
             org=self.org, user_group="A", email="user@example.com", created_by=self.admin, modified_by=self.admin
@@ -1347,24 +1878,9 @@ class OrgTest(TembaTest):
         admin_create_login_url = reverse("orgs.org_create_login", args=[admin_invitation.secret])
         self.client.logout()
 
-        post_data = dict(first_name="Matija", last_name="Vujica", email="", password="just-a-password")
-
-        response = self.client.post(admin_create_login_url, post_data, follow=True)
-
-        self.assertFormError(response, "form", "email", "This field is required.")
-
-        post_data = dict(
-            first_name="Matija", last_name="Vujica", email="this-is-not-a-valid-email", password="just-a-password"
-        )
-
-        response = self.client.post(admin_create_login_url, post_data, follow=True)
-
-        self.assertFormError(response, "form", "email", "Enter a valid email address.")
-
         post_data = dict(
             first_name="Matija_first_name_longer_than_30_chars",
             last_name="Vujica_last_name_longer_than_150_chars____lorem-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet-ipsum-dolor-sit-amet",
-            email="matija@vujica-this-is-a-verrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrry-loooooooooooooooooooooooooong-domain-name-not-sure-if-this-is-even-possible-to-register.com",
             password="just-a-password",
         )
         response = self.client.post(admin_create_login_url, post_data)
@@ -1374,8 +1890,6 @@ class OrgTest(TembaTest):
         self.assertFormError(
             response, "form", "last_name", "Ensure this value has at most 150 characters (it has 173)."
         )
-        self.assertFormError(response, "form", "email", "Ensure this value has at most 150 characters (it has 161).")
-        self.assertFormError(response, "form", "email", "Enter a valid email address.")
 
     def test_surveyor_invite(self):
         surveyor_invite = Invitation.objects.create(
@@ -2012,27 +2526,6 @@ class OrgTest(TembaTest):
 
         self.assertTrue(self.org.has_airtime_transfers())
 
-    def test_dtone_model_methods(self):
-        org = self.org
-
-        org.refresh_from_db()
-        self.assertFalse(org.is_connected_to_dtone())
-        self.assertIsNone(org.get_dtone_client())
-
-        org.connect_dtone("login", "token", self.admin)
-        org.refresh_from_db()
-
-        self.assertTrue(org.is_connected_to_dtone())
-        self.assertIsNotNone(org.get_dtone_client())
-        self.assertEqual(org.modified_by, self.admin)
-
-        org.remove_dtone_account(self.admin)
-        org.refresh_from_db()
-
-        self.assertFalse(org.is_connected_to_dtone())
-        self.assertIsNone(org.get_dtone_client())
-        self.assertEqual(org.modified_by, self.admin)
-
     def test_prometheus(self):
         # visit as viewer, no prometheus section
         self.login(self.user)
@@ -2071,97 +2564,76 @@ class OrgTest(TembaTest):
         self.assertFalse(APIToken.objects.filter(org=self.org, role=prometheus_group, is_active=True))
         self.assertContains(response, "Enable Prometheus")
 
-    def test_dtone_account(self):
+    def test_dtone_connect(self):
+        org = self.org
+
+        org.refresh_from_db()
+        self.assertFalse(org.is_connected_to_dtone())
+
+        org.connect_dtone("key123", "sesame", self.admin)
+        org.refresh_from_db()
+
+        self.assertTrue(org.is_connected_to_dtone())
+        self.assertEqual(org.modified_by, self.admin)
+
+        org.remove_dtone_account(self.admin)
+        org.refresh_from_db()
+
+        self.assertFalse(org.is_connected_to_dtone())
+        self.assertEqual(org.modified_by, self.admin)
+
+    @patch("temba.airtime.dtone.DTOneClient.get_balances")
+    def test_dtone_account(self, mock_get_balances):
         self.login(self.admin)
 
-        # connect DT One
-        dtone_account_url = reverse("orgs.org_dtone_account")
-        org_home_url = reverse("orgs.org_home")
+        dtone_url = reverse("orgs.org_dtone_account")
+        home_url = reverse("orgs.org_home")
 
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, "Unexpected content")
-            response = self.client.post(
-                dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
-            )
+        response = self.client.get(home_url)
+        self.assertContains(response, "Connect your DT One account.")
 
-            self.assertContains(response, "Your DT One API key and secret seem invalid.")
-            self.assertFalse(self.org.is_connected_to_dtone())
+        # formax includes form to connect DT One
+        response = self.client.get(dtone_url, HTTP_X_FORMAX=True)
+        self.assertEqual(["api_key", "api_secret", "disconnect", "loc"], list(response.context["form"].fields.keys()))
 
-            mock_post.return_value = MockResponse(
-                200, "authentication_key=123\r\nerror_code=400\r\nerror_txt=Failed Authentication\r\n"
-            )
+        # simulate credentials being rejected
+        mock_get_balances.side_effect = DTOneClient.Exception(errors=[{"code": 1000401, "message": "Unauthorized"}])
 
-            response = self.client.post(
-                dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
-            )
+        response = self.client.post(dtone_url, {"api_key": "key123", "api_secret": "wrong", "disconnect": "false"})
 
-            self.assertContains(
-                response, "Connecting to your DT One account failed with error text: Failed Authentication"
-            )
+        self.assertContains(response, "Your DT One API key and secret seem invalid.")
+        self.assertFalse(self.org.is_connected_to_dtone())
 
-            self.assertFalse(self.org.is_connected_to_dtone())
+        # simulate credentials being accepted
+        mock_get_balances.side_effect = None
+        mock_get_balances.return_value = [{"available": 10, "unit": "USD", "unit_type": "CURRENCY"}]
 
-            mock_post.return_value = MockResponse(
-                200,
-                "info_txt=pong\r\n"
-                "authentication_key=123\r\n"
-                "error_code=0\r\n"
-                "error_txt=Transaction successful\r\n",
-            )
+        response = self.client.post(dtone_url, {"api_key": "key123", "api_secret": "sesame", "disconnect": "false"})
+        self.assertNoFormErrors(response)
 
-            response = self.client.post(
-                dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
-            )
-            self.assertNoFormErrors(response)
-            # DT One should be connected
-            self.org = Org.objects.get(pk=self.org.pk)
-            self.assertTrue(self.org.is_connected_to_dtone())
-            self.assertEqual(self.org.config["TRANSFERTO_ACCOUNT_LOGIN"], "login")
-            self.assertEqual(self.org.config["TRANSFERTO_AIRTIME_API_TOKEN"], "token")
+        # DT One should now be connected
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.is_connected_to_dtone())
+        self.assertEqual(self.org.config["dtone_key"], "key123")
+        self.assertEqual(self.org.config["dtone_secret"], "sesame")
 
-            response = self.client.get(dtone_account_url)
-            self.assertEqual(response.context["dtone_account_login"], "login")
+        # and that stated on home page
+        response = self.client.get(home_url)
+        self.assertContains(response, "Connected to your <b>DT One</b> account.")
+        self.assertContains(response, reverse("airtime.airtimetransfer_list"))
 
-            # and disconnect
-            response = self.client.post(
-                dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="true")
-            )
-
-            self.assertNoFormErrors(response)
-            self.org = Org.objects.get(pk=self.org.pk)
-            self.assertFalse(self.org.is_connected_to_dtone())
-            self.assertNotIn("TRANSFERTO_ACCOUNT_LOGIN", self.org.config)
-            self.assertNotIn("TRANSFERTO_AIRTIME_API_TOKEN", self.org.config)
-
-            mock_post.side_effect = Exception("foo")
-            response = self.client.post(
-                dtone_account_url, dict(account_login="login", airtime_api_token="token", disconnect="false")
-            )
-            self.assertContains(response, "Your DT One API key and secret seem invalid.")
-            self.assertFalse(self.org.is_connected_to_dtone())
-
-        # no account connected, do not show the button to Transfer logs
-        response = self.client.get(dtone_account_url, HTTP_X_FORMAX=True)
-        self.assertNotContains(response, reverse("airtime.airtimetransfer_list"))
-        self.assertNotContains(response, "%s?disconnect=true" % reverse("orgs.org_dtone_account"))
-
-        response = self.client.get(dtone_account_url)
-        self.assertNotContains(response, reverse("airtime.airtimetransfer_list"))
-        self.assertNotContains(response, "%s?disconnect=true" % reverse("orgs.org_dtone_account"))
-
-        self.org.connect_dtone("login", "token", self.admin)
-
-        # links not show if request is not from formax
-        response = self.client.get(dtone_account_url)
-        self.assertNotContains(response, reverse("airtime.airtimetransfer_list"))
-        self.assertNotContains(response, "%s?disconnect=true" % reverse("orgs.org_dtone_account"))
-
-        # link show for formax requests
-        response = self.client.get(dtone_account_url, HTTP_X_FORMAX=True)
+        # formax includes the disconnect link
+        response = self.client.get(dtone_url, HTTP_X_FORMAX=True)
         self.assertContains(response, "%s?disconnect=true" % reverse("orgs.org_dtone_account"))
 
-        response = self.client.get(org_home_url)
-        self.assertContains(response, reverse("airtime.airtimetransfer_list"))
+        # now disconnect
+        response = self.client.post(dtone_url, {"api_key": "", "api_secret": "", "disconnect": "true"})
+        self.assertNoFormErrors(response)
+
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_connected_to_dtone())
+        self.assertNotIn("dtone_key", self.org.config)
+        self.assertNotIn("dtone_secret", self.org.config)
 
     def test_chatbase_account(self):
         self.login(self.admin)
@@ -2203,8 +2675,10 @@ class OrgTest(TembaTest):
         self.assertEqual((None, None), self.org.get_chatbase_credentials())
 
     def test_resthooks(self):
-        # no hitting this page without auth
+        home_url = reverse("orgs.org_home")
         resthook_url = reverse("orgs.org_resthooks")
+
+        # no hitting this page without auth
         response = self.client.get(resthook_url)
         self.assertLoginRedirect(response)
 
@@ -2216,22 +2690,37 @@ class OrgTest(TembaTest):
         # shouldn't have any resthooks listed yet
         self.assertFalse(response.context["current_resthooks"])
 
-        # ok, let's create one
-        self.client.post(resthook_url, dict(resthook="mother-registration "))
+        response = self.client.get(home_url)
+        self.assertContains(response, "You have <b>no flow events</b> configured.")
+
+        # try to create one with name that's too long
+        response = self.client.post(resthook_url, {"new_slug": "x" * 100})
+        self.assertFormError(response, "form", "new_slug", "Ensure this value has at most 50 characters (it has 100).")
+
+        # now try to create with valid name/slug
+        response = self.client.post(resthook_url, {"new_slug": "mother-registration "})
+        self.assertEqual(302, response.status_code)
 
         # should now have a resthook
-        resthook = Resthook.objects.get()
-        self.assertEqual(resthook.slug, "mother-registration")
-        self.assertEqual(resthook.org, self.org)
-        self.assertEqual(resthook.created_by, self.admin)
+        mother_reg = Resthook.objects.get()
+        self.assertEqual(mother_reg.slug, "mother-registration")
+        self.assertEqual(mother_reg.org, self.org)
+        self.assertEqual(mother_reg.created_by, self.admin)
 
         # fetch our read page, should have have our resthook
         response = self.client.get(resthook_url)
-        self.assertTrue(response.context["current_resthooks"])
+        self.assertEqual(
+            [{"field": f"resthook_{mother_reg.id}", "resthook": mother_reg}],
+            list(response.context["current_resthooks"]),
+        )
+
+        # and summarized on org home page
+        response = self.client.get(home_url)
+        self.assertContains(response, "You have <b>1 flow event</b> configured.")
 
         # let's try to create a repeat, should fail due to duplicate slug
-        response = self.client.post(resthook_url, dict(resthook="Mother-Registration"))
-        self.assertTrue(response.context["form"].errors)
+        response = self.client.post(resthook_url, {"new_slug": "Mother-Registration"})
+        self.assertFormError(response, "form", "new_slug", "This event name has already been used.")
 
         # hit our list page used by select2, checking it lists our resthook
         response = self.client.get(reverse("api.resthook_list") + "?_format=select2")
@@ -2240,49 +2729,51 @@ class OrgTest(TembaTest):
         self.assertEqual(results[0], dict(text="mother-registration", id="mother-registration"))
 
         # add a subscriber
-        subscriber = resthook.add_subscriber("http://foo", self.admin)
+        subscriber = mother_reg.add_subscriber("http://foo", self.admin)
 
         # finally, let's remove that resthook
-        self.client.post(resthook_url, {"resthook_%d" % resthook.id: "checked"})
+        self.client.post(resthook_url, {"resthook_%d" % mother_reg.id: "checked"})
 
-        resthook.refresh_from_db()
-        self.assertFalse(resthook.is_active)
+        mother_reg.refresh_from_db()
+        self.assertFalse(mother_reg.is_active)
 
         subscriber.refresh_from_db()
         self.assertFalse(subscriber.is_active)
 
         # no more resthooks!
         response = self.client.get(resthook_url)
-        self.assertFalse(response.context["current_resthooks"])
+        self.assertEqual([], list(response.context["current_resthooks"]))
 
     @override_settings(HOSTNAME="rapidpro.io", SEND_EMAILS=True)
     def test_smtp_server(self):
         self.login(self.admin)
 
-        smtp_server_url = reverse("orgs.org_smtp_server")
+        home_url = reverse("orgs.org_home")
+        config_url = reverse("orgs.org_smtp_server")
 
-        self.org.refresh_from_db()
+        # orgs without SMTP settings see default from address
+        response = self.client.get(home_url)
+        self.assertContains(response, "Emails sent from flows will be sent from <b>no-reply@temba.io</b>.")
+        self.assertEqual("no-reply@temba.io", response.context["from_email_default"])
+        self.assertEqual(None, response.context["from_email_custom"])
+
         self.assertFalse(self.org.has_smtp_config())
 
-        response = self.client.post(smtp_server_url, dict(disconnect="false"), follow=True)
+        response = self.client.post(config_url, dict(disconnect="false"), follow=True)
         self.assertEqual(
             '[{"message": "You must enter a from email", "code": ""}]',
             response.context["form"].errors["__all__"].as_json(),
         )
         self.assertEqual(len(mail.outbox), 0)
 
-        response = self.client.post(
-            smtp_server_url, {"smtp_from_email": "foobar.com", "disconnect": "false"}, follow=True
-        )
+        response = self.client.post(config_url, {"from_email": "foobar.com", "disconnect": "false"}, follow=True)
         self.assertEqual(
             '[{"message": "Please enter a valid email address", "code": ""}]',
             response.context["form"].errors["__all__"].as_json(),
         )
         self.assertEqual(len(mail.outbox), 0)
 
-        response = self.client.post(
-            smtp_server_url, {"smtp_from_email": "foo@bar.com", "disconnect": "false"}, follow=True
-        )
+        response = self.client.post(config_url, {"from_email": "foo@bar.com", "disconnect": "false"}, follow=True)
         self.assertEqual(
             '[{"message": "You must enter the SMTP host", "code": ""}]',
             response.context["form"].errors["__all__"].as_json(),
@@ -2290,8 +2781,8 @@ class OrgTest(TembaTest):
         self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
-            smtp_server_url,
-            {"smtp_from_email": "foo@bar.com", "smtp_host": "smtp.example.com", "disconnect": "false"},
+            config_url,
+            {"from_email": "foo@bar.com", "smtp_host": "smtp.example.com", "disconnect": "false"},
             follow=True,
         )
         self.assertEqual(
@@ -2301,9 +2792,9 @@ class OrgTest(TembaTest):
         self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "foo@bar.com",
+                "from_email": "foo@bar.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "disconnect": "false",
@@ -2317,9 +2808,9 @@ class OrgTest(TembaTest):
         self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "foo@bar.com",
+                "from_email": "foo@bar.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secret",
@@ -2336,9 +2827,9 @@ class OrgTest(TembaTest):
         with patch("temba.utils.email.send_custom_smtp_email") as mock_send_smtp_email:
             mock_send_smtp_email.side_effect = smtplib.SMTPException("SMTP Error")
             response = self.client.post(
-                smtp_server_url,
+                config_url,
                 {
-                    "smtp_from_email": "foo@bar.com",
+                    "from_email": "foo@bar.com",
                     "smtp_host": "smtp.example.com",
                     "smtp_username": "support@example.com",
                     "smtp_password": "secret",
@@ -2355,9 +2846,9 @@ class OrgTest(TembaTest):
 
             mock_send_smtp_email.side_effect = Exception("Unexpected Error")
             response = self.client.post(
-                smtp_server_url,
+                config_url,
                 {
-                    "smtp_from_email": "foo@bar.com",
+                    "from_email": "foo@bar.com",
                     "smtp_host": "smtp.example.com",
                     "smtp_username": "support@example.com",
                     "smtp_password": "secret",
@@ -2373,9 +2864,9 @@ class OrgTest(TembaTest):
             self.assertEqual(len(mail.outbox), 0)
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "foo@bar.com",
+                "from_email": "foo@bar.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secret",
@@ -2394,13 +2885,14 @@ class OrgTest(TembaTest):
             "smtp://support%40example.com:secret@smtp.example.com:465/?from=foo%40bar.com&tls=true",
         )
 
-        response = self.client.get(smtp_server_url)
-        self.assertEqual("foo@bar.com", response.context["flow_from_email"])
+        response = self.client.get(config_url)
+        self.assertEqual("no-reply@temba.io", response.context["from_email_default"])
+        self.assertEqual("foo@bar.com", response.context["from_email_custom"])
 
         self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "support@example.com",
+                "from_email": "support@example.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secret",
@@ -2417,9 +2909,9 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.has_smtp_config())
 
         self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "support@example.com",
+                "from_email": "support@example.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "",
@@ -2438,9 +2930,9 @@ class OrgTest(TembaTest):
         )
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "support@example.com",
+                "from_email": "support@example.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "help@example.com",
                 "smtp_password": "",
@@ -2456,15 +2948,15 @@ class OrgTest(TembaTest):
             response.context["form"].errors["__all__"].as_json(),
         )
 
-        self.client.post(smtp_server_url, dict(disconnect="true"), follow=True)
+        self.client.post(config_url, dict(disconnect="true"), follow=True)
 
         self.org.refresh_from_db()
         self.assertFalse(self.org.has_smtp_config())
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": " support@example.com",
+                "from_email": " support@example.com",
                 "smtp_host": " smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secret ",
@@ -2483,9 +2975,9 @@ class OrgTest(TembaTest):
         )
 
         response = self.client.post(
-            smtp_server_url,
+            config_url,
             {
-                "smtp_from_email": "support@example.com",
+                "from_email": "support@example.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secre/t",
@@ -2503,11 +2995,11 @@ class OrgTest(TembaTest):
             "smtp://support%40example.com:secre%2Ft@smtp.example.com:465/?from=support%40example.com&tls=true",
         )
 
-        response = self.client.get(smtp_server_url)
+        response = self.client.get(config_url)
         self.assertDictEqual(
             response.context["view"].derive_initial(),
             {
-                "smtp_from_email": "support@example.com",
+                "from_email": "support@example.com",
                 "smtp_host": "smtp.example.com",
                 "smtp_username": "support@example.com",
                 "smtp_password": "secre/t",
@@ -2516,30 +3008,30 @@ class OrgTest(TembaTest):
             },
         )
 
-    def test_connect_nexmo(self):
+    def test_connect_vonage(self):
         self.login(self.admin)
 
-        connect_url = reverse("orgs.org_nexmo_connect")
-        account_url = reverse("orgs.org_nexmo_account")
+        connect_url = reverse("orgs.org_vonage_connect")
+        account_url = reverse("orgs.org_vonage_account")
 
         # simulate invalid credentials on both pages
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(401, '{"error-code": "401"}')
 
             response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
-            self.assertContains(response, "Your Nexmo API key and secret seem invalid.")
-            self.assertFalse(self.org.is_connected_to_nexmo())
+            self.assertContains(response, "Your API key and secret seem invalid.")
+            self.assertFalse(self.org.is_connected_to_vonage())
 
             response = self.client.post(account_url, dict(api_key="key", api_secret="secret"))
-            self.assertContains(response, "Your Nexmo API key and secret seem invalid.")
+            self.assertContains(response, "Your API key and secret seem invalid.")
 
         # ok, now with a success
-        with patch("requests.get") as nexmo_get, patch("requests.post") as nexmo_post:
-            # believe it or not nexmo returns 'error-code' 200
-            nexmo_get.return_value = MockResponse(
+        with patch("requests.get") as mock_get, patch("requests.post") as mock_post:
+            # believe it or not vonage returns 'error-code' 200
+            mock_get.return_value = MockResponse(
                 200, '{"error-code": "200"}', headers={"content-type": "application/json"}
             )
-            nexmo_post.return_value = MockResponse(
+            mock_post.return_value = MockResponse(
                 200, '{"error-code": "200"}', headers={"content-type": "application/json"}
             )
             response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
@@ -2550,21 +3042,18 @@ class OrgTest(TembaTest):
 
             self.org.refresh_from_db()
             config = self.org.config
-            self.assertEqual("key", config[Org.CONFIG_NEXMO_KEY])
-            self.assertEqual("secret", config[Org.CONFIG_NEXMO_SECRET])
+            self.assertEqual("key", config[Org.CONFIG_VONAGE_KEY])
+            self.assertEqual("secret", config[Org.CONFIG_VONAGE_SECRET])
 
             # post without api token, should get validation error
             response = self.client.post(account_url, dict(disconnect="false"), follow=True)
-            self.assertEqual(
-                '[{"message": "You must enter your Nexmo Account API Key", "code": ""}]',
-                response.context["form"].errors["__all__"].as_json(),
-            )
+            self.assertFormError(response, "form", "__all__", "You must enter your account API Key")
 
-            # nexmo config should remain the same
+            # vonage config should remain the same
             self.org.refresh_from_db()
             config = self.org.config
-            self.assertEqual("key", config[Org.CONFIG_NEXMO_KEY])
-            self.assertEqual("secret", config[Org.CONFIG_NEXMO_SECRET])
+            self.assertEqual("key", config[Org.CONFIG_VONAGE_KEY])
+            self.assertEqual("secret", config[Org.CONFIG_VONAGE_SECRET])
 
             # now try with all required fields, and a bonus field we shouldn't change
             self.client.post(
@@ -2576,7 +3065,7 @@ class OrgTest(TembaTest):
             self.org.refresh_from_db()
             self.assertEqual(self.org.name, "Temba")
 
-            # should change nexmo config
+            # should change vonage config
             with patch("nexmo.Client.get_balance") as mock_get_balance:
                 mock_get_balance.return_value = 120
                 self.client.post(
@@ -2585,18 +3074,18 @@ class OrgTest(TembaTest):
 
                 self.org.refresh_from_db()
                 config = self.org.config
-                self.assertEqual("other_key", config[Org.CONFIG_NEXMO_KEY])
-                self.assertEqual("secret-too", config[Org.CONFIG_NEXMO_SECRET])
+                self.assertEqual("other_key", config[Org.CONFIG_VONAGE_KEY])
+                self.assertEqual("secret-too", config[Org.CONFIG_VONAGE_SECRET])
 
-            self.assertTrue(self.org.is_connected_to_nexmo())
+            self.assertTrue(self.org.is_connected_to_vonage())
             self.client.post(account_url, dict(disconnect="true"), follow=True)
 
             self.org.refresh_from_db()
-            self.assertFalse(self.org.is_connected_to_nexmo())
+            self.assertFalse(self.org.is_connected_to_vonage())
 
         # and disconnect
-        self.org.remove_nexmo_account(self.admin)
-        self.assertFalse(self.org.is_connected_to_nexmo())
+        self.org.remove_vonage_account(self.admin)
+        self.assertFalse(self.org.is_connected_to_vonage())
         self.assertNotIn("NEXMO_KEY", self.org.config)
         self.assertNotIn("NEXMO_SECRET", self.org.config)
 
@@ -2665,13 +3154,26 @@ class OrgTest(TembaTest):
         self.assertTrue(self.org.is_multi_user)
         self.assertTrue(self.org.is_multi_org)
 
+        with override_settings(DEFAULT_PLAN="other"):
+            settings.BRANDING[settings.DEFAULT_BRAND]["default_plan"] = "other"
+            self.org.plan = settings.TOPUP_PLAN
+            self.org.save()
+            self.org.reset_capabilities()
+            sub_org_c = self.org.create_sub_org("Sub Org C")
+            self.assertIsNotNone(sub_org_c)
+            self.assertEqual(sub_org_c.plan, settings.TOPUP_PLAN)
+
     def test_org_get_limit(self):
         self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 250)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 250)
         self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)
 
-        with self.assertRaises(ValueError):
-            self.org.get_limit("unknown")
+        self.org.limits = dict(fields=500, groups=500)
+        self.org.save()
+
+        self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 500)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 500)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GLOBALS), 250)
 
     def test_sub_orgs_management(self):
         settings.BRANDING[settings.DEFAULT_BRAND]["tiers"] = dict(multi_org=1_000_000)
@@ -3248,10 +3750,10 @@ class OrgCRUDLTest(TembaTest):
         self.assertEqual(org.timezone, pytz.timezone("Africa/Kigali"))
 
         # of which our user is an administrator
-        self.assertTrue(org.get_org_admins().filter(pk=user.pk))
+        self.assertTrue(org.get_admins().filter(pk=user.pk))
 
         # not the logged in user at the signup time
-        self.assertFalse(org.get_org_admins().filter(pk=self.user.pk))
+        self.assertFalse(org.get_admins().filter(pk=self.user.pk))
 
     @override_settings(DEFAULT_BRAND="no-topups.org")
     def test_no_topup_signup(self):
@@ -3357,7 +3859,7 @@ class OrgCRUDLTest(TembaTest):
         self.assertTrue(org.uses_topups)
 
         # of which our user is an administrator
-        self.assertTrue(org.get_org_admins().filter(pk=user.pk))
+        self.assertTrue(org.get_admins().filter(pk=user.pk))
 
         # org should have 1000 credits
         self.assertEqual(org.get_credits_remaining(), 1000)
@@ -3485,6 +3987,16 @@ class OrgCRUDLTest(TembaTest):
         created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
         self.assertContains(response, created_on.strftime("%I:%M %p").lower().lstrip("0"))
 
+        self.org.date_format = "Y"
+        self.org.save()
+
+        self.assertEqual(("%Y-%m-%d", "%Y-%m-%d %H:%M"), self.org.get_datetime_formats())
+
+        response = self.client.get(reverse("msgs.msg_inbox"), follow=True)
+
+        created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
+        self.assertContains(response, created_on.strftime("%H:%M").lower())
+
     def test_urn_schemes(self):
         # remove existing channels
         Channel.objects.all().update(is_active=False, org=None)
@@ -3498,7 +4010,7 @@ class OrgCRUDLTest(TembaTest):
             self.user,
             "RW",
             "T",
-            "Nexmo",
+            "Twilio",
             "0785551212",
             role="R",
             secret="45678",
@@ -3661,7 +4173,7 @@ class LanguageTest(TembaTest):
 
         # check that the last load shows our new languages
         response = self.client.get(url)
-        self.assertEqual(response.context["languages"], "Haitian and Official Aramaic (700-300 BCE)")
+        self.assertEqual(response.context["languages"], ["Haitian", "Official Aramaic (700-300 BCE)"])
         self.assertContains(response, "fra")
         # self.assertContains(response, "hat,arc")
 
@@ -3678,14 +4190,14 @@ class LanguageTest(TembaTest):
             ),
         )
         response = self.client.get(reverse("orgs.org_languages"))
-        self.assertEqual(response.context["languages"], "Haitian, Official Aramaic (700-300 BCE) and Spanish")
+        self.assertEqual(response.context["languages"], ["Haitian", "Official Aramaic (700-300 BCE)", "Spanish"])
 
         # one translation language
         self.client.post(
             url, dict(primary_lang='{"name":"French", "value":"fra"}', languages=['{"name":"Haitian", "value":"hat"}'])
         )
         response = self.client.get(reverse("orgs.org_languages"))
-        self.assertEqual(response.context["languages"], "Haitian")
+        self.assertEqual(response.context["languages"], ["Haitian"])
 
         # remove all languages
         self.client.post(url, dict(primary_lang="{}", languages=[]))
@@ -4268,7 +4780,7 @@ class BulkExportTest(TembaTest):
             self.assertEqual(
                 2,
                 Flow.objects.filter(
-                    org=self.org, is_active=True, is_archived=False, flow_type="M", is_system=True
+                    org=self.org, is_active=True, is_archived=False, flow_type="B", is_system=True
                 ).count(),
             )
             self.assertEqual(1, Campaign.objects.filter(org=self.org, is_archived=False).count())
@@ -4305,7 +4817,7 @@ class BulkExportTest(TembaTest):
         trigger.save()
 
         message_flow = (
-            Flow.objects.filter(flow_type="M", is_system=True, campaign_events__offset=-1).order_by("id").first()
+            Flow.objects.filter(flow_type="B", is_system=True, campaign_events__offset=-1).order_by("id").first()
         )
         message_flow.update_single_message_flow(self.admin, {"base": "No reminders for you!"}, base_language="base")
 
@@ -4325,7 +4837,7 @@ class BulkExportTest(TembaTest):
 
         # find our new message flow, and see that the original message is there
         message_flow = (
-            Flow.objects.filter(flow_type="M", is_system=True, campaign_events__offset=-1, is_active=True)
+            Flow.objects.filter(flow_type="B", is_system=True, campaign_events__offset=-1, is_active=True)
             .order_by("id")
             .first()
         )
@@ -4397,7 +4909,7 @@ class BulkExportTest(TembaTest):
         assert_object_counts()
 
         message_flow = (
-            Flow.objects.filter(flow_type="M", is_system=True, campaign_events__offset=-1, is_active=True)
+            Flow.objects.filter(flow_type="B", is_system=True, campaign_events__offset=-1, is_active=True)
             .order_by("id")
             .first()
         )
@@ -4706,14 +5218,13 @@ class EmailContextProcessorsTest(TembaTest):
         with self.settings(HOSTNAME="rapidpro.io"):
             forget_url = reverse("users.user_forget")
 
-            post_data = dict()
-            post_data["email"] = "nouser@nouser.com"
-
-            self.client.post(forget_url, post_data, follow=True)
+            response = self.client.post(forget_url, {"email": "Administrator@nyaruka.com"})
+            self.assertLoginRedirect(response)
             self.assertEqual(1, len(mail.outbox))
+
             sent_email = mail.outbox[0]
             self.assertEqual(len(sent_email.to), 1)
-            self.assertEqual(sent_email.to[0], "nouser@nouser.com")
+            self.assertEqual(sent_email.to[0], "Administrator@nyaruka.com")
 
             # we have the domain of rapipro.io brand
             self.assertIn("app.rapidpro.io", sent_email.body)
@@ -4908,52 +5419,6 @@ class StripeCreditsTest(TembaTest):
         self.assertEqual("stripe-cust-2", org.stripe_customer)
 
 
-class ParsingTest(TembaTest):
-    def test_parse_location_path(self):
-        country = AdminBoundary.create(osm_id="192787", name="Nigeria", level=0)
-        lagos = AdminBoundary.create(osm_id="3718182", name="Lagos", level=1, parent=country)
-        self.org.country = country
-
-        self.assertEqual(lagos, self.org.parse_location_path("Nigeria > Lagos"))
-        self.assertEqual(lagos, self.org.parse_location_path("Nigeria > Lagos "))
-        self.assertEqual(lagos, self.org.parse_location_path(" Nigeria > Lagos "))
-
-    def test_parse_location(self):
-        country = AdminBoundary.create(osm_id="192787", name="Nigeria", level=0)
-        lagos = AdminBoundary.create(osm_id="3718182", name="Lagos", level=1, parent=country)
-        self.org.country = None
-
-        # no country, no parsing
-        self.assertEqual([], list(self.org.parse_location("Lagos", AdminBoundary.LEVEL_STATE)))
-
-        self.org.country = country
-
-        self.assertEqual([lagos], list(self.org.parse_location("Nigeria > Lagos", AdminBoundary.LEVEL_STATE)))
-        self.assertEqual([lagos], list(self.org.parse_location("Lagos", AdminBoundary.LEVEL_STATE)))
-        self.assertEqual([lagos], list(self.org.parse_location("Lagos City", AdminBoundary.LEVEL_STATE)))
-
-    def test_parse_number(self):
-        self.assertEqual(self.org.parse_number("Not num"), None)
-        self.assertEqual(self.org.parse_number("00.123"), Decimal("0.123"))
-        self.assertEqual(self.org.parse_number("6e33"), None)
-        self.assertEqual(self.org.parse_number("6e5"), Decimal("600000"))
-        self.assertEqual(self.org.parse_number("9999999999999999999999999"), None)
-        self.assertEqual(self.org.parse_number(""), None)
-        self.assertEqual(self.org.parse_number("NaN"), None)
-        self.assertEqual(self.org.parse_number("Infinity"), None)
-
-        self.assertRaises(AssertionError, self.org.parse_number, 0.001)
-
-    def test_parse_datetime(self):
-        self.assertEqual(self.org.parse_datetime("Not num"), None)
-        self.assertEqual(
-            self.org.parse_datetime("0001-01-09T03:25:12.000Z"),
-            datetime.datetime(1, 1, 9, 3, 25, 12, tzinfo=datetime.timezone.utc),
-        )
-
-        self.assertRaises(AssertionError, self.org.parse_datetime, timezone.now())
-
-
 class OrgActivityTest(TembaTest):
     def test_get_dependencies(self):
         from temba.orgs.tasks import update_org_activity
@@ -4996,3 +5461,20 @@ class OrgActivityTest(TembaTest):
         self.assertEqual(2, activity.incoming_count)
         self.assertEqual(1, activity.outgoing_count)
         self.assertEqual(1, activity.plan_active_contact_count)
+
+
+class BackupTokenTest(TembaTest):
+    def test_model(self):
+        admin_tokens = BackupToken.generate_for_user(self.admin)
+        BackupToken.generate_for_user(self.editor)
+
+        self.assertEqual(10, len(admin_tokens))
+        self.assertEqual(10, self.admin.backup_tokens.count())
+        self.assertEqual(10, self.editor.backup_tokens.count())
+        self.assertEqual(str(admin_tokens[0].token), str(admin_tokens[0]))
+
+        # regenerate tokens for admin user
+        new_admin_tokens = BackupToken.generate_for_user(self.admin)
+        self.assertEqual(10, len(new_admin_tokens))
+        self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
+        self.assertEqual(10, self.admin.backup_tokens.count())

@@ -43,7 +43,7 @@ def update_po_files():
     saved_msgids = get_current_msgids()
 
     # re-extract locale files from source code
-    ignore_paths = ("env/*", "fabric/*", "media/*", "sitestatic/*", "static/*", "node_modules/*")
+    ignore_paths = ("env/*", ".venv/*", "fabric/*", "media/*", "sitestatic/*", "static/*", "node_modules/*")
     ignore_args = " ".join([f'--ignore="{p}"' for p in ignore_paths])
 
     cmd(f"python manage.py makemessages -a -e haml,html,txt,py --no-location --no-wrap {ignore_args}")

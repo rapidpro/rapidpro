@@ -44,6 +44,4 @@ class SMSCentralType(ChannelType):
         ),
     )
 
-    def is_available_to(self, user):
-        org = user.get_org()
-        return org.timezone and str(org.timezone) in ["Asia/Kathmandu"]
+    available_timezones = ["Asia/Kathmandu"]

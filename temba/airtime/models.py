@@ -18,10 +18,10 @@ class AirtimeTransfer(models.Model):
     contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="airtime_transfers")
 
     # URN that received the transfer
-    recipient = models.CharField(max_length=64)
+    recipient = models.CharField(max_length=255)
 
     # URN that sent the transfer
-    sender = models.CharField(max_length=64, null=True)
+    sender = models.CharField(max_length=255, null=True)
 
     currency = models.CharField(max_length=32, null=True)
 

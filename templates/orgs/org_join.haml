@@ -1,29 +1,24 @@
--extends "smartmin/update.html"
--load i18n
+-extends "smartmin/base.html"
+-load i18n smartmin
+
+-block title
+  {{title}}
 
 -block content
-
-  .page-title
-    -trans "Choose Workspace"
-
-  .flex.w-full.mb-4.items-end.flex-wrap.justify-end{style:"min-height:41px"}
-    .flex-grow.ml-1.self-end.items-end
-      .flex.flex-col.pr-12
-        .page-title.leading-tight
-          -block title
-            {{title}}
-          .subtitle
-            -block subtitle
-
-  .flex.w-full.mb-4
-    .flex-grow.ml-1
-      -blocktrans trimmed with name=org.name
-        You have been invited to join {{name}}.
-      </br>
-      -trans "Please click Join to accept the invitation."
-
-  .flex.w-full.mb-4
-    .flex-grow.ml-1
-      %form.mb-4{method:"post", encrypt:"multipart/form-data"}
-        -csrf_token
-        %input.button-primary{type:"submit", value:"{{submit_button_name}}"}
+  .formax
+    .formax-section.open
+      .formax-icon.bg-gray-100.flex.flex-row.items-stretch
+        .margin-wrapper
+          .i-container.icon-user
+      .formax-container.flex-grow
+        .formax-summary
+          -trans "Sign in"
+        .formax-form
+          %form#login-form(method="post" action="{% url 'users.user_login' %}?next={% url 'orgs.org_join_accept' secret %}")
+            %fieldset
+              .control-group
+                %temba-textinput#id_username(type="text" name="username" maxlenght="150" label="{% trans 'Email Address' %}" value="{{email}}" disabled)
+              .control-group
+                %temba-textinput#id_password(type="password" name="password" label="{% trans 'Password' %}" placeholder="{% trans 'Your password, at least eight letters please' %}" password)
+            -csrf_token
+            %input.button-primary{type:"submit", value:"Login"}
