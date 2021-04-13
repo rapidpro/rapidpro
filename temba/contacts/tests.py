@@ -569,7 +569,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
     def test_tickets(self):
         self.login(self.user)
 
-        ticketer = Ticketer.create(self.org, self.user, "mailgun", "Email (bob@acme.com)", {})
+        ticketer = Ticketer.create(self.org, self.user, "internal", "Internal", {})
         contact1 = self.create_contact("Joe", phone="123", last_seen_on=timezone.now())
         contact2 = self.create_contact("Frank", phone="124", last_seen_on=timezone.now())
         contact3 = self.create_contact("Anne", phone="125", last_seen_on=timezone.now())
@@ -588,17 +588,13 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # contact 1 has two open tickets
         Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact1, subject="Question 1", status="O")
-        ticket1 = Ticket.objects.create(
-            org=self.org, ticketer=ticketer, contact=contact1, subject="Question 2", status="O"
-        )
+        Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact1, subject="Question 2", status="O")
 
         self.create_incoming_msg(contact1, "I have an issue")
         outbound = self.create_broadcast(self.admin, "We can help", contacts=[contact1]).msgs.first()
 
         # contact 2 has an open ticket and a closed ticket
-        ticket2 = Ticket.objects.create(
-            org=self.org, ticketer=ticketer, contact=contact2, subject="Question 3", status="O"
-        )
+        Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact2, subject="Question 3", status="O")
         Ticket.objects.create(org=self.org, ticketer=ticketer, contact=contact2, subject="Question 4", status="C")
 
         self.create_incoming_msg(contact2, "Anyone there?")
@@ -622,35 +618,27 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         expected_json = {
             "results": [
                 {
-                    "uuid": str(ticket2.uuid),
-                    "status": "O",
-                    "contact": {
-                        "uuid": str(contact2.uuid),
-                        "name": "Frank",
-                        "last_seen_on": contact2.last_seen_on,
-                        "last_msg": {
-                            "text": "Hello?",
-                            "direction": "I",
-                            "type": "I",
-                            "created_on": inbound.created_on,
-                            "sender": None,
-                        },
+                    "uuid": str(contact2.uuid),
+                    "name": "Frank",
+                    "last_seen_on": contact2.last_seen_on,
+                    "last_msg": {
+                        "text": "Hello?",
+                        "direction": "I",
+                        "type": "I",
+                        "created_on": inbound.created_on,
+                        "sender": None,
                     },
                 },
                 {
-                    "uuid": str(ticket1.uuid),
-                    "status": "O",
-                    "contact": {
-                        "uuid": str(contact1.uuid),
-                        "name": "Joe",
-                        "last_seen_on": contact1.last_seen_on,
-                        "last_msg": {
-                            "text": "We can help",
-                            "direction": "O",
-                            "type": "I",
-                            "created_on": outbound.created_on,
-                            "sender": {"id": self.admin.id, "email": "Administrator@nyaruka.com"},
-                        },
+                    "uuid": str(contact1.uuid),
+                    "name": "Joe",
+                    "last_seen_on": contact1.last_seen_on,
+                    "last_msg": {
+                        "text": "We can help",
+                        "direction": "O",
+                        "type": "I",
+                        "created_on": outbound.created_on,
+                        "sender": {"id": self.admin.id, "email": "Administrator@nyaruka.com"},
                     },
                 },
             ]

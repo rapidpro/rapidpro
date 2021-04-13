@@ -2423,15 +2423,16 @@ class APITest(TembaTest):
         self.assertEqual(
             resp_json["results"],
             [
-                {"key": "registered", "label": "Registered On", "value_type": "datetime"},
-                {"key": "nick_name", "label": "Nick Name", "value_type": "text"},
+                {"key": "registered", "label": "Registered On", "value_type": "datetime", "pinned": False},
+                {"key": "nick_name", "label": "Nick Name", "value_type": "text", "pinned": False},
             ],
         )
 
         # filter by key
         response = self.fetchJSON(url, "key=nick_name")
         self.assertEqual(
-            response.json()["results"], [{"key": "nick_name", "label": "Nick Name", "value_type": "text"}]
+            response.json()["results"],
+            [{"key": "nick_name", "label": "Nick Name", "pinned": False, "value_type": "text"}],
         )
 
         # try to create empty field
@@ -4389,6 +4390,7 @@ class APITest(TembaTest):
             [
                 {
                     "uuid": str(ticket2.uuid),
+                    "closed_on": None,
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "contact": {"uuid": str(bob.uuid), "name": "Bob"},
                     "status": "open",
@@ -4398,6 +4400,7 @@ class APITest(TembaTest):
                 },
                 {
                     "uuid": str(ticket1.uuid),
+                    "closed_on": None,
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "contact": {"uuid": str(ann.uuid), "name": "Ann"},
                     "status": "closed",
