@@ -1,3 +1,41 @@
+v6.3.21
+----------
+ * Fix Javascript error on two factor formax
+ * Beta-gate chatbase integration for now
+
+v6.3.20
+----------
+ * Rework DT One and Chatbase into a new integrations framework
+ * Expose Org.language as default language for new users on org edit form
+
+v6.3.19
+----------
+ * Add support for Zenvia SMS
+ * Cleanup parsing unused code on org model
+ * Fix flow update forms to show correct fields based on flow type
+ * Tweak JSONAsTextField to allow underlying DB column to be migrated to JSONB
+ * Add controls to import preview page for selecting existing groups etc
+
+v6.3.18
+----------
+ * Fix template names
+
+v6.3.17
+----------
+ * Fix font reference in scss
+
+v6.3.16
+----------
+ * Add group name field to contact imports so that it can be customized
+ * Rename Nexmo to Vonage, update icon
+ * Merge the two used icomoon sets into one and delete unused one
+ * Cleanup problems in org view templates
+
+v6.3.15
+----------
+ * Revert wording changes when orgs don't have email settings to clarify that we do send
+ * Fix wording of Results link in editor
+
 v6.3.14
 ----------
  * Fix locale files

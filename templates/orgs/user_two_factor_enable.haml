@@ -33,8 +33,10 @@
       var secretUrl = "{{ secret_url }}";
       if (secretUrl) {
         var element = document.getElementById('qr');
-        element.style.display = "initial";
-        new QRious({element: element, value: secretUrl, background: "#eee", size: 150});
+        if (element) {
+          element.style.display = "initial";
+          new QRious({element: element, value: secretUrl, background: "#eee", size: 150});
+        }
       }
     })();
 

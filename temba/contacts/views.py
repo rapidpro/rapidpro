@@ -1962,21 +1962,6 @@ class ContactImportCRUDL(SmartCRUDL):
 
                 return file
 
-            def clean(self):
-                groups_count = ContactGroup.user_groups.filter(org=self.org).count()
-
-                org_active_groups_limit = self.org.get_limit(Org.LIMIT_GROUPS)
-                if groups_count >= org_active_groups_limit:
-                    raise forms.ValidationError(
-                        _(
-                            "This workspace has reached the limit of %(count)d groups. "
-                            "You must delete existing ones before you can perform an import."
-                        ),
-                        params={"count": org_active_groups_limit},
-                    )
-
-                return self.cleaned_data
-
             class Meta:
                 model = ContactImport
                 fields = ("file",)
@@ -2012,6 +1997,30 @@ class ContactImportCRUDL(SmartCRUDL):
 
     class Preview(OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
+            GROUP_MODE_NEW = "N"
+            GROUP_MODE_EXISTING = "E"
+
+            add_to_group = forms.BooleanField(
+                label=" ", required=False, initial=True, widget=CheckboxWidget(attrs={"widget_only": True})
+            )
+            group_mode = forms.ChoiceField(
+                required=False,
+                choices=((GROUP_MODE_NEW, _("new group")), (GROUP_MODE_EXISTING, _("existing group"))),
+                initial=GROUP_MODE_NEW,
+                widget=SelectWidget(attrs={"widget_only": True}),
+            )
+            new_group_name = forms.CharField(
+                label=" ", required=False, max_length=ContactGroup.MAX_NAME_LEN, widget=InputWidget()
+            )
+            existing_group = forms.ModelChoiceField(
+                label=" ",
+                required=False,
+                queryset=ContactGroup.user_groups.none(),
+                widget=SelectWidget(
+                    attrs={"placeholder": _("Select a group"), "widget_only": True, "searchable": True}
+                ),
+            )
+
             def __init__(self, *args, org, **kwargs):
                 self.org = org
                 super().__init__(*args, **kwargs)
@@ -2048,6 +2057,11 @@ class ContactImportCRUDL(SmartCRUDL):
                         column["controls"] = list(column_controls.keys())
 
                     self.columns.append(column)
+
+                    self.fields["new_group_name"].initial = self.instance.get_default_group_name()
+                    self.fields["existing_group"].queryset = ContactGroup.get_user_groups(org, dynamic=False).order_by(
+                        "name"
+                    )
 
             def get_form_values(self) -> List[Dict]:
                 """
@@ -2099,6 +2113,30 @@ class ContactImportCRUDL(SmartCRUDL):
 
                             used_field_keys.add(field_key)
 
+                add_to_group = self.cleaned_data["add_to_group"]
+                if add_to_group:
+                    group_mode = self.cleaned_data["group_mode"]
+                    if group_mode == self.GROUP_MODE_NEW:
+                        new_group_name = self.cleaned_data.get("new_group_name")
+                        if not new_group_name:
+                            self.add_error("new_group_name", _("Required."))
+                        elif not ContactGroup.is_valid_name(new_group_name):
+                            self.add_error("new_group_name", _("Invalid group name."))
+                        elif ContactGroup.get_user_group_by_name(self.org, new_group_name):
+                            self.add_error("new_group_name", _("Already exists."))
+                    else:
+                        existing_group = self.cleaned_data.get("existing_group")
+                        if not existing_group:
+                            self.add_error("existing_group", _("Required."))
+
+                    groups_count = ContactGroup.get_user_groups(self.org, ready_only=False).count()
+                    groups_limit = self.org.get_limit(Org.LIMIT_GROUPS)
+                    if groups_count >= groups_limit:
+                        raise forms.ValidationError(
+                            _("This workspace has reached the limit of %(count)d groups."),
+                            params={"count": groups_limit},
+                        )
+
                 return self.cleaned_data
 
             class Meta:
@@ -2142,6 +2180,14 @@ class ContactImportCRUDL(SmartCRUDL):
                         mapping["value_type"] = data["value_type"]
 
                 obj.mappings[i]["mapping"] = mapping
+
+            if self.form.cleaned_data.get("add_to_group"):
+                new_group_name = self.form.cleaned_data.get("new_group_name")
+                if new_group_name:
+                    obj.group_name = new_group_name
+                else:
+                    obj.group = self.form.cleaned_data["existing_group"]
+
             return obj
 
         def post_save(self, obj):

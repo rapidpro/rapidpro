@@ -1,15 +1,5 @@
 -extends 'smartmin/form.html'
--load smartmin humanize
--load i18n
-
--block fields
-  {% render_field 'name' %}
-
-  {% render_field 'timezone' %}
-
-  {% render_field 'date_format' %}
-
--block post-form
+-load smartmin humanize i18n
 
 -block summary
   .flex.items-center
@@ -28,11 +18,7 @@
             You have <b>{{org_count}}</b> child workspaces.
           {% endblocktrans%}
 
-
     .buttons
       -if object.is_multi_org
         .button-light(onclick="goto(event)" href='{% url "orgs.org_sub_orgs" %}')
           -trans "Manage Workspaces"
-
-
-

@@ -1591,23 +1591,26 @@ class ContactGroup(TembaModel):
 
     @classmethod
     def _create(cls, org, user, name, status, query=None):
-        full_group_name = cls.clean_name(name)
+        name = cls.clean_name(name)
 
-        if not cls.is_valid_name(full_group_name):
-            raise ValueError("Invalid group name: %s" % name)
+        if not cls.is_valid_name(name):
+            raise ValueError(f"Invalid group name: {name}")
 
         # look for name collision and append count if necessary
-        existing = cls.get_user_group_by_name(org, full_group_name)
-
-        count = 2
-        while existing:
-            full_group_name = "%s %d" % (name, count)
-            existing = cls.get_user_group_by_name(org, full_group_name)
-            count += 1
+        name = cls.get_unique_name(org, base_name=name)
 
         return cls.user_groups.create(
-            org=org, name=full_group_name, query=query, status=status, created_by=user, modified_by=user
+            org=org, name=name, query=query, status=status, created_by=user, modified_by=user
         )
+
+    @classmethod
+    def get_unique_name(cls, org, base_name: str) -> str:
+        count = 0
+        while True:
+            name = f"{base_name} {count}" if count else base_name
+            if not cls.get_user_group_by_name(org, name):
+                return name
+            count += 1
 
     @classmethod
     def clean_name(cls, name):
@@ -2045,6 +2048,7 @@ class ContactImport(SmartModel):
     original_filename = models.TextField()
     mappings = JSONField()
     num_records = models.IntegerField()
+    group_name = models.CharField(null=True, max_length=ContactGroup.MAX_NAME_LEN)
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, null=True, related_name="imports")
     started_on = models.DateTimeField(null=True)
 
@@ -2229,9 +2233,10 @@ class ContactImport(SmartModel):
                     self.org, self.created_by, mapping["key"], label=mapping["name"], value_type=mapping["value_type"]
                 )
 
-        # create the destination group
-        self.group = ContactGroup.create_static(self.org, self.created_by, self._default_group_name())
-        self.save(update_fields=("group",))
+        # if user wants contacts added to a new group, create it
+        if self.group_name and not self.group:
+            self.group = ContactGroup.create_static(self.org, self.created_by, name=self.group_name)
+            self.save(update_fields=("group",))
 
         # CSV reader expects str stream so wrap file
         file_type = self._get_file_type()
@@ -2347,7 +2352,9 @@ class ContactImport(SmartModel):
         Convert a record (dict of headers to values) to a contact spec
         """
 
-        spec = {"groups": [str(self.group.uuid)]}
+        spec = {}
+        if self.group_id:
+            spec["groups"] = [str(self.group.uuid)]
 
         for value, item in zip(row, self.mappings):
             mapping = item["mapping"]
@@ -2440,7 +2447,7 @@ class ContactImport(SmartModel):
 
         return False
 
-    def _default_group_name(self):
+    def get_default_group_name(self):
         name = Path(self.original_filename).stem.title()
         name = name.replace("_", " ").replace("-", " ").strip()  # convert _- to spaces
         name = regex.sub(r"[^\w\s]", "", name)  # remove any non-word or non-space chars
@@ -2450,7 +2457,7 @@ class ContactImport(SmartModel):
         elif len(name) < 4:  # default if too short
             name = "Import"
 
-        return name
+        return ContactGroup.get_unique_name(self.org, name)
 
 
 class ContactImportBatch(models.Model):

@@ -6,10 +6,9 @@
     -blocktrans trimmed with lang=object.primary_language.name
       The primary language is <b>{{ lang }}</b>.
     -if languages
-      -blocktrans trimmed with lang=languages
-        Translations are provided in <b>{{lang}}</b>.
+      -trans "Translations are provided in"
+      -for language in languages
+        <b>{{ language }}</b>{{ forloop|oxford }}
+      \.
   -else
     -trans "Your workspace is configured to use a single language."
-
-
-    
