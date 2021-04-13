@@ -15,7 +15,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         name = forms.CharField(
             label=_("Name"), max_length=64, help_text=_("This field will serve as name for your channel"))
         base_url = ExternalURLField(
-            help_text=_("URL where socket communication will take place")
+            label=_("Base URL"), help_text=_("URL where socket communication will take place")
         )
 
     form_class = Form

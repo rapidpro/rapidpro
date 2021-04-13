@@ -25,9 +25,7 @@ class WeniWebChatType(ChannelType):
     show_config_page = False
 
     claim_blurb = _(
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam semper nulla et arcu malesuada,"
-        "id porttitor mi scelerisque. In diam diam, lacinia ut massa quis, viverra volutpat urna." 
-        "Sed mollis quam id tristique commodo."
+        "With Weni Web Chat, you can integrate your Rapidpro organization as a chat on your website."
     )
     claim_view = ClaimView
 
