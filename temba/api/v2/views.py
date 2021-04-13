@@ -76,9 +76,9 @@ from .serializers import (
     ResthookSubscriberReadSerializer,
     ResthookSubscriberWriteSerializer,
     TemplateReadSerializer,
-    TicketWriteSerializer,
     TicketerReadSerializer,
     TicketReadSerializer,
+    TicketWriteSerializer,
     WebHookEventReadSerializer,
     WorkspaceReadSerializer,
 )
