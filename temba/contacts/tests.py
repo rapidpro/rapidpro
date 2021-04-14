@@ -649,6 +649,11 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
             json.dumps(response.json()),
         )
 
+        # make sure when paging we get a next url
+        with patch("temba.contacts.views.ContactCRUDL.Tickets.paginate_by", 1):
+            response = self.client.get(tickets_url + "?folder=open&_format=json")
+            self.assertIsNotNone(response.json()["next"])
+
     @mock_mailroom
     def test_start(self, mr_mocks):
         sample_flows = list(self.org.flows.order_by("name"))

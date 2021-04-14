@@ -4378,6 +4378,10 @@ class APITest(TembaTest):
             status=Ticket.STATUS_CLOSED,
         )
 
+        response = self.fetchJSON(url, "ticketer_type=zendesk")
+        resp_json = response.json()
+        self.assertEqual(0, len(resp_json["results"]))
+
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
             response = self.fetchJSON(url)
@@ -4423,3 +4427,13 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(1, len(resp_json["results"]))
         self.assertEqual("Bob", resp_json["results"][0]["contact"]["name"])
+
+        # close one of the tickets
+        self.postJSON(url, f"uuid={ticket1.uuid}", {"status": "closed"})
+
+        # make sure it shows as closed with a closed_on date
+        response = self.fetchJSON(url)
+        resp_json = response.json()
+        updated = resp_json["results"][1]
+        self.assertEqual(updated["status"], "closed")
+        self.assertIsNotNone(updated["closed_on"])

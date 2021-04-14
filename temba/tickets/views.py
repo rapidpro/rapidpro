@@ -4,7 +4,6 @@ from smartmin.views import (
     SmartFormView,
     SmartListView,
     SmartTemplateView,
-    SmartUpdateView,
 )
 
 from django import forms
@@ -82,28 +81,10 @@ class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("list", "open", "closed", "filter", "update")
+    actions = ("list", "open", "closed", "filter")
 
     class List(OrgPermsMixin, SmartListView):
         pass
-
-    class Update(OrgObjPermsMixin, SmartUpdateView):
-        slug_url_kwarg = "uuid"
-        fields = ("status",)
-        success_url = "uuid@tickets.ticket_update"
-        success_message = ""
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-
-            if self.request.is_ajax():
-                form = context["form"]
-                if not form.is_valid():
-                    return {"status": "failed", "errors": form.errors}
-
-                ticket = context["ticket"]
-                return {"status": "success", "results": {"ticket": {"uuid": ticket.uuid, "status": ticket.status}}}
-            return context
 
     class Open(TicketListView):
         title = _("Open Tickets")
