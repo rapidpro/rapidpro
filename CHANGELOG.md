@@ -1,3 +1,7 @@
+v6.3.23
+----------
+ * Clean up countries code used by various channel types
+
 v6.3.22
 ----------
  * Show results in flow order
