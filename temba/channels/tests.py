@@ -865,10 +865,6 @@ class ChannelTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            response.context["twilio_countries"],
-            "Belgium, Canada, Finland, Norway, Poland, Spain, " "Sweden, United Kingdom or United States",
-        )
 
         # one recommended channel (Mtarget in Rwanda)
         self.assertEqual(len(response.context["recommended_channels"]), 2)

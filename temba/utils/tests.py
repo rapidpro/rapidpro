@@ -34,16 +34,7 @@ from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json, uuid
 from temba.utils.json import TembaJsonAdapter
 
-from . import (
-    chunk_list,
-    dict_to_struct,
-    format_number,
-    get_country_code_by_name,
-    percentage,
-    redact,
-    sizeof_fmt,
-    str_to_bool,
-)
+from . import chunk_list, dict_to_struct, format_number, percentage, redact, sizeof_fmt, str_to_bool
 from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from .celery import nonoverlapping_task
 from .dates import datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
@@ -198,14 +189,6 @@ class InitTest(TembaTest):
         self.assertEqual(0, percentage(100, 0))
         self.assertEqual(75, percentage(75, 100))
         self.assertEqual(76, percentage(759, 1000))
-
-    def test_get_country_code_by_name(self):
-        self.assertEqual("RW", get_country_code_by_name("Rwanda"))
-        self.assertEqual("US", get_country_code_by_name("United States of America"))
-        self.assertEqual("US", get_country_code_by_name("United States"))
-        self.assertEqual("GB", get_country_code_by_name("United Kingdom"))
-        self.assertEqual("CI", get_country_code_by_name("Ivory Coast"))
-        self.assertEqual("CD", get_country_code_by_name("Democratic Republic of the Congo"))
 
     def test_remove_control_charaters(self):
         self.assertIsNone(clean_string(None))
