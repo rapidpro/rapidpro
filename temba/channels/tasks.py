@@ -117,4 +117,4 @@ def track_org_channel_counts(now=None):
 
         for org in org_counts:
             if org.administrators.all():
-                track(org.administrators.all()[0].email, stat["key"], dict(count=org.count))
+                track(org.administrators.all()[0], stat["key"], dict(count=org.count))

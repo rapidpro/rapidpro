@@ -2120,7 +2120,7 @@ class ChannelCountTest(TembaTest):
             with self.assertNumQueries(6):
                 track_org_channel_counts(now=timezone.now() + timedelta(days=1))
                 self.assertEqual(2, mock.call_count)
-                mock.assert_called_with("Administrator@nyaruka.com", "temba.ivr_outgoing", {"count": 1})
+                mock.assert_called_with(self.admin, "temba.ivr_outgoing", {"count": 1})
 
 
 class ChannelLogTest(TembaTest):

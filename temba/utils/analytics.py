@@ -203,7 +203,7 @@ def change_consent(email, consent):
             logger.error("error posting to intercom", exc_info=True)
 
 
-def track(email, event_name, properties=None, context=None):
+def track(user, event_name, properties=None, context=None):
     """
     Tracks the passed in event for the passed in user in all configured analytics backends.
     """
@@ -211,9 +211,11 @@ def track(email, event_name, properties=None, context=None):
     if not settings.IS_PROD:
         return
 
-    # ignore anon user
-    if email == "AnonymousUser":
+    # no op for anon user
+    if user.is_anonymous:
         return
+
+    email = user.email
 
     # post to segment if configured
     if _segment:  # pragma: no cover

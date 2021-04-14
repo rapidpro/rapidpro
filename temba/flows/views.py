@@ -433,7 +433,7 @@ class FlowCRUDL(SmartCRUDL):
             return context
 
         def save(self, obj):
-            analytics.track(self.request.user.username, "temba.flow_created", dict(name=obj.name))
+            analytics.track(self.request.user, "temba.flow_created", dict(name=obj.name))
             org = self.request.user.get_org()
 
             # default expiration is a week
@@ -1343,7 +1343,7 @@ class FlowCRUDL(SmartCRUDL):
                 updated_defs = Flow.import_translation(self.object.org, [self.object], language, po_data)
                 self.object.save_revision(self.request.user, updated_defs[str(self.object.uuid)])
 
-                analytics.track(self.request.user.username, "temba.flow_po_imported")
+                analytics.track(self.request.user, "temba.flow_po_imported")
 
             return HttpResponseRedirect(self.get_success_url())
 
@@ -1477,7 +1477,7 @@ class FlowCRUDL(SmartCRUDL):
                 return dict()
 
         def form_valid(self, form):
-            analytics.track(self.request.user.username, "temba.flow_exported")
+            analytics.track(self.request.user, "temba.flow_exported")
 
             user = self.request.user
             org = user.get_org()
@@ -1771,7 +1771,7 @@ class FlowCRUDL(SmartCRUDL):
                     dict(status="error", description="mailroom not configured, cannot simulate"), status=500
                 )
 
-            analytics.track(request.user.username, "temba.flow_simulated")
+            analytics.track(request.user, "temba.flow_simulated")
 
             flow = self.get_object()
             client = mailroom.get_client()
@@ -2026,7 +2026,7 @@ class FlowCRUDL(SmartCRUDL):
                 contacts = list(omnibox["contacts"])
 
             analytics.track(
-                self.request.user.username,
+                self.request.user,
                 "temba.flow_broadcast",
                 dict(contacts=len(contacts), groups=len(groups), query=contact_query),
             )
