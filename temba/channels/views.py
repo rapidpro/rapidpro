@@ -550,13 +550,13 @@ class BaseClaimNumberMixin(ClaimViewMixin):
             % (self.crudl.__class__.__name__, self.__class__.__name__)
         )
 
-    def is_valid_country(self, country_code):  # pragma: no cover
+    def is_valid_country(self, calling_code: int) -> bool:  # pragma: no cover
         raise NotImplementedError(
             'method "is_valid_country" should be overridden in %s.%s'
             % (self.crudl.__class__.__name__, self.__class__.__name__)
         )
 
-    def is_messaging_country(self, country):  # pragma: no cover
+    def is_messaging_country(self, country_code: str) -> bool:  # pragma: no cover
         raise NotImplementedError(
             'method "is_messaging_country" should be overridden in %s.%s'
             % (self.crudl.__class__.__name__, self.__class__.__name__)

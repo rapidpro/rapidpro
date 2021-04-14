@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-12 14:38+0000\n"
+"POT-Creation-Date: 2021-04-14 18:49+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1891,15 +1891,6 @@ msgstr "Токен API"
 msgid "The API token for your integration as provided by Zenvia"
 msgstr ""
 
-msgid "United Kingdom"
-msgstr "Великобритания"
-
-msgid "Scension Island"
-msgstr "Остров Асенсьон"
-
-msgid "Kosovo"
-msgstr "Косово"
-
 msgid "POST Required"
 msgstr "Требуется POST"
 
@@ -1999,9 +1990,6 @@ msgstr "При удалении Вашего канала произошла о�
 
 msgid "Save Changes"
 msgstr "Сохранить Изменения"
-
-msgid "or"
-msgstr "или"
 
 #, fuzzy
 #| msgid "A connection to a Nexmo account is required"
@@ -4112,6 +4100,17 @@ msgstr "Создать Реферальный Триггер"
 
 msgid "Create Schedule"
 msgstr "Создать Расписание"
+
+msgid "United Kingdom"
+msgstr "Великобритания"
+
+#, fuzzy
+#| msgid "Scension Island"
+msgid "Ascension Island"
+msgstr "Остров Асенсьон"
+
+msgid "Kosovo"
+msgstr "Косово"
 
 msgid "Processing"
 msgstr "Обработка"
@@ -7676,6 +7675,9 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "or"
+#~ msgstr "или"
 
 #~ msgid "The main language used by this organization"
 #~ msgstr "Основной язык, используемый этой организацией"

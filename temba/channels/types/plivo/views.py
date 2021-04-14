@@ -74,11 +74,11 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         else:
             return HttpResponseRedirect(reverse("orgs.org_plivo_connect"))
 
-    def is_valid_country(self, country_code):
-        return country_code in CALLING_CODES
+    def is_valid_country(self, calling_code: int) -> bool:
+        return calling_code in CALLING_CODES
 
-    def is_messaging_country(self, country):
-        return country in SUPPORTED_COUNTRIES
+    def is_messaging_country(self, country_code: str) -> bool:
+        return country_code in SUPPORTED_COUNTRIES
 
     def get_search_url(self):
         return reverse("channels.channel_search_plivo")

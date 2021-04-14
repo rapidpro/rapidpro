@@ -146,11 +146,11 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
 
         return numbers
 
-    def is_valid_country(self, country_code):
+    def is_valid_country(self, calling_code: int) -> bool:
         return True
 
-    def is_messaging_country(self, country):
-        return country in SUPPORTED_COUNTRIES
+    def is_messaging_country(self, country_code: str) -> bool:
+        return country_code in SUPPORTED_COUNTRIES
 
     def claim_number(self, user, phone_number, country, role):
         org = user.get_org()

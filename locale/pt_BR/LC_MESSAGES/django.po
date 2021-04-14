@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-12 14:38+0000\n"
+"POT-Creation-Date: 2021-04-14 18:49+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -1884,15 +1884,6 @@ msgstr "Token API"
 msgid "The API token for your integration as provided by Zenvia"
 msgstr ""
 
-msgid "United Kingdom"
-msgstr "Reino Unido"
-
-msgid "Scension Island"
-msgstr "Ilha de Ascensão"
-
-msgid "Kosovo"
-msgstr "Kosovo"
-
 msgid "POST Required"
 msgstr "POST obrigatório"
 
@@ -1992,9 +1983,6 @@ msgstr "Encontramos um erro ao remover o seu transmissor, por favor, tente novam
 
 msgid "Save Changes"
 msgstr "Salvar alterações"
-
-msgid "or"
-msgstr "Ou"
 
 #, fuzzy
 #| msgid "A connection to a Nexmo account is required"
@@ -4106,6 +4094,17 @@ msgstr "Criar Disparador de Referência"
 
 msgid "Create Schedule"
 msgstr "Criar agendamento"
+
+msgid "United Kingdom"
+msgstr "Reino Unido"
+
+#, fuzzy
+#| msgid "Scension Island"
+msgid "Ascension Island"
+msgstr "Ilha de Ascensão"
+
+msgid "Kosovo"
+msgstr "Kosovo"
 
 msgid "Processing"
 msgstr "Processando"
@@ -7809,6 +7808,9 @@ msgstr "Adicione uma dúvida"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Encontrado ${count} para ${query}"
+
+#~ msgid "or"
+#~ msgstr "Ou"
 
 #~ msgid "The main language used by this organization"
 #~ msgstr "Linguagem principal usada por essa organização"
