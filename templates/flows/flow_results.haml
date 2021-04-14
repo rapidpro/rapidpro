@@ -339,13 +339,6 @@
       {% endfor %}
     ];
 
-    // alpha sort our result names
-    columns.sort(function(a, b){
-      a = a.text.toLowerCase();
-      b = b.text.toLowerCase();
-      return (a < b) ? -1 : a > b ? 1 : 0;
-    });
-
     $(document).ready(function() {
       Highcharts.setOptions({
         global: {
