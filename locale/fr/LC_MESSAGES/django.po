@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-12 14:38+0000\n"
+"POT-Creation-Date: 2021-04-14 18:49+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1877,15 +1877,6 @@ msgstr "Signal API"
 msgid "The API token for your integration as provided by Zenvia"
 msgstr ""
 
-msgid "United Kingdom"
-msgstr "Royaume-Uni"
-
-msgid "Scension Island"
-msgstr "Île de l'Ascension"
-
-msgid "Kosovo"
-msgstr "Kosovo"
-
 msgid "POST Required"
 msgstr "POST requis"
 
@@ -1985,9 +1976,6 @@ msgstr "Nous avons rencontré une erreur de retrait de votre channel, s'il vous 
 
 msgid "Save Changes"
 msgstr "Enregistrer les modifications"
-
-msgid "or"
-msgstr "ou"
 
 #, fuzzy
 #| msgid "A connection to a Nexmo account is required"
@@ -4099,6 +4087,17 @@ msgstr "Créer un déclencheur de référence"
 
 msgid "Create Schedule"
 msgstr "Créer un planning"
+
+msgid "United Kingdom"
+msgstr "Royaume-Uni"
+
+#, fuzzy
+#| msgid "Scension Island"
+msgid "Ascension Island"
+msgstr "Île de l'Ascension"
+
+msgid "Kosovo"
+msgstr "Kosovo"
 
 msgid "Processing"
 msgstr "En traitement"
@@ -7808,6 +7807,9 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "or"
+#~ msgstr "ou"
 
 #~ msgid "The main language used by this organization"
 #~ msgstr "La langue principale utilisée par cette organisation"

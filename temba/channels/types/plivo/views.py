@@ -11,20 +11,42 @@ from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
-from temba.channels.views import (
-    PLIVO_SUPPORTED_COUNTRIES,
-    PLIVO_SUPPORTED_COUNTRY_CODES,
-    BaseClaimNumberMixin,
-    ClaimViewMixin,
-)
+from temba.channels.views import BaseClaimNumberMixin, ClaimViewMixin
+from temba.utils import countries
 from temba.utils.fields import SelectWidget
 from temba.utils.http import http_headers
 from temba.utils.models import generate_uuid
 
+SUPPORTED_COUNTRIES = {
+    "AU",  # Australia
+    "BE",  # Belgium
+    "CA",  # Canada
+    "CZ",  # Czech Republic
+    "EE",  # Estonia
+    "FI",  # Finland
+    "DE",  # Germany
+    "HK",  # Hong Kong
+    "HU",  # Hungary
+    "IL",  # Israel
+    "LT",  # Lithuania
+    "MX",  # Mexico
+    "NO",  # Norway
+    "PK",  # Pakistan
+    "PL",  # Poland
+    "ZA",  # South Africa
+    "SE",  # Sweden
+    "CH",  # Switzerland
+    "GB",  # United Kingdom
+    "US",  # United States
+}
+
+COUNTRY_CHOICES = countries.choices(SUPPORTED_COUNTRIES)
+CALLING_CODES = countries.calling_codes(SUPPORTED_COUNTRIES)
+
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
-        country = forms.ChoiceField(choices=PLIVO_SUPPORTED_COUNTRIES, widget=SelectWidget(attrs={"searchable": True}))
+        country = forms.ChoiceField(choices=COUNTRY_CHOICES, widget=SelectWidget(attrs={"searchable": True}))
         phone_number = forms.CharField(help_text=_("The phone number being added"))
 
         def clean_phone_number(self):
@@ -52,11 +74,11 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         else:
             return HttpResponseRedirect(reverse("orgs.org_plivo_connect"))
 
-    def is_valid_country(self, country_code):
-        return country_code in PLIVO_SUPPORTED_COUNTRY_CODES
+    def is_valid_country(self, calling_code: int) -> bool:
+        return calling_code in CALLING_CODES
 
-    def is_messaging_country(self, country):
-        return country in [c[0] for c in PLIVO_SUPPORTED_COUNTRIES]
+    def is_messaging_country(self, country_code: str) -> bool:
+        return country_code in SUPPORTED_COUNTRIES
 
     def get_search_url(self):
         return reverse("channels.channel_search_plivo")
@@ -65,10 +87,10 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return reverse("channels.types.plivo.claim")
 
     def get_supported_countries_tuple(self):
-        return PLIVO_SUPPORTED_COUNTRIES
+        return COUNTRY_CHOICES
 
     def get_search_countries_tuple(self):
-        return PLIVO_SUPPORTED_COUNTRIES
+        return COUNTRY_CHOICES
 
     def get_existing_numbers(self, org):
         auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
