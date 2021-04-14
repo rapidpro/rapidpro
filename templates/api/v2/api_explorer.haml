@@ -144,7 +144,9 @@
           dataType = "json";
         }
       } catch {
-        dataType = "text";
+        var trace = "HTTP/1.0 " + 400 + " BAD REQUEST\n" + JSON.stringify({error: "JSON parse error."}, null, 2);
+        $("#result-" + slug).show().text(trace);
+        return;
       }
 
       $("#result-" + slug).text("Requesting...");

@@ -2187,12 +2187,22 @@ class FlowCRUDL(SmartCRUDL):
             runs = flow.runs.all()
 
             if after:
-                after = str_to_datetime(after, tz=flow.org.timezone, dayfirst=flow.org.date_format == "D")
-                runs = runs.filter(modified_on__gte=after)
+                after = str_to_datetime(
+                    after, tz=flow.org.timezone, dayfirst=flow.org.date_format == "D", fill_time=False
+                )
+                if after:
+                    runs = runs.filter(modified_on__gte=after)
+                else:
+                    runs = runs.filter(id=-1)
 
             if before:
-                before = str_to_datetime(before, tz=flow.org.timezone, dayfirst=flow.org.date_format == "D")
-                runs = runs.filter(modified_on__lte=before)
+                before = str_to_datetime(
+                    before, tz=flow.org.timezone, dayfirst=flow.org.date_format == "D", fill_time=False
+                )
+                if before:
+                    runs = runs.filter(modified_on__lte=before)
+                else:
+                    runs = runs.filter(id=-1)
 
             if search_query:
                 runs, query_error = FlowCRUDL.RunTable.search_query(query=search_query, base_queryset=runs)
@@ -2200,10 +2210,13 @@ class FlowCRUDL(SmartCRUDL):
                     context["query_error"] = query_error
 
             if contact_query:
-                org = flow.org
-                group = org.all_groups.filter(group_type="A").first()
-                contact_ids = query_contact_ids(org, contact_query, group=group)
-                runs = runs.filter(contact_id__in=contact_ids)
+                try:
+                    org = flow.org
+                    group = org.all_groups.filter(group_type="A").first()
+                    contact_ids = query_contact_ids(org, contact_query, group=group)
+                    runs = runs.filter(contact_id__in=contact_ids)
+                except SearchException as e:
+                    context["query_error"] = e.message
 
             if str_to_bool(self.request.GET.get("responded", "true")):
                 runs = runs.filter(responded=True)
@@ -2316,6 +2329,15 @@ class FlowCRUDL(SmartCRUDL):
             context["categories"] = flow.get_category_counts()["counts"]
             context["utcoffset"] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() // 60)
             context["trackable_links"] = LinkContacts.objects.filter(link__related_flow=flow).exists()
+
+            contact_query = self.request.GET.get("contact_query")
+            if contact_query:
+                try:
+                    parsed_query = parse_query(flow.org, contact_query)
+                    context["contact_query"] = parsed_query.query
+                except SearchException:
+                    context["contact_query"] = contact_query
+
             return context
 
     class Activity(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
