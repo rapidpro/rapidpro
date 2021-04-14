@@ -1,3 +1,7 @@
+v6.3.22
+----------
+ * Show results in flow order
+
 v6.3.21
 ----------
  * Fix Javascript error on two factor formax
