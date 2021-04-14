@@ -1,0 +1,26 @@
+-extends "channels/channel_claim_form.html"
+-load i18n compress temba
+
+-block pre-form
+    -blocktrans with name=brand.name trimmed
+      With 
+      %b Weni Web Chat,
+      you can integrate your Rapidpro organization as a chat on your website.
+  .mt-2
+    -blocktrans trimmed
+      After input a
+      .code Name
+      for the chat that will connect to your website, you will need to configure the
+      .code Base URL
+      that Rapidpro requires for sending and receiving messages.
+      Then you will need to configure how the chat will be shown on your website. 
+	
+  .mt-2
+    -blocktrans trimmed
+      For this configuration, access 
+        %a(href="https://docs.ilhasoft.mobi/l/en/channels-category/untitled-article-en")
+          this documentation.
+
+-block extra-style
+  {{ block.super }}
+

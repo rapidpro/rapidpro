@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'temba';
-  src:  url('fonts/temba.eot?j326sm');
-  src:  url('fonts/temba.eot?j326sm#iefix') format('embedded-opentype'),
-    url('fonts/temba.ttf?j326sm') format('truetype'),
-    url('fonts/temba.woff?j326sm') format('woff'),
-    url('fonts/temba.svg?j326sm#temba') format('svg');
+  src:  url('fonts/temba.eot?mjkg5u');
+  src:  url('fonts/temba.eot?mjkg5u#iefix') format('embedded-opentype'),
+    url('fonts/temba.ttf?mjkg5u') format('truetype'),
+    url('fonts/temba.woff?mjkg5u') format('woff'),
+    url('fonts/temba.svg?mjkg5u#temba') format('svg');
   font-weight: normal;
   font-style: normal;
   font-display: block;
@@ -25,6 +25,9 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+.icon-weniwebchat:before {
+  content: "\e91f";
+}
 .icon-pushpin:before {
   content: "\e946";
 }
