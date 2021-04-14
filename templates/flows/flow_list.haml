@@ -230,12 +230,7 @@
 -block extra-script
   {{ block.super }}
 
-  
-
   :javascript
-
-
-
     {% if org_perms.flows.flow_update %}
       function handleAddLabelClicked() {
         document.getElementById("create-label-modal").open = true;
