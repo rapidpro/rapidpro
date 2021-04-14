@@ -407,7 +407,7 @@ class BroadcastCRUDL(SmartCRUDL):
                     super().form_valid(form)
 
                 analytics.track(
-                    self.request.user.username,
+                    self.request.user,
                     "temba.broadcast_created",
                     dict(contacts=len(contacts), groups=len(groups), urns=len(urns)),
                 )

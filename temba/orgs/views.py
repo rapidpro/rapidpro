@@ -2557,7 +2557,7 @@ class OrgCRUDL(SmartCRUDL):
 
             # setup user tracking before creating Org in super().post_save
             analytics.identify(user, brand=self.request.branding["slug"], org=obj)
-            analytics.track(email=user.username, event_name="temba.org_signup", properties=dict(org=obj.name))
+            analytics.track(user=user, event_name="temba.org_signup", properties=dict(org=obj.name))
 
             obj = super().post_save(obj)
 
@@ -3385,9 +3385,9 @@ class StripeHandler(View):  # pragma: no cover
                     context["cc_type"] = "bitcoin"
                     context["cc_name"] = charge.source.bitcoin.address
 
-                admin_email = org.administrators.all().first().email
+                admin = org.administrators.all().first()
 
-                analytics.track(admin_email, track, context)
+                analytics.track(admin, track, context)
                 return HttpResponse("Event '%s': %s" % (track, context))
 
         # empty response, 200 lets Stripe know we handled it

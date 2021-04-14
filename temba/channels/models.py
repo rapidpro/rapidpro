@@ -474,8 +474,7 @@ class Channel(TembaModel):
             org.normalize_contact_tels()
 
         # track our creation
-        if not user.is_anonymous:
-            analytics.track(user.username, "temba.channel_created", dict(channel_type=channel_type.code))
+        analytics.track(user, "temba.channel_created", dict(channel_type=channel_type.code))
 
         if settings.IS_PROD:
             if channel_type.async_activation:

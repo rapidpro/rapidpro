@@ -12,10 +12,10 @@ import intercom.errors
 import pytz
 from django_redis import get_redis_connection
 from openpyxl import load_workbook
-from smartmin.tests import SmartminTestMixin
+from smartmin.tests import SmartminTest, SmartminTestMixin
 
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AnonymousUser, User
 from django.core import checks
 from django.core.management import CommandError, call_command
 from django.db import connection, models
@@ -1242,7 +1242,7 @@ class JSONTest(TestCase):
         )
 
 
-class AnalyticsTest(TestCase):
+class AnalyticsTest(SmartminTest):
     def setUp(self):
         super().setUp()
 
@@ -1251,7 +1251,7 @@ class AnalyticsTest(TestCase):
             id=1000, name="Some Org", brand="Some Brand", created_on=timezone.now(), account_value=lambda: 1000
         )
         self.admin = SimpleNamespace(
-            username="admin@example.com", first_name="", last_name="", email="admin@example.com"
+            username="admin@example.com", first_name="", last_name="", email="admin@example.com", is_anonymous=False
         )
 
         self.intercom_mock = MagicMock()
@@ -1287,7 +1287,7 @@ class AnalyticsTest(TestCase):
                 "org": self.org.name,
                 "paid": self.org.account_value(),
             },
-            email=self.admin.email,
+            email=self.admin.username,
             name=" ",
         )
         self.assertListEqual(
@@ -1306,15 +1306,24 @@ class AnalyticsTest(TestCase):
 
     @override_settings(IS_PROD=True)
     def test_track_intercom(self):
-        temba.utils.analytics.track(self.admin.email, "test event", properties={"plan": "free"})
+        temba.utils.analytics.track(self.admin, "test event", properties={"plan": "free"})
 
         self.intercom_mock.events.create.assert_called_with(
-            event_name="test event", created_at=mock.ANY, email=self.admin.email, metadata={"plan": "free"}
+            event_name="test event", created_at=mock.ANY, email=self.admin.username, metadata={"plan": "free"}
         )
 
     @override_settings(IS_PROD=False)
     def test_track_not_prod_env(self):
-        result = temba.utils.analytics.track(self.admin.email, "test event", properties={"plan": "free"})
+        result = temba.utils.analytics.track(self.admin, "test event", properties={"plan": "free"})
+
+        self.assertIsNone(result)
+
+        self.intercom_mock.events.create.assert_not_called()
+
+    @override_settings(IS_PROD=True)
+    def test_track_not_anon_user(self):
+        anon = AnonymousUser()
+        result = temba.utils.analytics.track(anon, "test event", properties={"plan": "free"})
 
         self.assertIsNone(result)
 
@@ -1325,7 +1334,7 @@ class AnalyticsTest(TestCase):
         self.intercom_mock.events.create.side_effect = Exception("It's raining today")
 
         with patch("temba.utils.analytics.logger") as mocked_logging:
-            temba.utils.analytics.track(self.admin.email, "test event", properties={"plan": "free"})
+            temba.utils.analytics.track(self.admin, "test event", properties={"plan": "free"})
 
         mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
 

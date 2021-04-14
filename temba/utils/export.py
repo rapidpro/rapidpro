@@ -105,9 +105,7 @@ class BaseExportTask(TembaModel):
             self.update_status(self.STATUS_COMPLETE)
             elapsed = time.time() - start
             print(f"Completed {self.analytics_key} with ID {self.id} in {elapsed:.1f} seconds")
-            analytics.track(
-                self.created_by.username, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed)
-            )
+            analytics.track(self.created_by, "temba.%s_latency" % self.analytics_key, properties=dict(value=elapsed))
         finally:
             gc.collect()  # force garbage collection
 
