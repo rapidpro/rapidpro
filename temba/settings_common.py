@@ -504,7 +504,7 @@ PERMISSIONS = {
     "policies.policy": ("admin", "history", "give_consent"),
     "request_logs.httplog": ("classifier", "ticketer"),
     "templates.template": ("api",),
-    "tickets.ticket": ("api", "list", "open", "closed", "filter", "update"),
+    "tickets.ticket": ("api", "open", "closed", "filter"),
     "tickets.ticketer": ("api", "connect", "configure"),
     "triggers.trigger": (
         "archived",
@@ -525,7 +525,7 @@ PERMISSIONS = {
 GROUP_PERMISSIONS = {
     "Service Users": ("flows.flow_assets", "msgs.msg_create"),  # internal Temba services have limited permissions
     "Alpha": (),
-    "Beta": (),
+    "Beta": ("tickets.ticket_list",),
     "Dashboard": ("orgs.org_dashboard",),
     "Surveyors": (
         "contacts.contact_api",
@@ -700,7 +700,12 @@ GROUP_PERMISSIONS = {
         "request_logs.httplog_classifier",
         "request_logs.httplog_read",
         "templates.template_api",
-        "tickets.ticket.*",
+        "tickets.ticket_api",
+        "tickets.ticket_closed",
+        "tickets.ticket_filter",
+        "tickets.ticket_open",
+        "tickets.ticket_list",
+        "tickets.ticket_update",
         "tickets.ticketer_api",
         "tickets.ticketer_configure",
         "tickets.ticketer_connect",
