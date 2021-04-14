@@ -211,6 +211,10 @@ def track(email, event_name, properties=None, context=None):
     if not settings.IS_PROD:
         return
 
+    # ignore anon user
+    if email == "AnonymousUser":
+        return
+
     # post to segment if configured
     if _segment:  # pragma: no cover
         # create a context if none was passed in

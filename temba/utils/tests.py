@@ -1338,6 +1338,14 @@ class AnalyticsTest(TestCase):
         self.intercom_mock.events.create.assert_not_called()
 
     @override_settings(IS_PROD=True)
+    def test_track_not_anon_user(self):
+        result = temba.utils.analytics.track("AnonymousUser", "test event", properties={"plan": "free"})
+
+        self.assertIsNone(result)
+
+        self.intercom_mock.events.create.assert_not_called()
+
+    @override_settings(IS_PROD=True)
     def test_track_intercom_exception(self):
         self.intercom_mock.events.create.side_effect = Exception("It's raining today")
 
