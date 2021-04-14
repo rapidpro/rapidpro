@@ -1,3 +1,13 @@
+FROM python:3.6-slim as build-poetry
+
+WORKDIR /app
+
+COPY ./pyproject.toml .
+COPY ./poetry.lock .
+
+RUN python -m pip install -U poetry
+RUN poetry export --without-hashes --output requirements.txt
+
 FROM python:3.6-slim
 
 ARG COMPRESS_ENABLED
@@ -40,10 +50,12 @@ RUN mkdir $PROJECT_PATH \
 
 RUN rm /etc/nginx/sites-enabled/default
 
+COPY --from=build-poetry /app/requirements.txt /tmp/dep/
 COPY ./docker/pip-freeze.txt /tmp/dep/
-COPY ./pip-freeze.txt ./docker/nginx.site.conf /tmp/
-RUN pip install --no-cache-dir -r /tmp/dep/pip-freeze.txt && \
-    pip install -e git+$RAPIDPRO_APPS_GIT_URL@$RAPIDPRO_APPS_GIT_BRANCH#egg=rapidpro_apps
+COPY ./docker/nginx.site.conf /tmp/
+RUN pip install --no-cache-dir -r /tmp/dep/requirements.txt \ 
+    -r /tmp/dep/pip-freeze.txt && \
+    pip install -e git+$RAPIDPRO_APPS_GIT_URL@$RAPIDPRO_APPS_GIT_BRANCH#egg=rapidpro_apps   
 
 RUN cp /tmp/nginx.site.conf /etc/nginx/sites-available/$PROJECT.conf \
  && ln -s /etc/nginx/sites-available/$PROJECT.conf /etc/nginx/sites-enabled/$PROJECT.conf
