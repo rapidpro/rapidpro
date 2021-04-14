@@ -8,9 +8,9 @@ from temba.tests import CRUDLTestMixin, TembaTest, mock_mailroom
 
 from .models import Ticket, Ticketer
 from .types import reload_ticketer_types
+from .types.internal import InternalType
 from .types.mailgun import MailgunType
 from .types.zendesk import ZendeskType
-from .types.internal import InternalType
 
 
 class TicketTest(TembaTest):

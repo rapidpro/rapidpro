@@ -1,9 +1,9 @@
-from django.http.response import HttpResponseRedirect
 from smartmin.views import SmartCRUDL, SmartDeleteView, SmartFormView, SmartListView, SmartTemplateView
 
 from django import forms
 from django.contrib import messages
 from django.http import HttpResponse
+from django.http.response import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.functional import cached_property
 from django.utils.html import mark_safe
@@ -78,8 +78,8 @@ class TicketCRUDL(SmartCRUDL):
     model = Ticket
     actions = ("list", "open", "closed", "filter")
 
-    class List(OrgPermsMixin, SmartListView):
-        pass
+    class List(OrgPermsMixin, SmartTemplateView):
+        template_name = "tickets/ticket_list.haml"
 
     class Open(TicketListView):
         title = _("Open Tickets")
