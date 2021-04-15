@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-import nexmo
+import vonage
 
 from django.urls import reverse
 
@@ -211,7 +211,7 @@ class VonageTypeTest(TembaTest):
         # mock a 404 response from Vonage during deactivation
         with self.settings(IS_PROD=True):
             with patch("nexmo.Client.delete_application") as mock_delete_application:
-                mock_delete_application.side_effect = nexmo.ClientError("404 response")
+                mock_delete_application.side_effect = vonage.ClientError("404 response")
 
                 # releasing shouldn't blow up on auth failures
                 channel.release()
@@ -239,7 +239,7 @@ class ClientTest(TembaTest):
 
     @patch("nexmo.Client.get_balance")
     def test_check_credentials(self, mock_get_balance):
-        mock_get_balance.side_effect = nexmo.AuthenticationError("401 not allowed")
+        mock_get_balance.side_effect = vonage.AuthenticationError("401 not allowed")
 
         self.assertFalse(self.client.check_credentials())
 
@@ -281,12 +281,30 @@ class ClientTest(TembaTest):
 
         mock_delete_application.assert_called_once_with(application_id="myappid")
 
-    @patch("temba.channels.types.vonage.client.VonageClient.RATE_LIMIT_PAUSE", 0)
-    @patch("nexmo.Client.get_account_numbers")
-    def test_retry(self, mock_get_account_numbers):
-        mock_get_account_numbers.side_effect = [
-            nexmo.ClientError("420 response from tests.com"),
-            {"count": 2, "numbers": ["23463", "568658"]},
+    @patch("temba.channels.types.vonage.client.VonageClient.RATE_LIMIT_BACKOFFS", [0.1, 0.1])
+    @patch("requests.sessions.Session.get")
+    def test_retry(self, mock_get):
+        mock_get.side_effect = [
+            MockResponse(429, "<html>429 Too Many Requests</html>", headers={"Content-Type": "text/html"}),
+            MockResponse(429, "<html>429 Too Many Requests</html>", headers={"Content-Type": "text/html"}),
+            MockResponse(429, "<html>429 Too Many Requests</html>", headers={"Content-Type": "text/html"}),
+            MockResponse(429, "<html>429 Too Many Requests</html>", headers={"Content-Type": "text/html"}),
+            MockResponse(200, '{"count": 1, "numbers": ["12345"]}', headers={"Content-Type": "application/json"}),
+            MockResponse(200, '{"count": 1, "numbers": ["23456"]}', headers={"Content-Type": "application/json"}),
         ]
 
-        self.assertEqual(self.client.get_numbers(), ["23463", "568658"])
+        # should retry twice and give up
+        with self.assertRaises(vonage.ClientError):
+            self.client.get_numbers()
+
+        self.assertEqual(3, mock_get.call_count)
+        mock_get.reset_mock()
+
+        # should retry once and then succeed
+        self.assertEqual(["12345"], self.client.get_numbers())
+        self.assertEqual(2, mock_get.call_count)
+        mock_get.reset_mock()
+
+        # should succeed without any retries
+        self.assertEqual(["23456"], self.client.get_numbers())
+        self.assertEqual(1, mock_get.call_count)
