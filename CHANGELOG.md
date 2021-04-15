@@ -1,3 +1,7 @@
+v6.3.25
+----------
+ * Add beta-gated tickets view
+
 v6.3.24
 ----------
  * Change analytics.track to expect a user argument
