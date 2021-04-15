@@ -9,6 +9,7 @@ import regex
 from rest_framework import serializers
 
 from django.conf import settings
+from django.utils import timezone
 
 from temba import mailroom
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
@@ -667,13 +668,17 @@ class ContactFieldReadSerializer(ReadSerializer):
     }
 
     value_type = serializers.SerializerMethodField()
+    pinned = serializers.SerializerMethodField()
 
     def get_value_type(self, obj):
         return self.VALUE_TYPES[obj.value_type]
 
+    def get_pinned(self, obj):
+        return obj.show_in_table
+
     class Meta:
         model = ContactField
-        fields = ("key", "label", "value_type")
+        fields = ("key", "label", "value_type", "pinned")
 
 
 class ContactFieldWriteSerializer(WriteSerializer):
@@ -1421,13 +1426,39 @@ class TicketReadSerializer(ReadSerializer):
     contact = fields.ContactField()
     status = serializers.SerializerMethodField()
     opened_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+    closed_on = serializers.DateTimeField(default_timezone=pytz.UTC)
 
     def get_status(self, obj):
         return self.STATUSES.get(obj.status)
 
     class Meta:
         model = Ticket
-        fields = ("uuid", "ticketer", "contact", "status", "subject", "body", "opened_on")
+        fields = ("uuid", "ticketer", "contact", "status", "subject", "body", "opened_on", "closed_on")
+
+
+class TicketWriteSerializer(WriteSerializer):
+    STATUSES = {"open": Ticket.STATUS_OPEN, "closed": Ticket.STATUS_CLOSED}
+
+    status = serializers.CharField(
+        required=True,
+    )
+
+    def validate_status(self, value):
+        return self.STATUSES[value]
+
+    def save(self):
+        """
+        Update our ticket
+        """
+        status = self.validated_data.get("status")
+        if self.instance:
+            self.instance.status = status
+
+            if status == Ticket.STATUS_CLOSED:
+                self.instance.closed_on = timezone.now()
+            self.instance.save()
+
+        return self.instance
 
 
 class WorkspaceReadSerializer(ReadSerializer):

@@ -990,7 +990,6 @@ class FlowCRUDL(SmartCRUDL):
             context = super().get_context_data(*args, **kwargs)
 
             dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
-            getattr(settings, "EDITOR_DEV_MODE", False)
             prefix = "/dev" if dev_mode else settings.STATIC_URL
 
             # get our list of assets to incude

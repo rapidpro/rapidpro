@@ -23,9 +23,10 @@ from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
 from django.db.models import Count
+from django.db.models.aggregates import Max
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
-from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
+from django.http import Http404, HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -42,6 +43,7 @@ from temba.msgs.views import SendMessageForm
 from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
+from temba.tickets.types.internal.type import InternalType
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
@@ -550,6 +552,7 @@ class ContactCRUDL(SmartCRUDL):
         "archive",
         "delete",
         "history",
+        "tickets",
         "start",
     )
 
@@ -1383,6 +1386,96 @@ class ContactCRUDL(SmartCRUDL):
         def save(self, obj):
             obj.release(self.request.user)
             return obj
+
+    class Tickets(OrgPermsMixin, SmartListView):
+        """
+        Fetches contacts with tickets in the specified state. This endpoint is for a proof-of-concept implementation
+        of internal ticketing and is thus is not well optimized.
+        """
+
+        fields = ("uuid", "name")
+
+        FOLDER_OPEN = "open"
+        FOLDER_CLOSED = "closed"
+
+        def get_queryset(self, **kwargs):
+            org = self.request.user.get_org()
+            qs = super().get_queryset(**kwargs).filter(org=org)
+
+            folder = self.request.GET.get("folder", "")
+            if folder == self.FOLDER_OPEN:
+                qs = qs.filter(
+                    tickets__status=Ticket.STATUS_OPEN, tickets__ticketer__ticketer_type=InternalType.slug
+                ).distinct("last_seen_on", "id")
+
+            elif folder == self.FOLDER_CLOSED:
+                # TODO: exclude non-internal tickets
+                qs = (
+                    qs.exclude(tickets=None).exclude(tickets__status=Ticket.STATUS_OPEN).distinct("last_seen_on", "id")
+                )
+            else:
+                raise Http404("'%' is not valid ticket folder", folder)
+
+            # TODO we probably want ordering by last message in either direction
+            return qs.order_by("-last_seen_on", "id")
+
+        def get_context_data(self, **kwargs):
+            from temba.msgs.models import Msg
+
+            context = super().get_context_data(**kwargs)
+
+            # convert queryset to list so it can't change later
+            contacts = list(context["object_list"])
+
+            context["object_list"] = contacts
+
+            last_msg_ids = Msg.objects.filter(contact__in=contacts).values("contact").annotate(last_msg_id=Max("id"))
+            last_msgs = Msg.objects.filter(id__in=[m["last_msg_id"] for m in last_msg_ids]).select_related(
+                "broadcast__created_by"
+            )
+
+            context["last_msgs"] = {m.contact: m for m in last_msgs}
+
+            return context
+
+        def as_json(self, context):
+            def ticket_as_json(c):
+                return contact_as_json(c)
+
+            def msg_as_json(m):
+                sender = None
+                if m.broadcast and m.broadcast.created_by:
+                    sender = {"id": m.broadcast.created_by.id, "email": m.broadcast.created_by.email}
+
+                msg = {
+                    "text": m.text,
+                    "direction": m.direction,
+                    "type": m.msg_type,
+                    "created_on": m.created_on,
+                    "sender": sender,
+                }
+
+                return msg
+
+            def contact_as_json(c):
+                last_msg = context["last_msgs"].get(c)
+                return {
+                    "uuid": str(c.uuid),
+                    "name": c.get_display(),
+                    "last_seen_on": c.last_seen_on,
+                    "last_msg": msg_as_json(last_msg) if last_msg else None,
+                }
+
+            response = {"results": [ticket_as_json(t) for t in context["object_list"]]}
+
+            # build up our next link if we have more
+            if context["page_obj"].has_next():
+                query_string = (
+                    f"_format=json&folder={self.request.GET.get('folder', '')}&page={context['page_obj'].number + 1}"
+                )
+                response["next"] = f"{reverse('contacts.contact_tickets')}?{query_string}"
+
+            return response
 
     class Start(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         """

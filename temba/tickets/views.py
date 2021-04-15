@@ -3,6 +3,7 @@ from smartmin.views import SmartCRUDL, SmartDeleteView, SmartFormView, SmartList
 from django import forms
 from django.contrib import messages
 from django.http import HttpResponse
+from django.http.response import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.functional import cached_property
 from django.utils.html import mark_safe
@@ -75,12 +76,25 @@ class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("open", "closed", "filter")
+    actions = ("list", "open", "closed", "filter")
+
+    class List(OrgPermsMixin, SmartTemplateView):
+        title = _("Open Tickets")
+        template_name = "tickets/ticket_list.haml"
 
     class Open(TicketListView):
         title = _("Open Tickets")
         folder = "open"
         bulk_actions = ("close",)
+
+        def pre_process(self, request, *args, **kwargs):
+            from .types.internal.type import InternalType
+
+            user = self.get_user()
+            ticketers = user.get_org().ticketers.filter(is_active=True)
+            if user.is_beta() and len(ticketers) == 1 and ticketers.first().ticketer_type == InternalType.slug:
+                return HttpResponseRedirect(reverse("tickets.ticket_list"))
+            return super().pre_process(request, *args, **kwargs)
 
         def get_queryset(self, **kwargs):
             org = self.get_user().get_org()

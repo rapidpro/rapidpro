@@ -2423,15 +2423,16 @@ class APITest(TembaTest):
         self.assertEqual(
             resp_json["results"],
             [
-                {"key": "registered", "label": "Registered On", "value_type": "datetime"},
-                {"key": "nick_name", "label": "Nick Name", "value_type": "text"},
+                {"key": "registered", "label": "Registered On", "value_type": "datetime", "pinned": False},
+                {"key": "nick_name", "label": "Nick Name", "value_type": "text", "pinned": False},
             ],
         )
 
         # filter by key
         response = self.fetchJSON(url, "key=nick_name")
         self.assertEqual(
-            response.json()["results"], [{"key": "nick_name", "label": "Nick Name", "value_type": "text"}]
+            response.json()["results"],
+            [{"key": "nick_name", "label": "Nick Name", "pinned": False, "value_type": "text"}],
         )
 
         # try to create empty field
@@ -4377,6 +4378,10 @@ class APITest(TembaTest):
             status=Ticket.STATUS_CLOSED,
         )
 
+        response = self.fetchJSON(url, "ticketer_type=zendesk")
+        resp_json = response.json()
+        self.assertEqual(0, len(resp_json["results"]))
+
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
             response = self.fetchJSON(url)
@@ -4389,6 +4394,7 @@ class APITest(TembaTest):
             [
                 {
                     "uuid": str(ticket2.uuid),
+                    "closed_on": None,
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "contact": {"uuid": str(bob.uuid), "name": "Bob"},
                     "status": "open",
@@ -4398,6 +4404,7 @@ class APITest(TembaTest):
                 },
                 {
                     "uuid": str(ticket1.uuid),
+                    "closed_on": None,
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "contact": {"uuid": str(ann.uuid), "name": "Ann"},
                     "status": "closed",
@@ -4420,3 +4427,13 @@ class APITest(TembaTest):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(1, len(resp_json["results"]))
         self.assertEqual("Bob", resp_json["results"][0]["contact"]["name"])
+
+        # close one of the tickets
+        self.postJSON(url, f"uuid={ticket1.uuid}", {"status": "closed"})
+
+        # make sure it shows as closed with a closed_on date
+        response = self.fetchJSON(url)
+        resp_json = response.json()
+        updated = resp_json["results"][1]
+        self.assertEqual(updated["status"], "closed")
+        self.assertIsNotNone(updated["closed_on"])

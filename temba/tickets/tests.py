@@ -8,6 +8,7 @@ from temba.tests import CRUDLTestMixin, TembaTest, mock_mailroom
 
 from .models import Ticket, Ticketer
 from .types import reload_ticketer_types
+from .types.internal import InternalType
 from .types.mailgun import MailgunType
 from .types.zendesk import ZendeskType
 
@@ -46,6 +47,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.mailgun = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
         self.zendesk = Ticketer.create(self.org, self.user, ZendeskType.slug, "Zendesk (acme)", {})
+        self.internal = Ticketer.create(self.org, self.user, InternalType.slug, "Internal", {})
         self.contact = self.create_contact("Bob", urns=["twitter:bobby"])
 
     def create_ticket(self, subject, body, status, ticketer=None, org=None):
@@ -59,6 +61,25 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
     @mock_mailroom
+    def test_open_redirect(self, mr_mocks):
+        open_url = reverse("tickets.ticket_open")
+
+        self.mailgun.delete()
+        self.zendesk.delete()
+
+        # visiting the open tickets shouldn't redirect since we aren't beta
+        response = self.requestView(open_url, self.admin)
+        self.assertIsNone(response.get("Location", None))
+
+        beta = Group.objects.filter(name="Beta").first()
+        self.admin.groups.add(beta)
+
+        response = self.requestView(open_url, self.admin)
+        self.assertEqual(reverse("tickets.ticket_list"), response.get("Location", None))
+
+        # print(response.status_code)
+
+    @mock_mailroom
     def test_open(self, mr_mocks):
         open_url = reverse("tickets.ticket_open")
 
@@ -70,6 +91,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.assertListFetch(
             open_url, allow_viewers=True, allow_editors=True, context_objects=[ticket2, ticket1]
         )
+
         self.assertEqual(("close",), response.context["actions"])
         self.assertContains(response, reverse("tickets.ticket_filter", args=[self.mailgun.uuid]))
         self.assertContains(response, reverse("tickets.ticket_filter", args=[self.zendesk.uuid]))

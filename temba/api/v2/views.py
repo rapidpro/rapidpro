@@ -78,6 +78,7 @@ from .serializers import (
     TemplateReadSerializer,
     TicketerReadSerializer,
     TicketReadSerializer,
+    TicketWriteSerializer,
     WebHookEventReadSerializer,
     WorkspaceReadSerializer,
 )
@@ -3475,7 +3476,7 @@ class TicketersEndpoint(ListAPIMixin, BaseAPIView):
         }
 
 
-class TicketsEndpoint(ListAPIMixin, BaseAPIView):
+class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     """
     This endpoint allows you to list the tickets opened on your account.
 
@@ -3516,6 +3517,7 @@ class TicketsEndpoint(ListAPIMixin, BaseAPIView):
     permission = "tickets.ticket_api"
     model = Ticket
     serializer_class = TicketReadSerializer
+    write_serializer_class = TicketWriteSerializer
     pagination_class = OpenedOnCursorPagination
 
     def filter_queryset(self, queryset):
@@ -3532,6 +3534,11 @@ class TicketsEndpoint(ListAPIMixin, BaseAPIView):
                 queryset = queryset.filter(contact=contact)
             else:
                 queryset = queryset.filter(id=-1)
+
+        # filter by ticketer type if provided, unpublished support for agents
+        ticketer_type = params.get("ticketer_type")
+        if ticketer_type:
+            queryset = queryset.filter(ticketer__ticketer_type=ticketer_type)
 
         queryset = queryset.prefetch_related(
             Prefetch("ticketer", queryset=Ticketer.objects.only("uuid", "name")),
