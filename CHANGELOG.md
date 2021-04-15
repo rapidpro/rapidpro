@@ -1,3 +1,7 @@
+v6.3.26
+----------
+ * Make groups searchable on contact update page
+
 v6.3.25
 ----------
  * Add beta-gated tickets view
