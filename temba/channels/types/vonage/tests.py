@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import vonage
 
@@ -210,6 +210,43 @@ class ClientTest(TembaTest):
         self.assertEqual(self.client.get_numbers(pattern="+593"), ["23463", "568658"])
 
         mock_get_account_numbers.assert_called_once_with(params={"size": 10, "pattern": "593"})
+
+    @patch("vonage.Client.get_available_numbers")
+    def test_search_numbers(self, mock_get_available_numbers):
+        mock_get_available_numbers.side_effect = [
+            {"count": 2, "numbers": ["23463", "568658"]},
+            {"count": 1, "numbers": ["34636"]},
+        ]
+
+        self.assertEqual(["23463", "568658", "34636"], self.client.search_numbers(country="EC", pattern="+593"))
+
+        mock_get_available_numbers.assert_has_calls(
+            [
+                call(country_code="EC", pattern="+593", search_pattern=1, features="SMS", country="EC"),
+                call(country_code="EC", pattern="+593", search_pattern=1, features="VOICE", country="EC"),
+            ]
+        )
+
+    @patch("vonage.Client.buy_number")
+    def test_buy_number(self, mock_buy_number):
+        self.client.buy_number(country="US", number="+12345")
+
+        mock_buy_number.assert_called_once_with(params={"msisdn": "12345", "country": "US"})
+
+    @patch("vonage.Client.update_number")
+    def test_update_number(self, mock_update_number):
+        self.client.update_number(country="US", number="+12345", mo_url="http://test", app_id="ID123")
+
+        mock_update_number.assert_called_once_with(
+            params={
+                "moHttpUrl": "http://test",
+                "msisdn": "12345",
+                "country": "US",
+                "app_id": "ID123",
+                "voiceCallbackType": "tel",
+                "voiceCallbackValue": "12345",
+            }
+        )
 
     @patch("vonage.Client.create_application")
     def test_create_application(self, mock_create_application):
