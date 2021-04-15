@@ -2885,80 +2885,66 @@ class OrgTest(TembaTest):
             },
         )
 
-    def test_connect_vonage(self):
+    @patch("temba.channels.types.vonage.client.VonageClient.check_credentials")
+    def test_connect_vonage(self, mock_check_credentials):
         self.login(self.admin)
 
         connect_url = reverse("orgs.org_vonage_connect")
         account_url = reverse("orgs.org_vonage_account")
 
         # simulate invalid credentials on both pages
-        with patch("requests.get") as mock_get:
-            mock_get.return_value = MockResponse(401, '{"error-code": "401"}')
+        mock_check_credentials.return_value = False
 
-            response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
-            self.assertContains(response, "Your API key and secret seem invalid.")
-            self.assertFalse(self.org.is_connected_to_vonage())
+        response = self.client.post(connect_url, {"api_key": "key", "api_secret": "secret"})
+        self.assertContains(response, "Your API key and secret seem invalid.")
+        self.assertFalse(self.org.is_connected_to_vonage())
 
-            response = self.client.post(account_url, dict(api_key="key", api_secret="secret"))
-            self.assertContains(response, "Your API key and secret seem invalid.")
+        response = self.client.post(account_url, {"api_key": "key", "api_secret": "secret"})
+        self.assertContains(response, "Your API key and secret seem invalid.")
 
         # ok, now with a success
-        with patch("requests.get") as mock_get, patch("requests.post") as mock_post:
-            # believe it or not vonage returns 'error-code' 200
-            mock_get.return_value = MockResponse(
-                200, '{"error-code": "200"}', headers={"content-type": "application/json"}
-            )
-            mock_post.return_value = MockResponse(
-                200, '{"error-code": "200"}', headers={"content-type": "application/json"}
-            )
-            response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
-            self.assertEqual(response.status_code, 302)
+        mock_check_credentials.return_value = True
 
-            response = self.client.get(account_url)
-            self.assertEqual("key", response.context["api_key"])
+        response = self.client.post(connect_url, {"api_key": "key", "api_secret": "secret"})
+        self.assertEqual(response.status_code, 302)
 
-            self.org.refresh_from_db()
-            config = self.org.config
-            self.assertEqual("key", config[Org.CONFIG_VONAGE_KEY])
-            self.assertEqual("secret", config[Org.CONFIG_VONAGE_SECRET])
+        response = self.client.get(account_url)
+        self.assertEqual("key", response.context["api_key"])
 
-            # post without api token, should get validation error
-            response = self.client.post(account_url, dict(disconnect="false"), follow=True)
-            self.assertFormError(response, "form", "__all__", "You must enter your account API Key")
+        self.org.refresh_from_db()
+        self.assertEqual("key", self.org.config[Org.CONFIG_VONAGE_KEY])
+        self.assertEqual("secret", self.org.config[Org.CONFIG_VONAGE_SECRET])
 
-            # vonage config should remain the same
-            self.org.refresh_from_db()
-            config = self.org.config
-            self.assertEqual("key", config[Org.CONFIG_VONAGE_KEY])
-            self.assertEqual("secret", config[Org.CONFIG_VONAGE_SECRET])
+        # post without API token, should get validation error
+        response = self.client.post(account_url, {"disconnect": "false"})
+        self.assertFormError(response, "form", "__all__", "You must enter your account API Key")
 
-            # now try with all required fields, and a bonus field we shouldn't change
-            self.client.post(
-                account_url,
-                dict(api_key="other_key", api_secret="secret-too", disconnect="false", name="DO NOT CHANGE ME"),
-                follow=True,
-            )
-            # name shouldn't change
-            self.org.refresh_from_db()
-            self.assertEqual(self.org.name, "Temba")
+        # vonage config should remain the same
+        self.org.refresh_from_db()
+        self.assertEqual("key", self.org.config[Org.CONFIG_VONAGE_KEY])
+        self.assertEqual("secret", self.org.config[Org.CONFIG_VONAGE_SECRET])
 
-            # should change vonage config
-            with patch("nexmo.Client.get_balance") as mock_get_balance:
-                mock_get_balance.return_value = 120
-                self.client.post(
-                    account_url, dict(api_key="other_key", api_secret="secret-too", disconnect="false"), follow=True
-                )
+        # now try with all required fields, and a bonus field we shouldn't change
+        self.client.post(
+            account_url,
+            {"api_key": "other_key", "api_secret": "secret-too", "disconnect": "false", "name": "DO NOT CHANGE ME"},
+        )
+        # name shouldn't change
+        self.org.refresh_from_db()
+        self.assertEqual(self.org.name, "Temba")
 
-                self.org.refresh_from_db()
-                config = self.org.config
-                self.assertEqual("other_key", config[Org.CONFIG_VONAGE_KEY])
-                self.assertEqual("secret-too", config[Org.CONFIG_VONAGE_SECRET])
+        # should change vonage config
+        self.client.post(account_url, {"api_key": "other_key", "api_secret": "secret-too", "disconnect": "false"})
 
-            self.assertTrue(self.org.is_connected_to_vonage())
-            self.client.post(account_url, dict(disconnect="true"), follow=True)
+        self.org.refresh_from_db()
+        self.assertEqual("other_key", self.org.config[Org.CONFIG_VONAGE_KEY])
+        self.assertEqual("secret-too", self.org.config[Org.CONFIG_VONAGE_SECRET])
 
-            self.org.refresh_from_db()
-            self.assertFalse(self.org.is_connected_to_vonage())
+        self.assertTrue(self.org.is_connected_to_vonage())
+        self.client.post(account_url, dict(disconnect="true"), follow=True)
+
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_connected_to_vonage())
 
         # and disconnect
         self.org.remove_vonage_account(self.admin)
