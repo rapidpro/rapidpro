@@ -12,10 +12,10 @@ import intercom.errors
 import pytz
 from django_redis import get_redis_connection
 from openpyxl import load_workbook
-from smartmin.tests import SmartminTestMixin
+from smartmin.tests import SmartminTest, SmartminTestMixin
 
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AnonymousUser, User
 from django.core import checks
 from django.core.management import CommandError, call_command
 from django.db import connection, models
@@ -29,21 +29,12 @@ from celery.app.task import Task
 import temba.utils.analytics
 from temba.contacts.models import Contact, ContactField, ContactGroup, ContactGroupCount, ExportContactsTask
 from temba.flows.models import FlowRun
-from temba.orgs.models import Org, UserSettings
+from temba.orgs.models import Org
 from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json, uuid
 from temba.utils.json import TembaJsonAdapter
 
-from . import (
-    chunk_list,
-    dict_to_struct,
-    format_number,
-    get_country_code_by_name,
-    percentage,
-    redact,
-    sizeof_fmt,
-    str_to_bool,
-)
+from . import chunk_list, dict_to_struct, format_number, percentage, redact, sizeof_fmt, str_to_bool
 from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from .celery import nonoverlapping_task
 from .dates import datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
@@ -198,14 +189,6 @@ class InitTest(TembaTest):
         self.assertEqual(0, percentage(100, 0))
         self.assertEqual(75, percentage(75, 100))
         self.assertEqual(76, percentage(759, 1000))
-
-    def test_get_country_code_by_name(self):
-        self.assertEqual("RW", get_country_code_by_name("Rwanda"))
-        self.assertEqual("US", get_country_code_by_name("United States of America"))
-        self.assertEqual("US", get_country_code_by_name("United States"))
-        self.assertEqual("GB", get_country_code_by_name("United Kingdom"))
-        self.assertEqual("CI", get_country_code_by_name("Ivory Coast"))
-        self.assertEqual("CD", get_country_code_by_name("Democratic Republic of the Congo"))
 
     def test_remove_control_charaters(self):
         self.assertIsNone(clean_string(None))
@@ -923,7 +906,7 @@ class ExportTest(TembaTest):
 
 
 class MiddlewareTest(TembaTest):
-    def test_org_header(self):
+    def test_org(self):
         response = self.client.get(reverse("public.public_index"))
         self.assertFalse(response.has_header("X-Temba-Org"))
 
@@ -950,17 +933,25 @@ class MiddlewareTest(TembaTest):
         with self.settings(BRANDING=branding):
             self.assertRedirect(self.client.get(reverse("public.public_index")), "/redirect")
 
-    def test_activate_language(self):
-        self.assertContains(self.client.get(reverse("public.public_index")), "Sign Up")
+    def test_language(self):
+        def assert_text(text: str):
+            self.assertContains(self.client.get(reverse("public.public_index")), text)
 
+        # default is English
+        assert_text("Visually build nationally scalable mobile applications")
+
+        # can be overridden in Django settings
+        with override_settings(DEFAULT_LANGUAGE="es"):
+            assert_text("Cree visualmente aplicaciones móviles")
+
+        # if we have an authenticated user, their setting takes priority
         self.login(self.admin)
 
-        self.assertContains(self.client.get(reverse("public.public_index")), "Sign Up")
-        self.assertContains(self.client.get(reverse("contacts.contact_list")), "Import Contacts")
+        user_settings = self.admin.get_settings()
+        user_settings.language = "fr"
+        user_settings.save(update_fields=("language",))
 
-        UserSettings.objects.filter(user=self.admin).update(language="fr")
-
-        self.assertContains(self.client.get(reverse("contacts.contact_list")), "Importer des contacts")
+        assert_text("Créez visuellement des applications mobiles")
 
 
 class MakeTestDBTest(SmartminTestMixin, TransactionTestCase):
@@ -1251,7 +1242,7 @@ class JSONTest(TestCase):
         )
 
 
-class AnalyticsTest(TestCase):
+class AnalyticsTest(SmartminTest):
     def setUp(self):
         super().setUp()
 
@@ -1260,7 +1251,7 @@ class AnalyticsTest(TestCase):
             id=1000, name="Some Org", brand="Some Brand", created_on=timezone.now(), account_value=lambda: 1000
         )
         self.admin = SimpleNamespace(
-            username="admin@example.com", first_name="", last_name="", email="admin@example.com"
+            username="admin@example.com", first_name="", last_name="", email="admin@example.com", is_anonymous=False
         )
 
         self.intercom_mock = MagicMock()
@@ -1296,7 +1287,7 @@ class AnalyticsTest(TestCase):
                 "org": self.org.name,
                 "paid": self.org.account_value(),
             },
-            email=self.admin.email,
+            email=self.admin.username,
             name=" ",
         )
         self.assertListEqual(
@@ -1315,15 +1306,24 @@ class AnalyticsTest(TestCase):
 
     @override_settings(IS_PROD=True)
     def test_track_intercom(self):
-        temba.utils.analytics.track(self.admin.email, "test event", properties={"plan": "free"})
+        temba.utils.analytics.track(self.admin, "test event", properties={"plan": "free"})
 
         self.intercom_mock.events.create.assert_called_with(
-            event_name="test event", created_at=mock.ANY, email=self.admin.email, metadata={"plan": "free"}
+            event_name="test event", created_at=mock.ANY, email=self.admin.username, metadata={"plan": "free"}
         )
 
     @override_settings(IS_PROD=False)
     def test_track_not_prod_env(self):
-        result = temba.utils.analytics.track(self.admin.email, "test event", properties={"plan": "free"})
+        result = temba.utils.analytics.track(self.admin, "test event", properties={"plan": "free"})
+
+        self.assertIsNone(result)
+
+        self.intercom_mock.events.create.assert_not_called()
+
+    @override_settings(IS_PROD=True)
+    def test_track_not_anon_user(self):
+        anon = AnonymousUser()
+        result = temba.utils.analytics.track(anon, "test event", properties={"plan": "free"})
 
         self.assertIsNone(result)
 
@@ -1334,7 +1334,7 @@ class AnalyticsTest(TestCase):
         self.intercom_mock.events.create.side_effect = Exception("It's raining today")
 
         with patch("temba.utils.analytics.logger") as mocked_logging:
-            temba.utils.analytics.track(self.admin.email, "test event", properties={"plan": "free"})
+            temba.utils.analytics.track(self.admin, "test event", properties={"plan": "free"})
 
         mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
 

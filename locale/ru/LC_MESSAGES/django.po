@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-08 21:00+0000\n"
+"POT-Creation-Date: 2021-04-14 18:49+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1891,15 +1891,6 @@ msgstr "Токен API"
 msgid "The API token for your integration as provided by Zenvia"
 msgstr ""
 
-msgid "United Kingdom"
-msgstr "Великобритания"
-
-msgid "Scension Island"
-msgstr "Остров Асенсьон"
-
-msgid "Kosovo"
-msgstr "Косово"
-
 msgid "POST Required"
 msgstr "Требуется POST"
 
@@ -1999,9 +1990,6 @@ msgstr "При удалении Вашего канала произошла о�
 
 msgid "Save Changes"
 msgstr "Сохранить Изменения"
-
-msgid "or"
-msgstr "или"
 
 #, fuzzy
 #| msgid "A connection to a Nexmo account is required"
@@ -3099,6 +3087,26 @@ msgstr "Обновить Папку"
 msgid "Update Label"
 msgstr "Обновить Метку"
 
+msgid "Agent Name"
+msgstr "Название Агента"
+
+#, fuzzy
+#| msgid "Your last name"
+msgid "Your Chatbase agent's name."
+msgstr "Ваша фамилия"
+
+msgid "The chatbase agent's API Key."
+msgstr ""
+
+msgid "Version"
+msgstr "Версия"
+
+msgid "Missing agent name or API key."
+msgstr ""
+
+msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
+msgstr "Ключ и секрет API Вашей учетной записи DT On являются недействительными. Пожалуйста, проверьте их и попробуйте снова."
+
 msgid "Administrators"
 msgstr "Администраторы"
 
@@ -3132,8 +3140,13 @@ msgstr "Клиент Stripe "
 msgid "Our Stripe customer id for your organization"
 msgstr "Наш id клиента Stripe для Вашей организации"
 
-msgid "The main language used by this organization"
-msgstr "Основной язык, используемый этой организацией"
+#, fuzzy
+#| msgid "Base Language"
+msgid "Default Language"
+msgstr "Основной язык"
+
+msgid "The default website language for new users."
+msgstr ""
 
 msgid "Timezone"
 msgstr "Часовой пояс"
@@ -3633,15 +3646,6 @@ msgstr "Сохранить"
 msgid "New Event"
 msgstr "Новое событие"
 
-msgid "Agent Name"
-msgstr "Название Агента"
-
-msgid "Version"
-msgstr "Версия"
-
-msgid "Missing data: Agent Name or API Key.Please check them again and retry."
-msgstr "Отсутствуют данные: Название Агента или ключ API. Пожалуйста, проверьте их еще раз и повторите попытку."
-
 msgid "Your Account"
 msgstr "Ваша Учетная запись"
 
@@ -3659,9 +3663,6 @@ msgstr "Помощь"
 
 msgid "Sign Out"
 msgstr ""
-
-msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
-msgstr "Ключ и секрет API Вашей учетной записи DT On являются недействительными. Пожалуйста, проверьте их и попробуйте снова."
 
 msgid "Account Token"
 msgstr "Токен Учетной записи"
@@ -4099,6 +4100,17 @@ msgstr "Создать Реферальный Триггер"
 
 msgid "Create Schedule"
 msgstr "Создать Расписание"
+
+msgid "United Kingdom"
+msgstr "Великобритания"
+
+#, fuzzy
+#| msgid "Scension Island"
+msgid "Ascension Island"
+msgstr "Остров Асенсьон"
+
+msgid "Kosovo"
+msgstr "Косово"
 
 msgid "Processing"
 msgstr "Обработка"
@@ -6575,6 +6587,67 @@ msgid ""
 "\n"
 msgstr ""
 
+#, fuzzy, python-format
+#| msgid "A connection to a Twilio account is required"
+msgid "Connected to your Chatbase account as agent <b>%(agent)s</b>."
+msgstr "Требуется подключение к учетной записи Twilio "
+
+msgid "Connect your Chatbase account."
+msgstr ""
+
+msgid "Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences and better understand your users. To signup for an account, visit"
+msgstr ""
+
+msgid "Your Chatbase account is connected to the Agent"
+msgstr "Ваша учетная запись Chatbase подключена к Агенту"
+
+msgid "If you no longer want it connected, you can"
+msgstr "Если Вы больше не хотите, чтобы она была подключена, Вы можете"
+
+msgid "disconnect"
+msgstr "отключить"
+
+msgid "your Chatbase account. Doing so will interrupt the data sent to your Chatbase console."
+msgstr "свою учетную запись Chatbase. Это приведет к прекращению отправки данных на Вашу консоль Chatbase."
+
+msgid "Disconnect Chatbase"
+msgstr "Отключить Chatbase"
+
+msgid "This will disconnect your Chatbase account. Are you sure you want to proceed?"
+msgstr ""
+
+#, fuzzy
+#| msgid "Connected to Chatbase Account"
+msgid "Connected to your DT One account."
+msgstr "Подключено к учетной записи Chatbase"
+
+msgid "Transfer Log"
+msgstr "Журнал передачи"
+
+msgid "Connect your DT One account."
+msgstr ""
+
+#, python-format
+msgid "Adding a DT One account will allow you to send airtime credit over 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your flows. To signup for an account, visit %(link)s."
+msgstr ""
+
+#, python-format
+msgid "You can find your credentials on the Developer tab on your %(link)s page."
+msgstr ""
+
+msgid "Your account is connected to a DT One account."
+msgstr ""
+
+#, python-format
+msgid "If you no longer want it connected, you can <a href=\"%(disconnect_url)s\">disconnect</a> it. Doing so will cause the payment actions in your flows to no longer be processed."
+msgstr ""
+
+msgid "Disconnect DT One"
+msgstr "Отключить DT One"
+
+msgid "This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?"
+msgstr ""
+
 msgid "Confirm Access"
 msgstr ""
 
@@ -6624,33 +6697,6 @@ msgstr ""
 msgid "Your workspace has"
 msgstr ""
 
-msgid "Connected to Chatbase Account"
-msgstr "Подключено к учетной записи Chatbase"
-
-msgid "Connect your Chatbase account."
-msgstr ""
-
-msgid "Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences and better understand your users. To signup for an account, visit"
-msgstr ""
-
-msgid "Your Chatbase account is connected to the Agent"
-msgstr "Ваша учетная запись Chatbase подключена к Агенту"
-
-msgid "If you no longer want it connected, you can"
-msgstr "Если Вы больше не хотите, чтобы она была подключена, Вы можете"
-
-msgid "disconnect"
-msgstr "отключить"
-
-msgid "your Chatbase account. Doing so will interrupt the data sent to your Chatbase console."
-msgstr "свою учетную запись Chatbase. Это приведет к прекращению отправки данных на Вашу консоль Chatbase."
-
-msgid "Disconnect Chatbase"
-msgstr "Отключить Chatbase"
-
-msgid "This will disconnect your Chatbase account. Are you sure you want to proceed?"
-msgstr ""
-
 msgid "Choose Workspace"
 msgstr ""
 
@@ -6686,36 +6732,6 @@ msgid "You are about to delete"
 msgstr ""
 
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
-msgstr ""
-
-msgid "Connected to your <b>DT One</b> account."
-msgstr ""
-
-msgid "Transfer Log"
-msgstr "Журнал передачи"
-
-msgid "Connect your DT One account."
-msgstr ""
-
-#, python-format
-msgid "Adding a DT One account will allow you to send airtime credit over 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your flows. To signup for an account, visit %(link)s."
-msgstr ""
-
-#, python-format
-msgid "You can find your credentials on the Developer tab on your %(link)s page."
-msgstr ""
-
-msgid "Your account is connected to a DT One account."
-msgstr ""
-
-#, python-format
-msgid "If you no longer want it connected, you can <a href=\"%(disconnect_url)s\">disconnect</a> it. Doing so will cause the payment actions in your flows to no longer be processed."
-msgstr ""
-
-msgid "Disconnect DT One"
-msgstr "Отключить DT One"
-
-msgid "This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?"
 msgstr ""
 
 #, python-format
@@ -7659,6 +7675,15 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "or"
+#~ msgstr "или"
+
+#~ msgid "The main language used by this organization"
+#~ msgstr "Основной язык, используемый этой организацией"
+
+#~ msgid "Missing data: Agent Name or API Key.Please check them again and retry."
+#~ msgstr "Отсутствуют данные: Название Агента или ключ API. Пожалуйста, проверьте их еще раз и повторите попытку."
 
 #~ msgid "Disconnect Nexmo"
 #~ msgstr "Отключить Nexmo"

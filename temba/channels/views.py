@@ -11,7 +11,6 @@ import phonenumbers
 import pytz
 import requests
 import twilio.base.exceptions
-from django_countries.data import COUNTRIES
 from smartmin.views import (
     SmartCRUDL,
     SmartDeleteView,
@@ -43,7 +42,7 @@ from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org
 from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils import analytics, json
+from temba.utils import analytics, countries, json
 from temba.utils.fields import SelectWidget
 from temba.utils.http import http_headers
 from temba.utils.models import patch_queryset_count
@@ -62,590 +61,7 @@ from .models import (
 
 logger = logging.getLogger(__name__)
 
-COUNTRIES_NAMES = {key: value for key, value in COUNTRIES.items()}
-COUNTRIES_NAMES["GB"] = _("United Kingdom")
-COUNTRIES_NAMES["US"] = _("United States")
-COUNTRIES_NAMES["AC"] = _("Scension Island")
-COUNTRIES_NAMES["XK"] = _("Kosovo")
-
-
-COUNTRY_CALLING_CODES = {
-    "AC": (247,),  # Scension Island
-    "AF": (93,),  # Afghanistan
-    "AX": (35818,),  # Åland Islands
-    "AL": (355,),  # Albania
-    "DZ": (213,),  # Algeria
-    "AS": (1684,),  # American Samoa
-    "AD": (376,),  # Andorra
-    "AO": (244,),  # Angola
-    "AI": (1264,),  # Anguilla
-    "AQ": (),  # Antarctica
-    "AG": (1268,),  # Antigua and Barbuda
-    "AR": (54,),  # Argentina
-    "AM": (374,),  # Armenia
-    "AW": (297,),  # Aruba
-    "AU": (61,),  # Australia
-    "AT": (43,),  # Austria
-    "AZ": (994,),  # Azerbaijan
-    "BS": (1242,),  # Bahamas
-    "BH": (973,),  # Bahrain
-    "BD": (880,),  # Bangladesh
-    "BB": (1246,),  # Barbados
-    "BY": (375,),  # Belarus
-    "BE": (32,),  # Belgium
-    "BZ": (501,),  # Belize
-    "BJ": (229,),  # Benin
-    "BM": (1441,),  # Bermuda
-    "BT": (975,),  # Bhutan
-    "BO": (591,),  # Bolivia (Plurinational State of)
-    "BQ": (5997,),  # Bonaire, Sint Eustatius and Saba
-    "BA": (387,),  # Bosnia and Herzegovina
-    "BW": (267,),  # Botswana
-    "BV": (),  # Bouvet Island
-    "BR": (55,),  # Brazil
-    "IO": (246,),  # British Indian Ocean Territory
-    "BN": (673,),  # Brunei Darussalam
-    "BG": (359,),  # Bulgaria
-    "BF": (226,),  # Burkina Faso
-    "BI": (257,),  # Burundi
-    "CV": (238,),  # Cabo Verde
-    "KH": (855,),  # Cambodia
-    "CM": (237,),  # Cameroon
-    "CA": (1,),  # Canada
-    "KY": (1345,),  # Cayman Islands
-    "CF": (236,),  # Central African Republic
-    "TD": (235,),  # Chad
-    "CL": (56,),  # Chile
-    "CN": (86,),  # China
-    "CX": (6_189_164,),  # Christmas Island
-    "CC": (6_189_162,),  # Cocos (Keeling) Islands
-    "CO": (57,),  # Colombia
-    "KM": (269,),  # Comoros
-    "CD": (243,),  # Congo (the Democratic Republic of the)
-    "CG": (242,),  # Congo
-    "CK": (682,),  # Cook Islands
-    "CR": (506,),  # Costa Rica
-    "CI": (225,),  # Côte d'Ivoire
-    "HR": (385,),  # Croatia
-    "CU": (53,),  # Cuba
-    "CW": (5999,),  # Curaçao
-    "CY": (357,),  # Cyprus
-    "CZ": (420,),  # Czech Republic
-    "DK": (45,),  # Denmark
-    "DJ": (253,),  # Djibouti
-    "DM": (1767,),  # Dominica
-    "DO": (1809, 1829, 1849),  # Dominican Republic
-    "EC": (539,),  # Ecuador
-    "EG": (20,),  # Egypt
-    "SV": (503,),  # El Salvador
-    "GQ": (240,),  # Equatorial Guinea
-    "ER": (291,),  # Eritrea
-    "EE": (372,),  # Estonia
-    "ET": (251,),  # Ethiopia
-    "FK": (500,),  # Falkland Islands  [Malvinas]
-    "FO": (298,),  # Faroe Islands
-    "FJ": (679,),  # Fiji
-    "FI": (358,),  # Finland
-    "FR": (33,),  # France
-    "GF": (594,),  # French Guiana
-    "PF": (689,),  # French Polynesia
-    "TF": (),  # French Southern Territories
-    "GA": (241,),  # Gabon
-    "GM": (220,),  # Gambia
-    "GE": (995,),  # Georgia
-    "DE": (49,),  # Germany
-    "GH": (233,),  # Ghana
-    "GI": (350,),  # Gibraltar
-    "GR": (30,),  # Greece
-    "GL": (299,),  # Greenland
-    "GD": (1473,),  # Grenada
-    "GP": (590,),  # Guadeloupe
-    "GU": (1671,),  # Guam
-    "GT": (502,),  # Guatemala
-    "GG": (441_481, 447_781, 447_839, 447_911),  # Guernsey
-    "GN": (224,),  # Guinea
-    "GW": (245,),  # Guinea-Bissau
-    "GY": (592,),  # Guyana
-    "HT": (509,),  # Haiti
-    "HM": (),  # Heard Island and McDonald Islands
-    "VA": (379, 3_906_698),  # Holy See
-    "HN": (504,),  # Honduras
-    "HK": (852,),  # Hong Kong
-    "HU": (36,),  # Hungary
-    "IS": (354,),  # Iceland
-    "IN": (91,),  # India
-    "ID": (62,),  # Indonesia
-    "IR": (98,),  # Iran (Islamic Republic of)
-    "IQ": (964,),  # Iraq
-    "IE": (353,),  # Ireland
-    "IM": (441_624, 447_524, 447_624, 447_924),  # Isle of Man
-    "IL": (972,),  # Israel
-    "IT": (39,),  # Italy
-    "JM": (1876,),  # Jamaica
-    "JP": (81,),  # Japan
-    "JE": (441_534,),  # Jersey
-    "JO": (962,),  # Jordan
-    "KZ": (76, 77),  # Kazakhstan
-    "KE": (254,),  # Kenya
-    "KI": (686,),  # Kiribati
-    "KP": (850,),  # Korea (the Democratic People's Republic of)
-    "KR": (82,),  # Korea (the Republic of)
-    "KW": (965,),  # Kuwait
-    "KG": (996,),  # Kyrgyzstan
-    "LA": (856,),  # Lao People's Democratic Republic
-    "LV": (371,),  # Latvia
-    "LB": (961,),  # Lebanon
-    "LS": (266,),  # Lesotho
-    "LR": (231,),  # Liberia
-    "LY": (218,),  # Libya
-    "LI": (423,),  # Liechtenstein
-    "LT": (370,),  # Lithuania
-    "LU": (352,),  # Luxembourg
-    "MO": (853,),  # Macao
-    "MK": (389,),  # Macedonia (the former Yugoslav Republic of)
-    "MG": (261,),  # Madagascar
-    "MW": (265,),  # Malawi
-    "MY": (60,),  # Malaysia
-    "MV": (960,),  # Maldives
-    "ML": (223,),  # Mali
-    "MT": (356,),  # Malta
-    "MH": (692,),  # Marshall Islands
-    "MQ": (596,),  # Martinique
-    "MR": (222,),  # Mauritania
-    "MU": (230,),  # Mauritius
-    "YT": (262_269, 262_639),  # Mayotte
-    "MX": (52,),  # Mexico
-    "FM": (691,),  # Micronesia (Federated States of)
-    "MD": (373,),  # Moldova (the Republic of)
-    "MC": (377,),  # Monaco
-    "MN": (976,),  # Mongolia
-    "ME": (382,),  # Montenegro
-    "MS": (1664,),  # Montserrat
-    "MA": (212,),  # Morocco
-    "MZ": (258,),  # Mozambique
-    "MM": (95,),  # Myanmar
-    "NA": (264,),  # Namibia
-    "NR": (674,),  # Nauru
-    "NP": (977,),  # Nepal
-    "NL": (31,),  # Netherlands
-    "NC": (687,),  # New Caledonia
-    "NZ": (64,),  # New Zealand
-    "NI": (505,),  # Nicaragua
-    "NE": (227,),  # Niger
-    "NG": (243,),  # Nigeria
-    "NU": (683,),  # Niue
-    "NF": (6723,),  # Norfolk Island
-    "MP": (1670,),  # Northern Mariana Islands
-    "NO": (47,),  # Norway
-    "OM": (968,),  # Oman
-    "PK": (92,),  # Pakistan
-    "PW": (680,),  # Palau
-    "PS": (970,),  # Palestine, State of
-    "PA": (507,),  # Panama
-    "PG": (675,),  # Papua New Guinea
-    "PY": (595,),  # Paraguay
-    "PE": (51,),  # Peru
-    "PH": (63,),  # _("Philippines
-    "PN": (64,),  # Pitcairn
-    "PL": (48,),  # Poland
-    "PT": (351,),  # Portugal
-    "PR": (1787, 1939),  # Puerto Rico
-    "QA": (974,),  # Qatar
-    "RE": (262,),  # Réunion
-    "RO": (40,),  # Romania
-    "RU": (7,),  # Russian Federation
-    "RW": (250,),  # Rwanda
-    "BL": (590,),  # _("Saint Barthélemy
-    "SH": (290,),  # Saint Helena, Ascension and Tristan da Cunha
-    "KN": (1869,),  # Saint Kitts and Nevis
-    "LC": (1758,),  # Saint Lucia
-    "MF": (590,),  # Saint Martin (French part)
-    "PM": (508,),  # Saint Pierre and Miquelon
-    "VC": (1784,),  # Saint Vincent and the Grenadines
-    "WS": (685,),  # Samoa
-    "SM": (378,),  # San Marino
-    "ST": (239,),  # Sao Tome and Principe
-    "SA": (966,),  # Saudi Arabia
-    "SN": (221,),  # Senegal
-    "RS": (381,),  # Serbia
-    "SC": (248,),  # Seychelles
-    "SL": (232,),  # Sierra Leone
-    "SG": (65,),  # Singapore
-    "SX": (1721,),  # Sint Maarten (Dutch part)
-    "SK": (421,),  # Slovakia
-    "SI": (386,),  # Slovenia
-    "SB": (677,),  # Solomon Islands
-    "SO": (252,),  # Somalia
-    "ZA": (27,),  # South Africa
-    "GS": (500,),  # South Georgia and the South Sandwich Islands
-    "SS": (211,),  # South Sudan
-    "ES": (34,),  # Spain
-    "LK": (94,),  # Sri Lanka
-    "SD": (249,),  # Sudan
-    "SR": (597,),  # Suriname
-    "SJ": (4779,),  # Svalbard and Jan Mayen
-    "SZ": (268,),  # Swaziland
-    "SE": (46,),  # Sweden
-    "CH": (41,),  # Switzerland
-    "SY": (963,),  # Syrian Arab Republic
-    "TW": (886,),  # Taiwan (Province of China)
-    "TJ": (992,),  # Tajikistan
-    "TZ": (255,),  # Tanzania, United Republic of
-    "TH": (66,),  # Thailand
-    "TL": (),  # Timor-Leste
-    "TG": (228,),  # Togo
-    "TK": (690,),  # Tokelau
-    "TO": (676,),  # Tonga
-    "TT": (1868,),  # Trinidad and Tobago
-    "TN": (216,),  # Tunisia
-    "TR": (90,),  # Turkey
-    "TM": (993,),  # Turkmenistan
-    "TC": (1649,),  # Turks and Caicos Islands
-    "TV": (668,),  # Tuvalu
-    "UG": (256,),  # Uganda
-    "UA": (380,),  # Ukraine
-    "AE": (971,),  # United Arab Emirates
-    "GB": (44,),  # United Kingdom of Great Britain and Northern Ireland
-    "UM": (),  # United States Minor Outlying Islands
-    "US": (1,),  # United States of America
-    "UY": (598,),  # Uruguay
-    "UZ": (998,),  # Uzbekistan
-    "VU": (678,),  # Vanuatu
-    "VE": (58,),  # Venezuela (Bolivarian Republic of)
-    "VN": (84,),  # Viet Nam
-    "VG": (),  # Virgin Islands (British)
-    "VI": (),  # Virgin Islands (U.S.)
-    "WF": (681,),  # Wallis and Futuna
-    "EH": (),  # Western Sahara
-    "XK": (383,),  # Kosovo
-    "YE": (967,),  # Yemen
-    "ZM": (260,),  # Zambia
-    "ZW": (263,),  # Zimbabwe
-}
-
-TWILIO_SEARCH_COUNTRIES_CONFIG = (
-    "BE",  # Belgium
-    "CA",  # Canada
-    "FI",  # Finland
-    "NO",  # Norway
-    "PL",  # Poland
-    "ES",  # Spain
-    "SE",  # Sweden
-    "GB",  # United Kingdom
-    "US",  # United States
-)
-
-TWILIO_SEARCH_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in TWILIO_SEARCH_COUNTRIES_CONFIG])
-
-TWILIO_SUPPORTED_COUNTRIES_CONFIG = (
-    "AU",  # Australia
-    "AT",  # Austria
-    "BE",  # Belgium
-    "CA",  # Canada
-    "CL",  # Chile
-    "CZ",  # Czech Republic
-    "DK",  # Denmark  # Beta
-    "EE",  # Estonia
-    "FI",  # Finland
-    "FR",  # France  # Beta
-    "DE",  # Germany
-    "EE",  # Estonia
-    "HK",  # Hong Kong
-    "HU",  # Hungary  # Beta
-    "IE",  # Ireland,
-    "IL",  # Israel  # Beta
-    "IT",  # Italy  #Beta
-    "LT",  # Lithuania
-    "MY",  # Malaysia
-    "MX",  # Mexico  # Beta
-    "NL",  # Netherlands
-    "NO",  # Norway
-    "PH",  # Philippines  # Beta
-    "PL",  # Poland
-    "PR",  # Puerto Rico
-    "PT",  # Portugal
-    "ES",  # Spain
-    "SE",  # Sweden
-    "SG",  # Singapore  # Beta
-    "CH",  # Switzerland
-    "GB",  # United Kingdom
-    "US",  # United States
-    "VI",  # Virgin Islands
-    "VN",  # Vietnam  # Beta
-    "ZA",  # South Africa  # Beta
-)
-
-TWILIO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in TWILIO_SUPPORTED_COUNTRIES_CONFIG])
-
-TWILIO_SUPPORTED_COUNTRY_CODES = list(
-    set([code for elt in TWILIO_SUPPORTED_COUNTRIES_CONFIG for code in list(COUNTRY_CALLING_CODES[elt])])
-)
-
-VONAGE_SUPPORTED_COUNTRIES_CONFIG = (
-    "AC",  # scension Island
-    "AD",  # Andorra
-    "AE",  # United Arab Emirates
-    "AF",  # Afghanistan
-    "AG",  # Antigua and Barbuda
-    "AI",  # Anguilla
-    "AL",  # Albania
-    "AM",  # Armenia
-    "AO",  # Angola
-    "AR",  # Argentina
-    "AS",  # American Samoa
-    "AT",  # Austria
-    "AU",  # Australia
-    "AW",  # Aruba
-    "AZ",  # Azerbaijan
-    "BA",  # Bosnia and Herzegovina
-    "BB",  # Barbados
-    "BD",  # Bangladesh
-    "BE",  # Belgium
-    "BF",  # Burkina Faso
-    "BG",  # Bulgaria
-    "BH",  # Bahrain
-    "BI",  # Burundi
-    "BJ",  # Benin
-    "BM",  # Bermuda
-    "BN",  # Brunei
-    "BO",  # Bolivia
-    "BQ",  # Bonaire, Sint Eustatius and Saba
-    "BR",  # Brazil
-    "BS",  # Bahamas
-    "BT",  # Bhutan
-    "BW",  # Botswana
-    "BY",  # Belarus
-    "BZ",  # Belize
-    "CA",  # Canada
-    "CD",  # Democratic Republic of the Congo
-    "CF",  # Central African Republic
-    "CG",  # Republic Of The Congo
-    "CH",  # Switzerland
-    "CI",  # Ivory Coast
-    "CK",  # Cook Islands
-    "CL",  # Chile
-    "CM",  # Cameroon
-    "CN",  # China
-    "CO",  # Colombia
-    "CR",  # Costa Rica
-    "CU",  # Cuba
-    "CV",  # Cape Verde
-    "CW",  # Curacao
-    "CY",  # Cyprus
-    "CZ",  # Czechia
-    "DE",  # Germany
-    "DJ",  # Djibouti
-    "DK",  # Denmark
-    "DM",  # Dominica
-    "DO",  # Dominican Republic
-    "DZ",  # Algeria
-    "EC",  # Ecuador
-    "EE",  # Estonia
-    "EG",  # Egypt
-    "ER",  # Eritrea
-    "ES",  # Spain
-    "ET",  # Ethiopia
-    "FI",  # Finland
-    "FJ",  # Fiji
-    "FM",  # Micronesia
-    "FO",  # Faroe Islands
-    "FR",  # France
-    "GA",  # Gabon
-    "GB",  # United Kingdom
-    "GD",  # Grenada
-    "GE",  # Georgia
-    "GF",  # French Guiana
-    "GH",  # Ghana
-    "GI",  # Gibraltar
-    "GL",  # Greenland
-    "GM",  # Gambia
-    "GN",  # Guinea
-    "GP",  # Guadeloupe
-    "GQ",  # Equatorial Guinea
-    "GR",  # Greece
-    "GT",  # Guatemala
-    "GU",  # Guam
-    "GW",  # Guinea-Bissau
-    "GY",  # Guyana
-    "HK",  # Hong Kong
-    "HN",  # Honduras
-    "HR",  # Croatia
-    "HT",  # Haiti
-    "HU",  # Hungary
-    "ID",  # Indonesia
-    "IE",  # Ireland
-    "IL",  # Israel
-    "IN",  # India
-    "IQ",  # Iraq
-    "IR",  # Iran
-    "IS",  # Iceland
-    "IT",  # Italy
-    "JM",  # Jamaica
-    "JO",  # Jordan
-    "JP",  # Japan
-    "KE",  # Kenya
-    "KG",  # Kyrgyzstan
-    "KH",  # Cambodia
-    "KI",  # Kiribati
-    "KM",  # Comoros
-    "KN",  # Saint Kitts and Nevis
-    "KR",  # South Korea
-    "KW",  # Kuwait
-    "KY",  # Cayman Islands
-    "KZ",  # Kazakhstan
-    "LA",  # Laos
-    "LB",  # Lebanon
-    "LC",  # Saint Lucia
-    "LI",  # Liechtenstein
-    "LK",  # Sri Lanka
-    "LR",  # Liberia
-    "LS",  # Lesotho
-    "LT",  # Lithuania
-    "LU",  # Luxembourg
-    "LV",  # Latvia
-    "LY",  # Libya
-    "MA",  # Morocco
-    "MC",  # Monaco
-    "MD",  # Moldova
-    "ME",  # Montenegro
-    "MG",  # Madagascar
-    "MH",  # Marshall Islands
-    "MK",  # Macedonia
-    "ML",  # Mali
-    "MM",  # Myanmar
-    "MN",  # Mongolia
-    "MO",  # Macau
-    "MP",  # Northern Mariana Islands
-    "MQ",  # Martinique
-    "MR",  # Mauritania
-    "MS",  # Montserrat
-    "MT",  # Malta
-    "MU",  # Mauritius
-    "MV",  # Maldives
-    "MW",  # Malawi
-    "MX",  # Mexico
-    "MY",  # Malaysia
-    "MZ",  # Mozambique
-    "NA",  # Namibia
-    "NC",  # New Caledonia
-    "NE",  # Niger
-    "NG",  # Nigeria
-    "NI",  # Nicaragua
-    "NL",  # Netherlands
-    "NO",  # Norway
-    "NP",  # Nepal
-    "NR",  # Nauru
-    "NZ",  # New Zealand
-    "OM",  # Oman
-    "PA",  # Panama
-    "PE",  # Peru
-    "PF",  # French Polynesia
-    "PG",  # Papua New Guinea
-    "PH",  # Philippines
-    "PK",  # Pakistan
-    "PL",  # Poland
-    "PM",  # Saint Pierre and Miquelon
-    "PR",  # Puerto Rico
-    "PS",  # Palestinian Territory
-    "PT",  # Portugal
-    "PW",  # Palau
-    "PY",  # Paraguay
-    "QA",  # Qatar
-    "RE",  # Réunion Island
-    "RO",  # Romania
-    "RS",  # Serbia
-    "RU",  # Russia
-    "RW",  # Rwanda
-    "SA",  # Saudi Arabia
-    "SB",  # Solomon Islands
-    "SC",  # Seychelles
-    "SD",  # Sudan
-    "SE",  # Sweden
-    "SG",  # Singapore
-    "SI",  # Slovenia
-    "SK",  # Slovakia
-    "SL",  # Sierra Leone
-    "SM",  # San Marino
-    "SN",  # Senegal
-    "SO",  # Somalia
-    "SR",  # Suriname
-    "SS",  # South Sudan
-    "ST",  # Sao Tome and Principe
-    "SV",  # El Salvador
-    "SX",  # Sint Maarten (Dutch Part)
-    "SY",  # Syria
-    "SZ",  # Swaziland
-    "TC",  # Turks and Caicos Islands
-    "TD",  # Chad
-    "TG",  # Togo
-    "TH",  # Thailand
-    "TJ",  # Tajikistan
-    "TL",  # East Timor
-    "TM",  # Turkmenistan
-    "TN",  # Tunisia
-    "TO",  # Tonga
-    "TR",  # Turkey
-    "TT",  # Trinidad and Tobago
-    "TW",  # Taiwan
-    "TZ",  # Tanzania
-    "UA",  # Ukraine
-    "UG",  # Uganda
-    "US",  # United States
-    "UY",  # Uruguay
-    "UZ",  # Uzbekistan
-    "VC",  # Saint Vincent and The Grenadines
-    "VE",  # Venezuela
-    "VG",  # Virgin Islands, British
-    "VI",  # Virgin Islands, US
-    "VN",  # Vietnam
-    "VU",  # Vanuatu
-    "WS",  # Samoa
-    "XK",  # Kosovo
-    "YE",  # Yemen
-    "YT",  # Mayotte
-    "ZA",  # South Africa
-    "ZM",  # Zambia
-    "ZW",  # Zimbabwe
-)
-
-VONAGE_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in VONAGE_SUPPORTED_COUNTRIES_CONFIG])
-
-VONAGE_SUPPORTED_COUNTRY_CODES = list(
-    set([code for elt in VONAGE_SUPPORTED_COUNTRIES_CONFIG for code in list(COUNTRY_CALLING_CODES[elt])])
-)
-
-PLIVO_SUPPORTED_COUNTRIES_CONFIG = (
-    "AU",  # Australia
-    "BE",  # Belgium
-    "CA",  # Canada
-    "CZ",  # Czech Republic
-    "EE",  # Estonia
-    "FI",  # Finland
-    "DE",  # Germany
-    "HK",  # Hong Kong
-    "HU",  # Hungary
-    "IL",  # Israel
-    "LT",  # Lithuania
-    "MX",  # Mexico
-    "NO",  # Norway
-    "PK",  # Pakistan
-    "PL",  # Poland
-    "ZA",  # South Africa
-    "SE",  # Sweden
-    "CH",  # Switzerland
-    "GB",  # United Kingdom
-    "US",  # United States
-)
-
-PLIVO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in PLIVO_SUPPORTED_COUNTRIES_CONFIG])
-
-PLIVO_SUPPORTED_COUNTRY_CODES = list(
-    set([code for elt in PLIVO_SUPPORTED_COUNTRIES_CONFIG for code in list(COUNTRY_CALLING_CODES[elt])])
-)
-
-# django_countries now uses a dict of countries, let's turn it in our tuple
-# list of codes and countries sorted by country name
-ALL_COUNTRIES = sorted(((code, name) for code, name in COUNTRIES_NAMES.items()), key=lambda x: x[1])
+ALL_COUNTRIES = countries.choices()
 
 
 def get_channel_read_url(channel):
@@ -1134,13 +550,13 @@ class BaseClaimNumberMixin(ClaimViewMixin):
             % (self.crudl.__class__.__name__, self.__class__.__name__)
         )
 
-    def is_valid_country(self, country_code):  # pragma: no cover
+    def is_valid_country(self, calling_code: int) -> bool:  # pragma: no cover
         raise NotImplementedError(
             'method "is_valid_country" should be overridden in %s.%s'
             % (self.crudl.__class__.__name__, self.__class__.__name__)
         )
 
-    def is_messaging_country(self, country):  # pragma: no cover
+    def is_messaging_country(self, country_code: str) -> bool:  # pragma: no cover
         raise NotImplementedError(
             'method "is_messaging_country" should be overridden in %s.%s'
             % (self.crudl.__class__.__name__, self.__class__.__name__)
@@ -1816,16 +1232,8 @@ class ChannelCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             user = self.request.user
 
-            twilio_countries = [str(c[1]) for c in TWILIO_SEARCH_COUNTRIES]
-
-            twilio_countries_str = ", ".join(twilio_countries[:-1])
-            twilio_countries_str += " " + str(_("or")) + " " + twilio_countries[-1]
-
-            context["twilio_countries"] = twilio_countries_str
-
             org = user.get_org()
             context["org_timezone"] = str(org.timezone)
-
             context["brand"] = org.get_branding()
 
             # fetch channel types, sorted by category and name
@@ -2005,16 +1413,23 @@ class ChannelCRUDL(SmartCRUDL):
             return obj.address if obj.address else _("Unknown")
 
     class SearchNumbers(OrgPermsMixin, SmartFormView):
-        class SearchNumbersForm(forms.Form):
+        class Form(forms.Form):
             area_code = forms.CharField(
                 max_length=3,
                 min_length=3,
                 required=False,
                 help_text=_("The area code you want to search for a new number in"),
             )
-            country = forms.ChoiceField(choices=TWILIO_SEARCH_COUNTRIES)
+            country = forms.ChoiceField()
 
-        form_class = SearchNumbersForm
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                from temba.channels.types.twilio.views import SEARCH_COUNTRY_CHOICES
+
+                self.fields["country"].choices = SEARCH_COUNTRY_CHOICES
+
+        form_class = Form
 
         def form_invalid(self, *args, **kwargs):
             return JsonResponse([], safe=False)
@@ -2085,7 +1500,14 @@ class ChannelCRUDL(SmartCRUDL):
             area_code = forms.CharField(
                 max_length=7, required=False, help_text=_("The area code you want to search for a new number in")
             )
-            country = forms.ChoiceField(choices=VONAGE_SUPPORTED_COUNTRIES)
+            country = forms.ChoiceField()
+
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                from temba.channels.types.vonage.views import COUNTRY_CHOICES
+
+                self.fields["country"].choices = COUNTRY_CHOICES
 
         form_class = Form
 
@@ -2111,16 +1533,23 @@ class ChannelCRUDL(SmartCRUDL):
                 raise e
 
     class SearchPlivo(SearchNumbers):
-        class SearchPlivoForm(forms.Form):
+        class Form(forms.Form):
             area_code = forms.CharField(
                 max_length=3,
                 min_length=3,
                 required=False,
                 help_text=_("The area code you want to search for a new number in"),
             )
-            country = forms.ChoiceField(choices=PLIVO_SUPPORTED_COUNTRIES)
+            country = forms.ChoiceField()
 
-        form_class = SearchPlivoForm
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                from temba.channels.types.plivo.views import COUNTRY_CHOICES
+
+                self.fields["country"].choices = COUNTRY_CHOICES
+
+        form_class = Form
 
         def pre_process(self, *args, **kwargs):  # pragma: needs cover
             auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)

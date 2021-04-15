@@ -111,9 +111,7 @@ LANGUAGES = (
     ("es", _("Spanish")),
     ("ru", _("Russian")),
 )
-
 DEFAULT_LANGUAGE = "en-us"
-DEFAULT_SMS_LANGUAGE = "en-us"
 
 SITE_ID = 1
 
@@ -403,13 +401,11 @@ PERMISSIONS = {
         "smtp_server",
         "api",
         "country",
-        "chatbase",
         "clear_cache",
         "create_login",
         "create_sub_org",
         "dashboard",
         "download",
-        "dtone_account",
         "edit",
         "edit_sub_org",
         "export",
@@ -422,6 +418,7 @@ PERMISSIONS = {
         "manage",
         "manage_accounts",
         "manage_accounts_sub_org",
+        "manage_integrations",
         "vonage_account",
         "vonage_connect",
         "plan",
@@ -626,11 +623,9 @@ GROUP_PERMISSIONS = {
         "orgs.org_smtp_server",
         "orgs.org_api",
         "orgs.org_country",
-        "orgs.org_chatbase",
         "orgs.org_create_sub_org",
         "orgs.org_dashboard",
         "orgs.org_download",
-        "orgs.org_dtone_account",
         "orgs.org_edit",
         "orgs.org_edit_sub_org",
         "orgs.org_export",
@@ -639,6 +634,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_languages",
         "orgs.org_manage_accounts",
         "orgs.org_manage_accounts_sub_org",
+        "orgs.org_manage_integrations",
         "orgs.org_vonage_account",
         "orgs.org_vonage_connect",
         "orgs.org_plan",
@@ -1078,6 +1074,11 @@ SEND_EMAILS = False
 
 # Whether to send receipts on TopUp purchases
 SEND_RECEIPTS = True
+
+INTEGRATION_TYPES = [
+    "temba.orgs.integrations.dtone.DTOneType",
+    "temba.orgs.integrations.chatbase.ChatbaseType",
+]
 
 CLASSIFIER_TYPES = [
     "temba.classifiers.types.wit.WitType",

@@ -22,7 +22,6 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba import mailroom
-from temba.airtime.dtone import DTOneClient
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
@@ -40,7 +39,15 @@ from temba.msgs.models import Broadcast, ExportMessagesTask, Label, Msg
 from temba.orgs.models import BackupToken, Debit, OrgActivity
 from temba.orgs.tasks import suspend_topup_orgs_task
 from temba.request_logs.models import HTTPLog
-from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers, mock_mailroom
+from temba.tests import (
+    CRUDLTestMixin,
+    ESMockWithScroll,
+    MockResponse,
+    TembaNonAtomicTest,
+    TembaTest,
+    matchers,
+    mock_mailroom,
+)
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -944,26 +951,6 @@ class OrgTest(TembaTest):
         joe = self.create_contact("Joe")
         urn = ContactURN.get_or_create(self.org, joe, "tel:+250788383383")
         self.assertEqual(short_code, self.org.get_channel_for_role(Channel.ROLE_SEND, None, urn))
-
-    def test_edit(self):
-        # use a manager now
-        self.login(self.admin)
-
-        # can we see the edit page
-        response = self.client.get(reverse("orgs.org_edit"))
-        self.assertEqual(200, response.status_code)
-
-        # update the name of the organization
-        data = dict(name="Temba", timezone="Bad/Timezone", date_format=Org.DATE_FORMAT_DAY_FIRST)
-        response = self.client.post(reverse("orgs.org_edit"), data)
-        self.assertIn("timezone", response.context["form"].errors)
-
-        data = dict(name="Temba", timezone="Africa/Kigali", date_format=Org.DATE_FORMAT_MONTH_FIRST)
-        response = self.client.post(reverse("orgs.org_edit"), data)
-        self.assertEqual(302, response.status_code)
-
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual("Temba", org.name)
 
     def test_country_view(self):
         self.setUpLocations()
@@ -2578,116 +2565,6 @@ class OrgTest(TembaTest):
         self.assertFalse(APIToken.objects.filter(org=self.org, role=prometheus_group, is_active=True))
         self.assertContains(response, "Enable Prometheus")
 
-    def test_dtone_connect(self):
-        org = self.org
-
-        org.refresh_from_db()
-        self.assertFalse(org.is_connected_to_dtone())
-
-        org.connect_dtone("key123", "sesame", self.admin)
-        org.refresh_from_db()
-
-        self.assertTrue(org.is_connected_to_dtone())
-        self.assertEqual(org.modified_by, self.admin)
-
-        org.remove_dtone_account(self.admin)
-        org.refresh_from_db()
-
-        self.assertFalse(org.is_connected_to_dtone())
-        self.assertEqual(org.modified_by, self.admin)
-
-    @patch("temba.airtime.dtone.DTOneClient.get_balances")
-    def test_dtone_account(self, mock_get_balances):
-        self.login(self.admin)
-
-        dtone_url = reverse("orgs.org_dtone_account")
-        home_url = reverse("orgs.org_home")
-
-        response = self.client.get(home_url)
-        self.assertContains(response, "Connect your DT One account.")
-
-        # formax includes form to connect DT One
-        response = self.client.get(dtone_url, HTTP_X_FORMAX=True)
-        self.assertEqual(["api_key", "api_secret", "disconnect", "loc"], list(response.context["form"].fields.keys()))
-
-        # simulate credentials being rejected
-        mock_get_balances.side_effect = DTOneClient.Exception(errors=[{"code": 1000401, "message": "Unauthorized"}])
-
-        response = self.client.post(dtone_url, {"api_key": "key123", "api_secret": "wrong", "disconnect": "false"})
-
-        self.assertContains(response, "Your DT One API key and secret seem invalid.")
-        self.assertFalse(self.org.is_connected_to_dtone())
-
-        # simulate credentials being accepted
-        mock_get_balances.side_effect = None
-        mock_get_balances.return_value = [{"available": 10, "unit": "USD", "unit_type": "CURRENCY"}]
-
-        response = self.client.post(dtone_url, {"api_key": "key123", "api_secret": "sesame", "disconnect": "false"})
-        self.assertNoFormErrors(response)
-
-        # DT One should now be connected
-        self.org.refresh_from_db()
-        self.assertTrue(self.org.is_connected_to_dtone())
-        self.assertEqual(self.org.config["dtone_key"], "key123")
-        self.assertEqual(self.org.config["dtone_secret"], "sesame")
-
-        # and that stated on home page
-        response = self.client.get(home_url)
-        self.assertContains(response, "Connected to your <b>DT One</b> account.")
-        self.assertContains(response, reverse("airtime.airtimetransfer_list"))
-
-        # formax includes the disconnect link
-        response = self.client.get(dtone_url, HTTP_X_FORMAX=True)
-        self.assertContains(response, "%s?disconnect=true" % reverse("orgs.org_dtone_account"))
-
-        # now disconnect
-        response = self.client.post(dtone_url, {"api_key": "", "api_secret": "", "disconnect": "true"})
-        self.assertNoFormErrors(response)
-
-        self.org.refresh_from_db()
-        self.assertFalse(self.org.is_connected_to_dtone())
-        self.assertNotIn("dtone_key", self.org.config)
-        self.assertNotIn("dtone_secret", self.org.config)
-
-    def test_chatbase_account(self):
-        self.login(self.admin)
-
-        self.org.refresh_from_db()
-        self.assertEqual((None, None), self.org.get_chatbase_credentials())
-
-        chatbase_account_url = reverse("orgs.org_chatbase")
-        response = self.client.get(chatbase_account_url)
-        self.assertContains(response, "Chatbase")
-
-        payload = dict(version="1.0", not_handled=True, feedback=False, disconnect="false")
-
-        response = self.client.post(chatbase_account_url, payload, follow=True)
-        self.assertContains(response, "Missing data: Agent Name or API Key.Please check them again and retry.")
-        self.assertEqual((None, None), self.org.get_chatbase_credentials())
-
-        payload.update(dict(api_key="api_key", agent_name="chatbase_agent", type="user"))
-
-        self.client.post(chatbase_account_url, payload, follow=True)
-
-        self.org.refresh_from_db()
-        self.assertEqual(("api_key", "1.0"), self.org.get_chatbase_credentials())
-
-        self.assertEqual(self.org.config["CHATBASE_API_KEY"], "api_key")
-        self.assertEqual(self.org.config["CHATBASE_AGENT_NAME"], "chatbase_agent")
-        self.assertEqual(self.org.config["CHATBASE_VERSION"], "1.0")
-
-        org_home_url = reverse("orgs.org_home")
-
-        response = self.client.get(org_home_url)
-        self.assertContains(response, self.org.config["CHATBASE_AGENT_NAME"])
-
-        payload.update(dict(disconnect="true"))
-
-        self.client.post(chatbase_account_url, payload, follow=True)
-
-        self.org.refresh_from_db()
-        self.assertEqual((None, None), self.org.get_chatbase_credentials())
-
     def test_resthooks(self):
         home_url = reverse("orgs.org_home")
         resthook_url = reverse("orgs.org_resthooks")
@@ -3402,7 +3279,7 @@ class OrgTest(TembaTest):
         response = self.client.post(reverse("orgs.org_transfer_credits"), post_data)
         self.assertContains(response, "Pick a different workspace to transfer from")
 
-        # now transfer some creditos
+        # now transfer some credits
         post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=600)
         response = self.client.post(reverse("orgs.org_transfer_credits"), post_data)
 
@@ -3413,11 +3290,17 @@ class OrgTest(TembaTest):
         response = self.client.get("%s?org=%d" % (reverse("orgs.org_manage_accounts_sub_org"), sub_org.id))
         self.assertEqual(200, response.status_code)
 
-        # edit our sub org's name
-        new_org["name"] = "New Sub Org Name"
-        new_org["slug"] = "new-sub-org-name"
-        response = self.client.post("%s?org=%s" % (reverse("orgs.org_edit_sub_org"), sub_org.pk), new_org)
-        self.assertIsNotNone(Org.objects.filter(name="New Sub Org Name").first())
+        # edit our sub org's details
+        response = self.client.post(
+            f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}",
+            {"name": "New Sub Org Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
+        )
+
+        sub_org.refresh_from_db()
+        self.assertEqual("New Sub Org Name", sub_org.name)
+        self.assertEqual("Africa/Nairobi", str(sub_org.timezone))
+        self.assertEqual("Y", sub_org.date_format)
+        self.assertEqual("es", sub_org.language)
 
         # now we should see new topups on our sub org
         session["org_id"] = sub_org.id
@@ -3550,7 +3433,7 @@ class AnonOrgTest(TembaTest):
         self.assertContains(response, masked)
 
 
-class OrgCRUDLTest(TembaTest):
+class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_org_grant(self):
         grant_url = reverse("orgs.org_grant")
         response = self.client.get(grant_url)
@@ -3966,6 +3849,45 @@ class OrgCRUDLTest(TembaTest):
 
         user = User.objects.get(username="myal@wr.org")
         self.assertTrue(user.check_password("Password123"))
+
+    def test_edit(self):
+        edit_url = reverse("orgs.org_edit")
+
+        self.assertLoginRedirect(self.client.get(edit_url))
+
+        self.login(self.admin)
+        response = self.client.get(edit_url)
+        self.assertEqual(
+            ["name", "timezone", "date_format", "language", "loc"], list(response.context["form"].fields.keys())
+        )
+
+        # try submitting with errors
+        response = self.client.post(
+            reverse("orgs.org_edit"),
+            {"name": "", "timezone": "Bad/Timezone", "date_format": "X", "language": "klingon"},
+        )
+        self.assertFormError(response, "form", "name", "This field is required.")
+        self.assertFormError(
+            response, "form", "timezone", "Select a valid choice. Bad/Timezone is not one of the available choices."
+        )
+        self.assertFormError(
+            response, "form", "date_format", "Select a valid choice. X is not one of the available choices."
+        )
+        self.assertFormError(
+            response, "form", "language", "Select a valid choice. klingon is not one of the available choices."
+        )
+
+        response = self.client.post(
+            reverse("orgs.org_edit"),
+            {"name": "New Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
+        )
+        self.assertEqual(302, response.status_code)
+
+        self.org.refresh_from_db()
+        self.assertEqual("New Name", self.org.name)
+        self.assertEqual("Africa/Nairobi", str(self.org.timezone))
+        self.assertEqual("Y", self.org.date_format)
+        self.assertEqual("es", self.org.language)
 
     def test_org_timezone(self):
         self.assertEqual(self.org.timezone, pytz.timezone("Africa/Kigali"))

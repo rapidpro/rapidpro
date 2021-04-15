@@ -2,12 +2,11 @@ from twilio.base.exceptions import TwilioRestException
 
 from django.utils.translation import ugettext_lazy as _
 
-from temba.channels.types.twilio.views import ClaimView
-from temba.channels.views import TWILIO_SUPPORTED_COUNTRIES_CONFIG
 from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
 from ...models import ChannelType
+from .views import SUPPORTED_COUNTRIES, ClaimView
 
 
 class TwilioType(ChannelType):
@@ -48,7 +47,7 @@ class TwilioType(ChannelType):
     def is_recommended_to(self, user):
         org = user.get_org()
         countrycode = timezone_to_country_code(org.timezone)
-        return countrycode in TWILIO_SUPPORTED_COUNTRIES_CONFIG
+        return countrycode in SUPPORTED_COUNTRIES
 
     def deactivate(self, channel):
         config = channel.config

@@ -1,3 +1,21 @@
+v6.3.23
+----------
+ * Clean up countries code used by various channel types
+
+v6.3.22
+----------
+ * Show results in flow order
+
+v6.3.21
+----------
+ * Fix Javascript error on two factor formax
+ * Beta-gate chatbase integration for now
+
+v6.3.20
+----------
+ * Rework DT One and Chatbase into a new integrations framework
+ * Expose Org.language as default language for new users on org edit form
+
 v6.3.19
 ----------
  * Add support for Zenvia SMS

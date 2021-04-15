@@ -42,7 +42,7 @@ from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSe
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
-from temba.orgs.models import Org
+from temba.orgs.models import IntegrationType, Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
@@ -433,7 +433,7 @@ class FlowCRUDL(SmartCRUDL):
             return context
 
         def save(self, obj):
-            analytics.track(self.request.user.username, "temba.flow_created", dict(name=obj.name))
+            analytics.track(self.request.user, "temba.flow_created", dict(name=obj.name))
             org = self.request.user.get_org()
 
             # default expiration is a week
@@ -1049,7 +1049,7 @@ class FlowCRUDL(SmartCRUDL):
             if whatsapp_channel is not None:
                 feature_filters.append("whatsapp")
 
-            if flow.org.is_connected_to_dtone():
+            if flow.org.get_integrations(IntegrationType.Category.AIRTIME):
                 feature_filters.append("airtime")
 
             if flow.org.classifiers.filter(is_active=True).exists():
@@ -1343,7 +1343,7 @@ class FlowCRUDL(SmartCRUDL):
                 updated_defs = Flow.import_translation(self.object.org, [self.object], language, po_data)
                 self.object.save_revision(self.request.user, updated_defs[str(self.object.uuid)])
 
-                analytics.track(self.request.user.username, "temba.flow_po_imported")
+                analytics.track(self.request.user, "temba.flow_po_imported")
 
             return HttpResponseRedirect(self.get_success_url())
 
@@ -1477,7 +1477,7 @@ class FlowCRUDL(SmartCRUDL):
                 return dict()
 
         def form_valid(self, form):
-            analytics.track(self.request.user.username, "temba.flow_exported")
+            analytics.track(self.request.user, "temba.flow_exported")
 
             user = self.request.user
             org = user.get_org()
@@ -1771,7 +1771,7 @@ class FlowCRUDL(SmartCRUDL):
                     dict(status="error", description="mailroom not configured, cannot simulate"), status=500
                 )
 
-            analytics.track(request.user.username, "temba.flow_simulated")
+            analytics.track(request.user, "temba.flow_simulated")
 
             flow = self.get_object()
             client = mailroom.get_client()
@@ -2026,7 +2026,7 @@ class FlowCRUDL(SmartCRUDL):
                 contacts = list(omnibox["contacts"])
 
             analytics.track(
-                self.request.user.username,
+                self.request.user,
                 "temba.flow_broadcast",
                 dict(contacts=len(contacts), groups=len(groups), query=contact_query),
             )

@@ -865,10 +865,6 @@ class ChannelTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            response.context["twilio_countries"],
-            "Belgium, Canada, Finland, Norway, Poland, Spain, " "Sweden, United Kingdom or United States",
-        )
 
         # one recommended channel (Mtarget in Rwanda)
         self.assertEqual(len(response.context["recommended_channels"]), 2)
@@ -2120,7 +2116,7 @@ class ChannelCountTest(TembaTest):
             with self.assertNumQueries(6):
                 track_org_channel_counts(now=timezone.now() + timedelta(days=1))
                 self.assertEqual(2, mock.call_count)
-                mock.assert_called_with("Administrator@nyaruka.com", "temba.ivr_outgoing", {"count": 1})
+                mock.assert_called_with(self.admin, "temba.ivr_outgoing", {"count": 1})
 
 
 class ChannelLogTest(TembaTest):

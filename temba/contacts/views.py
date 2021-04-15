@@ -608,7 +608,7 @@ class ContactCRUDL(SmartCRUDL):
                 if previous_export and previous_export.created_on < timezone.now() - timedelta(
                     hours=24
                 ):  # pragma: needs cover
-                    analytics.track(self.request.user.username, "temba.contact_exported")
+                    analytics.track(self.request.user, "temba.contact_exported")
 
                 export = ExportContactsTask.create(org, user, group, search, group_memberships)
 

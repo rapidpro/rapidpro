@@ -25,6 +25,7 @@ from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
+from temba.orgs.integrations.dtone import DTOneType
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
@@ -369,8 +370,8 @@ class FlowTest(TembaTest):
         Classifier.objects.create(org=flow.org, config="", created_by=self.admin, modified_by=self.admin)
         assert_features(["classifier", "resthook"])
 
-        # add a DTOne account
-        flow.org.connect_dtone("login", "token", self.admin)
+        # add a DT One integration
+        DTOneType().connect(flow.org, self.admin, "login", "token")
         assert_features(["airtime", "classifier", "resthook"])
 
         # change our channel to use a whatsapp scheme

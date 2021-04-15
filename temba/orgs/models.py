@@ -3,6 +3,7 @@ import itertools
 import logging
 import operator
 import os
+from abc import ABCMeta
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
@@ -61,6 +62,65 @@ ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY = "org:%d:cache:low_credits_threshold"
 
 ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
+
+
+class IntegrationType(metaclass=ABCMeta):
+    """
+    IntegrationType is our abstract base type for third party integrations.
+    """
+
+    class Category(Enum):
+        CHANNELS = 1
+        EMAIL = 2
+        AIRTIME = 3
+        MONITORING = 4
+
+    # the verbose name for this type
+    name = None
+
+    # the short code for this type (< 16 chars, lowercase)
+    slug = None
+
+    # the icon to show for this type
+    icon = "icon-plug"
+
+    # the category of features this integration provides
+    category = None
+
+    def is_available_to(self, user) -> bool:
+        """
+        Determines whether this integration type is available to the given user
+        """
+        return True
+
+    def is_connected(self, org) -> bool:
+        """
+        Returns whether the given org is connected to this integration
+        """
+
+    def disconnect(self, org, user):
+        """
+        Disconnects this integration on the given org
+        """
+
+    def management_ui(self, org, formax):
+        """
+        Adds formax sections to provide a UI to manage this integration
+        """
+
+    def get_urls(self) -> list:
+        """
+        Returns the urls and views for this integration
+        """
+
+    @classmethod
+    def get_all(cls, category: Category = None) -> list:
+        """
+        Returns all possible types with the given category
+        """
+        from .integrations import TYPES
+
+        return [t for t in TYPES.values() if not category or t.category == category]
 
 
 class OrgRole(Enum):
@@ -162,11 +222,6 @@ class Org(SmartModel):
     CONFIG_TWILIO_TOKEN = "ACCOUNT_TOKEN"
     CONFIG_VONAGE_KEY = "NEXMO_KEY"
     CONFIG_VONAGE_SECRET = "NEXMO_SECRET"
-    CONFIG_DTONE_KEY = "dtone_key"
-    CONFIG_DTONE_SECRET = "dtone_secret"
-    CONFIG_CHATBASE_AGENT_NAME = "CHATBASE_AGENT_NAME"
-    CONFIG_CHATBASE_API_KEY = "CHATBASE_API_KEY"
-    CONFIG_CHATBASE_VERSION = "CHATBASE_VERSION"
 
     # items in export JSON
     EXPORT_VERSION = "version"
@@ -218,12 +273,12 @@ class Org(SmartModel):
     surveyors = models.ManyToManyField(User, related_name=OrgRole.SURVEYOR.rel_name)
 
     language = models.CharField(
-        verbose_name=_("Language"),
+        verbose_name=_("Default Language"),
         max_length=64,
         null=True,
-        blank=True,
         choices=settings.LANGUAGES,
-        help_text=_("The main language used by this organization"),
+        default=settings.DEFAULT_LANGUAGE,
+        help_text=_("The default website language for new users."),
     )
 
     timezone = TimeZoneField(verbose_name=_("Timezone"))
@@ -347,6 +402,7 @@ class Org(SmartModel):
             org = Org.objects.create(
                 name=name,
                 timezone=timezone,
+                language=self.language,
                 brand=self.brand,
                 parent=self,
                 slug=slug,
@@ -398,6 +454,13 @@ class Org(SmartModel):
         Gets whether this org has an active ticketer configured
         """
         return self.ticketers.filter(is_active=True)
+
+    def get_integrations(self, category: IntegrationType.Category) -> list:
+        """
+        Returns the connected integrations on this org of the given category
+        """
+
+        return [t for t in IntegrationType.get_all(category) if t.is_connected(self)]
 
     def clear_credit_cache(self):
         """
@@ -789,22 +852,6 @@ class Org(SmartModel):
         self.modified_by = user
         self.save(update_fields=("config", "modified_by", "modified_on"))
 
-    def connect_dtone(self, api_key: str, api_secret: str, user):
-        self.config.update({Org.CONFIG_DTONE_KEY: api_key, Org.CONFIG_DTONE_SECRET: api_secret})
-        self.modified_by = user
-        self.save(update_fields=("config", "modified_by", "modified_on"))
-
-    def connect_chatbase(self, agent_name, api_key, version, user):
-        self.config.update(
-            {
-                Org.CONFIG_CHATBASE_AGENT_NAME: agent_name,
-                Org.CONFIG_CHATBASE_API_KEY: api_key,
-                Org.CONFIG_CHATBASE_VERSION: version,
-            }
-        )
-        self.modified_by = user
-        self.save(update_fields=("config", "modified_by", "modified_on"))
-
     def is_connected_to_vonage(self):
         if self.config:
             return self.config.get(Org.CONFIG_VONAGE_KEY) and self.config.get(Org.CONFIG_VONAGE_SECRET)
@@ -814,12 +861,6 @@ class Org(SmartModel):
         if self.config:
             return self.config.get(Org.CONFIG_TWILIO_SID) and self.config.get(Org.CONFIG_TWILIO_TOKEN)
         return False
-
-    def is_connected_to_dtone(self) -> bool:
-        if not self.config:
-            return False
-
-        return bool(self.config.get(Org.CONFIG_DTONE_KEY) and self.config.get(Org.CONFIG_DTONE_SECRET))
 
     def remove_vonage_account(self, user):
         if self.config:
@@ -843,21 +884,6 @@ class Org(SmartModel):
             self.modified_by = user
             self.save(update_fields=("config", "modified_by", "modified_on"))
 
-    def remove_dtone_account(self, user):
-        if self.config:
-            self.config.pop(Org.CONFIG_DTONE_KEY, None)
-            self.config.pop(Org.CONFIG_DTONE_SECRET, None)
-            self.modified_by = user
-            self.save(update_fields=("config", "modified_by", "modified_on"))
-
-    def remove_chatbase_account(self, user):
-        if self.config:
-            self.config.pop(Org.CONFIG_CHATBASE_AGENT_NAME, None)
-            self.config.pop(Org.CONFIG_CHATBASE_API_KEY, None)
-            self.config.pop(Org.CONFIG_CHATBASE_VERSION, None)
-            self.modified_by = user
-            self.save(update_fields=("config", "modified_by", "modified_on"))
-
     def get_twilio_client(self):
         account_sid = self.config.get(Org.CONFIG_TWILIO_SID)
         auth_token = self.config.get(Org.CONFIG_TWILIO_TOKEN)
@@ -873,11 +899,6 @@ class Org(SmartModel):
         if api_key and api_secret:
             return VonageClient(api_key, api_secret)
         return None
-
-    def get_chatbase_credentials(self):
-        if self.config:
-            return self.config.get(Org.CONFIG_CHATBASE_API_KEY), self.config.get(Org.CONFIG_CHATBASE_VERSION)
-        return None, None
 
     @property
     def default_country_code(self) -> str:
@@ -1902,8 +1923,13 @@ class Org(SmartModel):
         self.save()
 
     @classmethod
-    def create_user(cls, email, password):
-        return User.objects.create_user(username=email, email=email, password=password)
+    def create_user(cls, email: str, password: str, language: str = None) -> User:
+        user = User.objects.create_user(username=email, email=email, password=password)
+        if language:
+            user_settings = user.get_settings()
+            user_settings.language = language
+            user_settings.save(update_fields=("language",))
+        return user
 
     @classmethod
     def get_org(cls, user):
@@ -2236,7 +2262,7 @@ class UserSettings(models.Model):
     """
 
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="settings")
-    language = models.CharField(max_length=8, choices=settings.LANGUAGES, default="en-us")
+    language = models.CharField(max_length=8, choices=settings.LANGUAGES, default=settings.DEFAULT_LANGUAGE)
     otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
     two_factor_enabled = models.BooleanField(default=False)
     last_auth_on = models.DateTimeField(null=True)
