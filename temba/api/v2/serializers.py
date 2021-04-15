@@ -1448,7 +1448,7 @@ class TicketWriteSerializer(WriteSerializer):
 
     def save(self):
         """
-        Create or update our campaign
+        Update our ticket
         """
         status = self.validated_data.get("status")
         if self.instance:
