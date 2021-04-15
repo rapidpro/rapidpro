@@ -79,6 +79,7 @@ class TicketCRUDL(SmartCRUDL):
     actions = ("list", "open", "closed", "filter")
 
     class List(OrgPermsMixin, SmartTemplateView):
+        title = _("Open Tickets")
         template_name = "tickets/ticket_list.haml"
 
     class Open(TicketListView):
