@@ -363,6 +363,9 @@ class Org(SmartModel):
         help_text=_("The parent org that manages this org"),
     )
 
+    # when this org was fully released (full deletion)
+    released_on = models.DateTimeField(null=True)
+
     @classmethod
     def get_unique_slug(cls, name):
         slug = slugify(name)
@@ -1912,8 +1915,12 @@ class Org(SmartModel):
         # needs to come after deletion of msgs and broadcasts as those insert new counts
         self.system_labels.all().delete()
 
-        # now what we've all been waiting for
-        self.delete()
+        # save when we were fully released
+        self.modified_on = timezone.now()
+        self.released_on = timezone.now()
+        self.config = {}
+        self.surveyor_password = None
+        self.save()
 
     @classmethod
     def create_user(cls, email: str, password: str, language: str = None) -> User:

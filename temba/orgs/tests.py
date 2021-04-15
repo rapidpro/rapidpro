@@ -35,7 +35,7 @@ from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, 
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
-from temba.msgs.models import ExportMessagesTask, Label, Msg
+from temba.msgs.models import Broadcast, ExportMessagesTask, Label, Msg
 from temba.orgs.models import BackupToken, Debit, OrgActivity
 from temba.orgs.tasks import suspend_topup_orgs_task
 from temba.request_logs.models import HTTPLog
@@ -829,15 +829,29 @@ class OrgDeleteTest(TembaNonAtomicTest):
                 # oh noes, we deleted our archive files!
                 self.assertEqual(expected_files, len(self.mock_s3.objects))
 
-                # our channels and org are gone too
+                # our channels are gone too
                 self.assertFalse(Channel.objects.filter(org=org).exists())
-                self.assertFalse(Org.objects.filter(id=org.id).exists())
 
                 # as are our webhook events
                 self.assertFalse(WebHookEvent.objects.filter(org=org).exists())
 
                 # and labels
                 self.assertFalse(Label.all_objects.filter(org=org).exists())
+
+                # contacts, groups
+                self.assertFalse(Contact.objects.filter(org=org).exists())
+                self.assertFalse(ContactGroup.all_groups.filter(org=org).exists())
+
+                # flows, campaigns
+                self.assertFalse(Flow.objects.filter(org=org).exists())
+                self.assertFalse(Campaign.objects.filter(org=org).exists())
+
+                # msgs, broadcasts
+                self.assertFalse(Msg.objects.filter(org=org).exists())
+                self.assertFalse(Broadcast.objects.filter(org=org).exists())
+
+                # org is still around but has been released
+                self.assertTrue(Org.objects.filter(id=org.id, is_active=False).exclude(released_on=None).exists())
             else:
 
                 org.refresh_from_db()
