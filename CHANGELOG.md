@@ -1,3 +1,9 @@
+v6.3.24
+----------
+ * Change analytics.track to expect a user argument
+ * Add org released_on, use when doing full releases
+ * Ignore anon user in analytics
+
 v6.3.23
 ----------
  * Clean up countries code used by various channel types
