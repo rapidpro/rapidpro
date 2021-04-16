@@ -123,20 +123,26 @@ class TwilioTypeTest(TembaTest):
 
         # voice only number
         with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.stream") as mock_numbers:
-            mock_numbers.return_value = iter([MockTwilioClient.MockPhoneNumber("+554139087835")])
+            mock_numbers.return_value = iter(
+                [MockTwilioClient.MockPhoneNumber("+554139087835", sms=False, voice=True)]
+            )
 
             with patch("temba.tests.twilio.MockTwilioClient.MockShortCodes.stream") as mock_short_codes:
                 mock_short_codes.return_value = iter([])
                 Channel.objects.all().delete()
 
                 with patch("temba.tests.twilio.MockTwilioClient.MockPhoneNumbers.get") as mock_numbers_get:
-                    mock_numbers_get.return_value = MockTwilioClient.MockPhoneNumber("+554139087835")
+                    mock_numbers_get.return_value = MockTwilioClient.MockPhoneNumber(
+                        "+554139087835", sms=False, voice=True
+                    )
 
                     response = self.client.get(claim_twilio)
                     self.assertContains(response, "+55 41 3908-7835")
 
                     # claim it
-                    mock_numbers.return_value = iter([MockTwilioClient.MockPhoneNumber("+554139087835")])
+                    mock_numbers.return_value = iter(
+                        [MockTwilioClient.MockPhoneNumber("+554139087835", sms=False, voice=True)]
+                    )
                     response = self.client.post(claim_twilio, dict(country="BR", phone_number="554139087835"))
                     self.assertRedirects(response, reverse("public.public_welcome") + "?success")
 
@@ -227,7 +233,7 @@ class TwilioTypeTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(update_url)
         self.assertEqual(
-            ["name", "alert_email", "allow_international", "loc"], list(response.context["form"].fields.keys()),
+            ["name", "alert_email", "allow_international", "loc"], list(response.context["form"].fields.keys())
         )
 
     @patch("temba.orgs.models.TwilioClient", MockTwilioClient)

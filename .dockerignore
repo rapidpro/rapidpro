@@ -2,3 +2,4 @@ node_modules
 sitestatic
 env
 .env
+temba/settings.py

@@ -91,7 +91,7 @@ class SearchExceptionTest(TembaTest):
                 {"error": "cannot query on redacted URNs", "code": "redacted_urns"},
                 "Can't query on URNs in an anonymous workspace",
             ),
-            ({"error": "no code here"}, "no code here",),
+            ({"error": "no code here"}, "no code here"),
         )
 
         for response, message in tests:

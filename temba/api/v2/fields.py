@@ -7,6 +7,7 @@ from temba.channels.models import Channel
 from temba.contacts.models import URN, Contact, ContactField as ContactFieldModel, ContactGroup, ContactURN
 from temba.flows.models import Flow
 from temba.msgs.models import Label, Msg
+from temba.tickets.models import Ticketer
 
 # default maximum number of items in a posted list or dict
 DEFAULT_MAX_LIST_ITEMS = 100
@@ -272,3 +273,7 @@ class MessageField(TembaModelField):
 
     def get_queryset(self):
         return self.model.objects.filter(org=self.context["org"]).exclude(visibility=Msg.VISIBILITY_DELETED)
+
+
+class TicketerField(TembaModelField):
+    model = Ticketer

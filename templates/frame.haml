@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
--load humanize
+-load humanize i18n smartmin sms compress
 
 {% block html-tag %}
 <html lang="{{ LANGUAGE_CODE }}">
@@ -15,7 +15,6 @@
     %meta{name:"author", content:"Nyaruka Ltd"}
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
 
-    -load compress
     :javascript
 
       window.supportEmail = '{{brand.support_email}}';
@@ -93,9 +92,6 @@
     -else
       %link{type:"image/ico", rel:"shortcut icon", href:"{{ STATIC_URL }}images/favicon.ico"}
 
-    -load smartmin sms
-    -load i18n
-
     -block styles
       %link{rel:'stylesheet', href:'https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:200,300,400,500'}
 
@@ -109,7 +105,6 @@
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/videojs-vjsdownload/dist/videojs-vjsdownload.css", media:'all'}
 
       -compress css
-        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/icons/style.css", media:'all'}
         %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/print.less', media:'print'}
         %link{type:"text/css", rel:"stylesheet", href:"{{ STATIC_URL }}css/temba-components.css"}
@@ -146,23 +141,66 @@
     <!--[if lt IE 9]>
       %script{src:"//html5shim.googlecode.com/svn/trunk/html5.js"}
     <![endif]-->
-
 -load smartmin
+-load macros
+-macro messages
+  -block messages
+    -if messages
+      -for msg in messages
+        %div{class:"alert alert-{{ message.tags }}"}
+          {{ msg }}
+
+-macro post-header
+  -block post-header
+
+-macro page-container
+  -block page-container
+    .flex-grow
+      .page-content
+        -block suspension
+          {% if user_org.is_suspended %}
+            .px-12.-mt-4
+              -include "org_suspended_include.haml"
+          {% endif %}
+
+        .px-12.py-4
+          -block page-top
+            .flex.items-start
+              .flex.flex-col.mr-5.leading-tight
+                .page-title
+                  -block title
+
+                .page-subtitle
+                  -block subtitle
+
+              .flex-grow
+                .flex.justify-end.w-full
+                  -block gear-menu
+                    -include "gear_links_include.haml"
+
+            -block post-title
+
+          .mt-6
+            -block content
+          
+          -block post-content
+
 {% block body %}
 
 %body#pageBody.bg-gradient
 
-  .weni-announcement
-    .weni-announcement-container.flex.flex-row
-      .weni-left
-        O Push agora é Weni Fluxos
-      .weni-divider
-      .weni-right
-        Novo módulo que estará disponível na nossa plataforma unificada em breve.
-      %a.weni-button(href="https://weni.ai/blog/modularizacao-plataformas/")
-        Saiba mais
-      %button.weni-announcement-collapse
-          .unnnic-icon-delete-1-1.unnnic-icon-large
+  -if not use_weni_layout
+    .weni-announcement
+      .weni-announcement-container.flex.flex-row
+        .weni-left
+          O Push agora é Weni Fluxos
+        .weni-divider
+        .weni-right
+          Novo módulo que estará disponível na nossa plataforma unificada em breve.
+        %a.weni-button(href="https://weni.ai/blog/modularizacao-plataformas/")
+          Saiba mais
+        %button.weni-announcement-collapse
+            .unnnic-icon-delete-1-1.unnnic-icon-large
 
   -include "components-body.html"
 
@@ -170,83 +208,70 @@
     
     -if user.is_authenticated
       %temba-store(
-        completions="/mr/docs/completion.json"
-        functions="/mr/docs/functions.json"
+        completions="/mr/docs/{{ LANGUAGE_CODE }}/completion.json"
+        functions="/mr/docs/{{ LANGUAGE_CODE }}/functions.json"
         fields="/api/v2/fields.json"
         globals="/api/v2/globals.json")
 
-  .flex.flex-col.h-full
-    <!-- Header -->
-    #header
-      &nbsp;
+  -if use_weni_layout
+    -block weni-side
+      .flex.flex-col{style: "height: inherit"}
+        .flex.flex-row.h-full
+          <!-- Sidemenu -->
+          -block sidemenu
+            #unnnic-sidebar.flex-col.h-screen.bg-color-unnnic-snow.unnnic-right-menu-divider
+              -block info
+              
+              -block side
+                -include 'includes/side.html'
 
-    %a#big-logo.logo.icon-logo{href:"{% if user.is_authenticated %}{% url 'msgs.msg_inbox' %}{% else %}/{% endif %}", title:"{{brand.name}}", class:"hover:no-underline"}
-      .name
-        {{brand.name}}
+              -if messages
+                -usemacro messages
 
-    -block nav
-      -include 'includes/nav.html'
+          #unnnic-content.flex.flex-col.w-full
+            -usemacro post-header
+            <!-- Content -->
+            -usemacro page-container
 
-    -if user_org
-      .org-header
-        -if user_orgs|length > 1
-          .pull-right.toggle
-            .icon-menu-2
+  -else
+    .flex.flex-col.h-full
+      <!-- Header -->
+      #header
+        &nbsp;
 
-        .org
-          {{ user_org.name|truncatechars:30 }}
+      %a#big-logo.logo.icon-logo{href:"{% if user.is_authenticated %}{% url 'msgs.msg_inbox' %}{% else %}/{% endif %}", title:"{{brand.name}}", class:"hover:no-underline"}
+        .name
+          {{brand.name}}
 
-        .other-orgs.hide
-          -for org in user_orgs
-            -if org != user_org
-              .org
-                %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
-                  {{ org.name }}
+      -block nav
+        -include 'includes/nav.html'
 
-    -if messages
-      -block messages
-        -if messages
-          -for msg in messages
-            %div{class:"alert alert-{{ message.tags }}"}
-              {{ msg }}
+      -if user_org
+        .org-header
+          -if user_orgs|length > 1
+            .pull-right.toggle
+              .icon-menu-2
 
+          .org
+            {{ user_org.name|truncatechars:30 }}
 
-    -block post-header
-    <!-- Content -->
-    -block page-container
-      .flex-grow
-        .page-content
-          -block suspension
-            {% if user_org.is_suspended %}
-              .px-12.-mt-4
-                -include "org_suspended_include.haml"
-            {% endif %}
+          .other-orgs.hide
+            -for org in user_orgs
+              -if org != user_org
+                .org
+                  %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
+                    {{ org.name }}
 
-          .px-12.py-4
-            -block page-top
-              .flex.items-start
-                .flex.flex-col.mr-5.leading-tight
-                  .page-title
-                    -block title
-                      
-                  .page-subtitle
-                    -block subtitle
-
-                .flex-grow
-                  .flex.justify-end.w-full
-                    -block gear-menu
-                      -include "gear_links_include.haml"
-
-              -block post-title
+      -if messages
+        -usemacro messages
 
 
-            .mt-6
-              -block content
-            
-            -block post-content
+      -usemacro post-header
+      <!-- Content -->
+      -usemacro page-container
 
-    .footer.text-center.py-12.bg-gray-200.text-gray-500
-      {{ request.branding.credits|safe }}
+      .footer.text-center.py-12.bg-gray-200.text-gray-500
+        {{ request.branding.credits|safe }}
 
   -trans 'Delete' as title
   %temba-dialog#general-delete-confirmation{header:"{{title|escapejs}}", primaryButtonName:"{{title|escapejs}}", destructive: "true"}
@@ -269,6 +294,18 @@
           var anon_org = false;
         {% endif %}
       {% endif %}
+
+      function inIframe () {
+        try {
+          if (window.self !== window.top) {
+            $(".org-header").hide();
+          } else {
+            $(".org-header").show();
+          }
+        } catch (e) {
+          $(".org-header").hide();
+        }
+      }
 
       function posterize(href) {
         var url = $.url(href);
@@ -338,6 +375,10 @@
     :javascript
       $(document).ready(function() {
 
+        {% if use_weni_layout %}
+          inIframe();
+        {% endif %}
+        
         function announcementCollapse() {
           $('.weni-announcement').hide();
           $('#menu').addClass('collapsed')

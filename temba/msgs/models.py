@@ -228,23 +228,6 @@ class Broadcast(models.Model):
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
 
-    def get_recipient_counts(self):
-        if self.status in (WIRED, SENT, DELIVERED):
-            return {"recipients": self.get_message_count(), "groups": 0, "contacts": 0, "urns": 0}
-
-        group_count = self.groups.count()
-        contact_count = self.contacts.count()
-        urn_count = len(self.raw_urns) if self.raw_urns else 0
-
-        if group_count == 1 and contact_count == 0 and urn_count == 0:
-            return {"recipients": self.groups.first().get_member_count(), "groups": 0, "contacts": 0, "urns": 0}
-        if group_count == 0 and urn_count == 0:
-            return {"recipients": contact_count, "groups": 0, "contacts": 0, "urns": 0}
-        if group_count == 0 and contact_count == 0:
-            return {"recipients": urn_count, "groups": 0, "contacts": 0, "urns": 0}
-
-        return {"recipients": 0, "groups": group_count, "contacts": contact_count, "urns": urn_count}
-
     def get_default_text(self):
         """
         Gets the appropriate display text for the broadcast without a contact
@@ -409,6 +392,8 @@ class Msg(models.Model):
     DIRECTIONS = {INCOMING: "in", OUTGOING: "out"}
     MSG_TYPES = {INBOX: "inbox", FLOW: "flow", IVR: "ivr"}
 
+    id = models.BigAutoField(primary_key=True)
+
     uuid = models.UUIDField(null=True, default=uuid4)
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="msgs")
@@ -438,7 +423,7 @@ class Msg(models.Model):
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default="P", db_index=True)
 
     response_to = models.ForeignKey(
-        "Msg", on_delete=models.PROTECT, null=True, blank=True, related_name="responses", db_index=False,
+        "Msg", on_delete=models.PROTECT, null=True, blank=True, related_name="responses", db_index=False
     )
 
     labels = models.ManyToManyField("Label", related_name="msgs")
@@ -459,13 +444,13 @@ class Msg(models.Model):
     # the id of this message on the other side of its channel
     external_id = models.CharField(max_length=255, null=True, blank=True)
 
-    topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT,)
+    topup = models.ForeignKey(TopUp, null=True, blank=True, related_name="msgs", on_delete=models.PROTECT)
 
     attachments = ArrayField(models.URLField(max_length=2048), null=True)
 
     # used for IVR sessions on channels
     connection = models.ForeignKey(
-        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="msgs", null=True,
+        "channels.ChannelConnection", on_delete=models.PROTECT, related_name="msgs", null=True
     )
 
     metadata = JSONAsTextField(null=True, default=dict)
@@ -1233,6 +1218,9 @@ class Label(TembaModel):
 
         return changed
 
+    def has_child_labels(self):
+        return self.children.filter(is_active=True).exists()
+
     def is_folder(self):
         return self.label_type == Label.TYPE_FOLDER
 
@@ -1244,8 +1232,9 @@ class Label(TembaModel):
 
         # release our children if we are a folder
         if self.is_folder():
-            for label in self.children.all():
-                label.release(user)
+            if self.has_child_labels():
+                raise ValueError(f"Cannot delete Folder: {self.name}, since it is a parent to other labels")
+
         else:
             Msg.labels.through.objects.filter(label=self).delete()
 
