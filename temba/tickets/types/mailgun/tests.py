@@ -47,7 +47,7 @@ class MailgunTypeTest(TembaTest):
             self.assertEqual("/tickets/types/mailgun/connect?verify=true", response.url)
 
             # nothing yet saved...
-            self.assertEqual(0, Ticketer.objects.count())
+            self.assertEqual(0, Ticketer.objects.filter(ticketer_type="mailgun").count())
 
         step2_url = response.url
 
@@ -65,7 +65,7 @@ class MailgunTypeTest(TembaTest):
         # submit with correct code
         response = self.client.post(step2_url, {"verification_code": code})
 
-        ticketer = Ticketer.objects.get()
+        ticketer = Ticketer.objects.get(ticketer_type="mailgun")
 
         self.assertRedirect(response, f"/ticket/filter/{ticketer.uuid}/")
         self.assertEqual(

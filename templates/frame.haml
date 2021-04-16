@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
--load humanize
+-load humanize i18n smartmin sms compress
 
 {% block html-tag %}
 <html lang="{{ LANGUAGE_CODE }}">
@@ -15,7 +15,6 @@
     %meta{name:"author", content:"Nyaruka Ltd"}
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
 
-    -load compress
     :javascript
 
       window.supportEmail = '{{brand.support_email}}';
@@ -93,9 +92,6 @@
     -else
       %link{type:"image/ico", rel:"shortcut icon", href:"{{ STATIC_URL }}images/favicon.ico"}
 
-    -load smartmin sms
-    -load i18n
-
     -block styles
       %link{rel:'stylesheet', href:'https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:200,300,400,500'}
 
@@ -109,7 +105,6 @@
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/videojs-vjsdownload/dist/videojs-vjsdownload.css", media:'all'}
 
       -compress css
-        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/icons/style.css", media:'all'}
         %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/print.less', media:'print'}
         %link{type:"text/css", rel:"stylesheet", href:"{{ STATIC_URL }}css/temba-components.css"}
@@ -194,14 +189,27 @@
 
 %body#pageBody.bg-gradient
 
+  -if not use_weni_layout
+    .weni-announcement
+      .weni-announcement-container.flex.flex-row
+        .weni-left
+          O Push agora é Weni Fluxos
+        .weni-divider
+        .weni-right
+          Novo módulo que estará disponível na nossa plataforma unificada em breve.
+        %a.weni-button(href="https://weni.ai/blog/modularizacao-plataformas/")
+          Saiba mais
+        %button.weni-announcement-collapse
+          .icon-arrow-down.icon-2
+
   -include "components-body.html"
 
   -block temba-store
     
     -if user.is_authenticated
       %temba-store(
-        completions="/mr/docs/completion.json"
-        functions="/mr/docs/functions.json"
+        completions="/mr/docs/{{ LANGUAGE_CODE }}/completion.json"
+        functions="/mr/docs/{{ LANGUAGE_CODE }}/functions.json"
         fields="/api/v2/fields.json"
         globals="/api/v2/globals.json")
 
@@ -370,6 +378,21 @@
         {% if use_weni_layout %}
           inIframe();
         {% endif %}
+        function announcementCollapse() {
+          $('.weni-announcement').hide();
+          $('#menu').addClass('collapsed')
+          $('.org-header').addClass('collapsed')
+        }
+
+        const announcementState = sessionStorage.getItem('weni-announcement-state');
+        if (announcementState === "false") {
+          announcementCollapse()
+        }
+
+        $(".weni-announcement-collapse").live('click', (event) => {
+          sessionStorage.setItem('weni-announcement-state', false);
+          announcementCollapse()
+        })
 
         if (navigator.appVersion.indexOf("Win")!=-1) {
           $("html").addClass("windows");

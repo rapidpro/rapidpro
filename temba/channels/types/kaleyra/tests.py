@@ -41,7 +41,7 @@ class KaleyraViewTest(TembaTest):
         response = self.submit_form(post_data)
         channel = Channel.objects.order_by("id").last()
 
-        normalized_number, _ = URN.normalize_number(post_data["number"], post_data["country"])
+        normalized_number = URN.normalize_number(post_data["number"], post_data["country"])
         self.assertEqual(channel.address, normalized_number)
         self.assertEqual(channel.country, post_data["country"])
         self.assertEqual(channel.config["api_key"], post_data["api_key"])

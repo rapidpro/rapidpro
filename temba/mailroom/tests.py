@@ -6,7 +6,8 @@ from django.conf import settings
 from django.test import override_settings
 from django.utils import timezone
 
-from temba.channels.models import ChannelEvent
+from temba.campaigns.models import Campaign, CampaignEvent, EventFire
+from temba.channels.models import ChannelEvent, ChannelLog
 from temba.flows.models import FlowRun, FlowStart
 from temba.mailroom.client import ContactSpec, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
@@ -15,6 +16,7 @@ from temba.tests.engine import MockSessionWriter
 from temba.utils import json
 
 from . import modifiers, queue_interrupt
+from .events import Event
 
 
 class MailroomClientTest(TembaTest):
@@ -646,3 +648,161 @@ class MailroomQueueTest(TembaTest):
         actual_task = json.loads(r.zrange(f"batch:{org.id}", 0, 1)[0])
 
         self.assertEqual(actual_task, expected_task)
+
+
+class EventTest(TembaTest):
+    def test_from_msg(self):
+        contact1 = self.create_contact("Jim", phone="0979111111")
+        contact2 = self.create_contact("Bob", phone="0979222222")
+
+        msg_in = self.create_incoming_msg(contact1, "Hello", external_id="12345")
+
+        self.assertEqual(
+            {
+                "type": "msg_received",
+                "created_on": matchers.ISODate(),
+                "msg": {
+                    "uuid": str(msg_in.uuid),
+                    "id": msg_in.id,
+                    "urn": "tel:+250979111111",
+                    "text": "Hello",
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    "external_id": "12345",
+                },
+                "msg_type": "I",
+                "logs_url": None,
+            },
+            Event.from_msg(self.org, self.admin, msg_in),
+        )
+
+        msg_out = self.create_outgoing_msg(
+            contact1, "Hello", channel=self.channel, status="E", quick_replies=("yes", "no")
+        )
+        log = ChannelLog.objects.create(channel=self.channel, is_error=True, description="Boom", msg=msg_out)
+        msg_out.refresh_from_db()
+
+        self.assertEqual(
+            {
+                "type": "msg_created",
+                "created_on": matchers.ISODate(),
+                "msg": {
+                    "uuid": str(msg_out.uuid),
+                    "id": msg_out.id,
+                    "urn": "tel:+250979111111",
+                    "text": "Hello",
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                    "quick_replies": ["yes", "no"],
+                },
+                "status": "E",
+                "logs_url": f"/channels/channellog/read/{log.id}/",
+            },
+            Event.from_msg(self.org, self.admin, msg_out),
+        )
+
+        ivr_out = self.create_outgoing_msg(contact1, "Hello", msg_type="V")
+
+        self.assertEqual(
+            {
+                "type": "ivr_created",
+                "created_on": matchers.ISODate(),
+                "msg": {
+                    "uuid": str(ivr_out.uuid),
+                    "id": ivr_out.id,
+                    "urn": "tel:+250979111111",
+                    "text": "Hello",
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                },
+                "status": "S",
+                "logs_url": None,
+            },
+            Event.from_msg(self.org, self.admin, ivr_out),
+        )
+
+        bcast = self.create_broadcast(self.admin, "Hi there", contacts=[contact1, contact2])
+        msg_out2 = bcast.msgs.filter(contact=contact1).get()
+
+        self.assertEqual(
+            {
+                "type": "broadcast_created",
+                "created_on": matchers.ISODate(),
+                "translations": {"base": "Hi there"},
+                "base_language": "base",
+                "msg": {
+                    "uuid": str(msg_out2.uuid),
+                    "id": msg_out2.id,
+                    "urn": "tel:+250979111111",
+                    "text": "Hi there",
+                    "channel": {"uuid": str(self.channel.uuid), "name": "Test Channel"},
+                },
+                "status": "S",
+                "recipient_count": 2,
+                "logs_url": None,
+            },
+            Event.from_msg(self.org, self.admin, msg_out2),
+        )
+
+    def test_from_flow_run(self):
+        contact = self.create_contact("Jim", phone="0979111111")
+        flow = self.get_flow("color_v13")
+        nodes = flow.get_definition()["nodes"]
+        (
+            MockSessionWriter(contact, flow)
+            .visit(nodes[0])
+            .send_msg("What is your favorite color?", self.channel)
+            .wait()
+            .save()
+        )
+        run = contact.runs.get()
+
+        self.assertEqual(
+            {
+                "type": "flow_entered",
+                "created_on": matchers.ISODate(),
+                "flow": {"uuid": str(flow.uuid), "name": "Colors"},
+                "logs_url": None,
+            },
+            Event.from_flow_run(self.org, self.admin, run),
+        )
+
+        # customer support get access to logs
+        self.assertEqual(
+            {
+                "type": "flow_entered",
+                "created_on": matchers.ISODate(),
+                "flow": {"uuid": str(flow.uuid), "name": "Colors"},
+                "logs_url": f"/flowsession/json/{run.session.uuid}/",
+            },
+            Event.from_flow_run(self.org, self.customer_support, run),
+        )
+
+    def test_from_event_fire(self):
+        flow = self.get_flow("color_v13")
+        group = self.create_group("Reporters", contacts=[])
+        registered = self.create_field("registered", "Registered", value_type="D")
+        campaign = Campaign.create(self.org, self.admin, "Welcomes", group)
+        event = CampaignEvent.create_flow_event(
+            self.org, self.user, campaign, registered, offset=1, unit="W", flow=flow
+        )
+        contact = self.create_contact("Jim", phone="0979111111")
+        fire = EventFire.objects.create(
+            event=event,
+            contact=contact,
+            scheduled=timezone.now(),
+            fired=timezone.now(),
+            fired_result=EventFire.RESULT_FIRED,
+        )
+
+        self.assertEqual(
+            {
+                "type": "campaign_fired",
+                "created_on": fire.fired.isoformat(),
+                "campaign": {"id": campaign.id, "name": "Welcomes"},
+                "campaign_event": {
+                    "id": event.id,
+                    "offset_display": "1 week after",
+                    "relative_to": {"key": "registered", "name": "Registered"},
+                },
+                "fired_result": "F",
+            },
+            Event.from_event_fire(self.org, self.admin, fire),
+        )
