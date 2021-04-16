@@ -1,3 +1,7 @@
+v6.3.27
+----------
+ * Restore menu-2 icon used by org choose menu
+
 v6.3.26
 ----------
  * Make groups searchable on contact update page
