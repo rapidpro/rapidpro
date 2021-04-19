@@ -1,12 +1,8 @@
 import time
 
-import simplejson
 import vonage
 
 from django.urls import reverse
-
-# see https://github.com/Vonage/vonage-python-sdk/issues/197
-vonage.JSONDecodeError = simplejson.errors.JSONDecodeError
 
 
 class VonageClient:
