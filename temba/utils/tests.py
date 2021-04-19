@@ -1251,7 +1251,7 @@ class AnalyticsTest(SmartminTest):
             id=1000, name="Some Org", brand="Some Brand", created_on=timezone.now(), account_value=lambda: 1000
         )
         self.admin = SimpleNamespace(
-            username="admin@example.com", first_name="", last_name="", email="admin@example.com", is_anonymous=False
+            username="admin@example.com", first_name="", last_name="", email="admin@example.com", is_authenticated=True
         )
 
         self.intercom_mock = MagicMock()
