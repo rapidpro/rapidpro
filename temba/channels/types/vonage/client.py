@@ -4,6 +4,7 @@ import vonage
 
 from django.urls import reverse
 
+
 class VonageClient:
     """
     Wrapper for the actual Vonage client that adds some functionality and retries
