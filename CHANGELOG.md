@@ -1,3 +1,8 @@
+v6.3.28
+----------
+ * Remove simplejson
+ * Update to latest vonage client and fix retries
+
 v6.3.27
 ----------
  * Restore menu-2 icon used by org choose menu
