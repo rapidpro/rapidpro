@@ -1691,7 +1691,6 @@ class ContactGroup(TembaModel):
         """
         Releases (i.e. deletes) this group, removing all contacts and marking as inactive
         """
-
         # if group is still active, deactivate it
         if self.is_active is True:
             self.is_active = False
@@ -1718,6 +1717,10 @@ class ContactGroup(TembaModel):
 
         for id_batch in chunk_list(eventfire_ids, 1000):
             EventFire.objects.filter(id__in=id_batch).delete()
+
+        # remove any contact imports associated with this group
+        for ci in ContactImport.objects.filter(group=self):
+            ci.release()
 
         # mark any triggers that operate only on this group as inactive
         from temba.triggers.models import Trigger
@@ -2213,6 +2216,13 @@ class ContactImport(SmartModel):
         from .tasks import import_contacts_task
 
         on_transaction_commit(lambda: import_contacts_task.delay(self.id))
+
+    def release(self):
+        # delete our source import file
+        self.file.delete()
+
+        # then ourselves
+        self.delete()
 
     def start(self):
         """
