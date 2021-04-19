@@ -212,7 +212,7 @@ def track(user, event_name, properties=None, context=None):
         return
 
     # no op for anon user
-    if user.is_anonymous:
+    if not user.is_authenticated:
         return
 
     email = user.email
