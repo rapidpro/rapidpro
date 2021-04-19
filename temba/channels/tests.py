@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from unittest.mock import call, patch
 from urllib.parse import quote
 
-import nexmo
 from django_redis import get_redis_connection
 from smartmin.tests import SmartminTest
 
@@ -971,7 +970,8 @@ class ChannelTest(TembaTest):
         with self.assertRaises(ValueError):
             self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
 
-    def test_search_vonage(self):
+    @patch("temba.channels.types.vonage.client.VonageClient.search_numbers")
+    def test_search_vonage(self, mock_search_numbers):
         self.login(self.admin)
         self.org.channels.update(is_active=False)
         self.channel = Channel.create(
@@ -986,49 +986,14 @@ class ChannelTest(TembaTest):
         self.assertIn("area_code", response.context["form"].fields)
         self.assertIn("country", response.context["form"].fields)
 
-        with patch("requests.get") as mock_get:
-            mock_get.side_effect = [
-                MockResponse(
-                    200,
-                    '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
-                    '"type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }',
-                    headers={"Content-Type": "application/json"},
-                ),
-                MockResponse(
-                    200,
-                    '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
-                    '"type":"mobile-lvn","country":"US","msisdn":"13607884550"}] }',
-                    headers={"Content-Type": "application/json"},
-                ),
-            ]
+        mock_search_numbers.return_value = [
+            {"features": ["SMS", "VOICE"], "type": "mobile-lvn", "country": "US", "msisdn": "13607884540"},
+            {"features": ["SMS", "VOICE"], "type": "mobile-lvn", "country": "US", "msisdn": "13607884550"},
+        ]
 
-            post_data = dict(country="US", area_code="360")
-            response = self.client.post(search_url, post_data, follow=True)
+        response = self.client.post(search_url, {"country": "US", "area_code": "360"})
 
-            self.assertEqual(response.json(), ["+1 360-788-4540", "+1 360-788-4550"])
-
-        with patch("requests.get") as mock_get:
-            mock_get.side_effect = [
-                nexmo.ClientError("429 Too many requests"),
-                MockResponse(
-                    200,
-                    '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
-                    '"type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }',
-                    headers={"Content-Type": "application/json"},
-                ),
-                nexmo.ClientError("429 Too many requests"),
-                MockResponse(
-                    200,
-                    '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
-                    '"type":"mobile-lvn","country":"US","msisdn":"13607884550"}] }',
-                    headers={"Content-Type": "application/json"},
-                ),
-            ]
-
-            post_data = dict(country="US", area_code="360")
-            response = self.client.post(search_url, post_data, follow=True)
-
-            self.assertEqual(response.json(), ["+1 360-788-4540", "+1 360-788-4550"])
+        self.assertEqual(response.json(), ["+1 360-788-4540", "+1 360-788-4550"])
 
     def test_plivo_search_numbers(self):
         self.login(self.admin)
