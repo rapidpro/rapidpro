@@ -29,7 +29,15 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Alert, Channel, SyncEvent
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.wit import WitType
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN, ExportContactsTask
+from temba.contacts.models import (
+    URN,
+    Contact,
+    ContactField,
+    ContactGroup,
+    ContactImport,
+    ContactURN,
+    ExportContactsTask,
+)
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
@@ -670,6 +678,11 @@ class OrgDeleteTest(TembaNonAtomicTest):
         # add some groups
         parent_group = self.create_group("Parent Customers", contacts=[parent_contact], org=self.parent_org)
         child_group = self.create_group("Parent Customers", contacts=[child_contact], org=self.child_org)
+
+        # create an import for child group
+        ContactImport.objects.create(
+            org=self.org, group=child_group, mappings={}, num_records=0, created_by=self.admin, modified_by=self.admin
+        )
 
         # add some labels
         parent_label = self.create_label("Parent Spam", org=self.parent_org)
