@@ -4091,8 +4091,8 @@ class LanguageTest(TembaTest):
             url,
             {
                 "primary_lang": '{"name":"French", "value":"fra"}',
-                "languages": ['{"name":"Haitian", "value":"hat"}', '{"name":"Hausa", "value":"hau"}']
-            }
+                "languages": ['{"name":"Haitian", "value":"hat"}', '{"name":"Hausa", "value":"hau"}'],
+            },
         )
         self.assertEqual(response.status_code, 302)
         self.org.refresh_from_db()
@@ -4113,9 +4113,9 @@ class LanguageTest(TembaTest):
                 "languages": [
                     '{"name":"Haitian", "value":"hat"}',
                     '{"name":"Hausa", "value":"hau"}',
-                    '{"name":"Spanish", "value":"spa"}'
-                ]
-            }
+                    '{"name":"Spanish", "value":"spa"}',
+                ],
+            },
         )
         response = self.client.get(reverse("orgs.org_languages"))
         self.assertEqual(["Haitian", "Hausa", "Spanish"], response.context["languages"])

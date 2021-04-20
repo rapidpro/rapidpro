@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-20 22:07+0000\n"
+"POT-Creation-Date: 2021-04-20 23:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3211,9 +3211,6 @@ msgstr "Desculpe, seu cartão foi recusado. Entre em contato com seu provedor ou
 
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr "Desculpe, não conseguimos processar o seu pagamento, tente novamente mais tarde ou contate-nos."
-
-msgid "Org"
-msgstr "Organização"
 
 #, python-format
 msgid "%(name)s Invitation"
@@ -7810,6 +7807,9 @@ msgstr "Adicione uma dúvida"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Encontrado ${count} para ${query}"
+
+#~ msgid "Org"
+#~ msgstr "Organização"
 
 #~ msgid "or"
 #~ msgstr "Ou"

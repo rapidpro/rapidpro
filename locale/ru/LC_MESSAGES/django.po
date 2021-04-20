@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-20 22:07+0000\n"
+"POT-Creation-Date: 2021-04-20 23:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3215,9 +3215,6 @@ msgstr "Извините, Ваша карта была отклонена, по�
 
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr "Извините, нам не удалось обработать Ваш платеж, повторите попытку позже или свяжитесь с нами."
-
-msgid "Org"
-msgstr "Организация"
 
 #, python-format
 msgid "%(name)s Invitation"
@@ -7675,6 +7672,9 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#~ msgid "Org"
+#~ msgstr "Организация"
 
 #~ msgid "or"
 #~ msgstr "или"
