@@ -2328,16 +2328,20 @@ class ContactImport(SmartModel):
         statuses = set()
         num_created = 0
         num_updated = 0
+        num_blocked = 0
         num_errored = 0
         errors = []
         oldest_finished_on = None
 
-        batches = self.batches.values("status", "num_created", "num_updated", "num_errored", "errors", "finished_on")
+        batches = self.batches.values(
+            "status", "num_created", "num_updated", "num_blocked", "num_errored", "errors", "finished_on"
+        )
 
         for batch in batches:
             statuses.add(batch["status"])
             num_created += batch["num_created"]
             num_updated += batch["num_updated"]
+            num_blocked += batch["num_blocked"]
             num_errored += batch["num_errored"]
             errors.extend(batch["errors"])
 
@@ -2360,6 +2364,7 @@ class ContactImport(SmartModel):
             "status": status,
             "num_created": num_created,
             "num_updated": num_updated,
+            "num_blocked": num_blocked,
             "num_errored": num_errored,
             "errors": errors,
             "time_taken": int(time_taken.total_seconds()),
@@ -2535,7 +2540,9 @@ class ContactImportBatch(models.Model):
     num_created = models.IntegerField(default=0)
     num_updated = models.IntegerField(default=0)
     num_errored = models.IntegerField(default=0)
+    num_blocked = models.IntegerField(default=0)
     errors = JSONField(default=list)
+    blocked_uuids = JSONField(default=list)
     finished_on = models.DateTimeField(null=True)
 
     def import_async(self):

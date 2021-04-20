@@ -40,6 +40,21 @@
               -plural
                 Added {{ count }} contacts to the <a href="{{ group_url }}">{{ group_name }}</a> group
 
+        -if is_finished and info.num_blocked and contactimport.is_active
+          .import-result.text-lg.mt-2
+            .icon.icon-checkmark.text-success.mr-2
+
+            -blocktrans with blocked_count=info.num_blocked
+              You have {{ blocked_count }} contact(s) in this import that are
+              currently blocked. Do you want to unblock them?
+
+            .unblock-buttons
+              .flex.flex-row.justify-center.gap-4
+                %a.button.button-light(href="{% url 'contacts.contactimport_read' object.id %}?unblock=true")
+                  -trans "Yes"
+                %a.button.button-light(href="{% url 'contacts.contactimport_read' object.id %}?unblock=false")
+                  -trans "No"
+
         -if info.num_errored
           .import-result.text-lg.mt-2
             .icon.icon-warning.text-error.mr-2
