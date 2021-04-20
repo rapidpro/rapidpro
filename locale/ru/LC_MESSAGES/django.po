@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-14 18:49+0000\n"
+"POT-Creation-Date: 2021-04-20 22:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3701,7 +3701,7 @@ msgstr ""
 msgid "Additional Languages"
 msgstr "Дополнительные языки"
 
-msgid "Additional languages you would like to provid translations for"
+msgid "Additional languages you would like to provide translations for"
 msgstr ""
 
 #, python-format

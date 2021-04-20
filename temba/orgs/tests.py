@@ -4089,10 +4089,10 @@ class LanguageTest(TembaTest):
         # update our org with some language settings
         response = self.client.post(
             url,
-            dict(
-                primary_lang='{"name":"French", "value":"fra"}',
-                languages=['{"name":"Haitian", "value":"hat"}', '{"name":"Official Aramaic", "value":"arc"}'],
-            ),
+            {
+                "primary_lang": '{"name":"French", "value":"fra"}',
+                "languages": ['{"name":"Haitian", "value":"hat"}', '{"name":"Hausa", "value":"hau"}']
+            }
         )
         self.assertEqual(response.status_code, 302)
         self.org.refresh_from_db()
@@ -4100,73 +4100,80 @@ class LanguageTest(TembaTest):
         self.assertEqual(self.org.primary_language.name, "French")
         self.assertIsNotNone(self.org.languages.filter(name="French"))
 
-        # everything after the paren should be stripped for aramaic
-        self.assertIsNotNone(self.org.languages.filter(name="Official Aramaic"))
-
-        # everything after the semi should be stripped for haitian
-        self.assertIsNotNone(self.org.languages.filter(name="Haitian"))
-
         # check that the last load shows our new languages
         response = self.client.get(url)
-        self.assertEqual(response.context["languages"], ["Haitian", "Official Aramaic (700-300 BCE)"])
+        self.assertEqual(["Haitian", "Hausa"], response.context["languages"])
         self.assertContains(response, "fra")
-        # self.assertContains(response, "hat,arc")
 
-        # three translation languages
+        # add another translation language...
         self.client.post(
             url,
-            dict(
-                primary_lang='{"name":"French", "value":"fra"}',
-                languages=[
+            {
+                "primary_lang": '{"name":"French", "value":"fra"}',
+                "languages": [
                     '{"name":"Haitian", "value":"hat"}',
-                    '{"name":"Official Aramaic", "value":"arc"}',
-                    '{"name":"Spanish", "value":"spa"}',
-                ],
-            ),
+                    '{"name":"Hausa", "value":"hau"}',
+                    '{"name":"Spanish", "value":"spa"}'
+                ]
+            }
         )
         response = self.client.get(reverse("orgs.org_languages"))
-        self.assertEqual(response.context["languages"], ["Haitian", "Official Aramaic (700-300 BCE)", "Spanish"])
+        self.assertEqual(["Haitian", "Hausa", "Spanish"], response.context["languages"])
 
         # one translation language
         self.client.post(
-            url, dict(primary_lang='{"name":"French", "value":"fra"}', languages=['{"name":"Haitian", "value":"hat"}'])
+            url,
+            {"primary_lang": '{"name":"French", "value":"fra"}', "languages": ['{"name":"Haitian", "value":"hat"}']},
         )
         response = self.client.get(reverse("orgs.org_languages"))
-        self.assertEqual(response.context["languages"], ["Haitian"])
+        self.assertEqual(["Haitian"], response.context["languages"])
 
         # remove all languages
-        self.client.post(url, dict(primary_lang="{}", languages=[]))
+        self.client.post(url, {"primary_lang": "{}", "languages": []})
         self.org.refresh_from_db()
         self.assertIsNone(self.org.primary_language)
         self.assertFalse(self.org.languages.all())
 
         # search languages
-        response = self.client.get("%s?search=fra" % url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        response = self.client.get("%s?search=Fr" % url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
         results = response.json()["results"]
-        self.assertEqual(len(results), 7)
+        self.assertEqual(3, len(results))
 
         # initial should do a match on code only
         response = self.client.get("%s?initial=fra" % url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
         results = response.json()["results"]
-        self.assertEqual(len(results), 1)
+        self.assertEqual(1, len(results))
 
     def test_language_codes(self):
         self.assertEqual("French", languages.get_language_name("fra"))
         self.assertEqual("Chinese Pidgin English", languages.get_language_name("cpi"))
+        self.assertIsNone(languages.get_language_name("xyz"))
 
         # should strip off anything after an open paren or semicolon
         self.assertEqual("Haitian", languages.get_language_name("hat"))
 
         # check that search returns results and in the proper order
-        matches = languages.search_language_names("Fre")
-        self.assertEqual(13, len(matches))
-        self.assertEqual("Saint Lucian Creole French", matches[0]["text"])
-        self.assertEqual("Seselwa Creole French", matches[1]["text"])
-        self.assertEqual("French", matches[2]["text"])
-        self.assertEqual("Cajun French", matches[3]["text"])
+        matches = languages.search_by_name("Fr")
+        self.assertEqual(
+            [
+                {"id": "afr", "value": "afr", "name": "Afrikaans"},
+                {"id": "fra", "value": "fra", "name": "French"},
+                {"id": "fry", "value": "fry", "name": "Western Frisian"},
+            ],
+            matches,
+        )
 
-        # try a language that doesn't exist
-        self.assertEqual(None, languages.get_language_name("xyz"))
+        # if org is already using a language without a 2-letter code, they can still use it
+        matches = languages.search_by_name("Fr", always_allow=("frc",))
+        self.assertEqual(
+            [
+                {"id": "afr", "value": "afr", "name": "Afrikaans"},
+                {"id": "fra", "value": "fra", "name": "French"},
+                {"id": "frc", "value": "frc", "name": "Cajun French"},
+                {"id": "fry", "value": "fry", "name": "Western Frisian"},
+            ],
+            matches,
+        )
 
     def test_get_localized_text(self):
         text_translations = dict(eng="Hello", spa="Hola")

@@ -2155,7 +2155,7 @@ class Language(SmartModel):
 
     iso_code = models.CharField(max_length=4)
 
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, verbose_name=_("Org"), related_name="languages")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="languages")
 
     @classmethod
     def create(cls, org, user, name, iso_code):

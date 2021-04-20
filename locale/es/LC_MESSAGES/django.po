@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-14 18:49+0000\n"
+"POT-Creation-Date: 2021-04-20 22:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -3691,7 +3691,9 @@ msgstr "Seleccione el idioma principal para los contactos sin preferencia de idi
 msgid "Additional Languages"
 msgstr "Idiomas adicionales"
 
-msgid "Additional languages you would like to provid translations for"
+#, fuzzy
+#| msgid "Additional languages you would like to provid translations for"
+msgid "Additional languages you would like to provide translations for"
 msgstr "Idiomas adicionales para los que le gustaría proporcionar traducciones"
 
 #, python-format

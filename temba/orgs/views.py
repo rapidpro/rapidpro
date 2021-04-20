@@ -3085,7 +3085,7 @@ class OrgCRUDL(SmartCRUDL):
                 label=_("Additional Languages"),
                 widget=SelectMultipleWidget(
                     attrs={
-                        "placeholder": _("Additional languages you would like to provid translations for"),
+                        "placeholder": _("Additional languages you would like to provide translations for"),
                         "searchable": True,
                         "queryParam": "q",
                         "endpoint": reverse_lazy("orgs.org_languages"),
@@ -3111,24 +3111,21 @@ class OrgCRUDL(SmartCRUDL):
             return kwargs
 
         def derive_initial(self):
-
             initial = super().derive_initial()
-            langs = [
-                {"name": lang.name, "value": lang.iso_code}
-                for lang in self.get_object().languages.filter(orgs=None).order_by("name")
-            ]
+            org = self.get_object()
 
-            initial["languages"] = langs
+            org_langs = org.languages.filter(orgs=None).order_by("name")
+            initial["languages"] = [{"value": lang.iso_code, "name": lang.name} for lang in org_langs]
 
-            if self.object.primary_language:
-                lang = self.object.primary_language
-                initial["primary_lang"] = [{"name": lang.name, "value": lang.iso_code}]
+            if org.primary_language:
+                lang = org.primary_language
+                initial["primary_lang"] = [{"value": lang.iso_code, "name": lang.name}]
 
             return initial
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            org = self.request.user.get_org()
+            org = self.get_object()
 
             context["languages"] = [lang.name for lang in org.languages.filter(orgs=None).order_by("name")]
             return context
@@ -3142,11 +3139,15 @@ class OrgCRUDL(SmartCRUDL):
                     for iso_code in initial:
                         if iso_code:
                             lang = languages.get_language_name(iso_code)
-                            matches.append(dict(id=iso_code, text=lang))
+                            matches.append({"value": iso_code, "name": lang})
 
                 if len(matches) == 0:
                     search = self.request.GET.get("search", self.request.GET.get("q", "")).strip().lower()
-                    matches += languages.search_language_names(search)
+
+                    # allow any language the org is currently using
+                    existing = {lang.iso_code for lang in self.get_object().languages.all()}
+
+                    matches += languages.search_by_name(search, always_allow=existing)
                 return JsonResponse(dict(results=matches))
 
             return super().get(request, *args, **kwargs)
