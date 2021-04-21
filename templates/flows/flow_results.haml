@@ -668,12 +668,24 @@
       });
 
     $(document).ready(function() {
-      $(".flatpickr").flatpickr({
+      $(".flatpickr.start").flatpickr({
         wrap: true,
         altInput: true,
         altFormat: 'F j, Y',
-        dateFormat: 'Y-m-d',
-        allowInput: true
+        dateFormat: 'Y-m-d H:i',
+        allowInput: true,
+        enableTime: true,
+        defaultHour: 0
+      });
+      $(".flatpickr.end").flatpickr({
+        wrap: true,
+        altInput: true,
+        altFormat: 'F j, Y',
+        dateFormat: 'Y-m-d H:i',
+        allowInput: true,
+        enableTime: true,
+        defaultHour: 23,
+        defaultMinute: 59
       });
 
       $('.time').live('mouseover', function() {
@@ -731,12 +743,12 @@
           %div{class: "w-1/4 flex"}
             %div{class: "w-1/2 flex flex-col pr-3"}
               %label.control-label.flex.m-0
-                -trans "After"
-              -include "includes/flatpickr_field.haml" with parent_classes="flex justify-center items-center datepicker relative" field_name="after" field_placeholder="Select a date" field_value=request.GET.after
+                -trans "Start Date"
+              -include "includes/flatpickr_field.haml" with parent_classes="start flex justify-center items-center datepicker relative" field_name="after" field_placeholder="Select a date" field_value=request.GET.after
             %div{class: "w-1/2 flex flex-col pr-3"}
               %label.control-label.flex.m-0
-                -trans "Before"
-              -include "includes/flatpickr_field.haml" with parent_classes="flex justify-center items-center datepicker relative" field_name="before" field_placeholder="Select a date" field_value=request.GET.before
+                -trans "End Date"
+              -include "includes/flatpickr_field.haml" with parent_classes="end flex justify-center items-center datepicker relative" field_name="before" field_placeholder="Select a date" field_value=request.GET.before
           %div{class: "w-3/4 flex flex-grow"}
             %div{class: "w-6/12 mr-2", "data-toggle":"tooltip", title:"{{ request.GET.contact_query }}"}
               %label.control-label.flex.m-0
