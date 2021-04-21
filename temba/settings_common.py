@@ -1027,8 +1027,8 @@ CELERYBEAT_SCHEDULE = {
     },
     "update-es-contacts-index-with-channels-and-flows": {
         "task": "upload_channels_and_flows_to_es_contacts",
-        "schedule": crontab(hour=1, minute=30),
-    }
+        "schedule": crontab(hour=5, minute=0),
+    },
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True

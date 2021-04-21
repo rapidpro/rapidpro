@@ -147,8 +147,8 @@ def upload_channels_and_flows_to_es_contacts():
         ) f
     ) as flows
     FROM contacts_contact
-    WHERE contacts_contact.is_active = true 
-        AND contacts_contact.org_id = %d 
+    WHERE contacts_contact.is_active = true
+        AND contacts_contact.org_id = %d
         AND contacts_contact.id > %d
         AND (
             SELECT greatest(max(flows_flowrun.created_on), contacts_contact.modified_on)

@@ -4502,28 +4502,23 @@ class ReportEndpointMixin:
             raise SearchException(_("Fields `before` or `after` are not valid."))
 
         # filter by channel
-        es_channels_filter_config = {
-            "nested": {
-                "path": "urns",
-                "query": {
-                    "bool": {
-                        "must": []
-                    }
-                }
-            }
-        }
+        es_channels_filter_config = {"nested": {"path": "urns", "query": {"bool": {"must": []}}}}
         es_channel_filters = es_channels_filter_config["nested"]["query"]["bool"]["must"]
         channel_filters = self.request__get_separated_names_and_uuids("channel")
         if channel_filters["uuids"]:
-            es_channel_filters.extend([
-                {"match_phrase": {"urns.channel_uuid": {"query": channel_uuid}}}
-                for channel_uuid in channel_filters["uuids"]
-            ])
+            es_channel_filters.extend(
+                [
+                    {"match_phrase": {"urns.channel_uuid": {"query": channel_uuid}}}
+                    for channel_uuid in channel_filters["uuids"]
+                ]
+            )
         if channel_filters["names"]:
-            es_channel_filters.extend([
-                {"match_phrase": {"urns.channel_uuid": {"query": channel_uuid}}}
-                for channel_uuid in channel_filters["uuids"]
-            ])
+            es_channel_filters.extend(
+                [
+                    {"match_phrase": {"urns.channel_uuid": {"query": channel_uuid}}}
+                    for channel_uuid in channel_filters["uuids"]
+                ]
+            )
         main_conditions.append(es_channels_filter_config)
         if any(channel_filters.values()):
             self.applied_filters["channel"] = ", ".join([*channel_filters["names"], *channel_filters["uuids"]])
@@ -4533,9 +4528,7 @@ class ReportEndpointMixin:
         if flow_uuid:
             if not is_uuid_valid(flow_uuid):
                 raise SearchException(_("The `flow` parameter is not valid."))
-            main_conditions.append({
-                "match_phrase": {"flows.uuid": flow_uuid}
-            })
+            main_conditions.append({"match_phrase": {"flows.uuid": flow_uuid}})
             self.applied_filters["flow"] = flow_uuid
 
         # get contact ids from elasticsearch database

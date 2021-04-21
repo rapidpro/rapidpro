@@ -68,9 +68,9 @@ class Command(BaseCommand):
                     elastic.ES, update_actions, stats_only=True, raise_on_error=False, raise_on_exception=False
                 )
                 self.stdout.write(
-                    "Batch #{0}: ".format(batch_no) +
-                    self.style.WARNING(f"{result[0]} Success ") +
-                    self.style.ERROR(f"{result[1]} Error ")
+                    "Batch #{0}: ".format(batch_no)
+                    + self.style.WARNING(f"{result[0]} Success ")
+                    + self.style.ERROR(f"{result[1]} Error ")
                 )
                 contacts = Contact.objects.raw(raw_query % (org_id, last_processed_contact_id))
             self.stdout.write("\n")
