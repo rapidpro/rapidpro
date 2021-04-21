@@ -32,11 +32,11 @@ def search_by_name(query: str, *, always_allow=()):
     Searches language names in ISO639-2. Only returns languages with a 2-letter code, except those
     explicitly allowed.
     Args:
-        query: substring of a language name, e.g. 'Fren'
+        query: substring of a language name, e.g. "Fren"
         always_allow: 3-letter codes of languages to include even if they don't have a 2-letter code
 
     Returns:
-        A list of dicts showing the matches [{id:'fra', text:'French'}]
+        A list of dicts showing the matches [{"value": "fra", "name": "French"}]
     """
     matches = []
     query = query.lower()
@@ -44,7 +44,7 @@ def search_by_name(query: str, *, always_allow=()):
     for lang in pycountry.languages:
         has_alpha_2 = getattr(lang, "alpha_2", None)
         if (has_alpha_2 or lang.alpha_3 in always_allow) and query in lang.name.lower():
-            matches.append(dict(id=lang.alpha_3, value=lang.alpha_3, name=lang.name))
+            matches.append(dict(value=lang.alpha_3, name=lang.name))
     return matches
 
 

@@ -4082,13 +4082,13 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
 class LanguageTest(TembaTest):
     def test_languages(self):
-        url = reverse("orgs.org_languages")
+        langs_url = reverse("orgs.org_languages")
 
         self.login(self.admin)
 
         # update our org with some language settings
         response = self.client.post(
-            url,
+            langs_url,
             {
                 "primary_lang": '{"name":"French", "value":"fra"}',
                 "languages": ['{"name":"Haitian", "value":"hat"}', '{"name":"Hausa", "value":"hau"}'],
@@ -4101,13 +4101,13 @@ class LanguageTest(TembaTest):
         self.assertIsNotNone(self.org.languages.filter(name="French"))
 
         # check that the last load shows our new languages
-        response = self.client.get(url)
+        response = self.client.get(langs_url)
         self.assertEqual(["Haitian", "Hausa"], response.context["languages"])
         self.assertContains(response, "fra")
 
         # add another translation language...
         self.client.post(
-            url,
+            langs_url,
             {
                 "primary_lang": '{"name":"French", "value":"fra"}',
                 "languages": [
@@ -4122,27 +4122,46 @@ class LanguageTest(TembaTest):
 
         # one translation language
         self.client.post(
-            url,
+            langs_url,
             {"primary_lang": '{"name":"French", "value":"fra"}', "languages": ['{"name":"Haitian", "value":"hat"}']},
         )
         response = self.client.get(reverse("orgs.org_languages"))
         self.assertEqual(["Haitian"], response.context["languages"])
 
         # remove all languages
-        self.client.post(url, {"primary_lang": "{}", "languages": []})
+        self.client.post(langs_url, {"primary_lang": "{}", "languages": []})
         self.org.refresh_from_db()
         self.assertIsNone(self.org.primary_language)
         self.assertFalse(self.org.languages.all())
 
-        # search languages
-        response = self.client.get("%s?search=Fr" % url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
-        results = response.json()["results"]
-        self.assertEqual(3, len(results))
-
         # initial should do a match on code only
-        response = self.client.get("%s?initial=fra" % url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
-        results = response.json()["results"]
-        self.assertEqual(1, len(results))
+        response = self.client.get("%s?initial=fra" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual([{"name": "French", "value": "fra"}], response.json()["results"])
+
+        # searching languages should only return languages with 2-letter codes
+        response = self.client.get("%s?search=Fr" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(
+            [
+                {"value": "afr", "name": "Afrikaans"},
+                {"value": "fra", "name": "French"},
+                {"value": "fry", "name": "Western Frisian"},
+            ],
+            response.json()["results"],
+        )
+
+        # unless they already use a language that doesn't
+        Language.create(self.org, self.admin, "Cajun French", "frc")
+
+        response = self.client.get("%s?search=Fr" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(
+            [
+                {"value": "afr", "name": "Afrikaans"},
+                {"value": "fra", "name": "French"},
+                {"value": "frc", "name": "Cajun French"},
+                {"value": "fry", "name": "Western Frisian"},
+            ],
+            response.json()["results"],
+        )
 
     def test_language_codes(self):
         self.assertEqual("French", languages.get_language_name("fra"))
@@ -4156,9 +4175,9 @@ class LanguageTest(TembaTest):
         matches = languages.search_by_name("Fr")
         self.assertEqual(
             [
-                {"id": "afr", "value": "afr", "name": "Afrikaans"},
-                {"id": "fra", "value": "fra", "name": "French"},
-                {"id": "fry", "value": "fry", "name": "Western Frisian"},
+                {"value": "afr", "name": "Afrikaans"},
+                {"value": "fra", "name": "French"},
+                {"value": "fry", "name": "Western Frisian"},
             ],
             matches,
         )
@@ -4167,10 +4186,10 @@ class LanguageTest(TembaTest):
         matches = languages.search_by_name("Fr", always_allow=("frc",))
         self.assertEqual(
             [
-                {"id": "afr", "value": "afr", "name": "Afrikaans"},
-                {"id": "fra", "value": "fra", "name": "French"},
-                {"id": "frc", "value": "frc", "name": "Cajun French"},
-                {"id": "fry", "value": "fry", "name": "Western Frisian"},
+                {"value": "afr", "name": "Afrikaans"},
+                {"value": "fra", "name": "French"},
+                {"value": "frc", "name": "Cajun French"},
+                {"value": "fry", "name": "Western Frisian"},
             ],
             matches,
         )
