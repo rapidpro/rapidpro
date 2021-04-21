@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-14 18:49+0000\n"
+"POT-Creation-Date: 2021-04-21 21:10+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1543,6 +1543,12 @@ msgstr "Numéro de téléphone non valide, veuillez inclure le code du pays. ex:
 msgid "Short code not found on your Twilio Account. Please check you own the short code and Try again"
 msgstr "Code court introuvable sur votre compte Twilio. Veuillez vérifier que vous possédez le code court et réessayer"
 
+msgid "Sorry, no numbers found, please enter another area code and try again."
+msgstr "Désolés, aucun numéro, s'il vous plaît entrer un autre code de zone et essayez à nouveau."
+
+msgid "Sorry, no numbers found, please enter another pattern and try again."
+msgstr "Désolé, aucun numéro trouvé, veuillez entrer un autre motif et réessayer."
+
 #, python-format
 msgid "You can connect a messaging service from your Twilio account to benefit from %(link)s features."
 msgstr "Vous pouvez connecter un service de messagerie depuis votre compte Twilio pour bénéficier des fonctionnalités de %(link)s "
@@ -1996,15 +2002,6 @@ msgstr "Canaux"
 
 msgid "Unknown"
 msgstr "inconnu"
-
-msgid "The area code you want to search for a new number in"
-msgstr "Le code de zone que vous souhaitez rechercher pour un nouveau numéro dans"
-
-msgid "Sorry, no numbers found, please enter another area code and try again."
-msgstr "Désolés, aucun numéro, s'il vous plaît entrer un autre code de zone et essayez à nouveau."
-
-msgid "Sorry, no numbers found, please enter another pattern and try again."
-msgstr "Désolé, aucun numéro trouvé, veuillez entrer un autre motif et réessayer."
 
 msgid "Calls"
 msgstr "Appels"
@@ -3481,14 +3478,20 @@ msgstr "Votre clé API Nexmo"
 msgid "Your Vonage API secret"
 msgstr "Votre API secrète Nexmo"
 
-msgid "Your Plivo AUTH ID"
+#, fuzzy
+#| msgid "Your Plivo AUTH ID"
+msgid "Your Plivo auth ID"
 msgstr "Votre ID Plivo AUTH"
 
-msgid "Your Plivo AUTH TOKEN"
-msgstr "Votre Plivo AUTH TOKEN"
+#, fuzzy
+#| msgid "Your Twilio Account Token"
+msgid "Your Plivo auth token"
+msgstr "Votre compte  Token Twilio "
 
-msgid "Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."
-msgstr "Vos identifiants Plivo AUTH et AUTH TOKEN semblent invalides. Veuillez les vérifier à nouveau et réessayer."
+#, fuzzy
+#| msgid "The Twilio account SID and Token seem invalid. Please check them again and retry."
+msgid "Your Plivo auth ID and auth token seem invalid. Please check them again and retry."
+msgstr "Le compte Twilio SID et Token ne semble pas valide. S'il vous plaît vérifier à nouveau et réessayez."
 
 msgid "Email Address"
 msgstr "Adresse e-mail"
@@ -7807,6 +7810,15 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#~ msgid "The area code you want to search for a new number in"
+#~ msgstr "Le code de zone que vous souhaitez rechercher pour un nouveau numéro dans"
+
+#~ msgid "Your Plivo AUTH TOKEN"
+#~ msgstr "Votre Plivo AUTH TOKEN"
+
+#~ msgid "Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."
+#~ msgstr "Vos identifiants Plivo AUTH et AUTH TOKEN semblent invalides. Veuillez les vérifier à nouveau et réessayer."
 
 #~ msgid "or"
 #~ msgstr "ou"

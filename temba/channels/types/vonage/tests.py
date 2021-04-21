@@ -155,6 +155,30 @@ class VonageTypeTest(TembaTest):
         self.assertContains(response, reverse("courier.nx", args=[channel.uuid, "status"]))
         self.assertContains(response, reverse("mailroom.ivr_handler", args=[channel.uuid, "incoming"]))
 
+    @patch("temba.channels.types.vonage.client.VonageClient.search_numbers")
+    def test_search(self, mock_search_numbers):
+        self.login(self.admin)
+        self.org.channels.update(is_active=False)
+        self.channel = Channel.create(
+            self.org, self.user, "RW", "NX", None, "+250788123123", uuid="00000000-0000-0000-0000-000000001234"
+        )
+
+        self.org.connect_vonage("1234", "secret", self.admin)
+
+        search_url = reverse("channels.types.vonage.search")
+
+        response = self.client.get(search_url)
+        self.assertEqual(["country", "pattern", "loc"], list(response.context["form"].fields.keys()))
+
+        mock_search_numbers.return_value = [
+            {"features": ["SMS", "VOICE"], "type": "mobile-lvn", "country": "US", "msisdn": "13607884540"},
+            {"features": ["SMS", "VOICE"], "type": "mobile-lvn", "country": "US", "msisdn": "13607884550"},
+        ]
+
+        response = self.client.post(search_url, {"country": "US", "pattern": "360"})
+
+        self.assertEqual(["+1 360-788-4540", "+1 360-788-4550"], response.json())
+
     def test_deactivate(self):
         # convert our test channel to be a Vonage channel
         self.org.connect_vonage("TEST_KEY", "TEST_SECRET", self.admin)

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-14 18:49+0000\n"
+"POT-Creation-Date: 2021-04-21 21:10+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1538,6 +1538,12 @@ msgstr ""
 msgid "Short code not found on your Twilio Account. Please check you own the short code and Try again"
 msgstr ""
 
+msgid "Sorry, no numbers found, please enter another area code and try again."
+msgstr ""
+
+msgid "Sorry, no numbers found, please enter another pattern and try again."
+msgstr ""
+
 #, python-format
 msgid "You can connect a messaging service from your Twilio account to benefit from %(link)s features."
 msgstr ""
@@ -1977,15 +1983,6 @@ msgid "Channels"
 msgstr ""
 
 msgid "Unknown"
-msgstr ""
-
-msgid "The area code you want to search for a new number in"
-msgstr ""
-
-msgid "Sorry, no numbers found, please enter another area code and try again."
-msgstr ""
-
-msgid "Sorry, no numbers found, please enter another pattern and try again."
 msgstr ""
 
 msgid "Calls"
@@ -3438,13 +3435,13 @@ msgstr ""
 msgid "Your Vonage API secret"
 msgstr ""
 
-msgid "Your Plivo AUTH ID"
+msgid "Your Plivo auth ID"
 msgstr ""
 
-msgid "Your Plivo AUTH TOKEN"
+msgid "Your Plivo auth token"
 msgstr ""
 
-msgid "Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."
+msgid "Your Plivo auth ID and auth token seem invalid. Please check them again and retry."
 msgstr ""
 
 msgid "Email Address"

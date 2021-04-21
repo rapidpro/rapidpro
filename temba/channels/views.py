@@ -21,7 +21,7 @@ from smartmin.views import (
     SmartTemplateView,
     SmartUpdateView,
 )
-from twilio.base.exceptions import TwilioException, TwilioRestException
+from twilio.base.exceptions import TwilioRestException
 
 from django import forms
 from django.conf import settings
@@ -33,7 +33,6 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_bytes, force_text
-from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
@@ -44,7 +43,6 @@ from temba.orgs.models import Org
 from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, countries, json
 from temba.utils.fields import SelectWidget
-from temba.utils.http import http_headers
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import ComponentFormMixin
 
@@ -710,13 +708,10 @@ class ChannelCRUDL(SmartCRUDL):
         "update",
         "read",
         "delete",
-        "search_numbers",
         "configuration",
-        "search_vonage",
         "bulk_sender_options",
         "create_bulk_sender",
         "create_caller",
-        "search_plivo",
         "facebook_whitelist",
     )
     permissions = True
@@ -1411,190 +1406,6 @@ class ChannelCRUDL(SmartCRUDL):
 
         def get_address(self, obj):
             return obj.address if obj.address else _("Unknown")
-
-    class SearchNumbers(OrgPermsMixin, SmartFormView):
-        class Form(forms.Form):
-            area_code = forms.CharField(
-                max_length=3,
-                min_length=3,
-                required=False,
-                help_text=_("The area code you want to search for a new number in"),
-            )
-            country = forms.ChoiceField()
-
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-                from temba.channels.types.twilio.views import SEARCH_COUNTRY_CHOICES
-
-                self.fields["country"].choices = SEARCH_COUNTRY_CHOICES
-
-        form_class = Form
-
-        def form_invalid(self, *args, **kwargs):
-            return JsonResponse([], safe=False)
-
-        def search_available_numbers(self, client, **kwargs):
-            available_numbers = []
-
-            country = kwargs["country"]
-            del kwargs["country"]
-
-            try:
-                available_numbers += client.api.available_phone_numbers(country).local.list(**kwargs)
-            except TwilioException:  # pragma: no cover
-                pass
-
-            try:
-                available_numbers += client.api.available_phone_numbers(country).mobile.list(**kwargs)
-            except TwilioException:  # pragma: no cover
-                pass
-
-            try:
-                available_numbers += client.api.available_phone_numbers(country).toll_free.list(**kwargs)
-            except TwilioException:  # pragma: no cover
-                pass
-
-            return available_numbers
-
-        def form_valid(self, form, *args, **kwargs):
-            org = self.request.user.get_org()
-            client = org.get_twilio_client()
-            data = form.cleaned_data
-
-            # if the country is not US or CANADA list using contains instead of area code
-            if not data["area_code"]:
-                available_numbers = self.search_available_numbers(client, country=data["country"])
-            elif data["country"] in ["CA", "US"]:
-                available_numbers = self.search_available_numbers(
-                    client, area_code=data["area_code"], country=data["country"]
-                )
-            else:
-                available_numbers = self.search_available_numbers(
-                    client, contains=data["area_code"], country=data["country"]
-                )
-
-            numbers = []
-
-            for number in available_numbers:
-                numbers.append(
-                    phonenumbers.format_number(
-                        phonenumbers.parse(number.phone_number, None), phonenumbers.PhoneNumberFormat.INTERNATIONAL
-                    )
-                )
-
-            if not numbers:
-                if data["country"] in ["CA", "US"]:
-                    return JsonResponse(
-                        dict(error=str(_("Sorry, no numbers found, " "please enter another area code and try again.")))
-                    )
-                else:
-                    return JsonResponse(
-                        dict(error=str(_("Sorry, no numbers found, " "please enter another pattern and try again.")))
-                    )
-
-            return JsonResponse(numbers, safe=False)
-
-    class SearchVonage(SearchNumbers):
-        class Form(forms.Form):
-            area_code = forms.CharField(
-                max_length=7, required=False, help_text=_("The area code you want to search for a new number in")
-            )
-            country = forms.ChoiceField()
-
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-                from temba.channels.types.vonage.views import COUNTRY_CHOICES
-
-                self.fields["country"].choices = COUNTRY_CHOICES
-
-        form_class = Form
-
-        def form_valid(self, form, *args, **kwargs):  # pragma: needs cover
-            org = self.request.user.get_org()
-            client = org.get_vonage_client()
-            data = form.cleaned_data
-
-            try:
-                available_numbers = client.search_numbers(data["country"], data["area_code"])
-                numbers = []
-
-                for number in available_numbers:
-                    numbers.append(
-                        phonenumbers.format_number(
-                            phonenumbers.parse(number["msisdn"], data["country"]),
-                            phonenumbers.PhoneNumberFormat.INTERNATIONAL,
-                        )
-                    )
-
-                return JsonResponse(numbers, safe=False)
-            except Exception as e:
-                raise e
-
-    class SearchPlivo(SearchNumbers):
-        class Form(forms.Form):
-            area_code = forms.CharField(
-                max_length=3,
-                min_length=3,
-                required=False,
-                help_text=_("The area code you want to search for a new number in"),
-            )
-            country = forms.ChoiceField()
-
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-                from temba.channels.types.plivo.views import COUNTRY_CHOICES
-
-                self.fields["country"].choices = COUNTRY_CHOICES
-
-        form_class = Form
-
-        def pre_process(self, *args, **kwargs):  # pragma: needs cover
-            auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
-            auth_token = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_TOKEN, None)
-
-            headers = http_headers(extra={"Content-Type": "application/json"})
-            response = requests.get(
-                "https://api.plivo.com/v1/Account/%s/" % auth_id, headers=headers, auth=(auth_id, auth_token)
-            )
-
-            if response.status_code == 200:
-                return None
-            else:
-                return HttpResponseRedirect(reverse("channels.channel_claim"))
-
-        def form_valid(self, form, *args, **kwargs):
-            data = form.cleaned_data
-            auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
-            auth_token = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_TOKEN, None)
-
-            results_numbers = []
-            try:
-                url = "https://api.plivo.com/v1/Account/%s/PhoneNumber/?%s" % (
-                    auth_id,
-                    urlencode(dict(country_iso=data["country"], pattern=data["area_code"])),
-                )
-
-                headers = http_headers(extra={"Content-Type": "application/json"})
-                response = requests.get(url, headers=headers, auth=(auth_id, auth_token))
-
-                if response.status_code == 200:
-                    response_data = response.json()
-                    results_numbers = ["+" + number_dict["number"] for number_dict in response_data["objects"]]
-                else:
-                    return JsonResponse(dict(error=response.text))
-
-                numbers = [
-                    phonenumbers.format_number(
-                        phonenumbers.parse(number, None), phonenumbers.PhoneNumberFormat.INTERNATIONAL
-                    )
-                    for number in results_numbers
-                ]
-                return JsonResponse(numbers, safe=False)
-            except Exception as e:
-                return JsonResponse(dict(error=str(e)))
 
 
 class ChannelEventCRUDL(SmartCRUDL):
