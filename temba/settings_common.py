@@ -1170,6 +1170,9 @@ CHANNEL_TYPES = [
     "temba.channels.types.rocketchat.RocketChatType",
 ]
 
+# set of ISO-639-3 codes of languages to allow in addition to all ISO-639-1 languages
+NON_ISO6391_LANGUAGES = {}
+
 # -----------------------------------------------------------------------------------
 # Store sessions in our cache
 # -----------------------------------------------------------------------------------

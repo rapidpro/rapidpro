@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-21 21:10+0000\n"
+"POT-Creation-Date: 2021-04-22 14:19+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3169,9 +3169,6 @@ msgstr ""
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr ""
 
-msgid "Org"
-msgstr ""
-
 #, python-format
 msgid "%(name)s Invitation"
 msgstr ""
@@ -3644,7 +3641,7 @@ msgstr ""
 msgid "Additional Languages"
 msgstr ""
 
-msgid "Additional languages you would like to provid translations for"
+msgid "Additional languages you would like to provide translations for"
 msgstr ""
 
 #, python-format
