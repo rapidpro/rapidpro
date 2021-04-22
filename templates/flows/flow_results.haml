@@ -647,8 +647,11 @@
       localStorage.setItem("responded", "true");
 
       {% if request.GET.q or request.GET.after or request.GET.before or request.GET.contact_query %}
-      updateColumnSelect();
-      setRunsTab();
+        updateColumnSelect();
+        setRunsTab();
+        {% if request.GET.responded == "false" %}
+          setTimeout(()=> {$("#show-all-runs").click()}, 100);
+        {% endif %}
       {% endif %}
 
     });
@@ -661,11 +664,11 @@
     });
 
     $(function() {
-        $(".responded-checkbox .runs-show").on('click', function(){
-          $(this).siblings().not($(this)).removeClass("active");
-          $(this).addClass("active");
-        });
+      $(".responded-checkbox .runs-show").on('click', function(){
+        $(this).siblings().not($(this)).removeClass("active");
+        $(this).addClass("active");
       });
+    });
 
     $(document).ready(function() {
       $(".flatpickr.start").flatpickr({
@@ -696,6 +699,11 @@
         $(this).children('.long').hide();
       });
     });
+
+    function configToShowResponded(value) {
+      localStorage.setItem("responded", value);
+      $("#runs-responded").val(value);
+    }
 
 -block content
 
@@ -740,6 +748,7 @@
           -trans "Filter"
 
         %form#search-form.max-w-full.mt-2.flex(method="get")
+          %input#runs-responded.hidden(type="text" value="true" name="responded")
           %div{class: "w-1/4 flex"}
             %div{class: "w-1/2 flex flex-col pr-3"}
               %label.control-label.flex.m-0
@@ -767,7 +776,7 @@
           .runs-show#show-all-runs{
             ic-get-from:"/flow/run_table/{{object.id}}/?after={{request.GET.after}}&before={{request.GET.before}}&q={{request.GET.q}}&contact_query={{request.GET.contact_query}}",
             ic-on-beforeSend:'$("#results_run_table").empty();',
-            ic-on-beforeTrigger: 'localStorage.setItem("responded", "false");',
+            ic-on-beforeTrigger: 'configToShowResponded("false");',
             ic-trigger-on:"click",
             ic-target:"#results_run_table",
             ic-indicator:"#indicator"}
@@ -777,7 +786,7 @@
           .runs-show.active{
               ic-get-from:"/flow/run_table/{{object.id}}/?after={{request.GET.after}}&before={{request.GET.before}}&q={{request.GET.q}}&contact_query={{request.GET.contact_query}}",
               ic-on-beforeSend:'$("#results_run_table").empty();',
-              ic-on-beforeTrigger: 'localStorage.setItem("responded", "true");',
+              ic-on-beforeTrigger: 'configToShowResponded("true");',
               ic-trigger-on:"click",
               ic-target:"#results_run_table",
               ic-indicator:"#indicator"}
