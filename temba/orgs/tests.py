@@ -4149,19 +4149,18 @@ class LanguageTest(TembaTest):
             response.json()["results"],
         )
 
-        # unless they already use a language that doesn't
-        Language.create(self.org, self.admin, "Cajun French", "frc")
-
-        response = self.client.get("%s?search=Fr" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
-        self.assertEqual(
-            [
-                {"value": "afr", "name": "Afrikaans"},
-                {"value": "fra", "name": "French"},
-                {"value": "frc", "name": "Cajun French"},
-                {"value": "fry", "name": "Western Frisian"},
-            ],
-            response.json()["results"],
-        )
+        # unless they're explicitly included in settings
+        with override_settings(NON_ISO6391_LANGUAGES={"frc"}):
+            response = self.client.get("%s?search=Fr" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+            self.assertEqual(
+                [
+                    {"value": "afr", "name": "Afrikaans"},
+                    {"value": "fra", "name": "French"},
+                    {"value": "frc", "name": "Cajun French"},
+                    {"value": "fry", "name": "Western Frisian"},
+                ],
+                response.json()["results"],
+            )
 
     def test_language_codes(self):
         self.assertEqual("French", languages.get_language_name("fra"))
@@ -4182,17 +4181,18 @@ class LanguageTest(TembaTest):
             matches,
         )
 
-        # if org is already using a language without a 2-letter code, they can still use it
-        matches = languages.search_by_name("Fr", always_allow=("frc",))
-        self.assertEqual(
-            [
-                {"value": "afr", "name": "Afrikaans"},
-                {"value": "fra", "name": "French"},
-                {"value": "frc", "name": "Cajun French"},
-                {"value": "fry", "name": "Western Frisian"},
-            ],
-            matches,
-        )
+        # usually only return ISO-639-1 languages but can add inclusions in settings
+        with override_settings(NON_ISO6391_LANGUAGES={"frc"}):
+            matches = languages.search_by_name("Fr")
+            self.assertEqual(
+                [
+                    {"value": "afr", "name": "Afrikaans"},
+                    {"value": "fra", "name": "French"},
+                    {"value": "frc", "name": "Cajun French"},
+                    {"value": "fry", "name": "Western Frisian"},
+                ],
+                matches,
+            )
 
     def test_get_localized_text(self):
         text_translations = dict(eng="Hello", spa="Hola")

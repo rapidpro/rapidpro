@@ -1,4 +1,7 @@
+import iso639
 import pycountry
+
+from django.conf import settings
 
 iso_codes = {}
 migration_lang_cache = {}
@@ -27,14 +30,12 @@ def _get_language_name_iso6393(iso_code):
     return lang_name
 
 
-def search_by_name(query: str, *, always_allow=()):
+def search_by_name(query: str):
     """
     Searches language names in ISO639-2. Only returns languages with a 2-letter code, except those
-    explicitly allowed.
+    explicitly allowed by the NON_ISO6391_LANGUAGES setting.
     Args:
         query: substring of a language name, e.g. "Fren"
-        always_allow: 3-letter codes of languages to include even if they don't have a 2-letter code
-
     Returns:
         A list of dicts showing the matches [{"value": "fra", "name": "French"}]
     """
@@ -43,7 +44,7 @@ def search_by_name(query: str, *, always_allow=()):
 
     for lang in pycountry.languages:
         has_alpha_2 = getattr(lang, "alpha_2", None)
-        if (has_alpha_2 or lang.alpha_3 in always_allow) and query in lang.name.lower():
+        if (has_alpha_2 or lang.alpha_3 in settings.NON_ISO6391_LANGUAGES) and query in lang.name.lower():
             matches.append(dict(value=lang.alpha_3, name=lang.name))
     return matches
 
@@ -74,7 +75,6 @@ def iso6392_to_iso6393(iso_code, country_code=None):
     """
     Given an iso639-2 code and an optional country code, returns the appropriate 639-3 code to use.
     """
-    import iso639
 
     if iso_code is None:
         return None

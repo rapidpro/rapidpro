@@ -3143,11 +3143,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 if len(matches) == 0:
                     search = self.request.GET.get("search", self.request.GET.get("q", "")).strip().lower()
-
-                    # allow any language the org is currently using
-                    existing = {lang.iso_code for lang in self.get_object().languages.all()}
-
-                    matches += languages.search_by_name(search, always_allow=existing)
+                    matches += languages.search_by_name(search)
                 return JsonResponse(dict(results=matches))
 
             return super().get(request, *args, **kwargs)
