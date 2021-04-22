@@ -488,8 +488,8 @@ class UpdateContactForm(ContactForm):
 
         # if they had a preference that has since been removed, make sure we show it
         if self.instance.language and self.instance.language not in org_lang_codes:
-            name = languages.get_name(self.instance.language)
-            choices += ((self.instance.language, _(f"{name} (Missing)")),)
+            lang_name = languages.get_name(self.instance.language)
+            choices += ((self.instance.language, _(f"{lang_name} (Missing)")),)
 
         choices += languages.choices(codes=org_lang_codes)
 
