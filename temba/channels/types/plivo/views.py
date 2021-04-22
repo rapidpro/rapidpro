@@ -6,12 +6,14 @@ from smartmin.views import SmartFormView
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
+from django.utils.http import urlencode
 from django.utils.translation import ugettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.channels.views import BaseClaimNumberMixin, ClaimViewMixin
+from temba.orgs.views import OrgPermsMixin
 from temba.utils import countries
 from temba.utils.fields import SelectWidget
 from temba.utils.http import http_headers
@@ -81,7 +83,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return country_code in SUPPORTED_COUNTRIES
 
     def get_search_url(self):
-        return reverse("channels.channel_search_plivo")
+        return reverse("channels.types.plivo.search")
 
     def get_claim_url(self):
         return reverse("channels.types.plivo.claim")
@@ -205,3 +207,42 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             del self.request.session[Channel.CONFIG_PLIVO_AUTH_ID]
         if Channel.CONFIG_PLIVO_AUTH_TOKEN in self.request.session:
             del self.request.session[Channel.CONFIG_PLIVO_AUTH_TOKEN]
+
+
+class SearchView(OrgPermsMixin, SmartFormView):
+    class Form(forms.Form):
+        country = forms.ChoiceField(choices=COUNTRY_CHOICES)
+        pattern = forms.CharField(max_length=7, required=False)
+
+    form_class = Form
+    permission = "channels.channel_claim"
+
+    def form_valid(self, form, *args, **kwargs):
+        data = form.cleaned_data
+        auth_id = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_ID, None)
+        auth_token = self.request.session.get(Channel.CONFIG_PLIVO_AUTH_TOKEN, None)
+
+        try:
+            params = dict(country_iso=data["country"], pattern=data.get("pattern"))
+            url = f"https://api.plivo.com/v1/Account/{auth_id}/PhoneNumber/?{urlencode(params)}"
+
+            headers = http_headers(extra={"Content-Type": "application/json"})
+            response = requests.get(url, headers=headers, auth=(auth_id, auth_token))
+
+            if response.status_code == 200:
+                response_data = response.json()
+                results_numbers = ["+" + number_dict["number"] for number_dict in response_data["objects"]]
+            else:
+                return JsonResponse({"error": response.text})
+
+            numbers = []
+            for number in results_numbers:
+                numbers.append(
+                    phonenumbers.format_number(
+                        phonenumbers.parse(number, None), phonenumbers.PhoneNumberFormat.INTERNATIONAL
+                    )
+                )
+
+            return JsonResponse(numbers, safe=False)
+        except Exception as e:
+            return JsonResponse({"error": str(e)})

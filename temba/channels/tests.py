@@ -970,59 +970,6 @@ class ChannelTest(TembaTest):
         with self.assertRaises(ValueError):
             self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
 
-    @patch("temba.channels.types.vonage.client.VonageClient.search_numbers")
-    def test_search_vonage(self, mock_search_numbers):
-        self.login(self.admin)
-        self.org.channels.update(is_active=False)
-        self.channel = Channel.create(
-            self.org, self.user, "RW", "NX", None, "+250788123123", uuid="00000000-0000-0000-0000-000000001234"
-        )
-
-        self.org.connect_vonage("1234", "secret", self.admin)
-
-        search_url = reverse("channels.channel_search_vonage")
-
-        response = self.client.get(search_url)
-        self.assertIn("area_code", response.context["form"].fields)
-        self.assertIn("country", response.context["form"].fields)
-
-        mock_search_numbers.return_value = [
-            {"features": ["SMS", "VOICE"], "type": "mobile-lvn", "country": "US", "msisdn": "13607884540"},
-            {"features": ["SMS", "VOICE"], "type": "mobile-lvn", "country": "US", "msisdn": "13607884550"},
-        ]
-
-        response = self.client.post(search_url, {"country": "US", "area_code": "360"})
-
-        self.assertEqual(response.json(), ["+1 360-788-4540", "+1 360-788-4550"])
-
-    def test_plivo_search_numbers(self):
-        self.login(self.admin)
-
-        plivo_search_url = reverse("channels.channel_search_plivo")
-
-        with patch("requests.get") as plivo_get:
-            plivo_get.return_value = MockResponse(200, json.dumps(dict(objects=[])))
-
-            response = self.client.post(plivo_search_url, dict(country="US", area_code=""), follow=True)
-
-            self.assertEqual(response.status_code, 200)
-            self.assertNotContains(response, "error")
-
-            # missing key to throw exception
-            plivo_get.return_value = MockResponse(200, json.dumps(dict()))
-            response = self.client.post(plivo_search_url, dict(country="US", area_code=""), follow=True)
-
-            self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "error")
-
-            plivo_get.side_effect = [
-                MockResponse(200, json.dumps(dict())),  # get account in pre_process
-                MockResponse(400, "Bad request"),  # failed search numbers
-            ]
-            response = self.client.post(plivo_search_url, dict(country="US", area_code=""), follow=True)
-
-            self.assertContains(response, "Bad request")
-
     def test_release_with_flow_dependencies(self):
         Channel.objects.all().delete()
         self.login(self.admin)

@@ -1,12 +1,13 @@
 from twilio.base.exceptions import TwilioRestException
 
+from django.conf.urls import url
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import URN
 from temba.utils.timezones import timezone_to_country_code
 
 from ...models import ChannelType
-from .views import SUPPORTED_COUNTRIES, ClaimView
+from .views import SUPPORTED_COUNTRIES, ClaimView, SearchView
 
 
 class TwilioType(ChannelType):
@@ -81,3 +82,6 @@ class TwilioType(ChannelType):
             # we swallow 20003 which means our twilio key is no longer valid
             if e.code != 20003:
                 raise e
+
+    def get_urls(self):
+        return [self.get_claim_url(), url(r"^search$", SearchView.as_view(), name="search")]

@@ -1,15 +1,16 @@
 import phonenumbers
 from phonenumbers.phonenumberutil import region_code_for_number
 from smartmin.views import SmartFormView
-from twilio.base.exceptions import TwilioRestException
+from twilio.base.exceptions import TwilioException, TwilioRestException
 
 from django import forms
 from django.conf import settings
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.models import Org
+from temba.orgs.views import OrgPermsMixin
 from temba.utils import countries
 from temba.utils.fields import SelectWidget
 from temba.utils.timezones import timezone_to_country_code
@@ -114,7 +115,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return ALL_COUNTRIES
 
     def get_search_url(self):
-        return reverse("channels.channel_search_numbers")
+        return reverse("channels.types.twilio.search")
 
     def get_claim_url(self):
         return reverse("channels.types.twilio.claim")
@@ -251,3 +252,66 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         )
 
         return channel
+
+
+class SearchView(OrgPermsMixin, SmartFormView):
+    class Form(forms.Form):
+        country = forms.ChoiceField(choices=SEARCH_COUNTRY_CHOICES)
+        pattern = forms.CharField(max_length=3, min_length=3, required=False)
+
+    form_class = Form
+    permission = "channels.channel_claim"
+
+    def form_invalid(self, *args, **kwargs):
+        return JsonResponse([], safe=False)
+
+    def search_available(self, client, country: str, **kwargs):
+        available_numbers = []
+
+        try:
+            available_numbers += client.api.available_phone_numbers(country).local.list(**kwargs)
+        except TwilioException:  # pragma: no cover
+            pass
+
+        try:
+            available_numbers += client.api.available_phone_numbers(country).mobile.list(**kwargs)
+        except TwilioException:  # pragma: no cover
+            pass
+
+        try:
+            available_numbers += client.api.available_phone_numbers(country).toll_free.list(**kwargs)
+        except TwilioException:  # pragma: no cover
+            pass
+
+        return available_numbers
+
+    def form_valid(self, form, *args, **kwargs):
+        org = self.request.user.get_org()
+        client = org.get_twilio_client()
+        data = form.cleaned_data
+
+        # if the country is not US or CANADA list using contains instead of area code
+        if not data["pattern"]:
+            available_numbers = self.search_available(client, data["country"])
+        elif data["country"] in ["CA", "US"]:
+            available_numbers = self.search_available(client, data["country"], area_code=data["pattern"])
+        else:
+            available_numbers = self.search_available(client, data["country"], contains=data["pattern"])
+
+        numbers = []
+
+        for number in available_numbers:
+            numbers.append(
+                phonenumbers.format_number(
+                    phonenumbers.parse(number.phone_number, None), phonenumbers.PhoneNumberFormat.INTERNATIONAL
+                )
+            )
+
+        if not numbers:
+            if data["country"] in ["CA", "US"]:
+                msg = _("Sorry, no numbers found, please enter another area code and try again.")
+            else:
+                msg = _("Sorry, no numbers found, please enter another pattern and try again.")
+            return JsonResponse({"error": str(msg)})
+
+        return JsonResponse(numbers, safe=False)
