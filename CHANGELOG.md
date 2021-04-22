@@ -1,3 +1,7 @@
+v6.3.30
+----------
+ * Restrict org languages to ISO-639-1 plus explicit inclusions
+
 v6.3.29
 ----------
  * Move Twilio, Plivo and Vonage number searching views into their respective channel packages
