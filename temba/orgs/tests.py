@@ -4079,8 +4079,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("msgs.msg_inbox"))
         self.assertRedirect(response, "/users/login/")
 
-
-class LanguageTest(TembaTest):
     def test_languages(self):
         langs_url = reverse("orgs.org_languages")
 
@@ -4151,49 +4149,22 @@ class LanguageTest(TembaTest):
 
         # unless they're explicitly included in settings
         with override_settings(NON_ISO6391_LANGUAGES={"frc"}):
+            languages.reload()
             response = self.client.get("%s?search=Fr" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
             self.assertEqual(
                 [
                     {"value": "afr", "name": "Afrikaans"},
-                    {"value": "fra", "name": "French"},
                     {"value": "frc", "name": "Cajun French"},
+                    {"value": "fra", "name": "French"},
                     {"value": "fry", "name": "Western Frisian"},
                 ],
                 response.json()["results"],
             )
 
-    def test_language_codes(self):
-        self.assertEqual("French", languages.get_language_name("fra"))
-        self.assertEqual("Chinese Pidgin English", languages.get_language_name("cpi"))
-        self.assertIsNone(languages.get_language_name("xyz"))
+        languages.reload()
 
-        # should strip off anything after an open paren or semicolon
-        self.assertEqual("Haitian", languages.get_language_name("hat"))
 
-        # check that search returns results and in the proper order
-        matches = languages.search_by_name("Fr")
-        self.assertEqual(
-            [
-                {"value": "afr", "name": "Afrikaans"},
-                {"value": "fra", "name": "French"},
-                {"value": "fry", "name": "Western Frisian"},
-            ],
-            matches,
-        )
-
-        # usually only return ISO-639-1 languages but can add inclusions in settings
-        with override_settings(NON_ISO6391_LANGUAGES={"frc"}):
-            matches = languages.search_by_name("Fr")
-            self.assertEqual(
-                [
-                    {"value": "afr", "name": "Afrikaans"},
-                    {"value": "fra", "name": "French"},
-                    {"value": "frc", "name": "Cajun French"},
-                    {"value": "fry", "name": "Western Frisian"},
-                ],
-                matches,
-            )
-
+class LanguageTest(TembaTest):
     def test_get_localized_text(self):
         text_translations = dict(eng="Hello", spa="Hola")
 
@@ -4208,157 +4179,6 @@ class LanguageTest(TembaTest):
 
         # secondary option
         self.assertEqual(Language.get_localized_text(text_translations, ["fra", "spa"]), "Hola")
-
-    def test_language_migrations(self):
-        self.assertEqual("pcm", languages.iso6392_to_iso6393("cpe", country_code="NG"))
-
-        org_languages = [
-            "dum",
-            "ger",
-            "alb",
-            "ita",
-            "tir",
-            "nwc",
-            "tsn",
-            "tso",
-            "lua",
-            "jav",
-            "nso",
-            "aus",
-            "nor",
-            "ada",
-            "fij",
-            "hat",
-            "hau",
-            "fil",
-            "amh",
-            "som",
-            "ssw",
-            "mon",
-            "him",
-            "hin",
-            "tig",
-            "guj",
-            "ibo",
-            "afr",
-            "div",
-            "bam",
-            "kac",
-            "tel",
-            "tpi",
-            "snd",
-            "ara",
-            "lao",
-            "nbl",
-            "arm",
-            "abk",
-            "kur",
-            "per",
-            "wol",
-            "smi",
-            "lug",
-            "tmh",
-            "nep",
-            "luo",
-            "run",
-            "rum",
-            "tur",
-            "orm",
-            "que",
-            "ori",
-            "rus",
-            "asm",
-            "pus",
-            "kik",
-            "ace",
-            "syr",
-            "ach",
-            "nde",
-            "srp",
-            "zul",
-            "vie",
-            "por",
-            "chm",
-            "mai",
-            "pol",
-            "sot",
-            "art",
-            "tgl",
-            "che",
-            "fre",
-            "kon",
-            "swa",
-            "chi",
-            "twi",
-            "swe",
-            "ukr",
-            "mkh",
-            "heb",
-            "kor",
-            "dut",
-            "tog",
-            "bur",
-            "ven",
-            "hmn",
-            "enm",
-            "gaa",
-            "ben",
-            "bem",
-            "xho",
-            "aze",
-            "ain",
-            "ful",
-            "ang",
-            "dan",
-            "bho",
-            "jpn",
-            "raj",
-            "khm",
-            "AAR",
-            "ind",
-            "spa",
-            "eng",
-            "lin",
-            "afa",
-            "ewe",
-            "nyn",
-            "nyo",
-            "mis",
-            "nya",
-            "yor",
-            "pan",
-            "tam",
-            "phi",
-            "mar",
-            "sna",
-            "may",
-            "kan",
-            "kal",
-            "kas",
-            "kar",
-            "kin",
-            "lat",
-            "mal",
-            "urd",
-            "gsw",
-            "cpe",
-            "cpf",
-            "cpp",
-            "tha",
-        ]
-
-        for lang in org_languages:
-            self.assertIsNotNone(languages.iso6392_to_iso6393(lang))
-
-        # test if language is already iso-639-3
-        self.assertEqual("cro", languages.iso6392_to_iso6393("cro"))
-        # test code path when language is in cache
-        self.assertEqual("cro", languages.iso6392_to_iso6393("cro"))
-
-        # test behavior with unknown values
-        self.assertIsNone(languages.iso6392_to_iso6393(iso_code=None))
-        self.assertRaises(ValueError, languages.iso6392_to_iso6393, iso_code="")
-        self.assertRaises(ValueError, languages.iso6392_to_iso6393, iso_code="123")
 
 
 class BulkExportTest(TembaTest):

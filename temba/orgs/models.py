@@ -950,7 +950,7 @@ class Org(SmartModel):
         Sets languages for this org, creating and deleting language objects as necessary
         """
         for iso_code in iso_codes:
-            name = languages.get_language_name(iso_code)
+            name = languages.get_name(iso_code)
             language = self.languages.filter(iso_code=iso_code).first()
 
             # if it's valid and doesn't exist yet, create it

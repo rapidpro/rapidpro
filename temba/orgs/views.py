@@ -3138,7 +3138,7 @@ class OrgCRUDL(SmartCRUDL):
                 if len(initial) > 0:
                     for iso_code in initial:
                         if iso_code:
-                            lang = languages.get_language_name(iso_code)
+                            lang = languages.get_name(iso_code)
                             matches.append({"value": iso_code, "name": lang})
 
                 if len(matches) == 0:
