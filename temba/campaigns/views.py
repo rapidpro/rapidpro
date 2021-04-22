@@ -11,6 +11,7 @@ from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.utils import languages
 from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget
 from temba.utils.views import BulkActionMixin
 
@@ -426,16 +427,15 @@ class CampaignEventForm(forms.ModelForm):
         self.languages = []
 
         # add in all of our languages for message forms
-        languages = org.languages.all()
+        lang_codes = org.get_language_codes()
 
-        for language in languages:
-
+        for lang_code in lang_codes:
+            lang_name = languages.get_name(lang_code)
             insert = None
 
             # if it's our primary language, allow use to steal the 'base' message
-            if org.primary_language and org.primary_language.iso_code == language.iso_code:
-
-                initial = message.get(language.iso_code, "")
+            if org.primary_language and org.primary_language.iso_code == lang_code:
+                initial = message.get(lang_code, "")
 
                 if not initial:
                     initial = message.get("base", "")
@@ -443,9 +443,8 @@ class CampaignEventForm(forms.ModelForm):
                 # also, let's show it first
                 insert = 0
             else:
-
                 # otherwise, its just a normal language
-                initial = message.get(language.iso_code, "")
+                initial = message.get(lang_code, "")
 
             field = forms.CharField(
                 widget=CompletionTextarea(
@@ -457,12 +456,12 @@ class CampaignEventForm(forms.ModelForm):
                     }
                 ),
                 required=False,
-                label=language.name,
+                label=lang_name,
                 initial=initial,
             )
 
-            self.fields[language.iso_code] = field
-            field.language = dict(name=language.name, iso_code=language.iso_code)
+            self.fields[lang_code] = field
+            field.language = dict(name=lang_name, iso_code=lang_code)
 
             # see if we need to insert or append
             if insert is not None:
@@ -627,8 +626,8 @@ class CampaignEventCRUDL(SmartCRUDL):
             # add in all of our languages for message forms
             org = self.request.user.get_org()
 
-            for language in org.languages.all():
-                fields.append(language.iso_code)
+            for lang_code in org.get_language_codes():
+                fields.append(lang_code)
 
             flow_language = self.object.flow.base_language
 
@@ -724,8 +723,8 @@ class CampaignEventCRUDL(SmartCRUDL):
             # add in all of our languages for message forms
             org = self.request.user.get_org()
 
-            for language in org.languages.all():
-                fields.append(language.iso_code)
+            for lang_code in org.get_language_codes():
+                fields.append(lang_code)
 
             if not org.primary_language:
                 fields.append("base")
