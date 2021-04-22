@@ -1170,13 +1170,8 @@ CHANNEL_TYPES = [
     "temba.channels.types.rocketchat.RocketChatType",
 ]
 
-NON_ISO6391_LANGUAGES = {
-    "bem",  # Bemba (Zambia)
-    "din",  # Dinka
-    "fil",  # Filipino
-    "pcm",  # Nigerian Pidgin
-    "pst",  # Central Pashto
-}
+# set of ISO-639-3 codes of languages to allow in addition to all ISO-639-1 languages
+NON_ISO6391_LANGUAGES = {}
 
 # -----------------------------------------------------------------------------------
 # Store sessions in our cache
