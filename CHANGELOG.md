@@ -1,3 +1,10 @@
+v6.3.29
+----------
+ * Move Twilio, Plivo and Vonage number searching views into their respective channel packages
+ * Optimize query for fetching contacts with only closed tickets
+ * Release contact imports when releasing groups
+ * Proper skip anonymous user for analytics
+
 v6.3.28
 ----------
  * Remove simplejson

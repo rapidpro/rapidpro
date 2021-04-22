@@ -3,11 +3,12 @@ from smartmin.views import SmartFormView
 
 from django import forms
 from django.core.exceptions import ValidationError
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
 
 from temba.orgs.models import Org
+from temba.orgs.views import OrgPermsMixin
 from temba.utils import countries
 from temba.utils.fields import SelectWidget
 from temba.utils.models import generate_uuid
@@ -281,7 +282,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         return country_code in SUPPORTED_COUNTRIES
 
     def get_search_url(self):
-        return reverse("channels.channel_search_vonage")
+        return reverse("channels.types.vonage.search")
 
     def get_claim_url(self):
         return reverse("channels.types.vonage.claim")
@@ -411,6 +412,37 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         )
 
         return channel
+
+
+class SearchView(OrgPermsMixin, SmartFormView):
+    """
+    Endpoint for searching for numbers to claim
+    """
+
+    class Form(forms.Form):
+        country = forms.ChoiceField(choices=COUNTRY_CHOICES)
+        pattern = forms.CharField(max_length=7, required=False)
+
+    form_class = Form
+    permission = "channels.channel_claim"
+
+    def form_valid(self, form, *args, **kwargs):
+        org = self.request.user.get_org()
+        client = org.get_vonage_client()
+        data = form.cleaned_data
+
+        available_numbers = client.search_numbers(data["country"], data.get("pattern"))
+        numbers = []
+
+        for number in available_numbers:
+            numbers.append(
+                phonenumbers.format_number(
+                    phonenumbers.parse(number["msisdn"], data["country"]),
+                    phonenumbers.PhoneNumberFormat.INTERNATIONAL,
+                )
+            )
+
+        return JsonResponse(numbers, safe=False)
 
 
 class UpdateForm(UpdateTelChannelForm):

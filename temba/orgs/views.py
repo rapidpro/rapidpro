@@ -1205,8 +1205,8 @@ class OrgCRUDL(SmartCRUDL):
 
     class PlivoConnect(ModalMixin, ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class PlivoConnectForm(forms.Form):
-            auth_id = forms.CharField(help_text=_("Your Plivo AUTH ID"))
-            auth_token = forms.CharField(help_text=_("Your Plivo AUTH TOKEN"))
+            auth_id = forms.CharField(help_text=_("Your Plivo auth ID"))
+            auth_token = forms.CharField(help_text=_("Your Plivo auth token"))
 
             def clean(self):
                 super().clean()
@@ -1222,7 +1222,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 if response.status_code != 200:
                     raise ValidationError(
-                        _("Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry.")
+                        _("Your Plivo auth ID and auth token seem invalid. Please check them again and retry.")
                     )
 
                 return self.cleaned_data

@@ -2986,20 +2986,20 @@ class OrgTest(TembaTest):
         connect_url = reverse("orgs.org_plivo_connect")
 
         # simulate invalid credentials
-        with patch("requests.get") as plivo_mock:
-            plivo_mock.return_value = MockResponse(
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(
                 401, "Could not verify your access level for that URL." "\nYou have to login with proper credentials"
             )
             response = self.client.post(connect_url, dict(auth_id="auth-id", auth_token="auth-token"))
             self.assertContains(
-                response, "Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."
+                response, "Your Plivo auth ID and auth token seem invalid. Please check them again and retry."
             )
             self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
             self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
 
         # ok, now with a success
-        with patch("requests.get") as plivo_mock:
-            plivo_mock.return_value = MockResponse(200, json.dumps(dict()))
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(200, json.dumps(dict()))
             response = self.client.post(connect_url, dict(auth_id="auth-id", auth_token="auth-token"))
 
             # plivo should be added to the session
