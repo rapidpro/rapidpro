@@ -1044,7 +1044,6 @@ class TestJSONAsTextField(TestCase):
         )
 
     def test_to_python(self):
-
         field = JSONAsTextField(default=dict)
 
         self.assertEqual(field.to_python({}), {})
@@ -1052,7 +1051,6 @@ class TestJSONAsTextField(TestCase):
         self.assertEqual(field.to_python("{}"), {})
 
     def test_default_with_null(self):
-
         model = JsonModelTestDefaultNull()
         model.save()
         model.refresh_from_db()
@@ -1068,7 +1066,6 @@ class TestJSONAsTextField(TestCase):
         self.assertEqual(data[0][1], None)
 
     def test_default_without_null(self):
-
         model = JsonModelTestDefault()
         model.save()
         model.refresh_from_db()
@@ -1093,6 +1090,18 @@ class TestJSONAsTextField(TestCase):
 
         model.field = ""
         self.assertRaises(ValueError, model.save)
+
+    def test_invalid_unicode(self):
+        # invalid unicode escape sequences are stripped out
+        model = JsonModelTestDefault()
+        model.field = {"foo": "bar\u0000"}
+        model.save()
+
+        with connection.cursor() as cur:
+            cur.execute("select field::jsonb from utils_jsonmodeltestdefault")
+            data = cur.fetchall()
+
+        self.assertEqual(data[0][0], {"foo": "bar"})
 
     def test_write_None_value(self):
         model = JsonModelTestDefault()
