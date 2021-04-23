@@ -1,4 +1,5 @@
 import datetime
+import decimal
 import io
 import os
 import re
@@ -5492,7 +5493,6 @@ class SimulationTest(TembaTest):
 
                 # since this is an IVR flow, the session trigger will have a connection
                 self.assertEqual(
-                    mock_post.call_args[1]["json"]["trigger"],
                     {
                         "connection": {
                             "channel": {"uuid": "440099cf-200c-4d45-a8e7-4a564f4a0e8b", "name": "Test Channel"},
@@ -5508,6 +5508,7 @@ class SimulationTest(TembaTest):
                             "redaction_policy": "none",
                         },
                     },
+                    json.loads(mock_post.call_args[1]["data"])["trigger"],
                 )
 
     def test_simulation(self):
@@ -5533,7 +5534,7 @@ class SimulationTest(TembaTest):
                 self.assertEqual({}, response.json()["session"])
 
                 actual_url = mock_post.call_args_list[0][0][0]
-                actual_payload = mock_post.call_args_list[0][1]["json"]
+                actual_payload = json.loads(mock_post.call_args_list[0][1]["data"])
                 actual_headers = mock_post.call_args_list[0][1]["headers"]
 
                 self.assertEqual(actual_url, "https://mailroom.temba.io/mr/sim/start")
@@ -5542,9 +5543,15 @@ class SimulationTest(TembaTest):
                 self.assertEqual(len(actual_payload["assets"]["channels"]), 1)  # fake channel
                 self.assertEqual(len(actual_payload["flows"]), 1)
                 self.assertEqual(actual_headers["Authorization"], "Token sesame")
+                self.assertEqual(actual_headers["Content-Type"], "application/json")
 
             # try a resume
-            payload = dict(version=2, session={}, resume={}, flow={})
+            payload = {
+                "version": 2,
+                "session": {"contact": {"fields": {"age": decimal.Decimal("39")}}},
+                "resume": {},
+                "flow": {},
+            }
 
             with patch("requests.post") as mock_post:
                 mock_post.return_value = MockResponse(400, '{"session": {}}')
@@ -5558,7 +5565,7 @@ class SimulationTest(TembaTest):
                 self.assertEqual({}, response.json()["session"])
 
                 actual_url = mock_post.call_args_list[0][0][0]
-                actual_payload = mock_post.call_args_list[0][1]["json"]
+                actual_payload = json.loads(mock_post.call_args_list[0][1]["data"])
                 actual_headers = mock_post.call_args_list[0][1]["headers"]
 
                 self.assertEqual(actual_url, "https://mailroom.temba.io/mr/sim/resume")
@@ -5567,6 +5574,7 @@ class SimulationTest(TembaTest):
                 self.assertEqual(len(actual_payload["assets"]["channels"]), 1)  # fake channel
                 self.assertEqual(len(actual_payload["flows"]), 1)
                 self.assertEqual(actual_headers["Authorization"], "Token sesame")
+                self.assertEqual(actual_headers["Content-Type"], "application/json")
 
 
 class FlowSessionCRUDLTest(TembaTest):
