@@ -14,6 +14,8 @@ from uuid import uuid4
 import pyotp
 import pytz
 import requests
+from django.core.paginator import Paginator
+from django.utils.functional import cached_property
 from packaging.version import Version
 from smartmin.views import (
     SmartCreateView,
@@ -2663,7 +2665,44 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
     class ParseDataView(InferOrgMixin, OrgPermsMixin, SmartListView):
-        paginate_by = 0
+        class CollectionPaginator(Paginator):
+            parse_headers = {
+                "X-Parse-Application-Id": settings.PARSE_APP_ID,
+                "X-Parse-REST-API-Key": settings.PARSE_REST_KEY,
+                "Content-Type": "application/json",
+            }
+
+            def __init__(self, collection, per_page, orphans=0, allow_empty_first_page=True):
+                self.collection = collection
+                super().__init__([], per_page, orphans, allow_empty_first_page)
+
+            @cached_property
+            def count(self):
+                count_url = f"{settings.PARSE_URL}/classes/{self.collection}?count=1"
+                count_response = requests.get(count_url, headers=self.parse_headers)
+                if count_response.status_code == 200 and count_response.json().get("count"):
+                    return count_response.json()["count"]
+                return 0
+
+            def page(self, number):
+                """Return a Page object for the given 1-based page number."""
+                number = self.validate_number(number)
+                skip = (number - 1) * self.per_page
+                parse_url = f"{settings.PARSE_URL}/classes/{self.collection}" \
+                            f"?order=order&limit={self.per_page}&skip={skip}"
+                response = requests.get(parse_url, headers=self.parse_headers)
+
+                results = []
+                if response.status_code == 200 and "results" in response.json():
+                    results_resp = response.json().get("results")
+                    for result in results_resp:
+                        result_obj = namedtuple("ParseResult", result.keys(), rename=True)(*result.values())
+                        results.append(result_obj)
+
+                return self._get_page(tuple(results), number, self)
+
+        paginator_class = CollectionPaginator
+        paginate_by = 200
 
         def derive_fields(self):
             db = self.request.GET.get("db")
@@ -2716,24 +2755,7 @@ class OrgCRUDL(SmartCRUDL):
             collection = OrgCRUDL.Giftcards.get_collection_full_name(
                 org_slug=org.slug, org_id=org.id, name=db, collection_type=collection_type
             )
-
-            parse_headers = {
-                "X-Parse-Application-Id": settings.PARSE_APP_ID,
-                "X-Parse-REST-API-Key": settings.PARSE_REST_KEY,
-                "Content-Type": "application/json",
-            }
-
-            parse_url = f"{settings.PARSE_URL}/classes/{collection}?order=order&limit=1000"
-            response = requests.get(parse_url, headers=parse_headers)
-
-            results = []
-            if response.status_code == 200 and "results" in response.json():
-                results_resp = response.json().get("results")
-                for result in results_resp:
-                    result_obj = namedtuple("ParseResult", result.keys(), rename=True)(*result.values())
-                    results.append(result_obj)
-
-            return tuple(results)
+            return collection
 
         def derive_title(self):
             return self.request.GET.get("db")
