@@ -1025,6 +1025,10 @@ CELERYBEAT_SCHEDULE = {
         "task": "generate_missing_gif_thumbnails",
         "schedule": crontab(hour=3, minute=30),
     },
+    "update-es-contacts-index-with-channels-and-flows": {
+        "task": "upload_channels_and_flows_to_es_contacts",
+        "schedule": crontab(hour=5, minute=0),
+    },
 }
 
 # Mapping of task name to task function path, used when CELERY_ALWAYS_EAGER is set to True

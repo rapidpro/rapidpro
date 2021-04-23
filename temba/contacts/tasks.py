@@ -9,7 +9,9 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 from celery.task import task
+from elasticsearch.helpers import bulk
 
+from temba.orgs.models import Org
 from temba.utils import chunk_list
 from temba.utils.celery import nonoverlapping_task
 
@@ -117,3 +119,66 @@ def check_elasticsearch_lag():
                 return False
 
     return True
+
+
+@nonoverlapping_task(track_started=True, name="upload_channels_and_flows_to_es_contacts")
+def upload_channels_and_flows_to_es_contacts():
+    raw_query = """
+    SELECT id,
+    (
+        SELECT array_to_json(array_agg(row_to_json(u)))
+        FROM (
+            SELECT scheme,
+                path,
+                channels_channel.uuid as channel_uuid,
+                channels_channel.name as channel_name
+            FROM contacts_contacturn
+            LEFT JOIN channels_channel ON contacts_contacturn.channel_id = channels_channel.id
+            WHERE contact_id = contacts_contact.id
+        ) u
+    ) as urns_channels,
+    (
+        SELECT array_to_json(array_agg(row_to_json(f)))
+        FROM (
+            SELECT DISTINCT ff.uuid, ff.name
+            FROM flows_flowrun fr
+            INNER JOIN flows_flow ff on ff.id = fr.flow_id
+            WHERE fr.contact_id = contacts_contact.id
+        ) f
+    ) as flows
+    FROM contacts_contact
+    WHERE contacts_contact.is_active = true
+        AND contacts_contact.org_id = %d
+        AND contacts_contact.id > %d
+        AND (
+            SELECT greatest(max(flows_flowrun.created_on), contacts_contact.modified_on)
+            FROM flows_flowrun WHERE flows_flowrun.contact_id = contacts_contact.id
+        ) >= '%s'
+    ORDER BY contacts_contact.id
+    LIMIT 500000;
+    """
+    org_ids = Org.objects.filter(is_active=True).order_by("id").values_list("id", flat=True)
+    previous_date = (timezone.now() - timedelta(days=1)).date()
+
+    for org_id in org_ids:
+        last_processed_contact_id = 0
+        contacts = Contact.objects.raw(raw_query % (org_id, last_processed_contact_id, previous_date))
+        while contacts:
+            update_actions = []
+            for contact in contacts:
+                last_processed_contact_id = contact.id
+                update_actions.append(
+                    {
+                        "_op_type": "update",
+                        "_index": "contacts",
+                        "_type": "_doc",
+                        "_id": contact.id,
+                        "_routing": org_id,
+                        "doc": {
+                            "urns": contact.urns_channels,
+                            "flows": contact.flows,
+                        },
+                    }
+                )
+            bulk(elastic.ES, update_actions, stats_only=True, raise_on_error=False, raise_on_exception=False)
+            contacts = Contact.objects.raw(raw_query % (org_id, last_processed_contact_id, previous_date))
