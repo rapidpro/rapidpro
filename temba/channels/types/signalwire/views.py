@@ -42,6 +42,10 @@ class SignalWireClaimView(ClaimViewMixin, SmartFormView):
         )
 
         def clean(self):
+            super().clean()
+            if self.errors:
+                return self.cleaned_data
+
             sid = self.cleaned_data["project_key"]
             token = self.cleaned_data["api_token"]
             domain = self.cleaned_data["domain"]

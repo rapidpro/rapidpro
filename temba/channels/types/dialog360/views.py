@@ -23,6 +23,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         def clean(self):
+            super().clean()
+            if self.errors:
+                return self.cleaned_data
+
             # first check that our phone number looks sane
             number, valid = URN.normalize_number(self.cleaned_data["number"], self.cleaned_data["country"])
             if not valid:

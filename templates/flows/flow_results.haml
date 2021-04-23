@@ -647,8 +647,11 @@
       localStorage.setItem("responded", "true");
 
       {% if request.GET.q or request.GET.after or request.GET.before or request.GET.contact_query %}
-      updateColumnSelect();
-      setRunsTab();
+        updateColumnSelect();
+        setRunsTab();
+        {% if request.GET.responded == "false" %}
+          setTimeout(()=> {$("#show-all-runs").click()}, 100);
+        {% endif %}
       {% endif %}
 
     });
@@ -661,19 +664,31 @@
     });
 
     $(function() {
-        $(".responded-checkbox .runs-show").on('click', function(){
-          $(this).siblings().not($(this)).removeClass("active");
-          $(this).addClass("active");
-        });
+      $(".responded-checkbox .runs-show").on('click', function(){
+        $(this).siblings().not($(this)).removeClass("active");
+        $(this).addClass("active");
       });
+    });
 
     $(document).ready(function() {
-      $(".flatpickr").flatpickr({
+      $(".flatpickr.start").flatpickr({
         wrap: true,
         altInput: true,
         altFormat: 'F j, Y',
-        dateFormat: 'Y-m-d',
-        allowInput: true
+        dateFormat: 'Y-m-d H:i',
+        allowInput: true,
+        enableTime: true,
+        defaultHour: 0
+      });
+      $(".flatpickr.end").flatpickr({
+        wrap: true,
+        altInput: true,
+        altFormat: 'F j, Y',
+        dateFormat: 'Y-m-d H:i',
+        allowInput: true,
+        enableTime: true,
+        defaultHour: 23,
+        defaultMinute: 59
       });
 
       $('.time').live('mouseover', function() {
@@ -684,6 +699,11 @@
         $(this).children('.long').hide();
       });
     });
+
+    function configToShowResponded(value) {
+      localStorage.setItem("responded", value);
+      $("#runs-responded").val(value);
+    }
 
 -block content
 
@@ -728,15 +748,16 @@
           -trans "Filter"
 
         %form#search-form.max-w-full.mt-2.flex(method="get")
+          %input#runs-responded.hidden(type="text" value="true" name="responded")
           %div{class: "w-1/4 flex"}
             %div{class: "w-1/2 flex flex-col pr-3"}
               %label.control-label.flex.m-0
-                -trans "After"
-              -include "includes/flatpickr_field.haml" with parent_classes="flex justify-center items-center datepicker relative" field_name="after" field_placeholder="Select a date" field_value=request.GET.after
+                -trans "Start Date"
+              -include "includes/flatpickr_field.haml" with parent_classes="start flex justify-center items-center datepicker relative" field_name="after" field_placeholder="Select a date" field_value=request.GET.after
             %div{class: "w-1/2 flex flex-col pr-3"}
               %label.control-label.flex.m-0
-                -trans "Before"
-              -include "includes/flatpickr_field.haml" with parent_classes="flex justify-center items-center datepicker relative" field_name="before" field_placeholder="Select a date" field_value=request.GET.before
+                -trans "End Date"
+              -include "includes/flatpickr_field.haml" with parent_classes="end flex justify-center items-center datepicker relative" field_name="before" field_placeholder="Select a date" field_value=request.GET.before
           %div{class: "w-3/4 flex flex-grow"}
             %div{class: "w-6/12 mr-2", "data-toggle":"tooltip", title:"{{ request.GET.contact_query }}"}
               %label.control-label.flex.m-0
@@ -755,7 +776,7 @@
           .runs-show#show-all-runs{
             ic-get-from:"/flow/run_table/{{object.id}}/?after={{request.GET.after}}&before={{request.GET.before}}&q={{request.GET.q}}&contact_query={{request.GET.contact_query}}",
             ic-on-beforeSend:'$("#results_run_table").empty();',
-            ic-on-beforeTrigger: 'localStorage.setItem("responded", "false");',
+            ic-on-beforeTrigger: 'configToShowResponded("false");',
             ic-trigger-on:"click",
             ic-target:"#results_run_table",
             ic-indicator:"#indicator"}
@@ -765,7 +786,7 @@
           .runs-show.active{
               ic-get-from:"/flow/run_table/{{object.id}}/?after={{request.GET.after}}&before={{request.GET.before}}&q={{request.GET.q}}&contact_query={{request.GET.contact_query}}",
               ic-on-beforeSend:'$("#results_run_table").empty();',
-              ic-on-beforeTrigger: 'localStorage.setItem("responded", "true");',
+              ic-on-beforeTrigger: 'configToShowResponded("true");',
               ic-trigger-on:"click",
               ic-target:"#results_run_table",
               ic-indicator:"#indicator"}
