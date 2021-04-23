@@ -22,7 +22,7 @@ from smartmin.views import SmartFormView, SmartTemplateView
 from django import forms
 from django.contrib.auth import authenticate, login
 from django.db.models import Prefetch, Q, Count
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, Http404
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 
@@ -4298,6 +4298,21 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
 
     permission = "orgs.org_lookups"
 
+    def _generate_page_uri(self, page):
+        page_uri = self.request.build_absolute_uri(reverse("api.v2.parse_database_records"))
+        query_params = self.request.query_params.dict()
+        query_params["page"] = page
+        query_params = "&".join([f"{key}={value}" for key, value in query_params.items()])
+        return f"{page_uri}?{query_params}"
+
+    def _get_valid_page(self, page_count):
+        page = self.request.query_params.get("page", "1")
+        if isinstance(page, str) and page.isnumeric() or isinstance(page, int):
+            page = int(page)
+            if 1 <= page <= page_count:
+                return page
+        raise Http404
+
     def list(self, request, *args, **kwargs):
         org, collection_name, collections_list, error_response = self.get_default_params(is_collection_exists=True)
         if error_response:
@@ -4309,11 +4324,27 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
             "X-Parse-Master-Key": settings.PARSE_MASTER_KEY,
             "Content-Type": "application/json",
         }
-        results_url = f"{settings.PARSE_URL}/classes/{collection}?order=order&limit=1000"
-        response = requests.get(results_url, headers=parse_headers)
-        result = response.json()
 
-        return Response(result, status=status.HTTP_200_OK)
+        paginate_by = 200
+        count_url = f"{settings.PARSE_URL}/classes/{collection}?count=1"
+        count_response = requests.get(count_url, headers=self.parse_headers)
+        if count_response.status_code == 200:
+            count = int(count_response.json().get("count", 0))
+            page_count = count // paginate_by + (1 if count % paginate_by != 0 else 0)
+            page_number = self._get_valid_page(page_count)
+            skip = (page_number - 1) * paginate_by
+            results_url = f"{settings.PARSE_URL}/classes/{collection}?order=order&limit={paginate_by}&skip={skip}"
+            response = requests.get(results_url, headers=parse_headers)
+            result = response.json()
+
+            pagination_fields = {
+                "next": self._generate_page_uri(page_number + 1) if page_number != page_count else None,
+                "prev": self._generate_page_uri(page_number - 1) if page_number != 1 else None,
+            }
+
+            if response.status_code == status.HTTP_200_OK:
+                return Response({**pagination_fields, **result}, status=status.HTTP_200_OK)
+        return Response({"error": _("Bad Request")}, status=status.HTTP_400_BAD_REQUEST)
 
     def post(self, request, *args, **kwargs):
         org, collection_name, collections_list, error_response = self.get_default_params(is_collection_exists=True)
