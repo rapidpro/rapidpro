@@ -686,7 +686,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
         )
 
         # and a batch for that import
-        ContactImportBatch.objects.create(contact_import=im, specs={})
+        ContactImportBatch.objects.create(contact_import=im, specs={}, record_start=0, record_end=0)
 
         # add some labels
         parent_label = self.create_label("Parent Spam", org=self.parent_org)
