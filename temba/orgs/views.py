@@ -2688,8 +2688,9 @@ class OrgCRUDL(SmartCRUDL):
                 """Return a Page object for the given 1-based page number."""
                 number = self.validate_number(number)
                 skip = (number - 1) * self.per_page
-                parse_url = f"{settings.PARSE_URL}/classes/{self.collection}" \
-                            f"?order=order&limit={self.per_page}&skip={skip}"
+                parse_url = (
+                    f"{settings.PARSE_URL}/classes/{self.collection}" f"?order=order&limit={self.per_page}&skip={skip}"
+                )
                 response = requests.get(parse_url, headers=self.parse_headers)
 
                 results = []
