@@ -2221,6 +2221,9 @@ class ContactImport(SmartModel):
         # delete our source import file
         self.file.delete()
 
+        # delete any batches associated with this import
+        ContactImportBatch.objects.filter(contact_import=self).delete()
+
         # then ourselves
         self.delete()
 
