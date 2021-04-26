@@ -35,6 +35,7 @@ from temba.contacts.models import (
     ContactField,
     ContactGroup,
     ContactImport,
+    ContactImportBatch,
     ContactURN,
     ExportContactsTask,
 )
@@ -680,9 +681,12 @@ class OrgDeleteTest(TembaNonAtomicTest):
         child_group = self.create_group("Parent Customers", contacts=[child_contact], org=self.child_org)
 
         # create an import for child group
-        ContactImport.objects.create(
+        im = ContactImport.objects.create(
             org=self.org, group=child_group, mappings={}, num_records=0, created_by=self.admin, modified_by=self.admin
         )
+
+        # and a batch for that import
+        ContactImportBatch.objects.create(contact_import=im, specs={}, record_start=0, record_end=0)
 
         # add some labels
         parent_label = self.create_label("Parent Spam", org=self.parent_org)
