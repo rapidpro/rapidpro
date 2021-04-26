@@ -505,6 +505,25 @@ class MailroomQueueTest(TembaTest):
             },
         )
 
+    def test_resend_msgs(self):
+        contact = self.create_contact("Joe", phone="123456")
+        msg1 = self.create_outgoing_msg(contact, "hi there", self.channel)
+        msg2 = self.create_outgoing_msg(contact, "hi there", self.channel)
+        self.create_outgoing_msg(contact, "hi there", self.channel)
+
+        Msg.apply_action_resend(self.org, [msg1, msg2])
+
+        self.assert_org_queued(self.org, "batch")
+        self.assert_queued_batch_task(
+            self.org,
+            {
+                "type": "resend_msgs",
+                "org_id": self.org.id,
+                "task": {"msg_ids": [msg1.id, msg2.id]},
+                "queued_on": matchers.ISODate(),
+            },
+        )
+
     def test_queue_contact_import_batch(self):
         imp = self.create_contact_import("media/test_imports/simple.xlsx")
         imp.start()
