@@ -45,32 +45,47 @@ html {
 
 @import url('https://fonts.googleapis.com/css2?family=Aleo&display=swap');
 
-.weni-announcement {
-  background-color: #00dfd3;
-}
+// Weni Announcement
 
 .weni-announcement {
+
+  background-color: #CDF2F2;
+
+  .weni-announcement-container {
+    justify-content: center;
+  }
+
+  .weni-announcement-collapse {
+    line-height: 50%;
+    margin-left: auto;
+    margin-right: 20px;
+    transform: rotate(180deg);
+
+    &:focus {
+      outline: 0;
+    }
+  }
 
   .weni-left {
-    width: 14rem;
-    min-width: 14rem;
-    padding: 1.5rem 0.5rem;
+    padding: 1rem 0.5rem;
     font-weight: 700;
     font-size: 16px;
     font-family: 'Aleo', Roboto;
     letter-spacing: 0.03em;
+    box-sizing: content-box;
+    white-space: nowrap;
+    margin-left: auto;
   }
 
   .weni-right {
-    width: 38rem;
-    min-width: 38rem;
-    padding: 1.5rem 1rem;
+    padding: 1rem 1rem;
     font-weight: 400;
+    white-space: nowrap;
   }
 
   .weni-divider {
     width: 1px;
-    margin: 2rem 0;
+    margin: 1rem 0 1rem 1rem;
     background-color: black;
   }
 
@@ -85,22 +100,45 @@ html {
     font-family: 'Aleo', Roboto;
     font-size: 16px;
     min-width: 8rem;
+
+    &:focus {
+      outline: 0;
+    }
   }
 
-  @media all and (max-width: 860px) {
+  @media all and (max-width: 1000px) {
+
+    .weni-announcement-container {
+      justify-content: unset;
+      margin: 0 25vw;
+    }
+
+    .weni-announcement-collapse {
+      margin-left: unset;
+      right: 20px;
+    }
+
+    .weni-left {
+      margin: 0;
+    }
+
     .weni-right {
       display: none;
     }
 
     .weni-button {
-      margin: 0rem 1.5rem;
+      margin: 0rem 1rem;
     }
   }
 
 }
 
 .org-header {
-  top: 6rem !important;
+  &.collapsed {
+    top: -7px !important;
+  }
+
+  top: 3.7rem !important;
 }
 
 .logo {
@@ -109,9 +147,18 @@ html {
 
 #menu {
 
-  top: calc(40px + 6rem) !important;
+  top: calc(40px + 3.7rem) !important;
 
   @media all and (max-width: 767px) {
-    top: calc(50px + 6rem) !important;
+    top: calc(50px + 3.7rem) !important;
   }
+
+  &.collapsed {
+    top: calc(40px) !important;
+
+    @media all and (max-width: 767px) {
+      top: calc(50px) !important;
+    }
+  }
+
 }
