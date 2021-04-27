@@ -1,4 +1,4 @@
--load i18n
+-load i18n json
 <temba-contact-search 
   name="{{widget.name}}"
   endpoint="/contact/search/?samples=3&search=" 
@@ -9,3 +9,9 @@
   {% include "django/forms/widgets/attrs.html" %}
 >
 </temba-contact-search>
+
+-# Show errors separately as temba-contact-search displays only searching errors
+.errors.mt-3
+  - for error in widget.attrs.errors|json_loads
+    .alert-error.mb-2
+      = error
