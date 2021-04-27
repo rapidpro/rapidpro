@@ -194,6 +194,18 @@
 
 %body#pageBody.bg-gradient
 
+  .weni-announcement
+    .weni-announcement-container.flex.flex-row
+      .weni-left
+        O Push agora é Weni Fluxos
+      .weni-divider
+      .weni-right
+        Novo módulo que estará disponível na nossa plataforma unificada em breve.
+      %a.weni-button(href="https://weni.ai/blog/modularizacao-plataformas/")
+        Saiba mais
+      %button.weni-announcement-collapse
+        .icon-arrow-down.icon-2
+
   -include "components-body.html"
 
   -block temba-store
@@ -370,6 +382,22 @@
         {% if use_weni_layout %}
           inIframe();
         {% endif %}
+
+        function announcementCollapse() {
+          $('.weni-announcement').hide();
+          $('#menu').addClass('collapsed')
+          $('.org-header').addClass('collapsed')
+        }
+
+        const announcementState = sessionStorage.getItem('weni-announcement-state');
+        if (announcementState === "false") {
+          announcementCollapse()
+        }
+
+        $(".weni-announcement-collapse").live('click', (event) => {
+          sessionStorage.setItem('weni-announcement-state', false);
+          announcementCollapse()
+        })
 
         if (navigator.appVersion.indexOf("Win")!=-1) {
           $("html").addClass("windows");
