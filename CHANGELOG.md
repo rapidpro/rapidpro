@@ -1,3 +1,15 @@
+v6.3.32
+----------
+ * Release import batches when releasing contact imports
+
+v6.3.31
+----------
+ * Fix serializing JSON to send to mailroom when it includes decimals
+
+v6.3.30
+----------
+ * Restrict org languages to ISO-639-1 plus explicit inclusions
+
 v6.3.29
 ----------
  * Move Twilio, Plivo and Vonage number searching views into their respective channel packages

@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-21 21:10+0000\n"
+"POT-Creation-Date: 2021-04-22 14:19+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -3203,9 +3203,6 @@ msgstr "Lo sentimos, su tarjeta fue rechazada, comuníquese con su proveedor o p
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr "Lo sentimos, no pudimos procesar su pago. Vuelva a intentarlo más tarde o contáctenos."
 
-msgid "Org"
-msgstr "Org"
-
 #, python-format
 msgid "%(name)s Invitation"
 msgstr "Invitación de %(name)s"
@@ -3694,7 +3691,9 @@ msgstr "Seleccione el idioma principal para los contactos sin preferencia de idi
 msgid "Additional Languages"
 msgstr "Idiomas adicionales"
 
-msgid "Additional languages you would like to provid translations for"
+#, fuzzy
+#| msgid "Additional languages you would like to provid translations for"
+msgid "Additional languages you would like to provide translations for"
 msgstr "Idiomas adicionales para los que le gustaría proporcionar traducciones"
 
 #, python-format
@@ -7833,6 +7832,9 @@ msgstr "Se encontró $ {count} por $ {query}"
 
 #~ msgid "Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."
 #~ msgstr "Su Plivo AUTH ID y AUTH TOKEN parecen no válidos. Revíselos de nuevo y vuelva a intentarlo."
+
+#~ msgid "Org"
+#~ msgstr "Org"
 
 #~ msgid "or"
 #~ msgstr "o"

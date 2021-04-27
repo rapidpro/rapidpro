@@ -128,10 +128,10 @@ class MailroomClient:
         return self._request("po/import", payload, files={"po": po_data})
 
     def sim_start(self, payload):
-        return self._request("sim/start", payload)
+        return self._request("sim/start", payload, encode_json=True)
 
     def sim_resume(self, payload):
-        return self._request("sim/resume", payload)
+        return self._request("sim/resume", payload, encode_json=True)
 
     def contact_create(self, org_id: int, user_id: int, contact: ContactSpec):
         payload = {
@@ -187,19 +187,25 @@ class MailroomClient:
 
         return self._request("ticket/reopen", payload)
 
-    def _request(self, endpoint, payload=None, files=None, post=True, returns_json=True):
+    def _request(self, endpoint, payload=None, files=None, post=True, encode_json=False, returns_json=True):
         if logger.isEnabledFor(logging.DEBUG):  # pragma: no cover
             logger.debug("=============== %s request ===============" % endpoint)
             logger.debug(json.dumps(payload, indent=2))
             logger.debug("=============== /%s request ===============" % endpoint)
 
+        headers = self.headers.copy()
         if files:
             kwargs = dict(data=payload, files=files)
+        elif encode_json:
+            # do the JSON encoding ourselves - required when the json is something we've loaded with our decoder
+            # which could contain non-standard types
+            headers["Content-Type"] = "application/json"
+            kwargs = dict(data=json.dumps(payload))
         else:
             kwargs = dict(json=payload)
 
         req_fn = requests.post if post else requests.get
-        response = req_fn("%s/mr/%s" % (self.base_url, endpoint), headers=self.headers, **kwargs)
+        response = req_fn("%s/mr/%s" % (self.base_url, endpoint), headers=headers, **kwargs)
 
         return_val = response.json() if returns_json else response.content
 

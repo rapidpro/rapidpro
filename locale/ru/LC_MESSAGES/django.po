@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-21 21:10+0000\n"
+"POT-Creation-Date: 2021-04-22 14:19+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3213,9 +3213,6 @@ msgstr "Извините, Ваша карта была отклонена, по�
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr "Извините, нам не удалось обработать Ваш платеж, повторите попытку позже или свяжитесь с нами."
 
-msgid "Org"
-msgstr "Организация"
-
 #, python-format
 msgid "%(name)s Invitation"
 msgstr "Приглашение %(name)s"
@@ -3704,7 +3701,7 @@ msgstr ""
 msgid "Additional Languages"
 msgstr "Дополнительные языки"
 
-msgid "Additional languages you would like to provid translations for"
+msgid "Additional languages you would like to provide translations for"
 msgstr ""
 
 #, python-format
@@ -7687,6 +7684,9 @@ msgstr "Найдено ${count} по ${query}"
 
 #~ msgid "Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."
 #~ msgstr "Ваши Plivo AUTH ID и AUTH TOKEN являются недействительными. Пожалуйста, проверьте их и попробуйте снова."
+
+#~ msgid "Org"
+#~ msgstr "Организация"
 
 #~ msgid "or"
 #~ msgstr "или"
