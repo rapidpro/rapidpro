@@ -42,3 +42,76 @@ html {
   --primary-rgb: 12, 101, 150;
   --secondary-rgb: 0, 77, 129;
 }
+
+@import url('https://fonts.googleapis.com/css2?family=Aleo&display=swap');
+
+.weni-announcement {
+  background-color: #00dfd3;
+}
+
+.weni-announcement {
+
+  .weni-left {
+    width: 14rem;
+    min-width: 14rem;
+    padding: 1.5rem 0.5rem;
+    font-weight: 700;
+    font-size: 16px;
+    font-family: 'Aleo', Roboto;
+    letter-spacing: 0.03em;
+  }
+
+  .weni-right {
+    width: 38rem;
+    min-width: 38rem;
+    padding: 1.5rem 1rem;
+    font-weight: 400;
+  }
+
+  .weni-divider {
+    width: 1px;
+    margin: 2rem 0;
+    background-color: black;
+  }
+
+  .weni-button {
+    background-color: #128982;
+    align-self: center;
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    color: whitesmoke;
+    letter-spacing: 0.02em;
+    font-weight: 700;
+    font-family: 'Aleo', Roboto;
+    font-size: 16px;
+    min-width: 8rem;
+  }
+
+  @media all and (max-width: 860px) {
+    .weni-right {
+      display: none;
+    }
+
+    .weni-button {
+      margin: 0rem 1.5rem;
+    }
+  }
+
+}
+
+.org-header {
+  top: 6rem !important;
+}
+
+.logo {
+  top: auto !important;
+}
+
+#menu {
+
+  top: calc(40px + 6rem) !important;
+
+  @media all and (max-width: 767px) {
+    top: calc(50px + 6rem) !important;
+  }
+}
