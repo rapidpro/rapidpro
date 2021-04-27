@@ -303,7 +303,7 @@ TEMPLATES[0]["OPTIONS"]["context_processors"].append("weni.templates.context_pro
 WENI_DOMAINS = {"weni": env("WENI_DOMAIN", default="weni.ai")}
 
 
-# weni annoucement
+# weni announcement
 ANNOUNCEMENT_LEFT = env("ANNOUNCEMENT_LEFT")
 ANNOUNCEMENT_RIGHT = env("ANNOUNCEMENT_RIGHT")
 ANNOUNCEMENT_LINK = env("ANNOUNCEMENT_LINK")
@@ -311,3 +311,6 @@ ANNOUNCEMENT_BUTTON = env("ANNOUNCEMENT_BUTTON")
 
 # hotjar
 HOTJAR_ID = env("HOTJAR_ID")
+
+# success webhook logs
+SUCCESS_LOGS_TRIM_TIME = env("SUCCESS_LOGS_TRIM_TIME", default=48)
