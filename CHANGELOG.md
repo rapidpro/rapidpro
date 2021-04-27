@@ -1,3 +1,7 @@
+v6.3.32
+----------
+ * Release import batches when releasing contact imports
+
 v6.3.31
 ----------
  * Fix serializing JSON to send to mailroom when it includes decimals
