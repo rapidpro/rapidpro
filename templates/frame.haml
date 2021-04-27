@@ -194,17 +194,18 @@
 
 %body#pageBody.bg-gradient
 
-  .weni-announcement
-    .weni-announcement-container.flex.flex-row
-      .weni-left
-        O Push agora é Weni Fluxos
-      .weni-divider
-      .weni-right
-        Novo módulo que estará disponível na nossa plataforma unificada em breve.
-      %a.weni-button(href="https://weni.ai/blog/modularizacao-plataformas/")
-        Saiba mais
-      %button.weni-announcement-collapse
-          .unnnic-icon-delete-1-1.unnnic-icon-large
+  -if not use_weni_layout
+    .weni-announcement
+      .weni-announcement-container.flex.flex-row
+        .weni-left
+          O Push agora é Weni Fluxos
+        .weni-divider
+        .weni-right
+          Novo módulo que estará disponível na nossa plataforma unificada em breve.
+        %a.weni-button(href="https://weni.ai/blog/modularizacao-plataformas/")
+          Saiba mais
+        %button.weni-announcement-collapse
+            .unnnic-icon-delete-1-1.unnnic-icon-large
 
   -include "components-body.html"
 
