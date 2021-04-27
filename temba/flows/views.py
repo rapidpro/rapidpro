@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 import iso8601
 import regex
 import requests
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from django_redis import get_redis_connection
@@ -327,9 +328,9 @@ class FlowImageCRUDL(SmartCRUDL):
             obj_type = self.kwargs.get("type")
             uuid = self.kwargs.get("uuid")
             if obj_type == "flow":
-                return Flow.objects.filter(org=self.org, uuid=uuid).first()
+                return get_object_or_404(Flow, org=self.org, uuid=uuid)
             else:
-                return ContactGroup.user_groups.filter(org=self.org, uuid=uuid).first()
+                return get_object_or_404(ContactGroup.user_groups, org=self.org, uuid=uuid)
 
         def get_queryset_filter(self):
             obj = self.derive_object()
@@ -2750,48 +2751,39 @@ class FlowCRUDL(SmartCRUDL):
             )
 
             def clean_omnibox(self):
-                starting = self.cleaned_data["omnibox"]
-                start_type = self.data["start_type"]
+                starting = self.cleaned_data.get("omnibox")
+                start_type = self.cleaned_data.get("start_type")
 
                 if start_type == "select" and not starting:  # pragma: needs cover
                     raise ValidationError(_("You must specify at least one contact or one group to start a flow."))
 
                 return omnibox_deserialize(self.user.get_org(), starting)
 
+            def clean_contact_query(self):
+                start_type = self.cleaned_data.get("start_type")
+                contact_query = self.cleaned_data.get("contact_query")
+                if start_type == "query":
+                    if not contact_query.strip():
+                        raise ValidationError(_("Contact query is required"))
+                    client = mailroom.get_client()
+                    try:
+                        resp = client.parse_query(self.flow.org_id, contact_query)
+                        contact_query = resp["query"]
+                    except mailroom.MailroomException as e:
+                        self.add_error("contact_query", ValidationError(e.response["error"]))
+                return contact_query
+
             def clean(self):
                 cleaned_data = super().clean()
-
-                def validate_flow_params():
-                    value_fields = [item for item in cleaned_data if "flow_param_value" in item]
-                    for value_field in value_fields:
-                        if not cleaned_data.get(value_field):
-                            self.add_error(
-                                value_field, ValidationError(_("You must specify the value for this field."))
-                            )
-
-                def validate_contact_query():
-                    start_type = cleaned_data["start_type"]
-                    contact_query = cleaned_data["contact_query"]
-                    if start_type == "query":
-                        if not contact_query.strip():
-                            raise ValidationError(_("Contact query is required"))
-
-                        client = mailroom.get_client()
-
-                        try:
-                            resp = client.parse_query(self.flow.org_id, contact_query)
-                            contact_query = resp["query"]
-                        except mailroom.MailroomException as e:
-                            self.add_error("contact_query", ValidationError(e.response["error"]))
 
                 if not cleaned_data["launch_type"] == LAUNCH_IMMEDIATELY:
                     raise ValidationError(_("You can't perform this action."))
 
-                if cleaned_data["start_type"] == "select":
-                    validate_flow_params()
-                else:
-                    validate_flow_params()
-                    validate_contact_query()
+                # check flow params
+                value_fields = [item for item in cleaned_data if "flow_param_value" in item]
+                for value_field in value_fields:
+                    if not cleaned_data.get(value_field):
+                        self.add_error(value_field, ValidationError(_("You must specify the value for this field.")))
 
                 # check whether there are any flow starts that are incomplete
                 if self.flow.is_starting():

@@ -15,7 +15,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.forms import Form
-from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseRedirect, Http404
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import is_safe_url, urlquote_plus
@@ -762,7 +762,10 @@ class MsgCRUDL(SmartCRUDL):
             return r"^%s/%s/(?P<label>[^/]+)/$" % (path, action)
 
         def derive_label(self):
-            return self.request.user.get_org().msgs_labels.get(uuid=self.kwargs["label"])
+            try:
+                return self.request.user.get_org().msgs_labels.get(uuid=self.kwargs["label"])
+            except Label.DoesNotExist:
+                raise Http404
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
