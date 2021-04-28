@@ -1920,6 +1920,7 @@ class Org(SmartModel):
         self.released_on = timezone.now()
         self.config = {}
         self.surveyor_password = None
+        self.primary_language = None
         self.save()
 
     @classmethod
