@@ -204,7 +204,7 @@
         .weni-divider
         .weni-right
           {{ announcement_right }}
-        %a.weni-button(href="{{ announcement_link }}")
+        %a.weni-button(href="{{ announcement_link }}" target="_blank" rel="noopener noreferrer")
           {{ announcement_button }}
         %button.weni-announcement-collapse
             .unnnic-icon-delete-1-1.unnnic-icon-large
@@ -257,7 +257,7 @@
         .org-header
           -if user_orgs|length > 1
             .pull-right.toggle
-              .icon-menu-2
+              .icon-menu
 
           .org
             {{ user_org.name|truncatechars:30 }}
