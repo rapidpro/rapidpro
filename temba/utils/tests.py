@@ -34,7 +34,7 @@ from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json, uuid
 from temba.utils.json import TembaJsonAdapter
 
-from . import chunk_list, dict_to_struct, format_number, percentage, redact, sizeof_fmt, str_to_bool
+from . import chunk_list, dict_to_struct, format_number, languages, percentage, redact, sizeof_fmt, str_to_bool
 from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from .celery import nonoverlapping_task
 from .dates import datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
@@ -1183,6 +1183,61 @@ class TestJSONField(TembaTest):
             number_field = dict_fields.get("1eaf5c91-8d56-4ca0-8e00-9b1c0b12e722", {}).get("number")
 
             self.assertEqual(number_field, Decimal("123.45"))
+
+
+class LanguagesTest(TembaTest):
+    def test_get_name(self):
+        with override_settings(NON_ISO6391_LANGUAGES={"acx", "frc"}):
+            languages.reload()
+            self.assertEqual("French", languages.get_name("fra"))
+            self.assertEqual("Arabic (Omani, ISO-639-3)", languages.get_name("acx"))  # name is overridden
+            self.assertEqual("Cajun French", languages.get_name("frc"))  # non ISO-639-1 lang explicitly included
+
+            self.assertEqual("", languages.get_name("cpi"))  # not in our allowed languages
+            self.assertEqual("", languages.get_name("xyz"))
+
+            # should strip off anything after an open paren or semicolon
+            self.assertEqual("Haitian", languages.get_name("hat"))
+
+        languages.reload()
+
+    def test_search_by_name(self):
+        # check that search returns results and in the proper order
+        self.assertEqual(
+            [
+                {"value": "afr", "name": "Afrikaans"},
+                {"value": "fra", "name": "French"},
+                {"value": "fry", "name": "Western Frisian"},
+            ],
+            languages.search_by_name("Fr"),
+        )
+
+        # usually only return ISO-639-1 languages but can add inclusions in settings
+        with override_settings(NON_ISO6391_LANGUAGES={"afr", "afb", "acx", "frc"}):
+            languages.reload()
+
+            # order is based on name rather than code
+            self.assertEqual(
+                [
+                    {"value": "afr", "name": "Afrikaans"},
+                    {"value": "frc", "name": "Cajun French"},
+                    {"value": "fra", "name": "French"},
+                    {"value": "fry", "name": "Western Frisian"},
+                ],
+                languages.search_by_name("Fr"),
+            )
+
+            # searching and ordering uses overridden names
+            self.assertEqual(
+                [
+                    {"value": "ara", "name": "Arabic"},
+                    {"value": "afb", "name": "Arabic (Gulf, ISO-639-3)"},
+                    {"value": "acx", "name": "Arabic (Omani, ISO-639-3)"},
+                ],
+                languages.search_by_name("Arabic"),
+            )
+
+        languages.reload()
 
 
 class MatchersTest(TembaTest):
