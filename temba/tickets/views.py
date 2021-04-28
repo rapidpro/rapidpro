@@ -64,6 +64,12 @@ class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
     default_order = ("-opened_on",)
     bulk_actions = ()
 
+    def pre_process(self, request, *args, **kwargs):
+        user = self.get_user()
+        if user.is_beta():
+            return HttpResponseRedirect(reverse("tickets.ticket_list"))
+        return super().pre_process(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         user = self.get_user()
         org = user.get_org()
@@ -86,15 +92,6 @@ class TicketCRUDL(SmartCRUDL):
         title = _("Open Tickets")
         folder = "open"
         bulk_actions = ("close",)
-
-        def pre_process(self, request, *args, **kwargs):
-            from .types.internal.type import InternalType
-
-            user = self.get_user()
-            ticketers = user.get_org().ticketers.filter(is_active=True)
-            if user.is_beta() and len(ticketers) == 1 and ticketers.first().ticketer_type == InternalType.slug:
-                return HttpResponseRedirect(reverse("tickets.ticket_list"))
-            return super().pre_process(request, *args, **kwargs)
 
         def get_queryset(self, **kwargs):
             org = self.get_user().get_org()

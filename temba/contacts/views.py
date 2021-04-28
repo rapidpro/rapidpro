@@ -43,7 +43,6 @@ from temba.msgs.views import SendMessageForm
 from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
-from temba.tickets.types.internal.type import InternalType
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
@@ -1404,9 +1403,7 @@ class ContactCRUDL(SmartCRUDL):
 
             folder = self.request.GET.get("folder", "")
             if folder == self.FOLDER_OPEN:
-                qs = qs.filter(
-                    tickets__status=Ticket.STATUS_OPEN, tickets__ticketer__ticketer_type=InternalType.slug
-                ).distinct("last_seen_on", "id")
+                qs = qs.filter(tickets__status=Ticket.STATUS_OPEN).distinct("last_seen_on", "id")
 
             elif folder == self.FOLDER_CLOSED:
                 qs = qs.filter(
