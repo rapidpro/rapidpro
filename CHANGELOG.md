@@ -1,3 +1,8 @@
+v6.3.33
+----------
+ * Update components and flow editor to common versions
+ * Allow external ticketers to use agent ui, add footer to tickets
+
 v6.3.32
 ----------
  * Release import batches when releasing contact imports
