@@ -1,3 +1,9 @@
+v6.3.35
+----------
+ * Clear primary language when releasing org
+ * Strip out NULL characters when serializing JsonAsTextField values
+ * Override language names and ensure overridden names are used for searching and sorting
+
 v6.3.33
 ----------
  * Update components and flow editor to common versions
