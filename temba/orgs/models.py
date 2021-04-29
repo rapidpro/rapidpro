@@ -39,7 +39,7 @@ from temba.archives.models import Archive
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary
 from temba.utils import chunk_list, json, languages
-from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
+from temba.utils.cache import get_cacheable_result, incrby_existing
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, JSONField, SquashableModel
@@ -942,15 +942,19 @@ class Org(SmartModel):
 
         return None
 
-    def get_language_codes(self):
-        return get_cacheable_attr(self, "_language_codes", lambda: {l.iso_code for l in self.languages.all()})
+    def get_language_codes(self, include_primary: bool = True) -> set:
+        qs = self.languages.values_list("iso_code", flat=True)
+        if not include_primary and self.primary_language:
+            qs = qs.filter(orgs=None)
+
+        return set(qs)
 
     def set_languages(self, user, iso_codes, primary):
         """
         Sets languages for this org, creating and deleting language objects as necessary
         """
         for iso_code in iso_codes:
-            name = languages.get_language_name(iso_code)
+            name = languages.get_name(iso_code)
             language = self.languages.filter(iso_code=iso_code).first()
 
             # if it's valid and doesn't exist yet, create it
@@ -968,9 +972,6 @@ class Org(SmartModel):
 
         # remove any languages that are not in the new list
         self.languages.exclude(iso_code__in=iso_codes).delete()
-
-        if hasattr(self, "_language_codes"):  # invalidate language cache if set
-            delattr(self, "_language_codes")
 
     def get_datetime_formats(self):
         format_date = Org.DATE_FORMATS_PYTHON.get(self.date_format)
@@ -1920,6 +1921,7 @@ class Org(SmartModel):
         self.released_on = timezone.now()
         self.config = {}
         self.surveyor_password = None
+        self.primary_language = None
         self.save()
 
     @classmethod

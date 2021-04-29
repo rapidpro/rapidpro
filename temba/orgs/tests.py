@@ -4083,8 +4083,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("msgs.msg_inbox"))
         self.assertRedirect(response, "/users/login/")
 
-
-class LanguageTest(TembaTest):
     def test_languages(self):
         langs_url = reverse("orgs.org_languages")
 
@@ -4155,49 +4153,22 @@ class LanguageTest(TembaTest):
 
         # unless they're explicitly included in settings
         with override_settings(NON_ISO6391_LANGUAGES={"frc"}):
+            languages.reload()
             response = self.client.get("%s?search=Fr" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
             self.assertEqual(
                 [
                     {"value": "afr", "name": "Afrikaans"},
-                    {"value": "fra", "name": "French"},
                     {"value": "frc", "name": "Cajun French"},
+                    {"value": "fra", "name": "French"},
                     {"value": "fry", "name": "Western Frisian"},
                 ],
                 response.json()["results"],
             )
 
-    def test_language_codes(self):
-        self.assertEqual("French", languages.get_language_name("fra"))
-        self.assertEqual("Chinese Pidgin English", languages.get_language_name("cpi"))
-        self.assertIsNone(languages.get_language_name("xyz"))
+        languages.reload()
 
-        # should strip off anything after an open paren or semicolon
-        self.assertEqual("Haitian", languages.get_language_name("hat"))
 
-        # check that search returns results and in the proper order
-        matches = languages.search_by_name("Fr")
-        self.assertEqual(
-            [
-                {"value": "afr", "name": "Afrikaans"},
-                {"value": "fra", "name": "French"},
-                {"value": "fry", "name": "Western Frisian"},
-            ],
-            matches,
-        )
-
-        # usually only return ISO-639-1 languages but can add inclusions in settings
-        with override_settings(NON_ISO6391_LANGUAGES={"frc"}):
-            matches = languages.search_by_name("Fr")
-            self.assertEqual(
-                [
-                    {"value": "afr", "name": "Afrikaans"},
-                    {"value": "fra", "name": "French"},
-                    {"value": "frc", "name": "Cajun French"},
-                    {"value": "fry", "name": "Western Frisian"},
-                ],
-                matches,
-            )
-
+class LanguageTest(TembaTest):
     def test_get_localized_text(self):
         text_translations = dict(eng="Hello", spa="Hola")
 
