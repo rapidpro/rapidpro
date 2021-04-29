@@ -483,13 +483,14 @@ class UpdateContactForm(ContactForm):
 
         choices = [("", "No Preference")]
 
-        # if they had a preference that has since been removed, make sure we show it
-        if self.instance.language:
-            if not self.instance.org.languages.filter(iso_code=self.instance.language).first():
-                lang = languages.get_language_name(self.instance.language)
-                choices += [(self.instance.language, _("%s (Missing)") % lang)]
+        org_lang_codes = self.instance.org.get_language_codes()
 
-        choices += [(l.iso_code, l.name) for l in self.instance.org.languages.all().order_by("orgs", "name")]
+        # if they had a preference that has since been removed, make sure we show it
+        if self.instance.language and self.instance.language not in org_lang_codes:
+            lang_name = languages.get_name(self.instance.language)
+            choices += [(self.instance.language, _(f"{lang_name} (Missing)"))]
+
+        choices += list(languages.choices(codes=org_lang_codes))
 
         self.fields["language"] = forms.ChoiceField(
             required=False, label=_("Language"), initial=self.instance.language, choices=choices, widget=SelectWidget()
@@ -765,10 +766,8 @@ class ContactCRUDL(SmartCRUDL):
 
             # add contact.language to the context
             if contact.language:
-                lang = languages.get_language_name(contact.language)
-                if not lang:
-                    lang = contact.language
-                context["contact_language"] = lang
+                lang_name = languages.get_name(contact.language)
+                context["contact_language"] = lang_name or contact.language
 
             # calculate time after which timeline should be repeatedly refreshed - five minutes ago lets us pick up
             # status changes on new messages

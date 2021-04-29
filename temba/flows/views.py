@@ -46,7 +46,7 @@ from temba.orgs.models import IntegrationType, Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
-from temba.utils import analytics, gettext, json, on_transaction_commit, str_to_bool
+from temba.utils import analytics, gettext, json, languages, on_transaction_commit, str_to_bool
 from temba.utils.fields import (
     CheckboxWidget,
     ContactSearchWidget,
@@ -1186,7 +1186,7 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 label=_("Language"),
                 help_text=_("Include translations in this language."),
-                choices=[("", "None")],
+                choices=(("", "None"),),
                 widget=SelectWidget(),
             )
             include_args = forms.BooleanField(
@@ -1201,10 +1201,9 @@ class FlowCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
 
                 org = user.get_org()
-                org_languages = org.languages.all().order_by("orgs", "name")
 
                 self.user = user
-                self.fields["language"].choices += [(lang.iso_code, lang.name) for lang in org_languages]
+                self.fields["language"].choices += languages.choices(codes=org.get_language_codes())
 
         form_class = Form
         submit_button_name = _("Export")
@@ -1288,7 +1287,7 @@ class FlowCRUDL(SmartCRUDL):
                                 params={"lang": po_info.language_name},
                             )
 
-                        if not self.flow.org.languages.filter(iso_code=po_info.language_code).exists():
+                        if po_info.language_code not in self.flow.org.get_language_codes():
                             raise ValidationError(
                                 _("Contains translations in %(lang)s which is not a supported translation language."),
                                 params={"lang": po_info.language_name},
@@ -1308,9 +1307,10 @@ class FlowCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
 
                 org = user.get_org()
-                languages = org.languages.exclude(iso_code=instance.base_language).order_by("name")
+                lang_codes = org.get_language_codes()
+                lang_codes.remove(instance.base_language)
 
-                self.fields["language"].choices += [(lang.iso_code, lang.name) for lang in languages]
+                self.fields["language"].choices = languages.choices(codes=lang_codes)
 
         title = _("Import Translation")
         submit_button_name = _("Import")
@@ -1357,12 +1357,12 @@ class FlowCRUDL(SmartCRUDL):
             return gettext.po_get_info(po_data)
 
         def get_context_data(self, *args, **kwargs):
-            org = self.request.user.get_org()
+            flow_lang_code = self.object.base_language
 
             context = super().get_context_data(*args, **kwargs)
             context["show_upload_form"] = not self.po_info
             context["po_info"] = self.po_info
-            context["flow_language"] = org.languages.filter(iso_code=self.object.base_language).first()
+            context["flow_language"] = {"iso_code": flow_lang_code, "name": languages.get_name(flow_lang_code)}
             return context
 
         def derive_initial(self):
@@ -2062,8 +2062,8 @@ class FlowCRUDL(SmartCRUDL):
             if asset_type_name == "environment":
                 return JsonResponse(org.as_environment_def())
             else:
-                languages = org.languages.filter(is_active=True).order_by("id")
-                return JsonResponse({"results": [{"iso": l.iso_code, "name": l.name} for l in languages]})
+                results = [{"iso": code, "name": languages.get_name(code)} for code in org.get_language_codes()]
+                return JsonResponse({"results": sorted(results, key=lambda l: l["name"])})
 
 
 # this is just for adhoc testing of the preprocess url

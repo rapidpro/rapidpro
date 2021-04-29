@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-22 14:19+0000\n"
+"POT-Creation-Date: 2021-04-22 21:15+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -2315,8 +2315,9 @@ msgstr "Grupos"
 msgid "Select groups for this contact"
 msgstr "Selecione os grupos para este contato."
 
-#, python-format
-msgid "%s (Missing)"
+#, fuzzy, python-brace-format
+#| msgid "%s (Missing)"
+msgid "{lang_name} (Missing)"
 msgstr "%s (Faltando)"
 
 msgid "The groups which this contact belongs to"
