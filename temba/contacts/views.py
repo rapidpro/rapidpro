@@ -1406,15 +1406,16 @@ class ContactCRUDL(SmartCRUDL):
                 qs = (
                     qs.filter(tickets__status=Ticket.STATUS_OPEN)
                     .annotate(ticket_uuid=F("tickets__uuid"))
-                    .order_by("-last_seen_on", "id")
+                    .order_by("-last_seen_on", "-tickets__opened_on")
                 )
 
             elif folder == self.FOLDER_CLOSED:
                 qs = (
                     qs.filter(tickets__status=Ticket.STATUS_CLOSED)
                     .annotate(ticket_uuid=F("tickets__uuid"))
+                    .annotate(ticket_subject=F("tickets__subject"))
                     .annotate(ticket_closed_on=F("tickets__closed_on"))
-                    .order_by("-tickets__closed_on")
+                    .order_by("-tickets__closed_on", "-tickets__opened_on")
                 )
             else:
                 raise Http404("'%' is not valid ticket folder", folder)
@@ -1441,8 +1442,12 @@ class ContactCRUDL(SmartCRUDL):
             return context
 
         def as_json(self, context):
-            def ticket_as_json(t):
-                return contact_as_json(t)
+            def ticket_as_json(c):
+                return {
+                    "uuid": c.__dict__.get("ticket_uuid", None),
+                    "subject": c.__dict__.get("ticket_subject", None),
+                    "closed_on": c.__dict__.get("ticket_closed_on", None),
+                }
 
             def msg_as_json(m):
                 sender = None
@@ -1461,17 +1466,17 @@ class ContactCRUDL(SmartCRUDL):
 
             def contact_as_json(c):
                 last_msg = context["last_msgs"].get(c)
+                ticket_uuid = c.__dict__.get("ticket_uuid", None)
                 contact = {
                     "uuid": str(c.uuid),
                     "name": c.get_display(),
                     "last_seen_on": c.last_seen_on,
                     "last_msg": msg_as_json(last_msg) if last_msg else None,
-                    "ticket_uuid": c.__dict__["ticket_uuid"] if "ticket_uuid" in c.__dict__ else None,
-                    "ticket_closed_on": c.__dict__["ticket_closed_on"] if "ticket_closed_on" in c.__dict__ else None,
+                    "ticket": ticket_as_json(c) if ticket_uuid else None,
                 }
                 return contact
 
-            response = {"results": [ticket_as_json(t) for t in context["object_list"]]}
+            response = {"results": [contact_as_json(c) for c in context["object_list"]]}
 
             # build up our next link if we have more
             if context["page_obj"].has_next():

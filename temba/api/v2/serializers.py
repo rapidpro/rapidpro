@@ -1452,10 +1452,12 @@ class TicketWriteSerializer(WriteSerializer):
         """
         status = self.validated_data.get("status")
         if self.instance:
+            # TODO status changes should use historical model
             self.instance.status = status
-
             if status == Ticket.STATUS_CLOSED:
                 self.instance.closed_on = timezone.now()
+            elif status == Ticket.STATUS_OPEN:
+                self.closed_on = None
             self.instance.save()
 
         return self.instance
