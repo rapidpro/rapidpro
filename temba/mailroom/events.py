@@ -14,6 +14,7 @@ from temba.flows.models import FlowExit, FlowRun
 from temba.ivr.models import IVRCall
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
+from temba.tickets.models import Ticket
 
 
 class Event:
@@ -46,6 +47,7 @@ class Event:
     TYPE_CAMPAIGN_FIRED = "campaign_fired"
     TYPE_CHANNEL_EVENT = "channel_event"
     TYPE_FLOW_EXITED = "flow_exited"
+    TYPE_TICKET_CLOSED = "ticket_closed"
 
     @classmethod
     def from_history_item(cls, org: Org, user: User, item) -> dict:
@@ -176,6 +178,22 @@ class Event:
         }
 
     @classmethod
+    def from_ticket(cls, org: Org, user: User, obj: Ticket) -> dict:
+        return {
+            "type": cls.TYPE_TICKET_CLOSED,
+            "created_on": get_event_time(obj).isoformat(),
+            "ticket": {
+                "uuid": obj.uuid,
+                "opened_on": obj.opened_on,
+                "closed_on": obj.closed_on,
+                "status": obj.status,
+                "subject": obj.subject,
+                "body": obj.body,
+                "ticketer": {"uuid": obj.ticketer.uuid, "name": obj.ticketer.name},
+            },
+        }
+
+    @classmethod
     def from_event_fire(cls, org: Org, user: User, obj: EventFire) -> dict:
         return {
             "type": cls.TYPE_CAMPAIGN_FIRED,
@@ -249,6 +267,7 @@ event_renderers = {
     IVRCall: Event.from_ivr_call,
     Msg: Event.from_msg,
     WebHookResult: Event.from_webhook_result,
+    Ticket: Event.from_ticket,
 }
 
 # map of history item types to a callable which can extract the event time from that type
@@ -258,6 +277,7 @@ event_time.update(
         dict: lambda e: iso8601.parse_date(e["created_on"]),
         EventFire: lambda e: e.fired,
         FlowExit: lambda e: e.run.exited_on,
+        Ticket: lambda e: e.closed_on,
     },
 )
 

@@ -22,7 +22,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, F
 from django.db.models.aggregates import Max
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
@@ -1403,21 +1403,24 @@ class ContactCRUDL(SmartCRUDL):
 
             folder = self.request.GET.get("folder", "")
             if folder == self.FOLDER_OPEN:
-                qs = qs.filter(tickets__status=Ticket.STATUS_OPEN).distinct("last_seen_on", "id")
+                # TODO we probably want ordering by last message in either direction
+                qs = (
+                    qs.filter(tickets__status=Ticket.STATUS_OPEN)
+                    .annotate(ticket_uuid=F("tickets__uuid"))
+                    .order_by("-last_seen_on", "id")
+                )
 
             elif folder == self.FOLDER_CLOSED:
-                qs = qs.filter(
-                    id__in=org.tickets.values("contact_id")
-                    .annotate(max_status=Max("status"))
-                    .filter(max_status=Ticket.STATUS_CLOSED)
-                    .order_by("contact_id")
-                    .values("contact_id")
+                qs = (
+                    qs.filter(tickets__status=Ticket.STATUS_CLOSED)
+                    .annotate(ticket_uuid=F("tickets__uuid"))
+                    .annotate(ticket_closed_on=F("tickets__closed_on"))
+                    .order_by("-tickets__closed_on")
                 )
             else:
                 raise Http404("'%' is not valid ticket folder", folder)
 
-            # TODO we probably want ordering by last message in either direction
-            return qs.order_by("-last_seen_on", "id")
+            return qs
 
         def get_context_data(self, **kwargs):
             from temba.msgs.models import Msg
@@ -1439,8 +1442,8 @@ class ContactCRUDL(SmartCRUDL):
             return context
 
         def as_json(self, context):
-            def ticket_as_json(c):
-                return contact_as_json(c)
+            def ticket_as_json(t):
+                return contact_as_json(t)
 
             def msg_as_json(m):
                 sender = None
@@ -1459,12 +1462,15 @@ class ContactCRUDL(SmartCRUDL):
 
             def contact_as_json(c):
                 last_msg = context["last_msgs"].get(c)
-                return {
+                contact = {
                     "uuid": str(c.uuid),
                     "name": c.get_display(),
                     "last_seen_on": c.last_seen_on,
                     "last_msg": msg_as_json(last_msg) if last_msg else None,
+                    "ticket_uuid": c.__dict__["ticket_uuid"] if "ticket_uuid" in c.__dict__ else None,
+                    "ticket_closed_on": c.__dict__["ticket_closed_on"] if "ticket_closed_on" in c.__dict__ else None,
                 }
+                return contact
 
             response = {"results": [ticket_as_json(t) for t in context["object_list"]]}
 
