@@ -606,14 +606,16 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # fetching open folder returns both contacts with open tickets
         response = self.client.get(tickets_url + "?folder=open")
-        self.assertEqual([contact2, contact1], list(response.context["object_list"]))
+        self.assertEqual([contact2, contact1, contact1], list(response.context["object_list"]))
 
         # fetching closed folder returns only contact with all closed tickets
         response = self.client.get(tickets_url + "?folder=closed")
-        self.assertEqual([contact3], list(response.context["object_list"]))
+        self.assertEqual([contact3, contact3, contact2], list(response.context["object_list"]))
 
         # can request page as JSON
         response = self.client.get(tickets_url + "?folder=open&_format=json")
+
+        joes_open_tickets = contact1.tickets.filter(status="O")
 
         expected_json = {
             "results": [
@@ -628,6 +630,11 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                         "created_on": inbound.created_on,
                         "sender": None,
                     },
+                    "ticket": {
+                        "uuid": str(contact2.tickets.filter(status="O").first().uuid),
+                        "subject": None,
+                        "closed_on": None,
+                    },
                 },
                 {
                     "uuid": str(contact1.uuid),
@@ -639,6 +646,28 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                         "type": "I",
                         "created_on": outbound.created_on,
                         "sender": {"id": self.admin.id, "email": "Administrator@nyaruka.com"},
+                    },
+                    "ticket": {
+                        "uuid": str(joes_open_tickets[0].uuid),
+                        "subject": None,
+                        "closed_on": None,
+                    },
+                },
+                {
+                    "uuid": str(contact1.uuid),
+                    "name": "Joe",
+                    "last_seen_on": contact1.last_seen_on,
+                    "last_msg": {
+                        "text": "We can help",
+                        "direction": "O",
+                        "type": "I",
+                        "created_on": outbound.created_on,
+                        "sender": {"id": self.admin.id, "email": "Administrator@nyaruka.com"},
+                    },
+                    "ticket": {
+                        "uuid": str(joes_open_tickets[1].uuid),
+                        "subject": None,
+                        "closed_on": None,
                     },
                 },
             ]
@@ -2126,7 +2155,7 @@ class ContactTest(TembaTest):
 
         # fetch our contact history
         self.login(self.admin)
-        with self.assertNumQueries(49):
+        with self.assertNumQueries(50):
             response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
