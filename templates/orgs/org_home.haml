@@ -17,6 +17,8 @@
       -block gear-menu
         -include "gear_links_include.haml"
 
+-block sidemenu
+
 -block content
   -for channel in channels
     .mt-2
@@ -71,6 +73,10 @@
   -compress css inline
     {% lessblock %}
       :plain
+
+        #unnnic-content {
+          margin-left: inherit;
+        }
 
         #id-channel {
           a {
