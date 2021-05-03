@@ -2285,7 +2285,7 @@ class ContactTest(TembaTest):
         history = response.context["events"]
         self.assertEqual(99, len(history))
 
-        # before date should not match our last activity, that only happens when we truncate 
+        # before date should not match our last activity, that only happens when we truncate
         self.assertNotEqual(
             response.context["next_before"],
             datetime_to_timestamp(iso8601.parse_date(response.context["events"][-1]["created_on"])),
