@@ -1457,7 +1457,7 @@ class TicketWriteSerializer(WriteSerializer):
             if status == Ticket.STATUS_CLOSED:
                 self.instance.closed_on = timezone.now()
             elif status == Ticket.STATUS_OPEN:
-                self.closed_on = None
+                self.instance.closed_on = None
             self.instance.save()
 
         return self.instance

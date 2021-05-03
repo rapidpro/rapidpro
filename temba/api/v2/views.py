@@ -3537,8 +3537,7 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
 
         ticket_uuid = params.get("ticket")
         if ticket_uuid:
-            if contact:
-                queryset = queryset.filter(uuid=ticket_uuid)
+            queryset = queryset.filter(uuid=ticket_uuid)
 
         # filter by ticketer type if provided, unpublished support for agents
         ticketer_type = params.get("ticketer_type")

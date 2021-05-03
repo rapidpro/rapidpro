@@ -179,19 +179,20 @@ class Event:
 
     @classmethod
     def from_ticket(cls, org: Org, user: User, obj: Ticket) -> dict:
-        return {
-            "type": cls.TYPE_TICKET_CLOSED,
-            "created_on": get_event_time(obj).isoformat(),
-            "ticket": {
-                "uuid": obj.uuid,
-                "opened_on": obj.opened_on,
-                "closed_on": obj.closed_on,
-                "status": obj.status,
-                "subject": obj.subject,
-                "body": obj.body,
-                "ticketer": {"uuid": obj.ticketer.uuid, "name": obj.ticketer.name},
-            },
-        }
+        if obj.status == Ticket.STATUS_CLOSED:
+            return {
+                "type": cls.TYPE_TICKET_CLOSED,
+                "created_on": get_event_time(obj).isoformat(),
+                "ticket": {
+                    "uuid": obj.uuid,
+                    "opened_on": obj.opened_on,
+                    "closed_on": obj.closed_on,
+                    "status": obj.status,
+                    "subject": obj.subject,
+                    "body": obj.body,
+                    "ticketer": {"uuid": obj.ticketer.uuid, "name": obj.ticketer.name},
+                },
+            }
 
     @classmethod
     def from_event_fire(cls, org: Org, user: User, obj: EventFire) -> dict:
