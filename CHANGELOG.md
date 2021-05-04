@@ -1,3 +1,9 @@
+v6.3.37
+----------
+ * Fix contact imports always creating new groups
+ * Migration to fix escaped nulls in flow revision definitions
+ * Rework beta gated agent views to be tikect centric
+
 v6.3.35
 ----------
  * Clear primary language when releasing org
