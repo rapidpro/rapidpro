@@ -872,6 +872,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             else:
 
                 org.refresh_from_db()
+                self.assertIsNone(org.released_on)
                 self.assertFalse(org.is_active)
 
                 # our channel should have been made inactive
@@ -901,7 +902,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
         self.assertEqual(995, self.parent_org.get_credits_remaining())
 
     def test_release_task(self):
-        self.child_org.release()
+        self.release_org(self.child_org, immediately=False)
         Org.objects.filter(id=self.child_org.id).update(modified_on=timezone.now() - timedelta(days=10))
 
         with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
