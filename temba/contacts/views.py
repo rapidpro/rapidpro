@@ -2192,10 +2192,11 @@ class ContactImportCRUDL(SmartCRUDL):
                 obj.mappings[i]["mapping"] = mapping
 
             if self.form.cleaned_data.get("add_to_group"):
-                new_group_name = self.form.cleaned_data.get("new_group_name")
-                if new_group_name:
-                    obj.group_name = new_group_name
-                else:
+                group_mode = self.form.cleaned_data["group_mode"]
+                if group_mode == self.form.GROUP_MODE_NEW:
+                    obj.group_name = self.form.cleaned_data["new_group_name"]
+                    obj.group = None
+                elif group_mode == self.form.GROUP_MODE_EXISTING:
                     obj.group = self.form.cleaned_data["existing_group"]
 
             return obj
