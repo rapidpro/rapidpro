@@ -108,7 +108,9 @@ def suspend_topup_orgs_task():
 @nonoverlapping_task(track_started=True, name="release_orgs_task", lock_key="release_orgs_task", lock_timeout=7200)
 def release_orgs_task():
     # for each org that is not active and was released over 7 days ago, release it
-    for org in Org.objects.filter(is_active=False, released_on=None, modified_on=timezone.now() - timedelta(days=7)):
+    for org in Org.objects.filter(
+        is_active=False, released_on=None, modified_on__lt=timezone.now() - timedelta(days=7)
+    ):
         try:
             org.release(immediately=True)
         except Exception:  # pragma: no cover

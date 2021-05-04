@@ -901,9 +901,11 @@ class OrgDeleteTest(TembaNonAtomicTest):
         self.assertEqual(995, self.parent_org.get_credits_remaining())
 
     def test_release_task(self):
-        self.release_org(self.child_org, expected_files=2)
-        self.child_org.modified_on = timezone.now() - timedelta(days=10)
-        release_orgs_task()
+        self.child_org.release()
+        Org.objects.filter(id=self.child_org.id).update(modified_on=timezone.now() - timedelta(days=10))
+
+        with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
+            release_orgs_task()
 
         self.child_org.refresh_from_db()
         self.assertIsNotNone(self.child_org.released_on)
