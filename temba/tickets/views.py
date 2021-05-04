@@ -3,7 +3,7 @@ from smartmin.views import SmartCRUDL, SmartDeleteView, SmartFormView, SmartList
 from django import forms
 from django.contrib import messages
 from django.db.models.aggregates import Max
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.http.response import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.functional import cached_property
@@ -138,7 +138,7 @@ class TicketCRUDL(SmartCRUDL):
 
             return context
 
-        def as_json(self, context):
+        def render_to_response(self, context, **response_kwargs):
             def msg_as_json(m):
                 sender = None
                 if m.broadcast and m.broadcast.created_by:
@@ -152,7 +152,7 @@ class TicketCRUDL(SmartCRUDL):
                     "sender": sender,
                 }
 
-            def _as_json(t):
+            def as_json(t):
                 """
                 Converts a ticket to the contact-centric format expected by our frontend components
                 """
@@ -169,15 +169,15 @@ class TicketCRUDL(SmartCRUDL):
                     },
                 }
 
-            response = {"results": [_as_json(t) for t in context["object_list"]]}
+            results = {"results": [as_json(t) for t in context["object_list"]]}
 
             # build up our next link if we have more
             if context["page_obj"].has_next():
                 folder_url = reverse("tickets.ticket_folder", kwargs={"folder": self.kwargs["folder"]})
                 next_page = context["page_obj"].number + 1
-                response["next"] = f"{folder_url}?_format=json&page={next_page}"
+                results["next"] = f"{folder_url}?page={next_page}"
 
-            return response
+            return JsonResponse(results)
 
     class Open(TicketListView):
         title = _("Open Tickets")

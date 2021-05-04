@@ -79,9 +79,14 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         open_url = reverse("tickets.ticket_folder", kwargs={"folder": "open"})
         closed_url = reverse("tickets.ticket_folder", kwargs={"folder": "closed"})
 
+        def assert_tickets(resp, tickets: list):
+            actual_tickets = [t["ticket"]["uuid"] for t in resp.json()["results"]]
+            expected_tickets = [str(t.uuid) for t in tickets]
+            self.assertEqual(expected_tickets, actual_tickets)
+
         # no tickets yet so no contacts returned
         response = self.client.get(open_url)
-        self.assertEqual(0, len(response.context["object_list"]))
+        assert_tickets(response, [])
 
         # contact 1 has two open tickets
         c1_t1 = self.create_ticket(contact=contact1, subject="Question 1", status="O")
@@ -103,14 +108,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # fetching open folder returns all open tickets
         response = self.client.get(open_url)
-        self.assertEqual([c2_t1, c1_t2, c1_t1], list(response.context["object_list"]))
-
-        # fetching closed folder returns all closed tickets
-        response = self.client.get(closed_url)
-        self.assertEqual([c3_t2, c3_t1, c2_t2], list(response.context["object_list"]))
-
-        # can request page as JSON
-        response = self.client.get(open_url + "?_format=json")
+        assert_tickets(response, [c2_t1, c1_t2, c1_t1])
 
         joes_open_tickets = contact1.tickets.filter(status="O")
 
@@ -169,8 +167,11 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                 },
             ]
         }
-
         self.assertEqual(expected_json, response.json())
+
+        # fetching closed folder returns all closed tickets
+        response = self.client.get(closed_url)
+        assert_tickets(response, [c3_t2, c3_t1, c2_t2])
 
         # make sure when paging we get a next url
         with patch("temba.tickets.views.TicketCRUDL.Folder.paginate_by", 1):
