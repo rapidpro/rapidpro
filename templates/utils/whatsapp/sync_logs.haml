@@ -9,7 +9,8 @@
   {{ object.name }}
 
 -block subtitle
-  -trans "WhatsApp Templates Events"
+  {{ object.get_channel_type_display }}
+  -trans "Templates Events"
 
 -block content
   -if sync_logs
