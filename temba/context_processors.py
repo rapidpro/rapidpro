@@ -20,3 +20,8 @@ def analytics(request):
         intercom_app_id=settings.INTERCOM_APP_ID,
         google_tracking_id=settings.GOOGLE_TRACKING_ID,
     )
+
+def fba_pages_limit(request):
+    return {
+            "fba_pages_limit": settings.FACEBOOK_PAGES_LIMIT,
+    }
