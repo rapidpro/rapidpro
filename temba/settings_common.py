@@ -1208,6 +1208,7 @@ ZENDESK_CLIENT_SECRET = os.environ.get("ZENDESK_CLIENT_SECRET", "")
 FACEBOOK_APPLICATION_ID = os.environ.get("FACEBOOK_APPLICATION_ID", "")
 FACEBOOK_APPLICATION_SECRET = os.environ.get("FACEBOOK_APPLICATION_SECRET", "")
 FACEBOOK_WEBHOOK_SECRET = os.environ.get("FACEBOOK_WEBHOOK_SECRET", "")
+FACEBOOK_PAGES_LIMIT = os.environ.get("FACEBOOK_PAGES_LIMIT", "25")
 
 
 # -----------------------------------------------------------------------------------
