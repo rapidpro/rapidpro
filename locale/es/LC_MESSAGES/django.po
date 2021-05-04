@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-22 21:15+0000\n"
+"POT-Creation-Date: 2021-05-03 20:39+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -5477,6 +5477,11 @@ msgstr "Resultado de ejecución <b>%(name)s</b> actualizado a <b>%(value)s</b> c
 
 #, python-format
 msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgstr "Boleto abierto en <a href=\"%(ticketer_url)s\"> %(ticketer)s </a> con asunto <b> %(subject)s </b>"
+
+#, fuzzy, python-format
+#| msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgid "Closed ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
 msgstr "Boleto abierto en <a href=\"%(ticketer_url)s\"> %(ticketer)s </a> con asunto <b> %(subject)s </b>"
 
 msgid "Successfully called"

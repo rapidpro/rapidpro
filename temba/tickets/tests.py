@@ -77,8 +77,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.requestView(open_url, self.admin)
         self.assertEqual(reverse("tickets.ticket_list"), response.get("Location", None))
 
-        # print(response.status_code)
-
     @mock_mailroom
     def test_open(self, mr_mocks):
         open_url = reverse("tickets.ticket_open")

@@ -606,14 +606,16 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
 
         # fetching open folder returns both contacts with open tickets
         response = self.client.get(tickets_url + "?folder=open")
-        self.assertEqual([contact2, contact1], list(response.context["object_list"]))
+        self.assertEqual([contact2, contact1, contact1], list(response.context["object_list"]))
 
         # fetching closed folder returns only contact with all closed tickets
         response = self.client.get(tickets_url + "?folder=closed")
-        self.assertEqual([contact3], list(response.context["object_list"]))
+        self.assertEqual([contact3, contact3, contact2], list(response.context["object_list"]))
 
         # can request page as JSON
         response = self.client.get(tickets_url + "?folder=open&_format=json")
+
+        joes_open_tickets = contact1.tickets.filter(status="O")
 
         expected_json = {
             "results": [
@@ -628,6 +630,11 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                         "created_on": inbound.created_on,
                         "sender": None,
                     },
+                    "ticket": {
+                        "uuid": str(contact2.tickets.filter(status="O").first().uuid),
+                        "subject": None,
+                        "closed_on": None,
+                    },
                 },
                 {
                     "uuid": str(contact1.uuid),
@@ -639,6 +646,28 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
                         "type": "I",
                         "created_on": outbound.created_on,
                         "sender": {"id": self.admin.id, "email": "Administrator@nyaruka.com"},
+                    },
+                    "ticket": {
+                        "uuid": str(joes_open_tickets[0].uuid),
+                        "subject": None,
+                        "closed_on": None,
+                    },
+                },
+                {
+                    "uuid": str(contact1.uuid),
+                    "name": "Joe",
+                    "last_seen_on": contact1.last_seen_on,
+                    "last_msg": {
+                        "text": "We can help",
+                        "direction": "O",
+                        "type": "I",
+                        "created_on": outbound.created_on,
+                        "sender": {"id": self.admin.id, "email": "Administrator@nyaruka.com"},
+                    },
+                    "ticket": {
+                        "uuid": str(joes_open_tickets[1].uuid),
+                        "subject": None,
+                        "closed_on": None,
                     },
                 },
             ]
@@ -2042,7 +2071,7 @@ class ContactTest(TembaTest):
         )
 
         # create some messages
-        for i in range(95):
+        for i in range(94):
             self.create_incoming_msg(
                 self.joe, "Inbound message %d" % i, created_on=timezone.now() - timedelta(days=(100 - i))
             )
@@ -2099,6 +2128,24 @@ class ContactTest(TembaTest):
         scheduled = timezone.now() - timedelta(days=5)
         EventFire.objects.create(event=self.planting_reminder, contact=self.joe, scheduled=scheduled, fired=scheduled)
 
+        # two tickets for joe
+        ticketer = Ticketer.create(self.org, self.user, "internal", "Internal", {})
+        Ticket.objects.create(
+            org=self.org,
+            ticketer=ticketer,
+            contact=self.joe,
+            subject="Question 1",
+            status="C",
+            closed_on=timezone.now(),
+        )
+        Ticket.objects.create(
+            org=self.org,
+            ticketer=ticketer,
+            contact=self.joe,
+            subject="Question 2",
+            status="O",
+        )
+
         # create missed incoming and outgoing calls
         self.create_channel_event(
             self.channel, str(self.joe.get_urn(URN.TEL_SCHEME)), ChannelEvent.TYPE_CALL_OUT_MISSED, extra={}
@@ -2126,7 +2173,7 @@ class ContactTest(TembaTest):
 
         # fetch our contact history
         self.login(self.admin)
-        with self.assertNumQueries(49):
+        with self.assertNumQueries(51):
             response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -2143,13 +2190,14 @@ class ContactTest(TembaTest):
         assertHistoryEvent(history[1], "channel_event")
         assertHistoryEvent(history[2], "channel_event")
         assertHistoryEvent(history[3], "channel_event")
-        assertHistoryEvent(history[4], "airtime_transferred")
-        assertHistoryEvent(history[5], "webhook_called")
-        assertHistoryEvent(history[6], "run_result_changed")
-        assertHistoryEvent(history[7], "msg_created")
-        assertHistoryEvent(history[8], "flow_entered")
-        assertHistoryEvent(history[9], "msg_received")
-        assertHistoryEvent(history[10], "campaign_fired")
+        assertHistoryEvent(history[4], "ticket_closed")
+        assertHistoryEvent(history[5], "airtime_transferred")
+        assertHistoryEvent(history[6], "webhook_called")
+        assertHistoryEvent(history[7], "run_result_changed")
+        assertHistoryEvent(history[8], "msg_created")
+        assertHistoryEvent(history[9], "flow_entered")
+        assertHistoryEvent(history[10], "msg_received")
+        assertHistoryEvent(history[11], "campaign_fired")
         assertHistoryEvent(history[-1], "msg_received", msg_text="Inbound message 11")
 
         self.assertContains(response, "<audio ")
@@ -2188,7 +2236,7 @@ class ContactTest(TembaTest):
         history = response.context["events"]
 
         self.assertEqual(95, len(history))
-        assertHistoryEvent(history[7], "msg_created", msg_text="What is your favorite color?")
+        assertHistoryEvent(history[8], "msg_created", msg_text="What is your favorite color?")
 
         # if a new message comes in
         self.create_incoming_msg(self.joe, "Newer message")
@@ -2204,7 +2252,7 @@ class ContactTest(TembaTest):
 
         # with our recent flag on, should not see the older messages
         events = response.context["events"]
-        self.assertEqual(11, len(events))
+        self.assertEqual(12, len(events))
         self.assertContains(response, "file.mp4")
 
         # can't view history of contact in another org
@@ -2251,11 +2299,12 @@ class ContactTest(TembaTest):
         assertHistoryEvent(history[5], "channel_event")
         assertHistoryEvent(history[6], "channel_event")
         assertHistoryEvent(history[7], "channel_event")
-        assertHistoryEvent(history[8], "airtime_transferred")
-        assertHistoryEvent(history[9], "webhook_called")
-        assertHistoryEvent(history[10], "run_result_changed")
-        assertHistoryEvent(history[11], "msg_created", msg_text="What is your favorite color?")
-        assertHistoryEvent(history[12], "flow_entered")
+        assertHistoryEvent(history[8], "ticket_closed")
+        assertHistoryEvent(history[9], "airtime_transferred")
+        assertHistoryEvent(history[10], "webhook_called")
+        assertHistoryEvent(history[11], "run_result_changed")
+        assertHistoryEvent(history[12], "msg_created", msg_text="What is your favorite color?")
+        assertHistoryEvent(history[13], "flow_entered")
 
         # make our message event older than our planting reminder
         self.message_event.created_on = self.planting_reminder.created_on - timedelta(days=1)

@@ -4366,6 +4366,14 @@ class APITest(TembaTest):
             body="Now",
             status=Ticket.STATUS_OPEN,
         )
+        ticket3 = Ticket.objects.create(
+            org=self.org,
+            ticketer=mailgun,
+            contact=bob,
+            subject="It's bob",
+            body="Pleeeease help",
+            status=Ticket.STATUS_OPEN,
+        )
 
         # on another org
         zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
@@ -4392,6 +4400,16 @@ class APITest(TembaTest):
         self.assertEqual(
             resp_json["results"],
             [
+                {
+                    "uuid": str(ticket3.uuid),
+                    "closed_on": None,
+                    "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
+                    "contact": {"uuid": str(bob.uuid), "name": "Bob"},
+                    "status": "open",
+                    "subject": "It's bob",
+                    "body": "Pleeeease help",
+                    "opened_on": format_datetime(ticket3.opened_on),
+                },
                 {
                     "uuid": str(ticket2.uuid),
                     "closed_on": None,
@@ -4425,8 +4443,13 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "contact=" + str(bob.uuid))
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(1, len(resp_json["results"]))
+        self.assertEqual(2, len(resp_json["results"]))
         self.assertEqual("Bob", resp_json["results"][0]["contact"]["name"])
+
+        # filter further by ticket uuid
+        response = self.fetchJSON(url, f"ticket={ticket3.uuid}")
+        resp_json = response.json()
+        self.assertEqual(1, len(resp_json["results"]))
 
         # close one of the tickets
         self.postJSON(url, f"uuid={ticket1.uuid}", {"status": "closed"})
@@ -4434,6 +4457,14 @@ class APITest(TembaTest):
         # make sure it shows as closed with a closed_on date
         response = self.fetchJSON(url)
         resp_json = response.json()
-        updated = resp_json["results"][1]
+        updated = resp_json["results"][2]
         self.assertEqual(updated["status"], "closed")
         self.assertIsNotNone(updated["closed_on"])
+
+        # reopen that ticket
+        self.postJSON(url, f"uuid={ticket1.uuid}", {"status": "open"})
+        response = self.fetchJSON(url)
+        resp_json = response.json()
+        updated = resp_json["results"][1]
+        self.assertEqual(updated["status"], "open")
+        self.assertIsNone(updated["closed_on"])
