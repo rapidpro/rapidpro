@@ -51,20 +51,25 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.internal = Ticketer.create(self.org, self.user, InternalType.slug, "Internal", {})
         self.contact = self.create_contact("Bob", urns=["twitter:bobby"])
 
-    def create_ticket(self, subject, body, status, ticketer=None, org=None):
+    def create_ticket(self, *, subject, status, body="", contact=None, ticketer=None, org=None):
         return Ticket.objects.create(
             org=org or self.org,
             ticketer=ticketer or self.mailgun,
-            contact=self.contact,
+            contact=contact or self.contact,
             subject=subject,
             body=body,
             status=status,
         )
 
+    def test_list(self):
+        list_url = reverse("tickets.ticket_list")
+
+        # just a placeholder view for frontend components
+        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[])
+
     def test_folder(self):
         self.login(self.user)
 
-        ticketer = Ticketer.create(self.org, self.user, "internal", "Internal", {})
         contact1 = self.create_contact("Joe", phone="123", last_seen_on=timezone.now())
         contact2 = self.create_contact("Frank", phone="124", last_seen_on=timezone.now())
         contact3 = self.create_contact("Anne", phone="125", last_seen_on=timezone.now())
@@ -79,34 +84,22 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(0, len(response.context["object_list"]))
 
         # contact 1 has two open tickets
-        c1_t1 = Ticket.objects.create(
-            org=self.org, ticketer=ticketer, contact=contact1, subject="Question 1", status="O"
-        )
-        c1_t2 = Ticket.objects.create(
-            org=self.org, ticketer=ticketer, contact=contact1, subject="Question 2", status="O"
-        )
+        c1_t1 = self.create_ticket(contact=contact1, subject="Question 1", status="O")
+        c1_t2 = self.create_ticket(contact=contact1, subject="Question 2", status="O")
 
         self.create_incoming_msg(contact1, "I have an issue")
         self.create_broadcast(self.admin, "We can help", contacts=[contact1]).msgs.first()
 
         # contact 2 has an open ticket and a closed ticket
-        c2_t1 = Ticket.objects.create(
-            org=self.org, ticketer=ticketer, contact=contact2, subject="Question 3", status="O"
-        )
-        c2_t2 = Ticket.objects.create(
-            org=self.org, ticketer=ticketer, contact=contact2, subject="Question 4", status="C"
-        )
+        c2_t1 = self.create_ticket(contact=contact2, subject="Question 3", status="O")
+        c2_t2 = self.create_ticket(contact=contact2, subject="Question 4", status="C")
 
         self.create_incoming_msg(contact2, "Anyone there?")
         self.create_incoming_msg(contact2, "Hello?")
 
         # contact 3 has two closed tickets
-        c3_t1 = Ticket.objects.create(
-            org=self.org, ticketer=ticketer, contact=contact3, subject="Question 5", status="C"
-        )
-        c3_t2 = Ticket.objects.create(
-            org=self.org, ticketer=ticketer, contact=contact3, subject="Question 6", status="C"
-        )
+        c3_t1 = self.create_ticket(contact=contact3, subject="Question 5", status="C")
+        c3_t2 = self.create_ticket(contact=contact3, subject="Question 6", status="C")
 
         # fetching open folder returns all open tickets
         response = self.client.get(open_url)
@@ -205,10 +198,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_open(self, mr_mocks):
         open_url = reverse("tickets.ticket_open")
 
-        ticket1 = self.create_ticket("Ticket 1", "Where are my cookies?", "O")
-        ticket2 = self.create_ticket("Ticket 2", "Where are my shoes?", "O", ticketer=self.zendesk)
-        self.create_ticket("Ticket 3", "Old ticket", "C")
-        self.create_ticket("Ticket 4", "Where are my trousers?", "O", org=self.org2)
+        ticket1 = self.create_ticket(subject="Ticket 1", body="Where are my cookies?", status="O")
+        ticket2 = self.create_ticket(subject="Ticket 2", body="Where are my shoes?", status="O", ticketer=self.zendesk)
+        self.create_ticket(subject="Ticket 3", body="Old ticket", status="C")
+        self.create_ticket(subject="Ticket 4", body="Where are my trousers?", status="O", org=self.org2)
 
         response = self.assertListFetch(
             open_url, allow_viewers=True, allow_editors=True, context_objects=[ticket2, ticket1]
@@ -246,10 +239,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # still see closed tickets for deleted ticketers
         self.zendesk.release()
 
-        ticket1 = self.create_ticket("Ticket 1", "Where are my cookies?", "C")
-        ticket2 = self.create_ticket("Ticket 2", "Where are my shoes?", "C", ticketer=self.zendesk)
-        self.create_ticket("Ticket 3", "New ticket", "O")
-        self.create_ticket("Ticket 4", "Where are my trousers?", "O", org=self.org2)
+        ticket1 = self.create_ticket(subject="Ticket 1", body="Where are my cookies?", status="C")
+        ticket2 = self.create_ticket(subject="Ticket 2", body="Where are my shoes?", status="C", ticketer=self.zendesk)
+        self.create_ticket(subject="Ticket 3", body="New ticket", status="O")
+        self.create_ticket(subject="Ticket 4", body="Where are my trousers?", status="O", org=self.org2)
 
         response = self.assertListFetch(
             closed_url, allow_viewers=True, allow_editors=True, context_objects=[ticket2, ticket1]
@@ -277,9 +270,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_filter(self):
         filter_url = reverse("tickets.ticket_filter", args=[self.mailgun.uuid])
 
-        ticket1 = self.create_ticket("Ticket 1", "Where are my cookies?", "O")
-        ticket2 = self.create_ticket("Ticket 2", "Where are my shoes?", "C")
-        self.create_ticket("Ticket 3", "New ticket", "O", ticketer=self.zendesk)
+        ticket1 = self.create_ticket(subject="Ticket 1", body="Where are my cookies?", status="O")
+        ticket2 = self.create_ticket(subject="Ticket 2", body="Where are my shoes?", status="C")
+        self.create_ticket(subject="Ticket 3", body="New ticket", status="O", ticketer=self.zendesk)
 
         response = self.assertReadFetch(filter_url, allow_viewers=True, allow_editors=True)
         self.assertEqual(self.mailgun, response.context["ticketer"])
