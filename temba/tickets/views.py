@@ -86,9 +86,13 @@ class TicketCRUDL(SmartCRUDL):
     model = Ticket
     actions = ("list", "folder", "open", "closed", "filter")
 
-    class List(OrgPermsMixin, SmartTemplateView):
-        title = _("Open Tickets")
-        template_name = "tickets/ticket_list.haml"
+    class List(OrgPermsMixin, SmartListView):
+        """
+        A placeholder view for the ticket handling frontend components which fetch tickets from the endpoint below
+        """
+
+        def get_queryset(self, **kwargs):
+            return super().get_queryset(**kwargs).none()
 
     class Folder(OrgPermsMixin, SmartListView):
         FOLDER_OPEN = "open"
@@ -149,6 +153,9 @@ class TicketCRUDL(SmartCRUDL):
                 }
 
             def _as_json(t):
+                """
+                Converts a ticket to the contact-centric format expected by our frontend components
+                """
                 last_msg = context["last_msgs"].get(t.contact)
                 return {
                     "uuid": str(t.contact.uuid),
