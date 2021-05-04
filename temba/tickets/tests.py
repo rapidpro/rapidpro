@@ -3,8 +3,9 @@ from unittest.mock import patch
 from django.contrib.auth.models import Group
 from django.test.utils import override_settings
 from django.urls import reverse
+from django.utils import timezone
 
-from temba.tests import CRUDLTestMixin, TembaTest, mock_mailroom
+from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 
 from .models import Ticket, Ticketer
 from .types import reload_ticketer_types
@@ -59,6 +60,129 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             body=body,
             status=status,
         )
+
+    def test_folder(self):
+        self.login(self.user)
+
+        ticketer = Ticketer.create(self.org, self.user, "internal", "Internal", {})
+        contact1 = self.create_contact("Joe", phone="123", last_seen_on=timezone.now())
+        contact2 = self.create_contact("Frank", phone="124", last_seen_on=timezone.now())
+        contact3 = self.create_contact("Anne", phone="125", last_seen_on=timezone.now())
+        self.create_contact("Mary No tickets", phone="126", last_seen_on=timezone.now())
+        self.create_contact("Mr Other Org", phone="126", last_seen_on=timezone.now(), org=self.org2)
+
+        open_url = reverse("tickets.ticket_folder", kwargs={"folder": "open"})
+        closed_url = reverse("tickets.ticket_folder", kwargs={"folder": "closed"})
+
+        # no tickets yet so no contacts returned
+        response = self.client.get(open_url)
+        self.assertEqual(0, len(response.context["object_list"]))
+
+        # contact 1 has two open tickets
+        c1_t1 = Ticket.objects.create(
+            org=self.org, ticketer=ticketer, contact=contact1, subject="Question 1", status="O"
+        )
+        c1_t2 = Ticket.objects.create(
+            org=self.org, ticketer=ticketer, contact=contact1, subject="Question 2", status="O"
+        )
+
+        self.create_incoming_msg(contact1, "I have an issue")
+        self.create_broadcast(self.admin, "We can help", contacts=[contact1]).msgs.first()
+
+        # contact 2 has an open ticket and a closed ticket
+        c2_t1 = Ticket.objects.create(
+            org=self.org, ticketer=ticketer, contact=contact2, subject="Question 3", status="O"
+        )
+        c2_t2 = Ticket.objects.create(
+            org=self.org, ticketer=ticketer, contact=contact2, subject="Question 4", status="C"
+        )
+
+        self.create_incoming_msg(contact2, "Anyone there?")
+        self.create_incoming_msg(contact2, "Hello?")
+
+        # contact 3 has two closed tickets
+        c3_t1 = Ticket.objects.create(
+            org=self.org, ticketer=ticketer, contact=contact3, subject="Question 5", status="C"
+        )
+        c3_t2 = Ticket.objects.create(
+            org=self.org, ticketer=ticketer, contact=contact3, subject="Question 6", status="C"
+        )
+
+        # fetching open folder returns all open tickets
+        response = self.client.get(open_url)
+        self.assertEqual([c2_t1, c1_t2, c1_t1], list(response.context["object_list"]))
+
+        # fetching closed folder returns all closed tickets
+        response = self.client.get(closed_url)
+        self.assertEqual([c3_t2, c3_t1, c2_t2], list(response.context["object_list"]))
+
+        # can request page as JSON
+        response = self.client.get(open_url + "?_format=json")
+
+        joes_open_tickets = contact1.tickets.filter(status="O")
+
+        expected_json = {
+            "results": [
+                {
+                    "uuid": str(contact2.uuid),
+                    "name": "Frank",
+                    "last_seen_on": matchers.ISODate(),
+                    "last_msg": {
+                        "text": "Hello?",
+                        "direction": "I",
+                        "type": "I",
+                        "created_on": matchers.ISODate(),
+                        "sender": None,
+                    },
+                    "ticket": {
+                        "uuid": str(contact2.tickets.filter(status="O").first().uuid),
+                        "subject": "Question 3",
+                        "closed_on": None,
+                    },
+                },
+                {
+                    "uuid": str(contact1.uuid),
+                    "name": "Joe",
+                    "last_seen_on": matchers.ISODate(),
+                    "last_msg": {
+                        "text": "We can help",
+                        "direction": "O",
+                        "type": "I",
+                        "created_on": matchers.ISODate(),
+                        "sender": {"id": self.admin.id, "email": "Administrator@nyaruka.com"},
+                    },
+                    "ticket": {
+                        "uuid": str(joes_open_tickets[0].uuid),
+                        "subject": "Question 2",
+                        "closed_on": None,
+                    },
+                },
+                {
+                    "uuid": str(contact1.uuid),
+                    "name": "Joe",
+                    "last_seen_on": matchers.ISODate(),
+                    "last_msg": {
+                        "text": "We can help",
+                        "direction": "O",
+                        "type": "I",
+                        "created_on": matchers.ISODate(),
+                        "sender": {"id": self.admin.id, "email": "Administrator@nyaruka.com"},
+                    },
+                    "ticket": {
+                        "uuid": str(joes_open_tickets[1].uuid),
+                        "subject": "Question 1",
+                        "closed_on": None,
+                    },
+                },
+            ]
+        }
+
+        self.assertEqual(expected_json, response.json())
+
+        # make sure when paging we get a next url
+        with patch("temba.tickets.views.TicketCRUDL.Folder.paginate_by", 1):
+            response = self.client.get(open_url + "?_format=json")
+            self.assertIsNotNone(response.json()["next"])
 
     @mock_mailroom
     def test_open_redirect(self, mr_mocks):

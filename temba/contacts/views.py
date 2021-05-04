@@ -22,11 +22,10 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
-from django.db.models import Count, F
-from django.db.models.aggregates import Max
+from django.db.models import Count
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
-from django.http import Http404, HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -552,7 +551,6 @@ class ContactCRUDL(SmartCRUDL):
         "archive",
         "delete",
         "history",
-        "tickets",
         "start",
     )
 
@@ -1384,108 +1382,6 @@ class ContactCRUDL(SmartCRUDL):
         def save(self, obj):
             obj.release(self.request.user)
             return obj
-
-    class Tickets(OrgPermsMixin, SmartListView):
-        """
-        Fetches contacts with tickets in the specified state. This endpoint is for a proof-of-concept implementation
-        of internal ticketing and is thus is not well optimized.
-        """
-
-        fields = ("uuid", "name")
-
-        FOLDER_OPEN = "open"
-        FOLDER_CLOSED = "closed"
-
-        def get_queryset(self, **kwargs):
-            org = self.request.user.get_org()
-            qs = super().get_queryset(**kwargs).filter(org=org)
-
-            folder = self.request.GET.get("folder", "")
-            if folder == self.FOLDER_OPEN:
-                # TODO we probably want ordering by last message in either direction
-                qs = (
-                    qs.filter(tickets__status=Ticket.STATUS_OPEN)
-                    .annotate(ticket_uuid=F("tickets__uuid"))
-                    .order_by("-last_seen_on", "-tickets__opened_on")
-                )
-
-            elif folder == self.FOLDER_CLOSED:
-                qs = (
-                    qs.filter(tickets__status=Ticket.STATUS_CLOSED)
-                    .annotate(ticket_uuid=F("tickets__uuid"))
-                    .annotate(ticket_subject=F("tickets__subject"))
-                    .annotate(ticket_closed_on=F("tickets__closed_on"))
-                    .order_by("-tickets__closed_on", "-tickets__opened_on")
-                )
-            else:
-                raise Http404("'%' is not valid ticket folder", folder)
-
-            return qs
-
-        def get_context_data(self, **kwargs):
-            from temba.msgs.models import Msg
-
-            context = super().get_context_data(**kwargs)
-
-            # convert queryset to list so it can't change later
-            contacts = list(context["object_list"])
-
-            context["object_list"] = contacts
-
-            last_msg_ids = Msg.objects.filter(contact__in=contacts).values("contact").annotate(last_msg_id=Max("id"))
-            last_msgs = Msg.objects.filter(id__in=[m["last_msg_id"] for m in last_msg_ids]).select_related(
-                "broadcast__created_by"
-            )
-
-            context["last_msgs"] = {m.contact: m for m in last_msgs}
-
-            return context
-
-        def as_json(self, context):
-            def ticket_as_json(c):
-                return {
-                    "uuid": c.__dict__.get("ticket_uuid", None),
-                    "subject": c.__dict__.get("ticket_subject", None),
-                    "closed_on": c.__dict__.get("ticket_closed_on", None),
-                }
-
-            def msg_as_json(m):
-                sender = None
-                if m.broadcast and m.broadcast.created_by:
-                    sender = {"id": m.broadcast.created_by.id, "email": m.broadcast.created_by.email}
-
-                msg = {
-                    "text": m.text,
-                    "direction": m.direction,
-                    "type": m.msg_type,
-                    "created_on": m.created_on,
-                    "sender": sender,
-                }
-
-                return msg
-
-            def contact_as_json(c):
-                last_msg = context["last_msgs"].get(c)
-                ticket_uuid = c.__dict__.get("ticket_uuid", None)
-                contact = {
-                    "uuid": str(c.uuid),
-                    "name": c.get_display(),
-                    "last_seen_on": c.last_seen_on,
-                    "last_msg": msg_as_json(last_msg) if last_msg else None,
-                    "ticket": ticket_as_json(c) if ticket_uuid else None,
-                }
-                return contact
-
-            response = {"results": [contact_as_json(c) for c in context["object_list"]]}
-
-            # build up our next link if we have more
-            if context["page_obj"].has_next():
-                query_string = (
-                    f"_format=json&folder={self.request.GET.get('folder', '')}&page={context['page_obj'].number + 1}"
-                )
-                response["next"] = f"{reverse('contacts.contact_tickets')}?{query_string}"
-
-            return response
 
     class Start(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         """
