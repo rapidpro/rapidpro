@@ -1,3 +1,7 @@
+v6.3.39
+----------
+ * Rework task for org deletion
+
 v6.3.38
 ----------
  * Move tickets endpoint to tickets crudl
