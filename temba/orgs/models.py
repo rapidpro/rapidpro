@@ -1748,6 +1748,10 @@ class Org(SmartModel):
         return f"{settings.STORAGE_URL}/{location}"
 
     def release(self, *, release_users=True, immediately=False):
+        """
+        Releases this org, marking it as inactive. Full release of org data won't happen until after 7 days unless
+        immediately is True.
+        """
 
         # free our children
         Org.objects.filter(parent=self).update(parent=None)
@@ -1779,12 +1783,15 @@ class Org(SmartModel):
             self.remove_user(user)
 
         if immediately:
-            self._full_release()
+            self.full_release()
 
-    def _full_release(self):
+    def full_release(self):
         """
-        Do the dirty work of deleting this org
+        Does a full release of this org - deleting the actual org data
         """
+
+        assert not self.is_active, "can't fully release an org which isn't inactive"
+        assert not self.released_on, "can't fully release an org twice"
 
         # delete exports
         self.exportcontactstasks.all().delete()

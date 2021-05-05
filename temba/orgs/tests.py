@@ -905,11 +905,21 @@ class OrgDeleteTest(TembaNonAtomicTest):
         self.release_org(self.child_org, immediately=False)
         Org.objects.filter(id=self.child_org.id).update(modified_on=timezone.now() - timedelta(days=10))
 
+        self.child_org.refresh_from_db()
+        self.assertFalse(self.child_org.is_active)
+        self.assertIsNone(self.child_org.released_on)
+
         with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
             release_orgs_task()
 
         self.child_org.refresh_from_db()
+        self.assertFalse(self.child_org.is_active)
         self.assertIsNotNone(self.child_org.released_on)
+
+        # parent org unaffected
+        self.parent_org.refresh_from_db()
+        self.assertTrue(self.parent_org.is_active)
+        self.assertIsNone(self.parent_org.released_on)
 
 
 class OrgTest(TembaTest):
