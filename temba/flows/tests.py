@@ -12,7 +12,6 @@ from openpyxl import load_workbook
 
 from django.conf import settings
 from django.contrib.auth.models import Group
-from django.db import connection, transaction
 from django.db.models.functions import TruncDate
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -30,7 +29,7 @@ from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticketer
@@ -5758,40 +5757,3 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
-
-
-class FixFlowDefNullsMigrationTest(MigrationTest):
-    app = "flows"
-    migrate_from = "0248_auto_20210316_1617"
-    migrate_to = "0249_fix_flow_def_nulls"
-
-    def can_load(self, flow) -> bool:
-        rev = flow.revisions.only("id").last()
-        try:
-            with transaction.atomic():
-                with connection.cursor() as cur:
-                    cur.execute(f"SELECT definition::jsonb FROM flows_flowrevision WHERE id = {rev.id}")
-            return True
-        except Exception:
-            return False
-
-    def setUpBeforeMigration(self, apps):
-        self.flow1 = self.get_flow("color")
-        self.flow2 = self.get_flow("favorites")
-
-        assert self.can_load(self.flow1)
-        assert self.can_load(self.flow2)
-
-        rev = self.flow1.revisions.only("id").last()
-        with connection.cursor() as cur:
-            sql = """UPDATE flows_flowrevision set definition = '{"foo": "\\u1234 bar \\u0000"}' WHERE id = %s"""
-            cur.execute(sql, [rev.id])
-
-        assert not self.can_load(self.flow1)
-        assert self.can_load(self.flow2)
-
-    def test_flow_fixed(self):
-        self.assertTrue(self.can_load(self.flow1))
-        self.assertTrue(self.can_load(self.flow2))
-
-        self.assertEqual({"foo": "ሴ bar "}, self.flow1.revisions.last().definition)
