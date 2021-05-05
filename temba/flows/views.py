@@ -278,7 +278,13 @@ class FlowCRUDL(SmartCRUDL):
 
                 # get our metadata
                 flow_info = mailroom.get_client().flow_inspect(flow.org_id, definition)
-                return JsonResponse(dict(definition=definition, metadata=Flow.get_metadata(flow_info)))
+                return JsonResponse(
+                    {
+                        "definition": definition,
+                        "issues": flow_info[Flow.INSPECT_ISSUES],
+                        "metadata": Flow.get_metadata(flow_info),
+                    }
+                )
 
             # build a list of valid revisions to display
             revisions = []
@@ -320,12 +326,13 @@ class FlowCRUDL(SmartCRUDL):
             definition = json.loads(force_text(request.body))
             try:
                 flow = self.get_object(self.get_queryset())
-                revision = flow.save_revision(self.request.user, definition)
+                revision, issues = flow.save_revision(self.request.user, definition)
                 return JsonResponse(
                     {
                         "status": "success",
                         "saved_on": json.encode_datetime(flow.saved_on, micros=True),
                         "revision": revision.as_json(),
+                        "issues": issues,
                         "metadata": flow.metadata,
                     }
                 )
