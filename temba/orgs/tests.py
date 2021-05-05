@@ -902,6 +902,10 @@ class OrgDeleteTest(TembaNonAtomicTest):
         self.assertEqual(995, self.parent_org.get_credits_remaining())
 
     def test_delete_task(self):
+        # can't delete an unreleased org
+        with self.assertRaises(AssertionError):
+            self.child_org.delete()
+
         self.release_org(self.child_org, delete=False)
         Org.objects.filter(id=self.child_org.id).update(modified_on=timezone.now() - timedelta(days=10))
 
@@ -920,6 +924,10 @@ class OrgDeleteTest(TembaNonAtomicTest):
         self.parent_org.refresh_from_db()
         self.assertTrue(self.parent_org.is_active)
         self.assertIsNone(self.parent_org.deleted_on)
+
+        # can't double delete an org
+        with self.assertRaises(AssertionError):
+            self.child_org.delete()
 
 
 class OrgTest(TembaTest):
