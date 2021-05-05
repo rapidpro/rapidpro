@@ -8,14 +8,10 @@ from django.urls import reverse
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import MockResponse, TembaTest
+from temba.utils.whatsapp.tasks import refresh_whatsapp_contacts, refresh_whatsapp_templates
 
 from ...models import Channel
-from .tasks import (
-    _calculate_variable_count,
-    refresh_whatsapp_contacts,
-    refresh_whatsapp_templates,
-    refresh_whatsapp_tokens,
-)
+from .tasks import refresh_whatsapp_tokens
 from .type import (
     CONFIG_FB_ACCESS_TOKEN,
     CONFIG_FB_BUSINESS_ID,
@@ -26,11 +22,6 @@ from .type import (
 
 
 class WhatsAppTypeTest(TembaTest):
-    def test_calculate_variable_count(self):
-        self.assertEqual(2, _calculate_variable_count("Hi {{1}} how are you? {{2}}"))
-        self.assertEqual(2, _calculate_variable_count("Hi {{1}} how are you? {{2}} {{1}}"))
-        self.assertEqual(0, _calculate_variable_count("Hi there."))
-
     def test_claim(self):
         Channel.objects.all().delete()
 

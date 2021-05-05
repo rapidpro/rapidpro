@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-03 20:39+0000\n"
+"POT-Creation-Date: 2021-05-05 07:32+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1764,12 +1764,6 @@ msgstr ""
 
 #, python-format
 msgid "Unable to configure channel: %s"
-msgstr ""
-
-msgid "Contacts refresh begun, it may take a few minutes to complete."
-msgstr ""
-
-msgid "Sync Logs"
 msgstr ""
 
 msgid "The base URL for your WhatsApp enterprise installation"
@@ -4123,6 +4117,12 @@ msgstr ""
 msgid "An error occurred while making your changes. Please try again."
 msgstr ""
 
+msgid "Contacts refresh begun, it may take a few minutes to complete."
+msgstr ""
+
+msgid "Sync Logs"
+msgstr ""
+
 msgid "HTTP Logs"
 msgstr ""
 
@@ -5181,21 +5181,6 @@ msgid "Your WhatsApp channel is now connected, you should be able to send and re
 msgstr ""
 
 msgid "In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh the contacts on the WhatsApp application. This may take a few minutes."
-msgstr ""
-
-msgid "WhatsApp Templates Events"
-msgstr ""
-
-msgid "No syncs yet. Check back later."
-msgstr ""
-
-msgid "Templates"
-msgstr ""
-
-msgid "Templates are synced from your WhatsApp account every 15 minutes."
-msgstr ""
-
-msgid "No synced templates at this time."
 msgstr ""
 
 msgid "Connect a Classifier"
@@ -7343,4 +7328,19 @@ msgstr ""
 
 #, python-brace-format
 msgid "Found ${count} for ${query}"
+msgstr ""
+
+msgid "Templates Events"
+msgstr ""
+
+msgid "No syncs yet. Check back later."
+msgstr ""
+
+msgid "Templates"
+msgstr ""
+
+msgid "WhatsApp Templates are synced from your account every 15 minutes."
+msgstr ""
+
+msgid "No synced templates at this time."
 msgstr ""
