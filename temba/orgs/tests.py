@@ -68,7 +68,7 @@ from temba.utils.email import link_components
 
 from .context_processors import GroupPermWrapper
 from .models import CreditAlert, Invitation, Language, Org, OrgRole, TopUp, TopUpCredits
-from .tasks import release_orgs_task, resume_failed_tasks, squash_topupcredits
+from .tasks import delete_orgs_task, resume_failed_tasks, squash_topupcredits
 
 
 class OrgRoleTest(TembaTest):
@@ -813,7 +813,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             status="O",
         )
 
-    def release_org(self, org, child_org=None, immediately=False, expected_files=3):
+    def release_org(self, org, child_org=None, delete=False, expected_files=3):
 
         with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
             # save off the ids of our current users
@@ -831,7 +831,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             )
 
             # release our primary org
-            org.release(immediately=immediately)
+            org.release(delete=delete)
 
             # all our users not in the other org should be inactive
             self.assertEqual(len(org_user_ids) - 1, User.objects.filter(id__in=org_user_ids, is_active=False).count())
@@ -842,7 +842,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
                 child_org.refresh_from_db()
                 self.assertIsNone(child_org.parent)
 
-            if immediately:
+            if delete:
                 # oh noes, we deleted our archive files!
                 self.assertEqual(expected_files, len(self.mock_s3.objects))
 
@@ -868,11 +868,11 @@ class OrgDeleteTest(TembaNonAtomicTest):
                 self.assertFalse(Broadcast.objects.filter(org=org).exists())
 
                 # org is still around but has been released
-                self.assertTrue(Org.objects.filter(id=org.id, is_active=False).exclude(released_on=None).exists())
+                self.assertTrue(Org.objects.filter(id=org.id, is_active=False).exclude(deleted_on=None).exists())
             else:
 
                 org.refresh_from_db()
-                self.assertIsNone(org.released_on)
+                self.assertIsNone(org.deleted_on)
                 self.assertFalse(org.is_active)
 
                 # our channel should have been made inactive
@@ -885,31 +885,54 @@ class OrgDeleteTest(TembaNonAtomicTest):
     def test_release_child(self):
         self.release_org(self.child_org)
 
-    def test_release_parent_immediately(self):
+    def test_release_parent_and_delete(self):
         with patch("temba.mailroom.client.MailroomClient.ticket_close"):
-            self.release_org(self.parent_org, self.child_org, immediately=True)
+            self.release_org(self.parent_org, self.child_org, delete=True)
 
-    def test_release_child_immediately(self):
+    def test_release_child_and_delete(self):
         # 300 credits were given to our child org and each used one
         self.assertEqual(697, self.parent_org.get_credits_remaining())
         self.assertEqual(299, self.child_org.get_credits_remaining())
 
         # release our child org
-        self.release_org(self.child_org, immediately=True, expected_files=2)
+        self.release_org(self.child_org, delete=True, expected_files=2)
 
         # our unused credits are returned to the parent
         self.parent_org.clear_credit_cache()
         self.assertEqual(995, self.parent_org.get_credits_remaining())
 
-    def test_release_task(self):
-        self.release_org(self.child_org, immediately=False)
-        Org.objects.filter(id=self.child_org.id).update(modified_on=timezone.now() - timedelta(days=10))
+    def test_delete_task(self):
+        # can't delete an unreleased org
+        with self.assertRaises(AssertionError):
+            self.child_org.delete()
 
-        with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
-            release_orgs_task()
+        self.release_org(self.child_org, delete=False)
 
         self.child_org.refresh_from_db()
+        self.assertFalse(self.child_org.is_active)
         self.assertIsNotNone(self.child_org.released_on)
+        self.assertIsNone(self.child_org.deleted_on)
+
+        # push the released on date back in time
+        Org.objects.filter(id=self.child_org.id).update(released_on=timezone.now() - timedelta(days=10))
+
+        with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
+            delete_orgs_task()
+
+        self.child_org.refresh_from_db()
+        self.assertFalse(self.child_org.is_active)
+        self.assertIsNotNone(self.child_org.released_on)
+        self.assertIsNotNone(self.child_org.deleted_on)
+
+        # parent org unaffected
+        self.parent_org.refresh_from_db()
+        self.assertTrue(self.parent_org.is_active)
+        self.assertIsNone(self.parent_org.released_on)
+        self.assertIsNone(self.parent_org.deleted_on)
+
+        # can't double delete an org
+        with self.assertRaises(AssertionError):
+            self.child_org.delete()
 
 
 class OrgTest(TembaTest):

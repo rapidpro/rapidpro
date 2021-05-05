@@ -105,13 +105,12 @@ def suspend_topup_orgs_task():
                 org.save(update_fields=["is_suspended", "plan_end"])
 
 
-@nonoverlapping_task(track_started=True, name="release_orgs_task", lock_key="release_orgs_task", lock_timeout=7200)
-def release_orgs_task():
-    # for each org that is not active and was released over 7 days ago, release it
-    for org in Org.objects.filter(
-        is_active=False, released_on=None, modified_on__lt=timezone.now() - timedelta(days=7)
-    ):
+@nonoverlapping_task(track_started=True, name="delete_orgs_task", lock_key="delete_orgs_task", lock_timeout=7200)
+def delete_orgs_task():
+    # for each org that was released over 7 days ago, delete it for real
+    week_ago = timezone.now() - timedelta(days=7)
+    for org in Org.objects.filter(is_active=False, released_on__lt=week_ago, deleted_on=None):
         try:
-            org.release(immediately=True)
+            org.delete()
         except Exception:  # pragma: no cover
-            logging.exception(f"exception while releasing {org.name}")
+            logging.exception(f"exception while deleting {org.name}")
