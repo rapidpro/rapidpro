@@ -1,3 +1,9 @@
+v6.3.38
+----------
+ * Move tickets endpoint to tickets crudl
+ * Refactor WhatsApp templates
+ * Add task for releasing of orgs
+
 v6.3.37
 ----------
  * Fix contact imports always creating new groups
