@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-04 15:25+0000\n"
+"POT-Creation-Date: 2021-05-05 07:32+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -7679,7 +7679,7 @@ msgstr "Шаблоны"
 
 #, fuzzy
 #| msgid "Templates are synced from your WhatsApp account every 15 minutes."
-msgid "Whatsapp Templates are synced from your account every 15 minutes."
+msgid "WhatsApp Templates are synced from your account every 15 minutes."
 msgstr "Шаблоны синхронизируются с Вашей учетной записью WhatsApp каждые 15 минут."
 
 msgid "No synced templates at this time."
