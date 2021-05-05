@@ -68,7 +68,7 @@ from temba.utils.email import link_components
 
 from .context_processors import GroupPermWrapper
 from .models import CreditAlert, Invitation, Language, Org, OrgRole, TopUp, TopUpCredits
-from .tasks import resume_failed_tasks, squash_topupcredits
+from .tasks import release_orgs_task, resume_failed_tasks, squash_topupcredits
 
 
 class OrgRoleTest(TembaTest):
@@ -872,6 +872,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             else:
 
                 org.refresh_from_db()
+                self.assertIsNone(org.released_on)
                 self.assertFalse(org.is_active)
 
                 # our channel should have been made inactive
@@ -899,6 +900,16 @@ class OrgDeleteTest(TembaNonAtomicTest):
         # our unused credits are returned to the parent
         self.parent_org.clear_credit_cache()
         self.assertEqual(995, self.parent_org.get_credits_remaining())
+
+    def test_release_task(self):
+        self.release_org(self.child_org, immediately=False)
+        Org.objects.filter(id=self.child_org.id).update(modified_on=timezone.now() - timedelta(days=10))
+
+        with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
+            release_orgs_task()
+
+        self.child_org.refresh_from_db()
+        self.assertIsNotNone(self.child_org.released_on)
 
 
 class OrgTest(TembaTest):
