@@ -109,7 +109,7 @@ def suspend_topup_orgs_task():
 def delete_orgs_task():
     # for each org that was released over 7 days ago, delete it for real
     week_ago = timezone.now() - timedelta(days=7)
-    for org in Org.objects.filter(is_active=False, deleted_on=None, modified_on__lt=week_ago):
+    for org in Org.objects.filter(is_active=False, released_on__lt=week_ago, deleted_on=None):
         try:
             org.delete()
         except Exception:  # pragma: no cover

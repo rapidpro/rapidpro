@@ -363,11 +363,9 @@ class Org(SmartModel):
         help_text=_("The parent org that manages this org"),
     )
 
-    # when this org was finally fully deleted after being released
-    deleted_on = models.DateTimeField(null=True)
-
-    # TODO drop, was replaced by deleted_on
+    # when this org was released and when it was actually deleted
     released_on = models.DateTimeField(null=True)
+    deleted_on = models.DateTimeField(null=True)
 
     @classmethod
     def get_unique_slug(cls, name):
@@ -1761,7 +1759,8 @@ class Org(SmartModel):
 
         # deactivate ourselves
         self.is_active = False
-        self.save(update_fields=("is_active", "modified_on"))
+        self.released_on = timezone.now()
+        self.save(update_fields=("is_active", "released_on", "modified_on"))
 
         # clear all our channel dependencies on our flows
         for flow in self.flows.all():
@@ -1788,12 +1787,12 @@ class Org(SmartModel):
         if delete:
             self.delete()
 
-    def delete(self, using=None, keep_parents=False):
+    def delete(self):
         """
         Does an actual delete of this org
         """
 
-        assert not self.is_active, "can't delete an org which hasn't been released"
+        assert not self.is_active and self.released_on, "can't delete an org which hasn't been released"
         assert not self.deleted_on, "can't delete an org twice"
 
         # delete exports
