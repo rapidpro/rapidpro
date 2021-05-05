@@ -79,7 +79,6 @@ class Flow(TembaModel):
     METADATA_DEPENDENCIES = "dependencies"
     METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
     METADATA_PARENT_REFS = "parent_refs"
-    METADATA_ISSUES = "issues"
     METADATA_IVR_RETRY = "ivr_retry"
 
     # items in the response from mailroom flow inspection
@@ -167,6 +166,8 @@ class Flow(TembaModel):
     version_number = models.CharField(
         default=FINAL_LEGACY_VERSION, max_length=8, help_text=_("The flow version this definition is in")
     )
+
+    has_issues = models.BooleanField(null=True, default=False)
 
     channel_dependencies = models.ManyToManyField(Channel, related_name="dependent_flows")
 
@@ -725,7 +726,6 @@ class Flow(TembaModel):
             Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
             Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
             Flow.METADATA_PARENT_REFS: flow_info[Flow.INSPECT_PARENT_REFS],
-            Flow.METADATA_ISSUES: flow_info[Flow.INSPECT_ISSUES],
         }
 
     def ensure_current_version(self):
@@ -821,10 +821,11 @@ class Flow(TembaModel):
             # update our flow fields
             self.base_language = definition.get(Flow.DEFINITION_LANGUAGE, None)
             self.version_number = Flow.CURRENT_SPEC_VERSION
+            self.has_issues = len(issues) > 0
             self.metadata = new_metadata
             self.modified_by = user
             self.modified_on = timezone.now()
-            fields = ["base_language", "version_number", "metadata", "modified_by", "modified_on"]
+            fields = ["base_language", "version_number", "has_issues", "metadata", "modified_by", "modified_on"]
 
             if not is_system_rev:
                 self.saved_by = user
