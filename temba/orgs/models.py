@@ -363,7 +363,10 @@ class Org(SmartModel):
         help_text=_("The parent org that manages this org"),
     )
 
-    # when this org was fully released (full deletion)
+    # when this org was finally fully deleted after being released
+    deleted_on = models.DateTimeField(null=True)
+
+    # TODO drop, was replaced by deleted_on
     released_on = models.DateTimeField(null=True)
 
     @classmethod
@@ -1747,10 +1750,10 @@ class Org(SmartModel):
 
         return f"{settings.STORAGE_URL}/{location}"
 
-    def release(self, *, release_users=True, immediately=False):
+    def release(self, *, release_users=True, delete=False):
         """
-        Releases this org, marking it as inactive. Full release of org data won't happen until after 7 days unless
-        immediately is True.
+        Releases this org, marking it as inactive. Actual deletion of org data won't happen until after 7 days unless
+        delete is True.
         """
 
         # free our children
@@ -1782,16 +1785,16 @@ class Org(SmartModel):
         for user in self.get_users():
             self.remove_user(user)
 
-        if immediately:
-            self.full_release()
+        if delete:
+            self.delete()
 
-    def full_release(self):
+    def delete(self, using=None, keep_parents=False):
         """
-        Does a full release of this org - deleting the actual org data
+        Does an actual delete of this org
         """
 
-        assert not self.is_active, "can't fully release an org which isn't inactive"
-        assert not self.released_on, "can't fully release an org twice"
+        assert not self.is_active, "can't delete an org which hasn't been released"
+        assert not self.deleted_on, "can't delete an org twice"
 
         # delete exports
         self.exportcontactstasks.all().delete()
@@ -1923,9 +1926,9 @@ class Org(SmartModel):
         # needs to come after deletion of msgs and broadcasts as those insert new counts
         self.system_labels.all().delete()
 
-        # save when we were fully released
+        # save when we were actually deleted
         self.modified_on = timezone.now()
-        self.released_on = timezone.now()
+        self.deleted_on = timezone.now()
         self.config = {}
         self.surveyor_password = None
         self.primary_language = None
