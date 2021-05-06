@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('templates', '0008_auto_20201218_1911'),
+        ("templates", "0008_auto_20201218_1911"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='templatetranslation',
-            name='namespace',
-            field=models.CharField(default='', max_length=36),
+            model_name="templatetranslation",
+            name="namespace",
+            field=models.CharField(default="", max_length=36),
         ),
     ]
