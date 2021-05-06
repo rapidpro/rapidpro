@@ -982,27 +982,6 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org.primary_language.name, "Kinyarwanda")
         self.assertEqual(self.org.get_language_codes(), {"eng", "kin"})
 
-    def test_channel_prefixes(self):
-        mtn = Channel.create(self.org, self.admin, "RW", "KN", "MTN", "5050", {"matching_prefixes": ["25078"]})
-        tigo = Channel.create(self.org, self.admin, "RW", "KN", "Tigo", "5050", {"matching_prefixes": ["25072"]})
-
-        joe = self.create_contact("Joe")
-        mtn_urn = ContactURN.get_or_create(self.org, joe, "tel:+250788383383")
-        tigo_urn = ContactURN.get_or_create(self.org, joe, "tel:+250722383383")
-
-        self.assertEqual(mtn, self.org.get_channel_for_role(Channel.ROLE_SEND, "tel", mtn_urn))
-        self.assertEqual(tigo, self.org.get_channel_for_role(Channel.ROLE_SEND, "tel", tigo_urn))
-
-    def test_get_send_channel_for_tel_short_code(self):
-        self.channel.release()
-
-        short_code = Channel.create(self.org, self.admin, "RW", "KN", "MTN", "5050")
-        Channel.create(self.org, self.admin, "RW", "WA", name="WhatsApp", address="+250788383000", tps=15)
-
-        joe = self.create_contact("Joe")
-        urn = ContactURN.get_or_create(self.org, joe, "tel:+250788383383")
-        self.assertEqual(short_code, self.org.get_channel_for_role(Channel.ROLE_SEND, None, urn))
-
     def test_country_view(self):
         self.setUpLocations()
 
