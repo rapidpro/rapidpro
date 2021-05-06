@@ -11,25 +11,13 @@
 
   :css
 
+    html {
+      --color-text-dark: #555;
+    }
+
     temba-select[name='ticket-filter'] {
       margin-bottom: 0.5em;
       margin-top: -1.3em;
-    }
-
-    .example {
-      padding: 20px;
-      border: 1px solid #e6e6e6;
-      margin: 10px;
-      border-radius: 3px;
-    }
-
-    .example-header {
-      padding-bottom: 10px;
-      font-size: 12px;
-    }
-
-    html {
-      --color-text-dark: #555;
     }
 
     .ticket-list {
@@ -58,8 +46,6 @@
       var contact = event.target.value;
       var chat = document.querySelector("temba-contact-chat");
       chat.contact = contact;
-
-      
     }
     
     function handleContactHistoryUpdated(event) {
@@ -85,9 +71,9 @@
 
       var filter = event.target.values[0].value;
       if (filter === "O") {
-        contacts.endpoint = "/contact/tickets/?_format=json&folder=open"
+        contacts.endpoint = "{% url 'tickets.ticket_folder' folder='open' %}"
       } else {
-        contacts.endpoint = "/contact/tickets/?_format=json&folder=closed"
+        contacts.endpoint = "{% url 'tickets.ticket_folder' folder='closed' %}"
       }
     }
 
@@ -116,16 +102,14 @@
       
 -block page-container
   .flex-col
-    .flex(style="height:100vh;margin-top:-121px;padding-top:121px;")
+    .flex(style="height:100vh;margin-top:-121px;padding-top:121px;margin-bottom:-105px;padding-bottom:105px;")
       .ticket-list.flex.flex-col.m-4.mr-2.pt-4
         %temba-select(name="ticket-filter" onchange="handleFilterChanged(event)")
           %temba-option(name="Open" value="O" icon="inbox")
           %temba-option(name="Closed" value="C" icon="check")
         
-        .flex.flex-grow
-          %temba-contacts(endpoint="/contact/tickets/?_format=json&folder=open" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
+        .flex.flex-grow(style="max-height:100%;margin-bottom:-30px;padding-bottom:30px")
+          %temba-contacts(endpoint="{% url 'tickets.ticket_folder' folder='open' %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
 
       .flex-grow.flex-col.h-full.py-4.pb-4.pr-4
         %temba-contact-chat(-temba-refreshed="handleContactHistoryUpdated" -temba-content-changed="handleTicketUpdated")
-
--block footer

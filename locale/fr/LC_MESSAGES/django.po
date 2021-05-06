@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-22 14:19+0000\n"
+"POT-Creation-Date: 2021-05-05 07:32+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -1781,12 +1781,6 @@ msgstr "Impossible d’enregistrer des rappels: %s"
 msgid "Unable to configure channel: %s"
 msgstr "Impossible de configurer le canal: %s"
 
-msgid "Contacts refresh begun, it may take a few minutes to complete."
-msgstr "L’actualisation des contacts est en cours, cela peut prendre quelques minutes."
-
-msgid "Sync Logs"
-msgstr "Journaux de synchronisation"
-
 msgid "The base URL for your WhatsApp enterprise installation"
 msgstr "L'URL de base de votre installation d'entreprise WhatsApp"
 
@@ -2308,8 +2302,9 @@ msgstr "Groupes"
 msgid "Select groups for this contact"
 msgstr "Sélectionnez des groupes pour ce contact"
 
-#, python-format
-msgid "%s (Missing)"
+#, fuzzy, python-brace-format
+#| msgid "%s (Missing)"
+msgid "{lang_name} (Missing)"
 msgstr "%s (Manquant)"
 
 msgid "The groups which this contact belongs to"
@@ -4176,6 +4171,12 @@ msgstr ","
 msgid "An error occurred while making your changes. Please try again."
 msgstr "Une erreur s'est produite lors de vos modifications. Veuillez réessayer."
 
+msgid "Contacts refresh begun, it may take a few minutes to complete."
+msgstr "L’actualisation des contacts est en cours, cela peut prendre quelques minutes."
+
+msgid "Sync Logs"
+msgstr "Journaux de synchronisation"
+
 msgid "HTTP Logs"
 msgstr "Journaux HTTP"
 
@@ -5300,21 +5301,6 @@ msgstr "Votre chaîne WhatsApp est maintenant connectée, vous devriez pouvoir e
 msgid "In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh the contacts on the WhatsApp application. This may take a few minutes."
 msgstr "Dans le cas d'une nouvelle installation de WhatsApp ou du remplacement d'un canal WhatsApp existant, vous devrez peut-être actualiser les contacts sur l'application WhatsApp. Cela peut prendre quelques minutes."
 
-msgid "WhatsApp Templates Events"
-msgstr "Événements des modèles WhatsApp"
-
-msgid "No syncs yet. Check back later."
-msgstr "Pas encore de synchronisation. Revenez plus tard."
-
-msgid "Templates"
-msgstr "Modèles"
-
-msgid "Templates are synced from your WhatsApp account every 15 minutes."
-msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toutes les 15 minutes."
-
-msgid "No synced templates at this time."
-msgstr "Aucun modèle synchronisé pour le moment."
-
 msgid "Connect a Classifier"
 msgstr "Connecter un classificateur"
 
@@ -5470,6 +5456,11 @@ msgstr "Résultat d'exécution <b>%(name)s</b> mis à jour à <b>%(value)s</b> a
 
 #, python-format
 msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgstr "Billet ouvert sur <a href=\"%(ticketer_url)s\">%(ticketer)s</a> avec comme sujet <b>%(subject)s</b>"
+
+#, fuzzy, python-format
+#| msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgid "Closed ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
 msgstr "Billet ouvert sur <a href=\"%(ticketer_url)s\">%(ticketer)s</a> avec comme sujet <b>%(subject)s</b>"
 
 msgid "Successfully called"
@@ -7809,6 +7800,25 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#| msgid "WhatsApp Templates Events"
+msgid "Templates Events"
+msgstr "Événements des modèles WhatsApp"
+
+msgid "No syncs yet. Check back later."
+msgstr "Pas encore de synchronisation. Revenez plus tard."
+
+msgid "Templates"
+msgstr "Modèles"
+
+#, fuzzy
+#| msgid "Templates are synced from your WhatsApp account every 15 minutes."
+msgid "WhatsApp Templates are synced from your account every 15 minutes."
+msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toutes les 15 minutes."
+
+msgid "No synced templates at this time."
+msgstr "Aucun modèle synchronisé pour le moment."
 
 #~ msgid "The area code you want to search for a new number in"
 #~ msgstr "Le code de zone que vous souhaitez rechercher pour un nouveau numéro dans"

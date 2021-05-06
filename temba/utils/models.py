@@ -235,7 +235,10 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
         if type(value) not in (list, dict, OrderedDict):
             raise ValueError("JSONAsTextField should be a dict or a list, got %s => %s" % (type(value), value))
 
-        return json.dumps(value)
+        serialized = json.dumps(value)
+
+        # strip out unicode sequences which aren't valid in JSONB
+        return serialized.replace("\\u0000", "")
 
     def to_python(self, value):
         if isinstance(value, str):

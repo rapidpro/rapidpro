@@ -2,13 +2,15 @@ from smartmin.views import SmartCRUDL, SmartDeleteView, SmartFormView, SmartList
 
 from django import forms
 from django.contrib import messages
-from django.http import HttpResponse
+from django.db.models.aggregates import Max
+from django.http import HttpResponse, JsonResponse
 from django.http.response import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.functional import cached_property
 from django.utils.html import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
+from temba.msgs.models import Msg
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.views import BulkActionMixin, ComponentFormMixin
 
@@ -64,6 +66,12 @@ class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
     default_order = ("-opened_on",)
     bulk_actions = ()
 
+    def pre_process(self, request, *args, **kwargs):
+        user = self.get_user()
+        if user.is_beta():
+            return HttpResponseRedirect(reverse("tickets.ticket_list"))
+        return super().pre_process(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         user = self.get_user()
         org = user.get_org()
@@ -76,25 +84,105 @@ class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("list", "open", "closed", "filter")
+    actions = ("list", "folder", "open", "closed", "filter")
 
-    class List(OrgPermsMixin, SmartTemplateView):
-        title = _("Open Tickets")
-        template_name = "tickets/ticket_list.haml"
+    class List(OrgPermsMixin, SmartListView):
+        """
+        A placeholder view for the ticket handling frontend components which fetch tickets from the endpoint below
+        """
+
+        def get_queryset(self, **kwargs):
+            return super().get_queryset(**kwargs).none()
+
+    class Folder(OrgPermsMixin, SmartListView):
+        FOLDER_OPEN = "open"
+        FOLDER_CLOSED = "closed"
+        FOLDERS = (FOLDER_OPEN, FOLDER_CLOSED)
+
+        permission = "tickets.ticket_list"
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return rf"^{path}/{action}/(?P<folder>{'|'.join(cls.FOLDERS)})/$"
+
+        def get_queryset(self, **kwargs):
+            org = self.request.user.get_org()
+            qs = super().get_queryset(**kwargs).filter(org=org).prefetch_related("contact")
+
+            if self.kwargs["folder"] == self.FOLDER_OPEN:
+                # TODO we probably want ordering by last message in either direction
+                qs = qs.filter(status=Ticket.STATUS_OPEN).order_by("-contact__last_seen_on", "-opened_on")
+
+            else:  # self.FOLDER_CLOSED:
+                qs = qs.filter(status=Ticket.STATUS_CLOSED).order_by("-closed_on", "-opened_on")
+
+            return qs
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+
+            # convert queryset to list so it can't change later
+            tickets = list(context["object_list"])
+            context["object_list"] = tickets
+
+            # get the last message for each contact that these tickets belong to
+            contact_ids = {t.contact_id for t in tickets}
+            last_msg_ids = (
+                Msg.objects.filter(contact_id__in=contact_ids).values("contact").annotate(last_msg=Max("id"))
+            )
+            last_msgs = Msg.objects.filter(id__in=[m["last_msg"] for m in last_msg_ids]).select_related(
+                "broadcast__created_by"
+            )
+
+            context["last_msgs"] = {m.contact: m for m in last_msgs}
+
+            return context
+
+        def render_to_response(self, context, **response_kwargs):
+            def msg_as_json(m):
+                sender = None
+                if m.broadcast and m.broadcast.created_by:
+                    sender = {"id": m.broadcast.created_by.id, "email": m.broadcast.created_by.email}
+
+                return {
+                    "text": m.text,
+                    "direction": m.direction,
+                    "type": m.msg_type,
+                    "created_on": m.created_on,
+                    "sender": sender,
+                }
+
+            def as_json(t):
+                """
+                Converts a ticket to the contact-centric format expected by our frontend components
+                """
+                last_msg = context["last_msgs"].get(t.contact)
+                return {
+                    "uuid": str(t.contact.uuid),
+                    "name": t.contact.get_display(),
+                    "last_seen_on": t.contact.last_seen_on,
+                    "last_msg": msg_as_json(last_msg) if last_msg else None,
+                    "ticket": {
+                        "uuid": str(t.uuid),
+                        "subject": t.subject,
+                        "closed_on": t.closed_on,
+                    },
+                }
+
+            results = {"results": [as_json(t) for t in context["object_list"]]}
+
+            # build up our next link if we have more
+            if context["page_obj"].has_next():
+                folder_url = reverse("tickets.ticket_folder", kwargs={"folder": self.kwargs["folder"]})
+                next_page = context["page_obj"].number + 1
+                results["next"] = f"{folder_url}?page={next_page}"
+
+            return JsonResponse(results)
 
     class Open(TicketListView):
         title = _("Open Tickets")
         folder = "open"
         bulk_actions = ("close",)
-
-        def pre_process(self, request, *args, **kwargs):
-            from .types.internal.type import InternalType
-
-            user = self.get_user()
-            ticketers = user.get_org().ticketers.filter(is_active=True)
-            if user.is_beta() and len(ticketers) == 1 and ticketers.first().ticketer_type == InternalType.slug:
-                return HttpResponseRedirect(reverse("tickets.ticket_list"))
-            return super().pre_process(request, *args, **kwargs)
 
         def get_queryset(self, **kwargs):
             org = self.get_user().get_org()

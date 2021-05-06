@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-22 14:19+0000\n"
+"POT-Creation-Date: 2021-05-05 07:32+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1795,12 +1795,6 @@ msgstr "Невозможно зарегистрировать обратные �
 msgid "Unable to configure channel: %s"
 msgstr "Невозможно настроить канал: %s"
 
-msgid "Contacts refresh begun, it may take a few minutes to complete."
-msgstr "Обновление контактов началось, может потребоваться несколько минут для завершения процесса."
-
-msgid "Sync Logs"
-msgstr "Журналы синхронизации"
-
 msgid "The base URL for your WhatsApp enterprise installation"
 msgstr "Базовый URL для Вашей корпоративной установки WhatsApp "
 
@@ -2322,8 +2316,9 @@ msgstr "Группы"
 msgid "Select groups for this contact"
 msgstr ""
 
-#, python-format
-msgid "%s (Missing)"
+#, fuzzy, python-brace-format
+#| msgid "%s (Missing)"
+msgid "{lang_name} (Missing)"
 msgstr "%s (Отсутствует)"
 
 msgid "The groups which this contact belongs to"
@@ -4201,6 +4196,12 @@ msgstr ", "
 msgid "An error occurred while making your changes. Please try again."
 msgstr ""
 
+msgid "Contacts refresh begun, it may take a few minutes to complete."
+msgstr "Обновление контактов началось, может потребоваться несколько минут для завершения процесса."
+
+msgid "Sync Logs"
+msgstr "Журналы синхронизации"
+
 msgid "HTTP Logs"
 msgstr "Журналы HTTP"
 
@@ -5317,21 +5318,6 @@ msgstr ""
 msgid "In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh the contacts on the WhatsApp application. This may take a few minutes."
 msgstr ""
 
-msgid "WhatsApp Templates Events"
-msgstr "События Шаблонов WhatsApp "
-
-msgid "No syncs yet. Check back later."
-msgstr ""
-
-msgid "Templates"
-msgstr "Шаблоны"
-
-msgid "Templates are synced from your WhatsApp account every 15 minutes."
-msgstr "Шаблоны синхронизируются с Вашей учетной записью WhatsApp каждые 15 минут."
-
-msgid "No synced templates at this time."
-msgstr "На данный момент синхронизированные шаблоны отсутствуют."
-
 msgid "Connect a Classifier"
 msgstr "Подключить Классификатор"
 
@@ -5487,6 +5473,10 @@ msgstr ""
 
 #, python-format
 msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgstr ""
+
+#, python-format
+msgid "Closed ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
 msgstr ""
 
 msgid "Successfully called"
@@ -7675,6 +7665,25 @@ msgstr "Ввести запрос"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Найдено ${count} по ${query}"
+
+#, fuzzy
+#| msgid "WhatsApp Templates Events"
+msgid "Templates Events"
+msgstr "События Шаблонов WhatsApp "
+
+msgid "No syncs yet. Check back later."
+msgstr ""
+
+msgid "Templates"
+msgstr "Шаблоны"
+
+#, fuzzy
+#| msgid "Templates are synced from your WhatsApp account every 15 minutes."
+msgid "WhatsApp Templates are synced from your account every 15 minutes."
+msgstr "Шаблоны синхронизируются с Вашей учетной записью WhatsApp каждые 15 минут."
+
+msgid "No synced templates at this time."
+msgstr "На данный момент синхронизированные шаблоны отсутствуют."
 
 #~ msgid "The area code you want to search for a new number in"
 #~ msgstr "Код области, в которой Вы хотите найти новый номер"

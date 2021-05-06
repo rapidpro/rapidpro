@@ -35,6 +35,7 @@ from temba.contacts.models import (
     ContactField,
     ContactGroup,
     ContactImport,
+    ContactImportBatch,
     ContactURN,
     ExportContactsTask,
 )
@@ -67,7 +68,7 @@ from temba.utils.email import link_components
 
 from .context_processors import GroupPermWrapper
 from .models import CreditAlert, Invitation, Language, Org, OrgRole, TopUp, TopUpCredits
-from .tasks import resume_failed_tasks, squash_topupcredits
+from .tasks import delete_orgs_task, resume_failed_tasks, squash_topupcredits
 
 
 class OrgRoleTest(TembaTest):
@@ -680,9 +681,12 @@ class OrgDeleteTest(TembaNonAtomicTest):
         child_group = self.create_group("Parent Customers", contacts=[child_contact], org=self.child_org)
 
         # create an import for child group
-        ContactImport.objects.create(
+        im = ContactImport.objects.create(
             org=self.org, group=child_group, mappings={}, num_records=0, created_by=self.admin, modified_by=self.admin
         )
+
+        # and a batch for that import
+        ContactImportBatch.objects.create(contact_import=im, specs={}, record_start=0, record_end=0)
 
         # add some labels
         parent_label = self.create_label("Parent Spam", org=self.parent_org)
@@ -809,7 +813,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             status="O",
         )
 
-    def release_org(self, org, child_org=None, immediately=False, expected_files=3):
+    def release_org(self, org, child_org=None, delete=False, expected_files=3):
 
         with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
             # save off the ids of our current users
@@ -827,7 +831,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             )
 
             # release our primary org
-            org.release(immediately=immediately)
+            org.release(delete=delete)
 
             # all our users not in the other org should be inactive
             self.assertEqual(len(org_user_ids) - 1, User.objects.filter(id__in=org_user_ids, is_active=False).count())
@@ -838,7 +842,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
                 child_org.refresh_from_db()
                 self.assertIsNone(child_org.parent)
 
-            if immediately:
+            if delete:
                 # oh noes, we deleted our archive files!
                 self.assertEqual(expected_files, len(self.mock_s3.objects))
 
@@ -864,10 +868,11 @@ class OrgDeleteTest(TembaNonAtomicTest):
                 self.assertFalse(Broadcast.objects.filter(org=org).exists())
 
                 # org is still around but has been released
-                self.assertTrue(Org.objects.filter(id=org.id, is_active=False).exclude(released_on=None).exists())
+                self.assertTrue(Org.objects.filter(id=org.id, is_active=False).exclude(deleted_on=None).exists())
             else:
 
                 org.refresh_from_db()
+                self.assertIsNone(org.deleted_on)
                 self.assertFalse(org.is_active)
 
                 # our channel should have been made inactive
@@ -880,21 +885,54 @@ class OrgDeleteTest(TembaNonAtomicTest):
     def test_release_child(self):
         self.release_org(self.child_org)
 
-    def test_release_parent_immediately(self):
+    def test_release_parent_and_delete(self):
         with patch("temba.mailroom.client.MailroomClient.ticket_close"):
-            self.release_org(self.parent_org, self.child_org, immediately=True)
+            self.release_org(self.parent_org, self.child_org, delete=True)
 
-    def test_release_child_immediately(self):
+    def test_release_child_and_delete(self):
         # 300 credits were given to our child org and each used one
         self.assertEqual(697, self.parent_org.get_credits_remaining())
         self.assertEqual(299, self.child_org.get_credits_remaining())
 
         # release our child org
-        self.release_org(self.child_org, immediately=True, expected_files=2)
+        self.release_org(self.child_org, delete=True, expected_files=2)
 
         # our unused credits are returned to the parent
         self.parent_org.clear_credit_cache()
         self.assertEqual(995, self.parent_org.get_credits_remaining())
+
+    def test_delete_task(self):
+        # can't delete an unreleased org
+        with self.assertRaises(AssertionError):
+            self.child_org.delete()
+
+        self.release_org(self.child_org, delete=False)
+
+        self.child_org.refresh_from_db()
+        self.assertFalse(self.child_org.is_active)
+        self.assertIsNotNone(self.child_org.released_on)
+        self.assertIsNone(self.child_org.deleted_on)
+
+        # push the released on date back in time
+        Org.objects.filter(id=self.child_org.id).update(released_on=timezone.now() - timedelta(days=10))
+
+        with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
+            delete_orgs_task()
+
+        self.child_org.refresh_from_db()
+        self.assertFalse(self.child_org.is_active)
+        self.assertIsNotNone(self.child_org.released_on)
+        self.assertIsNotNone(self.child_org.deleted_on)
+
+        # parent org unaffected
+        self.parent_org.refresh_from_db()
+        self.assertTrue(self.parent_org.is_active)
+        self.assertIsNone(self.parent_org.released_on)
+        self.assertIsNone(self.parent_org.deleted_on)
+
+        # can't double delete an org
+        with self.assertRaises(AssertionError):
+            self.child_org.delete()
 
 
 class OrgTest(TembaTest):
@@ -4079,8 +4117,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("msgs.msg_inbox"))
         self.assertRedirect(response, "/users/login/")
 
-
-class LanguageTest(TembaTest):
     def test_languages(self):
         langs_url = reverse("orgs.org_languages")
 
@@ -4151,49 +4187,22 @@ class LanguageTest(TembaTest):
 
         # unless they're explicitly included in settings
         with override_settings(NON_ISO6391_LANGUAGES={"frc"}):
+            languages.reload()
             response = self.client.get("%s?search=Fr" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
             self.assertEqual(
                 [
                     {"value": "afr", "name": "Afrikaans"},
-                    {"value": "fra", "name": "French"},
                     {"value": "frc", "name": "Cajun French"},
+                    {"value": "fra", "name": "French"},
                     {"value": "fry", "name": "Western Frisian"},
                 ],
                 response.json()["results"],
             )
 
-    def test_language_codes(self):
-        self.assertEqual("French", languages.get_language_name("fra"))
-        self.assertEqual("Chinese Pidgin English", languages.get_language_name("cpi"))
-        self.assertIsNone(languages.get_language_name("xyz"))
+        languages.reload()
 
-        # should strip off anything after an open paren or semicolon
-        self.assertEqual("Haitian", languages.get_language_name("hat"))
 
-        # check that search returns results and in the proper order
-        matches = languages.search_by_name("Fr")
-        self.assertEqual(
-            [
-                {"value": "afr", "name": "Afrikaans"},
-                {"value": "fra", "name": "French"},
-                {"value": "fry", "name": "Western Frisian"},
-            ],
-            matches,
-        )
-
-        # usually only return ISO-639-1 languages but can add inclusions in settings
-        with override_settings(NON_ISO6391_LANGUAGES={"frc"}):
-            matches = languages.search_by_name("Fr")
-            self.assertEqual(
-                [
-                    {"value": "afr", "name": "Afrikaans"},
-                    {"value": "fra", "name": "French"},
-                    {"value": "frc", "name": "Cajun French"},
-                    {"value": "fry", "name": "Western Frisian"},
-                ],
-                matches,
-            )
-
+class LanguageTest(TembaTest):
     def test_get_localized_text(self):
         text_translations = dict(eng="Hello", spa="Hola")
 

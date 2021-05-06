@@ -3,8 +3,9 @@ from unittest.mock import patch
 from django.contrib.auth.models import Group
 from django.test.utils import override_settings
 from django.urls import reverse
+from django.utils import timezone
 
-from temba.tests import CRUDLTestMixin, TembaTest, mock_mailroom
+from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 
 from .models import Ticket, Ticketer
 from .types import reload_ticketer_types
@@ -50,15 +51,132 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.internal = Ticketer.create(self.org, self.user, InternalType.slug, "Internal", {})
         self.contact = self.create_contact("Bob", urns=["twitter:bobby"])
 
-    def create_ticket(self, subject, body, status, ticketer=None, org=None):
+    def create_ticket(self, *, subject, status, body="", contact=None, ticketer=None, org=None):
         return Ticket.objects.create(
             org=org or self.org,
             ticketer=ticketer or self.mailgun,
-            contact=self.contact,
+            contact=contact or self.contact,
             subject=subject,
             body=body,
             status=status,
         )
+
+    def test_list(self):
+        list_url = reverse("tickets.ticket_list")
+
+        # just a placeholder view for frontend components
+        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[])
+
+    def test_folder(self):
+        self.login(self.user)
+
+        contact1 = self.create_contact("Joe", phone="123", last_seen_on=timezone.now())
+        contact2 = self.create_contact("Frank", phone="124", last_seen_on=timezone.now())
+        contact3 = self.create_contact("Anne", phone="125", last_seen_on=timezone.now())
+        self.create_contact("Mary No tickets", phone="126", last_seen_on=timezone.now())
+        self.create_contact("Mr Other Org", phone="126", last_seen_on=timezone.now(), org=self.org2)
+
+        open_url = reverse("tickets.ticket_folder", kwargs={"folder": "open"})
+        closed_url = reverse("tickets.ticket_folder", kwargs={"folder": "closed"})
+
+        def assert_tickets(resp, tickets: list):
+            actual_tickets = [t["ticket"]["uuid"] for t in resp.json()["results"]]
+            expected_tickets = [str(t.uuid) for t in tickets]
+            self.assertEqual(expected_tickets, actual_tickets)
+
+        # no tickets yet so no contacts returned
+        response = self.client.get(open_url)
+        assert_tickets(response, [])
+
+        # contact 1 has two open tickets
+        c1_t1 = self.create_ticket(contact=contact1, subject="Question 1", status="O")
+        c1_t2 = self.create_ticket(contact=contact1, subject="Question 2", status="O")
+
+        self.create_incoming_msg(contact1, "I have an issue")
+        self.create_broadcast(self.admin, "We can help", contacts=[contact1]).msgs.first()
+
+        # contact 2 has an open ticket and a closed ticket
+        c2_t1 = self.create_ticket(contact=contact2, subject="Question 3", status="O")
+        c2_t2 = self.create_ticket(contact=contact2, subject="Question 4", status="C")
+
+        self.create_incoming_msg(contact2, "Anyone there?")
+        self.create_incoming_msg(contact2, "Hello?")
+
+        # contact 3 has two closed tickets
+        c3_t1 = self.create_ticket(contact=contact3, subject="Question 5", status="C")
+        c3_t2 = self.create_ticket(contact=contact3, subject="Question 6", status="C")
+
+        # fetching open folder returns all open tickets
+        response = self.client.get(open_url)
+        assert_tickets(response, [c2_t1, c1_t2, c1_t1])
+
+        joes_open_tickets = contact1.tickets.filter(status="O")
+
+        expected_json = {
+            "results": [
+                {
+                    "uuid": str(contact2.uuid),
+                    "name": "Frank",
+                    "last_seen_on": matchers.ISODate(),
+                    "last_msg": {
+                        "text": "Hello?",
+                        "direction": "I",
+                        "type": "I",
+                        "created_on": matchers.ISODate(),
+                        "sender": None,
+                    },
+                    "ticket": {
+                        "uuid": str(contact2.tickets.filter(status="O").first().uuid),
+                        "subject": "Question 3",
+                        "closed_on": None,
+                    },
+                },
+                {
+                    "uuid": str(contact1.uuid),
+                    "name": "Joe",
+                    "last_seen_on": matchers.ISODate(),
+                    "last_msg": {
+                        "text": "We can help",
+                        "direction": "O",
+                        "type": "I",
+                        "created_on": matchers.ISODate(),
+                        "sender": {"id": self.admin.id, "email": "Administrator@nyaruka.com"},
+                    },
+                    "ticket": {
+                        "uuid": str(joes_open_tickets[0].uuid),
+                        "subject": "Question 2",
+                        "closed_on": None,
+                    },
+                },
+                {
+                    "uuid": str(contact1.uuid),
+                    "name": "Joe",
+                    "last_seen_on": matchers.ISODate(),
+                    "last_msg": {
+                        "text": "We can help",
+                        "direction": "O",
+                        "type": "I",
+                        "created_on": matchers.ISODate(),
+                        "sender": {"id": self.admin.id, "email": "Administrator@nyaruka.com"},
+                    },
+                    "ticket": {
+                        "uuid": str(joes_open_tickets[1].uuid),
+                        "subject": "Question 1",
+                        "closed_on": None,
+                    },
+                },
+            ]
+        }
+        self.assertEqual(expected_json, response.json())
+
+        # fetching closed folder returns all closed tickets
+        response = self.client.get(closed_url)
+        assert_tickets(response, [c3_t2, c3_t1, c2_t2])
+
+        # make sure when paging we get a next url
+        with patch("temba.tickets.views.TicketCRUDL.Folder.paginate_by", 1):
+            response = self.client.get(open_url + "?_format=json")
+            self.assertIsNotNone(response.json()["next"])
 
     @mock_mailroom
     def test_open_redirect(self, mr_mocks):
@@ -77,16 +195,14 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.requestView(open_url, self.admin)
         self.assertEqual(reverse("tickets.ticket_list"), response.get("Location", None))
 
-        # print(response.status_code)
-
     @mock_mailroom
     def test_open(self, mr_mocks):
         open_url = reverse("tickets.ticket_open")
 
-        ticket1 = self.create_ticket("Ticket 1", "Where are my cookies?", "O")
-        ticket2 = self.create_ticket("Ticket 2", "Where are my shoes?", "O", ticketer=self.zendesk)
-        self.create_ticket("Ticket 3", "Old ticket", "C")
-        self.create_ticket("Ticket 4", "Where are my trousers?", "O", org=self.org2)
+        ticket1 = self.create_ticket(subject="Ticket 1", body="Where are my cookies?", status="O")
+        ticket2 = self.create_ticket(subject="Ticket 2", body="Where are my shoes?", status="O", ticketer=self.zendesk)
+        self.create_ticket(subject="Ticket 3", body="Old ticket", status="C")
+        self.create_ticket(subject="Ticket 4", body="Where are my trousers?", status="O", org=self.org2)
 
         response = self.assertListFetch(
             open_url, allow_viewers=True, allow_editors=True, context_objects=[ticket2, ticket1]
@@ -124,10 +240,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # still see closed tickets for deleted ticketers
         self.zendesk.release()
 
-        ticket1 = self.create_ticket("Ticket 1", "Where are my cookies?", "C")
-        ticket2 = self.create_ticket("Ticket 2", "Where are my shoes?", "C", ticketer=self.zendesk)
-        self.create_ticket("Ticket 3", "New ticket", "O")
-        self.create_ticket("Ticket 4", "Where are my trousers?", "O", org=self.org2)
+        ticket1 = self.create_ticket(subject="Ticket 1", body="Where are my cookies?", status="C")
+        ticket2 = self.create_ticket(subject="Ticket 2", body="Where are my shoes?", status="C", ticketer=self.zendesk)
+        self.create_ticket(subject="Ticket 3", body="New ticket", status="O")
+        self.create_ticket(subject="Ticket 4", body="Where are my trousers?", status="O", org=self.org2)
 
         response = self.assertListFetch(
             closed_url, allow_viewers=True, allow_editors=True, context_objects=[ticket2, ticket1]
@@ -155,9 +271,9 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_filter(self):
         filter_url = reverse("tickets.ticket_filter", args=[self.mailgun.uuid])
 
-        ticket1 = self.create_ticket("Ticket 1", "Where are my cookies?", "O")
-        ticket2 = self.create_ticket("Ticket 2", "Where are my shoes?", "C")
-        self.create_ticket("Ticket 3", "New ticket", "O", ticketer=self.zendesk)
+        ticket1 = self.create_ticket(subject="Ticket 1", body="Where are my cookies?", status="O")
+        ticket2 = self.create_ticket(subject="Ticket 2", body="Where are my shoes?", status="C")
+        self.create_ticket(subject="Ticket 3", body="New ticket", status="O", ticketer=self.zendesk)
 
         response = self.assertReadFetch(filter_url, allow_viewers=True, allow_editors=True)
         self.assertEqual(self.mailgun, response.context["ticketer"])

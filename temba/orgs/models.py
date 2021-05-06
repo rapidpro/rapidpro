@@ -39,7 +39,7 @@ from temba.archives.models import Archive
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary
 from temba.utils import chunk_list, json, languages
-from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
+from temba.utils.cache import get_cacheable_result, incrby_existing
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, JSONField, SquashableModel
@@ -363,8 +363,9 @@ class Org(SmartModel):
         help_text=_("The parent org that manages this org"),
     )
 
-    # when this org was fully released (full deletion)
+    # when this org was released and when it was actually deleted
     released_on = models.DateTimeField(null=True)
+    deleted_on = models.DateTimeField(null=True)
 
     @classmethod
     def get_unique_slug(cls, name):
@@ -942,15 +943,19 @@ class Org(SmartModel):
 
         return None
 
-    def get_language_codes(self):
-        return get_cacheable_attr(self, "_language_codes", lambda: {l.iso_code for l in self.languages.all()})
+    def get_language_codes(self, include_primary: bool = True) -> set:
+        qs = self.languages.values_list("iso_code", flat=True)
+        if not include_primary and self.primary_language:
+            qs = qs.filter(orgs=None)
+
+        return set(qs)
 
     def set_languages(self, user, iso_codes, primary):
         """
         Sets languages for this org, creating and deleting language objects as necessary
         """
         for iso_code in iso_codes:
-            name = languages.get_language_name(iso_code)
+            name = languages.get_name(iso_code)
             language = self.languages.filter(iso_code=iso_code).first()
 
             # if it's valid and doesn't exist yet, create it
@@ -968,9 +973,6 @@ class Org(SmartModel):
 
         # remove any languages that are not in the new list
         self.languages.exclude(iso_code__in=iso_codes).delete()
-
-        if hasattr(self, "_language_codes"):  # invalidate language cache if set
-            delattr(self, "_language_codes")
 
     def get_datetime_formats(self):
         format_date = Org.DATE_FORMATS_PYTHON.get(self.date_format)
@@ -1746,14 +1748,19 @@ class Org(SmartModel):
 
         return f"{settings.STORAGE_URL}/{location}"
 
-    def release(self, *, release_users=True, immediately=False):
+    def release(self, *, release_users=True, delete=False):
+        """
+        Releases this org, marking it as inactive. Actual deletion of org data won't happen until after 7 days unless
+        delete is True.
+        """
 
         # free our children
         Org.objects.filter(parent=self).update(parent=None)
 
         # deactivate ourselves
         self.is_active = False
-        self.save(update_fields=("is_active", "modified_on"))
+        self.released_on = timezone.now()
+        self.save(update_fields=("is_active", "released_on", "modified_on"))
 
         # clear all our channel dependencies on our flows
         for flow in self.flows.all():
@@ -1777,13 +1784,16 @@ class Org(SmartModel):
         for user in self.get_users():
             self.remove_user(user)
 
-        if immediately:
-            self._full_release()
+        if delete:
+            self.delete()
 
-    def _full_release(self):
+    def delete(self):
         """
-        Do the dirty work of deleting this org
+        Does an actual delete of this org
         """
+
+        assert not self.is_active and self.released_on, "can't delete an org which hasn't been released"
+        assert not self.deleted_on, "can't delete an org twice"
 
         # delete exports
         self.exportcontactstasks.all().delete()
@@ -1915,11 +1925,12 @@ class Org(SmartModel):
         # needs to come after deletion of msgs and broadcasts as those insert new counts
         self.system_labels.all().delete()
 
-        # save when we were fully released
+        # save when we were actually deleted
         self.modified_on = timezone.now()
-        self.released_on = timezone.now()
+        self.deleted_on = timezone.now()
         self.config = {}
         self.surveyor_password = None
+        self.primary_language = None
         self.save()
 
     @classmethod

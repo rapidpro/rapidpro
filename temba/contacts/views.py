@@ -23,10 +23,9 @@ from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
 from django.db import transaction
 from django.db.models import Count
-from django.db.models.aggregates import Max
 from django.db.models.functions import Lower, Upper
 from django.forms import Form
-from django.http import Http404, HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseNotFound, HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -43,7 +42,6 @@ from temba.msgs.views import SendMessageForm
 from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
-from temba.tickets.types.internal.type import InternalType
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
@@ -484,13 +482,14 @@ class UpdateContactForm(ContactForm):
 
         choices = [("", "No Preference")]
 
-        # if they had a preference that has since been removed, make sure we show it
-        if self.instance.language:
-            if not self.instance.org.languages.filter(iso_code=self.instance.language).first():
-                lang = languages.get_language_name(self.instance.language)
-                choices += [(self.instance.language, _("%s (Missing)") % lang)]
+        org_lang_codes = self.instance.org.get_language_codes()
 
-        choices += [(l.iso_code, l.name) for l in self.instance.org.languages.all().order_by("orgs", "name")]
+        # if they had a preference that has since been removed, make sure we show it
+        if self.instance.language and self.instance.language not in org_lang_codes:
+            lang_name = languages.get_name(self.instance.language)
+            choices += [(self.instance.language, _(f"{lang_name} (Missing)"))]
+
+        choices += list(languages.choices(codes=org_lang_codes))
 
         self.fields["language"] = forms.ChoiceField(
             required=False, label=_("Language"), initial=self.instance.language, choices=choices, widget=SelectWidget()
@@ -552,7 +551,6 @@ class ContactCRUDL(SmartCRUDL):
         "archive",
         "delete",
         "history",
-        "tickets",
         "start",
     )
 
@@ -766,10 +764,8 @@ class ContactCRUDL(SmartCRUDL):
 
             # add contact.language to the context
             if contact.language:
-                lang = languages.get_language_name(contact.language)
-                if not lang:
-                    lang = contact.language
-                context["contact_language"] = lang
+                lang_name = languages.get_name(contact.language)
+                context["contact_language"] = lang_name or contact.language
 
             # calculate time after which timeline should be repeatedly refreshed - five minutes ago lets us pick up
             # status changes on new messages
@@ -1386,99 +1382,6 @@ class ContactCRUDL(SmartCRUDL):
         def save(self, obj):
             obj.release(self.request.user)
             return obj
-
-    class Tickets(OrgPermsMixin, SmartListView):
-        """
-        Fetches contacts with tickets in the specified state. This endpoint is for a proof-of-concept implementation
-        of internal ticketing and is thus is not well optimized.
-        """
-
-        fields = ("uuid", "name")
-
-        FOLDER_OPEN = "open"
-        FOLDER_CLOSED = "closed"
-
-        def get_queryset(self, **kwargs):
-            org = self.request.user.get_org()
-            qs = super().get_queryset(**kwargs).filter(org=org)
-
-            folder = self.request.GET.get("folder", "")
-            if folder == self.FOLDER_OPEN:
-                qs = qs.filter(
-                    tickets__status=Ticket.STATUS_OPEN, tickets__ticketer__ticketer_type=InternalType.slug
-                ).distinct("last_seen_on", "id")
-
-            elif folder == self.FOLDER_CLOSED:
-                qs = qs.filter(
-                    id__in=org.tickets.values("contact_id")
-                    .annotate(max_status=Max("status"))
-                    .filter(max_status=Ticket.STATUS_CLOSED)
-                    .order_by("contact_id")
-                    .values("contact_id")
-                )
-            else:
-                raise Http404("'%' is not valid ticket folder", folder)
-
-            # TODO we probably want ordering by last message in either direction
-            return qs.order_by("-last_seen_on", "id")
-
-        def get_context_data(self, **kwargs):
-            from temba.msgs.models import Msg
-
-            context = super().get_context_data(**kwargs)
-
-            # convert queryset to list so it can't change later
-            contacts = list(context["object_list"])
-
-            context["object_list"] = contacts
-
-            last_msg_ids = Msg.objects.filter(contact__in=contacts).values("contact").annotate(last_msg_id=Max("id"))
-            last_msgs = Msg.objects.filter(id__in=[m["last_msg_id"] for m in last_msg_ids]).select_related(
-                "broadcast__created_by"
-            )
-
-            context["last_msgs"] = {m.contact: m for m in last_msgs}
-
-            return context
-
-        def as_json(self, context):
-            def ticket_as_json(c):
-                return contact_as_json(c)
-
-            def msg_as_json(m):
-                sender = None
-                if m.broadcast and m.broadcast.created_by:
-                    sender = {"id": m.broadcast.created_by.id, "email": m.broadcast.created_by.email}
-
-                msg = {
-                    "text": m.text,
-                    "direction": m.direction,
-                    "type": m.msg_type,
-                    "created_on": m.created_on,
-                    "sender": sender,
-                }
-
-                return msg
-
-            def contact_as_json(c):
-                last_msg = context["last_msgs"].get(c)
-                return {
-                    "uuid": str(c.uuid),
-                    "name": c.get_display(),
-                    "last_seen_on": c.last_seen_on,
-                    "last_msg": msg_as_json(last_msg) if last_msg else None,
-                }
-
-            response = {"results": [ticket_as_json(t) for t in context["object_list"]]}
-
-            # build up our next link if we have more
-            if context["page_obj"].has_next():
-                query_string = (
-                    f"_format=json&folder={self.request.GET.get('folder', '')}&page={context['page_obj'].number + 1}"
-                )
-                response["next"] = f"{reverse('contacts.contact_tickets')}?{query_string}"
-
-            return response
 
     class Start(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         """
@@ -2185,10 +2088,11 @@ class ContactImportCRUDL(SmartCRUDL):
                 obj.mappings[i]["mapping"] = mapping
 
             if self.form.cleaned_data.get("add_to_group"):
-                new_group_name = self.form.cleaned_data.get("new_group_name")
-                if new_group_name:
-                    obj.group_name = new_group_name
-                else:
+                group_mode = self.form.cleaned_data["group_mode"]
+                if group_mode == self.form.GROUP_MODE_NEW:
+                    obj.group_name = self.form.cleaned_data["new_group_name"]
+                    obj.group = None
+                elif group_mode == self.form.GROUP_MODE_EXISTING:
                     obj.group = self.form.cleaned_data["existing_group"]
 
             return obj

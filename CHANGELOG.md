@@ -1,3 +1,39 @@
+v6.3.40
+----------
+ * Add namespace field to template translations
+ * Fetching and saving revisions should return flow issues as separate field
+
+v6.3.39
+----------
+ * Rework task for org deletion
+
+v6.3.38
+----------
+ * Move tickets endpoint to tickets crudl
+ * Refactor WhatsApp templates
+ * Add task for releasing of orgs
+
+v6.3.37
+----------
+ * Fix contact imports always creating new groups
+ * Migration to fix escaped nulls in flow revision definitions
+ * Rework beta gated agent views to be tikect centric
+
+v6.3.35
+----------
+ * Clear primary language when releasing org
+ * Strip out NULL characters when serializing JsonAsTextField values
+ * Override language names and ensure overridden names are used for searching and sorting
+
+v6.3.33
+----------
+ * Update components and flow editor to common versions
+ * Allow external ticketers to use agent ui, add footer to tickets
+
+v6.3.32
+----------
+ * Release import batches when releasing contact imports
+
 v6.3.31
 ----------
  * Fix serializing JSON to send to mailroom when it includes decimals
