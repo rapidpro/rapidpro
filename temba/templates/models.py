@@ -87,7 +87,7 @@ class TemplateTranslation(models.Model):
     country = CountryField(null=True, blank=True)
 
     # the namespace for this template
-    namespace = models.CharField(max_length=36, null=True)
+    namespace = models.CharField(max_length=36, default="")
 
     # the external id for this channel template
     external_id = models.CharField(null=True, max_length=64)
