@@ -92,6 +92,18 @@
       }
     }
 
+    function updateAddToGroup(enabled) {
+      if (enabled) {
+        document.querySelector("temba-select[name='group_mode']").disabled = false;
+        document.querySelector("temba-select[name='existing_group']").disabled = false;
+        document.querySelector("temba-textinput[name='new_group_name']").disabled = false;
+      } else {
+        document.querySelector("temba-select[name='group_mode']").disabled = true;
+        document.querySelector("temba-select[name='existing_group']").disabled = true;
+        document.querySelector("temba-textinput[name='new_group_name']").disabled = true;
+      }
+    }
+
     $(function() {
       var groupMode = document.querySelector("temba-select[name='group_mode']");
       groupMode.addEventListener('change', function(event) {
@@ -99,6 +111,13 @@
       });
 
       updateGroupMode("{{ form.group_mode.value }}");
+
+      var addToGroup = document.querySelector("temba-checkbox[name='add_to_group']");
+      addToGroup.addEventListener('change', function(event) {
+        updateAddToGroup(event.target.checked)
+      });
+
+      updateAddToGroup({{ form.add_to_group.value|lower }});
     });
 
 
