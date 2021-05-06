@@ -7,7 +7,7 @@ from django.db.models.functions import Replace
 ESCAPED_NULL = "\\u0000"
 
 
-def fix_flow_def_nulls(apps, schema_editor):
+def fix_flow_def_nulls(apps, schema_editor):  # pragma: no cover
     FlowRevision = apps.get_model("flows", "FlowRevision")
     revs = FlowRevision.objects.filter(definition__contains=ESCAPED_NULL)
     num_fixed = revs.update(definition=Replace(F("definition"), Value(ESCAPED_NULL), Value("")))
@@ -15,7 +15,7 @@ def fix_flow_def_nulls(apps, schema_editor):
         print(f"Fixed {num_fixed} flow revisions with NULL characters")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
