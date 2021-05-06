@@ -719,20 +719,14 @@ class Flow(TembaModel):
         return {Flow.DEFINITION_UUID: str(self.uuid), Flow.DEFINITION_NAME: self.name}
 
     @classmethod
-    def get_metadata(cls, flow_info, previous=None) -> Dict:
-        data = {
+    def get_metadata(cls, flow_info) -> Dict:
+        return {
             Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
             Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
             Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
             Flow.METADATA_PARENT_REFS: flow_info[Flow.INSPECT_PARENT_REFS],
             Flow.METADATA_ISSUES: flow_info[Flow.INSPECT_ISSUES],
         }
-
-        # IVR retry is the only value in metadata that doesn't come from flow inspection
-        if previous and Flow.METADATA_IVR_RETRY in previous:
-            data[Flow.METADATA_IVR_RETRY] = previous[Flow.METADATA_IVR_RETRY]
-
-        return data
 
     def ensure_current_version(self):
         """
@@ -809,6 +803,7 @@ class Flow(TembaModel):
         # inspect the flow (with optional validation)
         flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
         dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
+        issues = flow_info[Flow.INSPECT_ISSUES]
 
         if user is None:
             is_system_rev = True
@@ -817,10 +812,16 @@ class Flow(TembaModel):
             is_system_rev = False
 
         with transaction.atomic():
+            new_metadata = Flow.get_metadata(flow_info)
+
+            # IVR retry is the only value in metadata that doesn't come from flow inspection
+            if self.metadata and Flow.METADATA_IVR_RETRY in self.metadata:
+                new_metadata[Flow.METADATA_IVR_RETRY] = self.metadata[Flow.METADATA_IVR_RETRY]
+
             # update our flow fields
             self.base_language = definition.get(Flow.DEFINITION_LANGUAGE, None)
             self.version_number = Flow.CURRENT_SPEC_VERSION
-            self.metadata = Flow.get_metadata(flow_info, self.metadata)
+            self.metadata = new_metadata
             self.modified_by = user
             self.modified_on = timezone.now()
             fields = ["base_language", "version_number", "metadata", "modified_by", "modified_on"]
@@ -843,7 +844,7 @@ class Flow(TembaModel):
 
             self.update_dependencies(dependencies)
 
-        return revision
+        return revision, issues
 
     @classmethod
     def migrate_definition(cls, flow_def, flow, to_version=None):
