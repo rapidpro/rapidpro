@@ -284,8 +284,6 @@ class Channel(TembaModel):
     CONFIG_VONAGE_APP_ID = "nexmo_app_id"
     CONFIG_VONAGE_APP_PRIVATE_KEY = "nexmo_app_private_key"
 
-    CONFIG_SHORTCODE_MATCHING_PREFIXES = "matching_prefixes"
-
     ENCODING_DEFAULT = "D"  # we just pass the text down to the endpoint
     ENCODING_SMART = "S"  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
     ENCODING_UNICODE = "U"  # we send everything as unicode
