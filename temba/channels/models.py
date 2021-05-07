@@ -28,7 +28,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
 from temba.orgs.models import Org
-from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact
+from temba.utils import analytics, countries, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
@@ -882,10 +882,9 @@ class Channel(TembaModel):
         """
         Claims this channel for the given org/user
         """
-        from temba.contacts.models import ContactURN
 
         if not self.country:  # pragma: needs cover
-            self.country = ContactURN.derive_country_from_tel(phone)
+            self.country = countries.from_tel(phone)
 
         self.alert_email = user.email
         self.org = org
