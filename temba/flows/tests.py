@@ -29,7 +29,7 @@ from temba.mailroom import FlowValidationException
 from temba.orgs.integrations.dtone import DTOneType
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticketer
@@ -5757,3 +5757,48 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+
+
+class PopulateHasIssuesTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0250_flow_has_issues"
+    migrate_to = "0251_populate_flow_has_issues"
+
+    def setUpBeforeMigration(self, apps):
+        def create_flow(name, has_issues, metadata):
+            flow = self.create_flow(name)
+            flow.has_issues = has_issues
+            flow.metadata = metadata
+            flow.save(update_fields=("has_issues", "metadata"))
+            return flow
+
+        # flow that already has has_issues set
+        self.flow1 = create_flow("Flow 1", has_issues=True, metadata={})
+
+        # flow that already has has_issues not set
+        self.flow2 = create_flow("Flow 2", has_issues=False, metadata={})
+
+        # flow that that doesn't have it set and does have issues
+        self.flow3 = create_flow("Flow 3", has_issues=None, metadata={"issues": [{"type": "foo"}]})
+
+        # flow that that doesn't have it set and doesn't have issues
+        self.flow4 = create_flow("Flow 4", has_issues=None, metadata={"issues": []})
+
+        # flow that that doesn't have it set and doesn't have issues as a field in metadata
+        self.flow5 = create_flow("Flow 5", has_issues=None, metadata={})
+
+    def test_migration(self):
+        self.flow1.refresh_from_db()
+        self.assertTrue(self.flow1.has_issues)
+
+        self.flow2.refresh_from_db()
+        self.assertFalse(self.flow2.has_issues)
+
+        self.flow3.refresh_from_db()
+        self.assertTrue(self.flow3.has_issues)
+
+        self.flow4.refresh_from_db()
+        self.assertFalse(self.flow4.has_issues)
+
+        self.flow5.refresh_from_db()
+        self.assertFalse(self.flow5.has_issues)
