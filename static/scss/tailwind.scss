@@ -350,9 +350,9 @@ table.list {
 
   tr {
     &.checked {
-      td {
+      td, td:hover {
         temba-checkbox {
-          --color-text: #999;
+          --icon-color: #444 !important;
         }
 
       }
@@ -360,9 +360,8 @@ table.list {
 
     td {
       temba-checkbox {
-        margin-top: -7px;
         display: block;
-        --color-text: #ddd;
+        --icon-color: #ddd;
         width: 14px;
         height: 14px;
       }
@@ -540,7 +539,7 @@ table.list {
 
       td:hover {
         temba-checkbox {
-          --color-text: #999;
+          --icon-color: #999;
         }
       }
 
