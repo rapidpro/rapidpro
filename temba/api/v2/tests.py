@@ -4183,10 +4183,10 @@ class APITest(TembaTest):
 
         # create some templates
         TemplateTranslation.get_or_create(
-            self.channel, "hello", "eng", "US", "Hi {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
+            self.channel, "hello", "eng", "US", "Hi {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234", ""
         )
         TemplateTranslation.get_or_create(
-            self.channel, "hello", "fra", "FR", "Bonjour {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
+            self.channel, "hello", "fra", "FR", "Bonjour {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678", ""
         )
         tt = TemplateTranslation.get_or_create(
             self.channel,
@@ -4197,16 +4197,25 @@ class APITest(TembaTest):
             1,
             TemplateTranslation.STATUS_APPROVED,
             "9012",
+            "",
         )
         tt.is_active = False
         tt.save()
 
         # templates on other org to test filtering
         TemplateTranslation.get_or_create(
-            self.org2channel, "goodbye", "eng", "US", "Goodbye {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
+            self.org2channel,
+            "goodbye",
+            "eng",
+            "US",
+            "Goodbye {{1}}",
+            1,
+            TemplateTranslation.STATUS_APPROVED,
+            "1234",
+            "",
         )
         TemplateTranslation.get_or_create(
-            self.org2channel, "goodbye", "fra", "FR", "Salut {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
+            self.org2channel, "goodbye", "fra", "FR", "Salut {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678", ""
         )
 
         # no filtering

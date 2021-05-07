@@ -158,6 +158,7 @@ def refresh_whatsapp_templates():
                         variable_count=variable_count,
                         status=status,
                         external_id=template["id"],
+                        namespace="",
                     )
 
                     seen.append(translation)

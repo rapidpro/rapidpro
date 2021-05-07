@@ -106,7 +106,7 @@ class TemplateTranslation(models.Model):
         TemplateTranslation.objects.filter(channel=channel).exclude(id__in=ids).update(is_active=False)
 
     @classmethod
-    def get_or_create(cls, channel, name, language, country, content, variable_count, status, external_id):
+    def get_or_create(cls, channel, name, language, country, content, variable_count, status, external_id, namespace):
         existing = TemplateTranslation.objects.filter(channel=channel, external_id=external_id).first()
 
         if not existing:
@@ -128,6 +128,7 @@ class TemplateTranslation(models.Model):
                 language=language,
                 country=country,
                 external_id=external_id,
+                namespace=namespace,
             )
 
         else:
@@ -143,6 +144,7 @@ class TemplateTranslation(models.Model):
                 existing.is_active = True
                 existing.language = language
                 existing.country = country
+                existing.namespace = namespace
                 existing.save(
                     update_fields=["status", "language", "content", "country", "is_active", "variable_count"]
                 )
