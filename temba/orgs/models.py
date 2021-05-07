@@ -625,7 +625,7 @@ class Org(SmartModel):
     def supports_ivr(self):
         return self.get_call_channel() or self.get_answer_channel()
 
-    def get_channel(self, role: str, scheme: str, country_code: str = None):
+    def get_channel(self, role: str, scheme: str):
         """
         Gets a channel for this org which supports the given scheme and role
         """
@@ -636,24 +636,12 @@ class Org(SmartModel):
         if scheme is not None:
             channels = channels.filter(schemes__contains=[scheme])
 
-        channel = None
-        if country_code:
-            channel = channels.filter(country=country_code).first()
-
-        # no channel? try without country
-        if not channel:
-            channel = channels.first()
+        channel = channels.first()
 
         if channel and (role == Channel.ROLE_SEND or role == Channel.ROLE_CALL):
             return channel.get_delegate(role)
         else:
             return channel
-
-    @cached_property
-    def cached_active_contacts_group(self):
-        from temba.contacts.models import ContactGroup
-
-        return ContactGroup.all_groups.get(org=self, group_type=ContactGroup.TYPE_ACTIVE)
 
     def get_send_channel(self, scheme=None):
         from temba.channels.models import Channel
@@ -700,6 +688,12 @@ class Org(SmartModel):
         from .tasks import normalize_contact_tels_task
 
         normalize_contact_tels_task.delay(self.pk)
+
+    @cached_property
+    def cached_active_contacts_group(self):
+        from temba.contacts.models import ContactGroup
+
+        return ContactGroup.all_groups.get(org=self, group_type=ContactGroup.TYPE_ACTIVE)
 
     def get_resthooks(self):
         """

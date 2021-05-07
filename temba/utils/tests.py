@@ -34,7 +34,17 @@ from temba.tests import ESMockWithScroll, TembaTest, matchers
 from temba.utils import json, uuid
 from temba.utils.json import TembaJsonAdapter
 
-from . import chunk_list, dict_to_struct, format_number, languages, percentage, redact, sizeof_fmt, str_to_bool
+from . import (
+    chunk_list,
+    countries,
+    dict_to_struct,
+    format_number,
+    languages,
+    percentage,
+    redact,
+    sizeof_fmt,
+    str_to_bool,
+)
 from .cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from .celery import nonoverlapping_task
 from .dates import datetime_to_str, datetime_to_timestamp, timestamp_to_datetime
@@ -227,6 +237,14 @@ class DatesTest(TembaTest):
         self.assertIsNone(datetime_to_str(None, "%Y-%m-%d %H:%M", tz=tz))
         self.assertEqual(datetime_to_str(d2, "%Y-%m-%d %H:%M", tz=tz), "2014-01-02 03:04")
         self.assertEqual(datetime_to_str(d2, "%Y/%m/%d %H:%M", tz=pytz.UTC), "2014/01/02 01:04")
+
+
+class CountriesTest(TembaTest):
+    def test_from_tel(self):
+        self.assertIsNone(countries.from_tel(""))
+        self.assertIsNone(countries.from_tel("123"))
+        self.assertEqual("EC", countries.from_tel("+593979123456"))
+        self.assertEqual("US", countries.from_tel("+1 213 621 0002"))
 
 
 class TimezonesTest(TembaTest):
