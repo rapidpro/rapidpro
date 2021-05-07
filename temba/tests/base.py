@@ -26,7 +26,7 @@ from temba.orgs.models import Org, OrgRole
 from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
 
-from .mailroom import create_contact_locally, update_field_locally
+from .mailroom import create_contact_locally, decrement_credit, update_field_locally
 
 
 def add_testing_flag_to_context(*args):
@@ -346,7 +346,7 @@ class TembaTestMixin:
                 else:
                     channel = org.channels.filter(is_active=True, schemes__contains=[contact_urn.scheme]).first()
 
-            (topup_id, amount) = org.decrement_credit()
+            topup_id = decrement_credit(org)
 
         return Msg.objects.create(
             org=org,
