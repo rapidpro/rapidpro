@@ -711,7 +711,7 @@ class Org(SmartModel):
     def get_possible_countries(cls):
         return AdminBoundary.objects.filter(level=0).order_by("name")
 
-    def trigger_send(self, msgs=None):
+    def trigger_send(self):
         """
         Triggers either our Android channels to sync, or for all our pending messages to be queued
         to send.
@@ -721,32 +721,20 @@ class Org(SmartModel):
         from temba.channels.types.android import AndroidType
         from temba.msgs.models import Msg
 
-        # if we have msgs, then send just those
-        if msgs is not None:
-            ids = [m.id for m in msgs]
+        # sync all pending channels
+        for channel in self.channels.filter(is_active=True, channel_type=AndroidType.code):  # pragma: needs cover
+            channel.trigger_sync()
 
-            # trigger syncs for our android channels
-            for channel in self.channels.filter(is_active=True, channel_type=AndroidType.code, msgs__id__in=ids):
-                channel.trigger_sync()
+        # otherwise, send any pending messages on our channels
+        r = get_redis_connection()
 
-            # and send those messages
-            Msg.send_messages(msgs)
+        key = "trigger_send_%d" % self.pk
 
-        # otherwise, sync all pending messages and channels
-        else:
-            for channel in self.channels.filter(is_active=True, channel_type=AndroidType.code):  # pragma: needs cover
-                channel.trigger_sync()
-
-            # otherwise, send any pending messages on our channels
-            r = get_redis_connection()
-
-            key = "trigger_send_%d" % self.pk
-
-            # only try to send all pending messages if nobody is doing so already
-            if not r.get(key):
-                with r.lock(key, timeout=900):
-                    pending = Channel.get_pending_messages(self)
-                    Msg.send_messages(pending)
+        # only try to send all pending messages if nobody is doing so already
+        if not r.get(key):
+            with r.lock(key, timeout=900):
+                pending = Channel.get_pending_messages(self)
+                Msg.send_messages(pending)
 
     def add_smtp_config(self, from_email, host, username, password, port, user):
         username = quote(username)
