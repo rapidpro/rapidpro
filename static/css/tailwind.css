@@ -1505,7 +1505,7 @@ a:hover {
 .lbl-icon {
   color: rgba(0, 0, 0, .3);
   font-size: 11px;
-  font-family: 'temba' !important;
+  font-family: 'icons' !important;
   speak: never;
   font-style: normal;
   font-weight: normal;
@@ -1550,7 +1550,7 @@ a:hover {
 .lbl-group::before {
     color: rgba(0, 0, 0, .3);
     font-size: 11px;
-    font-family: 'temba';
+    font-family: 'icons';
     speak: never;
     font-style: normal;
     font-weight: normal;
@@ -1625,7 +1625,7 @@ a:hover {
 .lbl-group-dynamic::before {
     color: rgba(0, 0, 0, .3);
     font-size: 11px;
-    font-family: 'temba';
+    font-family: 'icons';
     speak: never;
     font-style: normal;
     font-weight: normal;
@@ -1810,14 +1810,13 @@ table.list {
   background-color: #fff;
 }
 
-table.list tr.checked td temba-checkbox {
-          --color-text: #999;
+table.list tr.checked td temba-checkbox, table.list tr.checked td:hover temba-checkbox {
+          --icon-color: #444 !important;
         }
 
 table.list tr td temba-checkbox {
-        margin-top: -7px;
         display: block;
-        --color-text: #ddd;
+        --icon-color: #ddd;
         width: 14px;
         height: 14px;
       }
@@ -1961,7 +1960,7 @@ table.list.selectable tbody tr.hovered td {
         }
 
 table.list.selectable tbody td:hover temba-checkbox {
-          --color-text: #999;
+          --icon-color: #999;
         }
 
 table.list.selectable tbody tr.checked td {
