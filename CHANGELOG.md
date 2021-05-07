@@ -1,3 +1,8 @@
+v6.3.40
+----------
+ * Add namespace field to template translations
+ * Fetching and saving revisions should return flow issues as separate field
+
 v6.3.39
 ----------
  * Rework task for org deletion
