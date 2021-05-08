@@ -1547,20 +1547,7 @@ a:hover {
     box-shadow: none;
   }
 
-.lbl-group::before {
-    color: rgba(0, 0, 0, .3);
-    font-size: 11px;
-    font-family: 'icons';
-    speak: never;
-    font-style: normal;
-    font-weight: normal;
-    font-variant: normal;
-    text-transform: none;
-    line-height: 1;
-    -webkit-font-smoothing: antialiased;
-    vertical-align: text-bottom;
-    content: "\e03c";
-    margin-bottom: 1px;
+.lbl-group temba-icon {
     display: inline-block;
   }
 
@@ -1622,20 +1609,7 @@ a:hover {
     box-shadow: none;
   }
 
-.lbl-group-dynamic::before {
-    color: rgba(0, 0, 0, .3);
-    font-size: 11px;
-    font-family: 'icons';
-    speak: never;
-    font-style: normal;
-    font-weight: normal;
-    font-variant: normal;
-    text-transform: none;
-    line-height: 1;
-    -webkit-font-smoothing: antialiased;
-    vertical-align: text-bottom;
-    content: "\e03c";
-    margin-bottom: 1px;
+.lbl-group-dynamic temba-icon {
     display: inline-block;
   }
 
@@ -1817,8 +1791,9 @@ table.list tr.checked td temba-checkbox, table.list tr.checked td:hover temba-ch
 table.list tr td temba-checkbox {
         display: block;
         --icon-color: #ddd;
-        width: 14px;
-        height: 14px;
+        width: 18px;
+        height: 18px;
+        margin-right: -8px;
       }
 
 table.list.light thead tr th {
