@@ -223,10 +223,7 @@ a {
 .lbl-group {
   @apply lbl;
 
-  &::before {
-    @apply lbl-icon;
-    content: "\e03c";
-    margin-bottom: 1px;
+  temba-icon {
     display: inline-block;
   }
 }
@@ -362,8 +359,9 @@ table.list {
       temba-checkbox {
         display: block;
         --icon-color: #ddd;
-        width: 14px;
-        height: 14px;
+        width: 18px;
+        height: 18px;
+        margin-right: -8px;
       }
     }
   }
