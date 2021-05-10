@@ -105,6 +105,9 @@ def refresh_whatsapp_templates():
     with r.lock("refresh_whatsapp_templates", 1800):
         # for every whatsapp channel
         for channel in Channel.objects.filter(is_active=True, channel_type="WA"):
+
+            channel_namespace = channel.config.get("fb_namespace", "")
+
             # fetch all our templates
             try:
 
@@ -158,7 +161,7 @@ def refresh_whatsapp_templates():
                         variable_count=variable_count,
                         status=status,
                         external_id=template["id"],
-                        namespace="",
+                        namespace=template.get("namespace", channel_namespace),
                     )
 
                     seen.append(translation)
