@@ -146,7 +146,15 @@ class TemplateTranslation(models.Model):
                 existing.country = country
                 existing.namespace = namespace
                 existing.save(
-                    update_fields=["status", "language", "content", "country", "is_active", "variable_count"]
+                    update_fields=[
+                        "status",
+                        "language",
+                        "content",
+                        "country",
+                        "is_active",
+                        "variable_count",
+                        "namespace",
+                    ]
                 )
 
                 existing.template.modified_on = timezone.now()
