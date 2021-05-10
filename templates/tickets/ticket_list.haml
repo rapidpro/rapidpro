@@ -46,6 +46,7 @@
       var contact = event.target.value;
       var chat = document.querySelector("temba-contact-chat");
       chat.contact = contact;
+      console.log("Setting", contact);
     }
     
     function handleContactHistoryUpdated(event) {
