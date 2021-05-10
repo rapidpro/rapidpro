@@ -1,3 +1,8 @@
+v6.3.44
+----------
+ * Tweak import preview page so when adding to a group isn't enabled, the group controls are disabled
+ * Update flow editor and temba-components
+
 v6.3.40
 ----------
  * Add namespace field to template translations
