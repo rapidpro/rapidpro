@@ -1,0 +1,21 @@
+-extends 'smartmin/form.html'
+-load smartmin i18n
+
+-block content
+  .flex.justify-center
+    .w-128
+      .mb-4.page-title
+        {{ title }}
+
+      {{ block.super }}
+
+-block pre-form
+  .mb-6
+    -blocktrans trimmed
+      To disable two-factor authentication for your login, enter your current password.
+
+-block form-buttons
+  .mt-6
+    %input.button-primary(type="submit" value='{{ submit_button_name }}')
+    %a.button-light.float-right(onclick="history.go(-1)")
+      -trans "Cancel"

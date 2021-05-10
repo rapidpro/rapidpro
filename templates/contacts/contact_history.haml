@@ -1,6 +1,6 @@
 -load contacts humanize smartmin temba i18n sms
 
--for event in history
+-for event in events
   %tr(class="{{event|history_class}}")
     %td.icon
       %span.det(title='{% if event.obj.channel %}{{event.obj.channel.get_channel_type_name}} {{event.obj.channel.get_name}}{% endif %}')
@@ -8,57 +8,53 @@
 
     %td.details.wrapped.w-full
       -if event.type == 'airtime_transferred'
-        -with event.obj as transfer
-          -if transfer.status == 'S'
-            -blocktrans trimmed with amount=transfer.actual_amount currency=transfer.currency
-              Transferred <b>{{ amount }}</b> <b>{{ currency }}</b> of airtime
-          -else
-            -trans "Airtime transfer failed"
+        -if event.actual_amount > 0
+          -blocktrans trimmed with amount=event.actual_amount currency=event.currency
+            Transferred <b>{{ amount }}</b> <b>{{ currency }}</b> of airtime
+        -else
+          -trans "Airtime transfer failed"
 
       -elif event.type == 'call_started'
-        -with event.obj as call
-          -if call.status == 'D'
-            -trans "Call Started"
-          -else
-            {{ call.get_status_display }}
+        -if event.status == 'D'
+          -trans "Call Started"
+        -else
+          {{ event.status_display }}
 
       -elif event.type == 'campaign_fired'
-        -with event.obj as eventfire
-          %a(href='{%url "campaigns.campaign_read" eventfire.event.campaign.id %}')><
-            {{ eventfire.event.campaign.name }}
+        %a(href='{%url "campaigns.campaign_read" event.campaign.id %}')><
+          {{ event.campaign.name }}
 
-          -if eventfire.fired_result == 'S'
-            &nbsp;skipped
-          -else
-            &nbsp;triggered
+        -if event.fired_result == 'S'
+          &nbsp;skipped
+        -else
+          &nbsp;triggered
 
-          %a(href='{%url "campaigns.campaignevent_read" eventfire.event.id %}')
-            {{ eventfire.event|campaign_event_time }}
+        %a(href='{%url "campaigns.campaignevent_read" event.campaign_event.id %}')
+          {{ eventfire.campaign_event.offset_display }} {{ eventfire.campaign_event.relative_to.name }}
 
       -elif event.type == 'channel_event'
-        -with event.obj as ch_event
-          -if ch_event.event_type == 'mt_miss'
-            -trans "Missed outgoing call"
-          -if ch_event.event_type == 'mo_miss'
-            -trans "Missed incoming call"
-          -elif ch_event.event_type == 'new_conversation'
-            -trans "Started Conversation"
-          -elif ch_event.event_type == 'welcome_message'
-            -trans "Welcome Message Sent"
-          -elif ch_event.event_type == 'referral'
-            -trans "Referred"
-          -elif ch_event.event_type == 'follow'
-            -trans "Followed"
-          -elif ch_event.event_type == 'stop_contact'
-            -trans "Stopped"
-          -elif ch_event.event_type == 'mt_call'
-            -trans "Outgoing Phone Call"
-            ({{ ch_event.extra.duration|format_seconds }})
-          -elif ch_event.event_type == 'mo_call'
-            -trans "Incoming Phone call"
-            ({{ ch_event.extra.duration|format_seconds }})
-          -else
-            -trans "Unknown/Unsupported"
+        -if event.channel_event_type == 'mt_miss'
+          -trans "Missed outgoing call"
+        -elif event.channel_event_type == 'mo_miss'
+          -trans "Missed incoming call"
+        -elif event.channel_event_type == 'new_conversation'
+          -trans "Started Conversation"
+        -elif event.channel_event_type == 'welcome_message'
+          -trans "Welcome Message Sent"
+        -elif event.channel_event_type == 'referral'
+          -trans "Referred"
+        -elif event.channel_event_type == 'follow'
+          -trans "Followed"
+        -elif event.channel_event_type == 'stop_contact'
+          -trans "Stopped"
+        -elif event.channel_event_type == 'mt_call'
+          -trans "Outgoing Phone Call"
+          ({{ event.duration|format_seconds }})
+        -elif event.channel_event_type == 'mo_call'
+          -trans "Incoming Phone call"
+          ({{ event.duration|format_seconds }})
+        -else
+          -trans "Unknown/Unsupported"
 
       -elif event.type == 'contact_field_changed'
         -if event.value
@@ -102,10 +98,6 @@
       -elif event.type == 'error' or event.type == 'failure'
         {{ event.text }}
 
-      -elif event.type == 'email_created'
-        -blocktrans trimmed with subject=event.subject
-          Email sent with subject <b>{{ subject }}</b>
-
       -elif event.type == 'email_sent'
         -trans "Email sent to"
         -for address in event.to
@@ -114,37 +106,49 @@
         <b>{{ event.subject }}</b>
 
       -elif event.type == 'flow_entered' or event.type == 'flow_exited'
-        -with event.obj as run
-          .activity-run
-            .activity-body
-              .summary
-              -if event.type == 'flow_exited'
-                {{ run.get_exit_type_display }}
+        .activity-run
+          .activity-body
+            .summary
+            -if event.type == 'flow_exited'
+              -if event.status == "I"
+                -trans "Interrupted"
+              -elif event.status == "X"
+                -trans "Expired"
+              -elif event.status == "F"
+                -trans "Failed"
               -else
-                -trans "Started"
-              %a(href="{% url 'flows.flow_editor' run.flow.uuid %}")
-                {{ run.flow.name }}
+                -trans "Completed"
+            -else
+              -trans "Started"
+            %a(href="{% url 'flows.flow_editor' event.flow.uuid %}")
+              {{ event.flow.name }}
 
       -elif event.type == 'input_labels_added'
         -trans "Message labelled as"
         -for label in event.labels
           <a href="{% url 'msgs.msg_filter' label.uuid %}">{{ label.name }}</a>{{ forloop|oxford }}
 
-      -elif event.type == 'msg_created' or event.type == 'msg_received'
-        -with event.obj as msg
-          .activity-message
-            -if msg.direction == 'O' and msg.broadcast.get_message_count > 1
-              .sent-to
-                .summary
-                  Broadcast to {{msg.broadcast.get_message_count|intcomma}} recipients
+      -elif event.type == 'broadcast_created'
+        .activity-message
+          .sent-to
+            .summary
+              Broadcast to {{event.recipient_count|intcomma}} recipients
 
-            .activity-body
-              -if msg.text
-                .text(style="{% if msg.attachments %}margin-bottom:10px{% endif %}")
-                  {{ msg.text }}
+          .activity-body
+            -if event.msg.text
+              .text(style="{% if msg.attachments %}margin-bottom:10px{% endif %}")
+                {{ event.msg.text }}
+            -for attachment in event.msg.attachments
+              {% attachment_button attachment %}
 
-              -for attachment in msg.attachments
-                {% attachment_button attachment %}
+      -elif event.type == 'msg_created' or event.type == 'msg_received' or event.type == "ivr_created"
+        .activity-message
+          .activity-body
+            -if event.msg.text
+              .text(style="{% if msg.attachments %}margin-bottom:10px{% endif %}")
+                {{ event.msg.text }}
+            -for attachment in event.msg.attachments
+              {% attachment_button attachment %}
 
       -elif event.type == 'run_result_changed'
         -blocktrans trimmed with name=event.name category=event.category value=event.value
@@ -156,38 +160,27 @@
           Opened ticket on <a href="{{ ticketer_url }}">{{ ticketer }}</a> with subject <b>{{ subject }}</b>
 
       -elif event.type == 'webhook_called'
-        -with event.obj as result
-          -if result.is_success
-            -trans "Successfully called"
-          -else
-            -trans "Failed to call"
-          {{ result.url|truncatechars:100 }}
-
-
+        -if event.status == "success"
+          -trans "Successfully called"
+        -else
+          -trans "Failed to call"
+        {{ event.url|truncatechars:100 }}
 
     %td.created_on
       .time.flex.items-end.justify-end
         %span.short
-          {% short_datetime event.created_on %}
+          {% short_datetime event.created_on|parse_isodate %}
         %span.long.hide
-          {% format_datetime event.created_on %}
+          {% format_datetime event.created_on|parse_isodate %}
 
     %td.text-center{style:"padding-left:0px"}
       .log-icon.ml-2.text-dark-alpha-200
-        -if event.type == 'msg_created' or event.type == 'msg_received' or event.type == 'call_started'
-          {% channel_log_link event.obj %}
-
-        -elif event.type == 'airtime_transferred'
-          .hover-linked.icon-docs-2(onclick="goto(event)" href="{% url 'airtime.airtimetransfer_read' event.obj.id %}")
-
-        -elif event.type == 'webhook_called'
-          .hover-linked.icon-docs-2(onclick="goto(event)" href="{% url 'api.webhookresult_read' event.obj.id %}")
-
-        -elif event.type == 'flow_entered' and perms.flows.flowsession_json and event.obj.session
-          .hover-linked.icon-docs-2(onclick="goto(event)" href="{% url 'flows.flowsession_json' event.obj.session.uuid %}")
+        -if event.logs_url
+          .hover-linked(onclick="goto(event)" href="{{ event.logs_url }}")
+            .icon-docs-2.pointer-events-none
 
 -if has_older and not recent_only
-  %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{after}}&before={{before}}", 
+  %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{ next_after }}&before={{ next_before }}",
        ic-trigger-on:"scrolled-into-view", 
        ic-target:"table.activity tbody.previous", 
        ic-indicator:"#indicator" }
@@ -196,8 +189,9 @@
   -if start_date
     %tr.archive-note
       %td(colspan=3)><
-        -blocktrans trimmed with start=start_date
-          Any messages prior to {{ start }} can be found in your
+        .inline
+          -blocktrans trimmed with start=start_date
+            Any messages prior to {{ start }} can be found in your
         %a(href="{% url 'archives.archive_message'%}")><
           -trans "archive"
         \.

@@ -107,9 +107,10 @@ class MockTwilioClient(Client):
             self.sid = "TwilioTestSid"
 
     class MockPhoneNumber(MockInstanceResource):
-        def __init__(self, phone_number):
+        def __init__(self, phone_number, sms=True, voice=True):
             self.phone_number = phone_number
             self.sid = "PhoneNumberSid"
+            self.capabilities = dict(sms=sms, voice=voice)
 
     class MockAccount(MockInstanceResource):
         def __init__(self, account_type, auth_token="AccountToken"):

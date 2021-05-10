@@ -172,6 +172,7 @@ a {
 }
 
 .lift {
+  will-change: transform, opacity;
   &:hover {
     @apply shadow-lg;
     transform: translateY(-1px);
@@ -554,6 +555,18 @@ table.list {
         }
       }
 
+    }
+  }
+}
+
+.flow-start-type-selector {
+  a {
+    display: inline-block;
+    &.is-active {
+      cursor: none;
+      color: #999999;
+      cursor: text;
+      text-decoration: none;
     }
   }
 }

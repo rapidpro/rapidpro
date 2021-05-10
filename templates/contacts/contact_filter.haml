@@ -4,8 +4,8 @@
 
 -block title
   {{current_group.name}}
+
 -block subtitle
   -if current_group.is_dynamic
-    .hidden.lbl-secondary.linked{onclick:"goto(event)", href:"{% url 'contacts.contact_filter' current_group.uuid %}"}
-      -trans "Smart Group"
-
+    .font-mono.text-sm
+      {{ current_group.query }}

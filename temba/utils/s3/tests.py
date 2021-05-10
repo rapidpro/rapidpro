@@ -20,7 +20,7 @@ class EventStreamReaderTest(TembaTest):
 
         # multiple records that will be split across several small payloads
         stream = MockEventStream(
-            records=[{"id": 1, "text": "Hi"}, {"id": 2, "text": "Hi"}, {"id": 3, "text": "Hi"}], max_payload_size=5,
+            records=[{"id": 1, "text": "Hi"}, {"id": 2, "text": "Hi"}, {"id": 3, "text": "Hi"}], max_payload_size=5
         )
 
         buffer = EventStreamReader(stream)
