@@ -1394,6 +1394,7 @@ class TemplateReadSerializer(ReadSerializer):
                 {
                     "language": translation.language,
                     "content": translation.content,
+                    "namespace": translation.namespace,
                     "variable_count": translation.variable_count,
                     "status": translation.get_status_display(),
                     "channel": {"uuid": translation.channel.uuid, "name": translation.channel.name},
