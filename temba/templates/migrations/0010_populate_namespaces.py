@@ -9,9 +9,9 @@ def populate_namespaces(apps, schema_editor):
 
     channels = Channel.objects.filter(channel_type="WA")
     for channel in channels:
-        namespace = channel.config["fb_namespace"]
-        translation_ids = channel.translations.values_list("id", flat=True)
-        TemplateTranslation.objects.filter(id__in=translation_ids).update(namespace=namespace)
+        namespace = channel.config.get("fb_namespace", "")
+        if namespace:
+            TemplateTranslation.objects.filter(channel=channel).update(namespace=namespace)
 
 
 def reverse(apps, schema_editor):
