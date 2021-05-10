@@ -7,6 +7,8 @@ from functools import wraps
 from typing import Dict, List
 from unittest.mock import call, patch
 
+from django_redis import get_redis_connection
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import connection
@@ -21,6 +23,7 @@ from temba.orgs.models import Org
 from temba.tests.dates import parse_datetime
 from temba.tickets.models import Ticket
 from temba.utils import format_number, get_anonymous_user, json
+from temba.utils.cache import incrby_existing
 
 event_units = {
     CampaignEvent.UNIT_MINUTES: "minutes",
@@ -529,3 +532,30 @@ def find_boundary_by_name(org, name, level, parent):
         boundary = AdminBoundary.objects.filter(**query)
 
     return boundary
+
+
+def decrement_credit(org):
+    r = get_redis_connection()
+
+    # we always consider this a credit 'used' since un-applied msgs are pending
+    # credit expenses for the next purchased topup
+    incrby_existing(f"org:{org.id}:cache:credits_used", 1)
+
+    # if we have an active topup cache, we need to decrement the amount remaining
+    active_topup_id = org.get_active_topup_id()
+    if active_topup_id:
+        remaining = r.decr(f"org:{org.id}:cache:credits_remaining:{active_topup_id}", 1)
+
+        # near the edge, clear out our cache and calculate from the db
+        if not remaining or int(remaining) < 100:
+            active_topup_id = None
+            org.clear_credit_cache()
+
+    # calculate our active topup if we need to
+    if not active_topup_id:
+        active_topup = org.get_active_topup(force_dirty=True)
+        if active_topup:
+            active_topup_id = active_topup.id
+            r.decr(f"org:{org.id}:cache:credits_remaining:{active_topup_id}", 1)
+
+    return active_topup_id or None
