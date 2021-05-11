@@ -579,7 +579,8 @@ class Org(SmartModel):
 
     def set_ivr_machine_detection(self, value=True):
         """
-        Set a value (True or False) IVR machine detection
+        Set a value ("true" or "false") IVR machine detection
+        We use boolean string here because mailroom is currently supporting only string on ConfigValue func
         """
         self.config[Org.CONFIG_IVR_MACHINE_DETECTION] = value
         self.save(update_fields=("config", "modified_on"))
@@ -588,7 +589,7 @@ class Org(SmartModel):
         """
         Whether the IVR machine detection is enabled
         """
-        return self.config.get(Org.CONFIG_IVR_MACHINE_DETECTION, False)
+        return self.config.get(Org.CONFIG_IVR_MACHINE_DETECTION, "false") == "true"
 
     def import_app(self, export_json, user, site=None):
         """
@@ -2263,6 +2264,7 @@ class Org(SmartModel):
                 f"{item.uuid}:{item.destination}"
                 for item in self.links.filter(is_archived=False).only("uuid", "destination")
             ],
+            "has_ivr_machine_detection": self.is_ivr_machine_detection_enabled()
         }
 
     def __str__(self):

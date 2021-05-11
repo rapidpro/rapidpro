@@ -1465,9 +1465,9 @@ class OrgCRUDL(SmartCRUDL):
                 elif action == "unflag":
                     self.get_object().unflag()
                 elif action == "enable-machine-detection":
-                    self.get_object().set_ivr_machine_detection(value=True)
+                    self.get_object().set_ivr_machine_detection(value="true")
                 elif action == "disable-machine-detection":
-                    self.get_object().set_ivr_machine_detection(value=False)
+                    self.get_object().set_ivr_machine_detection(value="false")
                 return HttpResponseRedirect(self.get_success_url())
             return super().post(request, *args, **kwargs)
 
