@@ -1,3 +1,10 @@
+v6.3.45
+----------
+ * Add migration to populate template namespace
+ * Expose template translation namespace field on API
+ * Don't save issues into flow metadata but just set new field has_issues instead
+ * Queue mailroom task to do msg resends
+
 v6.3.44
 ----------
  * Tweak import preview page so when adding to a group isn't enabled, the group controls are disabled
