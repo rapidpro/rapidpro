@@ -2815,6 +2815,9 @@ class OrgCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
+            if self.has_org_perm("orgs.org_edit"):
+                formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
+
             # if we are on the topups plan, show our usual credits view
             if org.plan == settings.TOPUP_PLAN:
                 if self.has_org_perm("orgs.topup_list"):
@@ -2866,9 +2869,6 @@ class OrgCRUDL(SmartCRUDL):
                     formax.add_section(
                         "two_factor", reverse("orgs.user_two_factor_enable"), icon="icon-two-factor", action="link"
                     )
-
-            if self.has_org_perm("orgs.org_edit"):
-                formax.add_section("org", reverse("orgs.org_edit"), icon="icon-office")
 
             # only pro orgs get multiple users
             if self.has_org_perm("orgs.org_manage_accounts") and org.is_multi_user:

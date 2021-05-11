@@ -297,6 +297,21 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Enable Weni Templates
 INSTALLED_APPS += ('macros',)
-TEMPLATES[0]["OPTIONS"]["context_processors"].append("weni.templates.context_processors.enable_weni_layout")
+TEMPLATES[0]["OPTIONS"]["context_processors"].append("temba.context_processors_weni.enable_weni_layout")
+TEMPLATES[0]["OPTIONS"]["context_processors"].append("temba.context_processors_weni.weni_announcement")
+TEMPLATES[0]["OPTIONS"]["context_processors"].append("temba.context_processors_weni.hotjar")
 
 WENI_DOMAINS = {"weni": env("WENI_DOMAIN", default="weni.ai")}
+
+
+# weni announcement
+ANNOUNCEMENT_LEFT = env("ANNOUNCEMENT_LEFT")
+ANNOUNCEMENT_RIGHT = env("ANNOUNCEMENT_RIGHT")
+ANNOUNCEMENT_LINK = env("ANNOUNCEMENT_LINK")
+ANNOUNCEMENT_BUTTON = env("ANNOUNCEMENT_BUTTON")
+
+# hotjar
+HOTJAR_ID = env("HOTJAR_ID")
+
+# success webhook logs
+SUCCESS_LOGS_TRIM_TIME = env("SUCCESS_LOGS_TRIM_TIME", default=48)
