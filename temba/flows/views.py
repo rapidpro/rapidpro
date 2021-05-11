@@ -1047,11 +1047,11 @@ class FlowCRUDL(SmartCRUDL):
 
             feature_filters = []
 
-            facebook_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
+            facebook_channel = flow.org.get_channel(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
             if facebook_channel is not None:
                 feature_filters.append("facebook")
 
-            whatsapp_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
+            whatsapp_channel = flow.org.get_channel(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
             if whatsapp_channel is not None:
                 feature_filters.append("whatsapp")
 
@@ -1967,7 +1967,7 @@ class FlowCRUDL(SmartCRUDL):
             warnings = []
 
             # facebook channels need to warn if no topic is set
-            facebook_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
+            facebook_channel = org.get_channel(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
             if facebook_channel:
                 if not self.has_facebook_topic(flow):
                     warnings.append(
@@ -1977,7 +1977,7 @@ class FlowCRUDL(SmartCRUDL):
                     )
 
             # if we have a whatsapp channel
-            whatsapp_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
+            whatsapp_channel = org.get_channel(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
             if whatsapp_channel:
                 # check to see we are using templates
                 templates = flow.get_dependencies_metadata("template")

@@ -1390,17 +1390,6 @@ class ContactURN(models.Model):
 
         return self
 
-    @classmethod
-    def derive_country_from_tel(cls, phone, country=None):
-        """
-        Given a phone number in E164 returns the two letter country code for it.  ex: +250788383383 -> RW
-        """
-        try:
-            parsed = phonenumbers.parse(phone, country)
-            return phonenumbers.region_code_for_number(parsed)
-        except Exception:
-            return None
-
     def get_display(self, org=None, international=False, formatted=True):
         """
         Gets a representation of the URN for display
