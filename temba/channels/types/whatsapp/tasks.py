@@ -159,71 +159,75 @@ def refresh_whatsapp_templates():
                 facebook_business_id = channel.config.get(CONFIG_FB_BUSINESS_ID)
                 url = TEMPLATE_LIST_URL % (facebook_template_domain, facebook_business_id)
 
-                # we should never need to paginate because facebook limits accounts to 255 templates
-                response = requests.get(
-                    url, params=dict(access_token=channel.config[CONFIG_FB_ACCESS_TOKEN], limit=255)
-                )
-                elapsed = (timezone.now() - start).total_seconds() * 1000
+                while url:
+                    response = requests.get(
+                        url, params=dict(access_token=channel.config[CONFIG_FB_ACCESS_TOKEN], limit=255)
+                    )
+                    elapsed = (timezone.now() - start).total_seconds() * 1000
 
-                HTTPLog.create_from_response(
-                    HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, response, channel=channel, request_time=elapsed
-                )
-
-                if response.status_code != 200:  # pragma: no cover
-                    continue
-
-                # run through all our templates making sure they are present in our DB
-                seen = []
-                for template in response.json()["data"]:
-                    # if this is a status we don't know about
-                    if template["status"] not in STATUS_MAPPING:
-                        continue
-
-                    status = STATUS_MAPPING[template["status"]]
-
-                    content_parts = []
-
-                    all_supported = True
-                    for component in template["components"]:
-                        if component["type"] not in ["HEADER", "BODY", "FOOTER"]:
-                            continue
-
-                        if "text" not in component:
-                            continue
-
-                        if component["type"] in ["HEADER", "FOOTER"] and _calculate_variable_count(component["text"]):
-                            all_supported = False
-
-                        content_parts.append(component["text"])
-
-                    if not content_parts or not all_supported:
-                        continue
-
-                    content = "\n\n".join(content_parts)
-                    variable_count = _calculate_variable_count(content)
-
-                    language, country = LANGUAGE_MAPPING.get(template["language"], (None, None))
-
-                    # its a (non fatal) error if we see a language we don't know
-                    if language is None:
-                        status = TemplateTranslation.STATUS_UNSUPPORTED_LANGUAGE
-                        language = template["language"]
-
-                    translation = TemplateTranslation.get_or_create(
-                        channel=channel,
-                        name=template["name"],
-                        language=language,
-                        country=country,
-                        content=content,
-                        variable_count=variable_count,
-                        status=status,
-                        external_id=template["id"],
+                    HTTPLog.create_from_response(
+                        HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, response, channel=channel, request_time=elapsed
                     )
 
-                    seen.append(translation)
+                    if response.status_code != 200:  # pragma: no cover
+                        continue
 
-                # trim any translations we didn't see
-                TemplateTranslation.trim(channel, seen)
+                    # run through all our templates making sure they are present in our DB
+                    seen = []
+                    for template in response.json()["data"]:
+                        # if this is a status we don't know about
+                        if template["status"] not in STATUS_MAPPING:
+                            continue
+
+                        status = STATUS_MAPPING[template["status"]]
+
+                        content_parts = []
+
+                        all_supported = True
+                        for component in template["components"]:
+                            if component["type"] not in ["HEADER", "BODY", "FOOTER"]:
+                                continue
+
+                            if "text" not in component:
+                                continue
+
+                            if component["type"] in ["HEADER", "FOOTER"] and _calculate_variable_count(
+                                component["text"]
+                            ):
+                                all_supported = False
+
+                            content_parts.append(component["text"])
+
+                        if not content_parts or not all_supported:
+                            continue
+
+                        content = "\n\n".join(content_parts)
+                        variable_count = _calculate_variable_count(content)
+
+                        language, country = LANGUAGE_MAPPING.get(template["language"], (None, None))
+
+                        # its a (non fatal) error if we see a language we don't know
+                        if language is None:
+                            status = TemplateTranslation.STATUS_UNSUPPORTED_LANGUAGE
+                            language = template["language"]
+
+                        translation = TemplateTranslation.get_or_create(
+                            channel=channel,
+                            name=template["name"],
+                            language=language,
+                            country=country,
+                            content=content,
+                            variable_count=variable_count,
+                            status=status,
+                            external_id=template["id"],
+                        )
+
+                        seen.append(translation)
+
+                    # trim any translations we didn't see
+                    TemplateTranslation.trim(channel, seen)
+
+                    url = response.json().get("paging", {}).get("next", None)
 
             except RequestException as e:
                 HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)

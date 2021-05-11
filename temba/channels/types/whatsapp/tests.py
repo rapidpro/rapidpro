@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from requests import RequestException
 
@@ -321,17 +321,37 @@ class WhatsAppTypeTest(TembaTest):
             ],
             "paging": {
               "cursors": {
-              "before": "MAZDZD",
-              "after": "MjQZD"
-            }
+                "before": "MAZDZD",
+                "after": "MjQZD"
+              },
+              "next": "https://graph.facebook.com/v3.3/1234/message_templates?cursor=MjQZD",
+              "previous": null
             }
             }""",
-                )
+                ),
+                MockResponse(
+                    200,
+                    """
+            {
+              "data": [],
+              "paging": {
+                "next": null
+            }
+                """,
+                ),
             ]
             refresh_whatsapp_templates()
-            mock_get.assert_called_with(
-                "https://graph.facebook.com/v3.3/1234/message_templates",
-                params={"access_token": "token123", "limit": 255},
+            mock_get.assert_has_calls(
+                [
+                    call(
+                        "https://graph.facebook.com/v3.3/1234/message_templates",
+                        params={"access_token": "token123", "limit": 255},
+                    ),
+                    call(
+                        "https://graph.facebook.com/v3.3/1234/message_templates?cursor=MjQZD",
+                        params={"access_token": "token123", "limit": 255},
+                    ),
+                ]
             )
 
             # should have 4 templates
