@@ -95,6 +95,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         context = super().get_context_data(**kwargs)
         context["claim_url"] = reverse("channels.types.facebookapp.claim")
         context["facebook_app_id"] = settings.FACEBOOK_APPLICATION_ID
+        context["fba_pages_limit"] = settings.FACEBOOK_PAGES_LIMIT
         return context
 
     def form_valid(self, form):
