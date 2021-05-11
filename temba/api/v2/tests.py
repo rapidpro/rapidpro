@@ -4183,10 +4183,26 @@ class APITest(TembaTest):
 
         # create some templates
         TemplateTranslation.get_or_create(
-            self.channel, "hello", "eng", "US", "Hi {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
+            self.channel,
+            "hello",
+            "eng",
+            "US",
+            "Hi {{1}}",
+            1,
+            TemplateTranslation.STATUS_APPROVED,
+            "1234",
+            "foo_namespace",
         )
         TemplateTranslation.get_or_create(
-            self.channel, "hello", "fra", "FR", "Bonjour {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
+            self.channel,
+            "hello",
+            "fra",
+            "FR",
+            "Bonjour {{1}}",
+            1,
+            TemplateTranslation.STATUS_PENDING,
+            "5678",
+            "foo_namespace",
         )
         tt = TemplateTranslation.get_or_create(
             self.channel,
@@ -4197,16 +4213,33 @@ class APITest(TembaTest):
             1,
             TemplateTranslation.STATUS_APPROVED,
             "9012",
+            "foo_namespace",
         )
         tt.is_active = False
         tt.save()
 
         # templates on other org to test filtering
         TemplateTranslation.get_or_create(
-            self.org2channel, "goodbye", "eng", "US", "Goodbye {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
+            self.org2channel,
+            "goodbye",
+            "eng",
+            "US",
+            "Goodbye {{1}}",
+            1,
+            TemplateTranslation.STATUS_APPROVED,
+            "1234",
+            "bar_namespace",
         )
         TemplateTranslation.get_or_create(
-            self.org2channel, "goodbye", "fra", "FR", "Salut {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
+            self.org2channel,
+            "goodbye",
+            "fra",
+            "FR",
+            "Salut {{1}}",
+            1,
+            TemplateTranslation.STATUS_PENDING,
+            "5678",
+            "bar_namespace",
         )
 
         # no filtering
@@ -4226,6 +4259,7 @@ class APITest(TembaTest):
                         {
                             "language": "eng",
                             "content": "Hi {{1}}",
+                            "namespace": "foo_namespace",
                             "variable_count": 1,
                             "status": "approved",
                             "channel": {"name": self.channel.name, "uuid": self.channel.uuid},
@@ -4233,6 +4267,7 @@ class APITest(TembaTest):
                         {
                             "language": "fra",
                             "content": "Bonjour {{1}}",
+                            "namespace": "foo_namespace",
                             "variable_count": 1,
                             "status": "pending",
                             "channel": {"name": self.channel.name, "uuid": self.channel.uuid},

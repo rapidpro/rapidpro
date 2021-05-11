@@ -611,6 +611,7 @@ class Command(BaseCommand):
                     tt["variable_count"],
                     tt["status"],
                     tt["external_id"],
+                    tt["namespace"],
                 )
 
         self._log(self.style.SUCCESS("OK") + "\n")

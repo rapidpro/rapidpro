@@ -343,6 +343,7 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual("eng", ct.language)
             self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
             self.assertEqual("goodbye (eng []) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
+            self.assertEqual("my-custom-app", ct.namespace)
 
             ct = TemplateTranslation.objects.get(template__name="workout_activity", is_active=True)
             self.assertEqual(3, ct.variable_count)
@@ -352,11 +353,13 @@ class WhatsAppTypeTest(TembaTest):
             )
             self.assertEqual("eng", ct.language)
             self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
+            self.assertEqual("my-custom-app", ct.namespace)
 
             # assert that a template translation was created despite it being in an unknown language
             ct = TemplateTranslation.objects.get(template__name="invalid_language", is_active=True)
             self.assertEqual("kli", ct.language)
             self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_LANGUAGE, ct.status)
+            self.assertEqual("my-custom-app", ct.namespace)
 
         # clear our FB ids, should cause refresh to be noop (but not fail)
         del channel.config[CONFIG_FB_BUSINESS_ID]
