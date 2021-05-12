@@ -104,7 +104,7 @@ def refresh_whatsapp_templates():
 
     with r.lock("refresh_whatsapp_templates", 1800):
         # for every whatsapp channel
-        for channel in Channel.objects.filter(is_active=True, channel_type="WA"):
+        for channel in Channel.objects.filter(is_active=True, channel_type__in=["WA", "D3"]):
 
             channel_namespace = channel.config.get("fb_namespace", "")
 
@@ -152,6 +152,7 @@ def refresh_whatsapp_templates():
                         status = TemplateTranslation.STATUS_UNSUPPORTED_LANGUAGE
                         language = template["language"]
 
+                    missing_external_id = f"{template['language']}/{template['name']}"
                     translation = TemplateTranslation.get_or_create(
                         channel=channel,
                         name=template["name"],
@@ -160,7 +161,7 @@ def refresh_whatsapp_templates():
                         content=content,
                         variable_count=variable_count,
                         status=status,
-                        external_id=template["id"],
+                        external_id=template.get("id", missing_external_id),
                         namespace=template.get("namespace", channel_namespace),
                     )
 
