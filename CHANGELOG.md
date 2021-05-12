@@ -1,3 +1,8 @@
+v6.3.46
+----------
+ * Fix channel log icons and disallow message resending for suspended orgs
+ * Add migration to populate Flow.has_issues
+
 v6.3.45
 ----------
  * Add migration to populate template namespace
