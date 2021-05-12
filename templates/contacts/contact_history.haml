@@ -179,10 +179,9 @@
           {% format_datetime event.created_on|parse_isodate %}
 
     %td.text-center{style:"padding-left:0px"}
-      .log-icon.ml-2.text-dark-alpha-200
-        -if event.logs_url
-          .hover-linked(onclick="goto(event)" href="{{ event.logs_url }}")
-            .icon-docs-2.pointer-events-none
+      -if event.logs_url
+        .text-gray-400.hover-linked(onclick="goto(event)" href="{{ event.logs_url }}")
+          .icon-docs-2.pointer-events-none
 
 -if has_older and not recent_only
   %tr{ ic-append-from:"/contact/history/{{contact.uuid}}/?after={{ next_after }}&before={{ next_before }}",

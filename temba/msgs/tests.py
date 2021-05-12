@@ -644,6 +644,13 @@ class MsgTest(TembaTest):
             mr_mocks.queued_batch_tasks,
         )
 
+        # suspended orgs don't see resend as option
+        self.org.is_suspended = True
+        self.org.save(update_fields=("is_suspended",))
+
+        response = self.client.get(failed_url)
+        self.assertNotIn("resend", response.context["actions"])
+
     @patch("temba.utils.email.send_temba_email")
     def test_message_export_from_archives(self, mock_send_temba_email):
         self.clear_storage()
