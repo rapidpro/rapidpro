@@ -1,6 +1,5 @@
-{% extends "smartmin/list.html" %}
--load smartmin sms temba compress contacts
--load i18n humanize
+-extends "smartmin/list.html"
+-load smartmin sms temba compress contacts i18n humanize
 
 -block extra-style
   {{block.super}}
@@ -181,7 +180,7 @@
                           %td.checkbox.sms.object-row-check
                             %temba-checkbox{onclick:"handleRowSelection(this)"}
                       %td.whitespace-no-wrap
-                          {{ object.contact|short_name:user_org }}
+                        {{ object.contact|short_name:user_org }}
                       %td.w-full
                         .flex.flex-wrap.flex-end.items-center.justify-end
                           .flex-grow.inline
@@ -203,7 +202,7 @@
                             {% short_datetime object.created_on %}
 
                           -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon
-                            .log-icon.ml-3.text-gray-400.linked
+                            .inline-block.text-gray-400.linked.ml-3
                               {% channel_log_link object %}
 
                   -if not object_list
