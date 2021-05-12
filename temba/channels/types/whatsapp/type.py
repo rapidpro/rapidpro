@@ -99,7 +99,7 @@ class WhatsAppType(ChannelType):
             url = TEMPLATE_LIST_URL % (facebook_template_domain, facebook_business_id)
             # we should never need to paginate because facebook limits accounts to 255 templates
             response = requests.get(url, params=dict(access_token=channel.config[CONFIG_FB_ACCESS_TOKEN], limit=255))
-            elapsed = (timezone.now() - start).total_seconds() * 100
+            elapsed = (timezone.now() - start).total_seconds() * 1000
             HTTPLog.create_from_response(
                 HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, response, channel=channel, request_time=elapsed
             )
