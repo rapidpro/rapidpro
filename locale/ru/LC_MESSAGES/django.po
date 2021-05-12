@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-05 07:32+0000\n"
+"POT-Creation-Date: 2021-05-12 17:58+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -768,6 +768,9 @@ msgstr "URL Доставленных"
 
 msgid "This endpoint should be called by Dart Media when a message has been to the final recipient. (delivery reports) You can set the delivery callback URL on your Dart Media account by contacting your sales agent."
 msgstr ""
+
+msgid "Message Templates"
+msgstr "Шаблоны сообщения"
 
 #, python-format
 msgid "Activate your own enterprise WhatsApp account in %(link)s to communicate with your contacts. "
@@ -1781,9 +1784,6 @@ msgstr "ID приложения WeChat "
 msgid "The WeChat App secret"
 msgstr "Секрет приложения WeChat "
 
-msgid "Message Templates"
-msgstr "Шаблоны сообщения"
-
 msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
 msgstr "Если у Вас есть корпоративная учетная запись WhatsApp, Вы можете подключить ее для общения с Вашими контактами"
 
@@ -2488,35 +2488,14 @@ msgstr ""
 msgid "The name for this flow"
 msgstr "Название данного потока"
 
-msgid "Labels"
-msgstr "Метки"
-
-msgid "Any labels on this flow"
-msgstr "Любые метки по данному потоку"
-
-msgid "Whether this flow is archived"
-msgstr "Архивируется ли данный поток"
-
-msgid "Whether this is a system created flow"
-msgstr "Является ли этот поток созданным системой"
-
 msgid "Minutes of inactivity that will cause expiration from flow"
 msgstr "Количество минут бездействия, которое приведет к выходу из потока"
 
 msgid "Ignore keyword triggers while in this flow"
 msgstr "Игнорировать триггеры ключевых слов при нахождении в этом потоке"
 
-msgid "When this item was saved"
-msgstr "Когда этот элемент был сохранен"
-
-msgid "The user which last saved this flow"
-msgstr "Пользователь, который последним сохранял этот поток"
-
 msgid "The authoring language, additional languages can be added later"
 msgstr ""
-
-msgid "The flow version this definition is in"
-msgstr "Версия потока, в которой находится это определение"
 
 msgid "Archive delete"
 msgstr "Удалить архив"
@@ -2526,6 +2505,9 @@ msgstr "Удалить пользователя"
 
 msgid "The JSON flow definition"
 msgstr "Определение потока JSON"
+
+msgid "The flow version this definition is in"
+msgstr "Версия потока, в которой находится это определение"
 
 msgid "Revision number for this definition"
 msgstr "Номер редакции для данного определения"
@@ -5989,6 +5971,9 @@ msgstr "Создать Метку"
 msgid "Create Flow"
 msgstr "Создать Поток"
 
+msgid "Labels"
+msgstr "Метки"
+
 msgid "Webhook Call Log"
 msgstr ""
 
@@ -7684,6 +7669,21 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#~ msgid "Any labels on this flow"
+#~ msgstr "Любые метки по данному потоку"
+
+#~ msgid "Whether this flow is archived"
+#~ msgstr "Архивируется ли данный поток"
+
+#~ msgid "Whether this is a system created flow"
+#~ msgstr "Является ли этот поток созданным системой"
+
+#~ msgid "When this item was saved"
+#~ msgstr "Когда этот элемент был сохранен"
+
+#~ msgid "The user which last saved this flow"
+#~ msgstr "Пользователь, который последним сохранял этот поток"
 
 #~ msgid "The area code you want to search for a new number in"
 #~ msgstr "Код области, в которой Вы хотите найти новый номер"

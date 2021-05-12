@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-05 07:32+0000\n"
+"POT-Creation-Date: 2021-05-12 17:58+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -746,6 +746,9 @@ msgid "Delivered URL"
 msgstr ""
 
 msgid "This endpoint should be called by Dart Media when a message has been to the final recipient. (delivery reports) You can set the delivery callback URL on your Dart Media account by contacting your sales agent."
+msgstr ""
+
+msgid "Message Templates"
 msgstr ""
 
 #, python-format
@@ -1752,9 +1755,6 @@ msgstr ""
 msgid "The WeChat App secret"
 msgstr ""
 
-msgid "Message Templates"
-msgstr ""
-
 msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
 msgstr ""
 
@@ -2447,34 +2447,13 @@ msgstr ""
 msgid "The name for this flow"
 msgstr ""
 
-msgid "Labels"
-msgstr ""
-
-msgid "Any labels on this flow"
-msgstr ""
-
-msgid "Whether this flow is archived"
-msgstr ""
-
-msgid "Whether this is a system created flow"
-msgstr ""
-
 msgid "Minutes of inactivity that will cause expiration from flow"
 msgstr ""
 
 msgid "Ignore keyword triggers while in this flow"
 msgstr ""
 
-msgid "When this item was saved"
-msgstr ""
-
-msgid "The user which last saved this flow"
-msgstr ""
-
 msgid "The authoring language, additional languages can be added later"
-msgstr ""
-
-msgid "The flow version this definition is in"
 msgstr ""
 
 msgid "Archive delete"
@@ -2484,6 +2463,9 @@ msgid "User delete"
 msgstr ""
 
 msgid "The JSON flow definition"
+msgstr ""
+
+msgid "The flow version this definition is in"
 msgstr ""
 
 msgid "Revision number for this definition"
@@ -5795,6 +5777,9 @@ msgid "Create Label"
 msgstr ""
 
 msgid "Create Flow"
+msgstr ""
+
+msgid "Labels"
 msgstr ""
 
 msgid "Webhook Call Log"

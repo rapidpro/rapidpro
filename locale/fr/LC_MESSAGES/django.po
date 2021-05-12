@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-05 07:32+0000\n"
+"POT-Creation-Date: 2021-05-12 17:58+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -752,6 +752,9 @@ msgstr "URL livré"
 
 msgid "This endpoint should be called by Dart Media when a message has been to the final recipient. (delivery reports) You can set the delivery callback URL on your Dart Media account by contacting your sales agent."
 msgstr "Ce point de terminaison doit être appelé par Dart Media lorsqu'un message a été envoyé au destinataire final. (rapports de livraison) Vous pouvez définir l'URL de rappel de livraison sur votre compte Dart Media en contactant votre agent commercial."
+
+msgid "Message Templates"
+msgstr "Modèles de message"
 
 #, python-format
 msgid "Activate your own enterprise WhatsApp account in %(link)s to communicate with your contacts. "
@@ -1767,9 +1770,6 @@ msgstr "L'ID de l'application WeChat"
 msgid "The WeChat App secret"
 msgstr "Le secret de l'application WeChat"
 
-msgid "Message Templates"
-msgstr "Modèles de message"
-
 msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
 msgstr "Si vous avez un compte d'entreprise WhatsApp, vous pouvez le connecter pour communiquer avec vos contacts."
 
@@ -2477,35 +2477,14 @@ msgstr ""
 msgid "The name for this flow"
 msgstr "Le nom de ce flux"
 
-msgid "Labels"
-msgstr "Etiquettes"
-
-msgid "Any labels on this flow"
-msgstr "Tout label sur ce flux"
-
-msgid "Whether this flow is archived"
-msgstr "Que ce flux est archivée"
-
-msgid "Whether this is a system created flow"
-msgstr "S'il s'agit d'un flux créé par le système"
-
 msgid "Minutes of inactivity that will cause expiration from flow"
 msgstr "Minutes d'inactivité qui vont entraîner l'expiration de flux"
 
 msgid "Ignore keyword triggers while in this flow"
 msgstr "Ignorer les déclencheurs de mots clés dans ce flux"
 
-msgid "When this item was saved"
-msgstr "Lorsque cet article a été sauvegardé"
-
-msgid "The user which last saved this flow"
-msgstr "L'utilisateur qui a sauvegardé ce flux"
-
 msgid "The authoring language, additional languages can be added later"
 msgstr "La langue de création, des langues supplémentaires peuvent être ajoutées ultérieurement"
-
-msgid "The flow version this definition is in"
-msgstr "La version de flux dans laquelle cette définition se trouve"
 
 msgid "Archive delete"
 msgstr "Supprimer l'archive"
@@ -2515,6 +2494,9 @@ msgstr "Supprimer l'utilisateur"
 
 msgid "The JSON flow definition"
 msgstr "La définition du flux JSON"
+
+msgid "The flow version this definition is in"
+msgstr "La version de flux dans laquelle cette définition se trouve"
 
 msgid "Revision number for this definition"
 msgstr "Numéro de révision pour cette définition"
@@ -5957,6 +5939,9 @@ msgstr "Créer un libellé"
 msgid "Create Flow"
 msgstr "créer un flux"
 
+msgid "Labels"
+msgstr "Etiquettes"
+
 msgid "Webhook Call Log"
 msgstr "Journal des appels Webhook"
 
@@ -7819,6 +7804,21 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#~ msgid "Any labels on this flow"
+#~ msgstr "Tout label sur ce flux"
+
+#~ msgid "Whether this flow is archived"
+#~ msgstr "Que ce flux est archivée"
+
+#~ msgid "Whether this is a system created flow"
+#~ msgstr "S'il s'agit d'un flux créé par le système"
+
+#~ msgid "When this item was saved"
+#~ msgstr "Lorsque cet article a été sauvegardé"
+
+#~ msgid "The user which last saved this flow"
+#~ msgstr "L'utilisateur qui a sauvegardé ce flux"
 
 #~ msgid "The area code you want to search for a new number in"
 #~ msgstr "Le code de zone que vous souhaitez rechercher pour un nouveau numéro dans"
