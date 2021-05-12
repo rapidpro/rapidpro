@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-12 17:58+0000\n"
+"POT-Creation-Date: 2021-05-12 18:32+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -5947,6 +5947,9 @@ msgstr "Journal des appels Webhook"
 
 msgid "New Label"
 msgstr "Nouvelle étiquette"
+
+msgid "Has issues"
+msgstr ""
 
 msgid "No matching flows."
 msgstr "Aucun flux correspondant"
