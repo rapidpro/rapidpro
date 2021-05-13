@@ -128,15 +128,12 @@ class Flow(TembaModel):
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
 
-    labels = models.ManyToManyField(
-        "FlowLabel", related_name="flows", verbose_name=_("Labels"), blank=True, help_text=_("Any labels on this flow")
-    )
+    labels = models.ManyToManyField("FlowLabel", related_name="flows")
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flows")
 
-    is_archived = models.BooleanField(default=False, help_text=_("Whether this flow is archived"))
-
-    is_system = models.BooleanField(default=False, help_text=_("Whether this is a system created flow"))
+    is_archived = models.BooleanField(default=False)
+    is_system = models.BooleanField(default=False)  # e.g. a campaign message event, not user created
 
     flow_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_MESSAGE)
 
@@ -149,11 +146,8 @@ class Flow(TembaModel):
 
     ignore_triggers = models.BooleanField(default=False, help_text=_("Ignore keyword triggers while in this flow"))
 
-    saved_on = models.DateTimeField(auto_now_add=True, help_text=_("When this item was saved"))
-
-    saved_by = models.ForeignKey(
-        User, on_delete=models.PROTECT, related_name="flow_saves", help_text=_("The user which last saved this flow")
-    )
+    saved_on = models.DateTimeField(auto_now_add=True)
+    saved_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="flow_saves")
 
     base_language = models.CharField(
         max_length=4,
@@ -163,28 +157,19 @@ class Flow(TembaModel):
         default="base",
     )
 
-    version_number = models.CharField(
-        default=FINAL_LEGACY_VERSION, max_length=8, help_text=_("The flow version this definition is in")
-    )
+    version_number = models.CharField(default=FINAL_LEGACY_VERSION, max_length=8)
 
-    has_issues = models.BooleanField(null=True, default=False)
+    has_issues = models.BooleanField(default=False)
 
+    # dependencies on other assets
     channel_dependencies = models.ManyToManyField(Channel, related_name="dependent_flows")
-
     classifier_dependencies = models.ManyToManyField(Classifier, related_name="dependent_flows")
-
     field_dependencies = models.ManyToManyField(ContactField, related_name="dependent_flows")
-
     flow_dependencies = models.ManyToManyField("Flow", related_name="dependent_flows")
-
     global_dependencies = models.ManyToManyField(Global, related_name="dependent_flows")
-
     group_dependencies = models.ManyToManyField(ContactGroup, related_name="dependent_flows")
-
     label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
-
     template_dependencies = models.ManyToManyField(Template, related_name="dependent_flows")
-
     ticketer_dependencies = models.ManyToManyField(Ticketer, related_name="dependent_flows")
 
     @classmethod
