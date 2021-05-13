@@ -1423,6 +1423,9 @@ class FlowCRUDL(SmartCRUDL):
             if flow.org.get_resthooks():
                 feature_filters.append("resthook")
 
+            if flow.org.is_ivr_machine_detection_enabled():
+                feature_filters.append("machine_detection")
+
             if flow.flow_type != Flow.TYPE_MESSAGE:
                 feature_filters.append("spell_checker")
 
