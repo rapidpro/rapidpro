@@ -1,3 +1,9 @@
+v6.3.47
+----------
+ * Display warning icon in flow list for flows with issues
+ * Make Flow.has_issues non-null and cleanup unused localized strings on Flow model
+ * Support syncing Dialog360 Whatsapp templates
+
 v6.3.46
 ----------
  * Fix channel log icons and disallow message resending for suspended orgs
