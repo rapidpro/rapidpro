@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from django.utils import timezone
@@ -102,3 +103,14 @@ def suspend_topup_orgs_task():
                 org.is_suspended = True
                 org.plan_end = timezone.now()
                 org.save(update_fields=["is_suspended", "plan_end"])
+
+
+@nonoverlapping_task(track_started=True, name="delete_orgs_task", lock_key="delete_orgs_task", lock_timeout=7200)
+def delete_orgs_task():
+    # for each org that was released over 7 days ago, delete it for real
+    week_ago = timezone.now() - timedelta(days=7)
+    for org in Org.objects.filter(is_active=False, released_on__lt=week_ago, deleted_on=None):
+        try:
+            org.delete()
+        except Exception:  # pragma: no cover
+            logging.exception(f"exception while deleting {org.name}")

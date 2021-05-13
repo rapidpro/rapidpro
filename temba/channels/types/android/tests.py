@@ -2,7 +2,7 @@ import json
 
 from django.urls import reverse
 
-from temba.contacts.models import URN, ContactURN
+from temba.contacts.models import URN
 from temba.orgs.models import Org
 from temba.tests import TembaTest
 from temba.utils import get_anonymous_user
@@ -299,20 +299,6 @@ class AndroidTypeTest(TembaTest):
         # get our send channel without a URN, should just default to last
         default_channel = self.org.get_send_channel(URN.TEL_SCHEME)
         self.assertEqual(default_channel, channel)
-
-        # get our send channel for a Rwandan URN
-        rwanda_channel = self.org.get_send_channel(
-            URN.TEL_SCHEME, ContactURN.create(self.org, None, "tel:+250788383383")
-        )
-        self.assertEqual(rwanda_channel, android2)
-
-        # and a US one
-        us_channel = self.org.get_send_channel(URN.TEL_SCHEME, ContactURN.create(self.org, None, "tel:+12065555353"))
-        self.assertEqual(us_channel, channel)
-
-        # a different country altogether should just give us the default
-        us_channel = self.org.get_send_channel(URN.TEL_SCHEME, ContactURN.create(self.org, None, "tel:+593997290044"))
-        self.assertEqual(us_channel, channel)
 
         self.org = Org.objects.get(id=self.org.id)
         self.assertEqual("", self.org.default_country_code)

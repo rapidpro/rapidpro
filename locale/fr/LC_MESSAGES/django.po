@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-08 21:00+0000\n"
+"POT-Creation-Date: 2021-05-12 18:32+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -752,6 +752,9 @@ msgstr "URL livré"
 
 msgid "This endpoint should be called by Dart Media when a message has been to the final recipient. (delivery reports) You can set the delivery callback URL on your Dart Media account by contacting your sales agent."
 msgstr "Ce point de terminaison doit être appelé par Dart Media lorsqu'un message a été envoyé au destinataire final. (rapports de livraison) Vous pouvez définir l'URL de rappel de livraison sur votre compte Dart Media en contactant votre agent commercial."
+
+msgid "Message Templates"
+msgstr "Modèles de message"
 
 #, python-format
 msgid "Activate your own enterprise WhatsApp account in %(link)s to communicate with your contacts. "
@@ -1543,6 +1546,12 @@ msgstr "Numéro de téléphone non valide, veuillez inclure le code du pays. ex:
 msgid "Short code not found on your Twilio Account. Please check you own the short code and Try again"
 msgstr "Code court introuvable sur votre compte Twilio. Veuillez vérifier que vous possédez le code court et réessayer"
 
+msgid "Sorry, no numbers found, please enter another area code and try again."
+msgstr "Désolés, aucun numéro, s'il vous plaît entrer un autre code de zone et essayez à nouveau."
+
+msgid "Sorry, no numbers found, please enter another pattern and try again."
+msgstr "Désolé, aucun numéro trouvé, veuillez entrer un autre motif et réessayer."
+
 #, python-format
 msgid "You can connect a messaging service from your Twilio account to benefit from %(link)s features."
 msgstr "Vous pouvez connecter un service de messagerie depuis votre compte Twilio pour bénéficier des fonctionnalités de %(link)s "
@@ -1761,9 +1770,6 @@ msgstr "L'ID de l'application WeChat"
 msgid "The WeChat App secret"
 msgstr "Le secret de l'application WeChat"
 
-msgid "Message Templates"
-msgstr "Modèles de message"
-
 msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
 msgstr "Si vous avez un compte d'entreprise WhatsApp, vous pouvez le connecter pour communiquer avec vos contacts."
 
@@ -1774,12 +1780,6 @@ msgstr "Impossible d’enregistrer des rappels: %s"
 #, python-format
 msgid "Unable to configure channel: %s"
 msgstr "Impossible de configurer le canal: %s"
-
-msgid "Contacts refresh begun, it may take a few minutes to complete."
-msgstr "L’actualisation des contacts est en cours, cela peut prendre quelques minutes."
-
-msgid "Sync Logs"
-msgstr "Journaux de synchronisation"
 
 msgid "The base URL for your WhatsApp enterprise installation"
 msgstr "L'URL de base de votre installation d'entreprise WhatsApp"
@@ -1876,15 +1876,6 @@ msgstr "Signal API"
 
 msgid "The API token for your integration as provided by Zenvia"
 msgstr ""
-
-msgid "United Kingdom"
-msgstr "Royaume-Uni"
-
-msgid "Scension Island"
-msgstr "Île de l'Ascension"
-
-msgid "Kosovo"
-msgstr "Kosovo"
 
 msgid "POST Required"
 msgstr "POST requis"
@@ -1986,9 +1977,6 @@ msgstr "Nous avons rencontré une erreur de retrait de votre channel, s'il vous 
 msgid "Save Changes"
 msgstr "Enregistrer les modifications"
 
-msgid "or"
-msgstr "ou"
-
 #, fuzzy
 #| msgid "A connection to a Nexmo account is required"
 msgid "A connection to a Vonage account is required"
@@ -2008,15 +1996,6 @@ msgstr "Canaux"
 
 msgid "Unknown"
 msgstr "inconnu"
-
-msgid "The area code you want to search for a new number in"
-msgstr "Le code de zone que vous souhaitez rechercher pour un nouveau numéro dans"
-
-msgid "Sorry, no numbers found, please enter another area code and try again."
-msgstr "Désolés, aucun numéro, s'il vous plaît entrer un autre code de zone et essayez à nouveau."
-
-msgid "Sorry, no numbers found, please enter another pattern and try again."
-msgstr "Désolé, aucun numéro trouvé, veuillez entrer un autre motif et réessayer."
 
 msgid "Calls"
 msgstr "Appels"
@@ -2323,8 +2302,9 @@ msgstr "Groupes"
 msgid "Select groups for this contact"
 msgstr "Sélectionnez des groupes pour ce contact"
 
-#, python-format
-msgid "%s (Missing)"
+#, fuzzy, python-brace-format
+#| msgid "%s (Missing)"
+msgid "{lang_name} (Missing)"
 msgstr "%s (Manquant)"
 
 msgid "The groups which this contact belongs to"
@@ -2497,35 +2477,14 @@ msgstr ""
 msgid "The name for this flow"
 msgstr "Le nom de ce flux"
 
-msgid "Labels"
-msgstr "Etiquettes"
-
-msgid "Any labels on this flow"
-msgstr "Tout label sur ce flux"
-
-msgid "Whether this flow is archived"
-msgstr "Que ce flux est archivée"
-
-msgid "Whether this is a system created flow"
-msgstr "S'il s'agit d'un flux créé par le système"
-
 msgid "Minutes of inactivity that will cause expiration from flow"
 msgstr "Minutes d'inactivité qui vont entraîner l'expiration de flux"
 
 msgid "Ignore keyword triggers while in this flow"
 msgstr "Ignorer les déclencheurs de mots clés dans ce flux"
 
-msgid "When this item was saved"
-msgstr "Lorsque cet article a été sauvegardé"
-
-msgid "The user which last saved this flow"
-msgstr "L'utilisateur qui a sauvegardé ce flux"
-
 msgid "The authoring language, additional languages can be added later"
 msgstr "La langue de création, des langues supplémentaires peuvent être ajoutées ultérieurement"
-
-msgid "The flow version this definition is in"
-msgstr "La version de flux dans laquelle cette définition se trouve"
 
 msgid "Archive delete"
 msgstr "Supprimer l'archive"
@@ -2535,6 +2494,9 @@ msgstr "Supprimer l'utilisateur"
 
 msgid "The JSON flow definition"
 msgstr "La définition du flux JSON"
+
+msgid "The flow version this definition is in"
+msgstr "La version de flux dans laquelle cette définition se trouve"
 
 msgid "Revision number for this definition"
 msgstr "Numéro de révision pour cette définition"
@@ -3088,6 +3050,26 @@ msgstr "Mettre à jour le dossier"
 msgid "Update Label"
 msgstr "Mise à jour du libellé"
 
+msgid "Agent Name"
+msgstr "Nom d'agent"
+
+#, fuzzy
+#| msgid "Your last name"
+msgid "Your Chatbase agent's name."
+msgstr "Votre nom"
+
+msgid "The chatbase agent's API Key."
+msgstr ""
+
+msgid "Version"
+msgstr "Version"
+
+msgid "Missing agent name or API key."
+msgstr ""
+
+msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
+msgstr "Votre clé API et votre secret DT One semblent invalides. Veuillez les vérifier à nouveau et réessayer."
+
 msgid "Administrators"
 msgstr "Administrateurs"
 
@@ -3121,8 +3103,13 @@ msgstr "Bande consommateur"
 msgid "Our Stripe customer id for your organization"
 msgstr "Notre bande d'identification pour votre organisation"
 
-msgid "The main language used by this organization"
-msgstr "La langue principale utilisée par cette organisation"
+#, fuzzy
+#| msgid "Base Language"
+msgid "Default Language"
+msgstr "Langue de base"
+
+msgid "The default website language for new users."
+msgstr ""
 
 msgid "Timezone"
 msgstr "Fuseau horaire"
@@ -3191,9 +3178,6 @@ msgstr "Désolé, votre carte a été refusée. Veuillez contacter votre fournis
 
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
 msgstr "Désolé, nous n'avons pas pu traiter votre paiement. Veuillez réessayer ultérieurement ou contactez-nous."
-
-msgid "Org"
-msgstr "Org"
 
 #, python-format
 msgid "%(name)s Invitation"
@@ -3468,14 +3452,20 @@ msgstr "Votre clé API Nexmo"
 msgid "Your Vonage API secret"
 msgstr "Votre API secrète Nexmo"
 
-msgid "Your Plivo AUTH ID"
+#, fuzzy
+#| msgid "Your Plivo AUTH ID"
+msgid "Your Plivo auth ID"
 msgstr "Votre ID Plivo AUTH"
 
-msgid "Your Plivo AUTH TOKEN"
-msgstr "Votre Plivo AUTH TOKEN"
+#, fuzzy
+#| msgid "Your Twilio Account Token"
+msgid "Your Plivo auth token"
+msgstr "Votre compte  Token Twilio "
 
-msgid "Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."
-msgstr "Vos identifiants Plivo AUTH et AUTH TOKEN semblent invalides. Veuillez les vérifier à nouveau et réessayer."
+#, fuzzy
+#| msgid "The Twilio account SID and Token seem invalid. Please check them again and retry."
+msgid "Your Plivo auth ID and auth token seem invalid. Please check them again and retry."
+msgstr "Le compte Twilio SID et Token ne semble pas valide. S'il vous plaît vérifier à nouveau et réessayez."
 
 msgid "Email Address"
 msgstr "Adresse e-mail"
@@ -3622,15 +3612,6 @@ msgstr "sauver"
 msgid "New Event"
 msgstr "Nouvel évènement"
 
-msgid "Agent Name"
-msgstr "Nom d'agent"
-
-msgid "Version"
-msgstr "Version"
-
-msgid "Missing data: Agent Name or API Key.Please check them again and retry."
-msgstr "Données manquantes: nom de l'agent ou clé de l'API. Veuillez les vérifier à nouveau et réessayer."
-
 msgid "Your Account"
 msgstr "Votre compte"
 
@@ -3648,9 +3629,6 @@ msgstr "Aide"
 
 msgid "Sign Out"
 msgstr "Déconnexion"
-
-msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
-msgstr "Votre clé API et votre secret DT One semblent invalides. Veuillez les vérifier à nouveau et réessayer."
 
 msgid "Account Token"
 msgstr "Jeton de compte"
@@ -3689,7 +3667,9 @@ msgstr "Sélectionnez la langue principale des contacts sans préférence de lan
 msgid "Additional Languages"
 msgstr "Langues supplémentaires"
 
-msgid "Additional languages you would like to provid translations for"
+#, fuzzy
+#| msgid "Additional languages you would like to provid translations for"
+msgid "Additional languages you would like to provide translations for"
 msgstr "Langues supplémentaires pour lesquelles vous souhaitez fournir des traductions"
 
 #, python-format
@@ -4087,6 +4067,17 @@ msgstr "Créer un déclencheur de référence"
 msgid "Create Schedule"
 msgstr "Créer un planning"
 
+msgid "United Kingdom"
+msgstr "Royaume-Uni"
+
+#, fuzzy
+#| msgid "Scension Island"
+msgid "Ascension Island"
+msgstr "Île de l'Ascension"
+
+msgid "Kosovo"
+msgstr "Kosovo"
+
 msgid "Processing"
 msgstr "En traitement"
 
@@ -4161,6 +4152,12 @@ msgstr ","
 
 msgid "An error occurred while making your changes. Please try again."
 msgstr "Une erreur s'est produite lors de vos modifications. Veuillez réessayer."
+
+msgid "Contacts refresh begun, it may take a few minutes to complete."
+msgstr "L’actualisation des contacts est en cours, cela peut prendre quelques minutes."
+
+msgid "Sync Logs"
+msgstr "Journaux de synchronisation"
 
 msgid "HTTP Logs"
 msgstr "Journaux HTTP"
@@ -5286,21 +5283,6 @@ msgstr "Votre chaîne WhatsApp est maintenant connectée, vous devriez pouvoir e
 msgid "In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh the contacts on the WhatsApp application. This may take a few minutes."
 msgstr "Dans le cas d'une nouvelle installation de WhatsApp ou du remplacement d'un canal WhatsApp existant, vous devrez peut-être actualiser les contacts sur l'application WhatsApp. Cela peut prendre quelques minutes."
 
-msgid "WhatsApp Templates Events"
-msgstr "Événements des modèles WhatsApp"
-
-msgid "No syncs yet. Check back later."
-msgstr "Pas encore de synchronisation. Revenez plus tard."
-
-msgid "Templates"
-msgstr "Modèles"
-
-msgid "Templates are synced from your WhatsApp account every 15 minutes."
-msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toutes les 15 minutes."
-
-msgid "No synced templates at this time."
-msgstr "Aucun modèle synchronisé pour le moment."
-
 msgid "Connect a Classifier"
 msgstr "Connecter un classificateur"
 
@@ -5456,6 +5438,11 @@ msgstr "Résultat d'exécution <b>%(name)s</b> mis à jour à <b>%(value)s</b> a
 
 #, python-format
 msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgstr "Billet ouvert sur <a href=\"%(ticketer_url)s\">%(ticketer)s</a> avec comme sujet <b>%(subject)s</b>"
+
+#, fuzzy, python-format
+#| msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgid "Closed ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
 msgstr "Billet ouvert sur <a href=\"%(ticketer_url)s\">%(ticketer)s</a> avec comme sujet <b>%(subject)s</b>"
 
 msgid "Successfully called"
@@ -5952,11 +5939,17 @@ msgstr "Créer un libellé"
 msgid "Create Flow"
 msgstr "créer un flux"
 
+msgid "Labels"
+msgstr "Etiquettes"
+
 msgid "Webhook Call Log"
 msgstr "Journal des appels Webhook"
 
 msgid "New Label"
 msgstr "Nouvelle étiquette"
+
+msgid "Has issues"
+msgstr ""
 
 msgid "No matching flows."
 msgstr "Aucun flux correspondant"
@@ -6617,6 +6610,67 @@ msgstr ""
 "Carte de crédit: %(cc_type)s X%(cc_last4)s\n"
 "\n"
 
+#, fuzzy, python-format
+#| msgid "A connection to a Twilio account is required"
+msgid "Connected to your Chatbase account as agent <b>%(agent)s</b>."
+msgstr "Une connexion à un compte Twilio est requise"
+
+msgid "Connect your Chatbase account."
+msgstr ""
+
+msgid "Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences and better understand your users. To signup for an account, visit"
+msgstr "La connexion de votre compte Chatbase vous permettra de surveiller votre bot, de corriger les expériences interrompues et de mieux comprendre vos utilisateurs. Pour vous inscrire à un compte, visitez"
+
+msgid "Your Chatbase account is connected to the Agent"
+msgstr "Votre compte Chatbase est connecté à l'agent."
+
+msgid "If you no longer want it connected, you can"
+msgstr "Si vous ne voulez plus le connecter, vous pouvez"
+
+msgid "disconnect"
+msgstr "déconnecter"
+
+msgid "your Chatbase account. Doing so will interrupt the data sent to your Chatbase console."
+msgstr "votre compte Chatbase. Cela interromprait les données envoyées à votre console Chatbase."
+
+msgid "Disconnect Chatbase"
+msgstr "Déconnecter Chatbase"
+
+msgid "This will disconnect your Chatbase account. Are you sure you want to proceed?"
+msgstr "Cela déconnectera votre compte Chatbase. Êtes-vous sur de vouloir continuer?"
+
+#, fuzzy
+#| msgid "Connected to Chatbase Account"
+msgid "Connected to your DT One account."
+msgstr "Connecté au compte Chatbase"
+
+msgid "Transfer Log"
+msgstr "Journal Transfert"
+
+msgid "Connect your DT One account."
+msgstr ""
+
+#, python-format
+msgid "Adding a DT One account will allow you to send airtime credit over 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your flows. To signup for an account, visit %(link)s."
+msgstr ""
+
+#, python-format
+msgid "You can find your credentials on the Developer tab on your %(link)s page."
+msgstr ""
+
+msgid "Your account is connected to a DT One account."
+msgstr ""
+
+#, python-format
+msgid "If you no longer want it connected, you can <a href=\"%(disconnect_url)s\">disconnect</a> it. Doing so will cause the payment actions in your flows to no longer be processed."
+msgstr ""
+
+msgid "Disconnect DT One"
+msgstr "Déconnectez DT One"
+
+msgid "This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?"
+msgstr "Cela déconnectera votre compte DT One. Les actions de paiement ne seront plus traitées. Êtes-vous sur de vouloir continuer?"
+
 msgid "Confirm Access"
 msgstr ""
 
@@ -6666,33 +6720,6 @@ msgstr ""
 msgid "Your workspace has"
 msgstr ""
 
-msgid "Connected to Chatbase Account"
-msgstr "Connecté au compte Chatbase"
-
-msgid "Connect your Chatbase account."
-msgstr ""
-
-msgid "Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences and better understand your users. To signup for an account, visit"
-msgstr "La connexion de votre compte Chatbase vous permettra de surveiller votre bot, de corriger les expériences interrompues et de mieux comprendre vos utilisateurs. Pour vous inscrire à un compte, visitez"
-
-msgid "Your Chatbase account is connected to the Agent"
-msgstr "Votre compte Chatbase est connecté à l'agent."
-
-msgid "If you no longer want it connected, you can"
-msgstr "Si vous ne voulez plus le connecter, vous pouvez"
-
-msgid "disconnect"
-msgstr "déconnecter"
-
-msgid "your Chatbase account. Doing so will interrupt the data sent to your Chatbase console."
-msgstr "votre compte Chatbase. Cela interromprait les données envoyées à votre console Chatbase."
-
-msgid "Disconnect Chatbase"
-msgstr "Déconnecter Chatbase"
-
-msgid "This will disconnect your Chatbase account. Are you sure you want to proceed?"
-msgstr "Cela déconnectera votre compte Chatbase. Êtes-vous sur de vouloir continuer?"
-
 msgid "Choose Workspace"
 msgstr "Choisissez l'espace de travail"
 
@@ -6729,36 +6756,6 @@ msgstr "Vous êtes sur le point de supprimer"
 
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
 msgstr "Voulez-vous vraiment tout supprimer pour cette organisation? Ça ne peut pas être annulé. Toutes les connexions n'appartenant qu'à cet espace de travail seront également supprimées."
-
-msgid "Connected to your <b>DT One</b> account."
-msgstr ""
-
-msgid "Transfer Log"
-msgstr "Journal Transfert"
-
-msgid "Connect your DT One account."
-msgstr ""
-
-#, python-format
-msgid "Adding a DT One account will allow you to send airtime credit over 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your flows. To signup for an account, visit %(link)s."
-msgstr ""
-
-#, python-format
-msgid "You can find your credentials on the Developer tab on your %(link)s page."
-msgstr ""
-
-msgid "Your account is connected to a DT One account."
-msgstr ""
-
-#, python-format
-msgid "If you no longer want it connected, you can <a href=\"%(disconnect_url)s\">disconnect</a> it. Doing so will cause the payment actions in your flows to no longer be processed."
-msgstr ""
-
-msgid "Disconnect DT One"
-msgstr "Déconnectez DT One"
-
-msgid "This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?"
-msgstr "Cela déconnectera votre compte DT One. Les actions de paiement ne seront plus traitées. Êtes-vous sur de vouloir continuer?"
 
 #, python-format
 msgid "Your workspace is <b>%(org)s</b>"
@@ -7791,6 +7788,61 @@ msgstr "Entrez une requête"
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "${count} trouvé pour ${query}"
+
+#, fuzzy
+#| msgid "WhatsApp Templates Events"
+msgid "Templates Events"
+msgstr "Événements des modèles WhatsApp"
+
+msgid "No syncs yet. Check back later."
+msgstr "Pas encore de synchronisation. Revenez plus tard."
+
+msgid "Templates"
+msgstr "Modèles"
+
+#, fuzzy
+#| msgid "Templates are synced from your WhatsApp account every 15 minutes."
+msgid "WhatsApp Templates are synced from your account every 15 minutes."
+msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toutes les 15 minutes."
+
+msgid "No synced templates at this time."
+msgstr "Aucun modèle synchronisé pour le moment."
+
+#~ msgid "Any labels on this flow"
+#~ msgstr "Tout label sur ce flux"
+
+#~ msgid "Whether this flow is archived"
+#~ msgstr "Que ce flux est archivée"
+
+#~ msgid "Whether this is a system created flow"
+#~ msgstr "S'il s'agit d'un flux créé par le système"
+
+#~ msgid "When this item was saved"
+#~ msgstr "Lorsque cet article a été sauvegardé"
+
+#~ msgid "The user which last saved this flow"
+#~ msgstr "L'utilisateur qui a sauvegardé ce flux"
+
+#~ msgid "The area code you want to search for a new number in"
+#~ msgstr "Le code de zone que vous souhaitez rechercher pour un nouveau numéro dans"
+
+#~ msgid "Your Plivo AUTH TOKEN"
+#~ msgstr "Votre Plivo AUTH TOKEN"
+
+#~ msgid "Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."
+#~ msgstr "Vos identifiants Plivo AUTH et AUTH TOKEN semblent invalides. Veuillez les vérifier à nouveau et réessayer."
+
+#~ msgid "Org"
+#~ msgstr "Org"
+
+#~ msgid "or"
+#~ msgstr "ou"
+
+#~ msgid "The main language used by this organization"
+#~ msgstr "La langue principale utilisée par cette organisation"
+
+#~ msgid "Missing data: Agent Name or API Key.Please check them again and retry."
+#~ msgstr "Données manquantes: nom de l'agent ou clé de l'API. Veuillez les vérifier à nouveau et réessayer."
 
 #~ msgid "Disconnect Nexmo"
 #~ msgstr "Déconnectez Nexmo"

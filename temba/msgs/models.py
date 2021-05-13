@@ -701,41 +701,6 @@ class Msg(models.Model):
 
         mailroom.queue_msg_handling(self)
 
-    def resend(self):
-        """
-        Resends this message by creating a clone and triggering a send of that clone
-        """
-        now = timezone.now()
-        (topup_id, amount) = self.org.decrement_credit()  # costs 1 credit to resend message
-
-        # see if we should use a new channel
-        channel = self.org.get_send_channel(contact_urn=self.contact_urn)
-
-        cloned = Msg.objects.create(
-            org=self.org,
-            channel=channel,
-            contact=self.contact,
-            contact_urn=self.contact_urn,
-            created_on=now,
-            modified_on=now,
-            text=self.text,
-            response_to=self.response_to,
-            direction=self.direction,
-            topup_id=topup_id,
-            status=PENDING,
-            broadcast=self.broadcast,
-            metadata=self.metadata,
-        )
-
-        # mark ourselves as resent
-        self.status = RESENT
-        self.topup = None
-        self.save()
-
-        # send our message
-        self.org.trigger_send([cloned])
-        return cloned
-
     def as_task_json(self):
         """
         Used internally to serialize to JSON when queueing messages in Redis
@@ -883,8 +848,8 @@ class Msg(models.Model):
 
     @classmethod
     def apply_action_resend(cls, user, msgs):
-        for msg in msgs:
-            msg.resend()
+        if msgs:
+            mailroom.queue_resend_msgs(msgs[0].org, msgs)
 
 
 class BroadcastMsgCount(SquashableModel):

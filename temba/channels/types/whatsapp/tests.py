@@ -8,14 +8,10 @@ from django.urls import reverse
 from temba.request_logs.models import HTTPLog
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import MockResponse, TembaTest
+from temba.utils.whatsapp.tasks import refresh_whatsapp_contacts, refresh_whatsapp_templates
 
 from ...models import Channel
-from .tasks import (
-    _calculate_variable_count,
-    refresh_whatsapp_contacts,
-    refresh_whatsapp_templates,
-    refresh_whatsapp_tokens,
-)
+from .tasks import refresh_whatsapp_tokens
 from .type import (
     CONFIG_FB_ACCESS_TOKEN,
     CONFIG_FB_BUSINESS_ID,
@@ -26,11 +22,6 @@ from .type import (
 
 
 class WhatsAppTypeTest(TembaTest):
-    def test_calculate_variable_count(self):
-        self.assertEqual(2, _calculate_variable_count("Hi {{1}} how are you? {{2}}"))
-        self.assertEqual(2, _calculate_variable_count("Hi {{1}} how are you? {{2}} {{1}}"))
-        self.assertEqual(0, _calculate_variable_count("Hi there."))
-
     def test_claim(self):
         Channel.objects.all().delete()
 
@@ -352,6 +343,7 @@ class WhatsAppTypeTest(TembaTest):
             self.assertEqual("eng", ct.language)
             self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
             self.assertEqual("goodbye (eng []) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
+            self.assertEqual("my-custom-app", ct.namespace)
 
             ct = TemplateTranslation.objects.get(template__name="workout_activity", is_active=True)
             self.assertEqual(3, ct.variable_count)
@@ -361,11 +353,13 @@ class WhatsAppTypeTest(TembaTest):
             )
             self.assertEqual("eng", ct.language)
             self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
+            self.assertEqual("my-custom-app", ct.namespace)
 
             # assert that a template translation was created despite it being in an unknown language
             ct = TemplateTranslation.objects.get(template__name="invalid_language", is_active=True)
             self.assertEqual("kli", ct.language)
             self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_LANGUAGE, ct.status)
+            self.assertEqual("my-custom-app", ct.namespace)
 
         # clear our FB ids, should cause refresh to be noop (but not fail)
         del channel.config[CONFIG_FB_BUSINESS_ID]

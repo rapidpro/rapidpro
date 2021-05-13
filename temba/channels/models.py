@@ -28,7 +28,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
 from temba.orgs.models import Org
-from temba.utils import analytics, get_anonymous_user, json, on_transaction_commit, redact
+from temba.utils import analytics, countries, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
 from temba.utils.models import JSONAsTextField, SquashableModel, TembaModel, generate_uuid
@@ -284,8 +284,6 @@ class Channel(TembaModel):
     CONFIG_VONAGE_APP_ID = "nexmo_app_id"
     CONFIG_VONAGE_APP_PRIVATE_KEY = "nexmo_app_private_key"
 
-    CONFIG_SHORTCODE_MATCHING_PREFIXES = "matching_prefixes"
-
     ENCODING_DEFAULT = "D"  # we just pass the text down to the endpoint
     ENCODING_SMART = "S"  # we try simple substitutions to GSM7 then go to unicode if it still isn't GSM7
     ENCODING_UNICODE = "U"  # we send everything as unicode
@@ -474,8 +472,7 @@ class Channel(TembaModel):
             org.normalize_contact_tels()
 
         # track our creation
-        if not user.is_anonymous:
-            analytics.track(user.username, "temba.channel_created", dict(channel_type=channel_type.code))
+        analytics.track(user, "temba.channel_created", dict(channel_type=channel_type.code))
 
         if settings.IS_PROD:
             if channel_type.async_activation:
@@ -883,10 +880,9 @@ class Channel(TembaModel):
         """
         Claims this channel for the given org/user
         """
-        from temba.contacts.models import ContactURN
 
         if not self.country:  # pragma: needs cover
-            self.country = ContactURN.derive_country_from_tel(phone)
+            self.country = countries.from_tel(phone)
 
         self.alert_email = user.email
         self.org = org

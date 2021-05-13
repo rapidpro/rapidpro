@@ -1,6 +1,6 @@
 import time
 
-import nexmo
+import vonage
 
 from django.urls import reverse
 
@@ -10,31 +10,31 @@ class VonageClient:
     Wrapper for the actual Vonage client that adds some functionality and retries
     """
 
-    RATE_LIMIT_PAUSE = 2
+    RATE_LIMIT_BACKOFFS = [1, 3, 6]  # backoff times in seconds when we're rate limited
 
-    def __init__(self, api_key, api_secret):
-        self.base = nexmo.Client(api_key, api_secret)
+    def __init__(self, api_key: str, api_secret: str):
+        self.base = vonage.Client(api_key, api_secret)
 
-    def check_credentials(self):
+    def check_credentials(self) -> bool:
         try:
             self.base.get_balance()
             return True
-        except nexmo.AuthenticationError:
+        except vonage.AuthenticationError:
             return False
 
-    def get_numbers(self, pattern=None, size=10):
+    def get_numbers(self, pattern: str = None, size: int = 10) -> list:
         params = {"size": size}
         if pattern:
             params["pattern"] = str(pattern).strip("+")
 
-        response = self._with_retry("get_account_numbers", params=params)
+        response = self._with_retry(self.base.get_account_numbers, params=params)
 
         return response["numbers"] if int(response.get("count", 0)) else []
 
     def search_numbers(self, country, pattern):
 
         response = self._with_retry(
-            "get_available_numbers",
+            self.base.get_available_numbers,
             country_code=country,
             pattern=pattern,
             search_pattern=1,
@@ -47,7 +47,7 @@ class VonageClient:
             numbers += response["numbers"]
 
         response = self._with_retry(
-            "get_available_numbers",
+            self.base.get_available_numbers,
             country_code=country,
             pattern=pattern,
             search_pattern=1,
@@ -63,7 +63,7 @@ class VonageClient:
     def buy_number(self, country, number):
         params = dict(msisdn=number.lstrip("+"), country=country)
 
-        self._with_retry("buy_number", params=params)
+        self._with_retry(self.base.buy_number, params=params)
 
     def update_number(self, country, number, mo_url, app_id):
         number = number.lstrip("+")
@@ -74,7 +74,7 @@ class VonageClient:
             params["voiceCallbackType"] = "tel"
             params["voiceCallbackValue"] = number
 
-        self._with_retry("update_number", params=params)
+        self._with_retry(self.base.update_number, params=params)
 
     def create_application(self, domain, channel_uuid):
         name = "%s/%s" % (domain, channel_uuid)
@@ -82,7 +82,7 @@ class VonageClient:
         event_url = reverse("mailroom.ivr_handler", args=[channel_uuid, "status"])
 
         response = self._with_retry(
-            "create_application",
+            self.base.create_application,
             params={
                 "name": name,
                 "type": "voice",
@@ -99,24 +99,29 @@ class VonageClient:
 
     def delete_application(self, app_id):
         try:
-            self._with_retry("delete_application", application_id=app_id)
-        except nexmo.ClientError:
+            self._with_retry(self.base.delete_application, application_id=app_id)
+        except vonage.ClientError:
             # possible application no longer exists
             pass
 
-    def _with_retry(self, action, **kwargs):
+    def _with_retry(self, func, **kwargs):
         """
         Utility to perform something using the API, and if it errors with a rate-limit response, try again
         after a small delay.
         """
-        func = getattr(self.base, action)
 
-        try:
-            return func(**kwargs)
-        except nexmo.ClientError as e:
+        def can_retry(e):
             message = str(e)
-            if message.startswith("420") or message.startswith("429"):
-                time.sleep(self.RATE_LIMIT_PAUSE)
+            return message.startswith("420") or message.startswith("429")
+
+        backoffs = self.RATE_LIMIT_BACKOFFS.copy()
+
+        while True:
+            try:
                 return func(**kwargs)
-            else:  # pragma: no cover
-                raise e
+            except vonage.ClientError as ex:
+                if can_retry(ex) and backoffs:
+                    time.sleep(backoffs[0])
+                    backoffs = backoffs[1:]
+                else:
+                    raise ex

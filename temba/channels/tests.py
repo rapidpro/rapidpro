@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from unittest.mock import call, patch
 from urllib.parse import quote
 
-import nexmo
 from django_redis import get_redis_connection
 from smartmin.tests import SmartminTest
 
@@ -865,10 +864,6 @@ class ChannelTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(reverse("channels.channel_claim"))
         self.assertEqual(200, response.status_code)
-        self.assertEqual(
-            response.context["twilio_countries"],
-            "Belgium, Canada, Finland, Norway, Poland, Spain, " "Sweden, United Kingdom or United States",
-        )
 
         # one recommended channel (Mtarget in Rwanda)
         self.assertEqual(len(response.context["recommended_channels"]), 2)
@@ -974,93 +969,6 @@ class ChannelTest(TembaTest):
         reg_data = dict(cmds=[dict(cmd="fcm", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
         with self.assertRaises(ValueError):
             self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
-
-    def test_search_vonage(self):
-        self.login(self.admin)
-        self.org.channels.update(is_active=False)
-        self.channel = Channel.create(
-            self.org, self.user, "RW", "NX", None, "+250788123123", uuid="00000000-0000-0000-0000-000000001234"
-        )
-
-        self.org.connect_vonage("1234", "secret", self.admin)
-
-        search_url = reverse("channels.channel_search_vonage")
-
-        response = self.client.get(search_url)
-        self.assertIn("area_code", response.context["form"].fields)
-        self.assertIn("country", response.context["form"].fields)
-
-        with patch("requests.get") as mock_get:
-            mock_get.side_effect = [
-                MockResponse(
-                    200,
-                    '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
-                    '"type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }',
-                    headers={"Content-Type": "application/json"},
-                ),
-                MockResponse(
-                    200,
-                    '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
-                    '"type":"mobile-lvn","country":"US","msisdn":"13607884550"}] }',
-                    headers={"Content-Type": "application/json"},
-                ),
-            ]
-
-            post_data = dict(country="US", area_code="360")
-            response = self.client.post(search_url, post_data, follow=True)
-
-            self.assertEqual(response.json(), ["+1 360-788-4540", "+1 360-788-4550"])
-
-        with patch("requests.get") as mock_get:
-            mock_get.side_effect = [
-                nexmo.ClientError("429 Too many requests"),
-                MockResponse(
-                    200,
-                    '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
-                    '"type":"mobile-lvn","country":"US","msisdn":"13607884540"}] }',
-                    headers={"Content-Type": "application/json"},
-                ),
-                nexmo.ClientError("429 Too many requests"),
-                MockResponse(
-                    200,
-                    '{"count":1,"numbers":[{"features": ["SMS", "VOICE"], '
-                    '"type":"mobile-lvn","country":"US","msisdn":"13607884550"}] }',
-                    headers={"Content-Type": "application/json"},
-                ),
-            ]
-
-            post_data = dict(country="US", area_code="360")
-            response = self.client.post(search_url, post_data, follow=True)
-
-            self.assertEqual(response.json(), ["+1 360-788-4540", "+1 360-788-4550"])
-
-    def test_plivo_search_numbers(self):
-        self.login(self.admin)
-
-        plivo_search_url = reverse("channels.channel_search_plivo")
-
-        with patch("requests.get") as plivo_get:
-            plivo_get.return_value = MockResponse(200, json.dumps(dict(objects=[])))
-
-            response = self.client.post(plivo_search_url, dict(country="US", area_code=""), follow=True)
-
-            self.assertEqual(response.status_code, 200)
-            self.assertNotContains(response, "error")
-
-            # missing key to throw exception
-            plivo_get.return_value = MockResponse(200, json.dumps(dict()))
-            response = self.client.post(plivo_search_url, dict(country="US", area_code=""), follow=True)
-
-            self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "error")
-
-            plivo_get.side_effect = [
-                MockResponse(200, json.dumps(dict())),  # get account in pre_process
-                MockResponse(400, "Bad request"),  # failed search numbers
-            ]
-            response = self.client.post(plivo_search_url, dict(country="US", area_code=""), follow=True)
-
-            self.assertContains(response, "Bad request")
 
     def test_release_with_flow_dependencies(self):
         Channel.objects.all().delete()
@@ -2120,7 +2028,7 @@ class ChannelCountTest(TembaTest):
             with self.assertNumQueries(6):
                 track_org_channel_counts(now=timezone.now() + timedelta(days=1))
                 self.assertEqual(2, mock.call_count)
-                mock.assert_called_with("Administrator@nyaruka.com", "temba.ivr_outgoing", {"count": 1})
+                mock.assert_called_with(self.admin, "temba.ivr_outgoing", {"count": 1})
 
 
 class ChannelLogTest(TembaTest):

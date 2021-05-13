@@ -55,6 +55,7 @@ ACTIVITY_ICONS = {
     Event.TYPE_MSG_RECEIVED + ":voice": "icon-call-incoming",
     Event.TYPE_RUN_RESULT_CHANGED: "icon-bars",
     Event.TYPE_TICKET_OPENED: "icon-ticket",
+    Event.TYPE_TICKET_CLOSED: "icon-ticket",
     Event.TYPE_WEBHOOK_CALLED: "icon-cloud-upload",
 }
 

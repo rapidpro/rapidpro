@@ -2423,15 +2423,16 @@ class APITest(TembaTest):
         self.assertEqual(
             resp_json["results"],
             [
-                {"key": "registered", "label": "Registered On", "value_type": "datetime"},
-                {"key": "nick_name", "label": "Nick Name", "value_type": "text"},
+                {"key": "registered", "label": "Registered On", "value_type": "datetime", "pinned": False},
+                {"key": "nick_name", "label": "Nick Name", "value_type": "text", "pinned": False},
             ],
         )
 
         # filter by key
         response = self.fetchJSON(url, "key=nick_name")
         self.assertEqual(
-            response.json()["results"], [{"key": "nick_name", "label": "Nick Name", "value_type": "text"}]
+            response.json()["results"],
+            [{"key": "nick_name", "label": "Nick Name", "pinned": False, "value_type": "text"}],
         )
 
         # try to create empty field
@@ -4182,10 +4183,26 @@ class APITest(TembaTest):
 
         # create some templates
         TemplateTranslation.get_or_create(
-            self.channel, "hello", "eng", "US", "Hi {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
+            self.channel,
+            "hello",
+            "eng",
+            "US",
+            "Hi {{1}}",
+            1,
+            TemplateTranslation.STATUS_APPROVED,
+            "1234",
+            "foo_namespace",
         )
         TemplateTranslation.get_or_create(
-            self.channel, "hello", "fra", "FR", "Bonjour {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
+            self.channel,
+            "hello",
+            "fra",
+            "FR",
+            "Bonjour {{1}}",
+            1,
+            TemplateTranslation.STATUS_PENDING,
+            "5678",
+            "foo_namespace",
         )
         tt = TemplateTranslation.get_or_create(
             self.channel,
@@ -4196,16 +4213,33 @@ class APITest(TembaTest):
             1,
             TemplateTranslation.STATUS_APPROVED,
             "9012",
+            "foo_namespace",
         )
         tt.is_active = False
         tt.save()
 
         # templates on other org to test filtering
         TemplateTranslation.get_or_create(
-            self.org2channel, "goodbye", "eng", "US", "Goodbye {{1}}", 1, TemplateTranslation.STATUS_APPROVED, "1234"
+            self.org2channel,
+            "goodbye",
+            "eng",
+            "US",
+            "Goodbye {{1}}",
+            1,
+            TemplateTranslation.STATUS_APPROVED,
+            "1234",
+            "bar_namespace",
         )
         TemplateTranslation.get_or_create(
-            self.org2channel, "goodbye", "fra", "FR", "Salut {{1}}", 1, TemplateTranslation.STATUS_PENDING, "5678"
+            self.org2channel,
+            "goodbye",
+            "fra",
+            "FR",
+            "Salut {{1}}",
+            1,
+            TemplateTranslation.STATUS_PENDING,
+            "5678",
+            "bar_namespace",
         )
 
         # no filtering
@@ -4225,6 +4259,7 @@ class APITest(TembaTest):
                         {
                             "language": "eng",
                             "content": "Hi {{1}}",
+                            "namespace": "foo_namespace",
                             "variable_count": 1,
                             "status": "approved",
                             "channel": {"name": self.channel.name, "uuid": self.channel.uuid},
@@ -4232,6 +4267,7 @@ class APITest(TembaTest):
                         {
                             "language": "fra",
                             "content": "Bonjour {{1}}",
+                            "namespace": "foo_namespace",
                             "variable_count": 1,
                             "status": "pending",
                             "channel": {"name": self.channel.name, "uuid": self.channel.uuid},
@@ -4365,6 +4401,14 @@ class APITest(TembaTest):
             body="Now",
             status=Ticket.STATUS_OPEN,
         )
+        ticket3 = Ticket.objects.create(
+            org=self.org,
+            ticketer=mailgun,
+            contact=bob,
+            subject="It's bob",
+            body="Pleeeease help",
+            status=Ticket.STATUS_OPEN,
+        )
 
         # on another org
         zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
@@ -4377,6 +4421,10 @@ class APITest(TembaTest):
             status=Ticket.STATUS_CLOSED,
         )
 
+        response = self.fetchJSON(url, "ticketer_type=zendesk")
+        resp_json = response.json()
+        self.assertEqual(0, len(resp_json["results"]))
+
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 3):
             response = self.fetchJSON(url)
@@ -4388,7 +4436,18 @@ class APITest(TembaTest):
             resp_json["results"],
             [
                 {
+                    "uuid": str(ticket3.uuid),
+                    "closed_on": None,
+                    "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
+                    "contact": {"uuid": str(bob.uuid), "name": "Bob"},
+                    "status": "open",
+                    "subject": "It's bob",
+                    "body": "Pleeeease help",
+                    "opened_on": format_datetime(ticket3.opened_on),
+                },
+                {
                     "uuid": str(ticket2.uuid),
+                    "closed_on": None,
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "contact": {"uuid": str(bob.uuid), "name": "Bob"},
                     "status": "open",
@@ -4398,6 +4457,7 @@ class APITest(TembaTest):
                 },
                 {
                     "uuid": str(ticket1.uuid),
+                    "closed_on": None,
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "contact": {"uuid": str(ann.uuid), "name": "Ann"},
                     "status": "closed",
@@ -4418,5 +4478,28 @@ class APITest(TembaTest):
         response = self.fetchJSON(url, "contact=" + str(bob.uuid))
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(1, len(resp_json["results"]))
+        self.assertEqual(2, len(resp_json["results"]))
         self.assertEqual("Bob", resp_json["results"][0]["contact"]["name"])
+
+        # filter further by ticket uuid
+        response = self.fetchJSON(url, f"ticket={ticket3.uuid}")
+        resp_json = response.json()
+        self.assertEqual(1, len(resp_json["results"]))
+
+        # close one of the tickets
+        self.postJSON(url, f"uuid={ticket1.uuid}", {"status": "closed"})
+
+        # make sure it shows as closed with a closed_on date
+        response = self.fetchJSON(url)
+        resp_json = response.json()
+        updated = resp_json["results"][2]
+        self.assertEqual(updated["status"], "closed")
+        self.assertIsNotNone(updated["closed_on"])
+
+        # reopen that ticket
+        self.postJSON(url, f"uuid={ticket1.uuid}", {"status": "open"})
+        response = self.fetchJSON(url)
+        resp_json = response.json()
+        updated = resp_json["results"][1]
+        self.assertEqual(updated["status"], "open")
+        self.assertIsNone(updated["closed_on"])
