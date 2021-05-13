@@ -1,11 +1,14 @@
 from datetime import timedelta
 
+from requests import RequestException
+
 from django.urls import reverse
 from django.utils import timezone
 
+from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.wit import WitType
-from temba.tests import TembaTest
+from temba.tests import MockResponse, TembaTest
 from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 
@@ -149,3 +152,38 @@ class HTTPLogTest(TembaTest):
         list_url = reverse("request_logs.httplog_ticketer", args=[t2.uuid])
         response = self.client.get(list_url)
         self.assertEqual(404, response.status_code)
+
+    def test_channel_log(self):
+        channel = Channel.create(
+            self.org,
+            self.admin,
+            "US",
+            "WA",
+            name="WhatsApp: 1234",
+            address="1234",
+            config={},
+            tps=45,
+        )
+
+        exception = RequestException("Network is unreachable", response=MockResponse(100, ""))
+        start = timezone.now()
+
+        log1 = HTTPLog.create_from_exception(
+            HTTPLog.WHATSAPP_TEMPLATES_SYNCED,
+            "https://graph.facebook.com/v3.3/1234/message_templates",
+            exception,
+            start,
+            channel=channel,
+        )
+
+        self.login(self.admin)
+        log_url = reverse("request_logs.httplog_read", args=[log1.id])
+        response = self.client.get(log_url)
+        self.assertContains(response, "200")
+        self.assertContains(response, "Connection Error")
+        self.assertContains(response, "https://graph.facebook.com/v3.3/1234/message_templates")
+
+        # and can't be from other org
+        self.login(self.admin2)
+        response = self.client.get(log_url)
+        self.assertLoginRedirect(response)
