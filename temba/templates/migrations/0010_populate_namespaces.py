@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def populate_namespaces(apps, schema_editor):
+def populate_namespaces(apps, schema_editor):  # pragma: no cover
     TemplateTranslation = apps.get_model("templates", "TemplateTranslation")
     Channel = apps.get_model("channels", "Channel")
 
@@ -14,7 +14,7 @@ def populate_namespaces(apps, schema_editor):
             TemplateTranslation.objects.filter(channel=channel).update(namespace=namespace)
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
