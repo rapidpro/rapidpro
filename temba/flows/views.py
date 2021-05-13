@@ -66,7 +66,6 @@ from temba.utils.fields import (
     SelectMultipleWidget,
     SelectWidget,
 )
-from temba.utils.dates import str_to_datetime
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import slugify_with
 from temba.utils.uuid import uuid4
