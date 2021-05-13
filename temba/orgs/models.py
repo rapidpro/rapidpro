@@ -2264,7 +2264,7 @@ class Org(SmartModel):
                 f"{item.uuid}:{item.destination}"
                 for item in self.links.filter(is_archived=False).only("uuid", "destination")
             ],
-            "has_ivr_machine_detection": self.is_ivr_machine_detection_enabled()
+            "has_ivr_machine_detection": self.is_ivr_machine_detection_enabled(),
         }
 
     def __str__(self):
