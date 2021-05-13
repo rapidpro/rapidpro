@@ -2188,18 +2188,14 @@ class FlowCRUDL(SmartCRUDL):
             runs = flow.runs.all()
 
             if after:
-                after = str_to_datetime(
-                    after, tz=flow.org.timezone, dayfirst=flow.org.date_format == "D", fill_time=False
-                )
+                after = flow.org.parse_datetime(after)
                 if after:
                     runs = runs.filter(modified_on__gte=after)
                 else:
                     runs = runs.filter(id=-1)
 
             if before:
-                before = str_to_datetime(
-                    before, tz=flow.org.timezone, dayfirst=flow.org.date_format == "D", fill_time=False
-                )
+                before = flow.org.parse_datetime(before)
                 if before:
                     runs = runs.filter(modified_on__lte=before)
                 else:
