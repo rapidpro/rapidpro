@@ -674,8 +674,8 @@
       $(".flatpickr.start").flatpickr({
         wrap: true,
         altInput: true,
-        altFormat: 'F j, Y',
-        dateFormat: 'Y-m-d H:i',
+        altFormat: `F j, Y${" ".repeat(100)}H:i:S`,
+        dateFormat: 'Y-m-d H:i:S',
         allowInput: true,
         enableTime: true,
         defaultHour: 0
@@ -683,12 +683,20 @@
       $(".flatpickr.end").flatpickr({
         wrap: true,
         altInput: true,
-        altFormat: 'F j, Y',
-        dateFormat: 'Y-m-d H:i',
+        altFormat: `F j, Y${" ".repeat(100)}H:i:S`,
+        dateFormat: 'Y-m-d H:i:S',
         allowInput: true,
         enableTime: true,
         defaultHour: 23,
-        defaultMinute: 59
+        defaultMinute: 59,
+        minuteIncrement: 1,
+        parseDate: (date) => {
+          return moment(date, ["YYYY-MM-DD HH:mm:ss", `MMM D, YYYY${" ".repeat(100)}HH:mm:ss`]).toDate();
+        },
+        formatDate: (date, format) => {
+          format = format === "Y-m-d H:i:S" ? "YYYY-MM-DD HH:mm:ss" : `MMM D, YYYY${" ".repeat(100)}HH:mm:ss`;
+          return moment(date).second(59).format(format);
+        }
       });
 
       $('.time').live('mouseover', function() {

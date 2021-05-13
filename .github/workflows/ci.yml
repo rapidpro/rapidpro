@@ -20,7 +20,7 @@ jobs:
       uses: actions/checkout@v1
 
     - name: Install PostgreSQL
-      uses: nyaruka/postgis-action@master
+      uses: nyaruka/postgis-action@main
       with:
         postgresql version: ${{ matrix.pg_version }}
 
