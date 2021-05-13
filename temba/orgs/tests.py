@@ -48,6 +48,7 @@ from temba.msgs.models import Broadcast, ExportMessagesTask, Label, Msg
 from temba.orgs.models import BackupToken, Debit, OrgActivity
 from temba.orgs.tasks import suspend_topup_orgs_task
 from temba.request_logs.models import HTTPLog
+from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     CRUDLTestMixin,
     ESMockWithScroll,
@@ -830,6 +831,18 @@ class OrgDeleteTest(TembaNonAtomicTest):
                 org=self.org, url="http://foo.bar", request="GET http://foo.bar", status_code=200, response="zap!"
             )
 
+            TemplateTranslation.get_or_create(
+                self.channel,
+                "hello",
+                "eng",
+                "US",
+                "Hello {{1}}",
+                1,
+                TemplateTranslation.STATUS_APPROVED,
+                "1234",
+                "foo_namespace",
+            )
+
             # release our primary org
             org.release(delete=delete)
 
@@ -845,6 +858,10 @@ class OrgDeleteTest(TembaNonAtomicTest):
             if delete:
                 # oh noes, we deleted our archive files!
                 self.assertEqual(expected_files, len(self.mock_s3.objects))
+
+                # no template translations
+                self.assertFalse(TemplateTranslation.objects.filter(template__org=org).exists())
+                self.assertFalse(Template.objects.filter(org=org).exists())
 
                 # our channels are gone too
                 self.assertFalse(Channel.objects.filter(org=org).exists())

@@ -69,7 +69,7 @@ class TemplateTranslation(models.Model):
     template = models.ForeignKey(Template, on_delete=models.PROTECT, related_name="translations")
 
     # the channel that synced this template
-    channel = models.ForeignKey(Channel, on_delete=models.PROTECT)
+    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="template_translations")
 
     # the content of this template
     content = models.TextField(null=False)

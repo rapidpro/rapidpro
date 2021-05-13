@@ -1,4 +1,4 @@
-from temba.tests import MigrationTest, TembaTest
+from temba.tests import TembaTest
 
 from .models import Template, TemplateTranslation
 
@@ -38,62 +38,3 @@ class TemplateTest(TembaTest):
         # tt2 should be inactive now
         tt2.refresh_from_db()
         self.assertFalse(tt2.is_active)
-
-
-class PopulateNamespacesTest(MigrationTest):
-    app = "templates"
-    migrate_from = "0009_templatetranslation_namespace"
-    migrate_to = "0010_populate_namespaces"
-
-    def setUpBeforeMigration(self, apps):
-        from temba.channels.models import Channel
-
-        self.channel1 = Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "WA",
-            name="Test Channel",
-            address="+250785551212",
-            config={"fb_namespace": "baz_namespace"},
-        )
-
-        self.tt1 = TemplateTranslation.get_or_create(
-            self.channel1,
-            "hello",
-            "eng",
-            "US",
-            "Hi {{1}}",
-            1,
-            TemplateTranslation.STATUS_APPROVED,
-            "1234",
-            "",
-        )
-
-        self.channel2 = Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "WA",
-            name="Test Channel",
-            address="+250785551313",
-            config={},
-        )
-        self.tt2 = TemplateTranslation.get_or_create(
-            self.channel2,
-            "hello",
-            "eng",
-            "US",
-            "Hi {{1}}",
-            1,
-            TemplateTranslation.STATUS_APPROVED,
-            "1234",
-            "",
-        )
-
-    def test_migration(self):
-        self.tt1.refresh_from_db()
-        self.assertEqual(self.tt1.namespace, "baz_namespace")
-
-        self.tt2.refresh_from_db()
-        self.assertEqual(self.tt2.namespace, "")
