@@ -117,7 +117,7 @@ class DependencyDeleteModal(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
 
     def post(self, request, *args, **kwargs):
         obj = self.get_object()
-        obj.release()
+        obj.release(self.request.user)
 
         messages.info(request, self.success_message)
         response = HttpResponse()

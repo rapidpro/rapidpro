@@ -238,7 +238,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         closed_url = reverse("tickets.ticket_closed")
 
         # still see closed tickets for deleted ticketers
-        self.zendesk.release()
+        self.zendesk.release(self.admin)
 
         ticket1 = self.create_ticket(subject="Ticket 1", body="Where are my cookies?", status="C")
         ticket2 = self.create_ticket(subject="Ticket 2", body="Where are my shoes?", status="C", ticketer=self.zendesk)
@@ -309,9 +309,10 @@ class TicketerTest(TembaTest):
         )
 
         # release it
-        ticketer.release()
+        ticketer.release(self.user)
         ticketer.refresh_from_db()
         self.assertFalse(ticketer.is_active)
+        self.assertEqual(self.user, ticketer.modified_by)
 
         # will have asked mailroom to close the ticket
         mock_ticket_close.assert_called_once_with(self.org.id, [ticket.id])
@@ -326,10 +327,11 @@ class TicketerTest(TembaTest):
 
         self.assertFalse(flow.has_issues)
 
-        ticketer.release()
+        ticketer.release(self.editor)
         ticketer.refresh_from_db()
 
         self.assertFalse(ticketer.is_active)
+        self.assertEqual(self.editor, ticketer.modified_by)
         self.assertNotIn(ticketer, flow.ticketer_dependencies.all())
 
         flow.refresh_from_db()
@@ -395,7 +397,7 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertFalse(flow.has_issues)
 
-        ticketer.release()
+        self.client.post(delete_url)
         ticketer.refresh_from_db()
 
         self.assertFalse(ticketer.is_active)

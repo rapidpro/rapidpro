@@ -110,7 +110,7 @@ class Ticketer(SmartModel):
 
         return TYPES[self.ticketer_type]
 
-    def release(self):
+    def release(self, user):
         """
         Releases this, closing all associated tickets in the process
         """
@@ -123,7 +123,8 @@ class Ticketer(SmartModel):
             Ticket.bulk_close(self.org, open_tickets)
 
         self.is_active = False
-        self.save(update_fields=("is_active", "modified_on"))
+        self.modified_by = user
+        self.save(update_fields=("is_active", "modified_by", "modified_on"))
 
     def __str__(self):
         return f"Ticketer[uuid={self.uuid}, name={self.name}]"
