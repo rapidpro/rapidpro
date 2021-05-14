@@ -1716,6 +1716,9 @@ class Org(SmartModel):
         self.tickets.all().delete()
         self.airtime_transfers.all().delete()
 
+        for result in self.webhook_results.all():
+            result.release()
+
         # delete our contacts
         for contact in self.contacts.all():
             contact.release(contact.modified_by, full=True, immediately=True)
@@ -1769,9 +1772,6 @@ class Org(SmartModel):
         for topup in self.topups.all():
             topup.release()
 
-        for result in self.webhook_results.all():
-            result.release()
-
         for event in self.webhookevent_set.all():
             event.release()
 
@@ -1786,7 +1786,7 @@ class Org(SmartModel):
         self.languages.all().delete()
 
         # release our broadcasts
-        for bcast in self.broadcast_set.all():
+        for bcast in self.broadcast_set.filter(parent=None):
             bcast.release()
 
         # delete other related objects

@@ -369,8 +369,8 @@ class TembaTestMixin:
             metadata=metadata,
         )
 
-    def create_broadcast(self, user, text, contacts=(), groups=(), response_to=None, msg_status=SENT):
-        bcast = Broadcast.create(self.org, user, text, contacts=contacts, groups=groups, status=SENT)
+    def create_broadcast(self, user, text, contacts=(), groups=(), response_to=None, msg_status=SENT, parent=None):
+        bcast = Broadcast.create(self.org, user, text, contacts=contacts, groups=groups, status=SENT, parent=parent)
 
         contacts = set(bcast.contacts.all())
         for group in bcast.groups.all():

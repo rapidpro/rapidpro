@@ -242,6 +242,9 @@ class Broadcast(models.Model):
         return Language.get_localized_text(self.text, preferred_languages)
 
     def release(self):
+        for child in self.children.all():
+            child.release()
+
         for msg in self.msgs.all():
             msg.release()
 
