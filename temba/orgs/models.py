@@ -1698,7 +1698,7 @@ class Org(SmartModel):
         # delete everything associated with our flows
         for flow in self.flows.all():
             # we want to manually release runs so we don't fire a task to do it
-            flow.release()
+            flow.release(interrupt_sessions=False)
             flow.release_runs()
 
             for rev in flow.revisions.all():
