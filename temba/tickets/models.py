@@ -114,7 +114,9 @@ class Ticketer(SmartModel):
         """
         Releases this, closing all associated tickets in the process
         """
-        assert not self.dependent_flows.exists(), "can't delete ticketer currently in use by flows"
+        from temba.flows.models import Flow
+
+        Flow.release_dependency(self)
 
         open_tickets = self.tickets.filter(status=Ticket.STATUS_OPEN)
         if open_tickets.exists():

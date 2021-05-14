@@ -1,17 +1,17 @@
-from smartmin.views import SmartCRUDL, SmartDeleteView, SmartFormView, SmartListView, SmartTemplateView
+from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartTemplateView
 
 from django import forms
-from django.contrib import messages
 from django.db.models.aggregates import Max
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.http.response import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.functional import cached_property
 from django.utils.html import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
+from temba.flows.views import DependencyDeleteModal
 from temba.msgs.models import Msg
-from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.views import BulkActionMixin, ComponentFormMixin
 
 from .models import Ticket, Ticketer
@@ -250,31 +250,11 @@ class TicketerCRUDL(SmartCRUDL):
     model = Ticketer
     actions = ("connect", "delete")
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
-        slug_url_kwarg = "uuid"
+    class Delete(DependencyDeleteModal):
         cancel_url = "uuid@tickets.ticket_filter"
         title = _("Delete Ticketing Service")
-        success_message = ""
-        submit_button_name = _("Delete")
-        fields = ("uuid",)
-
-        def get_context_data(self, **kwargs):  # pragma: needs cover
-            context = super().get_context_data(**kwargs)
-            ticketer = self.get_object()
-            context["used_by_flows"] = ticketer.dependent_flows.all()[:5]
-            return context
-
-        def get_success_url(self):
-            return reverse("orgs.org_home")
-
-        def post(self, request, *args, **kwargs):
-            service = self.get_object()
-            service.release()
-
-            messages.info(request, _("Your ticketing service has been deleted."))
-            response = HttpResponse()
-            response["Temba-Success"] = self.get_success_url()
-            return response
+        success_message = _("Your ticketing service has been deleted.")
+        success_url = "@orgs.org_home"
 
     class Connect(OrgPermsMixin, SmartTemplateView):
         def get_gear_links(self):

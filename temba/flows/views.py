@@ -92,6 +92,39 @@ EXPIRES_CHOICES = (
 )
 
 
+class DependencyDeleteModal(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+    """
+    Base view for delete modals of flow dependencies
+    """
+
+    slug_url_kwarg = "uuid"
+    fields = ("uuid",)
+    success_message = ""
+    submit_button_name = _("Delete")
+    template_name = "flows/dependency_delete_modal.haml"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # lookup dependent flows for this object
+        dependent_flows = self.get_object().dependent_flows.only("uuid", "name")
+        used_by_flows = list(dependent_flows.order_by("name")[:5])  # display first 5
+
+        context["used_by_flows"] = used_by_flows
+        context["used_by_more"] = dependent_flows.count() - len(used_by_flows)
+
+        return context
+
+    def post(self, request, *args, **kwargs):
+        obj = self.get_object()
+        obj.release()
+
+        messages.info(request, self.success_message)
+        response = HttpResponse()
+        response["Temba-Success"] = self.get_success_url()
+        return response
+
+
 class OrgQuerysetMixin:
     def derive_queryset(self, *args, **kwargs):
         queryset = super().derive_queryset(*args, **kwargs)

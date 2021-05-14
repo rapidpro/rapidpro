@@ -293,7 +293,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
 
 class TicketerTest(TembaTest):
-    def test_release(self):
+    @patch("temba.mailroom.client.MailroomClient.ticket_close")
+    def test_release(self, mock_ticket_close):
         ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
 
         contact = self.create_contact("Bob", urns=["twitter:bobby"])
@@ -307,14 +308,13 @@ class TicketerTest(TembaTest):
             status="O",
         )
 
-        with patch("temba.mailroom.client.MailroomClient.ticket_close") as mock_close:
-            # release it
-            ticketer.release()
-            ticketer.refresh_from_db()
-            self.assertFalse(ticketer.is_active)
+        # release it
+        ticketer.release()
+        ticketer.refresh_from_db()
+        self.assertFalse(ticketer.is_active)
 
         # will have asked mailroom to close the ticket
-        mock_close.assert_called_once_with(self.org.id, [ticket.id])
+        mock_ticket_close.assert_called_once_with(self.org.id, [ticket.id])
 
         # reactivate
         ticketer.is_active = True
@@ -324,11 +324,16 @@ class TicketerTest(TembaTest):
         flow = self.create_flow()
         flow.ticketer_dependencies.add(ticketer)
 
-        with self.assertRaises(AssertionError):
-            ticketer.release()
+        self.assertFalse(flow.has_issues)
 
+        ticketer.release()
         ticketer.refresh_from_db()
-        self.assertTrue(ticketer.is_active)
+
+        self.assertFalse(ticketer.is_active)
+        self.assertNotIn(ticketer, flow.ticketer_dependencies.all())
+
+        flow.refresh_from_db()
+        self.assertTrue(flow.has_issues)
 
 
 class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -363,7 +368,8 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
         # put them all back...
         reload_ticketer_types()
 
-    def test_delete(self):
+    @patch("temba.mailroom.client.MailroomClient.ticket_close")
+    def test_delete(self, mock_ticket_close):
         ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
 
         delete_url = reverse("tickets.ticketer_delete", args=[ticketer.uuid])
@@ -374,8 +380,7 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
 
-        with patch("temba.mailroom.client.MailroomClient.ticket_close"):
-            self.client.post(delete_url)
+        self.client.post(delete_url)
 
         ticketer.refresh_from_db()
         self.assertFalse(ticketer.is_active)
@@ -388,8 +393,13 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
         flow = self.create_flow()
         flow.ticketer_dependencies.add(ticketer)
 
-        with self.assertRaises(AssertionError):
-            self.client.post(delete_url)
+        self.assertFalse(flow.has_issues)
 
+        ticketer.release()
         ticketer.refresh_from_db()
-        self.assertTrue(ticketer.is_active)
+
+        self.assertFalse(ticketer.is_active)
+        self.assertNotIn(ticketer, flow.ticketer_dependencies.all())
+
+        flow.refresh_from_db()
+        self.assertTrue(flow.has_issues)

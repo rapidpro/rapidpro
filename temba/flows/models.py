@@ -956,6 +956,12 @@ class Flow(TembaModel):
             for run in runs:
                 run.release()
 
+    @classmethod
+    def release_dependency(cls, dep):
+        # mark the dependency's flows as having issues, and then remove the dependency
+        dep.dependent_flows.update(has_issues=True)
+        dep.dependent_flows.clear()
+
     def __str__(self):
         return self.name
 
