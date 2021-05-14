@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-12 18:32+0000\n"
+"POT-Creation-Date: 2021-05-14 21:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -5825,6 +5825,21 @@ msgstr ""
 msgid "To get started you can <a href=\"%(url)s\">import</a> contacts from a file you create in Excel."
 msgstr ""
 
+msgid "is used by the following flows which may not work as expected if you delete it:"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "%(counter)s Use"
+#| msgid_plural "%(counter)s Uses"
+msgid "and %(count)s more"
+msgstr "%(counter)s использование"
+
+msgid "You are about to delete"
+msgstr ""
+
+msgid "There is no way to undo this. Are you sure?"
+msgstr ""
+
 msgid "Your export for the following flows is ready."
 msgstr "Ваш экспорт по следующим потокам готов."
 
@@ -6706,9 +6721,6 @@ msgstr "Вы использовали"
 msgid "credits since signing up."
 msgstr "кредитов с момента регистрации."
 
-msgid "You are about to delete"
-msgstr ""
-
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
 msgstr ""
 
@@ -7548,9 +7560,6 @@ msgid "Select the ticketing service you want to connect below to get started."
 msgstr ""
 
 msgid "No ticketing services are available."
-msgstr ""
-
-msgid "Unable to delete service still being used by"
 msgstr ""
 
 #, python-format

@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-12 18:32+0000\n"
+"POT-Creation-Date: 2021-05-14 21:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -5785,6 +5785,23 @@ msgstr "Contatos serão automaticamente adicionados aqui, conforme você se comu
 msgid "To get started you can <a href=\"%(url)s\">import</a> contacts from a file you create in Excel."
 msgstr "Para iniciar você pode <a href=\"%(url)s\">importar</a> contatos de um arquivo que você criou no Excel."
 
+msgid "is used by the following flows which may not work as expected if you delete it:"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "%(count)s result"
+#| msgid_plural "%(count)s results"
+msgid "and %(count)s more"
+msgstr "%(count)s resultado"
+
+msgid "You are about to delete"
+msgstr "Você está prestes a deletar"
+
+#, fuzzy
+#| msgid "You are about to delete this event. There is no way to undo this. Are you sure?"
+msgid "There is no way to undo this. Are you sure?"
+msgstr "Você está prestes a deletar este evento. Não é possível reverter isso. Você tem certeza?"
+
 msgid "Your export for the following flows is ready."
 msgstr "Está pronta a exportação para os seguintes fluxos"
 
@@ -6762,9 +6779,6 @@ msgstr "Você usou"
 msgid "credits since signing up."
 msgstr "créditos desde que você se cadastrou"
 
-msgid "You are about to delete"
-msgstr "Você está prestes a deletar"
-
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
 msgstr "Você tem certeza que quer deletar tudo para esta organização? Isso não pode ser desfeito. Quaisquer logins que pertençam somente à esta área de trabalho também serão deletados."
 
@@ -7686,9 +7700,6 @@ msgstr "Selecione o serviço de ticket que você deseja conectar abaixo para ini
 msgid "No ticketing services are available."
 msgstr "Nenhum serviço de tickets disponível."
 
-msgid "Unable to delete service still being used by"
-msgstr "Não foi possível deletar o serviço, ainda está sendo utilizado por"
-
 #, python-format
 msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
 msgstr "Seu código de verificação é <b>%(code)s</b> para continuar adicionando um serviço de ticket baseado em email."
@@ -7808,6 +7819,9 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#~ msgid "Unable to delete service still being used by"
+#~ msgstr "Não foi possível deletar o serviço, ainda está sendo utilizado por"
 
 #~ msgid "Any labels on this flow"
 #~ msgstr "Qualquer rótulo nesse fluxo"

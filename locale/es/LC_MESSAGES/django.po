@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-12 18:32+0000\n"
+"POT-Creation-Date: 2021-05-14 21:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -5779,6 +5779,23 @@ msgstr "Los contactos se agregarán aquí automáticamente a medida que se comun
 msgid "To get started you can <a href=\"%(url)s\">import</a> contacts from a file you create in Excel."
 msgstr "Para comenzar, puede <a href=\"%(url)s\"> importar </a> contactos desde un archivo que cree en Excel."
 
+msgid "is used by the following flows which may not work as expected if you delete it:"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "%(count)s result"
+#| msgid_plural "%(count)s results"
+msgid "and %(count)s more"
+msgstr "%(count)s resultados"
+
+msgid "You are about to delete"
+msgstr "Estás a punto de borrar"
+
+#, fuzzy
+#| msgid "You are about to delete this event. There is no way to undo this. Are you sure?"
+msgid "There is no way to undo this. Are you sure?"
+msgstr "Está a punto de eliminar este evento. No hay forma de deshacer esto. ¿Estás seguro?"
+
 msgid "Your export for the following flows is ready."
 msgstr "Su exportación para los siguientes flujos está lista."
 
@@ -6757,9 +6774,6 @@ msgstr "Ha usado"
 msgid "credits since signing up."
 msgstr "créditos desde que se registró."
 
-msgid "You are about to delete"
-msgstr "Estás a punto de borrar"
-
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
 msgstr "¿Está seguro de que desea eliminar todo para esta organización? Esto no se puede deshacer. También se eliminarán todos los logins que solo pertenezcan a este workspace."
 
@@ -7699,9 +7713,6 @@ msgstr "Seleccione el servicio de tickets que desea conectar a continuación par
 msgid "No ticketing services are available."
 msgstr "No hay servicios de tickets disponibles."
 
-msgid "Unable to delete service still being used by"
-msgstr "No se puede eliminar el servicio que aún está siendo utilizado por"
-
 #, python-format
 msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
 msgstr "Su código de verificación es <b> %(code)s </b> para continuar agregando un servicio de tickets por correo electrónico."
@@ -7821,6 +7832,9 @@ msgstr "Las plantillas se sincronizan desde su cuenta de WhatsApp cada 15 minuto
 
 msgid "No synced templates at this time."
 msgstr "No hay plantillas sincronizadas en este momento."
+
+#~ msgid "Unable to delete service still being used by"
+#~ msgstr "No se puede eliminar el servicio que aún está siendo utilizado por"
 
 #~ msgid "Any labels on this flow"
 #~ msgstr "Cualquier etiqueta en este flujo"
