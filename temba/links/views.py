@@ -15,7 +15,7 @@ from django.http import JsonResponse, HttpResponseRedirect
 from smartmin.views import SmartCRUDL, SmartCreateView, SmartListView, SmartUpdateView, SmartReadView
 
 from temba.utils import analytics, on_transaction_commit
-from temba.utils.dates import datetime_to_ms, ms_to_datetime
+from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
 from temba.orgs.views import OrgPermsMixin, OrgObjPermsMixin, ModalMixin
 from temba.contacts.models import Contact
 from temba.flows.models import Flow
@@ -114,7 +114,7 @@ class LinkCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["recent_start"] = datetime_to_ms(timezone.now() - timedelta(minutes=5))
+            context["recent_start"] = datetime_to_timestamp(timezone.now() - timedelta(minutes=5))
             return context
 
         def get_gear_links(self):
@@ -166,12 +166,12 @@ class LinkCRUDL(SmartCRUDL):
                 recent_only = True
                 before = timezone.now()
             else:
-                before = ms_to_datetime(before)
+                before = timestamp_to_datetime(before)
 
             if not after:
                 after = before - timedelta(days=90)
             else:
-                after = ms_to_datetime(after)
+                after = timestamp_to_datetime(after)
 
             # keep looking further back until we get at least 20 items
             while True:
@@ -193,8 +193,8 @@ class LinkCRUDL(SmartCRUDL):
                 context["has_older"] = bool(link.get_activity(link_creation, after, search))
 
             context["recent_only"] = recent_only
-            context["before"] = datetime_to_ms(after)
-            context["after"] = datetime_to_ms(max(after - timedelta(days=90), link_creation))
+            context["before"] = datetime_to_timestamp(after)
+            context["after"] = datetime_to_timestamp(max(after - timedelta(days=90), link_creation))
             context["activity"] = activity
 
             return context

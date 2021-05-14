@@ -12,9 +12,9 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("contacts", "0102_contacturn_channel"),
+        ("contacts", "0129_squashed"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ("orgs", "0055_initial"),
+        ("orgs", "0072_squashed"),
     ]
 
     operations = [

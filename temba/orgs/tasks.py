@@ -20,7 +20,7 @@ from temba.flows.tasks import export_flow_results_task
 from temba.msgs.models import ExportMessagesTask
 from temba.msgs.tasks import export_messages_task
 from temba.utils import json
-from temba.utils.dates import str_to_datetime
+from temba.utils.legacy.dates import str_to_datetime
 from temba.utils.celery import nonoverlapping_task
 from temba.utils.email import send_template_email
 
