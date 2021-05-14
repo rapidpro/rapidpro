@@ -62,6 +62,8 @@ django-compressor==2.2
     #   smartmin
 django-countries==5.3.3
     # via -r ../pip-requires.txt
+django-csp==3.7
+    # via -r pip-requires.txt
 django-environ==0.4.5
     # via
     #   -r ../pip-requires.txt
@@ -81,6 +83,7 @@ django-timezone-field==3.0
 django==2.2.10
     # via
     #   -r ../pip-requires.txt
+    #   django-csp
     #   django-hamlpy
     #   django-redis
     #   django-storages
