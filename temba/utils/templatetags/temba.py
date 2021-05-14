@@ -1,6 +1,7 @@
 import json
 from datetime import timedelta, datetime
 
+import iso8601
 import pytz
 
 from django import template
@@ -37,11 +38,11 @@ def oxford(forloop, punctuation=""):
     """
     # there are only two items
     if forloop["counter"] == 1 and forloop["revcounter"] == 2:
-        return _(" and ")
+        return f' {_("and")} '
 
     # we are the last in a list of 3 or more
     if forloop["revcounter"] == 2:
-        return _(", and ")
+        return f', {_("and")} '
 
     if not forloop["last"]:
         return ", "
@@ -239,18 +240,26 @@ def short_datetime(context, dtime):
 
     if org_format == "D":
         if dtime > twelve_hours_ago:
-            return "%s:%s" % (dtime.strftime("%H"), dtime.strftime("%M"))
+            return f"{dtime.strftime('%H')}:{dtime.strftime('%M')}"
         elif now.year == dtime.year:
-            return "%d %s" % (int(dtime.strftime("%d")), dtime.strftime("%b"))
+            return f"{int(dtime.strftime('%d'))} {dtime.strftime('%b')}"
         else:
-            return "%d/%d/%s" % (int(dtime.strftime("%d")), int(dtime.strftime("%m")), dtime.strftime("%y"))
+            return f"{int(dtime.strftime('%d'))}/{int(dtime.strftime('%m'))}/{dtime.strftime('%y')}"
+    elif org_format == "Y":
+        if dtime > twelve_hours_ago:
+            return f"{dtime.strftime('%H')}:{dtime.strftime('%M')}"
+        elif now.year == dtime.year:
+            return f"{dtime.strftime('%b')} {int(dtime.strftime('%d'))}"
+        else:
+            return f"{dtime.strftime('%Y')}/{int(dtime.strftime('%m'))}/{int(dtime.strftime('%d'))}"
+
     else:
         if dtime > twelve_hours_ago:
-            return "%d:%s %s" % (int(dtime.strftime("%I")), dtime.strftime("%M"), dtime.strftime("%p").lower())
+            return f"{int(dtime.strftime('%I'))}:{dtime.strftime('%M')} {dtime.strftime('%p').lower()}"
         elif now.year == dtime.year:
-            return "%s %d" % (dtime.strftime("%b"), int(dtime.strftime("%d")))
+            return f"{dtime.strftime('%b')} {int(dtime.strftime('%d'))}"
         else:
-            return "%d/%d/%s" % (int(dtime.strftime("%m")), int(dtime.strftime("%d")), dtime.strftime("%y"))
+            return f"{int(dtime.strftime('%m'))}/{int(dtime.strftime('%d'))}/{dtime.strftime('%y')}"
 
 
 @register.simple_tag(takes_context=True)
@@ -266,6 +275,11 @@ def format_datetime(context, dtime):
     if org:
         return org.format_datetime(dtime)
     return datetime_to_str(dtime, "%d-%m-%Y %H:%M", tz)
+
+
+@register.filter
+def parse_isodate(value):
+    return iso8601.parse_date(value)
 
 
 def format_tz_datetime(time, tz):

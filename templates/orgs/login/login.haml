@@ -1,0 +1,89 @@
+-extends "orgs/login/login_base.haml"
+-load smartmin i18n
+
+-block login-title
+  -trans "Welcome Back"
+      
+-block login-content        
+  -blocktrans trimmed
+    Please sign in with your email address and password.
+
+  %form#login-form(method="POST" action="/users/login/?next={{ request.GET.next }}" onsubmit="return validateRecaptcha();")
+    -csrf_token
+    -for field, errors in form.errors.items
+      -if field == '__all__'
+        .alert-error.my-4
+          {{ errors }}
+
+    .mt-4
+      %temba-textinput(name='username' maxlength=254 placeholder='{{_("Email Address")|escapejs}}' value='{% if form.username.value%}{{form.username.value|escape}}{%endif%}')
+
+    -if form.username.errors
+      .alert-error.mt-4
+        {{form.username.errors}}
+
+    .mt-4
+      %temba-textinput(name='password' placeholder='{{_("Password")|escapejs}}' password="true" value="{% if form.password.value%}{{form.password.value|escape}}{%endif%}")
+
+    -if no_cellphone
+      .mt-4{style:"display: table; width: 100%;"}
+        %div{class:'w-2/5 md:float-left'}
+          %temba-select#country(name='country_code' searchable="true")
+            -for country in countries
+              %temba-option(value='{{country.value}}' name='{{country.text}}')
+        %div{class:'md:w-7/12 md:float-right'}
+          %temba-textinput(name='tel' placeholder='{{_("Phone Number")|escapejs}}')
+          .mt-2.text-left
+            Ex. 4154354423
+
+    -if no_authy_code
+      .mt-4
+        %temba-textinput(name='authy_code' placeholder='{{_("SMS Code")|escapejs}}')
+        %a{href:"javascript:resendCode();", class:"mt-2"}
+          -trans "Resend code"
+
+      %input{type:"hidden", name:"change_phone_number", value:"", id:"change_phone_number"}
+    
+    -if form.password.errors
+      .alert-error.mt-4
+        {{form.password.errors}}
+
+    -if not no_recaptcha
+      #recaptcha{style:"margin: 10px 0"}
+
+    %div{class:"md\:w-full"}
+      %div(class='w-5/12 mt-2 text-right float-right')
+        -if no_authy_code
+          %a(href="javascript:changePhoneNumberProcess();")
+            Change phone number?
+        -else
+          %a(href="/users/user/forget/")
+            Forgot your password?
+
+      %div(class='mt-6 w-6/12')
+        %input.button-primary(type="submit" value='{{_("Sign In")}}')
+
+-block extra-script
+  %script
+    function changePhoneNumberProcess() {
+      $('#change_phone_number').val('true');
+      $('form#login-form').removeAttr('onsubmit');
+      $('form#login-form').submit();
+    }
+    function resendCode() {
+      $('form#login-form').removeAttr('onsubmit');
+      $('[name="authy_code"]').val('');
+      $('form#login-form').submit();
+    }
+  -if not no_recaptcha
+    %script{src:"https://www.google.com/recaptcha/api.js?render={{ recaptcha_secrete_key }}"}
+    %script
+      function validateRecaptcha() {
+        const response = grecaptcha.getResponse();
+        return response.length !== 0;
+      }
+      grecaptcha.ready(() => {
+        grecaptcha.render('recaptcha', {
+          'sitekey': '{{ recaptcha_site_key }}'
+        });
+      });

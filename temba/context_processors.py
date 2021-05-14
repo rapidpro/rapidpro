@@ -5,6 +5,8 @@ def branding(request):
     """
     Stuff our branding into the context
     """
+    if "vanilla" in request.GET:  # pragma: no cover
+        request.session["vanilla"] = request.GET.get("vanilla")
 
     return dict(
         brand=request.branding,

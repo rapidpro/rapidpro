@@ -4,8 +4,8 @@
 
 -block title
   {{current_group.name}}
+
 -block subtitle
   -if current_group.is_dynamic
-    -trans "Smart group based on:"
-    %i {{current_group.query}}
-
+    .font-mono.text-sm
+      {{ current_group.query }}

@@ -1,30 +1,28 @@
 -extends "smartmin/read.html"
-
--load smartmin temba compress humanize channels
--load i18n tz
+-load smartmin temba compress humanize channels i18n tz
 
 -block title
   .flex.items-start.flex-col
     .name
       -if object.parent
-        {{object.parent.name}}
+        {{ object.parent.name }}
       -else
-        {{ object.name }}
+        {{ object.name|default:object.get_address_display }}
 
 -block subtitle
   -if object.get_channel_type_display != object.name
     .flex.mt-2
       .flex.flex-col
         .channel_type
-            -if object.parent
-              {{object.name}}
-            -else
-              {{object.get_channel_type_display}}
-              -trans "Channel"
+          -if object.parent
+            {{ object.name }}
+          -else
+            {{ object.get_channel_type_display }}
+            -trans "Channel"
 
-  -if object.name != object.get_address_display
+  -if object.name
     .text-gray-500.text-base
-      {{object.get_address_display}}
+      {{ object.get_address_display }}
 
   -if object.get_country_display
     .text-gray-500.text-base
@@ -34,7 +32,7 @@
     -if delegates
       .channel-roles.mt-3
         -for channel in delegates
-          .lbl.linked(onclick="goto(event, this)" href="{% url 'channels.channel_read' channel.uuid%}")
+          .lbl.linked(onclick="goto(event, this)" href="{% url 'channels.channel_read' channel.uuid %}")
             .flex.items-center
               .text-base{class:'{{ channel|channel_icon }}'}
               .name.mx-1
@@ -97,8 +95,8 @@
       .device
         -if channel.name
           {{ channel.name }}
-        -if channel.device != channel.name
-          \- {{ channel.device }}
+          \-
+        {{ channel.device }}
         -if channel.os
           .inline-block
             (v{{channel.os}})
@@ -132,7 +130,7 @@
       {{ object.created_on }}
 
     -for channel in object.get_delegate_channels
-      .ml-1{class:'{{ channel|channel_icon }}'}
+      .ml-1(class='{{ channel|channel_icon }}')
 
       -if channel.is_delegate_sender
         -trans "Bulk sending"
@@ -315,7 +313,7 @@
                 &nbsp;&nbsp;{{ sync_event.network_type }}
 
 -block extra-script
-  {{block.super}}
+  {{ block.super }}
 
   -if start_date
     <script src="{{ STATIC_URL }}bower/highcharts/highcharts.js"></script>

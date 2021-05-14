@@ -1,5 +1,7 @@
 from enum import Enum
 
+import phonenumbers
+
 # Simple URN parser loosely based on RFC2141 (https://www.ietf.org/rfc/rfc2141.txt)
 
 ESCAPES = {
@@ -79,3 +81,19 @@ def unescape(s):
     for ch, esc in ESCAPES.items():
         s = s.replace(esc, ch, -1)
     return s
+
+
+def parse_number(s: str, country_code: str) -> str:
+    """
+    Tries to parse the given string as a phone number and if successful returns it as E164
+    """
+    try:
+        parsed = phonenumbers.parse(s, country_code or None)
+    except phonenumbers.NumberParseException:
+        raise ValueError("unable to parse number")
+
+    # check if this is possible number, excluding local-only options
+    if phonenumbers.is_possible_number_with_reason(parsed) != phonenumbers.ValidationResult.IS_POSSIBLE:
+        raise ValueError("not a possible number")
+
+    return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)

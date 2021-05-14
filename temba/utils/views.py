@@ -2,7 +2,10 @@ import logging
 
 from django import forms
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseForbidden, HttpResponseRedirect
+from django.urls import reverse
+from django.utils import timezone
+from django.utils.http import urlquote
 from django.utils.translation import ugettext_lazy as _
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -185,6 +188,24 @@ class BulkActionMixin:
         args = [label] if label else []
 
         model_func(user, objects, *args)
+
+
+class RequireRecentAuthMixin:
+    """
+    Mixin that redirects the user to a authentication page if they haven't authenticated recently.
+    """
+
+    recent_auth_seconds = 10 * 60
+    recent_auth_includes_formax = False
+
+    def pre_process(self, request, *args, **kwargs):
+        is_formax = "HTTP_X_FORMAX" in request.META
+        if not is_formax or self.recent_auth_includes_formax:
+            last_auth_on = request.user.get_settings().last_auth_on
+            if not last_auth_on or (timezone.now() - last_auth_on).total_seconds() > self.recent_auth_seconds:
+                return HttpResponseRedirect(reverse("users.confirm_access") + f"?next={urlquote(request.path)}")
+
+        return super().pre_process(request, *args, **kwargs)
 
 
 class ExternalURLHandler(View):

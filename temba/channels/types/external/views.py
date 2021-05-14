@@ -2,6 +2,7 @@ from smartmin.views import SmartFormView
 
 from django import forms
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.forms import ValidationError
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import URN
@@ -23,14 +24,6 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             label=_("Number"),
             required=False,
             help_text=_("The phone number or that this channel will send from"),
-        )
-
-        handle = forms.CharField(
-            max_length=32,
-            min_length=1,
-            label=_("Handle"),
-            required=False,
-            help_text=_("The Twitter handle that this channel will send from"),
         )
 
         address = forms.CharField(
@@ -66,7 +59,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         max_length = forms.IntegerField(
             initial=160,
-            validators=[MaxValueValidator(640), MinValueValidator(60)],
+            validators=[MaxValueValidator(6400), MinValueValidator(60)],
             help_text=_(
                 "The maximum length of any single message on this channel. " "(longer messages will be split)"
             ),
@@ -101,6 +94,14 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             help_text=_("The content that must be in the response to consider the request successful"),
         )
 
+        def clean(self):
+            cleaned_data = super().clean()
+            scheme = cleaned_data.get("scheme")
+            if scheme == URN.TEL_SCHEME and not cleaned_data.get("number"):
+                raise ValidationError({"number": _("This field is required.")})
+            elif scheme != URN.TEL_SCHEME and not cleaned_data.get("address"):
+                raise ValidationError({"address": _("This field is required.")})
+
     class SendClaimForm(ClaimViewMixin.Form):
         url = ExternalURLField(
             max_length=1024,
@@ -125,7 +126,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         max_length = forms.IntegerField(
             initial=160,
-            validators=[MaxValueValidator(640), MinValueValidator(60)],
+            validators=[MaxValueValidator(6400), MinValueValidator(60)],
             help_text=_(
                 "The maximum length of any single message on this channel. " "(longer messages will be split)"
             ),
@@ -161,7 +162,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
     def derive_initial(self):
         from .type import ExternalType
 
-        return {"body": ExternalType.CONFIG_DEFAULT_SEND_BODY}
+        return {"body": ExternalType.CONFIG_DEFAULT_SEND_BODY, "scheme": URN.TEL_SCHEME}
 
     def get_form_class(self):
         if self.request.GET.get("role", None) == "S":  # pragma: needs cover
@@ -188,10 +189,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             if scheme == URN.TEL_SCHEME:
                 address = data["number"]
                 country = data["country"]
-            elif scheme == URN.TWITTER_SCHEME:  # pragma: needs cover
-                address = data["handle"]
-                country = None
-            else:  # pragma: needs cover
+            else:
                 address = data["address"]
                 country = None
 

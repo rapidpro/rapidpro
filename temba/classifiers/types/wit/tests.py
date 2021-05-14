@@ -100,7 +100,7 @@ class WitTypeTest(TembaTest):
         flow = self.create_flow()
         flow.classifier_dependencies.add(c)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(AssertionError):
             self.client.post(url)
 
         c.refresh_from_db()

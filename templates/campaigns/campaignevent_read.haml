@@ -2,13 +2,7 @@
 -load smartmin sms temba compress humanize contacts i18n
 
 -block page-title
-  -if object.offset < 0
-    {{object.abs_offset}} {{object.get_unit_display|slice:"-1"}}{{object.offset|pluralize}} Before
-  -elif object.offset == 0
-    On
-  -else
-    {{object.abs_offset}} {{object.get_unit_display|slice:"-1"}}{{object.offset|pluralize}} After
-  {{object.relative_to|title}}
+  {{ object.offset_display }} {{ object.relative_to.label }}
 
 -block title-icon
   .title-icon
@@ -21,18 +15,11 @@
       -trans "(Archived)"
 
 -block subtitle
-  -if object.offset < 0
-    {{object.abs_offset}} {{object.get_unit_display|slice:"-1"}}{{object.offset|pluralize}} Before
-  -elif object.offset == 0
-    On
-  -else
-    {{object.abs_offset}} {{object.get_unit_display|slice:"-1"}}{{object.offset|pluralize}} After
-  {{object.relative_to|title}}
+  {{ object.offset_display }} {{ object.relative_to.label }}
 
   .mt-2
     -if object.campaign.group.is_active
-      .lbl-group.linked(onclick="goto(event)" href="{% url 'contacts.contact_filter' object.campaign.group.uuid %}")
-        {{object.campaign.group.name}}
+      -include "includes/recipients_group.haml" with group=object.campaign.group
 
 -block content
   .event-details.p-4.bg-gray-100.rounded-lg.mb-6

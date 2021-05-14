@@ -7,7 +7,7 @@ import iptools
 import sentry_sdk
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
-from sentry_sdk.integrations.logging import LoggingIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration, ignore_logger
 
 from django.utils.translation import ugettext_lazy as _
 
@@ -27,6 +27,7 @@ if SENTRY_DSN:  # pragma: no cover
         send_default_pii=True,
         traces_sampler=traces_sampler,
     )
+    ignore_logger("django.security.DisallowedHost")
 
 
 # -----------------------------------------------------------------------------------
@@ -58,10 +59,11 @@ EMAIL_HOST_USER = "server@temba.io"
 DEFAULT_FROM_EMAIL = "server@temba.io"
 EMAIL_HOST_PASSWORD = "mypassword"
 EMAIL_USE_TLS = True
+EMAIL_TIMEOUT = 10
 
 # Used when sending email from within a flow and the user hasn't configured
 # their own SMTP server.
-FLOW_FROM_EMAIL = "no-reply@temba.io"
+FLOW_FROM_EMAIL = "Temba <no-reply@temba.io>"
 
 # HTTP Headers using for outgoing requests to other services
 OUTGOING_REQUEST_HEADERS = {"User-agent": "RapidPro"}
@@ -153,8 +155,8 @@ TESTFILES_DIR = os.path.join(PROJECT_DIR, "../testfiles")
 STATICFILES_DIRS = (
     os.path.join(PROJECT_DIR, "../static"),
     os.path.join(PROJECT_DIR, "../media"),
-    os.path.join(PROJECT_DIR, "../node_modules"),
     os.path.join(PROJECT_DIR, "../node_modules/@greatnonprofits-nfp/flow-editor/build"),
+    os.path.join(PROJECT_DIR, "../node_modules"),
     os.path.join(PROJECT_DIR, "../node_modules/react/umd"),
     os.path.join(PROJECT_DIR, "../node_modules/react-dom/umd"),
 )
@@ -220,9 +222,9 @@ MIDDLEWARE = (
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "temba.middleware.ConsentMiddleware",
     "temba.middleware.BrandingMiddleware",
-    "temba.middleware.OrgTimezoneMiddleware",
-    "temba.middleware.ActivateLanguageMiddleware",
-    "temba.middleware.OrgHeaderMiddleware",
+    "temba.middleware.OrgMiddleware",
+    "temba.middleware.LanguageMiddleware",
+    "temba.middleware.TimezoneMiddleware",
 )
 
 # security middleware configuration
@@ -345,7 +347,7 @@ BRANDING = {
         "splash": "brands/rapidpro/splash.jpg",
         "logo": "brands/rapidpro/logo.png",
         "allow_signups": True,
-        "flow_types": ["M", "V", "S"],  # see Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY
+        "flow_types": ["M", "V", "B", "S"],  # see Flow.FLOW_TYPES
         "tiers": dict(multi_user=0, multi_org=0),
         "bundles": [],
         "welcome_packs": [dict(size=5000, name="Demo Account"), dict(size=100000, name="UNICEF Account")],
@@ -391,6 +393,7 @@ PERMISSIONS = {
         "omnibox",
         "restore",
         "search",
+        "start",
         "update_fields",
         "update_fields_input",
         "invite_participants",
@@ -422,13 +425,14 @@ PERMISSIONS = {
         "home",
         "import",
         "join",
+        "join_accept",
         "languages",
         "lookups",
         "manage",
         "manage_accounts",
         "manage_accounts_sub_org",
-        "nexmo_account",
-        "nexmo_connect",
+        "vonage_account",
+        "vonage_connect",
         "parse_data_view",
         "parse_data_import",
         "plan",
@@ -448,7 +452,6 @@ PERMISSIONS = {
         "two_factor",
         "token",
     ),
-    "orgs.usersettings": ("phone",),
     "channels.channel": (
         "api",
         "bulk_sender_options",
@@ -458,7 +461,7 @@ PERMISSIONS = {
         "create_caller",
         "errors",
         "facebook_whitelist",
-        "search_nexmo",
+        "search_vonage",
         "search_numbers",
     ),
     "channels.channellog": ("connection",),
@@ -524,7 +527,7 @@ PERMISSIONS = {
     "policies.policy": ("admin", "history", "give_consent"),
     "request_logs.httplog": ("classifier", "ticketer"),
     "templates.template": ("api",),
-    "tickets.ticket": ("open", "closed", "filter", "update"),
+    "tickets.ticket": ("api", "open", "closed", "filter", "update"),
     "tickets.ticketer": ("api", "connect", "configure"),
     "triggers.trigger": (
         "archived",
@@ -545,7 +548,7 @@ PERMISSIONS = {
 GROUP_PERMISSIONS = {
     "Service Users": ("flows.flow_assets", "msgs.msg_create"),  # internal Temba services have limited permissions
     "Alpha": (),
-    "Beta": ("orgs.org_two_factor",),
+    "Beta": (),
     "Dashboard": ("orgs.org_dashboard",),
     "Surveyors": (
         "contacts.contact_api",
@@ -627,6 +630,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_read",
         "contacts.contact_restore",
         "contacts.contact_search",
+        "contacts.contact_start",
         "contacts.contact_stopped",
         "contacts.contact_update",
         "contacts.contact_update_fields",
@@ -661,8 +665,8 @@ GROUP_PERMISSIONS = {
         "orgs.org_lookups",
         "orgs.org_manage_accounts",
         "orgs.org_manage_accounts_sub_org",
-        "orgs.org_nexmo_account",
-        "orgs.org_nexmo_connect",
+        "orgs.org_vonage_account",
+        "orgs.org_vonage_connect",
         "orgs.org_parse_data_view",
         "orgs.org_parse_data_import",
         "orgs.org_plan",
@@ -675,11 +679,10 @@ GROUP_PERMISSIONS = {
         "orgs.org_transfer_credits",
         "orgs.org_twilio_account",
         "orgs.org_twilio_connect",
+        "orgs.org_two_factor",
         "orgs.org_token",
         "orgs.topup_list",
         "orgs.topup_read",
-        "orgs.usersettings_phone",
-        "orgs.usersettings_update",
         "channels.channel_api",
         "channels.channel_bulk_sender_options",
         "channels.channel_claim",
@@ -691,7 +694,7 @@ GROUP_PERMISSIONS = {
         "channels.channel_delete",
         "channels.channel_list",
         "channels.channel_read",
-        "channels.channel_search_nexmo",
+        "channels.channel_search_vonage",
         "channels.channel_search_numbers",
         "channels.channel_update",
         "channels.channelevent.*",
@@ -767,6 +770,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_read",
         "contacts.contact_restore",
         "contacts.contact_search",
+        "contacts.contact_start",
         "contacts.contact_stopped",
         "contacts.contact_update",
         "contacts.contact_update_fields",
@@ -793,11 +797,10 @@ GROUP_PERMISSIONS = {
         "orgs.org_parse_data_import",
         "orgs.org_profile",
         "orgs.org_resthooks",
+        "orgs.org_two_factor",
         "orgs.org_token",
         "orgs.topup_list",
         "orgs.topup_read",
-        "orgs.usersettings_phone",
-        "orgs.usersettings_update",
         "channels.channel_api",
         "channels.channel_bulk_sender_options",
         "channels.channel_claim",
@@ -817,7 +820,7 @@ GROUP_PERMISSIONS = {
         "flows.flowlabel.*",
         "flows.ruleset.*",
         "flows.flowimage.*",
-        "schedules.schedule.*",
+        "links.link.*",
         "msgs.broadcast.*",
         "msgs.broadcastschedule.*",
         "msgs.label.*",
@@ -837,8 +840,9 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
+        "schedules.schedule.*",
         "templates.template_api",
-        "links.link.*",
+        "tickets.ticket_api",
         "tickets.ticket_closed",
         "tickets.ticket_filter",
         "tickets.ticket_open",
@@ -875,6 +879,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_export",
         "orgs.org_home",
         "orgs.org_profile",
+        "orgs.org_two_factor",
         "orgs.topup_list",
         "orgs.topup_read",
         "channels.channel_list",
@@ -906,6 +911,11 @@ GROUP_PERMISSIONS = {
         "flows.flowimage_archived",
         "flows.flowimage_download",
         "flows.flowstart_list",
+        "links.link_export",
+        "links.link_archived",
+        "links.link_history",
+        "links.link_list",
+        "links.link_read",
         "msgs.broadcast_schedule_list",
         "msgs.broadcast_schedule_read",
         "msgs.label_api",
@@ -920,11 +930,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
-        "links.link_export",
-        "links.link_archived",
-        "links.link_history",
-        "links.link_list",
-        "links.link_read",
+        "tickets.ticket_api",
         "tickets.ticket_closed",
         "tickets.ticket_filter",
         "tickets.ticket_open",
@@ -932,6 +938,7 @@ GROUP_PERMISSIONS = {
         "triggers.trigger_archived",
         "triggers.trigger_list",
     ),
+    "Agents": (),
     "Prometheus": (),
 }
 
@@ -946,7 +953,7 @@ LOGOUT_REDIRECT_URL = "/"
 AUTHENTICATION_BACKENDS = ("smartmin.backends.CaseInsensitiveBackend",)
 
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}}
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator", "OPTIONS": {"min_length": 8}},
 ]
 
 ANONYMOUS_USER_NAME = "AnonymousUser"
@@ -1163,6 +1170,7 @@ CLASSIFIER_TYPES = [
 ]
 
 TICKETER_TYPES = [
+    "temba.tickets.types.internal.InternalType",
     "temba.tickets.types.mailgun.MailgunType",
     "temba.tickets.types.zendesk.ZendeskType",
     "temba.tickets.types.rocketchat.RocketChatType",
@@ -1173,11 +1181,12 @@ CHANNEL_TYPES = [
     "temba.channels.types.whatsapp.WhatsAppType",
     "temba.channels.types.textit_whatsapp.TextItWhatsAppType",
     "temba.channels.types.dialog360.Dialog360Type",
+    "temba.channels.types.zenvia_whatsapp.ZenviaWhatsAppType",
     "temba.channels.types.twilio.TwilioType",
     "temba.channels.types.twilio_whatsapp.TwilioWhatsappType",
     "temba.channels.types.twilio_messaging_service.TwilioMessagingServiceType",
     "temba.channels.types.signalwire.SignalWireType",
-    "temba.channels.types.nexmo.NexmoType",
+    "temba.channels.types.vonage.VonageType",
     "temba.channels.types.africastalking.AfricasTalkingType",
     "temba.channels.types.blackmyna.BlackmynaType",
     "temba.channels.types.bongolive.BongoLiveType",
@@ -1202,6 +1211,7 @@ CHANNEL_TYPES = [
     "temba.channels.types.jasmin.JasminType",
     "temba.channels.types.jiochat.JioChatType",
     "temba.channels.types.junebug.JunebugType",
+    "temba.channels.types.kaleyra.KaleyraType",
     "temba.channels.types.kannel.KannelType",
     "temba.channels.types.line.LineType",
     "temba.channels.types.m3tech.M3TechType",
@@ -1229,7 +1239,9 @@ CHANNEL_TYPES = [
     "temba.channels.types.wechat.WeChatType",
     "temba.channels.types.yo.YoType",
     "temba.channels.types.zenvia.ZenviaType",
+    "temba.channels.types.zenvia_sms.ZenviaSMSType",
     "temba.channels.types.android.AndroidType",
+    "temba.channels.types.discord.DiscordType",
     "temba.channels.types.webchat.WebChatType",
     "temba.channels.types.rocketchat.RocketChatType",
 ]
@@ -1293,10 +1305,11 @@ FACEBOOK_WEBHOOK_SECRET = os.environ.get("FACEBOOK_WEBHOOK_SECRET", "")
 IP_ADDRESSES = ("172.16.10.10", "162.16.10.20")
 
 # -----------------------------------------------------------------------------------
-# Installs may choose how big they want their text messages and contact fields to be.
+# Data model field size limits
 # -----------------------------------------------------------------------------------
-MSG_FIELD_SIZE = 640
-FLOW_START_PARAMS_SIZE = 256
+MSG_FIELD_SIZE = 640  # used for broadcast text and message campaign events
+FLOW_START_PARAMS_SIZE = 256  # used for params passed to flow start API endpoint
+GLOBAL_VALUE_SIZE = 10_000  # max length of global values
 
 # -----------------------------------------------------------------------------------
 # Installs may choose how long to keep the channel logs in hours
@@ -1341,8 +1354,8 @@ ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:9200")
 
 
 # Maximum active objects are org can have
-MAX_ACTIVE_CONTACTGROUPS_PER_ORG = 250
 MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
+MAX_ACTIVE_CONTACTGROUPS_PER_ORG = 250
 MAX_ACTIVE_GLOBALS_PER_ORG = 255
 
 COURIER_DEFAULT_TPS = 1000

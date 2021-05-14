@@ -122,7 +122,7 @@
                           - else
                             -trans "Contains flow parameters"
 
-                      %td{onclick:"handleRowSelection(this)", width: "250px" }
+                      %td(onclick="handleRowSelection(this)" width="250px")
                         -include "includes/recipients.haml" with groups=obj.groups.all contacts=obj.contacts.all
 
                     -empty

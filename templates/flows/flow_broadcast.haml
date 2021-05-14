@@ -1,6 +1,5 @@
 -extends 'includes/modax.html'
--load smartmin
--load i18n
+-load smartmin i18n
 
 -block fields
 
@@ -14,7 +13,7 @@
     %hr
     %p
       -trans "You can always test your flow using the simulator, click"
-        %span.glyph.icon-mobile{style:"padding-top:2px;"}
+        %span.glyph.icon-mobile(style="padding-top:2px;")
       -trans "on the right to open it."
 
   -elif object.flow_type == 'V' and not call_channel
@@ -25,49 +24,29 @@
         is a service which provides voice-enabled numbers which you can add as channels in your {{ name }} workspace.
 
   -else
-    -if warnings
-      -for warning in warnings
-        .mb-4
-          %temba-alert{level: "warning"}
-            %div= warning
+    -for warning in warnings
+      %temba-alert.mb-4(level="warning")
+        %div= warning
 
     .field.recipients-mode
       -render_field 'recipients_mode'
 
-    .field.omnibox{class:'{% if not form.recipients_mode.value == "select" %}hidden{%endif%}'}
+    .field.omnibox(class='{% if not form.recipients_mode.value == "select" %}hidden{%endif%}')
       -render_field 'omnibox'
 
-    .field.query{class:'{% if form.recipients_mode.value == "select" %}hidden{%endif%}'}
+    .field.query(class='{% if form.recipients_mode.value == "select" %}hidden{%endif%}')
       -render_field 'contact_query'
 
     .start-options.mt-6.ml-2
       -render_field 'restart_participants'
-      -render_field 'include_active'
+      -if object.flow_type != 'B'
+        -render_field 'include_active'
 
 -block form-buttons
   -if send_channel
     .form-actions
-      %input.btn.btn-primary{type:"submit", value:"{{ submit_button_name }}"}
+      %input.btn.btn-primary(type="submit" value="{{ submit_button_name }}")
 
--block summary
-  %p
-    -if not run_count
-      -trans "This flow has never been started."
-    -elif run_count == 1
-      %span.attn1
-        -trans "This flow has been started once."
-    -else
-      %span.attn
-        -trans "This flow has been started {{ run_count }} times."
-
-    -if complete_count == 1
-      -trans "It has been completed"
-      %span.attn
-        -trans "Once."
-    -elif complete_count > 1
-      -trans "It has been completed"
-        %span.attn
-          -trans "{{ complete_count }} times."
 
 -block modal-script
   {{block.super}}

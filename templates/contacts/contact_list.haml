@@ -72,7 +72,7 @@
                 .button-light.block.mt-3
                   - trans "Create Group"
 
-        .right
+        .right.overflow-x-hidden.p-2.-mt-1
 
           -if has_contacts
             -block contacts-list
@@ -164,72 +164,73 @@
                     -plural
                       Found {{ results_count }} contacts matching <i>{{search}}</i>.
 
-              .table-container
+              .table-scroll.shadow.rounded-lg.overflow-x-auto
                 %table.list.object-list.lined.selectable
                   - if object_list
-                    %tr.contacts
-                      -if org_perms.contacts.contact_update
-                        %th.checkbox.object-row-checkbox.select-all-items-checkbox
-                          .glyph.icon-checkbox-unchecked.contacts-checkbox
-                      %th
-                      %th
-                      %th
-                      -for field in contact_fields
-                        -if field.show_in_table
-                          %th
-                            -if sort_field == field.key
-                              -if sort_direction == 'desc'
-                                %a(href="?sort_on={{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
-                                  %div
-                                    {{ field.label }}
-                                    %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                    %thead
+                      %tr.contacts
+                        -if org_perms.contacts.contact_update
+                          %th.checkbox.object-row-checkbox.select-all-items-checkbox
+                            .glyph.icon-checkbox-unchecked.contacts-checkbox
+                        %th
+                        %th
+                        %th
+                        -for field in contact_fields
+                          -if field.show_in_table
+                            %th
+                              -if sort_field == field.key
+                                -if sort_direction == 'desc'
+                                  %a(href="?sort_on={{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
+                                    %div
+                                      {{ field.label }}
+                                      %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                                -else
+                                  %a(href="?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
+                                    %div
+                                      {{ field.label }}
+                                      %span.sort.icon.icon-arrow-up51.sort-desc.visible
                               -else
                                 %a(href="?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
                                   %div
                                     {{ field.label }}
+                                    %span.sort.icon.icon-arrow-down-2.sort-desc
+                        %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
+                          - if object_list
+                            -if sort_field == 'last_seen_on'
+                              -if sort_direction == 'desc'
+                                %a(href="?sort_on=last_seen_on{% if search %}&search={{ search|escape }}{% endif %}")
+                                  %div
+                                    -trans "Last Seen On"
+                                    %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                              -else
+                                %a(href="?sort_on=-last_seen_on{% if search %}&search={{ search|escape }}{% endif %}")
+                                  %div
+                                    -trans "Last Seen On"
                                     %span.sort.icon.icon-arrow-up51.sort-desc.visible
-                            -else
-                              %a(href="?sort_on=-{{ field.key }}{% if search %}&search={{ search|escape }}{% endif %}")
-                                %div
-                                  {{ field.label }}
-                                  %span.sort.icon.icon-arrow-down-2.sort-desc
-                      %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
-                        - if object_list
-                          -if sort_field == 'last_seen_on'
-                            -if sort_direction == 'desc'
-                              %a(href="?sort_on=last_seen_on{% if search %}&search={{ search|escape }}{% endif %}")
-                                %div
-                                  -trans "Last Seen On"
-                                  %span.sort.icon.icon-arrow-down-2.sort-asc.visible
                             -else
                               %a(href="?sort_on=-last_seen_on{% if search %}&search={{ search|escape }}{% endif %}")
                                 %div
                                   -trans "Last Seen On"
-                                  %span.sort.icon.icon-arrow-up51.sort-desc.visible
-                          -else
-                            %a(href="?sort_on=-last_seen_on{% if search %}&search={{ search|escape }}{% endif %}")
-                              %div
-                                -trans "Last Seen On"
-                                %span.sort.icon.icon-arrow-down-2.sort-desc
+                                  %span.sort.icon.icon-arrow-down-2.sort-desc
 
-                      %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
-                        -if object_list
-                          -if sort_field == 'created_on'
-                            -if sort_direction == 'desc'
-                              %a(href="?sort_on=created_on{% if search %}&search={{ search|escape }}{% endif %}")
-                                %div
-                                  -trans "Created On"
-                                  %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                        %th.px-6.py-3.pt-4.border-b.border-gray-200.bg-gray-100.text-left.font-medium.uppercase.text-xs.tracking-wider
+                          -if object_list
+                            -if sort_field == 'created_on'
+                              -if sort_direction == 'desc'
+                                %a(href="?sort_on=created_on{% if search %}&search={{ search|escape }}{% endif %}")
+                                  %div
+                                    -trans "Created On"
+                                    %span.sort.icon.icon-arrow-down-2.sort-asc.visible
+                              -else
+                                %a(href="?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}")
+                                  %div
+                                    -trans "Created On"
+                                    %span.sort.icon.icon-arrow-up51.sort-desc.visible
                             -else
                               %a(href="?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}")
                                 %div
                                   -trans "Created On"
-                                  %span.sort.icon.icon-arrow-up51.sort-desc.visible
-                          -else
-                            %a(href="?sort_on=-created_on{% if search %}&search={{ search|escape }}{% endif %}")
-                              %div
-                                -trans "Created On"
-                                %span.sort.icon.icon-arrow-down-2.sort-desc
+                                  %span.sort.icon.icon-arrow-down-2.sort-desc
 
                   %tbody
                     -for object in contacts
@@ -240,7 +241,7 @@
                             %temba-checkbox(onclick="handleRowSelection(this)")
 
                         %td
-                          .whitespace-no-wrap.overflow-ellipsis-200
+                          .whitespace-no-wrap
                             {{ object|name:user_org }}
                         %td
                           .value-labels
@@ -307,10 +308,7 @@
 -block extra-style
   {{block.super}}
   :css
-    .right {
-      overflow-x: hidden;
-      padding: 2px;
-    }
+
 
     tr.contacts th a span.icon {
       visibility: hidden;
