@@ -1740,6 +1740,7 @@ class Org(SmartModel):
 
             channel.counts.all().delete()
             channel.logs.all().delete()
+            channel.template_translations.all().delete()
 
             channel.delete()
 
@@ -1795,6 +1796,7 @@ class Org(SmartModel):
         self.credit_alerts.all().delete()
         self.schedules.all().delete()
         self.boundaryalias_set.all().delete()
+        self.templates.all().delete()
 
         # needs to come after deletion of msgs and broadcasts as those insert new counts
         self.system_labels.all().delete()

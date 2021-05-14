@@ -92,6 +92,65 @@ def _calculate_variable_count(content):
     return count
 
 
+def update_local_templates(channel, templates_data):
+
+    channel_namespace = channel.config.get("fb_namespace", "")
+    # run through all our templates making sure they are present in our DB
+    seen = []
+    for template in templates_data:
+        # if this is a status we don't know about
+        if template["status"] not in STATUS_MAPPING:
+            continue
+
+        status = STATUS_MAPPING[template["status"]]
+
+        content_parts = []
+
+        all_supported = True
+        for component in template["components"]:
+            if component["type"] not in ["HEADER", "BODY", "FOOTER"]:
+                continue
+
+            if "text" not in component:
+                continue
+
+            if component["type"] in ["HEADER", "FOOTER"] and _calculate_variable_count(component["text"]):
+                all_supported = False
+
+            content_parts.append(component["text"])
+
+        if not content_parts or not all_supported:
+            continue
+
+        content = "\n\n".join(content_parts)
+        variable_count = _calculate_variable_count(content)
+
+        language, country = LANGUAGE_MAPPING.get(template["language"], (None, None))
+
+        # its a (non fatal) error if we see a language we don't know
+        if language is None:
+            status = TemplateTranslation.STATUS_UNSUPPORTED_LANGUAGE
+            language = template["language"]
+
+        missing_external_id = f"{template['language']}/{template['name']}"
+        translation = TemplateTranslation.get_or_create(
+            channel=channel,
+            name=template["name"],
+            language=language,
+            country=country,
+            content=content,
+            variable_count=variable_count,
+            status=status,
+            external_id=template.get("id", missing_external_id),
+            namespace=template.get("namespace", channel_namespace),
+        )
+
+        seen.append(translation)
+
+    # trim any translations we didn't see
+    TemplateTranslation.trim(channel, seen)
+
+
 @task(track_started=True, name="refresh_whatsapp_templates")
 def refresh_whatsapp_templates():
     """
@@ -105,9 +164,6 @@ def refresh_whatsapp_templates():
     with r.lock("refresh_whatsapp_templates", 1800):
         # for every whatsapp channel
         for channel in Channel.objects.filter(is_active=True, channel_type__in=["WA", "D3"]):
-
-            channel_namespace = channel.config.get("fb_namespace", "")
-
             # fetch all our templates
             try:
 
@@ -115,60 +171,7 @@ def refresh_whatsapp_templates():
                 if not valid:
                     continue
 
-                # run through all our templates making sure they are present in our DB
-                seen = []
-                for template in templates_data:
-                    # if this is a status we don't know about
-                    if template["status"] not in STATUS_MAPPING:
-                        continue
-
-                    status = STATUS_MAPPING[template["status"]]
-
-                    content_parts = []
-
-                    all_supported = True
-                    for component in template["components"]:
-                        if component["type"] not in ["HEADER", "BODY", "FOOTER"]:
-                            continue
-
-                        if "text" not in component:
-                            continue
-
-                        if component["type"] in ["HEADER", "FOOTER"] and _calculate_variable_count(component["text"]):
-                            all_supported = False
-
-                        content_parts.append(component["text"])
-
-                    if not content_parts or not all_supported:
-                        continue
-
-                    content = "\n\n".join(content_parts)
-                    variable_count = _calculate_variable_count(content)
-
-                    language, country = LANGUAGE_MAPPING.get(template["language"], (None, None))
-
-                    # its a (non fatal) error if we see a language we don't know
-                    if language is None:
-                        status = TemplateTranslation.STATUS_UNSUPPORTED_LANGUAGE
-                        language = template["language"]
-
-                    missing_external_id = f"{template['language']}/{template['name']}"
-                    translation = TemplateTranslation.get_or_create(
-                        channel=channel,
-                        name=template["name"],
-                        language=language,
-                        country=country,
-                        content=content,
-                        variable_count=variable_count,
-                        status=status,
-                        external_id=template.get("id", missing_external_id),
-                        namespace=template.get("namespace", channel_namespace),
-                    )
-
-                    seen.append(translation)
-
-                # trim any translations we didn't see
-                TemplateTranslation.trim(channel, seen)
+                update_local_templates(channel, templates_data)
 
             except Exception as e:
                 logger.error(f"Error refreshing whatsapp templates: {str(e)}", exc_info=True)
