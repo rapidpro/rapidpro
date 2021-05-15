@@ -1756,7 +1756,7 @@ class Org(SmartModel):
 
         # delete our ticketers
         for ticketer in self.ticketers.all():
-            ticketer.release()
+            ticketer.release(self.modified_by)
             ticketer.delete()
 
         # release all archives objects and files for this org
