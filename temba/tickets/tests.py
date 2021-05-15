@@ -376,13 +376,18 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         delete_url = reverse("tickets.ticketer_delete", args=[ticketer.uuid])
 
-        # try to delete it
-        response = self.client.post(delete_url)
+        # try to fetch modal
+        response = self.client.get(delete_url)
         self.assertRedirect(response, "/users/login/")
 
         self.login(self.admin)
 
-        self.client.post(delete_url)
+        response = self.client.get(delete_url)
+        self.assertContains(response, "You are about to delete")
+
+        # submit to delete it
+        response = self.client.post(delete_url)
+        self.assertEqual("/org/home/", response["Temba-Success"])
 
         ticketer.refresh_from_db()
         self.assertFalse(ticketer.is_active)
@@ -394,8 +399,10 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
         # add a dependency and try again
         flow = self.create_flow()
         flow.ticketer_dependencies.add(ticketer)
-
         self.assertFalse(flow.has_issues)
+
+        response = self.client.get(delete_url)
+        self.assertContains(response, "is used by the following flows which may not work as expected")
 
         self.client.post(delete_url)
         ticketer.refresh_from_db()
