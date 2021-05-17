@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-08 21:00+0000\n"
+"POT-Creation-Date: 2021-05-12 18:32+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -746,6 +746,9 @@ msgid "Delivered URL"
 msgstr ""
 
 msgid "This endpoint should be called by Dart Media when a message has been to the final recipient. (delivery reports) You can set the delivery callback URL on your Dart Media account by contacting your sales agent."
+msgstr ""
+
+msgid "Message Templates"
 msgstr ""
 
 #, python-format
@@ -1538,6 +1541,12 @@ msgstr ""
 msgid "Short code not found on your Twilio Account. Please check you own the short code and Try again"
 msgstr ""
 
+msgid "Sorry, no numbers found, please enter another area code and try again."
+msgstr ""
+
+msgid "Sorry, no numbers found, please enter another pattern and try again."
+msgstr ""
+
 #, python-format
 msgid "You can connect a messaging service from your Twilio account to benefit from %(link)s features."
 msgstr ""
@@ -1746,9 +1755,6 @@ msgstr ""
 msgid "The WeChat App secret"
 msgstr ""
 
-msgid "Message Templates"
-msgstr ""
-
 msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
 msgstr ""
 
@@ -1758,12 +1764,6 @@ msgstr ""
 
 #, python-format
 msgid "Unable to configure channel: %s"
-msgstr ""
-
-msgid "Contacts refresh begun, it may take a few minutes to complete."
-msgstr ""
-
-msgid "Sync Logs"
 msgstr ""
 
 msgid "The base URL for your WhatsApp enterprise installation"
@@ -1859,15 +1859,6 @@ msgid "API Token"
 msgstr ""
 
 msgid "The API token for your integration as provided by Zenvia"
-msgstr ""
-
-msgid "United Kingdom"
-msgstr ""
-
-msgid "Scension Island"
-msgstr ""
-
-msgid "Kosovo"
 msgstr ""
 
 msgid "POST Required"
@@ -1970,9 +1961,6 @@ msgstr ""
 msgid "Save Changes"
 msgstr ""
 
-msgid "or"
-msgstr ""
-
 msgid "A connection to a Vonage account is required"
 msgstr ""
 
@@ -1989,15 +1977,6 @@ msgid "Channels"
 msgstr ""
 
 msgid "Unknown"
-msgstr ""
-
-msgid "The area code you want to search for a new number in"
-msgstr ""
-
-msgid "Sorry, no numbers found, please enter another area code and try again."
-msgstr ""
-
-msgid "Sorry, no numbers found, please enter another pattern and try again."
 msgstr ""
 
 msgid "Calls"
@@ -2305,8 +2284,8 @@ msgstr ""
 msgid "Select groups for this contact"
 msgstr ""
 
-#, python-format
-msgid "%s (Missing)"
+#, python-brace-format
+msgid "{lang_name} (Missing)"
 msgstr ""
 
 msgid "The groups which this contact belongs to"
@@ -2468,34 +2447,13 @@ msgstr ""
 msgid "The name for this flow"
 msgstr ""
 
-msgid "Labels"
-msgstr ""
-
-msgid "Any labels on this flow"
-msgstr ""
-
-msgid "Whether this flow is archived"
-msgstr ""
-
-msgid "Whether this is a system created flow"
-msgstr ""
-
 msgid "Minutes of inactivity that will cause expiration from flow"
 msgstr ""
 
 msgid "Ignore keyword triggers while in this flow"
 msgstr ""
 
-msgid "When this item was saved"
-msgstr ""
-
-msgid "The user which last saved this flow"
-msgstr ""
-
 msgid "The authoring language, additional languages can be added later"
-msgstr ""
-
-msgid "The flow version this definition is in"
 msgstr ""
 
 msgid "Archive delete"
@@ -2505,6 +2463,9 @@ msgid "User delete"
 msgstr ""
 
 msgid "The JSON flow definition"
+msgstr ""
+
+msgid "The flow version this definition is in"
 msgstr ""
 
 msgid "Revision number for this definition"
@@ -3059,6 +3020,24 @@ msgstr ""
 msgid "Update Label"
 msgstr ""
 
+msgid "Agent Name"
+msgstr ""
+
+msgid "Your Chatbase agent's name."
+msgstr ""
+
+msgid "The chatbase agent's API Key."
+msgstr ""
+
+msgid "Version"
+msgstr ""
+
+msgid "Missing agent name or API key."
+msgstr ""
+
+msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
+msgstr ""
+
 msgid "Administrators"
 msgstr ""
 
@@ -3092,7 +3071,10 @@ msgstr ""
 msgid "Our Stripe customer id for your organization"
 msgstr ""
 
-msgid "The main language used by this organization"
+msgid "Default Language"
+msgstr ""
+
+msgid "The default website language for new users."
 msgstr ""
 
 msgid "Timezone"
@@ -3161,9 +3143,6 @@ msgid "Sorry, your card was declined, please contact your provider or try anothe
 msgstr ""
 
 msgid "Sorry, we were unable to process your payment, please try again later or contact us."
-msgstr ""
-
-msgid "Org"
 msgstr ""
 
 #, python-format
@@ -3429,13 +3408,13 @@ msgstr ""
 msgid "Your Vonage API secret"
 msgstr ""
 
-msgid "Your Plivo AUTH ID"
+msgid "Your Plivo auth ID"
 msgstr ""
 
-msgid "Your Plivo AUTH TOKEN"
+msgid "Your Plivo auth token"
 msgstr ""
 
-msgid "Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."
+msgid "Your Plivo auth ID and auth token seem invalid. Please check them again and retry."
 msgstr ""
 
 msgid "Email Address"
@@ -3583,15 +3562,6 @@ msgstr ""
 msgid "New Event"
 msgstr ""
 
-msgid "Agent Name"
-msgstr ""
-
-msgid "Version"
-msgstr ""
-
-msgid "Missing data: Agent Name or API Key.Please check them again and retry."
-msgstr ""
-
 msgid "Your Account"
 msgstr ""
 
@@ -3608,9 +3578,6 @@ msgid "Help"
 msgstr ""
 
 msgid "Sign Out"
-msgstr ""
-
-msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
 msgstr ""
 
 msgid "Account Token"
@@ -3650,7 +3617,7 @@ msgstr ""
 msgid "Additional Languages"
 msgstr ""
 
-msgid "Additional languages you would like to provid translations for"
+msgid "Additional languages you would like to provide translations for"
 msgstr ""
 
 #, python-format
@@ -4048,6 +4015,15 @@ msgstr ""
 msgid "Create Schedule"
 msgstr ""
 
+msgid "United Kingdom"
+msgstr ""
+
+msgid "Ascension Island"
+msgstr ""
+
+msgid "Kosovo"
+msgstr ""
+
 msgid "Processing"
 msgstr ""
 
@@ -4121,6 +4097,12 @@ msgid ", "
 msgstr ""
 
 msgid "An error occurred while making your changes. Please try again."
+msgstr ""
+
+msgid "Contacts refresh begun, it may take a few minutes to complete."
+msgstr ""
+
+msgid "Sync Logs"
 msgstr ""
 
 msgid "HTTP Logs"
@@ -5183,21 +5165,6 @@ msgstr ""
 msgid "In the case of a new WhatsApp install or replacement of an existing WhatsApp channel you may need to refresh the contacts on the WhatsApp application. This may take a few minutes."
 msgstr ""
 
-msgid "WhatsApp Templates Events"
-msgstr ""
-
-msgid "No syncs yet. Check back later."
-msgstr ""
-
-msgid "Templates"
-msgstr ""
-
-msgid "Templates are synced from your WhatsApp account every 15 minutes."
-msgstr ""
-
-msgid "No synced templates at this time."
-msgstr ""
-
 msgid "Connect a Classifier"
 msgstr ""
 
@@ -5353,6 +5320,10 @@ msgstr ""
 
 #, python-format
 msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgstr ""
+
+#, python-format
+msgid "Closed ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
 msgstr ""
 
 msgid "Successfully called"
@@ -5808,10 +5779,16 @@ msgstr ""
 msgid "Create Flow"
 msgstr ""
 
+msgid "Labels"
+msgstr ""
+
 msgid "Webhook Call Log"
 msgstr ""
 
 msgid "New Label"
+msgstr ""
+
+msgid "Has issues"
 msgstr ""
 
 msgid "No matching flows."
@@ -6331,6 +6308,64 @@ msgid ""
 "\n"
 msgstr ""
 
+#, python-format
+msgid "Connected to your Chatbase account as agent <b>%(agent)s</b>."
+msgstr ""
+
+msgid "Connect your Chatbase account."
+msgstr ""
+
+msgid "Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences and better understand your users. To signup for an account, visit"
+msgstr ""
+
+msgid "Your Chatbase account is connected to the Agent"
+msgstr ""
+
+msgid "If you no longer want it connected, you can"
+msgstr ""
+
+msgid "disconnect"
+msgstr ""
+
+msgid "your Chatbase account. Doing so will interrupt the data sent to your Chatbase console."
+msgstr ""
+
+msgid "Disconnect Chatbase"
+msgstr ""
+
+msgid "This will disconnect your Chatbase account. Are you sure you want to proceed?"
+msgstr ""
+
+msgid "Connected to your DT One account."
+msgstr ""
+
+msgid "Transfer Log"
+msgstr ""
+
+msgid "Connect your DT One account."
+msgstr ""
+
+#, python-format
+msgid "Adding a DT One account will allow you to send airtime credit over 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your flows. To signup for an account, visit %(link)s."
+msgstr ""
+
+#, python-format
+msgid "You can find your credentials on the Developer tab on your %(link)s page."
+msgstr ""
+
+msgid "Your account is connected to a DT One account."
+msgstr ""
+
+#, python-format
+msgid "If you no longer want it connected, you can <a href=\"%(disconnect_url)s\">disconnect</a> it. Doing so will cause the payment actions in your flows to no longer be processed."
+msgstr ""
+
+msgid "Disconnect DT One"
+msgstr ""
+
+msgid "This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?"
+msgstr ""
+
 msgid "Confirm Access"
 msgstr ""
 
@@ -6380,33 +6415,6 @@ msgstr ""
 msgid "Your workspace has"
 msgstr ""
 
-msgid "Connected to Chatbase Account"
-msgstr ""
-
-msgid "Connect your Chatbase account."
-msgstr ""
-
-msgid "Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences and better understand your users. To signup for an account, visit"
-msgstr ""
-
-msgid "Your Chatbase account is connected to the Agent"
-msgstr ""
-
-msgid "If you no longer want it connected, you can"
-msgstr ""
-
-msgid "disconnect"
-msgstr ""
-
-msgid "your Chatbase account. Doing so will interrupt the data sent to your Chatbase console."
-msgstr ""
-
-msgid "Disconnect Chatbase"
-msgstr ""
-
-msgid "This will disconnect your Chatbase account. Are you sure you want to proceed?"
-msgstr ""
-
 msgid "Choose Workspace"
 msgstr ""
 
@@ -6442,36 +6450,6 @@ msgid "You are about to delete"
 msgstr ""
 
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
-msgstr ""
-
-msgid "Connected to your <b>DT One</b> account."
-msgstr ""
-
-msgid "Transfer Log"
-msgstr ""
-
-msgid "Connect your DT One account."
-msgstr ""
-
-#, python-format
-msgid "Adding a DT One account will allow you to send airtime credit over 400+ operators in over 100 countries. Once connected you can transfer airtime credit within your flows. To signup for an account, visit %(link)s."
-msgstr ""
-
-#, python-format
-msgid "You can find your credentials on the Developer tab on your %(link)s page."
-msgstr ""
-
-msgid "Your account is connected to a DT One account."
-msgstr ""
-
-#, python-format
-msgid "If you no longer want it connected, you can <a href=\"%(disconnect_url)s\">disconnect</a> it. Doing so will cause the payment actions in your flows to no longer be processed."
-msgstr ""
-
-msgid "Disconnect DT One"
-msgstr ""
-
-msgid "This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?"
 msgstr ""
 
 #, python-format
@@ -7338,4 +7316,19 @@ msgstr ""
 
 #, python-brace-format
 msgid "Found ${count} for ${query}"
+msgstr ""
+
+msgid "Templates Events"
+msgstr ""
+
+msgid "No syncs yet. Check back later."
+msgstr ""
+
+msgid "Templates"
+msgstr ""
+
+msgid "WhatsApp Templates are synced from your account every 15 minutes."
+msgstr ""
+
+msgid "No synced templates at this time."
 msgstr ""

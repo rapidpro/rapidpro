@@ -24,9 +24,7 @@ from temba.msgs.models import (
     OUTGOING,
     PENDING,
     QUEUED,
-    RESENT,
     SENT,
-    WIRED,
     Attachment,
     Broadcast,
     ExportMessagesTask,
@@ -38,7 +36,7 @@ from temba.msgs.models import (
 )
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, TembaTest
+from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.utils.uuid import uuid4
@@ -593,7 +591,8 @@ class MsgTest(TembaTest):
         self.assertEqual("E", msg2.status)
         self.assertEqual("F", msg3.status)
 
-    def test_failed(self):
+    @mock_mailroom
+    def test_failed(self, mr_mocks):
         failed_url = reverse("msgs.msg_failed")
 
         msg1 = self.create_outgoing_msg(self.joe, "message number 1", status="F")
@@ -633,18 +632,24 @@ class MsgTest(TembaTest):
         # let's resend some messages
         self.client.post(failed_url, dict(action="resend", objects=msg2.id), follow=True)
 
-        # check for the resent message and the new one being resent
-        self.assertEqual(set(Msg.objects.filter(status=RESENT)), {msg2})
-        self.assertEqual(Msg.objects.filter(status=WIRED).count(), 1)
+        self.assertEqual(
+            [
+                {
+                    "org_id": self.org.id,
+                    "queued_on": matchers.Datetime(),
+                    "task": {"msg_ids": [msg2.id]},
+                    "type": "resend_msgs",
+                }
+            ],
+            mr_mocks.queued_batch_tasks,
+        )
 
-        # make sure there was a new outgoing message created that got attached to our broadcast
-        self.assertEqual(2, broadcast.get_message_count())
+        # suspended orgs don't see resend as option
+        self.org.is_suspended = True
+        self.org.save(update_fields=("is_suspended",))
 
-        resent_msg = broadcast.msgs.order_by("-pk")[0]
-        self.assertNotEqual(msg2, resent_msg)
-        self.assertEqual(resent_msg.text, msg2.text)
-        self.assertEqual(resent_msg.contact, msg2.contact)
-        self.assertEqual(resent_msg.status, WIRED)
+        response = self.client.get(failed_url)
+        self.assertNotIn("resend", response.context["actions"])
 
     @patch("temba.utils.email.send_temba_email")
     def test_message_export_from_archives(self, mock_send_temba_email):
@@ -2776,9 +2781,7 @@ class SystemLabelTest(TembaTest):
             },
         )
 
-        msg5.resend()
-
-        self.assertEqual(SystemLabelCount.objects.all().count(), 32)
+        self.assertEqual(SystemLabelCount.objects.all().count(), 28)
 
         # squash our counts
         squash_msgcounts()
@@ -2790,8 +2793,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 0,
                 SystemLabel.TYPE_OUTBOX: 1,
-                SystemLabel.TYPE_SENT: 2,
-                SystemLabel.TYPE_FAILED: 0,
+                SystemLabel.TYPE_SENT: 1,
+                SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
                 SystemLabel.TYPE_CALLS: 1,
             },
@@ -2810,8 +2813,8 @@ class SystemLabelTest(TembaTest):
                 SystemLabel.TYPE_FLOWS: 0,
                 SystemLabel.TYPE_ARCHIVED: 0,
                 SystemLabel.TYPE_OUTBOX: 1,
-                SystemLabel.TYPE_SENT: 2,
-                SystemLabel.TYPE_FAILED: 0,
+                SystemLabel.TYPE_SENT: 1,
+                SystemLabel.TYPE_FAILED: 1,
                 SystemLabel.TYPE_SCHEDULED: 2,
                 SystemLabel.TYPE_CALLS: 1,
             },

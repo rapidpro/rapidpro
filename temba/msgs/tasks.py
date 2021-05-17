@@ -46,7 +46,7 @@ def send_to_flow_node(org_id, user_id, text, **kwargs):
         broadcast = Broadcast.create(org, user, text, contact_ids=contact_ids)
         broadcast.send_async()
 
-        analytics.track(user.username, "temba.broadcast_created", dict(contacts=len(contact_ids), groups=0, urns=0))
+        analytics.track(user, "temba.broadcast_created", dict(contacts=len(contact_ids), groups=0, urns=0))
 
 
 @task(track_started=True, name="fail_old_messages")

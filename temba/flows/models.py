@@ -79,7 +79,6 @@ class Flow(TembaModel):
     METADATA_DEPENDENCIES = "dependencies"
     METADATA_WAITING_EXIT_UUIDS = "waiting_exit_uuids"
     METADATA_PARENT_REFS = "parent_refs"
-    METADATA_ISSUES = "issues"
     METADATA_IVR_RETRY = "ivr_retry"
 
     # items in the response from mailroom flow inspection
@@ -129,15 +128,12 @@ class Flow(TembaModel):
 
     name = models.CharField(max_length=64, help_text=_("The name for this flow"))
 
-    labels = models.ManyToManyField(
-        "FlowLabel", related_name="flows", verbose_name=_("Labels"), blank=True, help_text=_("Any labels on this flow")
-    )
+    labels = models.ManyToManyField("FlowLabel", related_name="flows")
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flows")
 
-    is_archived = models.BooleanField(default=False, help_text=_("Whether this flow is archived"))
-
-    is_system = models.BooleanField(default=False, help_text=_("Whether this is a system created flow"))
+    is_archived = models.BooleanField(default=False)
+    is_system = models.BooleanField(default=False)  # e.g. a campaign message event, not user created
 
     flow_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_MESSAGE)
 
@@ -150,11 +146,8 @@ class Flow(TembaModel):
 
     ignore_triggers = models.BooleanField(default=False, help_text=_("Ignore keyword triggers while in this flow"))
 
-    saved_on = models.DateTimeField(auto_now_add=True, help_text=_("When this item was saved"))
-
-    saved_by = models.ForeignKey(
-        User, on_delete=models.PROTECT, related_name="flow_saves", help_text=_("The user which last saved this flow")
-    )
+    saved_on = models.DateTimeField(auto_now_add=True)
+    saved_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="flow_saves")
 
     base_language = models.CharField(
         max_length=4,
@@ -164,26 +157,19 @@ class Flow(TembaModel):
         default="base",
     )
 
-    version_number = models.CharField(
-        default=FINAL_LEGACY_VERSION, max_length=8, help_text=_("The flow version this definition is in")
-    )
+    version_number = models.CharField(default=FINAL_LEGACY_VERSION, max_length=8)
 
+    has_issues = models.BooleanField(default=False)
+
+    # dependencies on other assets
     channel_dependencies = models.ManyToManyField(Channel, related_name="dependent_flows")
-
     classifier_dependencies = models.ManyToManyField(Classifier, related_name="dependent_flows")
-
     field_dependencies = models.ManyToManyField(ContactField, related_name="dependent_flows")
-
     flow_dependencies = models.ManyToManyField("Flow", related_name="dependent_flows")
-
     global_dependencies = models.ManyToManyField(Global, related_name="dependent_flows")
-
     group_dependencies = models.ManyToManyField(ContactGroup, related_name="dependent_flows")
-
     label_dependencies = models.ManyToManyField(Label, related_name="dependent_flows")
-
     template_dependencies = models.ManyToManyField(Template, related_name="dependent_flows")
-
     ticketer_dependencies = models.ManyToManyField(Ticketer, related_name="dependent_flows")
 
     @classmethod
@@ -225,7 +211,7 @@ class Flow(TembaModel):
                 },
             )
 
-        analytics.track(user.username, "temba.flow_created", dict(name=name))
+        analytics.track(user, "temba.flow_created", dict(name=name))
         return flow
 
     @classmethod
@@ -719,20 +705,13 @@ class Flow(TembaModel):
         return {Flow.DEFINITION_UUID: str(self.uuid), Flow.DEFINITION_NAME: self.name}
 
     @classmethod
-    def get_metadata(cls, flow_info, previous=None) -> Dict:
-        data = {
+    def get_metadata(cls, flow_info) -> Dict:
+        return {
             Flow.METADATA_RESULTS: flow_info[Flow.INSPECT_RESULTS],
             Flow.METADATA_DEPENDENCIES: flow_info[Flow.INSPECT_DEPENDENCIES],
             Flow.METADATA_WAITING_EXIT_UUIDS: flow_info[Flow.INSPECT_WAITING_EXITS],
             Flow.METADATA_PARENT_REFS: flow_info[Flow.INSPECT_PARENT_REFS],
-            Flow.METADATA_ISSUES: flow_info[Flow.INSPECT_ISSUES],
         }
-
-        # IVR retry is the only value in metadata that doesn't come from flow inspection
-        if previous and Flow.METADATA_IVR_RETRY in previous:
-            data[Flow.METADATA_IVR_RETRY] = previous[Flow.METADATA_IVR_RETRY]
-
-        return data
 
     def ensure_current_version(self):
         """
@@ -809,6 +788,7 @@ class Flow(TembaModel):
         # inspect the flow (with optional validation)
         flow_info = mailroom.get_client().flow_inspect(self.org.id, definition)
         dependencies = flow_info[Flow.INSPECT_DEPENDENCIES]
+        issues = flow_info[Flow.INSPECT_ISSUES]
 
         if user is None:
             is_system_rev = True
@@ -817,13 +797,20 @@ class Flow(TembaModel):
             is_system_rev = False
 
         with transaction.atomic():
+            new_metadata = Flow.get_metadata(flow_info)
+
+            # IVR retry is the only value in metadata that doesn't come from flow inspection
+            if self.metadata and Flow.METADATA_IVR_RETRY in self.metadata:
+                new_metadata[Flow.METADATA_IVR_RETRY] = self.metadata[Flow.METADATA_IVR_RETRY]
+
             # update our flow fields
             self.base_language = definition.get(Flow.DEFINITION_LANGUAGE, None)
             self.version_number = Flow.CURRENT_SPEC_VERSION
-            self.metadata = Flow.get_metadata(flow_info, self.metadata)
+            self.has_issues = len(issues) > 0
+            self.metadata = new_metadata
             self.modified_by = user
             self.modified_on = timezone.now()
-            fields = ["base_language", "version_number", "metadata", "modified_by", "modified_on"]
+            fields = ["base_language", "version_number", "has_issues", "metadata", "modified_by", "modified_on"]
 
             if not is_system_rev:
                 self.saved_by = user
@@ -843,7 +830,7 @@ class Flow(TembaModel):
 
             self.update_dependencies(dependencies)
 
-        return revision
+        return revision, issues
 
     @classmethod
     def migrate_definition(cls, flow_def, flow, to_version=None):

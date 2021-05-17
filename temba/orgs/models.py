@@ -3,6 +3,7 @@ import itertools
 import logging
 import operator
 import os
+from abc import ABCMeta
 from collections import defaultdict
 from datetime import timedelta
 from decimal import Decimal
@@ -38,7 +39,7 @@ from temba.archives.models import Archive
 from temba.bundles import get_brand_bundles, get_bundle_map
 from temba.locations.models import AdminBoundary
 from temba.utils import chunk_list, json, languages
-from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
+from temba.utils.cache import get_cacheable_result
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
 from temba.utils.models import JSONAsTextField, JSONField, SquashableModel
@@ -61,6 +62,65 @@ ORG_LOW_CREDIT_THRESHOLD_CACHE_KEY = "org:%d:cache:low_credits_threshold"
 
 ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
+
+
+class IntegrationType(metaclass=ABCMeta):
+    """
+    IntegrationType is our abstract base type for third party integrations.
+    """
+
+    class Category(Enum):
+        CHANNELS = 1
+        EMAIL = 2
+        AIRTIME = 3
+        MONITORING = 4
+
+    # the verbose name for this type
+    name = None
+
+    # the short code for this type (< 16 chars, lowercase)
+    slug = None
+
+    # the icon to show for this type
+    icon = "icon-plug"
+
+    # the category of features this integration provides
+    category = None
+
+    def is_available_to(self, user) -> bool:
+        """
+        Determines whether this integration type is available to the given user
+        """
+        return True
+
+    def is_connected(self, org) -> bool:
+        """
+        Returns whether the given org is connected to this integration
+        """
+
+    def disconnect(self, org, user):
+        """
+        Disconnects this integration on the given org
+        """
+
+    def management_ui(self, org, formax):
+        """
+        Adds formax sections to provide a UI to manage this integration
+        """
+
+    def get_urls(self) -> list:
+        """
+        Returns the urls and views for this integration
+        """
+
+    @classmethod
+    def get_all(cls, category: Category = None) -> list:
+        """
+        Returns all possible types with the given category
+        """
+        from .integrations import TYPES
+
+        return [t for t in TYPES.values() if not category or t.category == category]
 
 
 class OrgRole(Enum):
@@ -162,11 +222,6 @@ class Org(SmartModel):
     CONFIG_TWILIO_TOKEN = "ACCOUNT_TOKEN"
     CONFIG_VONAGE_KEY = "NEXMO_KEY"
     CONFIG_VONAGE_SECRET = "NEXMO_SECRET"
-    CONFIG_DTONE_KEY = "dtone_key"
-    CONFIG_DTONE_SECRET = "dtone_secret"
-    CONFIG_CHATBASE_AGENT_NAME = "CHATBASE_AGENT_NAME"
-    CONFIG_CHATBASE_API_KEY = "CHATBASE_API_KEY"
-    CONFIG_CHATBASE_VERSION = "CHATBASE_VERSION"
 
     # items in export JSON
     EXPORT_VERSION = "version"
@@ -218,12 +273,12 @@ class Org(SmartModel):
     surveyors = models.ManyToManyField(User, related_name=OrgRole.SURVEYOR.rel_name)
 
     language = models.CharField(
-        verbose_name=_("Language"),
+        verbose_name=_("Default Language"),
         max_length=64,
         null=True,
-        blank=True,
         choices=settings.LANGUAGES,
-        help_text=_("The main language used by this organization"),
+        default=settings.DEFAULT_LANGUAGE,
+        help_text=_("The default website language for new users."),
     )
 
     timezone = TimeZoneField(verbose_name=_("Timezone"))
@@ -308,6 +363,10 @@ class Org(SmartModel):
         help_text=_("The parent org that manages this org"),
     )
 
+    # when this org was released and when it was actually deleted
+    released_on = models.DateTimeField(null=True)
+    deleted_on = models.DateTimeField(null=True)
+
     @classmethod
     def get_unique_slug(cls, name):
         slug = slugify(name)
@@ -344,6 +403,7 @@ class Org(SmartModel):
             org = Org.objects.create(
                 name=name,
                 timezone=timezone,
+                language=self.language,
                 brand=self.brand,
                 parent=self,
                 slug=slug,
@@ -395,6 +455,13 @@ class Org(SmartModel):
         Gets whether this org has an active ticketer configured
         """
         return self.ticketers.filter(is_active=True)
+
+    def get_integrations(self, category: IntegrationType.Category) -> list:
+        """
+        Returns the connected integrations on this org of the given category
+        """
+
+        return [t for t in IntegrationType.get_all(category) if t.is_connected(self)]
 
     def clear_credit_cache(self):
         """
@@ -558,127 +625,45 @@ class Org(SmartModel):
     def supports_ivr(self):
         return self.get_call_channel() or self.get_answer_channel()
 
-    def get_channel(self, scheme, country_code, role):
+    def get_channel(self, role: str, scheme: str):
         """
-        Gets a channel for this org which supports the given scheme and role
+        Gets a channel for this org which supports the given role and scheme
         """
         from temba.channels.models import Channel
 
-        channels = self.channels.filter(is_active=True, role__contains=role).order_by("-pk")
+        channels = self.channels.filter(is_active=True, role__contains=role).order_by("-id")
 
         if scheme is not None:
             channels = channels.filter(schemes__contains=[scheme])
 
-        channel = None
-        if country_code:
-            channel = channels.filter(country=country_code).first()
-
-        # no channel? try without country
-        if not channel:
-            channel = channels.first()
+        channel = channels.first()
 
         if channel and (role == Channel.ROLE_SEND or role == Channel.ROLE_CALL):
             return channel.get_delegate(role)
         else:
             return channel
 
-    @cached_property
-    def cached_active_contacts_group(self):
-        from temba.contacts.models import ContactGroup
-
-        return ContactGroup.all_groups.get(org=self, group_type=ContactGroup.TYPE_ACTIVE)
-
-    def get_channel_for_role(self, role, scheme=None, contact_urn=None, country_code=None):
-        from temba.channels.models import Channel
-        from temba.contacts.models import URN, ContactURN
-
-        if contact_urn:
-            scheme = contact_urn.scheme
-
-            # if URN has a previously used channel that is still active, use that
-            if contact_urn.channel and contact_urn.channel.is_active:  # pragma: no cover
-                previous_sender = contact_urn.channel.get_delegate(role)
-                if previous_sender:
-                    return previous_sender
-
-            if scheme == URN.TEL_SCHEME:
-                path = contact_urn.path
-
-                # we don't have a channel for this contact yet, let's try to pick one from the same carrier
-                # we need at least one digit to overlap to infer a channel
-                contact_number = path.strip("+")
-                prefix = 1
-                channel = None
-
-                # try to use only a channel in the same country
-                if not country_code:
-                    country_code = ContactURN.derive_country_from_tel(path)
-
-                channels = []
-                if country_code:
-                    for c in self.channels.filter(is_active=True):
-                        if c.country == country_code and URN.TEL_SCHEME in c.schemes:
-                            channels.append(c)
-
-                # no country specific channel, try to find any channel at all
-                if not channels:
-                    channels = [c for c in self.channels.filter(is_active=True) if URN.TEL_SCHEME in c.schemes]
-
-                # filter based on role and activity (we do this in python as channels can be prefetched so it is quicker in those cases)
-                senders = []
-                for c in channels:
-                    if c.is_active and c.address and role in c.role and not c.parent_id:
-                        senders.append(c)
-                senders.sort(key=lambda chan: chan.id)
-
-                # if we have more than one match, find the one with the highest overlap
-                if len(senders) > 1:
-                    for sender in senders:
-                        config = sender.config
-                        channel_prefixes = config.get(Channel.CONFIG_SHORTCODE_MATCHING_PREFIXES, [])
-                        if not channel_prefixes or not isinstance(channel_prefixes, list):
-                            channel_prefixes = [sender.address.strip("+")]
-
-                        for chan_prefix in channel_prefixes:
-                            for idx in range(prefix, len(chan_prefix) + 1):
-                                if idx >= prefix and chan_prefix[0:idx] == contact_number[0:idx]:
-                                    prefix = idx
-                                    channel = sender
-                                else:
-                                    break
-                elif senders:
-                    channel = senders[0]
-
-                if channel:
-                    if role == Channel.ROLE_SEND:
-                        return channel.get_delegate(Channel.ROLE_SEND)
-                    else:  # pragma: no cover
-                        return channel
-
-        # get any send channel without any country or URN hints
-        return self.get_channel(scheme, country_code, role)
-
-    def get_send_channel(self, scheme=None, contact_urn=None):
+    def get_send_channel(self, scheme=None):
         from temba.channels.models import Channel
 
-        return self.get_channel_for_role(Channel.ROLE_SEND, scheme=scheme, contact_urn=contact_urn)
+        return self.get_channel(Channel.ROLE_SEND, scheme=scheme)
 
     def get_receive_channel(self, scheme=None):
         from temba.channels.models import Channel
 
-        return self.get_channel_for_role(Channel.ROLE_RECEIVE, scheme=scheme)
+        return self.get_channel(Channel.ROLE_RECEIVE, scheme=scheme)
 
     def get_call_channel(self):
         from temba.contacts.models import URN
         from temba.channels.models import Channel
 
-        return self.get_channel_for_role(Channel.ROLE_CALL, scheme=URN.TEL_SCHEME)
+        return self.get_channel(Channel.ROLE_CALL, scheme=URN.TEL_SCHEME)
 
     def get_answer_channel(self):
         from temba.contacts.models import URN
         from temba.channels.models import Channel
 
-        return self.get_channel_for_role(Channel.ROLE_ANSWER, scheme=URN.TEL_SCHEME)
+        return self.get_channel(Channel.ROLE_ANSWER, scheme=URN.TEL_SCHEME)
 
     def get_schemes(self, role):
         """
@@ -704,6 +689,12 @@ class Org(SmartModel):
 
         normalize_contact_tels_task.delay(self.pk)
 
+    @cached_property
+    def cached_active_contacts_group(self):
+        from temba.contacts.models import ContactGroup
+
+        return ContactGroup.all_groups.get(org=self, group_type=ContactGroup.TYPE_ACTIVE)
+
     def get_resthooks(self):
         """
         Returns the resthooks configured on this Org
@@ -714,7 +705,7 @@ class Org(SmartModel):
     def get_possible_countries(cls):
         return AdminBoundary.objects.filter(level=0).order_by("name")
 
-    def trigger_send(self, msgs=None):
+    def trigger_send(self):
         """
         Triggers either our Android channels to sync, or for all our pending messages to be queued
         to send.
@@ -724,32 +715,20 @@ class Org(SmartModel):
         from temba.channels.types.android import AndroidType
         from temba.msgs.models import Msg
 
-        # if we have msgs, then send just those
-        if msgs is not None:
-            ids = [m.id for m in msgs]
+        # sync all pending channels
+        for channel in self.channels.filter(is_active=True, channel_type=AndroidType.code):  # pragma: needs cover
+            channel.trigger_sync()
 
-            # trigger syncs for our android channels
-            for channel in self.channels.filter(is_active=True, channel_type=AndroidType.code, msgs__id__in=ids):
-                channel.trigger_sync()
+        # otherwise, send any pending messages on our channels
+        r = get_redis_connection()
 
-            # and send those messages
-            Msg.send_messages(msgs)
+        key = "trigger_send_%d" % self.pk
 
-        # otherwise, sync all pending messages and channels
-        else:
-            for channel in self.channels.filter(is_active=True, channel_type=AndroidType.code):  # pragma: needs cover
-                channel.trigger_sync()
-
-            # otherwise, send any pending messages on our channels
-            r = get_redis_connection()
-
-            key = "trigger_send_%d" % self.pk
-
-            # only try to send all pending messages if nobody is doing so already
-            if not r.get(key):
-                with r.lock(key, timeout=900):
-                    pending = Channel.get_pending_messages(self)
-                    Msg.send_messages(pending)
+        # only try to send all pending messages if nobody is doing so already
+        if not r.get(key):
+            with r.lock(key, timeout=900):
+                pending = Channel.get_pending_messages(self)
+                Msg.send_messages(pending)
 
     def add_smtp_config(self, from_email, host, username, password, port, user):
         username = quote(username)
@@ -786,22 +765,6 @@ class Org(SmartModel):
         self.modified_by = user
         self.save(update_fields=("config", "modified_by", "modified_on"))
 
-    def connect_dtone(self, api_key: str, api_secret: str, user):
-        self.config.update({Org.CONFIG_DTONE_KEY: api_key, Org.CONFIG_DTONE_SECRET: api_secret})
-        self.modified_by = user
-        self.save(update_fields=("config", "modified_by", "modified_on"))
-
-    def connect_chatbase(self, agent_name, api_key, version, user):
-        self.config.update(
-            {
-                Org.CONFIG_CHATBASE_AGENT_NAME: agent_name,
-                Org.CONFIG_CHATBASE_API_KEY: api_key,
-                Org.CONFIG_CHATBASE_VERSION: version,
-            }
-        )
-        self.modified_by = user
-        self.save(update_fields=("config", "modified_by", "modified_on"))
-
     def is_connected_to_vonage(self):
         if self.config:
             return self.config.get(Org.CONFIG_VONAGE_KEY) and self.config.get(Org.CONFIG_VONAGE_SECRET)
@@ -811,12 +774,6 @@ class Org(SmartModel):
         if self.config:
             return self.config.get(Org.CONFIG_TWILIO_SID) and self.config.get(Org.CONFIG_TWILIO_TOKEN)
         return False
-
-    def is_connected_to_dtone(self) -> bool:
-        if not self.config:
-            return False
-
-        return bool(self.config.get(Org.CONFIG_DTONE_KEY) and self.config.get(Org.CONFIG_DTONE_SECRET))
 
     def remove_vonage_account(self, user):
         if self.config:
@@ -840,21 +797,6 @@ class Org(SmartModel):
             self.modified_by = user
             self.save(update_fields=("config", "modified_by", "modified_on"))
 
-    def remove_dtone_account(self, user):
-        if self.config:
-            self.config.pop(Org.CONFIG_DTONE_KEY, None)
-            self.config.pop(Org.CONFIG_DTONE_SECRET, None)
-            self.modified_by = user
-            self.save(update_fields=("config", "modified_by", "modified_on"))
-
-    def remove_chatbase_account(self, user):
-        if self.config:
-            self.config.pop(Org.CONFIG_CHATBASE_AGENT_NAME, None)
-            self.config.pop(Org.CONFIG_CHATBASE_API_KEY, None)
-            self.config.pop(Org.CONFIG_CHATBASE_VERSION, None)
-            self.modified_by = user
-            self.save(update_fields=("config", "modified_by", "modified_on"))
-
     def get_twilio_client(self):
         account_sid = self.config.get(Org.CONFIG_TWILIO_SID)
         auth_token = self.config.get(Org.CONFIG_TWILIO_TOKEN)
@@ -870,11 +812,6 @@ class Org(SmartModel):
         if api_key and api_secret:
             return VonageClient(api_key, api_secret)
         return None
-
-    def get_chatbase_credentials(self):
-        if self.config:
-            return self.config.get(Org.CONFIG_CHATBASE_API_KEY), self.config.get(Org.CONFIG_CHATBASE_VERSION)
-        return None, None
 
     @property
     def default_country_code(self) -> str:
@@ -918,15 +855,19 @@ class Org(SmartModel):
 
         return None
 
-    def get_language_codes(self):
-        return get_cacheable_attr(self, "_language_codes", lambda: {l.iso_code for l in self.languages.all()})
+    def get_language_codes(self, include_primary: bool = True) -> set:
+        qs = self.languages.values_list("iso_code", flat=True)
+        if not include_primary and self.primary_language:
+            qs = qs.filter(orgs=None)
+
+        return set(qs)
 
     def set_languages(self, user, iso_codes, primary):
         """
         Sets languages for this org, creating and deleting language objects as necessary
         """
         for iso_code in iso_codes:
-            name = languages.get_language_name(iso_code)
+            name = languages.get_name(iso_code)
             language = self.languages.filter(iso_code=iso_code).first()
 
             # if it's valid and doesn't exist yet, create it
@@ -944,9 +885,6 @@ class Org(SmartModel):
 
         # remove any languages that are not in the new list
         self.languages.exclude(iso_code__in=iso_codes).delete()
-
-        if hasattr(self, "_language_codes"):  # invalidate language cache if set
-            delattr(self, "_language_codes")
 
     def get_datetime_formats(self):
         format_date = Org.DATE_FORMATS_PYTHON.get(self.date_format)
@@ -1242,44 +1180,6 @@ class Org(SmartModel):
 
         # couldn't allocate credits
         return False
-
-    def decrement_credit(self):
-        """
-        Decrements this orgs credit by amount.
-
-        Determines the active topup and returns that along with how many credits we were able
-        to decrement it by. Amount decremented is not guaranteed to be the full amount requested.
-        """
-        # amount is hardcoded to `1` in database triggers that handle TopUpCredits relation when sending messages
-        AMOUNT = 1
-
-        r = get_redis_connection()
-
-        # we always consider this a credit 'used' since un-applied msgs are pending
-        # credit expenses for the next purchased topup
-        incrby_existing(ORG_CREDITS_USED_CACHE_KEY % self.id, AMOUNT)
-
-        # if we have an active topup cache, we need to decrement the amount remaining
-        active_topup_id = self.get_active_topup_id()
-        if active_topup_id:
-            remaining = r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup_id), AMOUNT)
-
-            # near the edge, clear out our cache and calculate from the db
-            if not remaining or int(remaining) < 100:
-                active_topup_id = None
-                self.clear_credit_cache()
-
-        # calculate our active topup if we need to
-        if not active_topup_id:
-            active_topup = self.get_active_topup(force_dirty=True)
-            if active_topup:
-                active_topup_id = active_topup.id
-                r.decr(ORG_ACTIVE_TOPUP_REMAINING % (self.id, active_topup.id), AMOUNT)
-
-        if active_topup_id:
-            return (active_topup_id, AMOUNT)
-
-        return None, 0
 
     def get_active_topup(self, force_dirty=False):
         topup_id = self.get_active_topup_id(force_dirty=force_dirty)
@@ -1722,14 +1622,19 @@ class Org(SmartModel):
 
         return f"{settings.STORAGE_URL}/{location}"
 
-    def release(self, *, release_users=True, immediately=False):
+    def release(self, *, release_users=True, delete=False):
+        """
+        Releases this org, marking it as inactive. Actual deletion of org data won't happen until after 7 days unless
+        delete is True.
+        """
 
         # free our children
         Org.objects.filter(parent=self).update(parent=None)
 
         # deactivate ourselves
         self.is_active = False
-        self.save(update_fields=("is_active", "modified_on"))
+        self.released_on = timezone.now()
+        self.save(update_fields=("is_active", "released_on", "modified_on"))
 
         # clear all our channel dependencies on our flows
         for flow in self.flows.all():
@@ -1753,13 +1658,16 @@ class Org(SmartModel):
         for user in self.get_users():
             self.remove_user(user)
 
-        if immediately:
-            self._full_release()
+        if delete:
+            self.delete()
 
-    def _full_release(self):
+    def delete(self):
         """
-        Do the dirty work of deleting this org
+        Does an actual delete of this org
         """
+
+        assert not self.is_active and self.released_on, "can't delete an org which hasn't been released"
+        assert not self.deleted_on, "can't delete an org twice"
 
         # delete exports
         self.exportcontactstasks.all().delete()
@@ -1832,6 +1740,7 @@ class Org(SmartModel):
 
             channel.counts.all().delete()
             channel.logs.all().delete()
+            channel.template_translations.all().delete()
 
             channel.delete()
 
@@ -1887,16 +1796,27 @@ class Org(SmartModel):
         self.credit_alerts.all().delete()
         self.schedules.all().delete()
         self.boundaryalias_set.all().delete()
+        self.templates.all().delete()
 
         # needs to come after deletion of msgs and broadcasts as those insert new counts
         self.system_labels.all().delete()
 
-        # now what we've all been waiting for
-        self.delete()
+        # save when we were actually deleted
+        self.modified_on = timezone.now()
+        self.deleted_on = timezone.now()
+        self.config = {}
+        self.surveyor_password = None
+        self.primary_language = None
+        self.save()
 
     @classmethod
-    def create_user(cls, email, password):
-        return User.objects.create_user(username=email, email=email, password=password)
+    def create_user(cls, email: str, password: str, language: str = None) -> User:
+        user = User.objects.create_user(username=email, email=email, password=password)
+        if language:
+            user_settings = user.get_settings()
+            user_settings.language = language
+            user_settings.save(update_fields=("language",))
+        return user
 
     @classmethod
     def get_org(cls, user):
@@ -2122,7 +2042,7 @@ class Language(SmartModel):
 
     iso_code = models.CharField(max_length=4)
 
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, verbose_name=_("Org"), related_name="languages")
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="languages")
 
     @classmethod
     def create(cls, org, user, name, iso_code):
@@ -2229,7 +2149,7 @@ class UserSettings(models.Model):
     """
 
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="settings")
-    language = models.CharField(max_length=8, choices=settings.LANGUAGES, default="en-us")
+    language = models.CharField(max_length=8, choices=settings.LANGUAGES, default=settings.DEFAULT_LANGUAGE)
     otp_secret = models.CharField(max_length=16, default=pyotp.random_base32)
     two_factor_enabled = models.BooleanField(default=False)
     last_auth_on = models.DateTimeField(null=True)

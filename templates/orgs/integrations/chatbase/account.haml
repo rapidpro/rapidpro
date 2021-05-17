@@ -1,17 +1,15 @@
 -extends 'smartmin/form.html'
 -load compress temba smartmin i18n
 
--block form-span
-
 -block summary
-  -if object.get_chatbase_credentials.0
-    -trans "Connected to Chatbase Account"
-    <b>{{chatbase_agent_name}}</b>.
+  -if integration_connected
+    -blocktrans trimmed with agent=agent_name
+      Connected to your Chatbase account as agent <b>{{ agent }}</b>.
   -else
     -trans "Connect your Chatbase account."
 
 -block pre-form
-  -if not object.get_chatbase_credentials.0
+  -if not integration_connected
     .mb-4
       -blocktrans trimmed
         Connecting your Chatbase account will allow you to monitor your bot, fix broken experiences
@@ -20,17 +18,17 @@
       <a target='_new' href='https://chatbase.com'>Chatbase</a>.
 
 -block fields
-  -if not object.get_chatbase_credentials.0
+  -if not integration_connected
     {{ block.super }}
 
 -block form-buttons
 
 -block post-form
-  -if object.get_chatbase_credentials.0 and request.META.HTTP_X_FORMAX
+  -if integration_connected and request.META.HTTP_X_FORMAX
   
     -trans "Your Chatbase account is connected to the Agent"
     %b
-      {{chatbase_agent_name}}.
+      {{ chatbase_agent_name }}.
 
     .mt-4
       -trans "If you no longer want it connected, you can"
@@ -44,7 +42,9 @@
       .body
         -blocktrans trimmed
           This will disconnect your Chatbase account. Are you sure you want to proceed?
-    %a#disconnect-chatbase-form.posterize{href:'{% url "orgs.org_chatbase" %}?disconnect=true'}
+
+    #disconnect-chatbase-form(href="{% url 'integrations.chatbase.account' %}?disconnect=true")
+
 
 -block extra-script
   {{block.super}}

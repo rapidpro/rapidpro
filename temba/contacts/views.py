@@ -474,7 +474,7 @@ class UpdateContactForm(ContactForm):
         queryset=ContactGroup.user_groups.filter(pk__lt=0),
         required=False,
         label=_("Groups"),
-        widget=SelectMultipleWidget(attrs={"placeholder": _("Select groups for this contact")}),
+        widget=SelectMultipleWidget(attrs={"placeholder": _("Select groups for this contact"), "searchable": True}),
     )
 
     def __init__(self, *args, **kwargs):
@@ -482,13 +482,14 @@ class UpdateContactForm(ContactForm):
 
         choices = [("", "No Preference")]
 
-        # if they had a preference that has since been removed, make sure we show it
-        if self.instance.language:
-            if not self.instance.org.languages.filter(iso_code=self.instance.language).first():
-                lang = languages.get_language_name(self.instance.language)
-                choices += [(self.instance.language, _("%s (Missing)") % lang)]
+        org_lang_codes = self.instance.org.get_language_codes()
 
-        choices += [(l.iso_code, l.name) for l in self.instance.org.languages.all().order_by("orgs", "name")]
+        # if they had a preference that has since been removed, make sure we show it
+        if self.instance.language and self.instance.language not in org_lang_codes:
+            lang_name = languages.get_name(self.instance.language)
+            choices += [(self.instance.language, _(f"{lang_name} (Missing)"))]
+
+        choices += list(languages.choices(codes=org_lang_codes))
 
         self.fields["language"] = forms.ChoiceField(
             required=False, label=_("Language"), initial=self.instance.language, choices=choices, widget=SelectWidget()
@@ -608,7 +609,7 @@ class ContactCRUDL(SmartCRUDL):
                 if previous_export and previous_export.created_on < timezone.now() - timedelta(
                     hours=24
                 ):  # pragma: needs cover
-                    analytics.track(self.request.user.username, "temba.contact_exported")
+                    analytics.track(self.request.user, "temba.contact_exported")
 
                 export = ExportContactsTask.create(org, user, group, search, group_memberships)
 
@@ -763,10 +764,8 @@ class ContactCRUDL(SmartCRUDL):
 
             # add contact.language to the context
             if contact.language:
-                lang = languages.get_language_name(contact.language)
-                if not lang:
-                    lang = contact.language
-                context["contact_language"] = lang
+                lang_name = languages.get_name(contact.language)
+                context["contact_language"] = lang_name or contact.language
 
             # calculate time after which timeline should be repeatedly refreshed - five minutes ago lets us pick up
             # status changes on new messages
@@ -2089,10 +2088,11 @@ class ContactImportCRUDL(SmartCRUDL):
                 obj.mappings[i]["mapping"] = mapping
 
             if self.form.cleaned_data.get("add_to_group"):
-                new_group_name = self.form.cleaned_data.get("new_group_name")
-                if new_group_name:
-                    obj.group_name = new_group_name
-                else:
+                group_mode = self.form.cleaned_data["group_mode"]
+                if group_mode == self.form.GROUP_MODE_NEW:
+                    obj.group_name = self.form.cleaned_data["new_group_name"]
+                    obj.group = None
+                elif group_mode == self.form.GROUP_MODE_EXISTING:
                     obj.group = self.form.cleaned_data["existing_group"]
 
             return obj

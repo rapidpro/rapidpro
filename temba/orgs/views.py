@@ -54,7 +54,6 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
-from temba.airtime.dtone import DTOneClient
 from temba.api.models import APIToken, Resthook
 from temba.campaigns.models import Campaign
 from temba.channels.models import Channel
@@ -74,7 +73,7 @@ from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
 from temba.utils.views import ComponentFormMixin, NonAtomicMixin, RequireRecentAuthMixin
 
-from .models import BackupToken, Invitation, Org, OrgCache, OrgRole, TopUp, get_stripe_credentials
+from .models import BackupToken, IntegrationType, Invitation, Org, OrgCache, OrgRole, TopUp, get_stripe_credentials
 from .tasks import apply_topups_task
 
 # session key for storing a two-factor enabled user's id once we've checked their password
@@ -241,6 +240,42 @@ class ModalMixin(SmartFormView):
             message = getattr(e, "message", str(e).capitalize())
             self.form.add_error(None, message)
             return self.render_to_response(self.get_context_data(form=form))
+
+
+class IntegrationViewMixin(OrgPermsMixin):
+    permission = "orgs.org_manage_integrations"
+    integration_type = None
+
+    def __init__(self, integration_type):
+        self.integration_type = integration_type
+        super().__init__()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["integration_type"] = self.integration_type
+        context["integration_connected"] = self.integration_type.is_connected(self.request.user.get_org())
+        return context
+
+
+class IntegrationFormaxView(IntegrationViewMixin, ComponentFormMixin, SmartFormView):
+    class Form(forms.Form):
+        def __init__(self, request, integration_type, **kwargs):
+            self.request = request
+            self.channel_type = integration_type
+            super().__init__(**kwargs)
+
+    success_url = "@orgs.org_home"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["request"] = self.request
+        kwargs["integration_type"] = self.integration_type
+        return kwargs
+
+    def form_valid(self, form):
+        response = self.render_to_response(self.get_context_data(form=form))
+        response["REDIRECT"] = self.get_success_url()
+        return response
 
 
 class OrgSignupForm(forms.ModelForm):
@@ -829,7 +864,6 @@ class OrgCRUDL(SmartCRUDL):
         "grant",
         "accounts",
         "create_login",
-        "chatbase",
         "choose",
         "delete",
         "manage_accounts",
@@ -854,7 +888,6 @@ class OrgCRUDL(SmartCRUDL):
         "service",
         "surveyor",
         "transfer_credits",
-        "dtone_account",
         "smtp_server",
     )
 
@@ -1172,8 +1205,8 @@ class OrgCRUDL(SmartCRUDL):
 
     class PlivoConnect(ModalMixin, ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartFormView):
         class PlivoConnectForm(forms.Form):
-            auth_id = forms.CharField(help_text=_("Your Plivo AUTH ID"))
-            auth_token = forms.CharField(help_text=_("Your Plivo AUTH TOKEN"))
+            auth_id = forms.CharField(help_text=_("Your Plivo auth ID"))
+            auth_token = forms.CharField(help_text=_("Your Plivo auth token"))
 
             def clean(self):
                 super().clean()
@@ -1189,7 +1222,7 @@ class OrgCRUDL(SmartCRUDL):
 
                 if response.status_code != 200:
                     raise ValidationError(
-                        _("Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry.")
+                        _("Your Plivo auth ID and auth token seem invalid. Please check them again and retry.")
                     )
 
                 return self.cleaned_data
@@ -2138,7 +2171,7 @@ class OrgCRUDL(SmartCRUDL):
             self.invitation = self.get_invitation()
             email = self.invitation.email
 
-            user = Org.create_user(email, self.form.cleaned_data["password"])
+            user = Org.create_user(email, self.form.cleaned_data["password"], language=obj.language)
 
             user.first_name = self.form.cleaned_data["first_name"]
             user.last_name = self.form.cleaned_data["last_name"]
@@ -2395,10 +2428,11 @@ class OrgCRUDL(SmartCRUDL):
 
                 return self.render_to_response(context)
             else:
+                org = self.form.cleaned_data["org"]
 
                 # create our user
                 username = self.form.cleaned_data["email"]
-                user = Org.create_user(username, self.form.cleaned_data["password"])
+                user = Org.create_user(username, self.form.cleaned_data["password"], language=org.language)
 
                 user.first_name = self.form.cleaned_data["first_name"]
                 user.last_name = self.form.cleaned_data["last_name"]
@@ -2408,7 +2442,6 @@ class OrgCRUDL(SmartCRUDL):
                 user = authenticate(username=user.username, password=self.form.cleaned_data["password"])
                 login(self.request, user)
 
-                org = self.form.cleaned_data["org"]
                 org.surveyors.add(user)
 
                 surveyors_group = Group.objects.get(name="Surveyors")
@@ -2452,14 +2485,7 @@ class OrgCRUDL(SmartCRUDL):
 
             user.first_name = self.form.cleaned_data["first_name"]
             user.last_name = self.form.cleaned_data["last_name"]
-            user.save()
-
-            # set our language to the default for the site
-            language = self.request.branding.get("language", settings.DEFAULT_LANGUAGE)
-            user_settings = user.get_settings()
-            user_settings.language = language
-            user_settings.save()
-
+            user.save(update_fields=("first_name", "last_name"))
             return user
 
         def get_form_kwargs(self):
@@ -2468,7 +2494,6 @@ class OrgCRUDL(SmartCRUDL):
             return kwargs
 
         def pre_save(self, obj):
-
             obj = super().pre_save(obj)
 
             self.user = self.create_user()
@@ -2476,6 +2501,7 @@ class OrgCRUDL(SmartCRUDL):
             obj.created_by = self.user
             obj.modified_by = self.user
             obj.brand = self.request.branding.get("brand", settings.DEFAULT_BRAND)
+            obj.language = self.request.branding.get("language", settings.DEFAULT_LANGUAGE)
             obj.plan = self.request.branding.get("default_plan", settings.DEFAULT_PLAN)
 
             if obj.timezone.zone in pytz.country_timezones("US"):
@@ -2531,7 +2557,7 @@ class OrgCRUDL(SmartCRUDL):
 
             # setup user tracking before creating Org in super().post_save
             analytics.identify(user, brand=self.request.branding["slug"], org=obj)
-            analytics.track(email=user.username, event_name="temba.org_signup", properties=dict(org=obj.name))
+            analytics.track(user=user, event_name="temba.org_signup", properties=dict(org=obj.name))
 
             obj = super().post_save(obj)
 
@@ -2657,80 +2683,6 @@ class OrgCRUDL(SmartCRUDL):
                 context["prometheus_url"] = f"https://{org.get_branding()['domain']}/mr/org/{org.uuid}/metrics"
 
             return context
-
-    class Chatbase(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        class ChatbaseForm(forms.ModelForm):
-            agent_name = forms.CharField(
-                max_length=255, label=_("Agent Name"), required=False, help_text="Enter your Chatbase Agent's name"
-            )
-            api_key = forms.CharField(
-                max_length=255,
-                label=_("API Key"),
-                required=False,
-                help_text="You can find your Agent's API Key in your chatbase account",
-            )
-            version = forms.CharField(
-                max_length=10, label=_("Version"), required=False, help_text="Any will do, e.g. 1.0, 1.2.1"
-            )
-            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=True)
-
-            def clean(self):
-                super().clean()
-                if self.cleaned_data.get("disconnect", "false") == "false":
-                    agent_name = self.cleaned_data.get("agent_name")
-                    api_key = self.cleaned_data.get("api_key")
-
-                    if not agent_name or not api_key:
-                        raise ValidationError(
-                            _("Missing data: Agent Name or API Key." "Please check them again and retry.")
-                        )
-
-                return self.cleaned_data
-
-            class Meta:
-                model = Org
-                fields = ("agent_name", "api_key", "version", "disconnect")
-
-        success_message = ""
-        success_url = "@orgs.org_home"
-        form_class = ChatbaseForm
-
-        def derive_initial(self):
-            initial = super().derive_initial()
-            org = self.get_object()
-            config = org.config
-            initial["agent_name"] = config.get(Org.CONFIG_CHATBASE_AGENT_NAME, "")
-            initial["api_key"] = config.get(Org.CONFIG_CHATBASE_API_KEY, "")
-            initial["version"] = config.get(Org.CONFIG_CHATBASE_VERSION, "")
-            initial["disconnect"] = "false"
-            return initial
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            (chatbase_api_key, chatbase_version) = self.object.get_chatbase_credentials()
-            if chatbase_api_key:
-                config = self.object.config
-                agent_name = config.get(Org.CONFIG_CHATBASE_AGENT_NAME)
-                context["chatbase_agent_name"] = agent_name
-
-            return context
-
-        def form_valid(self, form):
-            user = self.request.user
-            org = user.get_org()
-
-            agent_name = form.cleaned_data.get("agent_name")
-            api_key = form.cleaned_data.get("api_key")
-            version = form.cleaned_data.get("version")
-            disconnect = form.cleaned_data.get("disconnect", "false") == "true"
-
-            if disconnect:
-                org.remove_chatbase_account(user)
-                return HttpResponseRedirect(reverse("orgs.org_home"))
-            elif api_key:
-                org.connect_chatbase(agent_name, api_key, version, user)
-
-            return super().form_valid(form)
 
     class Home(FormaxMixin, InferOrgMixin, OrgPermsMixin, SmartReadView):
         title = _("Your Account")
@@ -2883,38 +2835,10 @@ class OrgCRUDL(SmartCRUDL):
             if self.has_org_perm("orgs.org_smtp_server"):
                 formax.add_section("email", reverse("orgs.org_smtp_server"), icon="icon-envelop")
 
-            if self.has_org_perm("orgs.org_dtone_account"):
-                if not self.object.is_connected_to_dtone():
-                    formax.add_section(
-                        "dtone",
-                        reverse("orgs.org_dtone_account"),
-                        icon="icon-dtone",
-                        action="redirect",
-                        button=_("Connect"),
-                    )
-                else:  # pragma: needs cover
-                    formax.add_section(
-                        "dtone", reverse("orgs.org_dtone_account"), icon="icon-dtone", action="redirect", nobutton=True
-                    )
-
-            if self.has_org_perm("orgs.org_chatbase"):
-                (chatbase_api_key, chatbase_version) = self.object.get_chatbase_credentials()
-                if not chatbase_api_key:
-                    formax.add_section(
-                        "chatbase",
-                        reverse("orgs.org_chatbase"),
-                        icon="icon-chatbase",
-                        action="redirect",
-                        button=_("Connect"),
-                    )
-                else:  # pragma: needs cover
-                    formax.add_section(
-                        "chatbase",
-                        reverse("orgs.org_chatbase"),
-                        icon="icon-chatbase",
-                        action="redirect",
-                        nobutton=True,
-                    )
+            if self.has_org_perm("orgs.org_manage_integrations"):
+                for integration in IntegrationType.get_all():
+                    if integration.is_available_to(user):
+                        integration.management_ui(self.object, formax)
 
             if self.has_org_perm("orgs.org_token"):
                 formax.add_section("token", reverse("orgs.org_token"), icon="icon-cloud-upload", nobutton=True)
@@ -2930,55 +2854,6 @@ class OrgCRUDL(SmartCRUDL):
             # show globals and archives
             formax.add_section("globals", reverse("globals.global_list"), icon="icon-global", action="link")
             formax.add_section("archives", reverse("archives.archive_message"), icon="icon-box", action="link")
-
-    class DtoneAccount(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        class Form(forms.ModelForm):
-            api_key = forms.CharField(label=_("API Key"), required=False, widget=InputWidget())
-            api_secret = forms.CharField(label=_("API Secret"), required=False, widget=InputWidget())
-            disconnect = forms.CharField(widget=forms.HiddenInput, max_length=6, required=False)
-
-            def clean(self):
-                cleaned_data = super().clean()
-
-                if cleaned_data["disconnect"] != "true":
-                    api_key = cleaned_data.get("api_key")
-                    api_secret = cleaned_data.get("api_secret")
-                    client = DTOneClient(api_key, api_secret)
-
-                    try:
-                        client.get_balances()
-                    except DTOneClient.Exception:
-                        raise ValidationError(
-                            _("Your DT One API key and secret seem invalid. Please check them again and retry.")
-                        )
-
-            class Meta:
-                model = Org
-                fields = ("api_key", "api_secret", "disconnect")
-
-        form_class = Form
-        submit_button_name = "Save"
-        success_message = ""
-        success_url = "@orgs.org_home"
-
-        def derive_initial(self):
-            initial = super().derive_initial()
-            config = self.object.config
-            initial["api_key"] = config.get(Org.CONFIG_DTONE_KEY)
-            initial["api_secret"] = config.get(Org.CONFIG_DTONE_SECRET)
-            initial["disconnect"] = "false"
-            return initial
-
-        def form_valid(self, form):
-            user = self.request.user
-            org = user.get_org()
-            disconnect = form.cleaned_data.get("disconnect", "false") == "true"
-            if disconnect:
-                org.remove_dtone_account(user)
-                return HttpResponseRedirect(reverse("orgs.org_home"))
-            else:
-                org.connect_dtone(form.cleaned_data["api_key"], form.cleaned_data["api_secret"], user)
-                return super().form_valid(form)
 
     class TwilioAccount(ComponentFormMixin, InferOrgMixin, OrgPermsMixin, SmartUpdateView):
 
@@ -3054,7 +2929,7 @@ class OrgCRUDL(SmartCRUDL):
                 return super().form_valid(form)
 
     class Edit(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        class OrgForm(forms.ModelForm):
+        class Form(forms.ModelForm):
             name = forms.CharField(max_length=128, label=_("Workspace Name"), help_text="", widget=InputWidget())
             timezone = TimeZoneFormField(
                 label=_("Timezone"), help_text="", widget=SelectWidget(attrs={"searchable": True})
@@ -3062,12 +2937,11 @@ class OrgCRUDL(SmartCRUDL):
 
             class Meta:
                 model = Org
-                fields = ("name", "timezone", "date_format")
-                widgets = {"date_format": SelectWidget()}
+                fields = ("name", "timezone", "date_format", "language")
+                widgets = {"date_format": SelectWidget(), "language": SelectWidget()}
 
         success_message = ""
-        form_class = OrgForm
-        fields = ("name", "timezone", "date_format")
+        form_class = Form
 
         def has_permission(self, request, *args, **kwargs):
             self.org = self.derive_org()
@@ -3080,7 +2954,6 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
     class EditSubOrg(ModalMixin, Edit):
-
         success_url = "@orgs.org_sub_orgs"
 
         def get_object(self, *args, **kwargs):
@@ -3212,7 +3085,7 @@ class OrgCRUDL(SmartCRUDL):
                 label=_("Additional Languages"),
                 widget=SelectMultipleWidget(
                     attrs={
-                        "placeholder": _("Additional languages you would like to provid translations for"),
+                        "placeholder": _("Additional languages you would like to provide translations for"),
                         "searchable": True,
                         "queryParam": "q",
                         "endpoint": reverse_lazy("orgs.org_languages"),
@@ -3238,26 +3111,23 @@ class OrgCRUDL(SmartCRUDL):
             return kwargs
 
         def derive_initial(self):
-
             initial = super().derive_initial()
-            langs = [
-                {"name": lang.name, "value": lang.iso_code}
-                for lang in self.get_object().languages.filter(orgs=None).order_by("name")
-            ]
+            org = self.get_object()
 
-            initial["languages"] = langs
+            org_langs = org.languages.filter(orgs=None).order_by("name")
+            initial["languages"] = [{"value": lang.iso_code, "name": lang.name} for lang in org_langs]
 
-            if self.object.primary_language:
-                lang = self.object.primary_language
-                initial["primary_lang"] = [{"name": lang.name, "value": lang.iso_code}]
+            if org.primary_language:
+                lang = org.primary_language
+                initial["primary_lang"] = [{"value": lang.iso_code, "name": lang.name}]
 
             return initial
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            org = self.request.user.get_org()
-
-            context["languages"] = [lang.name for lang in org.languages.filter(orgs=None).order_by("name")]
+            org = self.get_object()
+            lang_codes = org.get_language_codes(include_primary=False)
+            context["languages"] = sorted([languages.get_name(code) for code in lang_codes])
             return context
 
         def get(self, request, *args, **kwargs):
@@ -3268,12 +3138,12 @@ class OrgCRUDL(SmartCRUDL):
                 if len(initial) > 0:
                     for iso_code in initial:
                         if iso_code:
-                            lang = languages.get_language_name(iso_code)
-                            matches.append(dict(id=iso_code, text=lang))
+                            lang = languages.get_name(iso_code)
+                            matches.append({"value": iso_code, "name": lang})
 
                 if len(matches) == 0:
                     search = self.request.GET.get("search", self.request.GET.get("q", "")).strip().lower()
-                    matches += languages.search_language_names(search)
+                    matches += languages.search_by_name(search)
                 return JsonResponse(dict(results=matches))
 
             return super().get(request, *args, **kwargs)
@@ -3512,9 +3382,9 @@ class StripeHandler(View):  # pragma: no cover
                     context["cc_type"] = "bitcoin"
                     context["cc_name"] = charge.source.bitcoin.address
 
-                admin_email = org.administrators.all().first().email
+                admin = org.administrators.all().first()
 
-                analytics.track(admin_email, track, context)
+                analytics.track(admin, track, context)
                 return HttpResponse("Event '%s': %s" % (track, context))
 
         # empty response, 200 lets Stripe know we handled it

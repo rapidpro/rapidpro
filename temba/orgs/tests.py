@@ -22,7 +22,6 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba import mailroom
-from temba.airtime.dtone import DTOneClient
 from temba.airtime.models import AirtimeTransfer
 from temba.api.models import APIToken, Resthook, WebHookEvent, WebHookResult
 from temba.archives.models import Archive
@@ -30,17 +29,35 @@ from temba.campaigns.models import Campaign, CampaignEvent, EventFire
 from temba.channels.models import Alert, Channel, SyncEvent
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.wit import WitType
-from temba.contacts.models import URN, Contact, ContactField, ContactGroup, ContactURN, ExportContactsTask
+from temba.contacts.models import (
+    URN,
+    Contact,
+    ContactField,
+    ContactGroup,
+    ContactImport,
+    ContactImportBatch,
+    ContactURN,
+    ExportContactsTask,
+)
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
 from temba.middleware import BrandingMiddleware
-from temba.msgs.models import ExportMessagesTask, Label, Msg
+from temba.msgs.models import Broadcast, ExportMessagesTask, Label, Msg
 from temba.orgs.models import BackupToken, Debit, OrgActivity
 from temba.orgs.tasks import suspend_topup_orgs_task
 from temba.request_logs.models import HTTPLog
-from temba.tests import ESMockWithScroll, MockResponse, TembaNonAtomicTest, TembaTest, matchers, mock_mailroom
+from temba.templates.models import Template, TemplateTranslation
+from temba.tests import (
+    CRUDLTestMixin,
+    ESMockWithScroll,
+    MockResponse,
+    TembaNonAtomicTest,
+    TembaTest,
+    matchers,
+    mock_mailroom,
+)
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
@@ -52,7 +69,7 @@ from temba.utils.email import link_components
 
 from .context_processors import GroupPermWrapper
 from .models import CreditAlert, Invitation, Language, Org, OrgRole, TopUp, TopUpCredits
-from .tasks import resume_failed_tasks, squash_topupcredits
+from .tasks import delete_orgs_task, resume_failed_tasks, squash_topupcredits
 
 
 class OrgRoleTest(TembaTest):
@@ -664,6 +681,14 @@ class OrgDeleteTest(TembaNonAtomicTest):
         parent_group = self.create_group("Parent Customers", contacts=[parent_contact], org=self.parent_org)
         child_group = self.create_group("Parent Customers", contacts=[child_contact], org=self.child_org)
 
+        # create an import for child group
+        im = ContactImport.objects.create(
+            org=self.org, group=child_group, mappings={}, num_records=0, created_by=self.admin, modified_by=self.admin
+        )
+
+        # and a batch for that import
+        ContactImportBatch.objects.create(contact_import=im, specs={}, record_start=0, record_end=0)
+
         # add some labels
         parent_label = self.create_label("Parent Spam", org=self.parent_org)
         child_label = self.create_label("Child Spam", org=self.child_org)
@@ -789,7 +814,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             status="O",
         )
 
-    def release_org(self, org, child_org=None, immediately=False, expected_files=3):
+    def release_org(self, org, child_org=None, delete=False, expected_files=3):
 
         with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
             # save off the ids of our current users
@@ -806,8 +831,20 @@ class OrgDeleteTest(TembaNonAtomicTest):
                 org=self.org, url="http://foo.bar", request="GET http://foo.bar", status_code=200, response="zap!"
             )
 
+            TemplateTranslation.get_or_create(
+                self.channel,
+                "hello",
+                "eng",
+                "US",
+                "Hello {{1}}",
+                1,
+                TemplateTranslation.STATUS_APPROVED,
+                "1234",
+                "foo_namespace",
+            )
+
             # release our primary org
-            org.release(immediately=immediately)
+            org.release(delete=delete)
 
             # all our users not in the other org should be inactive
             self.assertEqual(len(org_user_ids) - 1, User.objects.filter(id__in=org_user_ids, is_active=False).count())
@@ -818,22 +855,41 @@ class OrgDeleteTest(TembaNonAtomicTest):
                 child_org.refresh_from_db()
                 self.assertIsNone(child_org.parent)
 
-            if immediately:
+            if delete:
                 # oh noes, we deleted our archive files!
                 self.assertEqual(expected_files, len(self.mock_s3.objects))
 
-                # our channels and org are gone too
+                # no template translations
+                self.assertFalse(TemplateTranslation.objects.filter(template__org=org).exists())
+                self.assertFalse(Template.objects.filter(org=org).exists())
+
+                # our channels are gone too
                 self.assertFalse(Channel.objects.filter(org=org).exists())
-                self.assertFalse(Org.objects.filter(id=org.id).exists())
 
                 # as are our webhook events
                 self.assertFalse(WebHookEvent.objects.filter(org=org).exists())
 
                 # and labels
                 self.assertFalse(Label.all_objects.filter(org=org).exists())
+
+                # contacts, groups
+                self.assertFalse(Contact.objects.filter(org=org).exists())
+                self.assertFalse(ContactGroup.all_groups.filter(org=org).exists())
+
+                # flows, campaigns
+                self.assertFalse(Flow.objects.filter(org=org).exists())
+                self.assertFalse(Campaign.objects.filter(org=org).exists())
+
+                # msgs, broadcasts
+                self.assertFalse(Msg.objects.filter(org=org).exists())
+                self.assertFalse(Broadcast.objects.filter(org=org).exists())
+
+                # org is still around but has been released
+                self.assertTrue(Org.objects.filter(id=org.id, is_active=False).exclude(deleted_on=None).exists())
             else:
 
                 org.refresh_from_db()
+                self.assertIsNone(org.deleted_on)
                 self.assertFalse(org.is_active)
 
                 # our channel should have been made inactive
@@ -846,21 +902,54 @@ class OrgDeleteTest(TembaNonAtomicTest):
     def test_release_child(self):
         self.release_org(self.child_org)
 
-    def test_release_parent_immediately(self):
+    def test_release_parent_and_delete(self):
         with patch("temba.mailroom.client.MailroomClient.ticket_close"):
-            self.release_org(self.parent_org, self.child_org, immediately=True)
+            self.release_org(self.parent_org, self.child_org, delete=True)
 
-    def test_release_child_immediately(self):
+    def test_release_child_and_delete(self):
         # 300 credits were given to our child org and each used one
         self.assertEqual(697, self.parent_org.get_credits_remaining())
         self.assertEqual(299, self.child_org.get_credits_remaining())
 
         # release our child org
-        self.release_org(self.child_org, immediately=True, expected_files=2)
+        self.release_org(self.child_org, delete=True, expected_files=2)
 
         # our unused credits are returned to the parent
         self.parent_org.clear_credit_cache()
         self.assertEqual(995, self.parent_org.get_credits_remaining())
+
+    def test_delete_task(self):
+        # can't delete an unreleased org
+        with self.assertRaises(AssertionError):
+            self.child_org.delete()
+
+        self.release_org(self.child_org, delete=False)
+
+        self.child_org.refresh_from_db()
+        self.assertFalse(self.child_org.is_active)
+        self.assertIsNotNone(self.child_org.released_on)
+        self.assertIsNone(self.child_org.deleted_on)
+
+        # push the released on date back in time
+        Org.objects.filter(id=self.child_org.id).update(released_on=timezone.now() - timedelta(days=10))
+
+        with patch("temba.archives.models.Archive.s3_client", return_value=self.mock_s3):
+            delete_orgs_task()
+
+        self.child_org.refresh_from_db()
+        self.assertFalse(self.child_org.is_active)
+        self.assertIsNotNone(self.child_org.released_on)
+        self.assertIsNotNone(self.child_org.deleted_on)
+
+        # parent org unaffected
+        self.parent_org.refresh_from_db()
+        self.assertTrue(self.parent_org.is_active)
+        self.assertIsNone(self.parent_org.released_on)
+        self.assertIsNone(self.parent_org.deleted_on)
+
+        # can't double delete an org
+        with self.assertRaises(AssertionError):
+            self.child_org.delete()
 
 
 class OrgTest(TembaTest):
@@ -909,47 +998,6 @@ class OrgTest(TembaTest):
         self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "Kinyarwanda"})
         self.assertEqual(self.org.primary_language.name, "Kinyarwanda")
         self.assertEqual(self.org.get_language_codes(), {"eng", "kin"})
-
-    def test_channel_prefixes(self):
-        mtn = Channel.create(self.org, self.admin, "RW", "KN", "MTN", "5050", {"matching_prefixes": ["25078"]})
-        tigo = Channel.create(self.org, self.admin, "RW", "KN", "Tigo", "5050", {"matching_prefixes": ["25072"]})
-
-        joe = self.create_contact("Joe")
-        mtn_urn = ContactURN.get_or_create(self.org, joe, "tel:+250788383383")
-        tigo_urn = ContactURN.get_or_create(self.org, joe, "tel:+250722383383")
-
-        self.assertEqual(mtn, self.org.get_channel_for_role(Channel.ROLE_SEND, "tel", mtn_urn))
-        self.assertEqual(tigo, self.org.get_channel_for_role(Channel.ROLE_SEND, "tel", tigo_urn))
-
-    def test_get_send_channel_for_tel_short_code(self):
-        self.channel.release()
-
-        short_code = Channel.create(self.org, self.admin, "RW", "KN", "MTN", "5050")
-        Channel.create(self.org, self.admin, "RW", "WA", name="WhatsApp", address="+250788383000", tps=15)
-
-        joe = self.create_contact("Joe")
-        urn = ContactURN.get_or_create(self.org, joe, "tel:+250788383383")
-        self.assertEqual(short_code, self.org.get_channel_for_role(Channel.ROLE_SEND, None, urn))
-
-    def test_edit(self):
-        # use a manager now
-        self.login(self.admin)
-
-        # can we see the edit page
-        response = self.client.get(reverse("orgs.org_edit"))
-        self.assertEqual(200, response.status_code)
-
-        # update the name of the organization
-        data = dict(name="Temba", timezone="Bad/Timezone", date_format=Org.DATE_FORMAT_DAY_FIRST)
-        response = self.client.post(reverse("orgs.org_edit"), data)
-        self.assertIn("timezone", response.context["form"].errors)
-
-        data = dict(name="Temba", timezone="Africa/Kigali", date_format=Org.DATE_FORMAT_MONTH_FIRST)
-        response = self.client.post(reverse("orgs.org_edit"), data)
-        self.assertEqual(302, response.status_code)
-
-        org = Org.objects.get(pk=self.org.pk)
-        self.assertEqual("Temba", org.name)
 
     def test_country_view(self):
         self.setUpLocations()
@@ -2564,116 +2612,6 @@ class OrgTest(TembaTest):
         self.assertFalse(APIToken.objects.filter(org=self.org, role=prometheus_group, is_active=True))
         self.assertContains(response, "Enable Prometheus")
 
-    def test_dtone_connect(self):
-        org = self.org
-
-        org.refresh_from_db()
-        self.assertFalse(org.is_connected_to_dtone())
-
-        org.connect_dtone("key123", "sesame", self.admin)
-        org.refresh_from_db()
-
-        self.assertTrue(org.is_connected_to_dtone())
-        self.assertEqual(org.modified_by, self.admin)
-
-        org.remove_dtone_account(self.admin)
-        org.refresh_from_db()
-
-        self.assertFalse(org.is_connected_to_dtone())
-        self.assertEqual(org.modified_by, self.admin)
-
-    @patch("temba.airtime.dtone.DTOneClient.get_balances")
-    def test_dtone_account(self, mock_get_balances):
-        self.login(self.admin)
-
-        dtone_url = reverse("orgs.org_dtone_account")
-        home_url = reverse("orgs.org_home")
-
-        response = self.client.get(home_url)
-        self.assertContains(response, "Connect your DT One account.")
-
-        # formax includes form to connect DT One
-        response = self.client.get(dtone_url, HTTP_X_FORMAX=True)
-        self.assertEqual(["api_key", "api_secret", "disconnect", "loc"], list(response.context["form"].fields.keys()))
-
-        # simulate credentials being rejected
-        mock_get_balances.side_effect = DTOneClient.Exception(errors=[{"code": 1000401, "message": "Unauthorized"}])
-
-        response = self.client.post(dtone_url, {"api_key": "key123", "api_secret": "wrong", "disconnect": "false"})
-
-        self.assertContains(response, "Your DT One API key and secret seem invalid.")
-        self.assertFalse(self.org.is_connected_to_dtone())
-
-        # simulate credentials being accepted
-        mock_get_balances.side_effect = None
-        mock_get_balances.return_value = [{"available": 10, "unit": "USD", "unit_type": "CURRENCY"}]
-
-        response = self.client.post(dtone_url, {"api_key": "key123", "api_secret": "sesame", "disconnect": "false"})
-        self.assertNoFormErrors(response)
-
-        # DT One should now be connected
-        self.org.refresh_from_db()
-        self.assertTrue(self.org.is_connected_to_dtone())
-        self.assertEqual(self.org.config["dtone_key"], "key123")
-        self.assertEqual(self.org.config["dtone_secret"], "sesame")
-
-        # and that stated on home page
-        response = self.client.get(home_url)
-        self.assertContains(response, "Connected to your <b>DT One</b> account.")
-        self.assertContains(response, reverse("airtime.airtimetransfer_list"))
-
-        # formax includes the disconnect link
-        response = self.client.get(dtone_url, HTTP_X_FORMAX=True)
-        self.assertContains(response, "%s?disconnect=true" % reverse("orgs.org_dtone_account"))
-
-        # now disconnect
-        response = self.client.post(dtone_url, {"api_key": "", "api_secret": "", "disconnect": "true"})
-        self.assertNoFormErrors(response)
-
-        self.org.refresh_from_db()
-        self.assertFalse(self.org.is_connected_to_dtone())
-        self.assertNotIn("dtone_key", self.org.config)
-        self.assertNotIn("dtone_secret", self.org.config)
-
-    def test_chatbase_account(self):
-        self.login(self.admin)
-
-        self.org.refresh_from_db()
-        self.assertEqual((None, None), self.org.get_chatbase_credentials())
-
-        chatbase_account_url = reverse("orgs.org_chatbase")
-        response = self.client.get(chatbase_account_url)
-        self.assertContains(response, "Chatbase")
-
-        payload = dict(version="1.0", not_handled=True, feedback=False, disconnect="false")
-
-        response = self.client.post(chatbase_account_url, payload, follow=True)
-        self.assertContains(response, "Missing data: Agent Name or API Key.Please check them again and retry.")
-        self.assertEqual((None, None), self.org.get_chatbase_credentials())
-
-        payload.update(dict(api_key="api_key", agent_name="chatbase_agent", type="user"))
-
-        self.client.post(chatbase_account_url, payload, follow=True)
-
-        self.org.refresh_from_db()
-        self.assertEqual(("api_key", "1.0"), self.org.get_chatbase_credentials())
-
-        self.assertEqual(self.org.config["CHATBASE_API_KEY"], "api_key")
-        self.assertEqual(self.org.config["CHATBASE_AGENT_NAME"], "chatbase_agent")
-        self.assertEqual(self.org.config["CHATBASE_VERSION"], "1.0")
-
-        org_home_url = reverse("orgs.org_home")
-
-        response = self.client.get(org_home_url)
-        self.assertContains(response, self.org.config["CHATBASE_AGENT_NAME"])
-
-        payload.update(dict(disconnect="true"))
-
-        self.client.post(chatbase_account_url, payload, follow=True)
-
-        self.org.refresh_from_db()
-        self.assertEqual((None, None), self.org.get_chatbase_credentials())
-
     def test_resthooks(self):
         home_url = reverse("orgs.org_home")
         resthook_url = reverse("orgs.org_resthooks")
@@ -3008,80 +2946,66 @@ class OrgTest(TembaTest):
             },
         )
 
-    def test_connect_vonage(self):
+    @patch("temba.channels.types.vonage.client.VonageClient.check_credentials")
+    def test_connect_vonage(self, mock_check_credentials):
         self.login(self.admin)
 
         connect_url = reverse("orgs.org_vonage_connect")
         account_url = reverse("orgs.org_vonage_account")
 
         # simulate invalid credentials on both pages
-        with patch("requests.get") as mock_get:
-            mock_get.return_value = MockResponse(401, '{"error-code": "401"}')
+        mock_check_credentials.return_value = False
 
-            response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
-            self.assertContains(response, "Your API key and secret seem invalid.")
-            self.assertFalse(self.org.is_connected_to_vonage())
+        response = self.client.post(connect_url, {"api_key": "key", "api_secret": "secret"})
+        self.assertContains(response, "Your API key and secret seem invalid.")
+        self.assertFalse(self.org.is_connected_to_vonage())
 
-            response = self.client.post(account_url, dict(api_key="key", api_secret="secret"))
-            self.assertContains(response, "Your API key and secret seem invalid.")
+        response = self.client.post(account_url, {"api_key": "key", "api_secret": "secret"})
+        self.assertContains(response, "Your API key and secret seem invalid.")
 
         # ok, now with a success
-        with patch("requests.get") as mock_get, patch("requests.post") as mock_post:
-            # believe it or not vonage returns 'error-code' 200
-            mock_get.return_value = MockResponse(
-                200, '{"error-code": "200"}', headers={"content-type": "application/json"}
-            )
-            mock_post.return_value = MockResponse(
-                200, '{"error-code": "200"}', headers={"content-type": "application/json"}
-            )
-            response = self.client.post(connect_url, dict(api_key="key", api_secret="secret"))
-            self.assertEqual(response.status_code, 302)
+        mock_check_credentials.return_value = True
 
-            response = self.client.get(account_url)
-            self.assertEqual("key", response.context["api_key"])
+        response = self.client.post(connect_url, {"api_key": "key", "api_secret": "secret"})
+        self.assertEqual(response.status_code, 302)
 
-            self.org.refresh_from_db()
-            config = self.org.config
-            self.assertEqual("key", config[Org.CONFIG_VONAGE_KEY])
-            self.assertEqual("secret", config[Org.CONFIG_VONAGE_SECRET])
+        response = self.client.get(account_url)
+        self.assertEqual("key", response.context["api_key"])
 
-            # post without api token, should get validation error
-            response = self.client.post(account_url, dict(disconnect="false"), follow=True)
-            self.assertFormError(response, "form", "__all__", "You must enter your account API Key")
+        self.org.refresh_from_db()
+        self.assertEqual("key", self.org.config[Org.CONFIG_VONAGE_KEY])
+        self.assertEqual("secret", self.org.config[Org.CONFIG_VONAGE_SECRET])
 
-            # vonage config should remain the same
-            self.org.refresh_from_db()
-            config = self.org.config
-            self.assertEqual("key", config[Org.CONFIG_VONAGE_KEY])
-            self.assertEqual("secret", config[Org.CONFIG_VONAGE_SECRET])
+        # post without API token, should get validation error
+        response = self.client.post(account_url, {"disconnect": "false"})
+        self.assertFormError(response, "form", "__all__", "You must enter your account API Key")
 
-            # now try with all required fields, and a bonus field we shouldn't change
-            self.client.post(
-                account_url,
-                dict(api_key="other_key", api_secret="secret-too", disconnect="false", name="DO NOT CHANGE ME"),
-                follow=True,
-            )
-            # name shouldn't change
-            self.org.refresh_from_db()
-            self.assertEqual(self.org.name, "Temba")
+        # vonage config should remain the same
+        self.org.refresh_from_db()
+        self.assertEqual("key", self.org.config[Org.CONFIG_VONAGE_KEY])
+        self.assertEqual("secret", self.org.config[Org.CONFIG_VONAGE_SECRET])
 
-            # should change vonage config
-            with patch("nexmo.Client.get_balance") as mock_get_balance:
-                mock_get_balance.return_value = 120
-                self.client.post(
-                    account_url, dict(api_key="other_key", api_secret="secret-too", disconnect="false"), follow=True
-                )
+        # now try with all required fields, and a bonus field we shouldn't change
+        self.client.post(
+            account_url,
+            {"api_key": "other_key", "api_secret": "secret-too", "disconnect": "false", "name": "DO NOT CHANGE ME"},
+        )
+        # name shouldn't change
+        self.org.refresh_from_db()
+        self.assertEqual(self.org.name, "Temba")
 
-                self.org.refresh_from_db()
-                config = self.org.config
-                self.assertEqual("other_key", config[Org.CONFIG_VONAGE_KEY])
-                self.assertEqual("secret-too", config[Org.CONFIG_VONAGE_SECRET])
+        # should change vonage config
+        self.client.post(account_url, {"api_key": "other_key", "api_secret": "secret-too", "disconnect": "false"})
 
-            self.assertTrue(self.org.is_connected_to_vonage())
-            self.client.post(account_url, dict(disconnect="true"), follow=True)
+        self.org.refresh_from_db()
+        self.assertEqual("other_key", self.org.config[Org.CONFIG_VONAGE_KEY])
+        self.assertEqual("secret-too", self.org.config[Org.CONFIG_VONAGE_SECRET])
 
-            self.org.refresh_from_db()
-            self.assertFalse(self.org.is_connected_to_vonage())
+        self.assertTrue(self.org.is_connected_to_vonage())
+        self.client.post(account_url, dict(disconnect="true"), follow=True)
+
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_connected_to_vonage())
 
         # and disconnect
         self.org.remove_vonage_account(self.admin)
@@ -3096,20 +3020,20 @@ class OrgTest(TembaTest):
         connect_url = reverse("orgs.org_plivo_connect")
 
         # simulate invalid credentials
-        with patch("requests.get") as plivo_mock:
-            plivo_mock.return_value = MockResponse(
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(
                 401, "Could not verify your access level for that URL." "\nYou have to login with proper credentials"
             )
             response = self.client.post(connect_url, dict(auth_id="auth-id", auth_token="auth-token"))
             self.assertContains(
-                response, "Your Plivo AUTH ID and AUTH TOKEN seem invalid. Please check them again and retry."
+                response, "Your Plivo auth ID and auth token seem invalid. Please check them again and retry."
             )
             self.assertFalse(Channel.CONFIG_PLIVO_AUTH_ID in self.client.session)
             self.assertFalse(Channel.CONFIG_PLIVO_AUTH_TOKEN in self.client.session)
 
         # ok, now with a success
-        with patch("requests.get") as plivo_mock:
-            plivo_mock.return_value = MockResponse(200, json.dumps(dict()))
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(200, json.dumps(dict()))
             response = self.client.post(connect_url, dict(auth_id="auth-id", auth_token="auth-token"))
 
             # plivo should be added to the session
@@ -3388,7 +3312,7 @@ class OrgTest(TembaTest):
         response = self.client.post(reverse("orgs.org_transfer_credits"), post_data)
         self.assertContains(response, "Pick a different workspace to transfer from")
 
-        # now transfer some creditos
+        # now transfer some credits
         post_data = dict(from_org=self.org.id, to_org=sub_org.id, amount=600)
         response = self.client.post(reverse("orgs.org_transfer_credits"), post_data)
 
@@ -3399,11 +3323,17 @@ class OrgTest(TembaTest):
         response = self.client.get("%s?org=%d" % (reverse("orgs.org_manage_accounts_sub_org"), sub_org.id))
         self.assertEqual(200, response.status_code)
 
-        # edit our sub org's name
-        new_org["name"] = "New Sub Org Name"
-        new_org["slug"] = "new-sub-org-name"
-        response = self.client.post("%s?org=%s" % (reverse("orgs.org_edit_sub_org"), sub_org.pk), new_org)
-        self.assertIsNotNone(Org.objects.filter(name="New Sub Org Name").first())
+        # edit our sub org's details
+        response = self.client.post(
+            f"{reverse('orgs.org_edit_sub_org')}?org={sub_org.id}",
+            {"name": "New Sub Org Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
+        )
+
+        sub_org.refresh_from_db()
+        self.assertEqual("New Sub Org Name", sub_org.name)
+        self.assertEqual("Africa/Nairobi", str(sub_org.timezone))
+        self.assertEqual("Y", sub_org.date_format)
+        self.assertEqual("es", sub_org.language)
 
         # now we should see new topups on our sub org
         session["org_id"] = sub_org.id
@@ -3536,7 +3466,7 @@ class AnonOrgTest(TembaTest):
         self.assertContains(response, masked)
 
 
-class OrgCRUDLTest(TembaTest):
+class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_org_grant(self):
         grant_url = reverse("orgs.org_grant")
         response = self.client.get(grant_url)
@@ -3953,6 +3883,45 @@ class OrgCRUDLTest(TembaTest):
         user = User.objects.get(username="myal@wr.org")
         self.assertTrue(user.check_password("Password123"))
 
+    def test_edit(self):
+        edit_url = reverse("orgs.org_edit")
+
+        self.assertLoginRedirect(self.client.get(edit_url))
+
+        self.login(self.admin)
+        response = self.client.get(edit_url)
+        self.assertEqual(
+            ["name", "timezone", "date_format", "language", "loc"], list(response.context["form"].fields.keys())
+        )
+
+        # try submitting with errors
+        response = self.client.post(
+            reverse("orgs.org_edit"),
+            {"name": "", "timezone": "Bad/Timezone", "date_format": "X", "language": "klingon"},
+        )
+        self.assertFormError(response, "form", "name", "This field is required.")
+        self.assertFormError(
+            response, "form", "timezone", "Select a valid choice. Bad/Timezone is not one of the available choices."
+        )
+        self.assertFormError(
+            response, "form", "date_format", "Select a valid choice. X is not one of the available choices."
+        )
+        self.assertFormError(
+            response, "form", "language", "Select a valid choice. klingon is not one of the available choices."
+        )
+
+        response = self.client.post(
+            reverse("orgs.org_edit"),
+            {"name": "New Name", "timezone": "Africa/Nairobi", "date_format": "Y", "language": "es"},
+        )
+        self.assertEqual(302, response.status_code)
+
+        self.org.refresh_from_db()
+        self.assertEqual("New Name", self.org.name)
+        self.assertEqual("Africa/Nairobi", str(self.org.timezone))
+        self.assertEqual("Y", self.org.date_format)
+        self.assertEqual("es", self.org.language)
+
     def test_org_timezone(self):
         self.assertEqual(self.org.timezone, pytz.timezone("Africa/Kigali"))
         self.assertEqual(("%d-%m-%Y", "%d-%m-%Y %H:%M"), self.org.get_datetime_formats())
@@ -4144,20 +4113,18 @@ class OrgCRUDLTest(TembaTest):
         response = self.client.get(reverse("msgs.msg_inbox"))
         self.assertRedirect(response, "/users/login/")
 
-
-class LanguageTest(TembaTest):
     def test_languages(self):
-        url = reverse("orgs.org_languages")
+        langs_url = reverse("orgs.org_languages")
 
         self.login(self.admin)
 
         # update our org with some language settings
         response = self.client.post(
-            url,
-            dict(
-                primary_lang='{"name":"French", "value":"fra"}',
-                languages=['{"name":"Haitian", "value":"hat"}', '{"name":"Official Aramaic", "value":"arc"}'],
-            ),
+            langs_url,
+            {
+                "primary_lang": '{"name":"French", "value":"fra"}',
+                "languages": ['{"name":"Haitian", "value":"hat"}', '{"name":"Hausa", "value":"hau"}'],
+            },
         )
         self.assertEqual(response.status_code, 302)
         self.org.refresh_from_db()
@@ -4165,74 +4132,73 @@ class LanguageTest(TembaTest):
         self.assertEqual(self.org.primary_language.name, "French")
         self.assertIsNotNone(self.org.languages.filter(name="French"))
 
-        # everything after the paren should be stripped for aramaic
-        self.assertIsNotNone(self.org.languages.filter(name="Official Aramaic"))
-
-        # everything after the semi should be stripped for haitian
-        self.assertIsNotNone(self.org.languages.filter(name="Haitian"))
-
         # check that the last load shows our new languages
-        response = self.client.get(url)
-        self.assertEqual(response.context["languages"], ["Haitian", "Official Aramaic (700-300 BCE)"])
+        response = self.client.get(langs_url)
+        self.assertEqual(["Haitian", "Hausa"], response.context["languages"])
         self.assertContains(response, "fra")
-        # self.assertContains(response, "hat,arc")
 
-        # three translation languages
+        # add another translation language...
         self.client.post(
-            url,
-            dict(
-                primary_lang='{"name":"French", "value":"fra"}',
-                languages=[
+            langs_url,
+            {
+                "primary_lang": '{"name":"French", "value":"fra"}',
+                "languages": [
                     '{"name":"Haitian", "value":"hat"}',
-                    '{"name":"Official Aramaic", "value":"arc"}',
+                    '{"name":"Hausa", "value":"hau"}',
                     '{"name":"Spanish", "value":"spa"}',
                 ],
-            ),
+            },
         )
         response = self.client.get(reverse("orgs.org_languages"))
-        self.assertEqual(response.context["languages"], ["Haitian", "Official Aramaic (700-300 BCE)", "Spanish"])
+        self.assertEqual(["Haitian", "Hausa", "Spanish"], response.context["languages"])
 
         # one translation language
         self.client.post(
-            url, dict(primary_lang='{"name":"French", "value":"fra"}', languages=['{"name":"Haitian", "value":"hat"}'])
+            langs_url,
+            {"primary_lang": '{"name":"French", "value":"fra"}', "languages": ['{"name":"Haitian", "value":"hat"}']},
         )
         response = self.client.get(reverse("orgs.org_languages"))
-        self.assertEqual(response.context["languages"], ["Haitian"])
+        self.assertEqual(["Haitian"], response.context["languages"])
 
         # remove all languages
-        self.client.post(url, dict(primary_lang="{}", languages=[]))
+        self.client.post(langs_url, {"primary_lang": "{}", "languages": []})
         self.org.refresh_from_db()
         self.assertIsNone(self.org.primary_language)
         self.assertFalse(self.org.languages.all())
 
-        # search languages
-        response = self.client.get("%s?search=fra" % url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
-        results = response.json()["results"]
-        self.assertEqual(len(results), 7)
-
         # initial should do a match on code only
-        response = self.client.get("%s?initial=fra" % url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
-        results = response.json()["results"]
-        self.assertEqual(len(results), 1)
+        response = self.client.get("%s?initial=fra" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual([{"name": "French", "value": "fra"}], response.json()["results"])
 
-    def test_language_codes(self):
-        self.assertEqual("French", languages.get_language_name("fra"))
-        self.assertEqual("Chinese Pidgin English", languages.get_language_name("cpi"))
+        # searching languages should only return languages with 2-letter codes
+        response = self.client.get("%s?search=Fr" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(
+            [
+                {"value": "afr", "name": "Afrikaans"},
+                {"value": "fra", "name": "French"},
+                {"value": "fry", "name": "Western Frisian"},
+            ],
+            response.json()["results"],
+        )
 
-        # should strip off anything after an open paren or semicolon
-        self.assertEqual("Haitian", languages.get_language_name("hat"))
+        # unless they're explicitly included in settings
+        with override_settings(NON_ISO6391_LANGUAGES={"frc"}):
+            languages.reload()
+            response = self.client.get("%s?search=Fr" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+            self.assertEqual(
+                [
+                    {"value": "afr", "name": "Afrikaans"},
+                    {"value": "frc", "name": "Cajun French"},
+                    {"value": "fra", "name": "French"},
+                    {"value": "fry", "name": "Western Frisian"},
+                ],
+                response.json()["results"],
+            )
 
-        # check that search returns results and in the proper order
-        matches = languages.search_language_names("Fre")
-        self.assertEqual(13, len(matches))
-        self.assertEqual("Saint Lucian Creole French", matches[0]["text"])
-        self.assertEqual("Seselwa Creole French", matches[1]["text"])
-        self.assertEqual("French", matches[2]["text"])
-        self.assertEqual("Cajun French", matches[3]["text"])
+        languages.reload()
 
-        # try a language that doesn't exist
-        self.assertEqual(None, languages.get_language_name("xyz"))
 
+class LanguageTest(TembaTest):
     def test_get_localized_text(self):
         text_translations = dict(eng="Hello", spa="Hola")
 
@@ -4247,157 +4213,6 @@ class LanguageTest(TembaTest):
 
         # secondary option
         self.assertEqual(Language.get_localized_text(text_translations, ["fra", "spa"]), "Hola")
-
-    def test_language_migrations(self):
-        self.assertEqual("pcm", languages.iso6392_to_iso6393("cpe", country_code="NG"))
-
-        org_languages = [
-            "dum",
-            "ger",
-            "alb",
-            "ita",
-            "tir",
-            "nwc",
-            "tsn",
-            "tso",
-            "lua",
-            "jav",
-            "nso",
-            "aus",
-            "nor",
-            "ada",
-            "fij",
-            "hat",
-            "hau",
-            "fil",
-            "amh",
-            "som",
-            "ssw",
-            "mon",
-            "him",
-            "hin",
-            "tig",
-            "guj",
-            "ibo",
-            "afr",
-            "div",
-            "bam",
-            "kac",
-            "tel",
-            "tpi",
-            "snd",
-            "ara",
-            "lao",
-            "nbl",
-            "arm",
-            "abk",
-            "kur",
-            "per",
-            "wol",
-            "smi",
-            "lug",
-            "tmh",
-            "nep",
-            "luo",
-            "run",
-            "rum",
-            "tur",
-            "orm",
-            "que",
-            "ori",
-            "rus",
-            "asm",
-            "pus",
-            "kik",
-            "ace",
-            "syr",
-            "ach",
-            "nde",
-            "srp",
-            "zul",
-            "vie",
-            "por",
-            "chm",
-            "mai",
-            "pol",
-            "sot",
-            "art",
-            "tgl",
-            "che",
-            "fre",
-            "kon",
-            "swa",
-            "chi",
-            "twi",
-            "swe",
-            "ukr",
-            "mkh",
-            "heb",
-            "kor",
-            "dut",
-            "tog",
-            "bur",
-            "ven",
-            "hmn",
-            "enm",
-            "gaa",
-            "ben",
-            "bem",
-            "xho",
-            "aze",
-            "ain",
-            "ful",
-            "ang",
-            "dan",
-            "bho",
-            "jpn",
-            "raj",
-            "khm",
-            "AAR",
-            "ind",
-            "spa",
-            "eng",
-            "lin",
-            "afa",
-            "ewe",
-            "nyn",
-            "nyo",
-            "mis",
-            "nya",
-            "yor",
-            "pan",
-            "tam",
-            "phi",
-            "mar",
-            "sna",
-            "may",
-            "kan",
-            "kal",
-            "kas",
-            "kar",
-            "kin",
-            "lat",
-            "mal",
-            "urd",
-            "gsw",
-            "cpe",
-            "cpf",
-            "cpp",
-            "tha",
-        ]
-
-        for lang in org_languages:
-            self.assertIsNotNone(languages.iso6392_to_iso6393(lang))
-
-        # test if language is already iso-639-3
-        self.assertEqual("cro", languages.iso6392_to_iso6393("cro"))
-        # test code path when language is in cache
-        self.assertEqual("cro", languages.iso6392_to_iso6393("cro"))
-
-        # test behavior with unknown values
-        self.assertIsNone(languages.iso6392_to_iso6393(iso_code=None))
-        self.assertRaises(ValueError, languages.iso6392_to_iso6393, iso_code="")
-        self.assertRaises(ValueError, languages.iso6392_to_iso6393, iso_code="123")
 
 
 class BulkExportTest(TembaTest):

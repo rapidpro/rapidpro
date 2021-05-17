@@ -1,4 +1,5 @@
 import datetime
+import decimal
 import io
 import os
 import re
@@ -25,9 +26,10 @@ from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.globals.models import Global
 from temba.mailroom import FlowValidationException
+from temba.orgs.integrations.dtone import DTOneType
 from temba.orgs.models import Language
 from temba.templates.models import Template, TemplateTranslation
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tickets.models import Ticketer
@@ -258,7 +260,15 @@ class FlowTest(TembaTest):
 
         # create a translation, but not approved
         TemplateTranslation.get_or_create(
-            self.channel, "affirmation", "eng", "US", "good boy", 0, TemplateTranslation.STATUS_REJECTED, "id1"
+            self.channel,
+            "affirmation",
+            "eng",
+            "US",
+            "good boy",
+            0,
+            TemplateTranslation.STATUS_REJECTED,
+            "id1",
+            "foo_namespace",
         )
 
         response = self.client.get(reverse("flows.flow_broadcast", args=[flow.id]))
@@ -369,8 +379,8 @@ class FlowTest(TembaTest):
         Classifier.objects.create(org=flow.org, config="", created_by=self.admin, modified_by=self.admin)
         assert_features(["classifier", "resthook"])
 
-        # add a DTOne account
-        flow.org.connect_dtone("login", "token", self.admin)
+        # add a DT One integration
+        DTOneType().connect(flow.org, self.admin, "login", "token")
         assert_features(["airtime", "classifier", "resthook"])
 
         # change our channel to use a whatsapp scheme
@@ -5491,7 +5501,6 @@ class SimulationTest(TembaTest):
 
                 # since this is an IVR flow, the session trigger will have a connection
                 self.assertEqual(
-                    mock_post.call_args[1]["json"]["trigger"],
                     {
                         "connection": {
                             "channel": {"uuid": "440099cf-200c-4d45-a8e7-4a564f4a0e8b", "name": "Test Channel"},
@@ -5507,6 +5516,7 @@ class SimulationTest(TembaTest):
                             "redaction_policy": "none",
                         },
                     },
+                    json.loads(mock_post.call_args[1]["data"])["trigger"],
                 )
 
     def test_simulation(self):
@@ -5532,7 +5542,7 @@ class SimulationTest(TembaTest):
                 self.assertEqual({}, response.json()["session"])
 
                 actual_url = mock_post.call_args_list[0][0][0]
-                actual_payload = mock_post.call_args_list[0][1]["json"]
+                actual_payload = json.loads(mock_post.call_args_list[0][1]["data"])
                 actual_headers = mock_post.call_args_list[0][1]["headers"]
 
                 self.assertEqual(actual_url, "https://mailroom.temba.io/mr/sim/start")
@@ -5541,9 +5551,15 @@ class SimulationTest(TembaTest):
                 self.assertEqual(len(actual_payload["assets"]["channels"]), 1)  # fake channel
                 self.assertEqual(len(actual_payload["flows"]), 1)
                 self.assertEqual(actual_headers["Authorization"], "Token sesame")
+                self.assertEqual(actual_headers["Content-Type"], "application/json")
 
             # try a resume
-            payload = dict(version=2, session={}, resume={}, flow={})
+            payload = {
+                "version": 2,
+                "session": {"contact": {"fields": {"age": decimal.Decimal("39")}}},
+                "resume": {},
+                "flow": {},
+            }
 
             with patch("requests.post") as mock_post:
                 mock_post.return_value = MockResponse(400, '{"session": {}}')
@@ -5557,7 +5573,7 @@ class SimulationTest(TembaTest):
                 self.assertEqual({}, response.json()["session"])
 
                 actual_url = mock_post.call_args_list[0][0][0]
-                actual_payload = mock_post.call_args_list[0][1]["json"]
+                actual_payload = json.loads(mock_post.call_args_list[0][1]["data"])
                 actual_headers = mock_post.call_args_list[0][1]["headers"]
 
                 self.assertEqual(actual_url, "https://mailroom.temba.io/mr/sim/resume")
@@ -5566,6 +5582,7 @@ class SimulationTest(TembaTest):
                 self.assertEqual(len(actual_payload["assets"]["channels"]), 1)  # fake channel
                 self.assertEqual(len(actual_payload["flows"]), 1)
                 self.assertEqual(actual_headers["Authorization"], "Token sesame")
+                self.assertEqual(actual_headers["Content-Type"], "application/json")
 
 
 class FlowSessionCRUDLTest(TembaTest):
@@ -5748,3 +5765,48 @@ class FlowRevisionTest(TembaTest):
         trim_flow_revisions()
         self.assertEqual(2, FlowRevision.objects.filter(flow=clinic).count())
         self.assertEqual(31, FlowRevision.objects.filter(flow=color).count())
+
+
+class PopulateHasIssuesTest(MigrationTest):
+    app = "flows"
+    migrate_from = "0250_flow_has_issues"
+    migrate_to = "0251_populate_flow_has_issues"
+
+    def setUpBeforeMigration(self, apps):
+        def create_flow(name, has_issues, metadata):
+            flow = self.create_flow(name)
+            flow.has_issues = has_issues
+            flow.metadata = metadata
+            flow.save(update_fields=("has_issues", "metadata"))
+            return flow
+
+        # flow that already has has_issues set
+        self.flow1 = create_flow("Flow 1", has_issues=True, metadata={})
+
+        # flow that already has has_issues not set
+        self.flow2 = create_flow("Flow 2", has_issues=False, metadata={})
+
+        # flow that that doesn't have it set and does have issues
+        self.flow3 = create_flow("Flow 3", has_issues=None, metadata={"issues": [{"type": "foo"}]})
+
+        # flow that that doesn't have it set and doesn't have issues
+        self.flow4 = create_flow("Flow 4", has_issues=None, metadata={"issues": []})
+
+        # flow that that doesn't have it set and doesn't have issues as a field in metadata
+        self.flow5 = create_flow("Flow 5", has_issues=None, metadata={})
+
+    def test_migration(self):
+        self.flow1.refresh_from_db()
+        self.assertTrue(self.flow1.has_issues)
+
+        self.flow2.refresh_from_db()
+        self.assertFalse(self.flow2.has_issues)
+
+        self.flow3.refresh_from_db()
+        self.assertTrue(self.flow3.has_issues)
+
+        self.flow4.refresh_from_db()
+        self.assertFalse(self.flow4.has_issues)
+
+        self.flow5.refresh_from_db()
+        self.assertFalse(self.flow5.has_issues)

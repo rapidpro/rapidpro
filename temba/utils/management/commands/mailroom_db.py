@@ -193,6 +193,7 @@ ORG1 = dict(
                     language="eng",
                     content="Hi {{1}}, are you still experiencing problems with {{2}}?",
                     variable_count=2,
+                    namespace="2d40b45c_25cd_4965_9019_f05d0124c5fa",
                     status="A",
                     external_id="eng1",
                 ),
@@ -202,6 +203,7 @@ ORG1 = dict(
                     language="fra",
                     content="Bonjour {{1}}, a tu des problems avec {{2}}?",
                     variable_count=2,
+                    namespace="ea9cd1b3_b018_4ffe_bb0e_7cb898e527ae",
                     status="P",
                     external_id="fra1",
                 ),
@@ -217,6 +219,7 @@ ORG1 = dict(
                     language="fra",
                     content="Salut!",
                     variable_count=0,
+                    namespace="",
                     status="A",
                     external_id="fra2",
                 ),
@@ -608,6 +611,7 @@ class Command(BaseCommand):
                     tt["variable_count"],
                     tt["status"],
                     tt["external_id"],
+                    tt["namespace"],
                 )
 
         self._log(self.style.SUCCESS("OK") + "\n")

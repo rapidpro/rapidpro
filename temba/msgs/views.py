@@ -407,7 +407,7 @@ class BroadcastCRUDL(SmartCRUDL):
                     super().form_valid(form)
 
                 analytics.track(
-                    self.request.user.username,
+                    self.request.user,
                     "temba.broadcast_created",
                     dict(contacts=len(contacts), groups=len(groups), urns=len(urns)),
                 )
@@ -684,9 +684,11 @@ class MsgCRUDL(SmartCRUDL):
         template_name = "msgs/msg_failed.haml"
         success_message = ""
         system_label = SystemLabel.TYPE_FAILED
-        bulk_actions = ("resend",)
         allow_export = True
         show_channel_logs = True
+
+        def get_bulk_actions(self):
+            return () if self.request.org.is_suspended else ("resend",)
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)

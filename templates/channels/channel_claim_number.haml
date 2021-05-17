@@ -26,9 +26,9 @@
                 -for country in search_countries
                   %temba-option(name="{{country.label}}" value="{{country.key}}")
 
-          .area-code.w-32.mr-3
+          .pattern.w-32.mr-3
             -block search-pattern
-              %temba-textinput#area-code(type="text" maxlength="3" name="area_code" label='{{_("Pattern")}}')
+              %temba-textinput#pattern(type="text" maxlength="3" name="pattern" label='{{_("Pattern")|escapejs}}')
             
           %input.button-primary{ type:"submit", value:"{% trans 'Search' %}" }
 
@@ -92,7 +92,7 @@
     });
 
     function searchNumbers(e){
-      var area_code = document.querySelector('#area-code').value;      
+      var pattern = document.querySelector('#pattern').value;
       var country = document.querySelector("#country").values[0].value;
 
       $("#claim-message").hide();
@@ -102,7 +102,7 @@
       $.ajax({
         type: "POST",
         url: "{{ search_url }}",
-        data: { area_code: area_code, country: country },
+        data: { pattern: pattern, country: country },
         dataType: "json",
         success: function(data, status, xhr){
           $("#throbber").hide();

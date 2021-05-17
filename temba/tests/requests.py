@@ -1,4 +1,3 @@
-import json
 from unittest.mock import patch
 
 from requests import HTTPError
@@ -6,7 +5,7 @@ from requests.structures import CaseInsensitiveDict
 
 from django.utils.encoding import force_bytes, force_text
 
-from temba.utils import dict_to_struct
+from temba.utils import dict_to_struct, json
 
 
 class MockResponse:

@@ -769,6 +769,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from temba.ivr.models import IVRCall
         from temba.mailroom.events import get_event_time
         from temba.msgs.models import Msg
+        from temba.tickets.models import Ticket
 
         msgs = (
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
@@ -815,6 +816,10 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .select_related("channel")[:limit]
         )
 
+        closed_tickets = self.tickets.filter(
+            status=Ticket.STATUS_CLOSED, closed_on__gte=after, closed_on__lt=before
+        ).order_by("-closed_on")
+
         transfers = self.airtime_transfers.filter(created_on__gte=after, created_on__lt=before).order_by(
             "-created_on"
         )[:limit]
@@ -832,6 +837,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             calls,
             transfers,
             session_events,
+            closed_tickets,
         )
 
         # sort and slice
@@ -850,7 +856,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
                 for event in run.get("events", []):
                     event["session_uuid"] = str(session.uuid)
                     event_time = iso8601.parse_date(event["created_on"])
-
                     if event["type"] in types and after <= event_time < before:
                         events.append(event)
 
@@ -1385,17 +1390,6 @@ class ContactURN(models.Model):
 
         return self
 
-    @classmethod
-    def derive_country_from_tel(cls, phone, country=None):
-        """
-        Given a phone number in E164 returns the two letter country code for it.  ex: +250788383383 -> RW
-        """
-        try:
-            parsed = phonenumbers.parse(phone, country)
-            return phonenumbers.region_code_for_number(parsed)
-        except Exception:
-            return None
-
     def get_display(self, org=None, international=False, formatted=True):
         """
         Gets a representation of the URN for display
@@ -1691,7 +1685,6 @@ class ContactGroup(TembaModel):
         """
         Releases (i.e. deletes) this group, removing all contacts and marking as inactive
         """
-
         # if group is still active, deactivate it
         if self.is_active is True:
             self.is_active = False
@@ -1718,6 +1711,10 @@ class ContactGroup(TembaModel):
 
         for id_batch in chunk_list(eventfire_ids, 1000):
             EventFire.objects.filter(id__in=id_batch).delete()
+
+        # remove any contact imports associated with this group
+        for ci in ContactImport.objects.filter(group=self):
+            ci.release()
 
         # mark any triggers that operate only on this group as inactive
         from temba.triggers.models import Trigger
@@ -2213,6 +2210,16 @@ class ContactImport(SmartModel):
         from .tasks import import_contacts_task
 
         on_transaction_commit(lambda: import_contacts_task.delay(self.id))
+
+    def release(self):
+        # delete our source import file
+        self.file.delete()
+
+        # delete any batches associated with this import
+        ContactImportBatch.objects.filter(contact_import=self).delete()
+
+        # then ourselves
+        self.delete()
 
     def start(self):
         """

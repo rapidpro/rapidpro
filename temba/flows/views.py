@@ -42,11 +42,11 @@ from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSe
 from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
-from temba.orgs.models import Org
+from temba.orgs.models import IntegrationType, Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
-from temba.utils import analytics, gettext, json, on_transaction_commit, str_to_bool
+from temba.utils import analytics, gettext, json, languages, on_transaction_commit, str_to_bool
 from temba.utils.fields import (
     CheckboxWidget,
     ContactSearchWidget,
@@ -278,7 +278,13 @@ class FlowCRUDL(SmartCRUDL):
 
                 # get our metadata
                 flow_info = mailroom.get_client().flow_inspect(flow.org_id, definition)
-                return JsonResponse(dict(definition=definition, metadata=Flow.get_metadata(flow_info)))
+                return JsonResponse(
+                    {
+                        "definition": definition,
+                        "issues": flow_info[Flow.INSPECT_ISSUES],
+                        "metadata": Flow.get_metadata(flow_info),
+                    }
+                )
 
             # build a list of valid revisions to display
             revisions = []
@@ -320,12 +326,13 @@ class FlowCRUDL(SmartCRUDL):
             definition = json.loads(force_text(request.body))
             try:
                 flow = self.get_object(self.get_queryset())
-                revision = flow.save_revision(self.request.user, definition)
+                revision, issues = flow.save_revision(self.request.user, definition)
                 return JsonResponse(
                     {
                         "status": "success",
                         "saved_on": json.encode_datetime(flow.saved_on, micros=True),
                         "revision": revision.as_json(),
+                        "issues": issues,
                         "metadata": flow.metadata,
                     }
                 )
@@ -433,7 +440,7 @@ class FlowCRUDL(SmartCRUDL):
             return context
 
         def save(self, obj):
-            analytics.track(self.request.user.username, "temba.flow_created", dict(name=obj.name))
+            analytics.track(self.request.user, "temba.flow_created", dict(name=obj.name))
             org = self.request.user.get_org()
 
             # default expiration is a week
@@ -990,7 +997,6 @@ class FlowCRUDL(SmartCRUDL):
             context = super().get_context_data(*args, **kwargs)
 
             dev_mode = getattr(settings, "EDITOR_DEV_MODE", False)
-            getattr(settings, "EDITOR_DEV_MODE", False)
             prefix = "/dev" if dev_mode else settings.STATIC_URL
 
             # get our list of assets to incude
@@ -1041,15 +1047,15 @@ class FlowCRUDL(SmartCRUDL):
 
             feature_filters = []
 
-            facebook_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
+            facebook_channel = flow.org.get_channel(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
             if facebook_channel is not None:
                 feature_filters.append("facebook")
 
-            whatsapp_channel = flow.org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
+            whatsapp_channel = flow.org.get_channel(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
             if whatsapp_channel is not None:
                 feature_filters.append("whatsapp")
 
-            if flow.org.is_connected_to_dtone():
+            if flow.org.get_integrations(IntegrationType.Category.AIRTIME):
                 feature_filters.append("airtime")
 
             if flow.org.classifiers.filter(is_active=True).exists():
@@ -1187,7 +1193,7 @@ class FlowCRUDL(SmartCRUDL):
                 required=False,
                 label=_("Language"),
                 help_text=_("Include translations in this language."),
-                choices=[("", "None")],
+                choices=(("", "None"),),
                 widget=SelectWidget(),
             )
             include_args = forms.BooleanField(
@@ -1202,10 +1208,9 @@ class FlowCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
 
                 org = user.get_org()
-                org_languages = org.languages.all().order_by("orgs", "name")
 
                 self.user = user
-                self.fields["language"].choices += [(lang.iso_code, lang.name) for lang in org_languages]
+                self.fields["language"].choices += languages.choices(codes=org.get_language_codes())
 
         form_class = Form
         submit_button_name = _("Export")
@@ -1289,7 +1294,7 @@ class FlowCRUDL(SmartCRUDL):
                                 params={"lang": po_info.language_name},
                             )
 
-                        if not self.flow.org.languages.filter(iso_code=po_info.language_code).exists():
+                        if po_info.language_code not in self.flow.org.get_language_codes():
                             raise ValidationError(
                                 _("Contains translations in %(lang)s which is not a supported translation language."),
                                 params={"lang": po_info.language_name},
@@ -1309,9 +1314,10 @@ class FlowCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
 
                 org = user.get_org()
-                languages = org.languages.exclude(iso_code=instance.base_language).order_by("name")
+                lang_codes = org.get_language_codes()
+                lang_codes.remove(instance.base_language)
 
-                self.fields["language"].choices += [(lang.iso_code, lang.name) for lang in languages]
+                self.fields["language"].choices = languages.choices(codes=lang_codes)
 
         title = _("Import Translation")
         submit_button_name = _("Import")
@@ -1343,7 +1349,7 @@ class FlowCRUDL(SmartCRUDL):
                 updated_defs = Flow.import_translation(self.object.org, [self.object], language, po_data)
                 self.object.save_revision(self.request.user, updated_defs[str(self.object.uuid)])
 
-                analytics.track(self.request.user.username, "temba.flow_po_imported")
+                analytics.track(self.request.user, "temba.flow_po_imported")
 
             return HttpResponseRedirect(self.get_success_url())
 
@@ -1358,12 +1364,12 @@ class FlowCRUDL(SmartCRUDL):
             return gettext.po_get_info(po_data)
 
         def get_context_data(self, *args, **kwargs):
-            org = self.request.user.get_org()
+            flow_lang_code = self.object.base_language
 
             context = super().get_context_data(*args, **kwargs)
             context["show_upload_form"] = not self.po_info
             context["po_info"] = self.po_info
-            context["flow_language"] = org.languages.filter(iso_code=self.object.base_language).first()
+            context["flow_language"] = {"iso_code": flow_lang_code, "name": languages.get_name(flow_lang_code)}
             return context
 
         def derive_initial(self):
@@ -1477,7 +1483,7 @@ class FlowCRUDL(SmartCRUDL):
                 return dict()
 
         def form_valid(self, form):
-            analytics.track(self.request.user.username, "temba.flow_exported")
+            analytics.track(self.request.user, "temba.flow_exported")
 
             user = self.request.user
             org = user.get_org()
@@ -1771,7 +1777,7 @@ class FlowCRUDL(SmartCRUDL):
                     dict(status="error", description="mailroom not configured, cannot simulate"), status=500
                 )
 
-            analytics.track(request.user.username, "temba.flow_simulated")
+            analytics.track(request.user, "temba.flow_simulated")
 
             flow = self.get_object()
             client = mailroom.get_client()
@@ -1961,7 +1967,7 @@ class FlowCRUDL(SmartCRUDL):
             warnings = []
 
             # facebook channels need to warn if no topic is set
-            facebook_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
+            facebook_channel = org.get_channel(Channel.ROLE_SEND, scheme=URN.FACEBOOK_SCHEME)
             if facebook_channel:
                 if not self.has_facebook_topic(flow):
                     warnings.append(
@@ -1971,7 +1977,7 @@ class FlowCRUDL(SmartCRUDL):
                     )
 
             # if we have a whatsapp channel
-            whatsapp_channel = org.get_channel_for_role(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
+            whatsapp_channel = org.get_channel(Channel.ROLE_SEND, scheme=URN.WHATSAPP_SCHEME)
             if whatsapp_channel:
                 # check to see we are using templates
                 templates = flow.get_dependencies_metadata("template")
@@ -2026,7 +2032,7 @@ class FlowCRUDL(SmartCRUDL):
                 contacts = list(omnibox["contacts"])
 
             analytics.track(
-                self.request.user.username,
+                self.request.user,
                 "temba.flow_broadcast",
                 dict(contacts=len(contacts), groups=len(groups), query=contact_query),
             )
@@ -2063,8 +2069,8 @@ class FlowCRUDL(SmartCRUDL):
             if asset_type_name == "environment":
                 return JsonResponse(org.as_environment_def())
             else:
-                languages = org.languages.filter(is_active=True).order_by("id")
-                return JsonResponse({"results": [{"iso": l.iso_code, "name": l.name} for l in languages]})
+                results = [{"iso": code, "name": languages.get_name(code)} for code in org.get_language_codes()]
+                return JsonResponse({"results": sorted(results, key=lambda l: l["name"])})
 
 
 # this is just for adhoc testing of the preprocess url
