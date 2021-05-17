@@ -64,6 +64,20 @@ ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
 
 
+class DependencyMixin:
+    """
+    Utility mixin for models which can be flow dependencies
+    """
+
+    def release(self, user):
+        """
+        Mark this dependency's flows as having issues, and then remove the dependencies
+        """
+
+        self.dependent_flows.update(has_issues=True)
+        self.dependent_flows.clear()
+
+
 class IntegrationType(metaclass=ABCMeta):
     """
     IntegrationType is our abstract base type for third party integrations.

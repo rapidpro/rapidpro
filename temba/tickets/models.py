@@ -12,7 +12,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
 from temba.contacts.models import Contact
-from temba.orgs.models import Org
+from temba.orgs.models import DependencyMixin, Org
 from temba.utils.uuid import uuid4
 
 
@@ -61,7 +61,7 @@ class TicketerType(metaclass=ABCMeta):
         return url(r"^connect", self.connect_view.as_view(ticketer_type=self), name="connect")
 
 
-class Ticketer(SmartModel):
+class Ticketer(SmartModel, DependencyMixin):
     """
     A service that can open and close tickets
     """
@@ -114,9 +114,7 @@ class Ticketer(SmartModel):
         """
         Releases this, closing all associated tickets in the process
         """
-        from temba.flows.models import Flow
-
-        Flow.release_dependency(self)
+        super().release(user)
 
         open_tickets = self.tickets.filter(status=Ticket.STATUS_OPEN)
         if open_tickets.exists():
