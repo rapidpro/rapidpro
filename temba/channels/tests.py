@@ -1250,6 +1250,7 @@ class ChannelTest(TembaTest):
         msg3 = self.send_message(["250788382382"], "What is your name?")
         msg4 = self.send_message(["250788382382"], "Do you have any children?")
         msg5 = self.send_message(["250788382382"], "What's my dog's name?")
+        msg6 = self.send_message(["250788382382"], "from when?")
 
         # an incoming message that should not be included even if it is still pending
         incoming_message = self.create_incoming_msg(contact, "hey", channel=self.tel_channel, status=PENDING)
@@ -1266,7 +1267,7 @@ class ChannelTest(TembaTest):
 
         response = response.json()
         cmds = response["cmds"]
-        self.assertEqual(4, len(cmds))
+        self.assertEqual(5, len(cmds))
 
         # assert that our first command is the two message broadcast
         cmd = cmds[0]
@@ -1312,6 +1313,7 @@ class ChannelTest(TembaTest):
             dict(cmd="mt_dlvd", msg_id=msg3.pk, ts=date),
             dict(cmd="mt_error", msg_id=msg4.pk, ts=date),
             dict(cmd="mt_fail", msg_id=msg5.pk, ts=date),
+            dict(cmd="mt_fail", msg_id=(msg6.pk - 4294967296), ts=date),  # simulate a negative integer from relayer
             # a missed call
             dict(cmd="call", phone="2505551212", type="miss", ts=date),
             # repeated missed calls should be skipped
@@ -1339,7 +1341,7 @@ class ChannelTest(TembaTest):
         self.assertTrue(self.tel_channel.last_seen > six_mins_ago)
 
         # new batch, our ack and our claim command for new org
-        self.assertEqual(4, len(response.json()["cmds"]))
+        self.assertEqual(5, len(response.json()["cmds"]))
         self.assertContains(response, "Hello, we heard from you.")
         self.assertContains(response, "mt_bcast")
 
@@ -1347,7 +1349,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(2, Msg.objects.filter(channel=self.tel_channel, status="S", direction="O").count())
         self.assertEqual(1, Msg.objects.filter(channel=self.tel_channel, status="D", direction="O").count())
         self.assertEqual(1, Msg.objects.filter(channel=self.tel_channel, status="E", direction="O").count())
-        self.assertEqual(1, Msg.objects.filter(channel=self.tel_channel, status="F", direction="O").count())
+        self.assertEqual(2, Msg.objects.filter(channel=self.tel_channel, status="F", direction="O").count())
 
         # we should now have two incoming messages
         self.assertEqual(3, Msg.objects.filter(direction="I").count())
