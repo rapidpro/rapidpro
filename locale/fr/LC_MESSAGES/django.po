@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-14 21:07+0000\n"
+"POT-Creation-Date: 2021-05-17 22:48+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2048,9 +2048,6 @@ msgstr "Impossible d'accéder à wit.ai avec les informations d'identification, 
 msgid "Connect"
 msgstr "Connecter"
 
-msgid "Delete Classifier"
-msgstr "Supprimer le classificateur"
-
 msgid "Your classifier has been deleted."
 msgstr "Votre classificateur a été supprimé."
 
@@ -2059,6 +2056,9 @@ msgstr "Journal"
 
 msgid "Sync"
 msgstr "Synchroniser"
+
+msgid "Delete Classifier"
+msgstr "Supprimer le classificateur"
 
 msgid "Your classifier has been synced."
 msgstr ""
@@ -3930,9 +3930,6 @@ msgstr "Supprimer le service de billetterie"
 msgid "HTTP Log"
 msgstr "Journal HTTP"
 
-msgid "Delete Ticketing Service"
-msgstr "Supprimer le service de billetterie"
-
 msgid "Your ticketing service has been deleted."
 msgstr "Votre service de billetterie a été supprimé."
 
@@ -5292,13 +5289,6 @@ msgstr "Les classificateurs vous permettent d'interpréter des mots et des phras
 msgid "Select your provider below to get started."
 msgstr "Sélectionnez votre fournisseur ci-dessous pour commencer."
 
-msgid "Unable to delete classifier still being used by"
-msgstr ""
-
-#, python-format
-msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
-msgstr "Vous êtes sur le point de supprimer <span class='font-normal'> %(name)s. </span> Il n'y a aucun moyen d'annuler cela. Êtes-vous sûr?"
-
 msgid "Classifier"
 msgstr "Classificateur"
 
@@ -5773,23 +5763,6 @@ msgstr "Les contacts seront automatiquement ajoutés ici lorsque vous communique
 msgid "To get started you can <a href=\"%(url)s\">import</a> contacts from a file you create in Excel."
 msgstr "Pour commencer, vous pouvez <a href=\"%(url)s\">importer</a> des contacts à partir d'un fichier que vous créez dans Excel."
 
-msgid "is used by the following flows which may not work as expected if you delete it:"
-msgstr ""
-
-#, fuzzy, python-format
-#| msgid "%(counter)s Use"
-#| msgid_plural "%(counter)s Uses"
-msgid "and %(count)s more"
-msgstr "%(counter)s Utilisation"
-
-msgid "You are about to delete"
-msgstr "Vous êtes sur le point de supprimer"
-
-#, fuzzy
-#| msgid "You are about to delete this event. There is no way to undo this. Are you sure?"
-msgid "There is no way to undo this. Are you sure?"
-msgstr "Vous êtes sur le point de supprimer cet événement. Il n'y a aucun moyen d'annuler cela. Êtes-vous sûr?"
-
 msgid "Your export for the following flows is ready."
 msgstr "Votre exportation pour les flux suivants est prêt."
 
@@ -6259,6 +6232,23 @@ msgstr "Aucun message correspondant."
 
 msgid "Your workspace is suspended and no longer processing messages."
 msgstr "Votre espace de travail est suspendu et ne traite plus les messages."
+
+msgid "is used by the following flows which may not work as expected if you delete it:"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "%(counter)s Use"
+#| msgid_plural "%(counter)s Uses"
+msgid "and %(count)s more"
+msgstr "%(counter)s Utilisation"
+
+msgid "You are about to delete"
+msgstr "Vous êtes sur le point de supprimer"
+
+#, fuzzy
+#| msgid "You are about to delete this event. There is no way to undo this. Are you sure?"
+msgid "There is no way to undo this. Are you sure?"
+msgstr "Vous êtes sur le point de supprimer cet événement. Il n'y a aucun moyen d'annuler cela. Êtes-vous sûr?"
 
 #, python-format
 msgid ""
@@ -7818,6 +7808,13 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#~ msgid "Delete Ticketing Service"
+#~ msgstr "Supprimer le service de billetterie"
+
+#, python-format
+#~ msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
+#~ msgstr "Vous êtes sur le point de supprimer <span class='font-normal'> %(name)s. </span> Il n'y a aucun moyen d'annuler cela. Êtes-vous sûr?"
 
 #~ msgid "Unable to delete service still being used by"
 #~ msgstr "Impossible de supprimer le service toujours utilisé par"

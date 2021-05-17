@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-14 21:07+0000\n"
+"POT-Creation-Date: 2021-05-17 22:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2030,9 +2030,6 @@ msgstr ""
 msgid "Connect"
 msgstr ""
 
-msgid "Delete Classifier"
-msgstr ""
-
 msgid "Your classifier has been deleted."
 msgstr ""
 
@@ -2040,6 +2037,9 @@ msgid "Log"
 msgstr ""
 
 msgid "Sync"
+msgstr ""
+
+msgid "Delete Classifier"
 msgstr ""
 
 msgid "Your classifier has been synced."
@@ -3878,9 +3878,6 @@ msgstr ""
 msgid "HTTP Log"
 msgstr ""
 
-msgid "Delete Ticketing Service"
-msgstr ""
-
 msgid "Your ticketing service has been deleted."
 msgstr ""
 
@@ -5174,13 +5171,6 @@ msgstr ""
 msgid "Select your provider below to get started."
 msgstr ""
 
-msgid "Unable to delete classifier still being used by"
-msgstr ""
-
-#, python-format
-msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
-msgstr ""
-
 msgid "Classifier"
 msgstr ""
 
@@ -5639,19 +5629,6 @@ msgstr ""
 msgid "To get started you can <a href=\"%(url)s\">import</a> contacts from a file you create in Excel."
 msgstr ""
 
-msgid "is used by the following flows which may not work as expected if you delete it:"
-msgstr ""
-
-#, python-format
-msgid "and %(count)s more"
-msgstr ""
-
-msgid "You are about to delete"
-msgstr ""
-
-msgid "There is no way to undo this. Are you sure?"
-msgstr ""
-
 msgid "Your export for the following flows is ready."
 msgstr ""
 
@@ -6090,6 +6067,19 @@ msgid "No matching messages."
 msgstr ""
 
 msgid "Your workspace is suspended and no longer processing messages."
+msgstr ""
+
+msgid "is used by the following flows which may not work as expected if you delete it:"
+msgstr ""
+
+#, python-format
+msgid "and %(count)s more"
+msgstr ""
+
+msgid "You are about to delete"
+msgstr ""
+
+msgid "There is no way to undo this. Are you sure?"
 msgstr ""
 
 #, python-format

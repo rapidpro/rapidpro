@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-14 21:07+0000\n"
+"POT-Creation-Date: 2021-05-17 22:48+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2062,9 +2062,6 @@ msgstr "Не удалось получить доступ к wit.ai, испол�
 msgid "Connect"
 msgstr "Подключить"
 
-msgid "Delete Classifier"
-msgstr "Удалить Классификатор"
-
 msgid "Your classifier has been deleted."
 msgstr "Ваш классификатор был удален."
 
@@ -2073,6 +2070,9 @@ msgstr ""
 
 msgid "Sync"
 msgstr "Синхронизировать"
+
+msgid "Delete Classifier"
+msgstr "Удалить Классификатор"
 
 msgid "Your classifier has been synced."
 msgstr ""
@@ -3939,9 +3939,6 @@ msgstr ""
 msgid "HTTP Log"
 msgstr ""
 
-msgid "Delete Ticketing Service"
-msgstr ""
-
 msgid "Your ticketing service has been deleted."
 msgstr ""
 
@@ -5309,13 +5306,6 @@ msgstr ""
 msgid "Select your provider below to get started."
 msgstr ""
 
-msgid "Unable to delete classifier still being used by"
-msgstr ""
-
-#, python-format
-msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
-msgstr ""
-
 msgid "Classifier"
 msgstr "Классификатор"
 
@@ -5825,21 +5815,6 @@ msgstr ""
 msgid "To get started you can <a href=\"%(url)s\">import</a> contacts from a file you create in Excel."
 msgstr ""
 
-msgid "is used by the following flows which may not work as expected if you delete it:"
-msgstr ""
-
-#, fuzzy, python-format
-#| msgid "%(counter)s Use"
-#| msgid_plural "%(counter)s Uses"
-msgid "and %(count)s more"
-msgstr "%(counter)s использование"
-
-msgid "You are about to delete"
-msgstr ""
-
-msgid "There is no way to undo this. Are you sure?"
-msgstr ""
-
 msgid "Your export for the following flows is ready."
 msgstr "Ваш экспорт по следующим потокам готов."
 
@@ -6308,6 +6283,21 @@ msgid "No matching messages."
 msgstr "Нет соответствующих сообщений."
 
 msgid "Your workspace is suspended and no longer processing messages."
+msgstr ""
+
+msgid "is used by the following flows which may not work as expected if you delete it:"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "%(counter)s Use"
+#| msgid_plural "%(counter)s Uses"
+msgid "and %(count)s more"
+msgstr "%(counter)s использование"
+
+msgid "You are about to delete"
+msgstr ""
+
+msgid "There is no way to undo this. Are you sure?"
 msgstr ""
 
 #, python-format
