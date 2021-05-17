@@ -376,21 +376,13 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         delete_url = reverse("tickets.ticketer_delete", args=[ticketer.uuid])
 
-        # try to fetch modal
-        response = self.client.get(delete_url)
-        self.assertRedirect(response, "/users/login/")
-
-        self.login(self.admin)
-
-        response = self.client.get(delete_url)
+        # fetch delete modal
+        response = self.assertDeleteFetch(delete_url)
         self.assertContains(response, "You are about to delete")
 
         # submit to delete it
-        response = self.client.post(delete_url)
+        response = self.assertDeleteSubmit(delete_url, object_deactivated=ticketer, success_status=200)
         self.assertEqual("/org/home/", response["Temba-Success"])
-
-        ticketer.refresh_from_db()
-        self.assertFalse(ticketer.is_active)
 
         # reactivate
         ticketer.is_active = True
@@ -401,14 +393,11 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.ticketer_dependencies.add(ticketer)
         self.assertFalse(flow.has_issues)
 
-        response = self.client.get(delete_url)
+        response = self.assertDeleteFetch(delete_url)
         self.assertContains(response, "is used by the following flows which may not work as expected")
 
-        self.client.post(delete_url)
-        ticketer.refresh_from_db()
-
-        self.assertFalse(ticketer.is_active)
-        self.assertNotIn(ticketer, flow.ticketer_dependencies.all())
+        self.assertDeleteSubmit(delete_url, object_deactivated=ticketer, success_status=200)
 
         flow.refresh_from_db()
         self.assertTrue(flow.has_issues)
+        self.assertNotIn(ticketer, flow.ticketer_dependencies.all())
