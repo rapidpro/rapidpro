@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-05 07:32+0000\n"
+"POT-Creation-Date: 2021-05-14 21:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -752,6 +752,9 @@ msgstr "URL livré"
 
 msgid "This endpoint should be called by Dart Media when a message has been to the final recipient. (delivery reports) You can set the delivery callback URL on your Dart Media account by contacting your sales agent."
 msgstr "Ce point de terminaison doit être appelé par Dart Media lorsqu'un message a été envoyé au destinataire final. (rapports de livraison) Vous pouvez définir l'URL de rappel de livraison sur votre compte Dart Media en contactant votre agent commercial."
+
+msgid "Message Templates"
+msgstr "Modèles de message"
 
 #, python-format
 msgid "Activate your own enterprise WhatsApp account in %(link)s to communicate with your contacts. "
@@ -1767,9 +1770,6 @@ msgstr "L'ID de l'application WeChat"
 msgid "The WeChat App secret"
 msgstr "Le secret de l'application WeChat"
 
-msgid "Message Templates"
-msgstr "Modèles de message"
-
 msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
 msgstr "Si vous avez un compte d'entreprise WhatsApp, vous pouvez le connecter pour communiquer avec vos contacts."
 
@@ -2477,35 +2477,14 @@ msgstr ""
 msgid "The name for this flow"
 msgstr "Le nom de ce flux"
 
-msgid "Labels"
-msgstr "Etiquettes"
-
-msgid "Any labels on this flow"
-msgstr "Tout label sur ce flux"
-
-msgid "Whether this flow is archived"
-msgstr "Que ce flux est archivée"
-
-msgid "Whether this is a system created flow"
-msgstr "S'il s'agit d'un flux créé par le système"
-
 msgid "Minutes of inactivity that will cause expiration from flow"
 msgstr "Minutes d'inactivité qui vont entraîner l'expiration de flux"
 
 msgid "Ignore keyword triggers while in this flow"
 msgstr "Ignorer les déclencheurs de mots clés dans ce flux"
 
-msgid "When this item was saved"
-msgstr "Lorsque cet article a été sauvegardé"
-
-msgid "The user which last saved this flow"
-msgstr "L'utilisateur qui a sauvegardé ce flux"
-
 msgid "The authoring language, additional languages can be added later"
 msgstr "La langue de création, des langues supplémentaires peuvent être ajoutées ultérieurement"
-
-msgid "The flow version this definition is in"
-msgstr "La version de flux dans laquelle cette définition se trouve"
 
 msgid "Archive delete"
 msgstr "Supprimer l'archive"
@@ -2515,6 +2494,9 @@ msgstr "Supprimer l'utilisateur"
 
 msgid "The JSON flow definition"
 msgstr "La définition du flux JSON"
+
+msgid "The flow version this definition is in"
+msgstr "La version de flux dans laquelle cette définition se trouve"
 
 msgid "Revision number for this definition"
 msgstr "Numéro de révision pour cette définition"
@@ -5791,6 +5773,23 @@ msgstr "Les contacts seront automatiquement ajoutés ici lorsque vous communique
 msgid "To get started you can <a href=\"%(url)s\">import</a> contacts from a file you create in Excel."
 msgstr "Pour commencer, vous pouvez <a href=\"%(url)s\">importer</a> des contacts à partir d'un fichier que vous créez dans Excel."
 
+msgid "is used by the following flows which may not work as expected if you delete it:"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "%(counter)s Use"
+#| msgid_plural "%(counter)s Uses"
+msgid "and %(count)s more"
+msgstr "%(counter)s Utilisation"
+
+msgid "You are about to delete"
+msgstr "Vous êtes sur le point de supprimer"
+
+#, fuzzy
+#| msgid "You are about to delete this event. There is no way to undo this. Are you sure?"
+msgid "There is no way to undo this. Are you sure?"
+msgstr "Vous êtes sur le point de supprimer cet événement. Il n'y a aucun moyen d'annuler cela. Êtes-vous sûr?"
+
 msgid "Your export for the following flows is ready."
 msgstr "Votre exportation pour les flux suivants est prêt."
 
@@ -5957,11 +5956,17 @@ msgstr "Créer un libellé"
 msgid "Create Flow"
 msgstr "créer un flux"
 
+msgid "Labels"
+msgstr "Etiquettes"
+
 msgid "Webhook Call Log"
 msgstr "Journal des appels Webhook"
 
 msgid "New Label"
 msgstr "Nouvelle étiquette"
+
+msgid "Has issues"
+msgstr ""
 
 msgid "No matching flows."
 msgstr "Aucun flux correspondant"
@@ -6762,9 +6767,6 @@ msgstr "Vous avez utilisé"
 
 msgid "credits since signing up."
 msgstr "crédits depuis votre inscription."
-
-msgid "You are about to delete"
-msgstr "Vous êtes sur le point de supprimer"
 
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
 msgstr "Voulez-vous vraiment tout supprimer pour cette organisation? Ça ne peut pas être annulé. Toutes les connexions n'appartenant qu'à cet espace de travail seront également supprimées."
@@ -7697,9 +7699,6 @@ msgstr "Sélectionnez le service de billetterie auquel vous souhaitez vous conne
 msgid "No ticketing services are available."
 msgstr "Aucun service de billetterie n'est disponible."
 
-msgid "Unable to delete service still being used by"
-msgstr "Impossible de supprimer le service toujours utilisé par"
-
 #, python-format
 msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
 msgstr "Votre code de vérification est <b>%(code)s</b> pour continuer à ajouter un service de billetterie par e-mail."
@@ -7819,6 +7818,24 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#~ msgid "Unable to delete service still being used by"
+#~ msgstr "Impossible de supprimer le service toujours utilisé par"
+
+#~ msgid "Any labels on this flow"
+#~ msgstr "Tout label sur ce flux"
+
+#~ msgid "Whether this flow is archived"
+#~ msgstr "Que ce flux est archivée"
+
+#~ msgid "Whether this is a system created flow"
+#~ msgstr "S'il s'agit d'un flux créé par le système"
+
+#~ msgid "When this item was saved"
+#~ msgstr "Lorsque cet article a été sauvegardé"
+
+#~ msgid "The user which last saved this flow"
+#~ msgstr "L'utilisateur qui a sauvegardé ce flux"
 
 #~ msgid "The area code you want to search for a new number in"
 #~ msgstr "Le code de zone que vous souhaitez rechercher pour un nouveau numéro dans"

@@ -64,6 +64,20 @@ ORG_LOCK_TTL = 60  # 1 minute
 ORG_CREDITS_CACHE_TTL = 7 * 24 * 60 * 60  # 1 week
 
 
+class DependencyMixin:
+    """
+    Utility mixin for models which can be flow dependencies
+    """
+
+    def release(self, user):
+        """
+        Mark this dependency's flows as having issues, and then remove the dependencies
+        """
+
+        self.dependent_flows.update(has_issues=True)
+        self.dependent_flows.clear()
+
+
 class IntegrationType(metaclass=ABCMeta):
     """
     IntegrationType is our abstract base type for third party integrations.
@@ -1698,7 +1712,7 @@ class Org(SmartModel):
         # delete everything associated with our flows
         for flow in self.flows.all():
             # we want to manually release runs so we don't fire a task to do it
-            flow.release()
+            flow.release(interrupt_sessions=False)
             flow.release_runs()
 
             for rev in flow.revisions.all():
@@ -1715,6 +1729,9 @@ class Org(SmartModel):
         self.sessions.all().delete()
         self.tickets.all().delete()
         self.airtime_transfers.all().delete()
+
+        for result in self.webhook_results.all():
+            result.release()
 
         # delete our contacts
         for contact in self.contacts.all():
@@ -1740,6 +1757,7 @@ class Org(SmartModel):
 
             channel.counts.all().delete()
             channel.logs.all().delete()
+            channel.template_translations.all().delete()
 
             channel.delete()
 
@@ -1756,7 +1774,7 @@ class Org(SmartModel):
 
         # delete our ticketers
         for ticketer in self.ticketers.all():
-            ticketer.release()
+            ticketer.release(self.modified_by)
             ticketer.delete()
 
         # release all archives objects and files for this org
@@ -1768,9 +1786,6 @@ class Org(SmartModel):
 
         for topup in self.topups.all():
             topup.release()
-
-        for result in self.webhook_results.all():
-            result.release()
 
         for event in self.webhookevent_set.all():
             event.release()
@@ -1786,7 +1801,7 @@ class Org(SmartModel):
         self.languages.all().delete()
 
         # release our broadcasts
-        for bcast in self.broadcast_set.all():
+        for bcast in self.broadcast_set.filter(parent=None):
             bcast.release()
 
         # delete other related objects
@@ -1795,6 +1810,7 @@ class Org(SmartModel):
         self.credit_alerts.all().delete()
         self.schedules.all().delete()
         self.boundaryalias_set.all().delete()
+        self.templates.all().delete()
 
         # needs to come after deletion of msgs and broadcasts as those insert new counts
         self.system_labels.all().delete()

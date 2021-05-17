@@ -1,3 +1,18 @@
+v6.3.48
+----------
+ * Calculate proper msg id commands from relayer that have integer overflow issue
+ * Add reusable view for dependency deleting modals and switch to that and soft dependencies for ticketers
+ * Don't do mailroom session interruption during org deletion
+ * Fix org deletion when broadcasts have parents and webhook results have contacts
+ * Make sure templates and templates translations are deleted on org release
+ * Set max fba pages limit to 200
+
+v6.3.47
+----------
+ * Display warning icon in flow list for flows with issues
+ * Make Flow.has_issues non-null and cleanup unused localized strings on Flow model
+ * Support syncing Dialog360 Whatsapp templates
+
 v6.3.46
 ----------
  * Fix channel log icons and disallow message resending for suspended orgs

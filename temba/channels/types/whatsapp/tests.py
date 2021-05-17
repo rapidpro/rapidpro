@@ -1,12 +1,13 @@
 from unittest.mock import patch
 
+from django_redis import get_redis_connection
 from requests import RequestException
 
 from django.forms import ValidationError
 from django.urls import reverse
 
 from temba.request_logs.models import HTTPLog
-from temba.templates.models import Template, TemplateTranslation
+from temba.templates.models import TemplateTranslation
 from temba.tests import MockResponse, TembaTest
 from temba.utils.whatsapp.tasks import refresh_whatsapp_contacts, refresh_whatsapp_templates
 
@@ -23,6 +24,7 @@ from .type import (
 
 class WhatsAppTypeTest(TembaTest):
     def test_claim(self):
+        TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
 
         url = reverse("channels.types.whatsapp.claim")
@@ -88,6 +90,7 @@ class WhatsAppTypeTest(TembaTest):
 
         channel = Channel.objects.get()
 
+        self.assertEqual("graph.facebook.com", channel.config[CONFIG_FB_TEMPLATE_LIST_DOMAIN])
         self.assertEqual("temba", channel.config[Channel.CONFIG_USERNAME])
         self.assertEqual("tembapasswd", channel.config[Channel.CONFIG_PASSWORD])
         self.assertEqual("abc123", channel.config[Channel.CONFIG_AUTH_TOKEN])
@@ -153,214 +156,6 @@ class WhatsAppTypeTest(TembaTest):
             refresh_whatsapp_contacts(channel.id)
             self.assertTrue(channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_CONTACTS_REFRESHED, is_error=True))
 
-        with patch("requests.get") as mock_get:
-            mock_get.side_effect = [
-                MockResponse(
-                    200,
-                    """
-            {
-              "data": [
-              {
-                "name": "hello",
-                "components": [
-                  {
-                    "type": "BODY",
-                    "text": "Hello {{1}}"
-                  }
-                ],
-                "language": "en",
-                "status": "PENDING",
-                "category": "ISSUE_RESOLUTION",
-                "id": "1234"
-              },
-              {
-                "name": "hello",
-                "components": [
-                  {
-                    "type": "BODY",
-                    "text": "Hi {{1}}"
-                  }
-                ],
-                "language": "en_GB",
-                "status": "PENDING",
-                "category": "ISSUE_RESOLUTION",
-                "id": "4321"
-              },
-              {
-                "name": "hello",
-                "components": [
-                  {
-                    "type": "BODY",
-                    "text": "Bonjour {{1}}"
-                  }
-                ],
-                "language": "fr",
-                "status": "APPROVED",
-                "category": "ISSUE_RESOLUTION",
-                "id": "5678"
-              },
-              {
-                "name": "goodbye",
-                "components": [
-                  {
-                    "type": "BODY",
-                    "text": "Goodbye {{1}}, see you on {{2}}. See you later {{1}}"
-                  }
-                ],
-                "language": "en",
-                "status": "PENDING",
-                "category": "ISSUE_RESOLUTION",
-                "id": "9012"
-              },
-              {
-                "name": "workout_activity",
-                "components": [
-                  {
-                    "type": "HEADER",
-                    "text": "Workout challenge week extra points!"
-                  },
-                  {
-                    "type": "BODY",
-                    "text": "Hey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people."
-                  },
-                  {
-                    "type": "FOOTER",
-                    "text": "Remember to drink water."
-                  }
-                ],
-                "language": "en",
-                "status": "PENDING",
-                "category": "ISSUE_RESOLUTION",
-                "id": "9014"
-              },
-              {
-                "name": "workout_activity_with_unsuported_variablet",
-                "components": [
-                  {
-                    "type": "HEADER",
-                    "text": "Workout challenge week {{2}}, {{4}} extra points!"
-                  },
-                  {
-                    "type": "BODY",
-                    "text": "Hey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people."
-                  },
-                  {
-                    "type": "FOOTER",
-                    "text": "Remember to drink water."
-                  }
-                ],
-                "language": "en",
-                "status": "PENDING",
-                "category": "ISSUE_RESOLUTION",
-                "id": "9014"
-              },
-              {
-                "name": "missing_text_component",
-                "components" : [
-                  {
-                    "type": "HEADER",
-                    "format": "IMAGE",
-                    "example": {
-                      "header_handle": ["FOO"]
-                    }
-                  }
-                ],
-                "language": "en",
-                "status": "APPROVED",
-                "category": "ISSUE_RESOLUTION",
-                "id": "1235"
-              },
-              {
-                "name": "invalid_component",
-                "components": [
-                  {
-                    "type": "RANDOM",
-                    "text": "Bonjour {{1}}"
-                  }
-                ],
-                "language": "fr",
-                "status": "APPROVED",
-                "category": "ISSUE_RESOLUTION",
-                "id": "1233"
-              },
-              {
-                "name": "invalid_status",
-                "components": [
-                  {
-                    "type": "BODY",
-                    "text": "This is an unknown status, it will be ignored"
-                  }
-                ],
-                "language": "en",
-                "status": "UNKNOWN",
-                "category": "ISSUE_RESOLUTION",
-                "id": "9012"
-              },
-              {
-                "name": "invalid_language",
-                "components": [
-                  {
-                    "type": "BODY",
-                    "text": "This is an unknown language, it will be ignored"
-                  }
-                ],
-                "language": "kli",
-                "status": "APPROVED",
-                "category": "ISSUE_RESOLUTION",
-                "id": "9018"
-              }
-            ],
-            "paging": {
-              "cursors": {
-              "before": "MAZDZD",
-              "after": "MjQZD"
-            }
-            }
-            }""",
-                )
-            ]
-            refresh_whatsapp_templates()
-            mock_get.assert_called_with(
-                "https://graph.facebook.com/v3.3/1234/message_templates",
-                params={"access_token": "token123", "limit": 255},
-            )
-
-            # should have 4 templates
-            self.assertEqual(4, Template.objects.filter(org=self.org).count())
-            self.assertEqual(6, TemplateTranslation.objects.filter(channel=channel).count())
-
-            # hit our template page
-            response = self.client.get(reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
-
-            # should have our template translations
-            self.assertContains(response, "Bonjour")
-            self.assertContains(response, "Hello")
-            self.assertContains(response, reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
-
-            ct = TemplateTranslation.objects.get(template__name="goodbye", is_active=True)
-            self.assertEqual(2, ct.variable_count)
-            self.assertEqual("Goodbye {{1}}, see you on {{2}}. See you later {{1}}", ct.content)
-            self.assertEqual("eng", ct.language)
-            self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
-            self.assertEqual("goodbye (eng []) P: Goodbye {{1}}, see you on {{2}}. See you later {{1}}", str(ct))
-            self.assertEqual("my-custom-app", ct.namespace)
-
-            ct = TemplateTranslation.objects.get(template__name="workout_activity", is_active=True)
-            self.assertEqual(3, ct.variable_count)
-            self.assertEqual(
-                "Workout challenge week extra points!\n\nHey {{1}}, Week {{2}} workout is out now. Get your discount of {{3}} for the next workout by sharing this program to 3 people.\n\nRemember to drink water.",
-                ct.content,
-            )
-            self.assertEqual("eng", ct.language)
-            self.assertEqual(TemplateTranslation.STATUS_PENDING, ct.status)
-            self.assertEqual("my-custom-app", ct.namespace)
-
-            # assert that a template translation was created despite it being in an unknown language
-            ct = TemplateTranslation.objects.get(template__name="invalid_language", is_active=True)
-            self.assertEqual("kli", ct.language)
-            self.assertEqual(TemplateTranslation.STATUS_UNSUPPORTED_LANGUAGE, ct.status)
-            self.assertEqual("my-custom-app", ct.namespace)
-
         # clear our FB ids, should cause refresh to be noop (but not fail)
         del channel.config[CONFIG_FB_BUSINESS_ID]
         channel.save(update_fields=["config", "modified_on"])
@@ -370,10 +165,8 @@ class WhatsAppTypeTest(TembaTest):
         with self.settings(IS_PROD=True):
             channel.release()
 
-        # all our templates should be inactive now
-        self.assertEqual(6, TemplateTranslation.objects.filter(channel=channel, is_active=False).count())
-
     def test_refresh_tokens(self):
+        TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
 
         channel = Channel.create(
@@ -492,54 +285,165 @@ class WhatsAppTypeTest(TembaTest):
                     "https://example.org/v3.3/1234/message_templates", params={"access_token": "token123"}
                 )
 
-        # test the template syncing task calls the correct domain
-        with patch("requests.get") as mock_get:
-            mock_get.return_value = MockResponse(200, '{"data": []}')
-            refresh_whatsapp_templates()
-            mock_get.assert_called_with(
-                "https://example.org/v3.3/1234/message_templates", params={"access_token": "token123", "limit": 255}
-            )
-
         channel = Channel.objects.get()
 
         self.assertEqual("example.org", channel.config[CONFIG_FB_TEMPLATE_LIST_DOMAIN])
-        self.assertEqual(1, channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).count())
+        self.assertEqual("temba", channel.config[Channel.CONFIG_USERNAME])
+        self.assertEqual("tembapasswd", channel.config[Channel.CONFIG_PASSWORD])
+        self.assertEqual("abc123", channel.config[Channel.CONFIG_AUTH_TOKEN])
+        self.assertEqual("https://nyaruka.com/whatsapp", channel.config[Channel.CONFIG_BASE_URL])
 
-        # hit our sync logs page
-        response = self.client.get(reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
+        self.assertEqual("+250788123123", channel.address)
+        self.assertEqual("RW", channel.country)
+        self.assertEqual("WA", channel.channel_type)
+        self.assertEqual(45, channel.tps)
+        self.assertTrue(channel.get_type().has_attachment_support(channel))
 
-        # should have our log
-        self.assertContains(response, "WhatsApp Templates Synced")
-        self.assertContains(response, reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
+    @patch("requests.get")
+    def test_get_api_templates(self, mock_get):
+        TemplateTranslation.objects.all().delete()
+        Channel.objects.all().delete()
 
-        sync_log = channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).first()
-        log_url = reverse("request_logs.httplog_read", args=[sync_log.id])
-        self.assertContains(response, log_url)
+        channel = Channel.create(
+            self.org,
+            self.admin,
+            "US",
+            "WA",
+            name="WhatsApp: 1234",
+            address="1234",
+            config={
+                Channel.CONFIG_BASE_URL: "https://nyaruka.com/whatsapp",
+                Channel.CONFIG_USERNAME: "temba",
+                Channel.CONFIG_PASSWORD: "tembapasswd",
+                Channel.CONFIG_AUTH_TOKEN: "authtoken123",
+                CONFIG_FB_BUSINESS_ID: "1234",
+                CONFIG_FB_ACCESS_TOKEN: "token123",
+                CONFIG_FB_NAMESPACE: "my-custom-app",
+                CONFIG_FB_TEMPLATE_LIST_DOMAIN: "graph.facebook.com",
+            },
+            tps=45,
+        )
 
-        response = self.client.get(log_url)
-        self.assertContains(response, "200")
-        self.assertContains(response, "https://example.org/v3.3/1234/message_templates")
+        mock_get.side_effect = [
+            RequestException("Network is unreachable", response=MockResponse(100, "")),
+            MockResponse(400, '{ "meta": { "success": false } }'),
+            MockResponse(200, '{"data": ["foo", "bar"]}'),
+        ]
 
-        with patch("requests.get") as mock_get:
-            # use fake response to simulate the exception request
-            # See https://github.com/psf/requests/blob/eedd67462819f8dbf8c1c32e77f9070606605231/requests/exceptions.py#L17
-            mock_get.side_effect = RequestException("Network is unreachable", response=MockResponse(100, ""))
+        # RequestException check HTTPLog
+        templates_data, no_error = WhatsAppType().get_api_templates(channel)
+        self.assertEqual(1, HTTPLog.objects.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED).count())
+        self.assertFalse(no_error)
+        self.assertEqual([], templates_data)
+
+        # should be empty list with an error flag if fail with API
+        templates_data, no_error = WhatsAppType().get_api_templates(channel)
+        self.assertFalse(no_error)
+        self.assertEqual([], templates_data)
+
+        # success no error and list
+        templates_data, no_error = WhatsAppType().get_api_templates(channel)
+        self.assertTrue(no_error)
+        self.assertEqual(["foo", "bar"], templates_data)
+
+        mock_get.assert_called_with(
+            "https://graph.facebook.com/v3.3/1234/message_templates",
+            params={"access_token": "token123", "limit": 255},
+        )
+
+    @patch("temba.utils.whatsapp.tasks.update_local_templates")
+    @patch("temba.channels.types.whatsapp.WhatsAppType.get_api_templates")
+    def test_refresh_templates_task(self, mock_get_api_templates, update_local_templates_mock):
+        TemplateTranslation.objects.all().delete()
+        Channel.objects.all().delete()
+
+        # channel has namespace in the channel config
+        channel = Channel.create(
+            self.org,
+            self.admin,
+            "RW",
+            "WA",
+            name="channel",
+            address="1234",
+            config={
+                "fb_namespace": "foo_namespace",
+            },
+        )
+
+        self.login(self.admin)
+        mock_get_api_templates.side_effect = [([], False), Exception("foo"), ([{"name": "hello"}], True)]
+
+        update_local_templates_mock.return_value = None
+
+        # should skip if locked
+        r = get_redis_connection()
+        with r.lock("refresh_whatsapp_templates", timeout=1800):
             refresh_whatsapp_templates()
+            self.assertEqual(0, mock_get_api_templates.call_count)
+            self.assertEqual(0, update_local_templates_mock.call_count)
 
-        sync_log = channel.http_logs.filter(log_type=HTTPLog.WHATSAPP_TEMPLATES_SYNCED, is_error=True).first()
-        log_url = reverse("request_logs.httplog_read", args=[sync_log.id])
-        response = self.client.get(log_url)
-        self.assertContains(response, "Connection Error")
-        self.assertContains(response, "https://example.org/v3.3/1234/message_templates")
+        # should skip if fail with API
+        refresh_whatsapp_templates()
 
-        with patch("requests.get") as mock_get:
-            mock_get.side_effect = Exception("Random Error")
+        mock_get_api_templates.assert_called_with(channel)
+        self.assertEqual(1, mock_get_api_templates.call_count)
+        self.assertEqual(0, update_local_templates_mock.call_count)
 
-            with patch("logging.Logger.error") as mock_logger:
-                refresh_whatsapp_templates()
-                mock_logger.assert_called_once()
+        # any exception
+        refresh_whatsapp_templates()
 
-        # sync logs not accessible by user from other org
+        mock_get_api_templates.assert_called_with(channel)
+        self.assertEqual(2, mock_get_api_templates.call_count)
+        self.assertEqual(0, update_local_templates_mock.call_count)
+
+        # now it should refresh
+        refresh_whatsapp_templates()
+
+        mock_get_api_templates.assert_called_with(channel)
+        self.assertEqual(3, mock_get_api_templates.call_count)
+        update_local_templates_mock.assert_called_once_with(channel, [{"name": "hello"}])
+
+    def test_message_templates_and_logs_views(self):
+        channel = Channel.create(
+            self.org,
+            self.admin,
+            "RW",
+            "WA",
+            name="channel",
+            address="1234",
+            config={
+                "fb_namespace": "foo_namespace",
+            },
+        )
+
+        TemplateTranslation.get_or_create(
+            channel,
+            "hello",
+            "eng",
+            "US",
+            "Hello {{1}}",
+            1,
+            TemplateTranslation.STATUS_APPROVED,
+            "1234",
+            "foo_namespace",
+        )
+
+        self.login(self.admin)
+        # hit our template page
+        response = self.client.get(reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
+        # should have our template translations
+        self.assertContains(response, "Hello")
+        self.assertContains(response, reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
+
+        # Check if message templates link are in sync_logs view
+        response = self.client.get(reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
+        gear_links = response.context["view"].get_gear_links()
+        self.assertEqual(gear_links[-1]["title"], "Message Templates")
+        self.assertEqual(gear_links[-1]["href"], reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
+
+        # sync logs and message templates not accessible by user from other org
         self.login(self.admin2)
+        response = self.client.get(reverse("channels.types.whatsapp.templates", args=[channel.uuid]))
+        self.assertEqual(404, response.status_code)
         response = self.client.get(reverse("channels.types.whatsapp.sync_logs", args=[channel.uuid]))
         self.assertEqual(404, response.status_code)

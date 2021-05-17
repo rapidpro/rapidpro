@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-05 07:32+0000\n"
+"POT-Creation-Date: 2021-05-14 21:07+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -746,6 +746,9 @@ msgid "Delivered URL"
 msgstr ""
 
 msgid "This endpoint should be called by Dart Media when a message has been to the final recipient. (delivery reports) You can set the delivery callback URL on your Dart Media account by contacting your sales agent."
+msgstr ""
+
+msgid "Message Templates"
 msgstr ""
 
 #, python-format
@@ -1752,9 +1755,6 @@ msgstr ""
 msgid "The WeChat App secret"
 msgstr ""
 
-msgid "Message Templates"
-msgstr ""
-
 msgid "If you have an enterprise WhatsApp account, you can connect it to communicate with your contacts"
 msgstr ""
 
@@ -2447,34 +2447,13 @@ msgstr ""
 msgid "The name for this flow"
 msgstr ""
 
-msgid "Labels"
-msgstr ""
-
-msgid "Any labels on this flow"
-msgstr ""
-
-msgid "Whether this flow is archived"
-msgstr ""
-
-msgid "Whether this is a system created flow"
-msgstr ""
-
 msgid "Minutes of inactivity that will cause expiration from flow"
 msgstr ""
 
 msgid "Ignore keyword triggers while in this flow"
 msgstr ""
 
-msgid "When this item was saved"
-msgstr ""
-
-msgid "The user which last saved this flow"
-msgstr ""
-
 msgid "The authoring language, additional languages can be added later"
-msgstr ""
-
-msgid "The flow version this definition is in"
 msgstr ""
 
 msgid "Archive delete"
@@ -2484,6 +2463,9 @@ msgid "User delete"
 msgstr ""
 
 msgid "The JSON flow definition"
+msgstr ""
+
+msgid "The flow version this definition is in"
 msgstr ""
 
 msgid "Revision number for this definition"
@@ -5657,6 +5639,19 @@ msgstr ""
 msgid "To get started you can <a href=\"%(url)s\">import</a> contacts from a file you create in Excel."
 msgstr ""
 
+msgid "is used by the following flows which may not work as expected if you delete it:"
+msgstr ""
+
+#, python-format
+msgid "and %(count)s more"
+msgstr ""
+
+msgid "You are about to delete"
+msgstr ""
+
+msgid "There is no way to undo this. Are you sure?"
+msgstr ""
+
 msgid "Your export for the following flows is ready."
 msgstr ""
 
@@ -5797,10 +5792,16 @@ msgstr ""
 msgid "Create Flow"
 msgstr ""
 
+msgid "Labels"
+msgstr ""
+
 msgid "Webhook Call Log"
 msgstr ""
 
 msgid "New Label"
+msgstr ""
+
+msgid "Has issues"
 msgstr ""
 
 msgid "No matching flows."
@@ -6456,9 +6457,6 @@ msgid "You have used"
 msgstr ""
 
 msgid "credits since signing up."
-msgstr ""
-
-msgid "You are about to delete"
 msgstr ""
 
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
@@ -7224,9 +7222,6 @@ msgid "Select the ticketing service you want to connect below to get started."
 msgstr ""
 
 msgid "No ticketing services are available."
-msgstr ""
-
-msgid "Unable to delete service still being used by"
 msgstr ""
 
 #, python-format
