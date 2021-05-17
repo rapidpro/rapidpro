@@ -199,8 +199,9 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("/global/", response["Temba-Success"])
 
         # should see warning if global is being used
-        self.assertFalse(self.flow.has_issues)
         delete_url = reverse("globals.global_delete", args=[self.global1.uuid])
+
+        self.assertFalse(self.flow.has_issues)
 
         response = self.assertDeleteFetch(delete_url)
         self.assertContains(response, "is used by the following flows")

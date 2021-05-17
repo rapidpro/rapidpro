@@ -1771,7 +1771,7 @@ class Org(SmartModel):
 
         # delete our classifiers
         for classifier in self.classifiers.all():
-            classifier.release()
+            classifier.release(user)
             classifier.delete()
 
         # delete our ticketers
