@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-12 18:32+0000\n"
+"POT-Creation-Date: 2021-05-14 21:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -5773,6 +5773,23 @@ msgstr "Les contacts seront automatiquement ajoutés ici lorsque vous communique
 msgid "To get started you can <a href=\"%(url)s\">import</a> contacts from a file you create in Excel."
 msgstr "Pour commencer, vous pouvez <a href=\"%(url)s\">importer</a> des contacts à partir d'un fichier que vous créez dans Excel."
 
+msgid "is used by the following flows which may not work as expected if you delete it:"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "%(counter)s Use"
+#| msgid_plural "%(counter)s Uses"
+msgid "and %(count)s more"
+msgstr "%(counter)s Utilisation"
+
+msgid "You are about to delete"
+msgstr "Vous êtes sur le point de supprimer"
+
+#, fuzzy
+#| msgid "You are about to delete this event. There is no way to undo this. Are you sure?"
+msgid "There is no way to undo this. Are you sure?"
+msgstr "Vous êtes sur le point de supprimer cet événement. Il n'y a aucun moyen d'annuler cela. Êtes-vous sûr?"
+
 msgid "Your export for the following flows is ready."
 msgstr "Votre exportation pour les flux suivants est prêt."
 
@@ -6751,9 +6768,6 @@ msgstr "Vous avez utilisé"
 msgid "credits since signing up."
 msgstr "crédits depuis votre inscription."
 
-msgid "You are about to delete"
-msgstr "Vous êtes sur le point de supprimer"
-
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
 msgstr "Voulez-vous vraiment tout supprimer pour cette organisation? Ça ne peut pas être annulé. Toutes les connexions n'appartenant qu'à cet espace de travail seront également supprimées."
 
@@ -7685,9 +7699,6 @@ msgstr "Sélectionnez le service de billetterie auquel vous souhaitez vous conne
 msgid "No ticketing services are available."
 msgstr "Aucun service de billetterie n'est disponible."
 
-msgid "Unable to delete service still being used by"
-msgstr "Impossible de supprimer le service toujours utilisé par"
-
 #, python-format
 msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
 msgstr "Votre code de vérification est <b>%(code)s</b> pour continuer à ajouter un service de billetterie par e-mail."
@@ -7807,6 +7818,9 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#~ msgid "Unable to delete service still being used by"
+#~ msgstr "Impossible de supprimer le service toujours utilisé par"
 
 #~ msgid "Any labels on this flow"
 #~ msgstr "Tout label sur ce flux"

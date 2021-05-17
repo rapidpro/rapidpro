@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-12 18:32+0000\n"
+"POT-Creation-Date: 2021-05-14 21:07+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5639,6 +5639,19 @@ msgstr ""
 msgid "To get started you can <a href=\"%(url)s\">import</a> contacts from a file you create in Excel."
 msgstr ""
 
+msgid "is used by the following flows which may not work as expected if you delete it:"
+msgstr ""
+
+#, python-format
+msgid "and %(count)s more"
+msgstr ""
+
+msgid "You are about to delete"
+msgstr ""
+
+msgid "There is no way to undo this. Are you sure?"
+msgstr ""
+
 msgid "Your export for the following flows is ready."
 msgstr ""
 
@@ -6446,9 +6459,6 @@ msgstr ""
 msgid "credits since signing up."
 msgstr ""
 
-msgid "You are about to delete"
-msgstr ""
-
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
 msgstr ""
 
@@ -7212,9 +7222,6 @@ msgid "Select the ticketing service you want to connect below to get started."
 msgstr ""
 
 msgid "No ticketing services are available."
-msgstr ""
-
-msgid "Unable to delete service still being used by"
 msgstr ""
 
 #, python-format
