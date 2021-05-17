@@ -1,8 +1,8 @@
 import time
 
-from django.urls import reverse
-
 import vonage
+
+from django.urls import reverse
 
 
 class VonageClient:
