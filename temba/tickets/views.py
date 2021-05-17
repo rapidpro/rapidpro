@@ -9,9 +9,8 @@ from django.utils.functional import cached_property
 from django.utils.html import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
-from temba.flows.views import DependencyDeleteModal
 from temba.msgs.models import Msg
-from temba.orgs.views import OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.views import BulkActionMixin, ComponentFormMixin
 
 from .models import Ticket, Ticketer
