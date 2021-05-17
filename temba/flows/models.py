@@ -928,14 +928,15 @@ class Flow(TembaModel):
         for start in self.starts.all():
             start.release()
 
-        self.group_dependencies.clear()
-        self.flow_dependencies.clear()
-        self.field_dependencies.clear()
         self.channel_dependencies.clear()
-        self.label_dependencies.clear()
         self.classifier_dependencies.clear()
-        self.ticketer_dependencies.clear()
+        self.field_dependencies.clear()
+        self.flow_dependencies.clear()
         self.global_dependencies.clear()
+        self.group_dependencies.clear()
+        self.label_dependencies.clear()
+        self.ticketer_dependencies.clear()
+        self.template_dependencies.clear()
 
         # queue mailroom to interrupt sessions where contact is currently in this flow
         if interrupt_sessions:
