@@ -285,6 +285,7 @@ class TembaTestMixin:
         high_priority=False,
         response_to=None,
         surveyor=False,
+        next_attempt=None,
     ):
         if status == SENT and not sent_on:
             sent_on = timezone.now()
@@ -307,6 +308,7 @@ class TembaTestMixin:
             response_to=response_to,
             surveyor=surveyor,
             metadata=metadata,
+            next_attempt=next_attempt,
         )
 
     def _create_msg(
@@ -327,6 +329,7 @@ class TembaTestMixin:
         surveyor=False,
         broadcast=None,
         metadata=None,
+        next_attempt=None,
     ):
         assert not (surveyor and channel), "surveyor messages don't have channels"
         assert not channel or channel.org == contact.org, "channel belong to different org than contact"
@@ -367,6 +370,7 @@ class TembaTestMixin:
             sent_on=sent_on,
             broadcast=broadcast,
             metadata=metadata,
+            next_attempt=next_attempt,
         )
 
     def create_broadcast(self, user, text, contacts=(), groups=(), response_to=None, msg_status=SENT):

@@ -36,7 +36,7 @@ from temba.msgs.models import (
 )
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, MigrationTest, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.utils.uuid import uuid4
@@ -2903,3 +2903,38 @@ class TagsTest(TembaTest):
         # exception if tag not used correctly
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render with bob %}{% endrender %}")
         self.assertRaises(ValueError, self.render_template, "{% load sms %}{% render as %}{% endrender %}")
+
+
+class ClearNextAttemptTest(MigrationTest):
+    app = "msgs"
+    migrate_from = "0146_auto_20210513_1516"
+    migrate_to = "0147_clear_next_attempt"
+
+    def setUpBeforeMigration(self, apps):
+        self.android_channel = self.channel
+        self.twilio_channel = Channel.create(
+            self.org,
+            self.user,
+            "RW",
+            "T",
+            name="Twilio Channel",
+            address="+250785555555",
+        )
+
+        contact = self.create_contact("Joe", phone="+250788123123")
+
+        # create some messages
+        now = timezone.now()
+        self.android_msg = self.create_outgoing_msg(
+            contact, "android outgoing", channel=self.android_channel, next_attempt=now
+        )
+        self.twilio_msg = self.create_outgoing_msg(
+            contact, "twilio outgoing", channel=self.twilio_channel, next_attempt=now
+        )
+
+    def test_migration(self):
+        self.android_msg.refresh_from_db()
+        self.twilio_msg.refresh_from_db()
+
+        self.assertIsNone(self.android_msg.next_attempt)
+        self.assertIsNotNone(self.twilio_msg.next_attempt)
