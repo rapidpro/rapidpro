@@ -1,12 +1,21 @@
 from django.conf import settings
 
 
-def enable_weni_layout(request):
+def use_weni_layout(request):
 
     host = request.get_host().split(":")[0]
 
     return {"use_weni_layout": host.endswith(settings.WENI_DOMAINS["weni"])}
 
+def show_sidemenu(request):
+    if request.path == '/':
+        return {"show_sidemenu": False}
+
+    for p in settings.SIDEBAR_EXCLUDE_PATHS:
+        if p in request.path:
+            return {"show_sidemenu": False}
+
+    return {"show_sidemenu": True}
 
 def weni_announcement(request):
     return {

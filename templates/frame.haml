@@ -126,6 +126,12 @@
             @import (optional, reference) "../brands/style.less";
             @import (optional) "../brands/{{brand.slug}}/less/style.less";
 
+            {% if show_sidemenu and use_weni_layout %}
+              #unnnic-content {
+                margin-left: 200px;
+              }
+            {% endif %}
+
         {% endlessblock %}
 
         // any additional brand styling such as fonts, etc
@@ -225,15 +231,16 @@
       .flex.flex-col{style: "height: inherit"}
         .flex.flex-row.h-full
           <!-- Sidemenu -->
-          -block sidemenu
-            #unnnic-sidebar.flex-col.h-screen.bg-color-unnnic-snow.unnnic-right-menu-divider
-              -block info
-              
-              -block side
-                -include 'includes/side.html'
+          -if show_sidemenu
+            -block sidemenu
+              #unnnic-sidebar.flex-col.h-screen.bg-color-unnnic-snow.unnnic-right-menu-divider
+                -block info
+                
+                -block side
+                  -include 'includes/side.html'
 
-              -if messages
-                -usemacro messages
+                -if messages
+                  -usemacro messages
 
           #unnnic-content.flex.flex-col.w-full
             -usemacro post-header

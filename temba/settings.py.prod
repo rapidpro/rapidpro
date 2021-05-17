@@ -319,12 +319,15 @@ LOGIN_REDIRECT_URL = env("LOGIN_REDIRECT_URL", default="/msg/inbox/")
 
 # Enable Weni Templates
 TEMPLATES[0]["OPTIONS"]["context_processors"] += [
-    "temba.context_processors_weni.enable_weni_layout",
+    "temba.context_processors_weni.use_weni_layout",
     "temba.context_processors_weni.weni_announcement",
     "temba.context_processors_weni.hotjar",
+    "temba.context_processors_weni.show_sidemenu",
 ]
 WENI_DOMAINS = {"weni": env("WENI_DOMAIN", default="weni.ai")}
 
+# Exclude Weni Sidebar
+SIDEBAR_EXCLUDE_PATHS = env.list("SIDEBAR_EXCLUDE_PATHS", default=[])
 
 # Weni announcement
 ANNOUNCEMENT_LEFT = env("ANNOUNCEMENT_LEFT")

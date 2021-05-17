@@ -2505,13 +2505,13 @@ class OrgCRUDL(SmartCRUDL):
             if len(links) > 0:
                 links.append(dict(divider=True))
 
-            links.append(
-                dict(
-                    title=_("Sign Out"),
-                    style="button-light",
-                    href=f"{reverse('users.user_logout')}?next={reverse('users.user_login')}",
-                )
-            )
+            # links.append(
+            #     dict(
+            #         title=_("Sign Out"),
+            #         style="button-light",
+            #         href=f"{reverse('users.user_logout')}?next={reverse('users.user_login')}",
+            #     )
+            # )
 
             return links
 
