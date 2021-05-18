@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-18 16:43+0000\n"
+"POT-Creation-Date: 2021-05-18 20:18+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -5328,9 +5328,6 @@ msgstr "No hay intenciones sincronizadas en este momento."
 msgid "Intents are synced automatically every 5 minutes"
 msgstr "Las intenciones se sincronizan automáticamente cada 5 minutos"
 
-msgid "Ok"
-msgstr "Okay"
-
 msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr "Estos contactos se han eliminado de todos los grupos y se pueden eliminar de forma permanente."
 
@@ -7838,6 +7835,9 @@ msgstr "Las plantillas se sincronizan desde su cuenta de WhatsApp cada 15 minuto
 
 msgid "No synced templates at this time."
 msgstr "No hay plantillas sincronizadas en este momento."
+
+#~ msgid "Ok"
+#~ msgstr "Okay"
 
 #, python-format
 #~ msgid "Uh oh, we couldn't delete %(name)s."

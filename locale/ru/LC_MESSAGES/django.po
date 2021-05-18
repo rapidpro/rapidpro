@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-18 16:43+0000\n"
+"POT-Creation-Date: 2021-05-18 20:18+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -5339,9 +5339,6 @@ msgstr "На данный момент синхронизированные на
 msgid "Intents are synced automatically every 5 minutes"
 msgstr "Намерения автоматически синхронизируются каждые 5 минут"
 
-msgid "Ok"
-msgstr "Ok"
-
 msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr ""
 
@@ -7686,6 +7683,9 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#~ msgid "Ok"
+#~ msgstr "Ok"
 
 #~ msgid "Any labels on this flow"
 #~ msgstr "Любые метки по данному потоку"

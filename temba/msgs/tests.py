@@ -430,10 +430,10 @@ class MsgTest(TembaTest):
         self.assertEqual("Foo", label1.name)
 
         # test deleting the label
-        response = self.client.get(reverse("msgs.label_delete", args=[label1.id]))
+        response = self.client.get(reverse("msgs.label_delete", args=[label1.uuid]))
         self.assertEqual(200, response.status_code)
 
-        response = self.client.post(reverse("msgs.label_delete", args=[label1.id]))
+        response = self.client.post(reverse("msgs.label_delete", args=[label1.uuid]))
         label1.refresh_from_db()
 
         self.assertTrue(response.has_header("Temba-Success"))
@@ -2497,10 +2497,12 @@ class LabelTest(TembaTest):
         label3.toggle_label([msg3], add=True)
 
         ExportMessagesTask.create(self.org, self.admin, label=label1)
-        with self.assertRaises(ValueError):
+
+        # can't release non-empty folder
+        with self.assertRaises(AssertionError):
             folder1.release(self.admin)
 
-        # can only release a folder once all its children are released
+        # can once all its children are released
         label1.release(self.admin)
         label2.release(self.admin)
         folder1.release(self.admin)
