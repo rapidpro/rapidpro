@@ -1,3 +1,9 @@
+v6.3.49
+----------
+ * Make Msg.next_attempt nullable and add msgs to mailroom_db
+ * Migration to ensure that inactive flows don't have any deps
+ * Fix Flow.release to remove template deps
+
 v6.3.48
 ----------
  * Calculate proper msg id commands from relayer that have integer overflow issue
