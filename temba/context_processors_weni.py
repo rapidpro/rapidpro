@@ -11,8 +11,8 @@ def show_sidemenu(request):
     if request.path == '/':
         return {"show_sidemenu": False}
 
-    for p in settings.SIDEBAR_EXCLUDE_PATHS:
-        if p in request.path:
+    for path in settings.SIDEBAR_EXCLUDE_PATHS:
+        if path in request.path:
             return {"show_sidemenu": False}
 
     return {"show_sidemenu": True}
