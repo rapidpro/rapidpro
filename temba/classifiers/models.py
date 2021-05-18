@@ -173,7 +173,9 @@ class Classifier(SmartModel):
         on_transaction_commit(lambda: sync_classifier_intents.delay(self.id))
 
     def release(self):
-        assert not self.dependent_flows.exists(), "can't delete classifier currently in use by flows"
+        dependent_flows_count = self.dependent_flows.count()
+        if dependent_flows_count > 0:
+            raise ValueError(f"Cannot delete Classifier: {self.name}, used by {dependent_flows_count} flows")
 
         # delete our intents
         self.intents.all().delete()

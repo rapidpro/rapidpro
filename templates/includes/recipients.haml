@@ -1,17 +1,15 @@
--load contacts
 
-.flex.flex-wrap.max-w-full
+.flex.justify-end
   -for group in groups
-    -include "includes/recipients_group.haml" with group=group
-
+    .lbl-group.linked.ml-2(onclick="goto(event)" href="{% url 'contacts.contact_filter' group.uuid %}" class="{% if group.is_dynamic%}lbl-group-dynamic{%endif%}")
+      {{ group.name }}
+  
   -for contact in contacts
-    -include "includes/recipients_contact.haml" with contact=contact
-
-  -for urn in urns
-    .item.urn.lbl.mr-2.mb-2
-      {{ urn|format_urn:user_org }}
+    .item.contact.lbl.linked.ml-2(onclick="goto(event)" href="{% url 'contacts.contact_read' contact.uuid %}")
+      .icon.icon-user.text-dark-alpha-300
+      {{ contact.get_display }}
 
   -if query
-    .item.query.lbl.linked.mr-2.mb-2(onclick="goto(event)" href="{% url 'contacts.contact_list' %}?search={{ query|urlencode }}")
-      .icon.icon-filter.text-dark-alpha-300.-mb-1
+    .item.query.lbl.linked.ml-2(onclick="goto(event)" href="{% url 'contacts.contact_list' %}?search={{ query|urlencode }}")
+      .icon.icon-filter.text-dark-alpha-300
       {{ query }}

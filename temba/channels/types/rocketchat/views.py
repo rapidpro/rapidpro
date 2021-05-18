@@ -46,7 +46,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             label=_("Admin Auth Token"), help_text=_("Authentication token of an administrator user")
         )
         secret = forms.CharField(
-            label=_("Secret"), widget=forms.HiddenInput(), help_text=_("Secret to be passed to Rocket.Chat")
+            label=_("Secret"), widget=forms.HiddenInput(), help_text=_("Secret to be passed to Rocket.Chat"),
         )
 
         def clean(self):
@@ -72,7 +72,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 raise forms.ValidationError(_("Invalid URL %(base_url)s") % self.cleaned_data)
 
             base_url_exists = org.channels.filter(
-                is_active=True, channel_type=RocketChatType.code, **{f"config__contains": base_url}
+                is_active=True, channel_type=RocketChatType.code, **{f"config__contains": base_url},
             ).exists()
             if base_url_exists:
                 raise forms.ValidationError(_("There is already a channel configured for this URL."))

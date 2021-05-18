@@ -131,10 +131,10 @@ class BaseExportTask(TembaModel):
     @classmethod
     def get_recent_unfinished(cls, org):
         """
-        Checks for unfinished exports created in the last 4 hours for this org, and returns the most recent
+        Checks for unfinished exports created in the last 24 hours for this org, and returns the most recent
         """
 
-        day_ago = timezone.now() - timedelta(hours=4)
+        day_ago = timezone.now() - timedelta(hours=24)
 
         return cls.get_unfinished().filter(org=org, created_on__gt=day_ago).order_by("created_on").last()
 

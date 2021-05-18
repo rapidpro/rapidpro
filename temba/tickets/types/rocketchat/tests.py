@@ -126,13 +126,17 @@ class RocketChatViewTest(RocketChatMixin):
         configure()
         self.client.force_login(self.admin)
         response = self.client.get(self.connect_url)
-        self.assertEqual(response.context_data["form"].initial.get("secret"), self.secret)
+        self.assertEqual(
+            response.context_data["form"].initial.get("secret"), self.secret,
+        )
 
         configure()
         with patch("temba.tickets.types.rocketchat.views.ConnectView.derive_initial") as mock_initial:
             mock_initial.return_value = {"secret": self.secret2}
             response = self.client.get(self.connect_url)
-        self.assertEqual(response.context_data["form"].initial.get("secret"), self.secret2)
+        self.assertEqual(
+            response.context_data["form"].initial.get("secret"), self.secret2,
+        )
 
     @patch("temba.tickets.types.rocketchat.client.Client.settings")
     @patch("socket.gethostbyname")
@@ -236,5 +240,5 @@ class RocketChatViewTest(RocketChatMixin):
     def test_settings_exception(self, mock_request, mock_choices, mock_socket):
         mock_socket.return_value = "192.55.123.1"  # Fake IP
         self.check_exceptions(
-            mock_choices, mock_request, "Connection to RocketChat is taking too long.", "Configuration has failed"
+            mock_choices, mock_request, "Connection to RocketChat is taking too long.", "Configuration has failed",
         )

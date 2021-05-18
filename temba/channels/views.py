@@ -342,37 +342,26 @@ TWILIO_SUPPORTED_COUNTRIES_CONFIG = (
     "AT",  # Austria
     "BE",  # Belgium
     "CA",  # Canada
-    "CL",  # Chile
-    "CZ",  # Czech Republic
+    "CL",  # Chile  # Beta
+    "CZ",  # Czech Republic  # Beta
     "DK",  # Denmark  # Beta
     "EE",  # Estonia
     "FI",  # Finland
     "FR",  # France  # Beta
     "DE",  # Germany
-    "EE",  # Estonia
     "HK",  # Hong Kong
     "HU",  # Hungary  # Beta
     "IE",  # Ireland,
     "IL",  # Israel  # Beta
-    "IT",  # Italy  #Beta
     "LT",  # Lithuania
-    "MY",  # Malaysia
     "MX",  # Mexico  # Beta
-    "NL",  # Netherlands
     "NO",  # Norway
-    "PH",  # Philippines  # Beta
     "PL",  # Poland
-    "PR",  # Puerto Rico
-    "PT",  # Portugal
     "ES",  # Spain
     "SE",  # Sweden
-    "SG",  # Singapore  # Beta
     "CH",  # Switzerland
     "GB",  # United Kingdom
     "US",  # United States
-    "VI",  # Virgin Islands
-    "VN",  # Vietnam  # Beta
-    "ZA",  # South Africa  # Beta
 )
 
 TWILIO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in TWILIO_SUPPORTED_COUNTRIES_CONFIG])
@@ -381,7 +370,7 @@ TWILIO_SUPPORTED_COUNTRY_CODES = list(
     set([code for elt in TWILIO_SUPPORTED_COUNTRIES_CONFIG for code in list(COUNTRY_CALLING_CODES[elt])])
 )
 
-VONAGE_SUPPORTED_COUNTRIES_CONFIG = (
+NEXMO_SUPPORTED_COUNTRIES_CONFIG = (
     "AC",  # scension Island
     "AD",  # Andorra
     "AE",  # United Arab Emirates
@@ -608,10 +597,10 @@ VONAGE_SUPPORTED_COUNTRIES_CONFIG = (
     "ZW",  # Zimbabwe
 )
 
-VONAGE_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in VONAGE_SUPPORTED_COUNTRIES_CONFIG])
+NEXMO_SUPPORTED_COUNTRIES = tuple([(elt, COUNTRIES_NAMES[elt]) for elt in NEXMO_SUPPORTED_COUNTRIES_CONFIG])
 
-VONAGE_SUPPORTED_COUNTRY_CODES = list(
-    set([code for elt in VONAGE_SUPPORTED_COUNTRIES_CONFIG for code in list(COUNTRY_CALLING_CODES[elt])])
+NEXMO_SUPPORTED_COUNTRY_CODES = list(
+    set([code for elt in NEXMO_SUPPORTED_COUNTRIES_CONFIG for code in list(COUNTRY_CALLING_CODES[elt])])
 )
 
 PLIVO_SUPPORTED_COUNTRIES_CONFIG = (
@@ -725,15 +714,21 @@ def sync(request, channel_id):
         return HttpResponse(status=500, content="POST Required")
 
     commands = []
-    channel = Channel.objects.filter(id=channel_id, is_active=True).first()
+    channel = Channel.objects.filter(pk=channel_id, is_active=True)
     if not channel:
         return JsonResponse(dict(cmds=[dict(cmd="rel", relayer_id=channel_id)]))
+
+    channel = channel[0]
 
     request_time = request.GET.get("ts", "")
     request_signature = force_bytes(request.GET.get("signature", ""))
 
-    if not channel.secret:
-        return JsonResponse({"error_id": 4, "error": "Can't sync unclaimed channel", "cmds": []}, status=401)
+    if not channel.secret or not channel.org:
+        return JsonResponse(dict(cmds=[channel.build_registration_command()]))
+
+    # print "\n\nSECRET: '%s'" % channel.secret
+    # print "TS: %s" % request_time
+    # print "BODY: '%s'\n\n" % request.body
 
     # check that the request isn't too old (15 mins)
     now = time.time()
@@ -762,122 +757,113 @@ def sync(request, channel_id):
     sync_event = None
 
     # Take the update from the client
-    cmds = []
     if request.body:
-        body_parsed = json.loads(request.body)
 
-        # all valid requests have to begin with a FCM command
-        if "cmds" not in body_parsed or len(body_parsed["cmds"]) < 1 or body_parsed["cmds"][0]["cmd"] != "fcm":
-            return JsonResponse({"error_id": 4, "error": "Missing FCM command", "cmds": []}, status=401)
+        client_updates = json.loads(request.body)
 
-        cmds = body_parsed["cmds"]
+        print("==GOT SYNC")
+        print(json.dumps(client_updates, indent=2))
 
-    if not channel.org and channel.uuid == cmds[0].get("uuid"):
-        # Unclaimed channel with same UUID resend the registration commmands
-        cmd = dict(
-            cmd="reg", relayer_claim_code=channel.claim_code, relayer_secret=channel.secret, relayer_id=channel.id
-        )
-        return JsonResponse(dict(cmds=[cmd]))
-    elif not channel.org:
-        return JsonResponse({"error_id": 4, "error": "Can't sync unclaimed channel", "cmds": []}, status=401)
+        if "cmds" in client_updates:
+            cmds = client_updates["cmds"]
 
-    unique_calls = set()
+            unique_calls = set()
 
-    for cmd in cmds:
-        handled = False
-        extra = None
+            for cmd in cmds:
+                handled = False
+                extra = None
 
-        if "cmd" in cmd:
-            keyword = cmd["cmd"]
+                if "cmd" in cmd:
+                    keyword = cmd["cmd"]
 
-            # catchall for commands that deal with a single message
-            if "msg_id" in cmd:
-                msg = Msg.objects.filter(id=cmd["msg_id"], org=channel.org).first()
-                if msg:
-                    if msg.direction == OUTGOING:
-                        handled = msg.update(cmd)
-                    else:
+                    # catchall for commands that deal with a single message
+                    if "msg_id" in cmd:
+                        msg = Msg.objects.filter(id=cmd["msg_id"], org=channel.org).first()
+                        if msg:
+                            if msg.direction == OUTGOING:
+                                handled = msg.update(cmd)
+                            else:
+                                handled = True
+
+                    # creating a new message
+                    elif keyword == "mo_sms":
+                        date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
+
+                        # it is possible to receive spam SMS messages from no number on some carriers
+                        tel = cmd["phone"] if cmd["phone"] else "empty"
+                        try:
+                            urn = URN.normalize(URN.from_tel(tel), channel.country.code)
+
+                            if "msg" in cmd:
+                                msg = Msg.create_relayer_incoming(channel.org, channel, urn, cmd["msg"], date)
+                                extra = dict(msg_id=msg.id)
+                        except ValueError:
+                            pass
+
                         handled = True
 
-            # creating a new message
-            elif keyword == "mo_sms":
-                date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
+                    # phone event
+                    elif keyword == "call":
+                        call_tuple = (cmd["ts"], cmd["type"], cmd["phone"])
+                        date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
 
-                # it is possible to receive spam SMS messages from no number on some carriers
-                tel = cmd["phone"] if cmd["phone"] else "empty"
-                try:
-                    urn = URN.normalize(URN.from_tel(tel), channel.country.code)
+                        duration = 0
+                        if cmd["type"] != "miss":
+                            duration = cmd["dur"]
 
-                    if "msg" in cmd:
-                        msg = Msg.create_relayer_incoming(channel.org, channel, urn, cmd["msg"], date)
-                        extra = dict(msg_id=msg.id)
-                except ValueError:
-                    pass
+                        # Android sometimes will pass us a call from an 'unknown number', which is null
+                        # ignore these events on our side as they have no purpose and break a lot of our
+                        # assumptions
+                        if cmd["phone"] and call_tuple not in unique_calls:
+                            urn = URN.from_tel(cmd["phone"])
+                            try:
+                                ChannelEvent.create_relayer_event(
+                                    channel, urn, cmd["type"], date, extra=dict(duration=duration)
+                                )
+                            except ValueError:
+                                # in some cases Android passes us invalid URNs, in those cases just ignore them
+                                pass
+                            unique_calls.add(call_tuple)
+                        handled = True
 
-                handled = True
+                    elif keyword == "fcm":
+                        # update our fcm and uuid
 
-            # phone event
-            elif keyword == "call":
-                call_tuple = (cmd["ts"], cmd["type"], cmd["phone"])
-                date = datetime.fromtimestamp(int(cmd["ts"]) // 1000).replace(tzinfo=pytz.utc)
+                        config = channel.config
+                        config.update({Channel.CONFIG_FCM_ID: cmd["fcm_id"]})
+                        channel.config = config
+                        channel.uuid = cmd.get("uuid", None)
+                        channel.save(update_fields=["uuid", "config"])
 
-                duration = 0
-                if cmd["type"] != "miss":
-                    duration = cmd["dur"]
+                        # no acking the fcm
+                        handled = False
 
-                # Android sometimes will pass us a call from an 'unknown number', which is null
-                # ignore these events on our side as they have no purpose and break a lot of our
-                # assumptions
-                if cmd["phone"] and call_tuple not in unique_calls:
-                    urn = URN.from_tel(cmd["phone"])
-                    try:
-                        ChannelEvent.create_relayer_event(
-                            channel, urn, cmd["type"], date, extra=dict(duration=duration)
-                        )
-                    except ValueError:
-                        # in some cases Android passes us invalid URNs, in those cases just ignore them
-                        pass
-                    unique_calls.add(call_tuple)
-                handled = True
+                    elif keyword == "reset":
+                        # release this channel
+                        channel.release(False)
+                        channel.save()
 
-            elif keyword == "fcm":
-                # update our fcm and uuid
+                        # ack that things got handled
+                        handled = True
 
-                config = channel.config
-                config.update({Channel.CONFIG_FCM_ID: cmd["fcm_id"]})
-                channel.config = config
-                channel.uuid = cmd.get("uuid", None)
-                channel.save(update_fields=["uuid", "config"])
+                    elif keyword == "status":
+                        sync_event = SyncEvent.create(channel, cmd, cmds)
+                        Alert.check_power_alert(sync_event)
 
-                # no acking the fcm
-                handled = False
+                        # tell the channel to update its org if this channel got moved
+                        if channel.org and "org_id" in cmd and channel.org.pk != cmd["org_id"]:
+                            commands.append(dict(cmd="claim", org_id=channel.org.pk))
 
-            elif keyword == "reset":
-                # release this channel
-                channel.release(False)
-                channel.save()
+                        # we don't ack status messages since they are always included
+                        handled = False
 
-                # ack that things got handled
-                handled = True
+                # is this something we can ack?
+                if "p_id" in cmd and handled:
+                    ack = dict(p_id=cmd["p_id"], cmd="ack")
+                    if extra:
+                        ack["extra"] = extra
 
-            elif keyword == "status":
-                sync_event = SyncEvent.create(channel, cmd, cmds)
-                Alert.check_power_alert(sync_event)
-
-                # tell the channel to update its org if this channel got moved
-                if channel.org and "org_id" in cmd and channel.org.pk != cmd["org_id"]:
-                    commands.append(dict(cmd="claim", org_id=channel.org.pk))
-
-                # we don't ack status messages since they are always included
-                handled = False
-
-        # is this something we can ack?
-        if "p_id" in cmd and handled:
-            ack = dict(p_id=cmd["p_id"], cmd="ack")
-            if extra:
-                ack["extra"] = extra
-
-            commands.append(ack)
+                    commands.append(ack)
 
     outgoing_cmds = get_commands(channel, commands, sync_event)
     result = dict(cmds=outgoing_cmds)
@@ -885,6 +871,9 @@ def sync(request, channel_id):
     if sync_event:
         sync_event.outgoing_command_count = len([_ for _ in outgoing_cmds if _["cmd"] != "ack"])
         sync_event.save()
+
+    print("==RESPONDING WITH:")
+    print(json.dumps(result, indent=2))
 
     # keep track of how long a sync takes
     analytics.gauge("temba.relayer_sync", time.time() - start)
@@ -906,9 +895,7 @@ def register(request):
     try:
         # look up a channel with that id
         channel = Channel.get_or_create_android(cmds[0], cmds[1])
-        cmd = dict(
-            cmd="reg", relayer_claim_code=channel.claim_code, relayer_secret=channel.secret, relayer_id=channel.id
-        )
+        cmd = channel.build_registration_command()
     except UnsupportedAndroidChannelError:
         cmd = dict(cmd="reg", relayer_claim_code="*********", relayer_secret="0" * 64, relayer_id=-1)
 
@@ -1290,13 +1277,12 @@ class ChannelCRUDL(SmartCRUDL):
     actions = (
         "list",
         "claim",
-        "claim_all",
         "update",
         "read",
         "delete",
         "search_numbers",
         "configuration",
-        "search_vonage",
+        "search_nexmo",
         "bulk_sender_options",
         "create_bulk_sender",
         "create_caller",
@@ -1333,7 +1319,7 @@ class ChannelCRUDL(SmartCRUDL):
 
             if channel.get_type().show_config_page:
                 links.append(
-                    dict(title=_("Settings"), href=reverse("channels.channel_configuration", args=[channel.uuid]))
+                    dict(title=_("Settings"), href=reverse("channels.channel_configuration", args=[channel.uuid]),)
                 )
 
             if not channel.is_android():
@@ -1796,22 +1782,6 @@ class ChannelCRUDL(SmartCRUDL):
             return obj
 
     class Claim(OrgPermsMixin, SmartTemplateView):
-        def channel_types_groups(self):
-            user = self.request.user
-
-            # fetch channel types, sorted by category and name
-            types_by_category = defaultdict(list)
-            recommended_channels = []
-            for ch_type in list(Channel.get_types()):
-                region_aware_visible, region_ignore_visible = ch_type.is_available_to(user)
-
-                if ch_type.is_recommended_to(user):
-                    recommended_channels.append(ch_type)
-                elif region_ignore_visible and region_aware_visible and ch_type.category:
-                    types_by_category[ch_type.category.name].append(ch_type)
-
-            return recommended_channels, types_by_category, True
-
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             user = self.request.user
@@ -1829,27 +1799,18 @@ class ChannelCRUDL(SmartCRUDL):
             context["brand"] = org.get_branding()
 
             # fetch channel types, sorted by category and name
-            recommended_channels, types_by_category, only_regional_channels = self.channel_types_groups()
-
-            context["recommended_channels"] = recommended_channels
-            context["channel_types"] = types_by_category
-            context["only_regional_channels"] = only_regional_channels
-            return context
-
-    class ClaimAll(Claim):
-        def channel_types_groups(self):
-            user = self.request.user
-
             types_by_category = defaultdict(list)
             recommended_channels = []
             for ch_type in list(Channel.get_types()):
-                region_aware_visible, region_ignore_visible = ch_type.is_available_to(user)
                 if ch_type.is_recommended_to(user):
                     recommended_channels.append(ch_type)
-                elif region_ignore_visible and ch_type.category:
-                    types_by_category[ch_type.category.name].append(ch_type)
+                elif ch_type.is_available_to(user) and ch_type.category:
+                    if ch_type.name != "Twitter Legacy":
+                        types_by_category[ch_type.category.name].append(ch_type)
 
-            return recommended_channels, types_by_category, False
+            context["recommended_channels"] = recommended_channels
+            context["channel_types"] = types_by_category
+            return context
 
     class BulkSenderOptions(OrgPermsMixin, SmartTemplateView):
         pass
@@ -1866,8 +1827,8 @@ class ChannelCRUDL(SmartCRUDL):
 
             def clean_connection(self):
                 connection = self.cleaned_data["connection"]
-                if connection == "NX" and not self.org.is_connected_to_vonage():
-                    raise forms.ValidationError(_("A connection to a Vonage account is required"))
+                if connection == "NX" and not self.org.is_connected_to_nexmo():
+                    raise forms.ValidationError(_("A connection to a Nexmo account is required"))
                 return connection
 
             def clean_channel(self):
@@ -1889,7 +1850,7 @@ class ChannelCRUDL(SmartCRUDL):
             user = self.request.user
 
             channel = form.cleaned_data["channel"]
-            Channel.add_vonage_bulk_sender(user, channel)
+            Channel.add_nexmo_bulk_sender(user, channel)
             return super().form_valid(form)
 
         def form_invalid(self, form):
@@ -2080,18 +2041,18 @@ class ChannelCRUDL(SmartCRUDL):
 
             return JsonResponse(numbers, safe=False)
 
-    class SearchVonage(SearchNumbers):
-        class Form(forms.Form):
+    class SearchNexmo(SearchNumbers):
+        class SearchNexmoForm(forms.Form):
             area_code = forms.CharField(
                 max_length=7, required=False, help_text=_("The area code you want to search for a new number in")
             )
-            country = forms.ChoiceField(choices=VONAGE_SUPPORTED_COUNTRIES)
+            country = forms.ChoiceField(choices=NEXMO_SUPPORTED_COUNTRIES)
 
-        form_class = Form
+        form_class = SearchNexmoForm
 
         def form_valid(self, form, *args, **kwargs):  # pragma: needs cover
             org = self.request.user.get_org()
-            client = org.get_vonage_client()
+            client = org.get_nexmo_client()
             data = form.cleaned_data
 
             try:
@@ -2109,6 +2070,7 @@ class ChannelCRUDL(SmartCRUDL):
                 return JsonResponse(numbers, safe=False)
             except Exception as e:
                 raise e
+                # return JsonResponse(dict(error=str(e)))
 
     class SearchPlivo(SearchNumbers):
         class SearchPlivoForm(forms.Form):
@@ -2204,7 +2166,7 @@ class ChannelLogCRUDL(SmartCRUDL):
             links = []
 
             if self.request.GET.get("connections") or self.request.GET.get("others"):
-                links.append(dict(title=_("Messages"), href=reverse("channels.channellog_list", args=[channel.uuid])))
+                links.append(dict(title=_("Messages"), href=reverse("channels.channellog_list", args=[channel.uuid]),))
 
             if not self.request.GET.get("connections"):
                 if channel.supports_ivr():  # pragma: needs cover

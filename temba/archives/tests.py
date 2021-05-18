@@ -132,10 +132,10 @@ class ArchiveCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_archive_type_filter(self):
         # a daily archive that has been rolled up and will not appear in the results
-        d1 = self.create_archive(Archive.TYPE_MSG, "D", date(2020, 7, 31), [{"id": 1}, {"id": 2}])
-        m1 = self.create_archive(Archive.TYPE_MSG, "M", date(2020, 7, 1), [{"id": 1}, {"id": 2}], rollup_of=(d1,))
-        d2 = self.create_archive(Archive.TYPE_MSG, "D", date(2020, 8, 1), [{"id": 3}, {"id": 4}])
-        d3 = self.create_archive(Archive.TYPE_FLOWRUN, "D", date(2020, 8, 1), [{"id": 3}, {"id": 4}])
+        d1 = self.create_archive(Archive.TYPE_MSG, "D", date(2020, 7, 31), [{"id": 1}, {"id": 2}],)
+        m1 = self.create_archive(Archive.TYPE_MSG, "M", date(2020, 7, 1), [{"id": 1}, {"id": 2}], rollup_of=(d1,),)
+        d2 = self.create_archive(Archive.TYPE_MSG, "D", date(2020, 8, 1), [{"id": 3}, {"id": 4}],)
+        d3 = self.create_archive(Archive.TYPE_FLOWRUN, "D", date(2020, 8, 1), [{"id": 3}, {"id": 4}],)
 
         # create archive for other org
         self.create_archive(Archive.TYPE_MSG, "D", date(2020, 7, 31), [{"id": 1}], org=self.org2)

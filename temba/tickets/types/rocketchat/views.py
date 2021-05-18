@@ -44,7 +44,7 @@ class ConnectView(BaseConnectView):
             label=_("Admin Auth Token"), help_text=_("Authentication token of an administrator user")
         )
         secret = forms.CharField(
-            label=_("Secret"), widget=forms.HiddenInput(), help_text=_("Secret to be passed to Rocket.Chat")
+            label=_("Secret"), widget=forms.HiddenInput(), help_text=_("Secret to be passed to Rocket.Chat"),
         )
 
         def clean(self):

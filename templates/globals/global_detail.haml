@@ -1,16 +1,25 @@
--extends "includes/modal.html"
--load smartmin i18n
+{% extends "smartmin/base.html" %}
 
--block modal
+{% load smartmin %}
+{% load i18n %}
+
+-block page-top
+
+-block content
   -block pjax
-    -if dep_flows
-      .py-2
-        -blocktrans trimmed count counter=dep_flows|length
-          Used in the flow
-          -plural
-            Used in the flows
 
-        -for flow in dep_flows
-          %a(href="{% url 'flows.flow_editor' flow.uuid %}")<
-            {{ flow.name }}
-          {{ forloop|oxford }}
+    .row
+      .span5
+        %h4
+          {% trans "Flows" %}:
+
+        -if dep_flows
+          %ul
+            - for flow in dep_flows
+              %li
+                %a(href="{% url 'flows.flow_editor' flow.uuid %}")
+                  {{ flow.name }}
+        -else
+          %ul
+            %li
+              -trans "No related flows."

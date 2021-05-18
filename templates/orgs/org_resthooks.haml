@@ -1,5 +1,6 @@
 -extends 'smartmin/form.html'
--load smartmin i18n
+-load smartmin
+-load i18n
 
 -block pre-form
 
@@ -31,18 +32,22 @@
                   .glyph.level-checkbox
 
     .my-4
-      {% render_field 'new_slug' %}
+      {% render_field 'resthook' %}
 
 -block summary
   -with org.get_resthooks as resthooks
-    -if resthooks|length == 0
-      -blocktrans trimmed
-        You have <b>no flow events</b> configured.
-    -else
-      -blocktrans trimmed count counter=resthooks|length
-        You have <b>1 flow event</b> configured.
-      -plural
-        You have <b>{{ counter }} flow events</b> configured.
+    -trans "You have"
+
+    %b
+      -if resthooks|length == 0
+        -trans "no flow events"
+      -elif resthooks|length == 1
+        -trans "one flow event"
+      -else
+        {{ resthooks|length }}
+        -trans "flow events"
+
+    -trans "configured."
 
 -block extra-script
   {{block.super}}

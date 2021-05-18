@@ -108,7 +108,6 @@ class WhatsAppType(ChannelType):
 
     code = "WA"
     category = ChannelType.Category.SOCIAL_MEDIA
-    beta_only = True
 
     courier_url = r"^wa/(?P<uuid>[a-z0-9\-]+)/(?P<action>receive)$"
 
@@ -121,6 +120,9 @@ class WhatsAppType(ChannelType):
     schemes = [URN.WHATSAPP_SCHEME]
     max_length = 4096
     attachment_support = True
+
+    def is_available_to(self, user):
+        return user.groups.filter(name="Beta")
 
     def get_urls(self):
         return [

@@ -141,11 +141,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         def clean(self):
             # first check that our phone number looks sane
-            country = self.cleaned_data["country"]
-            normalized = URN.normalize_number(self.cleaned_data["number"], country)
-            if not URN.validate(URN.from_parts(URN.TEL_SCHEME, normalized), country):
+            number, valid = URN.normalize_number(self.cleaned_data["number"], self.cleaned_data["country"])
+            if not valid:
                 raise forms.ValidationError(_("Please enter a valid phone number"))
-            self.cleaned_data["number"] = normalized
+            self.cleaned_data["number"] = number
 
             try:
                 resp = requests.post(

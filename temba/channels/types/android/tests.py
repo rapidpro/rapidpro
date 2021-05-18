@@ -206,36 +206,36 @@ class AndroidTypeTest(TembaTest):
         )
         self.assertFormError(response, "form", "channel", "Can't add sender for that number")
 
-        # try to claim a bulk Vonage sender (without adding account to org)
-        claim_bulk_url = reverse("channels.channel_create_bulk_sender") + "?connection=NX&channel=%d" % android2.pk
-        response = self.client.post(claim_bulk_url, dict(connection="NX", channel=android2.pk))
-        self.assertFormError(response, "form", "connection", "A connection to a Vonage account is required")
+        # try to claim a bulk Nexmo sender (without adding Nexmo account to org)
+        claim_nexmo_url = reverse("channels.channel_create_bulk_sender") + "?connection=NX&channel=%d" % android2.pk
+        response = self.client.post(claim_nexmo_url, dict(connection="NX", channel=android2.pk))
+        self.assertFormError(response, "form", "connection", "A connection to a Nexmo account is required")
 
         # send channel is still our Android device
         self.assertEqual(self.org.get_send_channel(URN.TEL_SCHEME), android2)
-        self.assertFalse(self.org.is_connected_to_vonage())
+        self.assertFalse(self.org.is_connected_to_nexmo())
 
-        # now connect to vonage
-        self.org.connect_vonage("123", "456", self.admin)
-        self.assertTrue(self.org.is_connected_to_vonage())
+        # now connect to nexmo
+        self.org.connect_nexmo("123", "456", self.admin)
+        self.assertTrue(self.org.is_connected_to_nexmo())
 
-        # now adding a bulk sender should work
-        response = self.client.post(claim_bulk_url, dict(connection="NX", channel=android2.pk))
+        # now adding Nexmo bulk sender should work
+        response = self.client.post(claim_nexmo_url, dict(connection="NX", channel=android2.pk))
         self.assertRedirect(response, reverse("channels.channel_read", args=[android2.uuid]))
 
-        # new channel created for delegated sending
-        vonage = self.org.get_send_channel(URN.TEL_SCHEME)
-        self.assertEqual(vonage.channel_type, "NX")
-        self.assertEqual(vonage.parent, android2)
-        self.assertTrue(vonage.is_delegate_sender())
-        self.assertEqual(vonage.tps, 1)
-        channel_config = vonage.config
-        self.assertEqual(channel_config[Channel.CONFIG_VONAGE_API_KEY], "123")
-        self.assertEqual(channel_config[Channel.CONFIG_VONAGE_API_SECRET], "456")
+        # new Nexmo channel created for delegated sending
+        nexmo = self.org.get_send_channel(URN.TEL_SCHEME)
+        self.assertEqual(nexmo.channel_type, "NX")
+        self.assertEqual(nexmo.parent, android2)
+        self.assertTrue(nexmo.is_delegate_sender())
+        self.assertEqual(nexmo.tps, 1)
+        channel_config = nexmo.config
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_KEY], "123")
+        self.assertEqual(channel_config[Channel.CONFIG_NEXMO_API_SECRET], "456")
 
-        # reading our delegate channel should now offer a disconnect option
-        vonage = self.org.channels.filter(channel_type="NX").first()
-        response = self.client.get(reverse("channels.channel_read", args=[vonage.uuid]))
+        # reading our nexmo channel should now offer a disconnect option
+        nexmo = self.org.channels.filter(channel_type="NX").first()
+        response = self.client.get(reverse("channels.channel_read", args=[nexmo.uuid]))
         self.assertContains(response, "Disable Bulk Sending")
 
         # receiving still job of our Android device
@@ -264,8 +264,8 @@ class AndroidTypeTest(TembaTest):
         # our country is RW
         self.assertEqual(self.org.default_country_code, "RW")
 
-        # remove channel
-        vonage.release()
+        # remove nexmo
+        nexmo.release()
 
         self.assertEqual(self.org.default_country_code, "RW")
 
@@ -289,12 +289,12 @@ class AndroidTypeTest(TembaTest):
         self.assertEqual(Channel.objects.filter(org=self.org, is_active=True).count(), 2)
 
         # normalize a URN with a fully qualified number
-        normalized = URN.normalize_number("+12061112222", "")
-        self.assertEqual("+12061112222", normalized)
+        number, valid = URN.normalize_number("+12061112222", None)
+        self.assertTrue(valid)
 
         # not international format
-        normalized = URN.normalize_number("0788383383", "")
-        self.assertEqual("0788383383", normalized)
+        number, valid = URN.normalize_number("0788383383", None)
+        self.assertFalse(valid)
 
         # get our send channel without a URN, should just default to last
         default_channel = self.org.get_send_channel(URN.TEL_SCHEME)
@@ -350,5 +350,5 @@ class AndroidTypeTest(TembaTest):
         self.login(self.admin)
         response = self.client.get(update_url)
         self.assertEqual(
-            ["name", "alert_email", "allow_international", "loc"], list(response.context["form"].fields.keys())
+            ["name", "alert_email", "allow_international", "loc"], list(response.context["form"].fields.keys()),
         )

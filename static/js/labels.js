@@ -67,7 +67,6 @@ function unlabelObjectRows(labelId) {
             action: 'unlabel',
             pjax: 'true',
         },
-        onSuccess: wireTableListeners
     });
 }
 

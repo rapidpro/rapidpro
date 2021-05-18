@@ -64,8 +64,7 @@ class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
     bulk_actions = ()
 
     def get_context_data(self, **kwargs):
-        user = self.get_user()
-        org = user.get_org()
+        org = self.get_user().get_org()
 
         context = super().get_context_data(**kwargs)
         context["folder"] = self.folder
@@ -109,11 +108,9 @@ class TicketCRUDL(SmartCRUDL):
             return super().get_queryset(**kwargs).filter(ticketer=self.ticketer)
 
         def get_gear_links(self):
-            from .types.internal import InternalType
-
             links = []
 
-            if self.has_org_perm("tickets.ticketer_delete") and self.ticketer.ticketer_type != InternalType.slug:
+            if self.has_org_perm("tickets.ticketer_delete"):
                 links.append(
                     dict(
                         id="ticketer-delete",
@@ -176,7 +173,7 @@ class TicketerCRUDL(SmartCRUDL):
 
     class Connect(OrgPermsMixin, SmartTemplateView):
         def get_gear_links(self):
-            return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"))]
+            return [dict(title=_("Home"), style="button-light", href=reverse("orgs.org_home"),)]
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)

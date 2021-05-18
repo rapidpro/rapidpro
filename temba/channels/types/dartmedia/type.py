@@ -53,7 +53,9 @@ class DartMediaType(ChannelType):
         ),
     )
 
-    available_timezones = ["Asia/Jakarta"]
+    def is_available_to(self, user):
+        org = user.get_org()
+        return org.timezone and str(org.timezone) in ["Asia/Jakarta"]
 
     def is_recommended_to(self, user):
-        return self.is_available_to(user)[0]
+        return self.is_available_to(user)

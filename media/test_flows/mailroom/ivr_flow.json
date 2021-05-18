@@ -1,478 +1,255 @@
 {
-  "version": "13",
-  "site": "https://textit.com",
+  "version": "11.9",
+  "site": "https://app.rapidpro.io",
   "flows": [
     {
-      "_ui": {
-        "nodes": {
-          "44ddbbbd-be98-439c-b809-cf14f694b28b": {
-            "position": {
-              "left": 100,
-              "top": 0
-            },
-            "type": "execute_actions"
-          },
-          "f0de487c-35ad-4fb1-a710-1076147313f2": {
-            "position": {
-              "left": 140,
-              "top": 220
-            },
-            "type": "wait_for_response"
-          },
-          "333f86f3-e8c5-407c-8642-319a90910883": {
-            "position": {
-              "left": 420,
-              "top": 265
-            },
-            "type": "execute_actions"
-          },
-          "ba77561e-aa7e-4efa-baeb-1e19fbdd100d": {
-            "position": {
-              "left": 96,
-              "top": 355
-            },
-            "type": "execute_actions"
-          },
-          "26090582-43bc-48d9-a40a-916811117fc9": {
-            "position": {
-              "left": 162,
-              "top": 568
-            },
-            "type": "wait_for_response"
-          },
-          "9cddd0a1-5af2-49ae-8376-1817c23be88e": {
-            "position": {
-              "left": 368,
-              "top": 691
-            },
-            "type": "execute_actions"
-          },
-          "4402d305-eb6a-4e29-aa4d-6423bc0a4896": {
-            "position": {
-              "left": 84,
-              "top": 740
-            },
-            "type": "execute_actions"
-          },
-          "b2b7d368-5a6d-4ced-a066-8217ed5bf146": {
-            "position": {
-              "left": 137,
-              "top": 938
-            },
-            "type": "wait_for_response"
-          },
-          "e10c8b96-4cec-4b0a-a0ea-95bc87d3aece": {
-            "position": {
-              "left": 104,
-              "top": 1083
-            },
-            "type": "execute_actions"
-          },
-          "76f0fefc-cde6-4aed-b306-fe2de726db6f": {
-            "type": "wait_for_dial",
-            "position": {
-              "left": 220,
-              "top": 1400
-            },
-            "config": {}
-          },
-          "c5bb9e75-6349-4d01-ab1e-944acc476447": {
-            "position": {
-              "left": 80,
-              "top": 1600
-            },
-            "type": "execute_actions"
-          },
-          "b227a3e5-bcfb-4d77-b4ac-a4a2500e0cbd": {
-            "position": {
-              "left": 300,
-              "top": 1600
-            },
-            "type": "execute_actions"
-          }
-        },
-        "stickies": {}
-      },
-      "expire_after_minutes": 5,
-      "language": "base",
-      "localization": {},
-      "metadata": {
-        "expires": 10080
-      },
-      "name": "IVR Flow",
-      "nodes": [
+      "entry": "5679acf0-18f4-4702-ad22-d01e01d2827f",
+      "action_sets": [
         {
+          "uuid": "5679acf0-18f4-4702-ad22-d01e01d2827f",
+          "x": 100,
+          "y": 0,
+          "destination": "115c5218-effa-4044-9f2a-5fb23ff64fe8",
           "actions": [
             {
-              "text": "Hello there. Please enter one or two. @(if(is_error(legacy_extra.ref_id), \"\", \"Your reference id is \" & legacy_extra.ref_id)) @(if(is_error(parent.contact), \"\", \"This flow was triggered by \" & parent.contact))",
-              "type": "say_msg",
-              "uuid": "6d403e67-4307-4073-8013-d157f9ae2339"
+              "type": "say",
+              "uuid": "d684f2d6-ba31-49f7-8ea3-7fdf65cc1a25",
+              "msg": {
+                "base": "Hello there. Please enter one or two. @(if(is_error(extra.ref_id), \"\", \"Your reference id is \" & extra.ref_id)) @(if(is_error(parent.contact), \"\", \"This flow was triggered by \" & parent.contact))"
+              },
+              "recording": null
             }
           ],
-          "exits": [
-            {
-              "destination_uuid": "f0de487c-35ad-4fb1-a710-1076147313f2",
-              "uuid": "80396d12-cbc0-49bd-90bf-94ede6e7c6bf"
-            }
-          ],
-          "uuid": "44ddbbbd-be98-439c-b809-cf14f694b28b"
+          "exit_uuid": "808ba5ea-07c8-4834-ba17-13760c493a69"
         },
         {
-          "exits": [
-            {
-              "destination_uuid": "ba77561e-aa7e-4efa-baeb-1e19fbdd100d",
-              "uuid": "333d4748-6f8d-4832-b21f-8995c1609ba2"
-            },
-            {
-              "destination_uuid": "ba77561e-aa7e-4efa-baeb-1e19fbdd100d",
-              "uuid": "14c24767-ab9f-4cde-9fb0-57e404d43d5a"
-            },
-            {
-              "destination_uuid": "333f86f3-e8c5-407c-8642-319a90910883",
-              "uuid": "0c78aabe-ac0d-4cad-900c-6a1bfad74ca5"
-            }
-          ],
-          "router": {
-            "cases": [
-              {
-                "arguments": [
-                  "1"
-                ],
-                "category_uuid": "4292a7c9-a33f-467a-99a4-f8e69a6d1ea5",
-                "type": "has_number_eq",
-                "uuid": "9dc2ce51-2b1e-4254-8a01-faba83100cad"
-              },
-              {
-                "arguments": [
-                  "2"
-                ],
-                "category_uuid": "12a6a29d-253c-4b5b-9481-18d1c8141cdf",
-                "type": "has_number_eq",
-                "uuid": "e557f7e6-7986-4029-a523-959bee7de3b3"
-              }
-            ],
-            "categories": [
-              {
-                "exit_uuid": "333d4748-6f8d-4832-b21f-8995c1609ba2",
-                "name": "One",
-                "uuid": "4292a7c9-a33f-467a-99a4-f8e69a6d1ea5"
-              },
-              {
-                "exit_uuid": "14c24767-ab9f-4cde-9fb0-57e404d43d5a",
-                "name": "Two",
-                "uuid": "12a6a29d-253c-4b5b-9481-18d1c8141cdf"
-              },
-              {
-                "exit_uuid": "0c78aabe-ac0d-4cad-900c-6a1bfad74ca5",
-                "name": "Other",
-                "uuid": "08f62756-5462-4e72-9a62-7f1bd813d385"
-              }
-            ],
-            "default_category_uuid": "08f62756-5462-4e72-9a62-7f1bd813d385",
-            "operand": "@input.text",
-            "result_name": "Choice",
-            "type": "switch",
-            "wait": {
-              "hint": {
-                "count": 1,
-                "type": "digits"
-              },
-              "type": "msg"
-            }
-          },
-          "uuid": "f0de487c-35ad-4fb1-a710-1076147313f2",
-          "actions": []
-        },
-        {
+          "uuid": "bec6993f-1f95-41fa-bc26-518ea10954b2",
+          "x": 420,
+          "y": 265,
+          "destination": "115c5218-effa-4044-9f2a-5fb23ff64fe8",
           "actions": [
             {
-              "text": "Sorry, that is not one or two, try again.",
-              "type": "say_msg",
-              "uuid": "ddb47b9f-9632-4216-8126-9e1e97343fe3"
+              "type": "say",
+              "uuid": "2d52487c-58d3-40a8-816a-1720687596a9",
+              "msg": {
+                "base": "Sorry, that is not one or two, try again."
+              },
+              "recording": null
             }
           ],
-          "exits": [
-            {
-              "destination_uuid": "f0de487c-35ad-4fb1-a710-1076147313f2",
-              "uuid": "073ad13b-6d31-48ba-bc87-8b682c54416f"
-            }
-          ],
-          "uuid": "333f86f3-e8c5-407c-8642-319a90910883"
+          "exit_uuid": "30479153-d138-41d6-a291-e56611b519f6"
         },
         {
+          "uuid": "b8305102-9ed5-431d-ae0d-13cdf4b310a8",
+          "x": 96,
+          "y": 355,
+          "destination": "642da6dd-fbc4-472a-858f-a17a7b471d7c",
           "actions": [
             {
-              "text": "Great! You said @results.choice.category_localized. Ok, now enter a number 1 to 100 then press pound.",
-              "type": "say_msg",
-              "uuid": "66d503e8-56f7-48f1-97fb-37d328ec12e9"
+              "type": "say",
+              "uuid": "f684b8f5-dba2-4365-bd53-e9d7695a8069",
+              "msg": {
+                "base": "Great! You said @flow.choice.category. Ok, now enter a number 1 to 100 then press pound."
+              },
+              "recording": null
             }
           ],
-          "exits": [
-            {
-              "destination_uuid": "26090582-43bc-48d9-a40a-916811117fc9",
-              "uuid": "ef94043b-7e42-45c6-9d49-31595ec6dfae"
-            }
-          ],
-          "uuid": "ba77561e-aa7e-4efa-baeb-1e19fbdd100d"
+          "exit_uuid": "6a407019-7933-4be0-b236-8f4cc3a6395d"
         },
         {
-          "exits": [
-            {
-              "destination_uuid": "4402d305-eb6a-4e29-aa4d-6423bc0a4896",
-              "uuid": "eb10165a-6c72-48ac-9ec3-537bfd16b550"
-            },
-            {
-              "destination_uuid": "9cddd0a1-5af2-49ae-8376-1817c23be88e",
-              "uuid": "acfc77bd-bf8e-435d-8b3f-b53ff9db5fb7"
-            }
-          ],
-          "router": {
-            "cases": [
-              {
-                "arguments": [
-                  "1",
-                  "100"
-                ],
-                "category_uuid": "6f638a76-4446-471d-a1a1-bacbad53d622",
-                "type": "has_number_between",
-                "uuid": "8d3a3a9f-02a0-4ebc-b35d-1e6a25967349"
-              }
-            ],
-            "categories": [
-              {
-                "exit_uuid": "eb10165a-6c72-48ac-9ec3-537bfd16b550",
-                "name": "1 - 100",
-                "uuid": "6f638a76-4446-471d-a1a1-bacbad53d622"
-              },
-              {
-                "exit_uuid": "acfc77bd-bf8e-435d-8b3f-b53ff9db5fb7",
-                "name": "Other",
-                "uuid": "c3cb0ebd-d15e-4e39-a01c-a9764dc09e80"
-              }
-            ],
-            "default_category_uuid": "c3cb0ebd-d15e-4e39-a01c-a9764dc09e80",
-            "operand": "@input.text",
-            "result_name": "Number",
-            "type": "switch",
-            "wait": {
-              "hint": {
-                "terminated_by": "",
-                "type": "digits"
-              },
-              "type": "msg"
-            }
-          },
-          "uuid": "26090582-43bc-48d9-a40a-916811117fc9",
-          "actions": []
-        },
-        {
+          "uuid": "0b0e557a-288d-410f-a42f-eedc1af4efb1",
+          "x": 368,
+          "y": 691,
+          "destination": "642da6dd-fbc4-472a-858f-a17a7b471d7c",
           "actions": [
             {
-              "text": "Sorry, that's too big. Enter a number 1 to 100 then press pound.",
-              "type": "say_msg",
-              "uuid": "07a41421-a4e3-4aed-97da-2ba9b3addda1"
+              "type": "say",
+              "uuid": "7d627f20-8449-414a-9e5a-dd574aa5421f",
+              "msg": {
+                "base": "Sorry, that's too big. Enter a number 1 to 100 then press pound."
+              },
+              "recording": null
             }
           ],
-          "exits": [
-            {
-              "destination_uuid": "26090582-43bc-48d9-a40a-916811117fc9",
-              "uuid": "1a0b9fac-9b07-49d8-b9ea-fc3d43ec4c47"
-            }
-          ],
-          "uuid": "9cddd0a1-5af2-49ae-8376-1817c23be88e"
+          "exit_uuid": "fb357767-5bd1-4493-b5a4-4a0101cd943e"
         },
         {
+          "uuid": "823184c8-fc3b-49bc-9ede-1d791cf4f2ce",
+          "x": 84,
+          "y": 740,
+          "destination": "4f07a96e-52fe-482a-bbd0-a5d7bd0ad0bc",
           "actions": [
             {
-              "text": "You picked the number @results.number, excellent choice. Ok now tell me briefly why you are happy today.",
-              "type": "say_msg",
-              "uuid": "e2a697cf-6fa6-443b-a466-f16caccaff4d"
-            }
-          ],
-          "exits": [
-            {
-              "destination_uuid": "b2b7d368-5a6d-4ced-a066-8217ed5bf146",
-              "uuid": "5953358b-efb9-4c07-8c48-6bdccd2ec418"
-            }
-          ],
-          "uuid": "4402d305-eb6a-4e29-aa4d-6423bc0a4896"
-        },
-        {
-          "exits": [
-            {
-              "destination_uuid": "e10c8b96-4cec-4b0a-a0ea-95bc87d3aece",
-              "uuid": "586f7eee-3dc3-4428-bc6e-1b42466b79b0"
-            }
-          ],
-          "router": {
-            "cases": [],
-            "categories": [
-              {
-                "exit_uuid": "586f7eee-3dc3-4428-bc6e-1b42466b79b0",
-                "name": "All Responses",
-                "uuid": "37e61473-4970-4510-aba7-7ce2f0049a96"
-              }
-            ],
-            "default_category_uuid": "37e61473-4970-4510-aba7-7ce2f0049a96",
-            "operand": "@input",
-            "result_name": "Happy",
-            "type": "switch",
-            "wait": {
-              "hint": {
-                "type": "audio"
+              "type": "say",
+              "uuid": "b6ed54a3-c36e-456c-a09e-933a726ab7b8",
+              "msg": {
+                "base": "You picked the number @flow.number, excellent choice. Ok now tell me briefly why you are happy today."
               },
-              "type": "msg"
+              "recording": null
             }
-          },
-          "uuid": "b2b7d368-5a6d-4ced-a066-8217ed5bf146",
-          "actions": []
+          ],
+          "exit_uuid": "8d4f62e7-44cd-4254-92fb-c5f87c7d6722"
         },
         {
+          "uuid": "f633f119-6aa8-43df-9dc7-9518356ca53a",
+          "x": 104,
+          "y": 1083,
+          "destination": null,
           "actions": [
             {
-              "text": "You said",
-              "type": "say_msg",
-              "uuid": "762f05d2-b12f-4c89-9060-ee6daee4bafe"
+              "type": "say",
+              "uuid": "72771ff9-c279-4dd9-8d51-5a78abc73681",
+              "msg": {
+                "base": "You said"
+              },
+              "recording": null
             },
             {
-              "audio_url": "@results.happy",
-              "type": "play_audio",
-              "uuid": "5c8b86cf-3b85-4c2e-8d60-5da122d4b204"
+              "type": "play",
+              "uuid": "36e9dde4-b5ca-4abb-aca2-6aa95dbcd4c7",
+              "url": "@flow.happy"
             },
             {
-              "text": "I hope hearing that makes you feel better. Good day and good bye.",
-              "type": "say_msg",
-              "uuid": "fe7da1b2-822c-44e9-b7db-e9a34d736f2e"
+              "type": "say",
+              "uuid": "b6b66a37-4a66-4720-a80f-dd61d905b299",
+              "msg": {
+                "base": "I hope hearing that makes you feel better. Good day and good bye."
+              },
+              "recording": null
             }
           ],
-          "exits": [
-            {
-              "uuid": "f2404f7d-2be6-4500-b61a-703db5459b61",
-              "destination_uuid": "76f0fefc-cde6-4aed-b306-fe2de726db6f"
-            }
-          ],
-          "uuid": "e10c8b96-4cec-4b0a-a0ea-95bc87d3aece"
-        },
-        {
-          "uuid": "76f0fefc-cde6-4aed-b306-fe2de726db6f",
-          "actions": [],
-          "router": {
-            "type": "switch",
-            "wait": {
-              "type": "dial",
-              "phone": "2065551212"
-            },
-            "default_category_uuid": "20753879-0261-428f-bcd8-b7be67c9b8cd",
-            "categories": [
-              {
-                "uuid": "568923e0-c3d1-467a-8589-1b5deb5f2e6b",
-                "name": "Answered",
-                "exit_uuid": "e5855edc-295b-4205-85a5-29790f59a295"
-              },
-              {
-                "uuid": "00823422-a217-4d07-8676-85d777bac975",
-                "name": "No Answer",
-                "exit_uuid": "ee12cb3f-6d47-4ff6-9712-0b749231a9d4"
-              },
-              {
-                "uuid": "3e009811-9bc0-491b-b8a0-6f2625fceed8",
-                "name": "Busy",
-                "exit_uuid": "52bd89f8-6834-4466-aea2-05d80a4ac3be"
-              },
-              {
-                "uuid": "20753879-0261-428f-bcd8-b7be67c9b8cd",
-                "name": "Failed",
-                "exit_uuid": "b11e71e2-b90d-463b-b350-f13d5a991148"
-              }
-            ],
-            "cases": [
-              {
-                "uuid": "a3abc973-0e94-49ad-92c0-860c6d92b804",
-                "type": "has_only_text",
-                "arguments": [
-                  "answered"
-                ],
-                "category_uuid": "568923e0-c3d1-467a-8589-1b5deb5f2e6b"
-              },
-              {
-                "uuid": "3b261a79-dc91-482d-a9f4-d54d901dc065",
-                "type": "has_only_text",
-                "arguments": [
-                  "no_answer"
-                ],
-                "category_uuid": "00823422-a217-4d07-8676-85d777bac975"
-              },
-              {
-                "uuid": "ace33089-dbc0-47dd-a6ff-051bd8e4c1c9",
-                "type": "has_only_text",
-                "arguments": [
-                  "busy"
-                ],
-                "category_uuid": "3e009811-9bc0-491b-b8a0-6f2625fceed8"
-              }
-            ],
-            "operand": "@(default(resume.dial.status, \"\"))"
-          },
-          "exits": [
-            {
-              "uuid": "e5855edc-295b-4205-85a5-29790f59a295",
-              "destination_uuid": "c5bb9e75-6349-4d01-ab1e-944acc476447"
-            },
-            {
-              "uuid": "ee12cb3f-6d47-4ff6-9712-0b749231a9d4",
-              "destination_uuid": "b227a3e5-bcfb-4d77-b4ac-a4a2500e0cbd"
-            },
-            {
-              "uuid": "52bd89f8-6834-4466-aea2-05d80a4ac3be",
-              "destination_uuid": "b227a3e5-bcfb-4d77-b4ac-a4a2500e0cbd"
-            },
-            {
-              "uuid": "b11e71e2-b90d-463b-b350-f13d5a991148",
-              "destination_uuid": "b227a3e5-bcfb-4d77-b4ac-a4a2500e0cbd"
-            }
-          ]
-        },
-        {
-          "uuid": "c5bb9e75-6349-4d01-ab1e-944acc476447",
-          "actions": [
-            {
-              "text": "Great, they answered.",
-              "type": "say_msg",
-              "uuid": "cb8904bf-f9b9-4359-a0f7-a1d63035b138"
-            }
-          ],
-          "exits": [
-            {
-              "uuid": "82e15b5d-b005-40cf-aa34-72d36b1809c8",
-              "destination_uuid": null
-            }
-          ]
-        },
-        {
-          "uuid": "b227a3e5-bcfb-4d77-b4ac-a4a2500e0cbd",
-          "actions": [
-            {
-              "text": "We didn't get through.",
-              "type": "say_msg",
-              "uuid": "dcd152bc-59bd-480c-b5be-ee2557517aae"
-            }
-          ],
-          "exits": [
-            {
-              "uuid": "7f379aae-8008-4785-9ca2-c5963aebec1a",
-              "destination_uuid": null
-            }
-          ]
+          "exit_uuid": "e92ace81-10cc-4124-94b6-53b2d4eb580c"
         }
       ],
-      "spec_version": "13.1.0",
-      "type": "voice",
-      "uuid": "5fdf1652-f034-4265-ad14-eccc3019d6c7",
-      "revision": 7
+      "rule_sets": [
+        {
+          "uuid": "115c5218-effa-4044-9f2a-5fb23ff64fe8",
+          "x": 143,
+          "y": 154,
+          "label": "Choice",
+          "rules": [
+            {
+              "uuid": "8eec4c4e-2b03-4d79-a172-dcce2b47476b",
+              "category": {
+                "base": "One"
+              },
+              "destination": "b8305102-9ed5-431d-ae0d-13cdf4b310a8",
+              "destination_type": "A",
+              "test": {
+                "type": "eq",
+                "test": 1
+              },
+              "label": null
+            },
+            {
+              "uuid": "cd624366-c2f7-4d59-9c64-623075a4e860",
+              "category": {
+                "base": "Two"
+              },
+              "destination": "b8305102-9ed5-431d-ae0d-13cdf4b310a8",
+              "destination_type": "A",
+              "test": {
+                "type": "eq",
+                "test": 2
+              },
+              "label": null
+            },
+            {
+              "uuid": "8b10e0b7-8944-4938-b674-7784b98fcb9c",
+              "category": {
+                "base": "Other"
+              },
+              "destination": "bec6993f-1f95-41fa-bc26-518ea10954b2",
+              "destination_type": "A",
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "wait_digit",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {}
+        },
+        {
+          "uuid": "642da6dd-fbc4-472a-858f-a17a7b471d7c",
+          "x": 162,
+          "y": 568,
+          "label": "Number",
+          "rules": [
+            {
+              "uuid": "bee16125-9b14-429f-a1f4-16072bbf1b05",
+              "category": {
+                "base": "1 - 100"
+              },
+              "destination": "823184c8-fc3b-49bc-9ede-1d791cf4f2ce",
+              "destination_type": "A",
+              "test": {
+                "type": "between",
+                "min": "1",
+                "max": "100"
+              },
+              "label": null
+            },
+            {
+              "uuid": "71349e21-95e4-4e0d-805f-84234fd3686f",
+              "category": {
+                "base": "Other"
+              },
+              "destination": "0b0e557a-288d-410f-a42f-eedc1af4efb1",
+              "destination_type": "A",
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "wait_digits",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {}
+        },
+        {
+          "uuid": "4f07a96e-52fe-482a-bbd0-a5d7bd0ad0bc",
+          "x": 137,
+          "y": 938,
+          "label": "Happy",
+          "rules": [
+            {
+              "uuid": "f6bb8df4-bcb3-4ec4-8180-11c9988a8c3f",
+              "category": {
+                "base": "All Responses"
+              },
+              "destination": "f633f119-6aa8-43df-9dc7-9518356ca53a",
+              "destination_type": "A",
+              "test": {
+                "type": "true"
+              },
+              "label": null
+            }
+          ],
+          "finished_key": null,
+          "ruleset_type": "wait_recording",
+          "response_type": "",
+          "operand": "@step.value",
+          "config": {}
+        }
+      ],
+      "base_language": "base",
+      "flow_type": "V",
+      "version": "11.9",
+      "metadata": {
+        "name": "IVR Flow",
+        "saved_on": "2019-01-23T18:11:13.738547Z",
+        "revision": 25,
+        "uuid": "3d089d93-cbfe-408b-8d70-8c450cfc57b1",
+        "expires": 5
+      }
     }
   ],
   "campaigns": [],
-  "triggers": [],
-  "fields": [],
-  "groups": []
+  "triggers": []
 }

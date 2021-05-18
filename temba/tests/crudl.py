@@ -169,12 +169,8 @@ class CRUDLTestMixin:
         as_user(org2_admin, allowed=False)
         return as_user(admin, allowed=True)
 
-    def assertDeleteSubmit(
-        self, url, *, object_unchanged=None, object_deleted=None, object_deactivated=None, success_status=302
-    ):
-        assert (
-            object_unchanged or object_deleted or object_deactivated
-        ), "must specify object_unchanged or object_deleted or object_deactivated"
+    def assertDeleteSubmit(self, url, *, object_unchanged=None, object_deleted=None, success_status=302):
+        assert object_unchanged or object_deleted is not None, "must specify object_unchanged or object_deleted"
 
         viewer, editor, admin, org2_admin = self.get_test_users()
 
@@ -182,10 +178,8 @@ class CRUDLTestMixin:
             if allowed:
                 if object_unchanged:
                     checks = [ObjectUnchanged(object_unchanged)]
-                elif object_deleted:
-                    checks = [StatusCode(success_status), ObjectDeleted(object_deleted)]
                 else:
-                    checks = [StatusCode(success_status), ObjectDeactivated(object_deactivated)]
+                    checks = [StatusCode(success_status), ObjectDeleted(object_deleted)]
             else:
                 checks = [LoginRedirect()]
 
@@ -284,15 +278,6 @@ class ObjectDeleted(BaseCheck):
             return
 
         test_cls.fail(msg=f"{msg_prefix}: object not deleted")
-
-
-class ObjectDeactivated(BaseCheck):
-    def __init__(self, obj):
-        self.obj = obj
-
-    def check(self, test_cls, response, msg_prefix):
-        self.obj.refresh_from_db()
-        test_cls.assertFalse(self.obj.is_active, msg=f"{msg_prefix}: expected object.is_active to be false")
 
 
 class FormFields(BaseCheck):

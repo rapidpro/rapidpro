@@ -1,6 +1,9 @@
 import os
 import sys
 
+import raven
+from raven.contrib.celery import register_logger_signal, register_signal
+
 from django.conf import settings
 
 import celery
@@ -20,6 +23,13 @@ app.autodiscover_tasks(
         "temba.channels.types.whatsapp",
     )
 )
+
+# register raven if configured
+raven_config = getattr(settings, "RAVEN_CONFIG", None)
+if raven_config and "dsn" in raven_config:  # pragma: no cover
+    client = raven.Client(settings.RAVEN_CONFIG["dsn"])
+    register_logger_signal(client)
+    register_signal(client)
 
 
 @app.task(bind=True)

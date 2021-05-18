@@ -71,7 +71,7 @@ ORG1 = dict(
             uuid="74729f45-7f29-4868-9dc4-90e491e3c7d8",
         ),
         dict(
-            name="Vonage",
+            name="Nexmo",
             channel_type="NX",
             address="5789",
             scheme="tel",

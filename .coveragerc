@@ -35,7 +35,6 @@ omit =
     temba/utils/management/commands/migrate_flows.py
     temba/utils/management/commands/test_db.py
     temba/utils/management/commands/perf_test.py
-    temba/utils/management/commands/verify_sentry.py
 
 [html]
 directory = coverage_html_report

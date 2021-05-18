@@ -9,10 +9,15 @@
     -render_field 'message'
 
 -block summary
-  -include "includes/recipients.haml" with groups=broadcast.groups.all contacts=broadcast.contacts.all urns=broadcast.raw_urns
+  -with recipient_counts=broadcast.get_recipient_counts
+    -if recipient_counts.recipients > 0
+      -blocktrans with count_comma=recipient_counts.recipients|intcomma count counter=recipient_counts.recipients
+        {{ count_comma }} recipients
+        -plural
+          {{ count_comma }} recipients
+    -else
+      -blocktrans trimmed with group_count=recipient_counts.groups contact_count=recipient_counts.contacts urn_count=recipient_counts.urns
+        {{ group_count }} groups, {{ contact_count }} contacts, {{ urn_count }} urns
 
-  .mt-2
+  #broadcast_preview
     {{ object.get_default_text }}
-
-
-

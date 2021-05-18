@@ -1,4 +1,3 @@
-import ipaddress
 import json
 import socket
 from urllib import parse
@@ -32,7 +31,7 @@ def validate_external_url(value):
 
     # if it isn't http or https, fail
     if parsed.scheme not in ("http", "https"):
-        raise ValidationError(_("Must use HTTP or HTTPS."), params={"value": value})
+        raise ValidationError(_("%(value)s must be http or https scheme"), params={"value": value})
 
     # resolve the host
     try:
@@ -41,12 +40,11 @@ def validate_external_url(value):
             host = parsed.netloc[: -(len(str(parsed.port)) + 1)]
         ip = socket.gethostbyname(host)
     except Exception:
-        raise ValidationError(_("Unable to resolve host."), params={"value": value})
+        raise ValidationError(_("%(value)s host cannot be resolved"), params={"value": value})
 
-    ip = ipaddress.ip_address(ip)
-
-    if ip.is_loopback or ip.is_multicast or ip.is_private or ip.is_link_local:
-        raise ValidationError(_("Cannot be a local or private host."), params={"value": value})
+    # check it isn't localhost
+    if ip in ("127.0.0.1", "::1"):
+        raise ValidationError(_("%(value)s cannot be localhost"), params={"value": value})
 
 
 class ExternalURLField(forms.URLField):

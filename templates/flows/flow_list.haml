@@ -10,7 +10,7 @@
 -block content
 
   -if org_perms.flows.flow_update
-    %temba-modax#export-results{ header:'{% trans "Download Results" %}' }
+    %temba-modax#export-results{ header:'{% trans "Download Flow Results" %}' }
     %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'flows.flowlabel_create' %}", onloaded: "handleCreateLabelModalLoaded", onsubmitted: "handleCreateLabelModalSubmitted"}
 
   #pjax
@@ -153,7 +153,7 @@
 
                     .button-action.object-btn-export{onclick:'exportFlows()'}
                       .-mt-1.mr-2.glyph.icon-excel
-                      -trans "Download Results"
+                      -trans "Export Results"
 
               .flex-grow.ml-2.items-center
                 -block title-text

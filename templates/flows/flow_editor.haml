@@ -1,14 +1,15 @@
--extends "smartmin/base.html"
+{% extends "smartmin/base.html" %}
+
 -load compress temba i18n
 
 -block page-title
-  {{ object.name }}
+  {{object.name}}
 
 -block extra-style
-  %link(rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:300,400,500")
+  %link{rel:'stylesheet', href:'https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:300,400,500'}
 
   -for css in styles
-    %link(rel="stylesheet" type="text/css" href="{{css}}")
+    %link{rel:'stylesheet', type:'text/css', href:'{{css}}'}
 
   :css
     body {
@@ -184,12 +185,21 @@
   {{ block.super }}
 
   -for script in scripts
-    %script(type="text/javascript" src="{{script}}")
+    %script{type:'text/javascript', src:'{{script}}'}
 
   :javascript
     const base = '/flow/assets/{{object.org.id}}/' + new Date().getTime() + '/';
     const api = '/api/v2/';
-    const flowType = '{{ object.engine_type }}';
+
+    // line up our flow types with goflow types
+    var flowType = '{{object.flow_type}}';
+    if (flowType == 'M') {
+      flowType = 'message';
+    } else if (flowType == 'V') {
+      flowType = 'voice';
+    } else if (flowType == 'S') {
+      flowType = 'message_offline';
+    }
 
     window.addEventListener("DOMContentLoaded", function() {
       var confirmation = document.getElementById("confirm-language");
@@ -204,7 +214,7 @@
 
     function handleEditorLoaded() {
       $('temba-loading').hide();
-      $('#rp-flow-editor > div').css('opacity', '1');
+      $('#rp-flow-editor > div').css('opacity', '1')
     }
 
     function handleActivityClicked(nodeUUID, count) {
@@ -226,6 +236,11 @@
     }
 
     const config = {
+      
+      // TODO: Remove once legacy editor is gone
+      // this is only to support manual migration
+      forceSaveOnLoad: "{{migrate}}" == "True",
+
       flow: '{{object.uuid}}',
       flowType: flowType,
       localStorage: true,
@@ -264,8 +279,8 @@
         activity: '/flow/activity/{{object.uuid}}/',
         recipients: '/contact/omnibox?v=2&types=gc',
 
-        completion: '/mr/docs/{{ LANGUAGE_CODE }}/completion.json',
-        functions: '/mr/docs/{{ LANGUAGE_CODE }}/functions.json',
+        completion: '/mr/docs/completion.json',
+        functions: '/mr/docs/functions.json',
 
         {% if can_simulate %}
         simulateStart: '/flow/simulate/{{object.id}}/',

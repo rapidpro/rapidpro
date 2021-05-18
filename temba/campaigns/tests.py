@@ -98,39 +98,6 @@ class CampaignTest(TembaTest):
         self.assertEqual(3, new_event2.offset)
         self.assertEqual({"base": "Hello"}, new_event2.message)
 
-    def test_get_offset_display(self):
-        campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
-        flow = self.create_flow()
-        event = CampaignEvent.create_flow_event(
-            self.org, self.admin, campaign, self.planting_date, offset=0, unit="W", flow=flow
-        )
-
-        def assert_display(offset: int, unit: str, expected: str):
-            event.offset = offset
-            event.unit = unit
-            self.assertEqual(expected, event.offset_display)
-
-        assert_display(-2, "M", "2 minutes before")
-        assert_display(-1, "M", "1 minute before")
-        assert_display(0, "M", "on")
-        assert_display(1, "M", "1 minute after")
-        assert_display(2, "M", "2 minutes after")
-        assert_display(-2, "H", "2 hours before")
-        assert_display(-1, "H", "1 hour before")
-        assert_display(0, "H", "on")
-        assert_display(1, "H", "1 hour after")
-        assert_display(2, "H", "2 hours after")
-        assert_display(-2, "D", "2 days before")
-        assert_display(-1, "D", "1 day before")
-        assert_display(0, "D", "on")
-        assert_display(1, "D", "1 day after")
-        assert_display(2, "D", "2 days after")
-        assert_display(-2, "W", "2 weeks before")
-        assert_display(-1, "W", "1 week before")
-        assert_display(0, "W", "on")
-        assert_display(1, "W", "1 week after")
-        assert_display(2, "W", "2 weeks after")
-
     def test_get_unique_name(self):
         campaign1 = Campaign.create(
             self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers
@@ -218,7 +185,7 @@ class CampaignTest(TembaTest):
                 "spec_version": "13.0.0",
                 "revision": 1,
                 "language": "eng",
-                "type": "messaging_background",
+                "type": "messaging",
                 "expire_after_minutes": 10080,
                 "localization": {},
                 "nodes": [
@@ -324,7 +291,6 @@ class CampaignTest(TembaTest):
         self.assertIn("base", response.context["form"].fields)
         self.assertIn("spa", response.context["form"].fields)
         self.assertIn("ace", response.context["form"].fields)
-        self.assertEqual(3, len(response.context["form"].fields["message_start_mode"].choices))
 
         response = self.client.post(
             f"{reverse('campaigns.campaignevent_create')}?campaign={campaign.id}",
@@ -360,7 +326,6 @@ class CampaignTest(TembaTest):
 
         self.assertTrue(event.flow.is_system)
         self.assertTrue(event.flow.base_language, "base")
-        self.assertEqual(event.flow.flow_type, Flow.TYPE_BACKGROUND)
 
         flow_json = event.flow.get_definition()
         action_uuid = flow_json["nodes"][0]["actions"][0]["uuid"]
@@ -373,7 +338,7 @@ class CampaignTest(TembaTest):
                 "revision": 1,
                 "expire_after_minutes": 10080,
                 "language": "base",
-                "type": "messaging_background",
+                "type": "messaging",
                 "localization": {"spa": {action_uuid: {"text": ["hola"]}}},
                 "nodes": [
                     {
@@ -387,40 +352,11 @@ class CampaignTest(TembaTest):
         )
 
         url = reverse("campaigns.campaignevent_update", args=[event.id])
-
-        # update the event to be passive
-        response = self.client.post(
-            url,
-            {
-                "relative_to": self.planting_date.id,
-                "event_type": "M",
-                "base": "This is my message",
-                "spa": "hola",
-                "direction": "B",
-                "offset": 1,
-                "unit": "W",
-                "flow_to_start": "",
-                "delivery_hour": 13,
-                "message_start_mode": "P",
-            },
-        )
-
-        self.assertEqual(response.status_code, 302)
-        event = CampaignEvent.objects.filter(is_active=True).first()
-
-        self.assertEqual(event.offset, -1)
-        self.assertEqual(event.delivery_hour, 13)
-        self.assertEqual(event.unit, "W")
-        self.assertEqual(event.event_type, "M")
-        self.assertEqual(event.start_mode, "P")
-
-        url = reverse("campaigns.campaignevent_update", args=[event.id])
         response = self.client.get(url)
 
         self.assertEqual("This is my message", response.context["form"].fields["base"].initial)
         self.assertEqual("hola", response.context["form"].fields["spa"].initial)
         self.assertEqual("", response.context["form"].fields["ace"].initial)
-        self.assertEqual(2, len(response.context["form"].fields["flow_start_mode"].choices))
 
         # 'Created On' system field must be selectable in the form
         contact_fields = [field.key for field in response.context["form"].fields["relative_to"].queryset]
@@ -1426,12 +1362,11 @@ class CampaignTest(TembaTest):
         self.assertEqual(campaign_event.event_type, "M")
         self.assertEqual(campaign_event.message, {"base": "oy, pancake man, come back"})
         self.assertEqual(campaign_event.delivery_hour, -1)
-        self.assertEqual(campaign_event.flow.flow_type, Flow.TYPE_BACKGROUND)
 
 
 class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
     def create_campaign(self, org, name, group):
-        user = org.get_admins().first()
+        user = org.get_user()
         registered = self.create_field("registered", "Registered", value_type="D", org=org)
         flow = self.create_flow(org=org)
         campaign = Campaign.create(org, user, name, group)
@@ -1555,7 +1490,7 @@ class CampaignEventCRUDLTest(TembaTest):
         self.other_org_campaign = self.create_campaign(self.org2)
 
     def create_campaign(self, org):
-        user = org.get_admins().first()
+        user = org.get_user()
         group = self.create_group("Reporters", contacts=[], org=org)
         registered = self.create_field("registered", "Registered", value_type="D", org=org)
         flow = self.create_flow(org=org)
@@ -1582,7 +1517,7 @@ class CampaignEventCRUDLTest(TembaTest):
 
         response = self.client.get(read_url)
         self.assertContains(response, "Welcomes")
-        self.assertContains(response, "1 week after")
+        self.assertContains(response, "1 Week After")
         self.assertContains(response, "Registered")
 
         # can't view event from other org

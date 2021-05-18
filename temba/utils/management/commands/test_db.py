@@ -27,7 +27,7 @@ from temba.locations.models import AdminBoundary
 from temba.msgs.models import Label
 from temba.orgs.models import Org
 from temba.utils import chunk_list
-from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
+from temba.utils.dates import datetime_to_ms, ms_to_datetime
 
 # maximum age in days of database content
 CONTENT_AGE = 3 * 365
@@ -56,7 +56,7 @@ USERS = (
 )
 CHANNELS = (
     {"name": "Android", "channel_type": "A", "scheme": "tel", "address": "1234"},
-    {"name": "Vonage", "channel_type": "NX", "scheme": "tel", "address": "2345"},
+    {"name": "Nexmo", "channel_type": "NX", "scheme": "tel", "address": "2345"},
     {"name": "Twitter", "channel_type": "TWT", "scheme": "twitter", "address": "my_handle"},
 )
 FIELDS = (
@@ -681,7 +681,7 @@ class Command(BaseCommand):
         if start == end:
             return end
 
-        return timestamp_to_datetime(self.random.randrange(datetime_to_timestamp(start), datetime_to_timestamp(end)))
+        return ms_to_datetime(self.random.randrange(datetime_to_ms(start), datetime_to_ms(end)))
 
     def timeline_date(self, dist):
         """

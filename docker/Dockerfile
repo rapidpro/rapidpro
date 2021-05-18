@@ -1,21 +1,25 @@
-FROM python:3.6-slim as build-poetry
+FROM python:3.6-slim as build-apps
 
-WORKDIR /app
+ARG RAPIDPRO_APPS_GIT_URL
+ARG RAPIDPRO_APPS_GIT_BRANCH
 
-COPY ./pyproject.toml .
-COPY ./poetry.lock .
+RUN apt-get update \
+ && apt-get install --no-install-recommends --no-install-suggests -y apt-utils \
+ && apt-get install --no-install-recommends --no-install-suggests -y git
 
-RUN python -m pip install -U poetry
-RUN poetry export --without-hashes --output requirements.txt
+WORKDIR /src
+
+# clone rapidpro-apps
+RUN git clone -- ${RAPIDPRO_APPS_GIT_URL} . \
+ && git checkout ${RAPIDPRO_APPS_GIT_BRANCH}
+
+RUN python setup.py sdist
+
 
 FROM python:3.6-slim
 
 ARG COMPRESS_ENABLED
 ARG BRANDING_ENABLED
- 
-ARG RAPIDPRO_APPS_GIT_URL
-ARG RAPIDPRO_APPS_GIT_BRANCH
-
 
 ENV PYTHONUNBUFFERED 1
 ENV DEBIAN_FRONTEND  noninteractive
@@ -49,12 +53,12 @@ RUN mkdir $PROJECT_PATH \
 
 RUN rm /etc/nginx/sites-enabled/default
 
-COPY --from=build-poetry /app/requirements.txt /tmp/dep/
 COPY ./docker/pip-freeze.txt /tmp/dep/
-COPY ./docker/nginx.site.conf /tmp/
-RUN pip install --no-cache-dir -r /tmp/dep/requirements.txt \ 
-    -r /tmp/dep/pip-freeze.txt && \
-    pip install -e git+$RAPIDPRO_APPS_GIT_URL@$RAPIDPRO_APPS_GIT_BRANCH#egg=rapidpro_apps   
+COPY ./pip-freeze.txt ./docker/nginx.site.conf /tmp/
+COPY --from=build-apps /src/dist .
+RUN pip install --no-cache-dir -U pip==20.2.2 setuptools==49.6.0 && \
+    pip install --no-cache-dir -r /tmp/dep/pip-freeze.txt && \
+    pip install --no-cache-dir rapidpro-apps-0.1.tar.gz
 
 RUN cp /tmp/nginx.site.conf /etc/nginx/sites-available/$PROJECT.conf \
  && ln -s /etc/nginx/sites-available/$PROJECT.conf /etc/nginx/sites-enabled/$PROJECT.conf

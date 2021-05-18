@@ -52,54 +52,11 @@
                     -else
                       %strong
                         {{ column.mapping.name }}
-        %hr.m-5
-        %fieldset.mb-5
-          .inline-flex
-            .flex-none.pl-1.pt-2
-              -render_field 'add_to_group'
-            .flex-none.pr-2.pt-2
-              -trans "Add contacts to"
-            .flex-none
-              .inline-flex
-                .flex-none
-                  -render_field 'group_mode'
-                .flex-none
-                  .inline-flex.new-group-controls
-                    .flex-none.p-2
-                      -trans "called"
-                    .flex-none
-                      -render_field 'new_group_name'
-                .flex-none.existing-group-controls.pl-2.hide
-                  -render_field 'existing_group'
 
       .flex.mt-4
         %input.button-primary(type="submit" value='{% trans "Import" %}')
         .ml-4.button-light(onclick="javascript:history.go(-1)")
           -trans "Cancel"
-
-
--block extra-script
-  {{ block.super }}
-
-  :javascript
-    function updateGroupMode(groupMode) {
-      if (groupMode === "N") {
-        $(".new-group-controls").show();
-        $(".existing-group-controls").hide();
-      } else {
-        $(".new-group-controls").hide();
-        $(".existing-group-controls").show();
-      }
-    }
-
-    $(function() {
-      var groupMode = document.querySelector("temba-select[name='group_mode']");
-      groupMode.addEventListener('change', function(event) {
-        updateGroupMode(event.target.values[0].value);
-      });
-
-      updateGroupMode("{{ form.group_mode.value }}");
-    });
 
 
 -block extra-style
@@ -130,14 +87,4 @@
       display: inline-block;
       width: 120px;
       margin: 0 3px;
-    }
-    .field_group_mode {
-      width: 160px;
-    }
-    .field_new_group_name {
-      width: 200px;
-      margin-top: -4px;
-    }
-    .field_existing_group {
-      width: 200px;
     }

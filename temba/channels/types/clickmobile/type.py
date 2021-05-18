@@ -41,4 +41,6 @@ class ClickMobileType(ChannelType):
         ),
     )
 
-    available_timezones = ["Africa/Accra", "Africa/Blantyre"]
+    def is_available_to(self, user):
+        org = user.get_org()
+        return org.timezone and str(org.timezone) in ["Africa/Accra", "Africa/Blantyre"]

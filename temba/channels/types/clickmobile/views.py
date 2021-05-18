@@ -20,7 +20,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
                 "The Click Mobile phone number or short code you are connecting with country code. ex: +250788123124"
             ),
         )
-        country = forms.ChoiceField(choices=(("GH", _("Ghana")), ("MW", _("Malawi"))), label=_("Country"))
+        country = forms.ChoiceField(choices=(("GH", _("Ghana")), ("MW", _("Malawi"))), label=_("Country"),)
         username = forms.CharField(max_length=32, label=_("User ID"), help_text=_("Your user_id on Click Mobile"))
         password = forms.CharField(max_length=64, label=_("Password"), help_text=_("Your password on Click Mobile"))
         app_id = forms.CharField(max_length=32, label=_("App ID"), help_text=_("Your app_id on Click Mobile"))

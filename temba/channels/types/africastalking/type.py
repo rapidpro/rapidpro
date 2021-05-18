@@ -52,19 +52,21 @@ class AfricasTalkingType(ChannelType):
         ),
     )
 
-    available_timezones = [
-        "Africa/Nairobi",
-        "Africa/Kampala",
-        "Africa/Dar_es_Salaam",
-        "Africa/Kigali",
-        "Africa/Addis_Ababa",
-        "Africa/Lagos",
-        "Africa/Abidjan",
-        "Africa/Ouagadougou",
-        "Africa/Lusaka",
-        "Africa/Lilongwe",
-        "Africa/Johannesburg",
-    ]
+    def is_available_to(self, user):
+        org = user.get_org()
+        return org.timezone and str(org.timezone) in [
+            "Africa/Nairobi",
+            "Africa/Kampala",
+            "Africa/Dar_es_Salaam",
+            "Africa/Kigali",
+            "Africa/Addis_Ababa",
+            "Africa/Lagos",
+            "Africa/Abidjan",
+            "Africa/Ouagadougou",
+            "Africa/Lusaka",
+            "Africa/Lilongwe",
+            "Africa/Johannesburg",
+        ]
 
     def is_recommended_to(self, user):
-        return self.is_available_to(user)[0]
+        return self.is_available_to(user)

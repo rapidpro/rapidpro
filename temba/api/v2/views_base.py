@@ -254,8 +254,3 @@ class CreatedOnCursorPagination(CursorPagination):
 class ModifiedOnCursorPagination(CursorPagination):
     ordering = ("-modified_on", "-id")
     offset_cutoff = 1000000
-
-
-class OpenedOnCursorPagination(CursorPagination):
-    ordering = ("-opened_on", "-id")
-    offset_cutoff = 1000000

@@ -23,8 +23,6 @@ class YoType(ChannelType):
     max_length = 1600
     attachment_support = False
 
-    available_timezones = ["Africa/Kampala"]
-
     claim_view = ClaimView
     claim_blurb = _(
         "If you are based in Uganda, you can integrate with %(link)s to send and receive messages on your shortcode."
@@ -44,5 +42,9 @@ class YoType(ChannelType):
         ),
     )
 
+    def is_available_to(self, user):
+        org = user.get_org()
+        return org.timezone and str(org.timezone) in ["Africa/Kampala"]
+
     def is_recommended_to(self, user):
-        return self.is_available_to(user)[0]
+        return self.is_available_to(user)

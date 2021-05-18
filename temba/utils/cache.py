@@ -18,7 +18,7 @@ def get_cacheable(cache_key, callable, r=None, force_dirty=False):
             return json.loads(force_text(cached))
 
     (calculated, cache_ttl) = callable()
-    r.set(cache_key, json.dumps(calculated), ex=cache_ttl or None)
+    r.set(cache_key, json.dumps(calculated), cache_ttl)
 
     return calculated
 

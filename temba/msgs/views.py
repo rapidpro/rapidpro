@@ -200,10 +200,7 @@ class InboxView(OrgPermsMixin, BulkActionMixin, SmartListView):
         if self.allow_export and self.has_org_perm("msgs.msg_export"):
             links.append(
                 dict(
-                    id="export-messages",
-                    title=_("Download"),
-                    href=self.derive_export_url(),
-                    modax=_("Download Messages"),
+                    id="export-messages", title=_("Export"), href=self.derive_export_url(), modax=_("Export Messages")
                 )
             )
         return links
@@ -727,9 +724,9 @@ class MsgCRUDL(SmartCRUDL):
                 links.append(
                     dict(
                         id="export-messages",
-                        title=_("Download"),
+                        title=_("Export"),
                         href=self.derive_export_url(),
-                        modax=_("Download Messages"),
+                        modax=_("Export Messages"),
                     )
                 )
 

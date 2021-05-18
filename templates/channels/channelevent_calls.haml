@@ -17,20 +17,13 @@
           Found {{ results_count }} calls in last 90 days for <i>{{search}}</i>.
 
 -block message-list
-  %table.list.object-list.lined.selectable
+  %table.list-table.list_rsms_message.table.table-condensed{style: '{% if not org_perms.msgs.broadcast_send  %}margin-top:10px{% endif %}'}
     %tbody
       -for object in object_list
-        %tr.select-row{id: 'id-row-{{object.id}}', onClick:'document.location="{% url "contacts.contact_read" object.contact.uuid %}"'}
-          %td.whitespace-no-wrap
+        %tr.select-row{class:'{% cycle row1 row2 %}', onClick:'document.location="{% url "contacts.contact_read" object.contact.uuid %}"'}
+          %td.value-phone.field_contact
             {{ object.contact|short_name:user_org }}
-          %td
-            - if object.event_type == 'mt_call'
-              %span.glyph.icon-call-outgoing
-            - elif object.event_type == 'mo_call'
-              %span.glyph.icon-call-incoming
-            - else
-              %span.glyph.icon-phone
-          %td.w-full
+          %td.value-text.field_event_type
             - if object.event_type == 'mt_call'
               -blocktrans trimmed with duration=object.extra.duration
                 Outgoing Call ({{duration}} seconds)
@@ -43,16 +36,35 @@
               -trans "Missed Outgoing Call"
             - else
               - get_value object 'event_type'
+          %td.value-icon
+            - if object.event_type == 'mt_call'
+              %span.glyph.icon-call-outgoing
+            - elif object.event_type == 'mo_call'
+              %span.glyph.icon-call-incoming
+            - else
+              %span.glyph.icon-phone
+          %td.value-received.field_time
+            %nobr
+              {% short_datetime object.occurred_on %}
 
-          %td
-            .flex.w-full.items-end.justify-end.pr-4
-              .time.whitespace-no-wrap
-                {% short_datetime object.occurred_on %}
-
-      -if not object_list
-        %tr.empty_list
-          %td{ colspan:'99' }
+        -empty
+          %tr
+            %td{colspan:3}
               -trans "No Matching calls"
 
-  - block paginator
-    -include "includes/pagination.haml"
+-block extra-style
+  {{ block.super }}
+  :css
+
+    td.value-icon {
+      width: 20px;
+      color: #666;
+    }
+    td.value-received {
+      text-align: right;
+    }
+    td.value-phone {
+      white-space: nowrap;
+      padding-right:30px;
+      background:@color-bg-blue
+    }

@@ -4,7 +4,7 @@ from django.urls import reverse
 
 from temba.airtime.dtone import DTOneClient
 from temba.airtime.models import AirtimeTransfer
-from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, MockResponse, TembaTest
 
 
 class AirtimeCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -81,24 +81,110 @@ class DTOneClientTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.client = DTOneClient("key123", "sesame")
+        self.client = DTOneClient("mrrapid", "234325")
 
-    @patch("requests.get")
-    def test_get_balances(self, mock_get):
-        mock_get.return_value = MockResponse(
-            200, '[{"available":0,"credit_limit":0,"holding": 0,"id":25849,"unit":"USD","unit_type":"CURRENCY"}]'
+    @patch("temba.airtime.dtone.DTOneClient._request_key")
+    @patch("requests.post")
+    def test_ping(self, mock_post, mock_request_key):
+        mock_request_key.return_value = "123456"
+        mock_post.return_value = MockResponse(
+            200,
+            "info_txt=pong\r\n"
+            "authentication_key=123456\r\n"
+            "error_code=0\r\n"
+            "error_txt=Transaction successful\r\n",
         )
+
+        response = self.client.ping()
 
         self.assertEqual(
-            [{"available": 0, "credit_limit": 0, "holding": 0, "id": 25849, "unit": "USD", "unit_type": "CURRENCY"}],
-            self.client.get_balances(),
+            {
+                "authentication_key": "123456",
+                "error_code": "0",
+                "error_txt": "Transaction successful",
+                "info_txt": "pong",
+            },
+            response,
         )
-        mock_get.assert_called_once_with("https://dvs-api.dtone.com/v1/balances", auth=("key123", "sesame"))
+        mock_post.assert_called_once_with(
+            "https://airtime-api.dtone.com/cgi-bin/shop/topup",
+            {"login": "mrrapid", "key": "123456", "md5": "4ff2ddfae96f8d902eb7d5b2c7b490c9", "action": "ping"},
+        )
 
-        # simulate using wrong credentials
-        mock_get.return_value = MockResponse(401, '{"errors": [{"code": 1000401, "message": "Unauthorized"}]}')
+    @patch("temba.airtime.dtone.DTOneClient._request_key")
+    @patch("requests.post")
+    def test_check_wallet(self, mock_post, mock_request_key):
+        mock_request_key.return_value = "123456"
+        mock_post.return_value = MockResponse(
+            200,
+            "type=Master\r\n"
+            "authentication_key=123456\r\n"
+            "error_code=0\r\n"
+            "error_txt=Transaction successful\r\n"
+            "balance=15000\r\n"
+            "currency=RWF\r\n",
+        )
 
-        with self.assertRaises(DTOneClient.Exception) as error:
-            self.client.get_balances()
+        response = self.client.check_wallet()
 
-        self.assertEqual(str(error.exception), f"Unauthorized")
+        self.assertEqual(
+            {
+                "type": "Master",
+                "authentication_key": "123456",
+                "error_code": "0",
+                "error_txt": "Transaction successful",
+                "balance": "15000",
+                "currency": "RWF",
+            },
+            response,
+        )
+        mock_post.assert_called_once_with(
+            "https://airtime-api.dtone.com/cgi-bin/shop/topup",
+            {"login": "mrrapid", "key": "123456", "md5": "4ff2ddfae96f8d902eb7d5b2c7b490c9", "action": "check_wallet"},
+        )
+
+
+class RecipientsToURNsMigrationTest(MigrationTest):
+    app = "airtime"
+    migrate_from = "0012_auto_20191015_1704"
+    migrate_to = "0013_recipient_to_urn"
+
+    def setUpBeforeMigration(self, apps):
+        contact = self.create_contact("Ben Haggerty", phone="+250700000003")
+
+        self.transfer1 = AirtimeTransfer.objects.create(
+            org=self.org,
+            status=AirtimeTransfer.STATUS_SUCCESS,
+            contact=contact,
+            recipient="+250700000003",
+            currency="RWF",
+            desired_amount="1100",
+            actual_amount="1000",
+        )
+        self.transfer2 = AirtimeTransfer.objects.create(
+            org=self.org,
+            status=AirtimeTransfer.STATUS_SUCCESS,
+            contact=contact,
+            recipient="+250700000004",
+            currency="RWF",
+            desired_amount="1100",
+            actual_amount="1000",
+        )
+        self.transfer3 = AirtimeTransfer.objects.create(
+            org=self.org,
+            status=AirtimeTransfer.STATUS_SUCCESS,
+            contact=contact,
+            recipient="tel:+250700000005",
+            currency="RWF",
+            desired_amount="1100",
+            actual_amount="1000",
+        )
+
+    def test_migration(self):
+        self.transfer1.refresh_from_db()
+        self.transfer2.refresh_from_db()
+        self.transfer3.refresh_from_db()
+
+        self.assertEqual("tel:+250700000003", self.transfer1.recipient)
+        self.assertEqual("tel:+250700000004", self.transfer2.recipient)
+        self.assertEqual("tel:+250700000005", self.transfer3.recipient)

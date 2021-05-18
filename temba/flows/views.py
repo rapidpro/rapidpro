@@ -378,7 +378,11 @@ class FlowCRUDL(SmartCRUDL):
             flow_type = forms.ChoiceField(
                 label=_("Type"),
                 help_text=_("Choose the method for your flow"),
-                choices=Flow.TYPE_CHOICES,
+                choices=(
+                    (Flow.TYPE_MESSAGE, "Messaging"),
+                    (Flow.TYPE_VOICE, "Phone Call"),
+                    (Flow.TYPE_SURVEY, "Surveyor"),
+                ),
                 widget=SelectWidget(attrs={"widget_only": False}),
             )
 
@@ -389,10 +393,14 @@ class FlowCRUDL(SmartCRUDL):
                 org_languages = self.user.get_org().languages.all().order_by("orgs", "name")
                 language_choices = ((lang.iso_code, lang.name) for lang in org_languages)
 
-                # prune our type choices by brand config
-                allowed_types = branding.get("flow_types")
-                if allowed_types:
-                    self.fields["flow_type"].choices = [c for c in Flow.TYPE_CHOICES if c[0] in allowed_types]
+                flow_types = branding.get("flow_types", [Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_SURVEY])
+
+                # prune our choices by brand config
+                choices = []
+                for flow_choice in self.fields["flow_type"].choices:
+                    if flow_choice[0] in flow_types:
+                        choices.append(flow_choice)
+                self.fields["flow_type"].choices = choices
 
                 self.fields["base_language"] = forms.ChoiceField(
                     label=_("Language"),
@@ -435,6 +443,10 @@ class FlowCRUDL(SmartCRUDL):
         def save(self, obj):
             analytics.track(self.request.user.username, "temba.flow_created", dict(name=obj.name))
             org = self.request.user.get_org()
+
+            # if we don't have a language, use base
+            if not obj.base_language:  # pragma: needs cover
+                obj.base_language = "base"
 
             # default expiration is a week
             expires_after_minutes = Flow.DEFAULT_EXPIRES_AFTER
@@ -506,17 +518,30 @@ class FlowCRUDL(SmartCRUDL):
             return HttpResponseRedirect(reverse("flows.flow_editor", args=[copy.uuid]))
 
     class Update(AllowOnlyActiveFlowMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        class BaseForm(BaseFlowForm):
-            def __init__(self, user, *args, **kwargs):
+        class BaseUpdateFlowFormMixin:
+            def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.user = user
+
+                # if we don't have a base language let them pick one (this is immutable)
+                if not self.instance.base_language:
+                    choices = [("base", "No Preference")]
+                    choices += [
+                        (lang.iso_code, lang.name)
+                        for lang in self.instance.org.languages.all().order_by("orgs", "name")
+                    ]
+                    self.fields["base_language"] = forms.ChoiceField(label=_("Language"), choices=choices)
 
             class Meta:
-                model = Flow
-                fields = ("name",)
-                widgets = {"name": InputWidget()}
+                widgets = {"name": InputWidget(), "ignore_triggers": CheckboxWidget()}
 
-        class SurveyForm(BaseForm):
+        class SurveyFlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
+            expires_after_minutes = forms.ChoiceField(
+                label=_("Expire inactive contacts"),
+                help_text=_("When inactive contacts should be removed from the flow"),
+                initial=str(60 * 24 * 7),
+                choices=EXPIRES_CHOICES,
+                widget=SelectWidget(attrs={"widget_only": False}),
+            )
             contact_creation = forms.ChoiceField(
                 label=_("Create a contact "),
                 help_text=_("Whether surveyor logins should be used as the contact for each run"),
@@ -524,19 +549,21 @@ class FlowCRUDL(SmartCRUDL):
                 widget=SelectWidget(attrs={"widget_only": False}),
             )
 
-            def __init__(self, *args, **kwargs):
+            def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+                self.user = user
 
-                self.fields["contact_creation"].initial = self.instance.metadata.get(
-                    Flow.CONTACT_CREATION, Flow.CONTACT_PER_RUN
-                )
+                metadata = self.instance.metadata
+
+                contact_creation = self.fields["contact_creation"]
+                contact_creation.initial = metadata.get(Flow.CONTACT_CREATION, Flow.CONTACT_PER_RUN)
 
             class Meta:
                 model = Flow
-                fields = ("name", "contact_creation")
+                fields = ("name", "contact_creation", "expires_after_minutes")
                 widgets = {"name": InputWidget()}
 
-        class VoiceForm(BaseForm):
+        class IVRFlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
             ivr_retry = forms.ChoiceField(
                 label=_("Retry call if unable to connect"),
                 help_text=_("Retries call three times for the chosen interval"),
@@ -567,8 +594,9 @@ class FlowCRUDL(SmartCRUDL):
                 ),
             )
 
-            def __init__(self, *args, **kwargs):
+            def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+                self.user = user
 
                 metadata = self.instance.metadata
 
@@ -592,7 +620,7 @@ class FlowCRUDL(SmartCRUDL):
                 fields = ("name", "keyword_triggers", "expires_after_minutes", "ignore_triggers", "ivr_retry")
                 widgets = {"name": InputWidget(), "ignore_triggers": CheckboxWidget()}
 
-        class MessagingForm(BaseForm):
+        class FlowUpdateForm(BaseUpdateFlowFormMixin, BaseFlowForm):
             keyword_triggers = forms.CharField(
                 required=False,
                 label=_("Global keyword triggers"),
@@ -617,8 +645,9 @@ class FlowCRUDL(SmartCRUDL):
                 widget=SelectWidget(attrs={"widget_only": False}),
             )
 
-            def __init__(self, *args, **kwargs):
+            def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+                self.user = user
 
                 flow_triggers = Trigger.objects.filter(
                     org=self.instance.org,
@@ -638,15 +667,16 @@ class FlowCRUDL(SmartCRUDL):
 
         success_message = ""
         success_url = "uuid@flows.flow_editor"
-        form_classes = {
-            Flow.TYPE_MESSAGE: MessagingForm,
-            Flow.TYPE_VOICE: VoiceForm,
-            Flow.TYPE_SURVEY: SurveyForm,
-            Flow.TYPE_BACKGROUND: BaseForm,
-        }
 
         def get_form_class(self):
-            return self.form_classes[self.object.flow_type]
+            flow_type = self.object.flow_type
+
+            if flow_type == Flow.TYPE_VOICE:
+                return self.IVRFlowUpdateForm
+            elif flow_type == Flow.TYPE_SURVEY:
+                return self.SurveyFlowUpdateForm
+            else:
+                return self.FlowUpdateForm
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -836,17 +866,6 @@ class FlowCRUDL(SmartCRUDL):
                     .count(),
                 ),
             ]
-
-        def get_gear_links(self):
-            links = []
-
-            if self.has_org_perm("orgs.org_import"):
-                links.append(dict(title=_("Import"), href=reverse("orgs.org_import")))
-
-            if self.has_org_perm("orgs.org_export"):
-                links.append(dict(title=_("Export"), href=reverse("orgs.org_export")))
-
-            return links
 
     class Archived(BaseList):
         bulk_actions = ("restore",)
@@ -1550,7 +1569,6 @@ class FlowCRUDL(SmartCRUDL):
             FlowRun.EXIT_TYPE_COMPLETED: "completed",
             FlowRun.EXIT_TYPE_INTERRUPTED: "interrupted",
             FlowRun.EXIT_TYPE_EXPIRED: "expired",
-            FlowRun.EXIT_TYPE_FAILED: "failed",
         }
 
         def get_context_data(self, *args, **kwargs):
@@ -1643,7 +1661,7 @@ class FlowCRUDL(SmartCRUDL):
                 total_runs += count["count__sum"]
 
             # make sure we have a value for each one
-            for state in ("expired", "interrupted", "completed", "active", "failed"):
+            for state in ("expired", "interrupted", "completed", "active"):
                 if state not in context:
                     context[state] = 0
 
@@ -1711,7 +1729,7 @@ class FlowCRUDL(SmartCRUDL):
                     dict(
                         id="download-results",
                         title=_("Download"),
-                        modax=_("Download Results"),
+                        modax=_("Download Flow Results"),
                         href=f"{reverse('flows.flow_export_results')}?ids={self.get_object().pk}",
                     )
                 )
@@ -2189,27 +2207,18 @@ class FlowStartCRUDL(SmartCRUDL):
         paginate_by = 25
 
         def get_gear_links(self):
-            return [dict(title=_("Flows"), style="button-light", href=reverse("flows.flow_list"))]
+            return [dict(title=_("Flows"), style="button-light", href=reverse("flows.flow_list"),)]
 
         def derive_queryset(self, *args, **kwargs):
-            qs = super().derive_queryset(*args, **kwargs)
-
-            if self.request.GET.get("type") == "manual":
-                qs = qs.filter(start_type=FlowStart.TYPE_MANUAL)
-            else:
-                qs = qs.filter(start_type__in=(FlowStart.TYPE_MANUAL, FlowStart.TYPE_API, FlowStart.TYPE_API_ZAPIER))
-
-            return qs.prefetch_related("contacts", "groups")
+            return (
+                super()
+                .derive_queryset(*args, **kwargs)
+                .exclude(created_by=None)
+                .prefetch_related("contacts", "groups")
+            )
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
-
-            filtered = False
-            if self.request.GET.get("type") == "manual":
-                context["url_params"] = "?type=manual&"
-                filtered = True
-
-            context["filtered"] = filtered
 
             FlowStartCount.bulk_annotate(context["object_list"])
 

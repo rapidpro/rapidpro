@@ -16,7 +16,7 @@ from ...views import TWILIO_SUPPORTED_COUNTRIES, ClaimViewMixin
 class ClaimView(ClaimViewMixin, SmartFormView):
     class TwilioMessagingServiceForm(ClaimViewMixin.Form):
         country = forms.ChoiceField(
-            choices=TWILIO_SUPPORTED_COUNTRIES, widget=SelectWidget(attrs={"searchable": True})
+            choices=TWILIO_SUPPORTED_COUNTRIES, widget=SelectWidget(attrs={"searchable": True}),
         )
         messaging_service_sid = forms.CharField(
             label=_("Messaging Service SID"), help_text=_("The Twilio Messaging Service SID")

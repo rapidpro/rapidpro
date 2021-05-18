@@ -36,14 +36,12 @@ class TriggerTest(TembaTest):
 
         flow = self.create_flow()
         voice_flow = self.get_flow("ivr")
-        background_flow = self.get_flow("background")
 
         # flow options should show sms and voice flows
         response = self.client.get(reverse("triggers.trigger_keyword"))
 
         self.assertContains(response, flow.name)
         self.assertContains(response, voice_flow.name)
-        self.assertNotContains(response, background_flow.name)
 
         # try a keyword with spaces
         response = self.client.post(
@@ -299,30 +297,22 @@ class TriggerTest(TembaTest):
     @patch("temba.flows.models.FlowStart.async_start")
     def test_trigger_schedule(self, mock_async_start):
         self.login(self.admin)
-
-        create_url = reverse("triggers.trigger_schedule")
-
         flow = self.create_flow()
-        background_flow = self.get_flow("background")
-        self.get_flow("media_survey")
 
         chester = self.create_contact("Chester", phone="+250788987654")
         shinoda = self.create_contact("Shinoda", phone="+250234213455")
         linkin_park = self.create_group("Linkin Park", [chester, shinoda])
         stromae = self.create_contact("Stromae", phone="+250788645323")
 
-        response = self.client.get(create_url)
-
-        # the normal flow and background flow should be options but not the surveyor flow
-        self.assertEqual(list(response.context["form"].fields["flow"].queryset), [background_flow, flow])
-
         now = timezone.now()
+
         tommorrow = now + timedelta(days=1)
+
         omnibox_selection = omnibox_serialize(flow.org, [linkin_park], [stromae], True)
 
         # try to create trigger without a flow or omnibox
         response = self.client.post(
-            create_url,
+            reverse("triggers.trigger_schedule"),
             {
                 "omnibox": omnibox_selection,
                 "repeat_period": "D",
@@ -335,9 +325,24 @@ class TriggerTest(TembaTest):
         self.assertFalse(Trigger.objects.all())
         self.assertFalse(Schedule.objects.all())
 
+        # survey flows should not be an option
+        flow.flow_type = Flow.TYPE_SURVEY
+        flow.save(update_fields=("flow_type",))
+
+        response = self.client.get(reverse("triggers.trigger_schedule"))
+
+        # check no flows listed
+        self.assertEqual(response.context["form"].fields["flow"].queryset.all().count(), 0)
+
+        # revert flow to messaging flow type
+        flow.flow_type = Flow.TYPE_MESSAGE
+        flow.save(update_fields=("flow_type",))
+
+        self.assertEqual(response.context["form"].fields["flow"].queryset.all().count(), 1)
+
         # this time provide a flow but leave out omnibox..
         response = self.client.post(
-            create_url,
+            reverse("triggers.trigger_schedule"),
             {
                 "flow": flow.id,
                 "repeat_period": "D",
@@ -351,7 +356,7 @@ class TriggerTest(TembaTest):
 
         # ok, really create it
         self.client.post(
-            create_url,
+            reverse("triggers.trigger_schedule"),
             {
                 "flow": flow.id,
                 "omnibox": omnibox_selection,
@@ -364,7 +369,7 @@ class TriggerTest(TembaTest):
         self.assertEqual(Trigger.objects.count(), 1)
 
         self.client.post(
-            create_url,
+            reverse("triggers.trigger_schedule"),
             {
                 "flow": flow.id,
                 "omnibox": omnibox_selection,

@@ -52,7 +52,7 @@ class FacebookType(ChannelType):
             self._set_call_to_action(trigger.channel, None)
 
     def is_available_to(self, user):
-        return False, False
+        return False
 
     @staticmethod
     def _set_call_to_action(channel, payload):

@@ -219,10 +219,8 @@ class JSONAsTextField(CheckFieldDefaultMixin, models.Field):
                 raise ValueError("JSONAsTextField should be a dict or a list, got %s => %s" % (type(data), data))
             else:
                 return data
-        elif isinstance(value, (list, dict)):  # if db column has been converted to JSONB, use value directly
-            return value
         else:
-            raise ValueError('Unexpected type "%s" for JSONAsTextField' % (type(value),))
+            raise ValueError('Unexpected type "%s" for JSONAsTextField' % (type(value),))  # pragma: no cover
 
     def get_db_prep_value(self, value, *args, **kwargs):
         # if the value is falsy we will save is as null
@@ -277,7 +275,7 @@ class TembaModel(SmartModel):
 
 class RequireUpdateFieldsMixin(object):
     def save(self, *args, **kwargs):
-        if self.id and "update_fields" not in kwargs and "force_insert" not in kwargs:
+        if self.id and "update_fields" not in kwargs:
             raise ValueError("Updating without specifying update_fields is disabled for this model")
 
         super().save(*args, **kwargs)

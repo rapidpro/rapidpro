@@ -3,7 +3,6 @@ from collections import OrderedDict
 from datetime import timedelta
 from typing import Dict, List
 
-import iso8601
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -36,14 +35,12 @@ from django.views import View
 from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.templatetags.contacts import MISSING_VALUE
-from temba.flows.models import Flow, FlowStart
-from temba.mailroom.events import Event
 from temba.msgs.views import SendMessageForm
 from temba.orgs.models import Org
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
-from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
+from temba.utils.dates import datetime_to_ms, ms_to_datetime
 from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin
@@ -63,21 +60,6 @@ from .search.omnibox import omnibox_query, omnibox_results_to_dict
 from .tasks import export_contacts_task, release_group_task
 
 logger = logging.getLogger(__name__)
-
-# events from sessions to include in contact history
-HISTORY_INCLUDE_EVENTS = {
-    Event.TYPE_CONTACT_LANGUAGE_CHANGED,
-    Event.TYPE_CONTACT_FIELD_CHANGED,
-    Event.TYPE_CONTACT_GROUPS_CHANGED,
-    Event.TYPE_CONTACT_NAME_CHANGED,
-    Event.TYPE_CONTACT_URNS_CHANGED,
-    Event.TYPE_EMAIL_SENT,
-    Event.TYPE_ERROR,
-    Event.TYPE_FAILURE,
-    Event.TYPE_INPUT_LABELS_ADDED,
-    Event.TYPE_RUN_RESULT_CHANGED,
-    Event.TYPE_TICKET_OPENED,
-}
 
 
 class RemoveFromGroupForm(forms.Form):
@@ -415,7 +397,7 @@ class ContactForm(forms.ModelForm):
 
                 # get all the urns for this scheme
                 ctrl = forms.CharField(
-                    required=False, label=label, initial=urn.path, help_text=help_text, widget=InputWidget()
+                    required=False, label=label, initial=urn.path, help_text=help_text, widget=InputWidget(),
                 )
                 extra_fields.append(("urn__%s__%d" % (scheme, idx), ctrl))
                 idx += 1
@@ -510,7 +492,7 @@ class ExportForm(Form):
     group_memberships = forms.ModelMultipleChoiceField(
         queryset=ContactGroup.user_groups.none(),
         required=False,
-        label=_("Group Memberships for"),
+        label=_("Group Memberships for",),
         widget=SelectMultipleWidget(
             attrs={"widget_only": True, "placeholder": _("Optional: Choose groups to show in your export")}
         ),
@@ -550,7 +532,6 @@ class ContactCRUDL(SmartCRUDL):
         "archive",
         "delete",
         "history",
-        "start",
     )
 
     class Export(ModalMixin, OrgPermsMixin, SmartFormView):
@@ -558,6 +539,24 @@ class ContactCRUDL(SmartCRUDL):
         form_class = ExportForm
         submit_button_name = "Export"
         success_url = "@contacts.contact_list"
+
+        def pre_process(self, request, *args, **kwargs):
+            user = self.request.user
+            org = user.get_org()
+
+            group_uuid, search, redirect = self.derive_params()
+
+            # is there already an export taking place?
+            existing = ExportContactsTask.get_recent_unfinished(org)
+            if existing:
+                messages.info(
+                    self.request,
+                    _(
+                        "There is already an export in progress, started by %s. You must wait "
+                        "for that export to complete before starting another." % existing.created_by.username
+                    ),
+                )
+                return HttpResponseRedirect(redirect or reverse("contacts.contact_list"))
 
         def derive_params(self):
             group_uuid = self.request.GET.get("g")
@@ -586,48 +585,36 @@ class ContactCRUDL(SmartCRUDL):
             org = user.get_org()
 
             group_uuid, search, redirect = self.derive_params()
+            group_memberships = form.cleaned_data["group_memberships"]
 
-            # is there already an export taking place?
-            existing = ExportContactsTask.get_recent_unfinished(org)
-            if existing:
+            group = ContactGroup.all_groups.filter(org=org, uuid=group_uuid).first() if group_uuid else None
+
+            previous_export = (
+                ExportContactsTask.objects.filter(org=org, created_by=user).order_by("-modified_on").first()
+            )
+            if previous_export and previous_export.created_on < timezone.now() - timedelta(
+                hours=24
+            ):  # pragma: needs cover
+                analytics.track(self.request.user.username, "temba.contact_exported")
+
+            export = ExportContactsTask.create(org, user, group, search, group_memberships)
+
+            # schedule the export job
+            on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
+
+            if not getattr(settings, "CELERY_ALWAYS_EAGER", False):  # pragma: no cover
                 messages.info(
                     self.request,
-                    _(
-                        "There is already an export in progress, started by %s. You must wait "
-                        "for that export to complete before starting another." % existing.created_by.username
-                    ),
+                    _("We are preparing your export. We will e-mail you at %s when it is ready.")
+                    % self.request.user.username,
                 )
+
             else:
-                group_memberships = form.cleaned_data["group_memberships"]
-
-                group = ContactGroup.all_groups.filter(org=org, uuid=group_uuid).first() if group_uuid else None
-
-                previous_export = (
-                    ExportContactsTask.objects.filter(org=org, created_by=user).order_by("-modified_on").first()
+                dl_url = reverse("assets.download", kwargs=dict(type="contact_export", pk=export.pk))
+                messages.info(
+                    self.request,
+                    _("Export complete, you can find it here: %s (production users will get an email)") % dl_url,
                 )
-                if previous_export and previous_export.created_on < timezone.now() - timedelta(
-                    hours=24
-                ):  # pragma: needs cover
-                    analytics.track(self.request.user.username, "temba.contact_exported")
-
-                export = ExportContactsTask.create(org, user, group, search, group_memberships)
-
-                # schedule the export job
-                on_transaction_commit(lambda: export_contacts_task.delay(export.pk))
-
-                if not getattr(settings, "CELERY_ALWAYS_EAGER", False):  # pragma: no cover
-                    messages.info(
-                        self.request,
-                        _("We are preparing your export. We will e-mail you at %s when it is ready.")
-                        % self.request.user.username,
-                    )
-
-                else:
-                    dl_url = reverse("assets.download", kwargs=dict(type="contact_export", pk=export.pk))
-                    messages.info(
-                        self.request,
-                        _("Export complete, you can find it here: %s (production users will get an email)") % dl_url,
-                    )
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(redirect or reverse("contacts.contact_list"))
             else:  # pragma: no cover
@@ -770,7 +757,7 @@ class ContactCRUDL(SmartCRUDL):
 
             # calculate time after which timeline should be repeatedly refreshed - five minutes ago lets us pick up
             # status changes on new messages
-            context["recent_start"] = datetime_to_timestamp(timezone.now() - timedelta(minutes=5))
+            context["recent_start"] = datetime_to_ms(timezone.now() - timedelta(minutes=5))
             return context
 
         def post(self, request, *args, **kwargs):
@@ -788,29 +775,21 @@ class ContactCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.object.status == Contact.STATUS_ACTIVE:
-                if self.has_org_perm("msgs.broadcast_send"):
-                    links.append(
-                        dict(
-                            id="send-message",
-                            title=_("Send Message"),
-                            style="button-primary",
-                            href=f"{reverse('msgs.broadcast_send')}?c={self.object.uuid}",
-                            modax=_("Send Message"),
-                        )
+            if self.has_org_perm("msgs.broadcast_send") and self.object.status == Contact.STATUS_ACTIVE:
+                links.append(
+                    dict(
+                        id="send-message",
+                        title=_("Send Message"),
+                        style="button-primary",
+                        href=f"{reverse('msgs.broadcast_send')}?c={self.object.uuid}",
+                        modax=_("Send Message"),
                     )
-
-                if self.has_org_perm("contacts.contact_start"):
-                    links.append(
-                        dict(
-                            id="start-flow",
-                            title=_("Start In Flow"),
-                            href=f"{reverse('contacts.contact_start', args=[self.object.id])}",
-                            modax=_("Start In Flow"),
-                        )
-                    )
+                )
 
             if self.has_org_perm("contacts.contact_update"):
+
+                # links.append(dict(title=_("Edit"), style="btn-primary", js_class="update-contact", href="#"))
+
                 links.append(
                     dict(
                         id="edit-contact",
@@ -887,7 +866,6 @@ class ContactCRUDL(SmartCRUDL):
 
             before = int(self.request.GET.get("before", 0))
             after = int(self.request.GET.get("after", 0))
-            limit = int(self.request.GET.get("limit", 50))
 
             # if we want an expanding window, or just all the recent activity
             recent_only = False
@@ -895,51 +873,35 @@ class ContactCRUDL(SmartCRUDL):
                 recent_only = True
                 before = timezone.now()
             else:
-                before = timestamp_to_datetime(before)
+                before = ms_to_datetime(before)
 
             if not after:
                 after = before - timedelta(days=90)
             else:
-                after = timestamp_to_datetime(after)
+                after = ms_to_datetime(after)
 
             # keep looking further back until we get at least 20 items
-            history = []
-            fetch_before = before
             while True:
-                history += contact.get_history(after, fetch_before, HISTORY_INCLUDE_EVENTS, limit)
+                history = contact.get_history(after, before)
                 if recent_only or len(history) >= 20 or after == contact_creation:
                     break
                 else:
-                    fetch_before = after
                     after = max(after - timedelta(days=90), contact_creation)
 
-            # render as events
-            events = [Event.from_history_item(contact.org, self.request.user, i) for i in history]
-
-            if len(events) >= limit:
-                after = iso8601.parse_date(events[-1]["created_on"])
+            if len(history) >= Contact.MAX_HISTORY:
+                after = history[-1]["created_on"]
 
             # check if there are more pages to fetch
             context["has_older"] = False
             if not recent_only and before > contact.created_on:
-                context["has_older"] = bool(contact.get_history(contact_creation, after, HISTORY_INCLUDE_EVENTS, 1))
+                context["has_older"] = bool(contact.get_history(contact_creation, after))
 
             context["recent_only"] = recent_only
-            context["next_before"] = datetime_to_timestamp(after)
-            context["next_after"] = datetime_to_timestamp(max(after - timedelta(days=90), contact_creation))
+            context["before"] = datetime_to_ms(after)
+            context["after"] = datetime_to_ms(max(after - timedelta(days=90), contact_creation))
+            context["history"] = history
             context["start_date"] = contact.org.get_delete_date(archive_type=Archive.TYPE_MSG)
-            context["events"] = events
             return context
-
-        def as_json(self, context):
-            return {
-                "has_older": context["has_older"],
-                "recent_only": context["recent_only"],
-                "next_before": context["next_before"],
-                "next_after": context["next_after"],
-                "start_date": context["start_date"],
-                "events": context["events"],
-            }
 
     class Search(ContactListView):
         template_name = "contacts/contact_list.haml"
@@ -1384,39 +1346,6 @@ class ContactCRUDL(SmartCRUDL):
             obj.release(self.request.user)
             return obj
 
-    class Start(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
-        """
-        Starts this contact in a flow
-        """
-
-        class Form(forms.Form):
-            flow = forms.ModelChoiceField(
-                queryset=Flow.objects.none(),
-                widget=SelectWidget(
-                    attrs={"placeholder": _("Select a flow to start"), "widget_only": True, "searchable": True}
-                ),
-            )
-
-            def __init__(self, instance, **kwargs):
-                super().__init__(**kwargs)
-
-                self.fields["flow"].queryset = instance.org.flows.filter(
-                    flow_type__in=(Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND),
-                    is_archived=False,
-                    is_system=False,
-                    is_active=True,
-                ).order_by("name")
-
-        form_class = Form
-        success_url = "hide"
-        success_message = ""
-        submit_button_name = _("Start")
-
-        def save(self, obj):
-            self.flow = self.form.cleaned_data["flow"]
-            start = FlowStart.create(self.flow, self.request.user, FlowStart.TYPE_MANUAL, contacts=[obj])
-            start.async_start()
-
 
 class ContactGroupCRUDL(SmartCRUDL):
     model = ContactGroup
@@ -1570,7 +1499,7 @@ class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
         field_count = ContactField.user_fields.count_active_for_org(org=self.org)
         if field_count >= org_active_fields_limit:
             raise forms.ValidationError(
-                _(f"Cannot create a new field as limit is %(limit)s."), params={"limit": org_active_fields_limit}
+                _(f"Cannot create a new field as limit is %(limit)s."), params={"limit": org_active_fields_limit},
             )
 
     class Meta:
@@ -1869,6 +1798,21 @@ class ContactImportCRUDL(SmartCRUDL):
 
                 return file
 
+            def clean(self):
+                groups_count = ContactGroup.user_groups.filter(org=self.org).count()
+
+                org_active_groups_limit = self.org.get_limit(Org.LIMIT_GROUPS)
+                if groups_count >= org_active_groups_limit:
+                    raise forms.ValidationError(
+                        _(
+                            "This workspace has reached the limit of %(count)d groups. "
+                            "You must delete existing ones before you can perform an import."
+                        ),
+                        params={"count": org_active_groups_limit},
+                    )
+
+                return self.cleaned_data
+
             class Meta:
                 model = ContactImport
                 fields = ("file",)
@@ -1904,30 +1848,6 @@ class ContactImportCRUDL(SmartCRUDL):
 
     class Preview(OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.ModelForm):
-            GROUP_MODE_NEW = "N"
-            GROUP_MODE_EXISTING = "E"
-
-            add_to_group = forms.BooleanField(
-                label=" ", required=False, initial=True, widget=CheckboxWidget(attrs={"widget_only": True})
-            )
-            group_mode = forms.ChoiceField(
-                required=False,
-                choices=((GROUP_MODE_NEW, _("new group")), (GROUP_MODE_EXISTING, _("existing group"))),
-                initial=GROUP_MODE_NEW,
-                widget=SelectWidget(attrs={"widget_only": True}),
-            )
-            new_group_name = forms.CharField(
-                label=" ", required=False, max_length=ContactGroup.MAX_NAME_LEN, widget=InputWidget()
-            )
-            existing_group = forms.ModelChoiceField(
-                label=" ",
-                required=False,
-                queryset=ContactGroup.user_groups.none(),
-                widget=SelectWidget(
-                    attrs={"placeholder": _("Select a group"), "widget_only": True, "searchable": True}
-                ),
-            )
-
             def __init__(self, *args, org, **kwargs):
                 self.org = org
                 super().__init__(*args, **kwargs)
@@ -1942,7 +1862,7 @@ class ContactImportCRUDL(SmartCRUDL):
                             label=" ", required=False, initial=True, widget=CheckboxWidget(attrs={"widget_only": True})
                         )
                         name_field = forms.CharField(
-                            label=" ", initial=mapping["name"], required=False, widget=InputWidget()
+                            label=" ", initial=mapping["name"], required=False, widget=InputWidget(),
                         )
                         value_type_field = forms.ChoiceField(
                             label=" ",
@@ -1965,11 +1885,6 @@ class ContactImportCRUDL(SmartCRUDL):
 
                     self.columns.append(column)
 
-                    self.fields["new_group_name"].initial = self.instance.get_default_group_name()
-                    self.fields["existing_group"].queryset = ContactGroup.get_user_groups(org, dynamic=False).order_by(
-                        "name"
-                    )
-
             def get_form_values(self) -> List[Dict]:
                 """
                 Gather form data into a list the same size as the mappings
@@ -1986,8 +1901,7 @@ class ContactImportCRUDL(SmartCRUDL):
                 return data
 
             def clean(self):
-                org_fields = self.org.contactfields(manager="user_fields").filter(is_active=True)
-                existing_field_keys = {f.key for f in org_fields}
+                existing_field_keys = {f.key for f in self.org.contactfields.filter(is_active=True)}
                 used_field_keys = set()
                 form_values = self.get_form_values()
                 for data, item in zip(form_values, self.instance.mappings):
@@ -2019,30 +1933,6 @@ class ContactImportCRUDL(SmartCRUDL):
                                 )
 
                             used_field_keys.add(field_key)
-
-                add_to_group = self.cleaned_data["add_to_group"]
-                if add_to_group:
-                    group_mode = self.cleaned_data["group_mode"]
-                    if group_mode == self.GROUP_MODE_NEW:
-                        new_group_name = self.cleaned_data.get("new_group_name")
-                        if not new_group_name:
-                            self.add_error("new_group_name", _("Required."))
-                        elif not ContactGroup.is_valid_name(new_group_name):
-                            self.add_error("new_group_name", _("Invalid group name."))
-                        elif ContactGroup.get_user_group_by_name(self.org, new_group_name):
-                            self.add_error("new_group_name", _("Already exists."))
-                    else:
-                        existing_group = self.cleaned_data.get("existing_group")
-                        if not existing_group:
-                            self.add_error("existing_group", _("Required."))
-
-                    groups_count = ContactGroup.get_user_groups(self.org, ready_only=False).count()
-                    groups_limit = self.org.get_limit(Org.LIMIT_GROUPS)
-                    if groups_count >= groups_limit:
-                        raise forms.ValidationError(
-                            _("This workspace has reached the limit of %(count)d groups."),
-                            params={"count": groups_limit},
-                        )
 
                 return self.cleaned_data
 
@@ -2087,14 +1977,6 @@ class ContactImportCRUDL(SmartCRUDL):
                         mapping["value_type"] = data["value_type"]
 
                 obj.mappings[i]["mapping"] = mapping
-
-            if self.form.cleaned_data.get("add_to_group"):
-                new_group_name = self.form.cleaned_data.get("new_group_name")
-                if new_group_name:
-                    obj.group_name = new_group_name
-                else:
-                    obj.group = self.form.cleaned_data["existing_group"]
-
             return obj
 
         def post_save(self, obj):

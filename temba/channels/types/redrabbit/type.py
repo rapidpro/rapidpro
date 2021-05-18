@@ -27,4 +27,4 @@ class RedRabbitType(ChannelType):
     attachment_support = False
 
     def is_available_to(self, user):
-        return False, False  # Hidden since it is MT only
+        return False  # Hidden since it is MT only

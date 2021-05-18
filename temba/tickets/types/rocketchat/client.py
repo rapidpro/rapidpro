@@ -37,6 +37,6 @@ class Client:
         return self._request("put", url, **kwargs)
 
     def settings(self, webhook_url: str):
-        response = self.put(f"{self.base_url}/settings", data=json.dumps({"webhook": {"url": webhook_url}}))
+        response = self.put(f"{self.base_url}/settings", data=json.dumps({"webhook": {"url": webhook_url}}),)
         if response.status_code != 204:
             raise ClientError(response=response)

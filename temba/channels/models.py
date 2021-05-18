@@ -54,7 +54,6 @@ class ChannelType(metaclass=ABCMeta):
     code = None
     slug = None
     category = None
-    beta_only = False
 
     # the courier handling URL, will be wired automatically for use in templates, but wired to a null handler
     courier_url = None
@@ -96,16 +95,13 @@ class ChannelType(metaclass=ABCMeta):
 
     def is_available_to(self, user):
         """
-        Determines whether this channel type is available to the given user considering the region and when not considering region, e.g. check timezone
+        Determines whether this channel type is available to the given user, e.g. check timezone
         """
-        region_ignore_visible = (not self.beta_only) or user.is_beta()
-        region_aware_visible = True
-
         if self.available_timezones is not None:
             timezone = user.get_org().timezone
-            region_aware_visible = timezone and str(timezone) in self.available_timezones
-
-        return region_aware_visible, region_ignore_visible
+            return timezone and str(timezone) in self.available_timezones
+        else:
+            return True
 
     def is_recommended_to(self, user):
         """
@@ -279,10 +275,10 @@ class Channel(TembaModel):
     CONFIG_MAX_CONCURRENT_EVENTS = "max_concurrent_events"
     CONFIG_ALLOW_INTERNATIONAL = "allow_international"
 
-    CONFIG_VONAGE_API_KEY = "nexmo_api_key"
-    CONFIG_VONAGE_API_SECRET = "nexmo_api_secret"
-    CONFIG_VONAGE_APP_ID = "nexmo_app_id"
-    CONFIG_VONAGE_APP_PRIVATE_KEY = "nexmo_app_private_key"
+    CONFIG_NEXMO_API_KEY = "nexmo_api_key"
+    CONFIG_NEXMO_API_SECRET = "nexmo_api_secret"
+    CONFIG_NEXMO_APP_ID = "nexmo_app_id"
+    CONFIG_NEXMO_APP_PRIVATE_KEY = "nexmo_app_private_key"
 
     CONFIG_SHORTCODE_MATCHING_PREFIXES = "matching_prefixes"
 
@@ -474,8 +470,7 @@ class Channel(TembaModel):
             org.normalize_contact_tels()
 
         # track our creation
-        if not user.is_anonymous:
-            analytics.track(user.username, "temba.channel_created", dict(channel_type=channel_type.code))
+        analytics.track(user.username, "temba.channel_created", dict(channel_type=channel_type.code))
 
         if settings.IS_PROD:
             if channel_type.async_activation:
@@ -567,15 +562,15 @@ class Channel(TembaModel):
         )
 
     @classmethod
-    def add_vonage_bulk_sender(cls, user, channel):
-        # vonage ships numbers around as E164 without the leading +
+    def add_nexmo_bulk_sender(cls, user, channel):
+        # nexmo ships numbers around as E164 without the leading +
         parsed = phonenumbers.parse(channel.address, None)
-        vonage_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip("+")
+        nexmo_phone_number = phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164).strip("+")
 
         org = user.get_org()
         config = {
-            Channel.CONFIG_VONAGE_API_KEY: org.config[Org.CONFIG_VONAGE_KEY],
-            Channel.CONFIG_VONAGE_API_SECRET: org.config[Org.CONFIG_VONAGE_SECRET],
+            Channel.CONFIG_NEXMO_API_KEY: org.config[Org.CONFIG_NEXMO_KEY],
+            Channel.CONFIG_NEXMO_API_SECRET: org.config[Org.CONFIG_NEXMO_SECRET],
             Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
         }
 
@@ -584,13 +579,13 @@ class Channel(TembaModel):
             user,
             channel.country,
             "NX",
-            name="Vonage Sender",
+            name="Nexmo Sender",
             config=config,
             tps=1,
             address=channel.address,
             role=Channel.ROLE_SEND,
             parent=channel,
-            bod=vonage_phone_number,
+            bod=nexmo_phone_number,
         )
 
     @classmethod
@@ -789,6 +784,20 @@ class Channel(TembaModel):
             return "%s (%s)" % (self.config.get(Channel.CONFIG_PAGE_NAME, self.name), self.address)
 
         return self.address
+
+    def build_registration_command(self):
+        # create a claim code if we don't have one
+        if not self.claim_code:
+            self.claim_code = self.generate_claim_code()
+            self.save(update_fields=("claim_code",))
+
+        # create a secret if we don't have one
+        if not self.secret:
+            self.secret = self.generate_secret()
+            self.save(update_fields=("secret",))
+
+        # return our command
+        return dict(cmd="reg", relayer_claim_code=self.claim_code, relayer_secret=self.secret, relayer_id=self.id)
 
     def get_last_sent_message(self):
         from temba.msgs.models import SENT, DELIVERED, OUTGOING
@@ -1263,7 +1272,6 @@ class ChannelLog(models.Model):
     A log of an call made to or from a channel
     """
 
-    id = models.BigAutoField(primary_key=True)
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="logs")
     msg = models.ForeignKey("msgs.Msg", on_delete=models.PROTECT, related_name="channel_logs", null=True)
     connection = models.ForeignKey(

@@ -130,7 +130,7 @@ class RocketChatViewTest(RocketChatMixin):
             "admin_user_id": self.admin_user_id,
         }
 
-    @patch("socket.gethostbyname", return_value="123.123.123.123")
+    @patch("socket.gethostbyname")
     @patch("random.choice")
     def submit_form(self, data, mock_choices, mock_socket):
         choices = (c for c in self.secret)
@@ -158,13 +158,17 @@ class RocketChatViewTest(RocketChatMixin):
         configure()
         self.client.force_login(self.admin)
         response = self.client.get(self.claim_url)
-        self.assertEqual(response.context_data["form"].initial.get("secret"), self.secret)
+        self.assertEqual(
+            response.context_data["form"].initial.get("secret"), self.secret,
+        )
 
         configure()
         with patch("temba.channels.types.rocketchat.views.ClaimView.derive_initial") as mock_initial:
             mock_initial.return_value = {"secret": self.secret2}
             response = self.client.get(self.claim_url)
-        self.assertEqual(response.context_data["form"].initial.get("secret"), self.secret2)
+        self.assertEqual(
+            response.context_data["form"].initial.get("secret"), self.secret2,
+        )
 
     @patch("temba.channels.types.rocketchat.client.Client.settings")
     def test_form_valid(self, mock_settings):
@@ -268,10 +272,11 @@ class RocketChatViewTest(RocketChatMixin):
         response = self.submit_form(data)
         self.assertFormError(response, "form", "admin_user_id", "This field is required.")
 
-    @patch("socket.gethostbyname", return_value="123.123.123.123")
+    @patch("socket.gethostbyname")
     @patch("random.choice")
     @patch("requests.put")
     def test_settings_exception(self, mock_request, mock_choices, mock_socket):
+        mock_socket.return_value = "192.168.123.45"  # Fake IP
         self.check_exceptions(
             mock_choices,
             mock_request,

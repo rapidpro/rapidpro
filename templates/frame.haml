@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
--load humanize i18n smartmin sms compress
+-load humanize
 
 {% block html-tag %}
 <html lang="{{ LANGUAGE_CODE }}">
@@ -15,6 +15,7 @@
     %meta{name:"author", content:"Nyaruka Ltd"}
     %meta{http-equiv:"X-UA-Compatible", content:"IE=10"}
 
+    -load compress
     :javascript
 
       window.supportEmail = '{{brand.support_email}}';
@@ -94,6 +95,9 @@
     -else
       %link{type:"image/ico", rel:"shortcut icon", href:"{{ STATIC_URL }}images/favicon.ico"}
 
+    -load smartmin sms
+    -load i18n
+
     -block styles
       %link{rel:'stylesheet', href:'https://fonts.googleapis.com/css?family=Roboto+Mono:300|Roboto:200,300,400,500'}
 
@@ -107,6 +111,7 @@
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}bower/videojs-vjsdownload/dist/videojs-vjsdownload.css", media:'all'}
 
       -compress css
+        %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
         %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/icons/style.css", media:'all'}
         %link{type:'text/less', rel:'stylesheet', href:'{{STATIC_URL}}less/print.less', media:'print'}
         %link{type:"text/css", rel:"stylesheet", href:"{{ STATIC_URL }}css/temba-components.css"}
@@ -217,8 +222,8 @@
     
     -if user.is_authenticated
       %temba-store(
-        completions="/mr/docs/{{ LANGUAGE_CODE }}/completion.json"
-        functions="/mr/docs/{{ LANGUAGE_CODE }}/functions.json"
+        completions="/mr/docs/completion.json"
+        functions="/mr/docs/functions.json"
         fields="/api/v2/fields.json"
         globals="/api/v2/globals.json")
 

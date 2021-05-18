@@ -26,7 +26,7 @@ class CreateGlobalForm(forms.ModelForm):
         org_active_globals_limit = self.org.get_limit(Org.LIMIT_GLOBALS)
         if self.org.globals.filter(is_active=True).count() >= org_active_globals_limit:
             raise forms.ValidationError(
-                _("Cannot create a new global as limit is %(limit)s."), params={"limit": org_active_globals_limit}
+                _("Cannot create a new global as limit is %(limit)s."), params={"limit": org_active_globals_limit},
             )
 
         return cleaned_data
@@ -52,7 +52,7 @@ class CreateGlobalForm(forms.ModelForm):
         fields = ("name", "value")
         widgets = {
             "name": InputWidget(attrs={"name": _("Name"), "widget_only": False}),
-            "value": InputWidget(attrs={"name": _("Value"), "widget_only": False, "textarea": True}),
+            "value": InputWidget(attrs={"name": _("Value"), "widget_only": False}),
         }
 
 
@@ -67,7 +67,7 @@ class UpdateGlobalForm(forms.ModelForm):
         model = Global
         fields = ("value",)
         widgets = {
-            "value": InputWidget(attrs={"name": _("Value"), "widget_only": False, "textarea": True}),
+            "value": InputWidget(attrs={"name": _("Value"), "widget_only": False}),
         }
 
 
