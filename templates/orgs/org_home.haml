@@ -17,8 +17,6 @@
       -block gear-menu
         -include "gear_links_include.haml"
 
--block sidemenu
-
 -block content
   -for channel in channels
     .mt-2
@@ -172,7 +170,7 @@
     }
 
     {% if use_weni_layout %}
-      #id-user, #id-accounts {
+      #id-user, #id-accounts, #id-topups, #id-two_factor {
         display: none;
       }
     {% endif %}
