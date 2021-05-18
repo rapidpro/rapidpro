@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-17 22:48+0000\n"
+"POT-Creation-Date: 2021-05-18 16:43+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2998,6 +2998,9 @@ msgstr ""
 msgid "Send All"
 msgstr ""
 
+msgid "Delete Folder"
+msgstr ""
+
 msgid "Name must not be blank or begin with punctuation"
 msgstr ""
 
@@ -3018,6 +3021,12 @@ msgid "Update Folder"
 msgstr ""
 
 msgid "Update Label"
+msgstr ""
+
+msgid "Your label has been deleted."
+msgstr ""
+
+msgid "Your label folder has been deleted."
 msgstr ""
 
 msgid "Agent Name"
@@ -6015,7 +6024,7 @@ msgid "%(name)s also keeps track of calls that are received on your channel so y
 msgstr ""
 
 #, python-format
-msgid "Uh oh, we couldn't delete %(name)s."
+msgid "<b>%(name)s</b> cannot be deleted as it still contains labels."
 msgstr ""
 
 msgid "Numeric Value:"

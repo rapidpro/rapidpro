@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-17 22:48+0000\n"
+"POT-Creation-Date: 2021-05-18 16:43+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3035,6 +3035,11 @@ msgstr "Editar Pasta"
 msgid "Send All"
 msgstr "Enviar todas"
 
+#, fuzzy
+#| msgid "Delete Field"
+msgid "Delete Folder"
+msgstr "Deletar Campo"
+
 msgid "Name must not be blank or begin with punctuation"
 msgstr "Nome não pode estar em branco ou começar com pontuação"
 
@@ -3056,6 +3061,16 @@ msgstr "Atualizar Pasta"
 
 msgid "Update Label"
 msgstr "Atualizar rótulo"
+
+#, fuzzy
+#| msgid "Your classifier has been deleted."
+msgid "Your label has been deleted."
+msgstr "Seu classificador foi deletado."
+
+#, fuzzy
+#| msgid "Your classifier has been deleted."
+msgid "Your label folder has been deleted."
+msgstr "Seu classificador foi deletado."
 
 msgid "Agent Name"
 msgstr "Nome do Agente"
@@ -6190,9 +6205,10 @@ msgstr "O %(name)s possibilita visualizar, classificar e arquivar mensagens rece
 msgid "%(name)s also keeps track of calls that are received on your channel so you can return any calls which may have been made to it."
 msgstr "%(name)s também acompanha as chamadas recebidas no seu canal para que você possa retornar todas as chamadas que possam ter sido feitas para ele."
 
-#, python-format
-msgid "Uh oh, we couldn't delete %(name)s."
-msgstr "Uh oh, não conseguimos deletar %(name)s."
+#, fuzzy, python-format
+#| msgid "<b>%(name)s</b> cannot be deleted since it is currently in use."
+msgid "<b>%(name)s</b> cannot be deleted as it still contains labels."
+msgstr "<b>%(name)s</b> não pode ser deletado já que ainda está em uso."
 
 msgid "Numeric Value:"
 msgstr "Valor numérico:"
@@ -7809,6 +7825,10 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#, python-format
+#~ msgid "Uh oh, we couldn't delete %(name)s."
+#~ msgstr "Uh oh, não conseguimos deletar %(name)s."
 
 #~ msgid "Delete Ticketing Service"
 #~ msgstr "Deletar serviço de Ticket"

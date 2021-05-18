@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-17 22:48+0000\n"
+"POT-Creation-Date: 2021-05-18 16:43+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3028,6 +3028,11 @@ msgstr "Modifier le dossier"
 msgid "Send All"
 msgstr "Envoyer tout"
 
+#, fuzzy
+#| msgid "Delete Field"
+msgid "Delete Folder"
+msgstr "Supprimer le champ"
+
 msgid "Name must not be blank or begin with punctuation"
 msgstr "Le nom ne doit pas être vide ou commencer par une ponctuation"
 
@@ -3049,6 +3054,16 @@ msgstr "Mettre à jour le dossier"
 
 msgid "Update Label"
 msgstr "Mise à jour du libellé"
+
+#, fuzzy
+#| msgid "Your classifier has been deleted."
+msgid "Your label has been deleted."
+msgstr "Votre classificateur a été supprimé."
+
+#, fuzzy
+#| msgid "Your classifier has been deleted."
+msgid "Your label folder has been deleted."
+msgstr "Votre classificateur a été supprimé."
 
 msgid "Agent Name"
 msgstr "Nom d'agent"
@@ -6178,9 +6193,10 @@ msgstr "Tout comme votre e-mail, %(name)s vous permet d'afficher, d'étiqueter e
 msgid "%(name)s also keeps track of calls that are received on your channel so you can return any calls which may have been made to it."
 msgstr "%(name)s garde également une trace des appels reçus sur votre canal afin que vous puissiez renvoyer tous les appels qui y ont été passés."
 
-#, python-format
-msgid "Uh oh, we couldn't delete %(name)s."
-msgstr "Uh oh, nous n'avons pas pu supprimer %(name)s."
+#, fuzzy, python-format
+#| msgid "<b>%(name)s</b> cannot be deleted since it is currently in use."
+msgid "<b>%(name)s</b> cannot be deleted as it still contains labels."
+msgstr "<b>%(name)s</b> ne peut pas être supprimé car il est actuellement utilisé."
 
 msgid "Numeric Value:"
 msgstr "Valeur numérique:"
@@ -7808,6 +7824,10 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#, python-format
+#~ msgid "Uh oh, we couldn't delete %(name)s."
+#~ msgstr "Uh oh, nous n'avons pas pu supprimer %(name)s."
 
 #~ msgid "Delete Ticketing Service"
 #~ msgstr "Supprimer le service de billetterie"

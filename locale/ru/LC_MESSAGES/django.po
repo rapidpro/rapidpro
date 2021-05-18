@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-17 22:48+0000\n"
+"POT-Creation-Date: 2021-05-18 16:43+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3039,6 +3039,11 @@ msgstr ""
 msgid "Send All"
 msgstr "Отправить Все"
 
+#, fuzzy
+#| msgid "Create Folder"
+msgid "Delete Folder"
+msgstr "Создать папку"
+
 msgid "Name must not be blank or begin with punctuation"
 msgstr "Название не должно быть пустым или начинаться с пунктуационных знаков"
 
@@ -3060,6 +3065,16 @@ msgstr "Обновить Папку"
 
 msgid "Update Label"
 msgstr "Обновить Метку"
+
+#, fuzzy
+#| msgid "Your classifier has been deleted."
+msgid "Your label has been deleted."
+msgstr "Ваш классификатор был удален."
+
+#, fuzzy
+#| msgid "Your classifier has been deleted."
+msgid "Your label folder has been deleted."
+msgstr "Ваш классификатор был удален."
 
 msgid "Agent Name"
 msgstr "Название Агента"
@@ -6225,7 +6240,7 @@ msgid "%(name)s also keeps track of calls that are received on your channel so y
 msgstr ""
 
 #, python-format
-msgid "Uh oh, we couldn't delete %(name)s."
+msgid "<b>%(name)s</b> cannot be deleted as it still contains labels."
 msgstr ""
 
 msgid "Numeric Value:"
