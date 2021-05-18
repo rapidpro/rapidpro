@@ -1,4 +1,4 @@
--load humanize i18n compress temba
+-load humanize i18n compress temba l10n
 
 -compress css inline
   {% lessblock %}
@@ -73,19 +73,20 @@
 -if hod and dow
   :javascript
     var pie_points = [
-      {% if active %}{ name: 'Active', y: {{active}}, color: '#2387CA'},{%endif%}
-      { name: 'Completed', y: {{completed}}, drilldown: null, color: '#8FC93A'},
-      { name: 'Interrupted and Expired', y: {{interrupted|add:expired}}, drilldown: 'incomplete', color: '#CCC'},
+      {% if active %}{ name: '{{ _("Active")|escapejs }}', y: {{active}}, color: '#2387CA'},{%endif%}
+      { name: '{{ _("Completed")|escapejs }}', y: {{completed}}, drilldown: null, color: '#8FC93A'},
+      { name: '{{ _("Interrupted, Expired and Failed")|escapejs }}', y: {{interrupted|add:expired|add:failed}}, drilldown: 'incomplete', color: '#CCC'},
     ];
 
     var pie_drill = {
       series: [{
-        name: 'Interrupted and Expired',
+        name: '{{ _("Interrupted, Expired and Failed")|escapejs }}',
         id: 'incomplete',
         innerSize: '50%',
         data:[
-          {name: 'Expired', y: {{expired}}, color: '#CCC'},
-          {name: 'Interruped', y: {{interrupted}}, color: '#EEE'},
+          {name: '{{ _("Expired")|escapejs }}', y: {{expired}}, color: '#CCC'},
+          {name: '{{ _("Interrupted")|escapejs }}', y: {{interrupted}}, color: '#EEE'},
+          {name: '{{ _("Failed")|escapejs }}', y: {{failed}}, color: '#FEE'},
         ]
       }]
     };
@@ -117,7 +118,7 @@
         }
       },
       series:[{
-        name: 'Completion',
+        name: '{{ _("Completion")|escapejs }}',
         innerSize: '50%',
         data: pie_points
       }],
@@ -190,7 +191,7 @@
       },
       tooltip: {
         formatter: function() {
-          return '<b>Messages</b>: ' + Highcharts.numberFormat(this.point.y, 0);
+          return '<b>{{ _("Messages")|escapejs }}</b>: ' + Highcharts.numberFormat(this.point.y, 0);
         }
       },
       series:[{
@@ -200,7 +201,7 @@
 
     var dow_points = [
       {% for point in dow %}
-        {name:"{{point.day}}", y:{{point.pct}}, msgs: {{point.count}}}{% if not forloop.last %},{% endif %}
+        {name:"{{point.day}}", y:{{point.pct|unlocalize}}, msgs: {{point.count}}}{% if not forloop.last %},{% endif %}
       {% endfor %}
     ];
 
@@ -255,7 +256,7 @@
         },
         tooltip: {
           formatter: function() {
-            return '<b>Messages</b>: ' + Highcharts.numberFormat(this.point.msgs, 0);
+            return '<b>{{ _("Messages")|escapejs }}</b>: ' + Highcharts.numberFormat(this.point.msgs, 0);
           }
         },
         series:[{
@@ -329,7 +330,7 @@
               }
             },
             series:[{
-              name: 'Messages',
+              name: '{{ _("Messages")|escapejs }}',
               data: counts
             }]
         });

@@ -1,0 +1,43 @@
+-extends 'smartmin/form.html'
+-load smartmin i18n
+
+-block content
+  .flex.justify-center
+    .w-128
+      .mb-4.page-title
+        {{ title }}
+
+      {{ block.super }}
+
+-block pre-form
+  .mb-6
+    -blocktrans trimmed with ga_url="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" authy_url="https://authy.com/"
+      To enable two-factor authentication on your login, use a one-time password (OTP) application such as
+      <a href="{{ ga_url }}">Google Authenticator</a> or <a href="{{ authy_url }}">Authy</a> to scan the QR code
+      below.
+
+  .mb-6.text-center
+    %script(src="{{ STATIC_URL }}js/qrious.js")
+    %canvas#qr
+
+-block form-buttons
+  .mt-6
+    %input.button-primary(type="submit" value='{{ submit_button_name }}')
+    %a.button-light.float-right(href="{% url 'orgs.org_home' %}")
+      -trans "Cancel"
+
+-block extra-script
+  {{ block.super }}
+  :javascript
+    (function() {
+      var secretUrl = "{{ secret_url }}";
+      if (secretUrl) {
+        var element = document.getElementById('qr');
+        element.style.display = "initial";
+        new QRious({element: element, value: secretUrl, background: "#eee", size: 150});
+      }
+    })();
+
+-block summary
+  -blocktrans trimmed
+    Two-factor authentication is <b>disabled</b>.

@@ -21,4 +21,4 @@ class TwitterLegacyType(ChannelType):
     quick_reply_text_size = 36
 
     def is_available_to(self, user):
-        return False
+        return False, False

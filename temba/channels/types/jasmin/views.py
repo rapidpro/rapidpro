@@ -17,7 +17,7 @@ class ClaimView(AuthenticatedExternalCallbackClaimView):
         )
         number = forms.CharField(
             max_length=14,
-            min_length=4,
+            min_length=3,
             label=_("Number"),
             help_text=_("The short code or phone number you are connecting."),
         )

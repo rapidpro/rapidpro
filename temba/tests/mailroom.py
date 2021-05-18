@@ -2,6 +2,7 @@ import functools
 import re
 from collections import defaultdict
 from datetime import timedelta
+from decimal import Decimal
 from functools import wraps
 from typing import Dict, List
 from unittest.mock import call, patch
@@ -17,6 +18,7 @@ from temba.locations.models import AdminBoundary
 from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
+from temba.tests.dates import parse_datetime
 from temba.tickets.models import Ticket
 from temba.utils import format_number, get_anonymous_user, json
 
@@ -351,7 +353,7 @@ def update_field_locally(user, contact, key, value, label=None):
     events = CampaignEvent.objects.filter(relative_to=field, campaign__group__in=contact.user_groups.all())
     for event in events:
         EventFire.objects.filter(contact=contact, event=event).delete()
-        date_value = org.parse_datetime(value)
+        date_value = parse_datetime(org, value)
         if date_value:
             scheduled = date_value + timedelta(**{event_units[event.unit]: event.offset})
             if scheduled > timezone.now():
@@ -411,13 +413,13 @@ def serialize_field_value(contact, field, value):
 
     # parse as all value data types
     str_value = str(value)[:640]
-    dt_value = org.parse_datetime(value)
-    num_value = org.parse_number(value)
+    dt_value = parse_datetime(org, value)
+    num_value = parse_number(value)
     loc_value = None
 
     # for locations, if it has a '>' then it is explicit, look it up that way
     if AdminBoundary.PATH_SEPARATOR in str_value:
-        loc_value = contact.org.parse_location_path(str_value)
+        loc_value = parse_location_path(contact.org, str_value)
 
     # otherwise, try to parse it as a name at the appropriate level
     else:
@@ -425,17 +427,17 @@ def serialize_field_value(contact, field, value):
             district_field = ContactField.get_location_field(org, ContactField.TYPE_DISTRICT)
             district_value = contact.get_field_value(district_field)
             if district_value:
-                loc_value = org.parse_location(str_value, AdminBoundary.LEVEL_WARD, district_value)
+                loc_value = parse_location(org, str_value, AdminBoundary.LEVEL_WARD, district_value)
 
         elif field.value_type == ContactField.TYPE_DISTRICT:
             state_field = ContactField.get_location_field(org, ContactField.TYPE_STATE)
             if state_field:
                 state_value = contact.get_field_value(state_field)
                 if state_value:
-                    loc_value = org.parse_location(str_value, AdminBoundary.LEVEL_DISTRICT, state_value)
+                    loc_value = parse_location(org, str_value, AdminBoundary.LEVEL_DISTRICT, state_value)
 
         elif field.value_type == ContactField.TYPE_STATE:
-            loc_value = org.parse_location(str_value, AdminBoundary.LEVEL_STATE)
+            loc_value = parse_location(org, str_value, AdminBoundary.LEVEL_STATE)
 
         if loc_value is not None and len(loc_value) > 0:
             loc_value = loc_value[0]
@@ -464,3 +466,66 @@ def serialize_field_value(contact, field, value):
             field_dict["state"] = AdminBoundary.strip_last_path(field_dict["district"])
 
     return field_dict
+
+
+def parse_number(s):
+    parsed = None
+    try:
+        parsed = Decimal(s)
+
+        if not parsed.is_finite() or parsed > Decimal("999999999999999999999999"):
+            parsed = None
+    except Exception:
+        pass
+    return parsed
+
+
+def parse_location(org, location_string, level, parent=None):
+    """
+    Simplified version of mailroom's location parsing
+    """
+    # no country? bail
+    if not org.country_id or not isinstance(location_string, str):
+        return []
+
+    boundary = None
+
+    # try it as a path first if it looks possible
+    if level == AdminBoundary.LEVEL_COUNTRY or AdminBoundary.PATH_SEPARATOR in location_string:
+        boundary = parse_location_path(org, location_string)
+        if boundary:
+            boundary = [boundary]
+
+    # try to look up it by full name
+    if not boundary:
+        boundary = find_boundary_by_name(org, location_string, level, parent)
+
+    # try removing punctuation and try that
+    if not boundary:
+        bare_name = re.sub(r"\W+", " ", location_string, flags=re.UNICODE).strip()
+        boundary = find_boundary_by_name(org, bare_name, level, parent)
+
+    return boundary
+
+
+def parse_location_path(org, location_string):
+    """
+    Parses a location path into a single location, returning None if not found
+    """
+    return (
+        AdminBoundary.objects.filter(path__iexact=location_string.strip()).first()
+        if org.country_id and isinstance(location_string, str)
+        else None
+    )
+
+
+def find_boundary_by_name(org, name, level, parent):
+    # first check if we have a direct name match
+    if parent:
+        boundary = parent.children.filter(name__iexact=name, level=level)
+    else:
+        query = dict(name__iexact=name, level=level)
+        query["__".join(["parent"] * level)] = org.country
+        boundary = AdminBoundary.objects.filter(**query)
+
+    return boundary

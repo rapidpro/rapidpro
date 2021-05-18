@@ -1,18 +1,14 @@
 -extends 'smartmin/form.html'
-
 -load compress temba smartmin i18n
 
 -block form-span
-
--block title-text
-  -trans "Chatbase Account"
 
 -block summary
   -if object.get_chatbase_credentials.0
     -trans "Connected to Chatbase Account"
     <b>{{chatbase_agent_name}}</b>.
   -else
-    -trans "Connect your Chatbase account"
+    -trans "Connect your Chatbase account."
 
 -block pre-form
   -if not object.get_chatbase_credentials.0

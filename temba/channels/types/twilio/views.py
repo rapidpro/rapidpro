@@ -26,7 +26,7 @@ from ...views import (
 
 class ClaimView(BaseClaimNumberMixin, SmartFormView):
     class Form(ClaimViewMixin.Form):
-        country = forms.ChoiceField(choices=ALL_COUNTRIES, widget=SelectWidget(attrs={"searchable": True}),)
+        country = forms.ChoiceField(choices=ALL_COUNTRIES, widget=SelectWidget(attrs={"searchable": True}))
         phone_number = forms.CharField(help_text=_("The phone number being added"))
 
         def clean_phone_number(self):
@@ -170,6 +170,12 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             phone = phonenumbers.format_number(
                 phonenumbers.parse(phone_number, None), phonenumbers.PhoneNumberFormat.NATIONAL
             )
+
+            role = ""
+            if twilio_phone.capabilities.get("voice", False):
+                role += Channel.ROLE_CALL + Channel.ROLE_ANSWER
+            if twilio_phone.capabilities.get("sms", False):
+                role += Channel.ROLE_SEND + Channel.ROLE_RECEIVE
 
             number_sid = twilio_phone.sid
 

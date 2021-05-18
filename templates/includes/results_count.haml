@@ -1,6 +1,10 @@
--load humanize
+-load humanize i18n
 
 -if not paginator or paginator.num_pages <= 1
-    {{ object_list|length }} result{% if object_list|length == 0 or object_list|length > 1 %}s{% endif %}
+  -blocktrans trimmed with count=object_list|length|intcomma count cc=object_list|length
+    {{ count }} result
+    -plural
+      {{ count }} results
 -else
-    Results {{ page_obj.start_index|intcomma }} - {{ page_obj.end_index|intcomma }} of {{ paginator.count|intcomma }}
+  -blocktrans trimmed with start=page_obj.start_index|intcomma end=page_obj.end_index|intcomma total=paginator.count|intcomma
+    Results {{ start }} - {{ end }} of {{ total }}

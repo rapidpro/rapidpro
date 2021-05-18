@@ -231,10 +231,10 @@ def _queue_task(pipe, org_id, queue, task_type, task, priority):
     active_queue = ACTIVE_PATTERN % queue
 
     # push onto our org queue
-    pipe.zadd(org_queue, score, json.dumps(payload))
+    pipe.zadd(org_queue, {json.dumps(payload): score})
 
     # and mark that org as active
-    pipe.zincrby(active_queue, org_id, 0)
+    pipe.zincrby(active_queue, 0, org_id)
 
 
 def _create_mailroom_task(org_id, task_type, task):

@@ -49,6 +49,4 @@ class MacrokioskType(ChannelType):
         ),
     )
 
-    def is_available_to(self, user):
-        org = user.get_org()
-        return org.timezone and str(org.timezone) in ["Asia/Kuala_Lumpur"]
+    available_timezones = ["Asia/Kuala_Lumpur"]
