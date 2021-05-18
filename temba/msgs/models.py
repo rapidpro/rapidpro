@@ -417,9 +417,9 @@ class Msg(models.Model):
 
     modified_on = models.DateTimeField(null=True, blank=True, auto_now=True)
 
-    sent_on = models.DateTimeField(null=True, blank=True)
+    sent_on = models.DateTimeField(null=True)
 
-    queued_on = models.DateTimeField(null=True, blank=True)
+    queued_on = models.DateTimeField(null=True)
 
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
 
@@ -441,8 +441,8 @@ class Msg(models.Model):
     # the number of times this message has errored (outgoing only)
     error_count = models.IntegerField(default=0)
 
-    # when we'll next try to send this message (outgoing only)
-    next_attempt = models.DateTimeField(auto_now_add=True)
+    # when we'll next try to send this message (only set for retries after an error)
+    next_attempt = models.DateTimeField(null=True)
 
     # the id of this message on the other side of its channel
     external_id = models.CharField(max_length=255, null=True, blank=True)
