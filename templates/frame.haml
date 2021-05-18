@@ -126,12 +126,6 @@
             @import (optional, reference) "../brands/style.less";
             @import (optional) "../brands/{{brand.slug}}/less/style.less";
 
-            {% if show_sidemenu and use_weni_layout %}
-              #unnnic-content {
-                margin-left: 200px;
-              }
-            {% endif %}
-
         {% endlessblock %}
 
         // any additional brand styling such as fonts, etc
@@ -147,6 +141,13 @@
 
       -block extra-less
       -block extra-style
+
+      :css
+        {% if show_sidemenu and use_weni_layout %}
+          #unnnic-content {
+            margin-left: 200px;
+          }
+        {% endif %}
 
     -for incl in brand.head_includes
       -include incl
