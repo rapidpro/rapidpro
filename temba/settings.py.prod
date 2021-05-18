@@ -1,8 +1,9 @@
 import environ
 import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
 
 from django.utils.translation import ugettext_lazy as _  # noqa
-from sentry_sdk.integrations.django import DjangoIntegration
+
 from .settings_common import *  # noqa
 
 env = environ.Env()
@@ -26,17 +27,20 @@ SEND_CHATBASE = env.bool("SEND_CHATBASE", default=True)
 
 # BRANDING
 # ------------------------------------------------------------------------------
-brand_info = env.dict("BRANDING_INFO", default={
-    "slug": "rapidpro",
-    "name": "RapidPro",
-    "org": "UNICEF",
-    "email": "join@rapidpro.io",
-    "domain": "app.rapidpro.io",
-    "folder": "rapidpro",
-    "allow_signups": True,
-    "description": "Visually build nationally scalable mobile applications from anywhere in the world.",
-    "credits": "Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved.",
-})
+brand_info = env.dict(
+    "BRANDING_INFO",
+    default={
+        "slug": "rapidpro",
+        "name": "RapidPro",
+        "org": "UNICEF",
+        "email": "join@rapidpro.io",
+        "domain": "app.rapidpro.io",
+        "folder": "rapidpro",
+        "allow_signups": True,
+        "description": "Visually build nationally scalable mobile applications from anywhere in the world.",
+        "credits": "Copyright &copy; 2012-2017 UNICEF, Nyaruka. All Rights Reserved.",
+    },
+)
 
 DEFAULT_BRAND = env("DEFAULT_BRAND", default="rapidpro.io")
 DEFAULT_PLAN = env("DEFAULT_PLAN", default=TOPUP_PLAN)
@@ -79,7 +83,13 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2.messages"] = env("V2_MESSAGES", def
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2.broadcasts"] = env("V2_BROADCASTS", default="36000/hour")
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2.runs"] = env("V2_RUNS", default="3000/hour")
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["v2.api"] = env("V2_API", default="3000/hour")
-REST_FRAMEWORK["PAGE_SIZE"] = env.int('REST_FRAMEWORK_PAGE_SIZE', default=250)
+REST_FRAMEWORK["PAGE_SIZE"] = env.int("REST_FRAMEWORK_PAGE_SIZE", default=250)
+REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] = [
+    "mozilla_django_oidc.contrib.drf.OIDCAuthentication",
+    "temba.api.support.APISessionAuthentication",
+    "temba.api.support.APITokenAuthentication",
+    "temba.api.support.APIBasicAuthentication",
+]
 
 
 # EMAIL
@@ -97,12 +107,8 @@ FLOW_FROM_EMAIL = DEFAULT_FROM_EMAIL
 COMPRESS_ENABLED = env.bool("COMPRESS_ENABLED", default=True)
 COMPRESS_OFFLINE = env.bool("COMPRESS_OFFLINE", default=True)
 COMPRESS_FILTERS = {
-    "css": [
-        "compressor.filters.css_default.CssAbsoluteFilter", "compressor.filters.cssmin.CSSMinFilter"
-    ],
-    "js": [
-        "compressor.filters.jsmin.JSMinFilter"
-    ],
+    "css": ["compressor.filters.css_default.CssAbsoluteFilter", "compressor.filters.cssmin.CSSMinFilter"],
+    "js": ["compressor.filters.jsmin.JSMinFilter"],
 }
 
 COMPRESS_CSS_HASHING_METHOD = "content"
@@ -110,12 +116,18 @@ COMPRESS_OFFLINE_CONTEXT = dict(
     STATIC_URL=STATIC_URL, base_template="frame.html", brand=BRANDING.get(DEFAULT_BRAND), debug=False, testing=False
 )
 
+# ------------------------------------------------------------------------------
 # MIDDLEWARE
 # ------------------------------------------------------------------------------
-MIDDLEWARE = (
+# Firstly, we remove obsolete XFrameOptionsMiddleware from settings_common:
+MIDDLEWARE = tuple(m for m in MIDDLEWARE if "XFrameOptionsMiddleware" not in m)
+# Now, we can add ours (including csp)
+MIDDLEWARE += (
     "elasticapm.contrib.django.middleware.TracingMiddleware",
     "elasticapm.contrib.django.middleware.Catch404Middleware",
-) + MIDDLEWARE
+    "mozilla_django_oidc.middleware.SessionRefresh",
+    "csp.middleware.CSPMiddleware",
+)
 
 # REDIS
 # ------------------------------------------------------------------------------
@@ -161,8 +173,7 @@ AWS_BUCKET_DOMAIN = env("AWS_BUCKET_DOMAIN", default=f"{AWS_STORAGE_BUCKET_NAME}
 AWS_S3_SIGNATURE_VERSION = "s3v4"
 STORAGE_URL = f"https://{AWS_BUCKET_DOMAIN}"
 
-DEFAULT_FILE_STORAGE = env("DEFAULT_FILE_STORAGE",
-                           default="storages.backends.s3boto3.S3Boto3Storage")
+DEFAULT_FILE_STORAGE = env("DEFAULT_FILE_STORAGE", default="storages.backends.s3boto3.S3Boto3Storage")
 
 S3_NETWORK_TIMEOUT = env.int("S3_NETWORK_TIMEOUT", default=120)
 S3_NETWORK_RETRY_COUNT = env.int("S3_NETWORK_RETRY_COUNT", default=5)
@@ -191,12 +202,32 @@ ELASTICSEARCH_URL = env("ELASTICSEARCH_URL")
 
 # APPS
 # ------------------------------------------------------------------------------
-INSTALLED_APPS += ("gunicorn", "storages", "elasticapm.contrib.django", "weni.channel_stats", "weni.analytics_api",)
+INSTALLED_APPS += (
+    # Production environment
+    "gunicorn",
+    "storages",
+    "elasticapm.contrib.django",
+    # gRPC
+    "django_grpc_framework",
+    # Weni apps
+    "weni.channel_stats",
+    "weni.analytics_api",
+    "weni.grpc_central",
+    "weni.org_grpc",
+    "weni.user_grpc",
+    "weni.flow_grpc",
+    "weni.billing",
+    "weni.statistic_grpc",
+    # OIDC authentication
+    "mozilla_django_oidc",
+    "weni.auth",
+    # Templates (django-template-macros)
+    "macros",
+)
 
 # SENTRY
 # ------------------------------------------------------------------------------
-sentry_sdk.init(dsn=env("SENTRY_DSN", default=""),
-                integrations=[DjangoIntegration()])
+sentry_sdk.init(dsn=env("SENTRY_DSN", default=""), integrations=[DjangoIntegration()])
 
 # LOGGING
 # ------------------------------------------------------------------------------
@@ -216,6 +247,9 @@ LOGGING = {
         "elasticapm.errors": {"level": "ERROR", "handlers": ["console"], "propagate": False},
         "pycountry": {"level": "ERROR", "handlers": ["console"], "propagate": False},
         "django.security.DisallowedHost": {"handlers": ["null"], "propagate": False},
+        # OIDC
+        "mozilla_django_oidc": {"level": "DEBUG", "handlers": ["console"], "propagate": False},
+        "weni_django_oidc": {"level": "DEBUG", "handlers": ["console"], "propagate": False},
     },
 }
 
@@ -244,10 +278,11 @@ ELASTIC_APM = {
 # -----------------------------------------------------------------------------------
 # Crontab Settings ..
 # -----------------------------------------------------------------------------------
-CELERYBEAT_SCHEDULE["retry-errored-messages"] = {"task": "retry_errored_messages", "schedule": crontab(hour=1, minute=0)}
+CELERYBEAT_SCHEDULE["retry-errored-messages"] = {
+    "task": "retry_errored_messages",
+    "schedule": crontab(hour=1, minute=0),
+}
 CELERYBEAT_SCHEDULE["refresh-whatsapp-tokens"] = {"task": "refresh_whatsapp_tokens", "schedule": timedelta(hours=12)}
-
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # -----------------------------------------------------------------------------------
@@ -255,25 +290,16 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # -----------------------------------------------------------------------------------
 FLOW_SESSION_TRIM_DAYS = env.int("FLOW_SESSION_TRIM_DAYS", default=7)
 
-# GRPC
-INSTALLED_APPS += (
-    "django_grpc_framework",
-    "weni.grpc_central",
-    "weni.org_grpc",
-    "weni.user_grpc",
-    "weni.flow_grpc",
-    "weni.billing",
-    "weni.statistic_grpc",
-)
 
-
+# Adds gRPC services
 GRPC_FRAMEWORK = {
     "ROOT_HANDLERS_HOOK": "weni.grpc_central.urls.grpc_handlers",
 }
 
-# -----------------------------------------------------------------------------------
-# Weni Connect
-# -----------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------
+# OpenID Connect settings
+# https://mozilla-django-oidc.readthedocs.io/en/stable/installation.html#add-settings-to-settings-py
+# --------------------------------------------------------------------------------------------------
 OIDC_RP_CLIENT_ID = env("OIDC_RP_CLIENT_ID")
 OIDC_RP_CLIENT_SECRET = env("OIDC_RP_CLIENT_SECRET")
 OIDC_OP_AUTHORIZATION_ENDPOINT = env("OIDC_OP_AUTHORIZATION_ENDPOINT")
@@ -281,37 +307,61 @@ OIDC_OP_TOKEN_ENDPOINT = env("OIDC_OP_TOKEN_ENDPOINT")
 OIDC_OP_USER_ENDPOINT = env("OIDC_OP_USER_ENDPOINT")
 OIDC_OP_JWKS_ENDPOINT = env("OIDC_OP_JWKS_ENDPOINT")
 OIDC_RP_SIGN_ALGO = env("OIDC_RP_SIGN_ALGO", default="RS256")
-OIDC_DRF_AUTH_BACKEND = "weni.auth.backends.WeniOIDCAuthenticationBackend"
+
+# Tells Django to authenticate via OIDC
 AUTHENTICATION_BACKENDS += ("weni.auth.backends.WeniOIDCAuthenticationBackend",)
-REST_FRAMEWORK["REST_FRAMEWORK"] = (tuple(("mozilla_django_oidc.contrib.drf.OIDCAuthentication","temba.api.support.APISessionAuthentication", "temba.api.support.APITokenAuthentication", "temba.api.support.APIBasicAuthentication")))
-MIDDLEWARE = MIDDLEWARE + ("mozilla_django_oidc.middleware.SessionRefresh",)
-INSTALLED_APPS += ("mozilla_django_oidc", "weni.auth")
-LOGGING["loggers"]["mozilla_django_oidc"] = {"level": "DEBUG", "handlers": ["console"], "propagate": False}
-LOGGING["loggers"]["weni_django_oidc"] = {"level": "DEBUG", "handlers": ["console"], "propagate": False}
-X_FRAME_OPTIONS = env("X_FRAME_OPTIONS", default="ALLOW-FROM https://{}/").format(HOSTNAME)
+OIDC_DRF_AUTH_BACKEND = "weni.auth.backends.WeniOIDCAuthenticationBackend"
+
+# Used to enable authentication via Keycloak to legacy users
 SECRET_KEY_CHECK_LEGACY_USER = env("SECRET_KEY_CHECK_LEGACY_USER")
-LOGIN_REDIRECT_URL = "/msg/inbox/"
-# Ensures https connection
-USE_X_FORWARDED_HOST = True
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# By default, rapidpro redirects the user to choose an org after login. Inside Weni Connect, the org is already selected, so we can bypass and take user to msg inbox.
+LOGIN_REDIRECT_URL = env("LOGIN_REDIRECT_URL", default="/msg/inbox/")
 
 # Enable Weni Templates
-INSTALLED_APPS += ('macros',)
-TEMPLATES[0]["OPTIONS"]["context_processors"].append("temba.context_processors_weni.enable_weni_layout")
-TEMPLATES[0]["OPTIONS"]["context_processors"].append("temba.context_processors_weni.weni_announcement")
-TEMPLATES[0]["OPTIONS"]["context_processors"].append("temba.context_processors_weni.hotjar")
-
+TEMPLATES[0]["OPTIONS"]["context_processors"] += [
+    "temba.context_processors_weni.use_weni_layout",
+    "temba.context_processors_weni.weni_announcement",
+    "temba.context_processors_weni.hotjar",
+    "temba.context_processors_weni.show_sidemenu",
+]
 WENI_DOMAINS = {"weni": env("WENI_DOMAIN", default="weni.ai")}
 
+# Exclude Weni Sidebar
+SIDEBAR_EXCLUDE_PATHS = env.list("SIDEBAR_EXCLUDE_PATHS", default=[])
 
-# weni announcement
+# Weni announcement
 ANNOUNCEMENT_LEFT = env("ANNOUNCEMENT_LEFT")
 ANNOUNCEMENT_RIGHT = env("ANNOUNCEMENT_RIGHT")
 ANNOUNCEMENT_LINK = env("ANNOUNCEMENT_LINK")
 ANNOUNCEMENT_BUTTON = env("ANNOUNCEMENT_BUTTON")
 
-# hotjar
+# Hotjar
 HOTJAR_ID = env("HOTJAR_ID")
 
-# success webhook logs
 SUCCESS_LOGS_TRIM_TIME = env("SUCCESS_LOGS_TRIM_TIME", default=48)
+
+
+# ------------------------------------------------------------------------------------------
+# Production-only: Adjust depending on your proxy
+#   https://docs.djangoproject.com/en/2.2/ref/settings/#use-x-forwarded-host
+#   https://docs.djangoproject.com/en/2.2/ref/settings/#secure-proxy-ssl-header
+# ------------------------------------------------------------------------------------------
+USE_X_FORWARDED_HOST = env("USE_X_FORWARDED_HOST", default=False)
+SECURE_PROXY_SSL_HEADER = env.tuple("SECURE_PROXY_SSL_HEADER", default=None)
+
+
+# ------------------------------------------------------------------------------------------
+# CSP settings: Needed if we want to load rapidpro from inside an iframe with some security.
+#   https://django-csp.readthedocs.io/en/latest/configuration.html
+#   https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy
+# ------------------------------------------------------------------------------------------
+CSP_DEFAULT_SRC = env.tuple("CSP_DEFAULT_SRC", default=("'self'",))
+CSP_FRAME_ANCESTORS = env.tuple("CSP_FRAME_ANCESTORS", default=("'self'",))
+CSP_FONT_SRC = env.tuple("CSP_FONT_SRC", default=CSP_DEFAULT_SRC)
+CSP_STYLE_SRC = env.tuple("CSP_STYLE_SRC", default=CSP_DEFAULT_SRC)
+CSP_STYLE_SRC_ELEM = env.tuple("CSP_STYLE_SRC_ELEM", default=CSP_DEFAULT_SRC)
+CSP_SCRIPT_SRC = env.tuple("CSP_SCRIPT_SRC", default=CSP_DEFAULT_SRC)
+CSP_SCRIPT_SRC_ELEM = env.tuple("CSP_SCRIPT_SRC_ELEM", default=CSP_SCRIPT_SRC)
+CSP_FRAME_SRC = env.tuple("CSP_FRAME_SRC", default=CSP_DEFAULT_SRC)
+CSP_CONNECT_SRC = env.tuple("CSP_CONNECT_SRC", default=CSP_DEFAULT_SRC)
