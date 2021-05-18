@@ -3,7 +3,7 @@
 from django.db import migrations
 
 
-def populate_has_issues(apps, schema_editor):
+def populate_has_issues(apps, schema_editor):  # pragma: no cover
     Flow = apps.get_model("flows", "Flow")
 
     num_with = 0
@@ -22,7 +22,7 @@ def populate_has_issues(apps, schema_editor):
         print(f"Updated has_issues for {num_with} flows with issues and {num_without} without issues")
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
