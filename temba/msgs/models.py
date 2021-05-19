@@ -852,7 +852,7 @@ class Msg(models.Model):
     @classmethod
     def apply_action_resend(cls, user, msgs):
         if msgs:
-            mailroom.queue_resend_msgs(msgs[0].org, msgs)
+            mailroom.get_client().msg_resend(msgs[0].org.id, [m.id for m in msgs])
 
 
 class BroadcastMsgCount(SquashableModel):
