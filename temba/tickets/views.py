@@ -251,9 +251,8 @@ class TicketerCRUDL(SmartCRUDL):
 
     class Delete(DependencyDeleteModal):
         cancel_url = "uuid@tickets.ticket_filter"
-        title = _("Delete Ticketing Service")
-        success_message = _("Your ticketing service has been deleted.")
         success_url = "@orgs.org_home"
+        success_message = _("Your ticketing service has been deleted.")
 
     class Connect(OrgPermsMixin, SmartTemplateView):
         def get_gear_links(self):

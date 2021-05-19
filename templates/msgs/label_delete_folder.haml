@@ -2,17 +2,9 @@
 -load i18n temba smartmin
 
 -block modal
-  -if error
-    .alert-text.mb-4
-      .title
-        -blocktrans trimmed with name=object.name
-          Uh oh, we couldn't delete {{name}}.
-      .message
-        {{error}}
-
   -if object.has_child_labels
     -blocktrans trimmed with name=object.name
-      <b>{{name}}</b> cannot be deleted since it is a parent to other labels.
+      <b>{{name}}</b> cannot be deleted as it still contains labels.
 
   -else
     -blocktrans trimmed with name=object.name

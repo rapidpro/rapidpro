@@ -12,7 +12,6 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel, ChannelCount, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, ContactURN
 from temba.contacts.search.omnibox import omnibox_serialize
-from temba.flows.models import Flow
 from temba.msgs.models import (
     DELIVERED,
     ERRORED,
@@ -36,7 +35,7 @@ from temba.msgs.models import (
 )
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, MigrationTest, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.utils.uuid import uuid4
@@ -431,10 +430,10 @@ class MsgTest(TembaTest):
         self.assertEqual("Foo", label1.name)
 
         # test deleting the label
-        response = self.client.get(reverse("msgs.label_delete", args=[label1.id]))
+        response = self.client.get(reverse("msgs.label_delete", args=[label1.uuid]))
         self.assertEqual(200, response.status_code)
 
-        response = self.client.post(reverse("msgs.label_delete", args=[label1.id]))
+        response = self.client.post(reverse("msgs.label_delete", args=[label1.uuid]))
         label1.refresh_from_db()
 
         self.assertTrue(response.has_header("Temba-Success"))
@@ -591,8 +590,8 @@ class MsgTest(TembaTest):
         self.assertEqual("E", msg2.status)
         self.assertEqual("F", msg3.status)
 
-    @mock_mailroom
-    def test_failed(self, mr_mocks):
+    @patch("temba.mailroom.client.MailroomClient.msg_resend")
+    def test_failed(self, mock_msg_resend):
         failed_url = reverse("msgs.msg_failed")
 
         msg1 = self.create_outgoing_msg(self.joe, "message number 1", status="F")
@@ -632,17 +631,7 @@ class MsgTest(TembaTest):
         # let's resend some messages
         self.client.post(failed_url, dict(action="resend", objects=msg2.id), follow=True)
 
-        self.assertEqual(
-            [
-                {
-                    "org_id": self.org.id,
-                    "queued_on": matchers.Datetime(),
-                    "task": {"msg_ids": [msg2.id]},
-                    "type": "resend_msgs",
-                }
-            ],
-            mr_mocks.queued_batch_tasks,
-        )
+        mock_msg_resend.assert_called_once_with(self.org.id, [msg2.id])
 
         # suspended orgs don't see resend as option
         self.org.is_suspended = True
@@ -2498,10 +2487,12 @@ class LabelTest(TembaTest):
         label3.toggle_label([msg3], add=True)
 
         ExportMessagesTask.create(self.org, self.admin, label=label1)
-        with self.assertRaises(ValueError):
+
+        # can't release non-empty folder
+        with self.assertRaises(AssertionError):
             folder1.release(self.admin)
 
-        # can only release a folder once all its children are released
+        # can once all its children are released
         label1.release(self.admin)
         label2.release(self.admin)
         folder1.release(self.admin)
@@ -2524,7 +2515,7 @@ class LabelTest(TembaTest):
         self.assertEqual(set(), set(Msg.objects.get(id=msg3.id).labels.all()))
 
 
-class LabelCRUDLTest(TembaTest):
+class LabelCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create_and_update(self):
         create_label_url = reverse("msgs.label_create")
         create_folder_url = reverse("msgs.label_create_folder")
@@ -2579,44 +2570,64 @@ class LabelCRUDLTest(TembaTest):
                 "You must delete existing ones before you can create new ones.",
             )
 
-    def test_label_delete(self):
-        label1 = Label.get_or_create(self.org, self.user, "Spam")
+    def test_delete(self):
+        label = Label.get_or_create(self.org, self.user, "Spam")
 
-        delete_url = reverse("msgs.label_delete", args=[label1.id])
+        delete_url = reverse("msgs.label_delete", args=[label.uuid])
 
-        # regular users can't delete labels
-        self.login(self.user)
-        response = self.client.get(delete_url)
+        # fetch delete modal
+        response = self.assertDeleteFetch(delete_url, allow_editors=True)
+        self.assertContains(response, "You are about to delete")
 
-        self.assertEqual(302, response.status_code)
+        # submit to delete it
+        response = self.assertDeleteSubmit(delete_url, object_deactivated=label, success_status=200)
+        self.assertEqual("/msg/inbox/", response["Temba-Success"])
 
-        label1.refresh_from_db()
+        # reactivate
+        label.is_active = True
+        label.save()
 
-        self.assertTrue(label1.is_active)
+        # add a dependency and try again
+        flow = self.create_flow()
+        flow.label_dependencies.add(label)
+        self.assertFalse(flow.has_issues)
 
-        # admin users can
-        self.login(self.admin)
-        response = self.client.post(delete_url)
+        response = self.assertDeleteFetch(delete_url, allow_editors=True)
+        self.assertContains(response, "is used by the following flows which may not work as expected")
 
-        self.assertTrue(response.has_header("Temba-Success"))
+        self.assertDeleteSubmit(delete_url, object_deactivated=label, success_status=200)
 
-        label1.refresh_from_db()
+        flow.refresh_from_db()
+        self.assertTrue(flow.has_issues)
+        self.assertNotIn(label, flow.label_dependencies.all())
 
-        self.assertFalse(label1.is_active)
+    def test_delete_folder(self):
+        # create a folder with a single label
+        folder = Label.get_or_create_folder(self.org, self.user, "Cool Labels")
+        label1 = Label.get_or_create(self.org, self.user, "Spam", folder=folder)
 
-    def test_label_delete_with_flow_dependency(self):
-        label1 = Label.get_or_create(self.org, self.user, "Spam")
+        delete_url = reverse("msgs.label_delete_folder", args=[folder.id])
 
-        self.get_flow("dependencies")
-        flow = Flow.objects.filter(name="Dependencies").first()
+        # fetch delete modal - which will tell us we can't delete this as it is not empty
+        response = self.assertDeleteFetch(delete_url, allow_editors=True)
+        self.assertContains(response, "cannot be deleted as it still contains labels")
 
-        flow.label_dependencies.add(label1)
+        # remove label...
+        label1.release(self.admin)
 
-        # release method raises ValueError
-        with self.assertRaises(ValueError) as release_error:
-            label1.release(self.admin)
+        # fetch delete modal again
+        response = self.assertDeleteFetch(delete_url, allow_editors=True)
+        self.assertContains(response, "Are you sure you want to delete")
 
-        self.assertEqual(str(release_error.exception), f"Cannot delete Label: {label1.name}, used by 1 flows")
+        # submit to delete it
+        response = self.assertDeleteSubmit(delete_url, object_deactivated=folder, success_status=200)
+        self.assertEqual("/msg/inbox/", response["Temba-Success"])
+
+        # modal will show error if a label is added in the background
+        Label.get_or_create(self.org, self.user, "Spam", folder=folder)
+
+        response = self.assertDeleteSubmit(delete_url, object_unchanged=folder, success_status=200)
+        self.assertContains(response, "cannot be deleted as it still contains labels")
 
     def test_list(self):
         folder = Label.get_or_create_folder(self.org, self.user, "Folder")
