@@ -274,7 +274,7 @@ def sync(request, channel_id):
 
             elif keyword == "reset":
                 # release this channel
-                channel.release(False)
+                channel.release(channel.modified_by, trigger_sync=False)
                 channel.save()
 
                 # ack that things got handled
@@ -1113,7 +1113,7 @@ class ChannelCRUDL(SmartCRUDL):
             channel = self.get_object()
 
             try:
-                channel.release(trigger_sync=self.request.META["SERVER_NAME"] != "testserver")
+                channel.release(request.user)
 
                 if channel.channel_type == "T" and not channel.is_delegate_sender():
                     messages.info(

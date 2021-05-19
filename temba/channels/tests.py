@@ -73,6 +73,25 @@ class ChannelTest(TembaTest):
             config={Channel.CONFIG_FCM_ID: "000"},
         )
 
+    def claim_new_android(self, fcm_id: str = "FCM111", number: str = "0788123123") -> Channel:
+        """
+        Helper function to register and claim a new Android channel
+        """
+        cmds = [dict(cmd="fcm", fcm_id=fcm_id, uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")]
+        response = self.client.post(reverse("register"), json.dumps({"cmds": cmds}), content_type="application/json")
+        self.assertEqual(200, response.status_code)
+
+        android = Channel.objects.order_by("id").last()
+
+        self.login(self.admin)
+        response = self.client.post(
+            reverse("channels.types.android.claim"), {"claim_code": android.claim_code, "phone_number": number}
+        )
+        self.assertRedirect(response, "/welcome/")
+
+        android.refresh_from_db()
+        return android
+
     def send_message(self, numbers, message, org=None, user=None):
         org = org or self.org
         user = user or self.user
@@ -303,7 +322,7 @@ class ChannelTest(TembaTest):
 
         self.assertEqual(reverse("orgs.org_home"), response.get("temba-success"))
 
-        msg = Msg.objects.get(pk=msg.pk)
+        msg.refresh_from_db()
         self.assertIsNotNone(msg.channel)
         self.assertFalse(msg.channel.is_active)
         self.assertEqual(self.org, msg.org)
@@ -401,18 +420,14 @@ class ChannelTest(TembaTest):
             secret=Channel.generate_secret(),
             config={Channel.CONFIG_FCM_ID: "123"},
         )
-        from temba.flows.models import Flow
 
-        self.get_flow("dependencies")
-        flow = Flow.objects.filter(name="Dependencies").first()
-
+        flow = self.get_flow("color")
         flow.channel_dependencies.add(channel)
 
-        response = self.fetch_protected(
-            reverse("channels.channel_delete", args=[channel.pk]), post_data=dict(remove=True), user=self.superuser
-        )
-        self.assertTrue("Cannot delete Channel" in response.cookies.get("messages").coded_value)
-        self.assertRedirect(response, reverse("channels.channel_read", args=[channel.uuid]))
+        self.login(self.admin)
+
+        response = self.client.post(reverse("channels.channel_delete", args=[channel.pk]), post_data=dict(remove=True))
+        self.assertEqual("/org/home/", response["Temba-Success"])
 
     def test_list(self):
         # de-activate existing channels
@@ -974,40 +989,23 @@ class ChannelTest(TembaTest):
         Channel.objects.all().delete()
         self.login(self.admin)
 
-        reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
-        self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
+        android = self.claim_new_android()
 
-        android = Channel.objects.get()
-        self.client.post(
-            reverse("channels.types.android.claim"), dict(claim_code=android.claim_code, phone_number="0788123123")
-        )
-
-        from temba.flows.models import Flow
-
-        self.get_flow("dependencies")
-        flow = Flow.objects.filter(name="Dependencies").first()
-
+        flow = self.get_flow("color")
         flow.channel_dependencies.add(android)
 
-        # release method raises ValueError
-        with self.assertRaises(ValueError) as release_error:
-            android.release()
+        android.release(self.admin)
 
-        self.assertEqual(str(release_error.exception), "Cannot delete Channel: Nexus, used by 1 flows")
+        flow.refresh_from_db()
+        self.assertTrue(flow.has_issues)
+        self.assertNotIn(android, flow.channel_dependencies.all())
 
     @patch("temba.mailroom.queue_interrupt")
     def test_release(self, mock_queue_interrupt):
         Channel.objects.all().delete()
         self.login(self.admin)
 
-        # register and claim an Android channel
-        reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
-        self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
-        android = Channel.objects.get()
-        self.client.post(
-            reverse("channels.types.android.claim"), dict(claim_code=android.claim_code, phone_number="0788123123")
-        )
-        android.refresh_from_db()
+        android = self.claim_new_android()
 
         # connect org to Vonage and add bulk sender
         self.org.connect_vonage("123", "456", self.admin)
@@ -1016,7 +1014,7 @@ class ChannelTest(TembaTest):
         self.client.post(claim_url, dict(connection="NX", channel=android.pk))
         vonage = Channel.objects.get(channel_type="NX")
 
-        android.release()
+        android.release(self.admin)
 
         # check that some details are cleared and channel is now inactive
         self.assertFalse(android.is_active)
@@ -1031,19 +1029,14 @@ class ChannelTest(TembaTest):
         # check we queued session interrupt tasks for each channel
         mock_queue_interrupt.assert_has_calls(calls=[call(self.org, channel=vonage), call(self.org, channel=android)])
 
-        # register and claim an Android channel
-        reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
-        self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
-        android = Channel.objects.get()
-        self.client.post(
-            reverse("channels.types.android.claim"), dict(claim_code=android.claim_code, phone_number="0788123123")
-        )
-        android.refresh_from_db()
+        # claim new channel
+        android = self.claim_new_android()
+
         # simulate no FCM ID
         android.config.pop(Channel.CONFIG_FCM_ID, None)
         android.save()
 
-        android.release()
+        android.release(self.admin)
 
         # check that some details are cleared and channel is now inactive
         self.assertFalse(android.is_active)
@@ -1091,31 +1084,11 @@ class ChannelTest(TembaTest):
         self.assertEqual({"error": "Can't sync unclaimed channel", "error_id": 4, "cmds": []}, response.json())
 
     @mock_mailroom
-    def test_sync_released(self, mr_mocks):
-        # register an Android channel
-        self.client.post(
-            reverse("register"),
-            data=json.dumps(
-                {
-                    "cmds": [
-                        {"cmd": "fcm", "fcm_id": "FCM111", "uuid": "uuid"},
-                        {"cmd": "status", "cc": "RW", "dev": "Nexus"},
-                    ]
-                }
-            ),
-            content_type="application/json",
-        )
-        android = Channel.objects.order_by("id").last()
-
-        # claim it
-        self.login(self.admin)
-        self.client.post(
-            reverse("channels.types.android.claim"), {"claim_code": android.claim_code, "phone_number": "0788123123"}
-        )
-        android.refresh_from_db()
+    def test_release_android(self, mr_mocks):
+        android = self.claim_new_android()
 
         # release it
-        android.release()
+        android.release(self.admin)
 
         response = self.sync(android, cmds=[])
         self.assertEqual(200, response.status_code)
@@ -1125,27 +1098,7 @@ class ChannelTest(TembaTest):
 
     @mock_mailroom
     def test_sync_client_reset(self, mr_mocks):
-        # register an Android channel
-        self.client.post(
-            reverse("register"),
-            data=json.dumps(
-                {
-                    "cmds": [
-                        {"cmd": "fcm", "fcm_id": "FCM111", "uuid": "uuid"},
-                        {"cmd": "status", "cc": "RW", "dev": "Nexus"},
-                    ]
-                }
-            ),
-            content_type="application/json",
-        )
-        android = Channel.objects.order_by("id").last()
-
-        # claim it
-        self.login(self.admin)
-        self.client.post(
-            reverse("channels.types.android.claim"), {"claim_code": android.claim_code, "phone_number": "0788123123"}
-        )
-        android.refresh_from_db()
+        android = self.claim_new_android()
 
         response = self.sync(android, cmds=[{"cmd": "reset"}])
         self.assertEqual(200, response.status_code)

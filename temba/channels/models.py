@@ -27,7 +27,7 @@ from django.utils.http import urlquote_plus
 from django.utils.translation import ugettext_lazy as _
 
 from temba import mailroom
-from temba.orgs.models import Org
+from temba.orgs.models import DependencyMixin, Org
 from temba.utils import analytics, countries, get_anonymous_user, json, on_transaction_commit, redact
 from temba.utils.email import send_template_email
 from temba.utils.gsm7 import calculate_num_segments
@@ -240,7 +240,7 @@ class UnsupportedAndroidChannelError(Exception):
         self.message = message
 
 
-class Channel(TembaModel):
+class Channel(TembaModel, DependencyMixin):
     """
     Notes:
         - we want to reuse keys as much as possible (2018-10-11)
@@ -893,19 +893,18 @@ class Channel(TembaModel):
 
         org.normalize_contact_tels()
 
-    def release(self, trigger_sync=True):
+    def release(self, user, trigger_sync=True):
         """
         Releases this channel making it inactive
         """
-        dependent_flows_count = self.dependent_flows.count()
-        if dependent_flows_count > 0:
-            raise ValueError(f"Cannot delete Channel: {self.get_name()}, used by {dependent_flows_count} flows")
+
+        super().release(user)
 
         channel_type = self.get_type()
 
         # release any channels working on our behalf as well
-        for delegate_channel in Channel.objects.filter(parent=self, org=self.org):
-            delegate_channel.release()
+        for delegate_channel in self.org.channels.filter(parent=self):
+            delegate_channel.release(user)
 
         # unassociate them
         Channel.objects.filter(parent=self).update(parent=None)
@@ -934,14 +933,14 @@ class Channel(TembaModel):
         # interrupt any sessions using this channel as a connection
         mailroom.queue_interrupt(self.org, channel=self)
 
-        # save off our org and fcm id before nullifying
-        org = self.org
+        # save the FCM id before clearing
         registration_id = self.config.get(Channel.CONFIG_FCM_ID)
 
         # make the channel inactive
         self.config.pop(Channel.CONFIG_FCM_ID, None)
+        self.modified_by = user
         self.is_active = False
-        self.save(update_fields=["is_active", "config", "modified_on"])
+        self.save(update_fields=("is_active", "config", "modified_by", "modified_on"))
 
         # mark any messages in sending mode as failed for this channel
         from temba.msgs.models import Msg, OUTGOING, PENDING, QUEUED, ERRORED, FAILED
@@ -956,34 +955,29 @@ class Channel(TembaModel):
 
         from temba.triggers.models import Trigger
 
-        Trigger.objects.filter(channel=self, org=org).update(is_active=False)
-
-        # and any triggers associated with our channel get archived
+        # any triggers associated with our channel get archived and released
         for trigger in Trigger.objects.filter(org=self.org, channel=self).all():
-            trigger.channel = None
-            trigger.save(update_fields=("channel",))
-            trigger.archive(self.modified_by)
+            trigger.archive(user)
+            trigger.release()
 
     def trigger_sync(self, registration_id=None):  # pragma: no cover
         """
         Sends a FCM command to trigger a sync on the client
         """
+
+        assert self.is_android(), "can only trigger syncs on Android channels"
+
         # androids sync via FCM
-        if self.is_android():
-            fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
+        fcm_id = self.config.get(Channel.CONFIG_FCM_ID)
 
-            if fcm_id is not None:
-                if getattr(settings, "FCM_API_KEY", None):
-                    from .tasks import sync_channel_fcm_task
+        if fcm_id is not None:
+            if getattr(settings, "FCM_API_KEY", None):
+                from .tasks import sync_channel_fcm_task
 
-                    if not registration_id:
-                        registration_id = fcm_id
-                    if registration_id:
-                        on_transaction_commit(lambda: sync_channel_fcm_task.delay(registration_id, channel_id=self.pk))
-
-        # otherwise this is an aggregator, no-op
-        else:
-            raise Exception("Trigger sync called on non Android channel. [%d]" % self.pk)
+                if not registration_id:
+                    registration_id = fcm_id
+                if registration_id:
+                    on_transaction_commit(lambda: sync_channel_fcm_task.delay(registration_id, channel_id=self.pk))
 
     @classmethod
     def sync_channel_fcm(cls, registration_id, channel=None):  # pragma: no cover
