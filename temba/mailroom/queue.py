@@ -33,7 +33,6 @@ class BatchTask(Enum):
     SEND_BROADCAST = "send_broadcast"
     INTERRUPT_SESSIONS = "interrupt_sessions"
     POPULATE_DYNAMIC_GROUP = "populate_dynamic_group"
-    RESEND_MSGS = "resend_msgs"
     SCHEDULE_CAMPAIGN_EVENT = "schedule_campaign_event"
     IMPORT_CONTACT_BATCH = "import_contact_batch"
 
@@ -97,16 +96,6 @@ def queue_broadcast(broadcast):
     }
 
     _queue_batch_task(broadcast.org_id, BatchTask.SEND_BROADCAST, task, HIGH_PRIORITY)
-
-
-def queue_resend_msgs(org, msgs: list):
-    """
-    Queues the passed in msgs for resending by mailroom
-    """
-
-    task = {"msg_ids": [m.id for m in msgs]}
-
-    _queue_batch_task(org.id, BatchTask.RESEND_MSGS, task, HIGH_PRIORITY)
 
 
 def queue_populate_dynamic_group(group):

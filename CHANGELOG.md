@@ -1,3 +1,8 @@
+v6.3.50
+----------
+ * Resend messages using web endpoint rather than task
+ * Convert message labels, globals and classifiers to use soft dependencies
+
 v6.3.49
 ----------
  * Make Msg.next_attempt nullable and add msgs to mailroom_db

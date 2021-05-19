@@ -112,6 +112,11 @@ class MailroomClient:
 
         return self._request("flow/clone", payload)
 
+    def msg_resend(self, org_id, msg_ids):
+        payload = {"org_id": org_id, "msg_ids": msg_ids}
+
+        return self._request("msg/resend", payload)
+
     def po_export(self, org_id, flow_ids, language, exclude_arguments=False):
         payload = {
             "org_id": org_id,

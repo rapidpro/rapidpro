@@ -141,6 +141,19 @@ class MailroomClientTest(TembaTest):
                 },
             )
 
+    @patch("requests.post")
+    def test_msg_resend(self, mock_post):
+        mock_post.return_value = MockResponse(200, '{"msg_ids": [12345]}')
+        response = get_client().msg_resend(org_id=self.org.id, msg_ids=[12345, 67890])
+
+        self.assertEqual({"msg_ids": [12345]}, response)
+
+        mock_post.assert_called_once_with(
+            "http://localhost:8090/mr/msg/resend",
+            headers={"User-Agent": "Temba"},
+            json={"org_id": self.org.id, "msg_ids": [12345, 67890]},
+        )
+
     def test_po_export(self):
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, 'msgid "Red"\nmsgstr "Rojo"\n\n')
@@ -501,25 +514,6 @@ class MailroomQueueTest(TembaTest):
                     "include_active": True,
                     "extra": {"foo": "bar"},
                 },
-                "queued_on": matchers.ISODate(),
-            },
-        )
-
-    def test_resend_msgs(self):
-        contact = self.create_contact("Joe", phone="123456")
-        msg1 = self.create_outgoing_msg(contact, "hi there", self.channel)
-        msg2 = self.create_outgoing_msg(contact, "hi there", self.channel)
-        self.create_outgoing_msg(contact, "hi there", self.channel)
-
-        Msg.apply_action_resend(self.org, [msg1, msg2])
-
-        self.assert_org_queued(self.org, "batch")
-        self.assert_queued_batch_task(
-            self.org,
-            {
-                "type": "resend_msgs",
-                "org_id": self.org.id,
-                "task": {"msg_ids": [msg1.id, msg2.id]},
                 "queued_on": matchers.ISODate(),
             },
         )
