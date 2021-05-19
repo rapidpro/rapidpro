@@ -35,7 +35,7 @@ from temba.msgs.models import (
 )
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
-from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, TembaTest
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.utils.uuid import uuid4
@@ -590,8 +590,8 @@ class MsgTest(TembaTest):
         self.assertEqual("E", msg2.status)
         self.assertEqual("F", msg3.status)
 
-    @mock_mailroom
-    def test_failed(self, mr_mocks):
+    @patch("temba.mailroom.client.MailroomClient.msg_resend")
+    def test_failed(self, mock_msg_resend):
         failed_url = reverse("msgs.msg_failed")
 
         msg1 = self.create_outgoing_msg(self.joe, "message number 1", status="F")
@@ -631,17 +631,7 @@ class MsgTest(TembaTest):
         # let's resend some messages
         self.client.post(failed_url, dict(action="resend", objects=msg2.id), follow=True)
 
-        self.assertEqual(
-            [
-                {
-                    "org_id": self.org.id,
-                    "queued_on": matchers.Datetime(),
-                    "task": {"msg_ids": [msg2.id]},
-                    "type": "resend_msgs",
-                }
-            ],
-            mr_mocks.queued_batch_tasks,
-        )
+        mock_msg_resend.assert_called_once_with(self.org.id, [msg2.id])
 
         # suspended orgs don't see resend as option
         self.org.is_suspended = True
