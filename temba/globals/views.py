@@ -1,13 +1,12 @@
 from gettext import gettext as _
 
-from smartmin.views import SmartCreateView, SmartCRUDL, SmartDeleteView, SmartListView, SmartReadView, SmartUpdateView
+from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartReadView, SmartUpdateView
 
 from django import forms
-from django.http import HttpResponse
 from django.urls import reverse
 
 from temba.orgs.models import Org
-from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget
 
 from .models import Global
@@ -112,26 +111,10 @@ class GlobalCRUDL(SmartCRUDL):
             kwargs["org"] = self.derive_org()
             return kwargs
 
-    class Delete(OrgObjPermsMixin, SmartDeleteView):
+    class Delete(DependencyDeleteModal):
         cancel_url = "@globals.global_list"
-        redirect_url = "@globals.global_list"
+        success_url = "@globals.global_list"
         success_message = ""
-        http_method_names = ("get", "post")
-
-        def post(self, request, *args, **kwargs):
-            self.object = self.get_object()
-            self.pre_delete(self.object)
-            redirect_url = self.get_redirect_url()
-
-            # did it maybe change underneath us ???
-            if self.object.get_usage_count():
-                raise ValueError(f"Cannot remove a global {self.object.name} which is in use")
-
-            self.object.release()
-
-            response = HttpResponse()
-            response["Temba-Success"] = redirect_url
-            return response
 
     class List(OrgPermsMixin, SmartListView):
         title = _("Manage Globals")
