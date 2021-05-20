@@ -93,7 +93,7 @@ from .serializers import (
     UrlAttachmentValidationSerializer,
     WebHookEventReadSerializer,
 )
-from ...links.models import Link
+from ...links.models import Link, LinkContacts
 from ...orgs.models import LOOKUPS, DEFAULT_FIELDS_PAYLOAD_LOOKUPS, DEFAULT_INDEXES_FIELDS_PAYLOAD_LOOKUPS
 
 
@@ -5333,6 +5333,9 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
     A **GET** returns numbers of clicks and contacts who received the link
 
     * **link_name** - Name of link to generate report for
+    * **exclude** - UUID or Name of contact group, contacts from which are not supposed to be included in the report
+    * **after** - Date, excludes all contact clicks from the report that were modified earlier a certain date
+    * **before** - Date, excludes all contacts clicks from the report that were modified later a certain date
 
     Example:
 
@@ -5368,7 +5371,7 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
     def get(self, *args, **kwargs):
         org = self.request.user.get_org()
         link_name = self.request.data.get("link_name", self.request.GET.get("link_name", ""))
-        link = Link.objects.filter(org=org, name__icontains=link_name).first()
+        link = Link.objects.filter(org=org, name__iexact=link_name).first()
         if not link_name or link is None:
             errors = {
                 status.HTTP_400_BAD_REQUEST: _("Parameter 'link_name' is not provider."),
@@ -5393,7 +5396,13 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
         if after:
             time_filters &= Q(modified_on__gte=org.parse_datetime(after))
 
-        unique_clicks = link.contacts.filter(time_filters).exclude(group_exclude_filters).distinct().count()
+        unique_clicks = (
+            LinkContacts.objects.filter(link_id=link.id)
+            .filter(time_filters)
+            .exclude(group_exclude_filters)
+            .distinct()
+            .count()
+        )
         unique_contacts = (
             link.related_flow.runs.filter(time_filters)
             .exclude(group_exclude_filters)
@@ -5410,7 +5419,7 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
                     "total_clicks": link.clicks_count,
                     "unique_clicks": unique_clicks,
                     "unique_contacts": unique_contacts,
-                    "clickthrough_rate": unique_clicks / unique_contacts if unique_clicks and unique_contacts else 0,
+                    "clickthrough_rate": unique_clicks / unique_contacts if unique_contacts else unique_contacts,
                 }
             ],
         }
@@ -5432,6 +5441,9 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
             slug="trackable-link-report",
             fields=[
                 dict(name="link_name", required=True, help="The name of the link"),
+                dict(name="after", required=False, help="Select  unique link clicks since specific date"),
+                dict(name="before", required=False, help="Select unique link clicks until specific date"),
+                dict(name="exclude", required=False, help="Contact group to exclude"),
             ],
             params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
