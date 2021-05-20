@@ -1,3 +1,8 @@
+v6.3.51
+----------
+ * Adjust WA templates page styles
+ * Migration to clear next_attempt for android channels
+
 v6.3.50
 ----------
  * Resend messages using web endpoint rather than task
