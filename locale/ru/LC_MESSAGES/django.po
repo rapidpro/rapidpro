@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-12 18:32+0000\n"
+"POT-Creation-Date: 2021-05-20 16:11+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2062,9 +2062,6 @@ msgstr "Не удалось получить доступ к wit.ai, испол�
 msgid "Connect"
 msgstr "Подключить"
 
-msgid "Delete Classifier"
-msgstr "Удалить Классификатор"
-
 msgid "Your classifier has been deleted."
 msgstr "Ваш классификатор был удален."
 
@@ -2073,6 +2070,9 @@ msgstr ""
 
 msgid "Sync"
 msgstr "Синхронизировать"
+
+msgid "Delete Classifier"
+msgstr "Удалить Классификатор"
 
 msgid "Your classifier has been synced."
 msgstr ""
@@ -3039,6 +3039,11 @@ msgstr ""
 msgid "Send All"
 msgstr "Отправить Все"
 
+#, fuzzy
+#| msgid "Create Folder"
+msgid "Delete Folder"
+msgstr "Создать папку"
+
 msgid "Name must not be blank or begin with punctuation"
 msgstr "Название не должно быть пустым или начинаться с пунктуационных знаков"
 
@@ -3060,6 +3065,16 @@ msgstr "Обновить Папку"
 
 msgid "Update Label"
 msgstr "Обновить Метку"
+
+#, fuzzy
+#| msgid "Your classifier has been deleted."
+msgid "Your label has been deleted."
+msgstr "Ваш классификатор был удален."
+
+#, fuzzy
+#| msgid "Your classifier has been deleted."
+msgid "Your label folder has been deleted."
+msgstr "Ваш классификатор был удален."
 
 msgid "Agent Name"
 msgstr "Название Агента"
@@ -3937,9 +3952,6 @@ msgid "Delete Ticket Service"
 msgstr ""
 
 msgid "HTTP Log"
-msgstr ""
-
-msgid "Delete Ticketing Service"
 msgstr ""
 
 msgid "Your ticketing service has been deleted."
@@ -5309,13 +5321,6 @@ msgstr ""
 msgid "Select your provider below to get started."
 msgstr ""
 
-msgid "Unable to delete classifier still being used by"
-msgstr ""
-
-#, python-format
-msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
-msgstr ""
-
 msgid "Classifier"
 msgstr "Классификатор"
 
@@ -5333,9 +5338,6 @@ msgstr "На данный момент синхронизированные на
 
 msgid "Intents are synced automatically every 5 minutes"
 msgstr "Намерения автоматически синхронизируются каждые 5 минут"
-
-msgid "Ok"
-msgstr "Ok"
 
 msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr ""
@@ -6235,7 +6237,7 @@ msgid "%(name)s also keeps track of calls that are received on your channel so y
 msgstr ""
 
 #, python-format
-msgid "Uh oh, we couldn't delete %(name)s."
+msgid "<b>%(name)s</b> cannot be deleted as it still contains labels."
 msgstr ""
 
 msgid "Numeric Value:"
@@ -6293,6 +6295,21 @@ msgid "No matching messages."
 msgstr "Нет соответствующих сообщений."
 
 msgid "Your workspace is suspended and no longer processing messages."
+msgstr ""
+
+msgid "is used by the following flows which may not work as expected if you delete it:"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "%(counter)s Use"
+#| msgid_plural "%(counter)s Uses"
+msgid "and %(count)s more"
+msgstr "%(counter)s использование"
+
+msgid "You are about to delete"
+msgstr ""
+
+msgid "There is no way to undo this. Are you sure?"
 msgstr ""
 
 #, python-format
@@ -6705,9 +6722,6 @@ msgstr "Вы использовали"
 
 msgid "credits since signing up."
 msgstr "кредитов с момента регистрации."
-
-msgid "You are about to delete"
-msgstr ""
 
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
 msgstr ""
@@ -7550,9 +7564,6 @@ msgstr ""
 msgid "No ticketing services are available."
 msgstr ""
 
-msgid "Unable to delete service still being used by"
-msgstr ""
-
 #, python-format
 msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
 msgstr ""
@@ -7667,11 +7678,14 @@ msgstr "Шаблоны"
 
 #, fuzzy
 #| msgid "Templates are synced from your WhatsApp account every 15 minutes."
-msgid "WhatsApp Templates are synced from your account every 15 minutes."
+msgid "Templates are synced from your account every 15 minutes."
 msgstr "Шаблоны синхронизируются с Вашей учетной записью WhatsApp каждые 15 минут."
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#~ msgid "Ok"
+#~ msgstr "Ok"
 
 #~ msgid "Any labels on this flow"
 #~ msgstr "Любые метки по данному потоку"
