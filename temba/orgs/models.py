@@ -157,6 +157,7 @@ class Org(SmartModel):
     CONFIG_CHATBASE_AGENT_NAME = "CHATBASE_AGENT_NAME"
     CONFIG_CHATBASE_API_KEY = "CHATBASE_API_KEY"
     CONFIG_CHATBASE_VERSION = "CHATBASE_VERSION"
+    CONFIG_IVR_MACHINE_DETECTION = "IVR_MACHINE_DETECTION"
 
     # items in export JSON
     EXPORT_VERSION = "version"
@@ -575,6 +576,20 @@ class Org(SmartModel):
         A verified org is not subject to automatic flagging for suspicious activity
         """
         return self.config.get(Org.CONFIG_VERIFIED, False)
+
+    def set_ivr_machine_detection(self, value=True):
+        """
+        Set a value ("true" or "false") IVR machine detection
+        We use boolean string here because mailroom is currently supporting only string on ConfigValue func
+        """
+        self.config[Org.CONFIG_IVR_MACHINE_DETECTION] = value
+        self.save(update_fields=("config", "modified_on"))
+
+    def is_ivr_machine_detection_enabled(self):
+        """
+        Whether the IVR machine detection is enabled
+        """
+        return self.config.get(Org.CONFIG_IVR_MACHINE_DETECTION, "false") == "true"
 
     def import_app(self, export_json, user, site=None):
         """
@@ -2249,6 +2264,7 @@ class Org(SmartModel):
                 f"{item.uuid}:{item.destination}"
                 for item in self.links.filter(is_archived=False).only("uuid", "destination")
             ],
+            "has_ivr_machine_detection": self.is_ivr_machine_detection_enabled()
         }
 
     def __str__(self):

@@ -1423,6 +1423,25 @@ class OrgCRUDL(SmartCRUDL):
                         )
                     )
 
+                if org.is_ivr_machine_detection_enabled():
+                    links.append(
+                        dict(
+                            title=_("Disable IVR Machine Detection"),
+                            style="button-secondary",
+                            posterize=True,
+                            href="%s?action=disable-machine-detection" % reverse("orgs.org_update", args=[org.pk]),
+                        )
+                    )
+                else:
+                    links.append(
+                        dict(
+                            title=_("Enable IVR Machine Detection"),
+                            style="button-secondary",
+                            posterize=True,
+                            href="%s?action=enable-machine-detection" % reverse("orgs.org_update", args=[org.pk]),
+                        )
+                    )
+
                 if self.request.user.has_perm("orgs.org_delete"):
                     links.append(
                         dict(
@@ -1443,6 +1462,10 @@ class OrgCRUDL(SmartCRUDL):
                     self.get_object().verify()
                 elif action == "unflag":
                     self.get_object().unflag()
+                elif action == "enable-machine-detection":
+                    self.get_object().set_ivr_machine_detection(value="true")
+                elif action == "disable-machine-detection":
+                    self.get_object().set_ivr_machine_detection(value="false")
                 return HttpResponseRedirect(self.get_success_url())
             return super().post(request, *args, **kwargs)
 

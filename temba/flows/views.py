@@ -1416,6 +1416,9 @@ class FlowCRUDL(SmartCRUDL):
             if flow.org.get_resthooks():
                 feature_filters.append("resthook")
 
+            if flow.org.is_ivr_machine_detection_enabled():
+                feature_filters.append("machine_detection")
+
             if flow.flow_type != Flow.TYPE_MESSAGE:
                 feature_filters.append("spell_checker")
 
@@ -1493,7 +1496,7 @@ class FlowCRUDL(SmartCRUDL):
                     )
                 )
 
-            if self.has_org_perm("orgs.org_lookups") and flow.flow_type == Flow.TYPE_MESSAGE:
+            if self.has_org_perm("orgs.org_lookups") and flow.flow_type in [Flow.TYPE_MESSAGE, Flow.TYPE_VOICE]:
                 links.append(dict(title=_("Import Database"), href=reverse("orgs.org_lookups")))
 
             if self.has_org_perm("flows.flow_merge_flows") and self.get_mergeable_flows():
