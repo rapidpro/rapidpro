@@ -4546,12 +4546,12 @@ class ReportEndpointMixin:
         if channel_filters["names"]:
             es_channel_filters.extend(
                 [
-                    {"match_phrase": {"urns.channel_uuid": {"query": channel_uuid}}}
-                    for channel_uuid in channel_filters["uuids"]
+                    {"match_phrase": {"urns.channel_name": {"query": channel_name}}}
+                    for channel_name in channel_filters["names"]
                 ]
             )
-        main_conditions.append(es_channels_filter_config)
         if any(channel_filters.values()):
+            main_conditions.append(es_channels_filter_config)
             self.applied_filters["channel"] = ", ".join([*channel_filters["names"], *channel_filters["uuids"]])
 
         # filter by flow
@@ -4559,14 +4559,14 @@ class ReportEndpointMixin:
         if flow_uuid:
             if not is_uuid_valid(flow_uuid):
                 raise SearchException(_("The `flow` parameter is not valid."))
-            main_conditions.append({"match_phrase": {"flows.uuid": flow_uuid}})
+            main_conditions.append({"term": {"flows": flow_uuid}})
             self.applied_filters["flow"] = flow_uuid
 
         # get contact ids from elasticsearch database
         contact_ids = query_contact_ids_from_elasticsearch(org, elastic_query_conf)
 
         # return only count of contacts from elasticsearch id no need in actual records
-        if count_only and not {"flow", "channel"}.intersection(self.applied_filters):
+        if count_only:
             contacts.count = lambda: len(contact_ids)
             return contacts
 
