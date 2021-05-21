@@ -133,14 +133,10 @@ def retry_errored_messages():
     """
     Requeues any messages that have errored and have a next attempt in the past
     """
-
-    from temba.channels.types.android import AndroidType
-
     errored_msgs = (
         Msg.objects.filter(direction=OUTGOING, status=ERRORED, next_attempt__lte=timezone.now())
-        .exclude(channel__channel_type=AndroidType.code)
-        .order_by("created_on")
-        .prefetch_related("channel")[:5000]
+        .order_by("next_attempt", "created_on")
+        .only("id")
     )
     Msg.send_messages(errored_msgs)
 
