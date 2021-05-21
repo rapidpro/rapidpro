@@ -893,7 +893,7 @@ class Channel(TembaModel, DependencyMixin):
 
         org.normalize_contact_tels()
 
-    def release(self, user, trigger_sync=True):
+    def release(self, user, *, trigger_sync=True):
         """
         Releases this channel making it inactive
         """
