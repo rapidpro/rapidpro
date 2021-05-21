@@ -1122,7 +1122,7 @@ class ChannelCRUDL(SmartCRUDL):
                 )
 
                 response = HttpResponse()
-                response["Temba-Success"] = self.get_cancel_url()
+                response["Temba-Success"] = self.cancel_url
                 return response
 
             # override success message for Twilio channels

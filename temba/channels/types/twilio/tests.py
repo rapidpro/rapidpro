@@ -211,17 +211,17 @@ class TwilioTypeTest(TembaTest):
                 mock_numbers.side_effect = TwilioRestException(
                     401, "http://twilio", msg="Authentication Failure", code=20003
                 )
-                self.client.post(reverse("channels.channel_delete", args=[twilio_channel.pk]))
+                self.client.post(reverse("channels.channel_delete", args=[twilio_channel.uuid]))
                 self.assertIsNotNone(self.org.channels.all().first())
 
                 # or other arbitrary twilio errors
                 mock_numbers.side_effect = TwilioRestException(400, "http://twilio", msg="Twilio Error", code=123)
-                self.client.post(reverse("channels.channel_delete", args=[twilio_channel.pk]))
+                self.client.post(reverse("channels.channel_delete", args=[twilio_channel.uuid]))
                 self.assertIsNotNone(self.org.channels.all().first())
 
                 # now lets be successful
                 mock_numbers.side_effect = None
-                self.client.post(reverse("channels.channel_delete", args=[twilio_channel.pk]))
+                self.client.post(reverse("channels.channel_delete", args=[twilio_channel.uuid]))
                 self.assertIsNone(self.org.channels.filter(is_active=True).first())
                 self.assertEqual(
                     mock_numbers.call_args_list[-1][1], dict(voice_application_sid="", sms_application_sid="")
