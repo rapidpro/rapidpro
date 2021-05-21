@@ -193,7 +193,7 @@ class VonageTypeTest(TembaTest):
                 mock_delete_application.side_effect = vonage.ClientError("404 response")
 
                 # releasing shouldn't blow up on auth failures
-                channel.release()
+                channel.release(self.admin)
                 channel.refresh_from_db()
 
                 self.assertFalse(channel.is_active)

@@ -254,6 +254,6 @@ class TwilioTypeTest(TembaTest):
                 )
 
                 # releasing shouldn't blow up on auth failures
-                twilio_channel.release()
+                twilio_channel.release(self.admin)
                 twilio_channel.refresh_from_db()
                 self.assertFalse(twilio_channel.is_active)

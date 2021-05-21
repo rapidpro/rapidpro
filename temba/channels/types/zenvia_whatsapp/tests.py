@@ -72,7 +72,7 @@ class ZenviaWhatsAppTypeTest(TembaTest):
 
             # deactivate our channel
             with self.settings(IS_PROD=True):
-                channel.release()
+                channel.release(self.admin)
 
             self.assertEqual(1, mock_delete.call_count)
             self.assertEqual(
@@ -109,7 +109,7 @@ class ZenviaWhatsAppTypeTest(TembaTest):
 
             # deactivate our channel
             with self.settings(IS_PROD=True):
-                channel.release()
+                channel.release(self.admin)
 
             self.assertEqual(2, mock_delete.call_count)
             self.assertEqual(

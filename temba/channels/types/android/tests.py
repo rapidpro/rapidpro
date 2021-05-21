@@ -168,7 +168,7 @@ class AndroidTypeTest(TembaTest):
 
         # release and then register with same details and claim again
         old_uuid = android1.uuid
-        android1.release()
+        android1.release(self.admin)
 
         response = self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
         claim_code = response.json()["cmds"][0]["relayer_claim_code"]
@@ -265,7 +265,7 @@ class AndroidTypeTest(TembaTest):
         self.assertEqual(self.org.default_country_code, "RW")
 
         # remove channel
-        vonage.release()
+        vonage.release(self.admin)
 
         self.assertEqual(self.org.default_country_code, "RW")
 

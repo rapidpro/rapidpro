@@ -1473,7 +1473,7 @@ class APITest(TembaTest):
 
         # create deleted channel
         deleted = Channel.create(self.org, self.admin, None, "JC", name="Deleted", address="nyaruka", role="SR")
-        deleted.release()
+        deleted.release(self.admin)
 
         # create channel for other org
         Channel.create(self.org2, self.admin2, None, "TT", name="Twitter Channel", address="nyaruka", role="SR")

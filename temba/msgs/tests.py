@@ -1987,7 +1987,7 @@ class BroadcastTest(TembaTest):
     def test_send(self, mock_queue_broadcast):
         # remove all channels first
         for channel in Channel.objects.all():
-            channel.release()
+            channel.release(self.admin)
 
         send_url = reverse("msgs.broadcast_send")
         self.login(self.admin)
