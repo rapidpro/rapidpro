@@ -222,7 +222,7 @@ class TriggerTest(TembaTest):
         self.assertEqual(2, Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL).count())
 
         # release our channel
-        self.channel.release()
+        self.channel.release(self.admin)
 
         # should still have two voice flows and triggers (they aren't archived)
         self.assertEqual(2, Flow.objects.filter(flow_type=Flow.TYPE_VOICE, is_archived=False).count())

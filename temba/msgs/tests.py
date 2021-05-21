@@ -2043,7 +2043,7 @@ class BroadcastTest(TembaTest):
 
         # test with one channel now
         for channel in Channel.objects.all():
-            channel.release()
+            channel.release(self.admin)
 
         Channel.create(
             self.org,

@@ -483,7 +483,7 @@ class Channel(TembaModel, DependencyMixin):
 
                 except Exception as e:
                     # release our channel, raise error upwards
-                    channel.release()
+                    channel.release(user)
                     raise e
 
         return channel
@@ -902,11 +902,21 @@ class Channel(TembaModel, DependencyMixin):
 
         channel_type = self.get_type()
 
-        # release any channels working on our behalf as well
+        # ask the channel type to deactivate - as this usually means calling out to external APIs it can fail
+        if settings.IS_PROD:
+            try:
+                channel_type.deactivate(self)
+            except TwilioRestException as e:
+                raise e
+            except Exception as e:
+                # proceed with removing this channel but log the problem
+                logger.error(f"Unable to deactivate a channel: {str(e)}", exc_info=True)
+
+        # release any channels working on our behalf
         for delegate_channel in self.org.channels.filter(parent=self):
             delegate_channel.release(user)
 
-        # unassociate them
+        # disassociate them
         Channel.objects.filter(parent=self).update(parent=None)
 
         # release any alerts we sent
@@ -916,19 +926,6 @@ class Channel(TembaModel, DependencyMixin):
         # any related sync events
         for sync_event in self.sync_events.all():
             sync_event.release()
-
-        # only call out to external aggregator services if we are on prod servers
-        if settings.IS_PROD:
-            try:
-                # if channel is a new style type, deactivate it
-                channel_type.deactivate(self)
-
-            except TwilioRestException as e:
-                raise e
-
-            except Exception as e:  # pragma: no cover
-                # proceed with removing this channel but log the problem
-                logger.error(f"Unable to deactivate a channel: {str(e)}", exc_info=True)
 
         # interrupt any sessions using this channel as a connection
         mailroom.queue_interrupt(self.org, channel=self)
@@ -943,20 +940,16 @@ class Channel(TembaModel, DependencyMixin):
         self.save(update_fields=("is_active", "config", "modified_by", "modified_on"))
 
         # mark any messages in sending mode as failed for this channel
-        from temba.msgs.models import Msg, OUTGOING, PENDING, QUEUED, ERRORED, FAILED
+        from temba.msgs.models import OUTGOING, PENDING, QUEUED, ERRORED, FAILED
 
-        Msg.objects.filter(channel=self, direction=OUTGOING, status__in=[QUEUED, PENDING, ERRORED]).update(
-            status=FAILED
-        )
+        self.msgs.filter(direction=OUTGOING, status__in=[QUEUED, PENDING, ERRORED]).update(status=FAILED)
 
         # trigger the orphaned channel
         if trigger_sync and self.is_android() and registration_id:
             self.trigger_sync(registration_id)
 
-        from temba.triggers.models import Trigger
-
         # any triggers associated with our channel get archived and released
-        for trigger in Trigger.objects.filter(org=self.org, channel=self).all():
+        for trigger in self.triggers.all():
             trigger.archive(user)
             trigger.release()
 

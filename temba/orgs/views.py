@@ -303,9 +303,9 @@ class DependencyDeleteModal(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
 
     def post(self, request, *args, **kwargs):
         obj = self.get_object()
-        obj.release(self.request.user)
+        obj.release(request.user)
 
-        messages.info(request, self.success_message)
+        messages.info(request, self.derive_success_message())
         response = HttpResponse()
         response["Temba-Success"] = self.get_success_url()
         return response
