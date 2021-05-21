@@ -76,7 +76,7 @@ class Dialog360Type(ChannelType):
             response = requests.get(templates_url, headers=headers)
             elapsed = (timezone.now() - start).total_seconds() * 1000
             HTTPLog.create_from_response(
-                HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, response, channel=channel, request_time=elapsed
+                HTTPLog.WHATSAPP_TEMPLATES_SYNCED, templates_url, response, channel=channel, request_time=elapsed
             )
 
             if response.status_code != 200:  # pragma: no cover
@@ -85,5 +85,5 @@ class Dialog360Type(ChannelType):
             template_data = response.json()["waba_templates"]
             return template_data, True
         except requests.RequestException as e:
-            HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)
+            HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, templates_url, e, start, channel=channel)
             return [], False

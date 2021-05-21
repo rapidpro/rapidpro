@@ -1,3 +1,18 @@
+v6.3.53
+----------
+ * Update to latest temba-components
+
+v6.3.52
+----------
+ * Update to latest floweditor
+ * Adjust WA templates page title
+ * Fix Dialog360 WA templates sync
+
+v6.3.51
+----------
+ * Adjust WA templates page styles
+ * Migration to clear next_attempt for android channels
+
 v6.3.50
 ----------
  * Resend messages using web endpoint rather than task
