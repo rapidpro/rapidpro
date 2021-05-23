@@ -23,8 +23,8 @@ RUN npm install
 RUN python3.6 manage.py collectstatic --noinput
 
 RUN sed -i "/worker_processes\s/c\worker_processes auto;" /etc/nginx/nginx.conf
-RUN sed -i "/worker_connections\s/c\    worker_connections 53192;\n    use epoll;\n    multi_accept on;" /etc/nginx/nginx.conf
-RUN echo "worker_rlimit_nofile 150000;" >> /etc/nginx/nginx.conf
+RUN sed -i "/worker_connections\s/c\    worker_connections 106384;\n    use epoll;\n    multi_accept on;" /etc/nginx/nginx.conf
+RUN echo "worker_rlimit_nofile 300000;" >> /etc/nginx/nginx.conf
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf
 
 RUN rm -f /etc/nginx/sites-enabled/default
