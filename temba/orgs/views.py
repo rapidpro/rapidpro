@@ -655,7 +655,7 @@ class UserCRUDL(SmartCRUDL):
             username = user.username
 
             brand = self.request.branding.get("brand")
-            user.release(brand)
+            user.release(self.request.user, brand=brand)
 
             messages.success(self.request, _(f"Deleted user {username}"))
             return HttpResponseRedirect(reverse("orgs.user_list", args=()))
@@ -1687,7 +1687,7 @@ class OrgCRUDL(SmartCRUDL):
             self.object = self.get_object()
             self.pre_delete(self.object)
             redirect_url = self.get_redirect_url()
-            self.object.release()
+            self.object.release(self.request.user)
 
             return HttpResponseRedirect(redirect_url)
 

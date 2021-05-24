@@ -527,7 +527,7 @@ class UserTest(TembaTest):
         branded_org.administrators.add(self.admin)
 
         # now release our user on our primary brand
-        self.admin.release(settings.DEFAULT_BRAND)
+        self.admin.release(self.superuser, brand=settings.DEFAULT_BRAND)
 
         # our admin should still be good
         self.admin.refresh_from_db()
@@ -538,7 +538,7 @@ class UserTest(TembaTest):
         self.assertFalse(self.admin.get_user_orgs(settings.DEFAULT_BRAND).exists())
 
         # now lets release her from the branded org
-        self.admin.release("some-other-brand.com")
+        self.admin.release(self.superuser, brand="some-other-brand.com")
 
         # now she gets deactivated and ambiguated and belongs to no orgs
         self.assertFalse(self.admin.is_active)
@@ -584,10 +584,10 @@ class UserTest(TembaTest):
         self.assertEqual(0, len(self.admin.get_owned_orgs()))
 
         # release all but our admin
-        self.surveyor.release(self.org.brand)
-        self.editor.release(self.org.brand)
-        self.user.release(self.org.brand)
-        self.agent.release(self.org.brand)
+        self.surveyor.release(self.superuser, brand=self.org.brand)
+        self.editor.release(self.superuser, brand=self.org.brand)
+        self.user.release(self.superuser, brand=self.org.brand)
+        self.agent.release(self.superuser, brand=self.org.brand)
 
         # still a user left, our org remains active
         self.org.refresh_from_db()
@@ -595,7 +595,7 @@ class UserTest(TembaTest):
 
         # now that we are the last user, we own it now
         self.assertEqual(1, len(self.admin.get_owned_orgs()))
-        self.admin.release(self.org.brand)
+        self.admin.release(self.superuser, brand=self.org.brand)
 
         # and we take our org with us
         self.org.refresh_from_db()
@@ -850,7 +850,9 @@ class OrgDeleteTest(TembaNonAtomicTest):
             )
 
             # release our primary org
-            org.release(delete=delete)
+            org.release(self.superuser)
+            if delete:
+                org.delete()
 
             # all our users not in the other org should be inactive
             self.assertEqual(len(org_user_ids) - 1, User.objects.filter(id__in=org_user_ids, is_active=False).count())
@@ -3142,7 +3144,7 @@ class OrgTest(TembaTest):
         self.assertEqual(len(response.context["sub_orgs"]), 1)
 
         # sub_org is deleted
-        sub_org.release()
+        sub_org.release(self.superuser)
 
         response = self.client.get(reverse("orgs.org_edit"))
         self.assertEqual(200, response.status_code)

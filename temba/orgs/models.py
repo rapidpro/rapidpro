@@ -1636,7 +1636,7 @@ class Org(SmartModel):
 
         return f"{settings.STORAGE_URL}/{location}"
 
-    def release(self, *, release_users=True, delete=False):
+    def release(self, user, *, release_users=True):
         """
         Releases this org, marking it as inactive. Actual deletion of org data won't happen until after 7 days unless
         delete is True.
@@ -1647,27 +1647,24 @@ class Org(SmartModel):
 
         # deactivate ourselves
         self.is_active = False
+        self.modified_by = user
         self.released_on = timezone.now()
-        self.save(update_fields=("is_active", "released_on", "modified_on"))
+        self.save(update_fields=("is_active", "released_on", "modified_by", "modified_on"))
 
-        # and immediately release our channels
         for channel in self.channels.filter(is_active=True):
-            channel.release(self.modified_by)
+            channel.release(user)
 
         # release any user that belongs only to us
         if release_users:
-            for user in self.get_users():
+            for org_user in self.get_users():
                 # check if this user is a member of any org on any brand
-                other_orgs = user.get_user_orgs().exclude(id=self.id)
+                other_orgs = org_user.get_user_orgs().exclude(id=self.id)
                 if not other_orgs:
-                    user.release(self.brand)
+                    org_user.release(user, brand=self.brand)
 
         # remove all the org users
-        for user in self.get_users():
-            self.remove_user(user)
-
-        if delete:
-            self.delete()
+        for org_user in self.get_users():
+            self.remove_user(org_user)
 
     def delete(self):
         """
@@ -1860,7 +1857,10 @@ class Org(SmartModel):
 # ===================== monkey patch User class with a few extra functions ========================
 
 
-def release(user, brand):
+def release(user, releasing_user, *, brand):
+    """
+    Releases this user, and any orgs of which they are the sole owner
+    """
 
     # if our user exists across brands don't muck with the user
     if user.get_user_orgs().order_by("brand").distinct("brand").count() < 2:
@@ -1875,7 +1875,7 @@ def release(user, brand):
 
     # release any orgs we own on this brand
     for org in user.get_owned_orgs([brand]):
-        org.release(release_users=False)
+        org.release(releasing_user, release_users=False)
 
     # remove user from all roles on any org for our brand
     for org in user.get_user_orgs([brand]):
