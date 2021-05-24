@@ -5358,7 +5358,7 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
     A **GET** returns numbers of clicks and contacts who received the link
 
-    * **link_name** - Name of link to generate report for
+    * **link** - UUID or Name of the link to generate report for
     * **exclude** - UUID or Name of contact group, contacts from which are not supposed to be included in the report
     * **after** - Date, excludes all contact clicks from the report that were modified earlier a certain date
     * **before** - Date, excludes all contacts clicks from the report that were modified later a certain date
@@ -5367,7 +5367,7 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         GET /api/v2/trackable_link_report.json
         {
-            "link_name": "google"
+            "link": "google"
         }
 
     Response:
@@ -5396,9 +5396,13 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
     @csv_response_wrapper
     def get(self, *args, **kwargs):
         org = self.request.user.get_org()
-        link_name = self.request.data.get("link_name", self.request.GET.get("link_name", ""))
-        link = Link.objects.filter(org=org, name__iexact=link_name).first()
-        if not link_name or link is None:
+        link_name, link = self.request__get_separated_names_and_uuids("link"), None
+        if link_name["uuids"]:
+            link = Link.objects.filter(org=org, uuid=link_name["uuids"][0]).first()
+        elif link_name["names"]:
+            link = Link.objects.filter(org=org, name__iexact=link_name["names"][0]).first()
+        if link is None:
+            link_name = ", ".join([*link_name["names"], *link_name["uuids"]])
             errors = {
                 status.HTTP_400_BAD_REQUEST: _("Parameter 'link_name' is not provider."),
                 status.HTTP_404_NOT_FOUND: _("Link with name '{}' not found.").format(link_name),
@@ -5466,7 +5470,7 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
             url=reverse("api.v2.trackable_link_report"),
             slug="trackable-link-report",
             fields=[
-                dict(name="link_name", required=True, help="The name of the link"),
+                dict(name="link", required=True, help="The name or UUID of the link"),
                 dict(name="after", required=False, help="Select  unique link clicks since specific date"),
                 dict(name="before", required=False, help="Select unique link clicks until specific date"),
                 dict(name="exclude", required=False, help="Contact group to exclude"),
