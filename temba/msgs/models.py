@@ -14,7 +14,7 @@ from django.contrib.auth.models import User
 from django.contrib.postgres.fields import ArrayField
 from django.core.files.temp import NamedTemporaryFile
 from django.db import models, transaction
-from django.db.models import Prefetch, Sum
+from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Upper
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -853,6 +853,15 @@ class Msg(models.Model):
     def apply_action_resend(cls, user, msgs):
         if msgs:
             mailroom.get_client().msg_resend(msgs[0].org.id, [m.id for m in msgs])
+
+    class Meta:
+        indexes = [
+            models.Index(
+                name="msgs_next_attempt_out_errored",
+                fields=["next_attempt", "created_on", "id"],
+                condition=Q(direction=OUTGOING, status=ERRORED, next_attempt__isnull=False),
+            )
+        ]
 
 
 class BroadcastMsgCount(SquashableModel):

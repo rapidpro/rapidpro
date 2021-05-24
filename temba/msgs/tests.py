@@ -575,7 +575,7 @@ class MsgTest(TembaTest):
         msg1.save(update_fields=["next_attempt"])
 
         msg2 = self.create_outgoing_msg(self.joe, "android", status="E", channel=android_channel)
-        msg2.next_attempt = timezone.now()
+        msg2.next_attempt = None
         msg2.save(update_fields=["next_attempt"])
 
         msg3 = self.create_outgoing_msg(self.joe, "failed", status="F", channel=self.channel)
