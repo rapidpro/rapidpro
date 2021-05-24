@@ -1653,6 +1653,7 @@ class Org(SmartModel):
         self.released_on = timezone.now()
         self.save(update_fields=("is_active", "released_on", "modified_by", "modified_on"))
 
+        # and immediately release our channels to halt messaging
         for channel in self.channels.filter(is_active=True):
             channel.release(user)
 

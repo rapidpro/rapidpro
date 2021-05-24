@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-21 20:45+0000\n"
+"POT-Creation-Date: 2021-05-24 20:15+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3547,6 +3547,14 @@ msgstr "Sinalizar"
 msgid "Verify"
 msgstr "Verificar"
 
+msgid "Delete Workspace"
+msgstr "Deletar Área de trabalho"
+
+#, fuzzy
+#| msgid "This workspace has been scheduled for deletion"
+msgid "Workspace has been scheduled for deletion"
+msgstr "Essa área de trabalho foi agendada para ser apagada"
+
 msgid "This password is not valid. Choose a new password and try again."
 msgstr "Esta senha não é válida. Escolha uma nova senha e tente novamente."
 
@@ -6747,7 +6755,13 @@ msgstr "Você usou"
 msgid "credits since signing up."
 msgstr "créditos desde que você se cadastrou"
 
-msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
+#, python-format
+msgid "This will schedule deletion of <b>%(org)s</b> on <b>%(date)s</b>."
+msgstr ""
+
+#, fuzzy
+#| msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
+msgid "Are you sure you want to delete everything belonging to this workspace? This cannot be undone. Any logins which belong only to this workspace will also be deleted."
 msgstr "Você tem certeza que quer deletar tudo para esta organização? Isso não pode ser desfeito. Quaisquer logins que pertençam somente à esta área de trabalho também serão deletados."
 
 #, python-format
@@ -7587,9 +7601,6 @@ msgstr "Confirmar nova senha"
 
 msgid "Delete "
 msgstr "Delete"
-
-msgid "Delete Workspace"
-msgstr "Deletar Área de trabalho"
 
 msgid "Delete Login"
 msgstr "Deletar login"

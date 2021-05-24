@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-21 20:45+0000\n"
+"POT-Creation-Date: 2021-05-24 20:15+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -3541,6 +3541,14 @@ msgstr "Bandera"
 msgid "Verify"
 msgstr "Verificar"
 
+msgid "Delete Workspace"
+msgstr "Eliminar Workspace"
+
+#, fuzzy
+#| msgid "This workspace has been scheduled for deletion"
+msgid "Workspace has been scheduled for deletion"
+msgstr "Se ha programado la eliminación de este workspace"
+
 msgid "This password is not valid. Choose a new password and try again."
 msgstr "Esta contraseña no es válida. Elija una nueva contraseña y vuelva a intentarlo."
 
@@ -6742,7 +6750,13 @@ msgstr "Ha usado"
 msgid "credits since signing up."
 msgstr "créditos desde que se registró."
 
-msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
+#, python-format
+msgid "This will schedule deletion of <b>%(org)s</b> on <b>%(date)s</b>."
+msgstr ""
+
+#, fuzzy
+#| msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
+msgid "Are you sure you want to delete everything belonging to this workspace? This cannot be undone. Any logins which belong only to this workspace will also be deleted."
 msgstr "¿Está seguro de que desea eliminar todo para esta organización? Esto no se puede deshacer. También se eliminarán todos los logins que solo pertenezcan a este workspace."
 
 #, python-format
@@ -7600,9 +7614,6 @@ msgstr "Confirmar nueva contraseña"
 
 msgid "Delete "
 msgstr "Eliminar"
-
-msgid "Delete Workspace"
-msgstr "Eliminar Workspace"
 
 msgid "Delete Login"
 msgstr "Eliminar login"
