@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-20 16:11+0000\n"
+"POT-Creation-Date: 2021-05-21 20:45+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1942,20 +1942,14 @@ msgstr ""
 msgid "An error occured contacting the Facebook API"
 msgstr ""
 
-msgid "Remove Android"
+msgid "Your channel has been removed."
 msgstr ""
 
 msgid "We have disconnected your Twilio number. If you do not need this number you can delete it from the Twilio website."
 msgstr ""
 
-msgid "Your channel has been removed."
-msgstr ""
-
-#, python-format
-msgid "Twilio reported an error removing your channel (Twilio error %s). Please try again later."
-msgstr ""
-
-msgid "We encountered an error removing your channel, please try again later."
+#, python-brace-format
+msgid "Twilio reported an error removing your channel (error code {e.code}). Please try again later."
 msgstr ""
 
 msgid "Save Changes"
@@ -4330,39 +4324,6 @@ msgstr ""
 msgid "Additionally you will need to make sure the following IP addresses are whitelisted"
 msgstr ""
 
-#, python-format
-msgid ""
-"\n"
-"        There is an active flow using this channel. It cannot be deleted until it is removed from the\n"
-"\n"
-"      "
-msgid_plural ""
-"\n"
-"        There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
-"\n"
-"      "
-msgstr[0] ""
-msgstr[1] ""
-
-msgid ""
-"\n"
-"        flow.\n"
-"      "
-msgid_plural ""
-"\n"
-"        flows.\n"
-"      "
-msgstr[0] ""
-msgstr[1] ""
-
-#, python-format
-msgid "You are about to disable bulk sending for <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
-msgstr ""
-
-#, python-format
-msgid "You are about to delete the channel <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
-msgstr ""
-
 msgid "Bulk sending"
 msgstr ""
 
@@ -5698,6 +5659,17 @@ msgid_plural ""
 "\n"
 "        There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
 "\n"
+"      "
+msgstr[0] ""
+msgstr[1] ""
+
+msgid ""
+"\n"
+"        flow.\n"
+"      "
+msgid_plural ""
+"\n"
+"        flows.\n"
 "      "
 msgstr[0] ""
 msgstr[1] ""

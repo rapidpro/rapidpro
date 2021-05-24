@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-20 16:11+0000\n"
+"POT-Creation-Date: 2021-05-21 20:45+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1972,21 +1972,16 @@ msgstr "Исходящий ИРВ"
 msgid "An error occured contacting the Facebook API"
 msgstr "Произошла ошибка при обращении к API Facebook"
 
-msgid "Remove Android"
-msgstr "Удалить Android"
+msgid "Your channel has been removed."
+msgstr "Ваш канал был удален."
 
 msgid "We have disconnected your Twilio number. If you do not need this number you can delete it from the Twilio website."
 msgstr "Мы отключили Ваш номер Twilio. Если Вам не нужен этот номер, Вы можете удалить его с веб-сайта Twilio."
 
-msgid "Your channel has been removed."
-msgstr "Ваш канал был удален."
-
-#, python-format
-msgid "Twilio reported an error removing your channel (Twilio error %s). Please try again later."
+#, fuzzy, python-brace-format
+#| msgid "Twilio reported an error removing your channel (Twilio error %s). Please try again later."
+msgid "Twilio reported an error removing your channel (error code {e.code}). Please try again later."
 msgstr "Twilio сообщил об ошибке при удалении Вашего канала (ошибка Twilio %s). Повторите попытку позже."
-
-msgid "We encountered an error removing your channel, please try again later."
-msgstr "При удалении Вашего канала произошла ошибка, повторите попытку позже."
 
 msgid "Save Changes"
 msgstr "Сохранить Изменения"
@@ -4427,43 +4422,6 @@ msgstr "IP-адреса:"
 msgid "Additionally you will need to make sure the following IP addresses are whitelisted"
 msgstr "Помимо этого, Вам потребуется убедиться, что следующие IP-адреса находятся в белом списке."
 
-#, python-format
-msgid ""
-"\n"
-"        There is an active flow using this channel. It cannot be deleted until it is removed from the\n"
-"\n"
-"      "
-msgid_plural ""
-"\n"
-"        There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
-"\n"
-"      "
-msgstr[0] ""
-msgstr[1] ""
-msgstr[2] ""
-msgstr[3] ""
-
-msgid ""
-"\n"
-"        flow.\n"
-"      "
-msgid_plural ""
-"\n"
-"        flows.\n"
-"      "
-msgstr[0] ""
-msgstr[1] ""
-msgstr[2] ""
-msgstr[3] ""
-
-#, python-format
-msgid "You are about to disable bulk sending for <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
-msgstr ""
-
-#, python-format
-msgid "You are about to delete the channel <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
-msgstr ""
-
 msgid "Bulk sending"
 msgstr ""
 
@@ -5894,6 +5852,19 @@ msgid_plural ""
 "\n"
 "        There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
 "\n"
+"      "
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+msgstr[3] ""
+
+msgid ""
+"\n"
+"        flow.\n"
+"      "
+msgid_plural ""
+"\n"
+"        flows.\n"
 "      "
 msgstr[0] ""
 msgstr[1] ""
@@ -7683,6 +7654,12 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#~ msgid "Remove Android"
+#~ msgstr "Удалить Android"
+
+#~ msgid "We encountered an error removing your channel, please try again later."
+#~ msgstr "При удалении Вашего канала произошла ошибка, повторите попытку позже."
 
 #~ msgid "Ok"
 #~ msgstr "Ok"

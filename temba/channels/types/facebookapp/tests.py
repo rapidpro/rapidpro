@@ -117,7 +117,7 @@ class FacebookTypeTest(TembaTest):
     @patch("requests.delete")
     def test_release(self, mock_delete):
         mock_delete.return_value = MockResponse(200, json.dumps({"success": True}))
-        self.channel.release()
+        self.channel.release(self.admin)
 
         mock_delete.assert_called_once_with(
             "https://graph.facebook.com/v7.0/12345/subscribed_apps", params={"access_token": "09876543"}

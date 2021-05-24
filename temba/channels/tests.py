@@ -4,7 +4,7 @@ import hashlib
 import hmac
 import time
 from datetime import datetime, timedelta
-from unittest.mock import call, patch
+from unittest.mock import patch
 from urllib.parse import quote
 
 from django_redis import get_redis_connection
@@ -23,9 +23,9 @@ from django.utils.encoding import force_bytes, force_text
 from temba.channels.views import channel_status_processor
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
 from temba.ivr.models import IVRCall
-from temba.msgs.models import IVR, PENDING, QUEUED, Broadcast, Msg
+from temba.msgs.models import IVR, PENDING, QUEUED, Msg
 from temba.orgs.models import Org
-from temba.tests import AnonymousOrg, MockResponse, TembaTest, mock_mailroom
+from temba.tests import AnonymousOrg, CRUDLTestMixin, MockResponse, TembaTest, matchers, mock_mailroom
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json
 from temba.utils.models import generate_uuid
@@ -72,6 +72,25 @@ class ChannelTest(TembaTest):
             secret=None,
             config={Channel.CONFIG_FCM_ID: "000"},
         )
+
+    def claim_new_android(self, fcm_id: str = "FCM111", number: str = "0788123123") -> Channel:
+        """
+        Helper function to register and claim a new Android channel
+        """
+        cmds = [dict(cmd="fcm", fcm_id=fcm_id, uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")]
+        response = self.client.post(reverse("register"), json.dumps({"cmds": cmds}), content_type="application/json")
+        self.assertEqual(200, response.status_code)
+
+        android = Channel.objects.order_by("id").last()
+
+        self.login(self.admin)
+        response = self.client.post(
+            reverse("channels.types.android.claim"), {"claim_code": android.claim_code, "phone_number": number}
+        )
+        self.assertRedirect(response, "/welcome/")
+
+        android.refresh_from_db()
+        return android
 
     def send_message(self, numbers, message, org=None, user=None):
         org = org or self.org
@@ -273,146 +292,111 @@ class ChannelTest(TembaTest):
                 schemes=["fb"],
             )
 
-    def test_delete(self):
-        self.org.administrators.add(self.user)
-        self.user.set_org(self.org)
-        self.login(self.user)
-
-        # a message, a call, and a broadcast
-        msg = self.send_message(["250788382382"], "How is it going?")
-        call = self.create_channel_event(self.tel_channel, "tel:+250788383385", ChannelEvent.TYPE_CALL_IN, extra={})
-
-        self.assertEqual(self.org, msg.org)
-        self.assertEqual(self.tel_channel, msg.channel)
-        self.assertEqual(1, Msg.get_messages(self.org).count())
-        self.assertEqual(1, ChannelEvent.get_all(self.org).count())
-        self.assertEqual(1, Broadcast.objects.filter(org=self.org).count())
-
-        # put messages back into pending state
-        Msg.get_messages(self.org).update(status="P")
-
-        response = self.fetch_protected(reverse("channels.channel_delete", args=[self.tel_channel.pk]), self.user)
-        self.assertContains(response, "Test Channel")
-
-        response = self.fetch_protected(
-            reverse("channels.channel_delete", args=[self.tel_channel.pk]),
-            post_data=dict(remove=True),
-            user=self.superuser,
-            failOnFormValidation=False,
+    @mock_mailroom
+    def test_release(self, mr_mocks):
+        # create two channels..
+        channel1 = Channel.create(
+            self.org, self.user, "RW", "A", "Test Channel", "0785551212", config={Channel.CONFIG_FCM_ID: "123"}
         )
-
-        self.assertEqual(reverse("orgs.org_home"), response.get("temba-success"))
-
-        msg = Msg.objects.get(pk=msg.pk)
-        self.assertIsNotNone(msg.channel)
-        self.assertFalse(msg.channel.is_active)
-        self.assertEqual(self.org, msg.org)
-
-        # queued messages for the channel should get marked as failed
-        self.assertEqual("F", msg.status)
-
-        call = ChannelEvent.objects.get(pk=call.pk)
-        self.assertIsNotNone(call.channel)
-        self.assertFalse(call.channel.is_active)
-
-        self.assertEqual(self.org, call.org)
-
-        broadcast = Broadcast.objects.get(pk=msg.broadcast.pk)
-        self.assertEqual(self.org, broadcast.org)
-
-        # should still be considered that user's message, call and broadcast
-        self.assertEqual(1, Msg.get_messages(self.org).count())
-        self.assertEqual(1, ChannelEvent.get_all(self.org).count())
-        self.assertEqual(1, Broadcast.objects.filter(org=self.org).count())
-
-        # syncing this channel should result in a release
-        response = self.sync(
-            self.tel_channel,
-            cmds=[dict(cmd="status", p_sts="CHA", p_src="BAT", p_lvl="60", net="UMTS", pending=[], retry=[])],
-        )
-
-        # our response should contain a release
-        self.assertHasCommand("rel", response)
-
-        # create a channel
-        channel = Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "A",
-            "Test Channel",
-            "0785551212",
-            secret=Channel.generate_secret(),
-            config={Channel.CONFIG_FCM_ID: "123"},
-        )
-
-        response = self.fetch_protected(reverse("channels.channel_delete", args=[channel.pk]), self.superuser)
-        self.assertContains(response, "Test Channel")
-
-        response = self.fetch_protected(
-            reverse("channels.channel_delete", args=[channel.pk]),
-            post_data=dict(remove=True),
-            user=self.superuser,
-            failOnFormValidation=False,
-        )
-
-        self.assertEqual(reverse("orgs.org_home"), response.get("temba-success"))
-
-        # create a channel
-        channel = Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "A",
-            "Test Channel",
-            "0785551212",
-            secret=Channel.generate_secret(),
-            config={Channel.CONFIG_FCM_ID: "123"},
-        )
+        channel2 = Channel.create(self.org, self.user, "", "T", "Test Channel", "0785553333")
 
         # add channel trigger
+        flow = self.get_flow("color")
         Trigger.objects.create(
-            org=self.org, flow=self.create_flow(), channel=channel, modified_by=self.admin, created_by=self.admin
+            org=self.org, flow=flow, channel=channel1, modified_by=self.admin, created_by=self.admin
         )
 
-        self.assertTrue(Trigger.objects.filter(channel=channel, is_active=True))
-
-        response = self.fetch_protected(
-            reverse("channels.channel_delete", args=[channel.pk]),
-            post_data=dict(remove=True),
-            user=self.superuser,
-            failOnFormValidation=False,
+        # create some activity on this channel
+        contact = self.create_contact("Bob", phone="+593979123456")
+        self.create_incoming_msg(contact, "Hi", channel=channel1)
+        self.create_outgoing_msg(contact, "Hi", channel=channel1, status="P")
+        self.create_outgoing_msg(contact, "Hi", channel=channel1, status="E")
+        self.create_outgoing_msg(contact, "Hi", channel=channel1, status="S")
+        Alert.objects.create(
+            channel=channel1, alert_type=Alert.TYPE_POWER, created_by=self.admin, modified_by=self.admin
+        )
+        Alert.objects.create(
+            channel=channel1, alert_type=Alert.TYPE_DISCONNECTED, created_by=self.admin, modified_by=self.admin
+        )
+        SyncEvent.create(
+            channel1,
+            dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc="RW"),
+            [1, 2],
         )
 
-        self.assertEqual(reverse("orgs.org_home"), response.get("temba-success"))
-
-        # channel trigger should have be removed
-        self.assertFalse(Trigger.objects.filter(channel=channel, is_active=True))
-
-    def test_failed_channel_delete(self):
-        # create a channel
-        channel = Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "A",
-            "Test Channel-deps",
-            "0785551212",
-            secret=Channel.generate_secret(),
-            config={Channel.CONFIG_FCM_ID: "123"},
+        # and some on another channel
+        self.create_outgoing_msg(contact, "Hi", channel=channel2, status="E")
+        Alert.objects.create(
+            channel=channel2, alert_type=Alert.TYPE_POWER, created_by=self.admin, modified_by=self.admin
         )
-        from temba.flows.models import Flow
-
-        self.get_flow("dependencies")
-        flow = Flow.objects.filter(name="Dependencies").first()
-
-        flow.channel_dependencies.add(channel)
-
-        response = self.fetch_protected(
-            reverse("channels.channel_delete", args=[channel.pk]), post_data=dict(remove=True), user=self.superuser
+        SyncEvent.create(
+            channel2,
+            dict(p_src="AC", p_sts="DIS", p_lvl=80, net="WIFI", pending=[1, 2], retry=[3, 4], cc="RW"),
+            [1, 2],
         )
-        self.assertTrue("Cannot delete Channel" in response.cookies.get("messages").coded_value)
-        self.assertRedirect(response, reverse("channels.channel_read", args=[channel.uuid]))
+        Trigger.objects.create(
+            org=self.org, flow=flow, channel=channel2, modified_by=self.admin, created_by=self.admin
+        )
+
+        # add channel to a flow as a dependency
+        flow.channel_dependencies.add(channel1)
+
+        channel1.release(self.admin)
+
+        flow.refresh_from_db()
+        self.assertTrue(flow.has_issues)
+        self.assertNotIn(channel1, flow.channel_dependencies.all())
+
+        # should have failed the pending and errored messages
+        self.assertEqual(2, self.org.msgs.filter(status="F").count())
+
+        self.assertEqual(0, channel1.alerts.count())
+        self.assertEqual(0, channel1.sync_events.count())
+        self.assertEqual(0, channel1.triggers.count())
+
+        # check that we queued a task to interrupt sessions tied to this channel
+        self.assertEqual(
+            {
+                "org_id": self.org.id,
+                "type": "interrupt_sessions",
+                "queued_on": matchers.Datetime(),
+                "task": {"channel_ids": [channel1.id]},
+            },
+            mr_mocks.queued_batch_tasks[-1],
+        )
+
+        # other channel should be unaffected
+        self.assertEqual(1, channel2.msgs.filter(status="E").count())
+        self.assertEqual(1, channel2.alerts.count())
+        self.assertEqual(1, channel2.sync_events.count())
+        self.assertEqual(1, channel2.triggers.count())
+
+    @mock_mailroom
+    def test_release_android(self, mr_mocks):
+        android = self.claim_new_android()
+        self.assertEqual("FCM111", android.config.get(Channel.CONFIG_FCM_ID))
+
+        # add bulk sender
+        self.org.connect_vonage("key", "secret", self.admin)
+        vonage = Channel.add_vonage_bulk_sender(self.admin, android)
+
+        # release it
+        android.release(self.admin)
+
+        android.refresh_from_db()
+        vonage.refresh_from_db()
+
+        response = self.sync(android, cmds=[])
+        self.assertEqual(200, response.status_code)
+
+        # should be a rel cmd to instruct app to reset
+        self.assertEqual({"cmds": [{"cmd": "rel", "relayer_id": str(android.id)}]}, response.json())
+
+        # and FCM ID now cleared
+        self.assertIsNone(android.config.get(Channel.CONFIG_FCM_ID))
+
+        # bulk sender was also released
+        self.assertFalse(vonage.is_active)
 
     def test_list(self):
         # de-activate existing channels
@@ -970,85 +954,6 @@ class ChannelTest(TembaTest):
         with self.assertRaises(ValueError):
             self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
 
-    def test_release_with_flow_dependencies(self):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
-        self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
-
-        android = Channel.objects.get()
-        self.client.post(
-            reverse("channels.types.android.claim"), dict(claim_code=android.claim_code, phone_number="0788123123")
-        )
-
-        from temba.flows.models import Flow
-
-        self.get_flow("dependencies")
-        flow = Flow.objects.filter(name="Dependencies").first()
-
-        flow.channel_dependencies.add(android)
-
-        # release method raises ValueError
-        with self.assertRaises(ValueError) as release_error:
-            android.release()
-
-        self.assertEqual(str(release_error.exception), "Cannot delete Channel: Nexus, used by 1 flows")
-
-    @patch("temba.mailroom.queue_interrupt")
-    def test_release(self, mock_queue_interrupt):
-        Channel.objects.all().delete()
-        self.login(self.admin)
-
-        # register and claim an Android channel
-        reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
-        self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
-        android = Channel.objects.get()
-        self.client.post(
-            reverse("channels.types.android.claim"), dict(claim_code=android.claim_code, phone_number="0788123123")
-        )
-        android.refresh_from_db()
-
-        # connect org to Vonage and add bulk sender
-        self.org.connect_vonage("123", "456", self.admin)
-
-        claim_url = reverse("channels.channel_create_bulk_sender") + "?connection=NX&channel=%d" % android.pk
-        self.client.post(claim_url, dict(connection="NX", channel=android.pk))
-        vonage = Channel.objects.get(channel_type="NX")
-
-        android.release()
-
-        # check that some details are cleared and channel is now inactive
-        self.assertFalse(android.is_active)
-        self.assertFalse(android.config.get(Channel.CONFIG_FCM_ID))
-
-        # bulk sender should have been released as well
-        vonage.refresh_from_db()
-        self.assertFalse(vonage.is_active)
-
-        Channel.objects.all().delete()
-
-        # check we queued session interrupt tasks for each channel
-        mock_queue_interrupt.assert_has_calls(calls=[call(self.org, channel=vonage), call(self.org, channel=android)])
-
-        # register and claim an Android channel
-        reg_data = dict(cmds=[dict(cmd="fcm", fcm_id="FCM111", uuid="uuid"), dict(cmd="status", cc="RW", dev="Nexus")])
-        self.client.post(reverse("register"), json.dumps(reg_data), content_type="application/json")
-        android = Channel.objects.get()
-        self.client.post(
-            reverse("channels.types.android.claim"), dict(claim_code=android.claim_code, phone_number="0788123123")
-        )
-        android.refresh_from_db()
-        # simulate no FCM ID
-        android.config.pop(Channel.CONFIG_FCM_ID, None)
-        android.save()
-
-        android.release()
-
-        # check that some details are cleared and channel is now inactive
-        self.assertFalse(android.is_active)
-        self.assertIsNone(android.config.get(Channel.CONFIG_FCM_ID))
-
     def test_sync_unclaimed(self):
         response = self.sync(self.unclaimed_channel, cmds=[])
         self.assertEqual(401, response.status_code)
@@ -1091,61 +996,8 @@ class ChannelTest(TembaTest):
         self.assertEqual({"error": "Can't sync unclaimed channel", "error_id": 4, "cmds": []}, response.json())
 
     @mock_mailroom
-    def test_sync_released(self, mr_mocks):
-        # register an Android channel
-        self.client.post(
-            reverse("register"),
-            data=json.dumps(
-                {
-                    "cmds": [
-                        {"cmd": "fcm", "fcm_id": "FCM111", "uuid": "uuid"},
-                        {"cmd": "status", "cc": "RW", "dev": "Nexus"},
-                    ]
-                }
-            ),
-            content_type="application/json",
-        )
-        android = Channel.objects.order_by("id").last()
-
-        # claim it
-        self.login(self.admin)
-        self.client.post(
-            reverse("channels.types.android.claim"), {"claim_code": android.claim_code, "phone_number": "0788123123"}
-        )
-        android.refresh_from_db()
-
-        # release it
-        android.release()
-
-        response = self.sync(android, cmds=[])
-        self.assertEqual(200, response.status_code)
-
-        # should be a rel cmd to instruct app to reset
-        self.assertEqual({"cmds": [{"cmd": "rel", "relayer_id": str(android.id)}]}, response.json())
-
-    @mock_mailroom
     def test_sync_client_reset(self, mr_mocks):
-        # register an Android channel
-        self.client.post(
-            reverse("register"),
-            data=json.dumps(
-                {
-                    "cmds": [
-                        {"cmd": "fcm", "fcm_id": "FCM111", "uuid": "uuid"},
-                        {"cmd": "status", "cc": "RW", "dev": "Nexus"},
-                    ]
-                }
-            ),
-            content_type="application/json",
-        )
-        android = Channel.objects.order_by("id").last()
-
-        # claim it
-        self.login(self.admin)
-        self.client.post(
-            reverse("channels.types.android.claim"), {"claim_code": android.claim_code, "phone_number": "0788123123"}
-        )
-        android.refresh_from_db()
+        android = self.claim_new_android()
 
         response = self.sync(android, cmds=[{"cmd": "reset"}])
         self.assertEqual(200, response.status_code)
@@ -1624,7 +1476,7 @@ class ChannelTest(TembaTest):
         self.assertTrue(sms_context["has_outgoing_channel"])
 
 
-class ChannelCRUDLTest(TembaTest):
+class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
         super().setUp()
 
@@ -1667,6 +1519,60 @@ class ChannelCRUDLTest(TembaTest):
         # can't view configuration of channel in other org
         response = self.client.get(reverse("channels.channel_configuration", args=[self.other_org_channel.uuid]))
         self.assertLoginRedirect(response)
+
+    def test_delete(self):
+        delete_url = reverse("channels.channel_delete", args=[self.ex_channel.uuid])
+
+        # fetch delete modal
+        response = self.assertDeleteFetch(delete_url, allow_editors=True)
+        self.assertContains(response, "You are about to delete")
+
+        # submit to delete it
+        response = self.assertDeleteSubmit(delete_url, object_deactivated=self.ex_channel, success_status=200)
+        self.assertEqual("/org/home/", response["Temba-Success"])
+
+        # reactivate
+        self.ex_channel.is_active = True
+        self.ex_channel.save()
+
+        # add a dependency and try again
+        flow = self.create_flow()
+        flow.channel_dependencies.add(self.ex_channel)
+        self.assertFalse(flow.has_issues)
+
+        response = self.assertDeleteFetch(delete_url, allow_editors=True)
+        self.assertContains(response, "is used by the following flows which may not work as expected")
+
+        self.assertDeleteSubmit(delete_url, object_deactivated=self.ex_channel, success_status=200)
+
+        flow.refresh_from_db()
+        self.assertTrue(flow.has_issues)
+        self.assertNotIn(self.ex_channel, flow.channel_dependencies.all())
+
+    def test_delete_delegate(self):
+        self.org.connect_vonage("key", "secret", self.admin)
+        android = Channel.create(
+            self.org, self.admin, "RW", "A", name="Android", address="+250785551313", role="SR", schemes=("tel",)
+        )
+        vonage = Channel.add_vonage_bulk_sender(self.admin, android)
+
+        delete_url = reverse("channels.channel_delete", args=[vonage.uuid])
+
+        # fetch delete modal
+        response = self.assertDeleteFetch(delete_url, allow_editors=True)
+        self.assertContains(response, "Disable Bulk Sending")
+
+        # try when delegate is a caller instead
+        vonage.role = "C"
+        vonage.save(update_fields=("role",))
+
+        # fetch delete modal
+        response = self.assertDeleteFetch(delete_url, allow_editors=True)
+        self.assertContains(response, "Disable Voice Calling")
+
+        # submit to delete it - should be redirected to the Android channel page
+        response = self.assertDeleteSubmit(delete_url, object_deactivated=vonage, success_status=200)
+        self.assertEqual(f"/channels/channel/read/{android.uuid}/", response["Temba-Success"])
 
 
 class ChannelEventCRUDLTest(TembaTest):

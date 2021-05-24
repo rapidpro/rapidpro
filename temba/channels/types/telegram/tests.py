@@ -90,6 +90,6 @@ class TelegramTypeTest(TembaTest):
     @override_settings(IS_PROD=True)
     @patch("telegram.Bot.delete_webhook")
     def test_release(self, mock_delete_webhook):
-        self.channel.release()
+        self.channel.release(self.admin)
 
         mock_delete_webhook.assert_called_once_with()

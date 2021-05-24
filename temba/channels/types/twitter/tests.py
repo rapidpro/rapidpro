@@ -143,7 +143,7 @@ class TwitterTypeTest(TembaTest):
     @override_settings(IS_PROD=True)
     @patch("temba.channels.types.twitter.client.TwitterClient.delete_webhook")
     def test_release(self, mock_delete_webhook):
-        self.channel.release()
+        self.channel.release(self.admin)
         mock_delete_webhook.assert_called_once_with("beta", "1234567")
 
     @patch("twython.Twython.lookup_user")

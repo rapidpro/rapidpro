@@ -793,7 +793,7 @@ class Org(SmartModel):
         if self.config:
             # release any vonage channels
             for channel in self.channels.filter(is_active=True, channel_type="NX"):  # pragma: needs cover
-                channel.release()
+                channel.release(user)
 
             self.config.pop(Org.CONFIG_VONAGE_KEY, None)
             self.config.pop(Org.CONFIG_VONAGE_SECRET, None)
@@ -804,7 +804,7 @@ class Org(SmartModel):
         if self.config:
             # release any Twilio and Twilio Messaging Service channels
             for channel in self.channels.filter(is_active=True, channel_type__in=["T", "TMS"]):
-                channel.release()
+                channel.release(user)
 
             self.config.pop(Org.CONFIG_TWILIO_SID, None)
             self.config.pop(Org.CONFIG_TWILIO_TOKEN, None)
@@ -1650,15 +1650,9 @@ class Org(SmartModel):
         self.released_on = timezone.now()
         self.save(update_fields=("is_active", "released_on", "modified_on"))
 
-        # clear all our channel dependencies on our flows
-        for flow in self.flows.all():
-            flow.channel_dependencies.clear()
-
         # and immediately release our channels
-        from temba.channels.models import Channel
-
-        for channel in Channel.objects.filter(org=self, is_active=True):
-            channel.release()
+        for channel in self.channels.filter(is_active=True):
+            channel.release(self.modified_by)
 
         # release any user that belongs only to us
         if release_users:
@@ -1755,8 +1749,6 @@ class Org(SmartModel):
 
         # delete our channels
         for channel in self.channels.all():
-            channel.release()
-
             channel.counts.all().delete()
             channel.logs.all().delete()
             channel.template_translations.all().delete()

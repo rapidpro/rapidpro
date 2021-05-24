@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-20 16:11+0000\n"
+"POT-Creation-Date: 2021-05-21 20:45+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -1965,21 +1965,16 @@ msgstr "IVR de saída"
 msgid "An error occured contacting the Facebook API"
 msgstr "Ocorreu um erro ao contactar a API do Facebook"
 
-msgid "Remove Android"
-msgstr "Remover Android"
+msgid "Your channel has been removed."
+msgstr "Seu canal foi removido."
 
 msgid "We have disconnected your Twilio number. If you do not need this number you can delete it from the Twilio website."
 msgstr "Nós desconectamos seu número do Twilio. Se você não precisa desse número, você pode deletá-lo no site da Twilio."
 
-msgid "Your channel has been removed."
-msgstr "Seu canal foi removido."
-
-#, python-format
-msgid "Twilio reported an error removing your channel (Twilio error %s). Please try again later."
+#, fuzzy, python-brace-format
+#| msgid "Twilio reported an error removing your channel (Twilio error %s). Please try again later."
+msgid "Twilio reported an error removing your channel (error code {e.code}). Please try again later."
 msgstr "Twilio informou um erro ao remover seu canal (Twilio error %s). Por favor, tente novamente mais tarde."
-
-msgid "We encountered an error removing your channel, please try again later."
-msgstr "Encontramos um erro ao remover o seu transmissor, por favor, tente novamente mais tarde."
 
 msgid "Save Changes"
 msgstr "Salvar alterações"
@@ -4405,53 +4400,6 @@ msgstr "Endereços IP"
 msgid "Additionally you will need to make sure the following IP addresses are whitelisted"
 msgstr "Além disso, você precisará garantir que os seguintes endereços IP estejam na lista de permissões"
 
-#, python-format
-msgid ""
-"\n"
-"        There is an active flow using this channel. It cannot be deleted until it is removed from the\n"
-"\n"
-"      "
-msgid_plural ""
-"\n"
-"        There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
-"\n"
-"      "
-msgstr[0] ""
-"\n"
-"          Existe um fluxo ativo utilizando este canal. Ele não pode ser deletado até que seja removido de\n"
-"\n"
-"      "
-msgstr[1] ""
-"\n"
-"          Há %(counter)s fluxos usando este fluxo. Este não poderá ser deletado até que seja removido de\n"
-"\n"
-"      "
-
-msgid ""
-"\n"
-"        flow.\n"
-"      "
-msgid_plural ""
-"\n"
-"        flows.\n"
-"      "
-msgstr[0] ""
-"\n"
-"        fluxo.\n"
-"      "
-msgstr[1] ""
-"\n"
-"        fluxos.\n"
-"      "
-
-#, python-format
-msgid "You are about to disable bulk sending for <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
-msgstr "Você está prestes a desabilitar o envio em massa para <span class='font-normal'>%(object)s.</span> Não é possível reverter isto. Você tem certeza?"
-
-#, python-format
-msgid "You are about to delete the channel <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
-msgstr "Você está prestes a deletar o canal <span class='font-normal'>%(object)s.</span> Não é possível reverter isto. Você tem certeza?"
-
 msgid "Bulk sending"
 msgstr "Envio em massa"
 
@@ -5870,6 +5818,23 @@ msgstr[1] ""
 "\n"
 "          Há %(counter)s fluxos usando este fluxo. Este não poderá ser deletado até que seja removido de\n"
 "\n"
+"      "
+
+msgid ""
+"\n"
+"        flow.\n"
+"      "
+msgid_plural ""
+"\n"
+"        flows.\n"
+"      "
+msgstr[0] ""
+"\n"
+"        fluxo.\n"
+"      "
+msgstr[1] ""
+"\n"
+"        fluxos.\n"
 "      "
 
 #, python-format
@@ -7822,6 +7787,42 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#~ msgid "Remove Android"
+#~ msgstr "Remover Android"
+
+#~ msgid "We encountered an error removing your channel, please try again later."
+#~ msgstr "Encontramos um erro ao remover o seu transmissor, por favor, tente novamente mais tarde."
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "        There is an active flow using this channel. It cannot be deleted until it is removed from the\n"
+#~ "\n"
+#~ "      "
+#~ msgid_plural ""
+#~ "\n"
+#~ "        There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
+#~ "\n"
+#~ "      "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "          Existe um fluxo ativo utilizando este canal. Ele não pode ser deletado até que seja removido de\n"
+#~ "\n"
+#~ "      "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "          Há %(counter)s fluxos usando este fluxo. Este não poderá ser deletado até que seja removido de\n"
+#~ "\n"
+#~ "      "
+
+#, python-format
+#~ msgid "You are about to disable bulk sending for <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
+#~ msgstr "Você está prestes a desabilitar o envio em massa para <span class='font-normal'>%(object)s.</span> Não é possível reverter isto. Você tem certeza?"
+
+#, python-format
+#~ msgid "You are about to delete the channel <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
+#~ msgstr "Você está prestes a deletar o canal <span class='font-normal'>%(object)s.</span> Não é possível reverter isto. Você tem certeza?"
 
 #~ msgid "Ok"
 #~ msgstr "Ok"

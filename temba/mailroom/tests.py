@@ -551,7 +551,7 @@ class MailroomQueueTest(TembaTest):
         )
 
     def test_queue_interrupt_by_channel(self):
-        self.channel.release()
+        self.channel.release(self.admin)
 
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(
