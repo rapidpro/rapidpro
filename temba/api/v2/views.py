@@ -5477,7 +5477,7 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
             ],
             params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
-                body=json.dumps({"link_name": "Test Link Name"}),
+                body=json.dumps({"link": "Test Link Name"}),
                 query="export_csv=false",
             ),
         )
