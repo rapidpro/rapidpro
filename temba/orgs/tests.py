@@ -717,7 +717,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         # labels for our flows
         flow_label1 = FlowLabel.create(self.parent_org, "Cool Parent Flows")
-        flow_label2 = FlowLabel.create(self.child_org, "Cool Child Flows")
+        flow_label2 = FlowLabel.create(self.child_org, "Cool Child Flows", parent=flow_label1)
         parent_flow.labels.add(flow_label1)
         child_flow.labels.add(flow_label2)
 

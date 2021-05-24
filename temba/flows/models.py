@@ -958,6 +958,26 @@ class Flow(TembaModel):
             for run in runs:
                 run.release()
 
+    def delete(self):
+        """
+        Does actual deletion of this flow's data
+        """
+
+        assert not self.is_active, "can't delete flow which hasn't been released"
+
+        self.release_runs()
+
+        for rev in self.revisions.all():
+            rev.release()
+
+        self.category_counts.all().delete()
+        self.path_counts.all().delete()
+        self.node_counts.all().delete()
+        self.exit_counts.all().delete()
+        self.labels.clear()
+
+        super().delete()
+
     def __str__(self):
         return self.name
 
@@ -2347,6 +2367,12 @@ class FlowLabel(models.Model):
                     changed.append(flow.pk)
 
         return changed
+
+    def delete(self):
+        for child in self.children.all():
+            child.delete()
+
+        super().delete()
 
     def __str__(self):
         if self.parent:
