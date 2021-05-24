@@ -1,3 +1,8 @@
+v6.3.54
+----------
+ * Optimize message retries with a perfect index
+ * Convert channels to soft dependencies
+
 v6.3.53
 ----------
  * Update to latest temba-components
