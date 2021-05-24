@@ -1680,9 +1680,9 @@ class OrgCRUDL(SmartCRUDL):
 
     class Delete(ModalMixin, SmartDeleteView):
         cancel_url = "id@orgs.org_update"
+        success_url = "id@orgs.org_update"
         fields = ("id",)
         submit_button_name = _("Delete")
-        success_url = "@orgs.org_manage"
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -1690,16 +1690,12 @@ class OrgCRUDL(SmartCRUDL):
             return context
 
         def post(self, request, *args, **kwargs):
-            obj = self.get_object()
-            obj.release(request.user)
+            self.object = self.get_object()
+            self.object.release(request.user)
 
-            messages.info(request, _("Workspace has been scheduled for deletion"))
             response = HttpResponse()
             response["Temba-Success"] = self.get_success_url()
             return response
-
-        def get_redirect_url(self, **kwargs):
-            return reverse("orgs.org_update", args=[self.object.pk])
 
     class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class PasswordForm(forms.ModelForm):

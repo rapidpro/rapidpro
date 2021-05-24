@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-24 20:15+0000\n"
+"POT-Creation-Date: 2021-05-24 20:43+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3542,11 +3542,6 @@ msgstr "Vérifier"
 
 msgid "Delete Workspace"
 msgstr "Supprimer l'espace de travail"
-
-#, fuzzy
-#| msgid "This workspace has been scheduled for deletion"
-msgid "Workspace has been scheduled for deletion"
-msgstr "Cet espace de travail a été programmé pour la suppression"
 
 msgid "This password is not valid. Choose a new password and try again."
 msgstr "Ce mot de passe n'est pas valide. Choisissez un nouveau mot de passe et réessayez."
@@ -7797,6 +7792,11 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#, fuzzy
+#~| msgid "This workspace has been scheduled for deletion"
+#~ msgid "Workspace has been scheduled for deletion"
+#~ msgstr "Cet espace de travail a été programmé pour la suppression"
 
 #~ msgid "Remove Android"
 #~ msgstr "Retirer Android"

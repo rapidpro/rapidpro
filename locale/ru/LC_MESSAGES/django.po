@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-24 20:15+0000\n"
+"POT-Creation-Date: 2021-05-24 20:43+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3552,9 +3552,6 @@ msgid "Verify"
 msgstr ""
 
 msgid "Delete Workspace"
-msgstr ""
-
-msgid "Workspace has been scheduled for deletion"
 msgstr ""
 
 msgid "This password is not valid. Choose a new password and try again."

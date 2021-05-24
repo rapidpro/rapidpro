@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-24 20:15+0000\n"
+"POT-Creation-Date: 2021-05-24 20:43+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3549,11 +3549,6 @@ msgstr "Verificar"
 
 msgid "Delete Workspace"
 msgstr "Deletar Área de trabalho"
-
-#, fuzzy
-#| msgid "This workspace has been scheduled for deletion"
-msgid "Workspace has been scheduled for deletion"
-msgstr "Essa área de trabalho foi agendada para ser apagada"
 
 msgid "This password is not valid. Choose a new password and try again."
 msgstr "Esta senha não é válida. Escolha uma nova senha e tente novamente."
@@ -7798,6 +7793,11 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#, fuzzy
+#~| msgid "This workspace has been scheduled for deletion"
+#~ msgid "Workspace has been scheduled for deletion"
+#~ msgstr "Essa área de trabalho foi agendada para ser apagada"
 
 #~ msgid "Remove Android"
 #~ msgstr "Remover Android"

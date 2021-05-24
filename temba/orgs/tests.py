@@ -3968,13 +3968,13 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, "This will schedule deletion of <b>Temba</b>")
 
         response = self.client.post(delete_url, {"id": self.org.id})
-        self.assertEqual(manage_url, response["Temba-Success"])
+        self.assertEqual(update_url, response["Temba-Success"])
 
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_active)
 
         response = self.client.get(update_url)
-        self.assertContains(response, "Workspace has been scheduled for deletion")
+        self.assertContains(response, "This workspace has been scheduled for deletion")
 
     def test_urn_schemes(self):
         # remove existing channels
