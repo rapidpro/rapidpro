@@ -4461,7 +4461,7 @@ class ReportEndpointMixin:
             self.applied_filters[field_name] = dict(item for item in values_fo_filter_by.items() if item[1])
         return queryset
 
-    def get_contacts(self, count_only=False):
+    def get_contacts(self, count_only=False, only_active=True):
         org = self.request.user.get_org()
 
         # get search query
@@ -4494,6 +4494,10 @@ class ReportEndpointMixin:
                 }
             }
         main_conditions = elastic_query_conf.get("bool", {}).get("must", [])
+
+        if not only_active:
+            main_conditions.pop(1)  # remove condition `is_active`
+            main_conditions.pop(1)  # remove condition `groups` (which selects only contacts that are in active group)
 
         # add group filter conditions
         if groups_filter["uuids"]:
@@ -5004,46 +5008,12 @@ class FlowReportFiltersMixin(ReportEndpointMixin):
         self.applied_filters = {"flow": flow.uuid}
         _filters = [("flows_flowrun.flow_id", "=", flow.id)]
 
-        elastic_query_conf = {"bool": {"must": [{"term": {"org_id": org.id}}]}}
-        main_conditions = elastic_query_conf["bool"]["must"]
-
-        # filter by groups
-        groups_exclude = self.request__get_separated_names_and_uuids("exclude")
-        if groups_exclude["names"]:
-            names_filter = reduce(lambda a, c: a | c, [Q(name__iexact=name) for name in groups_exclude["names"]])
-            group_uuids = ContactGroup.all_groups.filter(names_filter, org_id=org.id).values_list("uuid", flat=True)
-            groups_exclude["uuids"].extend(group_uuids)
-        if groups_exclude["uuids"]:
-            main_conditions.extend(
-                [{"bool": {"must_not": {"term": {"groups": _uuid}}}} for _uuid in groups_exclude["uuids"]]
-            )
-            self.applied_filters["exclude"] = groups_exclude["uuids"]
-
-        # filter by channel
-        es_channels_filter_config = {"nested": {"path": "urns", "query": {"bool": {"must": []}}}}
-        es_channel_filters = es_channels_filter_config["nested"]["query"]["bool"]["must"]
-        channel_filters = self.request__get_separated_names_and_uuids("channel")
-        if channel_filters["uuids"]:
-            es_channel_filters.extend(
-                [
-                    {"match_phrase": {"urns.channel_uuid": {"query": channel_uuid}}}
-                    for channel_uuid in channel_filters["uuids"]
-                ]
-            )
-        if channel_filters["names"]:
-            es_channel_filters.extend(
-                [
-                    {"match_phrase": {"urns.channel_name": {"query": channel_name}}}
-                    for channel_name in channel_filters["names"]
-                ]
-            )
-        if any(channel_filters.values()):
-            main_conditions.append(es_channels_filter_config)
-            self.applied_filters["channel"] = ", ".join([*channel_filters["names"], *channel_filters["uuids"]])
-
-        if {"channel", "exclude"}.intersection(self.applied_filters):
+        if {"channel", "exclude", "group"}.intersection(
+            [*self.request.query_params.keys(), *self.request.data.keys()]
+        ):
             # get contact ids from elasticsearch database
-            contact_ids = list(map(lambda x: str(x), query_contact_ids_from_elasticsearch(org, elastic_query_conf)))
+            contact_ids = self.get_contacts(count_only=True, only_active=False).values_list("id")
+            contact_ids = list(map(lambda x: str(x), contact_ids))
             if contact_ids:
                 contact_ids = "(%s)" % ", ".join(contact_ids)
                 _filters.append(("contact_id", "IN", contact_ids))
@@ -5280,7 +5250,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     def post(self, request, *args, **kwargs):
         org = self.request.user.get_org()
         try:
-            flow = Flow.objects.get(uuid=self.request.data.get("flow"))
+            flow = Flow.objects.get(org=org, uuid=self.request.data.get("flow"))
         except Flow.DoesNotExist:
             return Response(
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
