@@ -5073,7 +5073,7 @@ class FlowReportFiltersMixin(ReportEndpointMixin):
         exited_before = org.parse_datetime(exited_before)
         if exited_before:
             _filters.append(("created_on", "<=", f"'{exited_before}'"))
-            self.applied_filters["exited_after"] = exited_before
+            self.applied_filters["exited_before"] = exited_before
 
         return _filters
 
@@ -5130,20 +5130,6 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     """
 
     permission = "orgs.org_api"
-    query_template = """
-    SELECT
-    (
-        SELECT COUNT(DISTINCT "flows_flowrun"."contact_id")
-        FROM "flows_flowrun" WHERE %s
-    ) AS "total_contacts",
-    json_object_agg(t.exit_type, t.count) AS "counts"
-    FROM (
-        SELECT "flows_flowrun"."exit_type", count(*)
-        FROM "flows_flowrun"
-        WHERE "flows_flowrun"."exit_type" IS NOT NULL AND %s
-        GROUP BY "flows_flowrun"."exit_type"
-    ) t;
-    """
 
     @csv_response_wrapper
     def get(self, request, *args, **kwargs):
@@ -5157,8 +5143,22 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
 
         _filters = self.prepare_filters(org, flow)
         with connection.cursor() as cursor:
+            query_template = """
+            SELECT
+            (
+                SELECT COUNT(DISTINCT "flows_flowrun"."contact_id")
+                FROM "flows_flowrun" WHERE %s
+            ) AS "total_contacts",
+            json_object_agg(t.exit_type, t.count) AS "counts"
+            FROM (
+                SELECT "flows_flowrun"."exit_type", count(*)
+                FROM "flows_flowrun"
+                WHERE "flows_flowrun"."exit_type" IS NOT NULL AND %s
+                GROUP BY "flows_flowrun"."exit_type"
+            ) t;
+            """
             filters = " AND ".join(f"{key} {op} {value}" for key, op, value in _filters)
-            cursor.execute(self.query_template % (filters, filters))
+            cursor.execute(query_template % (filters, filters))
             result = cursor.fetchone()
             results = {
                 "total_contacts": result[0],
@@ -5220,7 +5220,7 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
         )
 
 
-class FlowVariableReportEndpoint(BaseAPIView, ReportEndpointMixin):
+class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     """
     This endpoint allows you to generate a report based on contact responses.
 
@@ -5278,40 +5278,17 @@ class FlowVariableReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
     @csv_response_wrapper
     def post(self, request, *args, **kwargs):
-        self.applied_filters = {}
         org = self.request.user.get_org()
         try:
             flow = Flow.objects.get(uuid=self.request.data.get("flow"))
-            self.applied_filters["flow"] = flow.uuid
         except Flow.DoesNotExist:
             return Response(
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
-        queryset = FlowRun.objects.filter(org=org, flow=flow)
-        filters = (
-            ("started_after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
-            ("started_before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
-            ("exited_after", lambda x: queryset.filter(exited_on__gte=org.parse_datetime(x))),
-            ("exited_before", lambda x: queryset.filter(exited_on__lte=org.parse_datetime(x))),
-            (
-                "channel",
-                lambda x: self.name_uuid_filtering(
-                    queryset, "channel", "contact__urns__channel__uuid", "contact__urns__channel__uuid"
-                ),
-            ),
-            (
-                "exclude",
-                lambda x: self.name_uuid_filtering(
-                    queryset, "exclude", "contact__all_groups__uuid", "contact__all_groups__name", "exclude"
-                ),
-            ),
-        )
 
-        for name, _filter in filters:
-            filter_value = self.request.data.get(name)
-            if filter_value:
-                queryset = _filter(filter_value)
-                self.applied_filters[name] = filter_value
+        _queries = []
+        _grouping = []
+        _filters = self.prepare_filters(org, flow)
 
         counts = defaultdict(lambda: Counter())
         requested_variables = self.request.data.get("variables")
@@ -5327,20 +5304,26 @@ class FlowVariableReportEndpoint(BaseAPIView, ReportEndpointMixin):
                     {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}}
                 )
             _format = conf.get("format", "").lower()
-            if _format not in ["category", "value"]:
-                _format = "category"
-            variable_filters[variable] = {"format": _format}
-            if _format == "value" and type(conf.get("top")) is int:
-                variable_filters[variable]["top"] = conf.get("top")
-                top_ordering[variable] = conf.get("top")
-            if _format == "category":
-                counts[variable] = Counter({category: 0 for category in existing_variables[variable]["categories"]})
-        self.applied_filters["variables"] = variable_filters
+            _format = _format if _format in ["category", "value"] else "category"
+            _grouping.append(variable)
+            _queries.append(
+                f"json_extract_path_text(flows_flowrun.results::json, '{variable}', '{_format}') as {variable}"
+            )
+            top_x = conf.get("top")
+            variable_filters[variable] = {"format": _format, "top": top_x} if top_x else {"format": _format}
+            top_ordering.update(**({variable: top_x} if top_x else {}))
 
-        for flow_run in queryset:
-            for result_name, result in flow_run.results.items():
-                if result_name in variable_filters:
-                    counts[result_name][result[variable_filters[result_name]["format"]]] += 1
+        self.applied_filters["variables"] = variable_filters
+        with connection.cursor() as cursor:
+            query_template = "SELECT %s, count(*) FROM flows_flowrun WHERE %s GROUP BY %s"
+            filters = " AND ".join(f"{key} {op} {value}" for key, op, value in _filters)
+            queries = ", ".join(_queries)
+            grouping = ", ".join(_grouping)
+            cursor.execute(query_template % (queries, filters, grouping))
+            for res in cursor.fetchall():
+                for i, variable in enumerate(_grouping):
+                    if res[i] is not None:
+                        counts[variable][res[i]] += res[-1]
 
         for variable, top_x in top_ordering.items():
             counts[variable] = dict(counts[variable].most_common(top_x))
