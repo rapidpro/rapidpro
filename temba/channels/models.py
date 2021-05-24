@@ -1233,10 +1233,6 @@ class ChannelEvent(models.Model):
 
         return event
 
-    @classmethod
-    def get_all(cls, org):
-        return cls.objects.filter(org=org)
-
     def release(self):
         self.delete()
 

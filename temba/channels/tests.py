@@ -376,9 +376,15 @@ class ChannelTest(TembaTest):
         android = self.claim_new_android()
         self.assertEqual("FCM111", android.config.get(Channel.CONFIG_FCM_ID))
 
+        # add bulk sender
+        self.org.connect_vonage("key", "secret", self.admin)
+        vonage = Channel.add_vonage_bulk_sender(self.admin, android)
+
         # release it
         android.release(self.admin)
+
         android.refresh_from_db()
+        vonage.refresh_from_db()
 
         response = self.sync(android, cmds=[])
         self.assertEqual(200, response.status_code)
@@ -388,6 +394,9 @@ class ChannelTest(TembaTest):
 
         # and FCM ID now cleared
         self.assertIsNone(android.config.get(Channel.CONFIG_FCM_ID))
+
+        # bulk sender was also released
+        self.assertFalse(vonage.is_active)
 
     def test_list(self):
         # de-activate existing channels
@@ -1539,6 +1548,31 @@ class ChannelCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.refresh_from_db()
         self.assertTrue(flow.has_issues)
         self.assertNotIn(self.ex_channel, flow.channel_dependencies.all())
+
+    def test_delete_delegate(self):
+        self.org.connect_vonage("key", "secret", self.admin)
+        android = Channel.create(
+            self.org, self.admin, "RW", "A", name="Android", address="+250785551313", role="SR", schemes=("tel",)
+        )
+        vonage = Channel.add_vonage_bulk_sender(self.admin, android)
+
+        delete_url = reverse("channels.channel_delete", args=[vonage.uuid])
+
+        # fetch delete modal
+        response = self.assertDeleteFetch(delete_url, allow_editors=True)
+        self.assertContains(response, "Disable Bulk Sending")
+
+        # try when delegate is a caller instead
+        vonage.role = "C"
+        vonage.save(update_fields=("role",))
+
+        # fetch delete modal
+        response = self.assertDeleteFetch(delete_url, allow_editors=True)
+        self.assertContains(response, "Disable Voice Calling")
+
+        # submit to delete it - should be redirected to the Android channel page
+        response = self.assertDeleteSubmit(delete_url, object_deactivated=vonage, success_status=200)
+        self.assertEqual(f"/channels/channel/read/{android.uuid}/", response["Temba-Success"])
 
 
 class ChannelEventCRUDLTest(TembaTest):
