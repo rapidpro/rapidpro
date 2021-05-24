@@ -13,15 +13,10 @@ class TelegramTypeTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.channel = Channel.create(
-            self.org,
-            self.user,
-            None,
+        self.channel = self.create_channel(
             "TG",
-            name="Telegram",
-            address="12345",
-            role="SR",
-            schemes=["telegram"],
+            "Telegram",
+            "12345",
             config={"auth_token": "123456789:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8"},
         )
 

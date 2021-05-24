@@ -260,7 +260,7 @@ class MsgTest(TembaTest):
         self.assertReleaseCount(INCOMING, HANDLED, Msg.VISIBILITY_VISIBLE, FLOW, SystemLabel.TYPE_FLOWS)
 
     def test_broadcast_metadata(self):
-        Channel.create(self.org, self.admin, None, channel_type="TT")
+        self.create_channel("TT", "Twitter", "nyaruka")
         contact1 = self.create_contact("Stephen", phone="+12078778899", language="fra")
         contact2 = self.create_contact("Maaaarcos", urns=["tel:+12078778888", "twitter:marky65"])
 
@@ -558,14 +558,11 @@ class MsgTest(TembaTest):
         self.channel.channel_type = "EX"
         self.channel.save()
 
-        android_channel = Channel.create(
-            self.org,
-            self.user,
-            "RW",
+        android_channel = self.create_channel(
             "A",
-            name="Android Channel",
-            address="+250785551414",
-            device="Nexus 5X",
+            "Android Channel",
+            "+250785551414",
+            country="RW",
             secret="12345678",
             config={Channel.CONFIG_FCM_ID: "123"},
         )
@@ -1768,7 +1765,7 @@ class BroadcastTest(TembaTest):
         self.lucy = self.create_contact(name="Lucy M", urns=["twitter:lucy"])
 
         # a Twitter channel
-        self.twitter = Channel.create(self.org, self.user, None, "TT")
+        self.twitter = self.create_channel("TT", "Twitter", "nyaruka")
 
     def run_msg_release_test(self, tc):
         label = Label.get_or_create(self.org, self.user, "Labeled")
@@ -2018,13 +2015,13 @@ class BroadcastTest(TembaTest):
         self.assertContains(response, "You must add a phone number before sending messages", status_code=400)
 
         # test when we have many channels
-        Channel.create(
-            self.org, self.user, None, "A", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "1234"}
+        self.create_channel(
+            "A", "Android 1", "+2345", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "1234"}
         )
-        Channel.create(
-            self.org, self.user, None, "A", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "123"}
+        self.create_channel(
+            "A", "Android 2", "+3456", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "123"}
         )
-        Channel.create(self.org, self.user, None, "TT")
+        self.create_channel("TT", "Twitter", "nyaruka")
 
         response = self.client.get(send_url)
 
@@ -2045,14 +2042,8 @@ class BroadcastTest(TembaTest):
         for channel in Channel.objects.all():
             channel.release(self.admin)
 
-        Channel.create(
-            self.org,
-            self.user,
-            None,
-            "A",
-            None,
-            secret=Channel.generate_secret(),
-            config={Channel.CONFIG_FCM_ID: "123"},
+        self.create_channel(
+            "A", "Android", "+1234", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "123"}
         )
 
         response = self.client.get(send_url)
@@ -2923,14 +2914,7 @@ class ClearNextAttemptTest(MigrationTest):
 
     def setUpBeforeMigration(self, apps):
         self.android_channel = self.channel
-        self.twilio_channel = Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "T",
-            name="Twilio Channel",
-            address="+250785555555",
-        )
+        self.twilio_channel = self.create_channel("T", "Twilio Channel", "+250785555555")
 
         contact = self.create_contact("Joe", phone="+250788123123")
 

@@ -505,6 +505,34 @@ class TembaTestMixin:
                 modified_by=self.admin,
             )
 
+    def create_channel(
+        self,
+        channel_type: str,
+        name: str,
+        address: str,
+        role=None,
+        schemes=None,
+        country=None,
+        secret=None,
+        config=None,
+        org=None,
+    ):
+        channel_type = Channel.get_type_from_code(channel_type)
+
+        return Channel.objects.create(
+            org=org or self.org,
+            country=country,
+            channel_type=channel_type.code,
+            name=name,
+            address=address,
+            config=config or {},
+            role=role or Channel.DEFAULT_ROLE,
+            secret=secret,
+            schemes=schemes or channel_type.schemes,
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
     def create_channel_event(self, channel, urn, event_type, occurred_on=None, extra=None):
         urn_obj = ContactURN.lookup(channel.org, urn, country_code=channel.country)
         if urn_obj:
