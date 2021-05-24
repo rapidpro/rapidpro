@@ -1208,165 +1208,6 @@ class OrgTest(TembaTest):
 
         mock_async_start.assert_called_once()
 
-    def test_org_administration(self):
-        self.setUpLocations()
-
-        manage_url = reverse("orgs.org_manage")
-        update_url = reverse("orgs.org_update", args=[self.org.pk])
-        delete_url = reverse("orgs.org_delete", args=[self.org.pk])
-        login_url = reverse("users.user_login")
-
-        # no access to anon
-        response = self.client.get(manage_url)
-        self.assertRedirect(response, login_url)
-
-        response = self.client.get(update_url)
-        self.assertRedirect(response, login_url)
-
-        response = self.client.get(delete_url)
-        self.assertRedirect(response, login_url)
-
-        # or admins
-        self.login(self.admin)
-
-        response = self.client.get(manage_url)
-        self.assertRedirect(response, login_url)
-
-        response = self.client.get(update_url)
-        self.assertRedirect(response, login_url)
-
-        response = self.client.get(delete_url)
-        self.assertRedirect(response, login_url)
-
-        # only superuser
-        self.login(self.superuser)
-
-        response = self.client.get(manage_url + "?flagged=1")
-        self.assertFalse(self.org in response.context["object_list"])
-
-        response = self.client.get(manage_url + "?anon=1")
-        self.assertFalse(self.org in response.context["object_list"])
-
-        response = self.client.get(manage_url + "?suspended=1")
-        self.assertFalse(self.org in response.context["object_list"])
-
-        response = self.client.get(manage_url)
-        self.assertEqual(200, response.status_code)
-        self.assertNotContains(response, "(Flagged)")
-
-        self.org.flag()
-        response = self.client.get(manage_url)
-        self.assertContains(response, "(Flagged)")
-
-        # should contain our test org
-        self.assertContains(response, "Temba")
-
-        response = self.client.get(manage_url + "?flagged=1")
-        self.assertTrue(self.org in response.context["object_list"])
-
-        # and can go to that org
-        response = self.client.get(update_url)
-        self.assertEqual(200, response.status_code)
-
-        # We should have the limits fields
-        self.assertTrue("fields_limit" in response.context["form"].fields.keys())
-        self.assertTrue("globals_limit" in response.context["form"].fields.keys())
-        self.assertTrue("groups_limit" in response.context["form"].fields.keys())
-
-        parent = Org.objects.create(
-            name="Parent",
-            timezone=pytz.timezone("Africa/Kigali"),
-            country=self.country,
-            brand=settings.DEFAULT_BRAND,
-            created_by=self.user,
-            modified_by=self.user,
-        )
-
-        # change to the trial plan
-        post_data = {
-            "name": "Temba",
-            "brand": "rapidpro.io",
-            "plan": "TRIAL",
-            "plan_end": "",
-            "language": "",
-            "country": "",
-            "primary_language": "",
-            "timezone": pytz.timezone("Africa/Kigali"),
-            "config": "{}",
-            "date_format": "D",
-            "parent": parent.id,
-            "viewers": [self.user.id],
-            "editors": [self.editor.id],
-            "administrators": [self.admin.id],
-            "surveyors": [self.surveyor.id],
-            "surveyor_password": "",
-            "fields_limit": 300,
-            "groups_limit": 400,
-        }
-
-        response = self.client.post(update_url, post_data)
-        self.assertEqual(302, response.status_code)
-
-        self.org.refresh_from_db()
-        self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
-        self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 400)
-
-        # reset groups limit
-        post_data = {
-            "name": "Temba",
-            "brand": "rapidpro.io",
-            "plan": "TRIAL",
-            "plan_end": "",
-            "language": "",
-            "country": "",
-            "primary_language": "",
-            "timezone": pytz.timezone("Africa/Kigali"),
-            "config": "{}",
-            "date_format": "D",
-            "parent": parent.id,
-            "viewers": [self.user.id],
-            "editors": [self.editor.id],
-            "administrators": [self.admin.id],
-            "surveyors": [self.surveyor.id],
-            "surveyor_password": "",
-            "fields_limit": 300,
-            "groups_limit": "",
-        }
-
-        response = self.client.post(update_url, post_data)
-        self.assertEqual(302, response.status_code)
-
-        self.org.refresh_from_db()
-        self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
-        self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 250)
-
-        # unflag org
-        post_data["action"] = "unflag"
-        self.client.post(update_url, post_data)
-        self.org.refresh_from_db()
-        self.assertFalse(self.org.is_flagged)
-        self.assertEqual(parent, self.org.parent)
-
-        # verify
-        post_data["action"] = "verify"
-        self.client.post(update_url, post_data)
-        self.org.refresh_from_db()
-        self.assertTrue(self.org.is_verified())
-
-        # flag org
-        post_data["action"] = "flag"
-        self.client.post(update_url, post_data)
-        self.org.refresh_from_db()
-        self.assertTrue(self.org.is_flagged)
-
-        # deactivate
-        self.client.post(delete_url, {"id": self.org.id})
-        self.org.refresh_from_db()
-        self.assertFalse(self.org.is_active)
-
-        response = self.client.get(update_url)
-        self.assertEqual(200, response.status_code)
-
     def test_accounts(self):
         url = reverse("orgs.org_accounts")
         self.login(self.admin)
@@ -3973,6 +3814,167 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         created_on = response.context["object_list"][0].created_on.astimezone(self.org.timezone)
         self.assertContains(response, created_on.strftime("%H:%M").lower())
+
+    def test_administration(self):
+        self.setUpLocations()
+
+        def assert_superuser_only(mgmt_url):
+            # no access to anon
+            self.client.logout()
+            self.assertLoginRedirect(self.client.get(mgmt_url))
+
+            # or editors
+            self.login(self.editor)
+            self.assertLoginRedirect(self.client.get(mgmt_url))
+
+            # or even admins
+            self.login(self.admin)
+            self.assertLoginRedirect(self.client.get(mgmt_url))
+
+            # only superusers or staff
+            self.login(self.superuser)
+            response = self.client.get(mgmt_url)
+            self.assertEqual(200, response.status_code)
+
+        manage_url = reverse("orgs.org_manage")
+        update_url = reverse("orgs.org_update", args=[self.org.id])
+        delete_url = reverse("orgs.org_delete", args=[self.org.id])
+
+        assert_superuser_only(manage_url)
+        assert_superuser_only(update_url)
+        assert_superuser_only(delete_url)
+
+        response = self.client.get(manage_url + "?flagged=1")
+        self.assertFalse(self.org in response.context["object_list"])
+
+        response = self.client.get(manage_url + "?anon=1")
+        self.assertFalse(self.org in response.context["object_list"])
+
+        response = self.client.get(manage_url + "?suspended=1")
+        self.assertFalse(self.org in response.context["object_list"])
+
+        response = self.client.get(manage_url)
+        self.assertEqual(200, response.status_code)
+        self.assertNotContains(response, "(Flagged)")
+
+        self.org.flag()
+        response = self.client.get(manage_url)
+        self.assertContains(response, "(Flagged)")
+
+        # should contain our test org
+        self.assertContains(response, "Temba")
+
+        response = self.client.get(manage_url + "?flagged=1")
+        self.assertTrue(self.org in response.context["object_list"])
+
+        # and can go to that org
+        response = self.client.get(update_url)
+        self.assertEqual(200, response.status_code)
+
+        # We should have the limits fields
+        self.assertIn("fields_limit", response.context["form"].fields.keys())
+        self.assertIn("globals_limit", response.context["form"].fields.keys())
+        self.assertIn("groups_limit", response.context["form"].fields.keys())
+
+        parent = Org.objects.create(
+            name="Parent",
+            timezone=pytz.timezone("Africa/Kigali"),
+            country=self.country,
+            brand=settings.DEFAULT_BRAND,
+            created_by=self.user,
+            modified_by=self.user,
+        )
+
+        # change to the trial plan
+        response = self.client.post(
+            update_url,
+            {
+                "name": "Temba",
+                "brand": "rapidpro.io",
+                "plan": "TRIAL",
+                "plan_end": "",
+                "language": "",
+                "country": "",
+                "primary_language": "",
+                "timezone": pytz.timezone("Africa/Kigali"),
+                "config": "{}",
+                "date_format": "D",
+                "parent": parent.id,
+                "viewers": [self.user.id],
+                "editors": [self.editor.id],
+                "administrators": [self.admin.id],
+                "surveyors": [self.surveyor.id],
+                "surveyor_password": "",
+                "fields_limit": 300,
+                "groups_limit": 400,
+            },
+        )
+        self.assertEqual(302, response.status_code)
+
+        self.org.refresh_from_db()
+        self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 400)
+
+        # reset groups limit
+        post_data = {
+            "name": "Temba",
+            "brand": "rapidpro.io",
+            "plan": "TRIAL",
+            "plan_end": "",
+            "language": "",
+            "country": "",
+            "primary_language": "",
+            "timezone": pytz.timezone("Africa/Kigali"),
+            "config": "{}",
+            "date_format": "D",
+            "parent": parent.id,
+            "viewers": [self.user.id],
+            "editors": [self.editor.id],
+            "administrators": [self.admin.id],
+            "surveyors": [self.surveyor.id],
+            "surveyor_password": "",
+            "fields_limit": 300,
+            "groups_limit": "",
+        }
+
+        response = self.client.post(update_url, post_data)
+        self.assertEqual(302, response.status_code)
+
+        self.org.refresh_from_db()
+        self.assertEqual(self.org.get_limit(Org.LIMIT_FIELDS), 300)
+        self.assertEqual(self.org.get_limit(Org.LIMIT_GROUPS), 250)
+
+        # unflag org
+        post_data["action"] = "unflag"
+        self.client.post(update_url, post_data)
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_flagged)
+        self.assertEqual(parent, self.org.parent)
+
+        # verify
+        post_data["action"] = "verify"
+        self.client.post(update_url, post_data)
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.is_verified())
+
+        # flag org
+        post_data["action"] = "flag"
+        self.client.post(update_url, post_data)
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.is_flagged)
+
+        # schedule for deletion
+        response = self.client.get(delete_url, {"id": self.org.id})
+        self.assertContains(response, "This will schedule deletion of <b>Temba</b>")
+
+        response = self.client.post(delete_url, {"id": self.org.id})
+        self.assertEqual(manage_url, response["Temba-Success"])
+
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_active)
+
+        response = self.client.get(update_url)
+        self.assertContains(response, "Workspace has been scheduled for deletion")
 
     def test_urn_schemes(self):
         # remove existing channels

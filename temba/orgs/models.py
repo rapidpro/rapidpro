@@ -259,6 +259,8 @@ class Org(SmartModel):
         LIMIT_GROUPS: settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG,
     }
 
+    DELETE_DELAY_DAYS = 7  # how many days after releasing that an org is deleted
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     name = models.CharField(verbose_name=_("Name"), max_length=128)

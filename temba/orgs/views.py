@@ -1650,10 +1650,10 @@ class OrgCRUDL(SmartCRUDL):
                 if self.request.user.has_perm("orgs.org_delete"):
                     links.append(
                         dict(
-                            id="delete-flow",
+                            id="delete-org",
                             title=_("Delete"),
-                            href=reverse("orgs.org_delete", args=[org.pk]),
-                            modax="Delete Org",
+                            href=reverse("orgs.org_delete", args=[org.id]),
+                            modax=_("Delete Workspace"),
                         )
                     )
             return links
@@ -1680,16 +1680,23 @@ class OrgCRUDL(SmartCRUDL):
 
     class Delete(ModalMixin, SmartDeleteView):
         cancel_url = "id@orgs.org_update"
-        submit_button_name = _("Delete")
         fields = ("id",)
+        submit_button_name = _("Delete")
+        success_url = "@orgs.org_manage"
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["delete_on"] = timezone.now() + timedelta(days=Org.DELETE_DELAY_DAYS)
+            return context
 
         def post(self, request, *args, **kwargs):
-            self.object = self.get_object()
-            self.pre_delete(self.object)
-            redirect_url = self.get_redirect_url()
-            self.object.release(self.request.user)
+            obj = self.get_object()
+            obj.release(request.user)
 
-            return HttpResponseRedirect(redirect_url)
+            messages.info(request, _("Workspace has been scheduled for deletion"))
+            response = HttpResponse()
+            response["Temba-Success"] = self.get_success_url()
+            return response
 
         def get_redirect_url(self, **kwargs):
             return reverse("orgs.org_update", args=[self.object.pk])
