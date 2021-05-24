@@ -114,5 +114,4 @@ class SignalWireTest(TembaTest):
                 )
 
         # deactivate our channel
-        with self.settings(IS_PROD=True):
-            channel.release(self.admin)
+        channel.release(self.admin)

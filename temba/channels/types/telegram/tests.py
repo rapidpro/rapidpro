@@ -2,7 +2,6 @@ from unittest.mock import patch
 
 import telegram
 
-from django.test import override_settings
 from django.urls import reverse
 
 from temba.tests import TembaTest
@@ -26,7 +25,6 @@ class TelegramTypeTest(TembaTest):
             config={"auth_token": "123456789:BAEKbsOKAL23CXufXG4ksNV7Dq7e_1qi3j8"},
         )
 
-    @override_settings(IS_PROD=True)
     @patch("telegram.Bot.get_me")
     @patch("telegram.Bot.set_webhook")
     def test_claim(self, mock_set_webhook, mock_get_me):
@@ -87,7 +85,6 @@ class TelegramTypeTest(TembaTest):
         self.assertIsNotNone(send_channel)
         self.assertEqual(send_channel.channel_type, "TG")
 
-    @override_settings(IS_PROD=True)
     @patch("telegram.Bot.delete_webhook")
     def test_release(self, mock_delete_webhook):
         self.channel.release(self.admin)

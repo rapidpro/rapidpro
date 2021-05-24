@@ -162,8 +162,7 @@ class WhatsAppTypeTest(TembaTest):
         refresh_whatsapp_templates()
 
         # deactivate our channel
-        with self.settings(IS_PROD=True):
-            channel.release(self.admin)
+        channel.release(self.admin)
 
     def test_refresh_tokens(self):
         TemplateTranslation.objects.all().delete()

@@ -81,8 +81,7 @@ class Dialog360TypeTest(TembaTest):
                 pass
 
         # deactivate our channel
-        with self.settings(IS_PROD=True):
-            channel.release(self.admin)
+        channel.release(self.admin)
 
     @patch("requests.get")
     def test_get_api_templates(self, mock_get):
