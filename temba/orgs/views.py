@@ -655,7 +655,7 @@ class UserCRUDL(SmartCRUDL):
             username = user.username
 
             brand = self.request.branding.get("brand")
-            user.release(brand)
+            user.release(self.request.user, brand=brand)
 
             messages.success(self.request, _(f"Deleted user {username}"))
             return HttpResponseRedirect(reverse("orgs.user_list", args=()))
@@ -1650,10 +1650,10 @@ class OrgCRUDL(SmartCRUDL):
                 if self.request.user.has_perm("orgs.org_delete"):
                     links.append(
                         dict(
-                            id="delete-flow",
+                            id="delete-org",
                             title=_("Delete"),
-                            href=reverse("orgs.org_delete", args=[org.pk]),
-                            modax="Delete Org",
+                            href=reverse("orgs.org_delete", args=[org.id]),
+                            modax=_("Delete Workspace"),
                         )
                     )
             return links
@@ -1680,19 +1680,22 @@ class OrgCRUDL(SmartCRUDL):
 
     class Delete(ModalMixin, SmartDeleteView):
         cancel_url = "id@orgs.org_update"
-        submit_button_name = _("Delete")
+        success_url = "id@orgs.org_update"
         fields = ("id",)
+        submit_button_name = _("Delete")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["delete_on"] = timezone.now() + timedelta(days=Org.DELETE_DELAY_DAYS)
+            return context
 
         def post(self, request, *args, **kwargs):
             self.object = self.get_object()
-            self.pre_delete(self.object)
-            redirect_url = self.get_redirect_url()
-            self.object.release()
+            self.object.release(request.user)
 
-            return HttpResponseRedirect(redirect_url)
-
-        def get_redirect_url(self, **kwargs):
-            return reverse("orgs.org_update", args=[self.object.pk])
+            response = HttpResponse()
+            response["Temba-Success"] = self.get_success_url()
+            return response
 
     class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class PasswordForm(forms.ModelForm):
