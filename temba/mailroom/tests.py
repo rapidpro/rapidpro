@@ -330,11 +330,11 @@ class MailroomClientTest(TembaTest):
 
             get_client().flow_inspect(self.org.id, {"nodes": []})
 
-            mock_post.assert_called_once_with(
-                "http://localhost:8090/mr/flow/inspect",
-                headers={"User-Agent": "Temba"},
-                json={"org_id": self.org.id, "flow": {"nodes": []}},
-            )
+            call = mock_post.mock_calls[0]
+
+            self.assertEqual(("http://localhost:8090/mr/flow/inspect",), call.args)
+            self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call.kwargs["headers"])
+            self.assertEqual({"org_id": self.org.id, "flow": {"nodes": []}}, json.loads(call.kwargs["data"]))
 
     def test_request_failure(self):
         flow = self.get_flow("color")
