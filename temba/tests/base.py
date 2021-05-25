@@ -397,18 +397,11 @@ class TembaTestMixin:
 
         return bcast
 
-    def create_flow(self, name="Color Flow", flow_type=Flow.TYPE_MESSAGE, org=None):
+    def create_flow(self, name="Test Flow", *, flow_type=Flow.TYPE_MESSAGE, nodes=None, org=None):
         org = org or self.org
         flow = Flow.create(org, self.admin, name, flow_type=flow_type)
-        definition = {
-            "uuid": "fc8cfc80-c73c-4d96-82b6-c8ab4ecb1df6",
-            "name": name,
-            "type": Flow.GOFLOW_TYPES[flow_type],
-            "revision": 1,
-            "spec_version": "13.1.0",
-            "expire_after_minutes": Flow.DEFAULT_EXPIRES_AFTER,
-            "language": "eng",
-            "nodes": [
+        if not nodes:
+            nodes = [
                 {
                     "uuid": "f3d5ccd0-fee0-4955-bcb7-21613f049eae",
                     "actions": [
@@ -416,7 +409,16 @@ class TembaTestMixin:
                     ],
                     "exits": [{"uuid": "72a3f1da-bde1-4549-a986-d35809807be8"}],
                 }
-            ],
+            ]
+        definition = {
+            "uuid": str(uuid4()),
+            "name": name,
+            "type": Flow.GOFLOW_TYPES[flow_type],
+            "revision": 1,
+            "spec_version": "13.1.0",
+            "expire_after_minutes": Flow.DEFAULT_EXPIRES_AFTER,
+            "language": "eng",
+            "nodes": nodes,
         }
 
         flow.version_number = definition["spec_version"]
