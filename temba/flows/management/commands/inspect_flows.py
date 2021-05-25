@@ -20,7 +20,7 @@ def inspect_flows():
             flow.save(update_fields=("has_issues",))
             num_updated += 1
 
-        if num_inspected % 100 == 0:
+        if num_inspected % 100 == 0:  # pragma: no cover
             print(f" > Flows inspected: {num_inspected}, updated: {num_updated}")
 
     print(f"Total flows inspected: {num_inspected}, updated: {num_updated}")

@@ -1,6 +1,5 @@
 from django.core.management import call_command
 
-from temba.channels.models import Channel
 from temba.flows.models import FlowNodeCount
 from temba.tests import TembaTest
 from temba.tests.engine import MockSessionWriter
@@ -13,10 +12,8 @@ class MigrateFlowsTest(TembaTest):
 
 class InspectFlowsTest(TembaTest):
     def test_command(self):
-        Channel.objects.all().delete()
-
-        # flow which wrong has has_issues set
-        flow1 = self.get_flow("color")
+        # flow which wrongly has has_issues set
+        flow1 = self.create_flow("No Problems")
         flow1.has_issues = True
         flow1.save(update_fields=("has_issues",))
 
