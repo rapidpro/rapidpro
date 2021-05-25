@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-21 20:45+0000\n"
+"POT-Creation-Date: 2021-05-24 20:43+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3551,6 +3551,9 @@ msgstr ""
 msgid "Verify"
 msgstr ""
 
+msgid "Delete Workspace"
+msgstr ""
+
 msgid "This password is not valid. Choose a new password and try again."
 msgstr "Этот пароль не является допустимым. Выберите новый пароль и повторите попытку."
 
@@ -6694,7 +6697,11 @@ msgstr "Вы использовали"
 msgid "credits since signing up."
 msgstr "кредитов с момента регистрации."
 
-msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
+#, python-format
+msgid "This will schedule deletion of <b>%(org)s</b> on <b>%(date)s</b>."
+msgstr ""
+
+msgid "Are you sure you want to delete everything belonging to this workspace? This cannot be undone. Any logins which belong only to this workspace will also be deleted."
 msgstr ""
 
 #, python-format
@@ -7462,9 +7469,6 @@ msgstr ""
 
 msgid "Delete "
 msgstr "Удалить"
-
-msgid "Delete Workspace"
-msgstr ""
 
 msgid "Delete Login"
 msgstr ""
