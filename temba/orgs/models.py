@@ -259,6 +259,8 @@ class Org(SmartModel):
         LIMIT_GROUPS: settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG,
     }
 
+    DELETE_DELAY_DAYS = 7  # how many days after releasing that an org is deleted
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     name = models.CharField(verbose_name=_("Name"), max_length=128)
@@ -1636,7 +1638,7 @@ class Org(SmartModel):
 
         return f"{settings.STORAGE_URL}/{location}"
 
-    def release(self, *, release_users=True, delete=False):
+    def release(self, user, *, release_users=True):
         """
         Releases this org, marking it as inactive. Actual deletion of org data won't happen until after 7 days unless
         delete is True.
@@ -1647,27 +1649,25 @@ class Org(SmartModel):
 
         # deactivate ourselves
         self.is_active = False
+        self.modified_by = user
         self.released_on = timezone.now()
-        self.save(update_fields=("is_active", "released_on", "modified_on"))
+        self.save(update_fields=("is_active", "released_on", "modified_by", "modified_on"))
 
-        # and immediately release our channels
+        # and immediately release our channels to halt messaging
         for channel in self.channels.filter(is_active=True):
-            channel.release(self.modified_by)
+            channel.release(user)
 
         # release any user that belongs only to us
         if release_users:
-            for user in self.get_users():
+            for org_user in self.get_users():
                 # check if this user is a member of any org on any brand
-                other_orgs = user.get_user_orgs().exclude(id=self.id)
+                other_orgs = org_user.get_user_orgs().exclude(id=self.id)
                 if not other_orgs:
-                    user.release(self.brand)
+                    org_user.release(user, brand=self.brand)
 
         # remove all the org users
-        for user in self.get_users():
-            self.remove_user(user)
-
-        if delete:
-            self.delete()
+        for org_user in self.get_users():
+            self.remove_user(org_user)
 
     def delete(self):
         """
@@ -1698,28 +1698,19 @@ class Org(SmartModel):
         # our system label counts
         self.system_labels.all().delete()
 
-        # delete our flow labels
-        self.flow_labels.all().delete()
-
         # delete all our campaigns and associated events
         for c in self.campaigns.all():
             c._full_release()
 
         # delete everything associated with our flows
         for flow in self.flows.all():
-            # we want to manually release runs so we don't fire a task to do it
+            # we want to manually release runs so we don't fire a mailroom task to do it
             flow.release(interrupt_sessions=False)
-            flow.release_runs()
-
-            for rev in flow.revisions.all():
-                rev.release()
-
-            flow.category_counts.all().delete()
-            flow.path_counts.all().delete()
-            flow.node_counts.all().delete()
-            flow.exit_counts.all().delete()
-
             flow.delete()
+
+        # delete our flow labels (deleting a label deletes its children)
+        for flow_label in self.flow_labels.filter(parent=None):
+            flow_label.delete()
 
         # delete contact-related data
         self.sessions.all().delete()
@@ -1860,7 +1851,10 @@ class Org(SmartModel):
 # ===================== monkey patch User class with a few extra functions ========================
 
 
-def release(user, brand):
+def release(user, releasing_user, *, brand):
+    """
+    Releases this user, and any orgs of which they are the sole owner
+    """
 
     # if our user exists across brands don't muck with the user
     if user.get_user_orgs().order_by("brand").distinct("brand").count() < 2:
@@ -1875,7 +1869,7 @@ def release(user, brand):
 
     # release any orgs we own on this brand
     for org in user.get_owned_orgs([brand]):
-        org.release(release_users=False)
+        org.release(releasing_user, release_users=False)
 
     # remove user from all roles on any org for our brand
     for org in user.get_user_orgs([brand]):

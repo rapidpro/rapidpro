@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-21 20:45+0000\n"
+"POT-Creation-Date: 2021-05-24 20:43+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3540,6 +3540,9 @@ msgstr "Marquer"
 msgid "Verify"
 msgstr "Vérifier"
 
+msgid "Delete Workspace"
+msgstr "Supprimer l'espace de travail"
+
 msgid "This password is not valid. Choose a new password and try again."
 msgstr "Ce mot de passe n'est pas valide. Choisissez un nouveau mot de passe et réessayez."
 
@@ -6736,7 +6739,13 @@ msgstr "Vous avez utilisé"
 msgid "credits since signing up."
 msgstr "crédits depuis votre inscription."
 
-msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
+#, python-format
+msgid "This will schedule deletion of <b>%(org)s</b> on <b>%(date)s</b>."
+msgstr ""
+
+#, fuzzy
+#| msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
+msgid "Are you sure you want to delete everything belonging to this workspace? This cannot be undone. Any logins which belong only to this workspace will also be deleted."
 msgstr "Voulez-vous vraiment tout supprimer pour cette organisation? Ça ne peut pas être annulé. Toutes les connexions n'appartenant qu'à cet espace de travail seront également supprimées."
 
 #, python-format
@@ -7587,9 +7596,6 @@ msgstr "Confirmer le nouveau mot de passe"
 msgid "Delete "
 msgstr "Supprimer"
 
-msgid "Delete Workspace"
-msgstr "Supprimer l'espace de travail"
-
 msgid "Delete Login"
 msgstr "Supprimer la connexion"
 
@@ -7786,6 +7792,11 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#, fuzzy
+#~| msgid "This workspace has been scheduled for deletion"
+#~ msgid "Workspace has been scheduled for deletion"
+#~ msgstr "Cet espace de travail a été programmé pour la suppression"
 
 #~ msgid "Remove Android"
 #~ msgstr "Retirer Android"
