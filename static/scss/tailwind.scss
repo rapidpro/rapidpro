@@ -222,9 +222,11 @@ a {
 
 .lbl-group {
   @apply lbl;
-
+  display: flex;
+  align-items: center;
   temba-icon {
-    display: inline-block;
+    --icon-color: rgba(0,0,0,.5);
+    margin-right: 3px;
   }
 }
 
@@ -239,6 +241,8 @@ a {
 
 .lbl-group.inverted {
   @apply text-light-alpha-900;
+
+  
 
   &::before {
     @apply text-light-alpha-900;
