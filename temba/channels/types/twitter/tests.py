@@ -16,14 +16,10 @@ class TwitterTypeTest(TembaTest):
     def setUp(self):
         super().setUp()
 
-        self.channel = Channel.create(
-            self.org,
-            self.user,
-            None,
+        self.channel = self.create_channel(
             "TWT",
-            name="Twitter Beta",
-            address="beta_bob",
-            role="SR",
+            "Twitter Beta",
+            "beta_bob",
             config={
                 "api_key": "ak1",
                 "api_secret": "as1",

@@ -80,13 +80,15 @@ class WhatsAppTypeTest(TembaTest):
         #         self.assertContains(response, "check user id and access token")
 
         # then success
-        with patch("requests.post") as mock_post:
-            with patch("requests.get") as mock_get:
-                mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
-                mock_get.return_value = MockResponse(200, '{"data": []}')
+        with patch("requests.post") as mock_post, patch("requests.get") as mock_get, patch(
+            "requests.patch"
+        ) as mock_patch:
+            mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
+            mock_get.return_value = MockResponse(200, '{"data": []}')
+            mock_patch.return_value = MockResponse(200, '{"data": []}')
 
-                response = self.client.post(url, post_data)
-                self.assertEqual(302, response.status_code)
+            response = self.client.post(url, post_data)
+            self.assertEqual(302, response.status_code)
 
         channel = Channel.objects.get()
 
@@ -168,13 +170,10 @@ class WhatsAppTypeTest(TembaTest):
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
 
-        channel = Channel.create(
-            self.org,
-            self.admin,
-            "US",
+        channel = self.create_channel(
             "WA",
-            name="WhatsApp: 1234",
-            address="1234",
+            "WhatsApp: 1234",
+            "1234",
             config={
                 Channel.CONFIG_BASE_URL: "https://nyaruka.com/whatsapp",
                 Channel.CONFIG_USERNAME: "temba",
@@ -185,16 +184,12 @@ class WhatsAppTypeTest(TembaTest):
                 CONFIG_FB_NAMESPACE: "my-custom-app",
                 CONFIG_FB_TEMPLATE_LIST_DOMAIN: "graph.facebook.com",
             },
-            tps=45,
         )
 
-        channel2 = Channel.create(
-            self.org,
-            self.admin,
-            "US",
+        channel2 = self.create_channel(
             "WA",
-            name="WhatsApp: 1235",
-            address="1235",
+            "WhatsApp: 1235",
+            "1235",
             config={
                 Channel.CONFIG_BASE_URL: "https://nyaruka.com/whatsapp",
                 Channel.CONFIG_USERNAME: "temba",
@@ -205,7 +200,6 @@ class WhatsAppTypeTest(TembaTest):
                 CONFIG_FB_NAMESPACE: "my-custom-app",
                 CONFIG_FB_TEMPLATE_LIST_DOMAIN: "graph.facebook.com",
             },
-            tps=45,
         )
 
         # and fetching new tokens
@@ -257,32 +251,32 @@ class WhatsAppTypeTest(TembaTest):
         post_data["facebook_access_token"] = "token123"
         post_data["facebook_template_list_domain"] = "example.org"
 
-        with patch("requests.post") as mock_post:
-            with patch("requests.get") as mock_get:
-                mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
-                mock_get.return_value = MockResponse(400, '{"data": []}')
+        with patch("requests.post") as mock_post, patch("requests.get") as mock_get:
+            mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
+            mock_get.return_value = MockResponse(400, '{"data": []}')
 
-                response = self.client.post(url, post_data)
-                self.assertEqual(200, response.status_code)
-                self.assertFalse(Channel.objects.all())
-                mock_get.assert_called_with(
-                    "https://example.org/v3.3/1234/message_templates", params={"access_token": "token123"}
-                )
+            response = self.client.post(url, post_data)
+            self.assertEqual(200, response.status_code)
+            self.assertFalse(Channel.objects.all())
+            mock_get.assert_called_with(
+                "https://example.org/v3.3/1234/message_templates", params={"access_token": "token123"}
+            )
 
-                self.assertContains(response, "check user id and access token")
+            self.assertContains(response, "check user id and access token")
 
         # success claim
-        with patch("requests.post") as mock_post:
-            with patch("requests.get") as mock_get:
+        with patch("requests.post") as mock_post, patch("requests.get") as mock_get, patch(
+            "requests.patch"
+        ) as mock_patch:
+            mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
+            mock_get.return_value = MockResponse(200, '{"data": []}')
+            mock_patch.return_value = MockResponse(200, '{"data": []}')
 
-                mock_post.return_value = MockResponse(200, '{"users": [{"token": "abc123"}]}')
-                mock_get.return_value = MockResponse(200, '{"data": []}')
-
-                response = self.client.post(url, post_data)
-                self.assertEqual(302, response.status_code)
-                mock_get.assert_called_with(
-                    "https://example.org/v3.3/1234/message_templates", params={"access_token": "token123"}
-                )
+            response = self.client.post(url, post_data)
+            self.assertEqual(302, response.status_code)
+            mock_get.assert_called_with(
+                "https://example.org/v3.3/1234/message_templates", params={"access_token": "token123"}
+            )
 
         channel = Channel.objects.get()
 
@@ -303,13 +297,10 @@ class WhatsAppTypeTest(TembaTest):
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
 
-        channel = Channel.create(
-            self.org,
-            self.admin,
-            "US",
+        channel = self.create_channel(
             "WA",
-            name="WhatsApp: 1234",
-            address="1234",
+            "WhatsApp: 1234",
+            "1234",
             config={
                 Channel.CONFIG_BASE_URL: "https://nyaruka.com/whatsapp",
                 Channel.CONFIG_USERNAME: "temba",
@@ -320,7 +311,6 @@ class WhatsAppTypeTest(TembaTest):
                 CONFIG_FB_NAMESPACE: "my-custom-app",
                 CONFIG_FB_TEMPLATE_LIST_DOMAIN: "graph.facebook.com",
             },
-            tps=45,
         )
 
         mock_get.side_effect = [
@@ -357,17 +347,7 @@ class WhatsAppTypeTest(TembaTest):
         Channel.objects.all().delete()
 
         # channel has namespace in the channel config
-        channel = Channel.create(
-            self.org,
-            self.admin,
-            "RW",
-            "WA",
-            name="channel",
-            address="1234",
-            config={
-                "fb_namespace": "foo_namespace",
-            },
-        )
+        channel = self.create_channel("WA", "Channel", "1234", config={"fb_namespace": "foo_namespace"})
 
         self.login(self.admin)
         mock_get_api_templates.side_effect = [([], False), Exception("foo"), ([{"name": "hello"}], True)]
@@ -403,17 +383,7 @@ class WhatsAppTypeTest(TembaTest):
         update_local_templates_mock.assert_called_once_with(channel, [{"name": "hello"}])
 
     def test_message_templates_and_logs_views(self):
-        channel = Channel.create(
-            self.org,
-            self.admin,
-            "RW",
-            "WA",
-            name="channel",
-            address="1234",
-            config={
-                "fb_namespace": "foo_namespace",
-            },
-        )
+        channel = self.create_channel("WA", "Channel", "1234", config={"fb_namespace": "foo_namespace"})
 
         TemplateTranslation.get_or_create(
             channel,

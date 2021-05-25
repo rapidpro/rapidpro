@@ -5,7 +5,6 @@ from requests import RequestException
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.wit import WitType
 from temba.tests import MockResponse, TembaTest
@@ -154,16 +153,7 @@ class HTTPLogTest(TembaTest):
         self.assertEqual(404, response.status_code)
 
     def test_channel_log(self):
-        channel = Channel.create(
-            self.org,
-            self.admin,
-            "US",
-            "WA",
-            name="WhatsApp: 1234",
-            address="1234",
-            config={},
-            tps=45,
-        )
+        channel = self.create_channel("WA", "WhatsApp: 1234", "1234")
 
         exception = RequestException("Network is unreachable", response=MockResponse(100, ""))
         start = timezone.now()
