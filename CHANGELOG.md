@@ -1,3 +1,10 @@
+v6.3.56
+----------
+ * Fix migrating flows whose definitions contain decimal values
+ * Update to tailwind 2, fix security warnings
+ * Simplify org filtering on CRUDLs
+ * Remove IS_PROD setting
+
 v6.3.55
 ----------
  * Update layout and color for badge buttons
