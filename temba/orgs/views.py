@@ -156,7 +156,7 @@ class OrgFilterMixin:
         queryset = super().derive_queryset(*args, **kwargs)
 
         if not self.request.user.is_authenticated:
-            return queryset.none()
+            return queryset.none()  # pragma: no cover
         else:
             return queryset.filter(org=self.request.user.get_org())
 
