@@ -1340,15 +1340,6 @@ class AnalyticsTest(SmartminTest):
         temba.utils.analytics._intercom = self.intercom_mock
         temba.utils.analytics.init_analytics()
 
-    @override_settings(IS_PROD=False)
-    def test_identify_not_prod_env(self):
-        result = temba.utils.analytics.identify(self.admin, "test", self.org)
-
-        self.assertIsNone(result)
-        self.intercom_mock.users.create.assert_not_called()
-        self.intercom_mock.users.save.assert_not_called()
-
-    @override_settings(IS_PROD=True)
     def test_identify_intercom_exception(self):
         self.intercom_mock.users.create.side_effect = Exception("Kimi says bwoah...")
 
@@ -1357,7 +1348,6 @@ class AnalyticsTest(SmartminTest):
 
         mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
 
-    @override_settings(IS_PROD=True)
     def test_identify_intercom(self):
         temba.utils.analytics.identify(self.admin, "test", self.org)
 
@@ -1386,7 +1376,6 @@ class AnalyticsTest(SmartminTest):
         # did we actually call save?
         self.intercom_mock.users.save.assert_called_once()
 
-    @override_settings(IS_PROD=True)
     def test_track_intercom(self):
         temba.utils.analytics.track(self.admin, "test event", properties={"plan": "free"})
 
@@ -1394,15 +1383,6 @@ class AnalyticsTest(SmartminTest):
             event_name="test event", created_at=mock.ANY, email=self.admin.username, metadata={"plan": "free"}
         )
 
-    @override_settings(IS_PROD=False)
-    def test_track_not_prod_env(self):
-        result = temba.utils.analytics.track(self.admin, "test event", properties={"plan": "free"})
-
-        self.assertIsNone(result)
-
-        self.intercom_mock.events.create.assert_not_called()
-
-    @override_settings(IS_PROD=True)
     def test_track_not_anon_user(self):
         anon = AnonymousUser()
         result = temba.utils.analytics.track(anon, "test event", properties={"plan": "free"})
@@ -1411,7 +1391,6 @@ class AnalyticsTest(SmartminTest):
 
         self.intercom_mock.events.create.assert_not_called()
 
-    @override_settings(IS_PROD=True)
     def test_track_intercom_exception(self):
         self.intercom_mock.events.create.side_effect = Exception("It's raining today")
 
@@ -1420,7 +1399,6 @@ class AnalyticsTest(SmartminTest):
 
         mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
 
-    @override_settings(IS_PROD=True)
     def test_consent_missing_user(self):
         self.intercom_mock.users.find.return_value = None
         temba.utils.analytics.change_consent(self.admin.email, consent=True)
@@ -1429,7 +1407,6 @@ class AnalyticsTest(SmartminTest):
             email=self.admin.email, custom_attributes=dict(consent=True, consent_changed=mock.ANY)
         )
 
-    @override_settings(IS_PROD=True)
     def test_consent_invalid_user_decline(self):
         self.intercom_mock.users.find.return_value = None
         temba.utils.analytics.change_consent(self.admin.email, consent=False)
@@ -1437,7 +1414,6 @@ class AnalyticsTest(SmartminTest):
         self.intercom_mock.users.create.assert_not_called()
         self.intercom_mock.users.delete.assert_not_called()
 
-    @override_settings(IS_PROD=True)
     def test_consent_valid_user(self):
 
         # valid user which did not consent
@@ -1449,7 +1425,6 @@ class AnalyticsTest(SmartminTest):
             email=self.admin.email, custom_attributes=dict(consent=True, consent_changed=mock.ANY)
         )
 
-    @override_settings(IS_PROD=True)
     def test_consent_valid_user_already_consented(self):
         # valid user which did not consent
         self.intercom_mock.users.find.return_value = MagicMock(custom_attributes={"consent": True})
@@ -1458,7 +1433,6 @@ class AnalyticsTest(SmartminTest):
 
         self.intercom_mock.users.create.assert_not_called()
 
-    @override_settings(IS_PROD=True)
     def test_consent_valid_user_decline(self):
 
         # valid user which did not consent
@@ -1471,7 +1445,6 @@ class AnalyticsTest(SmartminTest):
         )
         self.intercom_mock.users.delete.assert_called_with(mock.ANY)
 
-    @override_settings(IS_PROD=True)
     def test_consent_exception(self):
         self.intercom_mock.users.find.side_effect = Exception("Kimi says bwoah...")
 
@@ -1479,15 +1452,6 @@ class AnalyticsTest(SmartminTest):
             temba.utils.analytics.change_consent(self.admin.email, consent=False)
 
         mocked_logging.error.assert_called_with("error posting to intercom", exc_info=True)
-
-    @override_settings(IS_PROD=False)
-    def test_consent_not_prod_env(self):
-        result = temba.utils.analytics.change_consent(self.admin.email, consent=False)
-
-        self.assertIsNone(result)
-        self.intercom_mock.users.find.assert_not_called()
-        self.intercom_mock.users.create.assert_not_called()
-        self.intercom_mock.users.delete.assert_not_called()
 
     def test_get_intercom_user(self):
         temba.utils.analytics.get_intercom_user(email="an email")
@@ -1501,16 +1465,6 @@ class AnalyticsTest(SmartminTest):
 
         self.assertIsNone(result)
 
-    @override_settings(IS_PROD=False)
-    def test_set_orgs_not_prod_env(self):
-        result = temba.utils.analytics.set_orgs(email="an email", all_orgs=[self.org])
-
-        self.assertIsNone(result)
-
-        self.intercom_mock.users.find.assert_not_called()
-        self.intercom_mock.users.save.assert_not_called()
-
-    @override_settings(IS_PROD=True)
     def test_set_orgs_invalid_user(self):
         self.intercom_mock.users.find.return_value = None
 
@@ -1519,7 +1473,6 @@ class AnalyticsTest(SmartminTest):
         self.intercom_mock.users.find.assert_called_with(email="an email")
         self.intercom_mock.users.save.assert_not_called()
 
-    @override_settings(IS_PROD=True)
     def test_set_orgs_valid_user_same_company(self):
         intercom_user = MagicMock(companies=[MagicMock(company_id=self.org.id)])
         self.intercom_mock.users.find.return_value = intercom_user
@@ -1532,7 +1485,6 @@ class AnalyticsTest(SmartminTest):
 
         self.intercom_mock.users.save.assert_called_with(mock.ANY)
 
-    @override_settings(IS_PROD=True)
     def test_set_orgs_valid_user_new_company(self):
         intercom_user = MagicMock(companies=[MagicMock(company_id=-1), MagicMock(company_id=self.org.id)])
         self.intercom_mock.users.find.return_value = intercom_user
@@ -1548,7 +1500,6 @@ class AnalyticsTest(SmartminTest):
 
         self.intercom_mock.users.save.assert_called_with(mock.ANY)
 
-    @override_settings(IS_PROD=True)
     def test_set_orgs_valid_user_without_a_company(self):
         intercom_user = MagicMock(companies=[MagicMock(company_id=-1), MagicMock(company_id=self.org.id)])
         self.intercom_mock.users.find.return_value = intercom_user
@@ -1564,15 +1515,6 @@ class AnalyticsTest(SmartminTest):
 
         self.intercom_mock.users.save.assert_called_with(mock.ANY)
 
-    @override_settings(IS_PROD=False)
-    def test_identify_org_not_prod_env(self):
-        result = temba.utils.analytics.identify_org(org=self.org, attributes=None)
-
-        self.assertIsNone(result)
-
-        self.intercom_mock.companies.create.assert_not_called()
-
-    @override_settings(IS_PROD=True)
     def test_identify_org_empty_attributes(self):
         result = temba.utils.analytics.identify_org(org=self.org, attributes=None)
 
@@ -1585,7 +1527,6 @@ class AnalyticsTest(SmartminTest):
             name=self.org.name,
         )
 
-    @override_settings(IS_PROD=True)
     def test_identify_org_with_attributes(self):
         attributes = dict(
             website="https://example.com",

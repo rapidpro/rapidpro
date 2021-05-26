@@ -1,3 +1,11 @@
+v6.3.55
+----------
+ * Update layout and color for badge buttons
+ * Add management command to inspect flows and fix has_issues where needed
+ * Fix deleting flow labels with parents
+ * Fix broken org delete modal
+ * Add user arg to Org.release and User.release
+
 v6.3.54
 ----------
  * Optimize message retries with a perfect index

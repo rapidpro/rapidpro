@@ -1,6 +1,5 @@
 from smartmin.models import SmartModel
 
-from django.conf import settings
 from django.db import models
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
@@ -129,8 +128,7 @@ class Trigger(SmartModel):
         trigger.archive_conflicts(user)
 
         if trigger.channel:
-            if settings.IS_PROD:
-                trigger.channel.get_type().activate_trigger(trigger)
+            trigger.channel.get_type().activate_trigger(trigger)
 
         return trigger
 
@@ -148,7 +146,7 @@ class Trigger(SmartModel):
         self.is_archived = True
         self.save()
 
-        if settings.IS_PROD and self.channel:
+        if self.channel:
             self.channel.get_type().deactivate_trigger(self)
 
     def restore(self, user):
@@ -159,7 +157,7 @@ class Trigger(SmartModel):
         # archive any conflicts
         self.archive_conflicts(user)
 
-        if settings.IS_PROD and self.channel:
+        if self.channel:
             self.channel.get_type().activate_trigger(self)
 
     def archive_conflicts(self, user):

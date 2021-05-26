@@ -150,25 +150,23 @@ class ChannelType(metaclass=ABCMeta):
     def activate(self, channel):
         """
         Called when a channel of this type has been created. Can be used to setup things like callbacks required by the
-        channel. Note: this will only be called if IS_PROD setting is True.
+        channel.
         """
 
     def deactivate(self, channel):
         """
         Called when a channel of this type has been released. Can be used to cleanup things like callbacks which were
-        used by the channel. Note: this will only be called if IS_PROD setting is True.
+        used by the channel.
         """
 
     def activate_trigger(self, trigger):
         """
-        Called when a trigger that is bound to a channel of this type is being created or restored. Note: this will only
-        be called if IS_PROD setting is True.
+        Called when a trigger that is bound to a channel of this type is being created or restored.
         """
 
     def deactivate_trigger(self, trigger):
         """
-        Called when a trigger that is bound to a channel of this type is being released. Note: this will only be called
-        if IS_PROD setting is True.
+        Called when a trigger that is bound to a channel of this type is being released.
         """
 
     def has_attachment_support(self, channel):
@@ -474,17 +472,16 @@ class Channel(TembaModel, DependencyMixin):
         # track our creation
         analytics.track(user, "temba.channel_created", dict(channel_type=channel_type.code))
 
-        if settings.IS_PROD:
-            if channel_type.async_activation:
-                on_transaction_commit(lambda: channel_type.activate(channel))
-            else:
-                try:
-                    channel_type.activate(channel)
+        if channel_type.async_activation:
+            on_transaction_commit(lambda: channel_type.activate(channel))
+        else:
+            try:
+                channel_type.activate(channel)
 
-                except Exception as e:
-                    # release our channel, raise error upwards
-                    channel.release(user)
-                    raise e
+            except Exception as e:
+                # release our channel, raise error upwards
+                channel.release(user)
+                raise e
 
         return channel
 
@@ -903,14 +900,13 @@ class Channel(TembaModel, DependencyMixin):
         channel_type = self.get_type()
 
         # ask the channel type to deactivate - as this usually means calling out to external APIs it can fail
-        if settings.IS_PROD:
-            try:
-                channel_type.deactivate(self)
-            except TwilioRestException as e:
-                raise e
-            except Exception as e:
-                # proceed with removing this channel but log the problem
-                logger.error(f"Unable to deactivate a channel: {str(e)}", exc_info=True)
+        try:
+            channel_type.deactivate(self)
+        except TwilioRestException as e:
+            raise e
+        except Exception as e:
+            # proceed with removing this channel but log the problem
+            logger.error(f"Unable to deactivate a channel: {str(e)}", exc_info=True)
 
         # release any channels working on our behalf
         for delegate_channel in self.org.channels.filter(parent=self):

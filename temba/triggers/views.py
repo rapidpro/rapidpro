@@ -13,7 +13,7 @@ from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_serialize
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.msgs.views import ModalMixin
-from temba.orgs.views import OrgPermsMixin
+from temba.orgs.views import OrgFilterMixin, OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
 from temba.utils import analytics, json
@@ -396,15 +396,7 @@ class TriggerCRUDL(SmartCRUDL):
         "referral",
     )
 
-    class OrgMixin(OrgPermsMixin):
-        def derive_queryset(self, *args, **kwargs):
-            queryset = super().derive_queryset(*args, **kwargs)
-            if not self.request.user.is_authenticated:  # pragma: needs cover
-                return queryset.exclude(pk__gt=0)
-            else:
-                return queryset.filter(org=self.request.user.get_org())
-
-    class Create(FormaxMixin, OrgMixin, SmartTemplateView):
+    class Create(FormaxMixin, OrgFilterMixin, OrgPermsMixin, SmartTemplateView):
         title = _("Create Trigger")
 
         def derive_formax_sections(self, formax, context):
@@ -426,7 +418,7 @@ class TriggerCRUDL(SmartCRUDL):
 
             add_section("trigger-catchall", "triggers.trigger_catchall", "icon-bubble")
 
-    class Update(ModalMixin, ComponentFormMixin, OrgMixin, SmartUpdateView):
+    class Update(ModalMixin, ComponentFormMixin, OrgFilterMixin, OrgPermsMixin, SmartUpdateView):
         success_message = ""
         trigger_forms = {
             Trigger.TYPE_KEYWORD: KeywordTriggerForm,
@@ -510,7 +502,7 @@ class TriggerCRUDL(SmartCRUDL):
             response["REDIRECT"] = self.get_success_url()
             return response
 
-    class BaseList(OrgMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+    class BaseList(OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         fields = ("name", "modified_on")
         default_template = "triggers/trigger_list.html"
         default_order = ("-modified_on",)

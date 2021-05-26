@@ -1,7 +1,6 @@
 from datetime import timedelta
 from unittest.mock import patch
 
-from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -63,7 +62,7 @@ class TriggerTest(TembaTest):
 
         trigger = Trigger.objects.get(keyword="١٠٠")
         self.assertEqual(flow, trigger.flow)
-        self.assertEqual('Trigger[type=K, flow="Color Flow"]', str(trigger))
+        self.assertEqual('Trigger[type=K, flow="Test Flow"]', str(trigger))
 
         # non-latin keyword (Hindi)
         self.client.post(reverse("triggers.trigger_keyword"), {"keyword": "मिलाए", "flow": flow.id, "match_type": "F"})
@@ -684,7 +683,6 @@ class TriggerTest(TembaTest):
         self.assertEqual(flow2, trigger.flow)
         self.assertEqual(viber_channel, trigger.channel)
 
-    @override_settings(IS_PROD=True)
     def test_new_conversation_trigger(self):
         self.login(self.admin)
 

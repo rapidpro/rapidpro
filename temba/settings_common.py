@@ -996,7 +996,6 @@ CELERY_RESULT_BACKEND = None
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 
-IS_PROD = False
 HOSTNAME = "localhost"
 
 # The URL and port of the proxy server to use when needed (if any, in requests format)

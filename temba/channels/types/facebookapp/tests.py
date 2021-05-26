@@ -113,7 +113,6 @@ class FacebookTypeTest(TembaTest):
             "Sorry your Facebook channel could not be connected. Please try again",
         )
 
-    @override_settings(IS_PROD=True)
     @patch("requests.delete")
     def test_release(self, mock_delete):
         mock_delete.return_value = MockResponse(200, json.dumps({"success": True}))

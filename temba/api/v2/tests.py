@@ -23,7 +23,7 @@ from django.utils import timezone
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, ChannelEvent
+from temba.channels.models import ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.luis import LuisType
 from temba.classifiers.types.wit import WitType
@@ -55,15 +55,11 @@ class APITest(TembaTest):
         self.joe = self.create_contact("Joe Blow", phone="0788123123")
         self.frank = self.create_contact("Frank", urns=["twitter:franky"])
 
-        self.twitter = Channel.create(
-            self.org, self.user, None, "TT", name="Twitter Channel", address="billy_bob", role="SR"
-        )
+        self.twitter = self.create_channel("TT", "Twitter Channel", "billy_bob")
 
         self.hans = self.create_contact("Hans Gruber", phone="+4921551511", org=self.org2)
 
-        self.org2channel = Channel.create(self.org2, self.user, "RW", "A", name="Org2Channel")
-
-        self.maxDiff = None
+        self.org2channel = self.create_channel("A", "Org2Channel", "123456", country="RW", org=self.org2)
 
         # this is needed to prevent REST framework from rolling back transaction created around each unit test
         connection.settings_dict["ATOMIC_REQUESTS"] = False
@@ -1072,7 +1068,7 @@ class APITest(TembaTest):
                     "offset": 6,
                     "unit": "hours",
                     "delivery_hour": 12,
-                    "flow": {"uuid": flow.uuid, "name": "Color Flow"},
+                    "flow": {"uuid": flow.uuid, "name": "Test Flow"},
                     "message": None,
                     "created_on": format_datetime(event3.created_on),
                 },
@@ -1083,7 +1079,7 @@ class APITest(TembaTest):
                     "offset": 6,
                     "unit": "hours",
                     "delivery_hour": 12,
-                    "flow": {"uuid": flow.uuid, "name": "Color Flow"},
+                    "flow": {"uuid": flow.uuid, "name": "Test Flow"},
                     "message": None,
                     "created_on": format_datetime(event2.created_on),
                 },
@@ -1472,11 +1468,11 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         # create deleted channel
-        deleted = Channel.create(self.org, self.admin, None, "JC", name="Deleted", address="nyaruka", role="SR")
+        deleted = self.create_channel("JC", "Deleted", "nyaruka")
         deleted.release(self.admin)
 
         # create channel for other org
-        Channel.create(self.org2, self.admin2, None, "TT", name="Twitter Channel", address="nyaruka", role="SR")
+        self.create_channel("TT", "Twitter Channel", "nyaruka", org=self.org2)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):

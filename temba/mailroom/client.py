@@ -100,7 +100,7 @@ class MailroomClient:
         if not settings.TESTING:
             payload["org_id"] = org_id
 
-        return self._request("flow/inspect", payload)
+        return self._request("flow/inspect", payload, encode_json=True)
 
     def flow_change_language(self, flow, language):
         payload = {"flow": flow, "language": language}

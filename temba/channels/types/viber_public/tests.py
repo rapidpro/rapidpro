@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-from django.test import override_settings
 from django.urls import reverse
 
 from temba.tests import MockResponse, TembaTest
@@ -26,7 +25,6 @@ class ViberPublicTypeTest(TembaTest):
             config={"auth_token": "abcd1234"},
         )
 
-    @override_settings(IS_PROD=True)
     @patch("requests.post")
     def test_claim(self, mock_post):
         url = reverse("channels.types.viber_public.claim")
@@ -62,7 +60,6 @@ class ViberPublicTypeTest(TembaTest):
         # should have been called with our webhook URL
         self.assertEqual(mock_post.call_args[0][0], "https://chatapi.viber.com/pa/set_webhook")
 
-    @override_settings(IS_PROD=True)
     @patch("requests.post")
     def test_release(self, mock_post):
         mock_post.side_effect = [MockResponse(200, json.dumps({"status": 0, "status_message": "ok"}))]

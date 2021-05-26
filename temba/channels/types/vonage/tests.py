@@ -188,17 +188,16 @@ class VonageTypeTest(TembaTest):
         channel.save(update_fields=("channel_type", "config"))
 
         # mock a 404 response from Vonage during deactivation
-        with self.settings(IS_PROD=True):
-            with patch("vonage.Client.delete_application") as mock_delete_application:
-                mock_delete_application.side_effect = vonage.ClientError("404 response")
+        with patch("vonage.Client.delete_application") as mock_delete_application:
+            mock_delete_application.side_effect = vonage.ClientError("404 response")
 
-                # releasing shouldn't blow up on auth failures
-                channel.release(self.admin)
-                channel.refresh_from_db()
+            # releasing shouldn't blow up on auth failures
+            channel.release(self.admin)
+            channel.refresh_from_db()
 
-                self.assertFalse(channel.is_active)
+            self.assertFalse(channel.is_active)
 
-                mock_delete_application.assert_called_once_with(application_id="myappid")
+            mock_delete_application.assert_called_once_with(application_id="myappid")
 
     def test_update(self):
         update_url = reverse("channels.channel_update", args=[self.channel.id])
