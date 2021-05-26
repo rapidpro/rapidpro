@@ -96,7 +96,7 @@ def check_login(request):
         return HttpResponseRedirect(settings.LOGIN_URL)
 
 
-class OrgPermsMixin(object):
+class OrgPermsMixin:
     """
     Get the organisation and the user within the inheriting view so that it be come easy to decide
     whether this user has a certain permission for that particular organization to perform the view's actions
@@ -145,6 +145,20 @@ class OrgPermsMixin(object):
                 return HttpResponseRedirect(reverse("orgs.org_choose"))
 
         return super().dispatch(request, *args, **kwargs)
+
+
+class OrgFilterMixin:
+    """
+    Simple mixin to filter a view's queryset by the user's org
+    """
+
+    def derive_queryset(self, *args, **kwargs):
+        queryset = super().derive_queryset(*args, **kwargs)
+
+        if not self.request.user.is_authenticated:
+            return queryset.none()  # pragma: no cover
+        else:
+            return queryset.filter(org=self.request.user.get_org())
 
 
 class AnonMixin(OrgPermsMixin):

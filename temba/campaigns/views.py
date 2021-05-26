@@ -10,7 +10,7 @@ from django.utils.translation import ugettext_lazy as _
 from temba.contacts.models import ContactField, ContactGroup
 from temba.flows.models import Flow
 from temba.msgs.models import Msg
-from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import ModalMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import languages
 from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget
 from temba.utils.views import BulkActionMixin
@@ -43,14 +43,6 @@ class UpdateCampaignForm(forms.ModelForm):
 class CampaignCRUDL(SmartCRUDL):
     model = Campaign
     actions = ("create", "read", "update", "list", "archived", "archive", "activate")
-
-    class OrgMixin(OrgPermsMixin):
-        def derive_queryset(self, *args, **kwargs):
-            queryset = super().derive_queryset(*args, **kwargs)
-            if not self.request.user.is_authenticated:  # pragma: no cover
-                return queryset.exclude(pk__gt=0)
-            else:
-                return queryset.filter(org=self.request.user.get_org())
 
     class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
         fields = ("name", "group")
@@ -202,7 +194,7 @@ class CampaignCRUDL(SmartCRUDL):
             kwargs["user"] = self.request.user
             return kwargs
 
-    class BaseList(OrgMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+    class BaseList(OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         fields = ("name", "group")
         default_template = "campaigns/campaign_list.html"
         default_order = ("-modified_on",)
@@ -252,7 +244,7 @@ class CampaignCRUDL(SmartCRUDL):
             qs = qs.filter(is_active=True, is_archived=True)
             return qs
 
-    class Archive(OrgMixin, OrgPermsMixin, SmartUpdateView):
+    class Archive(OrgFilterMixin, OrgPermsMixin, SmartUpdateView):
 
         fields = ()
         success_url = "id@campaigns.campaign_read"
@@ -262,7 +254,7 @@ class CampaignCRUDL(SmartCRUDL):
             obj.apply_action_archive(self.request.user, Campaign.objects.filter(id=obj.id))
             return obj
 
-    class Activate(OrgMixin, OrgPermsMixin, SmartUpdateView):
+    class Activate(OrgFilterMixin, OrgPermsMixin, SmartUpdateView):
         fields = ()
         success_url = "id@campaigns.campaign_read"
         success_message = _("Campaign activated")
