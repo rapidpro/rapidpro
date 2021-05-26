@@ -1,3 +1,4 @@
+from decimal import Decimal
 from unittest.mock import patch
 
 from django_redis import get_redis_connection
@@ -47,17 +48,34 @@ class MailroomClientTest(TembaTest):
             self.assertEqual("@(bad)", migrated)
 
     def test_flow_migrate(self):
+        flow_def = {"nodes": [{"val": Decimal("1.23")}]}
+
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"name": "Migrated!"}')
-            migrated = get_client().flow_migrate({"nodes": []}, to_version="13.1.0")
+            migrated = get_client().flow_migrate(flow_def, to_version="13.1.0")
 
             self.assertEqual({"name": "Migrated!"}, migrated)
 
-        mock_post.assert_called_once_with(
-            "http://localhost:8090/mr/flow/migrate",
-            headers={"User-Agent": "Temba"},
-            json={"flow": {"nodes": []}, "to_version": "13.1.0"},
-        )
+        call = mock_post.call_args
+
+        self.assertEqual(("http://localhost:8090/mr/flow/migrate",), call[0])
+        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
+        self.assertEqual({"flow": flow_def, "to_version": "13.1.0"}, json.loads(call[1]["data"]))
+
+    @override_settings(TESTING=False)
+    def test_flow_inspect(self):
+        flow_def = {"nodes": [{"val": Decimal("1.23")}]}
+
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"dependencies":[]}')
+
+            get_client().flow_inspect(self.org.id, flow_def)
+
+        call = mock_post.call_args
+
+        self.assertEqual(("http://localhost:8090/mr/flow/inspect",), call[0])
+        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
+        self.assertEqual({"org_id": self.org.id, "flow": flow_def}, json.loads(call[1]["data"]))
 
     def test_flow_change_language(self):
         with patch("requests.post") as mock_post:
@@ -322,19 +340,6 @@ class MailroomClientTest(TembaTest):
                 headers={"User-Agent": "Temba"},
                 json={"org_id": 1, "ticket_ids": [123, 345]},
             )
-
-    @override_settings(TESTING=False)
-    def test_inspect_with_org(self):
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"dependencies":[]}')
-
-            get_client().flow_inspect(self.org.id, {"nodes": []})
-
-            call = mock_post.call_args
-
-            self.assertEqual(("http://localhost:8090/mr/flow/inspect",), call[0])
-            self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
-            self.assertEqual({"org_id": self.org.id, "flow": {"nodes": []}}, json.loads(call[1]["data"]))
 
     def test_request_failure(self):
         flow = self.get_flow("color")

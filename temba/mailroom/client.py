@@ -91,7 +91,7 @@ class MailroomClient:
         if not to_version:
             to_version = Flow.CURRENT_SPEC_VERSION
 
-        return self._request("flow/migrate", {"flow": definition, "to_version": to_version})
+        return self._request("flow/migrate", {"flow": definition, "to_version": to_version}, encode_json=True)
 
     def flow_inspect(self, org_id, flow):
         payload = {"flow": flow}
