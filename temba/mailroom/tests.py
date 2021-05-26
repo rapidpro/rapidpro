@@ -68,8 +68,9 @@ class MailroomClientTest(TembaTest):
 
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"dependencies":[]}')
+            info = get_client().flow_inspect(self.org.id, flow_def)
 
-            get_client().flow_inspect(self.org.id, flow_def)
+            self.assertEqual({"dependencies": []}, info)
 
         call = mock_post.call_args
 
@@ -78,17 +79,19 @@ class MailroomClientTest(TembaTest):
         self.assertEqual({"org_id": self.org.id, "flow": flow_def}, json.loads(call[1]["data"]))
 
     def test_flow_change_language(self):
+        flow_def = {"nodes": [{"val": Decimal("1.23")}]}
+
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"language": "spa"}')
-            migrated = get_client().flow_change_language({"nodes": []}, language="spa")
+            migrated = get_client().flow_change_language(flow_def, language="spa")
 
             self.assertEqual({"language": "spa"}, migrated)
 
-        mock_post.assert_called_once_with(
-            "http://localhost:8090/mr/flow/change_language",
-            headers={"User-Agent": "Temba"},
-            json={"flow": {"nodes": []}, "language": "spa"},
-        )
+        call = mock_post.call_args
+
+        self.assertEqual(("http://localhost:8090/mr/flow/change_language",), call[0])
+        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
+        self.assertEqual({"flow": flow_def, "language": "spa"}, json.loads(call[1]["data"]))
 
     def test_contact_modify(self):
         with patch("requests.post") as mock_post:

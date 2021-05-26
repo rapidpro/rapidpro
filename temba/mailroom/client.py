@@ -105,7 +105,7 @@ class MailroomClient:
     def flow_change_language(self, flow, language):
         payload = {"flow": flow, "language": language}
 
-        return self._request("flow/change_language", payload)
+        return self._request("flow/change_language", payload, encode_json=True)
 
     def flow_clone(self, flow, dependency_mapping):
         payload = {"flow": flow, "dependency_mapping": dependency_mapping}
