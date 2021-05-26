@@ -91,7 +91,7 @@ class MailroomClient:
         if not to_version:
             to_version = Flow.CURRENT_SPEC_VERSION
 
-        return self._request("flow/migrate", {"flow": definition, "to_version": to_version})
+        return self._request("flow/migrate", {"flow": definition, "to_version": to_version}, encode_json=True)
 
     def flow_inspect(self, org_id, flow):
         payload = {"flow": flow}
@@ -105,7 +105,7 @@ class MailroomClient:
     def flow_change_language(self, flow, language):
         payload = {"flow": flow, "language": language}
 
-        return self._request("flow/change_language", payload)
+        return self._request("flow/change_language", payload, encode_json=True)
 
     def flow_clone(self, flow, dependency_mapping):
         payload = {"flow": flow, "dependency_mapping": dependency_mapping}
