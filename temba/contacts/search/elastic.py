@@ -16,11 +16,20 @@ def query_contact_ids_from_elasticsearch(org, elastic_query):
     return [int(r.id) for r in results.scan()]
 
 
-def query_contact_ids(org, query, *, group=None, return_parsed_query=False):
+def query_contact_ids(org, query, *, group=None, return_parsed_query=False, active_only=True):
     """
     Returns the contact ids for the given query
     """
     parsed = parse_query(org, query, group=group)
+
+    if not active_only:
+        try:
+            # remove two conditions which selects only active contacts
+            parsed.elastic_query["bool"]["must"].pop(1)
+            parsed.elastic_query["bool"]["must"].pop(1)
+        except (IndexError, KeyError):
+            pass
+
     # In case if you also need to return parsed query (e.g. to display it to users)
     # you just need to pass `return_parsed_query` in kwargs as `True`
     if return_parsed_query:
