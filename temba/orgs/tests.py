@@ -628,16 +628,14 @@ class OrgDeleteTest(TembaNonAtomicTest):
         )
 
         # and give it its own channel
-        self.child_channel = Channel.create(
-            self.child_org,
-            self.user,
-            "RW",
+        self.child_channel = self.create_channel(
             "A",
-            name="Test Channel",
-            address="+250785551212",
-            device="Nexus 5X",
+            "Test Channel",
+            "+250785551212",
             secret="54321",
             config={Channel.CONFIG_FCM_ID: "123"},
+            country="RW",
+            org=self.child_org,
         )
 
         # add a classifier
@@ -3003,16 +3001,14 @@ class OrgTest(TembaTest):
         sub_org = self.org.create_sub_org("Sub Org")
 
         # send a message as sub_org
-        Channel.create(
-            sub_org,
-            self.user,
-            "RW",
+        self.create_channel(
             "A",
-            name="Test Channel",
-            address="+250785551212",
-            device="Nexus 5X",
+            "Test Channel",
+            "+250785551212",
             secret="12355",
             config={Channel.CONFIG_FCM_ID: "145"},
+            country="RW",
+            org=sub_org,
         )
         contact = self.create_contact("Joe", phone="+250788383444", org=sub_org)
         msg = self.create_outgoing_msg(contact, "How is it going?")
@@ -3984,17 +3980,7 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a receive only tel channel
-        Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "T",
-            "Twilio",
-            "0785551212",
-            role="R",
-            secret="45678",
-            config={Channel.CONFIG_FCM_ID: "123"},
-        )
+        self.create_channel("T", "Twilio", "0785551212", country="RW", role="R")
 
         self.org = Org.objects.get(id=self.org.id)
         self.assertEqual(set(), self.org.get_schemes(Channel.ROLE_SEND))
@@ -4002,23 +3988,14 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({URN.TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))  # from cache
 
         # add a send/receive tel channel
-        Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "T",
-            "Twilio",
-            "0785553434",
-            role="SR",
-            secret="56789",
-            config={Channel.CONFIG_FCM_ID: "456"},
-        )
+        self.create_channel("T", "Twilio", "0785553434", country="RW", role="SR")
+
         self.org = Org.objects.get(pk=self.org.id)
         self.assertEqual({URN.TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND))
         self.assertEqual({URN.TEL_SCHEME}, self.org.get_schemes(Channel.ROLE_RECEIVE))
 
         # add a twitter channel
-        Channel.create(self.org, self.user, None, "TT", "Twitter")
+        self.create_channel("TT", "Twitter", "nyaruka")
         self.org = Org.objects.get(pk=self.org.id)
         self.assertEqual(
             {URN.TEL_SCHEME, URN.TWITTER_SCHEME, URN.TWITTERID_SCHEME}, self.org.get_schemes(Channel.ROLE_SEND)

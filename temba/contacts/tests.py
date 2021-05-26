@@ -1833,7 +1833,7 @@ class ContactTest(TembaTest):
             )
 
         # create twitter channel
-        Channel.create(self.org, self.user, None, "TT")
+        self.create_channel("TT", "Twitter", "nyaruka")
 
         # add add an external channel so numbers get normalized
         Channel.create(self.org, self.user, "RW", "EX", schemes=[URN.TEL_SCHEME])

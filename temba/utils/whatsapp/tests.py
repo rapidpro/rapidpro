@@ -1,4 +1,3 @@
-from temba.channels.models import Channel
 from temba.templates.models import Template, TemplateTranslation
 from temba.tests import TembaTest
 
@@ -13,17 +12,7 @@ class WhatsAppUtilsTest(TembaTest):
 
     def test_update_local_templates_whatsapp(self):
         # channel has namespace in the channel config
-        channel = Channel.create(
-            self.org,
-            self.admin,
-            "RW",
-            "WA",
-            name="channel",
-            address="1234",
-            config={
-                "fb_namespace": "foo_namespace",
-            },
-        )
+        channel = self.create_channel("WA", "channel", "1234", config={"fb_namespace": "foo_namespace"})
 
         self.assertEqual(0, Template.objects.filter(org=self.org).count())
         self.assertEqual(0, TemplateTranslation.objects.filter(channel=channel).count())
@@ -158,15 +147,8 @@ class WhatsAppUtilsTest(TembaTest):
 
     def test_update_local_templates_dialog360(self):
         # no namespace in channel config
-        channel = Channel.create(
-            self.org,
-            self.admin,
-            "RW",
-            "D3",
-            name="channel",
-            address="1234",
-            config={},
-        )
+        channel = self.create_channel("D3", "channel", "1234", config={})
+
         # no template id, use language/name as external ID
         # template data have namespaces
         D3_templates_data = [

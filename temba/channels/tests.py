@@ -46,32 +46,14 @@ class ChannelTest(TembaTest):
 
         self.channel.delete()
 
-        self.tel_channel = Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "A",
-            name="Test Channel",
-            address="+250785551212",
-            role="SR",
-            secret="12345",
-            config={Channel.CONFIG_FCM_ID: "123"},
+        self.tel_channel = self.create_channel(
+            "A", "Test Channel", "+250785551212", country="RW", secret="12345", config={"FCM_ID": "123"}
         )
+        self.twitter_channel = self.create_channel("TWT", "Twitter Channel", "billy_bob")
 
-        self.twitter_channel = Channel.create(
-            self.org, self.user, None, "TWT", name="Twitter Channel", address="billy_bob", role="SR"
-        )
-
-        self.unclaimed_channel = Channel.create(
-            None,
-            self.user,
-            None,
-            "NX",
-            name="Unclaimed Channel",
-            address=None,
-            secret=None,
-            config={Channel.CONFIG_FCM_ID: "000"},
-        )
+        self.unclaimed_channel = self.create_channel("NX", "Unclaimed Channel", "", config={"FCM_ID": "000"})
+        self.unclaimed_channel.org = None
+        self.unclaimed_channel.save(update_fields=("org",))
 
     def claim_new_android(self, fcm_id: str = "FCM111", number: str = "0788123123") -> Channel:
         """
@@ -2101,7 +2083,7 @@ class ChannelLogTest(TembaTest):
     def test_redaction_for_telegram(self):
         urn = "telegram:3527065"
         contact = self.create_contact("Fred Jones", urns=[urn])
-        channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
+        channel = self.create_channel("TG", "Test TG Channel", "234567")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
         success_log = ChannelLog.objects.create(
@@ -2172,7 +2154,7 @@ class ChannelLogTest(TembaTest):
     def test_redaction_for_telegram_with_invalid_json(self):
         urn = "telegram:3527065"
         contact = self.create_contact("Fred Jones", urns=[urn])
-        channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
+        channel = self.create_channel("TG", "Test TG Channel", "234567")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
         success_log = ChannelLog.objects.create(
@@ -2224,7 +2206,7 @@ class ChannelLogTest(TembaTest):
     def test_redaction_for_telegram_when_no_match(self):
         urn = "telegram:3527065"
         contact = self.create_contact("Fred Jones", urns=[urn])
-        channel = Channel.create(self.org, self.user, None, "TG", name="Test TG Channel")
+        channel = self.create_channel("TG", "Test TG Channel", "234567")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
         success_log = ChannelLog.objects.create(
@@ -2275,7 +2257,7 @@ class ChannelLogTest(TembaTest):
     def test_redaction_for_twitter(self):
         urn = "twitterid:767659860"
         contact = self.create_contact("Fred Jones", urns=[urn])
-        channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")
+        channel = self.create_channel("TWT", "Test TWT Channel", "nyaruka")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
         success_log = ChannelLog.objects.create(
@@ -2343,7 +2325,7 @@ class ChannelLogTest(TembaTest):
     def test_redaction_for_twitter_when_no_match(self):
         urn = "twitterid:767659860"
         contact = self.create_contact("Fred Jones", urns=[urn])
-        channel = Channel.create(self.org, self.user, None, "TWT", name="Test TWT Channel")
+        channel = self.create_channel("TWT", "Test TWT Channel", "nyaruka")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
         success_log = ChannelLog.objects.create(
@@ -2394,7 +2376,7 @@ class ChannelLogTest(TembaTest):
     def test_redaction_for_facebook(self):
         urn = "facebook:2150393045080607"
         contact = self.create_contact("Fred Jones", urns=[urn])
-        channel = Channel.create(self.org, self.user, None, "FB", name="Test FB Channel")
+        channel = self.create_channel("FB", "Test FB Channel", "54764868534")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
         success_log = ChannelLog.objects.create(
@@ -2465,7 +2447,7 @@ class ChannelLogTest(TembaTest):
         # in this case we are paranoid and mask everything
         urn = "facebook:2150393045080607"
         contact = self.create_contact("Fred Jones", urns=[urn])
-        channel = Channel.create(self.org, self.user, None, "FB", name="Test FB Channel")
+        channel = self.create_channel("FB", "Test FB Channel", "54764868534")
         msg = self.create_incoming_msg(contact, "incoming msg", channel=channel)
 
         success_log = ChannelLog.objects.create(
@@ -2527,7 +2509,7 @@ class ChannelLogTest(TembaTest):
 
     def test_redaction_for_twilio(self):
         contact = self.create_contact("Fred Jones", phone="+593979099111")
-        channel = Channel.create(self.org, self.user, None, "T", name="Twilio")
+        channel = self.create_channel("T", "Test Twilio Channel", "+12345")
         msg = self.create_outgoing_msg(contact, "Hi")
 
         success_log = ChannelLog.objects.create(
@@ -2602,7 +2584,7 @@ class ChannelLogTest(TembaTest):
     def test_channellog_anonymous_org_no_msg(self):
         tw_urn = "15128505839"
 
-        tw_channel = Channel.create(self.org, self.user, None, "TW", name="Test TW Channel")
+        tw_channel = self.create_channel("TW", "Test TW Channel", "+12345")
 
         failed_log = ChannelLog.objects.create(
             channel=tw_channel,

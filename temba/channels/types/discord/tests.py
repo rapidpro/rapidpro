@@ -2,7 +2,6 @@ from unittest.mock import patch
 
 import requests
 
-from django.test import override_settings
 from django.urls import reverse
 
 from temba.contacts.models import URN
@@ -36,7 +35,6 @@ class DiscordTypeTest(TembaTest):
         super().setUp()
 
     @patch("requests.get", side_effect=mocked_requests_get)
-    @override_settings(IS_PROD=True)
     def test_claim(self, mocked):
         url = reverse("channels.types.discord.claim")
 

@@ -21,7 +21,6 @@ from django.utils.encoding import force_text
 from temba.api.models import Resthook
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel
 from temba.classifiers.models import Classifier
 from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.globals.models import Global
@@ -1558,7 +1557,7 @@ class FlowTest(TembaTest):
 
     def test_importing_dependencies(self):
         # create channel to be matched by name
-        channel = Channel.create(self.org, self.admin, None, channel_type="TG", name="RapidPro Test")
+        channel = self.create_channel("TG", "RapidPro Test", "12345324635")
 
         # create ticketer to be matched by UUID
         ticketer = Ticketer.create(self.org, self.admin, "zendesk", "Zendesk Tickets", {})
