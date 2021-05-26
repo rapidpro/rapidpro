@@ -1,7 +1,6 @@
 from datetime import timedelta
 from unittest.mock import patch
 
-from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -684,7 +683,6 @@ class TriggerTest(TembaTest):
         self.assertEqual(flow2, trigger.flow)
         self.assertEqual(viber_channel, trigger.channel)
 
-    @override_settings(IS_PROD=True)
     def test_new_conversation_trigger(self):
         self.login(self.admin)
 
