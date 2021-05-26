@@ -179,7 +179,7 @@
                         - if org_perms.msgs.msg_update or org_perms.msgs.broadcast_send
                           %td.checkbox.sms.object-row-check
                             %temba-checkbox{onclick:"handleRowSelection(this)"}
-                      %td.whitespace-no-wrap
+                      %td.whitespace-nowrap
                         {{ object.contact|short_name:user_org }}
                       %td.w-full
                         .flex.flex-wrap.flex-end.items-center.justify-end
@@ -198,7 +198,7 @@
 
                       %td
                         .flex.w-full.items-end.justify-end.pr-4
-                          .time.whitespace-no-wrap
+                          .time.whitespace-nowrap
                             {% short_datetime object.created_on %}
 
                           -if show_channel_logs and not user_org.is_anon or perms.contacts.contact_break_anon

@@ -72,7 +72,7 @@ a {
   color: inherit;
 
   &.active {
-    @apply: text-primary no-underline;
+    @apply text-primary no-underline;
   }
 
   &:hover {
@@ -95,7 +95,7 @@ a {
 }
 
 .button {
-  @apply px-6 py-3 leading-none text-lg shadow transition duration-300 text-center rounded-lg select-none whitespace-no-wrap font-normal inline-block;
+  @apply px-6 py-3 leading-none text-lg shadow transition duration-300 text-center rounded-lg select-none whitespace-nowrap font-normal inline-block;
   margin-top: 1px;
 
   &:active {
@@ -180,7 +180,7 @@ a {
 }
 
 .lbl {
-  @apply shadow leading-tight no-underline cursor-default px-2 py-1 inline-block text-xs font-normal rounded-full bg-dark-alpha-50 text-dark-alpha-500 tracking-wide whitespace-no-wrap text-center;
+  @apply shadow leading-tight no-underline cursor px-2 py-1 inline-block text-xs font-normal rounded-full bg-dark-alpha-50 text-dark-alpha-500 tracking-wide whitespace-nowrap text-center;
 
   &.linked:hover {
     @apply no-underline cursor-pointer text-dark-alpha-500;
@@ -441,7 +441,7 @@ table.list {
   }
 
   th {
-    @apply table-header whitespace-no-wrap text-gray-600 p-3;
+    @apply table-header whitespace-nowrap text-gray-600 p-3;
   }
 
   &.lined {
@@ -630,7 +630,7 @@ code {
 }
 
 .code {
-  @apply bg-dark-alpha-30 rounded-lg px-1 py-1 leading-tight text-base font-mono inline-block mx-1 whitespace-no-wrap;
+  @apply bg-dark-alpha-30 rounded-lg px-1 py-1 leading-tight text-base font-mono inline-block mx-1 whitespace-nowrap;
   color: #2980b9;
 
 }
@@ -701,11 +701,11 @@ code {
       @apply shadow;
 
       .formax-icon {
-        @apply cursor-default;
+        @apply cursor;
       }
 
       .formax-summary {
-        @apply cursor-default;
+        @apply cursor;
       }
     }
 

@@ -2,17 +2,17 @@ module.exports = {
     prefix: '',
     important: false,
     separator: ':',
+    darkMode: false,
     theme: {
         colors: {
-            transparent: 'transparent',
-            black: '#37383c',
-            white: '#fff',
-            error: 'rgb(var(--error-rgb))',
-            success: 'rgb(var(--success-rgb))',
-            primary: 'rgb(var(--primary-rgb))',
-            secondary: 'rgb(var(--secondary-rgb))',
-            tertiary: 'rgb(var(--tertiary-rgb))',
-
+            'transparent': 'transparent',
+            'black': '#37383c',
+            'white': '#fff',
+            'error': 'rgb(var(--error-rgb))',
+            'success': 'rgb(var(--success-rgb))',
+            'primary': 'rgb(var(--primary-rgb))',
+            'secondary': 'rgb(var(--secondary-rgb))',
+            'tertiary': 'rgb(var(--tertiary-rgb))',
             'dark-alpha': {
                 20: 'rgba(0, 0, 0, .02)',
                 30: 'rgba(0, 0, 0, .03)',
@@ -159,7 +159,7 @@ module.exports = {
             contain: 'contain',
         },
         borderWidth: {
-            default: '1px',
+            DEFAULT: '1px',
             '0': '0',
             '2': '2px',
             '4': '4px',
@@ -167,18 +167,18 @@ module.exports = {
         },
         borderColor: (theme) => ({
             ...theme('colors'),
-            default: theme('colors.gray.300', 'currentColor'),
+            DEFAULT: theme('colors.gray.300', 'currentColor'),
         }),
         borderRadius: {
             none: '0',
             sm: '0.125rem',
-            default: '0.25rem',
+            DEFAULT: '0.25rem',
             lg: '0.5rem',
             full: '9999px',
         },
         cursor: {
             auto: 'auto',
-            default: 'default',
+            DEFAULT: 'default',
             pointer: 'pointer',
             wait: 'wait',
             text: 'text',
@@ -269,7 +269,7 @@ module.exports = {
         boxShadow: {
             sm:
                 '0 3px 20px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02)',
-            default:
+            DEFAULT:
                 '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
             md:
                 '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
@@ -318,11 +318,11 @@ module.exports = {
         },
         flexGrow: {
             '0': '0',
-            default: '1',
+            DEFAULT: '1',
         },
         flexShrink: {
             '0': '0',
-            default: '1',
+            DEFAULT: '1',
         },
         order: {
             first: '-9999',
@@ -363,7 +363,7 @@ module.exports = {
         borderColor: ['responsive', 'hover', 'focus'],
         borderRadius: ['responsive'],
         borderStyle: ['responsive'],
-        borderWidth: ['responsive', 'direction', 'hover'],
+        borderWidth: ['responsive', 'hover'],
         cursor: ['responsive'],
         display: ['responsive'],
         flexDirection: ['responsive'],
@@ -376,14 +376,14 @@ module.exports = {
         flexGrow: ['responsive'],
         flexShrink: ['responsive'],
         order: ['responsive'],
-        float: ['responsive', 'direction'],
+        float: ['responsive'],
         fontFamily: ['responsive'],
         fontWeight: ['responsive', 'hover', 'focus'],
         height: ['responsive'],
         lineHeight: ['responsive'],
         listStylePosition: ['responsive'],
         listStyleType: ['responsive'],
-        margin: ['responsive', 'direction'],
+        margin: ['responsive',],
         maxHeight: ['responsive'],
         maxWidth: ['responsive'],
         minHeight: ['responsive'],
@@ -393,7 +393,7 @@ module.exports = {
         opacity: ['responsive', 'group-hover'],
         outline: ['responsive', 'focus'],
         overflow: ['responsive'],
-        padding: ['responsive', 'direction'],
+        padding: ['responsive',],
         pointerEvents: ['responsive'],
         position: ['responsive'],
         inset: ['responsive'],
@@ -405,7 +405,7 @@ module.exports = {
         stroke: ['responsive'],
         tableLayout: ['responsive'],
         translate: ['responsive', 'hover'],
-        textAlign: ['responsive', 'direction'],
+        textAlign: ['responsive'],
         textColor: ['responsive', 'hover', 'focus'],
         fontSize: ['responsive'],
         fontStyle: ['responsive'],
@@ -422,5 +422,5 @@ module.exports = {
         zIndex: ['responsive'],
     },
     corePlugins: {},
-    plugins: [require('@tailwindcss/ui'), require('tailwindcss-dir')()],
+    plugins: [],
 };
