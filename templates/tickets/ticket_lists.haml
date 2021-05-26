@@ -63,7 +63,7 @@
                     %td.campaign.checkbox.object-row-checkbox
                       %temba-checkbox{onclick:"handleRowSelection(this)"}
 
-                  %td.whitespace-no-wrap
+                  %td.whitespace-nowrap
                     {{ object.contact|short_name:user_org }}
 
                   -if not ticketer
@@ -87,7 +87,7 @@
 
                   %td
                     .flex.w-full.items-end.justify-end.pr-4
-                      .time.whitespace-no-wrap
+                      .time.whitespace-nowrap
                         {% short_datetime object.opened_on %}
 
               -empty

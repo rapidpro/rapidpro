@@ -76,10 +76,10 @@
                     %td.w-full
                       {{obj.name}}
 
-                    %td.whitespace-no-wrap
+                    %td.whitespace-nowrap
                       -include "includes/recipients_group.haml" with group=obj.group
 
-                    %td.whitespace-no-wrap
+                    %td.whitespace-nowrap
                       {{ obj.get_events|length }} event{{ obj.get_events|length|pluralize }}
 
                 - empty

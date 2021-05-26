@@ -21,7 +21,7 @@
     %tbody
       -for object in object_list
         %tr.select-row{id: 'id-row-{{object.id}}', onClick:'document.location="{% url "contacts.contact_read" object.contact.uuid %}"'}
-          %td.whitespace-no-wrap
+          %td.whitespace-nowrap
             {{ object.contact|short_name:user_org }}
           %td
             - if object.event_type == 'mt_call'
@@ -46,7 +46,7 @@
 
           %td
             .flex.w-full.items-end.justify-end.pr-4
-              .time.whitespace-no-wrap
+              .time.whitespace-nowrap
                 {% short_datetime object.occurred_on %}
 
       -if not object_list
