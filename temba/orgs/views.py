@@ -2502,10 +2502,10 @@ class OrgCRUDL(SmartCRUDL):
 
                 links.append(dict(title=_("Help"), href=settings.HELP_URL,))
 
+            """
             if len(links) > 0:
                 links.append(dict(divider=True))
 
-            """
             links.append(
                 dict(
                     title=_("Sign Out"),
