@@ -3,13 +3,11 @@
 #unnnic-menu
 
   %div{href:"#", class:"button-secondary-small-icon-on-left", onclick:'goBack()'}
-    .icon.unnnic-keyboard-arrow-left-1.unnnic-icon-ant
+    .icon.unnnic-keyboard-arrow-left-1.unnnic-icon-xs
     .title
-      -trans "Return"
+      -trans "Back"
     .unnnic-tooltip
-        -trans "Return"
-
-  %div{class:"divider"}
+        -trans "Back"
 
   -if org_perms.msgs.msg_inbox and not request.user.is_superuser
     %a{href:"{% url 'msgs.msg_inbox' %}", class:"{% active request 'inbox|outbox|broadcast|call|msg/filter|msg/flow|msg/archived|failed' %}"}
@@ -98,12 +96,10 @@
       .title
         -trans "dashboard"
 
-  %a{href:"#", class:"unnnic-shrink-button", onclick:'resizeSidebar()'}
+  %a{class:"unnnic-shrink-button", onclick:'resizeSidebar()'}
     #unnnic-shrink-button.circle.unnnic-expand-8-1.unnnic-icon-ant
     .title
       -trans "Hide"
-    .unnnic-tooltip
-        -trans "Hide"
 
 -if user_org and user_org.has_low_credits and not user.is_superuser
   -if user_org.get_credits_remaining <= 0
