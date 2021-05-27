@@ -13,7 +13,7 @@ from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_serialize
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.msgs.views import ModalMixin
-from temba.orgs.views import OrgFilterMixin, OrgPermsMixin
+from temba.orgs.views import OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
 from temba.utils import analytics, json
@@ -45,7 +45,7 @@ class BaseTriggerForm(forms.ModelForm):
     def __init__(self, user, flows, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
-        self.fields["flow"].queryset = flows.order_by("flow_type", "name")
+        self.fields["flow"].queryset = flows.order_by("name")
 
     def clean_keyword(self):
         keyword = self.cleaned_data.get("keyword")
@@ -418,7 +418,7 @@ class TriggerCRUDL(SmartCRUDL):
 
             add_section("trigger-catchall", "triggers.trigger_catchall", "icon-bubble")
 
-    class Update(ModalMixin, ComponentFormMixin, OrgFilterMixin, OrgPermsMixin, SmartUpdateView):
+    class Update(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
         success_message = ""
         trigger_forms = {
             Trigger.TYPE_KEYWORD: KeywordTriggerForm,
@@ -510,7 +510,6 @@ class TriggerCRUDL(SmartCRUDL):
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["org_has_triggers"] = Trigger.objects.filter(org=self.request.user.get_org()).count()
             context["folders"] = self.get_folders()
             context["request_url"] = self.request.path
             return context
@@ -557,7 +556,7 @@ class TriggerCRUDL(SmartCRUDL):
             qs = (
                 qs.filter(is_active=True, is_archived=False)
                 .annotate(earliest_group=Min("groups__name"))
-                .order_by("keyword", "earliest_group")
+                .order_by("keyword", "earliest_group", "id")
             )
             return qs
 

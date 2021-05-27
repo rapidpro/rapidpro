@@ -10,222 +10,18 @@ from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
-from temba.tests import MockResponse, TembaTest
+from temba.tests import CRUDLTestMixin, MockResponse, TembaTest
 from temba.utils.dates import datetime_to_str
 
 from .models import Trigger
-from .views import DefaultTriggerForm, RegisterTriggerForm
 
 
 class TriggerTest(TembaTest):
-    def test_no_trigger_redirects_to_create_page(self):
-        self.login(self.admin)
-
-        # no trigger existing
-        Trigger.objects.all().delete()
-
-        response = self.client.get(reverse("triggers.trigger_list"))
-        self.assertEqual(response.status_code, 302)
-
-        response = self.client.get(reverse("triggers.trigger_list"), follow=True)
-        self.assertEqual(response.request["PATH_INFO"], reverse("triggers.trigger_create"))
-
-    def test_keyword_trigger(self):
-        self.login(self.admin)
-
+    def test_model(self):
         flow = self.create_flow()
-        voice_flow = self.get_flow("ivr")
-        background_flow = self.get_flow("background")
+        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="join")
 
-        # flow options should show sms and voice flows
-        response = self.client.get(reverse("triggers.trigger_keyword"))
-
-        self.assertContains(response, flow.name)
-        self.assertContains(response, voice_flow.name)
-        self.assertNotContains(response, background_flow.name)
-
-        # try a keyword with spaces
-        response = self.client.post(
-            reverse("triggers.trigger_keyword"), {"keyword": "keyword with spaces", "flow": flow.id, "match_type": "F"}
-        )
-
-        self.assertEqual(len(response.context["form"].errors), 1)
-
-        # try a keyword with special characters
-        response = self.client.post(
-            reverse("triggers.trigger_keyword"), {"keyword": "keyw!o^rd__", "flow": flow.id, "match_type": "F"}
-        )
-
-        self.assertEqual(len(response.context["form"].errors), 1)
-
-        self.client.post(reverse("triggers.trigger_keyword"), {"keyword": "١٠٠", "flow": flow.id, "match_type": "F"})
-
-        trigger = Trigger.objects.get(keyword="١٠٠")
-        self.assertEqual(flow, trigger.flow)
         self.assertEqual('Trigger[type=K, flow="Test Flow"]', str(trigger))
-
-        # non-latin keyword (Hindi)
-        self.client.post(reverse("triggers.trigger_keyword"), {"keyword": "मिलाए", "flow": flow.id, "match_type": "F"})
-
-        trigger = Trigger.objects.get(keyword="मिलाए")
-        self.assertEqual(flow, trigger.flow)
-
-        # a valid keyword
-        self.client.post(
-            reverse("triggers.trigger_keyword"), {"keyword": "startkeyword", "flow": flow.id, "match_type": "F"}
-        )
-
-        trigger = Trigger.objects.get(keyword="startkeyword")
-        self.assertEqual(flow, trigger.flow)
-
-        # try a duplicate keyword
-        response = self.client.post(
-            reverse("triggers.trigger_keyword"), {"keyword": "startkeyword", "flow": flow.id, "match_type": "F"}
-        )
-
-        self.assertEqual(len(response.context["form"].errors), 1)
-
-        # see our trigger on the list page
-        response = self.client.get(reverse("triggers.trigger_list"))
-
-        self.assertContains(response, "startkeyword")
-
-        # can search by keyword
-        response = self.client.get(reverse("triggers.trigger_list") + "?search=Key")
-
-        self.assertContains(response, "startkeyword")
-        self.assertTrue(response.context["object_list"])
-
-        response = self.client.get(reverse("triggers.trigger_list") + "?search=Tottenham")
-
-        self.assertNotContains(response, "startkeyword")
-        self.assertFalse(response.context["object_list"])
-
-        # can archive it
-        self.client.post(reverse("triggers.trigger_list"), {"action": "archive", "objects": trigger.id})
-        response = self.client.get(reverse("triggers.trigger_list"))
-
-        self.assertNotContains(response, "startkeyword")
-
-        # and it now appears on the archive page
-        response = self.client.get(reverse("triggers.trigger_archived"))
-        self.assertContains(response, "startkeyword")
-
-        # can restore it
-        self.client.post(reverse("triggers.trigger_archived"), {"action": "restore", "objects": trigger.id})
-        response = self.client.get(reverse("triggers.trigger_archived"))
-
-        self.assertNotContains(response, "startkeyword")
-
-        response = self.client.get(reverse("triggers.trigger_list"))
-
-        # should be back in the main trigger list
-        self.assertContains(response, "startkeyword")
-
-        # once archived we can duplicate it but with one active at a time
-        trigger = Trigger.objects.get(keyword="startkeyword")
-        trigger.is_archived = True
-        trigger.save(update_fields=("is_archived",))
-
-        post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F")
-        response = self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 2)
-        self.assertEqual(1, Trigger.objects.filter(keyword="startkeyword", is_archived=False).count())
-        other_trigger = Trigger.objects.filter(keyword="startkeyword", is_archived=False)[0]
-        self.assertFalse(trigger.pk == other_trigger.pk)
-
-        # try archiving it we have one archived and the other active
-        response = self.client.get(reverse("triggers.trigger_archived"), post_data)
-        self.assertContains(response, "startkeyword")
-        post_data = dict(action="restore", objects=trigger.pk)
-        self.client.post(reverse("triggers.trigger_archived"), post_data)
-        response = self.client.get(reverse("triggers.trigger_archived"), post_data)
-        self.assertContains(response, "startkeyword")
-        response = self.client.get(reverse("triggers.trigger_list"), post_data)
-        self.assertContains(response, "startkeyword")
-        self.assertEqual(1, Trigger.objects.filter(keyword="startkeyword", is_archived=False).count())
-        self.assertNotEqual(other_trigger, Trigger.objects.filter(keyword="startkeyword", is_archived=False)[0])
-
-        self.contact = self.create_contact("Eric", phone="+250788382382")
-        self.contact2 = self.create_contact("Nic", phone="+250788383383")
-        group1 = self.create_group("first", [self.contact2])
-        group2 = self.create_group("second", [self.contact])
-        group3 = self.create_group("third", [self.contact, self.contact2])
-
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 2)
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword", is_archived=False).count(), 1)
-
-        # update trigger with 2 groups
-        post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F", groups=[group1.pk, group2.pk])
-        response = self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 3)
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword", is_archived=False).count(), 2)
-
-        # get error when groups overlap
-        post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F")
-        post_data["groups"] = [group2.pk, group3.pk]
-        response = self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
-        self.assertEqual(1, len(response.context["form"].errors))
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 3)
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword", is_archived=False).count(), 2)
-
-        # allow new creation when groups do not overlap
-        post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F")
-        post_data["groups"] = [group3.pk]
-        self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 4)
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword", is_archived=False).count(), 3)
-
-    def test_inbound_call_trigger(self):
-        self.login(self.admin)
-
-        # inbound call trigger can be made without a call channel
-        response = self.client.get(reverse("triggers.trigger_create"))
-        self.assertContains(response, "Start a flow after receiving a call")
-
-        # make our channel support ivr
-        self.channel.role += Channel.ROLE_CALL + Channel.ROLE_ANSWER
-        self.channel.save()
-
-        # flow is required
-        response = self.client.post(reverse("triggers.trigger_inbound_call"), dict())
-        self.assertEqual(list(response.context["form"].errors.keys()), ["flow"])
-
-        # flow must be an ivr flow
-        message_flow = self.create_flow()
-        post_data = dict(flow=message_flow.pk)
-        response = self.client.post(reverse("triggers.trigger_inbound_call"), post_data)
-        self.assertEqual(list(response.context["form"].errors.keys()), ["flow"])
-
-        # now lets create our first valid inbound call trigger
-        guitarist_flow = self.create_flow()
-        guitarist_flow.flow_type = Flow.TYPE_VOICE
-        guitarist_flow.save()
-
-        post_data = dict(flow=guitarist_flow.pk)
-        response = self.client.post(reverse("triggers.trigger_inbound_call"), post_data)
-        trigger = Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL).first()
-        self.assertIsNotNone(trigger)
-
-        # now lets check that group specific call triggers work
-        mike = self.create_contact("Mike", phone="+17075551213")
-        bassists = self.create_group("Bassists", [mike])
-
-        # flow specific to our group
-        bassist_flow = self.create_flow()
-        bassist_flow.flow_type = Flow.TYPE_VOICE
-        bassist_flow.save()
-
-        post_data = dict(flow=bassist_flow.pk, groups=[bassists.pk])
-        self.client.post(reverse("triggers.trigger_inbound_call"), post_data)
-        self.assertEqual(2, Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL).count())
-
-        # release our channel
-        self.channel.release(self.admin)
-
-        # should still have two voice flows and triggers (they aren't archived)
-        self.assertEqual(2, Flow.objects.filter(flow_type=Flow.TYPE_VOICE, is_archived=False).count())
-        self.assertEqual(2, Trigger.objects.filter(trigger_type=Trigger.TYPE_INBOUND_CALL, is_archived=False).count())
 
     def test_referral_trigger(self):
         self.login(self.admin)
@@ -542,79 +338,6 @@ class TriggerTest(TembaTest):
         trigger = Trigger.objects.get(keyword="join", flow=flow)
         self.assertEqual("Join Chat", trigger.flow.name)
 
-    def test_trigger_form(self):
-
-        for form in (DefaultTriggerForm, RegisterTriggerForm):
-
-            trigger_form = form(self.admin)
-            pick = self.get_flow("pick_a_number")
-            favorites = self.get_flow("favorites")
-            self.assertEqual(2, trigger_form.fields["flow"].choices.queryset.all().count())
-
-            # now change to a system flow
-            pick.is_system = True
-            pick.save()
-
-            # our flow should no longer be an option
-            trigger_form = form(self.admin)
-            choices = trigger_form.fields["flow"].choices
-            self.assertEqual(1, choices.queryset.all().count())
-            self.assertIsNone(choices.queryset.filter(pk=pick.pk).first())
-
-            pick.release()
-            favorites.release()
-
-    def test_missed_call_trigger(self):
-        self.login(self.admin)
-        flow = self.create_flow()
-
-        trigger_url = reverse("triggers.trigger_missed_call")
-
-        response = self.client.get(trigger_url)
-        self.assertEqual(response.status_code, 200)
-
-        response = self.client.post(trigger_url, {"flow": flow.id})
-        self.assertEqual(response.status_code, 200)
-
-        trigger = Trigger.objects.order_by("id").last()
-
-        self.assertEqual(trigger.trigger_type, Trigger.TYPE_MISSED_CALL)
-        self.assertEqual(trigger.flow, flow)
-
-        other_flow = Flow.copy(flow, self.admin)
-
-        response = self.client.post(reverse("triggers.trigger_update", args=[trigger.id]), {"flow": other_flow.id})
-        self.assertEqual(response.status_code, 302)
-
-        trigger.refresh_from_db()
-        self.assertEqual(trigger.flow, other_flow)
-
-        # create ten missed call triggers
-        for i in range(10):
-            response = self.client.get(trigger_url)
-            self.assertEqual(response.status_code, 200)
-
-            self.client.post(trigger_url, {"flow": flow.id})
-
-            self.assertEqual(Trigger.objects.all().count(), i + 2)
-            self.assertEqual(
-                Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL).count(), 1
-            )
-
-        # even unarchiving we only have one active trigger at a time
-        triggers = Trigger.objects.filter(trigger_type=Trigger.TYPE_MISSED_CALL, is_archived=True)
-        active_trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_MISSED_CALL, is_archived=False)
-
-        response = self.client.post(
-            reverse("triggers.trigger_archived"), {"action": "restore", "objects": [t.id for t in triggers]}
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL).count(), 1)
-        self.assertNotEqual(
-            active_trigger, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_MISSED_CALL)[0]
-        )
-
     def test_new_conversation_trigger_viber(self):
         self.login(self.admin)
         flow = self.create_flow()
@@ -821,56 +544,6 @@ class TriggerTest(TembaTest):
 
         self.assertFalse(group_catch_all.is_active)
 
-    def test_update(self):
-        self.login(self.admin)
-
-        group = self.create_group(name="Chat", contacts=[])
-
-        # create a trigger that sets up a group join flow
-        post_data = dict(action_join_group=group.pk, keyword="join")
-        self.client.post(reverse("triggers.trigger_register"), data=post_data)
-
-        # did our group join flow get created?
-        flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE)
-
-        # check that our trigger exists and shows our group
-        trigger = Trigger.objects.get(keyword="join", flow=flow)
-        update_url = reverse("triggers.trigger_update", args=[trigger.pk])
-
-        response = self.client.get(update_url)
-        self.assertEqual(response.status_code, 200)
-
-        # test trigger for Flow of flow_type of FLOW
-        flow = self.create_flow()
-
-        # a valid keyword
-        post_data = dict(keyword="kiki", flow=flow.id, match_type="F")
-        self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
-        trigger = Trigger.objects.get(keyword="kiki")
-        self.assertEqual(flow.pk, trigger.flow.pk)
-
-        update_url = reverse("triggers.trigger_update", args=[trigger.pk])
-
-        response = self.client.get(update_url)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.context["form"].fields), 5)
-
-        group = self.create_group("first", [])
-
-        # show validation error if keyword is None or not defined
-        post_data = dict(flow=flow.id, match_type="O", groups=[group.id])
-        response = self.client.post(update_url, post_data, follow=True)
-        self.assertEqual(1, len(response.context["form"].errors))
-
-        post_data = dict(keyword="koko", flow=flow.id, match_type="O", groups=[group.id])
-        self.client.post(update_url, post_data, follow=True)
-
-        trigger.refresh_from_db()
-        self.assertEqual(trigger.keyword, "koko")
-        self.assertEqual(trigger.match_type, Trigger.MATCH_ONLY_WORD)
-        self.assertEqual(trigger.flow, flow)
-        self.assertIn(group, trigger.groups.all())
-
     def test_export_import(self):
         # tweak our current channel to be twitter so we can create a channel-based trigger
         Channel.objects.filter(id=self.channel.id).update(channel_type="TT")
@@ -927,3 +600,314 @@ class TriggerTest(TembaTest):
         self.assertEqual(Schedule.objects.count(), 0)
         self.assertEqual(ContactGroup.user_groups.count(), 1)
         self.assertEqual(Flow.objects.count(), 1)
+
+
+class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_create(self):
+        create_url = reverse("triggers.trigger_create")
+
+        self.assertLoginRedirect(self.client.get(create_url))
+
+        self.login(self.user)
+        self.assertLoginRedirect(self.client.get(create_url))
+
+        self.login(self.admin)
+        response = self.client.get(create_url)
+
+        # inbound call trigger can be made without a call channel
+        self.assertContains(response, "Start a flow after receiving a call")
+
+    def test_create_keyword(self):
+        create_url = reverse("triggers.trigger_keyword")
+        flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
+        flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_VOICE)
+
+        # flows that shouldn't appear as options
+        self.create_flow(flow_type=Flow.TYPE_BACKGROUND)
+        self.create_flow(is_system=True)
+
+        response = self.assertCreateFetch(
+            create_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=["keyword", "match_type", "flow", "groups"],
+        )
+
+        # flow options should show messaging and voice flows
+        self.assertEqual([flow1, flow2], list(response.context["form"].fields["flow"].queryset))
+
+        # try a keyword with spaces
+        self.assertCreateSubmit(
+            create_url,
+            {"keyword": "with spaces", "flow": flow1.id, "match_type": "F"},
+            form_errors={"keyword": "Keywords must be a single word containing only letter and numbers"},
+        )
+
+        # try a keyword with special characters
+        self.assertCreateSubmit(
+            create_url,
+            {"keyword": "keyw!o^rd__", "flow": flow1.id, "match_type": "F"},
+            form_errors={"keyword": "Keywords must be a single word containing only letter and numbers"},
+        )
+
+        # test creating triggers with non-ASCII characters
+        self.assertCreateSubmit(
+            create_url,
+            {"keyword": "١٠٠", "flow": flow1.id, "match_type": "F"},
+            new_obj_query=Trigger.objects.filter(keyword="١٠٠", flow=flow1),
+        )
+        self.assertCreateSubmit(
+            create_url,
+            {"keyword": "मिलाए", "flow": flow1.id, "match_type": "F"},
+            new_obj_query=Trigger.objects.filter(keyword="मिलाए", flow=flow1),
+        )
+
+        # and with an ASCII keyword
+        self.assertCreateSubmit(
+            create_url,
+            {"keyword": "startkeyword", "flow": flow1.id, "match_type": "F"},
+            new_obj_query=Trigger.objects.filter(keyword="startkeyword", flow=flow1),
+        )
+
+        # try a duplicate keyword
+        self.assertCreateSubmit(
+            create_url,
+            {"keyword": "startkeyword", "flow": flow1.id, "match_type": "F"},
+            form_errors={"__all__": "An active trigger already exists, triggers must be unique for each group"},
+        )
+
+    def test_create_inbound_call(self):
+        # make our channel support ivr
+        self.channel.role += Channel.ROLE_CALL + Channel.ROLE_ANSWER
+        self.channel.save()
+
+        flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_VOICE)
+        flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_VOICE)
+        group1 = self.create_group("Group 1", contacts=[])
+        group2 = self.create_group("Group 2", contacts=[])
+
+        # flows that shouldn't appear as options
+        self.create_flow("Flow 3", flow_type=Flow.TYPE_MESSAGE)
+        self.create_flow("Flow 4", flow_type=Flow.TYPE_BACKGROUND)
+        self.create_flow("Flow 5", is_system=True)
+        self.create_flow("Flow 6", org=self.org2)
+
+        create_url = reverse("triggers.trigger_inbound_call")
+
+        response = self.assertCreateFetch(
+            create_url, allow_viewers=False, allow_editors=True, form_fields=["flow", "groups"]
+        )
+
+        # flow options should only be voice flows
+        self.assertEqual([flow1, flow2], list(response.context["form"].fields["flow"].queryset))
+
+        self.assertCreateSubmit(
+            create_url,
+            {"flow": flow1.id, "groups": group1.id},
+            new_obj_query=Trigger.objects.filter(flow=flow1, trigger_type=Trigger.TYPE_INBOUND_CALL),
+        )
+
+        # can't create another inbound call trigger for same group
+        self.assertCreateSubmit(
+            create_url,
+            {"flow": flow2.id, "groups": group1.id},
+            form_errors={"__all__": "An active trigger already exists, triggers must be unique for each group"},
+        )
+
+        # but can for different group
+        self.assertCreateSubmit(
+            create_url,
+            {"flow": flow2.id, "groups": group2.id},
+            new_obj_query=Trigger.objects.filter(flow=flow2, trigger_type=Trigger.TYPE_INBOUND_CALL),
+        )
+
+    def test_create_missed_call(self):
+        # make our channel support ivr
+        self.channel.role += Channel.ROLE_CALL + Channel.ROLE_ANSWER
+        self.channel.save()
+
+        flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_VOICE)
+        flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_VOICE)
+        flow3 = self.create_flow("Flow 3", flow_type=Flow.TYPE_MESSAGE)
+
+        # flows that shouldn't appear as options
+        self.create_flow("Flow 4", flow_type=Flow.TYPE_BACKGROUND)
+        self.create_flow("Flow 5", is_system=True)
+        self.create_flow("Flow 6", org=self.org2)
+
+        create_url = reverse("triggers.trigger_missed_call")
+
+        response = self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=["flow"])
+
+        # flow options should be messaging and voice flows
+        self.assertEqual([flow1, flow2, flow3], list(response.context["form"].fields["flow"].queryset))
+
+        self.assertCreateSubmit(
+            create_url,
+            {"flow": flow1.id},
+            new_obj_query=Trigger.objects.filter(flow=flow1, trigger_type=Trigger.TYPE_MISSED_CALL),
+            success_status=200,
+        )
+
+        trigger1 = Trigger.objects.get()
+
+        # we can create another which will archive the first as a conflict
+        self.assertCreateSubmit(
+            create_url,
+            {"flow": flow2.id},
+            new_obj_query=Trigger.objects.filter(flow=flow2, trigger_type=Trigger.TYPE_MISSED_CALL),
+            success_status=200,
+        )
+
+        trigger1.refresh_from_db()
+        self.assertTrue(trigger1.is_archived)
+
+    def test_update_keyword(self):
+        flow = self.create_flow()
+        group1 = self.create_group("Chat", contacts=[])
+        group2 = self.create_group("Testers", contacts=[])
+        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="join")
+        trigger.groups.add(group1)
+
+        update_url = reverse("triggers.trigger_update", args=[trigger.id])
+
+        self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=["keyword", "match_type", "flow", "groups"],
+        )
+
+        # submit with valid keyword and extra group
+        self.assertUpdateSubmit(
+            update_url, {"keyword": "kiki", "flow": flow.id, "match_type": "O", "groups": [group1.id, group2.id]}
+        )
+
+        trigger.refresh_from_db()
+        self.assertEqual("kiki", trigger.keyword)
+        self.assertEqual(flow, trigger.flow)
+        self.assertEqual(Trigger.MATCH_ONLY_WORD, trigger.match_type)
+        self.assertEqual({group1, group2}, set(trigger.groups.all()))
+
+        # error if keyword is not defined
+        self.assertUpdateSubmit(
+            update_url,
+            {"keyword": "", "flow": flow.id, "match_type": "F"},
+            form_errors={"keyword": "Keywords must be a single word containing only letter and numbers"},
+            object_unchanged=trigger,
+        )
+
+    def test_list(self):
+        flow = self.create_flow()
+        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="test")
+        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="abc")
+        trigger3 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="start")
+        Trigger.create(self.org2, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="other")
+
+        list_url = reverse("triggers.trigger_list")
+
+        response = self.assertListFetch(
+            list_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger3, trigger1]
+        )
+        self.assertEqual(("archive",), response.context["actions"])
+
+        # can search by keyword
+        self.assertListFetch(
+            list_url + "?search=Sta", allow_viewers=True, allow_editors=True, context_objects=[trigger3]
+        )
+
+        # can archive it
+        self.client.post(list_url, {"action": "archive", "objects": trigger3.id})
+
+        trigger3.refresh_from_db()
+        self.assertTrue(trigger3.is_archived)
+
+        # no longer appears in list
+        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1])
+
+    def test_archived(self):
+        flow = self.create_flow()
+        trigger = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="startkeyword", is_archived=True
+        )
+
+        archived_url = reverse("triggers.trigger_archived")
+
+        response = self.assertListFetch(
+            archived_url, allow_viewers=True, allow_editors=True, context_objects=[trigger]
+        )
+        self.assertEqual(("restore",), response.context["actions"])
+
+        # can restore it
+        self.client.post(reverse("triggers.trigger_archived"), {"action": "restore", "objects": trigger.id})
+
+        response = self.client.get(reverse("triggers.trigger_archived"))
+
+        self.assertNotContains(response, "startkeyword")
+
+        response = self.client.get(reverse("triggers.trigger_list"))
+
+        # should be back in the main trigger list
+        self.assertContains(response, "startkeyword")
+
+        # once archived we can duplicate it but with one active at a time
+        trigger = Trigger.objects.get(keyword="startkeyword")
+        trigger.is_archived = True
+        trigger.save(update_fields=("is_archived",))
+
+        post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F")
+        response = self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
+        self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 2)
+        self.assertEqual(1, Trigger.objects.filter(keyword="startkeyword", is_archived=False).count())
+        other_trigger = Trigger.objects.filter(keyword="startkeyword", is_archived=False)[0]
+        self.assertFalse(trigger.pk == other_trigger.pk)
+
+        # try archiving it we have one archived and the other active
+        response = self.client.get(reverse("triggers.trigger_archived"), post_data)
+        self.assertContains(response, "startkeyword")
+        post_data = dict(action="restore", objects=trigger.pk)
+        self.client.post(reverse("triggers.trigger_archived"), post_data)
+        response = self.client.get(reverse("triggers.trigger_archived"), post_data)
+        self.assertContains(response, "startkeyword")
+        response = self.client.get(reverse("triggers.trigger_list"), post_data)
+        self.assertContains(response, "startkeyword")
+        self.assertEqual(1, Trigger.objects.filter(keyword="startkeyword", is_archived=False).count())
+        self.assertNotEqual(other_trigger, Trigger.objects.filter(keyword="startkeyword", is_archived=False)[0])
+
+        self.contact = self.create_contact("Eric", phone="+250788382382")
+        self.contact2 = self.create_contact("Nic", phone="+250788383383")
+        group1 = self.create_group("first", [self.contact2])
+        group2 = self.create_group("second", [self.contact])
+        group3 = self.create_group("third", [self.contact, self.contact2])
+
+        self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 2)
+        self.assertEqual(Trigger.objects.filter(keyword="startkeyword", is_archived=False).count(), 1)
+
+        # update trigger with 2 groups
+        post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F", groups=[group1.pk, group2.pk])
+        response = self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
+        self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 3)
+        self.assertEqual(Trigger.objects.filter(keyword="startkeyword", is_archived=False).count(), 2)
+
+        # get error when groups overlap
+        post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F")
+        post_data["groups"] = [group2.pk, group3.pk]
+        response = self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
+        self.assertEqual(1, len(response.context["form"].errors))
+        self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 3)
+        self.assertEqual(Trigger.objects.filter(keyword="startkeyword", is_archived=False).count(), 2)
+
+        # allow new creation when groups do not overlap
+        post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F")
+        post_data["groups"] = [group3.pk]
+        self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
+        self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 4)
+        self.assertEqual(Trigger.objects.filter(keyword="startkeyword", is_archived=False).count(), 3)
+
+    def test_list_redirect_when_no_triggers(self):
+        Trigger.objects.all().delete()
+
+        self.login(self.admin)
+        response = self.client.get(reverse("triggers.trigger_list"))
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirect(response, reverse("triggers.trigger_create"))
