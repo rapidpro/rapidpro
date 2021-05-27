@@ -55,6 +55,10 @@ class InspectFlowsTest(TembaTest):
         flow2.has_issues = False
         flow2.save(update_fields=("has_issues",))
 
+        # create an invalid flow
+        flow3 = self.create_flow("Invalid", nodes=[])
+        flow3.revisions.all().update(definition={"foo": "bar"})
+
         call_command("inspect_flows")
 
         flow1.refresh_from_db()
@@ -62,6 +66,9 @@ class InspectFlowsTest(TembaTest):
 
         flow2.refresh_from_db()
         self.assertTrue(flow2.has_issues)
+
+        flow3.refresh_from_db()
+        self.assertFalse(flow3.has_issues)
 
 
 class RecalcNodeCountsTest(TembaTest):
