@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-12 18:32+0000\n"
+"POT-Creation-Date: 2021-05-20 16:11+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -2030,9 +2030,6 @@ msgstr ""
 msgid "Connect"
 msgstr ""
 
-msgid "Delete Classifier"
-msgstr ""
-
 msgid "Your classifier has been deleted."
 msgstr ""
 
@@ -2040,6 +2037,9 @@ msgid "Log"
 msgstr ""
 
 msgid "Sync"
+msgstr ""
+
+msgid "Delete Classifier"
 msgstr ""
 
 msgid "Your classifier has been synced."
@@ -2998,6 +2998,9 @@ msgstr ""
 msgid "Send All"
 msgstr ""
 
+msgid "Delete Folder"
+msgstr ""
+
 msgid "Name must not be blank or begin with punctuation"
 msgstr ""
 
@@ -3018,6 +3021,12 @@ msgid "Update Folder"
 msgstr ""
 
 msgid "Update Label"
+msgstr ""
+
+msgid "Your label has been deleted."
+msgstr ""
+
+msgid "Your label folder has been deleted."
 msgstr ""
 
 msgid "Agent Name"
@@ -3876,9 +3885,6 @@ msgid "Delete Ticket Service"
 msgstr ""
 
 msgid "HTTP Log"
-msgstr ""
-
-msgid "Delete Ticketing Service"
 msgstr ""
 
 msgid "Your ticketing service has been deleted."
@@ -5174,13 +5180,6 @@ msgstr ""
 msgid "Select your provider below to get started."
 msgstr ""
 
-msgid "Unable to delete classifier still being used by"
-msgstr ""
-
-#, python-format
-msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
-msgstr ""
-
 msgid "Classifier"
 msgstr ""
 
@@ -5197,9 +5196,6 @@ msgid "No synced intents at this time."
 msgstr ""
 
 msgid "Intents are synced automatically every 5 minutes"
-msgstr ""
-
-msgid "Ok"
 msgstr ""
 
 msgid "These contacts have been removed from all groups and can be deleted permanently."
@@ -6025,7 +6021,7 @@ msgid "%(name)s also keeps track of calls that are received on your channel so y
 msgstr ""
 
 #, python-format
-msgid "Uh oh, we couldn't delete %(name)s."
+msgid "<b>%(name)s</b> cannot be deleted as it still contains labels."
 msgstr ""
 
 msgid "Numeric Value:"
@@ -6077,6 +6073,19 @@ msgid "No matching messages."
 msgstr ""
 
 msgid "Your workspace is suspended and no longer processing messages."
+msgstr ""
+
+msgid "is used by the following flows which may not work as expected if you delete it:"
+msgstr ""
+
+#, python-format
+msgid "and %(count)s more"
+msgstr ""
+
+msgid "You are about to delete"
+msgstr ""
+
+msgid "There is no way to undo this. Are you sure?"
 msgstr ""
 
 #, python-format
@@ -6444,9 +6453,6 @@ msgid "You have used"
 msgstr ""
 
 msgid "credits since signing up."
-msgstr ""
-
-msgid "You are about to delete"
 msgstr ""
 
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
@@ -7214,9 +7220,6 @@ msgstr ""
 msgid "No ticketing services are available."
 msgstr ""
 
-msgid "Unable to delete service still being used by"
-msgstr ""
-
 #, python-format
 msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
 msgstr ""
@@ -7327,7 +7330,7 @@ msgstr ""
 msgid "Templates"
 msgstr ""
 
-msgid "WhatsApp Templates are synced from your account every 15 minutes."
+msgid "Templates are synced from your account every 15 minutes."
 msgstr ""
 
 msgid "No synced templates at this time."

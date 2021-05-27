@@ -98,11 +98,15 @@ def update_local_templates(channel, templates_data):
     # run through all our templates making sure they are present in our DB
     seen = []
     for template in templates_data:
+
+        template_status = template["status"]
+
+        template_status = template_status.upper()
         # if this is a status we don't know about
-        if template["status"] not in STATUS_MAPPING:
+        if template_status not in STATUS_MAPPING:
             continue
 
-        status = STATUS_MAPPING[template["status"]]
+        status = STATUS_MAPPING[template_status]
 
         content_parts = []
 

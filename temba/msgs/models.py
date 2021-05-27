@@ -24,7 +24,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
-from temba.orgs.models import Language, Org, TopUp
+from temba.orgs.models import DependencyMixin, Language, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, extract_constants, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
@@ -242,6 +242,9 @@ class Broadcast(models.Model):
         return Language.get_localized_text(self.text, preferred_languages)
 
     def release(self):
+        for child in self.children.all():
+            child.release()
+
         for msg in self.msgs.all():
             msg.release()
 
@@ -414,9 +417,9 @@ class Msg(models.Model):
 
     modified_on = models.DateTimeField(null=True, blank=True, auto_now=True)
 
-    sent_on = models.DateTimeField(null=True, blank=True)
+    sent_on = models.DateTimeField(null=True)
 
-    queued_on = models.DateTimeField(null=True, blank=True)
+    queued_on = models.DateTimeField(null=True)
 
     direction = models.CharField(max_length=1, choices=DIRECTION_CHOICES)
 
@@ -438,8 +441,8 @@ class Msg(models.Model):
     # the number of times this message has errored (outgoing only)
     error_count = models.IntegerField(default=0)
 
-    # when we'll next try to send this message (outgoing only)
-    next_attempt = models.DateTimeField(auto_now_add=True)
+    # when we'll next try to send this message (only set for retries after an error)
+    next_attempt = models.DateTimeField(null=True)
 
     # the id of this message on the other side of its channel
     external_id = models.CharField(max_length=255, null=True, blank=True)
@@ -849,7 +852,7 @@ class Msg(models.Model):
     @classmethod
     def apply_action_resend(cls, user, msgs):
         if msgs:
-            mailroom.queue_resend_msgs(msgs[0].org, msgs)
+            mailroom.get_client().msg_resend(msgs[0].org.id, [m.id for m in msgs])
 
 
 class BroadcastMsgCount(SquashableModel):
@@ -1033,7 +1036,7 @@ class UserLabelManager(models.Manager):
         return super().get_queryset().filter(label_type=Label.TYPE_LABEL)
 
 
-class Label(TembaModel):
+class Label(TembaModel, DependencyMixin):
     """
     Labels represent both user defined labels and folders of labels. User defined labels that can be applied to messages
     much the same way labels or tags apply to messages in web-based email services.
@@ -1190,24 +1193,18 @@ class Label(TembaModel):
         return self.label_type == Label.TYPE_FOLDER
 
     def release(self, user):
+        assert not self.has_child_labels(), "can't release non-empty label folder"
 
-        dependent_flows_count = self.dependent_flows.count()
-        if dependent_flows_count > 0:
-            raise ValueError(f"Cannot delete Label: {self.name}, used by {dependent_flows_count} flows")
+        if not self.is_folder():
+            super().release(user)  # releases flow dependencies
 
-        # release our children if we are a folder
-        if self.is_folder():
-            if self.has_child_labels():
-                raise ValueError(f"Cannot delete Folder: {self.name}, since it is a parent to other labels")
-
-        else:
+            # delete labellings of messages with this label (not the actual messages)
             Msg.labels.through.objects.filter(label=self).delete()
 
         self.counts.all().delete()
 
         self.is_active = False
         self.modified_by = user
-        self.modified_on = timezone.now()
         self.save(update_fields=("is_active", "modified_by", "modified_on"))
 
     def __str__(self):

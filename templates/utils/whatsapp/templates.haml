@@ -13,27 +13,27 @@
   .text-lg
     {{ object.get_channel_type_display }}
 
-    -trans "WhatsApp Templates are synced from your account every 15 minutes."
+    -trans "Templates are synced from your account every 15 minutes."
 
 -block content
-  %table.list#templates
+  .card.p-0#templates
     -for translation in translations
       -ifchanged translation.template.name
-        %tr.template-name
-          %td(colspan=4)
+        .block.template-name
+          .truncate.block.p-4(width="100%")
             {{ translation.template.name }}
 
-      %tr.translation
-        %td.content
+      .flex.translation(max-width="100%")
+        .flex.p-4.content(width="70%")
           {{ translation.content }}
 
-        %td.language
+        .flex-1.p-4.language
           {{ translation.language }}
 
-        %td.country
+        .flex-1.p-4.country
           {{ translation.country }}
 
-        %td.status{class:"tr-{{translation.get_status_display}}"}
+        .flex.p-4.status{class:"tr-{{translation.get_status_display}}"}
           {{ translation.get_status_display }}
 
       -empty
@@ -45,39 +45,44 @@
   {{ block.super }}
 
   :css
+    .page-content {
+      max-width: 100%;
+    }
+
     #templates {
       width: 100%;
     }
-    tr.template-name td {
+    .template-name div {
       font-weight: bold;
       border-bottom: 1px solid #e6e6e6;
     }
-    tr.translation td {
+    .translation div {
       border-bottom: 1px solid #e6e6e6;
     }
-    tr.translation td.language {
+    .translation .language {
       font-family: monospace;
       color: #666;
     }
-    tr.translation td.country {
+    .translation .country {
       font-family: monospace;
       color: #666;
     }
-    tr.translation td.status {
+    .translation .status {
      font-family: monospace;
     }
-    td.content {
+    .content {
       font-style: italic;
+      width: 70%;
     }
-    td.tr-pending {
+    .tr-pending {
       color: #faa732;
     }
-    td.tr-rejected {
+    .tr-rejected {
       color: #b81900;
     }
-    td.tr-approved {
+    .tr-approved {
       color: #4ca20b;
     }
-    tr.empty td {
+    .empty div {
       font-style: italic;
     }

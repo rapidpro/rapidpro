@@ -763,7 +763,8 @@ class OrgDeleteTest(TembaNonAtomicTest):
         self.create_outgoing_msg(child_contact, "Hola mama!", channel=self.child_channel)
 
         # create a broadcast and some counts
-        self.create_broadcast(self.user, "Broadcast with messages", contacts=[parent_contact])
+        bcast1 = self.create_broadcast(self.user, "Broadcast with messages", contacts=[parent_contact])
+        self.create_broadcast(self.user, "Broadcast with messages", contacts=[parent_contact], parent=bcast1)
 
         # create some archives
         self.mock_s3 = MockS3Client()
@@ -828,7 +829,12 @@ class OrgDeleteTest(TembaNonAtomicTest):
             resthook.subscribers.create(target_url="http://foo.bar", created_by=self.admin, modified_by=self.admin)
             WebHookEvent.objects.create(org=org, resthook=resthook, data={})
             WebHookResult.objects.create(
-                org=self.org, url="http://foo.bar", request="GET http://foo.bar", status_code=200, response="zap!"
+                org=self.org,
+                url="http://foo.bar",
+                request="GET http://foo.bar",
+                status_code=200,
+                response="zap!",
+                contact=self.org.contacts.first(),
             )
 
             TemplateTranslation.get_or_create(
@@ -908,7 +914,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
     def test_release_child_and_delete(self):
         # 300 credits were given to our child org and each used one
-        self.assertEqual(697, self.parent_org.get_credits_remaining())
+        self.assertEqual(696, self.parent_org.get_credits_remaining())
         self.assertEqual(299, self.child_org.get_credits_remaining())
 
         # release our child org
@@ -916,7 +922,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         # our unused credits are returned to the parent
         self.parent_org.clear_credit_cache()
-        self.assertEqual(995, self.parent_org.get_credits_remaining())
+        self.assertEqual(994, self.parent_org.get_credits_remaining())
 
     def test_delete_task(self):
         # can't delete an unreleased org

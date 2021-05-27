@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-12 18:32+0000\n"
+"POT-Creation-Date: 2021-05-20 16:11+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -2055,9 +2055,6 @@ msgstr "Não foi possível acessar o wit.ai with credentials, por favor cheque e
 msgid "Connect"
 msgstr "Conecte"
 
-msgid "Delete Classifier"
-msgstr "Delete Classificador"
-
 msgid "Your classifier has been deleted."
 msgstr "Seu classificador foi deletado."
 
@@ -2066,6 +2063,9 @@ msgstr "Log"
 
 msgid "Sync"
 msgstr "Sincronizar"
+
+msgid "Delete Classifier"
+msgstr "Delete Classificador"
 
 msgid "Your classifier has been synced."
 msgstr "Seu classificador foi sincronizado."
@@ -3035,6 +3035,11 @@ msgstr "Editar Pasta"
 msgid "Send All"
 msgstr "Enviar todas"
 
+#, fuzzy
+#| msgid "Delete Field"
+msgid "Delete Folder"
+msgstr "Deletar Campo"
+
 msgid "Name must not be blank or begin with punctuation"
 msgstr "Nome não pode estar em branco ou começar com pontuação"
 
@@ -3056,6 +3061,16 @@ msgstr "Atualizar Pasta"
 
 msgid "Update Label"
 msgstr "Atualizar rótulo"
+
+#, fuzzy
+#| msgid "Your classifier has been deleted."
+msgid "Your label has been deleted."
+msgstr "Seu classificador foi deletado."
+
+#, fuzzy
+#| msgid "Your classifier has been deleted."
+msgid "Your label folder has been deleted."
+msgstr "Seu classificador foi deletado."
 
 msgid "Agent Name"
 msgstr "Nome do Agente"
@@ -3936,9 +3951,6 @@ msgstr "Deletar Serviço de Ticket"
 
 msgid "HTTP Log"
 msgstr "Log HTTP"
-
-msgid "Delete Ticketing Service"
-msgstr "Deletar serviço de Ticket"
 
 msgid "Your ticketing service has been deleted."
 msgstr "Seu serviço de tickets foi deletado."
@@ -5304,13 +5316,6 @@ msgstr "Os classificadores permitem interpretar palavras e frases em intenções
 msgid "Select your provider below to get started."
 msgstr "Selecione seu provedor abaixo para começar."
 
-msgid "Unable to delete classifier still being used by"
-msgstr "Não foi possível deletar o classificador, ainda está sendo utilizado por"
-
-#, python-format
-msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
-msgstr "Você está prestes a deletar <span class='font-normal'>%(name)s.</span> Não é possível reverter isto. Você tem certeza?"
-
 msgid "Classifier"
 msgstr "Classificador"
 
@@ -5328,9 +5333,6 @@ msgstr "Não há intenções sincronizadas no momento."
 
 msgid "Intents are synced automatically every 5 minutes"
 msgstr "Itenções são sincronizadas automaticamente a cada 5 minutos"
-
-msgid "Ok"
-msgstr "Ok"
 
 msgid "These contacts have been removed from all groups and can be deleted permanently."
 msgstr "Estes contatos foram removidos de todos os grupos e agora podem ser deletados permanentemente."
@@ -6200,9 +6202,10 @@ msgstr "O %(name)s possibilita visualizar, classificar e arquivar mensagens rece
 msgid "%(name)s also keeps track of calls that are received on your channel so you can return any calls which may have been made to it."
 msgstr "%(name)s também acompanha as chamadas recebidas no seu canal para que você possa retornar todas as chamadas que possam ter sido feitas para ele."
 
-#, python-format
-msgid "Uh oh, we couldn't delete %(name)s."
-msgstr "Uh oh, não conseguimos deletar %(name)s."
+#, fuzzy, python-format
+#| msgid "<b>%(name)s</b> cannot be deleted since it is currently in use."
+msgid "<b>%(name)s</b> cannot be deleted as it still contains labels."
+msgstr "<b>%(name)s</b> não pode ser deletado já que ainda está em uso."
 
 msgid "Numeric Value:"
 msgstr "Valor numérico:"
@@ -6254,6 +6257,23 @@ msgstr "Nenhuma mensagem correspondente."
 
 msgid "Your workspace is suspended and no longer processing messages."
 msgstr "Sua área de trabalho está suspensa e não está mais processando mensagens."
+
+msgid "is used by the following flows which may not work as expected if you delete it:"
+msgstr ""
+
+#, fuzzy, python-format
+#| msgid "%(count)s result"
+#| msgid_plural "%(count)s results"
+msgid "and %(count)s more"
+msgstr "%(count)s resultado"
+
+msgid "You are about to delete"
+msgstr "Você está prestes a deletar"
+
+#, fuzzy
+#| msgid "You are about to delete this event. There is no way to undo this. Are you sure?"
+msgid "There is no way to undo this. Are you sure?"
+msgstr "Você está prestes a deletar este evento. Não é possível reverter isso. Você tem certeza?"
 
 #, python-format
 msgid ""
@@ -6761,9 +6781,6 @@ msgstr "Você usou"
 
 msgid "credits since signing up."
 msgstr "créditos desde que você se cadastrou"
-
-msgid "You are about to delete"
-msgstr "Você está prestes a deletar"
 
 msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
 msgstr "Você tem certeza que quer deletar tudo para esta organização? Isso não pode ser desfeito. Quaisquer logins que pertençam somente à esta área de trabalho também serão deletados."
@@ -7686,9 +7703,6 @@ msgstr "Selecione o serviço de ticket que você deseja conectar abaixo para ini
 msgid "No ticketing services are available."
 msgstr "Nenhum serviço de tickets disponível."
 
-msgid "Unable to delete service still being used by"
-msgstr "Não foi possível deletar o serviço, ainda está sendo utilizado por"
-
 #, python-format
 msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."
 msgstr "Seu código de verificação é <b>%(code)s</b> para continuar adicionando um serviço de ticket baseado em email."
@@ -7803,11 +7817,31 @@ msgstr "Templates"
 
 #, fuzzy
 #| msgid "Templates are synced from your WhatsApp account every 15 minutes."
-msgid "WhatsApp Templates are synced from your account every 15 minutes."
+msgid "Templates are synced from your account every 15 minutes."
 msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos."
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#~ msgid "Ok"
+#~ msgstr "Ok"
+
+#, python-format
+#~ msgid "Uh oh, we couldn't delete %(name)s."
+#~ msgstr "Uh oh, não conseguimos deletar %(name)s."
+
+#~ msgid "Delete Ticketing Service"
+#~ msgstr "Deletar serviço de Ticket"
+
+#~ msgid "Unable to delete classifier still being used by"
+#~ msgstr "Não foi possível deletar o classificador, ainda está sendo utilizado por"
+
+#, python-format
+#~ msgid "You are about to delete <span class='font-normal'> %(name)s. </span> There is no way to undo this. Are you sure?"
+#~ msgstr "Você está prestes a deletar <span class='font-normal'>%(name)s.</span> Não é possível reverter isto. Você tem certeza?"
+
+#~ msgid "Unable to delete service still being used by"
+#~ msgstr "Não foi possível deletar o serviço, ainda está sendo utilizado por"
 
 #~ msgid "Any labels on this flow"
 #~ msgstr "Qualquer rótulo nesse fluxo"

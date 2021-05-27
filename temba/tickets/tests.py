@@ -238,7 +238,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         closed_url = reverse("tickets.ticket_closed")
 
         # still see closed tickets for deleted ticketers
-        self.zendesk.release()
+        self.zendesk.release(self.admin)
 
         ticket1 = self.create_ticket(subject="Ticket 1", body="Where are my cookies?", status="C")
         ticket2 = self.create_ticket(subject="Ticket 2", body="Where are my shoes?", status="C", ticketer=self.zendesk)
@@ -293,7 +293,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
 
 class TicketerTest(TembaTest):
-    def test_release(self):
+    @patch("temba.mailroom.client.MailroomClient.ticket_close")
+    def test_release(self, mock_ticket_close):
         ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
 
         contact = self.create_contact("Bob", urns=["twitter:bobby"])
@@ -307,14 +308,14 @@ class TicketerTest(TembaTest):
             status="O",
         )
 
-        with patch("temba.mailroom.client.MailroomClient.ticket_close") as mock_close:
-            # release it
-            ticketer.release()
-            ticketer.refresh_from_db()
-            self.assertFalse(ticketer.is_active)
+        # release it
+        ticketer.release(self.user)
+        ticketer.refresh_from_db()
+        self.assertFalse(ticketer.is_active)
+        self.assertEqual(self.user, ticketer.modified_by)
 
         # will have asked mailroom to close the ticket
-        mock_close.assert_called_once_with(self.org.id, [ticket.id])
+        mock_ticket_close.assert_called_once_with(self.org.id, [ticket.id])
 
         # reactivate
         ticketer.is_active = True
@@ -324,11 +325,17 @@ class TicketerTest(TembaTest):
         flow = self.create_flow()
         flow.ticketer_dependencies.add(ticketer)
 
-        with self.assertRaises(AssertionError):
-            ticketer.release()
+        self.assertFalse(flow.has_issues)
 
+        ticketer.release(self.editor)
         ticketer.refresh_from_db()
-        self.assertTrue(ticketer.is_active)
+
+        self.assertFalse(ticketer.is_active)
+        self.assertEqual(self.editor, ticketer.modified_by)
+        self.assertNotIn(ticketer, flow.ticketer_dependencies.all())
+
+        flow.refresh_from_db()
+        self.assertTrue(flow.has_issues)
 
 
 class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -363,22 +370,19 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
         # put them all back...
         reload_ticketer_types()
 
-    def test_delete(self):
+    @patch("temba.mailroom.client.MailroomClient.ticket_close")
+    def test_delete(self, mock_ticket_close):
         ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
 
         delete_url = reverse("tickets.ticketer_delete", args=[ticketer.uuid])
 
-        # try to delete it
-        response = self.client.post(delete_url)
-        self.assertRedirect(response, "/users/login/")
+        # fetch delete modal
+        response = self.assertDeleteFetch(delete_url)
+        self.assertContains(response, "You are about to delete")
 
-        self.login(self.admin)
-
-        with patch("temba.mailroom.client.MailroomClient.ticket_close"):
-            self.client.post(delete_url)
-
-        ticketer.refresh_from_db()
-        self.assertFalse(ticketer.is_active)
+        # submit to delete it
+        response = self.assertDeleteSubmit(delete_url, object_deactivated=ticketer, success_status=200)
+        self.assertEqual("/org/home/", response["Temba-Success"])
 
         # reactivate
         ticketer.is_active = True
@@ -387,9 +391,13 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
         # add a dependency and try again
         flow = self.create_flow()
         flow.ticketer_dependencies.add(ticketer)
+        self.assertFalse(flow.has_issues)
 
-        with self.assertRaises(AssertionError):
-            self.client.post(delete_url)
+        response = self.assertDeleteFetch(delete_url)
+        self.assertContains(response, "is used by the following flows which may not work as expected")
 
-        ticketer.refresh_from_db()
-        self.assertTrue(ticketer.is_active)
+        self.assertDeleteSubmit(delete_url, object_deactivated=ticketer, success_status=200)
+
+        flow.refresh_from_db()
+        self.assertTrue(flow.has_issues)
+        self.assertNotIn(ticketer, flow.ticketer_dependencies.all())

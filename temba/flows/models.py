@@ -905,7 +905,7 @@ class Flow(TembaModel):
             m2m.clear()
             m2m.add(*objects)
 
-    def release(self):
+    def release(self, interrupt_sessions=True):
         """
         Releases this flow, marking it inactive. We interrupt all flow runs in a background process.
         We keep FlowRevisions and FlowStarts however.
@@ -928,17 +928,19 @@ class Flow(TembaModel):
         for start in self.starts.all():
             start.release()
 
-        self.group_dependencies.clear()
-        self.flow_dependencies.clear()
-        self.field_dependencies.clear()
         self.channel_dependencies.clear()
-        self.label_dependencies.clear()
         self.classifier_dependencies.clear()
-        self.ticketer_dependencies.clear()
+        self.field_dependencies.clear()
+        self.flow_dependencies.clear()
         self.global_dependencies.clear()
+        self.group_dependencies.clear()
+        self.label_dependencies.clear()
+        self.ticketer_dependencies.clear()
+        self.template_dependencies.clear()
 
         # queue mailroom to interrupt sessions where contact is currently in this flow
-        mailroom.queue_interrupt(self.org, flow=self)
+        if interrupt_sessions:
+            mailroom.queue_interrupt(self.org, flow=self)
 
     def release_runs(self):
         """
