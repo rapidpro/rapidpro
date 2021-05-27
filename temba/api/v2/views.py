@@ -4458,7 +4458,7 @@ class ReportEndpointMixin:
             queryset = getattr(queryset, filter_type)(filters_by_name)
 
         if any(values_fo_filter_by.values()):
-            self.applied_filters[field_name] = dict(item for item in values_fo_filter_by.items() if item[1])
+            self.applied_filters[field_name] = ", ".join([*values_fo_filter_by["names"], *values_fo_filter_by["uuids"]])
         return queryset
 
     def get_contacts(self, count_only=False, only_active=True):
@@ -4613,24 +4613,10 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         {
             "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
-            "channel": {
-                "uuids": [
-                    "43cd6c9e-25cd-4512-bf29-d2999a4a27a3"
-                ]
-            },
-            "group": {
-                "names": [
-                    "Contacts"
-                ]
-            },
-            "exclude": {
-                "names": [
-                    "Restaurant Contacts"
-                ]
-            },
+            "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
             "before": "2022-01-01T22:50:21.061616+02:00",
             "after": "2021-01-01T22:50:21.061907+02:00",
-            "search_query": "name ~ \"john dou\"",
+            "search_query": "name ~ \"john dou\" AND group = \"Contacts\" AND group != \"Restaurant Contacts\"",
             "results": [
                 {
                     "total_unique_contacts": 1
@@ -4661,7 +4647,7 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
     @staticmethod
     def csv_convertor(result, response):
         import csv
-
+        result["Total Contacts"] = result.pop("total_unique_contacts")
         writer = csv.writer(response)
         writer.writerows(list(result.items()))
 
@@ -4687,7 +4673,11 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
                     {
                         "search_query": "created_on < 2021-01-01",
                         "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
+                        "channel": "c946d22e-ec6d-4b17-b455-d7784400d92a",
+                        "group": "Contacts",
                         "exclude": "Restaurant Contacts",
+                        "after": "2020-01-01",
+                        "before": "2025-01-01",
                     }
                 ),
                 query="export_csv=false",
