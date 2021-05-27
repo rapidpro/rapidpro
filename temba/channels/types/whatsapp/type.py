@@ -114,5 +114,5 @@ class WhatsAppType(ChannelType):
                 url = response.json().get("paging", {}).get("next", None)
             return template_data, True
         except requests.RequestException as e:
-            HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, template_url, e, start, channel=channel)
+            HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)
             return [], False
