@@ -4458,7 +4458,9 @@ class ReportEndpointMixin:
             queryset = getattr(queryset, filter_type)(filters_by_name)
 
         if any(values_fo_filter_by.values()):
-            self.applied_filters[field_name] = ", ".join([*values_fo_filter_by["names"], *values_fo_filter_by["uuids"]])
+            self.applied_filters[field_name] = ", ".join(
+                [*values_fo_filter_by["names"], *values_fo_filter_by["uuids"]]
+            )
         return queryset
 
     def get_contacts(self, count_only=False, only_active=True):
@@ -4496,8 +4498,11 @@ class ReportEndpointMixin:
         main_conditions = elastic_query_conf.get("bool", {}).get("must", [])
 
         if not only_active:
-            main_conditions.pop(1)  # remove condition `is_active`
-            main_conditions.pop(1)  # remove condition `groups` (which selects only contacts that are in active group)
+            try:
+                main_conditions.pop(1)  # remove condition `is_active`
+                main_conditions.pop(1)  # remove condition `groups` (filter by active group)
+            except IndexError:
+                pass
 
         # add group filter conditions
         if groups_filter["uuids"]:
@@ -4647,6 +4652,7 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
     @staticmethod
     def csv_convertor(result, response):
         import csv
+
         result["Total Contacts"] = result.pop("total_unique_contacts")
         writer = csv.writer(response)
         writer.writerows(list(result.items()))
