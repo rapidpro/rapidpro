@@ -10,10 +10,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name="usersettings",
-            name="tel",
-        ),
         migrations.AddField(
             model_name="usersettings",
             name="last_auth_on",

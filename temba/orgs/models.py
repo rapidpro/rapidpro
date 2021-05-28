@@ -2500,6 +2500,13 @@ class UserSettings(models.Model):
     two_factor_enabled = models.BooleanField(default=False)
     last_auth_on = models.DateTimeField(null=True)
     authy_id = models.CharField(verbose_name=_("Authy ID"), max_length=255, null=True, blank=True)
+    tel = models.CharField(
+        verbose_name=_("Phone Number"),
+        max_length=16,
+        null=True,
+        blank=True,
+        help_text=_("Phone number for testing and recording voice flows"),
+    )
 
     @classmethod
     def get_or_create(cls, user):
