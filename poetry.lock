@@ -766,7 +766,7 @@ python-versions = "*"
 
 [[package]]
 name = "phonenumbers"
-version = "8.12.20"
+version = "8.12.24"
 description = "Python version of Google's common library for parsing, formatting, storing and validating international phone numbers."
 category = "main"
 optional = false
@@ -1171,28 +1171,29 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
 name = "smartmin"
-version = "2.3.0"
+version = "2.3.8"
 description = "Scaffolding system for Django object management."
 category = "main"
 optional = false
-python-versions = "*"
+python-versions = "^3.6"
 develop = false
 
 [package.dependencies]
 celery = "<5.0"
-django = "<3.0"
-django-compressor = "*"
+Django = "<3.0"
+django-countries = "^7.0"
+phonenumbers = "^8.12.24"
 pytz = "*"
-redis = "*"
-sqlparse = "*"
-xlrd = "*"
-xlwt = "*"
+redis = "^3.5.3"
+sqlparse = "^0.4.1"
+xlrd = "^1.2.0"
+xlwt = "^1.3.0"
 
 [package.source]
 type = "git"
 url = "https://github.com/greatnonprofits-nfp/smartmin.git"
-reference = "ccl-v3.0"
-resolved_reference = "98e36df0329c151ec15328a79577410b98598ef7"
+reference = "ccl-v3.1"
+resolved_reference = "39233028404a59fcb9e2d9e3eb6cc8333ed94f35"
 
 [[package]]
 name = "sorl-thumbnail"
@@ -1378,7 +1379,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7.1"
-content-hash = "a57c1abbe38cf22e1a271e6835c670965a10e13593e6ae913611655bbe7c4afb"
+content-hash = "3db2c8778ef5ff2b871333e4147734e4f83402d168fc039d5d687ecaa42abba5"
 
 [metadata.files]
 amqp = [
@@ -1758,8 +1759,8 @@ pdfkit = [
     {file = "pdfkit-0.6.1.tar.gz", hash = "sha256:ef1da35b78d534197e7ce4a604a4a190e9aa769e56634957535f3479a50d8cd1"},
 ]
 phonenumbers = [
-    {file = "phonenumbers-8.12.20-py2.py3-none-any.whl", hash = "sha256:7c2b26ee026f765a8032fc2a333b46fa1860445c7ce6df3b717b9f6985106084"},
-    {file = "phonenumbers-8.12.20.tar.gz", hash = "sha256:ee5a8508c4a414262abad92ec33f050347f681973ed0fb36e98b52bfe159f6b8"},
+    {file = "phonenumbers-8.12.24-py2.py3-none-any.whl", hash = "sha256:10204e005b1b887c7c96ce17c8b8ba4694693f3158199887874f9f857398b32d"},
+    {file = "phonenumbers-8.12.24.tar.gz", hash = "sha256:c6c8c7fa69c553edbc88a95bfa5a0e9630ad19ac55f40c014a86cd061ad661ae"},
 ]
 pillow = [
     {file = "Pillow-8.2.0-cp36-cp36m-macosx_10_10_x86_64.whl", hash = "sha256:dc38f57d8f20f06dd7c3161c59ca2c86893632623f33a42d592f097b00f720a9"},

@@ -325,7 +325,6 @@
     flowEditLink.onmousedown = () => {
       var hrefTemplate = flowEditLink.getAttribute('data-href-template');
       var flowUUID = flowSelect.values[0].value;
-      console.log(flowUUID);
       if (flowUUID) {
         flowEditLink.setAttribute('href', hrefTemplate.replace('uuid', flowUUID));
       }

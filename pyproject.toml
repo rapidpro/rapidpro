@@ -64,7 +64,7 @@ pdfkit = "^0.6.1"
 Pillow = "^8.2.0"
 pycrypto = "^2.6.1"
 python-gcm = "^0.4"
-smartmin = {git = "https://github.com/greatnonprofits-nfp/smartmin.git", rev = "ccl-v3.0"}
+smartmin = {git = "https://github.com/greatnonprofits-nfp/smartmin.git", rev = "ccl-v3.1"}
 sorl-thumbnail = "^12.7.0"
 supervisor = "^4.2.2"
 ua-parser = "^0.10.0"
