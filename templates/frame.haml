@@ -145,8 +145,7 @@
     
     -if user.is_authenticated
       %temba-store(
-        completions="/mr/docs/{{ LANGUAGE_CODE }}/completion.json"
-        functions="/mr/docs/{{ LANGUAGE_CODE }}/functions.json"
+        completion="/mr/docs/{{ LANGUAGE_CODE }}/editor.json"
         fields="/api/v2/fields.json"
         globals="/api/v2/globals.json")
 

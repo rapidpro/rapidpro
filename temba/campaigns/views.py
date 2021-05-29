@@ -12,14 +12,14 @@ from temba.flows.models import Flow
 from temba.msgs.models import Msg
 from temba.orgs.views import ModalMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import languages
-from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget
+from temba.utils.fields import CompletionTextarea, InputWidget, SelectWidget, TembaChoiceField
 from temba.utils.views import BulkActionMixin
 
 from .models import Campaign, CampaignEvent
 
 
 class UpdateCampaignForm(forms.ModelForm):
-    group = forms.ModelChoiceField(
+    group = TembaChoiceField(
         queryset=ContactGroup.user_groups.none(),
         empty_label=None,
         widget=SelectWidget(attrs={"placeholder": _("Select a group to base the campaign on"), "searchable": True}),
@@ -160,7 +160,7 @@ class CampaignCRUDL(SmartCRUDL):
     class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
         class CampaignForm(forms.ModelForm):
 
-            group = forms.ModelChoiceField(
+            group = TembaChoiceField(
                 queryset=ContactGroup.user_groups.none(),
                 required=True,
                 empty_label=None,
@@ -171,7 +171,7 @@ class CampaignCRUDL(SmartCRUDL):
 
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.fields["group"].queryset = ContactGroup.get_user_groups(user.get_org()).order_by("name")
+                self.fields["group"].queryset = ContactGroup.get_user_groups(user.get_org())
 
             class Meta:
                 model = Campaign
@@ -284,7 +284,7 @@ class CampaignEventForm(forms.ModelForm):
         widget=SelectWidget(attrs={"placeholder": _("Select a unit"), "widget_only": True}),
     )
 
-    flow_to_start = forms.ModelChoiceField(
+    flow_to_start = TembaChoiceField(
         queryset=Flow.objects.filter(is_active=True),
         required=False,
         empty_label=None,
@@ -293,7 +293,7 @@ class CampaignEventForm(forms.ModelForm):
         ),
     )
 
-    relative_to = forms.ModelChoiceField(
+    relative_to = TembaChoiceField(
         queryset=ContactField.all_fields.none(),
         required=False,
         empty_label=None,

@@ -70,6 +70,7 @@ FLOW_LOCK_KEY = "org:%d:lock:flow:%d:definition"
 
 
 class Flow(TembaModel):
+
     CONTACT_CREATION = "contact_creation"
     CONTACT_PER_RUN = "run"
     CONTACT_PER_LOGIN = "login"
@@ -452,6 +453,13 @@ class Flow(TembaModel):
                 flow.restore()
             except FlowException:  # pragma: no cover
                 pass
+
+    def get_icon(self):
+        if self.flow_type == Flow.TYPE_MESSAGE:
+            return "message-square"
+        elif self.flow_type == Flow.TYPE_VOICE:
+            return "phone"
+        return "flow"
 
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]

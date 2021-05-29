@@ -12,10 +12,11 @@
 -block subtitle
   .flex.flex-col
     .summary
-      -if object.group.is_active
-        -include "includes/recipients_group.haml" with group=object.group
-      -else
-        -trans "No group assigned to this campaign"
+      .inline-block
+        -if object.group.is_active
+          -include "includes/recipients_group.haml" with group=object.group
+        -else
+          -trans "No group assigned to this campaign"
 
 -block post-title
   -if object.is_archived
