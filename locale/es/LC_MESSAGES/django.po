@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-24 20:43+0000\n"
+"POT-Creation-Date: 2021-05-31 15:52+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -3947,30 +3947,6 @@ msgstr "Registro HTTP"
 msgid "Your ticketing service has been deleted."
 msgstr "Su servicio de Tickets ha sido eliminado."
 
-msgid "Keyword Trigger"
-msgstr "Activador de palabra clave"
-
-msgid "Schedule Trigger"
-msgstr "Activador de programa"
-
-msgid "Inbound Call Trigger"
-msgstr "Activador de llamada entrante"
-
-msgid "Missed Call Trigger"
-msgstr "Activador de llamada perdida"
-
-msgid "Catch All Trigger"
-msgstr "Obtener todos los activadores"
-
-msgid "New Conversation Trigger"
-msgstr "Activador de nueva conversación"
-
-msgid "USSD Pull Session Trigger"
-msgstr "Activador de sesión de extracción de USSD"
-
-msgid "Referral Trigger"
-msgstr "Activador de referencia"
-
 msgid "Message starts with the keyword"
 msgstr "El mensaje comienza con la palabra clave"
 
@@ -4051,7 +4027,9 @@ msgstr "Hora de inicio"
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Los grupos y contactos al que se comunicará el flujo"
 
-msgid "Trigger with this Channel already exists."
+#, fuzzy
+#| msgid "Trigger with this Channel already exists."
+msgid "Trigger with this channel already exists."
 msgstr "El activador con este canal ya existe."
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
@@ -7806,6 +7784,30 @@ msgstr "Las plantillas se sincronizan desde su cuenta de WhatsApp cada 15 minuto
 
 msgid "No synced templates at this time."
 msgstr "No hay plantillas sincronizadas en este momento."
+
+#~ msgid "Keyword Trigger"
+#~ msgstr "Activador de palabra clave"
+
+#~ msgid "Schedule Trigger"
+#~ msgstr "Activador de programa"
+
+#~ msgid "Inbound Call Trigger"
+#~ msgstr "Activador de llamada entrante"
+
+#~ msgid "Missed Call Trigger"
+#~ msgstr "Activador de llamada perdida"
+
+#~ msgid "Catch All Trigger"
+#~ msgstr "Obtener todos los activadores"
+
+#~ msgid "New Conversation Trigger"
+#~ msgstr "Activador de nueva conversación"
+
+#~ msgid "USSD Pull Session Trigger"
+#~ msgstr "Activador de sesión de extracción de USSD"
+
+#~ msgid "Referral Trigger"
+#~ msgstr "Activador de referencia"
 
 #, fuzzy
 #~| msgid "This workspace has been scheduled for deletion"

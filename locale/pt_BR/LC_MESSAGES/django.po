@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-24 20:43+0000\n"
+"POT-Creation-Date: 2021-05-31 15:52+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3953,30 +3953,6 @@ msgstr "Log HTTP"
 msgid "Your ticketing service has been deleted."
 msgstr "Seu serviço de tickets foi deletado."
 
-msgid "Keyword Trigger"
-msgstr "Disparador palavra-chave"
-
-msgid "Schedule Trigger"
-msgstr "Disparador agendamento"
-
-msgid "Inbound Call Trigger"
-msgstr "Disparador de chamada de entrada"
-
-msgid "Missed Call Trigger"
-msgstr "Disparador chamada perdida"
-
-msgid "Catch All Trigger"
-msgstr "Disparador capturar todas"
-
-msgid "New Conversation Trigger"
-msgstr "Novo Disparador de Conversa"
-
-msgid "USSD Pull Session Trigger"
-msgstr "USSD Pull Session Trigger"
-
-msgid "Referral Trigger"
-msgstr "Disparador de referência"
-
 msgid "Message starts with the keyword"
 msgstr "Mensagem começa com uma palavra-chave"
 
@@ -4057,7 +4033,9 @@ msgstr "Tempo de Início"
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Os grupos e contatos para os quais o fluxo será distribuído"
 
-msgid "Trigger with this Channel already exists."
+#, fuzzy
+#| msgid "Trigger with this Channel already exists."
+msgid "Trigger with this channel already exists."
 msgstr "O Gatilho com este Canal já existe."
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
@@ -7793,6 +7771,30 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#~ msgid "Keyword Trigger"
+#~ msgstr "Disparador palavra-chave"
+
+#~ msgid "Schedule Trigger"
+#~ msgstr "Disparador agendamento"
+
+#~ msgid "Inbound Call Trigger"
+#~ msgstr "Disparador de chamada de entrada"
+
+#~ msgid "Missed Call Trigger"
+#~ msgstr "Disparador chamada perdida"
+
+#~ msgid "Catch All Trigger"
+#~ msgstr "Disparador capturar todas"
+
+#~ msgid "New Conversation Trigger"
+#~ msgstr "Novo Disparador de Conversa"
+
+#~ msgid "USSD Pull Session Trigger"
+#~ msgstr "USSD Pull Session Trigger"
+
+#~ msgid "Referral Trigger"
+#~ msgstr "Disparador de referência"
 
 #, fuzzy
 #~| msgid "This workspace has been scheduled for deletion"

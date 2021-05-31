@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-24 20:43+0000\n"
+"POT-Creation-Date: 2021-05-31 15:52+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3887,30 +3887,6 @@ msgstr ""
 msgid "Your ticketing service has been deleted."
 msgstr ""
 
-msgid "Keyword Trigger"
-msgstr ""
-
-msgid "Schedule Trigger"
-msgstr ""
-
-msgid "Inbound Call Trigger"
-msgstr ""
-
-msgid "Missed Call Trigger"
-msgstr ""
-
-msgid "Catch All Trigger"
-msgstr ""
-
-msgid "New Conversation Trigger"
-msgstr ""
-
-msgid "USSD Pull Session Trigger"
-msgstr ""
-
-msgid "Referral Trigger"
-msgstr ""
-
 msgid "Message starts with the keyword"
 msgstr ""
 
@@ -3991,7 +3967,7 @@ msgstr ""
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr ""
 
-msgid "Trigger with this Channel already exists."
+msgid "Trigger with this channel already exists."
 msgstr ""
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"

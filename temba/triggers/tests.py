@@ -23,404 +23,6 @@ class TriggerTest(TembaTest):
 
         self.assertEqual('Trigger[type=K, flow="Test Flow"]', str(trigger))
 
-    def test_referral_trigger(self):
-        self.login(self.admin)
-        flow = self.create_flow()
-
-        self.fb_channel = Channel.create(
-            self.org,
-            self.user,
-            None,
-            "FB",
-            None,
-            "1234",
-            config={Channel.CONFIG_AUTH_TOKEN: "auth"},
-            uuid="00000000-0000-0000-0000-000000001234",
-        )
-
-        create_url = reverse("triggers.trigger_referral")
-
-        post_data = dict()
-        response = self.client.post(create_url, post_data)
-        self.assertEqual(list(response.context["form"].errors.keys()), ["flow"])
-
-        # ok, valid referrer id and flow
-        post_data = dict(flow=flow.id, referrer_id="signup")
-        response = self.client.post(create_url, post_data)
-        self.assertNoFormErrors(response)
-
-        # assert our trigger was created
-        first_trigger = Trigger.objects.get()
-        self.assertEqual(first_trigger.trigger_type, Trigger.TYPE_REFERRAL)
-        self.assertEqual(first_trigger.flow, flow)
-        self.assertIsNone(first_trigger.channel)
-
-        # empty referrer_id should create the trigger
-        post_data = dict(flow=flow.id, referrer_id="")
-        response = self.client.post(create_url, post_data)
-        self.assertNoFormErrors(response)
-
-        # try to create the same trigger, should fail as we can only have one per referrer
-        post_data = dict(flow=flow.id, referrer_id="signup")
-        response = self.client.post(create_url, post_data)
-        self.assertEqual(list(response.context["form"].errors.keys()), ["__all__"])
-
-        # should work if we specify a specific channel
-        post_data["channel"] = self.fb_channel.id
-        response = self.client.post(create_url, post_data)
-        self.assertNoFormErrors(response)
-
-        # load it
-        second_trigger = Trigger.objects.get(channel=self.fb_channel)
-        self.assertEqual(second_trigger.trigger_type, Trigger.TYPE_REFERRAL)
-        self.assertEqual(second_trigger.flow, flow)
-
-        # try updating it to a null channel
-        update_url = reverse("triggers.trigger_update", args=[second_trigger.id])
-        del post_data["channel"]
-        response = self.client.post(update_url, post_data)
-        self.assertEqual(list(response.context["form"].errors.keys()), ["__all__"])
-
-        # archive our first trigger
-        Trigger.apply_action_archive(self.admin, Trigger.objects.filter(channel=None))
-
-        # should now be able to update to a null channel
-        response = self.client.post(update_url, post_data)
-        self.assertNoFormErrors(response)
-        second_trigger.refresh_from_db()
-
-        self.assertIsNone(second_trigger.channel)
-
-    @patch("temba.flows.models.FlowStart.async_start")
-    def test_trigger_schedule(self, mock_async_start):
-        self.login(self.admin)
-
-        create_url = reverse("triggers.trigger_schedule")
-
-        flow = self.create_flow()
-        background_flow = self.get_flow("background")
-        self.get_flow("media_survey")
-
-        chester = self.create_contact("Chester", phone="+250788987654")
-        shinoda = self.create_contact("Shinoda", phone="+250234213455")
-        linkin_park = self.create_group("Linkin Park", [chester, shinoda])
-        stromae = self.create_contact("Stromae", phone="+250788645323")
-
-        response = self.client.get(create_url)
-
-        # the normal flow and background flow should be options but not the surveyor flow
-        self.assertEqual(list(response.context["form"].fields["flow"].queryset), [background_flow, flow])
-
-        now = timezone.now()
-        tommorrow = now + timedelta(days=1)
-        omnibox_selection = omnibox_serialize(flow.org, [linkin_park], [stromae], True)
-
-        # try to create trigger without a flow or omnibox
-        response = self.client.post(
-            create_url,
-            {
-                "omnibox": omnibox_selection,
-                "repeat_period": "D",
-                "start": "later",
-                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
-            },
-        )
-
-        self.assertEqual(list(response.context["form"].errors.keys()), ["flow"])
-        self.assertFalse(Trigger.objects.all())
-        self.assertFalse(Schedule.objects.all())
-
-        # this time provide a flow but leave out omnibox..
-        response = self.client.post(
-            create_url,
-            {
-                "flow": flow.id,
-                "repeat_period": "D",
-                "start": "later",
-                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
-            },
-        )
-        self.assertEqual(list(response.context["form"].errors.keys()), ["omnibox"])
-        self.assertFalse(Trigger.objects.all())
-        self.assertFalse(Schedule.objects.all())
-
-        # ok, really create it
-        self.client.post(
-            create_url,
-            {
-                "flow": flow.id,
-                "omnibox": omnibox_selection,
-                "repeat_period": "D",
-                "start": "later",
-                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
-            },
-        )
-
-        self.assertEqual(Trigger.objects.count(), 1)
-
-        self.client.post(
-            create_url,
-            {
-                "flow": flow.id,
-                "omnibox": omnibox_selection,
-                "repeat_period": "D",
-                "start": "later",
-                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
-            },
-        )
-
-        self.assertEqual(2, Trigger.objects.all().count())
-
-        trigger = Trigger.objects.order_by("id").last()
-
-        self.assertTrue(trigger.schedule)
-        self.assertEqual(trigger.schedule.repeat_period, "D")
-        self.assertEqual(set(trigger.groups.all()), {linkin_park})
-        self.assertEqual(set(trigger.contacts.all()), {stromae})
-
-        update_url = reverse("triggers.trigger_update", args=[trigger.pk])
-
-        # try to update a trigger without a flow
-        response = self.client.post(
-            update_url,
-            {
-                "omnibox": omnibox_selection,
-                "repeat_period": "O",
-                "start": "later",
-                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
-            },
-        )
-
-        self.assertEqual(list(response.context["form"].errors.keys()), ["flow"])
-
-        # provide flow this time, update contact
-        self.client.post(
-            update_url,
-            {
-                "flow": flow.id,
-                "omnibox": omnibox_serialize(flow.org, [linkin_park], [shinoda], True),
-                "repeat_period": "D",
-                "start": "later",
-                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
-            },
-        )
-
-        trigger.refresh_from_db()
-
-        self.assertTrue(trigger.schedule)
-        self.assertEqual(trigger.schedule.repeat_period, "D")
-        self.assertTrue(trigger.schedule.next_fire)
-        self.assertEqual(set(trigger.groups.all()), {linkin_park})
-        self.assertEqual(set(trigger.contacts.all()), {shinoda})
-
-        # can't submit weekly repeat without specifying the days to repeat on
-        response = self.client.post(
-            update_url,
-            {
-                "flow": flow.id,
-                "omnibox": omnibox_selection,
-                "repeat_period": "W",
-                "start": "later",
-                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
-            },
-        )
-
-        self.assertFormError(response, "form", "__all__", "Must specify at least one day of the week")
-
-        # or submit with invalid days
-        response = self.client.post(
-            update_url,
-            {
-                "flow": flow.id,
-                "omnibox": omnibox_selection,
-                "repeat_period": "W",
-                "repeat_days_of_week": "X",
-                "start": "later",
-                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
-            },
-        )
-
-        self.assertFormError(
-            response, "form", "repeat_days_of_week", "Select a valid choice. X is not one of the available choices."
-        )
-
-    def test_join_group_trigger(self):
-        self.login(self.admin)
-        group = self.create_group(name="Chat", contacts=[])
-
-        favorites = self.get_flow("favorites")
-
-        # create a trigger that sets up a group join flow
-        self.client.post(
-            reverse("triggers.trigger_register"),
-            {"keyword": "join", "action_join_group": group.id, "response": "Thanks for joining", "flow": favorites.id},
-        )
-
-        # did our group join flow get created?
-        flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE, name="Join Chat")
-        flow_def = flow.get_definition()
-
-        self.assertEqual(len(flow_def["nodes"]), 1)
-        self.assertEqual(len(flow_def["nodes"][0]["actions"]), 4)
-        self.assertEqual(flow_def["nodes"][0]["actions"][0]["type"], "add_contact_groups")
-        self.assertEqual(flow_def["nodes"][0]["actions"][1]["type"], "set_contact_name")
-        self.assertEqual(flow_def["nodes"][0]["actions"][2]["type"], "send_msg")
-        self.assertEqual(flow_def["nodes"][0]["actions"][3]["type"], "enter_flow")
-
-        # check that our trigger exists and shows our group
-        trigger = Trigger.objects.get(keyword="join", flow=flow)
-        self.assertEqual(trigger.flow.name, "Join Chat")
-
-        # the org has no language, so it should be a 'base' flow
-        self.assertEqual(flow.base_language, "base")
-
-        # deleting our contact group should leave our triggers and flows since the group can be recreated
-        self.client.post(reverse("contacts.contactgroup_delete", args=[group.id]))
-        self.assertTrue(Trigger.objects.get(pk=trigger.id).is_active)
-
-        # try creating a join group on an org with a language
-        language = Language.create(self.org, self.admin, "Klingon", "kli")
-        self.org.primary_language = language
-        self.org.save(update_fields=("primary_language",))
-
-        # now create another group trigger
-        group = self.create_group(name="Lang Group", contacts=[])
-        response = self.client.post(
-            reverse("triggers.trigger_register"),
-            {"keyword": "join_lang", "action_join_group": group.id, "response": "Thanks for joining"},
-        )
-
-        self.assertEqual(response.status_code, 200)
-
-        # confirm our objects
-        flow = Flow.objects.filter(flow_type=Flow.TYPE_MESSAGE).order_by("id").last()
-        trigger = Trigger.objects.get(keyword="join_lang", flow=flow)
-
-        self.assertEqual(trigger.flow.name, "Join Lang Group")
-
-        # the flow should be created with the primary language for the org
-        self.assertEqual(flow.base_language, "kli")
-
-    def test_join_group_nonlatin(self):
-        self.login(self.admin)
-        group = self.create_group(name="Chat", contacts=[])
-
-        # no keyword must show validation error
-        response = self.client.post(
-            reverse("triggers.trigger_register"), {"action_join_group": group.id, "keyword": "@#$"}
-        )
-        self.assertEqual(len(response.context["form"].errors), 1)
-
-        # create a trigger that sets up a group join flow
-        self.client.post(reverse("triggers.trigger_register"), {"action_join_group": group.id, "keyword": "١٠٠"})
-
-        # did our group join flow get created?
-        Flow.objects.get(flow_type=Flow.TYPE_MESSAGE)
-
-    def test_join_group_no_response_or_flow(self):
-        self.login(self.admin)
-
-        group = self.create_group(name="Chat", contacts=[])
-
-        # create a trigger that sets up a group join flow without a response or secondary flow
-        self.client.post(reverse("triggers.trigger_register"), {"action_join_group": group.id, "keyword": "join"})
-
-        # did our group join flow get created?
-        flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE)
-        flow_def = flow.get_definition()
-
-        self.assertEqual(len(flow_def["nodes"]), 1)
-        self.assertEqual(len(flow_def["nodes"][0]["actions"]), 2)
-        self.assertEqual(flow_def["nodes"][0]["actions"][0]["type"], "add_contact_groups")
-        self.assertEqual(flow_def["nodes"][0]["actions"][1]["type"], "set_contact_name")
-
-        # check that our trigger exists and shows our group
-        trigger = Trigger.objects.get(keyword="join", flow=flow)
-        self.assertEqual("Join Chat", trigger.flow.name)
-
-    def test_catch_all_trigger(self):
-        self.login(self.admin)
-
-        flow = self.get_flow("color")
-        trigger_url = reverse("triggers.trigger_catchall")
-
-        response = self.client.get(trigger_url)
-
-        self.assertEqual(response.status_code, 200)
-
-        self.client.post(trigger_url, {"flow": flow.id})
-
-        trigger = Trigger.objects.order_by("id").last()
-
-        self.assertEqual(trigger.trigger_type, Trigger.TYPE_CATCH_ALL)
-        self.assertEqual(trigger.flow, flow)
-
-        # update trigger to point to different flow
-        other_flow = Flow.copy(flow, self.admin)
-
-        self.client.post(reverse("triggers.trigger_update", args=[trigger.pk]), {"flow": other_flow.id})
-
-        trigger.refresh_from_db()
-
-        self.assertEqual(trigger.flow, other_flow)
-
-        # try to create another catch all trigger
-        response = self.client.post(trigger_url, {"flow": other_flow.id})
-
-        # shouldn't have succeeded as we already have a catch-all trigger
-        self.assertTrue(len(response.context["form"].errors))
-
-        # archive the previous one
-        old_catch_all = trigger
-        trigger.is_archived = True
-        trigger.save(update_fields=("is_archived",))
-
-        # try again
-        self.client.post(trigger_url, {"flow": other_flow.id})
-
-        # this time we are a go
-        new_catch_all = Trigger.objects.get(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL)
-
-        # now add a new trigger based on a group
-        group = self.create_group("Trigger Group", [])
-
-        self.client.post(trigger_url, {"flow": other_flow.id, "groups": group.id})
-
-        # should now have two catch all triggers
-        self.assertEqual(2, Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL).count())
-
-        group_catch_all = Trigger.objects.get(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL, groups=group)
-
-        # try to add another catchall trigger with a few different groups
-        group2 = self.create_group("Trigger Group 2", [])
-
-        response = self.client.post(trigger_url, {"flow": other_flow.id, "groups": [group.id, group2.id]})
-
-        # should have failed
-        self.assertTrue(len(response.context["form"].errors))
-
-        self.client.post(reverse("triggers.trigger_archived"), {"action": "restore", "objects": [old_catch_all.id]})
-
-        old_catch_all.refresh_from_db()
-        new_catch_all.refresh_from_db()
-
-        # our new triggers should have been auto-archived, our old one is now active
-        self.assertEqual(Trigger.objects.filter(is_archived=False, trigger_type=Trigger.TYPE_CATCH_ALL).count(), 2)
-        self.assertTrue(new_catch_all.is_archived)
-        self.assertFalse(old_catch_all.is_archived)
-
-        # ok, archive our old one too, leaving only our group specific trigger
-        old_catch_all.is_archived = True
-        old_catch_all.save(update_fields=("is_archived",))
-
-        # delete a group attached to a trigger
-        group.release()
-
-        # trigger should no longer be active
-        group_catch_all.refresh_from_db()
-
-        self.assertFalse(group_catch_all.is_active)
-
     def test_export_import(self):
         # tweak our current channel to be twitter so we can create a channel-based trigger
         Channel.objects.filter(id=self.channel.id).update(channel_type="TT")
@@ -516,6 +118,9 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_flow(flow_type=Flow.TYPE_BACKGROUND)
         self.create_flow(is_system=True)
 
+        group1 = self.create_group("Group 1", contacts=[])
+        group2 = self.create_group("Group 2", contacts=[])
+
         response = self.assertCreateFetch(
             create_url,
             allow_viewers=False,
@@ -525,6 +130,9 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # flow options should show messaging and voice flows
         self.assertEqual([flow1, flow2], list(response.context["form"].fields["flow"].queryset))
+
+        # group options are any group
+        self.assertEqual([group1, group2], list(response.context["form"].fields["groups"].queryset))
 
         # try a keyword with spaces
         self.assertCreateSubmit(
@@ -540,7 +148,14 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             form_errors={"keyword": "Keywords must be a single word containing only letter and numbers"},
         )
 
-        # test creating triggers with non-ASCII characters
+        # create a trigger with no groups
+        self.assertCreateSubmit(
+            create_url,
+            {"keyword": "startkeyword", "flow": flow1.id, "match_type": "F"},
+            new_obj_query=Trigger.objects.filter(keyword="startkeyword", flow=flow1),
+        )
+
+        # creating triggers with non-ASCII keywords
         self.assertCreateSubmit(
             create_url,
             {"keyword": "١٠٠", "flow": flow1.id, "match_type": "F"},
@@ -552,18 +167,245 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             new_obj_query=Trigger.objects.filter(keyword="मिलाए", flow=flow1),
         )
 
-        # and with an ASCII keyword
-        self.assertCreateSubmit(
-            create_url,
-            {"keyword": "startkeyword", "flow": flow1.id, "match_type": "F"},
-            new_obj_query=Trigger.objects.filter(keyword="startkeyword", flow=flow1),
-        )
-
         # try a duplicate keyword
         self.assertCreateSubmit(
             create_url,
-            {"keyword": "startkeyword", "flow": flow1.id, "match_type": "F"},
+            {"keyword": "startkeyword", "flow": flow2.id, "match_type": "F"},
             form_errors={"__all__": "An active trigger already exists, triggers must be unique for each group"},
+        )
+
+        # works if we specify a group
+        self.assertCreateSubmit(
+            create_url,
+            {"keyword": "startkeyword", "flow": flow2.id, "match_type": "F", "groups": group1.id},
+            new_obj_query=Trigger.objects.filter(keyword="startkeyword", flow=flow2, groups=group1),
+        )
+
+        # groups between triggers can't overlap
+        self.assertCreateSubmit(
+            create_url,
+            {"keyword": "startkeyword", "flow": flow2.id, "match_type": "F", "groups": f"{group1.id},{group2.id}"},
+            form_errors={"__all__": "An active trigger already exists, triggers must be unique for each group"},
+        )
+
+    def test_create_register(self):
+        create_url = reverse("triggers.trigger_register")
+        group1 = self.create_group(name="Chat", contacts=[])
+        group2 = self.create_group(name="Testers", contacts=[])
+        flow1 = self.create_flow("Flow 1")
+
+        response = self.assertCreateFetch(
+            create_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=["keyword", "action_join_group", "response", "flow"],
+        )
+
+        # group options are any group
+        self.assertEqual([group1, group2], list(response.context["form"].fields["action_join_group"].queryset))
+
+        self.assertCreateSubmit(
+            create_url,
+            {"keyword": "join", "action_join_group": group1.id, "response": "Thanks for joining", "flow": flow1.id},
+            new_obj_query=Trigger.objects.filter(keyword="join", flow__name="Join Chat"),
+            success_status=200,
+        )
+
+        # did our group join flow get created?
+        flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE, name="Join Chat")
+        flow_def = flow.get_definition()
+
+        self.assertEqual(1, len(flow_def["nodes"]))
+        self.assertEqual(
+            ["add_contact_groups", "set_contact_name", "send_msg", "enter_flow"],
+            [a["type"] for a in flow_def["nodes"][0]["actions"]],
+        )
+
+        # check that our trigger exists and shows our group
+        trigger = Trigger.objects.get(keyword="join", flow=flow)
+        self.assertEqual(trigger.flow.name, "Join Chat")
+
+        # the org has no language, so it should be a 'base' flow
+        self.assertEqual(flow.base_language, "base")
+
+        # try creating a join group on an org with a language
+        language = Language.create(self.org, self.admin, "Spanish", "spa")
+        self.org.primary_language = language
+        self.org.save(update_fields=("primary_language",))
+
+        self.assertCreateSubmit(
+            create_url,
+            {"keyword": "join2", "action_join_group": group2.id, "response": "Thanks for joining", "flow": flow1.id},
+            new_obj_query=Trigger.objects.filter(keyword="join2", flow__name="Join Testers"),
+            success_status=200,
+        )
+
+        flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE, name="Join Testers")
+        self.assertEqual(flow.base_language, "spa")
+
+    def test_create_register_no_response_or_flow(self):
+        create_url = reverse("triggers.trigger_register")
+        group = self.create_group(name="Chat", contacts=[])
+
+        # create a trigger that sets up a group join flow without a response or secondary flow
+        self.assertCreateSubmit(
+            create_url,
+            {"action_join_group": group.id, "keyword": "join"},
+            new_obj_query=Trigger.objects.filter(keyword="join", flow__name="Join Chat"),
+            success_status=200,
+        )
+
+        # did our group join flow get created?
+        flow = Flow.objects.get(flow_type=Flow.TYPE_MESSAGE)
+        flow_def = flow.get_definition()
+
+        self.assertEqual(1, len(flow_def["nodes"]))
+        self.assertEqual(
+            ["add_contact_groups", "set_contact_name"], [a["type"] for a in flow_def["nodes"][0]["actions"]]
+        )
+
+    def test_create_and_update_schedule(self):
+        create_url = reverse("triggers.trigger_schedule")
+
+        self.login(self.admin)
+
+        flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
+        flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_BACKGROUND)
+        flow3 = self.create_flow("Flow 3", flow_type=Flow.TYPE_VOICE)
+
+        # flows that shouldn't appear as options
+        self.create_flow("Flow 4", flow_type=Flow.TYPE_SURVEY)
+        self.create_flow("Flow 5", is_system=True)
+
+        chester = self.create_contact("Chester", phone="+250788987654")
+        shinoda = self.create_contact("Shinoda", phone="+250234213455")
+        linkin_park = self.create_group("Linkin Park", [chester, shinoda])
+        stromae = self.create_contact("Stromae", phone="+250788645323")
+
+        response = self.assertCreateFetch(
+            create_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=["flow", "omnibox", "repeat_period", "repeat_days_of_week", "start_datetime"],
+        )
+
+        # check we allow messaging, voice and background flows
+        self.assertEqual([flow1, flow2, flow3], list(response.context["form"].fields["flow"].queryset))
+
+        now = timezone.now()
+        tommorrow = now + timedelta(days=1)
+
+        # try to create trigger without a flow or omnibox
+        self.assertCreateSubmit(
+            create_url,
+            {
+                "repeat_period": "D",
+                "start": "later",
+                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
+            },
+            form_errors={"flow": "This field is required.", "omnibox": "This field is required."},
+        )
+
+        self.assertEqual(0, Trigger.objects.count())
+        self.assertEqual(0, Schedule.objects.count())
+
+        omnibox_selection = omnibox_serialize(self.org, [linkin_park], [stromae], True)
+
+        # now actually create some scheduled triggers
+        self.assertCreateSubmit(
+            create_url,
+            {
+                "flow": flow1.id,
+                "omnibox": omnibox_selection,
+                "repeat_period": "D",
+                "start": "later",
+                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
+            },
+            new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_SCHEDULE, flow=flow1),
+            success_status=200,
+        )
+
+        self.client.post(
+            create_url,
+            {
+                "flow": flow2.id,
+                "omnibox": omnibox_selection,
+                "repeat_period": "D",
+                "start": "later",
+                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
+            },
+            new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_SCHEDULE, flow=flow2),
+            success_status=200,
+        )
+
+        trigger = Trigger.objects.order_by("id").last()
+
+        self.assertIsNotNone(trigger.schedule)
+        self.assertEqual("D", trigger.schedule.repeat_period)
+        self.assertEqual({linkin_park}, set(trigger.groups.all()))
+        self.assertEqual({stromae}, set(trigger.contacts.all()))
+
+        update_url = reverse("triggers.trigger_update", args=[trigger.id])
+
+        # try to update a trigger without a flow or omnibox
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "repeat_period": "O",
+                "start": "later",
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
+            },
+            form_errors={"flow": "This field is required.", "omnibox": "This field is required."},
+            object_unchanged=trigger,
+        )
+
+        # provide flow this time, update contact
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "flow": flow1.id,
+                "omnibox": omnibox_serialize(self.org, [linkin_park], [shinoda], True),
+                "repeat_period": "D",
+                "start": "later",
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
+            },
+        )
+
+        trigger.refresh_from_db()
+
+        self.assertIsNotNone(trigger.schedule)
+        self.assertEqual("D", trigger.schedule.repeat_period)
+        self.assertIsNotNone(trigger.schedule.next_fire)
+        self.assertEqual({linkin_park}, set(trigger.groups.all()))
+        self.assertEqual({shinoda}, set(trigger.contacts.all()))
+
+        # can't submit weekly repeat without specifying the days to repeat on
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "flow": flow1.id,
+                "omnibox": omnibox_selection,
+                "repeat_period": "W",
+                "start": "later",
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
+            },
+            form_errors={"__all__": "Must specify at least one day of the week"},
+            object_unchanged=trigger,
+        )
+
+        # or submit with invalid days
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "flow": flow1.id,
+                "omnibox": omnibox_selection,
+                "repeat_period": "W",
+                "repeat_days_of_week": "X",
+                "start": "later",
+                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
+            },
+            form_errors={"repeat_days_of_week": "Select a valid choice. X is not one of the available choices."},
+            object_unchanged=trigger,
         )
 
     def test_create_inbound_call(self):
@@ -709,6 +551,118 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             success_status=200,
         )
         self.assertEqual(mock_vp_activate.call_count, 1)
+
+    @patch("temba.channels.types.facebook.FacebookType.activate_trigger")
+    def test_create_referral(self, mock_fb_activate):
+        create_url = reverse("triggers.trigger_new_conversation")
+        flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
+        flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_MESSAGE)
+
+        # flows that shouldn't appear as options
+        self.create_flow("Flow 3", flow_type=Flow.TYPE_VOICE)
+        self.create_flow("Flow 4", flow_type=Flow.TYPE_BACKGROUND)
+        self.create_flow("Flow 5", is_system=True)
+
+        channel1 = self.create_channel("FB", "Facebook 1", "1234567")
+        channel2 = self.create_channel("FB", "Facebook 2", "2345678")
+        self.create_channel("A", "Android Channel", "+1234")
+
+        response = self.assertCreateFetch(
+            create_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=["channel", "flow"],
+        )
+
+        # flow options should show messaging and voice flows
+        self.assertEqual([flow1, flow2], list(response.context["form"].fields["flow"].queryset))
+
+        # channel options should only be channels that support referrals
+        self.assertEqual([channel1, channel2], list(response.context["form"].fields["channel"].queryset))
+
+        # go create it
+        self.assertCreateSubmit(
+            create_url,
+            {"channel": channel1.id, "flow": flow1.id},
+            new_obj_query=Trigger.objects.filter(
+                trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False, channel=channel1
+            ),
+            success_status=200,
+        )
+        self.assertEqual(mock_fb_activate.call_count, 1)
+
+        # try to create another one, fails as we already have a trigger for that channel
+        self.assertCreateSubmit(
+            create_url,
+            {"channel": channel1.id, "flow": flow1.id},
+            form_errors={"channel": "Trigger with this channel already exists."},
+        )
+
+        # but can create a different trigger for a different channel
+        self.assertCreateSubmit(
+            create_url,
+            {"channel": channel2.id, "flow": flow1.id},
+            new_obj_query=Trigger.objects.filter(
+                trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False, channel=channel2
+            ),
+            success_status=200,
+        )
+        self.assertEqual(mock_fb_activate.call_count, 2)
+
+    def test_create_catchall(self):
+        create_url = reverse("triggers.trigger_catchall")
+        flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
+        flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_VOICE)
+
+        # flows that shouldn't appear as options
+        self.create_flow(flow_type=Flow.TYPE_BACKGROUND)
+        self.create_flow(is_system=True)
+
+        group1 = self.create_group("Group 1", contacts=[])
+        group2 = self.create_group("Group 2", contacts=[])
+
+        response = self.assertCreateFetch(
+            create_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=["flow", "groups"],
+        )
+
+        # flow options should show messaging and voice flows
+        self.assertEqual([flow1, flow2], list(response.context["form"].fields["flow"].queryset))
+
+        # group options are any group
+        self.assertEqual([group1, group2], list(response.context["form"].fields["groups"].queryset))
+
+        # create a trigger with no groups
+        self.assertCreateSubmit(
+            create_url,
+            {"flow": flow1.id},
+            new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_CATCH_ALL, flow=flow1),
+            success_status=200,
+        )
+
+        # try a duplicate catch all with no groups
+        self.assertCreateSubmit(
+            create_url,
+            {"flow": flow2.id},
+            form_errors={"__all__": "An active trigger already exists, triggers must be unique for each group"},
+        )
+
+        # works if we specify a group
+        self.assertCreateSubmit(
+            create_url,
+            {"flow": flow2.id, "groups": group1.id},
+            new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_CATCH_ALL, flow=flow2),
+            success_status=200,
+        )
+
+        # groups between triggers can't overlap
+        self.assertCreateSubmit(
+            create_url,
+            {"keyword": "startkeyword", "flow": flow2.id, "match_type": "F", "groups": f"{group1.id},{group2.id}"},
+            form_errors={"__all__": "An active trigger already exists, triggers must be unique for each group"},
+        )
 
     def test_update_keyword(self):
         flow = self.create_flow()

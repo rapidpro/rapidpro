@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-24 20:43+0000\n"
+"POT-Creation-Date: 2021-05-31 15:52+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3955,30 +3955,6 @@ msgstr ""
 msgid "Your ticketing service has been deleted."
 msgstr ""
 
-msgid "Keyword Trigger"
-msgstr "Триггер Ключевого слова"
-
-msgid "Schedule Trigger"
-msgstr "Триггер Расписания"
-
-msgid "Inbound Call Trigger"
-msgstr "Триггер Входящего Вызова"
-
-msgid "Missed Call Trigger"
-msgstr "Триггер Пропущенного Вызова"
-
-msgid "Catch All Trigger"
-msgstr "Триггер Перехвата всего"
-
-msgid "New Conversation Trigger"
-msgstr "Триггер Нового Разговора"
-
-msgid "USSD Pull Session Trigger"
-msgstr "Триггер сессии USSD Pull "
-
-msgid "Referral Trigger"
-msgstr "Триггер Направления"
-
 msgid "Message starts with the keyword"
 msgstr "Сообщение начинается с ключевого слова"
 
@@ -4061,7 +4037,9 @@ msgstr ""
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Группы и контакты, которым поток будет осуществлять рассылку"
 
-msgid "Trigger with this Channel already exists."
+#, fuzzy
+#| msgid "Trigger with this Channel already exists."
+msgid "Trigger with this channel already exists."
 msgstr "Триггер для этого Канала уже существует."
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
@@ -7658,6 +7636,30 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#~ msgid "Keyword Trigger"
+#~ msgstr "Триггер Ключевого слова"
+
+#~ msgid "Schedule Trigger"
+#~ msgstr "Триггер Расписания"
+
+#~ msgid "Inbound Call Trigger"
+#~ msgstr "Триггер Входящего Вызова"
+
+#~ msgid "Missed Call Trigger"
+#~ msgstr "Триггер Пропущенного Вызова"
+
+#~ msgid "Catch All Trigger"
+#~ msgstr "Триггер Перехвата всего"
+
+#~ msgid "New Conversation Trigger"
+#~ msgstr "Триггер Нового Разговора"
+
+#~ msgid "USSD Pull Session Trigger"
+#~ msgstr "Триггер сессии USSD Pull "
+
+#~ msgid "Referral Trigger"
+#~ msgstr "Триггер Направления"
 
 #~ msgid "Remove Android"
 #~ msgstr "Удалить Android"

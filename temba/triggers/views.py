@@ -101,7 +101,7 @@ class BaseGroupsTriggerForm(BaseTriggerForm):
     """
 
     groups = forms.ModelMultipleChoiceField(
-        queryset=ContactGroup.user_groups.filter(pk__lt=0),
+        queryset=ContactGroup.user_groups.none(),
         required=False,
         widget=SelectMultipleWidget(
             attrs={"widget_only": True, "placeholder": _("Optional: Trigger only applies to these groups")}
@@ -111,7 +111,9 @@ class BaseGroupsTriggerForm(BaseTriggerForm):
     def __init__(self, user, trigger_type, *args, **kwargs):
         super().__init__(user, trigger_type, *args, **kwargs)
 
-        self.fields["groups"].queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True)
+        org = self.user.get_org()
+
+        self.fields["groups"].queryset = ContactGroup.user_groups.filter(org=org, is_active=True).order_by("name")
 
     def get_existing_triggers(self, cleaned_data):
         groups = cleaned_data.get("groups", [])
@@ -158,20 +160,6 @@ class KeywordTriggerForm(BaseGroupsTriggerForm):
         widgets = {"keyword": InputWidget(), "match_type": SelectWidget()}
 
 
-class CatchAllTriggerForm(BaseGroupsTriggerForm):
-    """
-    Form for catchall triggers
-    """
-
-    def __init__(self, user, *args, **kwargs):
-        super().__init__(user, Trigger.TYPE_CATCH_ALL, *args, **kwargs)
-
-    def get_existing_triggers(self, cleaned_data):
-        existing = super().get_existing_triggers(cleaned_data)
-        existing = existing.filter(keyword=None, trigger_type=Trigger.TYPE_CATCH_ALL)
-        return existing
-
-
 class RegisterTriggerForm(BaseTriggerForm):
     """
     Wizard form that creates keyword trigger which starts contacts in a newly created flow which adds them to a group
@@ -195,7 +183,7 @@ class RegisterTriggerForm(BaseTriggerForm):
     )
 
     action_join_group = AddNewGroupChoiceField(
-        ContactGroup.user_groups.filter(pk__lt=0),
+        ContactGroup.user_groups.none(),
         required=True,
         label=_("Group to Join"),
         help_text=_("The group the contact will join when they send the above keyword"),
@@ -382,6 +370,19 @@ class ReferralTriggerForm(BaseTriggerForm):
 
     class Meta(BaseTriggerForm.Meta):
         fields = ("channel", "referrer_id", "flow")
+
+
+class CatchAllTriggerForm(BaseGroupsTriggerForm):
+    """
+    Form for catchall triggers
+    """
+
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(user, Trigger.TYPE_CATCH_ALL, *args, **kwargs)
+
+    def get_existing_triggers(self, cleaned_data):
+        existing = super().get_existing_triggers(cleaned_data)
+        return existing.filter(keyword=None, trigger_type=Trigger.TYPE_CATCH_ALL)
 
 
 class TriggerCRUDL(SmartCRUDL):
