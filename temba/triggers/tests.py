@@ -84,9 +84,9 @@ class TriggerTest(TembaTest):
 class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create(self):
         create_url = reverse("triggers.trigger_create")
-        create_new_convo_url = reverse("triggers.trigger_new_conversation")
-        create_inbound_call_url = reverse("triggers.trigger_inbound_call")
-        create_missed_call_url = reverse("triggers.trigger_missed_call")
+        create_new_convo_url = reverse("triggers.trigger_create_new_conversation")
+        create_inbound_call_url = reverse("triggers.trigger_create_inbound_call")
+        create_missed_call_url = reverse("triggers.trigger_create_missed_call")
 
         self.assertLoginRedirect(self.client.get(create_url))
 
@@ -110,7 +110,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertContains(response, create_new_convo_url)
 
     def test_create_keyword(self):
-        create_url = reverse("triggers.trigger_keyword")
+        create_url = reverse("triggers.trigger_create_keyword")
         flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
         flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_VOICE)
 
@@ -189,7 +189,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
     def test_create_register(self):
-        create_url = reverse("triggers.trigger_register")
+        create_url = reverse("triggers.trigger_create_register")
         group1 = self.create_group(name="Chat", contacts=[])
         group2 = self.create_group(name="Testers", contacts=[])
         flow1 = self.create_flow("Flow 1")
@@ -244,7 +244,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(flow.base_language, "spa")
 
     def test_create_register_no_response_or_flow(self):
-        create_url = reverse("triggers.trigger_register")
+        create_url = reverse("triggers.trigger_create_register")
         group = self.create_group(name="Chat", contacts=[])
 
         # create a trigger that sets up a group join flow without a response or secondary flow
@@ -265,7 +265,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
     def test_create_and_update_schedule(self):
-        create_url = reverse("triggers.trigger_schedule")
+        create_url = reverse("triggers.trigger_create_schedule")
 
         self.login(self.admin)
 
@@ -424,7 +424,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_flow("Flow 5", is_system=True)
         self.create_flow("Flow 6", org=self.org2)
 
-        create_url = reverse("triggers.trigger_inbound_call")
+        create_url = reverse("triggers.trigger_create_inbound_call")
 
         response = self.assertCreateFetch(
             create_url, allow_viewers=False, allow_editors=True, form_fields=["flow", "groups"]
@@ -467,7 +467,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_flow("Flow 5", is_system=True)
         self.create_flow("Flow 6", org=self.org2)
 
-        create_url = reverse("triggers.trigger_missed_call")
+        create_url = reverse("triggers.trigger_create_missed_call")
 
         response = self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=["flow"])
 
@@ -497,7 +497,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
     @patch("temba.channels.types.facebook.FacebookType.activate_trigger")
     @patch("temba.channels.types.viber_public.ViberPublicType.activate_trigger")
     def test_create_new_conversation(self, mock_vp_activate, mock_fb_activate):
-        create_url = reverse("triggers.trigger_new_conversation")
+        create_url = reverse("triggers.trigger_create_new_conversation")
         flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
         flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_MESSAGE)
 
@@ -554,7 +554,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @patch("temba.channels.types.facebook.FacebookType.activate_trigger")
     def test_create_referral(self, mock_fb_activate):
-        create_url = reverse("triggers.trigger_new_conversation")
+        create_url = reverse("triggers.trigger_create_new_conversation")
         flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
         flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_MESSAGE)
 
@@ -610,7 +610,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(mock_fb_activate.call_count, 2)
 
     def test_create_catchall(self):
-        create_url = reverse("triggers.trigger_catchall")
+        create_url = reverse("triggers.trigger_create_catchall")
         flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
         flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_VOICE)
 
@@ -758,7 +758,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         trigger.save(update_fields=("is_archived",))
 
         post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F")
-        response = self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
+        response = self.client.post(reverse("triggers.trigger_create_keyword"), data=post_data)
         self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 2)
         self.assertEqual(1, Trigger.objects.filter(keyword="startkeyword", is_archived=False).count())
         other_trigger = Trigger.objects.filter(keyword="startkeyword", is_archived=False)[0]
@@ -787,14 +787,14 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # update trigger with 2 groups
         post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F", groups=[group1.pk, group2.pk])
-        response = self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
+        response = self.client.post(reverse("triggers.trigger_create_keyword"), data=post_data)
         self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 3)
         self.assertEqual(Trigger.objects.filter(keyword="startkeyword", is_archived=False).count(), 2)
 
         # get error when groups overlap
         post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F")
         post_data["groups"] = [group2.pk, group3.pk]
-        response = self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
+        response = self.client.post(reverse("triggers.trigger_create_keyword"), data=post_data)
         self.assertEqual(1, len(response.context["form"].errors))
         self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 3)
         self.assertEqual(Trigger.objects.filter(keyword="startkeyword", is_archived=False).count(), 2)
@@ -802,7 +802,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # allow new creation when groups do not overlap
         post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F")
         post_data["groups"] = [group3.pk]
-        self.client.post(reverse("triggers.trigger_keyword"), data=post_data)
+        self.client.post(reverse("triggers.trigger_create_keyword"), data=post_data)
         self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 4)
         self.assertEqual(Trigger.objects.filter(keyword="startkeyword", is_archived=False).count(), 3)
 
