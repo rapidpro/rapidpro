@@ -159,9 +159,8 @@
           Accept : "application/json; charset=utf-8; indent=4;",
           "Content-Type": "application/json; charset=utf-8; indent=4;"
         },
-        dataType: dataType,
         success: function(data, textStatus, xhr){
-          data = dataType === "json" ? JSON.stringify(data, null, 2) : data;
+          data = xhr.getResponseHeader("Content-Type") === "application/json" ? JSON.stringify(data, null, 2) : data;
           var trace = "HTTP/1.0 " + xhr.status + " " + textStatus.toUpperCase() + "\n" + data;
           $("#result-" + slug).show().text(trace);
         },

@@ -1,6 +1,7 @@
 import itertools
 import json
 import re
+from functools import reduce
 
 import regex
 import requests
@@ -9,6 +10,7 @@ from enum import Enum
 from mimetypes import guess_extension
 
 from django.conf import settings
+from django.db import connection
 from django.template.defaultfilters import slugify
 from parse_rest.datatypes import Date
 from rest_framework import generics, status, views
@@ -93,7 +95,7 @@ from .serializers import (
     UrlAttachmentValidationSerializer,
     WebHookEventReadSerializer,
 )
-from ...links.models import Link
+from ...links.models import Link, LinkContacts
 from ...orgs.models import LOOKUPS, DEFAULT_FIELDS_PAYLOAD_LOOKUPS, DEFAULT_INDEXES_FIELDS_PAYLOAD_LOOKUPS
 
 
@@ -4456,12 +4458,13 @@ class ReportEndpointMixin:
             queryset = getattr(queryset, filter_type)(filters_by_name)
 
         if any(values_fo_filter_by.values()):
-            self.applied_filters[field_name] = dict(item for item in values_fo_filter_by.items() if item[1])
+            self.applied_filters[field_name] = ", ".join(
+                [*values_fo_filter_by["names"], *values_fo_filter_by["uuids"]]
+            )
         return queryset
 
-    def get_contacts(self, count_only=False):
+    def get_contacts(self, count_only=False, only_active=True):
         org = self.request.user.get_org()
-        contacts = Contact.objects.filter(org=org, status=Contact.STATUS_ACTIVE, is_active=True).distinct()
 
         # get search query
         search_query = self.request.GET.get("search_query", self.request.data.get("search_query", ""))
@@ -4493,6 +4496,13 @@ class ReportEndpointMixin:
                 }
             }
         main_conditions = elastic_query_conf.get("bool", {}).get("must", [])
+
+        if not only_active:
+            try:
+                main_conditions.pop(1)  # remove condition `is_active`
+                main_conditions.pop(1)  # remove condition `groups` (filter by active group)
+            except IndexError:
+                pass
 
         # add group filter conditions
         if groups_filter["uuids"]:
@@ -4546,12 +4556,12 @@ class ReportEndpointMixin:
         if channel_filters["names"]:
             es_channel_filters.extend(
                 [
-                    {"match_phrase": {"urns.channel_uuid": {"query": channel_uuid}}}
-                    for channel_uuid in channel_filters["uuids"]
+                    {"match_phrase": {"urns.channel_name": {"query": channel_name}}}
+                    for channel_name in channel_filters["names"]
                 ]
             )
-        main_conditions.append(es_channels_filter_config)
         if any(channel_filters.values()):
+            main_conditions.append(es_channels_filter_config)
             self.applied_filters["channel"] = ", ".join([*channel_filters["names"], *channel_filters["uuids"]])
 
         # filter by flow
@@ -4559,18 +4569,22 @@ class ReportEndpointMixin:
         if flow_uuid:
             if not is_uuid_valid(flow_uuid):
                 raise SearchException(_("The `flow` parameter is not valid."))
-            main_conditions.append({"match_phrase": {"flows.uuid": flow_uuid}})
+            main_conditions.append({"term": {"flows": flow_uuid}})
             self.applied_filters["flow"] = flow_uuid
 
         # get contact ids from elasticsearch database
         contact_ids = query_contact_ids_from_elasticsearch(org, elastic_query_conf)
 
         # return only count of contacts from elasticsearch id no need in actual records
-        if count_only and not {"flow", "channel"}.intersection(self.applied_filters):
+        if count_only:
+            contacts = Contact.objects.none()
             contacts.count = lambda: len(contact_ids)
+            contacts.values_list = lambda *args, **kwargs: contact_ids
             return contacts
 
-        return contacts.filter(id__in=contact_ids)
+        return Contact.objects.filter(
+            org=org, status=Contact.STATUS_ACTIVE, is_active=True, id__in=contact_ids
+        ).distinct()
 
 
 class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
@@ -4604,24 +4618,10 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         {
             "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
-            "channel": {
-                "uuids": [
-                    "43cd6c9e-25cd-4512-bf29-d2999a4a27a3"
-                ]
-            },
-            "group": {
-                "names": [
-                    "Contacts"
-                ]
-            },
-            "exclude": {
-                "names": [
-                    "Restaurant Contacts"
-                ]
-            },
+            "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
             "before": "2022-01-01T22:50:21.061616+02:00",
             "after": "2021-01-01T22:50:21.061907+02:00",
-            "search_query": "name ~ \"john dou\"",
+            "search_query": "name ~ \"john dou\" AND group = \"Contacts\" AND group != \"Restaurant Contacts\"",
             "results": [
                 {
                     "total_unique_contacts": 1
@@ -4653,6 +4653,7 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
     def csv_convertor(result, response):
         import csv
 
+        result["Total Contacts"] = result.pop("total_unique_contacts")
         writer = csv.writer(response)
         writer.writerows(list(result.items()))
 
@@ -4678,7 +4679,11 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
                     {
                         "search_query": "created_on < 2021-01-01",
                         "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
+                        "channel": "c946d22e-ec6d-4b17-b455-d7784400d92a",
+                        "group": "Contacts",
                         "exclude": "Restaurant Contacts",
+                        "after": "2020-01-01",
+                        "before": "2025-01-01",
                     }
                 ),
                 query="export_csv=false",
@@ -4994,7 +4999,52 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         )
 
 
-class FlowReportEndpoint(BaseAPIView, ReportEndpointMixin):
+class FlowReportFiltersMixin(ReportEndpointMixin):
+    def prepare_filters(self, org, flow):
+        self.applied_filters = {"flow": flow.uuid}
+        _filters = [("flows_flowrun.flow_id", "=", flow.id)]
+
+        if {"channel", "exclude", "group"}.intersection(
+            [*self.request.query_params.keys(), *self.request.data.keys()]
+        ):
+            # get contact ids from elasticsearch database
+            contact_ids = self.get_contacts(count_only=True, only_active=False).values_list("id")
+            contact_ids = list(map(lambda x: str(x), contact_ids))
+            if contact_ids:
+                contact_ids = "(%s)" % ", ".join(contact_ids)
+                _filters.append(("contact_id", "IN", contact_ids))
+            else:
+                _filters.append(("contact_id", "=", 0))
+
+        # filter by datetime fields
+        started_after = self.request.data.get("started_after", self.request.query_params.get("started_after", ""))
+        started_after = org.parse_datetime(started_after)
+        if started_after:
+            _filters.append(("created_on", ">=", f"'{started_after}'"))
+            self.applied_filters["started_after"] = started_after
+
+        started_before = self.request.data.get("started_before", self.request.query_params.get("started_before", ""))
+        started_before = org.parse_datetime(started_before)
+        if started_before:
+            _filters.append(("created_on", "<=", f"'{started_before}'"))
+            self.applied_filters["started_before"] = started_before
+
+        exited_after = self.request.data.get("exited_after", self.request.query_params.get("exited_after", ""))
+        exited_after = org.parse_datetime(exited_after)
+        if exited_after:
+            _filters.append(("created_on", ">=", f"'{exited_after}'"))
+            self.applied_filters["exited_after"] = exited_after
+
+        exited_before = self.request.data.get("exited_before", self.request.query_params.get("exited_before", ""))
+        exited_before = org.parse_datetime(exited_before)
+        if exited_before:
+            _filters.append(("created_on", "<=", f"'{exited_before}'"))
+            self.applied_filters["exited_before"] = exited_before
+
+        return _filters
+
+
+class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     """
     This endpoint allows you to generate short report about flow runs for a certain flow.
 
@@ -5051,50 +5101,39 @@ class FlowReportEndpoint(BaseAPIView, ReportEndpointMixin):
     def get(self, request, *args, **kwargs):
         org = self.request.user.get_org()
         try:
-            flow = Flow.objects.get(uuid=self.request.data.get("flow", self.request.query_params.get("flow")))
+            flow = Flow.objects.get(org=org, uuid=self.request.data.get("flow", self.request.query_params.get("flow")))
         except Flow.DoesNotExist:
             return Response(
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
-        queryset = FlowRun.objects.filter(org=org, flow=flow)
-        filters = (
-            ("started_after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
-            ("started_before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
-            ("exited_after", lambda x: queryset.filter(exited_on__gte=org.parse_datetime(x))),
-            ("exited_before", lambda x: queryset.filter(exited_on__lte=org.parse_datetime(x))),
-            (
-                "channel",
-                lambda x: self.name_uuid_filtering(
-                    queryset, "channel", "contact__urns__channel__uuid", "contact__urns__channel__uuid"
-                ),
-            ),
-            (
-                "exclude",
-                lambda x: self.name_uuid_filtering(
-                    queryset, "exclude", "contact__all_groups__uuid", "contact__all_groups__name", "exclude"
-                ),
-            ),
-        )
-        self.applied_filters = {}
-        for name, _filter in filters:
-            filter_value = self.request.data.get(name, self.request.GET.get(name))
-            if filter_value:
-                queryset = _filter(filter_value)
-                self.applied_filters[name] = filter_value
 
-        return Response(
-            {
-                **self.applied_filters,
-                "results": [
-                    queryset.aggregate(
-                        total_contacts=Count("contact_id", distinct=True),
-                        total_completes=Count("id", filter=Q(exit_type=FlowRun.EXIT_TYPE_COMPLETED)),
-                        total_expired=Count("id", filter=Q(exit_type=FlowRun.EXIT_TYPE_EXPIRED)),
-                        total_interrupts=Count("id", filter=Q(exit_type=FlowRun.STATUS_INTERRUPTED)),
-                    )
-                ],
+        _filters = self.prepare_filters(org, flow)
+        with connection.cursor() as cursor:
+            query_template = """
+            SELECT
+            (
+                SELECT COUNT(DISTINCT "flows_flowrun"."contact_id")
+                FROM "flows_flowrun" WHERE %s
+            ) AS "total_contacts",
+            json_object_agg(t.exit_type, t.count) AS "counts"
+            FROM (
+                SELECT "flows_flowrun"."exit_type", count(*)
+                FROM "flows_flowrun"
+                WHERE "flows_flowrun"."exit_type" IS NOT NULL AND %s
+                GROUP BY "flows_flowrun"."exit_type"
+            ) t;
+            """
+            filters = " AND ".join(f"{key} {op} {value}" for key, op, value in _filters)
+            cursor.execute(query_template % (filters, filters))
+            result = cursor.fetchone()
+            results = {
+                "total_contacts": result[0],
+                "total_completes": (result[1] or {}).get(FlowRun.EXIT_TYPE_COMPLETED, 0),
+                "total_expired": (result[1] or {}).get(FlowRun.EXIT_TYPE_EXPIRED, 0),
+                "total_interrupts": (result[1] or {}).get(FlowRun.STATUS_INTERRUPTED, 0),
             }
-        )
+
+        return Response({**self.applied_filters, "results": [results]})
 
     @staticmethod
     def csv_convertor(result, response):
@@ -5147,7 +5186,7 @@ class FlowReportEndpoint(BaseAPIView, ReportEndpointMixin):
         )
 
 
-class FlowVariableReportEndpoint(BaseAPIView, ReportEndpointMixin):
+class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     """
     This endpoint allows you to generate a report based on contact responses.
 
@@ -5205,40 +5244,17 @@ class FlowVariableReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
     @csv_response_wrapper
     def post(self, request, *args, **kwargs):
-        self.applied_filters = {}
         org = self.request.user.get_org()
         try:
-            flow = Flow.objects.get(uuid=self.request.data.get("flow"))
-            self.applied_filters["flow"] = flow.uuid
+            flow = Flow.objects.get(org=org, uuid=self.request.data.get("flow"))
         except Flow.DoesNotExist:
             return Response(
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
-        queryset = FlowRun.objects.filter(org=org, flow=flow)
-        filters = (
-            ("started_after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
-            ("started_before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
-            ("exited_after", lambda x: queryset.filter(exited_on__gte=org.parse_datetime(x))),
-            ("exited_before", lambda x: queryset.filter(exited_on__lte=org.parse_datetime(x))),
-            (
-                "channel",
-                lambda x: self.name_uuid_filtering(
-                    queryset, "channel", "contact__urns__channel__uuid", "contact__urns__channel__uuid"
-                ),
-            ),
-            (
-                "exclude",
-                lambda x: self.name_uuid_filtering(
-                    queryset, "exclude", "contact__all_groups__uuid", "contact__all_groups__name", "exclude"
-                ),
-            ),
-        )
 
-        for name, _filter in filters:
-            filter_value = self.request.data.get(name)
-            if filter_value:
-                queryset = _filter(filter_value)
-                self.applied_filters[name] = filter_value
+        _queries = []
+        _grouping = []
+        _filters = self.prepare_filters(org, flow)
 
         counts = defaultdict(lambda: Counter())
         requested_variables = self.request.data.get("variables")
@@ -5254,20 +5270,26 @@ class FlowVariableReportEndpoint(BaseAPIView, ReportEndpointMixin):
                     {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}}
                 )
             _format = conf.get("format", "").lower()
-            if _format not in ["category", "value"]:
-                _format = "category"
-            variable_filters[variable] = {"format": _format}
-            if _format == "value" and type(conf.get("top")) is int:
-                variable_filters[variable]["top"] = conf.get("top")
-                top_ordering[variable] = conf.get("top")
-            if _format == "category":
-                counts[variable] = Counter({category: 0 for category in existing_variables[variable]["categories"]})
-        self.applied_filters["variables"] = variable_filters
+            _format = _format if _format in ["category", "value"] else "category"
+            _grouping.append(variable)
+            _queries.append(
+                f"json_extract_path_text(flows_flowrun.results::json, '{variable}', '{_format}') as {variable}"
+            )
+            top_x = conf.get("top")
+            variable_filters[variable] = {"format": _format, "top": top_x} if top_x else {"format": _format}
+            top_ordering.update(**({variable: top_x} if top_x else {}))
 
-        for flow_run in queryset:
-            for result_name, result in flow_run.results.items():
-                if result_name in variable_filters:
-                    counts[result_name][result[variable_filters[result_name]["format"]]] += 1
+        self.applied_filters["variables"] = variable_filters
+        with connection.cursor() as cursor:
+            query_template = "SELECT %s, count(*) FROM flows_flowrun WHERE %s GROUP BY %s"
+            filters = " AND ".join(f"{key} {op} {value}" for key, op, value in _filters)
+            queries = ", ".join(_queries)
+            grouping = ", ".join(_grouping)
+            cursor.execute(query_template % (queries, filters, grouping))
+            for res in cursor.fetchall():
+                for i, variable in enumerate(_grouping):
+                    if res[i] is not None:
+                        counts[variable][res[i]] += res[-1]
 
         for variable, top_x in top_ordering.items():
             counts[variable] = dict(counts[variable].most_common(top_x))
@@ -5332,13 +5354,16 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
     A **GET** returns numbers of clicks and contacts who received the link
 
-    * **link_name** - Name of link to generate report for
+    * **link** - UUID or Name of the link to generate report for
+    * **exclude** - UUID or Name of contact group, contacts from which are not supposed to be included in the report
+    * **after** - Date, excludes all contact clicks from the report that were modified earlier a certain date
+    * **before** - Date, excludes all contacts clicks from the report that were modified later a certain date
 
     Example:
 
         GET /api/v2/trackable_link_report.json
         {
-            "link_name": "google"
+            "link": "google"
         }
 
     Response:
@@ -5367,9 +5392,13 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
     @csv_response_wrapper
     def get(self, *args, **kwargs):
         org = self.request.user.get_org()
-        link_name = self.request.data.get("link_name", self.request.GET.get("link_name", ""))
-        link = Link.objects.filter(org=org, name__icontains=link_name).first()
-        if not link_name or link is None:
+        link_name, link = self.request__get_separated_names_and_uuids("link"), None
+        if link_name["uuids"]:
+            link = Link.objects.filter(org=org, uuid=link_name["uuids"][0]).first()
+        elif link_name["names"]:
+            link = Link.objects.filter(org=org, name__iexact=link_name["names"][0]).first()
+        if link is None:
+            link_name = ", ".join([*link_name["names"], *link_name["uuids"]])
             errors = {
                 status.HTTP_400_BAD_REQUEST: _("Parameter 'link_name' is not provider."),
                 status.HTTP_404_NOT_FOUND: _("Link with name '{}' not found.").format(link_name),
@@ -5393,7 +5422,13 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
         if after:
             time_filters &= Q(modified_on__gte=org.parse_datetime(after))
 
-        unique_clicks = link.contacts.filter(time_filters).exclude(group_exclude_filters).distinct().count()
+        unique_clicks = (
+            LinkContacts.objects.filter(link_id=link.id)
+            .filter(time_filters)
+            .exclude(group_exclude_filters)
+            .distinct()
+            .count()
+        )
         unique_contacts = (
             link.related_flow.runs.filter(time_filters)
             .exclude(group_exclude_filters)
@@ -5410,7 +5445,7 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
                     "total_clicks": link.clicks_count,
                     "unique_clicks": unique_clicks,
                     "unique_contacts": unique_contacts,
-                    "clickthrough_rate": unique_clicks / unique_contacts if unique_clicks and unique_contacts else 0,
+                    "clickthrough_rate": unique_clicks / unique_contacts if unique_contacts else unique_contacts,
                 }
             ],
         }
@@ -5431,11 +5466,14 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
             url=reverse("api.v2.trackable_link_report"),
             slug="trackable-link-report",
             fields=[
-                dict(name="link_name", required=True, help="The name of the link"),
+                dict(name="link", required=True, help="The name or UUID of the link"),
+                dict(name="after", required=False, help="Select  unique link clicks since specific date"),
+                dict(name="before", required=False, help="Select unique link clicks until specific date"),
+                dict(name="exclude", required=False, help="Contact group to exclude"),
             ],
             params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
-                body=json.dumps({"link_name": "Test Link Name"}),
+                body=json.dumps({"link": "Test Link Name"}),
                 query="export_csv=false",
             ),
         )

@@ -2211,8 +2211,7 @@ class FlowCRUDL(SmartCRUDL):
             if contact_query:
                 try:
                     org = flow.org
-                    group = org.all_groups.filter(group_type="A").first()
-                    contact_ids = query_contact_ids(org, contact_query, group=group)
+                    contact_ids = query_contact_ids(org, contact_query, active_only=False)
                     runs = runs.filter(contact_id__in=contact_ids)
                 except SearchException as e:
                     context["query_error"] = e.message
