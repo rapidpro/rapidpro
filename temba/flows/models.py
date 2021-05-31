@@ -292,14 +292,6 @@ class Flow(TembaModel):
         return flow
 
     @classmethod
-    def get_triggerable_flows(cls, org, *, by_schedule: bool):
-        flow_types = [Flow.TYPE_MESSAGE, Flow.TYPE_VOICE]
-        if by_schedule:
-            flow_types.append(Flow.TYPE_BACKGROUND)
-
-        return org.flows.filter(flow_type__in=flow_types, is_active=True, is_archived=False, is_system=False)
-
-    @classmethod
     def import_flows(cls, org, user, export_json, dependency_mapping, same_site=False):
         """
         Import flows from our flow export file

@@ -16,25 +16,33 @@ class Trigger(SmartModel):
     inbound messages starting with a keyword, or on a repeating schedule.
     """
 
-    TYPE_CATCH_ALL = "C"
     TYPE_KEYWORD = "K"
+    TYPE_SCHEDULE = "S"
+    TYPE_INBOUND_CALL = "V"
     TYPE_MISSED_CALL = "M"
     TYPE_NEW_CONVERSATION = "N"
     TYPE_REFERRAL = "R"
-    TYPE_SCHEDULE = "S"
-    TYPE_USSD_PULL = "U"
-    TYPE_INBOUND_CALL = "V"
+    TYPE_CATCH_ALL = "C"
 
     TRIGGER_TYPES = (
-        (TYPE_KEYWORD, _("Keyword Trigger")),
-        (TYPE_SCHEDULE, _("Schedule Trigger")),
-        (TYPE_INBOUND_CALL, _("Inbound Call Trigger")),
-        (TYPE_MISSED_CALL, _("Missed Call Trigger")),
-        (TYPE_CATCH_ALL, _("Catch All Trigger")),
-        (TYPE_NEW_CONVERSATION, _("New Conversation Trigger")),
-        (TYPE_USSD_PULL, _("USSD Pull Session Trigger")),
-        (TYPE_REFERRAL, _("Referral Trigger")),
+        (TYPE_KEYWORD, "Keyword"),
+        (TYPE_SCHEDULE, "Schedule"),
+        (TYPE_INBOUND_CALL, "Inbound Call"),
+        (TYPE_MISSED_CALL, "Missed Call"),
+        (TYPE_NEW_CONVERSATION, "New Conversation"),
+        (TYPE_REFERRAL, "Referral"),
+        (TYPE_CATCH_ALL, "Catch All"),
     )
+
+    ALLOWED_FLOW_TYPES = {
+        TYPE_KEYWORD: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE),
+        TYPE_SCHEDULE: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND),
+        TYPE_INBOUND_CALL: (Flow.TYPE_VOICE,),
+        TYPE_MISSED_CALL: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE),
+        TYPE_NEW_CONVERSATION: (Flow.TYPE_MESSAGE,),
+        TYPE_REFERRAL: (Flow.TYPE_MESSAGE,),
+        TYPE_CATCH_ALL: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE),
+    }
 
     KEYWORD_MAX_LEN = 16
 
@@ -52,7 +60,7 @@ class Trigger(SmartModel):
     EXPORT_GROUPS = "groups"
     EXPORT_CHANNEL = "channel"
 
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="triggers")
 
     trigger_type = models.CharField(max_length=1, choices=TRIGGER_TYPES, default=TYPE_KEYWORD)
 

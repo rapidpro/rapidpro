@@ -10,7 +10,7 @@ from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.orgs.models import Language
 from temba.schedules.models import Schedule
-from temba.tests import CRUDLTestMixin, MockResponse, TembaTest
+from temba.tests import CRUDLTestMixin, TembaTest
 from temba.utils.dates import datetime_to_str
 
 from .models import Trigger
@@ -338,129 +338,6 @@ class TriggerTest(TembaTest):
         trigger = Trigger.objects.get(keyword="join", flow=flow)
         self.assertEqual("Join Chat", trigger.flow.name)
 
-    def test_new_conversation_trigger_viber(self):
-        self.login(self.admin)
-        flow = self.create_flow()
-        flow2 = self.create_flow()
-
-        # see if we list new conversation triggers on the trigger page
-        create_trigger_url = reverse("triggers.trigger_create", args=[])
-        response = self.client.get(create_trigger_url)
-        self.assertNotContains(response, "conversation is started")
-
-        # add a viber public channel
-        viber_channel = Channel.create(
-            self.org,
-            self.user,
-            None,
-            "VP",
-            None,
-            "1001",
-            uuid="00000000-0000-0000-0000-000000001234",
-            config={Channel.CONFIG_AUTH_TOKEN: "auth_token"},
-        )
-
-        # should now be able to create one
-        response = self.client.get(create_trigger_url)
-        self.assertContains(response, "conversation is started")
-
-        response = self.client.get(reverse("triggers.trigger_new_conversation", args=[]))
-        self.assertEqual(response.context["form"].fields["channel"].queryset.count(), 1)
-        self.assertTrue(viber_channel in response.context["form"].fields["channel"].queryset.all())
-
-        # create a facebook channel
-        fb_channel = Channel.create(
-            self.org, self.user, None, "FB", address="1001", config={"page_name": "Temba", "auth_token": "fb_token"}
-        )
-
-        response = self.client.get(reverse("triggers.trigger_new_conversation", args=[]))
-        self.assertEqual(response.context["form"].fields["channel"].queryset.count(), 2)
-        self.assertTrue(viber_channel in response.context["form"].fields["channel"].queryset.all())
-        self.assertTrue(fb_channel in response.context["form"].fields["channel"].queryset.all())
-
-        response = self.client.post(
-            reverse("triggers.trigger_new_conversation", args=[]), data=dict(channel=viber_channel.id, flow=flow.id)
-        )
-        self.assertEqual(response.status_code, 200)
-
-        trigger = Trigger.objects.get(trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False)
-        self.assertEqual(trigger.channel, viber_channel)
-        self.assertEqual(trigger.flow, flow)
-
-        # try to create another one, fails as we already have a trigger for that channel
-        response = self.client.post(
-            reverse("triggers.trigger_new_conversation", args=[]), data=dict(channel=viber_channel.id, flow=flow2.id)
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", "channel", "Trigger with this Channel already exists.")
-
-        # try to change the existing trigger
-        response = self.client.post(
-            reverse("triggers.trigger_update", args=[trigger.id]),
-            data=dict(id=trigger.id, flow=flow2.id, channel=viber_channel.id),
-            follow=True,
-        )
-        self.assertEqual(response.status_code, 200)
-
-        trigger.refresh_from_db()
-        self.assertEqual(flow2, trigger.flow)
-        self.assertEqual(viber_channel, trigger.channel)
-
-    def test_new_conversation_trigger(self):
-        self.login(self.admin)
-
-        flow = self.create_flow()
-        flow2 = self.create_flow()
-
-        # see if we list new conversation triggers on the trigger page
-        create_trigger_url = reverse("triggers.trigger_create", args=[])
-        response = self.client.get(create_trigger_url)
-        self.assertNotContains(response, "conversation is started")
-
-        # create a facebook channel
-        fb_channel = Channel.create(
-            self.org, self.user, None, "FB", address="1001", config={"page_name": "Temba", "auth_token": "fb_token"}
-        )
-
-        # should now be able to create one
-        response = self.client.get(create_trigger_url)
-        self.assertContains(response, "conversation is started")
-
-        # go create it
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"message": "Success"}')
-
-            response = self.client.post(
-                reverse("triggers.trigger_new_conversation", args=[]), data=dict(channel=fb_channel.id, flow=flow.id)
-            )
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(mock_post.call_count, 1)
-
-            # check that it is right
-            trigger = Trigger.objects.get(
-                trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False
-            )
-            self.assertEqual(trigger.channel, fb_channel)
-            self.assertEqual(trigger.flow, flow)
-
-            # try to create another one, fails as we already have a trigger for that channel
-            response = self.client.post(
-                reverse("triggers.trigger_new_conversation", args=[]), data=dict(channel=fb_channel.id, flow=flow2.id)
-            )
-            self.assertEqual(response.status_code, 200)
-            self.assertFormError(response, "form", "channel", "Trigger with this Channel already exists.")
-
-        # archive our trigger, should unregister our callback
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"message": "Success"}')
-
-            Trigger.apply_action_archive(self.admin, Trigger.objects.filter(pk=trigger.pk))
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(mock_post.call_count, 1)
-
-            trigger.refresh_from_db()
-            self.assertTrue(trigger.is_archived)
-
     def test_catch_all_trigger(self):
         self.login(self.admin)
 
@@ -605,6 +482,9 @@ class TriggerTest(TembaTest):
 class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_create(self):
         create_url = reverse("triggers.trigger_create")
+        create_new_convo_url = reverse("triggers.trigger_new_conversation")
+        create_inbound_call_url = reverse("triggers.trigger_inbound_call")
+        create_missed_call_url = reverse("triggers.trigger_missed_call")
 
         self.assertLoginRedirect(self.client.get(create_url))
 
@@ -614,8 +494,18 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.login(self.admin)
         response = self.client.get(create_url)
 
-        # inbound call trigger can be made without a call channel
-        self.assertContains(response, "Start a flow after receiving a call")
+        # call triggers can be made without a call channel
+        self.assertContains(response, create_inbound_call_url)
+        self.assertContains(response, create_missed_call_url)
+
+        # but a new conversation trigger can't be created with a suitable channel
+        self.assertNotContains(response, create_new_convo_url)
+
+        # create a facebook channel
+        self.create_channel("FB", "Facebook Channel", "1234567")
+
+        response = self.client.get(create_url)
+        self.assertContains(response, create_new_convo_url)
 
     def test_create_keyword(self):
         create_url = reverse("triggers.trigger_keyword")
@@ -761,6 +651,64 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         trigger1.refresh_from_db()
         self.assertTrue(trigger1.is_archived)
+
+    @patch("temba.channels.types.facebook.FacebookType.activate_trigger")
+    @patch("temba.channels.types.viber_public.ViberPublicType.activate_trigger")
+    def test_create_new_conversation(self, mock_vp_activate, mock_fb_activate):
+        create_url = reverse("triggers.trigger_new_conversation")
+        flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
+        flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_MESSAGE)
+
+        # flows that shouldn't appear as options
+        self.create_flow("Flow 3", flow_type=Flow.TYPE_VOICE)
+        self.create_flow("Flow 4", flow_type=Flow.TYPE_BACKGROUND)
+        self.create_flow("Flow 5", is_system=True)
+
+        channel1 = self.create_channel("FB", "Facebook Channel", "1234567")
+        channel2 = self.create_channel("VP", "Viber Channel", "1234567")
+        self.create_channel("A", "Android Channel", "+1234")
+
+        response = self.assertCreateFetch(
+            create_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=["channel", "flow"],
+        )
+
+        # flow options should show messaging and voice flows
+        self.assertEqual([flow1, flow2], list(response.context["form"].fields["flow"].queryset))
+
+        # channel options should only be channels that support conversations
+        self.assertEqual([channel1, channel2], list(response.context["form"].fields["channel"].queryset))
+
+        # go create it
+        self.assertCreateSubmit(
+            create_url,
+            {"channel": channel1.id, "flow": flow1.id},
+            new_obj_query=Trigger.objects.filter(
+                trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False, channel=channel1
+            ),
+            success_status=200,
+        )
+        self.assertEqual(mock_fb_activate.call_count, 1)
+
+        # try to create another one, fails as we already have a trigger for that channel
+        self.assertCreateSubmit(
+            create_url,
+            {"channel": channel1.id, "flow": flow1.id},
+            form_errors={"channel": "Trigger with this channel already exists."},
+        )
+
+        # but can create a different trigger for a different channel
+        self.assertCreateSubmit(
+            create_url,
+            {"channel": channel2.id, "flow": flow1.id},
+            new_obj_query=Trigger.objects.filter(
+                trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False, channel=channel2
+            ),
+            success_status=200,
+        )
+        self.assertEqual(mock_vp_activate.call_count, 1)
 
     def test_update_keyword(self):
         flow = self.create_flow()
