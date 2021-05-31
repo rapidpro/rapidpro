@@ -503,7 +503,7 @@ PERMISSIONS = {
     "templates.template": ("api",),
     "tickets.ticket": ("api", "open", "closed", "filter"),
     "tickets.ticketer": ("api", "connect", "configure"),
-    "triggers.trigger": ("archived",),
+    "triggers.trigger": ("archived", "type"),
 }
 
 
@@ -875,6 +875,7 @@ GROUP_PERMISSIONS = {
         "tickets.ticketer_api",
         "triggers.trigger_archived",
         "triggers.trigger_list",
+        "triggers.trigger_type",
     ),
     "Agents": ("tickets.ticket_list",),
     "Prometheus": (),

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-31 15:52+0000\n"
+"POT-Creation-Date: 2021-05-31 22:00+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3887,6 +3887,30 @@ msgstr ""
 msgid "Your ticketing service has been deleted."
 msgstr ""
 
+msgid "Keyword Triggers"
+msgstr ""
+
+msgid "Scheduled"
+msgstr ""
+
+msgid "Scheduled Triggers"
+msgstr ""
+
+msgid "Call Triggers"
+msgstr ""
+
+msgid "Social Media"
+msgstr ""
+
+msgid "Social Media Triggers"
+msgstr ""
+
+msgid "Catch All"
+msgstr ""
+
+msgid "Catch All Triggers"
+msgstr ""
+
 msgid "Message starts with the keyword"
 msgstr ""
 
@@ -3979,19 +4003,22 @@ msgstr ""
 msgid "Create Trigger"
 msgstr ""
 
-msgid "Triggers"
-msgstr ""
-
 msgid "Join Keyword"
 msgstr ""
 
 msgid "The first word of the message"
 msgstr ""
 
+msgid "Create Schedule"
+msgstr ""
+
 msgid "Create Referral Trigger"
 msgstr ""
 
-msgid "Create Schedule"
+msgid "Triggers"
+msgstr ""
+
+msgid "Archived Triggers"
 msgstr ""
 
 msgid "United Kingdom"
@@ -7206,16 +7233,34 @@ msgstr ""
 msgid "Add account for the channel and enter <code>%(secret)s</code> as the secret."
 msgstr ""
 
-msgid "Start a flow after receiving a message not handled elsewhere."
+msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr ""
 
-msgid "Triggers allow users to start flows based on user actions or schedules."
+msgid "Start a flow after receiving a message not handled elsewhere."
 msgstr ""
 
 msgid "Start a flow after receiving a call."
 msgstr ""
 
 msgid "Create a message keyword that launches a flow."
+msgstr ""
+
+msgid "Start a flow after a missed call."
+msgstr ""
+
+msgid "Start a flow when a conversation is started by a contact."
+msgstr ""
+
+msgid "Start a flow when Facebook refers a contact."
+msgstr ""
+
+msgid "Create a message keyword that allows people to join a group."
+msgstr ""
+
+msgid "Start a flow in the future or on a schedule."
+msgstr ""
+
+msgid "Types"
 msgstr ""
 
 msgid "The keyword"
@@ -7249,21 +7294,6 @@ msgid "No matching triggers."
 msgstr ""
 
 msgid "Update Trigger"
-msgstr ""
-
-msgid "Start a flow after a missed call."
-msgstr ""
-
-msgid "Start a flow when a conversation is started by a contact."
-msgstr ""
-
-msgid "Start a flow when Facebook refers a contact."
-msgstr ""
-
-msgid "Create a message keyword that allows people to join a group."
-msgstr ""
-
-msgid "Start a flow in the future or on a schedule."
 msgstr ""
 
 msgid "Enter a query"

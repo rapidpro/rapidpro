@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-31 15:52+0000\n"
+"POT-Creation-Date: 2021-05-31 22:00+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -3947,6 +3947,44 @@ msgstr "Registro HTTP"
 msgid "Your ticketing service has been deleted."
 msgstr "Su servicio de Tickets ha sido eliminado."
 
+#, fuzzy
+#| msgid "Keyword Trigger"
+msgid "Keyword Triggers"
+msgstr "Activador de palabra clave"
+
+#, fuzzy
+#| msgid "Schedule"
+msgid "Scheduled"
+msgstr "Horario"
+
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Scheduled Triggers"
+msgstr "Activador de programa"
+
+#, fuzzy
+#| msgid "Catch All Trigger"
+msgid "Call Triggers"
+msgstr "Obtener todos los activadores"
+
+msgid "Social Media"
+msgstr ""
+
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Social Media Triggers"
+msgstr "Activador de programa"
+
+#, fuzzy
+#| msgid "Catch All Trigger"
+msgid "Catch All"
+msgstr "Obtener todos los activadores"
+
+#, fuzzy
+#| msgid "Catch All Trigger"
+msgid "Catch All Triggers"
+msgstr "Obtener todos los activadores"
+
 msgid "Message starts with the keyword"
 msgstr "El mensaje comienza con la palabra clave"
 
@@ -4041,20 +4079,25 @@ msgstr "La identificación de referencia que nos activará"
 msgid "Create Trigger"
 msgstr "Crear Activador"
 
-msgid "Triggers"
-msgstr "Activadores"
-
 msgid "Join Keyword"
 msgstr "Palabra clave para participar"
 
 msgid "The first word of the message"
 msgstr "La primera palabra del mensaje"
 
+msgid "Create Schedule"
+msgstr "Crear Cronograma"
+
 msgid "Create Referral Trigger"
 msgstr "Crear Activador de Referencias"
 
-msgid "Create Schedule"
-msgstr "Crear Cronograma"
+msgid "Triggers"
+msgstr "Activadores"
+
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Archived Triggers"
+msgstr "Activador de programa"
 
 msgid "United Kingdom"
 msgstr "Reino Unido"
@@ -7699,17 +7742,37 @@ msgstr "Vaya a <a href=\"%(channels_url)s\"> integraciones de canales </a> donde
 msgid "Add account for the channel and enter <code>%(secret)s</code> as the secret."
 msgstr "Agregue una cuenta para el canal e ingrese <code> %(secret)s </code> como secret."
 
-msgid "Start a flow after receiving a message not handled elsewhere."
-msgstr "Empezar un flujo después de recibir un mensaje que no se haya manejado en ningún otro lugar."
-
 msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr "Los activadores permiten que los usuarios inicien los flujos a partir de las acciones o cronogramas del usuario."
+
+msgid "Start a flow after receiving a message not handled elsewhere."
+msgstr "Empezar un flujo después de recibir un mensaje que no se haya manejado en ningún otro lugar."
 
 msgid "Start a flow after receiving a call."
 msgstr "Inicie un flujo después de recibir una llamada."
 
 msgid "Create a message keyword that launches a flow."
 msgstr "Cree una palabra clave de mensaje que lance un flujo."
+
+msgid "Start a flow after a missed call."
+msgstr "Inicie un flujo después de una llamada perdida."
+
+msgid "Start a flow when a conversation is started by a contact."
+msgstr "Inicie un flujo cuando un contacto inicie una conversación."
+
+msgid "Start a flow when Facebook refers a contact."
+msgstr "Inicie un flujo cuando Facebook refiera un contacto."
+
+msgid "Create a message keyword that allows people to join a group."
+msgstr "Cree una palabra clave de mensaje que permita a las personas unirse a un grupo."
+
+msgid "Start a flow in the future or on a schedule."
+msgstr "Empezar un flujo en el futuro o en un horario."
+
+#, fuzzy
+#| msgid "Type"
+msgid "Types"
+msgstr "Tipo"
 
 msgid "The keyword"
 msgstr "La palabra clave"
@@ -7744,21 +7807,6 @@ msgstr "Los activadores no corresponden."
 msgid "Update Trigger"
 msgstr "Actualizar activador"
 
-msgid "Start a flow after a missed call."
-msgstr "Inicie un flujo después de una llamada perdida."
-
-msgid "Start a flow when a conversation is started by a contact."
-msgstr "Inicie un flujo cuando un contacto inicie una conversación."
-
-msgid "Start a flow when Facebook refers a contact."
-msgstr "Inicie un flujo cuando Facebook refiera un contacto."
-
-msgid "Create a message keyword that allows people to join a group."
-msgstr "Cree una palabra clave de mensaje que permita a las personas unirse a un grupo."
-
-msgid "Start a flow in the future or on a schedule."
-msgstr "Empezar un flujo en el futuro o en un horario."
-
 msgid "Enter a query"
 msgstr "Ingrese una consulta"
 
@@ -7785,20 +7833,11 @@ msgstr "Las plantillas se sincronizan desde su cuenta de WhatsApp cada 15 minuto
 msgid "No synced templates at this time."
 msgstr "No hay plantillas sincronizadas en este momento."
 
-#~ msgid "Keyword Trigger"
-#~ msgstr "Activador de palabra clave"
-
-#~ msgid "Schedule Trigger"
-#~ msgstr "Activador de programa"
-
 #~ msgid "Inbound Call Trigger"
 #~ msgstr "Activador de llamada entrante"
 
 #~ msgid "Missed Call Trigger"
 #~ msgstr "Activador de llamada perdida"
-
-#~ msgid "Catch All Trigger"
-#~ msgstr "Obtener todos los activadores"
 
 #~ msgid "New Conversation Trigger"
 #~ msgstr "Activador de nueva conversación"

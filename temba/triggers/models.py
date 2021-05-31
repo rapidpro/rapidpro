@@ -1,3 +1,5 @@
+from typing import NamedTuple
+
 from smartmin.models import SmartModel
 
 from django.db import models
@@ -8,6 +10,12 @@ from temba.channels.models import Channel
 from temba.contacts.models import Contact, ContactGroup
 from temba.flows.models import Flow
 from temba.orgs.models import Org
+
+
+class Folder(NamedTuple):
+    label: str
+    title: str
+    types: tuple
 
 
 class Trigger(SmartModel):
@@ -42,6 +50,23 @@ class Trigger(SmartModel):
         TYPE_NEW_CONVERSATION: (Flow.TYPE_MESSAGE,),
         TYPE_REFERRAL: (Flow.TYPE_MESSAGE,),
         TYPE_CATCH_ALL: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE),
+    }
+
+    FOLDER_KEYWORDS = "keywords"
+    FOLDER_SCHEDULED = "scheduled"
+    FOLDER_CALLS = "calls"
+    FOLDER_SOCIAL_MEDIA = "social"
+    FOLDER_CATCHALL = "catchall"
+    FOLDERS = {
+        FOLDER_KEYWORDS: Folder(_("Keywords"), _("Keyword Triggers"), (TYPE_KEYWORD,)),
+        FOLDER_SCHEDULED: Folder(_("Scheduled"), _("Scheduled Triggers"), (TYPE_SCHEDULE,)),
+        FOLDER_CALLS: Folder(_("Calls"), _("Call Triggers"), (TYPE_INBOUND_CALL, TYPE_MISSED_CALL)),
+        FOLDER_SOCIAL_MEDIA: Folder(
+            _("Social Media"),
+            _("Social Media Triggers"),
+            (TYPE_NEW_CONVERSATION, TYPE_REFERRAL),
+        ),
+        FOLDER_CATCHALL: Folder(_("Catch All"), _("Catch All Triggers"), (TYPE_CATCH_ALL,)),
     }
 
     KEYWORD_MAX_LEN = 16
@@ -289,6 +314,16 @@ class Trigger(SmartModel):
             if not trigger_scopes.intersection(trigger_scope):
                 trigger.restore(user)
                 trigger_scopes = trigger_scopes | trigger_scope
+
+    @classmethod
+    def get_folder(cls, org, key: str):
+        return cls.filter_folder(org.triggers.filter(is_active=True, is_archived=False), key)
+
+    @classmethod
+    def filter_folder(cls, qs, key: str):
+        assert key in cls.FOLDERS, f"{key} is not a valid trigger folder"
+
+        return qs.filter(trigger_type__in=cls.FOLDERS[key].types)
 
     def as_export_def(self):
         """
