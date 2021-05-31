@@ -618,7 +618,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
     @patch("temba.channels.types.facebook.FacebookType.activate_trigger")
     def test_create_referral(self, mock_fb_activate):
-        create_url = reverse("triggers.trigger_create_new_conversation")
+        create_url = reverse("triggers.trigger_create_referral")
         flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
         flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_MESSAGE)
 
@@ -635,7 +635,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["channel", "flow"],
+            form_fields=["channel", "referrer_id", "flow"],
         )
 
         # flow options should show messaging and voice flows
@@ -647,31 +647,40 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # go create it
         self.assertCreateSubmit(
             create_url,
-            {"channel": channel1.id, "flow": flow1.id},
+            {"channel": channel1.id, "flow": flow1.id, "referrer_id": "234567"},
             new_obj_query=Trigger.objects.filter(
-                trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False, channel=channel1
+                trigger_type=Trigger.TYPE_REFERRAL, channel=channel1, referrer_id="234567"
             ),
             success_status=200,
         )
         self.assertEqual(mock_fb_activate.call_count, 1)
 
-        # try to create another one, fails as we already have a trigger for that channel
+        # try to create another one, fails as we already have a trigger for that channel and referrer
         self.assertCreateSubmit(
             create_url,
-            {"channel": channel1.id, "flow": flow1.id},
-            form_errors={"channel": "Trigger with this channel already exists."},
+            {"channel": channel1.id, "flow": flow1.id, "referrer_id": "234567"},
+            form_errors={"__all__": "An active trigger already exists, triggers must be unique for each group"},
         )
 
-        # but can create a different trigger for a different channel
+        # but can create a different trigger for a different referrer
         self.assertCreateSubmit(
             create_url,
-            {"channel": channel2.id, "flow": flow1.id},
+            {"channel": channel1.id, "flow": flow1.id, "referrer_id": "345678"},
             new_obj_query=Trigger.objects.filter(
-                trigger_type=Trigger.TYPE_NEW_CONVERSATION, is_active=True, is_archived=False, channel=channel2
+                trigger_type=Trigger.TYPE_REFERRAL, channel=channel1, referrer_id="345678"
             ),
             success_status=200,
         )
-        self.assertEqual(mock_fb_activate.call_count, 2)
+
+        # or channel
+        self.assertCreateSubmit(
+            create_url,
+            {"channel": channel2.id, "flow": flow1.id, "referrer_id": "234567"},
+            new_obj_query=Trigger.objects.filter(
+                trigger_type=Trigger.TYPE_REFERRAL, channel=channel2, referrer_id="234567"
+            ),
+            success_status=200,
+        )
 
     def test_create_catchall(self):
         create_url = reverse("triggers.trigger_create_catchall")

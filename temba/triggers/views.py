@@ -361,7 +361,7 @@ class ReferralTriggerForm(BaseTriggerForm):
             referrer_id__iexact=ref_id,
         )
         if self.instance:
-            existing = existing.exclude(pk=self.instance.pk)
+            existing = existing.exclude(id=self.instance.id)
 
         if channel:
             existing = existing.filter(channel=channel)
