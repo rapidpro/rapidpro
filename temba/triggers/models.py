@@ -127,10 +127,13 @@ class Trigger(SmartModel):
     )
 
     @classmethod
-    def create(cls, org, user, trigger_type, flow, channel=None, **kwargs):
+    def create(cls, org, user, trigger_type, flow, channel=None, include_groups=(), **kwargs):
         trigger = cls.objects.create(
             org=org, trigger_type=trigger_type, flow=flow, channel=channel, created_by=user, modified_by=user, **kwargs
         )
+
+        for group in include_groups:
+            trigger.groups.add(group)
 
         # archive any conflicts
         trigger.archive_conflicts(user)
@@ -172,33 +175,33 @@ class Trigger(SmartModel):
         """
         Archives any triggers that conflict with this one
         """
-        now = timezone.now()
 
-        if not self.trigger_type == Trigger.TYPE_SCHEDULE:
-            matches = Trigger.objects.filter(
-                org=self.org, is_active=True, is_archived=False, trigger_type=self.trigger_type
-            )
+        # schedule triggers can be duplicated
+        if self.trigger_type == Trigger.TYPE_SCHEDULE:
+            return
 
-            # if this trigger has a keyword, only archive others with the same keyword
-            if self.keyword:
-                matches = matches.filter(keyword=self.keyword)
+        matches = self.org.triggers.filter(is_active=True, is_archived=False, trigger_type=self.trigger_type)
 
-            # if this trigger has a group, only archive others with the same group
-            if self.groups.all():  # pragma: needs cover
-                matches = matches.filter(groups__in=self.groups.all())
-            else:
-                matches = matches.filter(groups=None)
+        # if this trigger has a keyword, only archive others with the same keyword
+        if self.keyword:
+            matches = matches.filter(keyword=self.keyword)
 
-            # if this trigger has a referrer_id, only archive others with the same referrer_id
-            if self.referrer_id is not None:
-                matches = matches.filter(referrer_id__iexact=self.referrer_id)
+        # if this trigger has groups, only archive others with the same group
+        if self.groups.all():
+            matches = matches.filter(groups__in=self.groups.all())
+        else:
+            matches = matches.filter(groups=None)
 
-            # if this trigger has a channel, only archive others with the same channel
-            if self.channel:
-                matches = matches.filter(channel=self.channel)
+        # if this trigger has a referrer_id, only archive others with the same referrer_id
+        if self.referrer_id is not None:
+            matches = matches.filter(referrer_id__iexact=self.referrer_id)
 
-            # archive any conflicting triggers
-            matches.exclude(id=self.id).update(is_archived=True, modified_on=now, modified_by=user)
+        # if this trigger has a channel, only archive others with the same channel
+        if self.channel:
+            matches = matches.filter(channel=self.channel)
+
+        # archive any conflicting triggers
+        matches.exclude(id=self.id).update(is_archived=True, modified_on=timezone.now(), modified_by=user)
 
     @classmethod
     def import_triggers(cls, org, user, trigger_defs, same_site=False):

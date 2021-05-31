@@ -23,6 +23,64 @@ class TriggerTest(TembaTest):
 
         self.assertEqual('Trigger[type=K, flow="Test Flow"]', str(trigger))
 
+    def test_archive_conflicts(self):
+        flow = self.create_flow()
+        group1 = self.create_group("Group 1", contacts=[])
+        group2 = self.create_group("Group 1", contacts=[])
+        channel1 = self.create_channel("FB", "FB Channel 1", "12345")
+        channel2 = self.create_channel("FB", "FB Channel 2", "23456")
+
+        def assert_conflict_resolution(archived, not_archived):
+            archived.refresh_from_db()
+            not_archived.refresh_from_db()
+
+            self.assertTrue(archived.is_archived)
+            self.assertFalse(not_archived.is_archived)
+
+        # keyword triggers conflict if keyword and groups match
+        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="join")
+        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="start")
+        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="join")
+
+        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+
+        trigger1 = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow, include_groups=(group1,), keyword="join"
+        )
+        trigger2 = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow, include_groups=(group2,), keyword="join"
+        )
+        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, include_groups=(group1,), keyword="join")
+
+        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+
+        # incoming call triggers conflict if groups match
+        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow, include_groups=(group1,))
+        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow, include_groups=(group2,))
+        Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow, include_groups=(group1,))
+
+        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+
+        # missed call triggers always conflict
+        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_MISSED_CALL, flow)
+        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_MISSED_CALL, flow)
+
+        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+
+        # new conversation triggers conflict if channels match
+        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, channel=channel1)
+        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, channel=channel2)
+        Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, channel=channel1)
+
+        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+
+        # referral triggers conflict if referral ids match
+        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, referrer_id="12345")
+        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, referrer_id="23456")
+        Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, referrer_id="12345")
+
+        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+
     def test_export_import(self):
         # tweak our current channel to be twitter so we can create a channel-based trigger
         Channel.objects.filter(id=self.channel.id).update(channel_type="TT")
@@ -153,6 +211,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             {"keyword": "startkeyword", "flow": flow1.id, "match_type": "F"},
             new_obj_query=Trigger.objects.filter(keyword="startkeyword", flow=flow1),
+            success_status=200,
         )
 
         # creating triggers with non-ASCII keywords
@@ -160,11 +219,13 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             {"keyword": "١٠٠", "flow": flow1.id, "match_type": "F"},
             new_obj_query=Trigger.objects.filter(keyword="١٠٠", flow=flow1),
+            success_status=200,
         )
         self.assertCreateSubmit(
             create_url,
             {"keyword": "मिलाए", "flow": flow1.id, "match_type": "F"},
             new_obj_query=Trigger.objects.filter(keyword="मिलाए", flow=flow1),
+            success_status=200,
         )
 
         # try a duplicate keyword
@@ -179,6 +240,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             {"keyword": "startkeyword", "flow": flow2.id, "match_type": "F", "groups": group1.id},
             new_obj_query=Trigger.objects.filter(keyword="startkeyword", flow=flow2, groups=group1),
+            success_status=200,
         )
 
         # groups between triggers can't overlap
@@ -437,6 +499,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             {"flow": flow1.id, "groups": group1.id},
             new_obj_query=Trigger.objects.filter(flow=flow1, trigger_type=Trigger.TYPE_INBOUND_CALL),
+            success_status=200,
         )
 
         # can't create another inbound call trigger for same group
@@ -451,6 +514,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             {"flow": flow2.id, "groups": group2.id},
             new_obj_query=Trigger.objects.filter(flow=flow2, trigger_type=Trigger.TYPE_INBOUND_CALL),
+            success_status=200,
         )
 
     def test_create_missed_call(self):
@@ -727,6 +791,14 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # no longer appears in list
         self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1])
 
+    def test_list_redirect_when_no_triggers(self):
+        Trigger.objects.all().delete()
+
+        self.login(self.admin)
+        response = self.client.get(reverse("triggers.trigger_list"))
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirect(response, reverse("triggers.trigger_create"))
+
     def test_archived(self):
         flow = self.create_flow()
         trigger = Trigger.create(
@@ -805,11 +877,3 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.client.post(reverse("triggers.trigger_create_keyword"), data=post_data)
         self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 4)
         self.assertEqual(Trigger.objects.filter(keyword="startkeyword", is_archived=False).count(), 3)
-
-    def test_list_redirect_when_no_triggers(self):
-        Trigger.objects.all().delete()
-
-        self.login(self.admin)
-        response = self.client.get(reverse("triggers.trigger_list"))
-        self.assertEqual(response.status_code, 302)
-        self.assertRedirect(response, reverse("triggers.trigger_create"))
