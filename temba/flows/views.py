@@ -2232,7 +2232,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm("flows.flow_update"):
+            if self.has_org_perm("flows.flow_results"):
                 links.append(
                     dict(
                         id="download-results",

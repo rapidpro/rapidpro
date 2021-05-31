@@ -220,13 +220,14 @@ class APIToken(models.Model):
     Our API token, ties in orgs
     """
 
-    CODE_TO_ROLE = {"A": "Administrators", "E": "Editors", "S": "Surveyors"}
+    CODE_TO_ROLE = {"A": "Administrators", "E": "Editors", "S": "Surveyors", "V": "Viewers"}
 
     ROLE_GRANTED_TO = {
         "Administrators": ("Administrators",),
         "Editors": ("Administrators", "Editors"),
         "Surveyors": ("Administrators", "Editors", "Surveyors"),
         "Prometheus": ("Administrators",),
+        "Viewers": ("Viewers",),
     }
 
     is_active = models.BooleanField(default=True)

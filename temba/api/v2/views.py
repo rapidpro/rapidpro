@@ -302,7 +302,7 @@ class AuthenticateView(SmartFormView):
     """
 
     class LoginForm(forms.Form):
-        ROLE_CHOICES = (("A", _("Administrator")), ("E", _("Editor")), ("S", _("Surveyor")))
+        ROLE_CHOICES = (("A", _("Administrator")), ("E", _("Editor")), ("S", _("Surveyor")), ("V", _("Viewers")))
 
         username = forms.CharField()
         password = forms.CharField(widget=forms.PasswordInput)
