@@ -674,9 +674,12 @@ class TriggerCRUDL(SmartCRUDL):
             return response
 
     class BaseList(OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+        """
+        Base class for list views
+        """
+
         fields = ("name",)
         default_template = "triggers/trigger_list.html"
-        default_order = ("-modified_on",)
         search_fields = ("keyword__icontains", "flow__name__icontains", "channel__name__icontains")
 
         def get_context_data(self, **kwargs):
@@ -691,9 +694,9 @@ class TriggerCRUDL(SmartCRUDL):
         def get_queryset(self, *args, **kwargs):
             qs = super().get_queryset(*args, **kwargs)
             qs = (
-                qs.filter(is_active=True, is_archived=False)
+                qs.filter(is_active=True)
                 .annotate(earliest_group=Min("groups__name"))
-                .order_by("keyword", "earliest_group")
+                .order_by("keyword", "earliest_group", "id")
                 .select_related("flow", "channel")
                 .prefetch_related("contacts", "groups")
             )
@@ -717,10 +720,15 @@ class TriggerCRUDL(SmartCRUDL):
             folders = []
             for key, folder in Trigger.FOLDERS.items():
                 folder_url = reverse("triggers.trigger_type", kwargs={"folder": key})
-                folders.append(dict(label=folder.label, url=folder_url, count=Trigger.get_folder(org, key).count()))
+                folder_count = Trigger.get_folder(org, key).count()
+                folders.append(dict(label=folder.label, url=folder_url, count=folder_count))
             return folders
 
     class List(BaseList):
+        """
+        Non-archived triggers of all types
+        """
+
         bulk_actions = ("archive",)
         title = _("Triggers")
 
@@ -731,28 +739,25 @@ class TriggerCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse("triggers.trigger_create"))
             return super().pre_process(request, *args, **kwargs)
 
-        def lookup_field_link(self, context, field, obj):  # pragma: needs cover
-            if field == "flow" and obj.flow:
-                return reverse("flows.flow_editor", args=[obj.flow.uuid])
-            return super().lookup_field_link(context, field, obj)
-
         def get_queryset(self, *args, **kwargs):
-            qs = super().get_queryset(*args, **kwargs)
-            qs = (
-                qs.filter(is_active=True, is_archived=False)
-                .annotate(earliest_group=Min("groups__name"))
-                .order_by("keyword", "earliest_group", "id")
-            )
-            return qs
+            return super().get_queryset(*args, **kwargs).filter(is_archived=False)
 
     class Archived(BaseList):
+        """
+        Archived triggers of all types
+        """
+
         bulk_actions = ("restore",)
         title = _("Archived Triggers")
 
         def get_queryset(self, *args, **kwargs):
-            return super().get_queryset(*args, **kwargs).filter(is_active=True, is_archived=True)
+            return super().get_queryset(*args, **kwargs).filter(is_archived=True)
 
     class Type(BaseList):
+        """
+        Folders of related trigger types
+        """
+
         bulk_actions = ("archive",)
 
         @classmethod
@@ -764,4 +769,4 @@ class TriggerCRUDL(SmartCRUDL):
 
         def get_queryset(self, *args, **kwargs):
             qs = super().get_queryset(*args, **kwargs)
-            return Trigger.filter_folder(qs, self.kwargs["folder"])
+            return Trigger.filter_folder(qs, self.kwargs["folder"]).filter(is_archived=False)

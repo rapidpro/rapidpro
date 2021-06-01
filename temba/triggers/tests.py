@@ -773,11 +773,15 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
     def test_list(self):
-        flow = self.create_flow()
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="test")
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="abc")
-        trigger3 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="start")
-        Trigger.create(self.org2, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="other")
+        flow1 = self.create_flow("Report")
+        flow2 = self.create_flow("Survey")
+        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="test")
+        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow2, keyword="abc")
+        trigger3 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="start")
+
+        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="archived", is_archived=True)
+        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="inactive", is_active=False)
+        Trigger.create(self.org2, self.admin, Trigger.TYPE_KEYWORD, self.create_flow(org=self.org2), keyword="other")
 
         list_url = reverse("triggers.trigger_list")
 
@@ -789,6 +793,11 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # can search by keyword
         self.assertListFetch(
             list_url + "?search=Sta", allow_viewers=True, allow_editors=True, context_objects=[trigger3]
+        )
+
+        # or flow name
+        self.assertListFetch(
+            list_url + "?search=VEY", allow_viewers=True, allow_editors=True, context_objects=[trigger2]
         )
 
         # can archive it
@@ -810,19 +819,23 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_archived(self):
         flow = self.create_flow()
-        trigger = Trigger.create(
-            self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="startkeyword", is_archived=True
-        )
+        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="start", is_archived=True)
+        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="join", is_archived=True)
+
+        # triggers that shouldn't appear
+        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="active", is_archived=False)
+        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="inactive", is_active=False)
+        Trigger.create(self.org2, self.admin, Trigger.TYPE_KEYWORD, self.create_flow(org=self.org2), keyword="other")
 
         archived_url = reverse("triggers.trigger_archived")
 
         response = self.assertListFetch(
-            archived_url, allow_viewers=True, allow_editors=True, context_objects=[trigger]
+            archived_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1]
         )
         self.assertEqual(("restore",), response.context["actions"])
 
         # can restore it
-        self.client.post(reverse("triggers.trigger_archived"), {"action": "restore", "objects": trigger.id})
+        self.client.post(reverse("triggers.trigger_archived"), {"action": "restore", "objects": trigger1.id})
 
         response = self.client.get(reverse("triggers.trigger_archived"))
 
@@ -831,31 +844,31 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(reverse("triggers.trigger_list"))
 
         # should be back in the main trigger list
-        self.assertContains(response, "startkeyword")
+        self.assertContains(response, "start")
 
         # once archived we can duplicate it but with one active at a time
-        trigger = Trigger.objects.get(keyword="startkeyword")
+        trigger = Trigger.objects.get(keyword="start")
         trigger.is_archived = True
         trigger.save(update_fields=("is_archived",))
 
-        post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F")
+        post_data = dict(keyword="start", flow=flow.id, match_type="F")
         response = self.client.post(reverse("triggers.trigger_create_keyword"), data=post_data)
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 2)
-        self.assertEqual(1, Trigger.objects.filter(keyword="startkeyword", is_archived=False).count())
-        other_trigger = Trigger.objects.filter(keyword="startkeyword", is_archived=False)[0]
+        self.assertEqual(Trigger.objects.filter(keyword="start").count(), 2)
+        self.assertEqual(1, Trigger.objects.filter(keyword="start", is_archived=False).count())
+        other_trigger = Trigger.objects.filter(keyword="start", is_archived=False)[0]
         self.assertFalse(trigger.pk == other_trigger.pk)
 
         # try archiving it we have one archived and the other active
         response = self.client.get(reverse("triggers.trigger_archived"), post_data)
-        self.assertContains(response, "startkeyword")
+        self.assertContains(response, "start")
         post_data = dict(action="restore", objects=trigger.pk)
         self.client.post(reverse("triggers.trigger_archived"), post_data)
         response = self.client.get(reverse("triggers.trigger_archived"), post_data)
-        self.assertContains(response, "startkeyword")
+        self.assertContains(response, "start")
         response = self.client.get(reverse("triggers.trigger_list"), post_data)
-        self.assertContains(response, "startkeyword")
-        self.assertEqual(1, Trigger.objects.filter(keyword="startkeyword", is_archived=False).count())
-        self.assertNotEqual(other_trigger, Trigger.objects.filter(keyword="startkeyword", is_archived=False)[0])
+        self.assertContains(response, "start")
+        self.assertEqual(1, Trigger.objects.filter(keyword="start", is_archived=False).count())
+        self.assertNotEqual(other_trigger, Trigger.objects.filter(keyword="start", is_archived=False)[0])
 
         self.contact = self.create_contact("Eric", phone="+250788382382")
         self.contact2 = self.create_contact("Nic", phone="+250788383383")
@@ -863,38 +876,39 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         group2 = self.create_group("second", [self.contact])
         group3 = self.create_group("third", [self.contact, self.contact2])
 
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 2)
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword", is_archived=False).count(), 1)
+        self.assertEqual(Trigger.objects.filter(keyword="start").count(), 2)
+        self.assertEqual(Trigger.objects.filter(keyword="start", is_archived=False).count(), 1)
 
         # update trigger with 2 groups
-        post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F", groups=[group1.pk, group2.pk])
+        post_data = dict(keyword="start", flow=flow.id, match_type="F", groups=[group1.pk, group2.pk])
         response = self.client.post(reverse("triggers.trigger_create_keyword"), data=post_data)
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 3)
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword", is_archived=False).count(), 2)
+        self.assertEqual(Trigger.objects.filter(keyword="start").count(), 3)
+        self.assertEqual(Trigger.objects.filter(keyword="start", is_archived=False).count(), 2)
 
         # get error when groups overlap
-        post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F")
+        post_data = dict(keyword="start", flow=flow.id, match_type="F")
         post_data["groups"] = [group2.pk, group3.pk]
         response = self.client.post(reverse("triggers.trigger_create_keyword"), data=post_data)
         self.assertEqual(1, len(response.context["form"].errors))
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 3)
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword", is_archived=False).count(), 2)
+        self.assertEqual(Trigger.objects.filter(keyword="start").count(), 3)
+        self.assertEqual(Trigger.objects.filter(keyword="start", is_archived=False).count(), 2)
 
         # allow new creation when groups do not overlap
-        post_data = dict(keyword="startkeyword", flow=flow.id, match_type="F")
+        post_data = dict(keyword="start", flow=flow.id, match_type="F")
         post_data["groups"] = [group3.pk]
         self.client.post(reverse("triggers.trigger_create_keyword"), data=post_data)
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword").count(), 4)
-        self.assertEqual(Trigger.objects.filter(keyword="startkeyword", is_archived=False).count(), 3)
+        self.assertEqual(Trigger.objects.filter(keyword="start").count(), 4)
+        self.assertEqual(Trigger.objects.filter(keyword="start", is_archived=False).count(), 3)
 
     def test_type_lists(self):
-        flow = self.create_flow()
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="test")
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="abc")
-        trigger3 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, referrer_id="234")
-        trigger4 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, referrer_id="456")
-        trigger5 = Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow)
-        Trigger.create(self.org2, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="other")
+        flow1 = self.create_flow("Flow 1")
+        flow2 = self.create_flow("Flow 2")
+        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="test")
+        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow2, keyword="abc")
+        trigger3 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow1, referrer_id="234")
+        trigger4 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow2, referrer_id="456")
+        trigger5 = Trigger.create(self.org, self.admin, Trigger.TYPE_CATCH_ALL, flow1)
+        Trigger.create(self.org2, self.admin, Trigger.TYPE_KEYWORD, self.create_flow(org=self.org2), keyword="other")
 
         keywords_url = reverse("triggers.trigger_type", kwargs={"folder": "keywords"})
         socials_url = reverse("triggers.trigger_type", kwargs={"folder": "social"})
