@@ -1,6 +1,7 @@
 import logging
 from collections import OrderedDict
 from datetime import timedelta
+from itertools import chain
 from typing import Dict, List
 
 from django.shortcuts import get_object_or_404
@@ -2126,6 +2127,45 @@ class ContactImportCRUDL(SmartCRUDL):
             return obj
 
     class Read(OrgObjPermsMixin, SmartReadView):
+        def get(self, *args, **kwargs):
+            unblock = {"true": True, "false": False}.get(str(self.request.GET.get("unblock", "")).lower())
+            if unblock is None:
+                return super().get(*args, **kwargs)
+
+            # extract data which is required to process unblocking
+            try:
+                import_task_raw_query = """
+                SELECT ci.id, ci.is_active, ci.group_id,
+                       json_agg(DISTINCT cb.status) as statuses,
+                       json_agg(cb.blocked_uuids) as blocked_uuids
+                FROM contacts_contactimport ci
+                LEFT JOIN contacts_contactimportbatch cb ON ci.id = cb.contact_import_id
+                WHERE ci.id = %s
+                GROUP BY ci.id, ci.is_active, ci.group_id;
+                """
+                import_task = ContactImport.objects.raw(import_task_raw_query, [self.kwargs.get("pk")])[0]
+                import_task_status = ContactImport._get_overall_status(set(getattr(import_task, "statuses", [])))
+                is_task_completed = import_task_status in (ContactImport.STATUS_COMPLETE, ContactImport.STATUS_FAILED)
+            except IndexError:
+                raise Http404
+
+            # process unblocking
+            if import_task.is_active and is_task_completed:
+                if unblock:
+                    Groups = ContactGroup.contacts.through
+                    import_group = import_task.group
+                    contact_uuids = set(chain(*getattr(import_task, "blocked_uuids", [])))
+                    contacts = Contact.objects.filter(uuid__in=contact_uuids, status=Contact.STATUS_BLOCKED)
+                    Groups.objects.bulk_create(
+                        [Groups(contact=contact, contactgroup=import_group) for contact in contacts],
+                        ignore_conflicts=True,
+                    )
+                    contacts.update(status=Contact.STATUS_ACTIVE)
+                import_task.is_active = False
+                import_task.save(update_fields=["is_active"])
+
+            return super().get(*args, **kwargs)
+
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["info"] = self.import_info

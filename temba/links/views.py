@@ -53,7 +53,7 @@ class LinkCRUDL(SmartCRUDL):
             related_flow = forms.ModelChoiceField(
                 required=False,
                 queryset=Flow.objects.none(),
-                widget=SelectWidget(attrs={"widget_only": True, "placeholder": _("Select related flow")}),
+                widget=SelectWidget(attrs={"clearable": True, "placeholder": _("Select related flow")}),
             )
 
             def __init__(self, user, *args, **kwargs):
@@ -204,7 +204,7 @@ class LinkCRUDL(SmartCRUDL):
             related_flow = forms.ModelChoiceField(
                 required=False,
                 queryset=Flow.objects.none(),
-                widget=SelectWidget(attrs={"widget_only": False, "placeholder": _("Select related flow")}),
+                widget=SelectWidget(attrs={"clearable": True, "placeholder": _("Select related flow")}),
             )
 
             def __init__(self, user, *args, **kwargs):
@@ -239,6 +239,7 @@ class LinkCRUDL(SmartCRUDL):
 
         def pre_save(self, obj):
             obj = super().pre_save(obj)
+            obj.related_flow = self.form.cleaned_data.get("related_flow", None)
             return obj
 
         def post_save(self, obj):

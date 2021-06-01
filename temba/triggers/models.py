@@ -300,7 +300,7 @@ class Trigger(SmartModel):
         current_keywords = triggers.filter(flow=flow).values_list("keyword", flat=True)
         flow_start = sorted(
             definition.get("_ui", {}).get("nodes", {}).items(),
-            key=lambda x: float(f"{x[1]['position']['top']}.{x[1]['position']['left']}"),
+            key=lambda x: float(f"{int(x[1]['position']['top'])}.{int(x[1]['position']['left'])}"),
         )
         flow_start = flow_start[0][0] if flow_start else None
         for node in definition.get("nodes", []):

@@ -47,7 +47,7 @@
                 .mt-2
                   -blocktrans trimmed
                     On your Android device, open your browser and download the app by entering the URL:
-                  .code.inline-block
+                  .code.inline-block.download-apk-link
                     {{ brand.link }}{% url "public.public_android" %}
 
           %tr
@@ -140,4 +140,10 @@
 
     .release-description ul li {
       list-style-type: circle;
+    }
+
+    .download-apk-link {
+      max-width: 260px;
+      white-space: unset;
+      word-wrap: break-word;
     }

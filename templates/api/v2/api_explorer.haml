@@ -56,7 +56,8 @@
                       (optional)
         -if endpoint.fields
           .title.my-4
-            -trans "Post Body Fields"
+            =endpoint.method|lower|capfirst
+            -trans "Body Fields"
           %table
             .tbody
               -for item in endpoint.fields
@@ -87,7 +88,8 @@
           -if endpoint.fields
             .form-group.mt-4.items-center(class="md:flex")
               %label.control-label.self-start.pt-4.w-56.pr-6(class="md:text-right")
-                -trans "Post Body"
+                =endpoint.method|lower|capfirst
+                -trans "Body"
               .flex-grow
                 %textarea.textinput.p-2.rounded.request-body(id="request-body-{{ endpoint.slug }}" rows="5")<
                   {{ endpoint.example.body }}
@@ -120,6 +122,7 @@
     });
 
     function ensureQueryPrefix(query) {
+      query = query.replaceAll("+", "%2B");
       if (query && !query.startsWith('?')) {
         return '?' + query;
       } else {
@@ -133,6 +136,18 @@
 
       var query = queryEditor.length ? ensureQueryPrefix(queryEditor.val()) : '';
       var body = bodyEditor.length ? bodyEditor.val() : null;
+      var dataType = "text";
+
+      try {
+        if (body && method === "GET") {
+          body = JSON.parse(body);
+          dataType = "json";
+        }
+      } catch {
+        var trace = "HTTP/1.0 " + 400 + " BAD REQUEST\n" + JSON.stringify({error: "JSON parse error."}, null, 2);
+        $("#result-" + slug).show().text(trace);
+        return;
+      }
 
       $("#result-" + slug).text("Requesting...");
 
@@ -144,8 +159,8 @@
           Accept : "application/json; charset=utf-8; indent=4;",
           "Content-Type": "application/json; charset=utf-8; indent=4;"
         },
-        dataType: "text",
         success: function(data, textStatus, xhr){
+          data = xhr.getResponseHeader("Content-Type") === "application/json" ? JSON.stringify(data, null, 2) : data;
           var trace = "HTTP/1.0 " + xhr.status + " " + textStatus.toUpperCase() + "\n" + data;
           $("#result-" + slug).show().text(trace);
         },

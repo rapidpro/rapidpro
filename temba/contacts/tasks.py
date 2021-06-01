@@ -9,7 +9,9 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 from celery.task import task
+from elasticsearch.helpers import bulk
 
+from temba.orgs.models import Org
 from temba.utils import chunk_list
 from temba.utils.celery import nonoverlapping_task
 

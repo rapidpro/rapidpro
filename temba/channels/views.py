@@ -16,6 +16,7 @@ import requests
 
 import twilio.base.exceptions
 from django_countries.data import COUNTRIES
+from rest_framework import status
 from smartmin.views import (
     SmartCRUDL,
     SmartDeleteView,
@@ -2658,13 +2659,26 @@ class ChannelLogCRUDL(SmartCRUDL):
 
         def derive_queryset(self, **kwargs):
             channel = self.derive_channel()
+            try:
+                response_status = int(self.request.GET.get("response_status", ""))
+            except ValueError:
+                response_status = None
 
             if self.request.GET.get("connections"):
-                logs = (
-                    ChannelLog.objects.filter(channel=channel)
-                    .exclude(connection=None)
-                    .values_list("connection_id", flat=True)
-                )
+                if response_status:
+                    logs = (
+                        ChannelLog.objects.filter(channel=channel)
+                        .filter(response_status=response_status)
+                        .exclude(connection=None)
+                        .values_list("connection_id", flat=True)
+                    )
+                else:
+                    logs = (
+                        ChannelLog.objects.filter(channel=channel)
+                        .exclude(connection=None)
+                        .values_list("connection_id", flat=True)
+                    )
+
                 events = ChannelConnection.objects.filter(id__in=logs).order_by("-created_on")
 
                 if self.request.GET.get("errors"):
@@ -2672,6 +2686,8 @@ class ChannelLogCRUDL(SmartCRUDL):
 
             elif self.request.GET.get("others"):
                 events = ChannelLog.objects.filter(channel=channel, connection=None, msg=None).order_by("-created_on")
+                if response_status:
+                    events = events.filter(response_status=response_status)
 
             else:
                 events = (
@@ -2680,6 +2696,8 @@ class ChannelLogCRUDL(SmartCRUDL):
                     .order_by("-created_on")
                     .select_related("msg", "msg__contact", "msg__contact_urn", "channel", "channel__org")
                 )
+                if response_status:
+                    events = events.filter(response_status=response_status)
                 patch_queryset_count(events, channel.get_non_ivr_log_count)
 
             return events
@@ -2695,7 +2713,36 @@ class ChannelLogCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["channel"] = self.derive_channel()
+            context["statuses"] = [
+                (key, getattr(status, key, None)) for key in filter(lambda x: x.startswith("HTTP_"), dir(status))
+            ]
             return context
+
+        def paginate_queryset(self, queryset, page_size):
+            paginator = self.get_paginator(
+                queryset, page_size, orphans=self.get_paginate_orphans(), allow_empty_first_page=self.get_allow_empty()
+            )
+
+            page_kwarg = self.page_kwarg
+            page = self.kwargs.get(page_kwarg) or self.request.GET.get(page_kwarg) or 1
+            try:
+                page_number = int(page)
+            except ValueError:
+                if page == "last":
+                    page_number = paginator.num_pages
+                else:
+                    raise Http404(_("Page is not 'last', nor can it be converted to an int."))
+
+            from django.core.paginator import InvalidPage
+
+            try:
+                paginator.count = len(queryset)
+                page = paginator.page(page_number)
+                return (paginator, page, page.object_list, page.has_other_pages())
+            except InvalidPage as e:
+                raise Http404(
+                    _("Invalid page (%(page_number)s): %(message)s") % {"page_number": page_number, "message": str(e)}
+                )
 
     class Connection(AnonMixin, SmartReadView):
         model = ChannelConnection
