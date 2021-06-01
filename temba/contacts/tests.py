@@ -667,6 +667,9 @@ class ContactGroupTest(TembaTest):
         group.status = ContactGroup.STATUS_EVALUATING
         group.save(update_fields=("status",))
 
+        # dynamic groups should get their own icon
+        self.assertEqual(group.get_icon(), "atom")
+
         # can't update query again while it is in this state
         with self.assertRaises(ValueError):
             group.update_query("age = 18")

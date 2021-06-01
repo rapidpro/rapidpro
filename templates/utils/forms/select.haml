@@ -21,7 +21,6 @@
     {% for option in group_choices %}
       {% if option.label != '---------' %}
         <temba-option name="{{ option.label }}" {% if option.icon %} icon="{{option.icon}}" {%endif%} value="{{ option.value|stringformat:'s' }}" {%if option.selected%}selected{%endif%}></temba-option>
-        {{option}}
       {% endif %}
     {% endfor %}
 
