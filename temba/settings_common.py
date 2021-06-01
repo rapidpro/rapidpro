@@ -848,6 +848,7 @@ GROUP_PERMISSIONS = {
     ),
     "Viewers": (
         "api.apitoken_refresh",
+        "api.resthook_api",
         "api.resthook_list",
         "campaigns.campaign_archived",
         "campaigns.campaign_list",
@@ -877,6 +878,7 @@ GROUP_PERMISSIONS = {
         "orgs.org_export",
         "orgs.org_home",
         "orgs.org_profile",
+        "orgs.org_token",
         "orgs.topup_list",
         "orgs.topup_read",
         "channels.channel_list",
