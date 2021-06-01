@@ -24,7 +24,7 @@ from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticketer
 
 # by default every user will have this password including the superuser
-USER_PASSWORD = "Arst1234"
+USER_PASSWORD = "Qwerty123"
 
 # database dump containing admin boundary records
 LOCATIONS_DUMP = "test-data/nigeria.bin"
