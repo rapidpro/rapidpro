@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-31 22:00+0000\n"
+"POT-Creation-Date: 2021-06-01 16:27+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -4003,29 +4003,11 @@ msgstr "Palavra-chave"
 msgid "Word to match in the message text"
 msgstr "Palavra para corresponder na mensagem de texto"
 
-msgid "Referrer Id"
-msgstr "Id do referente"
-
-msgid "The referrer id that triggers us"
-msgstr "O id do referente que irá iniciar o fluxo"
-
 msgid "Flow"
 msgstr "Fluxo"
 
 msgid "Which flow will be started"
 msgstr "Que fluxo será iniciado"
-
-msgid "The groups to broadcast the flow to"
-msgstr "Os grupos para os quais distribuir o fluxo"
-
-msgid "Individual contacts to broadcast the flow to"
-msgstr "Contatos individuais para os quais distribuir o fluxo"
-
-msgid "Schedule"
-msgstr "Agendar"
-
-msgid "Our recurring schedule"
-msgstr "Nosso agendamento recorrente"
 
 msgid "Trigger When"
 msgstr "Disparar Quando"
@@ -4078,6 +4060,9 @@ msgstr "O Gatilho com este Canal já existe."
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
 msgstr "O canal para aplicar esse gatilho,  ou deixe em branco para todos os canais do Facebook"
+
+msgid "Referrer Id"
+msgstr "Id do referente"
 
 msgid "The referrer id that will trigger us"
 msgstr "O id do referente que iniciara"
@@ -7524,6 +7509,9 @@ msgstr "Classificar Evento"
 msgid "Connection Error"
 msgstr "Erro de Conexão"
 
+msgid "Schedule"
+msgstr "Agendar"
+
 msgid "Select when you would like the message to be sent"
 msgstr "Selecione quando você gostaria que a mensagem seja enviada"
 
@@ -7819,6 +7807,18 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#~ msgid "The referrer id that triggers us"
+#~ msgstr "O id do referente que irá iniciar o fluxo"
+
+#~ msgid "The groups to broadcast the flow to"
+#~ msgstr "Os grupos para os quais distribuir o fluxo"
+
+#~ msgid "Individual contacts to broadcast the flow to"
+#~ msgstr "Contatos individuais para os quais distribuir o fluxo"
+
+#~ msgid "Our recurring schedule"
+#~ msgstr "Nosso agendamento recorrente"
 
 #~ msgid "Inbound Call Trigger"
 #~ msgstr "Disparador de chamada de entrada"

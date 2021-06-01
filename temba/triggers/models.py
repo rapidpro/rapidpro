@@ -99,13 +99,7 @@ class Trigger(SmartModel):
         help_text=_("Word to match in the message text"),
     )
 
-    referrer_id = models.CharField(
-        verbose_name=_("Referrer Id"),
-        max_length=255,
-        null=True,
-        blank=True,
-        help_text=_("The referrer id that triggers us"),
-    )
+    referrer_id = models.CharField(max_length=255, null=True)
 
     flow = models.ForeignKey(
         Flow,
@@ -115,23 +109,12 @@ class Trigger(SmartModel):
         related_name="triggers",
     )
 
-    groups = models.ManyToManyField(
-        ContactGroup, verbose_name=_("Groups"), help_text=_("The groups to broadcast the flow to")
-    )
+    # who trigger applies to
+    groups = models.ManyToManyField(ContactGroup, related_name="triggers_included")
+    exclude_groups = models.ManyToManyField(ContactGroup, related_name="triggers_excluded")
+    contacts = models.ManyToManyField(Contact, related_name="triggers")  # scheduled triggers only
 
-    contacts = models.ManyToManyField(
-        Contact, verbose_name=_("Contacts"), help_text=_("Individual contacts to broadcast the flow to")
-    )
-
-    schedule = models.OneToOneField(
-        "schedules.Schedule",
-        on_delete=models.PROTECT,
-        verbose_name=_("Schedule"),
-        null=True,
-        blank=True,
-        related_name="trigger",
-        help_text=_("Our recurring schedule"),
-    )
+    schedule = models.OneToOneField("schedules.Schedule", on_delete=models.PROTECT, null=True, related_name="trigger")
 
     match_type = models.CharField(
         max_length=1,

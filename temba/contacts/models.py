@@ -1730,6 +1730,12 @@ class ContactGroup(TembaModel):
     def is_dynamic(self):
         return self.query is not None
 
+    @property
+    def triggers(self):
+        from temba.triggers.models import Trigger
+
+        return Trigger.objects.filter(Q(groups=self) | Q(exclude_groups=self))
+
     @classmethod
     def import_groups(cls, org, user, group_defs, dependency_mapping):
         """

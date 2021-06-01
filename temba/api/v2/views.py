@@ -2197,7 +2197,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         instance = self.get_object()
 
         # if there are still dependencies, give up
-        triggers = instance.trigger_set.filter(is_archived=False)
+        triggers = instance.triggers.filter(is_archived=False)
         if triggers:
             deps = ", ".join([str(t.id) for t in triggers])
             raise InvalidQueryError(

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-31 22:00+0000\n"
+"POT-Creation-Date: 2021-06-01 16:27+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3996,29 +3996,11 @@ msgstr "Mot-clé"
 msgid "Word to match in the message text"
 msgstr "Mot à faire correspondre dans le texte du message"
 
-msgid "Referrer Id"
-msgstr "Identifiant du référent"
-
-msgid "The referrer id that triggers us"
-msgstr "L'identifiant de référence qui nous déclenche"
-
 msgid "Flow"
 msgstr "Flux"
 
 msgid "Which flow will be started"
 msgstr "Quel flux sera démarré"
-
-msgid "The groups to broadcast the flow to"
-msgstr "Les groupes pour diffuser le flux de"
-
-msgid "Individual contacts to broadcast the flow to"
-msgstr "Contacts individuels pour diffuser le flux de"
-
-msgid "Schedule"
-msgstr "Planning"
-
-msgid "Our recurring schedule"
-msgstr "Notre planification récurrente"
 
 msgid "Trigger When"
 msgstr "Déclencher quand"
@@ -4071,6 +4053,9 @@ msgstr "Le déclencheur avec ce canal existe déjà."
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
 msgstr "Le canal auquel appliquer ce déclencheur, laissez vide pour tous les canaux Facebook"
+
+msgid "Referrer Id"
+msgstr "Identifiant du référent"
 
 msgid "The referrer id that will trigger us"
 msgstr "L'identifiant de référence qui nous déclenchera"
@@ -7523,6 +7508,9 @@ msgstr "Événement classificateur"
 msgid "Connection Error"
 msgstr "Erreur de connexion"
 
+msgid "Schedule"
+msgstr "Planning"
+
 msgid "Select when you would like the message to be sent"
 msgstr "Sélectionnez le moment où vous souhaitez que le message soit envoyé"
 
@@ -7818,6 +7806,18 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#~ msgid "The referrer id that triggers us"
+#~ msgstr "L'identifiant de référence qui nous déclenche"
+
+#~ msgid "The groups to broadcast the flow to"
+#~ msgstr "Les groupes pour diffuser le flux de"
+
+#~ msgid "Individual contacts to broadcast the flow to"
+#~ msgstr "Contacts individuels pour diffuser le flux de"
+
+#~ msgid "Our recurring schedule"
+#~ msgstr "Notre planification récurrente"
 
 #~ msgid "Inbound Call Trigger"
 #~ msgstr "Déclencheur d'appel entrant"

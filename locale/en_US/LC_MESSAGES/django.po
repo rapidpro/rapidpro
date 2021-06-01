@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-31 22:00+0000\n"
+"POT-Creation-Date: 2021-06-01 16:27+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3923,28 +3923,10 @@ msgstr ""
 msgid "Word to match in the message text"
 msgstr ""
 
-msgid "Referrer Id"
-msgstr ""
-
-msgid "The referrer id that triggers us"
-msgstr ""
-
 msgid "Flow"
 msgstr ""
 
 msgid "Which flow will be started"
-msgstr ""
-
-msgid "The groups to broadcast the flow to"
-msgstr ""
-
-msgid "Individual contacts to broadcast the flow to"
-msgstr ""
-
-msgid "Schedule"
-msgstr ""
-
-msgid "Our recurring schedule"
 msgstr ""
 
 msgid "Trigger When"
@@ -3995,6 +3977,9 @@ msgid "Trigger with this channel already exists."
 msgstr ""
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
+msgstr ""
+
+msgid "Referrer Id"
 msgstr ""
 
 msgid "The referrer id that will trigger us"
@@ -7047,6 +7032,9 @@ msgid "Classifier Event"
 msgstr ""
 
 msgid "Connection Error"
+msgstr ""
+
+msgid "Schedule"
 msgstr ""
 
 msgid "Select when you would like the message to be sent"
