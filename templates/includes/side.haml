@@ -57,14 +57,15 @@
       .unnnic-tooltip
         -trans "Tickets"
 
-  -if org_perms.channels.channel_list or request.user.is_superuser
-    -if not has_outgoing_channel and org_perms.channels.channel_claim
-      %a{href:"{% url 'channels.channel_list' %}", class:"{% active request 'channels' %}"}
-        .circle.unnnic-icon-phone-3.unnnic-icon-ant{class:"{% active request 'channels' %}"}
-        .title
-          -trans "Channels"
-        .unnnic-tooltip
-          -trans "Channels"
+  -if not use_weni_layout
+    -if org_perms.channels.channel_list or request.user.is_superuser
+      -if not has_outgoing_channel and org_perms.channels.channel_claim
+        %a{href:"{% url 'channels.channel_list' %}", class:"{% active request 'channels' %}"}
+          .circle.unnnic-icon-phone-3.unnnic-icon-ant{class:"{% active request 'channels' %}"}
+          .title
+            -trans "Channels"
+          .unnnic-tooltip
+            -trans "Channels"
 
   -if request.user.is_superuser or perms.auth.user_list
     -if not user_org
