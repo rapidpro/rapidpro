@@ -30,6 +30,7 @@ class Trigger(SmartModel):
     TYPE_MISSED_CALL = "M"
     TYPE_NEW_CONVERSATION = "N"
     TYPE_REFERRAL = "R"
+    TYPE_CLOSED_TICKET = "T"
     TYPE_CATCH_ALL = "C"
 
     TRIGGER_TYPES = (
@@ -39,6 +40,7 @@ class Trigger(SmartModel):
         (TYPE_MISSED_CALL, "Missed Call"),
         (TYPE_NEW_CONVERSATION, "New Conversation"),
         (TYPE_REFERRAL, "Referral"),
+        (TYPE_CLOSED_TICKET, "Closed Ticket"),
         (TYPE_CATCH_ALL, "Catch All"),
     )
 
@@ -49,6 +51,7 @@ class Trigger(SmartModel):
         TYPE_MISSED_CALL: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE),
         TYPE_NEW_CONVERSATION: (Flow.TYPE_MESSAGE,),
         TYPE_REFERRAL: (Flow.TYPE_MESSAGE,),
+        TYPE_CLOSED_TICKET: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND),
         TYPE_CATCH_ALL: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE),
     }
 
@@ -56,6 +59,7 @@ class Trigger(SmartModel):
     FOLDER_SCHEDULED = "scheduled"
     FOLDER_CALLS = "calls"
     FOLDER_SOCIAL_MEDIA = "social"
+    FOLDER_TICKETS = "tickets"
     FOLDER_CATCHALL = "catchall"
     FOLDERS = {
         FOLDER_KEYWORDS: Folder(_("Keywords"), _("Keyword Triggers"), (TYPE_KEYWORD,)),
@@ -66,6 +70,7 @@ class Trigger(SmartModel):
             _("Social Media Triggers"),
             (TYPE_NEW_CONVERSATION, TYPE_REFERRAL),
         ),
+        FOLDER_TICKETS: Folder(_("Tickets"), _("Ticket Triggers"), (TYPE_CLOSED_TICKET,)),
         FOLDER_CATCHALL: Folder(_("Catch All"), _("Catch All Triggers"), (TYPE_CATCH_ALL,)),
     }
 
