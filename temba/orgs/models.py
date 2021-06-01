@@ -1522,7 +1522,7 @@ class Org(SmartModel):
                         deps.update(campaigns_by_group[d])
 
         if include_triggers:
-            all_triggers = self.trigger_set.filter(is_archived=False, is_active=True).select_related("flow")
+            all_triggers = self.triggers.filter(is_archived=False, is_active=True).select_related("flow")
             for trigger in all_triggers:
                 dependencies[trigger] = {trigger.flow}
 

@@ -397,9 +397,9 @@ class TembaTestMixin:
 
         return bcast
 
-    def create_flow(self, name="Test Flow", *, flow_type=Flow.TYPE_MESSAGE, nodes=None, org=None):
+    def create_flow(self, name="Test Flow", *, flow_type=Flow.TYPE_MESSAGE, nodes=None, is_system=False, org=None):
         org = org or self.org
-        flow = Flow.create(org, self.admin, name, flow_type=flow_type)
+        flow = Flow.create(org, self.admin, name, flow_type=flow_type, is_system=is_system)
         if not nodes:
             nodes = [
                 {
