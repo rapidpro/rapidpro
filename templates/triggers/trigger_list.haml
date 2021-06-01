@@ -2,13 +2,13 @@
 -load smartmin sms temba compress humanize i18n
 
 -block page-title
-  -trans "Triggers"
+  {{ title }}
 
 -block page-top
 
 -block top-form
-  - if view.search_fields
-    - block search-form
+  -if view.search_fields
+    -block search-form
       %form
         %input.input-medium.search-query{type:'text', placeholder:'{% trans "Search" %}', name:"search", value:"{{search}}"}
         -if request.REQUEST.status
@@ -26,11 +26,20 @@
                   -trans "Create Trigger"
 
           .lp-nav.upper
-            -for folder in folders
-              .lp-nav-item{'class': '{% if folder.url == request_url %}font-normal{% endif %}' }
-                .name{onclick:"goto(event)", href:'{{folder.url}}'}
-                  {{folder.label}}
-                .count{onclick:"goto(event)", href:'{{folder.url}}'}
+            -for folder in main_folders
+              .lp-nav-item(class='{% if folder.url == request_url %}font-normal{% endif %}')
+                .name(onclick="goto(event)" href='{{ folder.url }}')
+                  {{ folder.label }}
+                .count(onclick="goto(event)" href='{{ folder.url }}')
+                  {{ folder.count | intcomma }}
+          .lp-nav.upper
+            .font-normal.uppercase.text-xs.pb-1.text-gray-500
+              -trans "Types"
+            -for folder in type_folders
+              .lp-nav-item(class='{% if folder.url == request_url %}font-normal{% endif %}')
+                .name(onclick="goto(event)" href='{{ folder.url }}')
+                  {{ folder.label }}
+                .count(onclick="goto(event)" href='{{ folder.url }}')
                   {{ folder.count | intcomma }}
 
         .right
