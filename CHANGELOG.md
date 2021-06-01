@@ -1,3 +1,12 @@
+v6.3.57
+----------
+ * Tweak mailroom_db to make contact created_on values fixed
+ * Add trigger type folder list views
+ * Fix filtering of flows for new conversation triggers
+ * Fix ordering of channel fields on triggers
+ * Tweak inspect_flows command to handle unreadable flows
+ * Nest group buttons on campaign list so they don't grow to largest cell
+
 v6.3.56
 ----------
  * Fix migrating flows whose definitions contain decimal values
