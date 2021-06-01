@@ -127,7 +127,7 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
     :param fill_time: whether or not to fill missing time with the current time
     :return: the parsed datetime
     """
-    if not date_str:
+    if not (date_str and isinstance(date_str, str)):
         return None
 
     # remove whitespace any trailing period

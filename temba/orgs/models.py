@@ -46,6 +46,7 @@ from temba.utils import chunk_list, json, languages
 from temba.utils.cache import get_cacheable_attr, get_cacheable_result, incrby_existing
 from temba.utils.dates import datetime_to_str
 from temba.utils.email import send_template_email
+from temba.utils.legacy.dates import str_to_datetime
 from temba.utils.models import JSONAsTextField, JSONField, SquashableModel
 from temba.utils.s3 import public_file_storage
 from temba.utils.text import generate_token, random_string
@@ -1159,6 +1160,9 @@ class Org(SmartModel):
         if hasattr(self, "_language_codes"):  # invalidate language cache if set
             delattr(self, "_language_codes")
 
+    def get_dayfirst(self):
+        return self.date_format == Org.DATE_FORMAT_DAY_FIRST
+
     def get_datetime_formats(self):
         format_date = Org.DATE_FORMATS_PYTHON.get(self.date_format)
         format_datetime = format_date + " %H:%M"
@@ -1171,6 +1175,9 @@ class Org(SmartModel):
         formats = self.get_datetime_formats()
         format = formats[1] if show_time else formats[0]
         return datetime_to_str(d, format, self.timezone)
+
+    def parse_datetime(self, s):
+        return str_to_datetime(s, self.timezone, self.get_dayfirst())
 
     def get_users_with_role(self, role: OrgRole):
         """
