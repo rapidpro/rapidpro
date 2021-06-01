@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-24 20:43+0000\n"
+"POT-Creation-Date: 2021-05-31 22:00+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3946,29 +3946,43 @@ msgstr "Journal HTTP"
 msgid "Your ticketing service has been deleted."
 msgstr "Votre service de billetterie a été supprimé."
 
-msgid "Keyword Trigger"
+#, fuzzy
+#| msgid "Keyword Trigger"
+msgid "Keyword Triggers"
 msgstr "Mot-clé du declencheur"
 
-msgid "Schedule Trigger"
+#, fuzzy
+#| msgid "Schedule"
+msgid "Scheduled"
+msgstr "Planning"
+
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Scheduled Triggers"
 msgstr "Planning de declencheur"
 
-msgid "Inbound Call Trigger"
-msgstr "Déclencheur d'appel entrant"
-
-msgid "Missed Call Trigger"
-msgstr "Déclencheur d'appel manqué"
-
-msgid "Catch All Trigger"
+#, fuzzy
+#| msgid "Catch All Trigger"
+msgid "Call Triggers"
 msgstr "Déclencheur attrape-tout"
 
-msgid "New Conversation Trigger"
-msgstr "Nouveau déclencheur de conversation"
+msgid "Social Media"
+msgstr ""
 
-msgid "USSD Pull Session Trigger"
-msgstr "Déclencheur de session de Pull USSD"
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Social Media Triggers"
+msgstr "Planning de declencheur"
 
-msgid "Referral Trigger"
-msgstr "Déclencheur de référence"
+#, fuzzy
+#| msgid "Catch All Trigger"
+msgid "Catch All"
+msgstr "Déclencheur attrape-tout"
+
+#, fuzzy
+#| msgid "Catch All Trigger"
+msgid "Catch All Triggers"
+msgstr "Déclencheur attrape-tout"
 
 msgid "Message starts with the keyword"
 msgstr "Le message commence par le mot clé"
@@ -4050,7 +4064,9 @@ msgstr "Heure de début"
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Les groupes et les contacts du flux seront diffusés à"
 
-msgid "Trigger with this Channel already exists."
+#, fuzzy
+#| msgid "Trigger with this Channel already exists."
+msgid "Trigger with this channel already exists."
 msgstr "Le déclencheur avec ce canal existe déjà."
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
@@ -4062,20 +4078,25 @@ msgstr "L'identifiant de référence qui nous déclenchera"
 msgid "Create Trigger"
 msgstr "Créer des declencheurs"
 
-msgid "Triggers"
-msgstr "Déclencheurs"
-
 msgid "Join Keyword"
 msgstr "Joindre un mot clé"
 
 msgid "The first word of the message"
 msgstr "Le premier mot du message"
 
+msgid "Create Schedule"
+msgstr "Créer un planning"
+
 msgid "Create Referral Trigger"
 msgstr "Créer un déclencheur de référence"
 
-msgid "Create Schedule"
-msgstr "Créer un planning"
+msgid "Triggers"
+msgstr "Déclencheurs"
+
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Archived Triggers"
+msgstr "Planning de declencheur"
 
 msgid "United Kingdom"
 msgstr "Royaume-Uni"
@@ -7707,17 +7728,37 @@ msgstr "Accédez à <a href=\"%(channels_url)s\">channel integrations</a> où vo
 msgid "Add account for the channel and enter <code>%(secret)s</code> as the secret."
 msgstr "Ajoutez un compte pour le canal et entrez <code>%(secret)s</code> comme secret."
 
-msgid "Start a flow after receiving a message not handled elsewhere."
-msgstr "Lancer un flux après réception d'un message n'est pas manipulé ailleurs"
-
 msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr "Déclencheurs permettent aux utilisateurs de démarrer des flux basée sur les actions de l'utilisateur ou les plannings"
+
+msgid "Start a flow after receiving a message not handled elsewhere."
+msgstr "Lancer un flux après réception d'un message n'est pas manipulé ailleurs"
 
 msgid "Start a flow after receiving a call."
 msgstr "Démarrer un flux après avoir reçu un appel."
 
 msgid "Create a message keyword that launches a flow."
 msgstr "Créez un mot clé de message qui lance un flux."
+
+msgid "Start a flow after a missed call."
+msgstr "Lancer un flux après un appel manqué."
+
+msgid "Start a flow when a conversation is started by a contact."
+msgstr "Démarrer un flux lorsqu'une conversation est lancée par un contact."
+
+msgid "Start a flow when Facebook refers a contact."
+msgstr "Lancer un flux lorsque Facebook fait référence à un contact."
+
+msgid "Create a message keyword that allows people to join a group."
+msgstr "Créez un mot-clé de message permettant aux personnes de rejoindre un groupe."
+
+msgid "Start a flow in the future or on a schedule."
+msgstr "Démarrer ultérieurement un flux ou de manière programmée."
+
+#, fuzzy
+#| msgid "Type"
+msgid "Types"
+msgstr "Type"
 
 msgid "The keyword"
 msgstr "le mot-clé"
@@ -7752,21 +7793,6 @@ msgstr "Aucun déclencheurs correspondants."
 msgid "Update Trigger"
 msgstr "Mise à jour de déclencheur"
 
-msgid "Start a flow after a missed call."
-msgstr "Lancer un flux après un appel manqué."
-
-msgid "Start a flow when a conversation is started by a contact."
-msgstr "Démarrer un flux lorsqu'une conversation est lancée par un contact."
-
-msgid "Start a flow when Facebook refers a contact."
-msgstr "Lancer un flux lorsque Facebook fait référence à un contact."
-
-msgid "Create a message keyword that allows people to join a group."
-msgstr "Créez un mot-clé de message permettant aux personnes de rejoindre un groupe."
-
-msgid "Start a flow in the future or on a schedule."
-msgstr "Démarrer ultérieurement un flux ou de manière programmée."
-
 msgid "Enter a query"
 msgstr "Entrez une requête"
 
@@ -7792,6 +7818,21 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#~ msgid "Inbound Call Trigger"
+#~ msgstr "Déclencheur d'appel entrant"
+
+#~ msgid "Missed Call Trigger"
+#~ msgstr "Déclencheur d'appel manqué"
+
+#~ msgid "New Conversation Trigger"
+#~ msgstr "Nouveau déclencheur de conversation"
+
+#~ msgid "USSD Pull Session Trigger"
+#~ msgstr "Déclencheur de session de Pull USSD"
+
+#~ msgid "Referral Trigger"
+#~ msgstr "Déclencheur de référence"
 
 #, fuzzy
 #~| msgid "This workspace has been scheduled for deletion"

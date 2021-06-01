@@ -1,3 +1,5 @@
+from typing import NamedTuple
+
 from smartmin.models import SmartModel
 
 from django.db import models
@@ -10,31 +12,62 @@ from temba.flows.models import Flow
 from temba.orgs.models import Org
 
 
+class Folder(NamedTuple):
+    label: str
+    title: str
+    types: tuple
+
+
 class Trigger(SmartModel):
     """
     A Trigger is used to start a user in a flow based on an event. For example, triggers might fire for missed calls,
     inbound messages starting with a keyword, or on a repeating schedule.
     """
 
-    TYPE_CATCH_ALL = "C"
     TYPE_KEYWORD = "K"
+    TYPE_SCHEDULE = "S"
+    TYPE_INBOUND_CALL = "V"
     TYPE_MISSED_CALL = "M"
     TYPE_NEW_CONVERSATION = "N"
     TYPE_REFERRAL = "R"
-    TYPE_SCHEDULE = "S"
-    TYPE_USSD_PULL = "U"
-    TYPE_INBOUND_CALL = "V"
+    TYPE_CATCH_ALL = "C"
 
     TRIGGER_TYPES = (
-        (TYPE_KEYWORD, _("Keyword Trigger")),
-        (TYPE_SCHEDULE, _("Schedule Trigger")),
-        (TYPE_INBOUND_CALL, _("Inbound Call Trigger")),
-        (TYPE_MISSED_CALL, _("Missed Call Trigger")),
-        (TYPE_CATCH_ALL, _("Catch All Trigger")),
-        (TYPE_NEW_CONVERSATION, _("New Conversation Trigger")),
-        (TYPE_USSD_PULL, _("USSD Pull Session Trigger")),
-        (TYPE_REFERRAL, _("Referral Trigger")),
+        (TYPE_KEYWORD, "Keyword"),
+        (TYPE_SCHEDULE, "Schedule"),
+        (TYPE_INBOUND_CALL, "Inbound Call"),
+        (TYPE_MISSED_CALL, "Missed Call"),
+        (TYPE_NEW_CONVERSATION, "New Conversation"),
+        (TYPE_REFERRAL, "Referral"),
+        (TYPE_CATCH_ALL, "Catch All"),
     )
+
+    ALLOWED_FLOW_TYPES = {
+        TYPE_KEYWORD: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE),
+        TYPE_SCHEDULE: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND),
+        TYPE_INBOUND_CALL: (Flow.TYPE_VOICE,),
+        TYPE_MISSED_CALL: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE),
+        TYPE_NEW_CONVERSATION: (Flow.TYPE_MESSAGE,),
+        TYPE_REFERRAL: (Flow.TYPE_MESSAGE,),
+        TYPE_CATCH_ALL: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE),
+    }
+
+    FOLDER_KEYWORDS = "keywords"
+    FOLDER_SCHEDULED = "scheduled"
+    FOLDER_CALLS = "calls"
+    FOLDER_SOCIAL_MEDIA = "social"
+    FOLDER_CATCHALL = "catchall"
+    FOLDERS = {
+        FOLDER_KEYWORDS: Folder(_("Keywords"), _("Keyword Triggers"), (TYPE_KEYWORD,)),
+        FOLDER_SCHEDULED: Folder(_("Scheduled"), _("Scheduled Triggers"), (TYPE_SCHEDULE,)),
+        FOLDER_CALLS: Folder(_("Calls"), _("Call Triggers"), (TYPE_INBOUND_CALL, TYPE_MISSED_CALL)),
+        FOLDER_SOCIAL_MEDIA: Folder(
+            _("Social Media"),
+            _("Social Media Triggers"),
+            (TYPE_NEW_CONVERSATION, TYPE_REFERRAL),
+        ),
+        FOLDER_CATCHALL: Folder(_("Catch All"), _("Catch All Triggers"), (TYPE_CATCH_ALL,)),
+    }
 
     KEYWORD_MAX_LEN = 16
 
@@ -52,7 +85,7 @@ class Trigger(SmartModel):
     EXPORT_GROUPS = "groups"
     EXPORT_CHANNEL = "channel"
 
-    org = models.ForeignKey(Org, on_delete=models.PROTECT)
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="triggers")
 
     trigger_type = models.CharField(max_length=1, choices=TRIGGER_TYPES, default=TYPE_KEYWORD)
 
@@ -119,10 +152,13 @@ class Trigger(SmartModel):
     )
 
     @classmethod
-    def create(cls, org, user, trigger_type, flow, channel=None, **kwargs):
+    def create(cls, org, user, trigger_type, flow, channel=None, include_groups=(), **kwargs):
         trigger = cls.objects.create(
             org=org, trigger_type=trigger_type, flow=flow, channel=channel, created_by=user, modified_by=user, **kwargs
         )
+
+        for group in include_groups:
+            trigger.groups.add(group)
 
         # archive any conflicts
         trigger.archive_conflicts(user)
@@ -164,33 +200,33 @@ class Trigger(SmartModel):
         """
         Archives any triggers that conflict with this one
         """
-        now = timezone.now()
 
-        if not self.trigger_type == Trigger.TYPE_SCHEDULE:
-            matches = Trigger.objects.filter(
-                org=self.org, is_active=True, is_archived=False, trigger_type=self.trigger_type
-            )
+        # schedule triggers can be duplicated
+        if self.trigger_type == Trigger.TYPE_SCHEDULE:
+            return
 
-            # if this trigger has a keyword, only archive others with the same keyword
-            if self.keyword:
-                matches = matches.filter(keyword=self.keyword)
+        matches = self.org.triggers.filter(is_active=True, is_archived=False, trigger_type=self.trigger_type)
 
-            # if this trigger has a group, only archive others with the same group
-            if self.groups.all():  # pragma: needs cover
-                matches = matches.filter(groups__in=self.groups.all())
-            else:
-                matches = matches.filter(groups=None)
+        # if this trigger has a keyword, only archive others with the same keyword
+        if self.keyword:
+            matches = matches.filter(keyword=self.keyword)
 
-            # if this trigger has a referrer_id, only archive others with the same referrer_id
-            if self.referrer_id is not None:
-                matches = matches.filter(referrer_id__iexact=self.referrer_id)
+        # if this trigger has groups, only archive others with the same group
+        if self.groups.all():
+            matches = matches.filter(groups__in=self.groups.all())
+        else:
+            matches = matches.filter(groups=None)
 
-            # if this trigger has a channel, only archive others with the same channel
-            if self.channel:
-                matches = matches.filter(channel=self.channel)
+        # if this trigger has a referrer_id, only archive others with the same referrer_id
+        if self.referrer_id is not None:
+            matches = matches.filter(referrer_id__iexact=self.referrer_id)
 
-            # archive any conflicting triggers
-            matches.exclude(id=self.id).update(is_archived=True, modified_on=now, modified_by=user)
+        # if this trigger has a channel, only archive others with the same channel
+        if self.channel:
+            matches = matches.filter(channel=self.channel)
+
+        # archive any conflicting triggers
+        matches.exclude(id=self.id).update(is_archived=True, modified_on=timezone.now(), modified_by=user)
 
     @classmethod
     def import_triggers(cls, org, user, trigger_defs, same_site=False):
@@ -278,6 +314,16 @@ class Trigger(SmartModel):
             if not trigger_scopes.intersection(trigger_scope):
                 trigger.restore(user)
                 trigger_scopes = trigger_scopes | trigger_scope
+
+    @classmethod
+    def get_folder(cls, org, key: str):
+        return cls.filter_folder(org.triggers.filter(is_active=True, is_archived=False), key)
+
+    @classmethod
+    def filter_folder(cls, qs, key: str):
+        assert key in cls.FOLDERS, f"{key} is not a valid trigger folder"
+
+        return qs.filter(trigger_type__in=cls.FOLDERS[key].types)
 
     def as_export_def(self):
         """

@@ -13,10 +13,10 @@ from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_serialize
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.msgs.views import ModalMixin
-from temba.orgs.views import OrgFilterMixin, OrgPermsMixin
+from temba.orgs.views import OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import BaseScheduleForm
-from temba.utils import analytics, json
+from temba.utils import json
 from temba.utils.fields import (
     CompletionTextarea,
     InputWidget,
@@ -44,10 +44,16 @@ class BaseTriggerForm(forms.ModelForm):
         widget=SelectWidget(attrs={"placeholder": _("Select a flow"), "searchable": True}),
     )
 
-    def __init__(self, user, flows, *args, **kwargs):
+    def __init__(self, user, trigger_type, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
-        self.fields["flow"].queryset = flows.order_by("flow_type", "name")
+
+        org = self.user.get_org()
+        flow_types = Trigger.ALLOWED_FLOW_TYPES[trigger_type]
+
+        self.fields["flow"].queryset = org.flows.filter(
+            flow_type__in=flow_types, is_active=True, is_archived=False, is_system=False
+        ).order_by("name")
 
     def clean_keyword(self):
         keyword = self.cleaned_data.get("keyword")
@@ -91,20 +97,13 @@ class BaseTriggerForm(forms.ModelForm):
         fields = ("flow",)
 
 
-class DefaultTriggerForm(BaseTriggerForm):
+class BaseGroupsTriggerForm(BaseTriggerForm):
     """
-    Default trigger form which only allows selection of a non-message based flow
+    Base form for trigger types that support a list of inclusion groups
     """
-
-    def __init__(self, user, *args, **kwargs):
-        flows = Flow.get_triggerable_flows(user.get_org(), by_schedule=False)
-        super().__init__(user, flows, *args, **kwargs)
-
-
-class GroupBasedTriggerForm(BaseTriggerForm):
 
     groups = TembaMultipleChoiceField(
-        queryset=ContactGroup.user_groups.filter(pk__lt=0),
+        queryset=ContactGroup.user_groups.none(),
         required=False,
         widget=SelectMultipleWidget(
             attrs={
@@ -115,8 +114,8 @@ class GroupBasedTriggerForm(BaseTriggerForm):
         ),
     )
 
-    def __init__(self, user, flows, *args, **kwargs):
-        super().__init__(user, flows, *args, **kwargs)
+    def __init__(self, user, trigger_type, *args, **kwargs):
+        super().__init__(user, trigger_type, *args, **kwargs)
         self.fields["groups"].queryset = ContactGroup.get_user_groups(user.get_org(), ready_only=False)
 
     def get_existing_triggers(self, cleaned_data):
@@ -138,32 +137,13 @@ class GroupBasedTriggerForm(BaseTriggerForm):
         fields = ("flow", "groups")
 
 
-class CatchAllTriggerForm(GroupBasedTriggerForm):
-    """
-    For for catchall triggers
-    """
-
-    def __init__(self, user, *args, **kwargs):
-        flows = Flow.get_triggerable_flows(user.get_org(), by_schedule=False)
-        super().__init__(user, flows, *args, **kwargs)
-
-    def get_existing_triggers(self, cleaned_data):
-        existing = super().get_existing_triggers(cleaned_data)
-        existing = existing.filter(keyword=None, trigger_type=Trigger.TYPE_CATCH_ALL)
-        return existing
-
-    class Meta(BaseTriggerForm.Meta):
-        fields = ("flow", "groups")
-
-
-class KeywordTriggerForm(GroupBasedTriggerForm):
+class KeywordTriggerForm(BaseGroupsTriggerForm):
     """
     Form for keyword triggers
     """
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.get_triggerable_flows(user.get_org(), by_schedule=False)
-        super().__init__(user, flows, *args, **kwargs)
+        super().__init__(user, Trigger.TYPE_KEYWORD, *args, **kwargs)
 
     def get_existing_triggers(self, cleaned_data):
         keyword = cleaned_data.get("keyword")
@@ -178,7 +158,7 @@ class KeywordTriggerForm(GroupBasedTriggerForm):
             existing = existing.filter(keyword__iexact=keyword)
         return existing
 
-    class Meta(BaseTriggerForm.Meta):
+    class Meta(BaseGroupsTriggerForm.Meta):
         fields = ("keyword", "match_type", "flow", "groups")
         widgets = {"keyword": InputWidget(), "match_type": SelectWidget()}
 
@@ -206,7 +186,7 @@ class RegisterTriggerForm(BaseTriggerForm):
     )
 
     action_join_group = AddNewGroupChoiceField(
-        ContactGroup.user_groups.filter(pk__lt=0),
+        ContactGroup.user_groups.none(),
         required=True,
         label=_("Group to Join"),
         help_text=_("The group the contact will join when they send the above keyword"),
@@ -221,9 +201,7 @@ class RegisterTriggerForm(BaseTriggerForm):
     )
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.get_triggerable_flows(user.get_org(), by_schedule=False)
-
-        super().__init__(user, flows, *args, **kwargs)
+        super().__init__(user, Trigger.TYPE_KEYWORD, *args, **kwargs)
 
         self.fields["flow"].required = False
         group_field = self.fields["action_join_group"]
@@ -274,11 +252,14 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
     def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
-        org = user.get_org()
-        flows = Flow.get_triggerable_flows(org, by_schedule=True)
+
+        org = self.user.get_org()
+        flow_types = Trigger.ALLOWED_FLOW_TYPES[Trigger.TYPE_SCHEDULE]
 
         self.fields["start_datetime"].help_text = _("%s Time Zone" % org.timezone)
-        self.fields["flow"].queryset = flows
+        self.fields["flow"].queryset = org.flows.filter(
+            flow_type__in=flow_types, is_active=True, is_archived=False, is_system=False
+        ).order_by("name")
 
     def clean_repeat_days_of_week(self):
         return "".join(self.cleaned_data["repeat_days_of_week"])
@@ -291,15 +272,22 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
         fields = ("flow", "omnibox", "repeat_period", "repeat_days_of_week", "start_datetime")
 
 
-class InboundCallTriggerForm(GroupBasedTriggerForm):
+class InboundCallTriggerForm(BaseGroupsTriggerForm):
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.objects.filter(org=user.get_org(), is_active=True, is_archived=False, flow_type=Flow.TYPE_VOICE)
-        super().__init__(user, flows, *args, **kwargs)
+        super().__init__(user, Trigger.TYPE_INBOUND_CALL, *args, **kwargs)
 
     def get_existing_triggers(self, cleaned_data):
         existing = super().get_existing_triggers(cleaned_data)
-        existing = existing.filter(trigger_type=Trigger.TYPE_INBOUND_CALL)
-        return existing
+        return existing.filter(trigger_type=Trigger.TYPE_INBOUND_CALL)
+
+
+class MissedCallTriggerForm(BaseTriggerForm):
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(user, Trigger.TYPE_MISSED_CALL, *args, **kwargs)
+
+    def get_existing_triggers(self, cleaned_data):
+        existing = super().get_existing_triggers(cleaned_data)
+        return existing.filter(trigger_type=Trigger.TYPE_MISSED_CALL)
 
 
 class NewConversationTriggerForm(BaseTriggerForm):
@@ -307,22 +295,23 @@ class NewConversationTriggerForm(BaseTriggerForm):
     Form for New Conversation triggers
     """
 
-    channel = TembaChoiceField(Channel.objects.filter(pk__lt=0), label=_("Channel"), required=True)
+    channel = TembaChoiceField(Channel.objects.none(), label=_("Channel"), required=True)
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.get_triggerable_flows(user.get_org(), by_schedule=False)
-        super().__init__(user, flows, *args, **kwargs)
+        super().__init__(user, Trigger.TYPE_NEW_CONVERSATION, *args, **kwargs)
 
-        self.fields["channel"].queryset = Channel.objects.filter(
+        org = self.user.get_org()
+
+        self.fields["channel"].queryset = org.channels.filter(
             is_active=True,
-            org=self.user.get_org(),
             schemes__overlap=list(ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION),
-        )
+        ).order_by("name")
 
     def clean_channel(self):
         channel = self.cleaned_data["channel"]
-        existing = Trigger.objects.filter(
-            org=self.user.get_org(),
+
+        org = self.user.get_org()
+        existing = org.triggers.filter(
             is_active=True,
             is_archived=False,
             trigger_type=Trigger.TYPE_NEW_CONVERSATION,
@@ -332,7 +321,7 @@ class NewConversationTriggerForm(BaseTriggerForm):
             existing = existing.exclude(id=self.instance.id)
 
         if existing.exists():
-            raise forms.ValidationError(_("Trigger with this Channel already exists."))
+            raise forms.ValidationError(_("Trigger with this channel already exists."))
 
         return self.cleaned_data["channel"]
 
@@ -346,7 +335,7 @@ class ReferralTriggerForm(BaseTriggerForm):
     """
 
     channel = TembaChoiceField(
-        Channel.objects.filter(pk__lt=0),
+        Channel.objects.none(),
         label=_("Channel"),
         required=False,
         help_text=_("The channel to apply this trigger to, leave blank for all Facebook channels"),
@@ -356,12 +345,13 @@ class ReferralTriggerForm(BaseTriggerForm):
     )
 
     def __init__(self, user, *args, **kwargs):
-        flows = Flow.get_triggerable_flows(user.get_org(), by_schedule=False)
-        super().__init__(user, flows, *args, **kwargs)
+        super().__init__(user, Trigger.TYPE_REFERRAL, *args, **kwargs)
 
-        self.fields["channel"].queryset = Channel.objects.filter(
-            is_active=True, org=self.user.get_org(), schemes__overlap=list(ContactURN.SCHEMES_SUPPORTING_REFERRALS)
-        )
+        org = self.user.get_org()
+
+        self.fields["channel"].queryset = org.channels.filter(
+            is_active=True, schemes__overlap=list(ContactURN.SCHEMES_SUPPORTING_REFERRALS)
+        ).order_by("name")
 
     def get_existing_triggers(self, cleaned_data):
         ref_id = cleaned_data.get("referrer_id", "").strip()
@@ -374,7 +364,7 @@ class ReferralTriggerForm(BaseTriggerForm):
             referrer_id__iexact=ref_id,
         )
         if self.instance:
-            existing = existing.exclude(pk=self.instance.pk)
+            existing = existing.exclude(id=self.instance.id)
 
         if channel:
             existing = existing.filter(channel=channel)
@@ -385,21 +375,35 @@ class ReferralTriggerForm(BaseTriggerForm):
         fields = ("channel", "referrer_id", "flow")
 
 
+class CatchAllTriggerForm(BaseGroupsTriggerForm):
+    """
+    Form for catchall triggers
+    """
+
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(user, Trigger.TYPE_CATCH_ALL, *args, **kwargs)
+
+    def get_existing_triggers(self, cleaned_data):
+        existing = super().get_existing_triggers(cleaned_data)
+        return existing.filter(keyword=None, trigger_type=Trigger.TYPE_CATCH_ALL)
+
+
 class TriggerCRUDL(SmartCRUDL):
     model = Trigger
     actions = (
-        "list",
         "create",
+        "create_keyword",
+        "create_register",
+        "create_schedule",
+        "create_inbound_call",
+        "create_missed_call",
+        "create_new_conversation",
+        "create_referral",
+        "create_catchall",
         "update",
+        "list",
         "archived",
-        "keyword",
-        "register",
-        "schedule",
-        "inbound_call",
-        "missed_call",
-        "catchall",
-        "new_conversation",
-        "referral",
+        "type",
     )
 
     class Create(FormaxMixin, OrgFilterMixin, OrgPermsMixin, SmartTemplateView):
@@ -410,30 +414,194 @@ class TriggerCRUDL(SmartCRUDL):
                 formax.add_section(name, reverse(url), icon=icon, action="redirect", button=_("Create Trigger"))
 
             org_schemes = self.org.get_schemes(Channel.ROLE_RECEIVE)
-            add_section("trigger-keyword", "triggers.trigger_keyword", "icon-tree")
-            add_section("trigger-register", "triggers.trigger_register", "icon-users-2")
-            add_section("trigger-schedule", "triggers.trigger_schedule", "icon-clock")
-            add_section("trigger-inboundcall", "triggers.trigger_inbound_call", "icon-phone2")
-            add_section("trigger-missedcall", "triggers.trigger_missed_call", "icon-phone")
+            add_section("trigger-keyword", "triggers.trigger_create_keyword", "icon-tree")
+            add_section("trigger-register", "triggers.trigger_create_register", "icon-users-2")
+            add_section("trigger-schedule", "triggers.trigger_create_schedule", "icon-clock")
+            add_section("trigger-inboundcall", "triggers.trigger_create_inbound_call", "icon-phone2")
+            add_section("trigger-missedcall", "triggers.trigger_create_missed_call", "icon-phone")
 
             if ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION.intersection(org_schemes):
-                add_section("trigger-new-conversation", "triggers.trigger_new_conversation", "icon-bubbles-2")
+                add_section("trigger-new-conversation", "triggers.trigger_create_new_conversation", "icon-bubbles-2")
 
             if ContactURN.SCHEMES_SUPPORTING_REFERRALS.intersection(org_schemes):
-                add_section("trigger-referral", "triggers.trigger_referral", "icon-exit")
+                add_section("trigger-referral", "triggers.trigger_create_referral", "icon-exit")
 
-            add_section("trigger-catchall", "triggers.trigger_catchall", "icon-bubble")
+            add_section("trigger-catchall", "triggers.trigger_create_catchall", "icon-bubble")
 
-    class Update(ModalMixin, ComponentFormMixin, OrgFilterMixin, OrgPermsMixin, SmartUpdateView):
+    class BaseCreate(OrgPermsMixin, ComponentFormMixin, SmartCreateView):
+        permission = "triggers.trigger_create"
+        success_url = "@triggers.trigger_list"
+        success_message = ""
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
+
+        def form_valid(self, form):
+            response = self.render_to_response(self.get_context_data(form=form))
+            response["REDIRECT"] = self.get_success_url()
+            return response
+
+    class CreateKeyword(BaseCreate):
+        form_class = KeywordTriggerForm
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+            flow = form.cleaned_data["flow"]
+            include_groups = form.cleaned_data["groups"]
+            keyword = form.cleaned_data["keyword"]
+
+            Trigger.create(org, user, Trigger.TYPE_KEYWORD, flow, include_groups=include_groups, keyword=keyword)
+
+            return super().form_valid(form)
+
+    class CreateRegister(BaseCreate):
+        form_class = RegisterTriggerForm
+        field_config = dict(keyword=dict(label=_("Join Keyword"), help=_("The first word of the message")))
+
+        def form_valid(self, form):
+            keyword = form.cleaned_data["keyword"]
+            join_group = form.cleaned_data["action_join_group"]
+            start_flow = form.cleaned_data["flow"]
+            send_msg = form.cleaned_data["response"]
+
+            org = self.request.user.get_org()
+            group_flow = Flow.create_join_group(org, self.request.user, join_group, send_msg, start_flow)
+
+            Trigger.create(org, self.request.user, Trigger.TYPE_KEYWORD, group_flow, keyword=keyword)
+
+            return super().form_valid(form)
+
+    class CreateSchedule(BaseCreate):
+        form_class = ScheduleTriggerForm
+        title = _("Create Schedule")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            return context
+
+        def form_invalid(self, form):
+            if "_format" in self.request.GET and self.request.GET["_format"] == "json":  # pragma: needs cover
+                return HttpResponse(
+                    json.dumps(dict(status="error", errors=form.errors)), content_type="application/json", status=400
+                )
+            else:
+                return super().form_valid(form)
+
+        def form_valid(self, form):
+            org = self.request.user.get_org()
+            start_time = form.cleaned_data["start_datetime"]
+
+            schedule = Schedule.create_schedule(
+                org,
+                self.request.user,
+                start_time,
+                form.cleaned_data.get("repeat_period"),
+                repeat_days_of_week=form.cleaned_data.get("repeat_days_of_week"),
+            )
+
+            recipients = self.form.cleaned_data["omnibox"]
+            flow = self.form.cleaned_data["flow"]
+
+            trigger = Trigger.create(
+                org,
+                self.request.user,
+                Trigger.TYPE_SCHEDULE,
+                flow,
+                include_groups=recipients["groups"],
+                schedule=schedule,
+            )
+
+            for contact in recipients["contacts"]:
+                trigger.contacts.add(contact)
+
+            self.post_save(trigger)
+
+            return super().form_valid(form)
+
+    class CreateInboundCall(BaseCreate):
+        form_class = InboundCallTriggerForm
+        fields = ("flow", "groups")
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+            flow = form.cleaned_data["flow"]
+            include_groups = form.cleaned_data["groups"]
+
+            Trigger.create(org, user, Trigger.TYPE_INBOUND_CALL, flow, include_groups=include_groups)
+
+            return super().form_valid(form)
+
+    class CreateMissedCall(BaseCreate):
+        form_class = MissedCallTriggerForm
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+            flow = form.cleaned_data["flow"]
+
+            Trigger.create(org, user, Trigger.TYPE_MISSED_CALL, flow)
+
+            return super().form_valid(form)
+
+    class CreateNewConversation(BaseCreate):
+        form_class = NewConversationTriggerForm
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+            flow = form.cleaned_data["flow"]
+
+            Trigger.create(org, user, Trigger.TYPE_NEW_CONVERSATION, flow, channel=form.cleaned_data["channel"])
+
+            return super().form_valid(form)
+
+    class CreateReferral(BaseCreate):
+        form_class = ReferralTriggerForm
+        title = _("Create Referral Trigger")
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+            flow = form.cleaned_data["flow"]
+
+            Trigger.create(
+                org,
+                user,
+                Trigger.TYPE_REFERRAL,
+                flow,
+                form.cleaned_data["channel"],
+                referrer_id=form.cleaned_data["referrer_id"],
+            )
+
+            return super().form_valid(form)
+
+    class CreateCatchall(BaseCreate):
+        form_class = CatchAllTriggerForm
+
+        def form_valid(self, form):
+            user = self.request.user
+            org = user.get_org()
+            flow = form.cleaned_data["flow"]
+            include_groups = form.cleaned_data["groups"]
+
+            Trigger.create(org, user, Trigger.TYPE_CATCH_ALL, flow, include_groups=include_groups)
+
+            return super().form_valid(form)
+
+    class Update(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
         success_message = ""
         trigger_forms = {
             Trigger.TYPE_KEYWORD: KeywordTriggerForm,
             Trigger.TYPE_SCHEDULE: ScheduleTriggerForm,
-            Trigger.TYPE_MISSED_CALL: DefaultTriggerForm,
             Trigger.TYPE_INBOUND_CALL: InboundCallTriggerForm,
-            Trigger.TYPE_CATCH_ALL: CatchAllTriggerForm,
+            Trigger.TYPE_MISSED_CALL: MissedCallTriggerForm,
             Trigger.TYPE_NEW_CONVERSATION: NewConversationTriggerForm,
             Trigger.TYPE_REFERRAL: ReferralTriggerForm,
+            Trigger.TYPE_CATCH_ALL: CatchAllTriggerForm,
         }
 
         def get_form_class(self):
@@ -509,40 +677,61 @@ class TriggerCRUDL(SmartCRUDL):
             return response
 
     class BaseList(OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
-        fields = ("name", "modified_on")
+        """
+        Base class for list views
+        """
+
+        fields = ("name",)
         default_template = "triggers/trigger_list.html"
-        default_order = ("-modified_on",)
         search_fields = ("keyword__icontains", "flow__name__icontains", "channel__name__icontains")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["org_has_triggers"] = Trigger.objects.filter(org=self.request.user.get_org()).count()
-            context["folders"] = self.get_folders()
+
+            org = self.request.user.get_org()
+            context["main_folders"] = self.get_main_folders(org)
+            context["type_folders"] = self.get_type_folders(org)
             context["request_url"] = self.request.path
             return context
 
-        def get_folders(self):
-            org = self.request.user.get_org()
-            folders = []
-            folders.append(
-                dict(
-                    label=_("Active"),
-                    url=reverse("triggers.trigger_list"),
-                    count=Trigger.objects.filter(is_active=True, is_archived=False, org=org).count(),
-                )
+        def get_queryset(self, *args, **kwargs):
+            qs = super().get_queryset(*args, **kwargs)
+            qs = (
+                qs.filter(is_active=True)
+                .annotate(earliest_group=Min("groups__name"))
+                .order_by("keyword", "earliest_group", "id")
+                .select_related("flow", "channel")
+                .prefetch_related("contacts", "groups")
             )
-            folders.append(
+            return qs
+
+        def get_main_folders(self, org):
+            return [
+                dict(
+                    label=_("All"),
+                    url=reverse("triggers.trigger_list"),
+                    count=org.triggers.filter(is_active=True, is_archived=False).count(),
+                ),
                 dict(
                     label=_("Archived"),
                     url=reverse("triggers.trigger_archived"),
-                    count=Trigger.objects.filter(is_active=True, is_archived=True, org=org).count(),
-                )
-            )
+                    count=org.triggers.filter(is_active=True, is_archived=True).count(),
+                ),
+            ]
+
+        def get_type_folders(self, org):
+            folders = []
+            for key, folder in Trigger.FOLDERS.items():
+                folder_url = reverse("triggers.trigger_type", kwargs={"folder": key})
+                folder_count = Trigger.get_folder(org, key).count()
+                folders.append(dict(label=folder.label, url=folder_url, count=folder_count))
             return folders
 
     class List(BaseList):
-        fields = ("keyword", "flow")
-        link_fields = ("keyword", "flow")
+        """
+        Non-archived triggers of all types
+        """
+
         bulk_actions = ("archive",)
         title = _("Triggers")
 
@@ -553,275 +742,34 @@ class TriggerCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(reverse("triggers.trigger_create"))
             return super().pre_process(request, *args, **kwargs)
 
-        def lookup_field_link(self, context, field, obj):  # pragma: needs cover
-            if field == "flow" and obj.flow:
-                return reverse("flows.flow_editor", args=[obj.flow.uuid])
-            return super().lookup_field_link(context, field, obj)
+        def get_queryset(self, *args, **kwargs):
+            return super().get_queryset(*args, **kwargs).filter(is_archived=False)
+
+    class Archived(BaseList):
+        """
+        Archived triggers of all types
+        """
+
+        bulk_actions = ("restore",)
+        title = _("Archived Triggers")
+
+        def get_queryset(self, *args, **kwargs):
+            return super().get_queryset(*args, **kwargs).filter(is_archived=True)
+
+    class Type(BaseList):
+        """
+        Folders of related trigger types
+        """
+
+        bulk_actions = ("archive",)
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return rf"^%s/%s/(?P<folder>{'|'.join(Trigger.FOLDERS.keys())}+)/$" % (path, action)
+
+        def derive_title(self):
+            return Trigger.FOLDERS[self.kwargs["folder"]].title
 
         def get_queryset(self, *args, **kwargs):
             qs = super().get_queryset(*args, **kwargs)
-            qs = (
-                qs.filter(is_active=True, is_archived=False)
-                .annotate(earliest_group=Min("groups__name"))
-                .order_by("keyword", "earliest_group")
-            )
-            return qs
-
-    class Archived(BaseList):
-        bulk_actions = ("restore",)
-        fields = ("keyword", "flow")
-
-        def get_queryset(self, *args, **kwargs):
-            return super().get_queryset(*args, **kwargs).filter(is_active=True, is_archived=True)
-
-    class CreateTrigger(OrgPermsMixin, ComponentFormMixin, SmartCreateView):
-        success_url = "@triggers.trigger_list"
-        success_message = ""
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
-            return kwargs
-
-    class Keyword(CreateTrigger):
-        form_class = KeywordTriggerForm
-
-        def pre_save(self, obj, *args, **kwargs):
-            obj = super().pre_save(obj, *args, **kwargs)
-            obj.org = self.request.user.get_org()
-            return obj
-
-        def form_valid(self, form):
-            analytics.track(self.request.user, "temba.trigger_created", dict(type="keyword"))
-            return super().form_valid(form)
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["auto_id"] = "id_keyword_%s"
-            return kwargs
-
-    class Register(CreateTrigger):
-        form_class = RegisterTriggerForm
-        field_config = dict(keyword=dict(label=_("Join Keyword"), help=_("The first word of the message")))
-
-        def form_valid(self, form):
-            keyword = form.cleaned_data["keyword"]
-            join_group = form.cleaned_data["action_join_group"]
-            start_flow = form.cleaned_data["flow"]
-            send_msg = form.cleaned_data["response"]
-
-            org = self.request.user.get_org()
-            group_flow = Flow.create_join_group(org, self.request.user, join_group, send_msg, start_flow)
-
-            Trigger.objects.create(
-                created_by=self.request.user,
-                modified_by=self.request.user,
-                org=self.request.user.get_org(),
-                keyword=keyword,
-                trigger_type=Trigger.TYPE_KEYWORD,
-                flow=group_flow,
-            )
-
-            analytics.track(self.request.user, "temba.trigger_created", dict(type="register"))
-
-            response = self.render_to_response(self.get_context_data(form=form))
-            response["REDIRECT"] = self.get_success_url()
-            return response
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["auto_id"] = "id_register_%s"
-            return kwargs
-
-    class Referral(CreateTrigger):
-        form_class = ReferralTriggerForm
-        title = _("Create Referral Trigger")
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["auto_id"] = "id_referral_%s"
-            return kwargs
-
-        def form_valid(self, form):
-            user = self.request.user
-            org = user.get_org()
-
-            self.object = Trigger.create(
-                org,
-                user,
-                Trigger.TYPE_REFERRAL,
-                form.cleaned_data["flow"],
-                form.cleaned_data["channel"],
-                referrer_id=form.cleaned_data["referrer_id"],
-            )
-
-            analytics.track(self.request.user, "temba.trigger_created", dict(type="referral"))
-
-            response = self.render_to_response(self.get_context_data(form=form))
-            response["REDIRECT"] = self.get_success_url()
-            return response
-
-    class Schedule(CreateTrigger):
-        form_class = ScheduleTriggerForm
-        title = _("Create Schedule")
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            return context
-
-        def form_invalid(self, form):
-            if "_format" in self.request.GET and self.request.GET["_format"] == "json":  # pragma: needs cover
-                return HttpResponse(
-                    json.dumps(dict(status="error", errors=form.errors)), content_type="application/json", status=400
-                )
-            else:
-                return super().form_invalid(form)
-
-        def form_valid(self, form):
-            analytics.track(self.request.user, "temba.trigger_created", dict(type="schedule"))
-            org = self.request.user.get_org()
-            start_time = form.cleaned_data["start_datetime"]
-
-            schedule = Schedule.create_schedule(
-                org,
-                self.request.user,
-                start_time,
-                form.cleaned_data.get("repeat_period"),
-                repeat_days_of_week=form.cleaned_data.get("repeat_days_of_week"),
-            )
-
-            recipients = self.form.cleaned_data["omnibox"]
-
-            trigger = Trigger.objects.create(
-                flow=self.form.cleaned_data["flow"],
-                org=self.request.user.get_org(),
-                schedule=schedule,
-                trigger_type=Trigger.TYPE_SCHEDULE,
-                created_by=self.request.user,
-                modified_by=self.request.user,
-            )
-
-            for group in recipients["groups"]:
-                trigger.groups.add(group)
-
-            for contact in recipients["contacts"]:
-                trigger.contacts.add(contact)
-
-            self.post_save(trigger)
-
-            response = self.render_to_response(self.get_context_data(form=form))
-            response["REDIRECT"] = self.get_success_url()
-            return response
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["auto_id"] = "id_schedule_%s"
-            return kwargs
-
-    class InboundCall(CreateTrigger):
-        form_class = InboundCallTriggerForm
-        fields = ("flow", "groups")
-
-        def pre_save(self, obj, *args, **kwargs):
-            obj = super().pre_save(obj, *args, **kwargs)
-            obj.org = self.request.user.get_org()
-            obj.trigger_type = Trigger.TYPE_INBOUND_CALL
-            return obj
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["auto_id"] = "id_inbound_call_%s"
-            return kwargs
-
-    class MissedCall(CreateTrigger):
-        form_class = DefaultTriggerForm
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["auto_id"] = "id_missed_call_%s"
-            return kwargs
-
-        def form_valid(self, form):
-
-            user = self.request.user
-            org = user.get_org()
-
-            # first archive all missed call triggers
-            Trigger.objects.filter(org=org, trigger_type=Trigger.TYPE_MISSED_CALL, is_active=True).update(
-                is_archived=True
-            )
-
-            # then create a new missed call trigger
-            Trigger.objects.create(
-                created_by=user,
-                modified_by=user,
-                org=org,
-                trigger_type=Trigger.TYPE_MISSED_CALL,
-                flow=form.cleaned_data["flow"],
-            )
-
-            analytics.track(self.request.user, "temba.trigger_created", dict(type="missed_call"))
-
-            response = self.render_to_response(self.get_context_data(form=form))
-            response["REDIRECT"] = self.get_success_url()
-            return response
-
-    class Catchall(CreateTrigger):
-        form_class = CatchAllTriggerForm
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
-            kwargs["auto_id"] = "id_catchall_%s"
-            return kwargs
-
-        def form_valid(self, form):
-            user = self.request.user
-            org = user.get_org()
-            groups = form.cleaned_data["groups"]
-
-            # first archive all catch all message triggers with matching groups
-            Trigger.objects.filter(
-                org=org, groups__in=groups, trigger_type=Trigger.TYPE_CATCH_ALL, is_active=True
-            ).update(is_archived=True)
-
-            # then create a new catch all trigger
-            trigger = Trigger.objects.create(
-                created_by=user,
-                modified_by=user,
-                org=org,
-                trigger_type=Trigger.TYPE_CATCH_ALL,
-                flow=form.cleaned_data["flow"],
-            )
-
-            # add all the groups we are relevant for
-            for group in groups:
-                trigger.groups.add(group)
-
-            analytics.track(self.request.user, "temba.trigger_created", dict(type="catchall"))
-
-            response = self.render_to_response(self.get_context_data(form=form))
-            response["REDIRECT"] = self.get_success_url()
-            return response
-
-    class NewConversation(CreateTrigger):
-        form_class = NewConversationTriggerForm
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["auto_id"] = "id_new_conversation_%s"
-            return kwargs
-
-        def form_valid(self, form):
-            user = self.request.user
-            org = user.get_org()
-
-            self.object = Trigger.create(
-                org, user, Trigger.TYPE_NEW_CONVERSATION, form.cleaned_data["flow"], form.cleaned_data["channel"]
-            )
-
-            analytics.track(self.request.user, "temba.trigger_created", dict(type="new_conversation"))
-
-            response = self.render_to_response(self.get_context_data(form=form))
-            response["REDIRECT"] = self.get_success_url()
-            return response
+            return Trigger.filter_folder(qs, self.kwargs["folder"]).filter(is_archived=False)

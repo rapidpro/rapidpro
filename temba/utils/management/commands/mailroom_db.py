@@ -24,7 +24,7 @@ from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticketer
 
 # by default every user will have this password including the superuser
-USER_PASSWORD = "Arst1234"
+USER_PASSWORD = "Qwerty123"
 
 # database dump containing admin boundary records
 LOCATIONS_DUMP = "test-data/nigeria.bin"
@@ -63,109 +63,120 @@ ORG1 = dict(
     ),
     channels=(
         dict(
+            uuid="74729f45-7f29-4868-9dc4-90e491e3c7d8",
             name="Twilio",
             channel_type="T",
             address="+13605551212",
             scheme="tel",
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE + Channel.ROLE_CALL + Channel.ROLE_ANSWER,
-            uuid="74729f45-7f29-4868-9dc4-90e491e3c7d8",
         ),
         dict(
+            uuid="19012bfd-3ce3-4cae-9bb9-76cf92c73d49",
             name="Vonage",
             channel_type="NX",
             address="5789",
             scheme="tel",
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
-            uuid="19012bfd-3ce3-4cae-9bb9-76cf92c73d49",
         ),
         dict(
+            uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
             name="Twitter",
             channel_type="TWT",
             address="ureport",
             scheme="twitter",
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
-            uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
         ),
     ),
     globals=(
-        dict(key="org_name", name="Org Name", uuid="c1a65849-243c-438e-987e-3fa5f884e3e1", value="Nyaruka"),
-        dict(key="access_token", name="Access Token", uuid="57a18892-9fc9-45f7-aa14-c7e5b3583b54", value="A213CD78"),
+        dict(uuid="c1a65849-243c-438e-987e-3fa5f884e3e1", key="org_name", name="Org Name", value="Nyaruka"),
+        dict(uuid="57a18892-9fc9-45f7-aa14-c7e5b3583b54", key="access_token", name="Access Token", value="A213CD78"),
     ),
     groups=(
-        dict(name="Doctors", uuid="c153e265-f7c9-4539-9dbc-9b358714b638", size=120),
-        dict(name="Testers", uuid="5e9d8fab-5e7e-4f51-b533-261af5dea70d", size=10),
+        dict(uuid="c153e265-f7c9-4539-9dbc-9b358714b638", name="Doctors", size=120),
+        dict(uuid="5e9d8fab-5e7e-4f51-b533-261af5dea70d", name="Testers", size=10),
     ),
     fields=(
         dict(
+            uuid="3a5891e4-756e-4dc9-8e12-b7a766168824",
             key="gender",
             label="Gender",
             value_type=ContactField.TYPE_TEXT,
-            uuid="3a5891e4-756e-4dc9-8e12-b7a766168824",
         ),
-        dict(key="age", label="Age", value_type=ContactField.TYPE_NUMBER, uuid="903f51da-2717-47c7-a0d3-f2f32877013d"),
+        dict(uuid="903f51da-2717-47c7-a0d3-f2f32877013d", key="age", label="Age", value_type=ContactField.TYPE_NUMBER),
         dict(
+            uuid="d83aae24-4bbf-49d0-ab85-6bfd201eac6d",
             key="joined",
             label="Joined",
             value_type=ContactField.TYPE_DATETIME,
-            uuid="d83aae24-4bbf-49d0-ab85-6bfd201eac6d",
         ),
-        dict(key="ward", label="Ward", value_type=ContactField.TYPE_WARD, uuid="de6878c1-b174-4947-9a65-8910ebe7d10f"),
+        dict(uuid="de6878c1-b174-4947-9a65-8910ebe7d10f", key="ward", label="Ward", value_type=ContactField.TYPE_WARD),
         dict(
+            uuid="3ca3e36b-3d5a-42a4-b292-482282ce9a90",
             key="district",
             label="District",
             value_type=ContactField.TYPE_DISTRICT,
-            uuid="3ca3e36b-3d5a-42a4-b292-482282ce9a90",
         ),
         dict(
-            key="state", label="State", value_type=ContactField.TYPE_STATE, uuid="1dddea55-9a3b-449f-9d43-57772614ff50"
+            uuid="1dddea55-9a3b-449f-9d43-57772614ff50",
+            key="state",
+            label="State",
+            value_type=ContactField.TYPE_STATE,
         ),
     ),
     contacts=(
         dict(
+            uuid="6393abc0-283d-4c9b-a1b3-641a035c34bf",
             name="Cathy",
             urns=["tel:+16055741111"],
-            uuid="6393abc0-283d-4c9b-a1b3-641a035c34bf",
             groups=["Doctors"],
             fields=dict(gender="F", state="Nigeria > Yobe", ward="Nigeria > Yobe > Gulani > Dokshi"),
+            created_on="2021-06-01T12:29:30Z",
         ),
         dict(
+            uuid="b699a406-7e44-49be-9f01-1a82893e8a10",
             name="Bob",
             urns=["tel:+16055742222"],
-            uuid="b699a406-7e44-49be-9f01-1a82893e8a10",
             fields=dict(joined="2019-01-24T04:32:22Z"),
+            created_on="2020-12-31T16:45:30Z",
         ),
         dict(
+            uuid="8d024bcd-f473-4719-a00a-bd0bb1190135",
             name="George",
             urns=["tel:+16055743333"],
-            uuid="8d024bcd-f473-4719-a00a-bd0bb1190135",
             fields=dict(age="30"),
+            created_on="2018-03-31T09:45:30Z",
         ),
-        dict(name="Alexandia", urns=["tel:+1605574444"], uuid="9709c157-4606-4d41-9df3-9e9c9b4ae2d4"),
+        dict(
+            uuid="9709c157-4606-4d41-9df3-9e9c9b4ae2d4",
+            name="Alexandia",
+            urns=["tel:+1605574444"],
+            created_on="2020-12-31T16:45:30Z",
+        ),
     ),
     labels=(
-        dict(name="Reporting", uuid="ebc4dedc-91c4-4ed4-9dd6-daa05ea82698"),
-        dict(name="Testing", uuid="a6338cdc-7938-4437-8b05-2d5d785e3a08"),
-        dict(name="Youth", uuid="fe33e8e3-f32d-4167-8632-64c2ba1c574d"),
+        dict(uuid="ebc4dedc-91c4-4ed4-9dd6-daa05ea82698", name="Reporting"),
+        dict(uuid="a6338cdc-7938-4437-8b05-2d5d785e3a08", name="Testing"),
+        dict(uuid="fe33e8e3-f32d-4167-8632-64c2ba1c574d", name="Youth"),
     ),
     flows=(
-        dict(name="Favorites", file="favorites_timeout.json", uuid="9de3663f-c5c5-4c92-9f45-ecbc09abcc85"),
-        dict(name="Pick a Number", file="pick_a_number.json", uuid="5890fe3a-f204-4661-b74d-025be4ee019c"),
-        dict(name="SMS Form", file="sms_form.json", uuid="70b04fa1-e2ee-4afd-b658-9a3f87f9b6f7"),
-        dict(name="IVR Flow", file="ivr_flow.json", uuid="2f81d0ea-4d75-4843-9371-3f7465311cce"),
-        dict(name="Send All", file="send_all.json", uuid="a7c11d68-f008-496f-b56d-2d5cf4cf16a5"),
-        dict(name="Contact Surveyor", file="contact_surveyor.json", uuid="ed8cf8d4-a42c-4ce1-a7e3-44a2918e3cec"),
-        dict(name="Incoming Extra", file="incoming_extra.json", uuid="376d3de6-7f0e-408c-80d6-b1919738bc80"),
+        dict(uuid="9de3663f-c5c5-4c92-9f45-ecbc09abcc85", name="Favorites", file="favorites_timeout.json"),
+        dict(uuid="5890fe3a-f204-4661-b74d-025be4ee019c", name="Pick a Number", file="pick_a_number.json"),
+        dict(uuid="70b04fa1-e2ee-4afd-b658-9a3f87f9b6f7", name="SMS Form", file="sms_form.json"),
+        dict(uuid="2f81d0ea-4d75-4843-9371-3f7465311cce", name="IVR Flow", file="ivr_flow.json"),
+        dict(uuid="a7c11d68-f008-496f-b56d-2d5cf4cf16a5", name="Send All", file="send_all.json"),
+        dict(uuid="ed8cf8d4-a42c-4ce1-a7e3-44a2918e3cec", name="Contact Surveyor", file="contact_surveyor.json"),
+        dict(uuid="376d3de6-7f0e-408c-80d6-b1919738bc80", name="Incoming Extra", file="incoming_extra.json"),
         dict(
+            uuid="81c0f323-7e06-4e0c-a960-19c20f17117c",
             name="Parent Child Expiration",
             file="parent_child_expiration.json",
-            uuid="81c0f323-7e06-4e0c-a960-19c20f17117c",
         ),
     ),
     campaigns=(
         dict(
+            uuid="72aa12c5-cc11-4bc7-9406-044047845c70",
             name="Doctor Reminders",
             group="Doctors",
-            uuid="72aa12c5-cc11-4bc7-9406-044047845c70",
             events=(
                 dict(flow="Favorites", offset_field="joined", offset="5", offset_unit="D", delivery_hour=12),
                 dict(
@@ -184,8 +195,8 @@ ORG1 = dict(
     ),
     templates=(
         dict(
-            name="revive_issue",
             uuid="9c22b594-fcab-4b29-9bcb-ce4404894a80",
+            name="revive_issue",
             translations=(
                 dict(
                     channel_uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
@@ -210,8 +221,8 @@ ORG1 = dict(
             ),
         ),
         dict(
-            name="goodbye",
             uuid="3b8dd151-1a91-411f-90cb-dd9065bb7a71",
+            name="goodbye",
             translations=(
                 dict(
                     channel_uuid="0f661e8b-ea9d-4bd3-9953-d368340acf91",
@@ -292,23 +303,30 @@ ORG2 = dict(
     sequence_start=20000,
     channels=(
         dict(
+            uuid="a89bc872-3763-4b95-91d9-31d4e56c6651",
             name="Twilio",
             channel_type="T",
             address="1234",
             scheme="tel",
             role=Channel.ROLE_SEND + Channel.ROLE_RECEIVE,
-            uuid="a89bc872-3763-4b95-91d9-31d4e56c6651",
         ),
     ),
     classifiers=(),
     globals=(),
-    groups=(dict(name="Doctors", uuid="492e438c-02e5-43a4-953a-57410b7fe3dd", size=120),),
+    groups=(dict(uuid="492e438c-02e5-43a4-953a-57410b7fe3dd", name="Doctors", size=120),),
     fields=(),
-    contacts=(dict(name="Fred", urns=["tel:+250700000005"], uuid="26d20b72-f7d8-44dc-87f2-aae046dbff95"),),
+    contacts=(
+        dict(
+            uuid="26d20b72-f7d8-44dc-87f2-aae046dbff95",
+            name="Fred",
+            urns=["tel:+250700000005"],
+            created_on="2020-12-31T16:45:30Z",
+        ),
+    ),
     labels=(),
     flows=(
-        dict(name="Favorites", file="favorites_timeout.json", uuid="f161bd16-3c60-40bd-8c92-228ce815b9cd"),
-        dict(name="Send All", file="send_all.json", uuid="5277916d-6011-41ac-a4a4-f6ac6a4f1dd9"),
+        dict(uuid="f161bd16-3c60-40bd-8c92-228ce815b9cd", name="Favorites", file="favorites_timeout.json"),
+        dict(uuid="5277916d-6011-41ac-a4a4-f6ac6a4f1dd9", name="Send All", file="send_all.json"),
     ),
     campaigns=(),
     templates=(),
@@ -668,7 +686,8 @@ class Command(BaseCommand):
 
             contact = Contact.create(org, user, c["name"], language="", urns=c["urns"], fields=values, groups=groups)
             contact.uuid = c["uuid"]
-            contact.save(update_fields=("uuid",))
+            contact.created_on = c["created_on"]
+            contact.save(update_fields=("uuid", "created_on"))
 
         self._log(self.style.SUCCESS("OK") + "\n")
 

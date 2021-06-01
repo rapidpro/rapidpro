@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-24 20:43+0000\n"
+"POT-Creation-Date: 2021-05-31 22:00+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3955,29 +3955,43 @@ msgstr ""
 msgid "Your ticketing service has been deleted."
 msgstr ""
 
-msgid "Keyword Trigger"
+#, fuzzy
+#| msgid "Keyword Trigger"
+msgid "Keyword Triggers"
 msgstr "Триггер Ключевого слова"
 
-msgid "Schedule Trigger"
+#, fuzzy
+#| msgid "Schedule"
+msgid "Scheduled"
+msgstr "Расписание"
+
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Scheduled Triggers"
 msgstr "Триггер Расписания"
 
-msgid "Inbound Call Trigger"
-msgstr "Триггер Входящего Вызова"
-
-msgid "Missed Call Trigger"
-msgstr "Триггер Пропущенного Вызова"
-
-msgid "Catch All Trigger"
+#, fuzzy
+#| msgid "Catch All Trigger"
+msgid "Call Triggers"
 msgstr "Триггер Перехвата всего"
 
-msgid "New Conversation Trigger"
-msgstr "Триггер Нового Разговора"
+msgid "Social Media"
+msgstr ""
 
-msgid "USSD Pull Session Trigger"
-msgstr "Триггер сессии USSD Pull "
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Social Media Triggers"
+msgstr "Триггер Расписания"
 
-msgid "Referral Trigger"
-msgstr "Триггер Направления"
+#, fuzzy
+#| msgid "Catch All Trigger"
+msgid "Catch All"
+msgstr "Триггер Перехвата всего"
+
+#, fuzzy
+#| msgid "Catch All Trigger"
+msgid "Catch All Triggers"
+msgstr "Триггер Перехвата всего"
 
 msgid "Message starts with the keyword"
 msgstr "Сообщение начинается с ключевого слова"
@@ -4061,7 +4075,9 @@ msgstr ""
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Группы и контакты, которым поток будет осуществлять рассылку"
 
-msgid "Trigger with this Channel already exists."
+#, fuzzy
+#| msgid "Trigger with this Channel already exists."
+msgid "Trigger with this channel already exists."
 msgstr "Триггер для этого Канала уже существует."
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
@@ -4073,20 +4089,25 @@ msgstr "Id источника ссылки, который запустит на
 msgid "Create Trigger"
 msgstr "Создать Триггер"
 
-msgid "Triggers"
-msgstr "Триггеры"
-
 msgid "Join Keyword"
 msgstr "Присоединить ключевое слово"
 
 msgid "The first word of the message"
 msgstr "Первое слово сообщения"
 
+msgid "Create Schedule"
+msgstr "Создать Расписание"
+
 msgid "Create Referral Trigger"
 msgstr "Создать Реферальный Триггер"
 
-msgid "Create Schedule"
-msgstr "Создать Расписание"
+msgid "Triggers"
+msgstr "Триггеры"
+
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Archived Triggers"
+msgstr "Триггер Расписания"
 
 msgid "United Kingdom"
 msgstr "Великобритания"
@@ -7573,17 +7594,37 @@ msgstr ""
 msgid "Add account for the channel and enter <code>%(secret)s</code> as the secret."
 msgstr ""
 
-msgid "Start a flow after receiving a message not handled elsewhere."
-msgstr "Запустите поток после получения сообщения, не обработанного где-либо еще."
-
 msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr "Триггеры позволяют пользователям запускать потоки на основе действий пользователя или расписания."
+
+msgid "Start a flow after receiving a message not handled elsewhere."
+msgstr "Запустите поток после получения сообщения, не обработанного где-либо еще."
 
 msgid "Start a flow after receiving a call."
 msgstr "Запустите поток после получения звонка."
 
 msgid "Create a message keyword that launches a flow."
 msgstr "Создайте ключевое слово сообщения, которое запускает поток."
+
+msgid "Start a flow after a missed call."
+msgstr "Запустить поток после пропущенного звонка."
+
+msgid "Start a flow when a conversation is started by a contact."
+msgstr "Запустить поток, когда разговор начинается контактом."
+
+msgid "Start a flow when Facebook refers a contact."
+msgstr "Запустить поток, когда Facebook направляет контакт."
+
+msgid "Create a message keyword that allows people to join a group."
+msgstr "Создать ключевое слово сообщения, которое позволит людям присоединяться к группе."
+
+msgid "Start a flow in the future or on a schedule."
+msgstr "Начать поток в будущем или по расписанию."
+
+#, fuzzy
+#| msgid "URN Type"
+msgid "Types"
+msgstr "Тип URN"
 
 msgid "The keyword"
 msgstr "Ключевое слово"
@@ -7618,21 +7659,6 @@ msgstr "Нет соответствующих триггеров."
 msgid "Update Trigger"
 msgstr "Обновить Триггер"
 
-msgid "Start a flow after a missed call."
-msgstr "Запустить поток после пропущенного звонка."
-
-msgid "Start a flow when a conversation is started by a contact."
-msgstr "Запустить поток, когда разговор начинается контактом."
-
-msgid "Start a flow when Facebook refers a contact."
-msgstr "Запустить поток, когда Facebook направляет контакт."
-
-msgid "Create a message keyword that allows people to join a group."
-msgstr "Создать ключевое слово сообщения, которое позволит людям присоединяться к группе."
-
-msgid "Start a flow in the future or on a schedule."
-msgstr "Начать поток в будущем или по расписанию."
-
 msgid "Enter a query"
 msgstr "Ввести запрос"
 
@@ -7658,6 +7684,21 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#~ msgid "Inbound Call Trigger"
+#~ msgstr "Триггер Входящего Вызова"
+
+#~ msgid "Missed Call Trigger"
+#~ msgstr "Триггер Пропущенного Вызова"
+
+#~ msgid "New Conversation Trigger"
+#~ msgstr "Триггер Нового Разговора"
+
+#~ msgid "USSD Pull Session Trigger"
+#~ msgstr "Триггер сессии USSD Pull "
+
+#~ msgid "Referral Trigger"
+#~ msgstr "Триггер Направления"
 
 #~ msgid "Remove Android"
 #~ msgstr "Удалить Android"

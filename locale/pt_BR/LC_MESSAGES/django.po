@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-24 20:43+0000\n"
+"POT-Creation-Date: 2021-05-31 22:00+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3953,29 +3953,43 @@ msgstr "Log HTTP"
 msgid "Your ticketing service has been deleted."
 msgstr "Seu serviço de tickets foi deletado."
 
-msgid "Keyword Trigger"
+#, fuzzy
+#| msgid "Keyword Trigger"
+msgid "Keyword Triggers"
 msgstr "Disparador palavra-chave"
 
-msgid "Schedule Trigger"
+#, fuzzy
+#| msgid "Schedule"
+msgid "Scheduled"
+msgstr "Agendar"
+
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Scheduled Triggers"
 msgstr "Disparador agendamento"
 
-msgid "Inbound Call Trigger"
-msgstr "Disparador de chamada de entrada"
-
-msgid "Missed Call Trigger"
-msgstr "Disparador chamada perdida"
-
-msgid "Catch All Trigger"
+#, fuzzy
+#| msgid "Catch All Trigger"
+msgid "Call Triggers"
 msgstr "Disparador capturar todas"
 
-msgid "New Conversation Trigger"
-msgstr "Novo Disparador de Conversa"
+msgid "Social Media"
+msgstr ""
 
-msgid "USSD Pull Session Trigger"
-msgstr "USSD Pull Session Trigger"
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Social Media Triggers"
+msgstr "Disparador agendamento"
 
-msgid "Referral Trigger"
-msgstr "Disparador de referência"
+#, fuzzy
+#| msgid "Catch All Trigger"
+msgid "Catch All"
+msgstr "Disparador capturar todas"
+
+#, fuzzy
+#| msgid "Catch All Trigger"
+msgid "Catch All Triggers"
+msgstr "Disparador capturar todas"
 
 msgid "Message starts with the keyword"
 msgstr "Mensagem começa com uma palavra-chave"
@@ -4057,7 +4071,9 @@ msgstr "Tempo de Início"
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Os grupos e contatos para os quais o fluxo será distribuído"
 
-msgid "Trigger with this Channel already exists."
+#, fuzzy
+#| msgid "Trigger with this Channel already exists."
+msgid "Trigger with this channel already exists."
 msgstr "O Gatilho com este Canal já existe."
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
@@ -4069,20 +4085,25 @@ msgstr "O id do referente que iniciara"
 msgid "Create Trigger"
 msgstr "Criar disparador"
 
-msgid "Triggers"
-msgstr "Disparadores"
-
 msgid "Join Keyword"
 msgstr "Juntar palavra-chave"
 
 msgid "The first word of the message"
 msgstr "A primeira palavra da mensagem"
 
+msgid "Create Schedule"
+msgstr "Criar agendamento"
+
 msgid "Create Referral Trigger"
 msgstr "Criar Disparador de Referência"
 
-msgid "Create Schedule"
-msgstr "Criar agendamento"
+msgid "Triggers"
+msgstr "Disparadores"
+
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Archived Triggers"
+msgstr "Disparador agendamento"
 
 msgid "United Kingdom"
 msgstr "Reino Unido"
@@ -7708,17 +7729,37 @@ msgstr "Vá para <a href=\"%(channels_url)s\">integrações de canal</a> onde vo
 msgid "Add account for the channel and enter <code>%(secret)s</code> as the secret."
 msgstr "Adicione uma conta para o canal e insira <code>%(secret)s</code> como o secret."
 
-msgid "Start a flow after receiving a message not handled elsewhere."
-msgstr "Iniciar um fluxo após detectar uma mensagem não tratada em outro local."
-
 msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr "Disparadores permitem aos usuários iniciar fluxos com base nas ações dos usuários ou agendamento."
+
+msgid "Start a flow after receiving a message not handled elsewhere."
+msgstr "Iniciar um fluxo após detectar uma mensagem não tratada em outro local."
 
 msgid "Start a flow after receiving a call."
 msgstr "Comece um fluxo depois de receber uma chamada."
 
 msgid "Create a message keyword that launches a flow."
 msgstr "Crie uma palavra-chave que inicia um fluxo."
+
+msgid "Start a flow after a missed call."
+msgstr "Comece um fluxo após uma chamada perdida."
+
+msgid "Start a flow when a conversation is started by a contact."
+msgstr "Comece um fluxo quando uma conversa é iniciada por um contato."
+
+msgid "Start a flow when Facebook refers a contact."
+msgstr "Comece um fluxo quando o Facebook enviar um contato."
+
+msgid "Create a message keyword that allows people to join a group."
+msgstr "Crie uma palavra-chave que permita que as pessoas se juntem a um grupo."
+
+msgid "Start a flow in the future or on a schedule."
+msgstr "Iniciar um fluxo futuramente ou segundo agendamento."
+
+#, fuzzy
+#| msgid "Type"
+msgid "Types"
+msgstr "Digite"
 
 msgid "The keyword"
 msgstr "A palavra-chave"
@@ -7753,21 +7794,6 @@ msgstr "Nenhum disparador correspondente"
 msgid "Update Trigger"
 msgstr "Atualizar disparador"
 
-msgid "Start a flow after a missed call."
-msgstr "Comece um fluxo após uma chamada perdida."
-
-msgid "Start a flow when a conversation is started by a contact."
-msgstr "Comece um fluxo quando uma conversa é iniciada por um contato."
-
-msgid "Start a flow when Facebook refers a contact."
-msgstr "Comece um fluxo quando o Facebook enviar um contato."
-
-msgid "Create a message keyword that allows people to join a group."
-msgstr "Crie uma palavra-chave que permita que as pessoas se juntem a um grupo."
-
-msgid "Start a flow in the future or on a schedule."
-msgstr "Iniciar um fluxo futuramente ou segundo agendamento."
-
 msgid "Enter a query"
 msgstr "Adicione uma dúvida"
 
@@ -7793,6 +7819,21 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#~ msgid "Inbound Call Trigger"
+#~ msgstr "Disparador de chamada de entrada"
+
+#~ msgid "Missed Call Trigger"
+#~ msgstr "Disparador chamada perdida"
+
+#~ msgid "New Conversation Trigger"
+#~ msgstr "Novo Disparador de Conversa"
+
+#~ msgid "USSD Pull Session Trigger"
+#~ msgstr "USSD Pull Session Trigger"
+
+#~ msgid "Referral Trigger"
+#~ msgstr "Disparador de referência"
 
 #, fuzzy
 #~| msgid "This workspace has been scheduled for deletion"
