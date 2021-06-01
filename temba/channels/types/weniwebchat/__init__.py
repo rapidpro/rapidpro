@@ -1,1 +1,1 @@
-from .type import WeniWebChatType
+from .type import WeniWebChatType  # noqa

@@ -7,7 +7,6 @@ from .type import CONFIG_BASE_URL
 
 
 class WeniWebChatTest(TembaTest):
-
     def test_claim(self):
         url = reverse("channels.types.weniwebchat.claim")
         self.login(self.admin)

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-08 21:00+0000\n"
+"POT-Creation-Date: 2021-06-01 00:53+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1775,6 +1775,15 @@ msgstr "ID приложения WeChat "
 msgid "The WeChat App secret"
 msgstr "Секрет приложения WeChat "
 
+msgid "With Weni Web Chat, you can integrate your Rapidpro organization as a chat on your website."
+msgstr ""
+
+msgid "This field will serve as name for your channel"
+msgstr ""
+
+msgid "URL where socket communication will take place"
+msgstr ""
+
 msgid "Message Templates"
 msgstr "Шаблоны сообщения"
 
@@ -2151,6 +2160,11 @@ msgstr ""
 
 msgid "Discord Identifier"
 msgstr ""
+
+#, fuzzy
+#| msgid "WeChat identifier"
+msgid "WeniWebChat Identifier"
+msgstr "Идентификатор WeChat"
 
 msgid "Text"
 msgstr "Текст"
@@ -3657,9 +3671,6 @@ msgstr ""
 msgid "Help"
 msgstr "Помощь"
 
-msgid "Sign Out"
-msgstr ""
-
 msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
 msgstr "Ключ и секрет API Вашей учетной записи DT On являются недействительными. Пожалуйста, проверьте их и попробуйте снова."
 
@@ -4099,6 +4110,25 @@ msgstr "Создать Реферальный Триггер"
 
 msgid "Create Schedule"
 msgstr "Создать Расписание"
+
+msgid "Enter the code from your authentication application"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid phone number, try again."
+msgid "Invalid MFA token. Please try again."
+msgstr "Неверный номер телефона, попробуйте снова."
+
+msgid "Submit"
+msgstr ""
+
+#, fuzzy
+#| msgid "Account Token"
+msgid "Backup Token"
+msgstr "Токен Учетной записи"
+
+msgid "Enter one of the tokens generated when activating the two-factor login"
+msgstr ""
 
 msgid "Processing"
 msgstr "Обработка"
@@ -5299,6 +5329,15 @@ msgstr ""
 msgid "<div class='code mt-4'> Manage > API Usage > Callback API > Server Settings </div> <div class='mt-2'> Enter the Webhook URL below for the <div class='code inline py-1'>URL</div> field and the Verify Token in the <div class='code inline py-1'>Secret Key</div> field. </div> <div class='code mt-6'> Manage > API Usage > Callback API > Event Types </div> <div class='mt-2'> Check the option %(option)s </div>"
 msgstr ""
 
+msgid "With <b>Weni Web Chat,</b> you can integrate your Rapidpro organization as a chat on your website."
+msgstr ""
+
+msgid "After input a <div class='code'>Name</div> for the chat that will connect to your website, you will need to configure the <div class='code'>Base URL</div> that Rapidpro requires for sending and receiving messages. Then you will need to configure how the chat will be shown on your website."
+msgstr ""
+
+msgid "For this configuration, access <a href='https://docs.ilhasoft.mobi/l/en/channels-category/untitled-article-en'> this documentation. </a>"
+msgstr ""
+
 msgid "Your WhatsApp channel is now connected, you should be able to send and receive messages as normal."
 msgstr ""
 
@@ -6181,6 +6220,9 @@ msgstr[3] ""
 msgid "Results %(start)s - %(end)s of %(total)s"
 msgstr ""
 
+msgid "Hide"
+msgstr ""
+
 #, python-format
 msgid "Aliases for %(name)s"
 msgstr ""
@@ -6719,7 +6761,7 @@ msgid "This will disconnect your DT One account. Payment actions will no longer 
 msgstr ""
 
 #, python-format
-msgid "Your workspace is <b>%(org)s</b>"
+msgid "Your project is <b>%(org)s</b>"
 msgstr ""
 
 #, python-format
@@ -6739,6 +6781,9 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 msgstr[3] ""
+
+msgid "Click here to edit"
+msgstr ""
 
 msgid "Manage Workspaces"
 msgstr ""
@@ -7026,8 +7071,8 @@ msgstr ""
 #, python-format
 msgid ""
 "\n"
-"    Your email address is <b>%(email)s</b>.\n"
-"  "
+"      Your email address is <b>%(email)s</b>.\n"
+"    "
 msgstr ""
 
 msgid "To disable two-factor authentication for your login, enter your current password."
@@ -7653,6 +7698,11 @@ msgstr "Создать ключевое слово сообщения, кото�
 msgid "Start a flow in the future or on a schedule."
 msgstr "Начать поток в будущем или по расписанию."
 
+#, fuzzy
+#| msgid "Account Token"
+msgid "Backup Tokens"
+msgstr "Токен Учетной записи"
+
 msgid "Enter a query"
 msgstr "Ввести запрос"
 
@@ -7685,7 +7735,6 @@ msgstr "Найдено ${count} по ${query}"
 #~ msgid " and "
 #~ msgstr " и"
 
-#, python-format
 #~ msgid "%(lang1)s and %(lang2)s"
 #~ msgstr "%(lang1)s и %(lang2)s"
 

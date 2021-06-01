@@ -1,5 +1,3 @@
-
-
 from django.utils.translation import ugettext_lazy as _
 
 from temba.contacts.models import URN
@@ -24,9 +22,7 @@ class WeniWebChatType(ChannelType):
     icon = "icon-weniwebchat"
     show_config_page = False
 
-    claim_blurb = _(
-        "With Weni Web Chat, you can integrate your Rapidpro organization as a chat on your website."
-    )
+    claim_blurb = _("With Weni Web Chat, you can integrate your Rapidpro organization as a chat on your website.")
     claim_view = ClaimView
 
     schemes = [URN.WENIWEBCHAT_SCHEME]

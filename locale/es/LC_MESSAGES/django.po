@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-04-08 21:00+0000\n"
+"POT-Creation-Date: 2021-06-01 00:53+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -1762,6 +1762,17 @@ msgstr "El ID de la aplicación WeChat"
 msgid "The WeChat App secret"
 msgstr "El secret de la aplicación WeChat"
 
+msgid "With Weni Web Chat, you can integrate your Rapidpro organization as a chat on your website."
+msgstr ""
+
+#, fuzzy
+#| msgid "Choose a name for your label"
+msgid "This field will serve as name for your channel"
+msgstr "Elija un nombre para su etiqueta"
+
+msgid "URL where socket communication will take place"
+msgstr ""
+
 msgid "Message Templates"
 msgstr "Plantillas de mensajes"
 
@@ -2138,6 +2149,11 @@ msgstr "Identificador de RocketChat"
 
 msgid "Discord Identifier"
 msgstr ""
+
+#, fuzzy
+#| msgid "WeChat identifier"
+msgid "WeniWebChat Identifier"
+msgstr "Identificador de WeChat"
 
 msgid "Text"
 msgstr "Texto"
@@ -3647,9 +3663,6 @@ msgstr "Agregar servicio de tickets"
 msgid "Help"
 msgstr "Ayuda"
 
-msgid "Sign Out"
-msgstr "Desconectar"
-
 msgid "Your DT One API key and secret seem invalid. Please check them again and retry."
 msgstr "Su clave y API Secret de DT One parecen no válidos. Revíselos de nuevo y vuelva a intentarlo."
 
@@ -4087,6 +4100,25 @@ msgstr "Crear Activador de Referencias"
 
 msgid "Create Schedule"
 msgstr "Crear Cronograma"
+
+msgid "Enter the code from your authentication application"
+msgstr ""
+
+#, fuzzy
+#| msgid "Invalid backup token. Please try again."
+msgid "Invalid MFA token. Please try again."
+msgstr "Código de respaldo inválido. Por favor intente de nuevo"
+
+msgid "Submit"
+msgstr ""
+
+#, fuzzy
+#| msgid "Use Backup Token"
+msgid "Backup Token"
+msgstr "Usar token de respaldo"
+
+msgid "Enter one of the tokens generated when activating the two-factor login"
+msgstr ""
 
 msgid "Processing"
 msgstr "Procesando"
@@ -5286,6 +5318,15 @@ msgstr "Para completar la configuración, deberá ingresar algunas cosas en su c
 msgid "<div class='code mt-4'> Manage > API Usage > Callback API > Server Settings </div> <div class='mt-2'> Enter the Webhook URL below for the <div class='code inline py-1'>URL</div> field and the Verify Token in the <div class='code inline py-1'>Secret Key</div> field. </div> <div class='code mt-6'> Manage > API Usage > Callback API > Event Types </div> <div class='mt-2'> Check the option %(option)s </div>"
 msgstr " <div class='code mt-4'> Administrar> Uso de API> API de Callback> Configuración del servidor </div> <div class='mt-2'> Ingrese la URL del Webhook a continuación para la URL <div class='code inline py-1'> </div>f y el campo Verify a5b60dz4dz. </div> <div class='code mt-6'> Administrar> Uso de API> API de Callback> Tipos de eventos </div> <div class='mt-2'> Marque la opción %(option)s </div>"
 
+msgid "With <b>Weni Web Chat,</b> you can integrate your Rapidpro organization as a chat on your website."
+msgstr ""
+
+msgid "After input a <div class='code'>Name</div> for the chat that will connect to your website, you will need to configure the <div class='code'>Base URL</div> that Rapidpro requires for sending and receiving messages. Then you will need to configure how the chat will be shown on your website."
+msgstr ""
+
+msgid "For this configuration, access <a href='https://docs.ilhasoft.mobi/l/en/channels-category/untitled-article-en'> this documentation. </a>"
+msgstr ""
+
 msgid "Your WhatsApp channel is now connected, you should be able to send and receive messages as normal."
 msgstr "Su canal de WhatsApp ahora está conectado, debería poder enviar y recibir mensajes con normalidad."
 
@@ -6142,6 +6183,9 @@ msgstr[1] "%(count)s resultados"
 msgid "Results %(start)s - %(end)s of %(total)s"
 msgstr "Resultados %(start)s - %(end)s de %(total)s"
 
+msgid "Hide"
+msgstr ""
+
 #, python-format
 msgid "Aliases for %(name)s"
 msgstr "Alias para %(name)s"
@@ -6766,8 +6810,9 @@ msgstr "Desconecte DT One"
 msgid "This will disconnect your DT One account. Payment actions will no longer be processed. Are you sure you want to proceed?"
 msgstr "Esto desconectará su cuenta de DT One. Las acciones de pago ya no se procesarán. ¿Estas seguro que deseas continuar?"
 
-#, python-format
-msgid "Your workspace is <b>%(org)s</b>"
+#, fuzzy, python-format
+#| msgid "Your workspace is <b>%(org)s</b>"
+msgid "Your project is <b>%(org)s</b>"
 msgstr "Su workspace es <b> %(org)s </b>"
 
 #, python-format
@@ -6791,6 +6836,9 @@ msgstr[1] ""
 "\n"
 "            Tiene espacios de trabajo secundarios <b> %(org_count)s </b>.\n"
 "          "
+
+msgid "Click here to edit"
+msgstr ""
 
 msgid "Manage Workspaces"
 msgstr "Administrar Espacios de Trabajo"
@@ -7079,11 +7127,15 @@ msgstr "Gracias por apoyar %(brand)s."
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Créditos complementarios, gracias por probar %(brand)s."
 
-#, python-format
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "    Your email address is <b>%(email)s</b>.\n"
+#| "  "
 msgid ""
 "\n"
-"    Your email address is <b>%(email)s</b>.\n"
-"  "
+"      Your email address is <b>%(email)s</b>.\n"
+"    "
 msgstr ""
 "\n"
 "    Su dirección de correo electrónico es <b> %(email)s </b>.\n"
@@ -7799,12 +7851,20 @@ msgstr "Cree una palabra clave de mensaje que permita a las personas unirse a un
 msgid "Start a flow in the future or on a schedule."
 msgstr "Empezar un flujo en el futuro o en un horario."
 
+#, fuzzy
+#| msgid "Use Backup Token"
+msgid "Backup Tokens"
+msgstr "Usar token de respaldo"
+
 msgid "Enter a query"
 msgstr "Ingrese una consulta"
 
 #, python-brace-format
 msgid "Found ${count} for ${query}"
 msgstr "Se encontró $ {count} por $ {query}"
+
+#~ msgid "Sign Out"
+#~ msgstr "Desconectar"
 
 #~ msgid "Disconnect Nexmo"
 #~ msgstr "Desconectar Nexmo"
@@ -7831,7 +7891,6 @@ msgstr "Se encontró $ {count} por $ {query}"
 #~ msgid " and "
 #~ msgstr "y"
 
-#, python-format
 #~ msgid "%(lang1)s and %(lang2)s"
 #~ msgstr "%(lang1)s y %(lang2)s"
 
