@@ -10,6 +10,7 @@ from enum import Enum
 from mimetypes import guess_extension
 
 from django.conf import settings
+from django.core.paginator import Paginator
 from django.db import connection
 from django.template.defaultfilters import slugify
 from parse_rest.datatypes import Date
@@ -5000,6 +5001,8 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
 
 class FlowReportFiltersMixin(ReportEndpointMixin):
+    paginate_by = 10000
+
     def prepare_filters(self, org, flow):
         self.applied_filters = {"flow": flow.uuid}
         _filters = [("flows_flowrun.flow_id", "=", flow.id)]
@@ -5042,6 +5045,42 @@ class FlowReportFiltersMixin(ReportEndpointMixin):
             self.applied_filters["exited_before"] = exited_before
 
         return _filters
+
+    def get_page(self, num_pages=1):
+        page = self.request.query_params.get("page", 1)
+        page = int(page) if isinstance(page, str) and page.isnumeric() else page
+        if not isinstance(page, int) or page < 1 or page > num_pages:
+            raise Http404
+        return page
+
+    def get_next_page_url(self, page_number):
+        from rest_framework.utils.urls import replace_query_param
+        url = self.request.build_absolute_uri()
+        return replace_query_param(url, "page", page_number)
+
+    def get_runs(self, org, flow):
+        self.applied_filters = {"flow": flow.uuid}
+        queryset = FlowRun.objects.filter(flow_id=flow.id)
+        if {"channel", "exclude", "group"}.intersection(
+            [*self.request.query_params.keys(), *self.request.data.keys()]
+        ):
+            # get contact ids from elasticsearch database
+            contact_ids = self.get_contacts(count_only=True, only_active=False).values_list("id")
+            queryset = queryset.filter(contact_id__in=contact_ids) if contact_ids else queryset.filter(contact_id=0)
+
+        filters = (
+            ("started_after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
+            ("started_before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
+            ("exited_after", lambda x: queryset.filter(exited_on__gte=org.parse_datetime(x))),
+            ("exited_before", lambda x: queryset.filter(exited_on__lte=org.parse_datetime(x))),
+        )
+        for name, _filter in filters:
+            filter_value = self.request.data.get(name)
+            if filter_value:
+                queryset = _filter(filter_value)
+                self.applied_filters[name] = filter_value
+
+        return queryset
 
 
 class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
@@ -5107,33 +5146,29 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        _filters = self.prepare_filters(org, flow)
-        with connection.cursor() as cursor:
-            query_template = """
-            SELECT
-            (
-                SELECT COUNT(DISTINCT "flows_flowrun"."contact_id")
-                FROM "flows_flowrun" WHERE %s
-            ) AS "total_contacts",
-            json_object_agg(t.exit_type, t.count) AS "counts"
-            FROM (
-                SELECT "flows_flowrun"."exit_type", count(*)
-                FROM "flows_flowrun"
-                WHERE "flows_flowrun"."exit_type" IS NOT NULL AND %s
-                GROUP BY "flows_flowrun"."exit_type"
-            ) t;
-            """
-            filters = " AND ".join(f"{key} {op} {value}" for key, op, value in _filters)
-            cursor.execute(query_template % (filters, filters))
-            result = cursor.fetchone()
-            results = {
-                "total_contacts": result[0],
-                "total_completes": (result[1] or {}).get(FlowRun.EXIT_TYPE_COMPLETED, 0),
-                "total_expired": (result[1] or {}).get(FlowRun.EXIT_TYPE_EXPIRED, 0),
-                "total_interrupts": (result[1] or {}).get(FlowRun.STATUS_INTERRUPTED, 0),
-            }
+        runs = self.get_runs(org, flow).order_by("created_on").values("contact_id", "exit_type")
+        paginator = Paginator(runs, self.paginate_by)
+        page = self.get_page(num_pages=paginator.num_pages)
+        contacts, contacts_to_exclude, counter, current_page = set(), set(), Counter(), paginator.page(page)
+        for run in current_page:
+            contacts.add(run["contact_id"])
+            counter[run["exit_type"]] += 1
 
-        return Response({**self.applied_filters, "results": [results]})
+        # skip previous contact ids
+        while current_page.has_previous():
+            current_page = paginator.get_page(current_page.previous_page_number())
+            for run in current_page:
+                contacts_to_exclude.add(run["contact_id"])
+        contacts = contacts.difference(contacts_to_exclude)
+
+        results = {
+            "total_contacts": len(contacts),
+            "total_completes": counter[FlowRun.EXIT_TYPE_COMPLETED],
+            "total_expired": counter[FlowRun.EXIT_TYPE_EXPIRED],
+            "total_interrupts": counter[FlowRun.STATUS_INTERRUPTED],
+        }
+        next_page = self.get_next_page_url(current_page.next_page_number()) if current_page.has_next() else None
+        return Response({**self.applied_filters, "next": next_page, "results": [results]})
 
     @staticmethod
     def csv_convertor(result, response):
