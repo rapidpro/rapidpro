@@ -24,6 +24,8 @@ from temba.utils.fields import (
     OmniboxChoice,
     SelectMultipleWidget,
     SelectWidget,
+    TembaChoiceField,
+    TembaMultipleChoiceField,
 )
 from temba.utils.views import BulkActionMixin, ComponentFormMixin
 
@@ -35,7 +37,7 @@ class BaseTriggerForm(forms.ModelForm):
     Base form for creating different trigger types
     """
 
-    flow = forms.ModelChoiceField(
+    flow = TembaChoiceField(
         Flow.objects.none(),
         label=_("Flow"),
         required=True,
@@ -100,20 +102,21 @@ class BaseGroupsTriggerForm(BaseTriggerForm):
     Base form for trigger types that support a list of inclusion groups
     """
 
-    groups = forms.ModelMultipleChoiceField(
+    groups = TembaMultipleChoiceField(
         queryset=ContactGroup.user_groups.none(),
         required=False,
         widget=SelectMultipleWidget(
-            attrs={"widget_only": True, "placeholder": _("Optional: Trigger only applies to these groups")}
+            attrs={
+                "icons": True,
+                "widget_only": True,
+                "placeholder": _("Optional: Trigger only applies to these groups"),
+            }
         ),
     )
 
     def __init__(self, user, trigger_type, *args, **kwargs):
         super().__init__(user, trigger_type, *args, **kwargs)
-
-        org = self.user.get_org()
-
-        self.fields["groups"].queryset = ContactGroup.user_groups.filter(org=org, is_active=True).order_by("name")
+        self.fields["groups"].queryset = ContactGroup.get_user_groups(user.get_org(), ready_only=False)
 
     def get_existing_triggers(self, cleaned_data):
         groups = cleaned_data.get("groups", [])
@@ -165,7 +168,7 @@ class RegisterTriggerForm(BaseTriggerForm):
     Wizard form that creates keyword trigger which starts contacts in a newly created flow which adds them to a group
     """
 
-    class AddNewGroupChoiceField(forms.ModelChoiceField):
+    class AddNewGroupChoiceField(TembaChoiceField):
         def clean(self, value):
             if value.startswith("[_NEW_]"):  # pragma: needs cover
                 value = value[7:]
@@ -229,7 +232,7 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
         widget=InputWidget(attrs={"datetimepicker": True, "placeholder": "Select a time to start the flow"}),
     )
 
-    flow = forms.ModelChoiceField(
+    flow = TembaChoiceField(
         Flow.objects.none(),
         label=_("Flow"),
         required=True,
@@ -292,7 +295,7 @@ class NewConversationTriggerForm(BaseTriggerForm):
     Form for New Conversation triggers
     """
 
-    channel = forms.ModelChoiceField(Channel.objects.none(), label=_("Channel"), required=True)
+    channel = TembaChoiceField(Channel.objects.none(), label=_("Channel"), required=True)
 
     def __init__(self, user, *args, **kwargs):
         super().__init__(user, Trigger.TYPE_NEW_CONVERSATION, *args, **kwargs)
@@ -331,7 +334,7 @@ class ReferralTriggerForm(BaseTriggerForm):
     Form for referral triggers
     """
 
-    channel = forms.ModelChoiceField(
+    channel = TembaChoiceField(
         Channel.objects.none(),
         label=_("Channel"),
         required=False,

@@ -44,7 +44,14 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
-from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
+from temba.utils.fields import (
+    CheckboxWidget,
+    InputWidget,
+    SelectMultipleWidget,
+    SelectWidget,
+    TembaChoiceField,
+    TembaMultipleChoiceField,
+)
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin
 
@@ -81,8 +88,8 @@ HISTORY_INCLUDE_EVENTS = {
 
 
 class RemoveFromGroupForm(forms.Form):
-    contact = forms.ModelChoiceField(Contact.objects.all())
-    group = forms.ModelChoiceField(ContactGroup.user_groups.all())
+    contact = TembaChoiceField(Contact.objects.all())
+    group = TembaChoiceField(ContactGroup.user_groups.all())
 
     def __init__(self, *args, **kwargs):
         org = kwargs.pop("org")
@@ -470,7 +477,7 @@ class ContactForm(forms.ModelForm):
 
 
 class UpdateContactForm(ContactForm):
-    groups = forms.ModelMultipleChoiceField(
+    groups = TembaMultipleChoiceField(
         queryset=ContactGroup.user_groups.filter(pk__lt=0),
         required=False,
         label=_("Groups"),
@@ -1269,7 +1276,7 @@ class ContactCRUDL(SmartCRUDL):
 
     class UpdateFields(NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.Form):
-            contact_field = forms.ModelChoiceField(
+            contact_field = TembaChoiceField(
                 ContactField.user_fields.all(),
                 widget=SelectWidget(
                     attrs={"widget_only": True, "searchable": True, "placeholder": _("Select a field to update")}
@@ -1389,7 +1396,7 @@ class ContactCRUDL(SmartCRUDL):
         """
 
         class Form(forms.Form):
-            flow = forms.ModelChoiceField(
+            flow = TembaChoiceField(
                 queryset=Flow.objects.none(),
                 widget=SelectWidget(
                     attrs={"placeholder": _("Select a flow to start"), "widget_only": True, "searchable": True}
@@ -1918,7 +1925,7 @@ class ContactImportCRUDL(SmartCRUDL):
             new_group_name = forms.CharField(
                 label=" ", required=False, max_length=ContactGroup.MAX_NAME_LEN, widget=InputWidget()
             )
-            existing_group = forms.ModelChoiceField(
+            existing_group = TembaChoiceField(
                 label=" ",
                 required=False,
                 queryset=ContactGroup.user_groups.none(),

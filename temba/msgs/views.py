@@ -36,6 +36,7 @@ from temba.utils.fields import (
     OmniboxChoice,
     SelectMultipleWidget,
     SelectWidget,
+    TembaChoiceField,
 )
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin
@@ -434,9 +435,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
 
 class TestMessageForm(forms.Form):
-    channel = forms.ModelChoiceField(
-        Channel.objects.filter(id__lt=0), help_text=_("Which channel will deliver the message")
-    )
+    channel = TembaChoiceField(Channel.objects.filter(id__lt=0), help_text=_("Which channel will deliver the message"))
     urn = forms.CharField(max_length=14, help_text=_("The URN of the contact delivering this message"))
     text = forms.CharField(max_length=160, widget=forms.Textarea, help_text=_("The message that is being delivered"))
 

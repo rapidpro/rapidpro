@@ -41,6 +41,7 @@ class CampaignTest(TembaTest):
 
     @mock_mailroom
     def test_model(self, mr_mocks):
+
         campaign = Campaign.create(self.org, self.admin, Campaign.get_unique_name(self.org, "Reminders"), self.farmers)
 
         flow = self.create_flow()
@@ -1488,7 +1489,8 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
     @mock_mailroom
     def test_update(self, mr_mocks):
         group1 = self.create_group("Reporters", contacts=[])
-        group2 = self.create_group("Testers", contacts=[])
+        group2 = self.create_group("Testers", query="tester=1")
+
         campaign = self.create_campaign(self.org, "Welcomes", group1)
 
         update_url = reverse("campaigns.campaign_update", args=[campaign.id])
@@ -1510,8 +1512,8 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("Greetings", campaign.name)
         self.assertEqual(group1, campaign.group)
 
-        # group didn't change so shouldn't have queued any tasks to reschedule events
-        self.assertEqual(0, len(mr_mocks.queued_batch_tasks))
+        # group didn't change so should only have dynamic group creation queued
+        self.assertEqual(1, len(mr_mocks.queued_batch_tasks))
 
         # submit with group change
         self.assertUpdateSubmit(update_url, {"name": "Greetings", "group": group2.id}, success_status=200)
@@ -1521,7 +1523,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(group2, campaign.group)
 
         # should have a task queued to reschedule the campaign's event
-        self.assertEqual(1, len(mr_mocks.queued_batch_tasks))
+        self.assertEqual(2, len(mr_mocks.queued_batch_tasks))
         self.assertEqual(
             {
                 "type": "schedule_campaign_event",
@@ -1529,7 +1531,7 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
                 "task": {"campaign_event_id": campaign.events.filter(is_active=True).get().id, "org_id": self.org.id},
                 "queued_on": matchers.Datetime(),
             },
-            mr_mocks.queued_batch_tasks[0],
+            mr_mocks.queued_batch_tasks[1],
         )
 
     def test_list(self):

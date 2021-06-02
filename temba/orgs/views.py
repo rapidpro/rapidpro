@@ -68,6 +68,7 @@ from temba.utils.fields import (
     InputWidget,
     SelectMultipleWidget,
     SelectWidget,
+    TembaChoiceField,
 )
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
@@ -1975,7 +1976,7 @@ class OrgCRUDL(SmartCRUDL):
 
     class Service(SmartFormView):
         class ServiceForm(forms.Form):
-            organization = forms.ModelChoiceField(queryset=Org.objects.all(), empty_label=None)
+            organization = TembaChoiceField(queryset=Org.objects.all(), empty_label=None)
             redirect_url = forms.CharField(required=False)
 
         form_class = ServiceForm
