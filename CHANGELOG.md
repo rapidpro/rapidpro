@@ -1,3 +1,7 @@
+v6.3.60
+----------
+ * Only retry 5000 messages at a time, prefetch channel and fields
+
 v6.3.59
 ----------
  * Enable model instances to show an icon in selects
