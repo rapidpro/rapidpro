@@ -136,7 +136,7 @@ def retry_errored_messages():
     errored_msgs = (
         Msg.objects.filter(direction=OUTGOING, status=ERRORED, next_attempt__lte=timezone.now())
         .order_by("next_attempt", "created_on")
-        .only("id")
+        .prefetch_related("channel")[:5000]
     )
     Msg.send_messages(errored_msgs)
 
