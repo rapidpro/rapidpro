@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-31 22:00+0000\n"
+"POT-Creation-Date: 2021-06-01 16:54+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3984,6 +3984,11 @@ msgid "Social Media Triggers"
 msgstr "Триггер Расписания"
 
 #, fuzzy
+#| msgid "Triggers"
+msgid "Ticket Triggers"
+msgstr "Триггеры"
+
+#, fuzzy
 #| msgid "Catch All Trigger"
 msgid "Catch All"
 msgstr "Триггер Перехвата всего"
@@ -4005,29 +4010,11 @@ msgstr "Ключевое слово"
 msgid "Word to match in the message text"
 msgstr "Слово для соответствия в тексте сообщения"
 
-msgid "Referrer Id"
-msgstr "Id Источника ссылки"
-
-msgid "The referrer id that triggers us"
-msgstr "Id источника ссылки, который запускает нас"
-
 msgid "Flow"
 msgstr "Поток"
 
 msgid "Which flow will be started"
 msgstr "Какой поток будет запущен"
-
-msgid "The groups to broadcast the flow to"
-msgstr "Группы, которым нужно разослать поток"
-
-msgid "Individual contacts to broadcast the flow to"
-msgstr "Отдельные контакты, которым нужно рассылать поток"
-
-msgid "Schedule"
-msgstr "Расписание"
-
-msgid "Our recurring schedule"
-msgstr "Наше повторяющиеся расписание"
 
 msgid "Trigger When"
 msgstr "Сработать, когда"
@@ -4082,6 +4069,9 @@ msgstr "Триггер для этого Канала уже существуе�
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
 msgstr "Канал, к которому применить этот триггер, оставьте пустым для охвата всех каналов Facebook"
+
+msgid "Referrer Id"
+msgstr "Id Источника ссылки"
 
 msgid "The referrer id that will trigger us"
 msgstr "Id источника ссылки, который запустит нас"
@@ -7410,6 +7400,9 @@ msgstr "Событие Классификатора"
 msgid "Connection Error"
 msgstr "Ошибка подключения"
 
+msgid "Schedule"
+msgstr "Расписание"
+
 msgid "Select when you would like the message to be sent"
 msgstr ""
 
@@ -7684,6 +7677,18 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#~ msgid "The referrer id that triggers us"
+#~ msgstr "Id источника ссылки, который запускает нас"
+
+#~ msgid "The groups to broadcast the flow to"
+#~ msgstr "Группы, которым нужно разослать поток"
+
+#~ msgid "Individual contacts to broadcast the flow to"
+#~ msgstr "Отдельные контакты, которым нужно рассылать поток"
+
+#~ msgid "Our recurring schedule"
+#~ msgstr "Наше повторяющиеся расписание"
 
 #~ msgid "Inbound Call Trigger"
 #~ msgstr "Триггер Входящего Вызова"

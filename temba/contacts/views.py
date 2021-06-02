@@ -1493,7 +1493,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             group = self.get_object()
 
-            context["triggers"] = group.trigger_set.filter(is_archived=False)
+            context["triggers"] = group.triggers.filter(is_archived=False)
             context["campaigns"] = group.campaigns.filter(is_archived=False)
 
             return context
@@ -1507,7 +1507,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             group = self.object
 
             # if there are still dependencies, give up
-            triggers = group.trigger_set.filter(is_archived=False)
+            triggers = group.triggers.filter(is_archived=False)
             if triggers.count() > 0:
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
 

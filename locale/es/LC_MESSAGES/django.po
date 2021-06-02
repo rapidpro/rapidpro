@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-31 22:00+0000\n"
+"POT-Creation-Date: 2021-06-01 16:54+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -3976,6 +3976,11 @@ msgid "Social Media Triggers"
 msgstr "Activador de programa"
 
 #, fuzzy
+#| msgid "Triggers"
+msgid "Ticket Triggers"
+msgstr "Activadores"
+
+#, fuzzy
 #| msgid "Catch All Trigger"
 msgid "Catch All"
 msgstr "Obtener todos los activadores"
@@ -3997,29 +4002,11 @@ msgstr "Palabra clave"
 msgid "Word to match in the message text"
 msgstr "Palabra para que coincida en el texto del mensaje"
 
-msgid "Referrer Id"
-msgstr "ID de referencia"
-
-msgid "The referrer id that triggers us"
-msgstr "El ID de referencia que nos activa"
-
 msgid "Flow"
 msgstr "Flujo"
 
 msgid "Which flow will be started"
 msgstr "Qué flujo se iniciará"
-
-msgid "The groups to broadcast the flow to"
-msgstr "Los grupos para comunicar el flujo a"
-
-msgid "Individual contacts to broadcast the flow to"
-msgstr "Contactos individuales para comunicar el flujo a"
-
-msgid "Schedule"
-msgstr "Horario"
-
-msgid "Our recurring schedule"
-msgstr "Nuestro programa periódico"
 
 msgid "Trigger When"
 msgstr "Activar cuando"
@@ -4072,6 +4059,9 @@ msgstr "El activador con este canal ya existe."
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
 msgstr "El canal al que aplicar este activador, déjelo en blanco para todos los canales de Facebook"
+
+msgid "Referrer Id"
+msgstr "ID de referencia"
 
 msgid "The referrer id that will trigger us"
 msgstr "La identificación de referencia que nos activará"
@@ -7537,6 +7527,9 @@ msgstr "Evento clasificador"
 msgid "Connection Error"
 msgstr "Error de conexión"
 
+msgid "Schedule"
+msgstr "Horario"
+
 msgid "Select when you would like the message to be sent"
 msgstr "Seleccione cuándo desea que se envíe el mensaje"
 
@@ -7832,6 +7825,18 @@ msgstr "Las plantillas se sincronizan desde su cuenta de WhatsApp cada 15 minuto
 
 msgid "No synced templates at this time."
 msgstr "No hay plantillas sincronizadas en este momento."
+
+#~ msgid "The referrer id that triggers us"
+#~ msgstr "El ID de referencia que nos activa"
+
+#~ msgid "The groups to broadcast the flow to"
+#~ msgstr "Los grupos para comunicar el flujo a"
+
+#~ msgid "Individual contacts to broadcast the flow to"
+#~ msgstr "Contactos individuales para comunicar el flujo a"
+
+#~ msgid "Our recurring schedule"
+#~ msgstr "Nuestro programa periódico"
 
 #~ msgid "Inbound Call Trigger"
 #~ msgstr "Activador de llamada entrante"

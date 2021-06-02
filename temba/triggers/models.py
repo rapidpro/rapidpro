@@ -30,6 +30,7 @@ class Trigger(SmartModel):
     TYPE_MISSED_CALL = "M"
     TYPE_NEW_CONVERSATION = "N"
     TYPE_REFERRAL = "R"
+    TYPE_CLOSED_TICKET = "T"
     TYPE_CATCH_ALL = "C"
 
     TRIGGER_TYPES = (
@@ -39,6 +40,7 @@ class Trigger(SmartModel):
         (TYPE_MISSED_CALL, "Missed Call"),
         (TYPE_NEW_CONVERSATION, "New Conversation"),
         (TYPE_REFERRAL, "Referral"),
+        (TYPE_CLOSED_TICKET, "Closed Ticket"),
         (TYPE_CATCH_ALL, "Catch All"),
     )
 
@@ -49,6 +51,7 @@ class Trigger(SmartModel):
         TYPE_MISSED_CALL: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE),
         TYPE_NEW_CONVERSATION: (Flow.TYPE_MESSAGE,),
         TYPE_REFERRAL: (Flow.TYPE_MESSAGE,),
+        TYPE_CLOSED_TICKET: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND),
         TYPE_CATCH_ALL: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE),
     }
 
@@ -56,6 +59,7 @@ class Trigger(SmartModel):
     FOLDER_SCHEDULED = "scheduled"
     FOLDER_CALLS = "calls"
     FOLDER_SOCIAL_MEDIA = "social"
+    FOLDER_TICKETS = "tickets"
     FOLDER_CATCHALL = "catchall"
     FOLDERS = {
         FOLDER_KEYWORDS: Folder(_("Keywords"), _("Keyword Triggers"), (TYPE_KEYWORD,)),
@@ -66,6 +70,7 @@ class Trigger(SmartModel):
             _("Social Media Triggers"),
             (TYPE_NEW_CONVERSATION, TYPE_REFERRAL),
         ),
+        FOLDER_TICKETS: Folder(_("Tickets"), _("Ticket Triggers"), (TYPE_CLOSED_TICKET,)),
         FOLDER_CATCHALL: Folder(_("Catch All"), _("Catch All Triggers"), (TYPE_CATCH_ALL,)),
     }
 
@@ -99,13 +104,7 @@ class Trigger(SmartModel):
         help_text=_("Word to match in the message text"),
     )
 
-    referrer_id = models.CharField(
-        verbose_name=_("Referrer Id"),
-        max_length=255,
-        null=True,
-        blank=True,
-        help_text=_("The referrer id that triggers us"),
-    )
+    referrer_id = models.CharField(max_length=255, null=True)
 
     flow = models.ForeignKey(
         Flow,
@@ -115,23 +114,12 @@ class Trigger(SmartModel):
         related_name="triggers",
     )
 
-    groups = models.ManyToManyField(
-        ContactGroup, verbose_name=_("Groups"), help_text=_("The groups to broadcast the flow to")
-    )
+    # who trigger applies to
+    groups = models.ManyToManyField(ContactGroup, related_name="triggers_included")
+    exclude_groups = models.ManyToManyField(ContactGroup, related_name="triggers_excluded")
+    contacts = models.ManyToManyField(Contact, related_name="triggers")  # scheduled triggers only
 
-    contacts = models.ManyToManyField(
-        Contact, verbose_name=_("Contacts"), help_text=_("Individual contacts to broadcast the flow to")
-    )
-
-    schedule = models.OneToOneField(
-        "schedules.Schedule",
-        on_delete=models.PROTECT,
-        verbose_name=_("Schedule"),
-        null=True,
-        blank=True,
-        related_name="trigger",
-        help_text=_("Our recurring schedule"),
-    )
+    schedule = models.OneToOneField("schedules.Schedule", on_delete=models.PROTECT, null=True, related_name="trigger")
 
     match_type = models.CharField(
         max_length=1,

@@ -672,6 +672,14 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             success_status=200,
         )
 
+        # or blank referrer
+        self.assertCreateSubmit(
+            create_url,
+            {"channel": channel2.id, "flow": flow1.id, "referrer_id": ""},
+            new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_REFERRAL, channel=channel2, referrer_id=""),
+            success_status=200,
+        )
+
         # or channel
         self.assertCreateSubmit(
             create_url,
