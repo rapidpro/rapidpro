@@ -1,3 +1,8 @@
+v6.3.58
+----------
+ * Add model changes for closed ticket triggers
+ * Add model changes for exclude groups support on triggers
+
 v6.3.57
 ----------
  * Tweak mailroom_db to make contact created_on values fixed
