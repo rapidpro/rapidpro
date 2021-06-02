@@ -1,3 +1,7 @@
+v6.3.59
+----------
+ * Enable model instances to show an icon in selects
+
 v6.3.58
 ----------
  * Add model changes for closed ticket triggers
