@@ -4762,8 +4762,11 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     @csv_response_wrapper
     def post(self, request, *args, **kwargs):
         org = self.request.user.get_org()
-        contacts = self.get_contacts()
         counts = defaultdict(lambda: Counter())
+        try:
+            contacts = self.get_contacts()
+        except SearchException as e:
+            return Response({"error": e.message}, status=status.HTTP_400_BAD_REQUEST)
 
         requested_variables = self.request.GET.get("variables", self.request.data.get("variables"))
         existing_variables = dict(ContactField.user_fields.filter(org=org).values_list("key", "uuid"))
