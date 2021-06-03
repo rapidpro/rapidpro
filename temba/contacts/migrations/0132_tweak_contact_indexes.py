@@ -2,11 +2,6 @@
 
 from django.db import migrations, models
 
-SQL = """
-DROP INDEX contacts_contact_org_modified_id_active;
-DROP INDEX contacts_contact_name;
-"""
-
 
 class Migration(migrations.Migration):
 
@@ -20,5 +15,5 @@ class Migration(migrations.Migration):
             model_name="contact",
             index=models.Index(fields=["org", "-modified_on", "-id"], name="contacts_contact_org_modified"),
         ),
-        migrations.RunSQL(SQL),
+        migrations.RunSQL("DROP INDEX contacts_contact_name;"),
     ]
