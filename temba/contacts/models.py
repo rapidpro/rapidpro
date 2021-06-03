@@ -1276,6 +1276,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     def __str__(self):
         return self.get_display()
 
+    class Meta:
+        indexes = [
+            models.Index(name="contacts_contact_org_modified", fields=["org", "-modified_on", "-id"]),
+        ]
+
 
 class ContactURN(models.Model):
     """
