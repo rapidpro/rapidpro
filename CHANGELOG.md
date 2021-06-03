@@ -1,3 +1,7 @@
+v6.3.62
+----------
+ * Update components to single mailroom resource for completion
+
 v6.3.60
 ----------
  * Only retry 5000 messages at a time, prefetch channel and fields
