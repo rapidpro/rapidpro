@@ -1278,8 +1278,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
     class Meta:
         indexes = [
-            # used for fetching contacts on the API endpoint and also for getting the oldest modified_on per org
-            models.Index(name="contacts_contact_org_modified", fields=["org", "-modified_on", "-id"]),
+            # used for getting the oldest modified_on per org in mailroom
+            models.Index(name="contacts_contact_org_modified", fields=["org", "-modified_on"]),
         ]
 
 

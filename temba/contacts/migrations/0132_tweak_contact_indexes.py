@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddIndex(
             model_name="contact",
-            index=models.Index(fields=["org", "-modified_on", "-id"], name="contacts_contact_org_modified"),
+            index=models.Index(fields=["org", "-modified_on"], name="contacts_contact_org_modified"),
         ),
         migrations.RunSQL("DROP INDEX contacts_contact_name;"),
     ]
