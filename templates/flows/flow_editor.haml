@@ -264,9 +264,6 @@
         activity: '/flow/activity/{{object.uuid}}/',
         recipients: '/contact/omnibox?v=2&types=gc',
 
-        completion: '/mr/docs/{{ LANGUAGE_CODE }}/completion.json',
-        functions: '/mr/docs/{{ LANGUAGE_CODE }}/functions.json',
-
         {% if can_simulate %}
         simulateStart: '/flow/simulate/{{object.id}}/',
         simulateResume: '/flow/simulate/{{object.id}}/'
