@@ -36,7 +36,7 @@ class HTTPLogTest(TembaTest):
         # create some logs
         l1 = HTTPLog.objects.create(
             classifier=c1,
-            url="http://org1.bar/zap",
+            url="http://org1.bar/zap/?text=" + ("0123456789" * 30),
             request="GET /zap",
             response=" OK 200",
             is_error=False,
