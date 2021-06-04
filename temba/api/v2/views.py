@@ -5004,20 +5004,20 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
 
 class FlowReportFiltersMixin(ReportEndpointMixin):
-    paginate_by = 10000
+    chunk_size = 2000
 
-    def get_page(self, num_pages=1):
-        page = self.request.query_params.get("page", 1)
-        page = int(page) if isinstance(page, str) and page.isnumeric() else page
-        if not isinstance(page, int) or page < 1 or page > num_pages:
+    def get_offset(self):
+        offset = self.request.query_params.get("offset", 1)
+        offset = int(offset) if isinstance(offset, str) and offset.isnumeric() else offset
+        if not isinstance(offset, int) or offset < 1:
             raise Http404
-        return page
+        return offset
 
-    def get_next_page_url(self, page_number):
+    def get_next_page_url(self, page_number, parameter="page"):
         from rest_framework.utils.urls import replace_query_param
 
         url = self.request.build_absolute_uri()
-        return replace_query_param(url, "page", page_number)
+        return replace_query_param(url, parameter, page_number)
 
     def get_runs(self, org, flow):
         self.applied_filters = {"flow": flow.uuid}
@@ -5082,7 +5082,7 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
             "exited_after": "2021-02-01",
             "exited_before": "2021-03-13",
             "exclude": "Testers",
-            "next": "https://dev.communityconnectlabs.com/api/v2/flow_report.json?page=2",
+            "next": "https://dev.communityconnectlabs.com/api/v2/flow_report.json?offset=2000",
             "results": [
                 {
                     "total_contacts": 1,
@@ -5110,21 +5110,19 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        runs = self.get_runs(org, flow).order_by("created_on").values("contact_id", "exit_type")
-        paginator = Paginator(runs, self.paginate_by)
-        page = self.get_page(num_pages=paginator.num_pages)
-        contacts, contacts_to_exclude, counter, current_page = set(), set(), Counter(), paginator.page(page)
-        next_page = self.get_next_page_url(current_page.next_page_number()) if current_page.has_next() else None
-        for run in current_page:
-            contacts.add(run["contact_id"])
-            counter[run["exit_type"]] += 1
+        offset = self.get_offset()
+        runs = self.get_runs(org, flow).order_by("id").filter(id__gte=offset).values("id", "contact_id", "exit_type")
+        runs = runs[:self.chunk_size]
+        contacts, counter, next_page = set(), Counter(), None
+        if runs:
+            for run in runs:
+                contacts.add(run["contact_id"])
+                counter[run["exit_type"]] += 1
 
-        # skip previous contact ids
-        while current_page.has_previous():
-            current_page = paginator.get_page(current_page.previous_page_number())
-            for run in current_page:
-                contacts_to_exclude.add(run["contact_id"])
-        contacts = contacts.difference(contacts_to_exclude)
+            last_processed = runs[len(runs) - 1]["id"]
+            new_offset = flow.runs.order_by("id").filter(id__gt=last_processed).values("id")[:1]
+            if new_offset:
+                next_page = self.get_next_page_url(new_offset[0]["id"], "offset")
 
         results = {
             "total_contacts": len(contacts),
@@ -5168,7 +5166,7 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 ),
             ],
             params=[
-                dict(name="page", required=False, help="Get a chunk of the report"),
+                dict(name="offset", required=False, help="Get a chunk of the report"),
                 dict(name="export_csv", required=False, help="Generate report in CSV format"),
             ],
             example=dict(
@@ -5183,7 +5181,7 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                         "exited_before": "2021-03-13",
                     }
                 ),
-                query="page=1&export_csv=false",
+                query="offset=0&export_csv=false",
             ),
         )
 
@@ -5228,7 +5226,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                     "top": 3
                 }
             },
-            "next": "https://dev.communityconnectlabs.com/api/v2/flow_variable_report.json?page=2",
+            "next": "https://dev.communityconnectlabs.com/api/v2/flow_variable_report.json?offset=2000",
             "results": [
                 {
                     "result_1": {
@@ -5256,16 +5254,21 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
             return Response(
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
+
+        offset = self.get_offset()
         runs = (
             self.get_runs(org, flow)
-            .order_by("created_on")
+            .filter(id__gte=offset)
             .annotate(results_json=Cast("results", JSONField()))
-            .values("results_json")
-        )
-        paginator = Paginator(runs, self.paginate_by)
-        page = self.get_page(num_pages=paginator.num_pages)
-        counts, current_page = defaultdict(lambda: Counter()), paginator.page(page)
-        next_page = self.get_next_page_url(current_page.next_page_number()) if current_page.has_next() else None
+            .values("id", "results_json")
+            .order_by("id")
+        )[:self.chunk_size]
+        counts, next_page = defaultdict(lambda: Counter()), None
+        if runs:
+            last_run = runs[len(runs) - 1]["id"]
+            new_offset = flow.runs.order_by("id").filter(id__gt=last_run).values("id")[:1]
+            if new_offset:
+                next_page = self.get_next_page_url(new_offset[0]["id"], "offset")
 
         requested_variables = self.request.data.get("variables")
         existing_variables = {result.get("key", ""): result for result in flow.metadata.get("results", [])}
@@ -5290,7 +5293,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 counts[variable] = Counter({category: 0 for category in existing_variables[variable]["categories"]})
         self.applied_filters["variables"] = variable_filters
 
-        for flow_run in current_page:
+        for flow_run in runs:
             for result_name, result in flow_run.get("results_json", {}).items():
                 if result_name in variable_filters:
                     counts[result_name][result[variable_filters[result_name]["format"]]] += 1
@@ -5340,7 +5343,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 dict(name="variables", required=True, help="Configuration for fields to generate report"),
             ],
             params=[
-                dict(name="page", required=False, help="Get a chunk of the report"),
+                dict(name="offset", required=False, help="Get a chunk of the report"),
                 dict(name="export_csv", required=False, help="Generate report in CSV format"),
             ],
             example=dict(
@@ -5350,7 +5353,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                         "variables": {"result_1": {"format": "value", "top": 3}},
                     }
                 ),
-                query="page=1&export_csv=false",
+                query="offset=1&export_csv=false",
             ),
         )
 
