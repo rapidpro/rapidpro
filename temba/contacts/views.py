@@ -56,13 +56,13 @@ from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin
 
 from .models import (
-    ContactNote,
     URN,
     Contact,
     ContactField,
     ContactGroup,
     ContactGroupCount,
     ContactImport,
+    ContactNote,
     ContactURN,
     ExportContactsTask,
 )

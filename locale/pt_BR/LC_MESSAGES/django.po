@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-01 16:54+0000\n"
+"POT-Creation-Date: 2021-06-07 19:02+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -2389,6 +2389,14 @@ msgstr "Um erro ocorrei ao atualizar o contato. Por favor tente novamente mais t
 
 msgid "Select a field to update"
 msgstr "Selecione um campo para atualizar"
+
+msgid "Notes can only be seen by the support team"
+msgstr ""
+
+#, fuzzy
+#| msgid "Add Number"
+msgid "Add Note"
+msgstr "Adicionar números"
 
 msgid "Start"
 msgstr "Começar"
