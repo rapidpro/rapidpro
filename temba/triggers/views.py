@@ -61,13 +61,16 @@ class BaseTriggerForm(forms.ModelForm):
         return self.org.channels.filter(is_active=True, schemes__overlap=list(schemes)).order_by("name")
 
     def get_conflicts(self, cleaned_data):
-        conflicts = self.org.triggers.filter(is_active=True, is_archived=False, trigger_type=self.trigger_type)
+        conflicts = Trigger.get_conflicts(self.org, self.trigger_type, **self.get_conflicts_kwargs(cleaned_data))
 
         # if we're editing a trigger we can't conflict with ourselves
         if self.instance:
             conflicts = conflicts.exclude(id=self.instance.id)
 
         return conflicts
+
+    def get_conflicts_kwargs(self, cleaned_data):
+        return {}
 
     def clean_keyword(self):
         keyword = self.cleaned_data.get("keyword") or ""
@@ -81,7 +84,8 @@ class BaseTriggerForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
-        if self.get_conflicts(cleaned_data):
+        # only check for conflicts if user is submitting valid data for all fields
+        if not self.errors and self.get_conflicts(cleaned_data):
             raise forms.ValidationError(self.conflict_message)
 
         return cleaned_data
@@ -115,16 +119,10 @@ class BaseGroupsTriggerForm(BaseTriggerForm):
 
         self.fields["groups"].queryset = ContactGroup.get_user_groups(self.org, ready_only=False)
 
-    def get_conflicts(self, cleaned_data):
-        conflicts = super().get_conflicts(cleaned_data)
-
-        groups = cleaned_data.get("groups", [])
-        if groups:
-            conflicts = conflicts.filter(groups__in=groups)
-        else:
-            conflicts = conflicts.filter(groups=None)
-
-        return conflicts
+    def get_conflicts_kwargs(self, cleaned_data):
+        kwargs = super().get_conflicts_kwargs(cleaned_data)
+        kwargs["groups"] = cleaned_data.get("groups", [])
+        return kwargs
 
     class Meta(BaseTriggerForm.Meta):
         fields = ("flow", "groups")
@@ -140,13 +138,10 @@ class KeywordTriggerForm(BaseGroupsTriggerForm):
     def __init__(self, user, *args, **kwargs):
         super().__init__(user, Trigger.TYPE_KEYWORD, *args, **kwargs)
 
-    def get_conflicts(self, cleaned_data):
-        conflicts = super().get_conflicts(cleaned_data)
-
-        keyword = cleaned_data.get("keyword") or ""
-        conflicts = conflicts.filter(keyword__iexact=keyword.strip())
-
-        return conflicts
+    def get_conflicts_kwargs(self, cleaned_data):
+        kwargs = super().get_conflicts_kwargs(cleaned_data)
+        kwargs["keyword"] = cleaned_data.get("keyword") or ""
+        return kwargs
 
     class Meta(BaseGroupsTriggerForm.Meta):
         fields = ("keyword", "match_type", "flow", "groups")
@@ -201,13 +196,10 @@ class RegisterTriggerForm(BaseTriggerForm):
         ).order_by("name")
         self.fields["action_join_group"].user = user
 
-    def get_conflicts(self, cleaned_data):
-        conflicts = super().get_conflicts(cleaned_data)
-
-        keyword = cleaned_data.get("keyword") or ""
-        conflicts = conflicts.filter(keyword__iexact=keyword.strip())
-
-        return conflicts
+    def get_conflicts_kwargs(self, cleaned_data):
+        kwargs = super().get_conflicts_kwargs(cleaned_data)
+        kwargs["keyword"] = cleaned_data.get("keyword") or ""
+        return kwargs
 
     class Meta(BaseTriggerForm.Meta):
         fields = ("keyword", "action_join_group", "response", "flow")
@@ -302,12 +294,10 @@ class NewConversationTriggerForm(BaseTriggerForm):
 
         self.fields["channel"].queryset = self.get_channel_choices(ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION)
 
-    def get_conflicts(self, cleaned_data):
-        conflicts = super().get_conflicts(cleaned_data)
-
-        channel = cleaned_data.get("channel")
-
-        return conflicts.filter(channel=channel)
+    def get_conflicts_kwargs(self, cleaned_data):
+        kwargs = super().get_conflicts_kwargs(cleaned_data)
+        kwargs["channel"] = cleaned_data.get("channel")
+        return kwargs
 
     class Meta(BaseTriggerForm.Meta):
         fields = ("channel", "flow")
@@ -335,20 +325,11 @@ class ReferralTriggerForm(BaseTriggerForm):
 
         self.fields["channel"].queryset = self.get_channel_choices(ContactURN.SCHEMES_SUPPORTING_REFERRALS)
 
-    def get_conflicts(self, cleaned_data):
-        conflicts = super().get_conflicts(cleaned_data)
-
-        ref_id = cleaned_data.get("referrer_id", "").strip()
-        channel = cleaned_data.get("channel")
-
-        conflicts = conflicts.filter(referrer_id__iexact=ref_id)
-
-        if channel:
-            conflicts = conflicts.filter(channel=channel)
-        else:
-            conflicts = conflicts.filter(channel=None)
-
-        return conflicts
+    def get_conflicts_kwargs(self, cleaned_data):
+        kwargs = super().get_conflicts_kwargs(cleaned_data)
+        kwargs["channel"] = cleaned_data.get("channel")
+        kwargs["referrer_id"] = cleaned_data.get("referrer_id", "").strip()
+        return kwargs
 
     class Meta(BaseTriggerForm.Meta):
         fields = ("channel", "referrer_id", "flow")

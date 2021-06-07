@@ -246,7 +246,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # groups between triggers can't overlap
         self.assertCreateSubmit(
             create_url,
-            {"keyword": "startkeyword", "flow": flow2.id, "match_type": "F", "groups": f"{group1.id},{group2.id}"},
+            {"keyword": "startkeyword", "flow": flow2.id, "match_type": "F", "groups": [group1.id, group2.id]},
             form_errors={"__all__": "There already exists a trigger with this keyword for these groups."},
         )
 
@@ -733,7 +733,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # groups between triggers can't overlap
         self.assertCreateSubmit(
             create_url,
-            {"keyword": "startkeyword", "flow": flow2.id, "match_type": "F", "groups": f"{group1.id},{group2.id}"},
+            {"flow": flow2.id, "groups": [group1.id, group2.id]},
             form_errors={"__all__": "There already exists a trigger of this type for these groups."},
         )
 

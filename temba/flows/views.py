@@ -112,12 +112,12 @@ class BaseFlowForm(forms.ModelForm):
             ):
                 wrong_format.append(keyword)
 
-            # make sure it is unique on this org
-            existing = Trigger.objects.filter(org=org, keyword__iexact=keyword, is_archived=False, is_active=True)
+            # make sure it won't conflict with existing triggers
+            conflicts = Trigger.get_conflicts(org, Trigger.TYPE_KEYWORD, keyword=keyword)
             if self.instance:
-                existing = existing.exclude(flow=self.instance.pk)
+                conflicts = conflicts.exclude(flow=self.instance.id)
 
-            if existing:
+            if conflicts:
                 duplicates.append(keyword)
             else:
                 cleaned_keywords.append(keyword)
@@ -454,11 +454,11 @@ class FlowCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            # create triggers for this flow only if there are keywords and we aren't a survey
-            if self.form.cleaned_data.get("flow_type") != Flow.TYPE_SURVEY:
-                if len(self.form.cleaned_data["keyword_triggers"]) > 0:
-                    for keyword in self.form.cleaned_data["keyword_triggers"].split(","):
-                        Trigger.objects.create(org=org, keyword=keyword, flow=obj, created_by=user, modified_by=user)
+            # create any triggers if user provided keywords
+            if self.form.cleaned_data["keyword_triggers"]:
+                keywords = self.form.cleaned_data["keyword_triggers"].split(",")
+                for keyword in keywords:
+                    Trigger.create(org, user, Trigger.TYPE_KEYWORD, flow=obj, keyword=keyword)
 
             return obj
 
@@ -670,22 +670,16 @@ class FlowCRUDL(SmartCRUDL):
             org = user.get_org()
 
             if "keyword_triggers" in self.form.cleaned_data:
-
-                existing_keywords = set(
-                    t.keyword
-                    for t in obj.triggers.filter(
-                        org=org, flow=obj, trigger_type=Trigger.TYPE_KEYWORD, is_archived=False, groups=None
-                    )
-                )
+                # get existing keyword triggers for this flow
+                existing = obj.triggers.filter(trigger_type=Trigger.TYPE_KEYWORD, is_archived=False, groups=None)
+                existing_keywords = {t.keyword for t in existing}
 
                 if len(self.form.cleaned_data["keyword_triggers"]) > 0:
                     keywords = set(self.form.cleaned_data["keyword_triggers"].split(","))
 
                 removed_keywords = existing_keywords.difference(keywords)
                 for keyword in removed_keywords:
-                    obj.triggers.filter(org=org, flow=obj, keyword=keyword, groups=None, is_archived=False).update(
-                        is_archived=True
-                    )
+                    obj.triggers.filter(keyword=keyword, groups=None, is_archived=False).update(is_archived=True)
 
                 added_keywords = keywords.difference(existing_keywords)
                 archived_keywords = [
