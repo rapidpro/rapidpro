@@ -324,7 +324,9 @@ class DependencyDeleteModal(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         obj.release(request.user)
 
         messages.info(request, self.derive_success_message())
-        return self.hide_modal()
+        response = HttpResponse()
+        response["Temba-Success"] = self.get_success_url()
+        return response
 
 
 class OrgSignupForm(forms.ModelForm):
