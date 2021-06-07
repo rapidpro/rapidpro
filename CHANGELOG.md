@@ -1,3 +1,11 @@
+v6.3.64
+----------
+ * URL field on HTTPRequestLog should have max length of 2048
+
+v6.3.63
+----------
+ * Drop unused index on contact name, and add new org+modified_on index
+
 v6.3.62
 ----------
  * Update components to single mailroom resource for completion
