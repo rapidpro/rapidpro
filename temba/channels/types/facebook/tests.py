@@ -72,7 +72,7 @@ class FacebookTypeTest(TembaTest):
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, json.dumps({"success": True}))
 
-            trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow, self.channel)
+            trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow, channel=self.channel)
 
             mock_post.assert_called_once_with(
                 "https://graph.facebook.com/v3.3/12345/thread_settings",

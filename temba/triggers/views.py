@@ -529,7 +529,7 @@ class TriggerCRUDL(SmartCRUDL):
                 user,
                 Trigger.TYPE_REFERRAL,
                 flow,
-                form.cleaned_data["channel"],
+                channel=form.cleaned_data["channel"],
                 referrer_id=form.cleaned_data["referrer_id"],
             )
 
