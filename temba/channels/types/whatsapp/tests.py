@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from django_redis import get_redis_connection
 from requests import RequestException
@@ -328,6 +328,11 @@ class WhatsAppTypeTest(TembaTest):
             RequestException("Network is unreachable", response=MockResponse(100, "")),
             MockResponse(400, '{ "meta": { "success": false } }'),
             MockResponse(200, '{"data": ["foo", "bar"]}'),
+            MockResponse(
+                200,
+                '{"data": ["foo"], "paging": {"next": "https://graph.facebook.com/v3.3/1234/message_templates?cursor=MjQZD"} }',
+            ),
+            MockResponse(200, '{"data": ["bar"], "paging": {"next": null} }'),
         ]
 
         # RequestException check HTTPLog
@@ -349,6 +354,24 @@ class WhatsAppTypeTest(TembaTest):
         mock_get.assert_called_with(
             "https://graph.facebook.com/v3.3/1234/message_templates",
             params={"access_token": "token123", "limit": 255},
+        )
+
+        # success no error and pagination
+        templates_data, no_error = WhatsAppType().get_api_templates(channel)
+        self.assertTrue(no_error)
+        self.assertEqual(["foo", "bar"], templates_data)
+
+        mock_get.assert_has_calls(
+            [
+                call(
+                    "https://graph.facebook.com/v3.3/1234/message_templates",
+                    params={"access_token": "token123", "limit": 255},
+                ),
+                call(
+                    "https://graph.facebook.com/v3.3/1234/message_templates?cursor=MjQZD",
+                    params={"access_token": "token123", "limit": 255},
+                ),
+            ]
         )
 
     @patch("temba.utils.whatsapp.tasks.update_local_templates")
