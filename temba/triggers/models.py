@@ -269,16 +269,12 @@ class Trigger(SmartModel):
             flow = Flow.objects.get(org=org, uuid=trigger_def[Trigger.EXPORT_FLOW]["uuid"], is_active=True)
 
             # see if that trigger already exists
-            existing_triggers = Trigger.objects.filter(org=org, trigger_type=trigger_def[Trigger.EXPORT_TYPE])
+            conflicts = Trigger.get_conflicts(
+                org, trigger_def[Trigger.EXPORT_TYPE], groups=groups, keyword=trigger_def[Trigger.EXPORT_KEYWORD]
+            )
 
-            if trigger_def[Trigger.EXPORT_KEYWORD]:
-                existing_triggers = existing_triggers.filter(keyword__iexact=trigger_def[Trigger.EXPORT_KEYWORD])
-
-            if groups:
-                existing_triggers = existing_triggers.filter(groups__in=groups)
-
-            exact_flow_trigger = existing_triggers.filter(flow=flow).order_by("-created_on").first()
-            for tr in existing_triggers:
+            exact_flow_trigger = conflicts.filter(flow=flow).order_by("-created_on").first()
+            for tr in conflicts:
                 if not tr.is_archived and tr != exact_flow_trigger:
                     tr.archive(user)
 
