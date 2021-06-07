@@ -2187,7 +2187,7 @@ class FlowCRUDL(SmartCRUDL):
             search_query = self.request.GET.get("q")
             contact_query = self.request.GET.get("contact_query")
 
-            runs = flow.runs.all()
+            runs = flow.runs.exclude(contact__is_active=False)
 
             if after:
                 after = flow.org.parse_datetime(after)
