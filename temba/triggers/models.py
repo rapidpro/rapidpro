@@ -141,7 +141,7 @@ class Trigger(SmartModel):
     )
 
     @classmethod
-    def create(cls, org, user, trigger_type, flow, channel=None, include_groups=(), keyword=None, **kwargs):
+    def create(cls, org, user, trigger_type, flow, *, channel=None, include_groups=(), keyword=None, **kwargs):
         assert flow.flow_type != Flow.TYPE_SURVEY, "can't create triggers for surveyor flows"
         assert trigger_type != cls.TYPE_KEYWORD or keyword, "keyword can't be empty for keyword triggers"
 
@@ -207,7 +207,16 @@ class Trigger(SmartModel):
         conflicts.update(is_archived=True, modified_on=timezone.now(), modified_by=user)
 
     @classmethod
-    def get_conflicts(cls, org, trigger_type, channel=None, groups=None, keyword: str = None, referrer_id: str = None):
+    def get_conflicts(
+        cls,
+        org,
+        trigger_type,
+        channel=None,
+        groups=None,
+        keyword: str = None,
+        referrer_id: str = None,
+        include_archived=False,
+    ):
         """
         Gets the triggers that would conflict with the given trigger field values
         """
@@ -215,7 +224,9 @@ class Trigger(SmartModel):
         if trigger_type == Trigger.TYPE_SCHEDULE:  # schedule triggers never conflict
             return cls.objects.none()
 
-        conflicts = org.triggers.filter(is_active=True, is_archived=False, trigger_type=trigger_type)
+        conflicts = org.triggers.filter(is_active=True, trigger_type=trigger_type)
+        if not include_archived:
+            conflicts = conflicts.filter(is_archived=False)
 
         if channel:
             conflicts = conflicts.filter(channel=channel)
@@ -244,33 +255,17 @@ class Trigger(SmartModel):
         """
 
         for trigger_def in trigger_defs:
-
-            # resolve our groups
-            groups = []
-            for group_spec in trigger_def[Trigger.EXPORT_GROUPS]:
-
-                group = None
-
-                if same_site:  # pragma: needs cover
-                    group = ContactGroup.user_groups.filter(org=org, uuid=group_spec["uuid"]).first()
-
-                if not group:
-                    group = ContactGroup.get_user_group_by_name(org, group_spec["name"])
-
-                if not group:
-                    group = ContactGroup.create_static(org, user, group_spec["name"])  # pragma: needs cover
-
-                if not group.is_active:  # pragma: needs cover
-                    group.is_active = True
-                    group.save()
-
-                groups.append(group)
+            groups = cls._resolve_import_groups(org, user, same_site, trigger_def[Trigger.EXPORT_GROUPS])
 
             flow = Flow.objects.get(org=org, uuid=trigger_def[Trigger.EXPORT_FLOW]["uuid"], is_active=True)
 
             # see if that trigger already exists
             conflicts = Trigger.get_conflicts(
-                org, trigger_def[Trigger.EXPORT_TYPE], groups=groups, keyword=trigger_def[Trigger.EXPORT_KEYWORD]
+                org,
+                trigger_def[Trigger.EXPORT_TYPE],
+                groups=groups,
+                keyword=trigger_def[Trigger.EXPORT_KEYWORD],
+                include_archived=True,
             )
 
             exact_flow_trigger = conflicts.filter(flow=flow).order_by("-created_on").first()
@@ -284,22 +279,43 @@ class Trigger(SmartModel):
             else:
 
                 # if we have a channel resolve it
-                channel = trigger_def.get(Trigger.EXPORT_CHANNEL, None)  # older exports won't have a channel
-                if channel:
-                    channel = Channel.objects.filter(uuid=channel, org=org).first()
+                channel_uuid = trigger_def.get(Trigger.EXPORT_CHANNEL, None)
+                channel = None
+                if channel_uuid:
+                    channel = org.channels.filter(uuid=channel_uuid, is_active=True).first()
 
-                trigger = Trigger.objects.create(
-                    org=org,
-                    trigger_type=trigger_def[Trigger.EXPORT_TYPE],
-                    keyword=trigger_def[Trigger.EXPORT_KEYWORD],
-                    flow=flow,
-                    created_by=user,
-                    modified_by=user,
+                Trigger.create(
+                    org,
+                    user,
+                    trigger_def[Trigger.EXPORT_TYPE],
+                    flow,
                     channel=channel,
+                    include_groups=groups,
+                    keyword=trigger_def[Trigger.EXPORT_KEYWORD],
                 )
 
-                for group in groups:
-                    trigger.groups.add(group)
+    @classmethod
+    def _resolve_import_groups(cls, org, user, same_site: bool, specs):
+        groups = []
+        for spec in specs:
+            group = None
+
+            if same_site:  # pragma: needs cover
+                group = ContactGroup.user_groups.filter(org=org, uuid=spec["uuid"]).first()
+
+            if not group:
+                group = ContactGroup.get_user_group_by_name(org, spec["name"])
+
+            if not group:
+                group = ContactGroup.create_static(org, user, spec["name"])  # pragma: needs cover
+
+            if not group.is_active:  # pragma: needs cover
+                group.is_active = True
+                group.save()
+
+            groups.append(group)
+
+        return groups
 
     @classmethod
     def apply_action_archive(cls, user, triggers):
