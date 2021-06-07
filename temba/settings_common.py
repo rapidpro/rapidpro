@@ -384,6 +384,7 @@ PERMISSIONS = {
         "stopped",
         "filter",
         "history",
+        "note",
         "omnibox",
         "restore",
         "search",
@@ -589,6 +590,7 @@ GROUP_PERMISSIONS = {
         "contacts.contact_filter",
         "contacts.contact_history",
         "contacts.contact_list",
+        "contacts.contact_note",
         "contacts.contact_omnibox",
         "contacts.contact_read",
         "contacts.contact_restore",
@@ -877,7 +879,7 @@ GROUP_PERMISSIONS = {
         "triggers.trigger_list",
         "triggers.trigger_type",
     ),
-    "Agents": ("tickets.ticket_list",),
+    "Agents": ("tickets.ticket_list", "contacts.contact_note"),
     "Prometheus": (),
 }
 

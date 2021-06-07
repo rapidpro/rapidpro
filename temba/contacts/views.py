@@ -56,6 +56,7 @@ from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin
 
 from .models import (
+    ContactNote,
     URN,
     Contact,
     ContactField,
@@ -549,6 +550,7 @@ class ContactCRUDL(SmartCRUDL):
         "read",
         "filter",
         "blocked",
+        "note",
         "omnibox",
         "update_fields",
         "update_fields_input",
@@ -1264,15 +1266,7 @@ class ContactCRUDL(SmartCRUDL):
 
             messages.success(self.request, self.derive_success_message())
 
-            response = self.render_to_response(
-                self.get_context_data(
-                    form=form,
-                    success_url=self.get_success_url(),
-                    success_script=getattr(self, "success_script", None),
-                )
-            )
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.hide_modal(form)
 
     class UpdateFields(NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.Form):
@@ -1336,6 +1330,43 @@ class ContactCRUDL(SmartCRUDL):
                 if contact_field:
                     context["value"] = self.get_object().get_field_display(contact_field)
             return context
+
+    class Note(ModalMixin, ComponentFormMixin, OrgPermsMixin, SmartFormView):
+        """
+        Creates a note for this contact
+        """
+
+        class Form(forms.Form):
+            text = forms.CharField(
+                max_length=2048,
+                required=True,
+                widget=InputWidget({"hide_label": True, "textarea": True}),
+                help_text=_("Notes can only be seen by the support team"),
+            )
+
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+        form_class = Form
+        fields = ("text",)
+        success_url = "hide"
+        slug_url_kwarg = "uuid"
+        success_message = ""
+        submit_button_name = _("Add Note")
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/(?P<uuid>[^/]+)/$" % (path, action)
+
+        def form_valid(self, form):
+            contact = Contact.objects.filter(uuid=self.kwargs["uuid"]).first()
+            ContactNote.objects.create(
+                contact=contact,
+                text=form.cleaned_data["text"],
+                created_by=self.request.user,
+                modified_by=self.request.user,
+            )
+            return self.hide_modal(form)
 
     class Block(OrgObjPermsMixin, SmartUpdateView):
         """
@@ -1534,13 +1565,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             on_transaction_commit(lambda: release_group_task.delay(group.id))
 
             # we can't just redirect so as to make our modal do the right thing
-            response = self.render_to_response(
-                self.get_context_data(
-                    success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
-                )
-            )
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.hide_modal()
 
 
 class ContactFieldFormMixin:
@@ -1692,14 +1717,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 value_type=form.cleaned_data["value_type"],
                 show_in_table=form.cleaned_data["show_in_table"],
             )
-
-            response = self.render_to_response(
-                self.get_context_data(
-                    form=form, success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
-                )
-            )
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.hide_modal(form)
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         queryset = ContactField.user_fields
@@ -1724,13 +1742,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 priority=0,  # reset the priority, this will move CF to the bottom of the list
             )
 
-            response = self.render_to_response(
-                self.get_context_data(
-                    form=form, success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
-                )
-            )
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.hide_modal(form)
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         queryset = ContactField.user_fields

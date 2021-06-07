@@ -78,13 +78,7 @@ class CampaignCRUDL(SmartCRUDL):
                 self.object.recreate_events()
                 self.object.schedule_events_async()
 
-            response = self.render_to_response(
-                self.get_context_data(
-                    form=form, success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
-                )
-            )
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.hide_modal(form)
 
     class Read(OrgObjPermsMixin, SmartReadView):
         def derive_title(self):

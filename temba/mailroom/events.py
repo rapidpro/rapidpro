@@ -10,6 +10,7 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import WebHookResult
 from temba.campaigns.models import EventFire
 from temba.channels.models import ChannelEvent
+from temba.contacts.models import ContactNote
 from temba.flows.models import FlowExit, FlowRun
 from temba.ivr.models import IVRCall
 from temba.msgs.models import Msg
@@ -47,6 +48,7 @@ class Event:
     TYPE_CAMPAIGN_FIRED = "campaign_fired"
     TYPE_CHANNEL_EVENT = "channel_event"
     TYPE_FLOW_EXITED = "flow_exited"
+    TYPE_NOTE_CREATED = "note_created"
     TYPE_TICKET_CLOSED = "ticket_closed"
 
     @classmethod
@@ -91,24 +93,26 @@ class Event:
                 "recipient_count": obj.broadcast.get_message_count(),
                 "logs_url": logs_url,
             }
-        elif obj.msg_type == IVR:
-            return {
-                "type": cls.TYPE_IVR_CREATED,
-                "created_on": get_event_time(obj).isoformat(),
-                "msg": _msg_out(obj),
-                # additional properties
-                "status": obj.status,
-                "logs_url": logs_url,
-            }
         else:
-            return {
-                "type": cls.TYPE_MSG_CREATED,
+            msg_event = {
+                "type": cls.TYPE_IVR_CREATED if obj.msg_type == IVR else cls.TYPE_MSG_CREATED,
                 "created_on": get_event_time(obj).isoformat(),
                 "msg": _msg_out(obj),
                 # additional properties
                 "status": obj.status,
                 "logs_url": logs_url,
             }
+
+            if obj.broadcast and obj.broadcast.created_by:
+                user = obj.broadcast.created_by
+                msg_event["msg"]["created_by"] = {
+                    "id": user.id,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "email": user.email,
+                }
+
+            return msg_event
 
     @classmethod
     def from_flow_run(cls, org: Org, user: User, obj: FlowRun) -> dict:
@@ -195,6 +199,20 @@ class Event:
             }
 
     @classmethod
+    def from_note(cls, org: Org, user: User, obj: ContactNote) -> dict:
+        return {
+            "type": cls.TYPE_NOTE_CREATED,
+            "text": obj.text,
+            "created_on": get_event_time(obj).isoformat(),
+            "created_by": {
+                "id": obj.id,
+                "first_name": obj.created_by.first_name,
+                "last_name": obj.created_by.last_name,
+                "email": obj.created_by.email,
+            },
+        }
+
+    @classmethod
     def from_event_fire(cls, org: Org, user: User, obj: EventFire) -> dict:
         return {
             "type": cls.TYPE_CAMPAIGN_FIRED,
@@ -267,8 +285,9 @@ event_renderers = {
     FlowRun: Event.from_flow_run,
     IVRCall: Event.from_ivr_call,
     Msg: Event.from_msg,
-    WebHookResult: Event.from_webhook_result,
+    ContactNote: Event.from_note,
     Ticket: Event.from_ticket,
+    WebHookResult: Event.from_webhook_result,
 }
 
 # map of history item types to a callable which can extract the event time from that type

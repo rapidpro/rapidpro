@@ -793,6 +793,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         started_runs = [r for r in runs if after <= r.created_on < before]
         exited_runs = [FlowExit(r) for r in runs if r.exited_on and after <= r.exited_on < before]
 
+        notes = self.notes.filter(created_on__gte=after, created_on__lt=before).order_by("-created_on")[:limit]
+
         channel_events = (
             self.channel_events.filter(created_on__gte=after, created_on__lt=before)
             .order_by("-created_on")
@@ -832,6 +834,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             msgs,
             started_runs,
             exited_runs,
+            notes,
             channel_events,
             campaign_events,
             webhook_results,
@@ -1174,6 +1177,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
             for conn in self.connections.all():  # pragma: needs cover
                 conn.release()
+
+            # delete all notes associated with them
+            self.notes.all().delete()
 
             # and any event fire history
             self.campaign_fires.all().delete()
@@ -1843,6 +1849,11 @@ class ContactGroupCount(SquashableModel):
 
     def __str__(self):  # pragma: needs cover
         return "ContactGroupCount[%d:%d]" % (self.group_id, self.count)
+
+
+class ContactNote(SmartModel):
+    text = models.TextField()
+    contact = models.ForeignKey(Contact, related_name="notes", on_delete=models.PROTECT)
 
 
 class ExportContactsTask(BaseExportTask):

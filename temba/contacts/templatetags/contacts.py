@@ -53,6 +53,7 @@ ACTIVITY_ICONS = {
     Event.TYPE_MSG_CREATED + ":delivered": "icon-bubble-check",
     Event.TYPE_MSG_RECEIVED: "icon-bubble-user",
     Event.TYPE_MSG_RECEIVED + ":voice": "icon-call-incoming",
+    Event.TYPE_NOTE_CREATED: "icon-pencil",
     Event.TYPE_RUN_RESULT_CHANGED: "icon-bars",
     Event.TYPE_TICKET_OPENED: "icon-ticket",
     Event.TYPE_TICKET_CLOSED: "icon-ticket",
