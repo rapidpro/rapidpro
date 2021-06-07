@@ -9,7 +9,6 @@ from enum import Enum
 from mimetypes import guess_extension
 
 from django.conf import settings
-from django.core.paginator import Paginator
 from django.contrib.postgres.fields import JSONField
 from django.db.models.functions import Cast
 from django.template.defaultfilters import slugify
@@ -5112,7 +5111,7 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
 
         offset = self.get_offset()
         runs = self.get_runs(org, flow).order_by("id").filter(id__gte=offset).values("id", "contact_id", "exit_type")
-        runs = runs[:self.chunk_size]
+        runs = runs[: self.chunk_size]
         contacts, counter, next_page = set(), Counter(), None
         if runs:
             for run in runs:
@@ -5262,7 +5261,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
             .annotate(results_json=Cast("results", JSONField()))
             .values("id", "results_json")
             .order_by("id")
-        )[:self.chunk_size]
+        )[: self.chunk_size]
         counts, next_page = defaultdict(lambda: Counter()), None
         if runs:
             last_run = runs[len(runs) - 1]["id"]
@@ -5483,7 +5482,14 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
             ],
             params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
-                body=json.dumps({"link": "Test Link Name"}),
+                body=json.dumps(
+                    {
+                        "link": "Test Link Name",
+                        "after": "2001-01-01",
+                        "before": "2025-01-01",
+                        "exclude": "Test Contacts, Test Contacts 2",
+                    }
+                ),
                 query="export_csv=false",
             ),
         )
