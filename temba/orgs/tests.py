@@ -4512,39 +4512,29 @@ class BulkExportTest(TembaTest):
         self.assertEqual(set(cat_blasts.query_fields.all()), {facts_per_day})
 
     def test_import_flow_with_triggers(self):
-        flow = self.create_flow()
-        trigger = Trigger.objects.create(
-            org=self.org,
-            trigger_type=Trigger.TYPE_KEYWORD,
-            keyword="rating",
-            flow=flow,
-            created_by=self.admin,
-            modified_by=self.admin,
-        )
-        trigger.is_archived = True
-        trigger.save()
-
+        flow1 = self.create_flow()
         flow2 = self.create_flow()
-        trigger2 = Trigger.objects.create(
-            org=self.org,
-            trigger_type=Trigger.TYPE_KEYWORD,
-            keyword="rating",
-            flow=flow2,
-            created_by=self.admin,
-            modified_by=self.admin,
+
+        trigger1 = Trigger.create(
+            self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="rating", is_archived=True
         )
+        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow2, keyword="rating")
 
         data = self.get_import_json("rating_10")
 
         with ESMockWithScroll():
             self.org.import_app(data, self.admin, site="http://rapidpro.io")
 
+        # trigger1.refresh_from_db()
+        # self.assertFalse(trigger1.is_archived)
+
         flow = Flow.objects.get(name="Rate us")
         self.assertEqual(1, Trigger.objects.filter(keyword="rating", is_archived=False).count())
         self.assertEqual(1, Trigger.objects.filter(flow=flow).count())
+
         # shoud have archived the existing
-        self.assertFalse(Trigger.objects.filter(pk=trigger.pk, is_archived=False).first())
-        self.assertFalse(Trigger.objects.filter(pk=trigger2.pk, is_archived=False).first())
+        self.assertFalse(Trigger.objects.filter(id=trigger1.id, is_archived=False).first())
+        self.assertFalse(Trigger.objects.filter(id=trigger2.id, is_archived=False).first())
 
         # Archive trigger
         flow_trigger = (
@@ -4561,7 +4551,7 @@ class BulkExportTest(TembaTest):
 
         self.assertEqual(1, Trigger.objects.filter(keyword="rating", is_archived=False).count())
         self.assertEqual(1, Trigger.objects.filter(flow=flow).count())
-        self.assertFalse(Trigger.objects.filter(pk=trigger.pk, is_archived=False).first())
+        self.assertFalse(Trigger.objects.filter(pk=trigger1.pk, is_archived=False).first())
         self.assertFalse(Trigger.objects.filter(pk=trigger2.pk, is_archived=False).first())
 
         restored_trigger = (
