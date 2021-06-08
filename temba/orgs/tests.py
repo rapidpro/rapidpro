@@ -804,7 +804,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         # add a ticketer and ticket
         ticketer = Ticketer.create(self.org, self.admin, MailgunType.slug, "Email (bob)", {})
-        Ticket.objects.create(
+        ticket = Ticket.objects.create(
             org=self.org,
             ticketer=ticketer,
             contact=self.org.contacts.first(),
@@ -812,6 +812,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             body="Where are my cookies?",
             status="O",
         )
+        ticket.add_note(self.admin, "This is interesting!")
 
     def release_org(self, org, child_org=None, delete=False, expected_files=3):
 
