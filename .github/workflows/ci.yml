@@ -93,6 +93,4 @@ jobs:
 
     - name: Upload coverage
       if: success()
-      uses: codecov/codecov-action@v1
-      with:
-        fail_ci_if_error: true
+      run: bash <(curl -s https://codecov.io/bash)
