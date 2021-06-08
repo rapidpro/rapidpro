@@ -5008,7 +5008,7 @@ class FlowReportFiltersMixin(ReportEndpointMixin):
     def get_offset(self):
         offset = self.request.query_params.get("offset", 1)
         offset = int(offset) if isinstance(offset, str) and offset.isnumeric() else offset
-        if not isinstance(offset, int) or offset < 1:
+        if not isinstance(offset, int) or offset < 0:
             raise Http404
         return offset
 
