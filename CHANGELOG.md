@@ -1,3 +1,9 @@
+v6.3.65
+----------
+ * Fix rendering of recipient buttons on outbox
+ * Rework trigger create forms to make conflict handling more consistent
+ * Iterate through all pages when syncing whatsapp templates
+
 v6.3.64
 ----------
  * URL field on HTTPRequestLog should have max length of 2048
