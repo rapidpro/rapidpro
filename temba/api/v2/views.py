@@ -23,7 +23,7 @@ from smartmin.views import SmartFormView, SmartTemplateView
 
 from django import forms
 from django.contrib.auth import authenticate, login
-from django.db.models import Prefetch, Q, Count
+from django.db.models import Prefetch, Q, Count, QuerySet
 from django.http import HttpResponse, JsonResponse, Http404
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -4437,6 +4437,13 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
 
 
 class ReportEndpointMixin:
+    def get_offset(self):
+        offset = self.request.query_params.get("offset", 0)
+        offset = int(offset) if isinstance(offset, str) and offset.isnumeric() else offset
+        if not isinstance(offset, int) or offset < 0:
+            raise Http404
+        return offset
+
     def request__get_separated_names_and_uuids(self, field_name):
         separated_values = defaultdict(list)
         for value in self.request.data.get(field_name, self.request.GET.get(field_name, "")).split(","):
@@ -5005,22 +5012,15 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 class FlowReportFiltersMixin(ReportEndpointMixin):
     chunk_size = 2000
 
-    def get_offset(self):
-        offset = self.request.query_params.get("offset", 1)
-        offset = int(offset) if isinstance(offset, str) and offset.isnumeric() else offset
-        if not isinstance(offset, int) or offset < 1:
-            raise Http404
-        return offset
-
     def get_next_page_url(self, page_number, parameter="page"):
         from rest_framework.utils.urls import replace_query_param
 
         url = self.request.build_absolute_uri()
         return replace_query_param(url, parameter, page_number)
 
-    def get_runs(self, org, flow):
+    def get_runs(self, org, flow) -> QuerySet:
         self.applied_filters = {"flow": flow.uuid}
-        queryset = FlowRun.objects.filter(flow_id=flow.id)
+        queryset = flow.runs.order_by("-modified_on")
         if {"channel", "exclude", "group"}.intersection(
             [*self.request.query_params.keys(), *self.request.data.keys()]
         ):
@@ -5109,19 +5109,17 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        offset = self.get_offset()
-        runs = self.get_runs(org, flow).order_by("id").filter(id__gte=offset).values("id", "contact_id", "exit_type")
-        runs = runs[: self.chunk_size]
+        offset, limit = self.get_offset(), self.chunk_size
+        runs = self.get_runs(org, flow).values("contact_id", "exit_type")
+        runs = runs[offset: offset + limit + 1]
         contacts, counter, next_page = set(), Counter(), None
         if runs:
-            for run in runs:
+            for run in runs[:limit]:
                 contacts.add(run["contact_id"])
                 counter[run["exit_type"]] += 1
 
-            last_processed = runs[len(runs) - 1]["id"]
-            new_offset = flow.runs.order_by("id").filter(id__gt=last_processed).values("id")[:1]
-            if new_offset:
-                next_page = self.get_next_page_url(new_offset[0]["id"], "offset")
+            if len(runs) > self.chunk_size:
+                next_page = self.get_next_page_url(offset + limit, "offset")
 
         results = {
             "total_contacts": len(contacts),
@@ -5254,20 +5252,12 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        offset = self.get_offset()
-        runs = (
-            self.get_runs(org, flow)
-            .filter(id__gte=offset)
-            .annotate(results_json=Cast("results", JSONField()))
-            .values("id", "results_json")
-            .order_by("id")
-        )[: self.chunk_size]
+        offset, limit = self.get_offset(), self.chunk_size
+        runs = self.get_runs(org, flow).annotate(results_json=Cast("results", JSONField())).values("results_json")
+        runs = runs[offset: offset + limit + 1]
         counts, next_page = defaultdict(lambda: Counter()), None
-        if runs:
-            last_run = runs[len(runs) - 1]["id"]
-            new_offset = flow.runs.order_by("id").filter(id__gt=last_run).values("id")[:1]
-            if new_offset:
-                next_page = self.get_next_page_url(new_offset[0]["id"], "offset")
+        if len(runs) > self.chunk_size:
+            next_page = self.get_next_page_url(offset + limit, "offset")
 
         requested_variables = self.request.data.get("variables")
         existing_variables = {result.get("key", ""): result for result in flow.metadata.get("results", [])}
@@ -5292,7 +5282,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 counts[variable] = Counter({category: 0 for category in existing_variables[variable]["categories"]})
         self.applied_filters["variables"] = variable_filters
 
-        for flow_run in runs:
+        for flow_run in runs[:limit]:
             for result_name, result in flow_run.get("results_json", {}).items():
                 if result_name in variable_filters:
                     counts[result_name][result[variable_filters[result_name]["format"]]] += 1
