@@ -2,6 +2,7 @@ from abc import ABCMeta
 
 from smartmin.models import SmartModel
 
+from django.conf import settings
 from django.conf.urls import url
 from django.contrib.postgres.fields import JSONField
 from django.db import models
@@ -130,7 +131,7 @@ class Ticketer(SmartModel, DependencyMixin):
 
 class Ticket(models.Model):
     """
-    A ticket represents a contact-initiated question or dialog.
+    A ticket represents a period of human interaction with a contact.
     """
 
     STATUS_OPEN = "O"
@@ -173,6 +174,9 @@ class Ticket(models.Model):
     # when this ticket was closed
     closed_on = models.DateTimeField(null=True)
 
+    def add_note(self, user, text):
+        self.events.create(org=self.org, event_type=TicketEvent.TYPE_NOTE, note=text, created_by=user)
+
     @classmethod
     def bulk_close(cls, org, tickets):
         return mailroom.get_client().ticket_close(org.id, [t.id for t in tickets if t.ticketer.is_active])
@@ -205,3 +209,22 @@ class Ticket(models.Model):
             # used by ticket handlers in mailroom to find tickets from their external IDs
             models.Index(name="tickets_ticketer_external_id", fields=["ticketer", "external_id"]),
         ]
+
+
+class TicketEvent(models.Model):
+    """
+    Models the history of a ticket.
+    """
+
+    TYPE_OPENED = "O"
+    TYPE_NOTE = "N"
+    TYPE_CLOSED = "C"
+    TYPE_CHOICES = ((TYPE_OPENED, "Opened"), (TYPE_NOTE, "Note"), (TYPE_CLOSED, "Closed"))
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticket_events")
+    ticket = models.ForeignKey(Ticket, on_delete=models.PROTECT, related_name="events")
+    event_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
+    note = models.TextField(null=True)
+
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_on = models.DateTimeField(default=timezone.now)

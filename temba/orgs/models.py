@@ -1714,6 +1714,7 @@ class Org(SmartModel):
 
         # delete contact-related data
         self.sessions.all().delete()
+        self.ticket_events.all().delete()
         self.tickets.all().delete()
         self.airtime_transfers.all().delete()
 
