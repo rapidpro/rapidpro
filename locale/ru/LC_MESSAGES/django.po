@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-01 16:54+0000\n"
+"POT-Creation-Date: 2021-06-04 22:17+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -4028,14 +4028,26 @@ msgstr "Связанный канал"
 msgid "Select a flow"
 msgstr "Выберите поток"
 
-msgid "Keywords must be a single word containing only letter and numbers"
-msgstr "Ключевые слова должны быть одним словом, содержащим только буквы и цифры"
+msgid "There already exists a trigger of this type."
+msgstr ""
 
-msgid "An active trigger already exists, triggers must be unique for each group"
-msgstr "Активный триггер уже существует, триггеры должны быть уникальными для каждой группы"
+#, fuzzy
+#| msgid "Keywords must be a single word containing only letter and numbers"
+msgid "Must be a single word containing only letters and numbers."
+msgstr "Ключевые слова должны быть одним словом, содержащим только буквы и цифры"
 
 msgid "Optional: Trigger only applies to these groups"
 msgstr ""
+
+#, fuzzy
+#| msgid "An active trigger already exists, triggers must be unique for each group"
+msgid "There already exists a trigger of this type for these groups."
+msgstr "Активный триггер уже существует, триггеры должны быть уникальными для каждой группы"
+
+#, fuzzy
+#| msgid "An active trigger already exists, triggers must be unique for each group"
+msgid "There already exists a trigger with this keyword for these groups."
+msgstr "Активный триггер уже существует, триггеры должны быть уникальными для каждой группы"
 
 msgid "The first word of the message text"
 msgstr "Первое слово текста сообщения"
@@ -4062,10 +4074,8 @@ msgstr ""
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Группы и контакты, которым поток будет осуществлять рассылку"
 
-#, fuzzy
-#| msgid "Trigger with this Channel already exists."
-msgid "Trigger with this channel already exists."
-msgstr "Триггер для этого Канала уже существует."
+msgid "There already exists a trigger of this type for this channel."
+msgstr ""
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
 msgstr "Канал, к которому применить этот триггер, оставьте пустым для охвата всех каналов Facebook"
@@ -4075,6 +4085,9 @@ msgstr "Id Источника ссылки"
 
 msgid "The referrer id that will trigger us"
 msgstr "Id источника ссылки, который запустит нас"
+
+msgid "There already exists a trigger with this referrer and channel."
+msgstr ""
 
 msgid "Create Trigger"
 msgstr "Создать Триггер"
@@ -7677,6 +7690,11 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#, fuzzy
+#~| msgid "Trigger with this Channel already exists."
+#~ msgid "Trigger with this channel already exists."
+#~ msgstr "Триггер для этого Канала уже существует."
 
 #~ msgid "The referrer id that triggers us"
 #~ msgstr "Id источника ссылки, который запускает нас"

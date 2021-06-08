@@ -96,21 +96,23 @@ class WhatsAppType(ChannelType):
             # that have been setup earlier for backwards compatibility
             facebook_template_domain = channel.config.get(CONFIG_FB_TEMPLATE_LIST_DOMAIN, "graph.facebook.com")
             facebook_business_id = channel.config.get(CONFIG_FB_BUSINESS_ID)
-            template_url = TEMPLATE_LIST_URL % (facebook_template_domain, facebook_business_id)
-            # we should never need to paginate because facebook limits accounts to 255 templates
-            response = requests.get(
-                template_url, params=dict(access_token=channel.config[CONFIG_FB_ACCESS_TOKEN], limit=255)
-            )
-            elapsed = (timezone.now() - start).total_seconds() * 1000
-            HTTPLog.create_from_response(
-                HTTPLog.WHATSAPP_TEMPLATES_SYNCED, template_url, response, channel=channel, request_time=elapsed
-            )
+            url = TEMPLATE_LIST_URL % (facebook_template_domain, facebook_business_id)
+            template_data = []
+            while url:
+                response = requests.get(
+                    url, params=dict(access_token=channel.config[CONFIG_FB_ACCESS_TOKEN], limit=255)
+                )
+                elapsed = (timezone.now() - start).total_seconds() * 1000
+                HTTPLog.create_from_response(
+                    HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, response, channel=channel, request_time=elapsed
+                )
 
-            if response.status_code != 200:  # pragma: no cover
-                return [], False
+                if response.status_code != 200:  # pragma: no cover
+                    return [], False
 
-            template_data = response.json()["data"]
+                template_data.extend(response.json()["data"])
+                url = response.json().get("paging", {}).get("next", None)
             return template_data, True
         except requests.RequestException as e:
-            HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, template_url, e, start, channel=channel)
+            HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)
             return [], False

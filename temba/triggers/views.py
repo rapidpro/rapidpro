@@ -34,7 +34,7 @@ from .models import Trigger
 
 class BaseTriggerForm(forms.ModelForm):
     """
-    Base form for creating different trigger types
+    Base form for different trigger types - all triggers have a flow
     """
 
     flow = TembaChoiceField(
@@ -44,53 +44,51 @@ class BaseTriggerForm(forms.ModelForm):
         widget=SelectWidget(attrs={"placeholder": _("Select a flow"), "searchable": True}),
     )
 
+    conflict_message = _("There already exists a trigger of this type.")
+
     def __init__(self, user, trigger_type, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
+        self.org = user.get_org()
+        self.trigger_type = trigger_type
 
-        org = self.user.get_org()
-        flow_types = Trigger.ALLOWED_FLOW_TYPES[trigger_type]
+        flow_types = Trigger.ALLOWED_FLOW_TYPES[self.trigger_type]
+        flows = self.org.flows.filter(flow_type__in=flow_types, is_active=True, is_archived=False, is_system=False)
 
-        self.fields["flow"].queryset = org.flows.filter(
-            flow_type__in=flow_types, is_active=True, is_archived=False, is_system=False
-        ).order_by("name")
+        self.fields["flow"].queryset = flows.order_by("name")
+
+    def get_channel_choices(self, schemes):
+        return self.org.channels.filter(is_active=True, schemes__overlap=list(schemes)).order_by("name")
+
+    def get_conflicts(self, cleaned_data):
+        conflicts = Trigger.get_conflicts(self.org, self.trigger_type, **self.get_conflicts_kwargs(cleaned_data))
+
+        # if we're editing a trigger we can't conflict with ourselves
+        if self.instance:
+            conflicts = conflicts.exclude(id=self.instance.id)
+
+        return conflicts
+
+    def get_conflicts_kwargs(self, cleaned_data):
+        return {}
 
     def clean_keyword(self):
-        keyword = self.cleaned_data.get("keyword")
-
-        if keyword is None:  # pragma: no cover
-            keyword = ""
-
+        keyword = self.cleaned_data.get("keyword") or ""
         keyword = keyword.strip()
 
         if keyword == "" or (keyword and not regex.match(r"^\w+$", keyword, flags=regex.UNICODE | regex.V0)):
-            raise forms.ValidationError(_("Keywords must be a single word containing only letter and numbers"))
+            raise forms.ValidationError(_("Must be a single word containing only letters and numbers."))
 
         return keyword.lower()
 
-    def get_existing_triggers(self, cleaned_data):
-        keyword = cleaned_data.get("keyword")
-
-        if keyword is None:
-            keyword = ""
-
-        keyword = keyword.strip()
-        existing = Trigger.objects.none()
-        if keyword:
-            existing = Trigger.objects.filter(
-                org=self.user.get_org(), is_archived=False, is_active=True, keyword__iexact=keyword
-            )
-
-        if self.instance:
-            existing = existing.exclude(pk=self.instance.pk)
-
-        return existing
-
     def clean(self):
-        data = super().clean()
-        if self.get_existing_triggers(data):
-            raise forms.ValidationError(_("An active trigger already exists, triggers must be unique for each group"))
-        return data
+        cleaned_data = super().clean()
+
+        # only check for conflicts if user is submitting valid data for all fields
+        if not self.errors and self.get_conflicts(cleaned_data):
+            raise forms.ValidationError(self.conflict_message)
+
+        return cleaned_data
 
     class Meta:
         model = Trigger
@@ -114,24 +112,17 @@ class BaseGroupsTriggerForm(BaseTriggerForm):
         ),
     )
 
+    conflict_message = _("There already exists a trigger of this type for these groups.")
+
     def __init__(self, user, trigger_type, *args, **kwargs):
         super().__init__(user, trigger_type, *args, **kwargs)
-        self.fields["groups"].queryset = ContactGroup.get_user_groups(user.get_org(), ready_only=False)
 
-    def get_existing_triggers(self, cleaned_data):
-        groups = cleaned_data.get("groups", [])
-        org = self.user.get_org()
-        existing = Trigger.objects.filter(org=org, is_archived=False, is_active=True)
+        self.fields["groups"].queryset = ContactGroup.get_user_groups(self.org, ready_only=False)
 
-        if groups:
-            existing = existing.filter(groups__in=groups)
-        else:
-            existing = existing.filter(groups=None)
-
-        if self.instance:
-            existing = existing.exclude(pk=self.instance.pk)
-
-        return existing
+    def get_conflicts_kwargs(self, cleaned_data):
+        kwargs = super().get_conflicts_kwargs(cleaned_data)
+        kwargs["groups"] = cleaned_data.get("groups", [])
+        return kwargs
 
     class Meta(BaseTriggerForm.Meta):
         fields = ("flow", "groups")
@@ -142,21 +133,15 @@ class KeywordTriggerForm(BaseGroupsTriggerForm):
     Form for keyword triggers
     """
 
+    conflict_message = _("There already exists a trigger with this keyword for these groups.")
+
     def __init__(self, user, *args, **kwargs):
         super().__init__(user, Trigger.TYPE_KEYWORD, *args, **kwargs)
 
-    def get_existing_triggers(self, cleaned_data):
-        keyword = cleaned_data.get("keyword")
-
-        if keyword is None:
-            keyword = ""
-
-        keyword = keyword.strip()
-
-        existing = super().get_existing_triggers(cleaned_data)
-        if keyword:
-            existing = existing.filter(keyword__iexact=keyword)
-        return existing
+    def get_conflicts_kwargs(self, cleaned_data):
+        kwargs = super().get_conflicts_kwargs(cleaned_data)
+        kwargs["keyword"] = cleaned_data.get("keyword") or ""
+        return kwargs
 
     class Meta(BaseGroupsTriggerForm.Meta):
         fields = ("keyword", "match_type", "flow", "groups")
@@ -203,12 +188,18 @@ class RegisterTriggerForm(BaseTriggerForm):
     def __init__(self, user, *args, **kwargs):
         super().__init__(user, Trigger.TYPE_KEYWORD, *args, **kwargs)
 
+        # on this form flow becomes the flow to be triggered from the generated flow and is optional
         self.fields["flow"].required = False
-        group_field = self.fields["action_join_group"]
-        group_field.queryset = ContactGroup.user_groups.filter(org=self.user.get_org(), is_active=True).order_by(
-            "name"
-        )
-        group_field.user = user
+
+        self.fields["action_join_group"].queryset = ContactGroup.user_groups.filter(
+            org=self.org, is_active=True
+        ).order_by("name")
+        self.fields["action_join_group"].user = user
+
+    def get_conflicts_kwargs(self, cleaned_data):
+        kwargs = super().get_conflicts_kwargs(cleaned_data)
+        kwargs["keyword"] = cleaned_data.get("keyword") or ""
+        return kwargs
 
     class Meta(BaseTriggerForm.Meta):
         fields = ("keyword", "action_join_group", "response", "flow")
@@ -252,20 +243,19 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
     def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.user = user
+        self.org = user.get_org()
 
-        org = self.user.get_org()
         flow_types = Trigger.ALLOWED_FLOW_TYPES[Trigger.TYPE_SCHEDULE]
+        flows = self.org.flows.filter(flow_type__in=flow_types, is_active=True, is_archived=False, is_system=False)
 
-        self.fields["start_datetime"].help_text = _("%s Time Zone" % org.timezone)
-        self.fields["flow"].queryset = org.flows.filter(
-            flow_type__in=flow_types, is_active=True, is_archived=False, is_system=False
-        ).order_by("name")
+        self.fields["start_datetime"].help_text = _("%s Time Zone" % self.org.timezone)
+        self.fields["flow"].queryset = flows.order_by("name")
 
     def clean_repeat_days_of_week(self):
         return "".join(self.cleaned_data["repeat_days_of_week"])
 
     def clean_omnibox(self):
-        return omnibox_deserialize(self.user.get_org(), self.cleaned_data["omnibox"])
+        return omnibox_deserialize(self.org, self.cleaned_data["omnibox"])
 
     class Meta:
         model = Trigger
@@ -273,21 +263,21 @@ class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
 
 
 class InboundCallTriggerForm(BaseGroupsTriggerForm):
+    """
+    Form for incoming IVR call triggers
+    """
+
     def __init__(self, user, *args, **kwargs):
         super().__init__(user, Trigger.TYPE_INBOUND_CALL, *args, **kwargs)
 
-    def get_existing_triggers(self, cleaned_data):
-        existing = super().get_existing_triggers(cleaned_data)
-        return existing.filter(trigger_type=Trigger.TYPE_INBOUND_CALL)
-
 
 class MissedCallTriggerForm(BaseTriggerForm):
+    """
+    Form for missed IVR call triggers
+    """
+
     def __init__(self, user, *args, **kwargs):
         super().__init__(user, Trigger.TYPE_MISSED_CALL, *args, **kwargs)
-
-    def get_existing_triggers(self, cleaned_data):
-        existing = super().get_existing_triggers(cleaned_data)
-        return existing.filter(trigger_type=Trigger.TYPE_MISSED_CALL)
 
 
 class NewConversationTriggerForm(BaseTriggerForm):
@@ -297,33 +287,17 @@ class NewConversationTriggerForm(BaseTriggerForm):
 
     channel = TembaChoiceField(Channel.objects.none(), label=_("Channel"), required=True)
 
+    conflict_message = _("There already exists a trigger of this type for this channel.")
+
     def __init__(self, user, *args, **kwargs):
         super().__init__(user, Trigger.TYPE_NEW_CONVERSATION, *args, **kwargs)
 
-        org = self.user.get_org()
+        self.fields["channel"].queryset = self.get_channel_choices(ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION)
 
-        self.fields["channel"].queryset = org.channels.filter(
-            is_active=True,
-            schemes__overlap=list(ContactURN.SCHEMES_SUPPORTING_NEW_CONVERSATION),
-        ).order_by("name")
-
-    def clean_channel(self):
-        channel = self.cleaned_data["channel"]
-
-        org = self.user.get_org()
-        existing = org.triggers.filter(
-            is_active=True,
-            is_archived=False,
-            trigger_type=Trigger.TYPE_NEW_CONVERSATION,
-            channel=channel,
-        )
-        if self.instance:
-            existing = existing.exclude(id=self.instance.id)
-
-        if existing.exists():
-            raise forms.ValidationError(_("Trigger with this channel already exists."))
-
-        return self.cleaned_data["channel"]
+    def get_conflicts_kwargs(self, cleaned_data):
+        kwargs = super().get_conflicts_kwargs(cleaned_data)
+        kwargs["channel"] = cleaned_data.get("channel")
+        return kwargs
 
     class Meta(BaseTriggerForm.Meta):
         fields = ("channel", "flow")
@@ -331,7 +305,7 @@ class NewConversationTriggerForm(BaseTriggerForm):
 
 class ReferralTriggerForm(BaseTriggerForm):
     """
-    Form for referral triggers
+    Form for referral triggers (Facebook)
     """
 
     channel = TembaChoiceField(
@@ -344,32 +318,18 @@ class ReferralTriggerForm(BaseTriggerForm):
         max_length=255, required=False, label=_("Referrer Id"), help_text=_("The referrer id that will trigger us")
     )
 
+    conflict_message = _("There already exists a trigger with this referrer and channel.")
+
     def __init__(self, user, *args, **kwargs):
         super().__init__(user, Trigger.TYPE_REFERRAL, *args, **kwargs)
 
-        org = self.user.get_org()
+        self.fields["channel"].queryset = self.get_channel_choices(ContactURN.SCHEMES_SUPPORTING_REFERRALS)
 
-        self.fields["channel"].queryset = org.channels.filter(
-            is_active=True, schemes__overlap=list(ContactURN.SCHEMES_SUPPORTING_REFERRALS)
-        ).order_by("name")
-
-    def get_existing_triggers(self, cleaned_data):
-        ref_id = cleaned_data.get("referrer_id", "").strip()
-        channel = cleaned_data.get("channel")
-        existing = Trigger.objects.filter(
-            org=self.user.get_org(),
-            trigger_type=Trigger.TYPE_REFERRAL,
-            is_active=True,
-            is_archived=False,
-            referrer_id__iexact=ref_id,
-        )
-        if self.instance:
-            existing = existing.exclude(id=self.instance.id)
-
-        if channel:
-            existing = existing.filter(channel=channel)
-
-        return existing
+    def get_conflicts_kwargs(self, cleaned_data):
+        kwargs = super().get_conflicts_kwargs(cleaned_data)
+        kwargs["channel"] = cleaned_data.get("channel")
+        kwargs["referrer_id"] = cleaned_data.get("referrer_id", "").strip()
+        return kwargs
 
     class Meta(BaseTriggerForm.Meta):
         fields = ("channel", "referrer_id", "flow")
@@ -377,15 +337,11 @@ class ReferralTriggerForm(BaseTriggerForm):
 
 class CatchAllTriggerForm(BaseGroupsTriggerForm):
     """
-    Form for catchall triggers
+    Form for catchall triggers (incoming messages that don't match a keyword trigger)
     """
 
     def __init__(self, user, *args, **kwargs):
         super().__init__(user, Trigger.TYPE_CATCH_ALL, *args, **kwargs)
-
-    def get_existing_triggers(self, cleaned_data):
-        existing = super().get_existing_triggers(cleaned_data)
-        return existing.filter(keyword=None, trigger_type=Trigger.TYPE_CATCH_ALL)
 
 
 class TriggerCRUDL(SmartCRUDL):
@@ -573,7 +529,7 @@ class TriggerCRUDL(SmartCRUDL):
                 user,
                 Trigger.TYPE_REFERRAL,
                 flow,
-                form.cleaned_data["channel"],
+                channel=form.cleaned_data["channel"],
                 referrer_id=form.cleaned_data["referrer_id"],
             )
 

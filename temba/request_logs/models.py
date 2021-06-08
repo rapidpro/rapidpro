@@ -64,7 +64,7 @@ class HTTPLog(models.Model):
     log_type = models.CharField(max_length=32, choices=LOG_TYPE_CHOICES)
 
     # the url that was called
-    url = models.URLField()
+    url = models.URLField(max_length=2048)
 
     # the request that was made
     request = models.TextField()
