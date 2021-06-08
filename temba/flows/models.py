@@ -1029,6 +1029,9 @@ class FlowSession(models.Model):
     # the goflow output of this session
     output = JSONAsTextField(null=True, default=dict)
 
+    # the URL for the JSON file that contains our session content (optional)
+    output_url = models.URLField(null=True)
+
     # when this session was created
     created_on = models.DateTimeField(default=timezone.now)
 
