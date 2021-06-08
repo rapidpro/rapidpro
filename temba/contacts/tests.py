@@ -1958,7 +1958,7 @@ class ContactTest(TembaTest):
         self.joe.created_on = timezone.now() - timedelta(days=1000)
         self.joe.save(update_fields=("created_on",))
 
-        self.create_broadcast(self.user, "A beautiful broadcast", contacts=[self.joe, kurt])
+        self.create_broadcast(self.user, "A beautiful broadcast", contacts=[self.joe])
         self.create_campaign()
 
         # add a message with some attachments
@@ -2106,11 +2106,11 @@ class ContactTest(TembaTest):
         assertHistoryEvent(history[9], "msg_created")
         assertHistoryEvent(history[10], "flow_entered")
         assertHistoryEvent(history[11], "msg_received")
-        assertHistoryEvent(history[12], "broadcast_created")
+        assertHistoryEvent(history[12], "msg_created")
         assertHistoryEvent(history[13], "campaign_fired")
-
         assertHistoryEvent(history[-1], "msg_received", msg_text="Inbound message 11")
 
+        self.assertEqual(history[12]["msg"]["created_by"]["email"], "User@nyaruka.com")
         self.assertContains(response, "<audio ")
         self.assertContains(response, '<source type="audio/mp3" src="http://blah/file.mp3" />')
         self.assertContains(response, "<video ")
