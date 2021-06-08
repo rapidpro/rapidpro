@@ -1211,60 +1211,6 @@ class FlowTest(TembaTest):
         other_recent = FlowPathRecentRun.get_recent([other_exit["uuid"]], color_other["uuid"])
         self.assertEqual(["13", "12", "11", "10", "9"], [r["text"] for r in other_recent])
 
-    def test_flow_keyword_create(self):
-        self.login(self.admin)
-
-        # try creating a flow with invalid keywords
-        response = self.client.post(
-            reverse("flows.flow_create"),
-            {
-                "name": "Flow #1",
-                "keyword_triggers": ["toooooooooooooolong", "test"],
-                "flow_type": Flow.TYPE_MESSAGE,
-                "expires_after_minutes": 60 * 12,
-            },
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(
-            response,
-            "form",
-            "keyword_triggers",
-            '"toooooooooooooolong" must be a single word, less than 16 characters, containing only '
-            "letter and numbers",
-        )
-
-        # submit with valid keywords
-        response = self.client.post(
-            reverse("flows.flow_create"),
-            {
-                "name": "Flow #1",
-                "keyword_triggers": ["testing", "test"],
-                "flow_type": Flow.TYPE_MESSAGE,
-                "expires_after_minutes": 60 * 12,
-            },
-        )
-        self.assertEqual(response.status_code, 302)
-
-        flow = Flow.objects.get(name="Flow #1")
-        self.assertEqual(flow.triggers.all().count(), 2)
-        self.assertEqual(set(flow.triggers.values_list("keyword", flat=True)), {"testing", "test"})
-
-        # try creating a survey flow with keywords (they'll be ignored)
-        response = self.client.post(
-            reverse("flows.flow_create"),
-            {
-                "name": "Survey Flow",
-                "keyword_triggers": ["notallowed"],
-                "flow_type": Flow.TYPE_SURVEY,
-                "expires_after_minutes": 60 * 12,
-            },
-        )
-        self.assertEqual(response.status_code, 302)
-
-        # should't be allowed to have a survey flow and keywords
-        flow = Flow.objects.get(name="Survey Flow")
-        self.assertEqual(flow.triggers.all().count(), 0)
-
     def test_flow_keyword_update(self):
         self.login(self.admin)
         flow = Flow.create(self.org, self.admin, "Flow")
@@ -1855,6 +1801,114 @@ class FlowTest(TembaTest):
 
 
 class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
+    def test_create(self):
+        create_url = reverse("flows.flow_create")
+
+        # don't show language if workspace doesn't have languages configured
+        self.assertCreateFetch(
+            create_url, allow_viewers=False, allow_editors=True, form_fields=["name", "keyword_triggers", "flow_type"]
+        )
+
+        self.org.set_languages(self.admin, ["spa", "eng"], primary="eng")
+        self.org2.set_languages(self.admin, ["eng"], primary="eng")
+
+        response = self.assertCreateFetch(
+            create_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=["name", "keyword_triggers", "flow_type", "base_language"],
+        )
+
+        # check flow type options
+        self.assertEqual(
+            [
+                (Flow.TYPE_MESSAGE, "Messaging"),
+                (Flow.TYPE_VOICE, "Phone Call"),
+                (Flow.TYPE_BACKGROUND, "Background"),
+                (Flow.TYPE_SURVEY, "Surveyor"),
+            ],
+            response.context["form"].fields["flow_type"].choices,
+        )
+
+        # try to submit without name or language
+        self.assertCreateSubmit(
+            create_url,
+            {"flow_type": "M"},
+            form_errors={"name": "This field is required.", "base_language": "This field is required."},
+        )
+
+        response = self.assertCreateSubmit(
+            create_url,
+            {"name": "Flow 1", "flow_type": "M", "base_language": "eng"},
+            new_obj_query=Flow.objects.filter(org=self.org, flow_type="M", name="Flow 1"),
+        )
+
+        flow1 = Flow.objects.get(name="Flow 1")
+        self.assertEqual(1, flow1.revisions.all().count())
+
+        self.assertRedirect(response, reverse("flows.flow_editor", args=[flow1.uuid]))
+
+    def test_create_with_keywords(self):
+        create_url = reverse("flows.flow_create")
+
+        # try creating a flow with invalid keywords
+        self.assertCreateSubmit(
+            create_url,
+            {
+                "name": "Flow #1",
+                "keyword_triggers": ["toooooooooooooolong", "test"],
+                "flow_type": Flow.TYPE_MESSAGE,
+            },
+            form_errors={
+                "keyword_triggers": '"toooooooooooooolong" must be a single word, less than 16 characters, containing only letter and numbers'
+            },
+        )
+
+        # submit with valid keywords
+        self.assertCreateSubmit(
+            create_url,
+            {
+                "name": "Flow 1",
+                "keyword_triggers": ["testing", "test"],
+                "flow_type": Flow.TYPE_MESSAGE,
+            },
+            new_obj_query=Flow.objects.filter(org=self.org, name="Flow 1", flow_type="M"),
+        )
+
+        # check the created keyword triggers
+        flow1 = Flow.objects.get(name="Flow 1")
+        self.assertEqual({"testing", "test"}, set(flow1.triggers.values_list("keyword", flat=True)))
+
+        # try to create another flow with one of the same keywords
+        self.assertCreateSubmit(
+            create_url,
+            {
+                "name": "Flow 2",
+                "keyword_triggers": ["test"],
+                "flow_type": Flow.TYPE_MESSAGE,
+            },
+            form_errors={"keyword_triggers": 'The keyword "test" is already used for another flow'},
+        )
+
+        # add a group to the existing trigger with that keyword
+        group = self.create_group("Testers", contacts=[])
+        flow1.triggers.get(keyword="test").groups.add(group)
+
+        # and now it's no longer a conflict
+        self.assertCreateSubmit(
+            create_url,
+            {
+                "name": "Flow 2",
+                "keyword_triggers": ["test"],
+                "flow_type": Flow.TYPE_MESSAGE,
+            },
+            new_obj_query=Flow.objects.filter(org=self.org, name="Flow 2", flow_type="M"),
+        )
+
+        # check the created keyword triggers
+        flow2 = Flow.objects.get(name="Flow 2")
+        self.assertEqual({"test"}, set(flow2.triggers.values_list("keyword", flat=True)))
+
     def test_views(self):
         contact = self.create_contact("Eric", phone="+250788382382")
         flow = self.get_flow("color")
@@ -1887,17 +1941,6 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         # get our create page
         response = self.client.get(reverse("flows.flow_create"))
         self.assertTrue(response.context["has_flows"])
-        self.assertIn("flow_type", response.context["form"].fields)
-
-        # our default brand has all choice types except USSD which is no longer supported
-        response = self.client.get(reverse("flows.flow_create"))
-        choices = [
-            (Flow.TYPE_MESSAGE, "Messaging"),
-            (Flow.TYPE_VOICE, "Phone Call"),
-            (Flow.TYPE_BACKGROUND, "Background"),
-            (Flow.TYPE_SURVEY, "Surveyor"),
-        ]
-        self.assertEqual(choices, response.context["form"].fields["flow_type"].choices)
 
         # create a new regular flow
         response = self.client.post(
