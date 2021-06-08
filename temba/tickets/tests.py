@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 
-from .models import Ticket, Ticketer
+from .models import Ticket, TicketEvent, Ticketer
 from .types import reload_ticketer_types
 from .types.internal import InternalType
 from .types.mailgun import MailgunType
@@ -290,6 +290,21 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # customer support users do
         response = self.requestView(filter_url, self.admin)
         self.assertContains(response, logs_url)
+
+    def test_note(self):
+
+        self.login(self.admin)
+        ticket = self.create_ticket(subject="Ticket 1", body="Where are my cookies?", status="O")
+
+        # fetch the note form
+        response = self.client.get(reverse("tickets.ticket_note", args=[ticket.uuid]))
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(
+            reverse("tickets.ticket_note", args=[ticket.uuid]), {"text": "I have a bad feeling about this."}
+        )
+        self.assertEqual(response._headers["temba-success"][1], "hide")
+        self.assertEqual(len(TicketEvent.objects.filter(ticket=ticket, event_type=TicketEvent.TYPE_NOTE)), 1)
 
 
 class TicketerTest(TembaTest):

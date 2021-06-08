@@ -793,7 +793,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         started_runs = [r for r in runs if after <= r.created_on < before]
         exited_runs = [FlowExit(r) for r in runs if r.exited_on and after <= r.exited_on < before]
 
-        notes = self.notes.filter(created_on__gte=after, created_on__lt=before).order_by("-created_on")[:limit]
+        # notes = self.notes.filter(created_on__gte=after, created_on__lt=before).order_by("-created_on")[:limit]
 
         channel_events = (
             self.channel_events.filter(created_on__gte=after, created_on__lt=before)
@@ -823,6 +823,12 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             status=Ticket.STATUS_CLOSED, closed_on__gte=after, closed_on__lt=before
         ).order_by("-closed_on")
 
+        from temba.tickets.models import TicketEvent
+
+        ticket_events = TicketEvent.objects.filter(
+            created_on__gte=after, created_on__lt=before, ticket__contact=self
+        ).order_by("-created_on")[:limit]
+
         transfers = self.airtime_transfers.filter(created_on__gte=after, created_on__lt=before).order_by(
             "-created_on"
         )[:limit]
@@ -834,7 +840,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             msgs,
             started_runs,
             exited_runs,
-            notes,
+            ticket_events,
             channel_events,
             campaign_events,
             webhook_results,
@@ -1855,11 +1861,6 @@ class ContactGroupCount(SquashableModel):
 
     def __str__(self):  # pragma: needs cover
         return "ContactGroupCount[%d:%d]" % (self.group_id, self.count)
-
-
-class ContactNote(SmartModel):
-    text = models.TextField()
-    contact = models.ForeignKey(Contact, related_name="notes", on_delete=models.PROTECT)
 
 
 class ExportContactsTask(BaseExportTask):

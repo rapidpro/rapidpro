@@ -62,7 +62,6 @@ from .models import (
     ContactGroup,
     ContactGroupCount,
     ContactImport,
-    ContactNote,
     ContactURN,
     ExportContactsTask,
 )
@@ -550,7 +549,6 @@ class ContactCRUDL(SmartCRUDL):
         "read",
         "filter",
         "blocked",
-        "note",
         "omnibox",
         "update_fields",
         "update_fields_input",
@@ -1330,43 +1328,6 @@ class ContactCRUDL(SmartCRUDL):
                 if contact_field:
                     context["value"] = self.get_object().get_field_display(contact_field)
             return context
-
-    class Note(ModalMixin, ComponentFormMixin, OrgPermsMixin, SmartFormView):
-        """
-        Creates a note for this contact
-        """
-
-        class Form(forms.Form):
-            text = forms.CharField(
-                max_length=2048,
-                required=True,
-                widget=InputWidget({"hide_label": True, "textarea": True}),
-                help_text=_("Notes can only be seen by the support team"),
-            )
-
-            def __init__(self, **kwargs):
-                super().__init__(**kwargs)
-
-        form_class = Form
-        fields = ("text",)
-        success_url = "hide"
-        slug_url_kwarg = "uuid"
-        success_message = ""
-        submit_button_name = _("Add Note")
-
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<uuid>[^/]+)/$" % (path, action)
-
-        def form_valid(self, form):
-            contact = Contact.objects.filter(uuid=self.kwargs["uuid"]).first()
-            ContactNote.objects.create(
-                contact=contact,
-                text=form.cleaned_data["text"],
-                created_by=self.request.user,
-                modified_by=self.request.user,
-            )
-            return self.hide_modal(form)
 
     class Block(OrgObjPermsMixin, SmartUpdateView):
         """

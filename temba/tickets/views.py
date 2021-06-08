@@ -1,3 +1,4 @@
+from temba.utils.fields import InputWidget
 from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartTemplateView
 
 from django import forms
@@ -10,7 +11,7 @@ from django.utils.html import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
 from temba.msgs.models import Msg
-from temba.orgs.views import DependencyDeleteModal, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.views import BulkActionMixin, ComponentFormMixin
 
 from .models import Ticket, Ticketer
@@ -83,7 +84,7 @@ class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("list", "folder", "open", "closed", "filter")
+    actions = ("list", "folder", "open", "closed", "filter", "note")
 
     class List(OrgPermsMixin, SmartListView):
         """
@@ -243,6 +244,38 @@ class TicketCRUDL(SmartCRUDL):
         @cached_property
         def ticketer(self):
             return Ticketer.objects.get(uuid=self.kwargs["ticketer"], is_active=True)
+
+    class Note(ModalMixin, ComponentFormMixin, OrgPermsMixin, SmartFormView):
+        """
+        Creates a note for this contact
+        """
+
+        class Form(forms.Form):
+            text = forms.CharField(
+                max_length=2048,
+                required=True,
+                widget=InputWidget({"hide_label": True, "textarea": True}),
+                help_text=_("Notes can only be seen by the support team"),
+            )
+
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+        form_class = Form
+        fields = ("text",)
+        success_url = "hide"
+        slug_url_kwarg = "uuid"
+        success_message = ""
+        submit_button_name = _("Add Note")
+
+        @classmethod
+        def derive_url_pattern(cls, path, action):
+            return r"^%s/%s/(?P<uuid>[^/]+)/$" % (path, action)
+
+        def form_valid(self, form):
+            ticket = Ticket.objects.filter(uuid=self.kwargs["uuid"]).first()
+            ticket.add_note(self.request.user, form.cleaned_data["text"])
+            return self.hide_modal(form)
 
 
 class TicketerCRUDL(SmartCRUDL):

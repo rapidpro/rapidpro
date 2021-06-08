@@ -384,7 +384,6 @@ PERMISSIONS = {
         "stopped",
         "filter",
         "history",
-        "note",
         "omnibox",
         "restore",
         "search",
@@ -502,7 +501,7 @@ PERMISSIONS = {
     "policies.policy": ("admin", "history", "give_consent"),
     "request_logs.httplog": ("classifier", "ticketer"),
     "templates.template": ("api",),
-    "tickets.ticket": ("api", "open", "closed", "filter"),
+    "tickets.ticket": ("api", "open", "closed", "filter", "note"),
     "tickets.ticketer": ("api", "connect", "configure"),
     "triggers.trigger": ("archived", "type"),
 }
@@ -590,7 +589,6 @@ GROUP_PERMISSIONS = {
         "contacts.contact_filter",
         "contacts.contact_history",
         "contacts.contact_list",
-        "contacts.contact_note",
         "contacts.contact_omnibox",
         "contacts.contact_read",
         "contacts.contact_restore",
@@ -690,6 +688,7 @@ GROUP_PERMISSIONS = {
         "tickets.ticket_filter",
         "tickets.ticket_open",
         "tickets.ticket_list",
+        "tickets.ticket_note",
         "tickets.ticket_update",
         "tickets.ticketer_api",
         "tickets.ticketer_configure",
@@ -879,7 +878,7 @@ GROUP_PERMISSIONS = {
         "triggers.trigger_list",
         "triggers.trigger_type",
     ),
-    "Agents": ("tickets.ticket_list", "contacts.contact_note"),
+    "Agents": ("tickets.ticket_list", "tickets.ticket_note"),
     "Prometheus": (),
 }
 

@@ -1,3 +1,4 @@
+from temba.tickets.models import TicketEvent
 from django import template
 from django.utils.safestring import mark_safe
 
@@ -53,10 +54,14 @@ ACTIVITY_ICONS = {
     Event.TYPE_MSG_CREATED + ":delivered": "icon-bubble-check",
     Event.TYPE_MSG_RECEIVED: "icon-bubble-user",
     Event.TYPE_MSG_RECEIVED + ":voice": "icon-call-incoming",
-    Event.TYPE_NOTE_CREATED: "icon-pencil",
+    Event.TYPE_TICKET_EVENT: "icon-pencil",
     Event.TYPE_RUN_RESULT_CHANGED: "icon-bars",
     Event.TYPE_TICKET_OPENED: "icon-ticket",
-    Event.TYPE_TICKET_CLOSED: "icon-ticket",
+    Event.TYPE_TICKET_EVENT: ":opened:icon-ticket",
+    Event.TYPE_TICKET_EVENT: "icon-ticket",
+    Event.TYPE_TICKET_EVENT + ":closed": "icon-ticket",
+    Event.TYPE_TICKET_EVENT + ":opened": "icon-ticket",
+    Event.TYPE_TICKET_EVENT + ":note": "icon-pencil",
     Event.TYPE_WEBHOOK_CALLED: "icon-cloud-upload",
 }
 
@@ -165,6 +170,14 @@ def history_icon(event: dict) -> str:
             variant = "missed_incoming"
         elif event["channel_event_type"] == ChannelEvent.TYPE_CALL_OUT_MISSED:
             variant = "missed_outgoing"
+
+    elif event_type == Event.TYPE_TICKET_EVENT:
+        if event["ticket_event_type"] == TicketEvent.TYPE_NOTE:
+            variant = "note"
+        elif event["ticket_event_type"] == TicketEvent.TYPE_OPENED:
+            variant = "opened"
+        elif event["ticket_event_type"] == TicketEvent.TYPE_CLOSED:
+            variant = "closed"
 
     if variant:
         glyph_name = ACTIVITY_ICONS[event_type + ":" + variant]

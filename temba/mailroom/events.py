@@ -10,12 +10,11 @@ from temba.airtime.models import AirtimeTransfer
 from temba.api.models import WebHookResult
 from temba.campaigns.models import EventFire
 from temba.channels.models import ChannelEvent
-from temba.contacts.models import ContactNote
 from temba.flows.models import FlowExit, FlowRun
 from temba.ivr.models import IVRCall
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
-from temba.tickets.models import Ticket
+from temba.tickets.models import Ticket, TicketEvent
 
 
 class Event:
@@ -48,8 +47,7 @@ class Event:
     TYPE_CAMPAIGN_FIRED = "campaign_fired"
     TYPE_CHANNEL_EVENT = "channel_event"
     TYPE_FLOW_EXITED = "flow_exited"
-    TYPE_NOTE_CREATED = "note_created"
-    TYPE_TICKET_CLOSED = "ticket_closed"
+    TYPE_TICKET_EVENT = "ticket_event"
 
     @classmethod
     def from_history_item(cls, org: Org, user: User, item) -> dict:
@@ -183,26 +181,36 @@ class Event:
 
     @classmethod
     def from_ticket(cls, org: Org, user: User, obj: Ticket) -> dict:
-        if obj.status == Ticket.STATUS_CLOSED:
-            return {
-                "type": cls.TYPE_TICKET_CLOSED,
-                "created_on": get_event_time(obj).isoformat(),
-                "ticket": {
-                    "uuid": obj.uuid,
-                    "opened_on": obj.opened_on,
-                    "closed_on": obj.closed_on,
-                    "status": obj.status,
-                    "subject": obj.subject,
-                    "body": obj.body,
-                    "ticketer": {"uuid": obj.ticketer.uuid, "name": obj.ticketer.name},
-                },
-            }
+        return {
+            "type": cls.TYPE_TICKET_EVENT,
+            "ticket_event_type": TicketEvent.TYPE_CLOSED if obj.status == Ticket.STATUS_CLOSED else Ticket.STATUS_OPEN,
+            "ticket": {
+                "uuid": obj.uuid,
+                "opened_on": obj.opened_on,
+                "closed_on": obj.closed_on,
+                "status": obj.status,
+                "subject": obj.subject,
+                "body": obj.body,
+                "ticketer": {"uuid": obj.ticketer.uuid, "name": obj.ticketer.name},
+            },
+            "created_on": get_event_time(obj).isoformat(),
+        }
 
     @classmethod
-    def from_note(cls, org: Org, user: User, obj: ContactNote) -> dict:
+    def from_ticket_event(cls, org: Org, user: User, obj: TicketEvent) -> dict:
         return {
-            "type": cls.TYPE_NOTE_CREATED,
-            "text": obj.text,
+            "type": cls.TYPE_TICKET_EVENT,
+            "ticket_event_type": obj.event_type,
+            "note": obj.note,
+            "ticket": {
+                "uuid": obj.ticket.uuid,
+                "opened_on": obj.ticket.opened_on,
+                "closed_on": obj.ticket.closed_on,
+                "status": obj.ticket.status,
+                "subject": obj.ticket.subject,
+                "body": obj.ticket.body,
+                "ticketer": {"uuid": obj.ticket.ticketer.uuid, "name": obj.ticket.ticketer.name},
+            },
             "created_on": get_event_time(obj).isoformat(),
             "created_by": {
                 "id": obj.id,
@@ -285,7 +293,7 @@ event_renderers = {
     FlowRun: Event.from_flow_run,
     IVRCall: Event.from_ivr_call,
     Msg: Event.from_msg,
-    ContactNote: Event.from_note,
+    TicketEvent: Event.from_ticket_event,
     Ticket: Event.from_ticket,
     WebHookResult: Event.from_webhook_result,
 }
