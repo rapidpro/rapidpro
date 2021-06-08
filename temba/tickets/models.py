@@ -226,5 +226,5 @@ class TicketEvent(models.Model):
     event_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
     note = models.TextField(null=True)
 
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True)
     created_on = models.DateTimeField(default=timezone.now)

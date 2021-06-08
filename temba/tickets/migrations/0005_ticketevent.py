@@ -27,7 +27,9 @@ class Migration(migrations.Migration):
                 ("created_on", models.DateTimeField(default=django.utils.timezone.now)),
                 (
                     "created_by",
-                    models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL),
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT, to=settings.AUTH_USER_MODEL, null=True
+                    ),
                 ),
                 (
                     "org",
