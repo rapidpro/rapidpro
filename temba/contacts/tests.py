@@ -55,6 +55,7 @@ from .models import (
     ContactGroup,
     ContactGroupCount,
     ContactImport,
+    ContactNote,
     ContactURN,
     ExportContactsTask,
 )
@@ -462,6 +463,20 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # invalid uuid should return 404
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
         self.assertEqual(response.status_code, 404)
+
+    def test_note(self):
+        contact = self.create_contact("Joe", phone="+593979000111")
+        self.login(self.admin)
+
+        # fetch the note form
+        response = self.client.get(reverse("contacts.contact_note", args=[contact.uuid]))
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(
+            reverse("contacts.contact_note", args=[contact.uuid]), {"text": "I have a bad feeling about this."}
+        )
+        self.assertEqual(response._headers["temba-success"][1], "hide")
+        self.assertEqual(len(ContactNote.objects.filter(contact=contact)), 1)
 
     @mock_mailroom
     def test_archive(self, mr_mocks):
@@ -1936,12 +1951,14 @@ class ContactTest(TembaTest):
         )
 
     def test_history(self):
+
         url = reverse("contacts.contact_history", args=[self.joe.uuid])
 
         kurt = self.create_contact("Kurt", phone="123123")
         self.joe.created_on = timezone.now() - timedelta(days=1000)
         self.joe.save(update_fields=("created_on",))
 
+        self.create_broadcast(self.user, "A beautiful broadcast", contacts=[self.joe, kurt])
         self.create_campaign()
 
         # add a message with some attachments
@@ -1993,7 +2010,7 @@ class ContactTest(TembaTest):
         )
 
         # mark an outgoing message as failed
-        failed = Msg.objects.get(direction="O", contact=self.joe)
+        failed = Msg.objects.filter(direction="O", contact=self.joe).last()
         failed.status = "F"
         failed.save(update_fields=("status",))
         log = ChannelLog.objects.create(
@@ -2057,14 +2074,19 @@ class ContactTest(TembaTest):
         # create a channel log for this call
         ChannelLog.objects.create(channel=self.channel, description="Its an ivr call", is_error=False, connection=call)
 
+        # Create a note for him
+        ContactNote.objects.create(
+            contact=self.joe, text="I have a bad feeling about this", created_by=self.user, modified_by=self.user
+        )
+
         # fetch our contact history
         self.login(self.admin)
-        with self.assertNumQueries(52):
+        with self.assertNumQueries(55):
             response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
         history = response.context["events"]
-        self.assertEqual(95, len(history))
+        self.assertEqual(97, len(history))
 
         def assertHistoryEvent(item, expected_type, msg_text=None):
             self.assertEqual(expected_type, item["type"])
@@ -2072,18 +2094,21 @@ class ContactTest(TembaTest):
             if msg_text:
                 self.assertEqual(msg_text, item["msg"]["text"])
 
-        assertHistoryEvent(history[0], "call_started")
-        assertHistoryEvent(history[1], "channel_event")
+        assertHistoryEvent(history[0], "note_created")
+        assertHistoryEvent(history[1], "call_started")
         assertHistoryEvent(history[2], "channel_event")
         assertHistoryEvent(history[3], "channel_event")
-        assertHistoryEvent(history[4], "ticket_closed")
-        assertHistoryEvent(history[5], "airtime_transferred")
-        assertHistoryEvent(history[6], "webhook_called")
-        assertHistoryEvent(history[7], "run_result_changed")
-        assertHistoryEvent(history[8], "msg_created")
-        assertHistoryEvent(history[9], "flow_entered")
-        assertHistoryEvent(history[10], "msg_received")
-        assertHistoryEvent(history[11], "campaign_fired")
+        assertHistoryEvent(history[4], "channel_event")
+        assertHistoryEvent(history[5], "ticket_closed")
+        assertHistoryEvent(history[6], "airtime_transferred")
+        assertHistoryEvent(history[7], "webhook_called")
+        assertHistoryEvent(history[8], "run_result_changed")
+        assertHistoryEvent(history[9], "msg_created")
+        assertHistoryEvent(history[10], "flow_entered")
+        assertHistoryEvent(history[11], "msg_received")
+        assertHistoryEvent(history[12], "broadcast_created")
+        assertHistoryEvent(history[13], "campaign_fired")
+
         assertHistoryEvent(history[-1], "msg_received", msg_text="Inbound message 11")
 
         self.assertContains(response, "<audio ")
@@ -2101,7 +2126,7 @@ class ContactTest(TembaTest):
 
         # can also fetch same page as JSON
         response_json = self.client.get(url + "?limit=100&_format=json").json()
-        self.assertEqual(95, len(response_json["events"]))
+        self.assertEqual(97, len(response_json["events"]))
 
         # fetch next page
         before = datetime_to_timestamp(timezone.now() - timedelta(days=90))
@@ -2121,8 +2146,8 @@ class ContactTest(TembaTest):
         response = self.fetch_protected(url + "?limit=100", self.admin)
         history = response.context["events"]
 
-        self.assertEqual(95, len(history))
-        assertHistoryEvent(history[8], "msg_created", msg_text="What is your favorite color?")
+        self.assertEqual(97, len(history))
+        assertHistoryEvent(history[9], "msg_created", msg_text="What is your favorite color?")
 
         # if a new message comes in
         self.create_incoming_msg(self.joe, "Newer message")
@@ -2131,14 +2156,14 @@ class ContactTest(TembaTest):
         # now we'll see the message that just came in first, followed by the call event
         history = response.context["events"]
         assertHistoryEvent(history[0], "msg_received", msg_text="Newer message")
-        assertHistoryEvent(history[1], "call_started")
+        assertHistoryEvent(history[1], "note_created")
 
         recent_start = datetime_to_timestamp(timezone.now() - timedelta(days=1))
         response = self.fetch_protected(url + "?limit=100&after=%s" % recent_start, self.admin)
 
         # with our recent flag on, should not see the older messages
         events = response.context["events"]
-        self.assertEqual(12, len(events))
+        self.assertEqual(14, len(events))
         self.assertContains(response, "file.mp4")
 
         # can't view history of contact in another org
@@ -2152,7 +2177,7 @@ class ContactTest(TembaTest):
 
         # super users can view history of any contact
         response = self.fetch_protected(url + "?limit=100", self.superuser)
-        self.assertEqual(96, len(response.context["events"]))
+        self.assertEqual(98, len(response.context["events"]))
 
         response = self.fetch_protected(reverse("contacts.contact_history", args=[hans.uuid]), self.superuser)
         self.assertEqual(0, len(response.context["events"]))
@@ -2167,9 +2192,9 @@ class ContactTest(TembaTest):
             .save()
         )
 
-        response = self.fetch_protected(url + "?limit=100", self.admin)
+        response = self.fetch_protected(url + "?limit=200", self.admin)
         history = response.context["events"]
-        self.assertEqual(99, len(history))
+        self.assertEqual(101, len(history))
 
         # before date should not match our last activity, that only happens when we truncate
         self.assertNotEqual(
@@ -2181,16 +2206,17 @@ class ContactTest(TembaTest):
         assertHistoryEvent(history[1], "flow_entered")
         assertHistoryEvent(history[2], "flow_exited")
         assertHistoryEvent(history[3], "msg_received", msg_text="Newer message")
-        assertHistoryEvent(history[4], "call_started")
-        assertHistoryEvent(history[5], "channel_event")
+        assertHistoryEvent(history[4], "note_created")
+        assertHistoryEvent(history[5], "call_started")
         assertHistoryEvent(history[6], "channel_event")
         assertHistoryEvent(history[7], "channel_event")
-        assertHistoryEvent(history[8], "ticket_closed")
-        assertHistoryEvent(history[9], "airtime_transferred")
-        assertHistoryEvent(history[10], "webhook_called")
-        assertHistoryEvent(history[11], "run_result_changed")
-        assertHistoryEvent(history[12], "msg_created", msg_text="What is your favorite color?")
-        assertHistoryEvent(history[13], "flow_entered")
+        assertHistoryEvent(history[8], "channel_event")
+        assertHistoryEvent(history[9], "ticket_closed")
+        assertHistoryEvent(history[10], "airtime_transferred")
+        assertHistoryEvent(history[11], "webhook_called")
+        assertHistoryEvent(history[12], "run_result_changed")
+        assertHistoryEvent(history[13], "msg_created", msg_text="What is your favorite color?")
+        assertHistoryEvent(history[14], "flow_entered")
 
         # make our message event older than our planting reminder
         self.message_event.created_on = self.planting_reminder.created_on - timedelta(days=1)
