@@ -10,7 +10,7 @@ from mimetypes import guess_extension
 
 from django.conf import settings
 from django.contrib.postgres.fields import JSONField
-from django.db.models.functions import Cast
+from django.db.models.functions import Cast, Concat
 from django.template.defaultfilters import slugify
 from parse_rest.datatypes import Date
 from rest_framework import generics, status, views
@@ -4814,7 +4814,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         self.applied_filters["variables"] = variable_filters
 
         offset, limit, next_page = self.get_offset(), 2000, None
-        contacts = contacts.filter(fields__has_any_keys=variable_filters.keys())[offset: offset + limit + 1]
+        contacts = contacts.filter(fields__has_any_keys=variable_filters.keys())[offset : offset + limit + 1]
         if len(contacts) > limit:
             next_page = self.get_next_page_url(offset + limit, "offset")
 
@@ -4899,6 +4899,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     Response:
 
         {
+            "next": "http://127.0.0.1:8000/api/v2/messages_report.json?offset=2000",
             "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
             "after": "2020-01-01",
             "before": "2022-01-13",
@@ -4969,18 +4970,23 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                 queryset = _filter(filter_value)
                 self.applied_filters[name] = filter_value
 
-        return Response(
-            {
-                **self.applied_filters,
-                "results": [
-                    queryset.aggregate(
-                        total_inbound_messages=Count("id", filter=Q(direction="I")),
-                        total_outbound_messages=Count("id", filter=Q(direction="O")),
-                        total_outbound_message_failures=Count("id", filter=Q(status__in=[FAILED, ERRORED])),
-                    )
-                ],
-            }
+        offset, limit, next_page = self.get_offset(), 2000, None
+        queryset = queryset.annotate(ds=Concat("direction", "status")).order_by("-created_on")
+        queryset = queryset.values_list("ds", flat=True)[offset: offset + limit + 1]
+        counter = Counter(queryset[:limit])
+        results = dict(
+            total_inbound_messages=0,
+            total_outbound_messages=0,
+            total_outbound_message_failures=0
         )
+        for msg_type, count in counter.items():
+            results["total_inbound_messages" if msg_type[0] == "I" else "total_outbound_messages"] += count
+            results["total_outbound_message_failures"] += count if msg_type[1] in [FAILED, ERRORED] else 0
+
+        if len(queryset) > limit:
+            next_page = self.get_next_page_url(offset + limit, "offset")
+
+        return Response({"next": next_page, **self.applied_filters, "results": [results]})
 
     @staticmethod
     def csv_convertor(result, response):
