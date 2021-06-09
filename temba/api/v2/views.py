@@ -4972,13 +4972,9 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         offset, limit, next_page = self.get_offset(), 2000, None
         queryset = queryset.annotate(ds=Concat("direction", "status")).order_by("-created_on")
-        queryset = queryset.values_list("ds", flat=True)[offset: offset + limit + 1]
+        queryset = queryset.values_list("ds", flat=True)[offset : offset + limit + 1]
         counter = Counter(queryset[:limit])
-        results = dict(
-            total_inbound_messages=0,
-            total_outbound_messages=0,
-            total_outbound_message_failures=0
-        )
+        results = dict(total_inbound_messages=0, total_outbound_messages=0, total_outbound_message_failures=0)
         for msg_type, count in counter.items():
             results["total_inbound_messages" if msg_type[0] == "I" else "total_outbound_messages"] += count
             results["total_outbound_message_failures"] += count if msg_type[1] in [FAILED, ERRORED] else 0
@@ -5123,7 +5119,7 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
 
         offset, limit = self.get_offset(), self.chunk_size
         runs = self.get_runs(org, flow).values("contact_id", "exit_type")
-        runs = runs[offset: offset + limit + 1]
+        runs = runs[offset : offset + limit + 1]
         contacts, counter, next_page = set(), Counter(), None
         if runs:
             for run in runs[:limit]:
@@ -5266,7 +5262,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
 
         offset, limit = self.get_offset(), self.chunk_size
         runs = self.get_runs(org, flow).annotate(results_json=Cast("results", JSONField())).values("results_json")
-        runs = runs[offset: offset + limit + 1]
+        runs = runs[offset : offset + limit + 1]
         counts, next_page = defaultdict(lambda: Counter()), None
         if len(runs) > self.chunk_size:
             next_page = self.get_next_page_url(offset + limit, "offset")
@@ -5374,7 +5370,10 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         GET /api/v2/trackable_link_report.json
         {
-            "link": "google"
+            "link": "google",
+            "exclude": "Test Contacts",
+            "after": "2021-05-01",
+            "before": "2025-01-01"
         }
 
     Response:
@@ -5383,6 +5382,9 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
             "name": "Google",
             "destination": "https://www.google.com",
             "related_flow": "f14b5744-bef4-4f56-a936-a684f5da013f",
+            "exclude": "Test Contacts",
+            "after": "2021-05-01T23:25:13.475825+03:00",
+            "before": "2025-01-01T23:25:13.475926+02:00",
             "results": [
                 {
                     "total_clicks": 1,
@@ -5402,6 +5404,7 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
     @csv_response_wrapper
     def get(self, *args, **kwargs):
+        self.applied_filters = {}
         org = self.request.user.get_org()
         link_name, link = self.request__get_separated_names_and_uuids("link"), None
         if link_name["uuids"]:
@@ -5424,14 +5427,18 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
         if groups_to_exclude["names"]:
             for name in groups_to_exclude["names"]:
                 group_exclude_filters |= Q(contact__all_groups__name__icontains=name)
+        if any(groups_to_exclude.values()):
+            self.applied_filters["exclude"] = ", ".join([*groups_to_exclude["names"], *groups_to_exclude["uuids"]])
 
         time_filters = Q()
-        before = self.request.data.get("before", self.request.GET.get("before", ""))
         after = self.request.data.get("after", self.request.GET.get("after", ""))
-        if before:
-            time_filters &= Q(modified_on__lte=org.parse_datetime(before))
+        before = self.request.data.get("before", self.request.GET.get("before", ""))
         if after:
             time_filters &= Q(modified_on__gte=org.parse_datetime(after))
+            self.applied_filters["after"] = org.parse_datetime(after)
+        if before:
+            time_filters &= Q(modified_on__lte=org.parse_datetime(before))
+            self.applied_filters["before"] = org.parse_datetime(before)
 
         unique_clicks = (
             LinkContacts.objects.filter(link_id=link.id)
@@ -5451,6 +5458,7 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
             "name": link.name,
             "destination": link.destination,
             "related_flow": getattr(link.related_flow, "uuid", None),
+            **self.applied_filters,
             "results": [
                 {
                     "total_clicks": link.clicks_count,
