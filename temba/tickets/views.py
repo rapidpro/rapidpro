@@ -1,4 +1,3 @@
-from temba.utils.fields import InputWidget
 from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartTemplateView
 
 from django import forms
@@ -12,6 +11,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.msgs.models import Msg
 from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.utils.fields import InputWidget
 from temba.utils.views import BulkActionMixin, ComponentFormMixin
 
 from .models import Ticket, Ticketer

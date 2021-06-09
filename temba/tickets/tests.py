@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 
-from .models import Ticket, TicketEvent, Ticketer
+from .models import Ticket, Ticketer, TicketEvent
 from .types import reload_ticketer_types
 from .types.internal import InternalType
 from .types.mailgun import MailgunType

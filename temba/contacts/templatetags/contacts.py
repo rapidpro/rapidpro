@@ -1,4 +1,3 @@
-from temba.tickets.models import TicketEvent
 from django import template
 from django.utils.safestring import mark_safe
 
@@ -9,6 +8,7 @@ from temba.flows.models import FlowRun
 from temba.ivr.models import IVRCall
 from temba.mailroom.events import Event
 from temba.msgs.models import DELIVERED, ERRORED, FAILED, IVR
+from temba.tickets.models import TicketEvent
 
 register = template.Library()
 
