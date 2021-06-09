@@ -2210,7 +2210,7 @@ class ExportFlowResultsTask(BaseExportTask):
             yield matching
 
         # secondly get runs from database
-        runs = FlowRun.objects.filter(flow__in=flows).order_by("modified_on")
+        runs = FlowRun.objects.filter(flow__in=flows).exclude(contact__is_active=False).order_by("modified_on")
         if responded_only:
             runs = runs.filter(responded=True)
 

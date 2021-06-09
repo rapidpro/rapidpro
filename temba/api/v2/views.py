@@ -10,7 +10,7 @@ from mimetypes import guess_extension
 
 from django.conf import settings
 from django.contrib.postgres.fields import JSONField
-from django.db.models.functions import Cast
+from django.db.models.functions import Cast, Concat
 from django.template.defaultfilters import slugify
 from parse_rest.datatypes import Date
 from rest_framework import generics, status, views
@@ -23,7 +23,7 @@ from smartmin.views import SmartFormView, SmartTemplateView
 
 from django import forms
 from django.contrib.auth import authenticate, login
-from django.db.models import Prefetch, Q, Count
+from django.db.models import Prefetch, Q, Count, QuerySet
 from django.http import HttpResponse, JsonResponse, Http404
 from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
@@ -4437,6 +4437,19 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
 
 
 class ReportEndpointMixin:
+    def get_offset(self):
+        offset = self.request.query_params.get("offset", 0)
+        offset = int(offset) if isinstance(offset, str) and offset.isnumeric() else offset
+        if not isinstance(offset, int) or offset < 0:
+            raise Http404
+        return offset
+
+    def get_next_page_url(self, page_number, parameter="page"):
+        from rest_framework.utils.urls import replace_query_param
+
+        url = self.request.build_absolute_uri()
+        return replace_query_param(url, parameter, page_number)
+
     def request__get_separated_names_and_uuids(self, field_name):
         separated_values = defaultdict(list)
         for value in self.request.data.get(field_name, self.request.GET.get(field_name, "")).split(","):
@@ -4721,6 +4734,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     Response:
 
         {
+            "next": "http://127.0.0.1:8000/api/v2/contact_variable_report.json?offset=2000",
             "variables": {
                 "9402ac3d-4efb-448a-b0d6-6b219c5c21ff": {
                     "key": "zipcode"
@@ -4766,6 +4780,8 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
             contacts = self.get_contacts()
         except SearchException as e:
             return Response({"error": e.message}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": e.args[0] if e.args else "Request failed!"}, status=status.HTTP_400_BAD_REQUEST)
 
         requested_variables = self.request.GET.get("variables", self.request.data.get("variables"))
         existing_variables = dict(ContactField.user_fields.filter(org=org).values_list("key", "uuid"))
@@ -4797,9 +4813,12 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         self.applied_filters["variables"] = variable_filters
 
-        contacts = contacts.filter(fields__has_any_keys=variable_filters.keys())
+        offset, limit, next_page = self.get_offset(), 2000, None
+        contacts = contacts.filter(fields__has_any_keys=variable_filters.keys())[offset : offset + limit + 1]
+        if len(contacts) > limit:
+            next_page = self.get_next_page_url(offset + limit, "offset")
 
-        for contact in contacts:
+        for contact in contacts[:limit]:
             for field_uuid, field_value in (contact.fields or {}).items():
                 if field_uuid in variable_filters:
                     counts[variable_filters[field_uuid]["key"]][field_value["text"]] += 1
@@ -4807,7 +4826,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         for variable, top_x in top_ordering.items():
             counts[variable] = dict(counts[variable].most_common(top_x))
 
-        response_data = {**self.applied_filters, "results": [counts]}
+        response_data = {"next": next_page, **self.applied_filters, "results": [counts]}
         return Response(response_data)
 
     @staticmethod
@@ -4880,6 +4899,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     Response:
 
         {
+            "next": "http://127.0.0.1:8000/api/v2/messages_report.json?offset=2000",
             "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
             "after": "2020-01-01",
             "before": "2022-01-13",
@@ -4950,18 +4970,19 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                 queryset = _filter(filter_value)
                 self.applied_filters[name] = filter_value
 
-        return Response(
-            {
-                **self.applied_filters,
-                "results": [
-                    queryset.aggregate(
-                        total_inbound_messages=Count("id", filter=Q(direction="I")),
-                        total_outbound_messages=Count("id", filter=Q(direction="O")),
-                        total_outbound_message_failures=Count("id", filter=Q(status__in=[FAILED, ERRORED])),
-                    )
-                ],
-            }
-        )
+        offset, limit, next_page = self.get_offset(), 2000, None
+        queryset = queryset.annotate(ds=Concat("direction", "status")).order_by("-created_on")
+        queryset = queryset.values_list("ds", flat=True)[offset : offset + limit + 1]
+        counter = Counter(queryset[:limit])
+        results = dict(total_inbound_messages=0, total_outbound_messages=0, total_outbound_message_failures=0)
+        for msg_type, count in counter.items():
+            results["total_inbound_messages" if msg_type[0] == "I" else "total_outbound_messages"] += count
+            results["total_outbound_message_failures"] += count if msg_type[1] in [FAILED, ERRORED] else 0
+
+        if len(queryset) > limit:
+            next_page = self.get_next_page_url(offset + limit, "offset")
+
+        return Response({"next": next_page, **self.applied_filters, "results": [results]})
 
     @staticmethod
     def csv_convertor(result, response):
@@ -5005,22 +5026,9 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 class FlowReportFiltersMixin(ReportEndpointMixin):
     chunk_size = 2000
 
-    def get_offset(self):
-        offset = self.request.query_params.get("offset", 1)
-        offset = int(offset) if isinstance(offset, str) and offset.isnumeric() else offset
-        if not isinstance(offset, int) or offset < 0:
-            raise Http404
-        return offset
-
-    def get_next_page_url(self, page_number, parameter="page"):
-        from rest_framework.utils.urls import replace_query_param
-
-        url = self.request.build_absolute_uri()
-        return replace_query_param(url, parameter, page_number)
-
-    def get_runs(self, org, flow):
+    def get_runs(self, org, flow) -> QuerySet:
         self.applied_filters = {"flow": flow.uuid}
-        queryset = FlowRun.objects.filter(flow_id=flow.id)
+        queryset = flow.runs.order_by("-modified_on")
         if {"channel", "exclude", "group"}.intersection(
             [*self.request.query_params.keys(), *self.request.data.keys()]
         ):
@@ -5109,19 +5117,17 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        offset = self.get_offset()
-        runs = self.get_runs(org, flow).order_by("id").filter(id__gte=offset).values("id", "contact_id", "exit_type")
-        runs = runs[: self.chunk_size]
+        offset, limit = self.get_offset(), self.chunk_size
+        runs = self.get_runs(org, flow).values("contact_id", "exit_type")
+        runs = runs[offset : offset + limit + 1]
         contacts, counter, next_page = set(), Counter(), None
         if runs:
-            for run in runs:
+            for run in runs[:limit]:
                 contacts.add(run["contact_id"])
                 counter[run["exit_type"]] += 1
 
-            last_processed = runs[len(runs) - 1]["id"]
-            new_offset = flow.runs.order_by("id").filter(id__gt=last_processed).values("id")[:1]
-            if new_offset:
-                next_page = self.get_next_page_url(new_offset[0]["id"], "offset")
+            if len(runs) > self.chunk_size:
+                next_page = self.get_next_page_url(offset + limit, "offset")
 
         results = {
             "total_contacts": len(contacts),
@@ -5254,20 +5260,12 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        offset = self.get_offset()
-        runs = (
-            self.get_runs(org, flow)
-            .filter(id__gte=offset)
-            .annotate(results_json=Cast("results", JSONField()))
-            .values("id", "results_json")
-            .order_by("id")
-        )[: self.chunk_size]
+        offset, limit = self.get_offset(), self.chunk_size
+        runs = self.get_runs(org, flow).annotate(results_json=Cast("results", JSONField())).values("results_json")
+        runs = runs[offset : offset + limit + 1]
         counts, next_page = defaultdict(lambda: Counter()), None
-        if runs:
-            last_run = runs[len(runs) - 1]["id"]
-            new_offset = flow.runs.order_by("id").filter(id__gt=last_run).values("id")[:1]
-            if new_offset:
-                next_page = self.get_next_page_url(new_offset[0]["id"], "offset")
+        if len(runs) > self.chunk_size:
+            next_page = self.get_next_page_url(offset + limit, "offset")
 
         requested_variables = self.request.data.get("variables")
         existing_variables = {result.get("key", ""): result for result in flow.metadata.get("results", [])}
@@ -5292,7 +5290,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 counts[variable] = Counter({category: 0 for category in existing_variables[variable]["categories"]})
         self.applied_filters["variables"] = variable_filters
 
-        for flow_run in runs:
+        for flow_run in runs[:limit]:
             for result_name, result in flow_run.get("results_json", {}).items():
                 if result_name in variable_filters:
                     counts[result_name][result[variable_filters[result_name]["format"]]] += 1
@@ -5372,7 +5370,10 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         GET /api/v2/trackable_link_report.json
         {
-            "link": "google"
+            "link": "google",
+            "exclude": "Test Contacts",
+            "after": "2021-05-01",
+            "before": "2025-01-01"
         }
 
     Response:
@@ -5381,6 +5382,9 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
             "name": "Google",
             "destination": "https://www.google.com",
             "related_flow": "f14b5744-bef4-4f56-a936-a684f5da013f",
+            "exclude": "Test Contacts",
+            "after": "2021-05-01T23:25:13.475825+03:00",
+            "before": "2025-01-01T23:25:13.475926+02:00",
             "results": [
                 {
                     "total_clicks": 1,
@@ -5400,6 +5404,7 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
     @csv_response_wrapper
     def get(self, *args, **kwargs):
+        self.applied_filters = {}
         org = self.request.user.get_org()
         link_name, link = self.request__get_separated_names_and_uuids("link"), None
         if link_name["uuids"]:
@@ -5422,14 +5427,18 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
         if groups_to_exclude["names"]:
             for name in groups_to_exclude["names"]:
                 group_exclude_filters |= Q(contact__all_groups__name__icontains=name)
+        if any(groups_to_exclude.values()):
+            self.applied_filters["exclude"] = ", ".join([*groups_to_exclude["names"], *groups_to_exclude["uuids"]])
 
         time_filters = Q()
-        before = self.request.data.get("before", self.request.GET.get("before", ""))
         after = self.request.data.get("after", self.request.GET.get("after", ""))
-        if before:
-            time_filters &= Q(modified_on__lte=org.parse_datetime(before))
+        before = self.request.data.get("before", self.request.GET.get("before", ""))
         if after:
             time_filters &= Q(modified_on__gte=org.parse_datetime(after))
+            self.applied_filters["after"] = org.parse_datetime(after)
+        if before:
+            time_filters &= Q(modified_on__lte=org.parse_datetime(before))
+            self.applied_filters["before"] = org.parse_datetime(before)
 
         unique_clicks = (
             LinkContacts.objects.filter(link_id=link.id)
@@ -5449,6 +5458,7 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
             "name": link.name,
             "destination": link.destination,
             "related_flow": getattr(link.related_flow, "uuid", None),
+            **self.applied_filters,
             "results": [
                 {
                     "total_clicks": link.clicks_count,
