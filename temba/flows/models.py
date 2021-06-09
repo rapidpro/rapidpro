@@ -1030,7 +1030,7 @@ class FlowSession(models.Model):
     output = JSONAsTextField(null=True, default=dict)
 
     # the URL for the JSON file that contains our session content (optional)
-    output_url = models.URLField(null=True)
+    output_url = models.URLField(null=True, max_length=2048)
 
     # when this session was created
     created_on = models.DateTimeField(default=timezone.now)
