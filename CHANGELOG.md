@@ -1,3 +1,8 @@
+v6.3.66
+----------
+ * Add new ticket event model
+ * Add output_url field to FlowSession
+
 v6.3.65
 ----------
  * Fix rendering of recipient buttons on outbox
