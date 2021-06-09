@@ -4444,6 +4444,12 @@ class ReportEndpointMixin:
             raise Http404
         return offset
 
+    def get_next_page_url(self, page_number, parameter="page"):
+        from rest_framework.utils.urls import replace_query_param
+
+        url = self.request.build_absolute_uri()
+        return replace_query_param(url, parameter, page_number)
+
     def request__get_separated_names_and_uuids(self, field_name):
         separated_values = defaultdict(list)
         for value in self.request.data.get(field_name, self.request.GET.get(field_name, "")).split(","):
@@ -4728,6 +4734,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     Response:
 
         {
+            "next": "http://127.0.0.1:8000/api/v2/contact_variable_report.json?offset=2000",
             "variables": {
                 "9402ac3d-4efb-448a-b0d6-6b219c5c21ff": {
                     "key": "zipcode"
@@ -4773,6 +4780,8 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
             contacts = self.get_contacts()
         except SearchException as e:
             return Response({"error": e.message}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": e.args[0] if e.args else "Request failed!"}, status=status.HTTP_400_BAD_REQUEST)
 
         requested_variables = self.request.GET.get("variables", self.request.data.get("variables"))
         existing_variables = dict(ContactField.user_fields.filter(org=org).values_list("key", "uuid"))
@@ -4804,9 +4813,12 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         self.applied_filters["variables"] = variable_filters
 
-        contacts = contacts.filter(fields__has_any_keys=variable_filters.keys())
+        offset, limit, next_page = self.get_offset(), 2000, None
+        contacts = contacts.filter(fields__has_any_keys=variable_filters.keys())[offset: offset + limit + 1]
+        if len(contacts) > limit:
+            next_page = self.get_next_page_url(offset + limit, "offset")
 
-        for contact in contacts:
+        for contact in contacts[:limit]:
             for field_uuid, field_value in (contact.fields or {}).items():
                 if field_uuid in variable_filters:
                     counts[variable_filters[field_uuid]["key"]][field_value["text"]] += 1
@@ -4814,7 +4826,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         for variable, top_x in top_ordering.items():
             counts[variable] = dict(counts[variable].most_common(top_x))
 
-        response_data = {**self.applied_filters, "results": [counts]}
+        response_data = {"next": next_page, **self.applied_filters, "results": [counts]}
         return Response(response_data)
 
     @staticmethod
@@ -5011,12 +5023,6 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
 class FlowReportFiltersMixin(ReportEndpointMixin):
     chunk_size = 2000
-
-    def get_next_page_url(self, page_number, parameter="page"):
-        from rest_framework.utils.urls import replace_query_param
-
-        url = self.request.build_absolute_uri()
-        return replace_query_param(url, parameter, page_number)
 
     def get_runs(self, org, flow) -> QuerySet:
         self.applied_filters = {"flow": flow.uuid}
