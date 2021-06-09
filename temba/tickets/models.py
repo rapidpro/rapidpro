@@ -4,6 +4,7 @@ from smartmin.models import SmartModel
 
 from django.conf import settings
 from django.conf.urls import url
+from django.contrib.auth.models import User
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models import Q
@@ -174,7 +175,17 @@ class Ticket(models.Model):
     # when this ticket was closed
     closed_on = models.DateTimeField(null=True)
 
-    def add_note(self, user, text):
+    assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
+
+    def assign(self, user: User, assignee: User, *, note: str):
+        self.assignee = assignee
+        self.save(update_fields=("assignee",))
+
+        self.events.create(
+            org=self.org, event_type=TicketEvent.TYPE_ASSIGNED, assignee=assignee, note=note, created_by=user
+        )
+
+    def add_note(self, user: User, text: str):
         self.events.create(org=self.org, event_type=TicketEvent.TYPE_NOTE, note=text, created_by=user)
 
     @classmethod
@@ -217,14 +228,18 @@ class TicketEvent(models.Model):
     """
 
     TYPE_OPENED = "O"
+    TYPE_ASSIGNED = "A"
     TYPE_NOTE = "N"
     TYPE_CLOSED = "C"
-    TYPE_CHOICES = ((TYPE_OPENED, "Opened"), (TYPE_NOTE, "Note"), (TYPE_CLOSED, "Closed"))
+    TYPE_CHOICES = ((TYPE_OPENED, "Opened"), (TYPE_ASSIGNED, "Assigned"), (TYPE_NOTE, "Note"), (TYPE_CLOSED, "Closed"))
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticket_events")
     ticket = models.ForeignKey(Ticket, on_delete=models.PROTECT, related_name="events")
     event_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
     note = models.TextField(null=True)
+    assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="ticket_assignee_events")
 
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, related_name="ticket_events"
+    )
     created_on = models.DateTimeField(default=timezone.now)

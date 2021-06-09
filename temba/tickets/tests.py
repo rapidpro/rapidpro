@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 
-from .models import Ticket, Ticketer
+from .models import Ticket, Ticketer, TicketEvent
 from .types import reload_ticketer_types
 from .types.internal import InternalType
 from .types.mailgun import MailgunType
@@ -30,6 +30,19 @@ class TicketTest(TembaTest):
         )
 
         self.assertEqual(f"Ticket[uuid={ticket.uuid}, subject=Need help]", str(ticket))
+
+        ticket.assign(self.admin, self.editor, note="Please deal with this")
+        ticket.add_note(self.admin, "This is important")
+
+        self.assertEqual(self.editor, ticket.assignee)
+
+        events = list(ticket.events.order_by("id"))
+        self.assertEqual(TicketEvent.TYPE_ASSIGNED, events[0].event_type)
+        self.assertEqual("Please deal with this", events[0].note)
+        self.assertEqual(self.admin, events[0].created_by)
+        self.assertEqual(TicketEvent.TYPE_NOTE, events[1].event_type)
+        self.assertEqual("This is important", events[1].note)
+        self.assertEqual(self.admin, events[1].created_by)
 
         with patch("temba.mailroom.client.MailroomClient.ticket_close") as mock_close:
             Ticket.bulk_close(self.org, [ticket])
