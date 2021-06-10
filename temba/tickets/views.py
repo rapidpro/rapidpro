@@ -274,7 +274,7 @@ class TicketCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             ticket = Ticket.objects.filter(uuid=self.kwargs["uuid"]).first()
-            ticket.add_note(self.request.user, form.cleaned_data["text"])
+            ticket.add_note(self.request.user, note=form.cleaned_data["text"])
             return self.hide_modal(form)
 
 
