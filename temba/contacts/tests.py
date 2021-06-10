@@ -55,7 +55,6 @@ from .models import (
     ContactGroup,
     ContactGroupCount,
     ContactImport,
-    ContactNote,
     ContactURN,
     ExportContactsTask,
 )
@@ -463,20 +462,6 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         # invalid uuid should return 404
         response = self.client.get(reverse("contacts.contact_read", args=["invalid-uuid"]))
         self.assertEqual(response.status_code, 404)
-
-    def test_note(self):
-        contact = self.create_contact("Joe", phone="+593979000111")
-        self.login(self.admin)
-
-        # fetch the note form
-        response = self.client.get(reverse("contacts.contact_note", args=[contact.uuid]))
-        self.assertEqual(response.status_code, 200)
-
-        response = self.client.post(
-            reverse("contacts.contact_note", args=[contact.uuid]), {"text": "I have a bad feeling about this."}
-        )
-        self.assertEqual(response._headers["temba-success"][1], "hide")
-        self.assertEqual(len(ContactNote.objects.filter(contact=contact)), 1)
 
     @mock_mailroom
     def test_archive(self, mr_mocks):
@@ -2041,7 +2026,7 @@ class ContactTest(TembaTest):
             status="C",
             closed_on=timezone.now(),
         )
-        Ticket.objects.create(
+        ticket = Ticket.objects.create(
             org=self.org,
             ticketer=ticketer,
             contact=self.joe,
@@ -2075,13 +2060,11 @@ class ContactTest(TembaTest):
         ChannelLog.objects.create(channel=self.channel, description="Its an ivr call", is_error=False, connection=call)
 
         # Create a note for him
-        ContactNote.objects.create(
-            contact=self.joe, text="I have a bad feeling about this", created_by=self.user, modified_by=self.user
-        )
+        ticket.add_note(self.user, "I have a bad feeling about this")
 
         # fetch our contact history
         self.login(self.admin)
-        with self.assertNumQueries(55):
+        with self.assertNumQueries(57):
             response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
@@ -2094,12 +2077,12 @@ class ContactTest(TembaTest):
             if msg_text:
                 self.assertEqual(msg_text, item["msg"]["text"])
 
-        assertHistoryEvent(history[0], "note_created")
+        assertHistoryEvent(history[0], "ticket_event")
         assertHistoryEvent(history[1], "call_started")
         assertHistoryEvent(history[2], "channel_event")
         assertHistoryEvent(history[3], "channel_event")
         assertHistoryEvent(history[4], "channel_event")
-        assertHistoryEvent(history[5], "ticket_closed")
+        assertHistoryEvent(history[5], "ticket_event")
         assertHistoryEvent(history[6], "airtime_transferred")
         assertHistoryEvent(history[7], "webhook_called")
         assertHistoryEvent(history[8], "run_result_changed")
@@ -2156,7 +2139,7 @@ class ContactTest(TembaTest):
         # now we'll see the message that just came in first, followed by the call event
         history = response.context["events"]
         assertHistoryEvent(history[0], "msg_received", msg_text="Newer message")
-        assertHistoryEvent(history[1], "note_created")
+        assertHistoryEvent(history[1], "ticket_event")
 
         recent_start = datetime_to_timestamp(timezone.now() - timedelta(days=1))
         response = self.fetch_protected(url + "?limit=100&after=%s" % recent_start, self.admin)
@@ -2206,12 +2189,12 @@ class ContactTest(TembaTest):
         assertHistoryEvent(history[1], "flow_entered")
         assertHistoryEvent(history[2], "flow_exited")
         assertHistoryEvent(history[3], "msg_received", msg_text="Newer message")
-        assertHistoryEvent(history[4], "note_created")
+        assertHistoryEvent(history[4], "ticket_event")
         assertHistoryEvent(history[5], "call_started")
         assertHistoryEvent(history[6], "channel_event")
         assertHistoryEvent(history[7], "channel_event")
         assertHistoryEvent(history[8], "channel_event")
-        assertHistoryEvent(history[9], "ticket_closed")
+        assertHistoryEvent(history[9], "ticket_event")
         assertHistoryEvent(history[10], "airtime_transferred")
         assertHistoryEvent(history[11], "webhook_called")
         assertHistoryEvent(history[12], "run_result_changed")
