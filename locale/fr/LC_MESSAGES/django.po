@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-04 22:17+0000\n"
+"POT-Creation-Date: 2021-06-10 22:11+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -4020,26 +4020,31 @@ msgid "Select a flow"
 msgstr "Sélectionnez un flux"
 
 #, fuzzy
-#| msgid "There is already a channel configured for this URL."
-msgid "There already exists a trigger of this type."
-msgstr "Un canal est déjà configuré pour cette URL."
+#| msgid "Group to Join"
+msgid "Group Filtering"
+msgstr "Groupe à rejoindre"
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Optional: trigger only includes contacts in these groups"
+msgstr "Facultatif: le déclencheur ne s'applique qu'à ces groupes"
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Optional: trigger will exclude contacts in these groups"
+msgstr "Facultatif: le déclencheur ne s'applique qu'à ces groupes"
 
 #, fuzzy
 #| msgid "Keywords must be a single word containing only letter and numbers"
 msgid "Must be a single word containing only letters and numbers."
 msgstr "Mots-clés doivent être un seul mot ne contenant que lettres et de chiffres"
 
-msgid "Optional: Trigger only applies to these groups"
-msgstr "Facultatif: le déclencheur ne s'applique qu'à ces groupes"
+msgid "Can't include and exclude the same group."
+msgstr ""
 
 #, fuzzy
 #| msgid "An active trigger already exists, triggers must be unique for each group"
-msgid "There already exists a trigger of this type for these groups."
-msgstr "Un déclencheur actif existe déjà, les déclencheurs doivent être uniques pour chaque groupe"
-
-#, fuzzy
-#| msgid "An active trigger already exists, triggers must be unique for each group"
-msgid "There already exists a trigger with this keyword for these groups."
+msgid "There already exists a trigger of this type with these options."
 msgstr "Un déclencheur actif existe déjà, les déclencheurs doivent être uniques pour chaque groupe"
 
 msgid "The first word of the message text"
@@ -4065,11 +4070,6 @@ msgstr "Heure de début"
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Les groupes et les contacts du flux seront diffusés à"
 
-#, fuzzy
-#| msgid "There is already a ticketing service configured for this subdomain."
-msgid "There already exists a trigger of this type for this channel."
-msgstr "Il existe déjà un service de billetterie configuré pour ce sous-domaine."
-
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
 msgstr "Le canal auquel appliquer ce déclencheur, laissez vide pour tous les canaux Facebook"
 
@@ -4078,9 +4078,6 @@ msgstr "Identifiant du référent"
 
 msgid "The referrer id that will trigger us"
 msgstr "L'identifiant de référence qui nous déclenchera"
-
-msgid "There already exists a trigger with this referrer and channel."
-msgstr ""
 
 msgid "Create Trigger"
 msgstr "Créer des declencheurs"
@@ -7828,6 +7825,21 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#, fuzzy
+#~| msgid "There is already a channel configured for this URL."
+#~ msgid "There already exists a trigger of this type."
+#~ msgstr "Un canal est déjà configuré pour cette URL."
+
+#, fuzzy
+#~| msgid "An active trigger already exists, triggers must be unique for each group"
+#~ msgid "There already exists a trigger with this keyword for these groups."
+#~ msgstr "Un déclencheur actif existe déjà, les déclencheurs doivent être uniques pour chaque groupe"
+
+#, fuzzy
+#~| msgid "There is already a ticketing service configured for this subdomain."
+#~ msgid "There already exists a trigger of this type for this channel."
+#~ msgstr "Il existe déjà un service de billetterie configuré pour ce sous-domaine."
 
 #, fuzzy
 #~| msgid "Trigger with this Channel already exists."

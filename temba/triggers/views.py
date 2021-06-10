@@ -51,8 +51,7 @@ class BaseTriggerForm(forms.ModelForm):
         widget=SelectMultipleWidget(
             attrs={
                 "icons": True,
-                "widget_only": True,
-                "placeholder": _("Optional: Trigger only applies to these groups"),
+                "placeholder": _("Optional: trigger only includes contacts in these groups"),
             }
         ),
     )
@@ -63,12 +62,10 @@ class BaseTriggerForm(forms.ModelForm):
             attrs={
                 "icons": True,
                 "widget_only": True,
-                "placeholder": _("Optional: Trigger won't apply to these groups"),
+                "placeholder": _("Optional: trigger will exclude contacts in these groups"),
             }
         ),
     )
-
-    conflict_message = _("There already exists a trigger of this type for these groups.")
 
     def __init__(self, user, trigger_type, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -113,9 +110,15 @@ class BaseTriggerForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
+        groups = cleaned_data.get("groups", [])
+        exclude_groups = cleaned_data.get("exclude_groups", [])
+
+        if set(groups).intersection(exclude_groups):
+            raise forms.ValidationError(_("Can't include and exclude the same group."))
+
         # only check for conflicts if user is submitting valid data for all fields
         if not self.errors and self.get_conflicts(cleaned_data):
-            raise forms.ValidationError(self.conflict_message)
+            raise forms.ValidationError(_("There already exists a trigger of this type with these options."))
 
         return cleaned_data
 
@@ -128,8 +131,6 @@ class KeywordTriggerForm(BaseTriggerForm):
     """
     Form for keyword triggers
     """
-
-    conflict_message = _("There already exists a trigger with this keyword for these groups.")
 
     def __init__(self, user, *args, **kwargs):
         super().__init__(user, Trigger.TYPE_KEYWORD, *args, **kwargs)
@@ -283,8 +284,6 @@ class NewConversationTriggerForm(BaseTriggerForm):
 
     channel = TembaChoiceField(Channel.objects.none(), label=_("Channel"), required=True)
 
-    conflict_message = _("There already exists a trigger of this type for this channel.")
-
     def __init__(self, user, *args, **kwargs):
         super().__init__(user, Trigger.TYPE_NEW_CONVERSATION, *args, **kwargs)
 
@@ -313,8 +312,6 @@ class ReferralTriggerForm(BaseTriggerForm):
     referrer_id = forms.CharField(
         max_length=255, required=False, label=_("Referrer Id"), help_text=_("The referrer id that will trigger us")
     )
-
-    conflict_message = _("There already exists a trigger with this referrer and channel.")
 
     def __init__(self, user, *args, **kwargs):
         super().__init__(user, Trigger.TYPE_REFERRAL, *args, **kwargs)

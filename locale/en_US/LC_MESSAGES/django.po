@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-04 22:17+0000\n"
+"POT-Creation-Date: 2021-06-10 22:11+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3944,19 +3944,22 @@ msgstr ""
 msgid "Select a flow"
 msgstr ""
 
-msgid "There already exists a trigger of this type."
+msgid "Group Filtering"
+msgstr ""
+
+msgid "Optional: trigger only includes contacts in these groups"
+msgstr ""
+
+msgid "Optional: trigger will exclude contacts in these groups"
 msgstr ""
 
 msgid "Must be a single word containing only letters and numbers."
 msgstr ""
 
-msgid "Optional: Trigger only applies to these groups"
+msgid "Can't include and exclude the same group."
 msgstr ""
 
-msgid "There already exists a trigger of this type for these groups."
-msgstr ""
-
-msgid "There already exists a trigger with this keyword for these groups."
+msgid "There already exists a trigger of this type with these options."
 msgstr ""
 
 msgid "The first word of the message text"
@@ -3982,9 +3985,6 @@ msgstr ""
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr ""
 
-msgid "There already exists a trigger of this type for this channel."
-msgstr ""
-
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
 msgstr ""
 
@@ -3992,9 +3992,6 @@ msgid "Referrer Id"
 msgstr ""
 
 msgid "The referrer id that will trigger us"
-msgstr ""
-
-msgid "There already exists a trigger with this referrer and channel."
 msgstr ""
 
 msgid "Create Trigger"

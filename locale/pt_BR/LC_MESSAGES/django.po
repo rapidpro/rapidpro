@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-04 22:17+0000\n"
+"POT-Creation-Date: 2021-06-10 22:11+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -4027,26 +4027,31 @@ msgid "Select a flow"
 msgstr "Selecione um fluxo"
 
 #, fuzzy
-#| msgid "There is already a channel configured for this URL."
-msgid "There already exists a trigger of this type."
-msgstr "Já existe um canal configurado com para essa URL."
+#| msgid "Group to Join"
+msgid "Group Filtering"
+msgstr "Grupos para participar"
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Optional: trigger only includes contacts in these groups"
+msgstr "Opcional: Disparadores se aplicam somente à estes grupos"
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Optional: trigger will exclude contacts in these groups"
+msgstr "Opcional: Disparadores se aplicam somente à estes grupos"
 
 #, fuzzy
 #| msgid "Keywords must be a single word containing only letter and numbers"
 msgid "Must be a single word containing only letters and numbers."
 msgstr "Palavra-chave deve ser uma única palavra contendo apenas letras e números"
 
-msgid "Optional: Trigger only applies to these groups"
-msgstr "Opcional: Disparadores se aplicam somente à estes grupos"
+msgid "Can't include and exclude the same group."
+msgstr ""
 
 #, fuzzy
 #| msgid "An active trigger already exists, triggers must be unique for each group"
-msgid "There already exists a trigger of this type for these groups."
-msgstr "Um disparador ativo já existe, disparadores devem ser exclusivos para cada grupo"
-
-#, fuzzy
-#| msgid "An active trigger already exists, triggers must be unique for each group"
-msgid "There already exists a trigger with this keyword for these groups."
+msgid "There already exists a trigger of this type with these options."
 msgstr "Um disparador ativo já existe, disparadores devem ser exclusivos para cada grupo"
 
 msgid "The first word of the message text"
@@ -4072,11 +4077,6 @@ msgstr "Tempo de Início"
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Os grupos e contatos para os quais o fluxo será distribuído"
 
-#, fuzzy
-#| msgid "There is already a ticketing service configured for this subdomain."
-msgid "There already exists a trigger of this type for this channel."
-msgstr "Já existe um serviço  de tickets configurado para este subdomínio"
-
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
 msgstr "O canal para aplicar esse gatilho,  ou deixe em branco para todos os canais do Facebook"
 
@@ -4085,9 +4085,6 @@ msgstr "Id do referente"
 
 msgid "The referrer id that will trigger us"
 msgstr "O id do referente que iniciara"
-
-msgid "There already exists a trigger with this referrer and channel."
-msgstr ""
 
 msgid "Create Trigger"
 msgstr "Criar disparador"
@@ -7829,6 +7826,21 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#, fuzzy
+#~| msgid "There is already a channel configured for this URL."
+#~ msgid "There already exists a trigger of this type."
+#~ msgstr "Já existe um canal configurado com para essa URL."
+
+#, fuzzy
+#~| msgid "An active trigger already exists, triggers must be unique for each group"
+#~ msgid "There already exists a trigger with this keyword for these groups."
+#~ msgstr "Um disparador ativo já existe, disparadores devem ser exclusivos para cada grupo"
+
+#, fuzzy
+#~| msgid "There is already a ticketing service configured for this subdomain."
+#~ msgid "There already exists a trigger of this type for this channel."
+#~ msgstr "Já existe um serviço  de tickets configurado para este subdomínio"
 
 #, fuzzy
 #~| msgid "Trigger with this Channel already exists."
