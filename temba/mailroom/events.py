@@ -206,7 +206,7 @@ class Event:
 
         if obj.event_type == TicketEvent.TYPE_NOTE:
             event_type = cls.TYPE_TICKET_NOTE_ADDED
-        elif obj.event_type == TicketEvent.TYPE_CLOSED:
+        elif obj.event_type == TicketEvent.TYPE_CLOSED:  # pragma: needs cover
             event_type = cls.TYPE_TICKET_CLOSED
         elif obj.event_type == TicketEvent.TYPE_OPENED:  # pragma: needs cover
             event_type = cls.TYPE_TICKET_OPENED
