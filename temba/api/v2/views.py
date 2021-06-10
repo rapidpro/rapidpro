@@ -4437,6 +4437,10 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
 
 
 class ReportEndpointMixin:
+    def __init__(self):
+        self.applied_filters = {}
+        self.request = None
+
     def get_offset(self):
         offset = self.request.query_params.get("offset", 0)
         offset = int(offset) if isinstance(offset, str) and offset.isnumeric() else offset
@@ -5026,9 +5030,10 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 class FlowReportFiltersMixin(ReportEndpointMixin):
     chunk_size = 2000
 
-    def get_runs(self, org, flow) -> QuerySet:
+    def get_runs(self, org, flow, offset, limit) -> QuerySet:
         self.applied_filters = {"flow": flow.uuid}
-        queryset = flow.runs.order_by("-modified_on")
+        queryset = flow.runs.only("results", "contact", "status", "created_on", "exited_on", "exit_type").order_by("-modified_on")[offset:limit]
+
         if {"channel", "exclude", "group"}.intersection(
             [*self.request.query_params.keys(), *self.request.data.keys()]
         ):
@@ -5118,8 +5123,7 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
             )
 
         offset, limit = self.get_offset(), self.chunk_size
-        runs = self.get_runs(org, flow).values("contact_id", "exit_type")
-        runs = runs[offset : offset + limit + 1]
+        runs = self.get_runs(org, flow, offset, offset + limit + 1).values("contact_id", "exit_type")
         contacts, counter, next_page = set(), Counter(), None
         if runs:
             for run in runs[:limit]:
@@ -5261,8 +5265,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
             )
 
         offset, limit = self.get_offset(), self.chunk_size
-        runs = self.get_runs(org, flow).annotate(results_json=Cast("results", JSONField())).values("results_json")
-        runs = runs[offset : offset + limit + 1]
+        runs = self.get_runs(org, flow, offset, offset + limit + 1).annotate(results_json=Cast("results", JSONField())).values("results_json")
         counts, next_page = defaultdict(lambda: Counter()), None
         if len(runs) > self.chunk_size:
             next_page = self.get_next_page_url(offset + limit, "offset")
