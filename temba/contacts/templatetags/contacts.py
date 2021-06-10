@@ -174,10 +174,11 @@ def history_icon(event: dict) -> str:
     elif event_type == Event.TYPE_TICKET_EVENT:
         if event["ticket_event_type"] == TicketEvent.TYPE_NOTE:
             variant = "note"
-        elif event["ticket_event_type"] == TicketEvent.TYPE_OPENED:
-            variant = "opened"
         elif event["ticket_event_type"] == TicketEvent.TYPE_CLOSED:
             variant = "closed"
+        # TODO: add real ticket events for opening and closing
+        # elif event["ticket_event_type"] == TicketEvent.TYPE_OPENED:
+        #    variant = "opened"
 
     if variant:
         glyph_name = ACTIVITY_ICONS[event_type + ":" + variant]

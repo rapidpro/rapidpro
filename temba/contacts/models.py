@@ -770,7 +770,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from temba.ivr.models import IVRCall
         from temba.mailroom.events import get_event_time
         from temba.msgs.models import Msg
-        from temba.tickets.models import Ticket
+        from temba.tickets.models import Ticket, TicketEvent
 
         msgs = (
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
@@ -817,12 +817,12 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .select_related("channel")[:limit]
         )
 
+        # these will soon be gone in favor of ticket events
         closed_tickets = self.tickets.filter(
             status=Ticket.STATUS_CLOSED, closed_on__gte=after, closed_on__lt=before
         ).order_by("-closed_on")
 
-        from temba.tickets.models import TicketEvent
-
+        # these only have note events at the moment
         ticket_events = TicketEvent.objects.filter(
             created_on__gte=after, created_on__lt=before, ticket__contact=self
         ).order_by("-created_on")[:limit]
