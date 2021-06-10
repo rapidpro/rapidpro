@@ -203,15 +203,16 @@ class Event:
     @classmethod
     def from_ticket_event(cls, org: Org, user: User, obj: TicketEvent) -> dict:
         event_type = cls.TYPE_TICKET_EVENT
+
         if obj.event_type == TicketEvent.TYPE_NOTE:
             event_type = cls.TYPE_TICKET_NOTE_ADDED
-        elif obj.event_type == TicketEvent.TYPE_OPENED:
-            event_type = cls.TYPE_TICKET_OPENED
         elif obj.event_type == TicketEvent.TYPE_CLOSED:
             event_type = cls.TYPE_TICKET_CLOSED
-        elif obj.event_type == TicketEvent.TYPE_ASSIGNED:
+        elif obj.event_type == TicketEvent.TYPE_OPENED:  # pragma: needs cover
+            event_type = cls.TYPE_TICKET_OPENED
+        elif obj.event_type == TicketEvent.TYPE_ASSIGNED:  # pragma: needs cover
             event_type = cls.TYPE_TICKET_ASSIGNED
-        elif obj.event_type == TicketEvent.TYPE_REOPENED:
+        elif obj.event_type == TicketEvent.TYPE_REOPENED:  # pragma: needs cover
             event_type = cls.TYPE_TICKET_REOPENED
 
         return {
