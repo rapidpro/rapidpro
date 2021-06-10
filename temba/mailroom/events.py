@@ -39,7 +39,11 @@ class Event:
     TYPE_MSG_CREATED = "msg_created"
     TYPE_MSG_RECEIVED = "msg_received"
     TYPE_RUN_RESULT_CHANGED = "run_result_changed"
+    TYPE_TICKET_ASSIGNED = "ticket_assigned"
+    TYPE_TICKET_CLOSED = "ticket_closed"
+    TYPE_TICKET_NOTE_ADDED = "ticket_note_added"
     TYPE_TICKET_OPENED = "ticket_opened"
+    TYPE_TICKET_REOPENED = "ticket_reopened"
     TYPE_WEBHOOK_CALLED = "webhook_called"
 
     # additional events
@@ -181,9 +185,9 @@ class Event:
 
     @classmethod
     def from_ticket(cls, org: Org, user: User, obj: Ticket) -> dict:
+        # TODO: This will be replaced with ticket events for open and closed
         return {
-            "type": cls.TYPE_TICKET_EVENT,
-            "ticket_event_type": TicketEvent.TYPE_CLOSED if obj.status == Ticket.STATUS_CLOSED else Ticket.STATUS_OPEN,
+            "type": cls.TYPE_TICKET_CLOSED if obj.status == Ticket.STATUS_CLOSED else cls.TYPE_TICKET_CLOSED,
             "ticket": {
                 "uuid": obj.uuid,
                 "opened_on": obj.opened_on,
@@ -198,9 +202,20 @@ class Event:
 
     @classmethod
     def from_ticket_event(cls, org: Org, user: User, obj: TicketEvent) -> dict:
+        event_type = cls.TYPE_TICKET_EVENT
+        if obj.event_type == TicketEvent.TYPE_NOTE:
+            event_type = cls.TYPE_TICKET_NOTE_ADDED
+        elif obj.event_type == TicketEvent.TYPE_OPENED:
+            event_type = cls.TYPE_TICKET_OPENED
+        elif obj.event_type == TicketEvent.TYPE_CLOSED:
+            event_type = cls.TYPE_TICKET_CLOSED
+        elif obj.event_type == TicketEvent.TYPE_ASSIGNED:
+            event_type = cls.TYPE_TICKET_ASSIGNED
+        elif obj.event_type == TicketEvent.TYPE_REOPENED:
+            event_type = cls.TYPE_TICKET_REOPENED
+
         return {
-            "type": cls.TYPE_TICKET_EVENT,
-            "ticket_event_type": obj.event_type,
+            "type": event_type,
             "note": obj.note,
             "ticket": {
                 "uuid": obj.ticket.uuid,
