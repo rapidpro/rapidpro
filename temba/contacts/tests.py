@@ -2077,12 +2077,12 @@ class ContactTest(TembaTest):
             if msg_text:
                 self.assertEqual(msg_text, item["msg"]["text"])
 
-        assertHistoryEvent(history[0], "ticket_event")
+        assertHistoryEvent(history[0], "ticket_note_added")
         assertHistoryEvent(history[1], "call_started")
         assertHistoryEvent(history[2], "channel_event")
         assertHistoryEvent(history[3], "channel_event")
         assertHistoryEvent(history[4], "channel_event")
-        assertHistoryEvent(history[5], "ticket_event")
+        assertHistoryEvent(history[5], "ticket_closed")
         assertHistoryEvent(history[6], "airtime_transferred")
         assertHistoryEvent(history[7], "webhook_called")
         assertHistoryEvent(history[8], "run_result_changed")
@@ -2139,7 +2139,7 @@ class ContactTest(TembaTest):
         # now we'll see the message that just came in first, followed by the call event
         history = response.context["events"]
         assertHistoryEvent(history[0], "msg_received", msg_text="Newer message")
-        assertHistoryEvent(history[1], "ticket_event")
+        assertHistoryEvent(history[1], "ticket_note_added")
 
         recent_start = datetime_to_timestamp(timezone.now() - timedelta(days=1))
         response = self.fetch_protected(url + "?limit=100&after=%s" % recent_start, self.admin)
@@ -2189,12 +2189,12 @@ class ContactTest(TembaTest):
         assertHistoryEvent(history[1], "flow_entered")
         assertHistoryEvent(history[2], "flow_exited")
         assertHistoryEvent(history[3], "msg_received", msg_text="Newer message")
-        assertHistoryEvent(history[4], "ticket_event")
+        assertHistoryEvent(history[4], "ticket_note_added")
         assertHistoryEvent(history[5], "call_started")
         assertHistoryEvent(history[6], "channel_event")
         assertHistoryEvent(history[7], "channel_event")
         assertHistoryEvent(history[8], "channel_event")
-        assertHistoryEvent(history[9], "ticket_event")
+        assertHistoryEvent(history[9], "ticket_closed")
         assertHistoryEvent(history[10], "airtime_transferred")
         assertHistoryEvent(history[11], "webhook_called")
         assertHistoryEvent(history[12], "run_result_changed")
