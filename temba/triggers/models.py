@@ -89,6 +89,7 @@ class Trigger(SmartModel):
     EXPORT_KEYWORD = "keyword"
     EXPORT_FLOW = "flow"
     EXPORT_GROUPS = "groups"
+    EXPORT_EXCLUDE_GROUPS = "exclude_groups"
     EXPORT_CHANNEL = "channel"
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="triggers")
@@ -141,7 +142,9 @@ class Trigger(SmartModel):
     )
 
     @classmethod
-    def create(cls, org, user, trigger_type, flow, *, channel=None, include_groups=(), keyword=None, **kwargs):
+    def create(
+        cls, org, user, trigger_type, flow, *, channel=None, groups=(), exclude_groups=(), keyword=None, **kwargs
+    ):
         assert flow.flow_type != Flow.TYPE_SURVEY, "can't create triggers for surveyor flows"
         assert trigger_type != cls.TYPE_KEYWORD or keyword, "keyword can't be empty for keyword triggers"
 
@@ -156,8 +159,10 @@ class Trigger(SmartModel):
             **kwargs,
         )
 
-        for group in include_groups:
+        for group in groups:
             trigger.groups.add(group)
+        for group in exclude_groups:
+            trigger.exclude_groups.add(group)
 
         # archive any conflicts
         trigger.archive_conflicts(user)
@@ -179,7 +184,7 @@ class Trigger(SmartModel):
     def archive(self, user):
         self.modified_by = user
         self.is_archived = True
-        self.save()
+        self.save(update_fields=("modified_by", "modified_on", "is_archived"))
 
         if self.channel:
             self.channel.get_type().deactivate_trigger(self)
@@ -187,7 +192,7 @@ class Trigger(SmartModel):
     def restore(self, user):
         self.modified_by = user
         self.is_archived = False
-        self.save()
+        self.save(update_fields=("modified_by", "modified_on", "is_archived"))
 
         # archive any conflicts
         self.archive_conflicts(user)
@@ -255,42 +260,46 @@ class Trigger(SmartModel):
         """
 
         for trigger_def in trigger_defs:
+            # resolve groups, channel and flow
             groups = cls._resolve_import_groups(org, user, same_site, trigger_def[Trigger.EXPORT_GROUPS])
+            exclude_groups = cls._resolve_import_groups(
+                org, user, same_site, trigger_def.get(Trigger.EXPORT_EXCLUDE_GROUPS, [])
+            )
 
-            flow = Flow.objects.get(org=org, uuid=trigger_def[Trigger.EXPORT_FLOW]["uuid"], is_active=True)
+            channel_uuid = trigger_def.get(Trigger.EXPORT_CHANNEL)
+            channel = org.channels.filter(uuid=channel_uuid, is_active=True).first() if channel_uuid else None
+
+            flow_uuid = trigger_def[Trigger.EXPORT_FLOW]["uuid"]
+            flow = org.flows.get(uuid=flow_uuid, is_active=True)
 
             # see if that trigger already exists
-            conflicts = Trigger.get_conflicts(
+            conflicts = cls.get_conflicts(
                 org,
                 trigger_def[Trigger.EXPORT_TYPE],
                 groups=groups,
                 keyword=trigger_def[Trigger.EXPORT_KEYWORD],
+                channel=channel,
                 include_archived=True,
             )
 
-            exact_flow_trigger = conflicts.filter(flow=flow).order_by("-created_on").first()
-            for tr in conflicts:
-                if not tr.is_archived and tr != exact_flow_trigger:
-                    tr.archive(user)
+            # if one of our conflicts is an exact match, we can keep it
+            exact_match = conflicts.filter(flow=flow).order_by("-created_on").first()
+            if exact_match and set(exact_match.exclude_groups.all()) != set(exclude_groups):
+                exact_match = None
 
-            if exact_flow_trigger:
-                if exact_flow_trigger.is_archived:
-                    exact_flow_trigger.restore(user)
+            if exact_match:
+                # tho maybe it needs restored...
+                if exact_match.is_archived:
+                    exact_match.restore(user)
             else:
-
-                # if we have a channel resolve it
-                channel_uuid = trigger_def.get(Trigger.EXPORT_CHANNEL, None)
-                channel = None
-                if channel_uuid:
-                    channel = org.channels.filter(uuid=channel_uuid, is_active=True).first()
-
                 Trigger.create(
                     org,
                     user,
                     trigger_def[Trigger.EXPORT_TYPE],
                     flow,
                     channel=channel,
-                    include_groups=groups,
+                    groups=groups,
+                    exclude_groups=exclude_groups,
                     keyword=trigger_def[Trigger.EXPORT_KEYWORD],
                 )
 
@@ -355,6 +364,7 @@ class Trigger(SmartModel):
             Trigger.EXPORT_KEYWORD: self.keyword,
             Trigger.EXPORT_FLOW: self.flow.as_export_ref(),
             Trigger.EXPORT_GROUPS: [group.as_export_ref() for group in self.groups.all()],
+            Trigger.EXPORT_EXCLUDE_GROUPS: [group.as_export_ref() for group in self.exclude_groups.all()],
             Trigger.EXPORT_CHANNEL: self.channel.uuid if self.channel else None,
         }
 
