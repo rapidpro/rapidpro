@@ -1,3 +1,9 @@
+v6.3.67
+----------
+ * Pass user id to ticket/close ticket/reopen endpoints to use in the TicketEvent mailroom creates
+ * Model changes for ticket assignment
+ * Make flow session output URL have a max length of 2048
+
 v6.3.66
 ----------
  * Add new ticket event model
