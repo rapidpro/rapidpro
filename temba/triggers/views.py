@@ -46,6 +46,7 @@ class BaseTriggerForm(forms.ModelForm):
 
     groups = TembaMultipleChoiceField(
         queryset=ContactGroup.user_groups.none(),
+        label=_("Group Filtering"),
         required=False,
         widget=SelectMultipleWidget(
             attrs={
@@ -55,7 +56,6 @@ class BaseTriggerForm(forms.ModelForm):
             }
         ),
     )
-
     exclude_groups = TembaMultipleChoiceField(
         queryset=ContactGroup.user_groups.none(),
         required=False,
@@ -140,7 +140,7 @@ class KeywordTriggerForm(BaseTriggerForm):
         return kwargs
 
     class Meta(BaseTriggerForm.Meta):
-        fields = ("keyword", "match_type", "flow", "groups", "exclude_groups")
+        fields = ("keyword", "match_type") + BaseTriggerForm.Meta.fields
         widgets = {"keyword": InputWidget(), "match_type": SelectWidget()}
 
 
@@ -198,7 +198,7 @@ class RegisterTriggerForm(BaseTriggerForm):
         return kwargs
 
     class Meta(BaseTriggerForm.Meta):
-        fields = ("keyword", "action_join_group", "response", "flow")
+        fields = ("keyword", "action_join_group", "response") + BaseTriggerForm.Meta.fields
 
 
 class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
@@ -296,7 +296,7 @@ class NewConversationTriggerForm(BaseTriggerForm):
         return kwargs
 
     class Meta(BaseTriggerForm.Meta):
-        fields = ("channel", "flow")
+        fields = ("channel",) + BaseTriggerForm.Meta.fields
 
 
 class ReferralTriggerForm(BaseTriggerForm):
@@ -328,7 +328,7 @@ class ReferralTriggerForm(BaseTriggerForm):
         return kwargs
 
     class Meta(BaseTriggerForm.Meta):
-        fields = ("channel", "referrer_id", "flow")
+        fields = ("channel", "referrer_id") + BaseTriggerForm.Meta.fields
 
 
 class CatchAllTriggerForm(BaseTriggerForm):
