@@ -141,9 +141,21 @@ class TriggerTest(TembaTest):
         trigger.refresh_from_db()
         self.assertTrue(trigger.is_archived)
 
-        new_trigger = Trigger.objects.exclude(id=trigger.id).get()
-        self.assertEqual(Trigger.TYPE_NEW_CONVERSATION, new_trigger.trigger_type)
-        self.assertEqual(flow, new_trigger.flow)
+        trigger2 = Trigger.objects.exclude(id=trigger.id).get()
+        self.assertEqual(Trigger.TYPE_NEW_CONVERSATION, trigger2.trigger_type)
+        self.assertEqual(flow, trigger2.flow)
+
+        # also if a trigger differs by exclusion groups it will be replaced
+        trigger2.exclude_groups.clear()
+
+        self.org.import_app(export, self.admin)
+
+        trigger2.refresh_from_db()
+        self.assertTrue(trigger.is_archived)
+
+        trigger3 = Trigger.objects.exclude(id__in=(trigger.id, trigger2.id)).get()
+        self.assertEqual(Trigger.TYPE_NEW_CONVERSATION, trigger3.trigger_type)
+        self.assertEqual({testers}, set(trigger3.exclude_groups.all()))
 
     def test_release(self):
         flow = self.create_flow()
