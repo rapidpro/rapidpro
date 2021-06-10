@@ -21,7 +21,7 @@ from temba.mailroom.client import ContactSpec, MailroomClient, MailroomException
 from temba.mailroom.modifiers import Modifier
 from temba.orgs.models import Org
 from temba.tests.dates import parse_datetime
-from temba.tickets.models import Ticket
+from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import format_number, get_anonymous_user, json
 from temba.utils.cache import incrby_existing
 
@@ -180,16 +180,22 @@ class TestClient(MailroomClient):
         return mock(offset, sort)
 
     @_client_method
-    def ticket_close(self, org_id, ticket_ids):
+    def ticket_close(self, org_id, user_id, ticket_ids):
         tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_OPEN, id__in=ticket_ids)
         tickets.update(status=Ticket.STATUS_CLOSED)
+
+        for ticket in tickets:
+            ticket.events.create(org_id=org_id, event_type=TicketEvent.TYPE_CLOSED, created_by_id=user_id)
 
         return {"changed_ids": [t.id for t in tickets]}
 
     @_client_method
-    def ticket_reopen(self, org_id, ticket_ids):
+    def ticket_reopen(self, org_id, user_id, ticket_ids):
         tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_CLOSED, id__in=ticket_ids)
         tickets.update(status=Ticket.STATUS_OPEN)
+
+        for ticket in tickets:
+            ticket.events.create(org_id=org_id, event_type=TicketEvent.TYPE_REOPENED, created_by_id=user_id)
 
         return {"changed_ids": [t.id for t in tickets]}
 

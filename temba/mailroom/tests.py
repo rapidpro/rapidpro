@@ -323,25 +323,25 @@ class MailroomClientTest(TembaTest):
     def test_ticket_close(self):
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
-            response = get_client().ticket_close(1, [123, 345])
+            response = get_client().ticket_close(1, 12, [123, 345])
 
             self.assertEqual({"changed_ids": [123]}, response)
             mock_post.assert_called_once_with(
                 "http://localhost:8090/mr/ticket/close",
                 headers={"User-Agent": "Temba"},
-                json={"org_id": 1, "ticket_ids": [123, 345]},
+                json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345]},
             )
 
     def test_ticket_reopen(self):
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
-            response = get_client().ticket_reopen(1, [123, 345])
+            response = get_client().ticket_reopen(1, 12, [123, 345])
 
             self.assertEqual({"changed_ids": [123]}, response)
             mock_post.assert_called_once_with(
                 "http://localhost:8090/mr/ticket/reopen",
                 headers={"User-Agent": "Temba"},
-                json={"org_id": 1, "ticket_ids": [123, 345]},
+                json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345]},
             )
 
     def test_request_failure(self):
