@@ -483,7 +483,7 @@ class FlowCRUDL(SmartCRUDL):
             flow.release()
 
             # we can't just redirect so as to make our modal do the right thing
-            return self.hide_modal()
+            return self.render_modal_response()
 
     class Copy(OrgObjPermsMixin, SmartUpdateView):
         fields = []
@@ -1209,7 +1209,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # if this is an XHR request, we need to return a structured response that it can parse
             if "HTTP_X_PJAX" in self.request.META:
-                response = self.hide_modal(form)
+                response = self.render_modal_response(form)
                 response["Temba-Success"] = download_url
                 return response
 
@@ -1501,7 +1501,7 @@ class FlowCRUDL(SmartCRUDL):
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
-                response = self.hide_modal(form)
+                response = self.render_modal_response(form)
                 response["REDIRECT"] = self.get_success_url()
                 return response
 

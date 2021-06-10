@@ -78,7 +78,7 @@ class CampaignCRUDL(SmartCRUDL):
                 self.object.recreate_events()
                 self.object.schedule_events_async()
 
-            return self.hide_modal(form)
+            return self.render_modal_response(form)
 
     class Read(OrgObjPermsMixin, SmartReadView):
         def derive_title(self):

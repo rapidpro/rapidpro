@@ -93,7 +93,7 @@ class GlobalCRUDL(SmartCRUDL):
                 value=form.cleaned_data["value"],
             )
 
-            return self.hide_modal(form)
+            return self.render_modal_response(form)
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = UpdateGlobalForm

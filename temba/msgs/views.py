@@ -591,7 +591,7 @@ class MsgCRUDL(SmartCRUDL):
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
-                response = self.hide_modal(form)
+                response = self.render_modal_response(form)
                 response["REDIRECT"] = self.get_success_url()
                 return response
 
