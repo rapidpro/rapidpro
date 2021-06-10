@@ -120,7 +120,7 @@ class Ticketer(SmartModel, DependencyMixin):
 
         open_tickets = self.tickets.filter(status=Ticket.STATUS_OPEN)
         if open_tickets.exists():
-            Ticket.bulk_close(self.org, open_tickets)
+            Ticket.bulk_close(self.org, user, open_tickets)
 
         self.is_active = False
         self.modified_by = user
@@ -177,32 +177,38 @@ class Ticket(models.Model):
 
     assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
 
-    def assign(self, user: User, assignee: User, *, note: str):
+    def assign(self, user: User, *, assignee: User, note: str):
         self.assignee = assignee
-        self.save(update_fields=("assignee",))
+        self.modified_on = timezone.now()
+        self.save(update_fields=("assignee", "modified_on"))
 
         self.events.create(
             org=self.org, event_type=TicketEvent.TYPE_ASSIGNED, assignee=assignee, note=note, created_by=user
         )
 
-    def add_note(self, user: User, text: str):
-        self.events.create(org=self.org, event_type=TicketEvent.TYPE_NOTE, note=text, created_by=user)
+    def add_note(self, user: User, *, note: str):
+        self.modified_on = timezone.now()
+        self.save(update_fields=("modified_on",))
+
+        self.events.create(org=self.org, event_type=TicketEvent.TYPE_NOTE, note=note, created_by=user)
 
     @classmethod
-    def bulk_close(cls, org, tickets):
-        return mailroom.get_client().ticket_close(org.id, [t.id for t in tickets if t.ticketer.is_active])
+    def bulk_close(cls, org, user, tickets):
+        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        return mailroom.get_client().ticket_close(org.id, user.id, ticket_ids)
 
     @classmethod
-    def bulk_reopen(cls, org, tickets):
-        return mailroom.get_client().ticket_reopen(org.id, [t.id for t in tickets if t.ticketer.is_active])
+    def bulk_reopen(cls, org, user, tickets):
+        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        return mailroom.get_client().ticket_reopen(org.id, user.id, ticket_ids)
 
     @classmethod
     def apply_action_close(cls, user, tickets):
-        cls.bulk_close(tickets[0].org, tickets)
+        cls.bulk_close(tickets[0].org, user, tickets)
 
     @classmethod
     def apply_action_reopen(cls, user, tickets):
-        cls.bulk_reopen(tickets[0].org, tickets)
+        cls.bulk_reopen(tickets[0].org, user, tickets)
 
     def __str__(self):
         return f"Ticket[uuid={self.uuid}, subject={self.subject}]"
@@ -231,7 +237,14 @@ class TicketEvent(models.Model):
     TYPE_ASSIGNED = "A"
     TYPE_NOTE = "N"
     TYPE_CLOSED = "C"
-    TYPE_CHOICES = ((TYPE_OPENED, "Opened"), (TYPE_ASSIGNED, "Assigned"), (TYPE_NOTE, "Note"), (TYPE_CLOSED, "Closed"))
+    TYPE_REOPENED = "R"
+    TYPE_CHOICES = (
+        (TYPE_OPENED, "Opened"),
+        (TYPE_ASSIGNED, "Assigned"),
+        (TYPE_NOTE, "Note"),
+        (TYPE_CLOSED, "Closed"),
+        (TYPE_REOPENED, "Reopened"),
+    )
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticket_events")
     ticket = models.ForeignKey(Ticket, on_delete=models.PROTECT, related_name="events")

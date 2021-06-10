@@ -31,8 +31,8 @@ class TicketTest(TembaTest):
 
         self.assertEqual(f"Ticket[uuid={ticket.uuid}, subject=Need help]", str(ticket))
 
-        ticket.assign(self.admin, self.editor, note="Please deal with this")
-        ticket.add_note(self.admin, "This is important")
+        ticket.assign(self.admin, assignee=self.editor, note="Please deal with this")
+        ticket.add_note(self.admin, note="This is important")
 
         self.assertEqual(self.editor, ticket.assignee)
 
@@ -45,14 +45,14 @@ class TicketTest(TembaTest):
         self.assertEqual(self.admin, events[1].created_by)
 
         with patch("temba.mailroom.client.MailroomClient.ticket_close") as mock_close:
-            Ticket.bulk_close(self.org, [ticket])
+            Ticket.bulk_close(self.org, self.admin, [ticket])
 
-        mock_close.assert_called_once_with(self.org.id, [ticket.id])
+        mock_close.assert_called_once_with(self.org.id, self.admin.id, [ticket.id])
 
         with patch("temba.mailroom.client.MailroomClient.ticket_reopen") as mock_reopen:
-            Ticket.bulk_reopen(self.org, [ticket])
+            Ticket.bulk_reopen(self.org, self.admin, [ticket])
 
-        mock_reopen.assert_called_once_with(self.org.id, [ticket.id])
+        mock_reopen.assert_called_once_with(self.org.id, self.admin.id, [ticket.id])
 
 
 class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -328,7 +328,7 @@ class TicketerTest(TembaTest):
         self.assertEqual(self.user, ticketer.modified_by)
 
         # will have asked mailroom to close the ticket
-        mock_ticket_close.assert_called_once_with(self.org.id, [ticket.id])
+        mock_ticket_close.assert_called_once_with(self.org.id, self.user.id, [ticket.id])
 
         # reactivate
         ticketer.is_active = True

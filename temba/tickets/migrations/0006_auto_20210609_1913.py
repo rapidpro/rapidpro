@@ -47,7 +47,8 @@ class Migration(migrations.Migration):
             model_name="ticketevent",
             name="event_type",
             field=models.CharField(
-                choices=[("O", "Opened"), ("A", "Assigned"), ("N", "Note"), ("C", "Closed")], max_length=1
+                choices=[("O", "Opened"), ("A", "Assigned"), ("N", "Note"), ("C", "Closed"), ("R", "Reopened")],
+                max_length=1,
             ),
         ),
     ]

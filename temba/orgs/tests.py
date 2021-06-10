@@ -812,7 +812,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
             body="Where are my cookies?",
             status="O",
         )
-        ticket.add_note(self.admin, "This is interesting!")
+        ticket.add_note(self.admin, note="This is interesting!")
 
     def release_org(self, org, child_org=None, delete=False, expected_files=3):
 
