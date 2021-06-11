@@ -4441,12 +4441,12 @@ class ReportEndpointMixin:
         self.applied_filters = {}
         self.request = None
 
-    def get_offset(self):
-        offset = self.request.query_params.get("offset", 0)
-        offset = int(offset) if isinstance(offset, str) and offset.isnumeric() else offset
-        if not isinstance(offset, int) or offset < 0:
-            raise Http404
-        return offset
+    def get_paginated_queryset(self, queryset):
+        pagination_class: CursorPagination = getattr(self, "pagination_class", CreatedOnCursorPagination)()
+        pagination_class.page_size_query_param = "page_size"
+        pagination_class.page_size = getattr(self, "chunk_size", 2000)
+        pagination_class.paginate_queryset(queryset, self.request, self)
+        return pagination_class.page, pagination_class.get_next_link()
 
     def get_next_page_url(self, page_number, parameter="page"):
         from rest_framework.utils.urls import replace_query_param
@@ -4723,6 +4723,11 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     * **after** - Date, excludes all contacts from the report that were modified earlier a certain date
     * **variables** - the values configuration to be included into report
 
+    This report can't be performed in one request so the report is being split into chunks,
+    you should follow the `next` link until it's `null` and merge data using your script.
+    * **next** - Url to get next chunk of the report.
+    * **page_size** - Number of contacts to process per one request.
+
     Example:
 
         POST /api/v2/contact_variable_report.json
@@ -4738,7 +4743,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     Response:
 
         {
-            "next": "http://127.0.0.1:8000/api/v2/contact_variable_report.json?offset=2000",
+            "next": "http://example.com/api/v2/contact_variable_report.json?cursor=cD0yMDIxLTA1LTEyKzEzJ",
             "variables": {
                 "9402ac3d-4efb-448a-b0d6-6b219c5c21ff": {
                     "key": "zipcode"
@@ -4771,6 +4776,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     """
 
     permission = "orgs.org_api"
+    pagination_class = CreatedOnCursorPagination
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -4817,12 +4823,10 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         self.applied_filters["variables"] = variable_filters
 
-        offset, limit, next_page = self.get_offset(), 2000, None
-        contacts = contacts.filter(fields__has_any_keys=variable_filters.keys())[offset : offset + limit + 1]
-        if len(contacts) > limit:
-            next_page = self.get_next_page_url(offset + limit, "offset")
+        contacts = contacts.filter(fields__has_any_keys=variable_filters.keys()).only("fields", "created_on")
+        current_page, next_page = self.get_paginated_queryset(contacts)
 
-        for contact in contacts[:limit]:
+        for contact in current_page:
             for field_uuid, field_value in (contact.fields or {}).items():
                 if field_uuid in variable_filters:
                     counts[variable_filters[field_uuid]["key"]][field_value["text"]] += 1
@@ -4862,7 +4866,11 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                 dict(name="before", required=False, help="Last modified until"),
                 dict(name="variables", required=True, help="Configuration for fields to generate report"),
             ],
-            params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
+            params=[
+                dict(name="cursor", required=False, help="The start position of next chunk"),
+                dict(name="page_size", required=False, help="Number of runs to process per one request"),
+                dict(name="export_csv", required=False, help="Generate report in CSV format"),
+            ],
             example=dict(
                 body=json.dumps(
                     {
@@ -4889,6 +4897,11 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     * **after** - Date, excludes all messages from the report that were created earlier a certain date
     * **before** - Date, excludes all messages from the report that were created later a certain date
 
+    This report can't be performed in one request so the report is being split into chunks,
+    you should follow the `next` link until it's `null` and merge data using your script.
+    * **next** - Url to get next chunk of the report.
+    * **page_size** - Number of messages to process per one request.
+
     Example:
 
         GET /api/v2/messages_report.json
@@ -4903,7 +4916,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     Response:
 
         {
-            "next": "http://127.0.0.1:8000/api/v2/messages_report.json?offset=2000",
+            "next": "http://example.com/api/v2/messages_report.json?cursor=cD0yMDIxLTA1LTExKzEzJTNBNTIlM",
             "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
             "after": "2020-01-01",
             "before": "2022-01-13",
@@ -4924,6 +4937,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     """
 
     permission = "orgs.org_api"
+    pagination_class = CreatedOnCursorPagination
     applied_filters = None
 
     def get_flow_messages(self, org, flow, qs):
@@ -4974,17 +4988,13 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                 queryset = _filter(filter_value)
                 self.applied_filters[name] = filter_value
 
-        offset, limit, next_page = self.get_offset(), 2000, None
-        queryset = queryset.annotate(ds=Concat("direction", "status")).order_by("-created_on")
-        queryset = queryset.values_list("ds", flat=True)[offset : offset + limit + 1]
-        counter = Counter(queryset[:limit])
+        queryset = queryset.only("created_on").annotate(ds=Concat("direction", "status"))
+        current_page, next_page = self.get_paginated_queryset(queryset)
+        counter = Counter([rec.ds for rec in current_page])
         results = dict(total_inbound_messages=0, total_outbound_messages=0, total_outbound_message_failures=0)
         for msg_type, count in counter.items():
             results["total_inbound_messages" if msg_type[0] == "I" else "total_outbound_messages"] += count
             results["total_outbound_message_failures"] += count if msg_type[1] in [FAILED, ERRORED] else 0
-
-        if len(queryset) > limit:
-            next_page = self.get_next_page_url(offset + limit, "offset")
 
         return Response({"next": next_page, **self.applied_filters, "results": [results]})
 
@@ -5011,7 +5021,11 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                 dict(name="channel", required=False, help="Select messages sent via specific channel"),
                 dict(name="exclude", required=False, help="Contact group to exclude"),
             ],
-            params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
+            params=[
+                dict(name="cursor", required=False, help="The start position of next chunk"),
+                dict(name="page_size", required=False, help="Number of messages to process per one request"),
+                dict(name="export_csv", required=False, help="Generate report in CSV format"),
+            ],
             example=dict(
                 body=json.dumps(
                     {
@@ -5030,11 +5044,9 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 class FlowReportFiltersMixin(ReportEndpointMixin):
     chunk_size = 2000
 
-    def get_runs(self, org, flow, offset, limit) -> QuerySet:
+    def get_runs(self, org, flow) -> QuerySet:
         self.applied_filters = {"flow": flow.uuid}
-        queryset = flow.runs.only("results", "contact", "status", "created_on", "exited_on", "exit_type").order_by(
-            "-modified_on"
-        )[offset:limit]
+        queryset = FlowRun.objects.filter(flow_id=flow.id)
 
         if {"channel", "exclude", "group"}.intersection(
             [*self.request.query_params.keys(), *self.request.data.keys()]
@@ -5072,7 +5084,10 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     * **exited_after** - Date, excludes all runs from the report that were exited earlier a certain date
     * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
 
+    This report can't be performed in one request so the report is being split into chunks,
+    you should follow the `next` link until it's `null` and merge data using your script.
     * **next** - Url to get next chunk of the report.
+    * **page_size** - Number of runs to process per one request
 
     Example:
 
@@ -5090,13 +5105,13 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     Response:
 
         {
+            "next": "http://example.com/api/v2/flow_report.json?cursor=cD0yMDIxLTExLTEyKz",
             "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
             "started_after": "2021-02-01",
             "started_before": "2021-03-13",
             "exited_after": "2021-02-01",
             "exited_before": "2021-03-13",
             "exclude": "Testers",
-            "next": "https://dev.communityconnectlabs.com/api/v2/flow_report.json?offset=2000",
             "results": [
                 {
                     "total_contacts": 1,
@@ -5113,6 +5128,7 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     """
 
     permission = "orgs.org_api"
+    pagination_class = ModifiedOnCursorPagination
 
     @csv_response_wrapper
     def get(self, request, *args, **kwargs):
@@ -5124,16 +5140,11 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        offset, limit = self.get_offset(), self.chunk_size
-        runs = self.get_runs(org, flow, offset, offset + limit + 1).values("contact_id", "exit_type")
-        contacts, counter, next_page = set(), Counter(), None
-        if runs:
-            for run in runs[:limit]:
-                contacts.add(run["contact_id"])
-                counter[run["exit_type"]] += 1
-
-            if len(runs) > self.chunk_size:
-                next_page = self.get_next_page_url(offset + limit, "offset")
+        runs = self.get_runs(org, flow).only("contact_id", "exit_type", "modified_on")
+        contacts, counter, (current_page, next_page) = set(), Counter(), self.get_paginated_queryset(runs)
+        for run in current_page:
+            contacts.add(run.contact_id)
+            counter[run.exit_type] += 1
 
         results = {
             "total_contacts": len(contacts),
@@ -5177,7 +5188,8 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 ),
             ],
             params=[
-                dict(name="offset", required=False, help="Get a chunk of the report"),
+                dict(name="cursor", required=False, help="The start position of next chunk"),
+                dict(name="page_size", required=False, help="Number of runs to process per one request"),
                 dict(name="export_csv", required=False, help="Generate report in CSV format"),
             ],
             example=dict(
@@ -5192,7 +5204,7 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                         "exited_before": "2021-03-13",
                     }
                 ),
-                query="offset=0&export_csv=false",
+                query="export_csv=false",
             ),
         )
 
@@ -5212,7 +5224,10 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
     * **variables** - configuration which define the fields to be included in the report
 
+    This report can't be performed in one request so the report is being split into chunks,
+    you should follow the `next` link until it's `null` and merge data using your script.
     * **next** - Url to get next chunk of the report.
+    * **page_size** - Number of runs to process per one request.
 
     Example:
 
@@ -5230,6 +5245,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     Response:
 
         {
+            "next": "http://example.com/api/v2/flow_variable_report.json?cursor=cD0yMDIxLTExLTEyKz",
             "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
             "variables": {
                 "result_1": {
@@ -5237,7 +5253,6 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                     "top": 3
                 }
             },
-            "next": "https://dev.communityconnectlabs.com/api/v2/flow_variable_report.json?offset=2000",
             "results": [
                 {
                     "result_1": {
@@ -5255,6 +5270,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     """
 
     permission = "orgs.org_api"
+    pagination_class = ModifiedOnCursorPagination
 
     @csv_response_wrapper
     def post(self, request, *args, **kwargs):
@@ -5266,15 +5282,8 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        offset, limit = self.get_offset(), self.chunk_size
-        runs = (
-            self.get_runs(org, flow, offset, offset + limit + 1)
-            .annotate(results_json=Cast("results", JSONField()))
-            .values("results_json")
-        )
-        counts, next_page = defaultdict(lambda: Counter()), None
-        if len(runs) > self.chunk_size:
-            next_page = self.get_next_page_url(offset + limit, "offset")
+        runs = self.get_runs(org, flow).only("results", "modified_on")
+        counts, (current_page, next_page) = defaultdict(lambda: Counter()), self.get_paginated_queryset(runs)
 
         requested_variables = self.request.data.get("variables")
         existing_variables = {result.get("key", ""): result for result in flow.metadata.get("results", [])}
@@ -5299,8 +5308,8 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 counts[variable] = Counter({category: 0 for category in existing_variables[variable]["categories"]})
         self.applied_filters["variables"] = variable_filters
 
-        for flow_run in runs[:limit]:
-            for result_name, result in flow_run.get("results_json", {}).items():
+        for flow_run in current_page:
+            for result_name, result in flow_run.results.items():
                 if result_name in variable_filters:
                     counts[result_name][result[variable_filters[result_name]["format"]]] += 1
 
@@ -5349,7 +5358,8 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 dict(name="variables", required=True, help="Configuration for fields to generate report"),
             ],
             params=[
-                dict(name="offset", required=False, help="Get a chunk of the report"),
+                dict(name="cursor", required=False, help="The start position of next chunk"),
+                dict(name="page_size", required=False, help="Number of runs to process per one request"),
                 dict(name="export_csv", required=False, help="Generate report in CSV format"),
             ],
             example=dict(
@@ -5359,7 +5369,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                         "variables": {"result_1": {"format": "value", "top": 3}},
                     }
                 ),
-                query="offset=1&export_csv=false",
+                query="export_csv=false",
             ),
         )
 
