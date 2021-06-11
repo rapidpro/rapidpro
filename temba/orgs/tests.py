@@ -3377,7 +3377,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         org = Org.objects.get(name="Bulls")
         self.assertEqual(100_000, org.get_credits_remaining())
-        self.assertEqual(org.date_format, Org.DATE_FORMAT_MONTH_FIRST)
+        self.assertEqual(Org.DATE_FORMAT_MONTH_FIRST, org.date_format)
+        self.assertEqual("en-us", org.language)
+        self.assertEqual(["eng"], org.flow_languages)
 
     def test_org_grant_invalid_form(self):
         grant_url = reverse("orgs.org_grant")
