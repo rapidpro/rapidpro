@@ -78,7 +78,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         list_url = reverse("tickets.ticket_list")
 
         # just a placeholder view for frontend components
-        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[])
+        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, allow_agents=True, context_objects=[])
 
     def test_folder(self):
         self.login(self.user)
@@ -218,7 +218,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_ticket(subject="Ticket 4", body="Where are my trousers?", status="O", org=self.org2)
 
         response = self.assertListFetch(
-            open_url, allow_viewers=True, allow_editors=True, context_objects=[ticket2, ticket1]
+            open_url, allow_viewers=True, allow_editors=True, allow_agents=True, context_objects=[ticket2, ticket1]
         )
 
         self.assertEqual(("close",), response.context["actions"])
@@ -309,14 +309,17 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.login(self.admin)
         ticket = self.create_ticket(subject="Ticket 1", body="Where are my cookies?", status="O")
 
-        # fetch the note form
-        response = self.client.get(reverse("tickets.ticket_note", args=[ticket.uuid]))
-        self.assertEqual(response.status_code, 200)
-
-        response = self.client.post(
-            reverse("tickets.ticket_note", args=[ticket.uuid]), {"text": "I have a bad feeling about this."}
+        update_url = reverse("tickets.ticket_note", args=[ticket.uuid])
+        self.assertUpdateFetch(
+            update_url, allow_viewers=False, allow_editors=True, allow_agents=True, form_fields=["text"]
         )
-        self.assertEqual(response._headers["temba-success"][1], "hide")
+
+        self.assertUpdateSubmit(
+            update_url, {"text": ""}, form_errors={"text": "This field is required."}, object_unchanged=ticket
+        )
+
+        self.assertUpdateSubmit(update_url, {"text": "I have a bad feeling about this."}, success_status=200)
+
         self.assertEqual(len(TicketEvent.objects.filter(ticket=ticket, event_type=TicketEvent.TYPE_NOTE)), 1)
 
 
@@ -382,7 +385,7 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
         with override_settings(TICKETER_TYPES=[]):
             reload_ticketer_types()
 
-            response = self.assertListFetch(connect_url, allow_viewers=False, allow_editors=False)
+            response = self.assertListFetch(connect_url, allow_viewers=False, allow_editors=False, allow_agents=False)
 
             self.assertEqual([], response.context["ticketer_types"])
             self.assertContains(response, "No ticketing services are available.")
@@ -390,7 +393,7 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
         with override_settings(TICKETER_TYPES=["temba.tickets.types.mailgun.MailgunType"], MAILGUN_API_KEY="123"):
             reload_ticketer_types()
 
-            response = self.assertListFetch(connect_url, allow_viewers=False, allow_editors=False)
+            response = self.assertListFetch(connect_url, allow_viewers=False, allow_editors=False, allow_agents=False)
 
             self.assertNotContains(response, "No ticketing services are available.")
             self.assertContains(response, reverse("tickets.types.mailgun.connect"))

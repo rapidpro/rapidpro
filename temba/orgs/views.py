@@ -2752,12 +2752,12 @@ class OrgCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Import"), href=reverse("orgs.org_import")))
 
             if settings.HELP_URL:  # pragma: needs cover
-                if len(links) > 0:
+                if len(links) > 1:
                     links.append(dict(divider=True))
 
                 links.append(dict(title=_("Help"), href=settings.HELP_URL))
 
-            if len(links) > 0:
+            if len(links) > 1:
                 links.append(dict(divider=True))
 
             links.append(

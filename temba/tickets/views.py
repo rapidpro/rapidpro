@@ -1,4 +1,4 @@
-from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartTemplateView
+from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
 from django.db.models.aggregates import Max
@@ -245,7 +245,7 @@ class TicketCRUDL(SmartCRUDL):
         def ticketer(self):
             return Ticketer.objects.get(uuid=self.kwargs["ticketer"], is_active=True)
 
-    class Note(ModalMixin, ComponentFormMixin, OrgPermsMixin, SmartFormView):
+    class Note(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
         """
         Creates a note for this contact
         """
@@ -258,7 +258,7 @@ class TicketCRUDL(SmartCRUDL):
                 help_text=_("Notes can only be seen by the support team"),
             )
 
-            def __init__(self, **kwargs):
+            def __init__(self, instance, **kwargs):
                 super().__init__(**kwargs)
 
         form_class = Form
@@ -268,13 +268,8 @@ class TicketCRUDL(SmartCRUDL):
         success_message = ""
         submit_button_name = _("Add Note")
 
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<uuid>[^/]+)/$" % (path, action)
-
         def form_valid(self, form):
-            ticket = Ticket.objects.filter(uuid=self.kwargs["uuid"]).first()
-            ticket.add_note(self.request.user, note=form.cleaned_data["text"])
+            self.get_object().add_note(self.request.user, note=form.cleaned_data["text"])
             return self.render_modal_response(form)
 
 

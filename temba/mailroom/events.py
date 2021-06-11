@@ -51,7 +51,6 @@ class Event:
     TYPE_CAMPAIGN_FIRED = "campaign_fired"
     TYPE_CHANNEL_EVENT = "channel_event"
     TYPE_FLOW_EXITED = "flow_exited"
-    TYPE_TICKET_EVENT = "ticket_event"
 
     @classmethod
     def from_history_item(cls, org: Org, user: User, item) -> dict:
@@ -202,14 +201,12 @@ class Event:
 
     @classmethod
     def from_ticket_event(cls, org: Org, user: User, obj: TicketEvent) -> dict:
-        event_type = cls.TYPE_TICKET_EVENT
 
+        event_type = cls.TYPE_TICKET_OPENED
         if obj.event_type == TicketEvent.TYPE_NOTE:
             event_type = cls.TYPE_TICKET_NOTE_ADDED
         elif obj.event_type == TicketEvent.TYPE_CLOSED:  # pragma: needs cover
             event_type = cls.TYPE_TICKET_CLOSED
-        elif obj.event_type == TicketEvent.TYPE_OPENED:  # pragma: needs cover
-            event_type = cls.TYPE_TICKET_OPENED
         elif obj.event_type == TicketEvent.TYPE_ASSIGNED:  # pragma: needs cover
             event_type = cls.TYPE_TICKET_ASSIGNED
         elif obj.event_type == TicketEvent.TYPE_REOPENED:  # pragma: needs cover
