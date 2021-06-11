@@ -4743,7 +4743,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     Response:
 
         {
-            "next": "http://127.0.0.1:8000/api/v2/contact_variable_report.json?cursor=cD0yMDIxLTA1LTEyKzEzJ",
+            "next": "http://example.com/api/v2/contact_variable_report.json?cursor=cD0yMDIxLTA1LTEyKzEzJ",
             "variables": {
                 "9402ac3d-4efb-448a-b0d6-6b219c5c21ff": {
                     "key": "zipcode"
@@ -4916,7 +4916,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     Response:
 
         {
-            "next": "http://127.0.0.1:8000/api/v2/messages_report.json?cursor=cD0yMDIxLTA1LTExKzEzJTNBNTIlM",
+            "next": "http://example.com/api/v2/messages_report.json?cursor=cD0yMDIxLTA1LTExKzEzJTNBNTIlM",
             "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
             "after": "2020-01-01",
             "before": "2022-01-13",
@@ -5105,7 +5105,7 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     Response:
 
         {
-            "next": "http://127.0.0.1:8000/api/v2/flow_report.json?cursor=cD0yMDIxLTExLTEyKz",
+            "next": "http://example.com/api/v2/flow_report.json?cursor=cD0yMDIxLTExLTEyKz",
             "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
             "started_after": "2021-02-01",
             "started_before": "2021-03-13",
@@ -5245,7 +5245,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     Response:
 
         {
-            "next": "http://127.0.0.1:8000/api/v2/flow_variable_report.json?cursor=cD0yMDIxLTExLTEyKz",
+            "next": "http://example.com/api/v2/flow_variable_report.json?cursor=cD0yMDIxLTExLTEyKz",
             "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
             "variables": {
                 "result_1": {
