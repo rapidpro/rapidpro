@@ -4880,7 +4880,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                         "variables": {"state": {}, "zipcode": {"top": 5}},
                     }
                 ),
-                query="page_size=2000&export_csv=false",
+                query="export_csv=false",
             ),
         )
 
@@ -5036,7 +5036,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                         "exclude": "Testers",
                     }
                 ),
-                query="page_size=2000&export_csv=false",
+                query="export_csv=false",
             ),
         )
 
@@ -5204,7 +5204,7 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                         "exited_before": "2021-03-13",
                     }
                 ),
-                query="page_size=2000&export_csv=false",
+                query="export_csv=false",
             ),
         )
 
@@ -5369,7 +5369,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                         "variables": {"result_1": {"format": "value", "top": 3}},
                     }
                 ),
-                query="page_size=2000&export_csv=false",
+                query="export_csv=false",
             ),
         )
 
