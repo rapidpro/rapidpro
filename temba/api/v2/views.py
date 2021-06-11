@@ -5028,7 +5028,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
 
 class FlowReportFiltersMixin(ReportEndpointMixin):
-    chunk_size = 250
+    chunk_size = 2000
 
     def get_runs(self, org, flow, offset, limit) -> QuerySet:
         self.applied_filters = {"flow": flow.uuid}
