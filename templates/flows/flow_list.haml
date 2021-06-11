@@ -10,7 +10,7 @@
 
   -if org_perms.flows.flow_update
     %temba-modax#export-results{ header:'{% trans "Download Results" %}' }
-    %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'flows.flowlabel_create' %}", onloaded: "handleCreateLabelModalLoaded", onsubmitted: "handleCreateLabelModalSubmitted"}
+    %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'flows.flowlabel_create' %}", "-temba-loaded": "handleCreateLabelModalLoaded", "-temba-submitted": "handleCreateLabelModalSubmitted"}
 
   #pjax
     -block pjax

@@ -56,6 +56,7 @@ ACTIVITY_ICONS = {
     Event.TYPE_RUN_RESULT_CHANGED: "icon-bars",
     Event.TYPE_TICKET_OPENED: "icon-ticket",
     Event.TYPE_TICKET_CLOSED: "icon-ticket",
+    Event.TYPE_TICKET_NOTE_ADDED: "icon-pencil",
     Event.TYPE_WEBHOOK_CALLED: "icon-cloud-upload",
 }
 
