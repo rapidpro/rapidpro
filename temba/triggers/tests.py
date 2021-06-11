@@ -44,20 +44,16 @@ class TriggerTest(TembaTest):
 
         assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
 
-        trigger1 = Trigger.create(
-            self.org, self.admin, Trigger.TYPE_KEYWORD, flow, include_groups=(group1,), keyword="join"
-        )
-        trigger2 = Trigger.create(
-            self.org, self.admin, Trigger.TYPE_KEYWORD, flow, include_groups=(group2,), keyword="join"
-        )
-        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, include_groups=(group1,), keyword="join")
+        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, groups=(group1,), keyword="join")
+        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, groups=(group2,), keyword="join")
+        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, groups=(group1,), keyword="join")
 
         assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
 
         # incoming call triggers conflict if groups match
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow, include_groups=(group1,))
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow, include_groups=(group2,))
-        Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow, include_groups=(group1,))
+        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow, groups=(group1,))
+        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow, groups=(group2,))
+        Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow, groups=(group1,))
 
         assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
 
@@ -86,22 +82,23 @@ class TriggerTest(TembaTest):
         Channel.objects.filter(id=self.channel.id).update(channel_type="TT")
         flow = self.create_flow()
 
-        group = self.create_group("Trigger Group", [])
+        doctors = self.create_group("Doctors", contacts=[])
+        farmers = self.create_group("Farmers", contacts=[])
+        testers = self.create_group("Testers", contacts=[])
 
         # create a trigger on this flow for the new conversation actions but only on some groups
-        trigger = Trigger.objects.create(
-            org=self.org,
-            flow=flow,
-            trigger_type=Trigger.TYPE_NEW_CONVERSATION,
+        Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_NEW_CONVERSATION,
+            flow,
+            groups=[doctors, farmers],
+            exclude_groups=[testers],
             channel=self.channel,
-            created_by=self.admin,
-            modified_by=self.admin,
         )
-        trigger.groups.add(group)
 
+        # export as a dependency of our flow
         components = self.org.resolve_dependencies([flow], [], include_triggers=True)
-
-        # export everything
         export = self.org.export_definitions("http://rapidpro.io", components)
 
         # remove our trigger
@@ -111,10 +108,54 @@ class TriggerTest(TembaTest):
         self.org.import_app(export, self.admin)
 
         trigger = Trigger.objects.get()
-        self.assertEqual(trigger.trigger_type, Trigger.TYPE_NEW_CONVERSATION)
-        self.assertEqual(trigger.flow, flow)
-        self.assertEqual(trigger.channel, self.channel)
-        self.assertEqual(list(trigger.groups.all()), [group])
+        self.assertEqual(Trigger.TYPE_NEW_CONVERSATION, trigger.trigger_type)
+        self.assertEqual(flow, trigger.flow)
+        self.assertEqual(self.channel, trigger.channel)
+        self.assertEqual({doctors, farmers}, set(trigger.groups.all()))
+        self.assertEqual({testers}, set(trigger.exclude_groups.all()))
+
+        # reimporting again over the top of that shouldn't change the trigger or create any others
+        self.org.import_app(export, self.admin)
+
+        trigger = Trigger.objects.get()
+        self.assertEqual(Trigger.TYPE_NEW_CONVERSATION, trigger.trigger_type)
+        self.assertEqual(flow, trigger.flow)
+        self.assertEqual(self.channel, trigger.channel)
+        self.assertEqual({doctors, farmers}, set(trigger.groups.all()))
+        self.assertEqual({testers}, set(trigger.exclude_groups.all()))
+
+        trigger.archive(self.admin)
+
+        # reimporting again over the top of an archived exact match should restore it
+        self.org.import_app(export, self.admin)
+
+        trigger = Trigger.objects.get()
+        self.assertFalse(trigger.is_archived)
+
+        trigger.flow = self.create_flow("Another Flow")
+        trigger.save(update_fields=("flow",))
+
+        # reimporting again now that our trigger points to a different flow, should archive it and create a new one
+        self.org.import_app(export, self.admin)
+
+        trigger.refresh_from_db()
+        self.assertTrue(trigger.is_archived)
+
+        trigger2 = Trigger.objects.exclude(id=trigger.id).get()
+        self.assertEqual(Trigger.TYPE_NEW_CONVERSATION, trigger2.trigger_type)
+        self.assertEqual(flow, trigger2.flow)
+
+        # also if a trigger differs by exclusion groups it will be replaced
+        trigger2.exclude_groups.clear()
+
+        self.org.import_app(export, self.admin)
+
+        trigger2.refresh_from_db()
+        self.assertTrue(trigger.is_archived)
+
+        trigger3 = Trigger.objects.exclude(id__in=(trigger.id, trigger2.id)).get()
+        self.assertEqual(Trigger.TYPE_NEW_CONVERSATION, trigger3.trigger_type)
+        self.assertEqual({testers}, set(trigger3.exclude_groups.all()))
 
     def test_release(self):
         flow = self.create_flow()
@@ -183,7 +224,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["keyword", "match_type", "flow", "groups"],
+            form_fields=["keyword", "match_type", "flow", "groups", "exclude_groups"],
         )
 
         # flow options should show messaging and voice flows
@@ -191,6 +232,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # group options are any group
         self.assertEqual([group1, group2], list(response.context["form"].fields["groups"].queryset))
+        self.assertEqual([group1, group2], list(response.context["form"].fields["exclude_groups"].queryset))
 
         # try a keyword with spaces
         self.assertCreateSubmit(
@@ -206,11 +248,24 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             form_errors={"keyword": "Must be a single word containing only letters and numbers."},
         )
 
+        # try with group as both inclusion and exclusion
+        self.assertCreateSubmit(
+            create_url,
+            {
+                "keyword": "start",
+                "flow": flow1.id,
+                "match_type": "F",
+                "groups": [group1.id, group2.id],
+                "exclude_groups": [group1.id],
+            },
+            form_errors={"__all__": "Can't include and exclude the same group."},
+        )
+
         # create a trigger with no groups
         self.assertCreateSubmit(
             create_url,
-            {"keyword": "startkeyword", "flow": flow1.id, "match_type": "F"},
-            new_obj_query=Trigger.objects.filter(keyword="startkeyword", flow=flow1),
+            {"keyword": "start", "flow": flow1.id, "match_type": "F"},
+            new_obj_query=Trigger.objects.filter(keyword="start", flow=flow1),
             success_status=200,
         )
 
@@ -231,23 +286,23 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         # try a duplicate keyword
         self.assertCreateSubmit(
             create_url,
-            {"keyword": "startkeyword", "flow": flow2.id, "match_type": "F"},
-            form_errors={"__all__": "There already exists a trigger with this keyword for these groups."},
+            {"keyword": "start", "flow": flow2.id, "match_type": "F"},
+            form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
 
         # works if we specify a group
         self.assertCreateSubmit(
             create_url,
-            {"keyword": "startkeyword", "flow": flow2.id, "match_type": "F", "groups": group1.id},
-            new_obj_query=Trigger.objects.filter(keyword="startkeyword", flow=flow2, groups=group1),
+            {"keyword": "start", "flow": flow2.id, "match_type": "F", "groups": group1.id},
+            new_obj_query=Trigger.objects.filter(keyword="start", flow=flow2, groups=group1),
             success_status=200,
         )
 
         # groups between triggers can't overlap
         self.assertCreateSubmit(
             create_url,
-            {"keyword": "startkeyword", "flow": flow2.id, "match_type": "F", "groups": [group1.id, group2.id]},
-            form_errors={"__all__": "There already exists a trigger with this keyword for these groups."},
+            {"keyword": "start", "flow": flow2.id, "match_type": "F", "groups": [group1.id, group2.id]},
+            form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
 
     def test_create_register(self):
@@ -260,7 +315,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["keyword", "action_join_group", "response", "flow"],
+            form_fields=["keyword", "action_join_group", "response", "flow", "groups", "exclude_groups"],
         )
 
         # group options are any group
@@ -489,7 +544,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         create_url = reverse("triggers.trigger_create_inbound_call")
 
         response = self.assertCreateFetch(
-            create_url, allow_viewers=False, allow_editors=True, form_fields=["flow", "groups"]
+            create_url, allow_viewers=False, allow_editors=True, form_fields=["flow", "groups", "exclude_groups"]
         )
 
         # flow options should only be voice flows
@@ -506,7 +561,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {"flow": flow2.id, "groups": group1.id},
-            form_errors={"__all__": "There already exists a trigger of this type for these groups."},
+            form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
 
         # but can for different group
@@ -533,7 +588,9 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         create_url = reverse("triggers.trigger_create_missed_call")
 
-        response = self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=["flow"])
+        response = self.assertCreateFetch(
+            create_url, allow_viewers=False, allow_editors=True, form_fields=["flow", "groups", "exclude_groups"]
+        )
 
         # flow options should be messaging and voice flows
         self.assertEqual([flow1, flow2, flow3], list(response.context["form"].fields["flow"].queryset))
@@ -547,7 +604,9 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # we can't create another...
         self.assertCreateSubmit(
-            create_url, {"flow": flow2.id}, form_errors={"__all__": "There already exists a trigger of this type."}
+            create_url,
+            {"flow": flow2.id},
+            form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
 
     @patch("temba.channels.types.facebook.FacebookType.activate_trigger")
@@ -570,7 +629,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["channel", "flow"],
+            form_fields=["channel", "flow", "groups", "exclude_groups"],
         )
 
         # flow options should show messaging and voice flows
@@ -594,7 +653,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {"channel": channel1.id, "flow": flow1.id},
-            form_errors={"__all__": "There already exists a trigger of this type for this channel."},
+            form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
 
         # but can create a different trigger for a different channel
@@ -627,7 +686,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["channel", "referrer_id", "flow"],
+            form_fields=["channel", "referrer_id", "flow", "groups", "exclude_groups"],
         )
 
         # flow options should show messaging and voice flows
@@ -651,7 +710,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {"channel": channel1.id, "flow": flow1.id, "referrer_id": "234567"},
-            form_errors={"__all__": "There already exists a trigger with this referrer and channel."},
+            form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
 
         # but can create a different trigger for a different referrer
@@ -698,7 +757,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["flow", "groups"],
+            form_fields=["flow", "groups", "exclude_groups"],
         )
 
         # flow options should show messaging and voice flows
@@ -719,7 +778,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {"flow": flow2.id},
-            form_errors={"__all__": "There already exists a trigger of this type for these groups."},
+            form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
 
         # works if we specify a group
@@ -734,13 +793,14 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertCreateSubmit(
             create_url,
             {"flow": flow2.id, "groups": [group1.id, group2.id]},
-            form_errors={"__all__": "There already exists a trigger of this type for these groups."},
+            form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
 
     def test_update_keyword(self):
         flow = self.create_flow()
         group1 = self.create_group("Chat", contacts=[])
         group2 = self.create_group("Testers", contacts=[])
+        group3 = self.create_group("Doctors", contacts=[])
         trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="join")
         trigger.groups.add(group1)
 
@@ -750,12 +810,19 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             update_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["keyword", "match_type", "flow", "groups"],
+            form_fields=["keyword", "match_type", "flow", "groups", "exclude_groups"],
         )
 
         # submit with valid keyword and extra group
         self.assertUpdateSubmit(
-            update_url, {"keyword": "kiki", "flow": flow.id, "match_type": "O", "groups": [group1.id, group2.id]}
+            update_url,
+            {
+                "keyword": "kiki",
+                "flow": flow.id,
+                "match_type": "O",
+                "groups": [group1.id, group2.id],
+                "exclude_groups": [group3.id],
+            },
         )
 
         trigger.refresh_from_db()
@@ -763,6 +830,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(flow, trigger.flow)
         self.assertEqual(Trigger.MATCH_ONLY_WORD, trigger.match_type)
         self.assertEqual({group1, group2}, set(trigger.groups.all()))
+        self.assertEqual({group3}, set(trigger.exclude_groups.all()))
 
         # error if keyword is not defined
         self.assertUpdateSubmit(
