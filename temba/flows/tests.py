@@ -1809,8 +1809,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url, allow_viewers=False, allow_editors=True, form_fields=["name", "keyword_triggers", "flow_type"]
         )
 
-        self.org.set_languages(self.admin, ["spa", "eng"], primary="eng")
-        self.org2.set_languages(self.admin, ["eng"], primary="eng")
+        self.org.set_flow_languages(self.admin, ["spa", "eng"], primary="eng")
+        self.org2.set_flow_languages(self.admin, ["eng"], primary="eng")
 
         response = self.assertCreateFetch(
             create_url,
@@ -3118,7 +3118,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
     def test_change_language(self):
-        self.org.set_languages(self.admin, ["eng", "spa", "ara"], "eng")
+        self.org.set_flow_languages(self.admin, ["eng", "spa", "ara"], "eng")
 
         flow = self.get_flow("favorites_v13")
 
@@ -3184,7 +3184,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_import_translation(self):
         Language.create(self.org, self.admin, name="English", iso_code="eng")
         Language.create(self.org, self.admin, name="Spanish", iso_code="spa")
-        self.org.set_languages(self.admin, ["eng", "spa"], primary="eng")
+        self.org.set_flow_languages(self.admin, ["eng", "spa"], primary="eng")
 
         flow = self.get_flow("favorites_v13")
         step1_url = reverse("flows.flow_import_translation", args=[flow.id])
@@ -5713,7 +5713,7 @@ class AssetServerTest(TembaTest):
 
     def test_languages(self):
         self.login(self.admin)
-        self.org.set_languages(self.admin, ["eng", "spa"], "eng")
+        self.org.set_flow_languages(self.admin, ["eng", "spa"], "eng")
         response = self.client.get("/flow/assets/%d/1234/language/" % self.org.id)
         self.assertEqual(
             response.json(), {"results": [{"iso": "eng", "name": "English"}, {"iso": "spa", "name": "Spanish"}]}
