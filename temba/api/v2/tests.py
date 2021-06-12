@@ -3298,7 +3298,7 @@ class APITest(TembaTest):
             },
         )
 
-        self.org.set_languages(self.admin, ["eng", "fra"], "eng")
+        self.org.set_flow_languages(self.admin, ["eng", "fra"], "eng")
 
         response = self.fetchJSON(url)
         self.assertEqual(

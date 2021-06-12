@@ -883,9 +883,9 @@ class Org(SmartModel):
 
         return set(qs)
 
-    def set_languages(self, user, iso_codes, primary):
+    def set_flow_languages(self, user, iso_codes, primary):
         """
-        Sets languages for this org, creating and deleting language objects as necessary
+        Sets languages used in flows for this org, creating and deleting language objects as necessary
         """
 
         assert all([languages.get_name(c) for c in iso_codes]), "not a valid or allowed language"

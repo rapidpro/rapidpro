@@ -2966,7 +2966,7 @@ class ContactTest(TembaTest):
             reverse("orgs.org_languages"),
             dict(
                 primary_lang='{"name":"Haitian", "value":"hat"}',
-                languages=['{"name":"Official Aramaic", "value":"arc"}', '{"name":"Spanish", "value":"spa"}'],
+                languages=['{"name":"Kinyarwanda", "value":"kin"}', '{"name":"Spanish", "value":"spa"}'],
             ),
         )
 

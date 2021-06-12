@@ -3214,7 +3214,7 @@ class OrgCRUDL(SmartCRUDL):
             if primary and primary not in iso_codes:
                 iso_codes.append(primary)
 
-            self.object.set_languages(user, iso_codes, primary)
+            self.object.set_flow_languages(user, iso_codes, primary)
 
             return super().form_valid(form)
 
