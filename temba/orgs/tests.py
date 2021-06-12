@@ -1006,6 +1006,11 @@ class OrgTest(TembaTest):
         self.assertEqual(self.org.primary_language.name, "Kinyarwanda")
         self.assertEqual(self.org.get_language_codes(), {"eng", "kin"})
 
+        with self.assertRaises(AssertionError):
+            self.org.set_languages(self.admin, ["eng", "xyz"], "eng")
+        with self.assertRaises(AssertionError):
+            self.org.set_languages(self.admin, ["eng", "fra"], "xyz")
+
     def test_country_view(self):
         self.setUpLocations()
 
@@ -4697,7 +4702,7 @@ class BulkExportTest(TembaTest):
         )
 
         # set our org language to english
-        self.org.set_languages(self.admin, ["eng", "fre"], "eng")
+        self.org.set_languages(self.admin, ["eng", "fra"], "eng")
 
         # finally let's try importing our exported file
         self.org.import_app(exported, self.admin, site="http://app.rapidpro.io")

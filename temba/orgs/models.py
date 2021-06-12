@@ -888,6 +888,9 @@ class Org(SmartModel):
         Sets languages for this org, creating and deleting language objects as necessary
         """
 
+        assert all([languages.get_name(c) for c in iso_codes]), "not a valid or allowed language"
+        assert not primary or languages.get_name(primary), "not a valid or allowed language"
+
         for iso_code in iso_codes:
             name = languages.get_name(iso_code)
             language = self.languages.filter(iso_code=iso_code).first()
