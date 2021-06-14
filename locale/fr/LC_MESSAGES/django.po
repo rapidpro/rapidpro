@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-11 17:21+0000\n"
+"POT-Creation-Date: 2021-06-14 19:45+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3160,9 +3160,6 @@ msgstr "Si cette organisation peut avoir des espaces de travail enfants"
 msgid "Whether this organization can have multiple logins"
 msgstr "Si cette organisation peut avoir plusieurs connexions"
 
-msgid "The primary language will be used for contacts with no language preference."
-msgstr "La langue principale sera utilisée pour les contacts sans préférence linguistique."
-
 msgid "Brand"
 msgstr "Marque"
 
@@ -3174,6 +3171,9 @@ msgstr "Un mot de passe qui permet aux utilisateurs de s'inscrire en tant qu'enq
 
 msgid "The parent org that manages this org"
 msgstr "L'organisation parente qui gère cette organisation"
+
+msgid "The primary language will be used for contacts with no language preference."
+msgstr "La langue principale sera utilisée pour les contacts sans préférence linguistique."
 
 #, python-format
 msgid "Invalid bundle: %s, cannot upgrade."
@@ -3352,6 +3352,11 @@ msgstr "Email"
 
 msgid "Current Password"
 msgstr "Mot de passe actuel"
+
+#, fuzzy
+#| msgid "POST Required"
+msgid "Password Required"
+msgstr "POST requis"
 
 msgid "New Password"
 msgstr "nouveau mot de passe"
@@ -7094,10 +7099,28 @@ msgstr "Merci de soutenir %(brand)s."
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Crédits complémentaires, merci d'essayer %(brand)s."
 
-#, python-format
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "            You agreed to the these policies on %(day)s\n"
+#| "\n"
+#| "          "
+msgid "Confirm your current password to save these changes"
+msgstr ""
+"\n"
+"            Vous avez accepté ces politiques le %(day)s\n"
+"\n"
+"          "
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "    Your email address is <b>%(email)s</b>.\n"
+#| "  "
 msgid ""
 "\n"
 "    Your email address is <b>%(email)s</b>.\n"
+"\n"
 "  "
 msgstr ""
 "\n"
