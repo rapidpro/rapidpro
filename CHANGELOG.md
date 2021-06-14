@@ -1,3 +1,8 @@
+v6.3.69
+----------
+ * Add Org.flow_languages and start populating in Org.set_languages
+ * Raise the logo so it can be clicked
+
 v6.3.68
 ----------
  * Enable exclusion groups on triggers and make groups an option for all trigger types
