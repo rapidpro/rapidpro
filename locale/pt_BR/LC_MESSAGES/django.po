@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-10 22:11+0000\n"
+"POT-Creation-Date: 2021-06-11 17:21+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3949,6 +3949,14 @@ msgstr "Deletar Serviço de Ticket"
 
 msgid "HTTP Log"
 msgstr "Log HTTP"
+
+msgid "Notes can only be seen by the support team"
+msgstr ""
+
+#, fuzzy
+#| msgid "Add Number"
+msgid "Add Note"
+msgstr "Adicionar números"
 
 msgid "Your ticketing service has been deleted."
 msgstr "Seu serviço de tickets foi deletado."

@@ -14,7 +14,7 @@ from temba.flows.models import FlowExit, FlowRun
 from temba.ivr.models import IVRCall
 from temba.msgs.models import Msg
 from temba.orgs.models import Org
-from temba.tickets.models import Ticket
+from temba.tickets.models import Ticket, TicketEvent
 
 
 class Event:
@@ -39,7 +39,11 @@ class Event:
     TYPE_MSG_CREATED = "msg_created"
     TYPE_MSG_RECEIVED = "msg_received"
     TYPE_RUN_RESULT_CHANGED = "run_result_changed"
+    TYPE_TICKET_ASSIGNED = "ticket_assigned"
+    TYPE_TICKET_CLOSED = "ticket_closed"
+    TYPE_TICKET_NOTE_ADDED = "ticket_note_added"
     TYPE_TICKET_OPENED = "ticket_opened"
+    TYPE_TICKET_REOPENED = "ticket_reopened"
     TYPE_WEBHOOK_CALLED = "webhook_called"
 
     # additional events
@@ -47,7 +51,6 @@ class Event:
     TYPE_CAMPAIGN_FIRED = "campaign_fired"
     TYPE_CHANNEL_EVENT = "channel_event"
     TYPE_FLOW_EXITED = "flow_exited"
-    TYPE_TICKET_CLOSED = "ticket_closed"
 
     @classmethod
     def from_history_item(cls, org: Org, user: User, item) -> dict:
@@ -91,24 +94,26 @@ class Event:
                 "recipient_count": obj.broadcast.get_message_count(),
                 "logs_url": logs_url,
             }
-        elif obj.msg_type == IVR:
-            return {
-                "type": cls.TYPE_IVR_CREATED,
-                "created_on": get_event_time(obj).isoformat(),
-                "msg": _msg_out(obj),
-                # additional properties
-                "status": obj.status,
-                "logs_url": logs_url,
-            }
         else:
-            return {
-                "type": cls.TYPE_MSG_CREATED,
+            msg_event = {
+                "type": cls.TYPE_IVR_CREATED if obj.msg_type == IVR else cls.TYPE_MSG_CREATED,
                 "created_on": get_event_time(obj).isoformat(),
                 "msg": _msg_out(obj),
                 # additional properties
                 "status": obj.status,
                 "logs_url": logs_url,
             }
+
+            if obj.broadcast and obj.broadcast.created_by:
+                user = obj.broadcast.created_by
+                msg_event["msg"]["created_by"] = {
+                    "id": user.id,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "email": user.email,
+                }
+
+            return msg_event
 
     @classmethod
     def from_flow_run(cls, org: Org, user: User, obj: FlowRun) -> dict:
@@ -179,20 +184,54 @@ class Event:
 
     @classmethod
     def from_ticket(cls, org: Org, user: User, obj: Ticket) -> dict:
-        if obj.status == Ticket.STATUS_CLOSED:
-            return {
-                "type": cls.TYPE_TICKET_CLOSED,
-                "created_on": get_event_time(obj).isoformat(),
-                "ticket": {
-                    "uuid": obj.uuid,
-                    "opened_on": obj.opened_on,
-                    "closed_on": obj.closed_on,
-                    "status": obj.status,
-                    "subject": obj.subject,
-                    "body": obj.body,
-                    "ticketer": {"uuid": obj.ticketer.uuid, "name": obj.ticketer.name},
-                },
-            }
+        # TODO: This will be replaced with ticket events for open and closed
+        return {
+            "type": cls.TYPE_TICKET_CLOSED if obj.status == Ticket.STATUS_CLOSED else cls.TYPE_TICKET_CLOSED,
+            "ticket": {
+                "uuid": obj.uuid,
+                "opened_on": obj.opened_on,
+                "closed_on": obj.closed_on,
+                "status": obj.status,
+                "subject": obj.subject,
+                "body": obj.body,
+                "ticketer": {"uuid": obj.ticketer.uuid, "name": obj.ticketer.name},
+            },
+            "created_on": get_event_time(obj).isoformat(),
+        }
+
+    @classmethod
+    def from_ticket_event(cls, org: Org, user: User, obj: TicketEvent) -> dict:
+
+        event_type = cls.TYPE_TICKET_OPENED
+        if obj.event_type == TicketEvent.TYPE_NOTE:
+            event_type = cls.TYPE_TICKET_NOTE_ADDED
+        elif obj.event_type == TicketEvent.TYPE_CLOSED:  # pragma: needs cover
+            event_type = cls.TYPE_TICKET_CLOSED
+        elif obj.event_type == TicketEvent.TYPE_ASSIGNED:  # pragma: needs cover
+            event_type = cls.TYPE_TICKET_ASSIGNED
+        elif obj.event_type == TicketEvent.TYPE_REOPENED:  # pragma: needs cover
+            event_type = cls.TYPE_TICKET_REOPENED
+
+        return {
+            "type": event_type,
+            "note": obj.note,
+            "ticket": {
+                "uuid": obj.ticket.uuid,
+                "opened_on": obj.ticket.opened_on,
+                "closed_on": obj.ticket.closed_on,
+                "status": obj.ticket.status,
+                "subject": obj.ticket.subject,
+                "body": obj.ticket.body,
+                "ticketer": {"uuid": obj.ticket.ticketer.uuid, "name": obj.ticket.ticketer.name},
+            },
+            "created_on": get_event_time(obj).isoformat(),
+            "created_by": {
+                "id": obj.id,
+                "first_name": obj.created_by.first_name,
+                "last_name": obj.created_by.last_name,
+                "email": obj.created_by.email,
+            },
+        }
 
     @classmethod
     def from_event_fire(cls, org: Org, user: User, obj: EventFire) -> dict:
@@ -267,8 +306,9 @@ event_renderers = {
     FlowRun: Event.from_flow_run,
     IVRCall: Event.from_ivr_call,
     Msg: Event.from_msg,
-    WebHookResult: Event.from_webhook_result,
+    TicketEvent: Event.from_ticket_event,
     Ticket: Event.from_ticket,
+    WebHookResult: Event.from_webhook_result,
 }
 
 # map of history item types to a callable which can extract the event time from that type

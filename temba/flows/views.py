@@ -483,14 +483,7 @@ class FlowCRUDL(SmartCRUDL):
             flow.release()
 
             # we can't just redirect so as to make our modal do the right thing
-            response = self.render_to_response(
-                self.get_context_data(
-                    success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
-                )
-            )
-            response["Temba-Success"] = self.get_success_url()
-
-            return response
+            return self.render_modal_response()
 
     class Copy(OrgObjPermsMixin, SmartUpdateView):
         fields = []
@@ -1216,13 +1209,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # if this is an XHR request, we need to return a structured response that it can parse
             if "HTTP_X_PJAX" in self.request.META:
-                response = self.render_to_response(
-                    self.get_context_data(
-                        form=form,
-                        success_url=self.get_success_url(),
-                        success_script=getattr(self, "success_script", None),
-                    )
-                )
+                response = self.render_modal_response(form)
                 response["Temba-Success"] = download_url
                 return response
 
@@ -1514,14 +1501,7 @@ class FlowCRUDL(SmartCRUDL):
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
-                response = self.render_to_response(
-                    self.get_context_data(
-                        form=form,
-                        success_url=self.get_success_url(),
-                        success_script=getattr(self, "success_script", None),
-                    )
-                )
-                response["Temba-Success"] = self.get_success_url()
+                response = self.render_modal_response(form)
                 response["REDIRECT"] = self.get_success_url()
                 return response
 
@@ -2139,7 +2119,7 @@ class FlowLabelCRUDL(SmartCRUDL):
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "parent", "flows")
-        success_url = "@flows.flow_list"
+        success_url = "hide"
         form_class = FlowLabelForm
         success_message = ""
         submit_button_name = _("Create")

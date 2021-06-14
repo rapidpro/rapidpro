@@ -80,7 +80,7 @@
 
             .flex-grow
               -if org_perms.msgs.label_create
-                %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'msgs.label_create' %}", onloaded: "handleCreateLabelModalLoaded", onsubmitted: "handleCreateLabelModalSubmitted"}
+                %temba-modax#create-label-modal{ header:'{% trans "Create Label" %}', endpoint:"{% url 'msgs.label_create' %}", "-temba-loaded": "handleCreateLabelModalLoaded", "-temba-submitted": "handleCreateLabelModalSubmitted"}
                   .button-light.block.mt-3
                     - trans "Create Label"
                   

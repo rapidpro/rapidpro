@@ -223,6 +223,17 @@ class ModalMixin(SmartFormView):
 
         return context
 
+    def render_modal_response(self, form=None):
+        response = self.render_to_response(
+            self.get_context_data(
+                form=form,
+                success_url=self.get_success_url(),
+                success_script=getattr(self, "success_script", None),
+            )
+        )
+        response["Temba-Success"] = self.get_success_url()
+        return response
+
     def form_valid(self, form):
         if isinstance(form, forms.ModelForm):
             self.object = form.save(commit=False)
@@ -241,15 +252,7 @@ class ModalMixin(SmartFormView):
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
-                response = self.render_to_response(
-                    self.get_context_data(
-                        form=form,
-                        success_url=self.get_success_url(),
-                        success_script=getattr(self, "success_script", None),
-                    )
-                )
-                response["Temba-Success"] = self.get_success_url()
-                return response
+                return self.render_modal_response(form)
 
         except (IntegrityError, ValueError, ValidationError) as e:
             message = getattr(e, "message", str(e).capitalize())
@@ -1707,10 +1710,7 @@ class OrgCRUDL(SmartCRUDL):
         def post(self, request, *args, **kwargs):
             self.object = self.get_object()
             self.object.release(request.user)
-
-            response = HttpResponse()
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.render_modal_response()
 
     class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class PasswordForm(forms.ModelForm):
@@ -2119,15 +2119,7 @@ class OrgCRUDL(SmartCRUDL):
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
-                response = self.render_to_response(
-                    self.get_context_data(
-                        form=form,
-                        success_url=self.get_success_url(),
-                        success_script=getattr(self, "success_script", None),
-                    )
-                )
-                response["Temba-Success"] = self.get_success_url()
-                return response
+                return self.render_modal_response()
 
     class Choose(SmartFormView):
         class ChooseForm(forms.Form):
@@ -2764,12 +2756,12 @@ class OrgCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Import"), href=reverse("orgs.org_import")))
 
             if settings.HELP_URL:  # pragma: needs cover
-                if len(links) > 0:
+                if len(links) > 1:
                     links.append(dict(divider=True))
 
                 links.append(dict(title=_("Help"), href=settings.HELP_URL))
 
-            if len(links) > 0:
+            if len(links) > 1:
                 links.append(dict(divider=True))
 
             links.append(
@@ -3088,15 +3080,7 @@ class OrgCRUDL(SmartCRUDL):
             amount = form.cleaned_data["amount"]
 
             from_org.allocate_credits(from_org.created_by, to_org, amount)
-
-            response = self.render_to_response(
-                self.get_context_data(
-                    form=form, success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
-                )
-            )
-
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.render_modal_response(form)
 
     class Country(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class CountryForm(forms.ModelForm):
