@@ -1143,7 +1143,7 @@ class FlowCRUDL(SmartCRUDL):
 
             def clean_language(self):
                 data = self.cleaned_data["language"]
-                if data and data not in self.user.get_org().get_language_codes():
+                if data and data not in self.user.get_org().flow_languages:
                     raise ValidationError(_("Not a valid language."))
 
                 return data
@@ -1188,7 +1188,7 @@ class FlowCRUDL(SmartCRUDL):
                 org = user.get_org()
 
                 self.user = user
-                self.fields["language"].choices += languages.choices(codes=org.get_language_codes())
+                self.fields["language"].choices += languages.choices(codes=org.flow_languages)
 
         form_class = Form
         submit_button_name = _("Export")
@@ -1266,7 +1266,7 @@ class FlowCRUDL(SmartCRUDL):
                                 params={"lang": po_info.language_name},
                             )
 
-                        if po_info.language_code not in self.flow.org.get_language_codes():
+                        if po_info.language_code not in self.flow.org.flow_languages:
                             raise ValidationError(
                                 _("Contains translations in %(lang)s which is not a supported translation language."),
                                 params={"lang": po_info.language_name},
@@ -1286,7 +1286,7 @@ class FlowCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
 
                 org = user.get_org()
-                lang_codes = org.get_language_codes()
+                lang_codes = list(org.flow_languages)
                 lang_codes.remove(instance.base_language)
 
                 self.fields["language"].choices = languages.choices(codes=lang_codes)
@@ -2034,7 +2034,7 @@ class FlowCRUDL(SmartCRUDL):
             if asset_type_name == "environment":
                 return JsonResponse(org.as_environment_def())
             else:
-                results = [{"iso": code, "name": languages.get_name(code)} for code in org.get_language_codes()]
+                results = [{"iso": code, "name": languages.get_name(code)} for code in org.flow_languages]
                 return JsonResponse({"results": sorted(results, key=lambda l: l["name"])})
 
 

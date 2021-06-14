@@ -991,21 +991,15 @@ class OrgTest(TembaTest):
         self.assertEqual(Org.get_unique_slug("Allo"), "allo-2")
 
     def test_set_flow_languages(self):
-        self.assertEqual(self.org.get_language_codes(), set())
+        self.assertEqual([], self.org.flow_languages)
 
         self.org.set_flow_languages(self.admin, ["eng", "fra"], "eng")
         self.org.refresh_from_db()
-
-        self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "French"})
-        self.assertEqual(self.org.primary_language.name, "English")
-        self.assertEqual(self.org.get_language_codes(), {"eng", "fra"})
+        self.assertEqual(["eng", "fra"], self.org.flow_languages)
 
         self.org.set_flow_languages(self.admin, ["eng", "kin"], "kin")
         self.org.refresh_from_db()
-
-        self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "Kinyarwanda"})
-        self.assertEqual(self.org.primary_language.name, "Kinyarwanda")
-        self.assertEqual(self.org.get_language_codes(), {"eng", "kin"})
+        self.assertEqual(["kin", "eng"], self.org.flow_languages)
 
         with self.assertRaises(AssertionError):
             self.org.set_flow_languages(self.admin, ["eng", "xyz"], "eng")

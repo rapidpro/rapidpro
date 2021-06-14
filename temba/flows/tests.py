@@ -3139,7 +3139,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("¿Cuál es tu color favorito?", flow_def["nodes"][0]["actions"][0]["text"])
 
     def test_export_and_download_translation(self):
-        Language.create(self.org, self.admin, name="Spanish", iso_code="spa")
+        self.org.set_flow_languages(self.admin, ["spa"], primary="spa")
 
         flow = self.get_flow("favorites")
         export_url = reverse("flows.flow_export_translation", args=[flow.id])

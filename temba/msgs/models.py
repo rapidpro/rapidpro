@@ -293,7 +293,7 @@ class Broadcast(models.Model):
         preferred_languages = []
 
         # if contact has a language and it's a valid org language, it has priority
-        if contact is not None and contact.language and contact.language in org.get_language_codes():
+        if contact is not None and contact.language and contact.language in org.flow_languages:
             preferred_languages.append(contact.language)
 
         if org.primary_language:

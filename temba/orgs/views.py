@@ -3169,8 +3169,10 @@ class OrgCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org = self.get_object()
-            lang_codes = org.get_language_codes(include_primary=False)
-            context["languages"] = sorted([languages.get_name(code) for code in lang_codes])
+
+            # get the non-primary languages
+            other_langs = org.flow_languages[1:] if len(org.flow_languages) > 1 else []
+            context["languages"] = sorted([languages.get_name(code) for code in other_langs])
             return context
 
         def get(self, request, *args, **kwargs):

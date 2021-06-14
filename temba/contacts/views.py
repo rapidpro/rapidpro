@@ -489,14 +489,14 @@ class UpdateContactForm(ContactForm):
 
         choices = [("", "No Preference")]
 
-        org_lang_codes = self.instance.org.get_language_codes()
+        flow_langs = self.instance.org.flow_languages
 
         # if they had a preference that has since been removed, make sure we show it
-        if self.instance.language and self.instance.language not in org_lang_codes:
+        if self.instance.language and self.instance.language not in flow_langs:
             lang_name = languages.get_name(self.instance.language)
             choices += [(self.instance.language, _(f"{lang_name} (Missing)"))]
 
-        choices += list(languages.choices(codes=org_lang_codes))
+        choices += list(languages.choices(codes=flow_langs))
 
         self.fields["language"] = forms.ChoiceField(
             required=False, label=_("Language"), initial=self.instance.language, choices=choices, widget=SelectWidget()
