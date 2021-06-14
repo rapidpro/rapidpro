@@ -151,7 +151,11 @@ class Flow(TembaModel):
     saved_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="flow_saves")
 
     base_language = models.CharField(
-        max_length=4, help_text=_("The authoring language, additional languages can be added later"), default="eng"
+        max_length=4,
+        null=True,
+        blank=True,
+        help_text=_("The authoring language, additional languages can be added later"),
+        default="base",
     )
 
     version_number = models.CharField(default=FINAL_LEGACY_VERSION, max_length=8)
