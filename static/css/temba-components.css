@@ -91,7 +91,8 @@ html {
   --button-font-size: 1.125rem;
 
   --header-bg: var(--color-primary-dark);
-
+  --header-text: var(--color-text-light);
+  
   --temba-textinput-padding: 9px;
   --temba-textinput-font-size: var(--font-size);
 

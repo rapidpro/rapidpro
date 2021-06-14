@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-10 22:11+0000\n"
+"POT-Creation-Date: 2021-06-11 17:21+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3882,6 +3882,12 @@ msgid "Delete Ticket Service"
 msgstr ""
 
 msgid "HTTP Log"
+msgstr ""
+
+msgid "Notes can only be seen by the support team"
+msgstr ""
+
+msgid "Add Note"
 msgstr ""
 
 msgid "Your ticketing service has been deleted."

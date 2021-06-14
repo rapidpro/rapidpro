@@ -151,18 +151,9 @@
 
   .flex.flex-col.h-full
     <!-- Header -->
-    #header
-      &nbsp;
-
-    %a#big-logo.logo.icon-logo{href:"{% if user.is_authenticated %}{% url 'msgs.msg_inbox' %}{% else %}/{% endif %}", title:"{{brand.name}}", class:"hover:no-underline"}
-      .name
-        {{brand.name}}
-
-    -block nav
-      -include 'includes/nav.html'
 
     -if user_org
-      .org-header
+      .org-header.self-end
         -if user_orgs|length > 1
           .pull-right.toggle
             .icon-menu-2
@@ -176,6 +167,20 @@
               .org
                 %a.posterize{href:'{% url "orgs.org_choose"%}?organization={{org.pk}}'}
                   {{ org.name }}
+
+
+
+    #header
+      &nbsp;
+
+
+    %a#big-logo.logo.icon-logo{href:"{% if user.is_authenticated %}{% url 'msgs.msg_inbox' %}{% else %}/{% endif %}", title:"{{brand.name}}", class:"hover:no-underline"}
+      .name
+        {{brand.name}}
+
+    -block nav
+      -include 'includes/nav.html'
+
 
     -if messages
       -block messages
