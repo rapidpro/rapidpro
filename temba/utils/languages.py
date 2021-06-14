@@ -77,3 +77,11 @@ def choices(codes: set, sort: bool = True) -> tuple:
     if sort:
         cs = sorted(cs, key=lambda x: x[1])
     return cs
+
+
+def alpha2_to_alpha3(alpha_2: str):
+    """
+    Convert 2-char code (e.g. es) to a 3-char code (e.g. spa)
+    """
+    lang = pycountry.languages.get(alpha_2=alpha_2[:2])
+    return lang.alpha_3 if lang else None

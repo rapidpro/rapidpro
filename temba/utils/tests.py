@@ -1257,6 +1257,12 @@ class LanguagesTest(TembaTest):
 
         languages.reload()
 
+    def alpha2_to_alpha3(self):
+        self.assertEqual("eng", languages.alpha2_to_alpha3("en"))
+        self.assertEqual("eng", languages.alpha2_to_alpha3("en-us"))
+        self.assertEqual("spa", languages.alpha2_to_alpha3("es"))
+        self.assertIsNone(languages.alpha2_to_alpha3("xx"))
+
 
 class MatchersTest(TembaTest):
     def test_string(self):

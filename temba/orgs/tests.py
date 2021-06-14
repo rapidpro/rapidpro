@@ -989,22 +989,27 @@ class OrgTest(TembaTest):
         self.assertEqual(Org.get_unique_slug("Which part?"), "which-part")
         self.assertEqual(Org.get_unique_slug("Allo"), "allo-2")
 
-    def test_languages(self):
+    def test_set_flow_languages(self):
         self.assertEqual(self.org.get_language_codes(), set())
 
-        self.org.set_languages(self.admin, ["eng", "fra"], "eng")
+        self.org.set_flow_languages(self.admin, ["eng", "fra"], "eng")
         self.org.refresh_from_db()
 
         self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "French"})
         self.assertEqual(self.org.primary_language.name, "English")
         self.assertEqual(self.org.get_language_codes(), {"eng", "fra"})
 
-        self.org.set_languages(self.admin, ["eng", "kin"], "kin")
+        self.org.set_flow_languages(self.admin, ["eng", "kin"], "kin")
         self.org.refresh_from_db()
 
         self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "Kinyarwanda"})
         self.assertEqual(self.org.primary_language.name, "Kinyarwanda")
         self.assertEqual(self.org.get_language_codes(), {"eng", "kin"})
+
+        with self.assertRaises(AssertionError):
+            self.org.set_flow_languages(self.admin, ["eng", "xyz"], "eng")
+        with self.assertRaises(AssertionError):
+            self.org.set_flow_languages(self.admin, ["eng", "fra"], "xyz")
 
     def test_country_view(self):
         self.setUpLocations()
@@ -3377,7 +3382,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         org = Org.objects.get(name="Bulls")
         self.assertEqual(100_000, org.get_credits_remaining())
-        self.assertEqual(org.date_format, Org.DATE_FORMAT_MONTH_FIRST)
+        self.assertEqual(Org.DATE_FORMAT_MONTH_FIRST, org.date_format)
+        self.assertEqual("en-us", org.language)
+        self.assertEqual(["eng"], org.flow_languages)
 
     def test_org_grant_invalid_form(self):
         grant_url = reverse("orgs.org_grant")
@@ -4694,8 +4701,8 @@ class BulkExportTest(TembaTest):
             ],
         )
 
-        # set our org language to english
-        self.org.set_languages(self.admin, ["eng", "fre"], "eng")
+        # set our default flow language to english
+        self.org.set_flow_languages(self.admin, ["eng", "fra"], "eng")
 
         # finally let's try importing our exported file
         self.org.import_app(exported, self.admin, site="http://app.rapidpro.io")

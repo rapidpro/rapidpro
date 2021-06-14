@@ -2550,6 +2550,10 @@ class OrgCRUDL(SmartCRUDL):
             if obj.timezone.zone in pytz.country_timezones("US"):
                 obj.date_format = Org.DATE_FORMAT_MONTH_FIRST
 
+            # if we have a default UI language, use that as the default flow language too
+            default_flow_language = languages.alpha2_to_alpha3(obj.language)
+            obj.flow_languages = [default_flow_language] if default_flow_language else ["eng"]
+
             return obj
 
         def get_welcome_size(self):  # pragma: needs cover
@@ -3194,7 +3198,7 @@ class OrgCRUDL(SmartCRUDL):
             if primary and primary not in iso_codes:
                 iso_codes.append(primary)
 
-            self.object.set_languages(user, iso_codes, primary)
+            self.object.set_flow_languages(user, iso_codes, primary)
 
             return super().form_valid(form)
 
