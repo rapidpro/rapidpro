@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-11 17:21+0000\n"
+"POT-Creation-Date: 2021-06-14 19:20+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3171,9 +3171,6 @@ msgstr ""
 msgid "Whether this organization can have multiple logins"
 msgstr ""
 
-msgid "The primary language will be used for contacts with no language preference."
-msgstr "Основной язык, который будет использоваться для контактов без языковых предпочтений."
-
 msgid "Brand"
 msgstr "Бренд"
 
@@ -3185,6 +3182,9 @@ msgstr "Пароль, позволяющий пользователям реги
 
 msgid "The parent org that manages this org"
 msgstr "Родительская организация, которая управляет данной организацией"
+
+msgid "The primary language will be used for contacts with no language preference."
+msgstr "Основной язык, который будет использоваться для контактов без языковых предпочтений."
 
 #, python-format
 msgid "Invalid bundle: %s, cannot upgrade."
@@ -3363,6 +3363,11 @@ msgstr "E-mail"
 
 msgid "Current Password"
 msgstr ""
+
+#, fuzzy
+#| msgid "POST Required"
+msgid "Password Required"
+msgstr "Требуется POST"
 
 msgid "New Password"
 msgstr ""
@@ -7038,10 +7043,27 @@ msgstr ""
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr ""
 
+#, fuzzy
+#| msgid ""
+#| "\n"
+#| "            You agreed to the these policies on %(day)s\n"
+#| "\n"
+#| "          "
+msgid ""
+"\n"
+"          Confirm your current password to save these changes\n"
+"        "
+msgstr ""
+"\n"
+"            Вы согласились с этими политиками %(day)s\n"
+"\n"
+"          "
+
 #, python-format
 msgid ""
 "\n"
 "    Your email address is <b>%(email)s</b>.\n"
+"\n"
 "  "
 msgstr ""
 
