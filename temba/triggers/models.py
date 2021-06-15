@@ -103,7 +103,7 @@ class Trigger(SmartModel):
         max_length=KEYWORD_MAX_LEN,
         null=True,
         blank=True,
-        help_text=_("Word to match in the message text"),
+        help_text=_("Word to match in the message text."),
     )
 
     referrer_id = models.CharField(max_length=255, null=True)
@@ -112,7 +112,7 @@ class Trigger(SmartModel):
         Flow,
         on_delete=models.PROTECT,
         verbose_name=_("Flow"),
-        help_text=_("Which flow will be started"),
+        help_text=_("Which flow will be started."),
         related_name="triggers",
     )
 
@@ -129,7 +129,7 @@ class Trigger(SmartModel):
         default=MATCH_FIRST_WORD,
         null=True,
         verbose_name=_("Trigger When"),
-        help_text=_("How to match a message with a keyword"),
+        help_text=_("How to match a message with a keyword."),
     )
 
     channel = models.ForeignKey(
@@ -138,7 +138,7 @@ class Trigger(SmartModel):
         verbose_name=_("Channel"),
         null=True,
         related_name="triggers",
-        help_text=_("The associated channel"),
+        help_text=_("The associated channel."),
     )
 
     @classmethod

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-15 17:16+0000\n"
+"POT-Creation-Date: 2021-06-15 17:48+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -4020,22 +4020,30 @@ msgstr "Сообщение содержит только ключевое сло
 msgid "Keyword"
 msgstr "Ключевое слово"
 
-msgid "Word to match in the message text"
+#, fuzzy
+#| msgid "Word to match in the message text"
+msgid "Word to match in the message text."
 msgstr "Слово для соответствия в тексте сообщения"
 
 msgid "Flow"
 msgstr "Поток"
 
-msgid "Which flow will be started"
+#, fuzzy
+#| msgid "Which flow will be started"
+msgid "Which flow will be started."
 msgstr "Какой поток будет запущен"
 
 msgid "Trigger When"
 msgstr "Сработать, когда"
 
-msgid "How to match a message with a keyword"
+#, fuzzy
+#| msgid "How to match a message with a keyword"
+msgid "How to match a message with a keyword."
 msgstr "Как сопоставить сообщение с ключевым словом"
 
-msgid "The associated channel"
+#, fuzzy
+#| msgid "The associated channel"
+msgid "The associated channel."
 msgstr "Связанный канал"
 
 msgid "Select a flow"
@@ -4046,8 +4054,10 @@ msgstr "Выберите поток"
 msgid "Groups To Include"
 msgstr "Группа для Присоединения"
 
-msgid "Trigger will only include contacts in these groups."
-msgstr ""
+#, fuzzy
+#| msgid "Recipients, enter contacts or groups"
+msgid "Only includes contacts in these groups."
+msgstr "Получатели, введите контакты или группы"
 
 #, fuzzy
 #| msgid "Recipients, enter contacts or groups"
@@ -4057,7 +4067,7 @@ msgstr "Получатели, введите контакты или групп�
 msgid "Groups To Exclude"
 msgstr ""
 
-msgid "Trigger will exclude contacts in these groups."
+msgid "Excludes contacts in these groups."
 msgstr ""
 
 #, fuzzy
