@@ -4504,12 +4504,12 @@ class ReportEndpointMixin:
         return qs_filter
 
     def get_name_uuid_filters(self, field_name, key, prefix="", exclude=False):
-        qs_filter = Q()
+        qs_filter, __ = Q(), ("__" if key else "")
         values_fo_filter_by = self.request__get_separated_names_and_uuids(field_name)
         for _uuid in values_fo_filter_by["uuids"]:
-            qs_filter |= Q(**{f"{prefix}{key}__uuid": _uuid})
+            qs_filter |= Q(**{f"{prefix}{key}{__}uuid": _uuid})
         for _name in values_fo_filter_by["names"]:
-            qs_filter |= Q(**{f"{prefix}{key}__name__iexact": _name})
+            qs_filter |= Q(**{f"{prefix}{key}{__}name__iexact": _name})
 
         if any(values_fo_filter_by.values()):
             self.applied_filters[field_name] = ", ".join(
@@ -4518,7 +4518,8 @@ class ReportEndpointMixin:
         return ~qs_filter if exclude else qs_filter
 
     def get_datetime_filters(self, field_name, key, org, prefix=""):
-        qs_filter, field_name_after, field_name_before = Q(), f"{field_name}_after", f"{field_name}_before"
+        sep = "_" if field_name else ""
+        qs_filter, field_name_after, field_name_before = Q(), f"{field_name}{sep}after", f"{field_name}{sep}before"
         value_after, value_before = (
             org.parse_datetime(self.get_query_parameter(field_name_after, "")),
             org.parse_datetime(self.get_query_parameter(field_name_before, "")),
@@ -4884,10 +4885,10 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
     permission = "orgs.org_api"
     pagination_class = CreatedOnCursorPagination
-    applied_filters = None
 
     def get_flow_messages(self, org, flow, qs):
         runs = FlowRun.objects.filter(
+            self.get_datetime_filters("", "exited_on", org),
             org=org,
             flow__uuid=flow,
             status__in=[
@@ -4895,12 +4896,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                 FlowRun.STATUS_INTERRUPTED,
                 FlowRun.STATUS_FAILED,
                 FlowRun.STATUS_EXPIRED,
-            ],
-            **{
-                f"exited_on__{'gte' if item[0] == 'after' else 'lte'}": item[1]
-                for item in [(x, org.parse_datetime(self.request.data.get(x, ""))) for x in ["after", "before"]]
-                if item[1]
-            },
+            ]
         )
         messages_uuids = []
         for run in runs:
@@ -4915,26 +4911,16 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     def get(self, request, *args, **kwargs):
         org = self.request.user.get_org()
         queryset = Msg.objects.filter(org=org)
-        self.applied_filters = {}
-        filters = (
-            ("flow", lambda x: self.get_flow_messages(org, x, queryset)),
-            ("after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
-            ("before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
-            ("channel", lambda x: self.name_uuid_filtering(queryset, "channel", "channel__uuid", "channel__name")),
-            (
-                "exclude",
-                lambda x: self.name_uuid_filtering(
-                    queryset, "exclude", "contact__all_groups__uuid", "contact__all_groups__name", "exclude"
-                ),
-            ),
-        )
-        for name, _filter in filters:
-            filter_value = self.request.data.get(name, self.request.GET.get(name))
-            if filter_value:
-                queryset = _filter(filter_value)
-                self.applied_filters[name] = filter_value
+        self.applied_filters, arg_filters = {}, []
 
-        queryset = queryset.only("created_on").annotate(ds=Concat("direction", "status"))
+        flow = self.get_query_parameter("flow")
+        queryset = self.get_flow_messages(org, flow, queryset) if flow else queryset
+        arg_filters.append(self.get_name_uuid_filters("exclude", "contact__all_groups", exclude=True))
+        arg_filters.append(self.get_name_uuid_filters("channel", "channel"))
+        arg_filters.append(self.get_datetime_filters("", "created_on", org))
+        arg_filters = [_filter for _filter in arg_filters if _filter]
+
+        queryset = queryset.filter(*arg_filters).only("created_on").annotate(ds=Concat("direction", "status"))
         current_page, next_page = self.get_paginated_queryset(queryset)
         counter = Counter([rec.ds for rec in current_page])
         results = dict(total_inbound_messages=0, total_outbound_messages=0, total_outbound_message_failures=0)
@@ -5348,50 +5334,31 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
     def get(self, *args, **kwargs):
         self.applied_filters = {}
         org = self.request.user.get_org()
-        link_name, link = self.request__get_separated_names_and_uuids("link"), None
-        if link_name["uuids"]:
-            link = Link.objects.filter(org=org, uuid=link_name["uuids"][0]).first()
-        elif link_name["names"]:
-            link = Link.objects.filter(org=org, name__iexact=link_name["names"][0]).first()
+        link_filter = self.get_name_uuid_filters("link", key="")
+        link = Link.objects.filter(link_filter, org=org).first()
         if link is None:
-            link_name = ", ".join([*link_name["names"], *link_name["uuids"]])
             errors = {
                 status.HTTP_400_BAD_REQUEST: _("Parameter 'link_name' is not provider."),
-                status.HTTP_404_NOT_FOUND: _("Link with name '{}' not found.").format(link_name),
+                status.HTTP_404_NOT_FOUND: _("Link with name '{}' not found.").format(
+                    self.applied_filters.get("link")
+                ),
             }
             code = status.HTTP_404_NOT_FOUND if link is None else status.HTTP_400_BAD_REQUEST
             return Response({"error": errors[code]}, status=code)
 
-        groups_to_exclude = self.request__get_separated_names_and_uuids("exclude")
-        group_exclude_filters = Q()
-        if groups_to_exclude["uuids"]:
-            group_exclude_filters |= Q(contact__all_groups__uuid__in=groups_to_exclude["uuids"])
-        if groups_to_exclude["names"]:
-            for name in groups_to_exclude["names"]:
-                group_exclude_filters |= Q(contact__all_groups__name__icontains=name)
-        if any(groups_to_exclude.values()):
-            self.applied_filters["exclude"] = ", ".join([*groups_to_exclude["names"], *groups_to_exclude["uuids"]])
-
-        time_filters = Q()
-        after = self.request.data.get("after", self.request.GET.get("after", ""))
-        before = self.request.data.get("before", self.request.GET.get("before", ""))
-        if after:
-            time_filters &= Q(modified_on__gte=org.parse_datetime(after))
-            self.applied_filters["after"] = org.parse_datetime(after)
-        if before:
-            time_filters &= Q(modified_on__lte=org.parse_datetime(before))
-            self.applied_filters["before"] = org.parse_datetime(before)
+        group_filters = self.get_name_uuid_filters("exclude", "contact__all_groups")
+        time_filters = self.get_datetime_filters("", "modified_on", org)
 
         unique_clicks = (
             LinkContacts.objects.filter(link_id=link.id)
             .filter(time_filters)
-            .exclude(group_exclude_filters)
+            .exclude(group_filters)
             .distinct()
             .count()
         )
         unique_contacts = (
             link.related_flow.runs.filter(time_filters)
-            .exclude(group_exclude_filters)
+            .exclude(group_filters)
             .aggregate(count=Count("contact", distinct=True))["count"]
             if link.related_flow
             else None
