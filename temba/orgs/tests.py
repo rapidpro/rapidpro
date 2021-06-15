@@ -62,7 +62,7 @@ from temba.tests import (
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
-from temba.tickets.models import Ticket, Ticketer
+from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json, languages
@@ -805,14 +805,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         # add a ticketer and ticket
         ticketer = Ticketer.create(self.org, self.admin, MailgunType.slug, "Email (bob)", {})
-        ticket = Ticket.objects.create(
-            org=self.org,
-            ticketer=ticketer,
-            contact=self.org.contacts.first(),
-            subject="Need help",
-            body="Where are my cookies?",
-            status="O",
-        )
+        ticket = self.create_ticket(ticketer, self.org.contacts.first(), "Need help")
         ticket.add_note(self.admin, note="This is interesting!")
 
     def release_org(self, org, child_org=None, delete=False, expected_files=3):

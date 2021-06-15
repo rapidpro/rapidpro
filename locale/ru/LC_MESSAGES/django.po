@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-14 19:45+0000\n"
+"POT-Creation-Date: 2021-06-15 17:48+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -4020,22 +4020,30 @@ msgstr "Сообщение содержит только ключевое сло
 msgid "Keyword"
 msgstr "Ключевое слово"
 
-msgid "Word to match in the message text"
+#, fuzzy
+#| msgid "Word to match in the message text"
+msgid "Word to match in the message text."
 msgstr "Слово для соответствия в тексте сообщения"
 
 msgid "Flow"
 msgstr "Поток"
 
-msgid "Which flow will be started"
+#, fuzzy
+#| msgid "Which flow will be started"
+msgid "Which flow will be started."
 msgstr "Какой поток будет запущен"
 
 msgid "Trigger When"
 msgstr "Сработать, когда"
 
-msgid "How to match a message with a keyword"
+#, fuzzy
+#| msgid "How to match a message with a keyword"
+msgid "How to match a message with a keyword."
 msgstr "Как сопоставить сообщение с ключевым словом"
 
-msgid "The associated channel"
+#, fuzzy
+#| msgid "The associated channel"
+msgid "The associated channel."
 msgstr "Связанный канал"
 
 msgid "Select a flow"
@@ -4043,13 +4051,23 @@ msgstr "Выберите поток"
 
 #, fuzzy
 #| msgid "Group to Join"
-msgid "Group Filtering"
+msgid "Groups To Include"
 msgstr "Группа для Присоединения"
 
-msgid "Optional: trigger only includes contacts in these groups"
+#, fuzzy
+#| msgid "Recipients, enter contacts or groups"
+msgid "Only includes contacts in these groups."
+msgstr "Получатели, введите контакты или группы"
+
+#, fuzzy
+#| msgid "Recipients, enter contacts or groups"
+msgid "Optional: Select contact groups"
+msgstr "Получатели, введите контакты или группы"
+
+msgid "Groups To Exclude"
 msgstr ""
 
-msgid "Optional: trigger will exclude contacts in these groups"
+msgid "Excludes contacts in these groups."
 msgstr ""
 
 #, fuzzy
@@ -7044,17 +7062,9 @@ msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr ""
 
 #, fuzzy
-#| msgid ""
-#| "\n"
-#| "            You agreed to the these policies on %(day)s\n"
-#| "\n"
-#| "          "
+#| msgid "Please enter your password to save changes."
 msgid "Confirm your current password to save these changes"
-msgstr ""
-"\n"
-"            Вы согласились с этими политиками %(day)s\n"
-"\n"
-"          "
+msgstr "Пожалуйста, введите свой пароль для сохранения изменений."
 
 #, python-format
 msgid ""
@@ -7627,8 +7637,15 @@ msgstr ""
 msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr "Триггеры позволяют пользователям запускать потоки на основе действий пользователя или расписания."
 
-msgid "Start a flow after receiving a message not handled elsewhere."
+#, fuzzy
+#| msgid "Start a flow after receiving a message not handled elsewhere."
+msgid "Start a flow after receiving a message that doesn't match any keywords."
 msgstr "Запустите поток после получения сообщения, не обработанного где-либо еще."
+
+#, fuzzy
+#| msgid "Start a flow after a missed call."
+msgid "Start a flow after a ticket is closed."
+msgstr "Запустить поток после пропущенного звонка."
 
 msgid "Start a flow after receiving a call."
 msgstr "Запустите поток после получения звонка."
@@ -7677,6 +7694,9 @@ msgstr ""
 msgid "on the channel"
 msgstr ""
 
+msgid "A closed ticket"
+msgstr ""
+
 msgid "starts"
 msgstr ""
 
@@ -7714,6 +7734,11 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#, fuzzy
+#~| msgid "Group to Join"
+#~ msgid "Group Filtering"
+#~ msgstr "Группа для Присоединения"
 
 #, fuzzy
 #~| msgid "An active trigger already exists, triggers must be unique for each group"

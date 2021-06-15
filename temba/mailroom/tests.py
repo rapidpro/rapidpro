@@ -14,6 +14,7 @@ from temba.mailroom.client import ContactSpec, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
+from temba.tickets.models import Ticketer, TicketEvent
 from temba.utils import json
 
 from . import modifiers, queue_interrupt
@@ -826,4 +827,59 @@ class EventTest(TembaTest):
                 "fired_result": "F",
             },
             Event.from_event_fire(self.org, self.admin, fire),
+        )
+
+    def test_from_ticket_event(self):
+        ticketer = Ticketer.create(self.org, self.user, "mailgun", "Email (bob@acme.com)", {})
+        contact = self.create_contact("Jim", phone="0979111111")
+        ticket = self.create_ticket(ticketer, contact, "Problem", body="Where my shoes?")
+
+        # event with a user
+        event1 = TicketEvent.objects.create(
+            org=self.org,
+            ticket=ticket,
+            event_type=TicketEvent.TYPE_NOTE,
+            created_by=self.agent,
+            note="this is important",
+        )
+
+        self.assertEqual(
+            {
+                "type": "ticket_note_added",
+                "note": "this is important",
+                "ticket": {
+                    "uuid": str(ticket.uuid),
+                    "opened_on": matchers.ISODate(),
+                    "closed_on": None,
+                    "status": "O",
+                    "subject": "Problem",
+                    "body": "Where my shoes?",
+                    "ticketer": {"uuid": str(ticketer.uuid), "name": "Email (bob@acme.com)"},
+                },
+                "created_on": matchers.ISODate(),
+                "created_by": {"id": self.agent.id, "first_name": "", "last_name": "", "email": "Agent@nyaruka.com"},
+            },
+            Event.from_ticket_event(self.org, self.user, event1),
+        )
+
+        # event without a user
+        event2 = TicketEvent.objects.create(org=self.org, ticket=ticket, event_type=TicketEvent.TYPE_CLOSED)
+
+        self.assertEqual(
+            {
+                "type": "ticket_closed",
+                "note": None,
+                "ticket": {
+                    "uuid": str(ticket.uuid),
+                    "opened_on": matchers.ISODate(),
+                    "closed_on": None,
+                    "status": "O",
+                    "subject": "Problem",
+                    "body": "Where my shoes?",
+                    "ticketer": {"uuid": str(ticketer.uuid), "name": "Email (bob@acme.com)"},
+                },
+                "created_on": matchers.ISODate(),
+                "created_by": None,
+            },
+            Event.from_ticket_event(self.org, self.user, event2),
         )

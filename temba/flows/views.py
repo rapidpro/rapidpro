@@ -2093,12 +2093,20 @@ class FlowLabelCRUDL(SmartCRUDL):
     model = FlowLabel
     actions = ("create", "update", "delete")
 
-    class Delete(OrgObjPermsMixin, SmartDeleteView):
-        success_url = "@flows.flow_list"
+    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+        fields = ("uuid",)
         redirect_url = "@flows.flow_list"
         cancel_url = "@flows.flow_list"
         success_message = ""
         submit_button_name = _("Delete")
+
+        def get_success_url(self):
+            return reverse("flows.flow_list")
+
+        def post(self, request, *args, **kwargs):
+            self.object = self.get_object()
+            self.object.delete()
+            return self.render_modal_response()
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = FlowLabelForm

@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-14 19:45+0000\n"
+"POT-Creation-Date: 2021-06-15 17:48+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -4018,22 +4018,30 @@ msgstr "Mensagem contém apenas a palavra chave"
 msgid "Keyword"
 msgstr "Palavra-chave"
 
-msgid "Word to match in the message text"
+#, fuzzy
+#| msgid "Word to match in the message text"
+msgid "Word to match in the message text."
 msgstr "Palavra para corresponder na mensagem de texto"
 
 msgid "Flow"
 msgstr "Fluxo"
 
-msgid "Which flow will be started"
+#, fuzzy
+#| msgid "Which flow will be started"
+msgid "Which flow will be started."
 msgstr "Que fluxo será iniciado"
 
 msgid "Trigger When"
 msgstr "Disparar Quando"
 
-msgid "How to match a message with a keyword"
+#, fuzzy
+#| msgid "How to match a message with a keyword"
+msgid "How to match a message with a keyword."
 msgstr "Como combinar a mensagem com a palavra-chave"
 
-msgid "The associated channel"
+#, fuzzy
+#| msgid "The associated channel"
+msgid "The associated channel."
 msgstr "O canal associado"
 
 msgid "Select a flow"
@@ -4041,17 +4049,25 @@ msgstr "Selecione um fluxo"
 
 #, fuzzy
 #| msgid "Group to Join"
-msgid "Group Filtering"
+msgid "Groups To Include"
 msgstr "Grupos para participar"
 
 #, fuzzy
 #| msgid "Optional: Trigger only applies to these groups"
-msgid "Optional: trigger only includes contacts in these groups"
+msgid "Only includes contacts in these groups."
 msgstr "Opcional: Disparadores se aplicam somente à estes grupos"
 
 #, fuzzy
 #| msgid "Optional: Trigger only applies to these groups"
-msgid "Optional: trigger will exclude contacts in these groups"
+msgid "Optional: Select contact groups"
+msgstr "Opcional: Disparadores se aplicam somente à estes grupos"
+
+msgid "Groups To Exclude"
+msgstr ""
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Excludes contacts in these groups."
 msgstr "Opcional: Disparadores se aplicam somente à estes grupos"
 
 #, fuzzy
@@ -7111,17 +7127,9 @@ msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Créditos complementares, obrigado por testar %(brand)s."
 
 #, fuzzy
-#| msgid ""
-#| "\n"
-#| "            You agreed to the these policies on %(day)s\n"
-#| "\n"
-#| "          "
+#| msgid "Please enter your password to save changes."
 msgid "Confirm your current password to save these changes"
-msgstr ""
-"\n"
-"            Você concordou com essas políticas em %(day)s\n"
-"\n"
-"          "
+msgstr "Por favor, insira sua senha para salvar as alterações"
 
 #, fuzzy, python-format
 #| msgid ""
@@ -7770,8 +7778,15 @@ msgstr "Adicione uma conta para o canal e insira <code>%(secret)s</code> como o 
 msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr "Disparadores permitem aos usuários iniciar fluxos com base nas ações dos usuários ou agendamento."
 
-msgid "Start a flow after receiving a message not handled elsewhere."
+#, fuzzy
+#| msgid "Start a flow after receiving a message not handled elsewhere."
+msgid "Start a flow after receiving a message that doesn't match any keywords."
 msgstr "Iniciar um fluxo após detectar uma mensagem não tratada em outro local."
+
+#, fuzzy
+#| msgid "Start a flow after a missed call."
+msgid "Start a flow after a ticket is closed."
+msgstr "Comece um fluxo após uma chamada perdida."
 
 msgid "Start a flow after receiving a call."
 msgstr "Comece um fluxo depois de receber uma chamada."
@@ -7820,6 +7835,11 @@ msgstr "O ID do referente"
 msgid "on the channel"
 msgstr "no canal"
 
+#, fuzzy
+#| msgid "Closed Tickets"
+msgid "A closed ticket"
+msgstr "Tickets fechados"
+
 msgid "starts"
 msgstr "inicios"
 
@@ -7857,6 +7877,11 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#, fuzzy
+#~| msgid "Group to Join"
+#~ msgid "Group Filtering"
+#~ msgstr "Grupos para participar"
 
 #, fuzzy
 #~| msgid "There is already a channel configured for this URL."

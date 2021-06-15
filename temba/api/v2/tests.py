@@ -36,7 +36,7 @@ from temba.orgs.models import Language, Org
 from temba.templates.models import TemplateTranslation
 from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
-from temba.tickets.models import Ticket, Ticketer
+from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.tickets.types.zendesk import ZendeskType
 from temba.triggers.models import Trigger
@@ -4366,36 +4366,15 @@ class APITest(TembaTest):
         mailgun = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun", {})
         ann = self.create_contact("Ann", urns=["twitter:annie"])
         bob = self.create_contact("Bob", urns=["twitter:bobby"])
-        ticket1 = Ticket.objects.create(
-            org=self.org, ticketer=mailgun, contact=ann, subject="Need help", body="Now", status=Ticket.STATUS_CLOSED
+        ticket1 = self.create_ticket(
+            mailgun, ann, "Need help", body="Now", closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
         )
-        ticket2 = Ticket.objects.create(
-            org=self.org,
-            ticketer=mailgun,
-            contact=bob,
-            subject="Need help again",
-            body="Now",
-            status=Ticket.STATUS_OPEN,
-        )
-        ticket3 = Ticket.objects.create(
-            org=self.org,
-            ticketer=mailgun,
-            contact=bob,
-            subject="It's bob",
-            body="Pleeeease help",
-            status=Ticket.STATUS_OPEN,
-        )
+        ticket2 = self.create_ticket(mailgun, bob, "Need help again", body="Now")
+        ticket3 = self.create_ticket(mailgun, bob, "It's bob", body="Pleeeease help")
 
         # on another org
         zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
-        Ticket.objects.create(
-            org=self.org2,
-            ticketer=zendesk,
-            contact=self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2),
-            subject="Need help",
-            body="Now",
-            status=Ticket.STATUS_CLOSED,
-        )
+        self.create_ticket(zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Need help")
 
         response = self.fetchJSON(url, "ticketer_type=zendesk")
         resp_json = response.json()
@@ -4433,7 +4412,7 @@ class APITest(TembaTest):
                 },
                 {
                     "uuid": str(ticket1.uuid),
-                    "closed_on": None,
+                    "closed_on": "2021-01-01T12:30:45.123456Z",
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "contact": {"uuid": str(ann.uuid), "name": "Ann"},
                     "status": "closed",
