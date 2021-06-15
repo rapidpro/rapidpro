@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-15 15:56+0000\n"
+"POT-Creation-Date: 2021-06-15 17:16+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -4034,17 +4034,25 @@ msgstr "Sélectionnez un flux"
 
 #, fuzzy
 #| msgid "Group to Join"
-msgid "Group Filtering"
+msgid "Groups To Include"
 msgstr "Groupe à rejoindre"
 
 #, fuzzy
 #| msgid "Optional: Trigger only applies to these groups"
-msgid "Optional: trigger only includes contacts in these groups"
+msgid "Trigger will only include contacts in these groups."
 msgstr "Facultatif: le déclencheur ne s'applique qu'à ces groupes"
 
 #, fuzzy
 #| msgid "Optional: Trigger only applies to these groups"
-msgid "Optional: trigger will exclude contacts in these groups"
+msgid "Optional: Select contact groups"
+msgstr "Facultatif: le déclencheur ne s'applique qu'à ces groupes"
+
+msgid "Groups To Exclude"
+msgstr ""
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Trigger will exclude contacts in these groups."
 msgstr "Facultatif: le déclencheur ne s'applique qu'à ces groupes"
 
 #, fuzzy
@@ -7860,6 +7868,11 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#, fuzzy
+#~| msgid "Group to Join"
+#~ msgid "Group Filtering"
+#~ msgstr "Groupe à rejoindre"
 
 #, fuzzy
 #~| msgid "There is already a channel configured for this URL."

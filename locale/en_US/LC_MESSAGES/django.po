@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-15 15:56+0000\n"
+"POT-Creation-Date: 2021-06-15 17:16+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3953,13 +3953,19 @@ msgstr ""
 msgid "Select a flow"
 msgstr ""
 
-msgid "Group Filtering"
+msgid "Groups To Include"
 msgstr ""
 
-msgid "Optional: trigger only includes contacts in these groups"
+msgid "Trigger will only include contacts in these groups."
 msgstr ""
 
-msgid "Optional: trigger will exclude contacts in these groups"
+msgid "Optional: Select contact groups"
+msgstr ""
+
+msgid "Groups To Exclude"
+msgstr ""
+
+msgid "Trigger will exclude contacts in these groups."
 msgstr ""
 
 msgid "Must be a single word containing only letters and numbers."

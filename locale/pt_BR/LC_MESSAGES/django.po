@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-15 15:56+0000\n"
+"POT-Creation-Date: 2021-06-15 17:16+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -4041,17 +4041,25 @@ msgstr "Selecione um fluxo"
 
 #, fuzzy
 #| msgid "Group to Join"
-msgid "Group Filtering"
+msgid "Groups To Include"
 msgstr "Grupos para participar"
 
 #, fuzzy
 #| msgid "Optional: Trigger only applies to these groups"
-msgid "Optional: trigger only includes contacts in these groups"
+msgid "Trigger will only include contacts in these groups."
 msgstr "Opcional: Disparadores se aplicam somente à estes grupos"
 
 #, fuzzy
 #| msgid "Optional: Trigger only applies to these groups"
-msgid "Optional: trigger will exclude contacts in these groups"
+msgid "Optional: Select contact groups"
+msgstr "Opcional: Disparadores se aplicam somente à estes grupos"
+
+msgid "Groups To Exclude"
+msgstr ""
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Trigger will exclude contacts in these groups."
 msgstr "Opcional: Disparadores se aplicam somente à estes grupos"
 
 #, fuzzy
@@ -7861,6 +7869,11 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#, fuzzy
+#~| msgid "Group to Join"
+#~ msgid "Group Filtering"
+#~ msgstr "Grupos para participar"
 
 #, fuzzy
 #~| msgid "There is already a channel configured for this URL."
