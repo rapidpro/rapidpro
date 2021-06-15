@@ -5477,8 +5477,9 @@ class FlowLabelTest(TembaTest):
         self.assertEqual(response.status_code, 302)
 
         self.login(self.admin)
-        response = self.client.get(delete_url)
+        response = self.client.post(delete_url)
         self.assertEqual(response.status_code, 200)
+        self.assertIsNone(FlowLabel.objects.filter(uuid=label_one.uuid).first())
 
     def test_update(self):
         label_one = FlowLabel.create(self.org, "label1")
