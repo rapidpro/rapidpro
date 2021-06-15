@@ -908,7 +908,7 @@ class LabelCRUDL(SmartCRUDL):
     class Delete(DependencyDeleteModal):
         cancel_url = "@msgs.msg_inbox"
         success_url = "@msgs.msg_inbox"
-        success_message = ""
+        success_message = _("Your label has been deleted.")
 
     class DeleteFolder(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         success_url = "@msgs.msg_inbox"
