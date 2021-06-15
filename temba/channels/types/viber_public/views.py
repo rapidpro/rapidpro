@@ -2,6 +2,7 @@ import requests
 from smartmin.views import SmartFormView
 
 from django import forms
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 
@@ -33,7 +34,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
 
         name = response_json["uri"]
         address = response_json["id"]
-        config = {Channel.CONFIG_AUTH_TOKEN: auth_token, Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain()}
+        config = {Channel.CONFIG_AUTH_TOKEN: auth_token, Channel.CONFIG_CALLBACK_DOMAIN: settings.COURIER_DOMAIN}
 
         self.object = Channel.create(
             org, self.request.user, None, self.channel_type, name=name, address=address, config=config

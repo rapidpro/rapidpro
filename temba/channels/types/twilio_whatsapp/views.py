@@ -4,6 +4,7 @@ from smartmin.views import SmartFormView
 from twilio.base.exceptions import TwilioRestException
 
 from django import forms
+from django.conf import settings
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
@@ -93,9 +94,6 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         twilio_phones = client.api.incoming_phone_numbers.stream(phone_number=phone_number)
         channel_uuid = uuid4()
 
-        # create new TwiML app
-        callback_domain = org.get_brand_domain()
-
         twilio_phone = next(twilio_phones, None)
         if not twilio_phone:
             raise Exception(_("Only existing Twilio WhatsApp number are supported"))
@@ -111,7 +109,7 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
             Channel.CONFIG_NUMBER_SID: number_sid,
             Channel.CONFIG_ACCOUNT_SID: org_config[Org.CONFIG_TWILIO_SID],
             Channel.CONFIG_AUTH_TOKEN: org_config[Org.CONFIG_TWILIO_TOKEN],
-            Channel.CONFIG_CALLBACK_DOMAIN: callback_domain,
+            Channel.CONFIG_CALLBACK_DOMAIN: settings.COURIER_DOMAIN,
         }
 
         role = Channel.ROLE_SEND + Channel.ROLE_RECEIVE

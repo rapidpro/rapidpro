@@ -577,7 +577,7 @@ class Channel(TembaModel):
         config = {
             Channel.CONFIG_NEXMO_API_KEY: org.config[Org.CONFIG_NEXMO_KEY],
             Channel.CONFIG_NEXMO_API_SECRET: org.config[Org.CONFIG_NEXMO_SECRET],
-            Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
+            Channel.CONFIG_CALLBACK_DOMAIN: settings.COURIER_DOMAIN,
         }
 
         return Channel.create(

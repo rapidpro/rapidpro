@@ -124,8 +124,8 @@ class SignalWireType(ChannelType):
 
         channel_uuid = channel.uuid
         sms_url = "https://" + callback_domain + reverse("courier.sw", args=[channel_uuid, "receive"])
-        status_url = "https://" + callback_domain + reverse("mailroom.ivr_handler", args=[channel_uuid, "status"])
-        voice_url = "https://" + callback_domain + reverse("mailroom.ivr_handler", args=[channel_uuid, "incoming"])
+        status_url = settings.MAILROOM_URL + reverse("mailroom.ivr_handler", args=[channel_uuid, "status"])
+        voice_url = settings.MAILROOM_URL + reverse("mailroom.ivr_handler", args=[channel_uuid, "incoming"])
 
         # register our callback URLs
         try:

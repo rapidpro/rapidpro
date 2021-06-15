@@ -1348,6 +1348,7 @@ MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
 MAX_ACTIVE_GLOBALS_PER_ORG = 255
 
 COURIER_DEFAULT_TPS = 1000
+COURIER_DOMAIN = os.environ.get("COURIER_DOMAIN", "courier.rapidpro.io")
 
 # Firebase Dynamic Links configuration
 FDL_API_KEY = "FirebaseDynamicLinkAPIKey"
