@@ -9,8 +9,7 @@ from enum import Enum
 from mimetypes import guess_extension
 
 from django.conf import settings
-from django.contrib.postgres.fields import JSONField
-from django.db.models.functions import Cast, Concat
+from django.db.models.functions import Concat
 from django.template.defaultfilters import slugify
 from parse_rest.datatypes import Date
 from rest_framework import generics, status, views
@@ -4445,6 +4444,7 @@ class ReportEndpointMixin:
         pagination_class: CursorPagination = getattr(self, "pagination_class", CreatedOnCursorPagination)()
         pagination_class.page_size_query_param = "page_size"
         pagination_class.page_size = getattr(self, "chunk_size", 2000)
+        pagination_class.max_page_size = 2000
         pagination_class.paginate_queryset(queryset, self.request, self)
         return pagination_class.page, pagination_class.get_next_link()
 
@@ -4480,128 +4480,79 @@ class ReportEndpointMixin:
             )
         return queryset
 
-    def get_contacts(self, count_only=False, only_active=True):
+    def get_query_parameter(self, name, default=None):
+        return self.request.data.get(name, self.request.query_params.get(name, default))
+
+    def get_search_query_filter(self, org, prefix=""):
+        search_query, qs_filter = self.get_query_parameter("search_query", ""), Q()
+        if not search_query:
+            return qs_filter
+
+        parsed_search_query = parse_query(org, search_query)
+        self.applied_filters["search_query"] = parsed_search_query.query
+
+        elastic_query_conf = parsed_search_query.elastic_query
+        main_conditions = elastic_query_conf.get("bool", {}).get("must", [])
+        try:
+            main_conditions.pop(1)  # remove condition `is_active`
+            main_conditions.pop(1)  # remove condition `groups` (filter by active group)
+        except IndexError:
+            pass
+
+        contact_ids = query_contact_ids_from_elasticsearch(org, elastic_query_conf)
+        qs_filter = Q(**{f"{prefix}id__in": contact_ids}) if contact_ids else Q(**{f"{prefix}id": 0})
+        return qs_filter
+
+    def get_name_uuid_filters(self, field_name, key, prefix="", exclude=False):
+        qs_filter, __ = Q(), ("__" if key else "")
+        values_fo_filter_by = self.request__get_separated_names_and_uuids(field_name)
+        for _uuid in values_fo_filter_by["uuids"]:
+            qs_filter |= Q(**{f"{prefix}{key}{__}uuid": _uuid})
+        for _name in values_fo_filter_by["names"]:
+            qs_filter |= Q(**{f"{prefix}{key}{__}name__iexact": _name})
+
+        if any(values_fo_filter_by.values()):
+            self.applied_filters[field_name] = ", ".join(
+                [*values_fo_filter_by["names"], *values_fo_filter_by["uuids"]]
+            )
+        return ~qs_filter if exclude else qs_filter
+
+    def get_datetime_filters(self, field_name, key, org, prefix=""):
+        sep = "_" if field_name else ""
+        qs_filter, field_name_after, field_name_before = Q(), f"{field_name}{sep}after", f"{field_name}{sep}before"
+        value_after, value_before = (
+            org.parse_datetime(self.get_query_parameter(field_name_after, "")),
+            org.parse_datetime(self.get_query_parameter(field_name_before, "")),
+        )
+        if value_after:
+            qs_filter &= Q(**{f"{prefix}{key}__gte": value_after})
+            self.applied_filters[field_name_after] = value_after
+        if value_before:
+            qs_filter &= Q(**{f"{prefix}{key}__lte": value_before})
+            self.applied_filters[field_name_before] = value_before
+        return qs_filter
+
+    def get_contacts_qs(self, only_filters=False, limited_filters=False, filter_prefix=""):
+        arg_filters = []
         org = self.request.user.get_org()
 
-        # get search query
-        search_query = self.request.GET.get("search_query", self.request.data.get("search_query", ""))
+        if not limited_filters:
+            arg_filters.append(self.get_search_query_filter(org, prefix=filter_prefix))
+            arg_filters.append(self.get_name_uuid_filters("flow", "runs__flow", prefix=filter_prefix))
+            arg_filters.append(self.get_datetime_filters("created", "created_on", org, filter_prefix))
+            arg_filters.append(self.get_datetime_filters("modified", "modified_on", org, filter_prefix))
 
-        # append group conditions to search query
-        groups_filter = self.request__get_separated_names_and_uuids("group")
-        groups_exclude = self.request__get_separated_names_and_uuids("exclude")
-        if groups_filter["names"]:
-            groups_query = "(%s)" % " AND ".join(map(lambda x: f'group = "{x}"', groups_filter["names"]))
-            search_query += (" AND " if search_query else "") + groups_query
-        if groups_exclude["names"]:
-            groups_query = "(%s)" % " AND ".join(map(lambda x: f'group != "{x}"', groups_exclude["names"]))
-            search_query += (" AND " if search_query else "") + groups_query
+        arg_filters.append(self.get_name_uuid_filters("group", "all_groups", prefix=filter_prefix))
+        arg_filters.append(self.get_name_uuid_filters("exclude", "all_groups", exclude=True, prefix=filter_prefix))
+        arg_filters.append(self.get_name_uuid_filters("channel", "urns__channel", prefix=filter_prefix))
+        arg_filters.append(Q(**{f"{filter_prefix}is_active": True}))  # ignore deleted contacts
+        arg_filters = [_filter for _filter in arg_filters if _filter]
 
-        # parse query
-        group = ContactGroup.all_groups.get(org=org, group_type="A")
-        if search_query:
-            parsed_search_query = parse_query(org, search_query, group=group)
-            elastic_query_conf = parsed_search_query.elastic_query
-            self.applied_filters["search_query"] = parsed_search_query.query
-        else:
-            elastic_query_conf = {
-                "bool": {
-                    "must": [
-                        {"term": {"org_id": org.id}},
-                        {"term": {"is_active": True}},
-                        {"term": {"groups": group.uuid}},
-                    ]
-                }
-            }
-        main_conditions = elastic_query_conf.get("bool", {}).get("must", [])
+        if only_filters:
+            return arg_filters
 
-        if not only_active:
-            try:
-                main_conditions.pop(1)  # remove condition `is_active`
-                main_conditions.pop(1)  # remove condition `groups` (filter by active group)
-            except IndexError:
-                pass
-
-        # add group filter conditions
-        if groups_filter["uuids"]:
-            main_conditions.extend([{"term": {"groups": _uuid}} for _uuid in groups_filter["uuids"]])
-            self.applied_filters["group"] = groups_filter["uuids"]
-        if groups_exclude["uuids"]:
-            main_conditions.extend(
-                [{"bool": {"must_not": {"term": {"groups": _uuid}}}} for _uuid in groups_exclude["uuids"]]
-            )
-            self.applied_filters["exclude"] = groups_exclude["uuids"]
-
-        # add modified_on filter condition
-        modified_on_filter = {
-            "range": {
-                "modified_on": {
-                    "include_lower": True,
-                    "include_upper": True,
-                    "from": None,
-                    "to": None,
-                }
-            }
-        }
-
-        try:
-            after = self.request.data.get("after", self.request.GET.get("after", ""))
-            if after:
-                after = org.parse_datetime(after)
-                modified_on_filter["range"]["modified_on"]["from"] = after
-                self.applied_filters["after"] = after
-            before = self.request.data.get("before", self.request.GET.get("before", ""))
-            if before:
-                before = org.parse_datetime(before)
-                modified_on_filter["range"]["modified_on"]["to"] = before
-                self.applied_filters["before"] = before
-            if after or before:
-                main_conditions.append(modified_on_filter)
-        except AssertionError:
-            raise SearchException(_("Fields `before` or `after` are not valid."))
-
-        # filter by channel
-        es_channels_filter_config = {"nested": {"path": "urns", "query": {"bool": {"must": []}}}}
-        es_channel_filters = es_channels_filter_config["nested"]["query"]["bool"]["must"]
-        channel_filters = self.request__get_separated_names_and_uuids("channel")
-        if channel_filters["uuids"]:
-            es_channel_filters.extend(
-                [
-                    {"match_phrase": {"urns.channel_uuid": {"query": channel_uuid}}}
-                    for channel_uuid in channel_filters["uuids"]
-                ]
-            )
-        if channel_filters["names"]:
-            es_channel_filters.extend(
-                [
-                    {"match_phrase": {"urns.channel_name": {"query": channel_name}}}
-                    for channel_name in channel_filters["names"]
-                ]
-            )
-        if any(channel_filters.values()):
-            main_conditions.append(es_channels_filter_config)
-            self.applied_filters["channel"] = ", ".join([*channel_filters["names"], *channel_filters["uuids"]])
-
-        # filter by flow
-        flow_uuid = self.request.GET.get("flow", self.request.data.get("flow"))
-        if flow_uuid:
-            if not is_uuid_valid(flow_uuid):
-                raise SearchException(_("The `flow` parameter is not valid."))
-            main_conditions.append({"term": {"flows": flow_uuid}})
-            self.applied_filters["flow"] = flow_uuid
-
-        # get contact ids from elasticsearch database
-        contact_ids = query_contact_ids_from_elasticsearch(org, elastic_query_conf)
-
-        # return only count of contacts from elasticsearch id no need in actual records
-        if count_only:
-            contacts = Contact.objects.none()
-            contacts.count = lambda: len(contact_ids)
-            contacts.values_list = lambda *args, **kwargs: contact_ids
-            return contacts
-
-        return Contact.objects.filter(
-            org=org, status=Contact.STATUS_ACTIVE, is_active=True, id__in=contact_ids
-        ).distinct()
+        contacts = Contact.objects.filter(org_id=org.id).filter(*arg_filters).distinct()
+        return contacts
 
 
 class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
@@ -4615,8 +4566,11 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
     * **group** - UUID or Name of the contact group to select only contacts that belong to that group
     * **exclude** - UUID or Name of the contact group to select only contacts that not belong to that group
     * **channel** - UUID or Name of the channel to select only contacts that belong to that channel
-    * **before** - Date, excludes all contacts from the report that were modified later a certain date
-    * **after** - Date, excludes all contacts from the report that were modified earlier a certain date
+    * **created_after** - Date, excludes all contacts from the report that were created earlier a certain date
+    * **created_before** - Date, excludes all contacts from the report that were created later a certain date
+    * **modified_after** - Date, excludes all contacts from the report that were modified earlier a certain date
+    * **modified_before** - Date, excludes all contacts from the report that were modified later a certain date
+
 
     Example:
 
@@ -4627,18 +4581,25 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
             "group": "Contacts",
             "exclude": "Restaurant Contacts",
             "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
-            "after": "2021-01-01",
-            "before": "2022-01-01",
+            "created_after": "2021-01-01",
+            "created_before": "2022-01-01"
+            "modified_after": "2021-01-01",
+            "modified_before": "2022-01-01",
         }
 
     Response:
 
         {
+            "next": "http://example.com/api/v2/contacts_report.json?cursor=cD0yMDIxLTA1LTEyKzEzJ",
             "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
             "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
-            "before": "2022-01-01T22:50:21.061616+02:00",
-            "after": "2021-01-01T22:50:21.061907+02:00",
-            "search_query": "name ~ \"john dou\" AND group = \"Contacts\" AND group != \"Restaurant Contacts\"",
+            "group": "Contacts",
+            "exclude": "Restaurant Contacts",
+            "created_after": "2021-01-01T22:50:21.061907+02:00",
+            "created_before": "2022-01-01T22:50:21.061616+02:00",
+            "modified_after": "2021-01-01T22:50:21.061907+02:00",
+            "modified_before": "2022-01-01T22:50:21.061616+02:00",
+            "search_query": "name ~ \"john dou\"",
             "results": [
                 {
                     "total_unique_contacts": 1
@@ -4652,6 +4613,7 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
     """
 
     permission = "orgs.org_api"
+    pagination_class = CreatedOnCursorPagination
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -4660,11 +4622,15 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
     @csv_response_wrapper
     def get(self, request, *args, **kwargs):
         try:
-            count = self.get_contacts(count_only=True).count()
-            response_data = {**self.applied_filters, "results": [{"total_unique_contacts": count}]}
+            contacts = self.get_contacts_qs()
+            current_page, next_page = self.get_paginated_queryset(contacts)
+            count = len(current_page)
+            response_data = {"next": next_page, **self.applied_filters, "results": [{"total_unique_contacts": count}]}
             return Response(response_data)
         except SearchException as e:
             return Response({"error": e.message}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": e.args[0] if e.args else "Request failed!"}, status=status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
     def csv_convertor(result, response):
@@ -4688,8 +4654,10 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
                 dict(name="channel", required=False, help="Channel to filter"),
                 dict(name="group", required=False, help="Contact group to filter"),
                 dict(name="exclude", required=False, help="Contact group to exclude"),
-                dict(name="after", required=False, help="Last modified since"),
-                dict(name="before", required=False, help="Last modified until"),
+                dict(name="created_after", required=False, help="Created on time since"),
+                dict(name="created_before", required=False, help="Created on time until"),
+                dict(name="modified_after", required=False, help="Last modified since"),
+                dict(name="modified_before", required=False, help="Last modified until"),
             ],
             example=dict(
                 body=json.dumps(
@@ -4719,19 +4687,25 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     * **group** - UUID or Name of the contact group to select only contacts that belong to that group
     * **exclude** - UUID or Name of contact group to select only contacts that not belong to that group
     * **channel** - UUID or Name of the channel to select only contacts that belong to that channel
-    * **before** - Date, excludes all contacts from the report that were modified later a certain date
-    * **after** - Date, excludes all contacts from the report that were modified earlier a certain date
+    * **created_after** - Date, excludes all contacts from the report that were created earlier a certain date
+    * **created_before** - Date, excludes all contacts from the report that were created later a certain date
+    * **modified_after** - Date, excludes all contacts from the report that were modified earlier a certain date
+    * **modified_before** - Date, excludes all contacts from the report that were modified later a certain date
     * **variables** - the values configuration to be included into report
-
-    This report can't be performed in one request so the report is being split into chunks,
-    you should follow the `next` link until it's `null` and merge data using your script.
-    * **next** - Url to get next chunk of the report.
-    * **page_size** - Number of contacts to process per one request.
 
     Example:
 
         POST /api/v2/contact_variable_report.json
         {
+            "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
+            "search_query": "name ~ \"john dou\"",
+            "group": "Contacts",
+            "exclude": "Restaurant Contacts",
+            "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+            "created_after": "2021-01-01",
+            "created_before": "2022-01-01"
+            "modified_after": "2021-01-01",
+            "modified_before": "2022-01-01",
             "variables": {
                 "zipcode": {
                     "top": 4
@@ -4744,6 +4718,15 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         {
             "next": "http://example.com/api/v2/contact_variable_report.json?cursor=cD0yMDIxLTA1LTEyKzEzJ",
+            "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
+            "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+            "group": "Contacts",
+            "exclude": "Restaurant Contacts",
+            "created_after": "2021-01-01T22:50:21.061907+02:00",
+            "created_before": "2022-01-01T22:50:21.061616+02:00",
+            "modified_after": "2021-01-01T22:50:21.061907+02:00",
+            "modified_before": "2022-01-01T22:50:21.061616+02:00",
+            "search_query": "name ~ \"john dou\"",
             "variables": {
                 "9402ac3d-4efb-448a-b0d6-6b219c5c21ff": {
                     "key": "zipcode"
@@ -4787,7 +4770,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         org = self.request.user.get_org()
         counts = defaultdict(lambda: Counter())
         try:
-            contacts = self.get_contacts()
+            contacts = self.get_contacts_qs()
         except SearchException as e:
             return Response({"error": e.message}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
@@ -4862,15 +4845,13 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                 dict(name="channel", required=False, help="Channel to filter"),
                 dict(name="group", required=False, help="Contact group to filter"),
                 dict(name="exclude", required=False, help="Contact group to exclude"),
-                dict(name="after", required=False, help="Last modified since"),
-                dict(name="before", required=False, help="Last modified until"),
+                dict(name="created_after", required=False, help="Created on time since"),
+                dict(name="created_before", required=False, help="Created on time until"),
+                dict(name="modified_after", required=False, help="Last modified since"),
+                dict(name="modified_before", required=False, help="Last modified until"),
                 dict(name="variables", required=True, help="Configuration for fields to generate report"),
             ],
-            params=[
-                dict(name="cursor", required=False, help="The start position of next chunk"),
-                dict(name="page_size", required=False, help="Number of runs to process per one request"),
-                dict(name="export_csv", required=False, help="Generate report in CSV format"),
-            ],
+            params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
                 body=json.dumps(
                     {
@@ -4896,11 +4877,6 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     * **channel** - UUID or Name of channel to select only messages related to specific channel
     * **after** - Date, excludes all messages from the report that were created earlier a certain date
     * **before** - Date, excludes all messages from the report that were created later a certain date
-
-    This report can't be performed in one request so the report is being split into chunks,
-    you should follow the `next` link until it's `null` and merge data using your script.
-    * **next** - Url to get next chunk of the report.
-    * **page_size** - Number of messages to process per one request.
 
     Example:
 
@@ -4938,10 +4914,10 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
     permission = "orgs.org_api"
     pagination_class = CreatedOnCursorPagination
-    applied_filters = None
 
     def get_flow_messages(self, org, flow, qs):
         runs = FlowRun.objects.filter(
+            self.get_datetime_filters("", "exited_on", org),
             org=org,
             flow__uuid=flow,
             status__in=[
@@ -4949,12 +4925,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                 FlowRun.STATUS_INTERRUPTED,
                 FlowRun.STATUS_FAILED,
                 FlowRun.STATUS_EXPIRED,
-            ],
-            **{
-                f"exited_on__{'gte' if item[0] == 'after' else 'lte'}": item[1]
-                for item in [(x, org.parse_datetime(self.request.data.get(x, ""))) for x in ["after", "before"]]
-                if item[1]
-            },
+            ]
         )
         messages_uuids = []
         for run in runs:
@@ -4969,26 +4940,16 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     def get(self, request, *args, **kwargs):
         org = self.request.user.get_org()
         queryset = Msg.objects.filter(org=org)
-        self.applied_filters = {}
-        filters = (
-            ("flow", lambda x: self.get_flow_messages(org, x, queryset)),
-            ("after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
-            ("before", lambda x: queryset.filter(created_on__lte=org.parse_datetime(x))),
-            ("channel", lambda x: self.name_uuid_filtering(queryset, "channel", "channel__uuid", "channel__name")),
-            (
-                "exclude",
-                lambda x: self.name_uuid_filtering(
-                    queryset, "exclude", "contact__all_groups__uuid", "contact__all_groups__name", "exclude"
-                ),
-            ),
-        )
-        for name, _filter in filters:
-            filter_value = self.request.data.get(name, self.request.GET.get(name))
-            if filter_value:
-                queryset = _filter(filter_value)
-                self.applied_filters[name] = filter_value
+        self.applied_filters, arg_filters = {}, []
 
-        queryset = queryset.only("created_on").annotate(ds=Concat("direction", "status"))
+        flow = self.get_query_parameter("flow")
+        queryset = self.get_flow_messages(org, flow, queryset) if flow else queryset
+        arg_filters.append(self.get_name_uuid_filters("exclude", "contact__all_groups", exclude=True))
+        arg_filters.append(self.get_name_uuid_filters("channel", "channel"))
+        arg_filters.append(self.get_datetime_filters("", "created_on", org))
+        arg_filters = [_filter for _filter in arg_filters if _filter]
+
+        queryset = queryset.filter(*arg_filters).only("created_on").annotate(ds=Concat("direction", "status"))
         current_page, next_page = self.get_paginated_queryset(queryset)
         counter = Counter([rec.ds for rec in current_page])
         results = dict(total_inbound_messages=0, total_outbound_messages=0, total_outbound_message_failures=0)
@@ -5021,11 +4982,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                 dict(name="channel", required=False, help="Select messages sent via specific channel"),
                 dict(name="exclude", required=False, help="Contact group to exclude"),
             ],
-            params=[
-                dict(name="cursor", required=False, help="The start position of next chunk"),
-                dict(name="page_size", required=False, help="Number of messages to process per one request"),
-                dict(name="export_csv", required=False, help="Generate report in CSV format"),
-            ],
+            params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
                 body=json.dumps(
                     {
@@ -5051,9 +5008,8 @@ class FlowReportFiltersMixin(ReportEndpointMixin):
         if {"channel", "exclude", "group"}.intersection(
             [*self.request.query_params.keys(), *self.request.data.keys()]
         ):
-            # get contact ids from elasticsearch database
-            contact_ids = self.get_contacts(count_only=True, only_active=False).values_list("id")
-            queryset = queryset.filter(contact_id__in=contact_ids) if contact_ids else queryset.filter(contact_id=0)
+            contact_filters = self.get_contacts_qs(only_filters=True, limited_filters=True, filter_prefix="contact__")
+            queryset = queryset.filter(*contact_filters).distinct()
 
         filters = (
             ("started_after", lambda x: queryset.filter(created_on__gte=org.parse_datetime(x))),
@@ -5083,11 +5039,6 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     * **started_before** - Date, excludes all runs from the report that were started later a certain date
     * **exited_after** - Date, excludes all runs from the report that were exited earlier a certain date
     * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
-
-    This report can't be performed in one request so the report is being split into chunks,
-    you should follow the `next` link until it's `null` and merge data using your script.
-    * **next** - Url to get next chunk of the report.
-    * **page_size** - Number of runs to process per one request
 
     Example:
 
@@ -5187,11 +5138,7 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                     name="exited_before", required=False, help="Count only runs that were exited before a certain date"
                 ),
             ],
-            params=[
-                dict(name="cursor", required=False, help="The start position of next chunk"),
-                dict(name="page_size", required=False, help="Number of runs to process per one request"),
-                dict(name="export_csv", required=False, help="Generate report in CSV format"),
-            ],
+            params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
                 body=json.dumps(
                     {
@@ -5223,11 +5170,6 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     * **exited_after** - Date, excludes all runs from the report that were exited earlier a certain date
     * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
     * **variables** - configuration which define the fields to be included in the report
-
-    This report can't be performed in one request so the report is being split into chunks,
-    you should follow the `next` link until it's `null` and merge data using your script.
-    * **next** - Url to get next chunk of the report.
-    * **page_size** - Number of runs to process per one request.
 
     Example:
 
@@ -5357,11 +5299,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 ),
                 dict(name="variables", required=True, help="Configuration for fields to generate report"),
             ],
-            params=[
-                dict(name="cursor", required=False, help="The start position of next chunk"),
-                dict(name="page_size", required=False, help="Number of runs to process per one request"),
-                dict(name="export_csv", required=False, help="Generate report in CSV format"),
-            ],
+            params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
                 body=json.dumps(
                     {
@@ -5425,50 +5363,31 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
     def get(self, *args, **kwargs):
         self.applied_filters = {}
         org = self.request.user.get_org()
-        link_name, link = self.request__get_separated_names_and_uuids("link"), None
-        if link_name["uuids"]:
-            link = Link.objects.filter(org=org, uuid=link_name["uuids"][0]).first()
-        elif link_name["names"]:
-            link = Link.objects.filter(org=org, name__iexact=link_name["names"][0]).first()
+        link_filter = self.get_name_uuid_filters("link", key="")
+        link = Link.objects.filter(link_filter, org=org).first()
         if link is None:
-            link_name = ", ".join([*link_name["names"], *link_name["uuids"]])
             errors = {
                 status.HTTP_400_BAD_REQUEST: _("Parameter 'link_name' is not provider."),
-                status.HTTP_404_NOT_FOUND: _("Link with name '{}' not found.").format(link_name),
+                status.HTTP_404_NOT_FOUND: _("Link with name '{}' not found.").format(
+                    self.applied_filters.get("link")
+                ),
             }
             code = status.HTTP_404_NOT_FOUND if link is None else status.HTTP_400_BAD_REQUEST
             return Response({"error": errors[code]}, status=code)
 
-        groups_to_exclude = self.request__get_separated_names_and_uuids("exclude")
-        group_exclude_filters = Q()
-        if groups_to_exclude["uuids"]:
-            group_exclude_filters |= Q(contact__all_groups__uuid__in=groups_to_exclude["uuids"])
-        if groups_to_exclude["names"]:
-            for name in groups_to_exclude["names"]:
-                group_exclude_filters |= Q(contact__all_groups__name__icontains=name)
-        if any(groups_to_exclude.values()):
-            self.applied_filters["exclude"] = ", ".join([*groups_to_exclude["names"], *groups_to_exclude["uuids"]])
-
-        time_filters = Q()
-        after = self.request.data.get("after", self.request.GET.get("after", ""))
-        before = self.request.data.get("before", self.request.GET.get("before", ""))
-        if after:
-            time_filters &= Q(modified_on__gte=org.parse_datetime(after))
-            self.applied_filters["after"] = org.parse_datetime(after)
-        if before:
-            time_filters &= Q(modified_on__lte=org.parse_datetime(before))
-            self.applied_filters["before"] = org.parse_datetime(before)
+        group_filters = self.get_name_uuid_filters("exclude", "contact__all_groups")
+        time_filters = self.get_datetime_filters("", "modified_on", org)
 
         unique_clicks = (
             LinkContacts.objects.filter(link_id=link.id)
             .filter(time_filters)
-            .exclude(group_exclude_filters)
+            .exclude(group_filters)
             .distinct()
             .count()
         )
         unique_contacts = (
             link.related_flow.runs.filter(time_filters)
-            .exclude(group_exclude_filters)
+            .exclude(group_filters)
             .aggregate(count=Count("contact", distinct=True))["count"]
             if link.related_flow
             else None
