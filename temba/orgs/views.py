@@ -3197,16 +3197,20 @@ class OrgCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             user = self.request.user
+            codes = []
+
+            # if we have a primary language, that goes first
             primary = form.cleaned_data["primary_lang"]
             if primary:
-                primary = primary["value"]
+                codes.append(primary["value"])
 
-            # remove empty codes and ensure primary is included in list
-            iso_codes = [d["value"] for d in form.cleaned_data["languages"] if d["value"]]
-            if primary and primary not in iso_codes:
-                iso_codes.append(primary)
+            # add the other languages as long as long as they aren't already in the list
+            others = [d["value"] for d in form.cleaned_data["languages"] if d["value"]]
+            for other in others:
+                if other not in codes:
+                    codes.append(other)
 
-            self.object.set_flow_languages(user, iso_codes, primary)
+            self.object.set_flow_languages(user, codes)
 
             return super().form_valid(form)
 

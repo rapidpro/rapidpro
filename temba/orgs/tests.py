@@ -985,18 +985,18 @@ class OrgTest(TembaTest):
     def test_set_flow_languages(self):
         self.assertEqual([], self.org.flow_languages)
 
-        self.org.set_flow_languages(self.admin, ["eng", "fra"], "eng")
+        self.org.set_flow_languages(self.admin, ["eng", "fra"])
         self.org.refresh_from_db()
         self.assertEqual(["eng", "fra"], self.org.flow_languages)
 
-        self.org.set_flow_languages(self.admin, ["eng", "kin"], "kin")
+        self.org.set_flow_languages(self.admin, ["kin", "eng"])
         self.org.refresh_from_db()
         self.assertEqual(["kin", "eng"], self.org.flow_languages)
 
         with self.assertRaises(AssertionError):
-            self.org.set_flow_languages(self.admin, ["eng", "xyz"], "eng")
+            self.org.set_flow_languages(self.admin, ["eng", "xyz"])
         with self.assertRaises(AssertionError):
-            self.org.set_flow_languages(self.admin, ["eng", "fra"], "xyz")
+            self.org.set_flow_languages(self.admin, ["eng", "eng"])
 
     def test_country_view(self):
         self.setUpLocations()
@@ -4682,7 +4682,7 @@ class BulkExportTest(TembaTest):
         )
 
         # set our default flow language to english
-        self.org.set_flow_languages(self.admin, ["eng", "fra"], "eng")
+        self.org.set_flow_languages(self.admin, ["eng", "fra"])
 
         # finally let's try importing our exported file
         self.org.import_app(exported, self.admin, site="http://app.rapidpro.io")
