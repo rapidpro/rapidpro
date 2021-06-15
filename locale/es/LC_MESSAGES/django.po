@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-14 19:45+0000\n"
+"POT-Creation-Date: 2021-06-15 02:08+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -3050,11 +3050,6 @@ msgstr "Actualizar carpeta"
 
 msgid "Update Label"
 msgstr "Actualizar etiqueta"
-
-#, fuzzy
-#| msgid "Your classifier has been deleted."
-msgid "Your label has been deleted."
-msgstr "Su clasificador ha sido eliminado."
 
 #, fuzzy
 #| msgid "Your classifier has been deleted."
@@ -7870,6 +7865,11 @@ msgstr "Las plantillas se sincronizan desde su cuenta de WhatsApp cada 15 minuto
 
 msgid "No synced templates at this time."
 msgstr "No hay plantillas sincronizadas en este momento."
+
+#, fuzzy
+#~| msgid "Your classifier has been deleted."
+#~ msgid "Your label has been deleted."
+#~ msgstr "Su clasificador ha sido eliminado."
 
 #, fuzzy
 #~| msgid "There is already a channel configured for this URL."

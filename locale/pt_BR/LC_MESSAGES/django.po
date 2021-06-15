@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-14 19:45+0000\n"
+"POT-Creation-Date: 2021-06-15 02:08+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3056,11 +3056,6 @@ msgstr "Atualizar Pasta"
 
 msgid "Update Label"
 msgstr "Atualizar rótulo"
-
-#, fuzzy
-#| msgid "Your classifier has been deleted."
-msgid "Your label has been deleted."
-msgstr "Seu classificador foi deletado."
 
 #, fuzzy
 #| msgid "Your classifier has been deleted."
@@ -7857,6 +7852,11 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#, fuzzy
+#~| msgid "Your classifier has been deleted."
+#~ msgid "Your label has been deleted."
+#~ msgstr "Seu classificador foi deletado."
 
 #, fuzzy
 #~| msgid "There is already a channel configured for this URL."

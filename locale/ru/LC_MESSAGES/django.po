@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-14 19:45+0000\n"
+"POT-Creation-Date: 2021-06-15 02:08+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3060,11 +3060,6 @@ msgstr "Обновить Папку"
 
 msgid "Update Label"
 msgstr "Обновить Метку"
-
-#, fuzzy
-#| msgid "Your classifier has been deleted."
-msgid "Your label has been deleted."
-msgstr "Ваш классификатор был удален."
 
 #, fuzzy
 #| msgid "Your classifier has been deleted."
@@ -7714,6 +7709,11 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#, fuzzy
+#~| msgid "Your classifier has been deleted."
+#~ msgid "Your label has been deleted."
+#~ msgstr "Ваш классификатор был удален."
 
 #, fuzzy
 #~| msgid "An active trigger already exists, triggers must be unique for each group"
