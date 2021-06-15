@@ -1,3 +1,7 @@
+v6.3.75
+----------
+ * Fix closing and reopening of tickets from API
+
 v6.3.74
 ----------
  * Add better labels and help text for groups on trigger forms

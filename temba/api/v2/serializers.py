@@ -9,7 +9,6 @@ import regex
 from rest_framework import serializers
 
 from django.conf import settings
-from django.utils import timezone
 
 from temba import mailroom
 from temba.api.models import Resthook, ResthookSubscriber, WebHookEvent
@@ -1453,13 +1452,10 @@ class TicketWriteSerializer(WriteSerializer):
         """
         status = self.validated_data.get("status")
         if self.instance:
-            # TODO status changes should use historical model
-            self.instance.status = status
             if status == Ticket.STATUS_CLOSED:
-                self.instance.closed_on = timezone.now()
+                Ticket.bulk_close(self.context["org"], self.context["user"], [self.instance])
             elif status == Ticket.STATUS_OPEN:
-                self.instance.closed_on = None
-            self.instance.save()
+                Ticket.bulk_reopen(self.context["org"], self.context["user"], [self.instance])
 
         return self.instance
 
