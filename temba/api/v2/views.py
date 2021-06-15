@@ -4581,6 +4581,8 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
             "group": "Contacts",
             "exclude": "Restaurant Contacts",
             "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+            "created_after": "2021-01-01",
+            "created_before": "2022-01-01"
             "modified_after": "2021-01-01",
             "modified_before": "2022-01-01",
         }
@@ -4588,11 +4590,16 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
     Response:
 
         {
+            "next": "http://example.com/api/v2/contacts_report.json?cursor=cD0yMDIxLTA1LTEyKzEzJ",
             "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
             "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
-            "before": "2022-01-01T22:50:21.061616+02:00",
-            "after": "2021-01-01T22:50:21.061907+02:00",
-            "search_query": "name ~ \"john dou\" AND group = \"Contacts\" AND group != \"Restaurant Contacts\"",
+            "group": "Contacts",
+            "exclude": "Restaurant Contacts",
+            "created_after": "2021-01-01T22:50:21.061907+02:00",
+            "created_before": "2022-01-01T22:50:21.061616+02:00",
+            "modified_after": "2021-01-01T22:50:21.061907+02:00",
+            "modified_before": "2022-01-01T22:50:21.061616+02:00",
+            "search_query": "name ~ \"john dou\"",
             "results": [
                 {
                     "total_unique_contacts": 1
@@ -4647,6 +4654,8 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
                 dict(name="channel", required=False, help="Channel to filter"),
                 dict(name="group", required=False, help="Contact group to filter"),
                 dict(name="exclude", required=False, help="Contact group to exclude"),
+                dict(name="created_after", required=False, help="Created on time since"),
+                dict(name="created_before", required=False, help="Created on time until"),
                 dict(name="modified_after", required=False, help="Last modified since"),
                 dict(name="modified_before", required=False, help="Last modified until"),
             ],
@@ -4688,6 +4697,15 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         POST /api/v2/contact_variable_report.json
         {
+            "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
+            "search_query": "name ~ \"john dou\"",
+            "group": "Contacts",
+            "exclude": "Restaurant Contacts",
+            "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+            "created_after": "2021-01-01",
+            "created_before": "2022-01-01"
+            "modified_after": "2021-01-01",
+            "modified_before": "2022-01-01",
             "variables": {
                 "zipcode": {
                     "top": 4
@@ -4700,6 +4718,15 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         {
             "next": "http://example.com/api/v2/contact_variable_report.json?cursor=cD0yMDIxLTA1LTEyKzEzJ",
+            "flow": "f575b823-3de3-4225-8406-51dad88e8bf3",
+            "channel": "43cd6c9e-25cd-4512-bf29-d2999a4a27a3",
+            "group": "Contacts",
+            "exclude": "Restaurant Contacts",
+            "created_after": "2021-01-01T22:50:21.061907+02:00",
+            "created_before": "2022-01-01T22:50:21.061616+02:00",
+            "modified_after": "2021-01-01T22:50:21.061907+02:00",
+            "modified_before": "2022-01-01T22:50:21.061616+02:00",
+            "search_query": "name ~ \"john dou\"",
             "variables": {
                 "9402ac3d-4efb-448a-b0d6-6b219c5c21ff": {
                     "key": "zipcode"
@@ -4818,8 +4845,10 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                 dict(name="channel", required=False, help="Channel to filter"),
                 dict(name="group", required=False, help="Contact group to filter"),
                 dict(name="exclude", required=False, help="Contact group to exclude"),
-                dict(name="after", required=False, help="Last modified since"),
-                dict(name="before", required=False, help="Last modified until"),
+                dict(name="created_after", required=False, help="Created on time since"),
+                dict(name="created_before", required=False, help="Created on time until"),
+                dict(name="modified_after", required=False, help="Last modified since"),
+                dict(name="modified_before", required=False, help="Last modified until"),
                 dict(name="variables", required=True, help="Configuration for fields to generate report"),
             ],
             params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
