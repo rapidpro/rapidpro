@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-15 02:08+0000\n"
+"POT-Creation-Date: 2021-06-15 15:28+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3049,6 +3049,11 @@ msgstr "Mettre à jour le dossier"
 
 msgid "Update Label"
 msgstr "Mise à jour du libellé"
+
+#, fuzzy
+#| msgid "Your classifier has been deleted."
+msgid "Your label has been deleted."
+msgstr "Votre classificateur a été supprimé."
 
 #, fuzzy
 #| msgid "Your classifier has been deleted."
@@ -7764,8 +7769,15 @@ msgstr "Ajoutez un compte pour le canal et entrez <code>%(secret)s</code> comme 
 msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr "Déclencheurs permettent aux utilisateurs de démarrer des flux basée sur les actions de l'utilisateur ou les plannings"
 
-msgid "Start a flow after receiving a message not handled elsewhere."
+#, fuzzy
+#| msgid "Start a flow after receiving a message not handled elsewhere."
+msgid "Start a flow after receiving a message that doesn't match any keywords."
 msgstr "Lancer un flux après réception d'un message n'est pas manipulé ailleurs"
+
+#, fuzzy
+#| msgid "Start a flow after a missed call."
+msgid "Start a flow after a ticket is closed."
+msgstr "Lancer un flux après un appel manqué."
 
 msgid "Start a flow after receiving a call."
 msgstr "Démarrer un flux après avoir reçu un appel."
@@ -7851,11 +7863,6 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
-
-#, fuzzy
-#~| msgid "Your classifier has been deleted."
-#~ msgid "Your label has been deleted."
-#~ msgstr "Votre classificateur a été supprimé."
 
 #, fuzzy
 #~| msgid "There is already a channel configured for this URL."

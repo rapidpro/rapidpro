@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-15 02:08+0000\n"
+"POT-Creation-Date: 2021-06-15 15:28+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3015,6 +3015,9 @@ msgid "Update Folder"
 msgstr ""
 
 msgid "Update Label"
+msgstr ""
+
+msgid "Your label has been deleted."
 msgstr ""
 
 msgid "Your label folder has been deleted."
@@ -7243,7 +7246,10 @@ msgstr ""
 msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr ""
 
-msgid "Start a flow after receiving a message not handled elsewhere."
+msgid "Start a flow after receiving a message that doesn't match any keywords."
+msgstr ""
+
+msgid "Start a flow after a ticket is closed."
 msgstr ""
 
 msgid "Start a flow after receiving a call."

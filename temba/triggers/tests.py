@@ -796,6 +796,38 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             form_errors={"__all__": "There already exists a trigger of this type with these options."},
         )
 
+    def test_create_closed_ticket(self):
+        flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
+        flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_VOICE)
+        flow3 = self.create_flow("Flow 3", flow_type=Flow.TYPE_BACKGROUND)
+
+        # flows that shouldn't appear as options
+        self.create_flow("Flow 4", is_system=True)
+        self.create_flow("Flow 5", org=self.org2)
+
+        create_url = reverse("triggers.trigger_create_closed_ticket")
+
+        response = self.assertCreateFetch(
+            create_url, allow_viewers=False, allow_editors=True, form_fields=["flow", "groups", "exclude_groups"]
+        )
+
+        # flow options should be messaging, voice and background flows
+        self.assertEqual([flow1, flow2, flow3], list(response.context["form"].fields["flow"].queryset))
+
+        self.assertCreateSubmit(
+            create_url,
+            {"flow": flow1.id},
+            new_obj_query=Trigger.objects.filter(flow=flow1, trigger_type=Trigger.TYPE_CLOSED_TICKET),
+            success_status=200,
+        )
+
+        # we can't create another...
+        self.assertCreateSubmit(
+            create_url,
+            {"flow": flow2.id},
+            form_errors={"__all__": "There already exists a trigger of this type with these options."},
+        )
+
     def test_update_keyword(self):
         flow = self.create_flow()
         group1 = self.create_group("Chat", contacts=[])
