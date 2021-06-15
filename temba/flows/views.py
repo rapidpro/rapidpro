@@ -43,7 +43,7 @@ from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
 from temba.orgs.models import IntegrationType, Org
-from temba.orgs.views import ModalMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit, str_to_bool
@@ -2093,12 +2093,20 @@ class FlowLabelCRUDL(SmartCRUDL):
     model = FlowLabel
     actions = ("create", "update", "delete")
 
-    class Delete(OrgObjPermsMixin, SmartDeleteView):
-        success_url = "@flows.flow_list"
+    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+        fields = ("uuid",)
         redirect_url = "@flows.flow_list"
         cancel_url = "@flows.flow_list"
         success_message = ""
         submit_button_name = _("Delete")
+
+        def get_success_url(self):
+            return reverse("flows.flow_list")
+
+        def post(self, request, *args, **kwargs):
+            self.object = self.get_object()
+            self.object.delete()
+            return self.render_modal_response()
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = FlowLabelForm
