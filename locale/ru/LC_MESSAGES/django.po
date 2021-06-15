@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-14 19:45+0000\n"
+"POT-Creation-Date: 2021-06-15 14:02+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -7044,17 +7044,9 @@ msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr ""
 
 #, fuzzy
-#| msgid ""
-#| "\n"
-#| "            You agreed to the these policies on %(day)s\n"
-#| "\n"
-#| "          "
+#| msgid "Please enter your password to save changes."
 msgid "Confirm your current password to save these changes"
-msgstr ""
-"\n"
-"            Вы согласились с этими политиками %(day)s\n"
-"\n"
-"          "
+msgstr "Пожалуйста, введите свой пароль для сохранения изменений."
 
 #, python-format
 msgid ""
@@ -7627,8 +7619,15 @@ msgstr ""
 msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr "Триггеры позволяют пользователям запускать потоки на основе действий пользователя или расписания."
 
-msgid "Start a flow after receiving a message not handled elsewhere."
+#, fuzzy
+#| msgid "Start a flow after receiving a message not handled elsewhere."
+msgid "Start a flow after receiving a message that doesn't match any keywords."
 msgstr "Запустите поток после получения сообщения, не обработанного где-либо еще."
+
+#, fuzzy
+#| msgid "Start a flow after a missed call."
+msgid "Start a flow after a ticket is closed."
+msgstr "Запустить поток после пропущенного звонка."
 
 msgid "Start a flow after receiving a call."
 msgstr "Запустите поток после получения звонка."

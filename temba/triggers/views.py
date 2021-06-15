@@ -202,6 +202,15 @@ class RegisterTriggerForm(BaseTriggerForm):
         fields = ("keyword", "action_join_group", "response") + BaseTriggerForm.Meta.fields
 
 
+class CatchAllTriggerForm(BaseTriggerForm):
+    """
+    Form for catchall triggers (incoming messages that don't match a keyword trigger)
+    """
+
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(user, Trigger.TYPE_CATCH_ALL, *args, **kwargs)
+
+
 class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
     repeat_period = forms.ChoiceField(
         choices=Schedule.REPEAT_CHOICES, label="Repeat", required=False, widget=SelectWidget()
@@ -328,13 +337,13 @@ class ReferralTriggerForm(BaseTriggerForm):
         fields = ("channel", "referrer_id") + BaseTriggerForm.Meta.fields
 
 
-class CatchAllTriggerForm(BaseTriggerForm):
+class ClosedTicketTriggerForm(BaseTriggerForm):
     """
-    Form for catchall triggers (incoming messages that don't match a keyword trigger)
+    Form for closed ticket triggers
     """
 
     def __init__(self, user, *args, **kwargs):
-        super().__init__(user, Trigger.TYPE_CATCH_ALL, *args, **kwargs)
+        super().__init__(user, Trigger.TYPE_CLOSED_TICKET, *args, **kwargs)
 
 
 class TriggerCRUDL(SmartCRUDL):
@@ -343,12 +352,13 @@ class TriggerCRUDL(SmartCRUDL):
         "create",
         "create_keyword",
         "create_register",
+        "create_catchall",
         "create_schedule",
         "create_inbound_call",
         "create_missed_call",
         "create_new_conversation",
         "create_referral",
-        "create_catchall",
+        "create_closed_ticket",
         "update",
         "list",
         "archived",
@@ -365,6 +375,7 @@ class TriggerCRUDL(SmartCRUDL):
             org_schemes = self.org.get_schemes(Channel.ROLE_RECEIVE)
             add_section("trigger-keyword", "triggers.trigger_create_keyword", "icon-tree")
             add_section("trigger-register", "triggers.trigger_create_register", "icon-users-2")
+            add_section("trigger-catchall", "triggers.trigger_create_catchall", "icon-bubble")
             add_section("trigger-schedule", "triggers.trigger_create_schedule", "icon-clock")
             add_section("trigger-inboundcall", "triggers.trigger_create_inbound_call", "icon-phone2")
             add_section("trigger-missedcall", "triggers.trigger_create_missed_call", "icon-phone")
@@ -375,7 +386,7 @@ class TriggerCRUDL(SmartCRUDL):
             if ContactURN.SCHEMES_SUPPORTING_REFERRALS.intersection(org_schemes):
                 add_section("trigger-referral", "triggers.trigger_create_referral", "icon-exit")
 
-            add_section("trigger-catchall", "triggers.trigger_create_catchall", "icon-bubble")
+            add_section("trigger-closed-ticket", "triggers.trigger_create_closed_ticket", "icon-ticket")
 
     class BaseCreate(OrgPermsMixin, ComponentFormMixin, SmartCreateView):
         permission = "triggers.trigger_create"
@@ -446,6 +457,9 @@ class TriggerCRUDL(SmartCRUDL):
             response["REDIRECT"] = self.get_success_url()
             return response
 
+    class CreateCatchall(BaseCreate):
+        form_class = CatchAllTriggerForm
+
     class CreateSchedule(BaseCreate):
         form_class = ScheduleTriggerForm
         title = _("Create Schedule")
@@ -514,19 +528,20 @@ class TriggerCRUDL(SmartCRUDL):
         def get_create_kwargs(self, cleaned_data):
             return {"channel": cleaned_data["channel"], "referrer_id": cleaned_data["referrer_id"]}
 
-    class CreateCatchall(BaseCreate):
-        form_class = CatchAllTriggerForm
+    class CreateClosedTicket(BaseCreate):
+        form_class = ClosedTicketTriggerForm
 
     class Update(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
         success_message = ""
         trigger_forms = {
             Trigger.TYPE_KEYWORD: KeywordTriggerForm,
+            Trigger.TYPE_CATCH_ALL: CatchAllTriggerForm,
             Trigger.TYPE_SCHEDULE: ScheduleTriggerForm,
             Trigger.TYPE_INBOUND_CALL: InboundCallTriggerForm,
             Trigger.TYPE_MISSED_CALL: MissedCallTriggerForm,
             Trigger.TYPE_NEW_CONVERSATION: NewConversationTriggerForm,
             Trigger.TYPE_REFERRAL: ReferralTriggerForm,
-            Trigger.TYPE_CATCH_ALL: CatchAllTriggerForm,
+            Trigger.TYPE_CLOSED_TICKET: ClosedTicketTriggerForm,
         }
 
         def get_form_class(self):

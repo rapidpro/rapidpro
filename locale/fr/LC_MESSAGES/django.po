@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-14 19:45+0000\n"
+"POT-Creation-Date: 2021-06-15 14:02+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -7100,17 +7100,9 @@ msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Crédits complémentaires, merci d'essayer %(brand)s."
 
 #, fuzzy
-#| msgid ""
-#| "\n"
-#| "            You agreed to the these policies on %(day)s\n"
-#| "\n"
-#| "          "
+#| msgid "Please enter your password to save changes."
 msgid "Confirm your current password to save these changes"
-msgstr ""
-"\n"
-"            Vous avez accepté ces politiques le %(day)s\n"
-"\n"
-"          "
+msgstr "S'il vous plaît, entrez votre mot de passe pour enregistrer les modifications."
 
 #, fuzzy, python-format
 #| msgid ""
@@ -7769,8 +7761,15 @@ msgstr "Ajoutez un compte pour le canal et entrez <code>%(secret)s</code> comme 
 msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr "Déclencheurs permettent aux utilisateurs de démarrer des flux basée sur les actions de l'utilisateur ou les plannings"
 
-msgid "Start a flow after receiving a message not handled elsewhere."
+#, fuzzy
+#| msgid "Start a flow after receiving a message not handled elsewhere."
+msgid "Start a flow after receiving a message that doesn't match any keywords."
 msgstr "Lancer un flux après réception d'un message n'est pas manipulé ailleurs"
+
+#, fuzzy
+#| msgid "Start a flow after a missed call."
+msgid "Start a flow after a ticket is closed."
+msgstr "Lancer un flux après un appel manqué."
 
 msgid "Start a flow after receiving a call."
 msgstr "Démarrer un flux après avoir reçu un appel."
