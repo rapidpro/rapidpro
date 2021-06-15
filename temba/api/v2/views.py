@@ -4444,7 +4444,7 @@ class ReportEndpointMixin:
     def get_paginated_queryset(self, queryset):
         pagination_class: CursorPagination = getattr(self, "pagination_class", CreatedOnCursorPagination)()
         pagination_class.page_size_query_param = "page_size"
-        pagination_class.page_size = getattr(self, "chunk_size", 2000)
+        pagination_class.page_size = min(getattr(self, "chunk_size", 2000), 2000)
         pagination_class.paginate_queryset(queryset, self.request, self)
         return pagination_class.page, pagination_class.get_next_link()
 
@@ -4723,11 +4723,6 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     * **after** - Date, excludes all contacts from the report that were modified earlier a certain date
     * **variables** - the values configuration to be included into report
 
-    This report can't be performed in one request so the report is being split into chunks,
-    you should follow the `next` link until it's `null` and merge data using your script.
-    * **next** - Url to get next chunk of the report.
-    * **page_size** - Number of contacts to process per one request.
-
     Example:
 
         POST /api/v2/contact_variable_report.json
@@ -4866,11 +4861,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                 dict(name="before", required=False, help="Last modified until"),
                 dict(name="variables", required=True, help="Configuration for fields to generate report"),
             ],
-            params=[
-                dict(name="cursor", required=False, help="The start position of next chunk"),
-                dict(name="page_size", required=False, help="Number of runs to process per one request"),
-                dict(name="export_csv", required=False, help="Generate report in CSV format"),
-            ],
+            params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
                 body=json.dumps(
                     {
@@ -4896,11 +4887,6 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     * **channel** - UUID or Name of channel to select only messages related to specific channel
     * **after** - Date, excludes all messages from the report that were created earlier a certain date
     * **before** - Date, excludes all messages from the report that were created later a certain date
-
-    This report can't be performed in one request so the report is being split into chunks,
-    you should follow the `next` link until it's `null` and merge data using your script.
-    * **next** - Url to get next chunk of the report.
-    * **page_size** - Number of messages to process per one request.
 
     Example:
 
@@ -5021,11 +5007,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                 dict(name="channel", required=False, help="Select messages sent via specific channel"),
                 dict(name="exclude", required=False, help="Contact group to exclude"),
             ],
-            params=[
-                dict(name="cursor", required=False, help="The start position of next chunk"),
-                dict(name="page_size", required=False, help="Number of messages to process per one request"),
-                dict(name="export_csv", required=False, help="Generate report in CSV format"),
-            ],
+            params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
                 body=json.dumps(
                     {
@@ -5083,11 +5065,6 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     * **started_before** - Date, excludes all runs from the report that were started later a certain date
     * **exited_after** - Date, excludes all runs from the report that were exited earlier a certain date
     * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
-
-    This report can't be performed in one request so the report is being split into chunks,
-    you should follow the `next` link until it's `null` and merge data using your script.
-    * **next** - Url to get next chunk of the report.
-    * **page_size** - Number of runs to process per one request
 
     Example:
 
@@ -5187,11 +5164,7 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                     name="exited_before", required=False, help="Count only runs that were exited before a certain date"
                 ),
             ],
-            params=[
-                dict(name="cursor", required=False, help="The start position of next chunk"),
-                dict(name="page_size", required=False, help="Number of runs to process per one request"),
-                dict(name="export_csv", required=False, help="Generate report in CSV format"),
-            ],
+            params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
                 body=json.dumps(
                     {
@@ -5223,11 +5196,6 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     * **exited_after** - Date, excludes all runs from the report that were exited earlier a certain date
     * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
     * **variables** - configuration which define the fields to be included in the report
-
-    This report can't be performed in one request so the report is being split into chunks,
-    you should follow the `next` link until it's `null` and merge data using your script.
-    * **next** - Url to get next chunk of the report.
-    * **page_size** - Number of runs to process per one request.
 
     Example:
 
@@ -5357,11 +5325,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 ),
                 dict(name="variables", required=True, help="Configuration for fields to generate report"),
             ],
-            params=[
-                dict(name="cursor", required=False, help="The start position of next chunk"),
-                dict(name="page_size", required=False, help="Number of runs to process per one request"),
-                dict(name="export_csv", required=False, help="Generate report in CSV format"),
-            ],
+            params=[dict(name="export_csv", required=False, help="Generate report in CSV format")],
             example=dict(
                 body=json.dumps(
                     {
