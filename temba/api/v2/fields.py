@@ -59,7 +59,7 @@ class TranslatableField(serializers.Field):
 
     def to_internal_value(self, data):
         org = self.context["org"]
-        base_language = org.primary_language.iso_code if org.primary_language else "base"
+        base_language = org.flow_languages[0] if org.flow_languages else "base"
 
         if isinstance(data, str):
             if len(data) > self.max_length:

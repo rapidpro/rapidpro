@@ -41,8 +41,8 @@ class Command(BaseCommand):  # pragma: no cover
         # print each org and the languages it uses
         for org in orgs:
             print(f"{org.name} (#{org.id})")
-            for lang in org.languages.all():
-                name, alpha_3, alpha_2 = "", lang.iso_code, ""
+            for alpha_3 in org.flow_languages:
+                name, alpha_2 = "", ""
                 language = pycountry.languages.get(alpha_3=alpha_3)
                 if language:
                     name = language.name

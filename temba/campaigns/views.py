@@ -366,7 +366,7 @@ class CampaignEventForm(forms.ModelForm):
             if self.instance.id:
                 base_language = self.instance.flow.base_language
             else:
-                base_language = org.primary_language.iso_code if org.primary_language else "base"
+                base_language = org.flow_languages[0] if org.flow_languages else "base"
 
             translations = {}
             for language in self.languages:
@@ -418,7 +418,7 @@ class CampaignEventForm(forms.ModelForm):
             insert = None
 
             # if it's our primary language, allow use to steal the 'base' message
-            if org.primary_language and org.primary_language.iso_code == lang_code:
+            if org.flow_languages and org.flow_languages[0] == lang_code:
                 initial = message.get(lang_code, "")
 
                 if not initial:

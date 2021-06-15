@@ -4,7 +4,7 @@ from django.db import migrations
 from django.db.models import Prefetch
 
 
-def populate_flow_languages(apps, schema_editor):
+def populate_flow_languages(apps, schema_editor):  # pragma: no cover
     Org = apps.get_model("orgs", "Org")
     Language = apps.get_model("orgs", "Language")
 
@@ -26,7 +26,7 @@ def populate_flow_languages(apps, schema_editor):
         org.save(update_fields=("flow_languages",))
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

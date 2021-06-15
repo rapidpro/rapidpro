@@ -384,8 +384,8 @@ class FlowCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
                 self.user = user
 
-                org_languages = self.user.get_org().languages.all().order_by("orgs", "name")
-                language_choices = ((lang.iso_code, lang.name) for lang in org_languages)
+                org = self.user.get_org()
+                language_choices = languages.choices(org.flow_languages)
 
                 # prune our type choices by brand config
                 allowed_types = branding.get("flow_types")
@@ -394,7 +394,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 self.fields["base_language"] = forms.ChoiceField(
                     label=_("Language"),
-                    initial=self.user.get_org().primary_language,
+                    initial=org.flow_languages[0] if org.flow_languages else None,
                     choices=language_choices,
                     widget=SelectWidget(attrs={"widget_only": False}),
                 )
@@ -414,7 +414,7 @@ class FlowCRUDL(SmartCRUDL):
             org = user.get_org()
             exclude = []
 
-            if not org.primary_language:
+            if not org.flow_languages:
                 exclude.append("base_language")
 
             return exclude

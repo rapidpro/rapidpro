@@ -2106,17 +2106,14 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(call_flow.flow_type, Flow.TYPE_VOICE)
 
         # test creating a flow with base language
-        # create the language for our org
-        language = Language.create(self.org, flow.created_by, "English", "eng")
-        self.org.primary_language = language
-        self.org.save()
+        self.org.set_flow_languages(self.admin, ["eng"], primary="eng")
 
         response = self.client.post(
             reverse("flows.flow_create"),
             {
                 "name": "Language Flow",
                 "expires_after_minutes": 5,
-                "base_language": language.iso_code,
+                "base_language": "eng",
                 "flow_type": Flow.TYPE_MESSAGE,
             },
             follow=True,
@@ -2126,7 +2123,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[language_flow.uuid]))
-        self.assertEqual(language_flow.base_language, language.iso_code)
+        self.assertEqual(language_flow.base_language, "eng")
 
     def test_update_messaging_flow(self):
         flow = self.get_flow("color_v13")
