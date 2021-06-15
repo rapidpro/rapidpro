@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-11 17:51+0000\n"
+"POT-Creation-Date: 2021-06-15 14:02+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3167,9 +3167,6 @@ msgstr "Se esta organização pode ter áreas de trabalho filhas."
 msgid "Whether this organization can have multiple logins"
 msgstr "Se esta organização pode ter múltiplos logins."
 
-msgid "The primary language will be used for contacts with no language preference."
-msgstr "O idioma primário será usado para contatos com nenhuma preferência de idioma."
-
 msgid "Brand"
 msgstr "Marca"
 
@@ -3181,6 +3178,9 @@ msgstr "Uma senha que permite aos usuários se registrarem como pesquisadores"
 
 msgid "The parent org that manages this org"
 msgstr "A organização pai que gerencia essa organização"
+
+msgid "The primary language will be used for contacts with no language preference."
+msgstr "O idioma primário será usado para contatos com nenhuma preferência de idioma."
 
 #, python-format
 msgid "Invalid bundle: %s, cannot upgrade."
@@ -3359,6 +3359,11 @@ msgstr "E-mail"
 
 msgid "Current Password"
 msgstr "Senha atual"
+
+#, fuzzy
+#| msgid "POST Required"
+msgid "Password Required"
+msgstr "POST obrigatório"
 
 msgid "New Password"
 msgstr "Nova senha"
@@ -7105,10 +7110,20 @@ msgstr "Obrigado por apoiar %(brand)s."
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Créditos complementares, obrigado por testar %(brand)s."
 
-#, python-format
+#, fuzzy
+#| msgid "Please enter your password to save changes."
+msgid "Confirm your current password to save these changes"
+msgstr "Por favor, insira sua senha para salvar as alterações"
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "    Your email address is <b>%(email)s</b>.\n"
+#| "  "
 msgid ""
 "\n"
 "    Your email address is <b>%(email)s</b>.\n"
+"\n"
 "  "
 msgstr ""
 "\n"

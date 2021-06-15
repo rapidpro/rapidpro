@@ -686,7 +686,9 @@ class UserCRUDL(SmartCRUDL):
             last_name = forms.CharField(label=_("Last Name"), widget=InputWidget(attrs={"placeholder": _("Required")}))
             email = forms.EmailField(required=True, label=_("Email"), widget=InputWidget())
             current_password = forms.CharField(
-                label=_("Current Password"), widget=InputWidget(attrs={"placeholder": _("Required"), "password": True})
+                required=False,
+                label=_("Current Password"),
+                widget=InputWidget({"widget_only": True, "placeholder": _("Password Required"), "password": True}),
             )
             new_password = forms.CharField(
                 required=False,
@@ -707,8 +709,10 @@ class UserCRUDL(SmartCRUDL):
                 user = self.instance
                 password = self.cleaned_data.get("current_password", None)
 
-                if not user.check_password(password):
-                    raise forms.ValidationError(_("Please enter your password to save changes."))
+                # password is required to change your email address or set a new password
+                if self.data.get("new_password", None) or self.data.get("email", None) != user.email:
+                    if not user.check_password(password):
+                        raise forms.ValidationError(_("Please enter your password to save changes."))
 
                 return password
 

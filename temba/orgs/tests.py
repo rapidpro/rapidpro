@@ -52,6 +52,7 @@ from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     CRUDLTestMixin,
     ESMockWithScroll,
+    MigrationTest,
     MockResponse,
     TembaNonAtomicTest,
     TembaTest,
@@ -5278,3 +5279,47 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
+
+
+class PopulateFlowLanguagesTest(MigrationTest):
+    app = "orgs"
+    migrate_from = "0085_org_flow_languages"
+    migrate_to = "0086_populate_org_flow_languages"
+
+    def setUpBeforeMigration(self, apps):
+        def create_org(langs: list, primary: str, flow_langs: list):
+            org = Org.objects.create(
+                name="Acme",
+                created_by=self.admin,
+                modified_by=self.admin,
+                flow_languages=flow_langs,
+            )
+
+            for lang in langs:
+                Language.create(org, self.admin, "X", iso_code=lang)
+            if primary:
+                org.primary_language = org.languages.get(iso_code=primary)
+                org.save(update_fields=("primary_language",))
+            return org
+
+        # org with no languages
+        self.org1 = create_org(langs=[], primary="", flow_langs=[])
+
+        # new org with flow languages default
+        self.org2 = create_org(langs=[], primary="", flow_langs=["eng"])
+
+        # single language org, not yet set
+        self.org3 = create_org(langs=["spa"], primary="spa", flow_langs=[])
+
+        # multi language org, not yet set
+        self.org4 = create_org(langs=["spa", "eng", "fra"], primary="fra", flow_langs=[])
+
+    def test_migration(self):
+        def assert_flow_langs(org, expected):
+            org.refresh_from_db()
+            self.assertEqual(expected, org.flow_languages)
+
+        assert_flow_langs(self.org1, [])
+        assert_flow_langs(self.org2, ["eng"])
+        assert_flow_langs(self.org3, ["spa"])
+        assert_flow_langs(self.org4, ["fra", "spa", "eng"])

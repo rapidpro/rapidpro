@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-11 17:51+0000\n"
+"POT-Creation-Date: 2021-06-15 14:02+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -3161,9 +3161,6 @@ msgstr "Si esta organización puede tener espacios de trabajo secundarios"
 msgid "Whether this organization can have multiple logins"
 msgstr "Si esta organización puede tener varios logins"
 
-msgid "The primary language will be used for contacts with no language preference."
-msgstr "Para los contactos sin preferencia de idioma, se usará el idioma principal"
-
 msgid "Brand"
 msgstr "Marca"
 
@@ -3175,6 +3172,9 @@ msgstr "Una contraseña que permite a los usuarios registrarse como Surveyors."
 
 msgid "The parent org that manages this org"
 msgstr "La organización principal que gestiona esta organización"
+
+msgid "The primary language will be used for contacts with no language preference."
+msgstr "Para los contactos sin preferencia de idioma, se usará el idioma principal"
 
 #, python-format
 msgid "Invalid bundle: %s, cannot upgrade."
@@ -3353,6 +3353,11 @@ msgstr "Correo electrónico"
 
 msgid "Current Password"
 msgstr "contraseña actual"
+
+#, fuzzy
+#| msgid "POST Required"
+msgid "Password Required"
+msgstr "AVISO requerido"
 
 msgid "New Password"
 msgstr "Nueva contraseña"
@@ -7100,10 +7105,20 @@ msgstr "Gracias por apoyar %(brand)s."
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Créditos complementarios, gracias por probar %(brand)s."
 
-#, python-format
+#, fuzzy
+#| msgid "Please enter your password to save changes."
+msgid "Confirm your current password to save these changes"
+msgstr "Por favor, ingrese su contraseña para guardar los cambios."
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "    Your email address is <b>%(email)s</b>.\n"
+#| "  "
 msgid ""
 "\n"
 "    Your email address is <b>%(email)s</b>.\n"
+"\n"
 "  "
 msgstr ""
 "\n"

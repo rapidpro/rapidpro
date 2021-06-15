@@ -415,7 +415,7 @@ class CampaignEventForm(forms.ModelForm):
         # add in all of our languages for message forms
         lang_codes = org.get_language_codes()
 
-        for lang_code in lang_codes:
+        for lang_code in sorted(lang_codes):
             lang_name = languages.get_name(lang_code)
             insert = None
 
