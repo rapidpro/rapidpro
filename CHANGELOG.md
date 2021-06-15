@@ -1,3 +1,7 @@
+v6.3.72
+----------
+ * Add CSRF tokens to modaxes
+
 v6.3.70
 ----------
  * Add CSRF token to modax form
