@@ -896,11 +896,6 @@ class Org(SmartModel):
                 self.primary_language = language
                 self.save(update_fields=("primary_language",))
 
-        # unset the primary language if not in the new list of codes
-        if self.primary_language and self.primary_language.iso_code not in iso_codes:
-            self.primary_language = None
-            self.save(update_fields=("primary_language",))
-
         # remove any languages that are not in the new list
         self.languages.exclude(iso_code__in=iso_codes).delete()
 
