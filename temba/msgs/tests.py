@@ -273,7 +273,7 @@ class MsgTest(TembaTest):
                 quick_replies=[dict(eng="Yes"), dict(eng="No")],
             )
 
-        self.org.set_flow_languages(self.admin, ["eng", "fra"], primary="fra")
+        self.org.set_flow_languages(self.admin, ["eng", "fra"], primary="eng")
 
         broadcast = Broadcast.create(
             self.org,
