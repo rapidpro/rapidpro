@@ -23,6 +23,7 @@ from temba.ivr.models import IVRCall
 from temba.locations.models import AdminBoundary, BoundaryAlias
 from temba.msgs.models import HANDLED, INBOX, INCOMING, OUTGOING, PENDING, SENT, Broadcast, Label, Msg
 from temba.orgs.models import Org, OrgRole
+from temba.tickets.models import Ticket, TicketEvent
 from temba.utils import json
 from temba.utils.uuid import UUID, uuid4
 
@@ -552,6 +553,32 @@ class TembaTestMixin:
             event_type=event_type,
             extra=extra,
         )
+
+    def create_ticket(
+        self, ticketer, contact, subject, body="", opened_on=None, opened_by=None, closed_on=None, closed_by=None
+    ):
+        if not opened_on:
+            opened_on = timezone.now()
+
+        ticket = Ticket.objects.create(
+            org=self.org,
+            ticketer=ticketer,
+            contact=contact,
+            subject=subject,
+            body=body,
+            status=Ticket.STATUS_CLOSED if closed_on else Ticket.STATUS_OPEN,
+            opened_on=opened_on,
+            closed_on=closed_on,
+        )
+        TicketEvent.objects.create(
+            org=ticket.org, ticket=ticket, event_type=TicketEvent.TYPE_OPENED, created_by=opened_by
+        )
+        if closed_on:
+            TicketEvent.objects.create(
+                org=ticket.org, ticket=ticket, event_type=TicketEvent.TYPE_CLOSED, created_by=closed_by
+            )
+
+        return ticket
 
     def set_contact_field(self, contact, key, value):
         update_field_locally(self.admin, contact, key, value)

@@ -52,6 +52,14 @@ class Event:
     TYPE_CHANNEL_EVENT = "channel_event"
     TYPE_FLOW_EXITED = "flow_exited"
 
+    ticket_event_types = {
+        TicketEvent.TYPE_OPENED: TYPE_TICKET_OPENED,
+        TicketEvent.TYPE_ASSIGNED: TYPE_TICKET_ASSIGNED,
+        TicketEvent.TYPE_NOTE: TYPE_TICKET_NOTE_ADDED,
+        TicketEvent.TYPE_CLOSED: TYPE_TICKET_CLOSED,
+        TicketEvent.TYPE_REOPENED: TYPE_TICKET_REOPENED,
+    }
+
     @classmethod
     def from_history_item(cls, org: Org, user: User, item) -> dict:
         if isinstance(item, dict):  # already an event
@@ -183,37 +191,9 @@ class Event:
         }
 
     @classmethod
-    def from_ticket(cls, org: Org, user: User, obj: Ticket) -> dict:
-        # TODO: This will be replaced with ticket events for open and closed
-        return {
-            "type": cls.TYPE_TICKET_CLOSED if obj.status == Ticket.STATUS_CLOSED else cls.TYPE_TICKET_CLOSED,
-            "ticket": {
-                "uuid": obj.uuid,
-                "opened_on": obj.opened_on,
-                "closed_on": obj.closed_on,
-                "status": obj.status,
-                "subject": obj.subject,
-                "body": obj.body,
-                "ticketer": {"uuid": obj.ticketer.uuid, "name": obj.ticketer.name},
-            },
-            "created_on": get_event_time(obj).isoformat(),
-        }
-
-    @classmethod
     def from_ticket_event(cls, org: Org, user: User, obj: TicketEvent) -> dict:
-
-        event_type = cls.TYPE_TICKET_OPENED
-        if obj.event_type == TicketEvent.TYPE_NOTE:
-            event_type = cls.TYPE_TICKET_NOTE_ADDED
-        elif obj.event_type == TicketEvent.TYPE_CLOSED:  # pragma: needs cover
-            event_type = cls.TYPE_TICKET_CLOSED
-        elif obj.event_type == TicketEvent.TYPE_ASSIGNED:  # pragma: needs cover
-            event_type = cls.TYPE_TICKET_ASSIGNED
-        elif obj.event_type == TicketEvent.TYPE_REOPENED:  # pragma: needs cover
-            event_type = cls.TYPE_TICKET_REOPENED
-
         return {
-            "type": event_type,
+            "type": cls.ticket_event_types[obj.event_type],
             "note": obj.note,
             "ticket": {
                 "uuid": str(obj.ticket.uuid),
@@ -311,7 +291,6 @@ event_renderers = {
     IVRCall: Event.from_ivr_call,
     Msg: Event.from_msg,
     TicketEvent: Event.from_ticket_event,
-    Ticket: Event.from_ticket,
     WebHookResult: Event.from_webhook_result,
 }
 
