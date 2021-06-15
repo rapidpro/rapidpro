@@ -216,21 +216,16 @@ class Event:
             "type": event_type,
             "note": obj.note,
             "ticket": {
-                "uuid": obj.ticket.uuid,
-                "opened_on": obj.ticket.opened_on,
-                "closed_on": obj.ticket.closed_on,
+                "uuid": str(obj.ticket.uuid),
+                "opened_on": obj.ticket.opened_on.isoformat(),
+                "closed_on": obj.ticket.closed_on.isoformat() if obj.ticket.closed_on else None,
                 "status": obj.ticket.status,
                 "subject": obj.ticket.subject,
                 "body": obj.ticket.body,
-                "ticketer": {"uuid": obj.ticket.ticketer.uuid, "name": obj.ticket.ticketer.name},
+                "ticketer": {"uuid": str(obj.ticket.ticketer.uuid), "name": obj.ticket.ticketer.name},
             },
             "created_on": get_event_time(obj).isoformat(),
-            "created_by": {
-                "id": obj.id,
-                "first_name": obj.created_by.first_name,
-                "last_name": obj.created_by.last_name,
-                "email": obj.created_by.email,
-            },
+            "created_by": _user(obj.created_by) if obj.created_by else None,
         }
 
     @classmethod
@@ -295,6 +290,15 @@ def _base_msg(obj) -> dict:
         d["attachments"] = obj.attachments
 
     return d
+
+
+def _user(user: User) -> dict:
+    return {
+        "id": user.id,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "email": user.email,
+    }
 
 
 # map of history item types to methods to render them as events

@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-15 14:02+0000\n"
+"POT-Creation-Date: 2021-06-15 15:56+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -7831,6 +7831,11 @@ msgstr "La identificación de referencia"
 
 msgid "on the channel"
 msgstr "en el canal"
+
+#, fuzzy
+#| msgid "Closed Tickets"
+msgid "A closed ticket"
+msgstr "Tickets Cerradas"
 
 msgid "starts"
 msgstr "empieza"
