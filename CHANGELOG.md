@@ -1,3 +1,8 @@
+v6.3.73
+----------
+ * Backfill ticket open and close events
+ * Add support for closed ticket triggers
+
 v6.3.72
 ----------
  * Add CSRF tokens to modaxes
