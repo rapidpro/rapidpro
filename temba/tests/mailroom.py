@@ -182,7 +182,7 @@ class TestClient(MailroomClient):
     @_client_method
     def ticket_close(self, org_id, user_id, ticket_ids):
         tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_OPEN, id__in=ticket_ids)
-        tickets.update(status=Ticket.STATUS_CLOSED)
+        tickets.update(status=Ticket.STATUS_CLOSED, closed_on=timezone.now())
 
         for ticket in tickets:
             ticket.events.create(org_id=org_id, event_type=TicketEvent.TYPE_CLOSED, created_by_id=user_id)
@@ -192,7 +192,7 @@ class TestClient(MailroomClient):
     @_client_method
     def ticket_reopen(self, org_id, user_id, ticket_ids):
         tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_CLOSED, id__in=ticket_ids)
-        tickets.update(status=Ticket.STATUS_OPEN)
+        tickets.update(status=Ticket.STATUS_OPEN, closed_on=None)
 
         for ticket in tickets:
             ticket.events.create(org_id=org_id, event_type=TicketEvent.TYPE_REOPENED, created_by_id=user_id)
