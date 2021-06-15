@@ -561,7 +561,7 @@ class TembaTestMixin:
             opened_on = timezone.now()
 
         ticket = Ticket.objects.create(
-            org=self.org,
+            org=ticketer.org,
             ticketer=ticketer,
             contact=contact,
             subject=subject,
