@@ -46,25 +46,17 @@ class BaseTriggerForm(forms.ModelForm):
 
     groups = TembaMultipleChoiceField(
         queryset=ContactGroup.user_groups.none(),
-        label=_("Group Filtering"),
+        label=_("Groups To Include"),
+        help_text=_("Only includes contacts in these groups."),
         required=False,
-        widget=SelectMultipleWidget(
-            attrs={
-                "icons": True,
-                "placeholder": _("Optional: trigger only includes contacts in these groups"),
-            }
-        ),
+        widget=SelectMultipleWidget(attrs={"icons": True, "placeholder": _("Optional: Select contact groups")}),
     )
     exclude_groups = TembaMultipleChoiceField(
         queryset=ContactGroup.user_groups.none(),
+        label=_("Groups To Exclude"),
+        help_text=_("Excludes contacts in these groups."),
         required=False,
-        widget=SelectMultipleWidget(
-            attrs={
-                "icons": True,
-                "widget_only": True,
-                "placeholder": _("Optional: trigger will exclude contacts in these groups"),
-            }
-        ),
+        widget=SelectMultipleWidget(attrs={"icons": True, "placeholder": _("Optional: Select contact groups")}),
     )
 
     def __init__(self, user, trigger_type, *args, **kwargs):

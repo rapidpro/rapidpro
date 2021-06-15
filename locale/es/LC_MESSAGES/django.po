@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-15 15:56+0000\n"
+"POT-Creation-Date: 2021-06-15 17:48+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -4012,22 +4012,30 @@ msgstr "El mensaje contiene solo la palabra clave"
 msgid "Keyword"
 msgstr "Palabra clave"
 
-msgid "Word to match in the message text"
+#, fuzzy
+#| msgid "Word to match in the message text"
+msgid "Word to match in the message text."
 msgstr "Palabra para que coincida en el texto del mensaje"
 
 msgid "Flow"
 msgstr "Flujo"
 
-msgid "Which flow will be started"
+#, fuzzy
+#| msgid "Which flow will be started"
+msgid "Which flow will be started."
 msgstr "Qué flujo se iniciará"
 
 msgid "Trigger When"
 msgstr "Activar cuando"
 
-msgid "How to match a message with a keyword"
+#, fuzzy
+#| msgid "How to match a message with a keyword"
+msgid "How to match a message with a keyword."
 msgstr "Cómo hacer coincidir un mensaje con una palabra clave"
 
-msgid "The associated channel"
+#, fuzzy
+#| msgid "The associated channel"
+msgid "The associated channel."
 msgstr "El canal asociado"
 
 msgid "Select a flow"
@@ -4035,17 +4043,25 @@ msgstr "Seleccione un flujo"
 
 #, fuzzy
 #| msgid "Group to Join"
-msgid "Group Filtering"
+msgid "Groups To Include"
 msgstr "Grupo para participar"
 
 #, fuzzy
 #| msgid "Optional: Trigger only applies to these groups"
-msgid "Optional: trigger only includes contacts in these groups"
+msgid "Only includes contacts in these groups."
 msgstr "Opcional: el activador solo se aplica a estos grupos"
 
 #, fuzzy
 #| msgid "Optional: Trigger only applies to these groups"
-msgid "Optional: trigger will exclude contacts in these groups"
+msgid "Optional: Select contact groups"
+msgstr "Opcional: el activador solo se aplica a estos grupos"
+
+msgid "Groups To Exclude"
+msgstr ""
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Excludes contacts in these groups."
 msgstr "Opcional: el activador solo se aplica a estos grupos"
 
 #, fuzzy
@@ -7874,6 +7890,11 @@ msgstr "Las plantillas se sincronizan desde su cuenta de WhatsApp cada 15 minuto
 
 msgid "No synced templates at this time."
 msgstr "No hay plantillas sincronizadas en este momento."
+
+#, fuzzy
+#~| msgid "Group to Join"
+#~ msgid "Group Filtering"
+#~ msgstr "Grupo para participar"
 
 #, fuzzy
 #~| msgid "There is already a channel configured for this URL."

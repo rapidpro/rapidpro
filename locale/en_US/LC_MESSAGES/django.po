@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-15 15:56+0000\n"
+"POT-Creation-Date: 2021-06-15 17:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3932,34 +3932,40 @@ msgstr ""
 msgid "Keyword"
 msgstr ""
 
-msgid "Word to match in the message text"
+msgid "Word to match in the message text."
 msgstr ""
 
 msgid "Flow"
 msgstr ""
 
-msgid "Which flow will be started"
+msgid "Which flow will be started."
 msgstr ""
 
 msgid "Trigger When"
 msgstr ""
 
-msgid "How to match a message with a keyword"
+msgid "How to match a message with a keyword."
 msgstr ""
 
-msgid "The associated channel"
+msgid "The associated channel."
 msgstr ""
 
 msgid "Select a flow"
 msgstr ""
 
-msgid "Group Filtering"
+msgid "Groups To Include"
 msgstr ""
 
-msgid "Optional: trigger only includes contacts in these groups"
+msgid "Only includes contacts in these groups."
 msgstr ""
 
-msgid "Optional: trigger will exclude contacts in these groups"
+msgid "Optional: Select contact groups"
+msgstr ""
+
+msgid "Groups To Exclude"
+msgstr ""
+
+msgid "Excludes contacts in these groups."
 msgstr ""
 
 msgid "Must be a single word containing only letters and numbers."
