@@ -4358,7 +4358,9 @@ class APITest(TembaTest):
         self.assertEqual(1, len(resp_json["results"]))
         self.assertEqual("Mailgun (bob@acme.com)", resp_json["results"][0]["name"])
 
-    def test_tickets(self):
+    @patch("temba.mailroom.client.MailroomClient.ticket_close")
+    @patch("temba.mailroom.client.MailroomClient.ticket_reopen")
+    def test_tickets(self, mock_ticket_reopen, mock_ticket_close):
         url = reverse("api.v2.tickets")
         self.assertEndpointAccess(url)
 
@@ -4444,17 +4446,11 @@ class APITest(TembaTest):
         # close one of the tickets
         self.postJSON(url, f"uuid={ticket1.uuid}", {"status": "closed"})
 
-        # make sure it shows as closed with a closed_on date
-        response = self.fetchJSON(url)
-        resp_json = response.json()
-        updated = resp_json["results"][2]
-        self.assertEqual(updated["status"], "closed")
-        self.assertIsNotNone(updated["closed_on"])
+        # check that triggered a call to mailroom
+        mock_ticket_close.assert_called_once_with(self.org.id, self.admin.id, [ticket1.id])
 
-        # reopen that ticket
-        self.postJSON(url, f"uuid={ticket1.uuid}", {"status": "open"})
-        response = self.fetchJSON(url)
-        resp_json = response.json()
-        updated = resp_json["results"][1]
-        self.assertEqual(updated["status"], "open")
-        self.assertIsNone(updated["closed_on"])
+        # reopen a ticket
+        self.postJSON(url, f"uuid={ticket2.uuid}", {"status": "open"})
+
+        # check that triggered a call to mailroom
+        mock_ticket_reopen.assert_called_once_with(self.org.id, self.admin.id, [ticket2.id])
