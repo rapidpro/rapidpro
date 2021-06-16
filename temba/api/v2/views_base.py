@@ -252,7 +252,12 @@ class CreatedOnCursorPagination(CursorPagination):
 
 
 class ModifiedOnCursorPagination(CursorPagination):
-    ordering = ("-modified_on", "-id")
+    def get_ordering(self, request, queryset, view):
+        if request.GET.get("reverse", "") == "true":
+            return "modified_on", "id"
+        else:
+            return "-modified_on", "-id"
+
     offset_cutoff = 1000000
 
 

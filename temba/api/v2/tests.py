@@ -1627,6 +1627,15 @@ class APITest(TembaTest):
             },
         )
 
+        # reversed
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
+            response = self.fetchJSON(url, "reverse=true")
+
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertResultsByUUID(response, [self.frank, contact1, contact2, self.joe, contact4])
+
         # filter by UUID
         response = self.fetchJSON(url, "uuid=%s" % contact2.uuid)
         self.assertResultsByUUID(response, [contact2])
@@ -3496,6 +3505,14 @@ class APITest(TembaTest):
             },
             resp_json["results"][4],
         )
+
+        # reversed
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+            response = self.fetchJSON(url, "reverse=true")
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(None, response.json()["next"])
+        self.assertResultsById(response, [joe_run1, frank_run1, frank_run2, joe_run2, joe_run3])
 
         # filter by id
         response = self.fetchJSON(url, "id=%d" % frank_run2.pk)
