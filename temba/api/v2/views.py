@@ -4571,6 +4571,9 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
     * **modified_after** - Date, excludes all contacts from the report that were modified earlier a certain date
     * **modified_before** - Date, excludes all contacts from the report that were modified later a certain date
 
+    This report can't be performed in one request so the report is being split into chunks,
+    you should follow the `next` link until it's `null` and merge data using your script.
+    * **next** - Url to get next chunk of the report.
 
     Example:
 
@@ -4692,6 +4695,10 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     * **modified_after** - Date, excludes all contacts from the report that were modified earlier a certain date
     * **modified_before** - Date, excludes all contacts from the report that were modified later a certain date
     * **variables** - the values configuration to be included into report
+
+    This report can't be performed in one request so the report is being split into chunks,
+    you should follow the `next` link until it's `null` and merge data using your script.
+    * **next** - Url to get next chunk of the report.
 
     Example:
 
@@ -4878,6 +4885,10 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     * **after** - Date, excludes all messages from the report that were created earlier a certain date
     * **before** - Date, excludes all messages from the report that were created later a certain date
 
+    This report can't be performed in one request so the report is being split into chunks,
+    you should follow the `next` link until it's `null` and merge data using your script.
+    * **next** - Url to get next chunk of the report.
+
     Example:
 
         GET /api/v2/messages_report.json
@@ -5040,6 +5051,10 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     * **exited_after** - Date, excludes all runs from the report that were exited earlier a certain date
     * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
 
+    This report can't be performed in one request so the report is being split into chunks,
+    you should follow the `next` link until it's `null` and merge data using your script.
+    * **next** - Url to get next chunk of the report.
+
     Example:
 
         GET /api/v2/flow_report.json
@@ -5170,6 +5185,10 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     * **exited_after** - Date, excludes all runs from the report that were exited earlier a certain date
     * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
     * **variables** - configuration which define the fields to be included in the report
+
+    This report can't be performed in one request so the report is being split into chunks,
+    you should follow the `next` link until it's `null` and merge data using your script.
+    * **next** - Url to get next chunk of the report.
 
     Example:
 
