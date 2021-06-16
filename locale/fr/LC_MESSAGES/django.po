@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-15 17:48+0000\n"
+"POT-Creation-Date: 2021-06-16 15:59+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3676,19 +3676,31 @@ msgstr "Désolé, %(org_name)s n'a pas assez de crédits pour ce transfert. Choi
 msgid "The country used for location values. (optional)"
 msgstr "Le pays utilisée pour les valeurs de localisation. (facultatif)"
 
-msgid "Primary Language"
-msgstr "Langue principale"
+#, fuzzy
+#| msgid "Base Language"
+msgid "Default Flow Language"
+msgstr "Langue de base"
 
-msgid "Select the primary language for contacts with no language preference"
-msgstr "Sélectionnez la langue principale des contacts sans préférence de langue"
+#, fuzzy
+#| msgid "The primary language will be used for contacts with no language preference."
+msgid "Used for contacts with no language preference."
+msgstr "La langue principale sera utilisée pour les contacts sans préférence linguistique."
+
+#, fuzzy
+#| msgid "Select Group"
+msgid "Select a language"
+msgstr "Sélectionner un groupe"
 
 msgid "Additional Languages"
 msgstr "Langues supplémentaires"
 
+msgid "The languages that your flows can be translated into."
+msgstr ""
+
 #, fuzzy
-#| msgid "Additional languages you would like to provid translations for"
-msgid "Additional languages you would like to provide translations for"
-msgstr "Langues supplémentaires pour lesquelles vous souhaitez fournir des traductions"
+#| msgid "Contact language"
+msgid "Select languages"
+msgstr "Langue du contact"
 
 #, python-format
 msgid "Cleared %(name)s cache for this workspace (%(count)d keys)"
@@ -6889,8 +6901,9 @@ msgstr "Vous avez été invité à rejoindre %(name)s."
 msgid "Please click Join to accept the invitation."
 msgstr "S'il vous plaît cliquer S'inscrire pour accepter l'invitation."
 
-#, python-format
-msgid "The primary language is <b>%(lang)s</b>."
+#, fuzzy, python-format
+#| msgid "The primary language is <b>%(lang)s</b>."
+msgid "The default flow language is <b>%(lang)s</b>."
 msgstr "La langue principale est <b>%(lang)s</b>."
 
 #, fuzzy
@@ -7876,6 +7889,17 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#~ msgid "Primary Language"
+#~ msgstr "Langue principale"
+
+#~ msgid "Select the primary language for contacts with no language preference"
+#~ msgstr "Sélectionnez la langue principale des contacts sans préférence de langue"
+
+#, fuzzy
+#~| msgid "Additional languages you would like to provid translations for"
+#~ msgid "Additional languages you would like to provide translations for"
+#~ msgstr "Langues supplémentaires pour lesquelles vous souhaitez fournir des traductions"
 
 #, fuzzy
 #~| msgid "Group to Join"

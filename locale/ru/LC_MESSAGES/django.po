@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-15 17:48+0000\n"
+"POT-Creation-Date: 2021-06-16 15:59+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3687,17 +3687,31 @@ msgstr ""
 msgid "The country used for location values. (optional)"
 msgstr "Страна, используемая для значений местоположения. (опционально)"
 
-msgid "Primary Language"
+#, fuzzy
+#| msgid "Base Language"
+msgid "Default Flow Language"
 msgstr "Основной язык"
 
-msgid "Select the primary language for contacts with no language preference"
-msgstr ""
+#, fuzzy
+#| msgid "The primary language will be used for contacts with no language preference."
+msgid "Used for contacts with no language preference."
+msgstr "Основной язык, который будет использоваться для контактов без языковых предпочтений."
+
+#, fuzzy
+#| msgid "Select Group"
+msgid "Select a language"
+msgstr "Выбрать Группу"
 
 msgid "Additional Languages"
 msgstr "Дополнительные языки"
 
-msgid "Additional languages you would like to provide translations for"
+msgid "The languages that your flows can be translated into."
 msgstr ""
+
+#, fuzzy
+#| msgid "Contact language"
+msgid "Select languages"
+msgstr "Язык Контакта"
 
 #, python-format
 msgid "Cleared %(name)s cache for this workspace (%(count)d keys)"
@@ -6840,7 +6854,7 @@ msgid "Please click Join to accept the invitation."
 msgstr "Пожалуйста, для принятия приглашения нажмите «Присоединиться»."
 
 #, python-format
-msgid "The primary language is <b>%(lang)s</b>."
+msgid "The default flow language is <b>%(lang)s</b>."
 msgstr ""
 
 #, fuzzy
@@ -7734,6 +7748,9 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#~ msgid "Primary Language"
+#~ msgstr "Основной язык"
 
 #, fuzzy
 #~| msgid "Group to Join"
