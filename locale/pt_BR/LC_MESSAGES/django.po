@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-16 15:59+0000\n"
+"POT-Creation-Date: 2021-06-16 20:15+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -1883,6 +1883,11 @@ msgstr "Token API"
 
 msgid "The API token for your integration as provided by Zenvia"
 msgstr ""
+
+#, fuzzy
+#| msgid "Invalid backup token. Please try again."
+msgid "Invalid token. Please check your Zenvia account settings."
+msgstr "Token de backup inválido. Por favor tente novamente."
 
 msgid "POST Required"
 msgstr "POST obrigatório"
@@ -7890,6 +7895,11 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#, fuzzy
+#~| msgid "Unable to check WhatsApp enterprise account, please check username and password"
+#~ msgid "Unable to check Zenvia account, please check the API token"
+#~ msgstr "Não foi possível checar a conta empresarial do Whatsapp, por favor verifique nome do usuário e senha"
 
 #~ msgid "Primary Language"
 #~ msgstr "Idioma primário"

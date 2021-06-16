@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-16 15:59+0000\n"
+"POT-Creation-Date: 2021-06-16 20:15+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -1877,6 +1877,11 @@ msgstr "Token API"
 
 msgid "The API token for your integration as provided by Zenvia"
 msgstr ""
+
+#, fuzzy
+#| msgid "Invalid backup token. Please try again."
+msgid "Invalid token. Please check your Zenvia account settings."
+msgstr "Código de respaldo inválido. Por favor intente de nuevo"
 
 msgid "POST Required"
 msgstr "AVISO requerido"
@@ -7903,6 +7908,11 @@ msgstr "Las plantillas se sincronizan desde su cuenta de WhatsApp cada 15 minuto
 
 msgid "No synced templates at this time."
 msgstr "No hay plantillas sincronizadas en este momento."
+
+#, fuzzy
+#~| msgid "Unable to check WhatsApp enterprise account, please check username and password"
+#~ msgid "Unable to check Zenvia account, please check the API token"
+#~ msgstr "No se puede verificar la cuenta empresarial de WhatsApp, verifique el nombre de usuario y la contraseña"
 
 #~ msgid "Primary Language"
 #~ msgstr "Idioma principal"
