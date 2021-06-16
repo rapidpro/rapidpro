@@ -35,7 +35,7 @@ class ZenviaSMSTypeTest(TembaTest):
                 mock_post.side_effect = [MockResponse(400, '{ "error": true }')]
 
                 response = self.client.post(url, post_data)
-                self.assertContains(response, "please check the API token")
+                self.assertContains(response, "Please check your Zenvia account settings")
 
         with patch("requests.get") as mock_get:
             mock_get.return_value = MockResponse(200, "Success")

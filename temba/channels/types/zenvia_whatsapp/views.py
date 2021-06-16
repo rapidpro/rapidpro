@@ -57,7 +57,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             resp = requests.get(conf_url, headers=headers)
 
             if resp.status_code != 200:
-                raise forms.ValidationError(_("Unable to check Zenvia account, please check the API token"))
+                raise forms.ValidationError(_("Invalid token. Please check your Zenvia account settings."))
 
             return token
 
