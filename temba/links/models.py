@@ -55,7 +55,12 @@ class Link(TembaModel):
     @classmethod
     def create(cls, org, user, name, destination, related_flow=None):
         links_arg = dict(
-            org=org, name=name, destination=destination, related_flow=related_flow, created_by=user, modified_by=user
+            org=org,
+            name=name,
+            destination=destination,
+            related_flow=related_flow,
+            created_by=user,
+            modified_by=user,
         )
         return Link.objects.create(**links_arg)
 
@@ -183,6 +188,7 @@ class Link(TembaModel):
         return issues
 
     def update_flows(self):
+        # TODO: This method should be removed as we don't use `call_shorten_url` step anymore.
         from temba.flows.models import FlowRevision
 
         revisions = []

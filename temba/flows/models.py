@@ -1977,6 +1977,7 @@ class ExportFlowResultsTask(BaseExportTask):
     GROUP_MEMBERSHIPS = "group_memberships"
     RESPONDED_ONLY = "responded_only"
     EXTRA_URNS = "extra_urns"
+    EXTRA_QUERIES = "extra_queries"
     FLOWS = "flows"
 
     MAX_GROUP_MEMBERSHIPS_COLS = 25
@@ -1987,13 +1988,25 @@ class ExportFlowResultsTask(BaseExportTask):
     config = JSONAsTextField(null=True, default=dict, help_text=_("Any configuration options for this flow export"))
 
     @classmethod
-    def create(cls, org, user, flows, contact_fields, responded_only, include_msgs, extra_urns, group_memberships):
+    def create(
+        cls,
+        org,
+        user,
+        flows,
+        contact_fields,
+        responded_only,
+        include_msgs,
+        extra_urns,
+        group_memberships,
+        extra_queries,
+    ):
         config = {
             ExportFlowResultsTask.INCLUDE_MSGS: include_msgs,
             ExportFlowResultsTask.CONTACT_FIELDS: [c.id for c in contact_fields],
             ExportFlowResultsTask.RESPONDED_ONLY: responded_only,
             ExportFlowResultsTask.EXTRA_URNS: extra_urns,
             ExportFlowResultsTask.GROUP_MEMBERSHIPS: [g.id for g in group_memberships],
+            ExportFlowResultsTask.EXTRA_QUERIES: extra_queries,
         }
 
         export = cls.objects.create(org=org, created_by=user, modified_by=user, config=config)
@@ -2088,6 +2101,8 @@ class ExportFlowResultsTask(BaseExportTask):
         contact_field_ids = config.get(ExportFlowResultsTask.CONTACT_FIELDS, [])
         extra_urns = config.get(ExportFlowResultsTask.EXTRA_URNS, [])
         group_memberships = config.get(ExportFlowResultsTask.GROUP_MEMBERSHIPS, [])
+        extra_queries = config.get(ExportFlowResultsTask.EXTRA_QUERIES, {})
+        setattr(self, "extra_queries", extra_queries)
 
         contact_fields = ContactField.user_fields.active_for_org(org=self.org).filter(id__in=contact_field_ids)
 
@@ -2195,9 +2210,38 @@ class ExportFlowResultsTask(BaseExportTask):
             yield matching
 
         # secondly get runs from database
-        runs = FlowRun.objects.filter(flow__in=flows).order_by("modified_on")
+        runs = FlowRun.objects.filter(flow__in=flows).exclude(contact__is_active=False).order_by("modified_on")
         if responded_only:
             runs = runs.filter(responded=True)
+
+        # filter runs by extra queries
+        extra_queries = getattr(self, "extra_queries", {})
+        if extra_queries.get("response"):
+            response_queries = extra_queries.get("response", {})
+            if response_queries.get("after"):
+                after = self.org.parse_datetime(response_queries.get("after"))
+                runs = runs.filter(modified_on__gte=after)
+
+            if response_queries.get("before"):
+                before = self.org.parse_datetime(response_queries.get("before"))
+                runs = runs.filter(modified_on__lte=before)
+
+            if response_queries.get("query"):
+                from .search.parser import FlowRunSearch
+
+                runs_search = FlowRunSearch(query=response_queries.get("query"), base_queryset=runs)
+                filtered_runs, error = runs_search.search()
+                if not error:
+                    runs = filtered_runs
+
+        if extra_queries.get("contact", {}).get("query"):
+            from temba.contacts.search.elastic import query_contact_ids
+
+            group = self.org.all_groups.filter(group_type="A").first()
+            contact_query = extra_queries["contact"]["query"]
+            contact_ids = query_contact_ids(self.org, contact_query, group=group)
+            runs = runs.filter(contact_id__in=contact_ids)
+
         run_ids = array(str("l"), runs.values_list("id", flat=True))
 
         logger.info(
@@ -2277,7 +2321,7 @@ class ExportFlowResultsTask(BaseExportTask):
                 node_corrected = node_result.get("corrected", "")
                 result_values += [node_category, node_value, node_input, node_corrected]
 
-            flow_params_values, trigger_params = [], run["trigger_params"]
+            flow_params_values, trigger_params = [], run.get("trigger_params", {})
             for flow_params_field in getattr(self, "flow_params_fields", []):
                 flow_params_values.append(trigger_params.get(flow_params_field, ""))
 

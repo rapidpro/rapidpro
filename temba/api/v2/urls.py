@@ -36,6 +36,13 @@ from .views import (
     WorkspaceEndpoint,
     ParseDatabaseEndpoint,
     ParseDatabaseRecordsEndpoint,
+    # reporting endpoints
+    ContactsReportEndpoint,
+    MessagesReportEndpoint,
+    FlowReportEndpoint,
+    FlowVariableReportEndpoint,
+    ContactVariablesReportEndpoint,
+    TrackableLinkReportEndpoint,
 )
 
 urlpatterns = [
@@ -74,6 +81,12 @@ urlpatterns = [
     url(r"^ticketers$", TicketersEndpoint.as_view(), name="api.v2.ticketers"),
     url(r"^workspace$", WorkspaceEndpoint.as_view(), name="api.v2.workspace"),
     url(r"^validate_attachment_url$", ValidateUrlAttachmentEndpoint.as_view(), name="api.v2.attachments_validation"),
+    url(r"^contacts_report$", ContactsReportEndpoint.as_view(), name="api.v2.contacts_report"),
+    url(r"^messages_report$", MessagesReportEndpoint.as_view(), name="api.v2.messages_report"),
+    url(r"^flow_report$", FlowReportEndpoint.as_view(), name="api.v2.flow_report"),
+    url(r"^flow_variable_report$", FlowVariableReportEndpoint.as_view(), name="api.v2.flow_variable_report"),
+    url(r"^contact_variable_report$", ContactVariablesReportEndpoint.as_view(), name="api.v2.contact_variable_report"),
+    url(r"^trackable_link_report$", TrackableLinkReportEndpoint.as_view(), name="api.v2.trackable_link_report"),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns, allowed=["json", "api"])

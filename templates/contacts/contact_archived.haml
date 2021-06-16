@@ -30,6 +30,35 @@
   :javascript
     {% if org_perms.contacts.contact_delete %}
 
+    function wireDeleteButtons() {
+      let deleteButton = document.querySelector(".contacts-btn-delete");
+      let deleteConfirmation = document.querySelector("#delete-confirmation");
+      let deleteAllConfirmation = document.querySelector('#delete-all-confirmation');
+      let deleteAllButton = document.querySelector(".contacts-btn-delete-all");
+
+      deleteButton.addEventListener("click", () => {
+        deleteConfirmation.classList.remove("hide");
+        deleteConfirmation.open = true;
+      });
+
+      deleteAllButton.addEventListener("click", () => {
+        deleteAllConfirmation.classList.remove("hide");
+        deleteAllConfirmation.open = true;
+      });
+    }
+
+    function runActionOnObjectRows(action) {
+      let objectIds = getCheckedIds();
+      jQuery.ajaxSettings.traditional = true;
+      fetchPJAXContent('', '#pjax', {
+        postData: { objects: objectIds, action: action, pjax: 'true' },
+        onSuccess: function (data, textStatus) {
+          wireTableListeners();
+          wireDeleteButtons();
+        }
+      });
+    }
+
     window.addEventListener('DOMContentLoaded', function(event){
 
       var deleteButton = document.querySelector(".contacts-btn-delete");
@@ -44,6 +73,7 @@
         if (!event.detail.button.secondary) {
           runActionOnObjectRows("delete");
         }
+        deleteConfirmation.classList.add("hide");
         deleteConfirmation.open = false;
       });
 

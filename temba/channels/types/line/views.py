@@ -21,6 +21,10 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         secret = forms.CharField(label=_("Secret"), required=True, help_text=_("The Secret of the LINE Bot"))
 
         def clean(self):
+            super().clean()
+            if self.errors:
+                return self.cleaned_data
+
             access_token = self.cleaned_data.get("access_token")
             secret = self.cleaned_data.get("secret")
             channel_id = self.cleaned_data.get("channel_id")

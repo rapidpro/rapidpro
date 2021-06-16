@@ -12,6 +12,7 @@ MAX_UTC_OFFSET = 14 * 60 * 60
 
 # pattern for any date which should be parsed by the ISO8601 library (assumed to be not human-entered)
 FULL_ISO8601_REGEX = regex.compile(r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.(\d{,9}))?([\+\-]\d{2}:\d{2}|Z)$")
+ISO_DATE_TIME = regex.compile(r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?$")
 ISO_YYYY_MM_DD = regex.compile(r"^([0-9]{4})-([0-9]{2})-([0-9]{2})$")
 
 # patterns for date and time formats supported for human-entered data
@@ -136,6 +137,15 @@ def str_to_datetime(date_str, tz, dayfirst=True, fill_time=True):
     if FULL_ISO8601_REGEX.match(date_str):
         try:
             return iso8601.parse_date(date_str)
+        except iso8601.ParseError:  # pragma: no cover
+            pass
+
+    # try as partial ISO string
+    if ISO_DATE_TIME.match(date_str):
+        try:
+            parsed = iso8601.parse_date(date_str, default_timezone=None)
+            parsed = timezone.make_aware(parsed, timezone=tz)
+            return parsed
         except iso8601.ParseError:  # pragma: no cover
             pass
 

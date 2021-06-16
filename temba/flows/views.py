@@ -5,10 +5,12 @@ from urllib.parse import urlencode
 import iso8601
 import regex
 import requests
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from django_redis import get_redis_connection
 from packaging.version import Version
+from simplejson import JSONDecodeError
 from smartmin.views import (
     SmartCreateView,
     SmartCRUDL,
@@ -42,12 +44,14 @@ from temba.archives.models import Archive
 from temba.channels.models import Channel
 from temba.contacts.models import URN, ContactField, ContactGroup
 from temba.contacts.search import SearchException, parse_query
+from temba.contacts.search.elastic import query_contact_ids
 from temba.contacts.search.omnibox import omnibox_deserialize
 from temba.flows.models import Flow, FlowRevision, FlowRun, FlowRunCount, FlowSession, FlowStart
 from temba.flows.tasks import export_flow_results_task, download_flow_images_task
 from temba.ivr.models import IVRCall
 from temba.links.models import Link, LinkContacts
 from temba.mailroom import FlowValidationException
+from temba.msgs.models import Attachment
 from temba.orgs.models import Org, LOOKUPS, GIFTCARDS
 from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
@@ -323,9 +327,9 @@ class FlowImageCRUDL(SmartCRUDL):
             obj_type = self.kwargs.get("type")
             uuid = self.kwargs.get("uuid")
             if obj_type == "flow":
-                return Flow.objects.filter(org=self.org, uuid=uuid).first()
+                return get_object_or_404(Flow, org=self.org, uuid=uuid)
             else:
-                return ContactGroup.user_groups.filter(org=self.org, uuid=uuid).first()
+                return get_object_or_404(ContactGroup.user_groups, org=self.org, uuid=uuid)
 
         def get_queryset_filter(self):
             obj = self.derive_object()
@@ -585,6 +589,7 @@ class FlowCRUDL(SmartCRUDL):
                     *metadata.get("issues", []),
                     *Link.check_misstyped_links(flow, definition),
                     *Trigger.check_used_trigger_words(flow, definition),
+                    *Attachment.validate_fields(flow.org, definition),
                 ]
                 return JsonResponse(dict(definition=definition, metadata=metadata))
 
@@ -634,6 +639,7 @@ class FlowCRUDL(SmartCRUDL):
                     *metadata.get("issues", []),
                     *Link.check_misstyped_links(flow, definition),
                     *Trigger.check_used_trigger_words(flow, definition),
+                    *Attachment.validate_fields(flow.org, definition),
                 ]
                 return JsonResponse(
                     {
@@ -1908,6 +1914,13 @@ class FlowCRUDL(SmartCRUDL):
                 widget=CheckboxWidget(),
             )
 
+            extra_queries = JSONField(
+                required=False,
+                label=_("Extra Query Parameters"),
+                help_text=_("Configuration to filter runs by contact fields or responses"),
+                widget=forms.HiddenInput(),
+            )
+
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
                 self.user = user
@@ -1947,6 +1960,11 @@ class FlowCRUDL(SmartCRUDL):
                             f"You can only include up to {ExportFlowResultsTask.MAX_GROUP_MEMBERSHIPS_COLS} groups for group memberships in your export"
                         )
                     )
+
+                try:
+                    cleaned_data["extra_queries"] = json.loads(cleaned_data["extra_queries"])
+                except JSONDecodeError:
+                    cleaned_data["extra_queries"] = {}
 
                 return cleaned_data
 
@@ -1996,6 +2014,7 @@ class FlowCRUDL(SmartCRUDL):
                     responded_only=form.cleaned_data[ExportFlowResultsTask.RESPONDED_ONLY],
                     extra_urns=form.cleaned_data[ExportFlowResultsTask.EXTRA_URNS],
                     group_memberships=form.cleaned_data[ExportFlowResultsTask.GROUP_MEMBERSHIPS],
+                    extra_queries=form.cleaned_data[ExportFlowResultsTask.EXTRA_QUERIES],
                 )
                 on_transaction_commit(lambda: export_flow_results_task.delay(export.pk))
 
@@ -2152,10 +2171,50 @@ class FlowCRUDL(SmartCRUDL):
 
         paginate_by = 50
 
+        @classmethod
+        def search_query(cls, query, base_queryset):
+            from .search.parser import FlowRunSearch
+
+            runs_search = FlowRunSearch(query=query, base_queryset=base_queryset)
+            return runs_search.search()
+
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
             flow = self.get_object()
-            runs = flow.runs.all()
+
+            after = self.request.GET.get("after")
+            before = self.request.GET.get("before")
+            search_query = self.request.GET.get("q")
+            contact_query = self.request.GET.get("contact_query")
+
+            runs = flow.runs.exclude(contact__is_active=False)
+
+            if after:
+                after = flow.org.parse_datetime(after)
+                if after:
+                    runs = runs.filter(modified_on__gte=after)
+                else:
+                    runs = runs.filter(id=-1)
+
+            if before:
+                before = flow.org.parse_datetime(before)
+                if before:
+                    runs = runs.filter(modified_on__lte=before)
+                else:
+                    runs = runs.filter(id=-1)
+
+            if search_query:
+                runs, query_error = FlowCRUDL.RunTable.search_query(query=search_query, base_queryset=runs)
+                if query_error:
+                    context["query_error"] = query_error
+
+            if contact_query:
+                try:
+                    org = flow.org
+                    contact_ids = query_contact_ids(org, contact_query, active_only=False)
+                    runs = runs.filter(contact_id__in=contact_ids)
+                except SearchException as e:
+                    context["query_error"] = e.message
 
             if str_to_bool(self.request.GET.get("responded", "true")):
                 runs = runs.filter(responded=True)
@@ -2268,6 +2327,15 @@ class FlowCRUDL(SmartCRUDL):
             context["categories"] = flow.get_category_counts()["counts"]
             context["utcoffset"] = int(datetime.now(flow.org.timezone).utcoffset().total_seconds() // 60)
             context["trackable_links"] = LinkContacts.objects.filter(link__related_flow=flow).exists()
+
+            contact_query = self.request.GET.get("contact_query")
+            if contact_query:
+                try:
+                    parsed_query = parse_query(flow.org, contact_query)
+                    context["contact_query"] = parsed_query.query
+                except SearchException:
+                    context["contact_query"] = contact_query
+
             return context
 
     class Activity(AllowOnlyActiveFlowMixin, OrgObjPermsMixin, SmartReadView):
@@ -2680,60 +2748,39 @@ class FlowCRUDL(SmartCRUDL):
             )
 
             def clean_omnibox(self):
-                starting = self.cleaned_data["omnibox"]
-                start_type = self.data["start_type"]
+                starting = self.cleaned_data.get("omnibox")
+                start_type = self.cleaned_data.get("start_type")
 
                 if start_type == "select" and not starting:  # pragma: needs cover
                     raise ValidationError(_("You must specify at least one contact or one group to start a flow."))
 
                 return omnibox_deserialize(self.user.get_org(), starting)
 
+            def clean_contact_query(self):
+                start_type = self.cleaned_data.get("start_type")
+                contact_query = self.cleaned_data.get("contact_query")
+                if start_type == "query":
+                    if not contact_query.strip():
+                        raise ValidationError(_("Contact query is required"))
+                    client = mailroom.get_client()
+                    try:
+                        resp = client.parse_query(self.flow.org_id, contact_query)
+                        contact_query = resp["query"]
+                    except mailroom.MailroomException as e:
+                        self.add_error("contact_query", ValidationError(e.response["error"]))
+                return contact_query
+
             def clean(self):
                 cleaned_data = super().clean()
-
-                def validate_flow_params():
-                    value_fields = [item for item in cleaned_data if "flow_param_value" in item]
-                    for value_field in value_fields:
-                        if not cleaned_data.get(value_field):
-                            self.add_error(
-                                value_field, ValidationError(_("You must specify the value for this field."))
-                            )
-
-                def validate_omnibox():
-                    starting = cleaned_data["omnibox"]
-                    start_type = cleaned_data["start_type"]
-                    if (
-                        start_type == "select" and not starting["groups"] and not starting["contacts"]
-                    ):  # pragma: needs cover
-                        self.add_error(
-                            "omnibox",
-                            ValidationError(_("You must specify at least one contact or one group to start a flow.")),
-                        )
-
-                def validate_contact_query():
-                    start_type = cleaned_data["start_type"]
-                    contact_query = cleaned_data["contact_query"]
-                    if start_type == "query":
-                        if not contact_query.strip():
-                            raise ValidationError(_("Contact query is required"))
-
-                        client = mailroom.get_client()
-
-                        try:
-                            resp = client.parse_query(self.flow.org_id, contact_query)
-                            contact_query = resp["query"]
-                        except mailroom.MailroomException as e:
-                            self.add_error("contact_query", ValidationError(e.response["error"]))
 
                 if not cleaned_data["launch_type"] == LAUNCH_IMMEDIATELY:
                     raise ValidationError(_("You can't perform this action."))
 
-                if cleaned_data["start_type"] == "select":
-                    validate_flow_params()
-                    validate_omnibox()
-                else:
-                    validate_flow_params()
-                    validate_contact_query()
+                # check flow params
+                value_fields = [item for item in cleaned_data if "flow_param_value" in item]
+                for value_field in value_fields:
+                    if not cleaned_data.get(value_field):
+                        self.add_error(value_field, ValidationError(_("You must specify the value for this field.")))
 
                 # check whether there are any flow starts that are incomplete
                 if self.flow.is_starting():

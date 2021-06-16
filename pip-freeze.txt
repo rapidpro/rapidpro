@@ -103,7 +103,7 @@ requests-toolbelt==0.8.0  # via pyfcm
 responses==0.10.5
 rjsmin==1.0.12            # via django-compressor
 s3transfer==0.2.0         # via boto3
-sentry-sdk==0.19.5
+sentry-sdk==1.1.0
 simplejson==3.16.0
 six==1.10.0               # via analytics-python, cryptography, elasticsearch-dsl, librato-bg, librato-metrics, packaging, pip-tools, python-dateutil, python-intercom, responses, twilio
 git+https://github.com/greatnonprofits-nfp/smartmin.git@ccl-v3.0
