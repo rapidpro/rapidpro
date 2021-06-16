@@ -770,7 +770,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from temba.ivr.models import IVRCall
         from temba.mailroom.events import get_event_time
         from temba.msgs.models import Msg
-        from temba.tickets.models import Ticket
+        from temba.tickets.models import TicketEvent
 
         msgs = (
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
@@ -817,9 +817,11 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .select_related("channel")[:limit]
         )
 
-        closed_tickets = self.tickets.filter(
-            status=Ticket.STATUS_CLOSED, closed_on__gte=after, closed_on__lt=before
-        ).order_by("-closed_on")
+        ticket_events = (
+            TicketEvent.objects.filter(created_on__gte=after, created_on__lt=before, ticket__contact=self)
+            .select_related("ticket")
+            .order_by("-created_on")[:limit]
+        )
 
         transfers = self.airtime_transfers.filter(created_on__gte=after, created_on__lt=before).order_by(
             "-created_on"
@@ -832,13 +834,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             msgs,
             started_runs,
             exited_runs,
+            ticket_events,
             channel_events,
             campaign_events,
             webhook_results,
             calls,
             transfers,
             session_events,
-            closed_tickets,
         )
 
         # sort and slice

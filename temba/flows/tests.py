@@ -1809,8 +1809,8 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
             create_url, allow_viewers=False, allow_editors=True, form_fields=["name", "keyword_triggers", "flow_type"]
         )
 
-        self.org.set_languages(self.admin, ["spa", "eng"], primary="eng")
-        self.org2.set_languages(self.admin, ["eng"], primary="eng")
+        self.org.set_flow_languages(self.admin, ["spa", "eng"], primary="eng")
+        self.org2.set_flow_languages(self.admin, ["eng"], primary="eng")
 
         response = self.assertCreateFetch(
             create_url,
@@ -2106,17 +2106,14 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(call_flow.flow_type, Flow.TYPE_VOICE)
 
         # test creating a flow with base language
-        # create the language for our org
-        language = Language.create(self.org, flow.created_by, "English", "eng")
-        self.org.primary_language = language
-        self.org.save()
+        self.org.set_flow_languages(self.admin, ["eng"], primary="eng")
 
         response = self.client.post(
             reverse("flows.flow_create"),
             {
                 "name": "Language Flow",
                 "expires_after_minutes": 5,
-                "base_language": language.iso_code,
+                "base_language": "eng",
                 "flow_type": Flow.TYPE_MESSAGE,
             },
             follow=True,
@@ -2126,7 +2123,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual(200, response.status_code)
         self.assertEqual(response.request["PATH_INFO"], reverse("flows.flow_editor", args=[language_flow.uuid]))
-        self.assertEqual(language_flow.base_language, language.iso_code)
+        self.assertEqual(language_flow.base_language, "eng")
 
     def test_update_messaging_flow(self):
         flow = self.get_flow("color_v13")
@@ -3118,7 +3115,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
     def test_change_language(self):
-        self.org.set_languages(self.admin, ["eng", "spa", "ara"], "eng")
+        self.org.set_flow_languages(self.admin, ["eng", "spa", "ara"], "eng")
 
         flow = self.get_flow("favorites_v13")
 
@@ -3139,7 +3136,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("¿Cuál es tu color favorito?", flow_def["nodes"][0]["actions"][0]["text"])
 
     def test_export_and_download_translation(self):
-        Language.create(self.org, self.admin, name="Spanish", iso_code="spa")
+        self.org.set_flow_languages(self.admin, ["spa"], primary="spa")
 
         flow = self.get_flow("favorites")
         export_url = reverse("flows.flow_export_translation", args=[flow.id])
@@ -3184,7 +3181,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_import_translation(self):
         Language.create(self.org, self.admin, name="English", iso_code="eng")
         Language.create(self.org, self.admin, name="Spanish", iso_code="spa")
-        self.org.set_languages(self.admin, ["eng", "spa"], primary="eng")
+        self.org.set_flow_languages(self.admin, ["eng", "spa"], primary="eng")
 
         flow = self.get_flow("favorites_v13")
         step1_url = reverse("flows.flow_import_translation", args=[flow.id])
@@ -5477,8 +5474,9 @@ class FlowLabelTest(TembaTest):
         self.assertEqual(response.status_code, 302)
 
         self.login(self.admin)
-        response = self.client.get(delete_url)
+        response = self.client.post(delete_url)
         self.assertEqual(response.status_code, 200)
+        self.assertIsNone(FlowLabel.objects.filter(uuid=label_one.uuid).first())
 
     def test_update(self):
         label_one = FlowLabel.create(self.org, "label1")
@@ -5713,7 +5711,7 @@ class AssetServerTest(TembaTest):
 
     def test_languages(self):
         self.login(self.admin)
-        self.org.set_languages(self.admin, ["eng", "spa"], "eng")
+        self.org.set_flow_languages(self.admin, ["eng", "spa"], "eng")
         response = self.client.get("/flow/assets/%d/1234/language/" % self.org.id)
         self.assertEqual(
             response.json(), {"results": [{"iso": "eng", "name": "English"}, {"iso": "spa", "name": "Spanish"}]}

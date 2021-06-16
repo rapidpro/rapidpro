@@ -61,7 +61,7 @@ from temba.tests import (
 from temba.tests.engine import MockSessionWriter
 from temba.tests.s3 import MockS3Client
 from temba.tests.twilio import MockRequestValidator, MockTwilioClient
-from temba.tickets.models import Ticket, Ticketer
+from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json, languages
@@ -804,15 +804,8 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
         # add a ticketer and ticket
         ticketer = Ticketer.create(self.org, self.admin, MailgunType.slug, "Email (bob)", {})
-        ticket = Ticket.objects.create(
-            org=self.org,
-            ticketer=ticketer,
-            contact=self.org.contacts.first(),
-            subject="Need help",
-            body="Where are my cookies?",
-            status="O",
-        )
-        ticket.add_note(self.admin, "This is interesting!")
+        ticket = self.create_ticket(ticketer, self.org.contacts.first(), "Need help")
+        ticket.add_note(self.admin, note="This is interesting!")
 
     def release_org(self, org, child_org=None, delete=False, expected_files=3):
 
@@ -989,22 +982,21 @@ class OrgTest(TembaTest):
         self.assertEqual(Org.get_unique_slug("Which part?"), "which-part")
         self.assertEqual(Org.get_unique_slug("Allo"), "allo-2")
 
-    def test_languages(self):
-        self.assertEqual(self.org.get_language_codes(), set())
+    def test_set_flow_languages(self):
+        self.assertEqual([], self.org.flow_languages)
 
-        self.org.set_languages(self.admin, ["eng", "fra"], "eng")
+        self.org.set_flow_languages(self.admin, ["eng", "fra"], "eng")
         self.org.refresh_from_db()
+        self.assertEqual(["eng", "fra"], self.org.flow_languages)
 
-        self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "French"})
-        self.assertEqual(self.org.primary_language.name, "English")
-        self.assertEqual(self.org.get_language_codes(), {"eng", "fra"})
-
-        self.org.set_languages(self.admin, ["eng", "kin"], "kin")
+        self.org.set_flow_languages(self.admin, ["eng", "kin"], "kin")
         self.org.refresh_from_db()
+        self.assertEqual(["kin", "eng"], self.org.flow_languages)
 
-        self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "Kinyarwanda"})
-        self.assertEqual(self.org.primary_language.name, "Kinyarwanda")
-        self.assertEqual(self.org.get_language_codes(), {"eng", "kin"})
+        with self.assertRaises(AssertionError):
+            self.org.set_flow_languages(self.admin, ["eng", "xyz"], "eng")
+        with self.assertRaises(AssertionError):
+            self.org.set_flow_languages(self.admin, ["eng", "fra"], "xyz")
 
     def test_country_view(self):
         self.setUpLocations()
@@ -3377,7 +3369,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         org = Org.objects.get(name="Bulls")
         self.assertEqual(100_000, org.get_credits_remaining())
-        self.assertEqual(org.date_format, Org.DATE_FORMAT_MONTH_FIRST)
+        self.assertEqual(Org.DATE_FORMAT_MONTH_FIRST, org.date_format)
+        self.assertEqual("en-us", org.language)
+        self.assertEqual(["eng"], org.flow_languages)
 
     def test_org_grant_invalid_form(self):
         grant_url = reverse("orgs.org_grant")
@@ -4102,61 +4096,64 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRedirect(response, "/users/login/")
 
     def test_languages(self):
+        home_url = reverse("orgs.org_home")
         langs_url = reverse("orgs.org_languages")
 
-        self.login(self.admin)
+        self.org.set_flow_languages(self.admin, [], primary="")  # remove any languages
 
-        # update our org with some language settings
-        response = self.client.post(
+        # check summary on home page
+        response = self.requestView(home_url, self.admin)
+        self.assertContains(response, "Your workspace is configured to use a single language.")
+
+        self.assertUpdateFetch(
             langs_url,
-            {
-                "primary_lang": '{"name":"French", "value":"fra"}',
-                "languages": ['{"name":"Haitian", "value":"hat"}', '{"name":"Hausa", "value":"hau"}'],
-            },
+            allow_viewers=False,
+            allow_editors=False,
+            object_url=False,
+            form_fields=["primary_lang", "other_langs"],
         )
-        self.assertEqual(response.status_code, 302)
-        self.org.refresh_from_db()
-
-        self.assertEqual(self.org.primary_language.name, "French")
-        self.assertIsNotNone(self.org.languages.filter(name="French"))
-
-        # check that the last load shows our new languages
-        response = self.client.get(langs_url)
-        self.assertEqual(["Haitian", "Hausa"], response.context["languages"])
-        self.assertContains(response, "fra")
-
-        # add another translation language...
-        self.client.post(
-            langs_url,
-            {
-                "primary_lang": '{"name":"French", "value":"fra"}',
-                "languages": [
-                    '{"name":"Haitian", "value":"hat"}',
-                    '{"name":"Hausa", "value":"hau"}',
-                    '{"name":"Spanish", "value":"spa"}',
-                ],
-            },
-        )
-        response = self.client.get(reverse("orgs.org_languages"))
-        self.assertEqual(["Haitian", "Hausa", "Spanish"], response.context["languages"])
-
-        # one translation language
-        self.client.post(
-            langs_url,
-            {"primary_lang": '{"name":"French", "value":"fra"}', "languages": ['{"name":"Haitian", "value":"hat"}']},
-        )
-        response = self.client.get(reverse("orgs.org_languages"))
-        self.assertEqual(["Haitian"], response.context["languages"])
-
-        # remove all languages
-        self.client.post(langs_url, {"primary_lang": "{}", "languages": []})
-        self.org.refresh_from_db()
-        self.assertIsNone(self.org.primary_language)
-        self.assertFalse(self.org.languages.all())
 
         # initial should do a match on code only
-        response = self.client.get("%s?initial=fra" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        response = self.client.get(f"{langs_url}?initial=fra", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
         self.assertEqual([{"name": "French", "value": "fra"}], response.json()["results"])
+
+        # try to submit as is (empty)
+        self.assertUpdateSubmit(
+            langs_url,
+            {},
+            object_url=False,
+            object_unchanged=self.org,
+            form_errors={"primary_lang": "This field is required."},
+        )
+
+        # give the org a primary language
+        self.assertUpdateSubmit(langs_url, {"primary_lang": '{"name":"French", "value":"fra"}'}, object_url=False)
+
+        self.org.refresh_from_db()
+        self.assertEqual(["fra"], self.org.flow_languages)
+
+        # summary now includes this
+        response = self.requestView(home_url, self.admin)
+        self.assertContains(response, "The default flow language is <b>French</b>.")
+        self.assertNotContains(response, "Translations are provided in")
+
+        # and now give it additional languages
+        self.assertUpdateSubmit(
+            langs_url,
+            {
+                "primary_lang": '{"name":"French", "value":"fra"}',
+                "other_langs": ['{"name":"Haitian", "value":"hat"}', '{"name":"Hausa", "value":"hau"}'],
+            },
+            object_url=False,
+        )
+
+        self.org.refresh_from_db()
+        self.assertEqual(["fra", "hat", "hau"], self.org.flow_languages)
+
+        response = self.requestView(home_url, self.admin)
+        self.assertContains(response, "The default flow language is <b>French</b>.")
+        self.assertContains(response, "Translations are provided in")
+        self.assertContains(response, "<b>Hausa</b>")
 
         # searching languages should only return languages with 2-letter codes
         response = self.client.get("%s?search=Fr" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
@@ -4694,8 +4691,8 @@ class BulkExportTest(TembaTest):
             ],
         )
 
-        # set our org language to english
-        self.org.set_languages(self.admin, ["eng", "fre"], "eng")
+        # set our default flow language to english
+        self.org.set_flow_languages(self.admin, ["eng", "fra"], "eng")
 
         # finally let's try importing our exported file
         self.org.import_app(exported, self.admin, site="http://app.rapidpro.io")

@@ -83,7 +83,6 @@ HISTORY_INCLUDE_EVENTS = {
     Event.TYPE_FAILURE,
     Event.TYPE_INPUT_LABELS_ADDED,
     Event.TYPE_RUN_RESULT_CHANGED,
-    Event.TYPE_TICKET_OPENED,
 }
 
 
@@ -489,14 +488,14 @@ class UpdateContactForm(ContactForm):
 
         choices = [("", "No Preference")]
 
-        org_lang_codes = self.instance.org.get_language_codes()
+        flow_langs = self.instance.org.flow_languages
 
         # if they had a preference that has since been removed, make sure we show it
-        if self.instance.language and self.instance.language not in org_lang_codes:
+        if self.instance.language and self.instance.language not in flow_langs:
             lang_name = languages.get_name(self.instance.language)
             choices += [(self.instance.language, _(f"{lang_name} (Missing)"))]
 
-        choices += list(languages.choices(codes=org_lang_codes))
+        choices += list(languages.choices(codes=flow_langs))
 
         self.fields["language"] = forms.ChoiceField(
             required=False, label=_("Language"), initial=self.instance.language, choices=choices, widget=SelectWidget()
@@ -1206,7 +1205,7 @@ class ContactCRUDL(SmartCRUDL):
             exclude = []
             exclude.extend(self.exclude)
 
-            if not obj.org.primary_language:
+            if not obj.org.flow_languages:
                 exclude.append("language")
 
             if obj.status != Contact.STATUS_ACTIVE:
@@ -1264,15 +1263,7 @@ class ContactCRUDL(SmartCRUDL):
 
             messages.success(self.request, self.derive_success_message())
 
-            response = self.render_to_response(
-                self.get_context_data(
-                    form=form,
-                    success_url=self.get_success_url(),
-                    success_script=getattr(self, "success_script", None),
-                )
-            )
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.render_modal_response(form)
 
     class UpdateFields(NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.Form):
@@ -1534,13 +1525,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             on_transaction_commit(lambda: release_group_task.delay(group.id))
 
             # we can't just redirect so as to make our modal do the right thing
-            response = self.render_to_response(
-                self.get_context_data(
-                    success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
-                )
-            )
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.render_modal_response()
 
 
 class ContactFieldFormMixin:
@@ -1692,14 +1677,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 value_type=form.cleaned_data["value_type"],
                 show_in_table=form.cleaned_data["show_in_table"],
             )
-
-            response = self.render_to_response(
-                self.get_context_data(
-                    form=form, success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
-                )
-            )
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.render_modal_response(form)
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         queryset = ContactField.user_fields
@@ -1724,13 +1702,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 priority=0,  # reset the priority, this will move CF to the bottom of the list
             )
 
-            response = self.render_to_response(
-                self.get_context_data(
-                    form=form, success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
-                )
-            )
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.render_modal_response(form)
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         queryset = ContactField.user_fields

@@ -104,6 +104,9 @@
                           .linked.inline{onclick:"goto(event)", href:'{%url "channels.channel_read" obj.channel.uuid %}'}
                             {{obj.channel}}
 
+                      -elif obj.trigger_type == 'T'
+                        -trans "A closed ticket"
+
                       -if obj.schedule
                         -trans "Start"
                       -else

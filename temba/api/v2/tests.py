@@ -32,11 +32,11 @@ from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
-from temba.orgs.models import Language, Org
+from temba.orgs.models import Org
 from temba.templates.models import TemplateTranslation
 from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
-from temba.tickets.models import Ticket, Ticketer
+from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.tickets.types.zendesk import ZendeskType
 from temba.triggers.models import Trigger
@@ -261,7 +261,7 @@ class APITest(TembaTest):
         self.assertEqual(field.to_internal_value("Hello"), ({"base": "Hello"}, "base"))
         self.assertEqual(field.to_internal_value({"base": "Hello"}), ({"base": "Hello"}, "base"))
 
-        self.org.primary_language = Language.create(self.org, self.user, "Kinyarwanda", "kin")
+        self.org.set_flow_languages(self.admin, ["kin"], primary="kin")
         self.org.save()
 
         self.assertEqual(field.to_internal_value("Hello"), ({"kin": "Hello"}, "kin"))
@@ -3307,7 +3307,7 @@ class APITest(TembaTest):
             },
         )
 
-        self.org.set_languages(self.admin, ["eng", "fra"], "eng")
+        self.org.set_flow_languages(self.admin, ["eng", "fra"], "eng")
 
         response = self.fetchJSON(url)
         self.assertEqual(
@@ -3324,26 +3324,6 @@ class APITest(TembaTest):
                 "anon": False,
             },
         )
-
-        # try to set languages which do not exist in iso639-3
-        self.org.set_languages(self.admin, ["fra", "123", "eng"], "eng")
-
-        for urn in ("/api/v2/org", "/api/v2/workspace"):
-            response = self.fetchJSON(url)
-            self.assertEqual(
-                response.json(),
-                {
-                    "uuid": str(self.org.uuid),
-                    "name": "Temba",
-                    "country": "RW",
-                    "languages": ["eng", "fra"],
-                    "primary_language": "eng",
-                    "timezone": "Africa/Kigali",
-                    "date_style": "day_first",
-                    "credits": {"used": 0, "remaining": 1000},
-                    "anon": False,
-                },
-            )
 
     def test_media(self):
         url = reverse("api.v2.media") + ".json"
@@ -4395,7 +4375,9 @@ class APITest(TembaTest):
         self.assertEqual(1, len(resp_json["results"]))
         self.assertEqual("Mailgun (bob@acme.com)", resp_json["results"][0]["name"])
 
-    def test_tickets(self):
+    @patch("temba.mailroom.client.MailroomClient.ticket_close")
+    @patch("temba.mailroom.client.MailroomClient.ticket_reopen")
+    def test_tickets(self, mock_ticket_reopen, mock_ticket_close):
         url = reverse("api.v2.tickets")
         self.assertEndpointAccess(url)
 
@@ -4403,36 +4385,15 @@ class APITest(TembaTest):
         mailgun = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun", {})
         ann = self.create_contact("Ann", urns=["twitter:annie"])
         bob = self.create_contact("Bob", urns=["twitter:bobby"])
-        ticket1 = Ticket.objects.create(
-            org=self.org, ticketer=mailgun, contact=ann, subject="Need help", body="Now", status=Ticket.STATUS_CLOSED
+        ticket1 = self.create_ticket(
+            mailgun, ann, "Need help", body="Now", closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
         )
-        ticket2 = Ticket.objects.create(
-            org=self.org,
-            ticketer=mailgun,
-            contact=bob,
-            subject="Need help again",
-            body="Now",
-            status=Ticket.STATUS_OPEN,
-        )
-        ticket3 = Ticket.objects.create(
-            org=self.org,
-            ticketer=mailgun,
-            contact=bob,
-            subject="It's bob",
-            body="Pleeeease help",
-            status=Ticket.STATUS_OPEN,
-        )
+        ticket2 = self.create_ticket(mailgun, bob, "Need help again", body="Now")
+        ticket3 = self.create_ticket(mailgun, bob, "It's bob", body="Pleeeease help")
 
         # on another org
         zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
-        Ticket.objects.create(
-            org=self.org2,
-            ticketer=zendesk,
-            contact=self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2),
-            subject="Need help",
-            body="Now",
-            status=Ticket.STATUS_CLOSED,
-        )
+        self.create_ticket(zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Need help")
 
         response = self.fetchJSON(url, "ticketer_type=zendesk")
         resp_json = response.json()
@@ -4470,7 +4431,7 @@ class APITest(TembaTest):
                 },
                 {
                     "uuid": str(ticket1.uuid),
-                    "closed_on": None,
+                    "closed_on": "2021-01-01T12:30:45.123456Z",
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "contact": {"uuid": str(ann.uuid), "name": "Ann"},
                     "status": "closed",
@@ -4502,17 +4463,11 @@ class APITest(TembaTest):
         # close one of the tickets
         self.postJSON(url, f"uuid={ticket1.uuid}", {"status": "closed"})
 
-        # make sure it shows as closed with a closed_on date
-        response = self.fetchJSON(url)
-        resp_json = response.json()
-        updated = resp_json["results"][2]
-        self.assertEqual(updated["status"], "closed")
-        self.assertIsNotNone(updated["closed_on"])
+        # check that triggered a call to mailroom
+        mock_ticket_close.assert_called_once_with(self.org.id, self.admin.id, [ticket1.id])
 
-        # reopen that ticket
-        self.postJSON(url, f"uuid={ticket1.uuid}", {"status": "open"})
-        response = self.fetchJSON(url)
-        resp_json = response.json()
-        updated = resp_json["results"][1]
-        self.assertEqual(updated["status"], "open")
-        self.assertIsNone(updated["closed_on"])
+        # reopen a ticket
+        self.postJSON(url, f"uuid={ticket2.uuid}", {"status": "open"})
+
+        # check that triggered a call to mailroom
+        mock_ticket_reopen.assert_called_once_with(self.org.id, self.admin.id, [ticket2.id])

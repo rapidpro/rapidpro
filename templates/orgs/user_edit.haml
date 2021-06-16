@@ -12,17 +12,45 @@
       {% render_field 'last_name' %}
 
     .field.formax-vertical
-      {% render_field 'email' %}
+      {% render_field 'language' %}
 
     .field.formax-vertical
-      {% render_field 'current_password' %}
+      {% render_field 'email' %}
 
     .field.formax-vertical
       {% render_field 'new_password' %}
 
-    .field.formax-vertical
-      {% render_field 'language' %}
+    #current-password.field.formax-vertical.p-4.bg-gray-100.rounded-lg.mt-4
+      .mb-2
+        -blocktrans trimmed
+          Confirm your current password to save these changes
+      {% render_field 'current_password' %}
+
   
 -block summary
   -blocktrans with email=user.username
     Your email address is <b>{{email}}</b>.
+
+-block extra-script
+  :javascript
+    window.addEventListener("DOMContentLoaded", function (){
+
+        // hide our password field by default
+        var pw = document.getElementById("current-password");
+        pw.style.display = "none";
+
+        // but show it if the try to update their email address or password
+        var email = document.getElementById("id_email");
+        var newPw = document.getElementById("id_new_password");
+        
+        var listener = function(event) {
+          pw.style.display = "block";
+        }
+
+        // a change event is fired on initial value, ignore it
+        window.setTimeout(function(){
+          email.addEventListener("change", listener);
+          newPw.addEventListener("change", listener);
+        }, 0);
+
+    });

@@ -35,6 +35,11 @@ ORG1 = dict(
     has_locations=True,
     languages=("eng", "fra"),
     sequence_start=10000,
+    users=(
+        dict(email="admin1@nyaruka.com", role="administrators", first_name="Andy", last_name="Administrator"),
+        dict(email="editor1@nyaruka.com", role="editors", first_name="Ed", last_name="Editor"),
+        dict(email="viewer1@nyaruka.com", role="viewers", first_name="Veronica", last_name="Viewer"),
+    ),
     classifiers=(
         dict(
             uuid="097e026c-ae79-4740-af67-656dbedf0263",
@@ -301,6 +306,7 @@ ORG2 = dict(
     has_locations=True,
     languages=("eng", "fra"),
     sequence_start=20000,
+    users=(dict(email="admin2@nyaruka.com", role="administrators", first_name="", last_name=""),),
     channels=(
         dict(
             uuid="a89bc872-3763-4b95-91d9-31d4e56c6651",
@@ -466,14 +472,12 @@ class Command(BaseCommand):
         ContactField.create_system_fields(org)
         org.init_topups(100_000)
 
-        def reset_sequence(c, name: str):
-            c.execute(f"ALTER SEQUENCE {name} RESTART WITH {spec['sequence_start']}")
-
         # set our sequences to make ids stable across orgs
         with connection.cursor() as cursor:
             for seq_name in RESET_SEQUENCES:
                 cursor.execute(f"ALTER SEQUENCE {seq_name} RESTART WITH {spec['sequence_start']}")
 
+        self.create_users(spec, org)
         self.create_channels(spec, org, superuser)
         self.create_fields(spec, org, superuser)
         self.create_globals(spec, org, superuser)
@@ -489,6 +493,16 @@ class Command(BaseCommand):
         self.create_msgs(spec, org, superuser)
 
         return org
+
+    def create_users(self, spec, org):
+        self._log(f"Creating {len(spec['users'])} users... ")
+
+        for u in spec["users"]:
+            user = User.objects.create_user(u["email"], u["email"], USER_PASSWORD)
+            getattr(org, u["role"]).add(user)
+            user.set_org(org)
+
+        self._log(self.style.SUCCESS("OK") + "\n")
 
     def create_channels(self, spec, org, user):
         self._log(f"Creating {len(spec['channels'])} channels... ")

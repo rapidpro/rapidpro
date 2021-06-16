@@ -223,6 +223,17 @@ class ModalMixin(SmartFormView):
 
         return context
 
+    def render_modal_response(self, form=None):
+        response = self.render_to_response(
+            self.get_context_data(
+                form=form,
+                success_url=self.get_success_url(),
+                success_script=getattr(self, "success_script", None),
+            )
+        )
+        response["Temba-Success"] = self.get_success_url()
+        return response
+
     def form_valid(self, form):
         if isinstance(form, forms.ModelForm):
             self.object = form.save(commit=False)
@@ -241,15 +252,7 @@ class ModalMixin(SmartFormView):
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
-                response = self.render_to_response(
-                    self.get_context_data(
-                        form=form,
-                        success_url=self.get_success_url(),
-                        success_script=getattr(self, "success_script", None),
-                    )
-                )
-                response["Temba-Success"] = self.get_success_url()
-                return response
+                return self.render_modal_response(form)
 
         except (IntegrityError, ValueError, ValidationError) as e:
             message = getattr(e, "message", str(e).capitalize())
@@ -683,7 +686,9 @@ class UserCRUDL(SmartCRUDL):
             last_name = forms.CharField(label=_("Last Name"), widget=InputWidget(attrs={"placeholder": _("Required")}))
             email = forms.EmailField(required=True, label=_("Email"), widget=InputWidget())
             current_password = forms.CharField(
-                label=_("Current Password"), widget=InputWidget(attrs={"placeholder": _("Required"), "password": True})
+                required=False,
+                label=_("Current Password"),
+                widget=InputWidget({"widget_only": True, "placeholder": _("Password Required"), "password": True}),
             )
             new_password = forms.CharField(
                 required=False,
@@ -704,8 +709,10 @@ class UserCRUDL(SmartCRUDL):
                 user = self.instance
                 password = self.cleaned_data.get("current_password", None)
 
-                if not user.check_password(password):
-                    raise forms.ValidationError(_("Please enter your password to save changes."))
+                # password is required to change your email address or set a new password
+                if self.data.get("new_password", None) or self.data.get("email", None) != user.email:
+                    if not user.check_password(password):
+                        raise forms.ValidationError(_("Please enter your password to save changes."))
 
                 return password
 
@@ -1707,10 +1714,7 @@ class OrgCRUDL(SmartCRUDL):
         def post(self, request, *args, **kwargs):
             self.object = self.get_object()
             self.object.release(request.user)
-
-            response = HttpResponse()
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.render_modal_response()
 
     class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class PasswordForm(forms.ModelForm):
@@ -2119,15 +2123,7 @@ class OrgCRUDL(SmartCRUDL):
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
-                response = self.render_to_response(
-                    self.get_context_data(
-                        form=form,
-                        success_url=self.get_success_url(),
-                        success_script=getattr(self, "success_script", None),
-                    )
-                )
-                response["Temba-Success"] = self.get_success_url()
-                return response
+                return self.render_modal_response()
 
     class Choose(SmartFormView):
         class ChooseForm(forms.Form):
@@ -2558,6 +2554,10 @@ class OrgCRUDL(SmartCRUDL):
             if obj.timezone.zone in pytz.country_timezones("US"):
                 obj.date_format = Org.DATE_FORMAT_MONTH_FIRST
 
+            # if we have a default UI language, use that as the default flow language too
+            default_flow_language = languages.alpha2_to_alpha3(obj.language)
+            obj.flow_languages = [default_flow_language] if default_flow_language else ["eng"]
+
             return obj
 
         def get_welcome_size(self):  # pragma: needs cover
@@ -2760,12 +2760,12 @@ class OrgCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Import"), href=reverse("orgs.org_import")))
 
             if settings.HELP_URL:  # pragma: needs cover
-                if len(links) > 0:
+                if len(links) > 1:
                     links.append(dict(divider=True))
 
                 links.append(dict(title=_("Help"), href=settings.HELP_URL))
 
-            if len(links) > 0:
+            if len(links) > 1:
                 links.append(dict(divider=True))
 
             links.append(
@@ -3084,15 +3084,7 @@ class OrgCRUDL(SmartCRUDL):
             amount = form.cleaned_data["amount"]
 
             from_org.allocate_credits(from_org.created_by, to_org, amount)
-
-            response = self.render_to_response(
-                self.get_context_data(
-                    form=form, success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
-                )
-            )
-
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.render_modal_response(form)
 
     class Country(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class CountryForm(forms.ModelForm):
@@ -3116,27 +3108,27 @@ class OrgCRUDL(SmartCRUDL):
             return self.request.user.has_perm("orgs.org_country") or self.has_org_perm("orgs.org_country")
 
     class Languages(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        class LanguagesForm(forms.ModelForm):
-
+        class Form(forms.ModelForm):
             primary_lang = ArbitraryJsonChoiceField(
-                required=False,
-                label=_("Primary Language"),
+                required=True,
+                label=_("Default Flow Language"),
+                help_text=_("Used for contacts with no language preference."),
                 widget=SelectWidget(
                     attrs={
-                        "placeholder": _("Select the primary language for contacts with no language preference"),
+                        "placeholder": _("Select a language"),
                         "searchable": True,
                         "queryParam": "q",
                         "endpoint": reverse_lazy("orgs.org_languages"),
                     }
                 ),
             )
-
-            languages = ArbitraryJsonChoiceField(
+            other_langs = ArbitraryJsonChoiceField(
                 required=False,
                 label=_("Additional Languages"),
+                help_text=_("The languages that your flows can be translated into."),
                 widget=SelectMultipleWidget(
                     attrs={
-                        "placeholder": _("Additional languages you would like to provide translations for"),
+                        "placeholder": _("Select languages"),
                         "searchable": True,
                         "queryParam": "q",
                         "endpoint": reverse_lazy("orgs.org_languages"),
@@ -3144,17 +3136,16 @@ class OrgCRUDL(SmartCRUDL):
                 ),
             )
 
-            def __init__(self, *args, **kwargs):
-                self.org = kwargs["org"]
-                del kwargs["org"]
+            def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+                self.org = org
 
             class Meta:
                 model = Org
-                fields = ("primary_lang", "languages")
+                fields = ("primary_lang", "other_langs")
 
         success_message = ""
-        form_class = LanguagesForm
+        form_class = Form
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -3165,20 +3156,30 @@ class OrgCRUDL(SmartCRUDL):
             initial = super().derive_initial()
             org = self.get_object()
 
-            org_langs = org.languages.filter(orgs=None).order_by("name")
-            initial["languages"] = [{"value": lang.iso_code, "name": lang.name} for lang in org_langs]
+            def lang_json(code):
+                return {"value": code, "name": languages.get_name(code)}
 
-            if org.primary_language:
-                lang = org.primary_language
-                initial["primary_lang"] = [{"value": lang.iso_code, "name": lang.name}]
+            non_primary_langs = org.flow_languages[1:] if len(org.flow_languages) > 1 else []
+            initial["other_langs"] = [lang_json(ln) for ln in non_primary_langs]
+
+            if org.flow_languages:
+                initial["primary_lang"] = [lang_json(org.flow_languages[0])]
 
             return initial
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org = self.get_object()
-            lang_codes = org.get_language_codes(include_primary=False)
-            context["languages"] = sorted([languages.get_name(code) for code in lang_codes])
+
+            if org.flow_languages:
+                primary_lang = languages.get_name(org.flow_languages[0])
+                other_langs = sorted([languages.get_name(code) for code in org.flow_languages[1:]])
+            else:
+                primary_lang = None
+                other_langs = []
+
+            context["primary_lang"] = primary_lang
+            context["other_langs"] = other_langs
             return context
 
         def get(self, request, *args, **kwargs):
@@ -3201,16 +3202,14 @@ class OrgCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             user = self.request.user
-            primary = form.cleaned_data["primary_lang"]
-            if primary:
-                primary = primary["value"]
+            primary = form.cleaned_data["primary_lang"]["value"]
 
             # remove empty codes and ensure primary is included in list
-            iso_codes = [d["value"] for d in form.cleaned_data["languages"] if d["value"]]
+            iso_codes = [d["value"] for d in form.cleaned_data["other_langs"] if d["value"]]
             if primary and primary not in iso_codes:
                 iso_codes.append(primary)
 
-            self.object.set_languages(user, iso_codes, primary)
+            self.object.set_flow_languages(user, iso_codes, primary)
 
             return super().form_valid(form)
 
