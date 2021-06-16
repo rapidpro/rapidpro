@@ -29,30 +29,44 @@ class ZenviaWhatsAppTypeTest(TembaTest):
         post_data["country"] = "US"
         post_data["number"] = "(206) 555-1212"
 
-        with patch("requests.post") as mock_patch:
-            mock_patch.side_effect = [MockResponse(400, '{ "error": true }')]
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(400, "Error")
+            with patch("requests.post") as mock_post:
+                mock_post.side_effect = [MockResponse(400, '{ "error": true }')]
 
-            with self.assertRaises(ValidationError):
+                response = self.client.post(url, post_data)
+                self.assertContains(response, "please check the API token")
+
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(200, "Success")
+            with patch("requests.post") as mock_post:
+                mock_post.side_effect = [MockResponse(400, '{ "error": true }')]
+
+                with self.assertRaises(ValidationError):
+                    self.client.post(url, post_data)
+
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(200, "Success")
+            with patch("requests.post") as mock_post:
+                mock_post.side_effect = [
+                    MockResponse(200, '{"id": "message_123"}'),
+                    MockResponse(400, '{"error": "failed"}'),
+                ]
+
+                with self.assertRaises(ValidationError):
+                    self.client.post(url, post_data)
+
+                self.assertEqual("12345", mock_post.call_args_list[0][1]["headers"]["X-API-TOKEN"])
+
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(200, "Success")
+            with patch("requests.post") as mock_post:
+                mock_post.side_effect = [
+                    MockResponse(200, '{"id": "message_123"}'),
+                    MockResponse(200, '{"id": "status_123"}'),
+                ]
+
                 self.client.post(url, post_data)
-
-        with patch("requests.post") as mock_post:
-            mock_post.side_effect = [
-                MockResponse(200, '{"id": "message_123"}'),
-                MockResponse(400, '{"error": "failed"}'),
-            ]
-
-            with self.assertRaises(ValidationError):
-                self.client.post(url, post_data)
-
-            self.assertEqual("12345", mock_post.call_args_list[0][1]["headers"]["X-API-TOKEN"])
-
-        with patch("requests.post") as mock_post:
-            mock_post.side_effect = [
-                MockResponse(200, '{"id": "message_123"}'),
-                MockResponse(200, '{"id": "status_123"}'),
-            ]
-
-            self.client.post(url, post_data)
 
         channel = Channel.objects.get()
 
@@ -84,13 +98,15 @@ class ZenviaWhatsAppTypeTest(TembaTest):
         post_data["country"] = "US"
         post_data["number"] = "(206) 555-1212"
 
-        with patch("requests.post") as mock_post:
-            mock_post.side_effect = [
-                MockResponse(200, '{"id": "message_123"}'),
-                MockResponse(200, '{"id": "status_123"}'),
-            ]
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MockResponse(200, "Success")
+            with patch("requests.post") as mock_post:
+                mock_post.side_effect = [
+                    MockResponse(200, '{"id": "message_123"}'),
+                    MockResponse(200, '{"id": "status_123"}'),
+                ]
 
-            self.client.post(url, post_data)
+                self.client.post(url, post_data)
 
         channel = Channel.objects.filter(is_active=True).first()
 
