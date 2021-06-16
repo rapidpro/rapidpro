@@ -1,3 +1,8 @@
+v6.3.77
+----------
+ * Better validation of invalid tokens when claiming Zenvia channels
+ * Fix languages formax to not allow empty primary language
+
 v6.3.76
 ----------
  * Read org languages from org.flow_languages instead of Language instances
