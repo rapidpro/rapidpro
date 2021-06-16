@@ -4573,7 +4573,7 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
     This report can't be performed in one request so the report is being split into chunks,
     you should follow the `next` link until it's `null` and merge data using your script.
-    * **next** - Url to get next chunk of the report.
+    * **next** - URL to get next chunk of the report.
 
     Example:
 
@@ -4698,7 +4698,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
     This report can't be performed in one request so the report is being split into chunks,
     you should follow the `next` link until it's `null` and merge data using your script.
-    * **next** - Url to get next chunk of the report.
+    * **next** - URL to get next chunk of the report.
 
     Example:
 
@@ -4887,7 +4887,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
     This report can't be performed in one request so the report is being split into chunks,
     you should follow the `next` link until it's `null` and merge data using your script.
-    * **next** - Url to get next chunk of the report.
+    * **next** - URL to get next chunk of the report.
 
     Example:
 
@@ -5053,7 +5053,7 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
 
     This report can't be performed in one request so the report is being split into chunks,
     you should follow the `next` link until it's `null` and merge data using your script.
-    * **next** - Url to get next chunk of the report.
+    * **next** - URL to get next chunk of the report.
 
     Example:
 
@@ -5188,7 +5188,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
 
     This report can't be performed in one request so the report is being split into chunks,
     you should follow the `next` link until it's `null` and merge data using your script.
-    * **next** - Url to get next chunk of the report.
+    * **next** - URL to get next chunk of the report.
 
     Example:
 
