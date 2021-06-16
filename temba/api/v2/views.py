@@ -4616,7 +4616,7 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
     """
 
     permission = "orgs.org_api"
-    pagination_class = CreatedOnCursorPagination
+    pagination_class = ModifiedOnCursorPagination
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -4625,7 +4625,7 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
     @csv_response_wrapper
     def get(self, request, *args, **kwargs):
         try:
-            contacts = self.get_contacts_qs()
+            contacts = self.get_contacts_qs().only("modified_on")
             current_page, next_page = self.get_paginated_queryset(contacts)
             count = len(current_page)
             response_data = {"next": next_page, **self.applied_filters, "results": [{"total_unique_contacts": count}]}
@@ -4766,7 +4766,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     """
 
     permission = "orgs.org_api"
-    pagination_class = CreatedOnCursorPagination
+    pagination_class = ModifiedOnCursorPagination
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -4813,7 +4813,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         self.applied_filters["variables"] = variable_filters
 
-        contacts = contacts.filter(fields__has_any_keys=variable_filters.keys()).only("fields", "created_on")
+        contacts = contacts.filter(fields__has_any_keys=variable_filters.keys()).only("fields", "modified_on")
         current_page, next_page = self.get_paginated_queryset(contacts)
 
         for contact in current_page:
