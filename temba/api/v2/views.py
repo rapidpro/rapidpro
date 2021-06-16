@@ -2507,7 +2507,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
 
         def get_ordering(self, request, queryset, view=None):
             if request.query_params.get("folder", "").lower() == "incoming":
-                return ModifiedOnCursorPagination.ordering
+                return "-modified_on", "-id"
             else:
                 return CreatedOnCursorPagination.ordering
 

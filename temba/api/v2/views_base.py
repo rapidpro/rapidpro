@@ -11,6 +11,7 @@ from django.db import transaction
 from temba.api.models import APIPermission, SSLPermission
 from temba.api.support import InvalidQueryError
 from temba.contacts.models import URN
+from temba.utils import str_to_bool
 from temba.utils.views import NonAtomicMixin
 
 from .serializers import BulkActionFailure
@@ -253,7 +254,7 @@ class CreatedOnCursorPagination(CursorPagination):
 
 class ModifiedOnCursorPagination(CursorPagination):
     def get_ordering(self, request, queryset, view):
-        if request.GET.get("reverse", "") == "true":
+        if str_to_bool(request.GET.get("reverse")):
             return "modified_on", "id"
         else:
             return "-modified_on", "-id"
