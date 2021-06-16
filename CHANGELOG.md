@@ -1,3 +1,7 @@
+v6.3.76
+----------
+ * Read org languages from org.flow_languages instead of Language instances
+
 v6.3.75
 ----------
  * Fix closing and reopening of tickets from API
