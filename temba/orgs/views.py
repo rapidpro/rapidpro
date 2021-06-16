@@ -3108,27 +3108,27 @@ class OrgCRUDL(SmartCRUDL):
             return self.request.user.has_perm("orgs.org_country") or self.has_org_perm("orgs.org_country")
 
     class Languages(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        class LanguagesForm(forms.ModelForm):
-
+        class Form(forms.ModelForm):
             primary_lang = ArbitraryJsonChoiceField(
-                required=False,
-                label=_("Primary Language"),
+                required=True,
+                label=_("Default Flow Language"),
+                help_text=_("Used for contacts with no language preference."),
                 widget=SelectWidget(
                     attrs={
-                        "placeholder": _("Select the primary language for contacts with no language preference"),
+                        "placeholder": _("Select a language"),
                         "searchable": True,
                         "queryParam": "q",
                         "endpoint": reverse_lazy("orgs.org_languages"),
                     }
                 ),
             )
-
-            languages = ArbitraryJsonChoiceField(
+            other_langs = ArbitraryJsonChoiceField(
                 required=False,
                 label=_("Additional Languages"),
+                help_text=_("The languages that your flows can be translated into."),
                 widget=SelectMultipleWidget(
                     attrs={
-                        "placeholder": _("Additional languages you would like to provide translations for"),
+                        "placeholder": _("Select languages"),
                         "searchable": True,
                         "queryParam": "q",
                         "endpoint": reverse_lazy("orgs.org_languages"),
@@ -3136,17 +3136,16 @@ class OrgCRUDL(SmartCRUDL):
                 ),
             )
 
-            def __init__(self, *args, **kwargs):
-                self.org = kwargs["org"]
-                del kwargs["org"]
+            def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+                self.org = org
 
             class Meta:
                 model = Org
-                fields = ("primary_lang", "languages")
+                fields = ("primary_lang", "other_langs")
 
         success_message = ""
-        form_class = LanguagesForm
+        form_class = Form
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -3161,7 +3160,7 @@ class OrgCRUDL(SmartCRUDL):
                 return {"value": code, "name": languages.get_name(code)}
 
             non_primary_langs = org.flow_languages[1:] if len(org.flow_languages) > 1 else []
-            initial["languages"] = [lang_json(ln) for ln in non_primary_langs]
+            initial["other_langs"] = [lang_json(ln) for ln in non_primary_langs]
 
             if org.flow_languages:
                 initial["primary_lang"] = [lang_json(org.flow_languages[0])]
@@ -3172,9 +3171,15 @@ class OrgCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             org = self.get_object()
 
-            # get the non-primary languages
-            other_langs = org.flow_languages[1:] if len(org.flow_languages) > 1 else []
-            context["languages"] = sorted([languages.get_name(code) for code in other_langs])
+            if org.flow_languages:
+                primary_lang = languages.get_name(org.flow_languages[0])
+                other_langs = sorted([languages.get_name(code) for code in org.flow_languages[1:]])
+            else:
+                primary_lang = None
+                other_langs = []
+
+            context["primary_lang"] = primary_lang
+            context["other_langs"] = other_langs
             return context
 
         def get(self, request, *args, **kwargs):
@@ -3197,12 +3202,10 @@ class OrgCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             user = self.request.user
-            primary = form.cleaned_data["primary_lang"]
-            if primary:
-                primary = primary["value"]
+            primary = form.cleaned_data["primary_lang"]["value"]
 
             # remove empty codes and ensure primary is included in list
-            iso_codes = [d["value"] for d in form.cleaned_data["languages"] if d["value"]]
+            iso_codes = [d["value"] for d in form.cleaned_data["other_langs"] if d["value"]]
             if primary and primary not in iso_codes:
                 iso_codes.append(primary)
 

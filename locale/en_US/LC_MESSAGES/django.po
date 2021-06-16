@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-15 17:48+0000\n"
+"POT-Creation-Date: 2021-06-16 15:59+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3617,16 +3617,22 @@ msgstr ""
 msgid "The country used for location values. (optional)"
 msgstr ""
 
-msgid "Primary Language"
+msgid "Default Flow Language"
 msgstr ""
 
-msgid "Select the primary language for contacts with no language preference"
+msgid "Used for contacts with no language preference."
+msgstr ""
+
+msgid "Select a language"
 msgstr ""
 
 msgid "Additional Languages"
 msgstr ""
 
-msgid "Additional languages you would like to provide translations for"
+msgid "The languages that your flows can be translated into."
+msgstr ""
+
+msgid "Select languages"
 msgstr ""
 
 #, python-format
@@ -6531,7 +6537,7 @@ msgid "Please click Join to accept the invitation."
 msgstr ""
 
 #, python-format
-msgid "The primary language is <b>%(lang)s</b>."
+msgid "The default flow language is <b>%(lang)s</b>."
 msgstr ""
 
 msgid "Translations are provided in"
