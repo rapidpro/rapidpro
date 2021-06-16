@@ -1479,10 +1479,10 @@ class WorkspaceReadSerializer(ReadSerializer):
         return obj.default_country_code
 
     def get_languages(self, obj):
-        return [l.iso_code for l in obj.languages.order_by("iso_code")]
+        return obj.flow_languages
 
     def get_primary_language(self, obj):
-        return obj.primary_language.iso_code if obj.primary_language else None
+        return obj.flow_languages[0] if obj.flow_languages else None
 
     def get_timezone(self, obj):
         return str(obj.timezone)

@@ -52,7 +52,6 @@ from temba.templates.models import Template, TemplateTranslation
 from temba.tests import (
     CRUDLTestMixin,
     ESMockWithScroll,
-    MigrationTest,
     MockResponse,
     TembaNonAtomicTest,
     TembaTest,
@@ -984,21 +983,15 @@ class OrgTest(TembaTest):
         self.assertEqual(Org.get_unique_slug("Allo"), "allo-2")
 
     def test_set_flow_languages(self):
-        self.assertEqual(self.org.get_language_codes(), set())
+        self.assertEqual([], self.org.flow_languages)
 
         self.org.set_flow_languages(self.admin, ["eng", "fra"], "eng")
         self.org.refresh_from_db()
-
-        self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "French"})
-        self.assertEqual(self.org.primary_language.name, "English")
-        self.assertEqual(self.org.get_language_codes(), {"eng", "fra"})
+        self.assertEqual(["eng", "fra"], self.org.flow_languages)
 
         self.org.set_flow_languages(self.admin, ["eng", "kin"], "kin")
         self.org.refresh_from_db()
-
-        self.assertEqual({l.name for l in self.org.languages.all()}, {"English", "Kinyarwanda"})
-        self.assertEqual(self.org.primary_language.name, "Kinyarwanda")
-        self.assertEqual(self.org.get_language_codes(), {"eng", "kin"})
+        self.assertEqual(["kin", "eng"], self.org.flow_languages)
 
         with self.assertRaises(AssertionError):
             self.org.set_flow_languages(self.admin, ["eng", "xyz"], "eng")
@@ -4107,6 +4100,10 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.login(self.admin)
 
+        # initial should do a match on code only
+        response = self.client.get("%s?initial=fra" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual([{"name": "French", "value": "fra"}], response.json()["results"])
+
         # update our org with some language settings
         response = self.client.post(
             langs_url,
@@ -4116,10 +4113,9 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             },
         )
         self.assertEqual(response.status_code, 302)
-        self.org.refresh_from_db()
 
-        self.assertEqual(self.org.primary_language.name, "French")
-        self.assertIsNotNone(self.org.languages.filter(name="French"))
+        self.org.refresh_from_db()
+        self.assertEqual(["fra", "hat", "hau"], self.org.flow_languages)
 
         # check that the last load shows our new languages
         response = self.client.get(langs_url)
@@ -4148,16 +4144,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         response = self.client.get(reverse("orgs.org_languages"))
         self.assertEqual(["Haitian"], response.context["languages"])
-
-        # remove all languages
-        self.client.post(langs_url, {"primary_lang": "{}", "languages": []})
-        self.org.refresh_from_db()
-        self.assertIsNone(self.org.primary_language)
-        self.assertFalse(self.org.languages.all())
-
-        # initial should do a match on code only
-        response = self.client.get("%s?initial=fra" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
-        self.assertEqual([{"name": "French", "value": "fra"}], response.json()["results"])
 
         # searching languages should only return languages with 2-letter codes
         response = self.client.get("%s?search=Fr" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
@@ -5272,47 +5258,3 @@ class BackupTokenTest(TembaTest):
         self.assertEqual(10, len(new_admin_tokens))
         self.assertNotEqual([t.token for t in admin_tokens], [t.token for t in new_admin_tokens])
         self.assertEqual(10, self.admin.backup_tokens.count())
-
-
-class PopulateFlowLanguagesTest(MigrationTest):
-    app = "orgs"
-    migrate_from = "0085_org_flow_languages"
-    migrate_to = "0086_populate_org_flow_languages"
-
-    def setUpBeforeMigration(self, apps):
-        def create_org(langs: list, primary: str, flow_langs: list):
-            org = Org.objects.create(
-                name="Acme",
-                created_by=self.admin,
-                modified_by=self.admin,
-                flow_languages=flow_langs,
-            )
-
-            for lang in langs:
-                Language.create(org, self.admin, "X", iso_code=lang)
-            if primary:
-                org.primary_language = org.languages.get(iso_code=primary)
-                org.save(update_fields=("primary_language",))
-            return org
-
-        # org with no languages
-        self.org1 = create_org(langs=[], primary="", flow_langs=[])
-
-        # new org with flow languages default
-        self.org2 = create_org(langs=[], primary="", flow_langs=["eng"])
-
-        # single language org, not yet set
-        self.org3 = create_org(langs=["spa"], primary="spa", flow_langs=[])
-
-        # multi language org, not yet set
-        self.org4 = create_org(langs=["spa", "eng", "fra"], primary="fra", flow_langs=[])
-
-    def test_migration(self):
-        def assert_flow_langs(org, expected):
-            org.refresh_from_db()
-            self.assertEqual(expected, org.flow_languages)
-
-        assert_flow_langs(self.org1, [])
-        assert_flow_langs(self.org2, ["eng"])
-        assert_flow_langs(self.org3, ["spa"])
-        assert_flow_langs(self.org4, ["fra", "spa", "eng"])

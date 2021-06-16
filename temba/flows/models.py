@@ -238,7 +238,7 @@ class Flow(TembaModel):
         """
         Creates a special 'join group' flow
         """
-        base_language = org.primary_language.iso_code if org.primary_language else "base"
+        base_language = org.flow_languages[0] if org.flow_languages else "base"
 
         name = Flow.get_unique_name(org, "Join %s" % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)

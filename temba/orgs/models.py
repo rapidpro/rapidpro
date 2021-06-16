@@ -876,13 +876,6 @@ class Org(SmartModel):
 
         return None
 
-    def get_language_codes(self, include_primary: bool = True) -> set:
-        qs = self.languages.values_list("iso_code", flat=True)
-        if not include_primary and self.primary_language:
-            qs = qs.filter(orgs=None)
-
-        return set(qs)
-
     def set_flow_languages(self, user, iso_codes, primary):
         """
         Sets languages used in flows for this org, creating and deleting language objects as necessary
@@ -902,11 +895,6 @@ class Org(SmartModel):
             if iso_code == primary:
                 self.primary_language = language
                 self.save(update_fields=("primary_language",))
-
-        # unset the primary language if not in the new list of codes
-        if self.primary_language and self.primary_language.iso_code not in iso_codes:
-            self.primary_language = None
-            self.save(update_fields=("primary_language",))
 
         # remove any languages that are not in the new list
         self.languages.exclude(iso_code__in=iso_codes).delete()
@@ -1861,8 +1849,8 @@ class Org(SmartModel):
             "date_format": Org.DATE_FORMATS_ENGINE.get(self.date_format),
             "time_format": "tt:mm",
             "timezone": str(self.timezone),
-            "default_language": self.primary_language.iso_code if self.primary_language else None,
-            "allowed_languages": list(self.get_language_codes()),
+            "default_language": self.flow_languages[0] if self.flow_languages else None,
+            "allowed_languages": self.flow_languages,
             "default_country": self.default_country_code,
             "redaction_policy": "urns" if self.is_anon else "none",
         }

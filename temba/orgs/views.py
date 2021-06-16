@@ -3157,20 +3157,24 @@ class OrgCRUDL(SmartCRUDL):
             initial = super().derive_initial()
             org = self.get_object()
 
-            org_langs = org.languages.filter(orgs=None).order_by("name")
-            initial["languages"] = [{"value": lang.iso_code, "name": lang.name} for lang in org_langs]
+            def lang_json(code):
+                return {"value": code, "name": languages.get_name(code)}
 
-            if org.primary_language:
-                lang = org.primary_language
-                initial["primary_lang"] = [{"value": lang.iso_code, "name": lang.name}]
+            non_primary_langs = org.flow_languages[1:] if len(org.flow_languages) > 1 else []
+            initial["languages"] = [lang_json(ln) for ln in non_primary_langs]
+
+            if org.flow_languages:
+                initial["primary_lang"] = [lang_json(org.flow_languages[0])]
 
             return initial
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org = self.get_object()
-            lang_codes = org.get_language_codes(include_primary=False)
-            context["languages"] = sorted([languages.get_name(code) for code in lang_codes])
+
+            # get the non-primary languages
+            other_langs = org.flow_languages[1:] if len(org.flow_languages) > 1 else []
+            context["languages"] = sorted([languages.get_name(code) for code in other_langs])
             return context
 
         def get(self, request, *args, **kwargs):

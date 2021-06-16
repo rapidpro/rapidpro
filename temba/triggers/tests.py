@@ -8,7 +8,6 @@ from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup
 from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
-from temba.orgs.models import Language
 from temba.schedules.models import Schedule
 from temba.tests import CRUDLTestMixin, TembaTest
 from temba.utils.dates import datetime_to_str
@@ -346,9 +345,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(flow.base_language, "base")
 
         # try creating a join group on an org with a language
-        language = Language.create(self.org, self.admin, "Spanish", "spa")
-        self.org.primary_language = language
-        self.org.save(update_fields=("primary_language",))
+        self.org.set_flow_languages(self.admin, ["spa"], primary="spa")
 
         self.assertCreateSubmit(
             create_url,

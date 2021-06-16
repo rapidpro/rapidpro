@@ -33,7 +33,6 @@ from temba.msgs.models import (
     SystemLabel,
     SystemLabelCount,
 )
-from temba.orgs.models import Language
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest
 from temba.tests.engine import MockSessionWriter
@@ -274,10 +273,7 @@ class MsgTest(TembaTest):
                 quick_replies=[dict(eng="Yes"), dict(eng="No")],
             )
 
-        eng = Language.create(self.org, self.admin, "English", "eng")
-        Language.create(self.org, self.admin, "French", "fra")
-        self.org.primary_language = eng
-        self.org.save()
+        self.org.set_flow_languages(self.admin, ["eng", "fra"], primary="eng")
 
         broadcast = Broadcast.create(
             self.org,

@@ -32,7 +32,7 @@ from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
-from temba.orgs.models import Language, Org
+from temba.orgs.models import Org
 from temba.templates.models import TemplateTranslation
 from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
@@ -261,7 +261,7 @@ class APITest(TembaTest):
         self.assertEqual(field.to_internal_value("Hello"), ({"base": "Hello"}, "base"))
         self.assertEqual(field.to_internal_value({"base": "Hello"}), ({"base": "Hello"}, "base"))
 
-        self.org.primary_language = Language.create(self.org, self.user, "Kinyarwanda", "kin")
+        self.org.set_flow_languages(self.admin, ["kin"], primary="kin")
         self.org.save()
 
         self.assertEqual(field.to_internal_value("Hello"), ({"kin": "Hello"}, "kin"))

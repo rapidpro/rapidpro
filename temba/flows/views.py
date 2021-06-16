@@ -384,8 +384,8 @@ class FlowCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
                 self.user = user
 
-                org_languages = self.user.get_org().languages.all().order_by("orgs", "name")
-                language_choices = ((lang.iso_code, lang.name) for lang in org_languages)
+                org = self.user.get_org()
+                language_choices = languages.choices(org.flow_languages)
 
                 # prune our type choices by brand config
                 allowed_types = branding.get("flow_types")
@@ -394,7 +394,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 self.fields["base_language"] = forms.ChoiceField(
                     label=_("Language"),
-                    initial=self.user.get_org().primary_language,
+                    initial=org.flow_languages[0] if org.flow_languages else None,
                     choices=language_choices,
                     widget=SelectWidget(attrs={"widget_only": False}),
                 )
@@ -414,7 +414,7 @@ class FlowCRUDL(SmartCRUDL):
             org = user.get_org()
             exclude = []
 
-            if not org.primary_language:
+            if not org.flow_languages:
                 exclude.append("base_language")
 
             return exclude
@@ -1143,7 +1143,7 @@ class FlowCRUDL(SmartCRUDL):
 
             def clean_language(self):
                 data = self.cleaned_data["language"]
-                if data and data not in self.user.get_org().get_language_codes():
+                if data and data not in self.user.get_org().flow_languages:
                     raise ValidationError(_("Not a valid language."))
 
                 return data
@@ -1188,7 +1188,7 @@ class FlowCRUDL(SmartCRUDL):
                 org = user.get_org()
 
                 self.user = user
-                self.fields["language"].choices += languages.choices(codes=org.get_language_codes())
+                self.fields["language"].choices += languages.choices(codes=org.flow_languages)
 
         form_class = Form
         submit_button_name = _("Export")
@@ -1266,7 +1266,7 @@ class FlowCRUDL(SmartCRUDL):
                                 params={"lang": po_info.language_name},
                             )
 
-                        if po_info.language_code not in self.flow.org.get_language_codes():
+                        if po_info.language_code not in self.flow.org.flow_languages:
                             raise ValidationError(
                                 _("Contains translations in %(lang)s which is not a supported translation language."),
                                 params={"lang": po_info.language_name},
@@ -1286,7 +1286,7 @@ class FlowCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
 
                 org = user.get_org()
-                lang_codes = org.get_language_codes()
+                lang_codes = list(org.flow_languages)
                 lang_codes.remove(instance.base_language)
 
                 self.fields["language"].choices = languages.choices(codes=lang_codes)
@@ -2034,7 +2034,7 @@ class FlowCRUDL(SmartCRUDL):
             if asset_type_name == "environment":
                 return JsonResponse(org.as_environment_def())
             else:
-                results = [{"iso": code, "name": languages.get_name(code)} for code in org.get_language_codes()]
+                results = [{"iso": code, "name": languages.get_name(code)} for code in org.flow_languages]
                 return JsonResponse({"results": sorted(results, key=lambda l: l["name"])})
 
 
