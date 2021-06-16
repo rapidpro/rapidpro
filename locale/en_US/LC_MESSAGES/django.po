@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-04 22:17+0000\n"
+"POT-Creation-Date: 2021-06-16 20:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1861,6 +1861,9 @@ msgstr ""
 msgid "The API token for your integration as provided by Zenvia"
 msgstr ""
 
+msgid "Invalid token. Please check your Zenvia account settings."
+msgstr ""
+
 msgid "POST Required"
 msgstr ""
 
@@ -3119,9 +3122,6 @@ msgstr ""
 msgid "Whether this organization can have multiple logins"
 msgstr ""
 
-msgid "The primary language will be used for contacts with no language preference."
-msgstr ""
-
 msgid "Brand"
 msgstr ""
 
@@ -3132,6 +3132,9 @@ msgid "A password that allows users to register as surveyors"
 msgstr ""
 
 msgid "The parent org that manages this org"
+msgstr ""
+
+msgid "The primary language will be used for contacts with no language preference."
 msgstr ""
 
 #, python-format
@@ -3310,6 +3313,9 @@ msgid "Email"
 msgstr ""
 
 msgid "Current Password"
+msgstr ""
+
+msgid "Password Required"
 msgstr ""
 
 msgid "New Password"
@@ -3614,16 +3620,22 @@ msgstr ""
 msgid "The country used for location values. (optional)"
 msgstr ""
 
-msgid "Primary Language"
+msgid "Default Flow Language"
 msgstr ""
 
-msgid "Select the primary language for contacts with no language preference"
+msgid "Used for contacts with no language preference."
+msgstr ""
+
+msgid "Select a language"
 msgstr ""
 
 msgid "Additional Languages"
 msgstr ""
 
-msgid "Additional languages you would like to provide translations for"
+msgid "The languages that your flows can be translated into."
+msgstr ""
+
+msgid "Select languages"
 msgstr ""
 
 #, python-format
@@ -3884,6 +3896,12 @@ msgstr ""
 msgid "HTTP Log"
 msgstr ""
 
+msgid "Notes can only be seen by the support team"
+msgstr ""
+
+msgid "Add Note"
+msgstr ""
+
 msgid "Your ticketing service has been deleted."
 msgstr ""
 
@@ -3923,40 +3941,49 @@ msgstr ""
 msgid "Keyword"
 msgstr ""
 
-msgid "Word to match in the message text"
+msgid "Word to match in the message text."
 msgstr ""
 
 msgid "Flow"
 msgstr ""
 
-msgid "Which flow will be started"
+msgid "Which flow will be started."
 msgstr ""
 
 msgid "Trigger When"
 msgstr ""
 
-msgid "How to match a message with a keyword"
+msgid "How to match a message with a keyword."
 msgstr ""
 
-msgid "The associated channel"
+msgid "The associated channel."
 msgstr ""
 
 msgid "Select a flow"
 msgstr ""
 
-msgid "There already exists a trigger of this type."
+msgid "Groups To Include"
+msgstr ""
+
+msgid "Only includes contacts in these groups."
+msgstr ""
+
+msgid "Optional: Select contact groups"
+msgstr ""
+
+msgid "Groups To Exclude"
+msgstr ""
+
+msgid "Excludes contacts in these groups."
 msgstr ""
 
 msgid "Must be a single word containing only letters and numbers."
 msgstr ""
 
-msgid "Optional: Trigger only applies to these groups"
+msgid "Can't include and exclude the same group."
 msgstr ""
 
-msgid "There already exists a trigger of this type for these groups."
-msgstr ""
-
-msgid "There already exists a trigger with this keyword for these groups."
+msgid "There already exists a trigger of this type with these options."
 msgstr ""
 
 msgid "The first word of the message text"
@@ -3982,9 +4009,6 @@ msgstr ""
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr ""
 
-msgid "There already exists a trigger of this type for this channel."
-msgstr ""
-
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
 msgstr ""
 
@@ -3992,9 +4016,6 @@ msgid "Referrer Id"
 msgstr ""
 
 msgid "The referrer id that will trigger us"
-msgstr ""
-
-msgid "There already exists a trigger with this referrer and channel."
 msgstr ""
 
 msgid "Create Trigger"
@@ -6519,7 +6540,7 @@ msgid "Please click Join to accept the invitation."
 msgstr ""
 
 #, python-format
-msgid "The primary language is <b>%(lang)s</b>."
+msgid "The default flow language is <b>%(lang)s</b>."
 msgstr ""
 
 msgid "Translations are provided in"
@@ -6726,10 +6747,14 @@ msgstr ""
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr ""
 
+msgid "Confirm your current password to save these changes"
+msgstr ""
+
 #, python-format
 msgid ""
 "\n"
 "    Your email address is <b>%(email)s</b>.\n"
+"\n"
 "  "
 msgstr ""
 
@@ -7236,7 +7261,10 @@ msgstr ""
 msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr ""
 
-msgid "Start a flow after receiving a message not handled elsewhere."
+msgid "Start a flow after receiving a message that doesn't match any keywords."
+msgstr ""
+
+msgid "Start a flow after a ticket is closed."
 msgstr ""
 
 msgid "Start a flow after receiving a call."
@@ -7282,6 +7310,9 @@ msgid "The referrer id"
 msgstr ""
 
 msgid "on the channel"
+msgstr ""
+
+msgid "A closed ticket"
 msgstr ""
 
 msgid "starts"

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-04 22:17+0000\n"
+"POT-Creation-Date: 2021-06-16 20:15+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -1891,6 +1891,9 @@ msgstr "Токен API"
 msgid "The API token for your integration as provided by Zenvia"
 msgstr ""
 
+msgid "Invalid token. Please check your Zenvia account settings."
+msgstr ""
+
 msgid "POST Required"
 msgstr "Требуется POST"
 
@@ -3171,9 +3174,6 @@ msgstr ""
 msgid "Whether this organization can have multiple logins"
 msgstr ""
 
-msgid "The primary language will be used for contacts with no language preference."
-msgstr "Основной язык, который будет использоваться для контактов без языковых предпочтений."
-
 msgid "Brand"
 msgstr "Бренд"
 
@@ -3185,6 +3185,9 @@ msgstr "Пароль, позволяющий пользователям реги
 
 msgid "The parent org that manages this org"
 msgstr "Родительская организация, которая управляет данной организацией"
+
+msgid "The primary language will be used for contacts with no language preference."
+msgstr "Основной язык, который будет использоваться для контактов без языковых предпочтений."
 
 #, python-format
 msgid "Invalid bundle: %s, cannot upgrade."
@@ -3363,6 +3366,11 @@ msgstr "E-mail"
 
 msgid "Current Password"
 msgstr ""
+
+#, fuzzy
+#| msgid "POST Required"
+msgid "Password Required"
+msgstr "Требуется POST"
 
 msgid "New Password"
 msgstr ""
@@ -3682,17 +3690,31 @@ msgstr ""
 msgid "The country used for location values. (optional)"
 msgstr "Страна, используемая для значений местоположения. (опционально)"
 
-msgid "Primary Language"
+#, fuzzy
+#| msgid "Base Language"
+msgid "Default Flow Language"
 msgstr "Основной язык"
 
-msgid "Select the primary language for contacts with no language preference"
-msgstr ""
+#, fuzzy
+#| msgid "The primary language will be used for contacts with no language preference."
+msgid "Used for contacts with no language preference."
+msgstr "Основной язык, который будет использоваться для контактов без языковых предпочтений."
+
+#, fuzzy
+#| msgid "Select Group"
+msgid "Select a language"
+msgstr "Выбрать Группу"
 
 msgid "Additional Languages"
 msgstr "Дополнительные языки"
 
-msgid "Additional languages you would like to provide translations for"
+msgid "The languages that your flows can be translated into."
 msgstr ""
+
+#, fuzzy
+#| msgid "Contact language"
+msgid "Select languages"
+msgstr "Язык Контакта"
 
 #, python-format
 msgid "Cleared %(name)s cache for this workspace (%(count)d keys)"
@@ -3952,6 +3974,14 @@ msgstr ""
 msgid "HTTP Log"
 msgstr ""
 
+msgid "Notes can only be seen by the support team"
+msgstr ""
+
+#, fuzzy
+#| msgid "Add Number"
+msgid "Add Note"
+msgstr "Добавить Номер"
+
 msgid "Your ticketing service has been deleted."
 msgstr ""
 
@@ -4007,28 +4037,54 @@ msgstr "Сообщение содержит только ключевое сло
 msgid "Keyword"
 msgstr "Ключевое слово"
 
-msgid "Word to match in the message text"
+#, fuzzy
+#| msgid "Word to match in the message text"
+msgid "Word to match in the message text."
 msgstr "Слово для соответствия в тексте сообщения"
 
 msgid "Flow"
 msgstr "Поток"
 
-msgid "Which flow will be started"
+#, fuzzy
+#| msgid "Which flow will be started"
+msgid "Which flow will be started."
 msgstr "Какой поток будет запущен"
 
 msgid "Trigger When"
 msgstr "Сработать, когда"
 
-msgid "How to match a message with a keyword"
+#, fuzzy
+#| msgid "How to match a message with a keyword"
+msgid "How to match a message with a keyword."
 msgstr "Как сопоставить сообщение с ключевым словом"
 
-msgid "The associated channel"
+#, fuzzy
+#| msgid "The associated channel"
+msgid "The associated channel."
 msgstr "Связанный канал"
 
 msgid "Select a flow"
 msgstr "Выберите поток"
 
-msgid "There already exists a trigger of this type."
+#, fuzzy
+#| msgid "Group to Join"
+msgid "Groups To Include"
+msgstr "Группа для Присоединения"
+
+#, fuzzy
+#| msgid "Recipients, enter contacts or groups"
+msgid "Only includes contacts in these groups."
+msgstr "Получатели, введите контакты или группы"
+
+#, fuzzy
+#| msgid "Recipients, enter contacts or groups"
+msgid "Optional: Select contact groups"
+msgstr "Получатели, введите контакты или группы"
+
+msgid "Groups To Exclude"
+msgstr ""
+
+msgid "Excludes contacts in these groups."
 msgstr ""
 
 #, fuzzy
@@ -4036,17 +4092,12 @@ msgstr ""
 msgid "Must be a single word containing only letters and numbers."
 msgstr "Ключевые слова должны быть одним словом, содержащим только буквы и цифры"
 
-msgid "Optional: Trigger only applies to these groups"
+msgid "Can't include and exclude the same group."
 msgstr ""
 
 #, fuzzy
 #| msgid "An active trigger already exists, triggers must be unique for each group"
-msgid "There already exists a trigger of this type for these groups."
-msgstr "Активный триггер уже существует, триггеры должны быть уникальными для каждой группы"
-
-#, fuzzy
-#| msgid "An active trigger already exists, triggers must be unique for each group"
-msgid "There already exists a trigger with this keyword for these groups."
+msgid "There already exists a trigger of this type with these options."
 msgstr "Активный триггер уже существует, триггеры должны быть уникальными для каждой группы"
 
 msgid "The first word of the message text"
@@ -4074,9 +4125,6 @@ msgstr ""
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Группы и контакты, которым поток будет осуществлять рассылку"
 
-msgid "There already exists a trigger of this type for this channel."
-msgstr ""
-
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
 msgstr "Канал, к которому применить этот триггер, оставьте пустым для охвата всех каналов Facebook"
 
@@ -4085,9 +4133,6 @@ msgstr "Id Источника ссылки"
 
 msgid "The referrer id that will trigger us"
 msgstr "Id источника ссылки, который запустит нас"
-
-msgid "There already exists a trigger with this referrer and channel."
-msgstr ""
 
 msgid "Create Trigger"
 msgstr "Создать Триггер"
@@ -6812,7 +6857,7 @@ msgid "Please click Join to accept the invitation."
 msgstr "Пожалуйста, для принятия приглашения нажмите «Присоединиться»."
 
 #, python-format
-msgid "The primary language is <b>%(lang)s</b>."
+msgid "The default flow language is <b>%(lang)s</b>."
 msgstr ""
 
 #, fuzzy
@@ -7033,10 +7078,16 @@ msgstr ""
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr ""
 
+#, fuzzy
+#| msgid "Please enter your password to save changes."
+msgid "Confirm your current password to save these changes"
+msgstr "Пожалуйста, введите свой пароль для сохранения изменений."
+
 #, python-format
 msgid ""
 "\n"
 "    Your email address is <b>%(email)s</b>.\n"
+"\n"
 "  "
 msgstr ""
 
@@ -7603,8 +7654,15 @@ msgstr ""
 msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr "Триггеры позволяют пользователям запускать потоки на основе действий пользователя или расписания."
 
-msgid "Start a flow after receiving a message not handled elsewhere."
+#, fuzzy
+#| msgid "Start a flow after receiving a message not handled elsewhere."
+msgid "Start a flow after receiving a message that doesn't match any keywords."
 msgstr "Запустите поток после получения сообщения, не обработанного где-либо еще."
+
+#, fuzzy
+#| msgid "Start a flow after a missed call."
+msgid "Start a flow after a ticket is closed."
+msgstr "Запустить поток после пропущенного звонка."
 
 msgid "Start a flow after receiving a call."
 msgstr "Запустите поток после получения звонка."
@@ -7653,6 +7711,9 @@ msgstr ""
 msgid "on the channel"
 msgstr ""
 
+msgid "A closed ticket"
+msgstr ""
+
 msgid "starts"
 msgstr ""
 
@@ -7690,6 +7751,24 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#, fuzzy
+#~| msgid "Unable to check WhatsApp enterprise account, please check username and password"
+#~ msgid "Unable to check Zenvia account, please check the API token"
+#~ msgstr "Невозможно проверить корпоративный счет WhatsApp, пожалуйста, проверьте имя пользователя и пароль"
+
+#~ msgid "Primary Language"
+#~ msgstr "Основной язык"
+
+#, fuzzy
+#~| msgid "Group to Join"
+#~ msgid "Group Filtering"
+#~ msgstr "Группа для Присоединения"
+
+#, fuzzy
+#~| msgid "An active trigger already exists, triggers must be unique for each group"
+#~ msgid "There already exists a trigger with this keyword for these groups."
+#~ msgstr "Активный триггер уже существует, триггеры должны быть уникальными для каждой группы"
 
 #, fuzzy
 #~| msgid "Trigger with this Channel already exists."

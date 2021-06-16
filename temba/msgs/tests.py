@@ -33,7 +33,6 @@ from temba.msgs.models import (
     SystemLabel,
     SystemLabelCount,
 )
-from temba.orgs.models import Language
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest
 from temba.tests.engine import MockSessionWriter
@@ -274,10 +273,7 @@ class MsgTest(TembaTest):
                 quick_replies=[dict(eng="Yes"), dict(eng="No")],
             )
 
-        eng = Language.create(self.org, self.admin, "English", "eng")
-        Language.create(self.org, self.admin, "French", "fra")
-        self.org.primary_language = eng
-        self.org.save()
+        self.org.set_flow_languages(self.admin, ["eng", "fra"], primary="eng")
 
         broadcast = Broadcast.create(
             self.org,
@@ -1952,7 +1948,7 @@ class BroadcastTest(TembaTest):
         # test resolving the broadcast text in different languages (used to render scheduled ones)
         self.assertEqual("Hello everyone", broadcast1.get_translated_text(self.joe))  # uses broadcast base language
 
-        self.org.set_languages(self.admin, ["eng", "spa", "fra"], "spa")
+        self.org.set_flow_languages(self.admin, ["eng", "spa", "fra"], "spa")
 
         self.assertEqual("Hola a todos", broadcast1.get_translated_text(self.joe))  # uses org primary language
 
@@ -1961,7 +1957,7 @@ class BroadcastTest(TembaTest):
 
         self.assertEqual("Salut à tous", broadcast1.get_translated_text(self.joe))  # uses contact language
 
-        self.org.set_languages(self.admin, ["eng", "spa"], "spa")
+        self.org.set_flow_languages(self.admin, ["eng", "spa"], "spa")
 
         self.assertEqual("Hola a todos", broadcast1.get_translated_text(self.joe))  # but only if it's allowed
 

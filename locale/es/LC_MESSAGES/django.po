@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-04 22:17+0000\n"
+"POT-Creation-Date: 2021-06-16 20:15+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -1878,6 +1878,11 @@ msgstr "Token API"
 msgid "The API token for your integration as provided by Zenvia"
 msgstr ""
 
+#, fuzzy
+#| msgid "Invalid backup token. Please try again."
+msgid "Invalid token. Please check your Zenvia account settings."
+msgstr "Código de respaldo inválido. Por favor intente de nuevo"
+
 msgid "POST Required"
 msgstr "AVISO requerido"
 
@@ -3161,9 +3166,6 @@ msgstr "Si esta organización puede tener espacios de trabajo secundarios"
 msgid "Whether this organization can have multiple logins"
 msgstr "Si esta organización puede tener varios logins"
 
-msgid "The primary language will be used for contacts with no language preference."
-msgstr "Para los contactos sin preferencia de idioma, se usará el idioma principal"
-
 msgid "Brand"
 msgstr "Marca"
 
@@ -3175,6 +3177,9 @@ msgstr "Una contraseña que permite a los usuarios registrarse como Surveyors."
 
 msgid "The parent org that manages this org"
 msgstr "La organización principal que gestiona esta organización"
+
+msgid "The primary language will be used for contacts with no language preference."
+msgstr "Para los contactos sin preferencia de idioma, se usará el idioma principal"
 
 #, python-format
 msgid "Invalid bundle: %s, cannot upgrade."
@@ -3353,6 +3358,11 @@ msgstr "Correo electrónico"
 
 msgid "Current Password"
 msgstr "contraseña actual"
+
+#, fuzzy
+#| msgid "POST Required"
+msgid "Password Required"
+msgstr "AVISO requerido"
 
 msgid "New Password"
 msgstr "Nueva contraseña"
@@ -3672,19 +3682,31 @@ msgstr "Lo sentimos, %(org_name)s no tiene suficientes créditos para esta trans
 msgid "The country used for location values. (optional)"
 msgstr "El país usado para los valores de ubicación. (opcional)"
 
-msgid "Primary Language"
-msgstr "Idioma principal"
+#, fuzzy
+#| msgid "Base Language"
+msgid "Default Flow Language"
+msgstr "Idioma base"
 
-msgid "Select the primary language for contacts with no language preference"
-msgstr "Seleccione el idioma principal para los contactos sin preferencia de idioma"
+#, fuzzy
+#| msgid "The primary language will be used for contacts with no language preference."
+msgid "Used for contacts with no language preference."
+msgstr "Para los contactos sin preferencia de idioma, se usará el idioma principal"
+
+#, fuzzy
+#| msgid "Select Group"
+msgid "Select a language"
+msgstr "Elegir Grupo"
 
 msgid "Additional Languages"
 msgstr "Idiomas adicionales"
 
+msgid "The languages that your flows can be translated into."
+msgstr ""
+
 #, fuzzy
-#| msgid "Additional languages you would like to provid translations for"
-msgid "Additional languages you would like to provide translations for"
-msgstr "Idiomas adicionales para los que le gustaría proporcionar traducciones"
+#| msgid "Contact language"
+msgid "Select languages"
+msgstr "Idioma de contacto"
 
 #, python-format
 msgid "Cleared %(name)s cache for this workspace (%(count)d keys)"
@@ -3944,6 +3966,14 @@ msgstr "Eliminar servicio de tickets"
 msgid "HTTP Log"
 msgstr "Registro HTTP"
 
+msgid "Notes can only be seen by the support team"
+msgstr ""
+
+#, fuzzy
+#| msgid "Add Number"
+msgid "Add Note"
+msgstr "Agregar número"
+
 msgid "Your ticketing service has been deleted."
 msgstr "Su servicio de Tickets ha sido eliminado."
 
@@ -3999,48 +4029,69 @@ msgstr "El mensaje contiene solo la palabra clave"
 msgid "Keyword"
 msgstr "Palabra clave"
 
-msgid "Word to match in the message text"
+#, fuzzy
+#| msgid "Word to match in the message text"
+msgid "Word to match in the message text."
 msgstr "Palabra para que coincida en el texto del mensaje"
 
 msgid "Flow"
 msgstr "Flujo"
 
-msgid "Which flow will be started"
+#, fuzzy
+#| msgid "Which flow will be started"
+msgid "Which flow will be started."
 msgstr "Qué flujo se iniciará"
 
 msgid "Trigger When"
 msgstr "Activar cuando"
 
-msgid "How to match a message with a keyword"
+#, fuzzy
+#| msgid "How to match a message with a keyword"
+msgid "How to match a message with a keyword."
 msgstr "Cómo hacer coincidir un mensaje con una palabra clave"
 
-msgid "The associated channel"
+#, fuzzy
+#| msgid "The associated channel"
+msgid "The associated channel."
 msgstr "El canal asociado"
 
 msgid "Select a flow"
 msgstr "Seleccione un flujo"
 
 #, fuzzy
-#| msgid "There is already a channel configured for this URL."
-msgid "There already exists a trigger of this type."
-msgstr "Ya hay un canal configurado para esta URL."
+#| msgid "Group to Join"
+msgid "Groups To Include"
+msgstr "Grupo para participar"
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Only includes contacts in these groups."
+msgstr "Opcional: el activador solo se aplica a estos grupos"
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Optional: Select contact groups"
+msgstr "Opcional: el activador solo se aplica a estos grupos"
+
+msgid "Groups To Exclude"
+msgstr ""
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Excludes contacts in these groups."
+msgstr "Opcional: el activador solo se aplica a estos grupos"
 
 #, fuzzy
 #| msgid "Keywords must be a single word containing only letter and numbers"
 msgid "Must be a single word containing only letters and numbers."
 msgstr "Las palabras clave deben ser una sola palabra que contenga solo letras y números"
 
-msgid "Optional: Trigger only applies to these groups"
-msgstr "Opcional: el activador solo se aplica a estos grupos"
+msgid "Can't include and exclude the same group."
+msgstr ""
 
 #, fuzzy
 #| msgid "An active trigger already exists, triggers must be unique for each group"
-msgid "There already exists a trigger of this type for these groups."
-msgstr "Ya existe un activador activo, los activadores deben ser únicos para cada grupo"
-
-#, fuzzy
-#| msgid "An active trigger already exists, triggers must be unique for each group"
-msgid "There already exists a trigger with this keyword for these groups."
+msgid "There already exists a trigger of this type with these options."
 msgstr "Ya existe un activador activo, los activadores deben ser únicos para cada grupo"
 
 msgid "The first word of the message text"
@@ -4066,11 +4117,6 @@ msgstr "Hora de inicio"
 msgid "The groups and contacts the flow will be broadcast to"
 msgstr "Los grupos y contactos al que se comunicará el flujo"
 
-#, fuzzy
-#| msgid "There is already a ticketing service configured for this subdomain."
-msgid "There already exists a trigger of this type for this channel."
-msgstr "Ya existe un servicio de Tickets configurado para este subdominio."
-
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
 msgstr "El canal al que aplicar este activador, déjelo en blanco para todos los canales de Facebook"
 
@@ -4079,9 +4125,6 @@ msgstr "ID de referencia"
 
 msgid "The referrer id that will trigger us"
 msgstr "La identificación de referencia que nos activará"
-
-msgid "There already exists a trigger with this referrer and channel."
-msgstr ""
 
 msgid "Create Trigger"
 msgstr "Crear Activador"
@@ -6869,8 +6912,9 @@ msgstr "Ha sido invitado a unirse a %(name)s."
 msgid "Please click Join to accept the invitation."
 msgstr "Por favor, haga clic en Participar para aceptar la invitación."
 
-#, python-format
-msgid "The primary language is <b>%(lang)s</b>."
+#, fuzzy, python-format
+#| msgid "The primary language is <b>%(lang)s</b>."
+msgid "The default flow language is <b>%(lang)s</b>."
 msgstr "El idioma principal es <b> %(lang)s </b>."
 
 #, fuzzy
@@ -7095,10 +7139,20 @@ msgstr "Gracias por apoyar %(brand)s."
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Créditos complementarios, gracias por probar %(brand)s."
 
-#, python-format
+#, fuzzy
+#| msgid "Please enter your password to save changes."
+msgid "Confirm your current password to save these changes"
+msgstr "Por favor, ingrese su contraseña para guardar los cambios."
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "    Your email address is <b>%(email)s</b>.\n"
+#| "  "
 msgid ""
 "\n"
 "    Your email address is <b>%(email)s</b>.\n"
+"\n"
 "  "
 msgstr ""
 "\n"
@@ -7755,8 +7809,15 @@ msgstr "Agregue una cuenta para el canal e ingrese <code> %(secret)s </code> com
 msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr "Los activadores permiten que los usuarios inicien los flujos a partir de las acciones o cronogramas del usuario."
 
-msgid "Start a flow after receiving a message not handled elsewhere."
+#, fuzzy
+#| msgid "Start a flow after receiving a message not handled elsewhere."
+msgid "Start a flow after receiving a message that doesn't match any keywords."
 msgstr "Empezar un flujo después de recibir un mensaje que no se haya manejado en ningún otro lugar."
+
+#, fuzzy
+#| msgid "Start a flow after a missed call."
+msgid "Start a flow after a ticket is closed."
+msgstr "Inicie un flujo después de una llamada perdida."
 
 msgid "Start a flow after receiving a call."
 msgstr "Inicie un flujo después de recibir una llamada."
@@ -7805,6 +7866,11 @@ msgstr "La identificación de referencia"
 msgid "on the channel"
 msgstr "en el canal"
 
+#, fuzzy
+#| msgid "Closed Tickets"
+msgid "A closed ticket"
+msgstr "Tickets Cerradas"
+
 msgid "starts"
 msgstr "empieza"
 
@@ -7842,6 +7908,42 @@ msgstr "Las plantillas se sincronizan desde su cuenta de WhatsApp cada 15 minuto
 
 msgid "No synced templates at this time."
 msgstr "No hay plantillas sincronizadas en este momento."
+
+#, fuzzy
+#~| msgid "Unable to check WhatsApp enterprise account, please check username and password"
+#~ msgid "Unable to check Zenvia account, please check the API token"
+#~ msgstr "No se puede verificar la cuenta empresarial de WhatsApp, verifique el nombre de usuario y la contraseña"
+
+#~ msgid "Primary Language"
+#~ msgstr "Idioma principal"
+
+#~ msgid "Select the primary language for contacts with no language preference"
+#~ msgstr "Seleccione el idioma principal para los contactos sin preferencia de idioma"
+
+#, fuzzy
+#~| msgid "Additional languages you would like to provid translations for"
+#~ msgid "Additional languages you would like to provide translations for"
+#~ msgstr "Idiomas adicionales para los que le gustaría proporcionar traducciones"
+
+#, fuzzy
+#~| msgid "Group to Join"
+#~ msgid "Group Filtering"
+#~ msgstr "Grupo para participar"
+
+#, fuzzy
+#~| msgid "There is already a channel configured for this URL."
+#~ msgid "There already exists a trigger of this type."
+#~ msgstr "Ya hay un canal configurado para esta URL."
+
+#, fuzzy
+#~| msgid "An active trigger already exists, triggers must be unique for each group"
+#~ msgid "There already exists a trigger with this keyword for these groups."
+#~ msgstr "Ya existe un activador activo, los activadores deben ser únicos para cada grupo"
+
+#, fuzzy
+#~| msgid "There is already a ticketing service configured for this subdomain."
+#~ msgid "There already exists a trigger of this type for this channel."
+#~ msgstr "Ya existe un servicio de Tickets configurado para este subdominio."
 
 #, fuzzy
 #~| msgid "Trigger with this Channel already exists."

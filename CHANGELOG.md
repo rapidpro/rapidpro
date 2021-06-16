@@ -1,3 +1,58 @@
+v6.3.77
+----------
+ * Better validation of invalid tokens when claiming Zenvia channels
+ * Fix languages formax to not allow empty primary language
+
+v6.3.76
+----------
+ * Read org languages from org.flow_languages instead of Language instances
+
+v6.3.75
+----------
+ * Fix closing and reopening of tickets from API
+
+v6.3.74
+----------
+ * Add better labels and help text for groups on trigger forms
+ * Load ticket events from database for contact histories
+ * Fix rendering of closed ticket triggers on trigger list page
+ * Fix rendering of ticket events as JSON
+ * Fix for delete modals
+
+v6.3.73
+----------
+ * Backfill ticket open and close events
+ * Add support for closed ticket triggers
+
+v6.3.72
+----------
+ * Add CSRF tokens to modaxes
+
+v6.3.70
+----------
+ * Add CSRF token to modax form
+ * Tweak padding for nav so we don't overlap alerts
+ * Only require current password to change email or password
+ * Fix icon colors on latest chrome
+ * Migration to backfill Org.flow_languages
+
+v6.3.69
+----------
+ * Add Org.flow_languages and start populating in Org.set_languages
+ * Raise the logo so it can be clicked
+
+v6.3.68
+----------
+ * Enable exclusion groups on triggers and make groups an option for all trigger types
+ * Add users to mailroom test db
+ * Add ticket note support to UI
+
+v6.3.67
+----------
+ * Pass user id to ticket/close ticket/reopen endpoints to use in the TicketEvent mailroom creates
+ * Model changes for ticket assignment
+ * Make flow session output URL have a max length of 2048
+
 v6.3.66
 ----------
  * Add new ticket event model

@@ -24,6 +24,7 @@ from twilio.rest import Client as TwilioClient
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
+from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
@@ -351,14 +352,7 @@ class Org(SmartModel):
         default=False, help_text=_("Whether this organization can have multiple logins")
     )
 
-    primary_language = models.ForeignKey(
-        "orgs.Language",
-        null=True,
-        blank=True,
-        related_name="orgs",
-        help_text=_("The primary language will be used for contacts with no language preference."),
-        on_delete=models.PROTECT,
-    )
+    flow_languages = ArrayField(models.CharField(max_length=3), default=list)
 
     brand = models.CharField(
         max_length=128,
@@ -382,6 +376,16 @@ class Org(SmartModel):
     # when this org was released and when it was actually deleted
     released_on = models.DateTimeField(null=True)
     deleted_on = models.DateTimeField(null=True)
+
+    # deprecated, to be replaced as the first item in flow_languages
+    primary_language = models.ForeignKey(
+        "orgs.Language",
+        null=True,
+        blank=True,
+        related_name="orgs",
+        help_text=_("The primary language will be used for contacts with no language preference."),
+        on_delete=models.PROTECT,
+    )
 
     @classmethod
     def get_unique_slug(cls, name):
@@ -420,6 +424,7 @@ class Org(SmartModel):
                 name=name,
                 timezone=timezone,
                 language=self.language,
+                flow_languages=self.flow_languages,
                 brand=self.brand,
                 parent=self,
                 slug=slug,
@@ -871,17 +876,14 @@ class Org(SmartModel):
 
         return None
 
-    def get_language_codes(self, include_primary: bool = True) -> set:
-        qs = self.languages.values_list("iso_code", flat=True)
-        if not include_primary and self.primary_language:
-            qs = qs.filter(orgs=None)
-
-        return set(qs)
-
-    def set_languages(self, user, iso_codes, primary):
+    def set_flow_languages(self, user, iso_codes, primary):
         """
-        Sets languages for this org, creating and deleting language objects as necessary
+        Sets languages used in flows for this org, creating and deleting language objects as necessary
         """
+
+        assert all([languages.get_name(c) for c in iso_codes]), "not a valid or allowed language"
+        assert not primary or languages.get_name(primary), "not a valid or allowed language"
+
         for iso_code in iso_codes:
             name = languages.get_name(iso_code)
             language = self.languages.filter(iso_code=iso_code).first()
@@ -894,13 +896,21 @@ class Org(SmartModel):
                 self.primary_language = language
                 self.save(update_fields=("primary_language",))
 
-        # unset the primary language if not in the new list of codes
-        if self.primary_language and self.primary_language.iso_code not in iso_codes:
-            self.primary_language = None
-            self.save(update_fields=("primary_language",))
-
         # remove any languages that are not in the new list
         self.languages.exclude(iso_code__in=iso_codes).delete()
+
+        # TODO replace primary language and language list in the UI with a single list that users can order as the want
+        # and then that is what we set as Org.flow_languages. For now just make sure primary is first in the list.
+
+        flow_languages = list(iso_codes) if iso_codes else []
+        if primary:
+            if primary in flow_languages:
+                flow_languages.remove(primary)
+            flow_languages = [primary] + flow_languages
+
+        self.flow_languages = flow_languages
+        self.modified_by = user
+        self.save(update_fields=("flow_languages", "modified_by", "modified_on"))
 
     def get_datetime_formats(self):
         format_date = Org.DATE_FORMATS_PYTHON.get(self.date_format)
@@ -1839,8 +1849,8 @@ class Org(SmartModel):
             "date_format": Org.DATE_FORMATS_ENGINE.get(self.date_format),
             "time_format": "tt:mm",
             "timezone": str(self.timezone),
-            "default_language": self.primary_language.iso_code if self.primary_language else None,
-            "allowed_languages": list(self.get_language_codes()),
+            "default_language": self.flow_languages[0] if self.flow_languages else None,
+            "allowed_languages": self.flow_languages,
             "default_country": self.default_country_code,
             "redaction_policy": "urns" if self.is_anon else "none",
         }
