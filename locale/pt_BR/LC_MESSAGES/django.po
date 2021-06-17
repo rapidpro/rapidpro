@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-15 17:48+0000\n"
+"POT-Creation-Date: 2021-06-16 20:15+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -1884,6 +1884,11 @@ msgstr "Token API"
 msgid "The API token for your integration as provided by Zenvia"
 msgstr ""
 
+#, fuzzy
+#| msgid "Invalid backup token. Please try again."
+msgid "Invalid token. Please check your Zenvia account settings."
+msgstr "Token de backup inválido. Por favor tente novamente."
+
 msgid "POST Required"
 msgstr "POST obrigatório"
 
@@ -3683,19 +3688,31 @@ msgstr "Desculpe, %(org_name)s não possui créditos suficientes para esta trans
 msgid "The country used for location values. (optional)"
 msgstr "O país usado para valores da localidade. (opcional)"
 
-msgid "Primary Language"
-msgstr "Idioma primário"
+#, fuzzy
+#| msgid "Base Language"
+msgid "Default Flow Language"
+msgstr "Idioma base"
 
-msgid "Select the primary language for contacts with no language preference"
-msgstr "Selecione o idioma principal para os contatos que não possuem preferência de idioma."
+#, fuzzy
+#| msgid "The primary language will be used for contacts with no language preference."
+msgid "Used for contacts with no language preference."
+msgstr "O idioma primário será usado para contatos com nenhuma preferência de idioma."
+
+#, fuzzy
+#| msgid "Select Group"
+msgid "Select a language"
+msgstr "Selecionar Grupo"
 
 msgid "Additional Languages"
 msgstr "Idiomas adicionais"
 
+msgid "The languages that your flows can be translated into."
+msgstr ""
+
 #, fuzzy
-#| msgid "Additional languages you would like to provid translations for"
-msgid "Additional languages you would like to provide translations for"
-msgstr "Idiomas adicionais que você gostaria de fornecer traduções"
+#| msgid "Contact language"
+msgid "Select languages"
+msgstr "Idioma do contato"
 
 #, python-format
 msgid "Cleared %(name)s cache for this workspace (%(count)d keys)"
@@ -6900,8 +6917,9 @@ msgstr "Você foi convidado a participar %(name)s."
 msgid "Please click Join to accept the invitation."
 msgstr "Por favor, clique em Juntar-se para aceitar o convite."
 
-#, python-format
-msgid "The primary language is <b>%(lang)s</b>."
+#, fuzzy, python-format
+#| msgid "The primary language is <b>%(lang)s</b>."
+msgid "The default flow language is <b>%(lang)s</b>."
 msgstr "O idioma primário é <b>%(lang)s</b>."
 
 #, fuzzy
@@ -7877,6 +7895,22 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#, fuzzy
+#~| msgid "Unable to check WhatsApp enterprise account, please check username and password"
+#~ msgid "Unable to check Zenvia account, please check the API token"
+#~ msgstr "Não foi possível checar a conta empresarial do Whatsapp, por favor verifique nome do usuário e senha"
+
+#~ msgid "Primary Language"
+#~ msgstr "Idioma primário"
+
+#~ msgid "Select the primary language for contacts with no language preference"
+#~ msgstr "Selecione o idioma principal para os contatos que não possuem preferência de idioma."
+
+#, fuzzy
+#~| msgid "Additional languages you would like to provid translations for"
+#~ msgid "Additional languages you would like to provide translations for"
+#~ msgstr "Idiomas adicionais que você gostaria de fornecer traduções"
 
 #, fuzzy
 #~| msgid "Group to Join"

@@ -177,10 +177,9 @@ class ArbitraryJsonChoiceField(forms.ChoiceField):  # pragma: needs cover
         return {"jsonValue": True}
 
     def clean(self, value):
-        if value is None:
-            value = ""
+        super().validate(value)
 
-        if isinstance(value, (str)):
+        if isinstance(value, str):
             return json.loads(value)
 
         if isinstance(value, (tuple, list)):
@@ -192,12 +191,12 @@ class ArbitraryJsonChoiceField(forms.ChoiceField):  # pragma: needs cover
         if value is None:
             return value
 
-        if isinstance(value, (str)):
+        if isinstance(value, str):
             return json.loads(value)
 
         if isinstance(value, (tuple, list)):
             if len(value) > 0:
-                if isinstance(value[0], (dict)):
+                if isinstance(value[0], dict):
                     return value
                 else:
                     return [json.loads(_) for _ in value]

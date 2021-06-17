@@ -6,7 +6,7 @@ TYPE_OPENED = "O"
 TYPE_CLOSED = "C"
 
 
-def backfill_ticket_events(apps, schema_editor):
+def backfill_ticket_events(apps, schema_editor):  # pragma: no cover
     Ticket = apps.get_model("tickets", "Ticket")
 
     for ticket in Ticket.objects.all():
@@ -17,7 +17,7 @@ def backfill_ticket_events(apps, schema_editor):
             ticket.events.create(org_id=ticket.org_id, event_type=TYPE_CLOSED, created_on=ticket.closed_on)
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 

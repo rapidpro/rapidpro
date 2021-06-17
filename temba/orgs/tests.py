@@ -4096,54 +4096,64 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertRedirect(response, "/users/login/")
 
     def test_languages(self):
+        home_url = reverse("orgs.org_home")
         langs_url = reverse("orgs.org_languages")
 
-        self.login(self.admin)
+        self.org.set_flow_languages(self.admin, [])
+
+        # check summary on home page
+        response = self.requestView(home_url, self.admin)
+        self.assertContains(response, "Your workspace is configured to use a single language.")
+
+        self.assertUpdateFetch(
+            langs_url,
+            allow_viewers=False,
+            allow_editors=False,
+            object_url=False,
+            form_fields=["primary_lang", "other_langs"],
+        )
 
         # initial should do a match on code only
-        response = self.client.get("%s?initial=fra" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        response = self.client.get(f"{langs_url}?initial=fra", HTTP_X_REQUESTED_WITH="XMLHttpRequest")
         self.assertEqual([{"name": "French", "value": "fra"}], response.json()["results"])
 
-        # update our org with some language settings
-        response = self.client.post(
+        # try to submit as is (empty)
+        self.assertUpdateSubmit(
+            langs_url,
+            {},
+            object_url=False,
+            object_unchanged=self.org,
+            form_errors={"primary_lang": "This field is required."},
+        )
+
+        # give the org a primary language
+        self.assertUpdateSubmit(langs_url, {"primary_lang": '{"name":"French", "value":"fra"}'}, object_url=False)
+
+        self.org.refresh_from_db()
+        self.assertEqual(["fra"], self.org.flow_languages)
+
+        # summary now includes this
+        response = self.requestView(home_url, self.admin)
+        self.assertContains(response, "The default flow language is <b>French</b>.")
+        self.assertNotContains(response, "Translations are provided in")
+
+        # and now give it additional languages
+        self.assertUpdateSubmit(
             langs_url,
             {
                 "primary_lang": '{"name":"French", "value":"fra"}',
-                "languages": ['{"name":"Haitian", "value":"hat"}', '{"name":"Hausa", "value":"hau"}'],
+                "other_langs": ['{"name":"Haitian", "value":"hat"}', '{"name":"Hausa", "value":"hau"}'],
             },
+            object_url=False,
         )
-        self.assertEqual(response.status_code, 302)
 
         self.org.refresh_from_db()
         self.assertEqual(["fra", "hat", "hau"], self.org.flow_languages)
 
-        # check that the last load shows our new languages
-        response = self.client.get(langs_url)
-        self.assertEqual(["Haitian", "Hausa"], response.context["languages"])
-        self.assertContains(response, "fra")
-
-        # add another translation language...
-        self.client.post(
-            langs_url,
-            {
-                "primary_lang": '{"name":"French", "value":"fra"}',
-                "languages": [
-                    '{"name":"Haitian", "value":"hat"}',
-                    '{"name":"Hausa", "value":"hau"}',
-                    '{"name":"Spanish", "value":"spa"}',
-                ],
-            },
-        )
-        response = self.client.get(reverse("orgs.org_languages"))
-        self.assertEqual(["Haitian", "Hausa", "Spanish"], response.context["languages"])
-
-        # one translation language
-        self.client.post(
-            langs_url,
-            {"primary_lang": '{"name":"French", "value":"fra"}', "languages": ['{"name":"Haitian", "value":"hat"}']},
-        )
-        response = self.client.get(reverse("orgs.org_languages"))
-        self.assertEqual(["Haitian"], response.context["languages"])
+        response = self.requestView(home_url, self.admin)
+        self.assertContains(response, "The default flow language is <b>French</b>.")
+        self.assertContains(response, "Translations are provided in")
+        self.assertContains(response, "<b>Hausa</b>")
 
         # searching languages should only return languages with 2-letter codes
         response = self.client.get("%s?search=Fr" % langs_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
