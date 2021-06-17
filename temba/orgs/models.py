@@ -2022,23 +2022,12 @@ def get_stripe_credentials():
 
 class Language(SmartModel):
     """
-    A Language that has been added to the org. In the end and language is just an iso_code and name
-    and it is not really restricted to real-world languages at this level. Instead we restrict the
-    language selection options to real-world languages.
+    TODO drop this model
     """
 
     name = models.CharField(max_length=128)
-
     iso_code = models.CharField(max_length=4)
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="languages")
-
-    @classmethod
-    def create(cls, org, user, name, iso_code):
-        return cls.objects.create(org=org, name=name, iso_code=iso_code, created_by=user, modified_by=user)
-
-    def as_json(self):  # pragma: needs cover
-        return dict(name=self.name, iso_code=self.iso_code)
 
     @classmethod
     def get_localized_text(cls, text_translations, preferred_languages, default_text=""):
@@ -2063,9 +2052,6 @@ class Language(SmartModel):
                 return localized
 
         return default_text
-
-    def __str__(self):  # pragma: needs cover
-        return "%s" % self.name
 
 
 class Invitation(SmartModel):
