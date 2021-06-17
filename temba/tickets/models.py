@@ -226,9 +226,11 @@ class Ticket(models.Model):
     class Meta:
         indexes = [
             # used by the open tickets view
-            models.Index(name="tickets_org_open", fields=["org", "-last_activity_on"], condition=Q(status="O")),
+            models.Index(name="tickets_org_open", fields=["org", "-last_activity_on", "-id"], condition=Q(status="O")),
             # used by the closed tickets view
-            models.Index(name="tickets_org_closed", fields=["org", "-last_activity_on"], condition=Q(status="C")),
+            models.Index(
+                name="tickets_org_closed", fields=["org", "-last_activity_on", "-id"], condition=Q(status="C")
+            ),
             # used by the tickets filtered by ticketer view
             models.Index(name="tickets_org_ticketer", fields=["ticketer", "-opened_on"]),
             # used by the list of tickets on contact page and also message handling to find open tickets for contact
@@ -267,3 +269,9 @@ class TicketEvent(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, related_name="ticket_events"
     )
     created_on = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        indexes = [
+            # used for contact history
+            models.Index(name="ticketevents_contact_created", fields=["contact", "created_on"])
+        ]

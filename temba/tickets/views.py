@@ -63,7 +63,7 @@ class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
     folder = None
     fields = ("contact", "subject", "body", "opened_on")
     select_related = ("ticketer", "contact")
-    default_order = ("-last_activity_on",)
+    default_order = ("-last_activity_on", "-id")
     bulk_actions = ()
 
     def pre_process(self, request, *args, **kwargs):
@@ -114,7 +114,7 @@ class TicketCRUDL(SmartCRUDL):
             else:  # self.FOLDER_CLOSED:
                 qs = qs.filter(status=Ticket.STATUS_CLOSED)
 
-            return qs.order_by("-last_activity_on")
+            return qs.order_by("-last_activity_on", "-id")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)

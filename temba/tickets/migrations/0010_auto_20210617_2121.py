@@ -22,13 +22,13 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name="ticket",
             index=models.Index(
-                condition=models.Q(status="O"), fields=["org", "-last_activity_on"], name="tickets_org_open"
+                condition=models.Q(status="O"), fields=["org", "-last_activity_on", "-id"], name="tickets_org_open"
             ),
         ),
         migrations.AddIndex(
             model_name="ticket",
             index=models.Index(
-                condition=models.Q(status="C"), fields=["org", "-last_activity_on"], name="tickets_org_closed"
+                condition=models.Q(status="C"), fields=["org", "-last_activity_on", "-id"], name="tickets_org_closed"
             ),
         ),
         migrations.AlterField(
@@ -37,5 +37,9 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.PROTECT, related_name="ticket_events", to="contacts.Contact"
             ),
+        ),
+        migrations.AddIndex(
+            model_name="ticketevent",
+            index=models.Index(fields=["contact", "created_on"], name="ticketevents_contact_created"),
         ),
     ]
