@@ -3,11 +3,10 @@
 
 -block extra-script
   {{ block.super }}  
-  <script src="{% url 'django.views.i18n.javascript_catalog' %}"></script>
 
   :javascript
     document.addEventListener("DOMContentLoaded", function(){
-      var repeatPeriod = document.querySelector("#id_schedule_repeat_period");
+      var repeatPeriod = document.querySelector("#id_repeat_period");
       if (repeatPeriod) {
         repeatPeriod.addEventListener("change", function(event){
           
