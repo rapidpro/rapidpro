@@ -1483,7 +1483,7 @@ class FlowCRUDL(SmartCRUDL):
                     )
                 )
 
-            if self.has_org_perm("orgs.org_lookups") and flow.flow_type == Flow.TYPE_MESSAGE:
+            if self.has_org_perm("orgs.org_lookups") and flow.flow_type in [Flow.TYPE_MESSAGE, Flow.TYPE_VOICE]:
                 links.append(dict(title=_("Import Database"), href=reverse("orgs.org_lookups")))
 
             if self.has_org_perm("flows.flow_merge_flows") and self.get_mergeable_flows():
@@ -2169,7 +2169,7 @@ class FlowCRUDL(SmartCRUDL):
             search_query = self.request.GET.get("q")
             contact_query = self.request.GET.get("contact_query")
 
-            runs = flow.runs.all()
+            runs = flow.runs.exclude(contact__is_active=False)
 
             if after:
                 after = flow.org.parse_datetime(after)
@@ -2193,8 +2193,7 @@ class FlowCRUDL(SmartCRUDL):
             if contact_query:
                 try:
                     org = flow.org
-                    group = org.all_groups.filter(group_type="A").first()
-                    contact_ids = query_contact_ids(org, contact_query, group=group)
+                    contact_ids = query_contact_ids(org, contact_query, active_only=False)
                     runs = runs.filter(contact_id__in=contact_ids)
                 except SearchException as e:
                     context["query_error"] = e.message
@@ -2274,7 +2273,7 @@ class FlowCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            if self.has_org_perm("flows.flow_update"):
+            if self.has_org_perm("flows.flow_results"):
                 links.append(
                     dict(
                         id="download-results",

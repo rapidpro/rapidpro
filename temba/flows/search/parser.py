@@ -35,6 +35,8 @@ class FlowRunSearch(object):
                             f'__value{self.LOOKUPS.get(item.get("operator"))}': item.get("value")
                         }
                     )
+                    if item.get("value") == "":
+                        _filter |= Q(**{f'results_json__{slugify_with(item.get("field"), "_")}__isnull': True})
                     if previous_conditions:
                         previous_condition = previous_conditions.pop()
                         if previous_condition.get("conditional") == "NOT" and previous_conditions:
@@ -89,7 +91,8 @@ class FlowRunSearch(object):
                 need_quotes.add(len(query_list) - 1)
 
         for index in need_quotes:
-            query_list[index] = f"'{query_list[index]}'"
+            if query_list and (query_list[index][0] + query_list[index][-1] != "''"):
+                query_list[index] = f"'{query_list[index]}'"
 
         return " ".join(query_list)
 
@@ -124,8 +127,8 @@ class FlowRunSearch(object):
                 (field, value, *rest) = match_splitted
                 queries.append(
                     {
-                        "field": str(field).strip(" '"),
-                        "value": str(value).strip(" '"),
+                        "field": str(field).strip(" '\""),
+                        "value": str(value).strip(" '\""),
                         "operator": operator,
                         "type": "lookup",
                     }
