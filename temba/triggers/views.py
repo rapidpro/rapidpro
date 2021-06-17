@@ -9,19 +9,17 @@ from django.utils.translation import ngettext_lazy, ugettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup, ContactURN
-from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_serialize
+from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.msgs.views import ModalMixin
 from temba.orgs.views import OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.models import Schedule
-from temba.schedules.views import BaseScheduleForm
+from temba.schedules.views import ScheduleFormMixin
 from temba.utils import json
 from temba.utils.fields import (
     CompletionTextarea,
     InputWidget,
-    JSONField,
-    OmniboxChoice,
     SelectMultipleWidget,
     SelectWidget,
     TembaChoiceField,
@@ -203,61 +201,16 @@ class CatchAllTriggerForm(BaseTriggerForm):
         super().__init__(user, Trigger.TYPE_CATCH_ALL, *args, **kwargs)
 
 
-class ScheduleTriggerForm(BaseScheduleForm, forms.ModelForm):
-    repeat_period = forms.ChoiceField(
-        choices=Schedule.REPEAT_CHOICES, label="Repeat", required=False, widget=SelectWidget()
-    )
-
-    repeat_days_of_week = forms.MultipleChoiceField(
-        choices=Schedule.REPEAT_DAYS_CHOICES,
-        label="Repeat Days",
-        required=False,
-        widget=SelectMultipleWidget(attrs=({"placeholder": _("Select days to repeat on")})),
-    )
-
-    start_datetime = forms.DateTimeField(
-        required=False,
-        label=_("Start Time"),
-        widget=InputWidget(attrs={"datetimepicker": True, "placeholder": "Select a time to start the flow"}),
-    )
-
-    flow = TembaChoiceField(
-        Flow.objects.none(),
-        label=_("Flow"),
-        required=True,
-        widget=SelectWidget(attrs={"placeholder": _("Select a flow"), "searchable": True}),
-        empty_label=None,
-    )
-
-    omnibox = JSONField(
-        label=_("Contacts"),
-        required=True,
-        help_text=_("The groups and contacts the flow will be broadcast to"),
-        widget=OmniboxChoice(
-            attrs={"placeholder": _("Recipients, enter contacts or groups"), "groups": True, "contacts": True}
-        ),
-    )
+class ScheduleTriggerForm(ScheduleFormMixin, BaseTriggerForm):
+    """
+    Form for scheduled triggers
+    """
 
     def __init__(self, user, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.user = user
-        self.org = user.get_org()
+        super().__init__(user, Trigger.TYPE_SCHEDULE, *args, **kwargs)
 
-        flow_types = Trigger.ALLOWED_FLOW_TYPES[Trigger.TYPE_SCHEDULE]
-        flows = self.org.flows.filter(flow_type__in=flow_types, is_active=True, is_archived=False, is_system=False)
-
-        self.fields["start_datetime"].help_text = _("%s Time Zone" % self.org.timezone)
-        self.fields["flow"].queryset = flows.order_by("name")
-
-    def clean_repeat_days_of_week(self):
-        return "".join(self.cleaned_data["repeat_days_of_week"])
-
-    def clean_omnibox(self):
-        return omnibox_deserialize(self.org, self.cleaned_data["omnibox"])
-
-    class Meta:
-        model = Trigger
-        fields = ("flow", "omnibox", "repeat_period", "repeat_days_of_week", "start_datetime")
+    class Meta(BaseTriggerForm.Meta):
+        fields = ScheduleFormMixin.Meta.fields + BaseTriggerForm.Meta.fields
 
 
 class InboundCallTriggerForm(BaseTriggerForm):
