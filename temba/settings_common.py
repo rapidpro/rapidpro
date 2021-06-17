@@ -882,6 +882,7 @@ GROUP_PERMISSIONS = {
         "orgs.topup_list",
         "orgs.topup_read",
         "orgs.org_token",
+        "orgs.org_api",
         "channels.channel_list",
         "channels.channel_read",
         "channels.channelevent_calls",
