@@ -1,3 +1,9 @@
+v6.3.78
+----------
+ * Add Ticket.last_activity_on and TicketEvent.contact
+ * Rreturn tickets by modified_on in the API
+ * Add ability to reverse results for runs/contacts API endpoints
+
 v6.3.77
 ----------
  * Better validation of invalid tokens when claiming Zenvia channels
