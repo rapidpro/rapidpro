@@ -1,14 +1,11 @@
-from datetime import datetime
 from unittest.mock import patch
-
-import pytz
 
 from django.contrib.auth.models import Group
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 
 from .models import Ticket, Ticketer, TicketEvent
 from .types import reload_ticketer_types
@@ -418,66 +415,3 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.refresh_from_db()
         self.assertTrue(flow.has_issues)
         self.assertNotIn(ticketer, flow.ticketer_dependencies.all())
-
-
-class BackfillTicketEventsTest(MigrationTest):
-    app = "tickets"
-    migrate_from = "0006_auto_20210609_1913"
-    migrate_to = "0007_backfill_ticket_events"
-
-    def setUpBeforeMigration(self, apps):
-        ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
-        contact = self.create_contact("Joe", phone="123456")
-
-        def create_ticket(opened_on, closed_on):
-            return Ticket.objects.create(
-                org=self.org,
-                ticketer=ticketer,
-                contact=contact,
-                subject="Test",
-                status=Ticket.STATUS_CLOSED if closed_on else Ticket.STATUS_OPEN,
-                opened_on=opened_on,
-                closed_on=closed_on,
-            )
-
-        # ticket with no closed_on
-        self.ticket1 = create_ticket(opened_on=datetime(2021, 1, 1, 12, 0, 30, 123456, pytz.UTC), closed_on=None)
-
-        # ticket with a closed_on
-        self.ticket2 = create_ticket(
-            opened_on=datetime(2021, 2, 2, 12, 0, 30, 123456, pytz.UTC),
-            closed_on=datetime(2021, 3, 3, 12, 0, 30, 123456, pytz.UTC),
-        )
-
-        # ticket that already has events
-        self.ticket3 = create_ticket(
-            opened_on=datetime(2021, 4, 4, 12, 0, 30, 123456, pytz.UTC),
-            closed_on=datetime(2021, 5, 5, 12, 0, 30, 123456, pytz.UTC),
-        )
-        self.ticket3.events.create(
-            org=self.org,
-            event_type=TicketEvent.TYPE_OPENED,
-            created_on=datetime(2021, 4, 4, 12, 0, 30, 123456, pytz.UTC),
-        )
-        self.ticket3.events.create(
-            org=self.org,
-            event_type=TicketEvent.TYPE_CLOSED,
-            created_on=datetime(2021, 5, 5, 12, 0, 30, 123456, pytz.UTC),
-        )
-
-    def test_migration(self):
-        ticket1_open = self.ticket1.events.get(event_type=TicketEvent.TYPE_OPENED)
-
-        self.assertEqual(self.org, ticket1_open.org)
-        self.assertEqual(datetime(2021, 1, 1, 12, 0, 30, 123456, pytz.UTC), ticket1_open.created_on)
-        self.assertIsNone(self.ticket1.events.filter(event_type=TicketEvent.TYPE_CLOSED).first())
-
-        ticket2_open = self.ticket2.events.get(event_type=TicketEvent.TYPE_OPENED)
-        ticket2_close = self.ticket2.events.get(event_type=TicketEvent.TYPE_CLOSED)
-
-        self.assertEqual(datetime(2021, 2, 2, 12, 0, 30, 123456, pytz.UTC), ticket2_open.created_on)
-        self.assertEqual(datetime(2021, 3, 3, 12, 0, 30, 123456, pytz.UTC), ticket2_close.created_on)
-
-        # check we didn't create additional events for ticket 3
-        self.assertEqual(1, self.ticket3.events.filter(event_type=TicketEvent.TYPE_OPENED).count())
-        self.assertEqual(1, self.ticket3.events.filter(event_type=TicketEvent.TYPE_CLOSED).count())

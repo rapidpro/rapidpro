@@ -185,7 +185,9 @@ class TestClient(MailroomClient):
         tickets.update(status=Ticket.STATUS_CLOSED, closed_on=timezone.now())
 
         for ticket in tickets:
-            ticket.events.create(org_id=org_id, event_type=TicketEvent.TYPE_CLOSED, created_by_id=user_id)
+            ticket.events.create(
+                org_id=org_id, contact=ticket.contact, event_type=TicketEvent.TYPE_CLOSED, created_by_id=user_id
+            )
 
         return {"changed_ids": [t.id for t in tickets]}
 
@@ -195,7 +197,9 @@ class TestClient(MailroomClient):
         tickets.update(status=Ticket.STATUS_OPEN, closed_on=None)
 
         for ticket in tickets:
-            ticket.events.create(org_id=org_id, event_type=TicketEvent.TYPE_REOPENED, created_by_id=user_id)
+            ticket.events.create(
+                org_id=org_id, contact=ticket.contact, event_type=TicketEvent.TYPE_REOPENED, created_by_id=user_id
+            )
 
         return {"changed_ids": [t.id for t in tickets]}
 

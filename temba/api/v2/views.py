@@ -24,7 +24,6 @@ from temba.api.v2.views_base import (
     DeleteAPIMixin,
     ListAPIMixin,
     ModifiedOnCursorPagination,
-    OpenedOnCursorPagination,
     WriteAPIMixin,
 )
 from temba.archives.models import Archive
@@ -3518,7 +3517,7 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     model = Ticket
     serializer_class = TicketReadSerializer
     write_serializer_class = TicketWriteSerializer
-    pagination_class = OpenedOnCursorPagination
+    pagination_class = ModifiedOnCursorPagination
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
