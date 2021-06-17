@@ -43,7 +43,7 @@
   {{block.super}}
   :javascript
     function handleContactChanged(event) {
-      var contact = event.target.value;
+      var contact = event.target.getSelection();
       var chat = document.querySelector("temba-contact-chat");
       chat.contact = contact;
     }
@@ -60,6 +60,8 @@
       chat.refresh();
     }
 
+    var focusNext = null;
+
     function handleFilterChanged(event) {
       var contacts = document.querySelector("temba-contacts");
       var chat = document.querySelector("temba-contact-chat");
@@ -71,23 +73,21 @@
 
       var filter = event.target.values[0].value;
       if (filter === "O") {
-        contacts.endpoint = "{% url 'tickets.ticket_folder' folder='open' %}"
+        contacts.setEndpoint("{% url 'tickets.ticket_folder' folder='open' %}", focusNext);
       } else {
-        contacts.endpoint = "{% url 'tickets.ticket_folder' folder='closed' %}"
+        contacts.setEndpoint("{% url 'tickets.ticket_folder' folder='closed' %}");
       }
     }
 
     function handleTicketUpdated(event) {
-      var contact = event.detail.contact;
-      var focus = event.detail.focus;
-
+      var ticket = event.detail.ticket;
       var filter = document.querySelector('temba-select[name="ticket-filter"]');
       var contacts = document.querySelector("temba-contacts");
 
-      if (focus) {
-        contacts.setNextSelection(contact.uuid);
+      if (ticket.status == "O") {
+        focusNext = ticket.uuid;
+        filter.setSelection("O");
       } else {
-        // no focus, just refresh
         contacts.refresh();
       }
     }
@@ -101,7 +101,7 @@
       
 -block page-container
   .flex-col
-    .flex(style="height:100vh;margin-top:-105px;padding-top:121px;margin-bottom:-100px;padding-bottom:100px;")
+    .flex(style="height:100vh;margin-top:-121px;padding-top:121px;margin-bottom:-100px;padding-bottom:100px;")
       .ticket-list.flex.flex-col.m-4.mr-2.pt-4
         %temba-select(name="ticket-filter" onchange="handleFilterChanged(event)")
           %temba-option(name="Open" value="O" icon="inbox")
