@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-18 17:44+0000\n"
+"POT-Creation-Date: 2021-06-18 20:08+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3844,11 +3844,16 @@ msgstr "не будет повторяться"
 
 #, fuzzy
 #| msgid "repeats daily"
-msgid "Repeat Days"
+msgid "Repeat On Days"
 msgstr "повторяется ежедневно"
 
-msgid "Select days to repeat on"
+msgid "The days of the week to repeat on for weekly schedules"
 msgstr ""
+
+#, fuzzy
+#| msgid "Select a unit"
+msgid "Select days"
+msgstr "Выберите единицу"
 
 #, python-format
 msgid "First time this should happen in the %s timezone."

@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-18 17:44+0000\n"
+"POT-Creation-Date: 2021-06-18 20:08+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3842,11 +3842,16 @@ msgstr "não repetir"
 
 #, fuzzy
 #| msgid "repeats daily"
-msgid "Repeat Days"
+msgid "Repeat On Days"
 msgstr "repetir diariamente"
 
-msgid "Select days to repeat on"
-msgstr "Selecione os dias para se repetir"
+msgid "The days of the week to repeat on for weekly schedules"
+msgstr ""
+
+#, fuzzy
+#| msgid "Select a unit"
+msgid "Select days"
+msgstr "Selecione uma unidade"
 
 #, python-format
 msgid "First time this should happen in the %s timezone."
@@ -7915,6 +7920,9 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#~ msgid "Select days to repeat on"
+#~ msgstr "Selecione os dias para se repetir"
 
 #, python-format
 #~ msgid "%(day)s is not a valid day of the week"

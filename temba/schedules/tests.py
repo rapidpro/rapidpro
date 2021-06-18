@@ -337,7 +337,7 @@ class ScheduleCRUDLTest(TembaTest, CRUDLTestMixin):
             self.org,
             self.admin,
             {"eng": "Hi"},
-            contacts=[self.create_contact("Jin", phone="1234")],
+            contacts=[self.create_contact("Jim", phone="1234")],
             base_language="eng",
             schedule=schedule,
         )

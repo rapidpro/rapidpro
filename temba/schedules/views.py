@@ -19,9 +19,10 @@ class ScheduleFormMixin(forms.Form):
     repeat_period = forms.ChoiceField(choices=Schedule.REPEAT_CHOICES, label=_("Repeat"), widget=SelectWidget())
     repeat_days_of_week = forms.MultipleChoiceField(
         choices=Schedule.REPEAT_DAYS_CHOICES,
-        label=_("Repeat Days"),
+        label=_("Repeat On Days"),
+        help_text=_("The days of the week to repeat on for weekly schedules"),
         required=False,
-        widget=SelectMultipleWidget(attrs=({"placeholder": _("Select days to repeat on")})),
+        widget=SelectMultipleWidget(attrs=({"placeholder": _("Select days")})),
     )
 
     def set_user(self, user):

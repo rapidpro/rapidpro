@@ -1,18 +1,28 @@
 -extends 'includes/modax.html'
 -load i18n temba smartmin humanize
 
+-block fields
+  -if object.schedule
+    -include 'includes/schedule_fields.haml' with form=form
+    -render_field 'flow'
+    -render_field 'groups'
+    -render_field 'exclude_groups'
+    -render_field 'contacts'
+  -else
+    {{ block.super }}
+
 -block modal-script
   {{ block.super }}
-  :javascript
-    var body = document.querySelector("#update-trigger").getBody();
-    var repeatPeriod = body.querySelector("#id_repeat_period");
-    if (repeatPeriod) {
+  -if object.schedule
+    :javascript
+      var body = document.querySelector("#update-trigger").getBody();
+      var repeatPeriod = body.querySelector("#id_repeat_period");
+      var repeatDays = body.querySelector(".repeat-days-container");
       repeatPeriod.addEventListener("change", function(event){
         var currentRepeat = event.currentTarget.values[0].value;
-        if (currentRepeat == 'W') {
-          body.querySelector(".weekly-repeat-options").classList.remove("hidden");
+        if (currentRepeat === 'W') {
+          repeatDays.classList.remove("hidden");
         } else {
-          body.querySelector(".weekly-repeat-options").classList.add("hidden");
+          repeatDays.classList.add("hidden");
         }
       });
-    }
