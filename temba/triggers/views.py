@@ -3,23 +3,24 @@ from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartTemp
 
 from django import forms
 from django.db.models import Min
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ngettext_lazy, ugettext_lazy as _
 
 from temba.channels.models import Channel
 from temba.contacts.models import ContactGroup, ContactURN
-from temba.contacts.search.omnibox import omnibox_serialize
+from temba.contacts.search.omnibox import omnibox_deserialize, omnibox_serialize
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.msgs.views import ModalMixin
 from temba.orgs.views import OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.schedules.models import Schedule
 from temba.schedules.views import ScheduleFormMixin
-from temba.utils import json
 from temba.utils.fields import (
     CompletionTextarea,
     InputWidget,
+    JSONField,
+    OmniboxChoice,
     SelectMultipleWidget,
     SelectWidget,
     TembaChoiceField,
@@ -59,6 +60,7 @@ class BaseTriggerForm(forms.ModelForm):
 
     def __init__(self, user, trigger_type, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         self.user = user
         self.org = user.get_org()
         self.trigger_type = trigger_type
@@ -201,16 +203,39 @@ class CatchAllTriggerForm(BaseTriggerForm):
         super().__init__(user, Trigger.TYPE_CATCH_ALL, *args, **kwargs)
 
 
-class ScheduleTriggerForm(ScheduleFormMixin, BaseTriggerForm):
+class ScheduleTriggerForm(BaseTriggerForm, ScheduleFormMixin):
     """
     Form for scheduled triggers
     """
 
+    contacts = JSONField(
+        label=_("Contacts To Include"),
+        required=False,
+        help_text=_("Additional specific contacts to include."),
+        widget=OmniboxChoice(attrs={"placeholder": _("Optional: Select contacts"), "contacts": True}),
+    )
+
     def __init__(self, user, *args, **kwargs):
         super().__init__(user, Trigger.TYPE_SCHEDULE, *args, **kwargs)
 
+        self.set_user(user)
+
+    def clean_contacts(self):
+        return omnibox_deserialize(self.org, self.cleaned_data["contacts"])["contacts"]
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        # schedule triggers must use specific groups or contacts
+        if not cleaned_data["groups"] and not cleaned_data["contacts"]:
+            raise forms.ValidationError(_("Must provide at least one group or contact to include."))
+
+        ScheduleFormMixin.clean(self)
+
+        return cleaned_data
+
     class Meta(BaseTriggerForm.Meta):
-        fields = ScheduleFormMixin.Meta.fields + BaseTriggerForm.Meta.fields
+        fields = ScheduleFormMixin.Meta.fields + BaseTriggerForm.Meta.fields + ("contacts",)
 
 
 class InboundCallTriggerForm(BaseTriggerForm):
@@ -343,7 +368,7 @@ class TriggerCRUDL(SmartCRUDL):
             kwargs["user"] = self.request.user
             return kwargs
 
-        def get_create_kwargs(self, cleaned_data):
+        def get_create_kwargs(self, user, cleaned_data):
             return {}
 
         def form_valid(self, form):
@@ -360,7 +385,7 @@ class TriggerCRUDL(SmartCRUDL):
                 flow,
                 groups=groups,
                 exclude_groups=exclude_groups,
-                **self.get_create_kwargs(form.cleaned_data),
+                **self.get_create_kwargs(user, form.cleaned_data),
             )
 
             response = self.render_to_response(self.get_context_data(form=form))
@@ -370,7 +395,7 @@ class TriggerCRUDL(SmartCRUDL):
     class CreateKeyword(BaseCreate):
         form_class = KeywordTriggerForm
 
-        def get_create_kwargs(self, cleaned_data):
+        def get_create_kwargs(self, user, cleaned_data):
             return {"keyword": cleaned_data["keyword"]}
 
     class CreateRegister(BaseCreate):
@@ -407,52 +432,17 @@ class TriggerCRUDL(SmartCRUDL):
 
     class CreateSchedule(BaseCreate):
         form_class = ScheduleTriggerForm
-        title = _("Create Schedule")
 
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            return context
-
-        def form_invalid(self, form):
-            if "_format" in self.request.GET and self.request.GET["_format"] == "json":  # pragma: needs cover
-                return HttpResponse(
-                    json.dumps(dict(status="error", errors=form.errors)), content_type="application/json", status=400
-                )
-            else:
-                return super().form_invalid(form)
-
-        def form_valid(self, form):
-            org = self.request.user.get_org()
-            start_time = form.cleaned_data["start_datetime"]
+        def get_create_kwargs(self, user, cleaned_data):
+            start_time = cleaned_data["start_datetime"]
+            repeat_period = cleaned_data["repeat_period"]
+            repeat_days_of_week = cleaned_data["repeat_days_of_week"]
 
             schedule = Schedule.create_schedule(
-                org,
-                self.request.user,
-                start_time,
-                form.cleaned_data.get("repeat_period"),
-                repeat_days_of_week=form.cleaned_data.get("repeat_days_of_week"),
+                user.get_org(), user, start_time, repeat_period, repeat_days_of_week=repeat_days_of_week
             )
 
-            recipients = self.form.cleaned_data["omnibox"]
-            flow = self.form.cleaned_data["flow"]
-
-            trigger = Trigger.create(
-                org,
-                self.request.user,
-                Trigger.TYPE_SCHEDULE,
-                flow,
-                groups=recipients["groups"],
-                schedule=schedule,
-            )
-
-            for contact in recipients["contacts"]:
-                trigger.contacts.add(contact)
-
-            self.post_save(trigger)
-
-            response = self.render_to_response(self.get_context_data(form=form))
-            response["REDIRECT"] = self.get_success_url()
-            return response
+            return {"schedule": schedule, "contacts": cleaned_data["contacts"]}
 
     class CreateInboundCall(BaseCreate):
         form_class = InboundCallTriggerForm
@@ -463,14 +453,14 @@ class TriggerCRUDL(SmartCRUDL):
     class CreateNewConversation(BaseCreate):
         form_class = NewConversationTriggerForm
 
-        def get_create_kwargs(self, cleaned_data):
+        def get_create_kwargs(self, user, cleaned_data):
             return {"channel": cleaned_data["channel"]}
 
     class CreateReferral(BaseCreate):
         form_class = ReferralTriggerForm
         title = _("Create Referral Trigger")
 
-        def get_create_kwargs(self, cleaned_data):
+        def get_create_kwargs(self, user, cleaned_data):
             return {"channel": cleaned_data["channel"], "referrer_id": cleaned_data["referrer_id"]}
 
     class CreateClosedTicket(BaseCreate):
@@ -490,8 +480,7 @@ class TriggerCRUDL(SmartCRUDL):
         }
 
         def get_form_class(self):
-            trigger_type = self.object.trigger_type
-            return self.trigger_forms[trigger_type]
+            return self.trigger_forms[self.object.trigger_type]
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -499,32 +488,18 @@ class TriggerCRUDL(SmartCRUDL):
                 context["days"] = self.get_object().schedule.repeat_days_of_week or ""
             return context
 
-        def form_invalid(self, form):
-            if "_format" in self.request.GET and self.request.GET["_format"] == "json":  # pragma: needs cover
-                return HttpResponse(
-                    json.dumps(dict(status="error", errors=form.errors)), content_type="application/json", status=400
-                )
-            else:
-                return super().form_invalid(form)
-
         def derive_initial(self):
-            trigger = self.object
-            trigger_type = trigger.trigger_type
-            if trigger_type == Trigger.TYPE_SCHEDULE:
-                repeat_period = trigger.schedule.repeat_period
-                omnibox = omnibox_serialize(trigger.org, trigger.groups.all(), trigger.contacts.all())
+            initial = super().derive_initial()
 
-                repeat_days_of_week = []
-                if trigger.schedule.repeat_days_of_week:  # pragma: needs cover
-                    repeat_days_of_week = list(trigger.schedule.repeat_days_of_week)
+            if self.object.trigger_type == Trigger.TYPE_SCHEDULE:
+                schedule = self.object.schedule
+                days_of_the_week = (list(schedule.repeat_days_of_week) if schedule.repeat_days_of_week else [],)
 
-                return dict(
-                    repeat_period=repeat_period,
-                    omnibox=omnibox,
-                    start_datetime=trigger.schedule.next_fire,
-                    repeat_days_of_week=repeat_days_of_week,
-                )
-            return super().derive_initial()
+                initial["start_datetime"] = (schedule.next_fire,)
+                initial["repeat_period"] = (schedule.repeat_period,)
+                initial["repeat_days_of_week"] = days_of_the_week
+                initial["contacts"] = (omnibox_serialize(self.object.org, (), self.object.contacts.all()),)
+            return initial
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -532,30 +507,12 @@ class TriggerCRUDL(SmartCRUDL):
             return kwargs
 
         def form_valid(self, form):
-            trigger = self.object
-            trigger_type = trigger.trigger_type
-
-            if trigger_type == Trigger.TYPE_SCHEDULE:
-                schedule = trigger.schedule
-
-                form.cleaned_data.get("repeat_days_of_week")
-
-                # update our schedule
-                schedule.update_schedule(
-                    form.cleaned_data.get("start_datetime"),
-                    form.cleaned_data.get("repeat_period"),
+            if self.object.trigger_type == Trigger.TYPE_SCHEDULE:
+                self.object.schedule.update_schedule(
+                    form.cleaned_data["start_datetime"],
+                    form.cleaned_data["repeat_period"],
                     form.cleaned_data.get("repeat_days_of_week"),
                 )
-
-                recipients = self.form.cleaned_data["omnibox"]
-                trigger.groups.clear()
-                trigger.contacts.clear()
-
-                for group in recipients["groups"]:
-                    trigger.groups.add(group)
-
-                for contact in recipients["contacts"]:
-                    trigger.contacts.add(contact)
 
             response = super().form_valid(form)
             response["REDIRECT"] = self.get_success_url()

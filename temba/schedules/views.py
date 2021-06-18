@@ -24,31 +24,22 @@ class ScheduleFormMixin(forms.Form):
         widget=SelectMultipleWidget(attrs=({"placeholder": _("Select days to repeat on")})),
     )
 
-    def xx__init__(self, user, *args, **kwargs):
-        super().__init__(user, *args, **kwargs)
-
-        print(f"{user}")
-
+    def set_user(self, user):
+        """
+        Because this mixin is mixed with other forms it can't have a __init__ constructor that takes non standard Django
+        forms args and kwargs, so we have to customize based on user after the form has been created.
+        """
         tz = user.get_org().timezone
-
         self.fields["start_datetime"].help_text = _("First time this should happen in the %s timezone.") % tz
 
     def clean_repeat_days_of_week(self):
-        data = self.cleaned_data["repeat_days_of_week"]
-
-        # validate days of the week for weekly schedules
-        if data:
-            for c in data:
-                if c not in Schedule.DAYS_OF_WEEK_OFFSET:
-                    raise forms.ValidationError(_("%(day)s is not a valid day of the week"), params={"day": c})
-
-        return "".join(data)
+        return "".join(self.cleaned_data["repeat_days_of_week"])
 
     def clean(self):
         cleaned_data = super().clean()
 
         if cleaned_data["repeat_period"] == Schedule.REPEAT_WEEKLY and not cleaned_data.get("repeat_days_of_week"):
-            raise forms.ValidationError(_("Must specify at least one day of the week"))
+            raise forms.ValidationError(_("Must specify at least one day of the week."))
 
         return cleaned_data
 
@@ -61,7 +52,12 @@ class ScheduleCRUDL(SmartCRUDL):
     actions = ("update",)
 
     class Update(OrgObjPermsMixin, ComponentFormMixin, SmartUpdateView):
-        class Form(ScheduleFormMixin, forms.ModelForm):
+        class Form(forms.ModelForm, ScheduleFormMixin):
+            def __init__(self, user, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                self.set_user(user)
+
             class Meta:
                 model = Schedule
                 fields = ScheduleFormMixin.Meta.fields
@@ -72,7 +68,7 @@ class ScheduleCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            # kwargs["user"] = self.request.user
+            kwargs["user"] = self.request.user
             return kwargs
 
         def derive_initial(self):
@@ -83,10 +79,7 @@ class ScheduleCRUDL(SmartCRUDL):
         def get_success_url(self):
             broadcast = self.get_object().get_broadcast()
             assert broadcast is not None
-            return reverse("msgs.broadcast_schedule_read", args=[broadcast.pk])
-
-        def derive_success_message(self):
-            return None
+            return reverse("msgs.broadcast_schedule_read", args=[broadcast.id])
 
         def save(self, *args, **kwargs):
             form = self.form

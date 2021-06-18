@@ -1,5 +1,7 @@
-from datetime import timedelta
+from datetime import datetime
 from unittest.mock import patch
+
+import pytz
 
 from django.urls import reverse
 from django.utils import timezone
@@ -10,7 +12,6 @@ from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import Flow
 from temba.schedules.models import Schedule
 from temba.tests import CRUDLTestMixin, TembaTest
-from temba.utils.dates import datetime_to_str
 
 from .models import Trigger
 
@@ -378,10 +379,11 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             ["add_contact_groups", "set_contact_name"], [a["type"] for a in flow_def["nodes"][0]["actions"]]
         )
 
-    def test_create_and_update_schedule(self):
+    def test_create_schedule(self):
         create_url = reverse("triggers.trigger_create_schedule")
-
-        self.login(self.admin)
+        group1 = self.create_group("Group 1", contacts=[])
+        group2 = self.create_group("Group 2", contacts=[])
+        contact1 = self.create_contact("Jim", phone="+250788987654")
 
         flow1 = self.create_flow("Flow 1", flow_type=Flow.TYPE_MESSAGE)
         flow2 = self.create_flow("Flow 2", flow_type=Flow.TYPE_BACKGROUND)
@@ -391,135 +393,97 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_flow("Flow 4", flow_type=Flow.TYPE_SURVEY)
         self.create_flow("Flow 5", is_system=True)
 
-        chester = self.create_contact("Chester", phone="+250788987654")
-        shinoda = self.create_contact("Shinoda", phone="+250234213455")
-        linkin_park = self.create_group("Linkin Park", [chester, shinoda])
-        stromae = self.create_contact("Stromae", phone="+250788645323")
-
         response = self.assertCreateFetch(
             create_url,
             allow_viewers=False,
             allow_editors=True,
-            form_fields=["flow", "omnibox", "repeat_period", "repeat_days_of_week", "start_datetime"],
+            form_fields=[
+                "start_datetime",
+                "repeat_period",
+                "repeat_days_of_week",
+                "flow",
+                "groups",
+                "exclude_groups",
+                "contacts",
+            ],
         )
 
         # check we allow messaging, voice and background flows
         self.assertEqual([flow1, flow2, flow3], list(response.context["form"].fields["flow"].queryset))
 
-        now = timezone.now()
-        tommorrow = now + timedelta(days=1)
+        # try to create trigger with an empty form
+        self.assertCreateSubmit(
+            create_url,
+            {},
+            form_errors={
+                "__all__": "Must provide at least one group or contact to include.",
+                "start_datetime": "This field is required.",
+                "flow": "This field is required.",
+            },
+        )
 
-        # try to create trigger without a flow or omnibox
+        # try to create a weekly repeating schedule without specifying the days of the week
+        self.assertCreateSubmit(
+            create_url,
+            {"start_datetime": "2021-06-24 12:00", "repeat_period": "W", "flow": flow1.id, "groups": [group1.id]},
+            form_errors={"__all__": "Must specify at least one day of the week."},
+        )
+
+        # try to create a weekly repeating schedule with an invalid day of the week (UI doesn't actually allow this)
         self.assertCreateSubmit(
             create_url,
             {
-                "repeat_period": "D",
-                "start": "later",
-                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
+                "start_datetime": "2021-06-24 12:00",
+                "repeat_period": "W",
+                "repeat_days_of_week": ["X"],
+                "flow": flow1.id,
+                "groups": [group1.id],
             },
-            form_errors={"flow": "This field is required.", "omnibox": "This field is required."},
+            form_errors={"repeat_days_of_week": "Select a valid choice. X is not one of the available choices."},
         )
 
+        # still shouldn't have created anything
         self.assertEqual(0, Trigger.objects.count())
         self.assertEqual(0, Schedule.objects.count())
 
-        omnibox_selection = omnibox_serialize(self.org, [linkin_park], [stromae], True)
-
-        # now actually create some scheduled triggers
+        # now create a valid trigger
         self.assertCreateSubmit(
             create_url,
             {
+                "start_datetime": "2021-06-24 12:00",
+                "repeat_period": "W",
+                "repeat_days_of_week": ["M", "F"],
                 "flow": flow1.id,
-                "omnibox": omnibox_selection,
-                "repeat_period": "D",
-                "start": "later",
-                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
+                "groups": [group1.id],
+                "exclude_groups": [group2.id],
+                "contacts": omnibox_serialize(self.org, [], [contact1], True),
             },
-            new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_SCHEDULE, flow=flow1),
+            new_obj_query=Trigger.objects.filter(trigger_type="S", flow=flow1),
             success_status=200,
         )
 
-        self.client.post(
+        trigger = Trigger.objects.get()
+        self.assertIsNotNone(trigger.schedule)
+        self.assertEqual("W", trigger.schedule.repeat_period)
+        self.assertEqual("MF", trigger.schedule.repeat_days_of_week)
+        self.assertEqual({group1}, set(trigger.groups.all()))
+        self.assertEqual({group2}, set(trigger.exclude_groups.all()))
+        self.assertEqual({contact1}, set(trigger.contacts.all()))
+
+        # there is no conflict detection for scheduled triggers so can create the same trigger again
+        self.assertCreateSubmit(
             create_url,
             {
-                "flow": flow2.id,
-                "omnibox": omnibox_selection,
-                "repeat_period": "D",
-                "start": "later",
-                "start_datetime": datetime_to_str(tommorrow, "%Y-%m-%d %H:%M", self.org.timezone),
+                "start_datetime": "2021-06-24 12:00",
+                "repeat_period": "W",
+                "repeat_days_of_week": ["M", "F"],
+                "flow": flow1.id,
+                "groups": [group1.id],
+                "exclude_groups": [group2.id],
+                "contacts": omnibox_serialize(self.org, [], [contact1], True),
             },
-            new_obj_query=Trigger.objects.filter(trigger_type=Trigger.TYPE_SCHEDULE, flow=flow2),
+            new_obj_query=Trigger.objects.filter(trigger_type="S", flow=flow1).exclude(id=trigger.id),
             success_status=200,
-        )
-
-        trigger = Trigger.objects.order_by("id").last()
-
-        self.assertIsNotNone(trigger.schedule)
-        self.assertEqual("D", trigger.schedule.repeat_period)
-        self.assertEqual({linkin_park}, set(trigger.groups.all()))
-        self.assertEqual({stromae}, set(trigger.contacts.all()))
-
-        update_url = reverse("triggers.trigger_update", args=[trigger.id])
-
-        # try to update a trigger without a flow or omnibox
-        self.assertUpdateSubmit(
-            update_url,
-            {
-                "repeat_period": "O",
-                "start": "later",
-                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
-            },
-            form_errors={"flow": "This field is required.", "omnibox": "This field is required."},
-            object_unchanged=trigger,
-        )
-
-        # provide flow this time, update contact
-        self.assertUpdateSubmit(
-            update_url,
-            {
-                "flow": flow1.id,
-                "omnibox": omnibox_serialize(self.org, [linkin_park], [shinoda], True),
-                "repeat_period": "D",
-                "start": "later",
-                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
-            },
-        )
-
-        trigger.refresh_from_db()
-
-        self.assertIsNotNone(trigger.schedule)
-        self.assertEqual("D", trigger.schedule.repeat_period)
-        self.assertIsNotNone(trigger.schedule.next_fire)
-        self.assertEqual({linkin_park}, set(trigger.groups.all()))
-        self.assertEqual({shinoda}, set(trigger.contacts.all()))
-
-        # can't submit weekly repeat without specifying the days to repeat on
-        self.assertUpdateSubmit(
-            update_url,
-            {
-                "flow": flow1.id,
-                "omnibox": omnibox_selection,
-                "repeat_period": "W",
-                "start": "later",
-                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
-            },
-            form_errors={"__all__": "Must specify at least one day of the week"},
-            object_unchanged=trigger,
-        )
-
-        # or submit with invalid days
-        self.assertUpdateSubmit(
-            update_url,
-            {
-                "flow": flow1.id,
-                "omnibox": omnibox_selection,
-                "repeat_period": "W",
-                "repeat_days_of_week": "X",
-                "start": "later",
-                "start_datetime": datetime_to_str(now, "%Y-%m-%d %H:%M", self.org.timezone),
-            },
-            form_errors={"repeat_days_of_week": "Select a valid choice. X is not one of the available choices."},
-            object_unchanged=trigger,
         )
 
     def test_create_inbound_call(self):
@@ -830,8 +794,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         group1 = self.create_group("Chat", contacts=[])
         group2 = self.create_group("Testers", contacts=[])
         group3 = self.create_group("Doctors", contacts=[])
-        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="join")
-        trigger.groups.add(group1)
+        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, groups=(group1,), keyword="join")
 
         update_url = reverse("triggers.trigger_update", args=[trigger.id])
 
@@ -868,6 +831,104 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             form_errors={"keyword": "Must be a single word containing only letters and numbers."},
             object_unchanged=trigger,
         )
+
+    def test_update_schedule(self):
+        flow1 = self.create_flow()
+        group1 = self.create_group("Chat", contacts=[])
+        group2 = self.create_group("Testers", contacts=[])
+        contact1 = self.create_contact("Jim", phone="+250788987651")
+        contact2 = self.create_contact("Bob", phone="+250788987652")
+        tz = self.org.timezone
+
+        schedule = Schedule.create_schedule(
+            self.org,
+            self.admin,
+            start_time=tz.localize(datetime(2021, 6, 24, 12, 0, 0, 0)),
+            repeat_period=Schedule.REPEAT_WEEKLY,
+            repeat_days_of_week="MF",
+        )
+        trigger = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_SCHEDULE,
+            flow1,
+            groups=[group1],
+            contacts=(contact1,),
+            schedule=schedule,
+        )
+
+        next_fire = trigger.schedule.get_next_fire(datetime(2021, 6, 23, 12, 0, 0, 0, pytz.UTC))  # Wed 23rd
+        self.assertEqual(tz.localize(datetime(2021, 6, 25, 12, 0, 0, 0)), next_fire)  # Fri 25th
+
+        update_url = reverse("triggers.trigger_update", args=[trigger.id])
+
+        self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields=[
+                "start_datetime",
+                "repeat_period",
+                "repeat_days_of_week",
+                "flow",
+                "groups",
+                "exclude_groups",
+                "contacts",
+            ],
+        )
+
+        # try to update a weekly repeating schedule without specifying the days of the week
+        self.assertUpdateSubmit(
+            update_url,
+            {"start_datetime": "2021-06-24 12:00", "repeat_period": "W", "flow": flow1.id, "groups": [group1.id]},
+            form_errors={"__all__": "Must specify at least one day of the week."},
+            object_unchanged=trigger,
+        )
+
+        # try to create a weekly repeating schedule with an invalid day of the week (UI doesn't actually allow this)
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "start_datetime": "2021-06-24 12:00",
+                "repeat_period": "W",
+                "repeat_days_of_week": ["X"],
+                "flow": flow1.id,
+                "groups": [group1.id],
+            },
+            form_errors={"repeat_days_of_week": "Select a valid choice. X is not one of the available choices."},
+            object_unchanged=trigger,
+        )
+
+        # try to submit without any groups or contacts
+        self.assertUpdateSubmit(
+            update_url,
+            {"start_datetime": "2021-06-24 12:00", "repeat_period": "W", "flow": flow1.id},
+            form_errors={"__all__": "Must provide at least one group or contact to include."},
+            object_unchanged=trigger,
+        )
+
+        # submit with valid data...
+        self.assertUpdateSubmit(
+            update_url,
+            {
+                "start_datetime": "2021-06-24 12:00",
+                "repeat_period": "D",
+                "flow": flow1.id,
+                "groups": [group2.id],
+                "exclude_groups": [group1.id],
+                "contacts": omnibox_serialize(self.org, (), [contact2], True),
+            },
+        )
+
+        trigger.refresh_from_db()
+        self.assertEqual("D", trigger.schedule.repeat_period)
+        self.assertIsNone(trigger.schedule.repeat_days_of_week)
+        self.assertEqual({group2}, set(trigger.groups.all()))
+        self.assertEqual({group1}, set(trigger.exclude_groups.all()))
+        self.assertEqual({contact2}, set(trigger.contacts.all()))
+
+        next_fire = trigger.schedule.get_next_fire(datetime(2021, 6, 23, 12, 0, 0, 0, pytz.UTC))  # Wed 23rd
+        self.assertEqual(tz.localize(datetime(2021, 6, 24, 12, 0, 0, 0)), next_fire)  # Thu 24th
 
     def test_list(self):
         flow1 = self.create_flow("Report")

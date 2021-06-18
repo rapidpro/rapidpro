@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-16 20:15+0000\n"
+"POT-Creation-Date: 2021-06-18 17:44+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3818,22 +3818,35 @@ msgstr "chaque semaine le %(daysofweek)s"
 msgid "each month on the %(dayofmonth)s"
 msgstr "chaque mois le %(dayofmonth)s"
 
-#, python-format
-msgid "%(day)s is not a valid day of the week"
-msgstr "%(day)s n'est pas un jour de la semaine valide"
+msgid "Start Time"
+msgstr "Heure de début"
 
-msgid "Must specify at least one day of the week"
-msgstr "Doit spécifier au moins un jour de la semaine"
+#, fuzzy
+#| msgid "Select a field to update"
+msgid "Select a date and time"
+msgstr "Sélectionnez un champ à mettre à jour"
+
+#, fuzzy
+#| msgid "not repeat"
+msgid "Repeat"
+msgstr "pas répéter"
+
+#, fuzzy
+#| msgid "repeats daily"
+msgid "Repeat Days"
+msgstr "répète quotidiennement"
 
 msgid "Select days to repeat on"
 msgstr "Sélectionnez les jours pour répéter"
 
-msgid " "
-msgstr " "
-
 #, python-format
-msgid "%s Time Zone"
-msgstr "Fuseau horaire %s "
+msgid "First time this should happen in the %s timezone."
+msgstr ""
+
+#, fuzzy
+#| msgid "Must specify at least one day of the week"
+msgid "Must specify at least one day of the week."
+msgstr "Doit spécifier au moins un jour de la semaine"
 
 msgid "English"
 msgstr "Anglais"
@@ -4108,11 +4121,21 @@ msgstr[1] "Réponses"
 msgid "The message to send in response after they join the group (optional)"
 msgstr "Le message à envoyer en réponse suite à leur entrée dans le groupe (facultatif)"
 
-msgid "Start Time"
-msgstr "Heure de début"
+#, fuzzy
+#| msgid "Group to Join"
+msgid "Contacts To Include"
+msgstr "Groupe à rejoindre"
 
-msgid "The groups and contacts the flow will be broadcast to"
-msgstr "Les groupes et les contacts du flux seront diffusés à"
+msgid "Additional specific contacts to include."
+msgstr ""
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Optional: Select contacts"
+msgstr "Facultatif: le déclencheur ne s'applique qu'à ces groupes"
+
+msgid "Must provide at least one group or contact to include."
+msgstr ""
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
 msgstr "Le canal auquel appliquer ce déclencheur, laissez vide pour tous les canaux Facebook"
@@ -4131,9 +4154,6 @@ msgstr "Joindre un mot clé"
 
 msgid "The first word of the message"
 msgstr "Le premier mot du message"
-
-msgid "Create Schedule"
-msgstr "Créer un planning"
 
 msgid "Create Referral Trigger"
 msgstr "Créer un déclencheur de référence"
@@ -7892,6 +7912,23 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#, python-format
+#~ msgid "%(day)s is not a valid day of the week"
+#~ msgstr "%(day)s n'est pas un jour de la semaine valide"
+
+#~ msgid " "
+#~ msgstr " "
+
+#, python-format
+#~ msgid "%s Time Zone"
+#~ msgstr "Fuseau horaire %s "
+
+#~ msgid "The groups and contacts the flow will be broadcast to"
+#~ msgstr "Les groupes et les contacts du flux seront diffusés à"
+
+#~ msgid "Create Schedule"
+#~ msgstr "Créer un planning"
 
 #, fuzzy
 #~| msgid "Unable to check WhatsApp enterprise account, please check username and password"
