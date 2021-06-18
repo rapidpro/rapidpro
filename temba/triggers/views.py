@@ -482,29 +482,24 @@ class TriggerCRUDL(SmartCRUDL):
         def get_form_class(self):
             return self.trigger_forms[self.object.trigger_type]
 
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            if self.get_object().schedule:
-                context["days"] = self.get_object().schedule.repeat_days_of_week or ""
-            return context
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            return kwargs
 
         def derive_initial(self):
             initial = super().derive_initial()
 
             if self.object.trigger_type == Trigger.TYPE_SCHEDULE:
                 schedule = self.object.schedule
-                days_of_the_week = (list(schedule.repeat_days_of_week) if schedule.repeat_days_of_week else [],)
+                days_of_the_week = list(schedule.repeat_days_of_week) if schedule.repeat_days_of_week else []
+                contacts = self.object.contacts.all()
 
-                initial["start_datetime"] = (schedule.next_fire,)
-                initial["repeat_period"] = (schedule.repeat_period,)
+                initial["start_datetime"] = schedule.next_fire
+                initial["repeat_period"] = schedule.repeat_period
                 initial["repeat_days_of_week"] = days_of_the_week
-                initial["contacts"] = (omnibox_serialize(self.object.org, (), self.object.contacts.all()),)
+                initial["contacts"] = omnibox_serialize(self.object.org, (), contacts)
             return initial
-
-        def get_form_kwargs(self):
-            kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
-            return kwargs
 
         def form_valid(self, form):
             if self.object.trigger_type == Trigger.TYPE_SCHEDULE:

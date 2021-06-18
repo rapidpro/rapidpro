@@ -129,7 +129,7 @@ class CRUDLTestMixin:
         return as_user(admin, allowed=True)
 
     def assertUpdateFetch(
-        self, url, *, allow_viewers, allow_editors, allow_agents=False, object_url=True, form_fields={}, status=200
+        self, url, *, allow_viewers, allow_editors, allow_agents=False, object_url=True, form_fields=(), status=200
     ):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
 

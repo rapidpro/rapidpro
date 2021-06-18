@@ -456,7 +456,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
                 "flow": flow1.id,
                 "groups": [group1.id],
                 "exclude_groups": [group2.id],
-                "contacts": omnibox_serialize(self.org, [], [contact1], True),
+                "contacts": omnibox_serialize(self.org, [], [contact1], json_encode=True),
             },
             new_obj_query=Trigger.objects.filter(trigger_type="S", flow=flow1),
             success_status=200,
@@ -480,7 +480,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
                 "flow": flow1.id,
                 "groups": [group1.id],
                 "exclude_groups": [group2.id],
-                "contacts": omnibox_serialize(self.org, [], [contact1], True),
+                "contacts": omnibox_serialize(self.org, [], [contact1], json_encode=True),
             },
             new_obj_query=Trigger.objects.filter(trigger_type="S", flow=flow1).exclude(id=trigger.id),
             success_status=200,
@@ -853,6 +853,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             Trigger.TYPE_SCHEDULE,
             flow1,
             groups=[group1],
+            exclude_groups=[group2],
             contacts=(contact1,),
             schedule=schedule,
         )
@@ -862,7 +863,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
 
         update_url = reverse("triggers.trigger_update", args=[trigger.id])
 
-        self.assertUpdateFetch(
+        response = self.assertUpdateFetch(
             update_url,
             allow_viewers=False,
             allow_editors=True,
@@ -875,6 +876,18 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
                 "exclude_groups",
                 "contacts",
             ],
+        )
+        initial_values = response.context["form"].initial
+
+        self.assertEqual(datetime(2021, 6, 24, 10, 0, 0, 0, pytz.UTC), initial_values["start_datetime"])
+        self.assertEqual("W", initial_values["repeat_period"])
+        self.assertEqual(["M", "F"], initial_values["repeat_days_of_week"])
+        self.assertEqual(flow1.id, initial_values["flow"])
+        self.assertEqual([group1], initial_values["groups"])
+        self.assertEqual([group2], initial_values["exclude_groups"])
+        self.assertEqual(
+            [{"id": str(contact1.uuid), "name": "Jim", "type": "contact", "urn": "0788 987 651"}],
+            initial_values["contacts"],
         )
 
         # try to update a weekly repeating schedule without specifying the days of the week
@@ -916,7 +929,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
                 "flow": flow1.id,
                 "groups": [group2.id],
                 "exclude_groups": [group1.id],
-                "contacts": omnibox_serialize(self.org, (), [contact2], True),
+                "contacts": omnibox_serialize(self.org, (), [contact2], json_encode=True),
             },
         )
 

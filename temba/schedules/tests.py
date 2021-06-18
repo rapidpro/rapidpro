@@ -221,13 +221,13 @@ class ScheduleTest(TembaTest):
         self.login(self.admin)
 
         # test missing recipients
-        omnibox = omnibox_serialize(self.org, [], [], True)
+        omnibox = omnibox_serialize(self.org, [], [], json_encode=True)
         post_data = dict(text="message content", omnibox=omnibox, sender=self.channel.pk, schedule=True)
         response = self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
         self.assertContains(response, "At least one recipient is required")
 
         # missing message
-        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
+        omnibox = omnibox_serialize(self.org, [], [self.joe], json_encode=True)
         post_data = dict(text="", omnibox=omnibox, sender=self.channel.pk, schedule=True)
         response = self.client.post(reverse("msgs.broadcast_send"), post_data, follow=True)
         self.assertContains(response, "This field is required")
@@ -252,7 +252,7 @@ class ScheduleTest(TembaTest):
         broadcast = response.context["object"]
 
         # update our message
-        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
+        omnibox = omnibox_serialize(self.org, [], [self.joe], json_encode=True)
         post_data = dict(message="An updated scheduled message", omnibox=omnibox)
         self.client.post(reverse("msgs.broadcast_update", args=[broadcast.pk]), post_data)
         self.assertEqual(Broadcast.objects.get(id=broadcast.id).text, {"base": "An updated scheduled message"})
@@ -288,7 +288,7 @@ class ScheduleTest(TembaTest):
         self.org.save()
         tz = self.org.timezone
 
-        omnibox = omnibox_serialize(self.org, [], [self.joe], True)
+        omnibox = omnibox_serialize(self.org, [], [self.joe], json_encode=True)
 
         self.login(self.admin)
         post_data = dict(text="A scheduled message to Joe", omnibox=omnibox, sender=self.channel.pk, schedule=True)
