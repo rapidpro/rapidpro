@@ -58,6 +58,11 @@ class ScheduleCRUDL(SmartCRUDL):
 
                 self.set_user(user)
 
+            def clean(self):
+                super().clean()
+
+                ScheduleFormMixin.clean(self)
+
             class Meta:
                 model = Schedule
                 fields = ScheduleFormMixin.Meta.fields

@@ -857,7 +857,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             schedule=schedule,
         )
 
-        next_fire = trigger.schedule.get_next_fire(datetime(2021, 6, 23, 12, 0, 0, 0, pytz.UTC))  # Wed 23rd
+        next_fire = trigger.schedule.calculate_next_fire(datetime(2021, 6, 23, 12, 0, 0, 0, pytz.UTC))  # Wed 23rd
         self.assertEqual(tz.localize(datetime(2021, 6, 25, 12, 0, 0, 0)), next_fire)  # Fri 25th
 
         update_url = reverse("triggers.trigger_update", args=[trigger.id])
@@ -927,7 +927,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({group1}, set(trigger.exclude_groups.all()))
         self.assertEqual({contact2}, set(trigger.contacts.all()))
 
-        next_fire = trigger.schedule.get_next_fire(datetime(2021, 6, 23, 12, 0, 0, 0, pytz.UTC))  # Wed 23rd
+        next_fire = trigger.schedule.calculate_next_fire(datetime(2021, 6, 23, 12, 0, 0, 0, pytz.UTC))  # Wed 23rd
         self.assertEqual(tz.localize(datetime(2021, 6, 24, 12, 0, 0, 0)), next_fire)  # Thu 24th
 
     def test_list(self):
