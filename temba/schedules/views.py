@@ -34,7 +34,12 @@ class ScheduleFormMixin(forms.Form):
         self.fields["start_datetime"].help_text = _("First time this should happen in the %s timezone.") % tz
 
     def clean_repeat_days_of_week(self):
-        return "".join(self.cleaned_data["repeat_days_of_week"])
+        value = self.cleaned_data["repeat_days_of_week"]
+
+        # sort by Monday to Sunday
+        value = sorted(value, key=lambda c: Schedule.DAYS_OF_WEEK_OFFSET.index(c))
+
+        return "".join(value)
 
     def clean(self):
         cleaned_data = super().clean()
@@ -57,6 +62,9 @@ class ScheduleCRUDL(SmartCRUDL):
             def __init__(self, user, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
+                # we use a post with a blank date to mean unschedule
+                self.fields["start_datetime"].required = False
+
                 self.set_user(user)
 
             def clean(self):
@@ -78,8 +86,11 @@ class ScheduleCRUDL(SmartCRUDL):
             return kwargs
 
         def derive_initial(self):
+            schedule = self.get_object()
+
             initial = super().derive_initial()
-            initial["start_datetime"] = self.get_object().next_fire
+            initial["start_datetime"] = schedule.next_fire
+            initial["repeat_days_of_week"] = list(schedule.repeat_days_of_week) if schedule.repeat_days_of_week else []
             return initial
 
         def get_success_url(self):
@@ -88,11 +99,8 @@ class ScheduleCRUDL(SmartCRUDL):
             return reverse("msgs.broadcast_schedule_read", args=[broadcast.id])
 
         def save(self, *args, **kwargs):
-            form = self.form
-            schedule = self.object
-
-            schedule.update_schedule(
-                form.cleaned_data.get("start_datetime"),
-                form.cleaned_data.get("repeat_period"),
-                form.cleaned_data.get("repeat_days_of_week"),
+            self.object.update_schedule(
+                self.form.cleaned_data["start_datetime"],
+                self.form.cleaned_data["repeat_period"],
+                self.form.cleaned_data.get("repeat_days_of_week"),
             )

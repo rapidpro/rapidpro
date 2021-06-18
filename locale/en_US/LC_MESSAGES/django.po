@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-18 20:08+0000\n"
+"POT-Creation-Date: 2021-06-18 20:47+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -7088,7 +7088,12 @@ msgstr ""
 msgid "Select when you would like the message to be sent"
 msgstr ""
 
-msgid "The next message will be sent on"
+#, python-format
+msgid "The next message will be sent <b>%(when)s</b>."
+msgstr ""
+
+#, python-format
+msgid "It will repeat every <b>month</b> on the %(date)s."
 msgstr ""
 
 msgid "It will repeat every"
@@ -7097,16 +7102,10 @@ msgstr ""
 msgid "at around the same time."
 msgstr ""
 
-msgid "on the"
+msgid "It will repeat <d>daily</b> at around the same time."
 msgstr ""
 
-msgid "It will repeat"
-msgstr ""
-
-msgid "It will "
-msgstr ""
-
-msgid "not repeat"
+msgid "It will <b>not repeat</b>."
 msgstr ""
 
 msgid "Unschedule"

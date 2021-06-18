@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-18 20:08+0000\n"
+"POT-Creation-Date: 2021-06-18 20:47+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -7629,8 +7629,14 @@ msgstr "Horario"
 msgid "Select when you would like the message to be sent"
 msgstr "Seleccione cuándo desea que se envíe el mensaje"
 
-msgid "The next message will be sent on"
+#, fuzzy, python-format
+#| msgid "The next message will be sent on"
+msgid "The next message will be sent <b>%(when)s</b>."
 msgstr "El siguiente mensaje se enviará el"
+
+#, python-format
+msgid "It will repeat every <b>month</b> on the %(date)s."
+msgstr ""
 
 msgid "It will repeat every"
 msgstr "Será repetido cada"
@@ -7638,17 +7644,15 @@ msgstr "Será repetido cada"
 msgid "at around the same time."
 msgstr "aproximadamente a la misma hora."
 
-msgid "on the"
-msgstr "sobre el"
+#, fuzzy
+#| msgid "at around the same time."
+msgid "It will repeat <d>daily</b> at around the same time."
+msgstr "aproximadamente a la misma hora."
 
-msgid "It will repeat"
+#, fuzzy
+#| msgid "It will repeat"
+msgid "It will <b>not repeat</b>."
 msgstr "Se repetirá"
-
-msgid "It will "
-msgstr "Va a"
-
-msgid "not repeat"
-msgstr "no repetir"
 
 msgid "Unschedule"
 msgstr "Desprogramar"
@@ -7933,6 +7937,15 @@ msgstr "Las plantillas se sincronizan desde su cuenta de WhatsApp cada 15 minuto
 
 msgid "No synced templates at this time."
 msgstr "No hay plantillas sincronizadas en este momento."
+
+#~ msgid "on the"
+#~ msgstr "sobre el"
+
+#~ msgid "It will "
+#~ msgstr "Va a"
+
+#~ msgid "not repeat"
+#~ msgstr "no repetir"
 
 #~ msgid "Select days to repeat on"
 #~ msgstr "Seleccionar días para repetir"

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-18 20:08+0000\n"
+"POT-Creation-Date: 2021-06-18 20:47+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -7495,8 +7495,14 @@ msgstr "Расписание"
 msgid "Select when you would like the message to be sent"
 msgstr ""
 
-msgid "The next message will be sent on"
+#, fuzzy, python-format
+#| msgid "The next message will be sent on"
+msgid "The next message will be sent <b>%(when)s</b>."
 msgstr "Следующее сообщение будет отправлено "
+
+#, python-format
+msgid "It will repeat every <b>month</b> on the %(date)s."
+msgstr ""
 
 msgid "It will repeat every"
 msgstr "Оно будет повторно отправляться каждый"
@@ -7504,17 +7510,15 @@ msgstr "Оно будет повторно отправляться каждый
 msgid "at around the same time."
 msgstr "примерно в это же время."
 
-msgid "on the"
-msgstr "в"
+#, fuzzy
+#| msgid "at around the same time."
+msgid "It will repeat <d>daily</b> at around the same time."
+msgstr "примерно в это же время."
 
-msgid "It will repeat"
+#, fuzzy
+#| msgid "It will repeat"
+msgid "It will <b>not repeat</b>."
 msgstr "Оно будет повторяться"
-
-msgid "It will "
-msgstr "Оно "
-
-msgid "not repeat"
-msgstr "не будет повторяться"
 
 msgid "Unschedule"
 msgstr ""
@@ -7776,6 +7780,15 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#~ msgid "on the"
+#~ msgstr "в"
+
+#~ msgid "It will "
+#~ msgstr "Оно "
+
+#~ msgid "not repeat"
+#~ msgstr "не будет повторяться"
 
 #, python-format
 #~ msgid "%(day)s is not a valid day of the week"
