@@ -1424,8 +1424,8 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual({"base": "This is my message"}, event1.message)
 
         # now add some languages to our orgs
-        self.org.set_flow_languages(self.admin, ["fra", "spa"], primary="fra")
-        self.org2.set_flow_languages(self.admin, ["fra", "spa"], primary="fra")
+        self.org.set_flow_languages(self.admin, ["fra", "spa"])
+        self.org2.set_flow_languages(self.admin, ["fra", "spa"])
 
         response = self.assertCreateFetch(
             create_url, allow_viewers=False, allow_editors=True, form_fields=non_lang_fields + ["fra", "spa"]
@@ -1542,7 +1542,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         update_url = reverse("campaigns.campaignevent_update", args=[event.id])
 
         # and add new language to org
-        self.org.set_flow_languages(self.admin, ["fra", "spa", "kin"], primary="fra")
+        self.org.set_flow_languages(self.admin, ["fra", "spa", "kin"])
 
         response = self.client.get(update_url)
 
@@ -1578,7 +1578,7 @@ class CampaignEventCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual("fra", event.flow.base_language)
 
         # update org languages to something not including the flow's base language
-        self.org.set_flow_languages(self.admin, ["por", "spa"], primary="por")
+        self.org.set_flow_languages(self.admin, ["por", "spa"])
 
         event = CampaignEvent.objects.all().order_by("id").last()
         update_url = reverse("campaigns.campaignevent_update", args=[event.id])
