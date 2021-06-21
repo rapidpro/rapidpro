@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-16 20:15+0000\n"
+"POT-Creation-Date: 2021-06-21 16:53+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3132,9 +3132,6 @@ msgid "A password that allows users to register as surveyors"
 msgstr ""
 
 msgid "The parent org that manages this org"
-msgstr ""
-
-msgid "The primary language will be used for contacts with no language preference."
 msgstr ""
 
 #, python-format

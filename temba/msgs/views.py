@@ -314,7 +314,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            return qs.select_related("schedule").order_by("-created_on")
+            return qs.select_related("org", "schedule").order_by("-created_on")
 
     class Send(OrgPermsMixin, ModalMixin, SmartFormView):
         title = _("Send Message")

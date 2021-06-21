@@ -377,16 +377,6 @@ class Org(SmartModel):
     released_on = models.DateTimeField(null=True)
     deleted_on = models.DateTimeField(null=True)
 
-    # deprecated, to be replaced as the first item in flow_languages
-    primary_language = models.ForeignKey(
-        "orgs.Language",
-        null=True,
-        blank=True,
-        related_name="orgs",
-        help_text=_("The primary language will be used for contacts with no language preference."),
-        on_delete=models.PROTECT,
-    )
-
     @classmethod
     def get_unique_slug(cls, name):
         slug = slugify(name)
@@ -2018,40 +2008,6 @@ def get_stripe_credentials():
         "STRIPE_PRIVATE_KEY", getattr(settings, "STRIPE_PRIVATE_KEY", "MISSING_STRIPE_PRIVATE_KEY")
     )
     return (public_key, private_key)
-
-
-class Language(SmartModel):
-    """
-    TODO drop this model
-    """
-
-    name = models.CharField(max_length=128)
-    iso_code = models.CharField(max_length=4)
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="languages")
-
-    @classmethod
-    def get_localized_text(cls, text_translations, preferred_languages, default_text=""):
-        """
-        Returns the appropriate translation to use.
-        :param text_translations: A dictionary (or plain text) which contains our message indexed by language iso code
-        :param preferred_languages: The prioritized list of language preferences (list of iso codes)
-        :param default_text: default text to use if no match is found
-        """
-        # No translations, return our default text
-        if not text_translations:
-            return default_text
-
-        # If we are handed raw text without translations, just return that
-        if not isinstance(text_translations, dict):  # pragma: no cover
-            return text_translations
-
-        # otherwise, find the first preferred language
-        for lang in preferred_languages:
-            localized = text_translations.get(lang)
-            if localized is not None:
-                return localized
-
-        return default_text
 
 
 class Invitation(SmartModel):
