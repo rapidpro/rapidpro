@@ -109,10 +109,12 @@ class Broadcast(models.Model):
     raw_urns = ArrayField(models.TextField(), null=True)
 
     # message content
+    base_language = models.CharField(max_length=4)
     text = TranslatableField(max_length=MAX_TEXT_LEN)
     media = TranslatableField(max_length=2048, null=True)
 
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True)
+    ticket = models.ForeignKey("tickets.Ticket", on_delete=models.PROTECT, null=True, related_name="broadcasts")
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=INITIALIZING)
 
@@ -121,32 +123,12 @@ class Broadcast(models.Model):
     # used for repeating scheduled broadcasts
     parent = models.ForeignKey("Broadcast", on_delete=models.PROTECT, null=True, related_name="children")
 
-    # language used for contacts who don't have a language
-    base_language = models.CharField(max_length=4)
+    is_active = models.BooleanField(default=True)  # TODO not used and could be removed
 
-    is_active = models.BooleanField(default=True)
-
-    created_by = models.ForeignKey(
-        User,
-        null=True,
-        on_delete=models.PROTECT,
-        related_name="%(app_label)s_%(class)s_creations",
-        help_text="The user which originally created this item",
-    )
-
-    created_on = models.DateTimeField(
-        default=timezone.now, blank=True, editable=False, db_index=True, help_text=_("When this broadcast was created")
-    )
-
-    modified_by = models.ForeignKey(
-        User,
-        null=True,
-        on_delete=models.PROTECT,
-        related_name="%(app_label)s_%(class)s_modifications",
-        help_text="The user which last modified this item",
-    )
-
-    modified_on = models.DateTimeField(auto_now=True, help_text="When this item was last modified")
+    created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_creations")
+    created_on = models.DateTimeField(default=timezone.now, db_index=True)  # TODO remove index
+    modified_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_modifications")
+    modified_on = models.DateTimeField(default=timezone.now)
 
     # whether this broadcast should send to all URNs for each contact
     send_all = models.BooleanField(default=False)
@@ -166,6 +148,7 @@ class Broadcast(models.Model):
         contact_ids: List[int] = None,
         base_language: str = None,
         channel: Channel = None,
+        ticket=None,
         media: Dict = None,
         send_all: bool = False,
         quick_replies: List[Dict] = None,
@@ -180,7 +163,7 @@ class Broadcast(models.Model):
 
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
         assert base_language in text, "base_language doesn't exist in text translations"
-        assert not media or base_language in media, "base _language doesn't exist in media translations"
+        assert not media or base_language in media, "base_language doesn't exist in media translations"
 
         if quick_replies:
             for quick_reply in quick_replies:
@@ -197,6 +180,7 @@ class Broadcast(models.Model):
         broadcast = cls.objects.create(
             org=org,
             channel=channel,
+            ticket=ticket,
             send_all=send_all,
             base_language=base_language,
             text=text,
