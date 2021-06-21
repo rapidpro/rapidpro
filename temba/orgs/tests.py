@@ -1068,8 +1068,8 @@ class OrgTest(TembaTest):
             email="administrator@temba.com",
             current_password="Administrator",
         )
-        response = self.client.post(update_url, post_data)
-        self.assertRedirect(response, reverse("orgs.org_home"))
+        response = self.client.post(update_url, post_data, HTTP_X_FORMAX=True)
+        self.assertEqual(200, response.status_code)
 
         # check that our user settings have changed
         user_settings = self.admin.get_settings()
@@ -3707,8 +3707,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             language="en-us",
             current_password="HelloWorld1",
         )
-        response = self.client.post(reverse("orgs.user_edit"), post_data)
-        self.assertRedirect(response, reverse("orgs.org_home"))
+        response = self.client.post(reverse("orgs.user_edit"), post_data, HTTP_X_FORMAX=True)
+        self.assertEqual(200, response.status_code)
 
         self.assertTrue(User.objects.get(username="myal@wr.org"))
         self.assertTrue(User.objects.get(email="myal@wr.org"))
@@ -3717,8 +3717,8 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         post_data["current_password"] = "HelloWorld1"
         post_data["new_password"] = "Password123"
-        response = self.client.post(reverse("orgs.user_edit"), post_data)
-        self.assertRedirect(response, reverse("orgs.org_home"))
+        response = self.client.post(reverse("orgs.user_edit"), post_data, HTTP_X_FORMAX=True)
+        self.assertEqual(200, response.status_code)
 
         user = User.objects.get(username="myal@wr.org")
         self.assertTrue(user.check_password("Password123"))

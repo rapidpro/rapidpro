@@ -731,7 +731,6 @@ class UserCRUDL(SmartCRUDL):
 
         form_class = EditForm
         permission = "orgs.org_profile"
-        success_url = "@orgs.org_home"
         success_message = ""
 
         @classmethod
@@ -743,7 +742,8 @@ class UserCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             initial = super().derive_initial()
-            initial["language"] = self.get_object().get_settings().language
+            user_settings = self.get_object().get_settings()
+            initial["language"] = user_settings.language
             return initial
 
         def pre_save(self, obj):
