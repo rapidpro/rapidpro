@@ -20,7 +20,7 @@
     .field.formax-vertical
       {% render_field 'new_password' %}
 
-    #current-password.field.formax-vertical.p-4.bg-gray-100.rounded-lg.mt-4
+    #current-password.field.formax-vertical.p-4.bg-gray-100.rounded-lg.mt-4.hidden
       .mb-2
         -blocktrans trimmed
           Confirm your current password to save these changes
@@ -33,24 +33,38 @@
 
 -block extra-script
   :javascript
-    window.addEventListener("DOMContentLoaded", function (){
 
-        // hide our password field by default
-        var pw = document.getElementById("current-password");
-        pw.style.display = "none";
+    function wireHandlers() {
+      // hide our password field by default
+      var passwordContainer = document.getElementById("current-password");
+      var passwordField = passwordContainer.querySelector(".field_current_password");
 
-        // but show it if the try to update their email address or password
-        var email = document.getElementById("id_email");
-        var newPw = document.getElementById("id_new_password");
+      // but show it if the try to update their email address or password
+      var email = document.getElementById("id_email");
+      var newPw = document.getElementById("id_new_password");
         
-        var listener = function(event) {
-          pw.style.display = "block";
-        }
+      var listener = function(event) {
+        passwordContainer.classList.remove("hidden");
+      }
 
-        // a change event is fired on initial value, ignore it
-        window.setTimeout(function(){
-          email.addEventListener("change", listener);
-          newPw.addEventListener("change", listener);
-        }, 0);
+      // if our field has an error, make sure we show it on load
+      if (passwordField.classList.contains("error")) {
+        passwordContainer.classList.remove("hidden");
+      }
 
+      // a change event is fired on initial value, ignore it
+      window.setTimeout(function(){
+        email.addEventListener("change", listener);
+        newPw.addEventListener("change", listener);
+      }, 0);
+      
+    }
+    
+    window.addEventListener("DOMContentLoaded", function (){
+      wireHandlers();
+
+      // also wire them if our formax submits
+      document.addEventListener("temba-formax-ready", function(){
+        wireHandlers();
+      });
     });
