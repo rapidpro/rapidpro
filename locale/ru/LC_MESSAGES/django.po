@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-16 20:15+0000\n"
+"POT-Creation-Date: 2021-06-21 19:46+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2910,9 +2910,6 @@ msgstr "Не удалось отправить"
 
 msgid "Resent message"
 msgstr "Повторно отправленное сообщение"
-
-msgid "When this broadcast was created"
-msgstr "Когда была создана эта рассылка"
 
 msgid "Whether this count is for archived messages"
 msgstr "Будет ли этот подсчет проводиться для архивированных сообщений"
@@ -7751,6 +7748,9 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#~ msgid "When this broadcast was created"
+#~ msgstr "Когда была создана эта рассылка"
 
 #, fuzzy
 #~| msgid "Unable to check WhatsApp enterprise account, please check username and password"

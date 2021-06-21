@@ -93,6 +93,7 @@ def queue_broadcast(broadcast):
         "group_ids": list(broadcast.groups.values_list("id", flat=True)),
         "broadcast_id": broadcast.id,
         "org_id": broadcast.org_id,
+        "ticket_id": broadcast.ticket_id,
     }
 
     _queue_batch_task(broadcast.org_id, BatchTask.SEND_BROADCAST, task, HIGH_PRIORITY)
