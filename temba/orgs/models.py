@@ -1758,10 +1758,6 @@ class Org(SmartModel):
                 sub.delete()
             resthook.delete()
 
-        # delete org languages
-        Org.objects.filter(id=self.id).update(primary_language=None)
-        self.languages.all().delete()
-
         # release our broadcasts
         for bcast in self.broadcast_set.filter(parent=None):
             bcast.release()
@@ -1782,7 +1778,6 @@ class Org(SmartModel):
         self.deleted_on = timezone.now()
         self.config = {}
         self.surveyor_password = None
-        self.primary_language = None
         self.save()
 
     @classmethod
