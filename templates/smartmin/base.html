@@ -27,7 +27,6 @@
     var type = 'GET';
     var data = undefined;
     var processData = true;
-    var contentType = false;
 
     if (options) {
       if ('postData' in options) {
@@ -39,7 +38,6 @@
         type = 'POST';
         processData = false;
         data = options['formData'];
-        // contentType = 'multipart/form-data'
       }
     }
 
@@ -105,8 +103,6 @@
         }
       }
     }
-
-    console.log(request);
 
     $.ajax(request);
   }

@@ -249,8 +249,6 @@ class ModalMixin(SmartFormView):
 
             messages.success(self.request, self.derive_success_message())
 
-            print("META", self.request.META)
-
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
