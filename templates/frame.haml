@@ -229,7 +229,7 @@
         {{ request.branding.credits|safe }}
 
   -trans 'Delete' as title
-  %temba-dialog#general-delete-confirmation{header:"{{title|escapejs}}", primaryButtonName:"{{title|escapejs}}", destructive: "true"}
+  %temba-dialog#general-delete-confirmation.hidden{header:"{{title|escapejs}}", primaryButtonName:"{{title|escapejs}}", destructive: "true"}
     .p-6.confirmation-body
       -trans "Are you sure you want to continue? This cannot be undone."
 
@@ -266,6 +266,7 @@
       function removalConfirmation(removal, buttonName) {
   
         var modal = document.querySelector("#general-delete-confirmation");
+        modal.classList.remove("hidden");
 
         // set modal deets
         var title = document.querySelector('.' + removal + ' > .title').innerHTML;
