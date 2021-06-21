@@ -89,12 +89,14 @@ class CRUDLTestMixin:
         as_user(org2_admin, allowed=True)
         return as_user(admin, allowed=True)
 
-    def assertCreateFetch(self, url, *, allow_viewers, allow_editors, allow_agents=False, form_fields={}, status=200):
+    def assertCreateFetch(self, url, *, allow_viewers, allow_editors, allow_agents=False, form_fields=(), status=200):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
         def as_user(user, allowed):
             if allowed:
                 checks = [StatusCode(status), FormFields(form_fields)]
+                if isinstance(form_fields, dict):
+                    checks.append(FormInitialValues(form_fields))
             else:
                 checks = [LoginRedirect()]
 
@@ -129,13 +131,15 @@ class CRUDLTestMixin:
         return as_user(admin, allowed=True)
 
     def assertUpdateFetch(
-        self, url, *, allow_viewers, allow_editors, allow_agents=False, object_url=True, form_fields={}, status=200
+        self, url, *, allow_viewers, allow_editors, allow_agents=False, object_url=True, form_fields=(), status=200
     ):
         viewer, editor, agent, admin, org2_admin = self.get_test_users()
 
         def as_user(user, allowed):
             if allowed:
                 checks = [StatusCode(status), FormFields(form_fields)]
+                if isinstance(form_fields, dict):
+                    checks.append(FormInitialValues(form_fields))
             else:
                 checks = [LoginRedirect()]
 
@@ -332,7 +336,20 @@ class FormFields(BaseCheck):
         fields = list(form.fields.keys())
         fields.remove("loc")
 
-        test_cls.assertEqual(list(self.fields), fields, msg=f"{msg_prefix}: form fields mismatch")
+        test_cls.assertEqual(list(self.fields), list(fields), msg=f"{msg_prefix}: form fields mismatch")
+
+
+class FormInitialValues(BaseCheck):
+    def __init__(self, fields: dict):
+        self.fields = fields
+
+    def check(self, test_cls, response, msg_prefix):
+        form = self.get_context_item(test_cls, response, "form", msg_prefix)
+
+        for field_key, value in self.fields.items():
+            test_cls.assertEqual(
+                form.initial[field_key], value, msg=f"{msg_prefix}: form field initial value mismatch"
+            )
 
 
 class FormErrors(BaseCheck):

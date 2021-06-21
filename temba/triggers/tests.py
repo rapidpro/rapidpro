@@ -345,7 +345,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(flow.base_language, "base")
 
         # try creating a join group on an org with a language
-        self.org.set_flow_languages(self.admin, ["spa"], primary="spa")
+        self.org.set_flow_languages(self.admin, ["spa"])
 
         self.assertCreateSubmit(
             create_url,

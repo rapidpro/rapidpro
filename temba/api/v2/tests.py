@@ -261,7 +261,7 @@ class APITest(TembaTest):
         self.assertEqual(field.to_internal_value("Hello"), ({"base": "Hello"}, "base"))
         self.assertEqual(field.to_internal_value({"base": "Hello"}), ({"base": "Hello"}, "base"))
 
-        self.org.set_flow_languages(self.admin, ["kin"], primary="kin")
+        self.org.set_flow_languages(self.admin, ["kin"])
         self.org.save()
 
         self.assertEqual(field.to_internal_value("Hello"), ({"kin": "Hello"}, "kin"))
@@ -3307,7 +3307,7 @@ class APITest(TembaTest):
             },
         )
 
-        self.org.set_flow_languages(self.admin, ["eng", "fra"], "eng")
+        self.org.set_flow_languages(self.admin, ["eng", "fra"])
 
         response = self.fetchJSON(url)
         self.assertEqual(

@@ -273,7 +273,7 @@ class MsgTest(TembaTest):
                 quick_replies=[dict(eng="Yes"), dict(eng="No")],
             )
 
-        self.org.set_flow_languages(self.admin, ["eng", "fra"], primary="eng")
+        self.org.set_flow_languages(self.admin, ["eng", "fra"])
 
         broadcast = Broadcast.create(
             self.org,
@@ -1948,7 +1948,7 @@ class BroadcastTest(TembaTest):
         # test resolving the broadcast text in different languages (used to render scheduled ones)
         self.assertEqual("Hello everyone", broadcast1.get_translated_text(self.joe))  # uses broadcast base language
 
-        self.org.set_flow_languages(self.admin, ["eng", "spa", "fra"], "spa")
+        self.org.set_flow_languages(self.admin, ["spa", "eng", "fra"])
 
         self.assertEqual("Hola a todos", broadcast1.get_translated_text(self.joe))  # uses org primary language
 
@@ -1957,7 +1957,7 @@ class BroadcastTest(TembaTest):
 
         self.assertEqual("Salut à tous", broadcast1.get_translated_text(self.joe))  # uses contact language
 
-        self.org.set_flow_languages(self.admin, ["eng", "spa"], "spa")
+        self.org.set_flow_languages(self.admin, ["spa", "eng"])
 
         self.assertEqual("Hola a todos", broadcast1.get_translated_text(self.joe))  # but only if it's allowed
 

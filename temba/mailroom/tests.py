@@ -837,6 +837,7 @@ class EventTest(TembaTest):
         # event with a user
         event1 = TicketEvent.objects.create(
             org=self.org,
+            contact=contact,
             ticket=ticket,
             event_type=TicketEvent.TYPE_NOTE,
             created_by=self.agent,
@@ -863,7 +864,9 @@ class EventTest(TembaTest):
         )
 
         # event without a user
-        event2 = TicketEvent.objects.create(org=self.org, ticket=ticket, event_type=TicketEvent.TYPE_CLOSED)
+        event2 = TicketEvent.objects.create(
+            org=self.org, contact=contact, ticket=ticket, event_type=TicketEvent.TYPE_CLOSED
+        )
 
         self.assertEqual(
             {
