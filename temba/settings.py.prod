@@ -1,4 +1,5 @@
 import environ
+import re
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 
@@ -309,6 +310,9 @@ OIDC_OP_USER_ENDPOINT = env("OIDC_OP_USER_ENDPOINT")
 OIDC_OP_JWKS_ENDPOINT = env("OIDC_OP_JWKS_ENDPOINT")
 OIDC_RP_SIGN_ALGO = env("OIDC_RP_SIGN_ALGO", default="RS256")
 OIDC_RP_SCOPES = env("OIDC_RP_SCOPES", default= "openid email")
+OIDC_EXEMPT_URL_PATTERNS = [re.compile(url) for url in env.list("OIDC_EXEMPT_URL_PATTERNS", default=[])]
+OIDC_EXEMPT_URLS = OIDC_EXEMPT_URL_PATTERNS + env.list("OIDC_EXEMPT_URLS", default=[])
+OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = env.int("OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS", default=(15 * 60))
 
 # Tells Django to authenticate via OIDC
 AUTHENTICATION_BACKENDS += ("weni.auth.backends.WeniOIDCAuthenticationBackend",)
