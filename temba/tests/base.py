@@ -571,11 +571,15 @@ class TembaTestMixin:
             closed_on=closed_on,
         )
         TicketEvent.objects.create(
-            org=ticket.org, ticket=ticket, event_type=TicketEvent.TYPE_OPENED, created_by=opened_by
+            org=ticket.org, contact=contact, ticket=ticket, event_type=TicketEvent.TYPE_OPENED, created_by=opened_by
         )
         if closed_on:
             TicketEvent.objects.create(
-                org=ticket.org, ticket=ticket, event_type=TicketEvent.TYPE_CLOSED, created_by=closed_by
+                org=ticket.org,
+                contact=contact,
+                ticket=ticket,
+                event_type=TicketEvent.TYPE_CLOSED,
+                created_by=closed_by,
             )
 
         return ticket

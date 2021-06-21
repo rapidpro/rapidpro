@@ -818,8 +818,8 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         )
 
         ticket_events = (
-            TicketEvent.objects.filter(created_on__gte=after, created_on__lt=before, ticket__contact=self)
-            .select_related("ticket")
+            TicketEvent.objects.filter(created_on__gte=after, created_on__lt=before, contact=self)
+            .select_related("ticket__ticketer")
             .order_by("-created_on")[:limit]
         )
 
