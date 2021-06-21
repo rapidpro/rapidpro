@@ -1281,7 +1281,9 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
 
         update_url = reverse("campaigns.campaign_update", args=[campaign.id])
 
-        self.assertUpdateFetch(update_url, allow_viewers=False, allow_editors=True, form_fields=["name", "group"])
+        self.assertUpdateFetch(
+            update_url, allow_viewers=False, allow_editors=True, form_fields={"name": "Welcomes", "group": group1.id}
+        )
 
         # try to submit with empty name
         self.assertUpdateSubmit(
