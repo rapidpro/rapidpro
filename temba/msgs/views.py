@@ -650,6 +650,7 @@ class MsgCRUDL(SmartCRUDL):
                 Broadcast.objects.filter(
                     org=self.request.user.get_org(), status__in=[QUEUED, INITIALIZING], schedule=None
                 )
+                .select_related("org")
                 .prefetch_related("groups", "contacts", "urns")
                 .order_by("-created_on")
             )
