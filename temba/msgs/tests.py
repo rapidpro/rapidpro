@@ -1945,22 +1945,6 @@ class BroadcastTest(TembaTest):
 
             mock_queue_broadcast.assert_called_once_with(broadcast1)
 
-        # test resolving the broadcast text in different languages (used to render scheduled ones)
-        self.assertEqual("Hello everyone", broadcast1.get_translated_text(self.joe))  # uses broadcast base language
-
-        self.org.set_flow_languages(self.admin, ["spa", "eng", "fra"])
-
-        self.assertEqual("Hola a todos", broadcast1.get_translated_text(self.joe))  # uses org primary language
-
-        self.joe.language = "fra"
-        self.joe.save(update_fields=("language",))
-
-        self.assertEqual("Salut à tous", broadcast1.get_translated_text(self.joe))  # uses contact language
-
-        self.org.set_flow_languages(self.admin, ["spa", "eng"])
-
-        self.assertEqual("Hola a todos", broadcast1.get_translated_text(self.joe))  # but only if it's allowed
-
         # create a broadcast that looks like it has been sent
         broadcast2 = self.create_broadcast(self.admin, "Hi everyone", contacts=[self.kevin, self.lucy])
 
@@ -1975,6 +1959,33 @@ class BroadcastTest(TembaTest):
 
         with self.assertRaises(AssertionError):
             Broadcast.create(self.org, self.user, "no recipients")
+
+    def test_get_text(self):
+        broadcast = Broadcast.create(
+            self.org,
+            self.user,
+            {"eng": "Hello everyone", "spa": "Hola a todos", "fra": "Salut à tous"},
+            base_language="eng",
+            groups=[self.joe_and_frank],
+            contacts=[self.kevin, self.lucy],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
+        )
+
+        # test resolving the broadcast text in different languages (used to render scheduled ones)
+        self.assertEqual("Hello everyone", broadcast.get_text(self.joe))  # uses broadcast base language
+
+        self.org.set_flow_languages(self.admin, ["spa", "eng", "fra"])
+
+        self.assertEqual("Hola a todos", broadcast.get_text(self.joe))  # uses org primary language
+
+        self.joe.language = "fra"
+        self.joe.save(update_fields=("language",))
+
+        self.assertEqual("Salut à tous", broadcast.get_text(self.joe))  # uses contact language
+
+        self.org.set_flow_languages(self.admin, ["spa", "eng"])
+
+        self.assertEqual("Hola a todos", broadcast.get_text(self.joe))  # but only if it's allowed
 
     @patch("temba.mailroom.queue_broadcast")
     def test_send(self, mock_queue_broadcast):
@@ -2028,7 +2039,7 @@ class BroadcastTest(TembaTest):
 
         broadcast = Broadcast.objects.get()
         self.assertEqual({"base": "message #1"}, broadcast.text)
-        self.assertEqual("message #1", broadcast.get_default_text())
+        self.assertEqual("message #1", broadcast.get_text())
         self.assertEqual(1, broadcast.groups.count())
         self.assertEqual(2, broadcast.contacts.count())
 
