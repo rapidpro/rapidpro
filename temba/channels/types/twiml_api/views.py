@@ -2,7 +2,6 @@ import phonenumbers
 from smartmin.views import SmartFormView
 
 from django import forms
-from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 
 from temba.utils.fields import ExternalURLField, SelectWidget
@@ -71,7 +70,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_SEND_URL: url,
             Channel.CONFIG_ACCOUNT_SID: data.get("account_sid", None),
             Channel.CONFIG_AUTH_TOKEN: data.get("account_token", str(uuid4())),
-            Channel.CONFIG_CALLBACK_DOMAIN: settings.COURIER_DOMAIN,
+            Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
             Channel.CONFIG_MAX_CONCURRENT_EVENTS: data.get("max_concurrent_events", None),
         }
 

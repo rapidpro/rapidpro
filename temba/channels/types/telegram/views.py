@@ -2,7 +2,6 @@ import telegram
 from smartmin.views import SmartFormView
 
 from django import forms
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 
@@ -43,7 +42,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         me = bot.get_me()
         channel_config = {
             Channel.CONFIG_AUTH_TOKEN: auth_token,
-            Channel.CONFIG_CALLBACK_DOMAIN: settings.COURIER_DOMAIN,
+            Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
         }
 
         self.object = Channel.create(

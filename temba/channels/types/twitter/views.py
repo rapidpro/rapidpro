@@ -61,7 +61,7 @@ class ClaimView(NonAtomicMixin, ClaimViewMixin, SmartFormView):
             "access_token": access_token,
             "access_token_secret": access_token_secret,
             "env_name": env_name,
-            Channel.CONFIG_CALLBACK_DOMAIN: settings.COURIER_DOMAIN,
+            Channel.CONFIG_CALLBACK_DOMAIN: settings.HOSTNAME,
         }
 
         try:

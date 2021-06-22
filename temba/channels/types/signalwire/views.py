@@ -3,7 +3,6 @@ import requests
 from smartmin.views import SmartFormView
 
 from django import forms
-from django.conf import settings
 from django.forms import ValidationError
 from django.utils.translation import ugettext_lazy as _
 
@@ -106,7 +105,7 @@ class SignalWireClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_BASE_URL: f"https://{domain}/api/laml",
             Channel.CONFIG_ACCOUNT_SID: sid,
             Channel.CONFIG_AUTH_TOKEN: token,
-            Channel.CONFIG_CALLBACK_DOMAIN: settings.COURIER_DOMAIN,
+            Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
         }
 
         self.object = Channel.create(

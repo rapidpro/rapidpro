@@ -1,6 +1,5 @@
 import requests
 
-from django.conf import settings
 from django.conf.urls import url
 from django.forms import ValidationError
 from django.urls import reverse
@@ -138,7 +137,7 @@ class WhatsAppType(ChannelType):
         TemplateTranslation.trim(channel, [])
 
     def activate(self, channel):
-        domain = settings.COURIER_DOMAIN
+        domain = channel.org.get_brand_domain()
         headers = {"Authorization": "Bearer %s" % channel.config[Channel.CONFIG_AUTH_TOKEN]}
 
         # first set our callbacks

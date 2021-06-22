@@ -2,7 +2,6 @@ from smartmin.views import SmartFormView
 from twilio.base.exceptions import TwilioRestException
 
 from django import forms
-from django.conf import settings
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
@@ -59,7 +58,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
             Channel.CONFIG_MESSAGING_SERVICE_SID: data["messaging_service_sid"],
             Channel.CONFIG_ACCOUNT_SID: org_config[Org.CONFIG_TWILIO_SID],
             Channel.CONFIG_AUTH_TOKEN: org_config[Org.CONFIG_TWILIO_TOKEN],
-            Channel.CONFIG_CALLBACK_DOMAIN: settings.COURIER_DOMAIN,
+            Channel.CONFIG_CALLBACK_DOMAIN: org.get_brand_domain(),
         }
 
         self.object = Channel.create(

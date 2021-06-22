@@ -2,7 +2,6 @@ from urllib.parse import urljoin
 
 import requests
 
-from django.conf import settings
 from django.forms import ValidationError
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
@@ -59,6 +58,6 @@ class TextItWhatsAppType(ChannelType):
         self.update_webhook(channel, "")
 
     def activate(self, channel):
-        domain = settings.COURIER_DOMAIN
+        domain = channel.org.get_brand_domain()
         webhook_url = "https://" + domain + reverse("courier.txw", args=[channel.uuid, "receive"])
         self.update_webhook(channel, webhook_url)
