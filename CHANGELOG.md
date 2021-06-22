@@ -1,3 +1,7 @@
+v6.3.82
+----------
+ * Revert recent formax changes
+
 v6.3.81
 ----------
  * Add Broadcast.ticket and expose as field (undocumented for now) on broadcast write API endpoint
