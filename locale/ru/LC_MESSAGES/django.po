@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-21 16:53+0000\n"
+"POT-Creation-Date: 2021-06-22 16:44+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2910,9 +2910,6 @@ msgstr "Не удалось отправить"
 
 msgid "Resent message"
 msgstr "Повторно отправленное сообщение"
-
-msgid "When this broadcast was created"
-msgstr "Когда была создана эта рассылка"
 
 msgid "Whether this count is for archived messages"
 msgstr "Будет ли этот подсчет проводиться для архивированных сообщений"
@@ -7751,6 +7748,9 @@ msgstr "На данный момент синхронизированные ша
 
 #~ msgid "The primary language will be used for contacts with no language preference."
 #~ msgstr "Основной язык, который будет использоваться для контактов без языковых предпочтений."
+
+#~ msgid "When this broadcast was created"
+#~ msgstr "Когда была создана эта рассылка"
 
 #, fuzzy
 #~| msgid "Unable to check WhatsApp enterprise account, please check username and password"

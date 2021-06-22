@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-21 16:53+0000\n"
+"POT-Creation-Date: 2021-06-22 16:44+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -2902,9 +2902,6 @@ msgstr "Envío no realizado"
 
 msgid "Resent message"
 msgstr "Mensaje reciente"
-
-msgid "When this broadcast was created"
-msgstr "Cuando se creó esta transmisión"
 
 msgid "Whether this count is for archived messages"
 msgstr "Si este recuento es para mensajes archivados"
@@ -7908,6 +7905,9 @@ msgstr "No hay plantillas sincronizadas en este momento."
 
 #~ msgid "The primary language will be used for contacts with no language preference."
 #~ msgstr "Para los contactos sin preferencia de idioma, se usará el idioma principal"
+
+#~ msgid "When this broadcast was created"
+#~ msgstr "Cuando se creó esta transmisión"
 
 #, fuzzy
 #~| msgid "Unable to check WhatsApp enterprise account, please check username and password"

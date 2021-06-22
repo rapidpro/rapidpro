@@ -204,6 +204,7 @@ class BroadcastWriteSerializer(WriteSerializer):
     urns = fields.URNListField(required=False)
     contacts = fields.ContactField(many=True, required=False)
     groups = fields.ContactGroupField(many=True, required=False)
+    ticket = fields.TicketField(required=False)
 
     def validate(self, data):
         if not (data.get("urns") or data.get("contacts") or data.get("groups")):
@@ -228,6 +229,7 @@ class BroadcastWriteSerializer(WriteSerializer):
             contacts=self.validated_data.get("contacts", []),
             urns=self.validated_data.get("urns", []),
             template_state=Broadcast.TEMPLATE_STATE_UNEVALUATED,
+            ticket=self.validated_data.get("ticket"),
         )
 
         # send it

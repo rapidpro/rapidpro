@@ -652,6 +652,8 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
+        ticketer = Ticketer.create(self.org, self.admin, "mailgun", "Support Tickets", {})
+        ticket = self.create_ticket(ticketer, self.joe, "Help!")
 
         bcast1 = Broadcast.create(self.org, self.admin, "Hello 1", urns=["twitter:franky"])
         bcast2 = Broadcast.create(self.org, self.admin, "Hello 2", contacts=[self.joe])
@@ -664,6 +666,7 @@ class APITest(TembaTest):
             contacts=[self.joe],
             groups=[reporters],
             status="F",
+            ticket=ticket,
         )
         Broadcast.create(self.org2, self.admin2, "Different org...", contacts=[self.hans])
 
@@ -734,6 +737,7 @@ class APITest(TembaTest):
                 "urns": ["twitter:franky"],
                 "contacts": [self.joe.uuid, self.frank.uuid],
                 "groups": [reporters.uuid],
+                "ticket": str(ticket.uuid),
             },
         )
 
@@ -742,6 +746,7 @@ class APITest(TembaTest):
         self.assertEqual(["twitter:franky"], broadcast.raw_urns)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
         self.assertEqual({reporters}, set(broadcast.groups.all()))
+        self.assertEqual(ticket, broadcast.ticket)
 
         mock_queue_broadcast.assert_called_once_with(broadcast)
 

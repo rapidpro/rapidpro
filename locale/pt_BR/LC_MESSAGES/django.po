@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-21 16:53+0000\n"
+"POT-Creation-Date: 2021-06-22 16:44+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -2908,9 +2908,6 @@ msgstr "Falha no envio"
 
 msgid "Resent message"
 msgstr "Reenviar a mensagem"
-
-msgid "When this broadcast was created"
-msgstr "Quando essa transmissão foi criada"
 
 msgid "Whether this count is for archived messages"
 msgstr "Se essa contagem é para mensagens arquivadas"
@@ -7895,6 +7892,9 @@ msgstr "Sem templates sincronizados neste momento."
 
 #~ msgid "The primary language will be used for contacts with no language preference."
 #~ msgstr "O idioma primário será usado para contatos com nenhuma preferência de idioma."
+
+#~ msgid "When this broadcast was created"
+#~ msgstr "Quando essa transmissão foi criada"
 
 #, fuzzy
 #~| msgid "Unable to check WhatsApp enterprise account, please check username and password"
