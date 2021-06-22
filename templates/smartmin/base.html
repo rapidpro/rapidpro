@@ -26,18 +26,11 @@
   function fetchPJAXContent(url, container, options) {
     var type = 'GET';
     var data = undefined;
-    var processData = true;
 
     if (options) {
       if ('postData' in options) {
         type = 'POST';
         data = options['postData'];
-      }
-
-      if('formData' in options) {
-        type = 'POST';
-        processData = false;
-        data = options['formData'];
       }
     }
 
@@ -64,9 +57,7 @@
       headers: headers,
       type: type,
       url: url,
-      contentType: false,
       data: data,
-      processData: processData,
       success: function(response, status, jqXHR) {
         var toast = jqXHR.getResponseHeader('Temba-Toast');
         if (toast) {
