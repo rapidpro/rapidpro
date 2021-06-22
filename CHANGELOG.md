@@ -1,3 +1,9 @@
+v6.3.81
+----------
+ * Add Broadcast.ticket and expose as field (undocumented for now) on broadcast write API endpoint
+ * Refactor scheduling to use shared form
+ * Add exclusion groups to scheduled triggers
+
 v6.3.80
 ----------
  * Update components so omnibox behaves like a field
