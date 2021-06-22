@@ -5,7 +5,6 @@ from decimal import Decimal
 from itertools import chain
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
-from uuid import uuid4
 
 import iso8601
 import phonenumbers
@@ -36,6 +35,7 @@ from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExport
 from temba.utils.models import JSONField as TembaJSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import decode_stream, truncate, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
+from temba.utils.uuid import uuid4
 
 from .search import SearchException, elastic, parse_query
 
