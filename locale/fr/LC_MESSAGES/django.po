@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-18 20:47+0000\n"
+"POT-Creation-Date: 2021-06-22 17:26+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -2900,9 +2900,6 @@ msgstr "Envoi échoué"
 msgid "Resent message"
 msgstr "Renvoyer un message"
 
-msgid "When this broadcast was created"
-msgstr "Quand cette diffusion a été créée"
-
 msgid "Whether this count is for archived messages"
 msgstr "Si ce nombre est pour les messages archivés"
 
@@ -3174,9 +3171,6 @@ msgstr "Un mot de passe qui permet aux utilisateurs de s'inscrire en tant qu'enq
 
 msgid "The parent org that manages this org"
 msgstr "L'organisation parente qui gère cette organisation"
-
-msgid "The primary language will be used for contacts with no language preference."
-msgstr "La langue principale sera utilisée pour les contacts sans préférence linguistique."
 
 #, python-format
 msgid "Invalid bundle: %s, cannot upgrade."
@@ -7921,6 +7915,12 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#~ msgid "When this broadcast was created"
+#~ msgstr "Quand cette diffusion a été créée"
+
+#~ msgid "The primary language will be used for contacts with no language preference."
+#~ msgstr "La langue principale sera utilisée pour les contacts sans préférence linguistique."
 
 #~ msgid "on the"
 #~ msgstr "sur le"

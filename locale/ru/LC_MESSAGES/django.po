@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-18 20:47+0000\n"
+"POT-Creation-Date: 2021-06-22 17:26+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -2911,9 +2911,6 @@ msgstr "Не удалось отправить"
 msgid "Resent message"
 msgstr "Повторно отправленное сообщение"
 
-msgid "When this broadcast was created"
-msgstr "Когда была создана эта рассылка"
-
 msgid "Whether this count is for archived messages"
 msgstr "Будет ли этот подсчет проводиться для архивированных сообщений"
 
@@ -3185,9 +3182,6 @@ msgstr "Пароль, позволяющий пользователям реги
 
 msgid "The parent org that manages this org"
 msgstr "Родительская организация, которая управляет данной организацией"
-
-msgid "The primary language will be used for contacts with no language preference."
-msgstr "Основной язык, который будет использоваться для контактов без языковых предпочтений."
 
 #, python-format
 msgid "Invalid bundle: %s, cannot upgrade."
@@ -7780,6 +7774,12 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#~ msgid "When this broadcast was created"
+#~ msgstr "Когда была создана эта рассылка"
+
+#~ msgid "The primary language will be used for contacts with no language preference."
+#~ msgstr "Основной язык, который будет использоваться для контактов без языковых предпочтений."
 
 #~ msgid "on the"
 #~ msgstr "в"

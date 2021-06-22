@@ -24,7 +24,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
-from temba.orgs.models import DependencyMixin, Language, Org, TopUp
+from temba.orgs.models import DependencyMixin, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, extract_constants, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
@@ -109,10 +109,12 @@ class Broadcast(models.Model):
     raw_urns = ArrayField(models.TextField(), null=True)
 
     # message content
+    base_language = models.CharField(max_length=4)
     text = TranslatableField(max_length=MAX_TEXT_LEN)
     media = TranslatableField(max_length=2048, null=True)
 
     channel = models.ForeignKey(Channel, on_delete=models.PROTECT, null=True)
+    ticket = models.ForeignKey("tickets.Ticket", on_delete=models.PROTECT, null=True, related_name="broadcasts")
 
     status = models.CharField(max_length=1, choices=STATUS_CHOICES, default=INITIALIZING)
 
@@ -121,32 +123,12 @@ class Broadcast(models.Model):
     # used for repeating scheduled broadcasts
     parent = models.ForeignKey("Broadcast", on_delete=models.PROTECT, null=True, related_name="children")
 
-    # language used for contacts who don't have a language
-    base_language = models.CharField(max_length=4)
+    is_active = models.BooleanField(default=True)  # TODO not used and could be removed
 
-    is_active = models.BooleanField(default=True)
-
-    created_by = models.ForeignKey(
-        User,
-        null=True,
-        on_delete=models.PROTECT,
-        related_name="%(app_label)s_%(class)s_creations",
-        help_text="The user which originally created this item",
-    )
-
-    created_on = models.DateTimeField(
-        default=timezone.now, blank=True, editable=False, db_index=True, help_text=_("When this broadcast was created")
-    )
-
-    modified_by = models.ForeignKey(
-        User,
-        null=True,
-        on_delete=models.PROTECT,
-        related_name="%(app_label)s_%(class)s_modifications",
-        help_text="The user which last modified this item",
-    )
-
-    modified_on = models.DateTimeField(auto_now=True, help_text="When this item was last modified")
+    created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_creations")
+    created_on = models.DateTimeField(default=timezone.now, db_index=True)  # TODO remove index
+    modified_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_modifications")
+    modified_on = models.DateTimeField(default=timezone.now)
 
     # whether this broadcast should send to all URNs for each contact
     send_all = models.BooleanField(default=False)
@@ -166,6 +148,7 @@ class Broadcast(models.Model):
         contact_ids: List[int] = None,
         base_language: str = None,
         channel: Channel = None,
+        ticket=None,
         media: Dict = None,
         send_all: bool = False,
         quick_replies: List[Dict] = None,
@@ -180,7 +163,7 @@ class Broadcast(models.Model):
 
         assert groups or contacts or contact_ids or urns, "can't create broadcast without recipients"
         assert base_language in text, "base_language doesn't exist in text translations"
-        assert not media or base_language in media, "base _language doesn't exist in media translations"
+        assert not media or base_language in media, "base_language doesn't exist in media translations"
 
         if quick_replies:
             for quick_reply in quick_replies:
@@ -197,6 +180,7 @@ class Broadcast(models.Model):
         broadcast = cls.objects.create(
             org=org,
             channel=channel,
+            ticket=ticket,
             send_all=send_all,
             base_language=base_language,
             text=text,
@@ -228,18 +212,20 @@ class Broadcast(models.Model):
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
 
-    def get_default_text(self):
+    def get_text(self, contact=None):
         """
-        Gets the appropriate display text for the broadcast without a contact
+        Gets the text that will be sent. If contact is provided and their language is a valid flow language and there's
+        a translation for it then that will be used (used when rendering upcoming scheduled broadcasts).
         """
-        return self.text[self.base_language]
 
-    def get_translated_text(self, contact, org=None):
-        """
-        Gets the appropriate translation for the given contact
-        """
-        preferred_languages = self._get_preferred_languages(contact, org)
-        return Language.get_localized_text(self.text, preferred_languages)
+        if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
+            if contact.language in self.text:
+                return self.text[contact.language]
+
+        if self.org.flow_languages and self.org.flow_languages[0] in self.text:  # try org primary language
+            return self.text[self.org.flow_languages[0]]
+
+        return self.text[self.base_language]  # should always be a base language translation
 
     def release(self):
         for child in self.children.all():
@@ -284,24 +270,6 @@ class Broadcast(models.Model):
             for chunk in chunk_list(contact_ids, 1000):
                 bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
                 RelatedModel.objects.bulk_create(bulk_contacts)
-
-    def _get_preferred_languages(self, contact=None, org=None):
-        """
-        Gets the ordered list of language preferences for the given contact
-        """
-        org = org or self.org  # org object can be provided to allow caching of org languages
-        preferred_languages = []
-
-        # if contact has a language and it's a valid org language, it has priority
-        if contact is not None and contact.language and contact.language in org.flow_languages:
-            preferred_languages.append(contact.language)
-
-        if org.flow_languages:
-            preferred_languages.append(org.flow_languages[0])
-
-        preferred_languages.append(self.base_language)
-
-        return preferred_languages
 
     def get_template_state(self):
         metadata = self.metadata or {}

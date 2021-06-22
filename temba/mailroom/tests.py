@@ -448,6 +448,8 @@ class MailroomQueueTest(TembaTest):
     def test_queue_broadcast(self):
         jim = self.create_contact("Jim", phone="+12065551212")
         bobs = self.create_group("Bobs", [self.create_contact("Bob", phone="+12065551313")])
+        ticketer = Ticketer.create(self.org, self.admin, "mailgun", "Support Tickets", {})
+        ticket = self.create_ticket(ticketer, jim, "Help!")
 
         bcast = Broadcast.create(
             self.org,
@@ -457,6 +459,7 @@ class MailroomQueueTest(TembaTest):
             contacts=[jim],
             urns=["tel:+12065556666"],
             base_language="eng",
+            ticket=ticket,
         )
 
         bcast.send_async()
@@ -479,6 +482,7 @@ class MailroomQueueTest(TembaTest):
                     "group_ids": [bobs.id],
                     "broadcast_id": bcast.id,
                     "org_id": self.org.id,
+                    "ticket_id": ticket.id,
                 },
                 "queued_on": matchers.ISODate(),
             },

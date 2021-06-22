@@ -15,7 +15,7 @@
             .pt-1.inline-block
               -include "includes/recipients.haml" with groups=broadcast.groups.all contacts=broadcast.contacts.all urns=broadcast.raw_urns
           %td.value-text
-            {{ broadcast.get_default_text }}
+            {{ broadcast.get_text }}
           %td.created_on
             %span.time
               {% short_datetime broadcast.created_on %}

@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-18 20:47+0000\n"
+"POT-Creation-Date: 2021-06-22 17:26+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -2903,9 +2903,6 @@ msgstr "Envío no realizado"
 msgid "Resent message"
 msgstr "Mensaje reciente"
 
-msgid "When this broadcast was created"
-msgstr "Cuando se creó esta transmisión"
-
 msgid "Whether this count is for archived messages"
 msgstr "Si este recuento es para mensajes archivados"
 
@@ -3177,9 +3174,6 @@ msgstr "Una contraseña que permite a los usuarios registrarse como Surveyors."
 
 msgid "The parent org that manages this org"
 msgstr "La organización principal que gestiona esta organización"
-
-msgid "The primary language will be used for contacts with no language preference."
-msgstr "Para los contactos sin preferencia de idioma, se usará el idioma principal"
 
 #, python-format
 msgid "Invalid bundle: %s, cannot upgrade."
@@ -7937,6 +7931,12 @@ msgstr "Las plantillas se sincronizan desde su cuenta de WhatsApp cada 15 minuto
 
 msgid "No synced templates at this time."
 msgstr "No hay plantillas sincronizadas en este momento."
+
+#~ msgid "When this broadcast was created"
+#~ msgstr "Cuando se creó esta transmisión"
+
+#~ msgid "The primary language will be used for contacts with no language preference."
+#~ msgstr "Para los contactos sin preferencia de idioma, se usará el idioma principal"
 
 #~ msgid "on the"
 #~ msgstr "sobre el"
