@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-22 16:44+0000\n"
+"POT-Creation-Date: 2021-06-22 17:26+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3823,22 +3823,40 @@ msgstr "каждую неделю в %(daysofweek)s"
 msgid "each month on the %(dayofmonth)s"
 msgstr "каждый месяц %(dayofmonth)s-го"
 
-#, python-format
-msgid "%(day)s is not a valid day of the week"
-msgstr "%(day)s не является действительным днем ​​недели"
+msgid "Start Time"
+msgstr ""
 
-msgid "Must specify at least one day of the week"
+#, fuzzy
+#| msgid "Select the event type"
+msgid "Select a date and time"
+msgstr "Выберите тип события"
+
+#, fuzzy
+#| msgid "not repeat"
+msgid "Repeat"
+msgstr "не будет повторяться"
+
+#, fuzzy
+#| msgid "repeats daily"
+msgid "Repeat On Days"
+msgstr "повторяется ежедневно"
+
+msgid "The days of the week to repeat on for weekly schedules"
+msgstr ""
+
+#, fuzzy
+#| msgid "Select a unit"
+msgid "Select days"
+msgstr "Выберите единицу"
+
+#, python-format
+msgid "First time this should happen in the %s timezone."
+msgstr ""
+
+#, fuzzy
+#| msgid "Must specify at least one day of the week"
+msgid "Must specify at least one day of the week."
 msgstr "Необходимо указать хотя бы один день недели"
-
-msgid "Select days to repeat on"
-msgstr ""
-
-msgid " "
-msgstr ""
-
-#, python-format
-msgid "%s Time Zone"
-msgstr ""
 
 msgid "English"
 msgstr "Английский"
@@ -4113,11 +4131,21 @@ msgstr[3] "Ответы"
 msgid "The message to send in response after they join the group (optional)"
 msgstr "Ответное сообщение для отправки после того, как они присоединятся к группе (опционально)"
 
-msgid "Start Time"
+#, fuzzy
+#| msgid "Group to Join"
+msgid "Contacts To Include"
+msgstr "Группа для Присоединения"
+
+msgid "Additional specific contacts to include."
 msgstr ""
 
-msgid "The groups and contacts the flow will be broadcast to"
-msgstr "Группы и контакты, которым поток будет осуществлять рассылку"
+#, fuzzy
+#| msgid "Recipients, enter contacts or groups"
+msgid "Optional: Select contacts"
+msgstr "Получатели, введите контакты или группы"
+
+msgid "Must provide at least one group or contact to include."
+msgstr ""
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
 msgstr "Канал, к которому применить этот триггер, оставьте пустым для охвата всех каналов Facebook"
@@ -4136,9 +4164,6 @@ msgstr "Присоединить ключевое слово"
 
 msgid "The first word of the message"
 msgstr "Первое слово сообщения"
-
-msgid "Create Schedule"
-msgstr "Создать Расписание"
 
 msgid "Create Referral Trigger"
 msgstr "Создать Реферальный Триггер"
@@ -7464,8 +7489,14 @@ msgstr "Расписание"
 msgid "Select when you would like the message to be sent"
 msgstr ""
 
-msgid "The next message will be sent on"
+#, fuzzy, python-format
+#| msgid "The next message will be sent on"
+msgid "The next message will be sent <b>%(when)s</b>."
 msgstr "Следующее сообщение будет отправлено "
+
+#, python-format
+msgid "It will repeat every <b>month</b> on the %(date)s."
+msgstr ""
 
 msgid "It will repeat every"
 msgstr "Оно будет повторно отправляться каждый"
@@ -7473,17 +7504,15 @@ msgstr "Оно будет повторно отправляться каждый
 msgid "at around the same time."
 msgstr "примерно в это же время."
 
-msgid "on the"
-msgstr "в"
+#, fuzzy
+#| msgid "at around the same time."
+msgid "It will repeat <d>daily</b> at around the same time."
+msgstr "примерно в это же время."
 
-msgid "It will repeat"
+#, fuzzy
+#| msgid "It will repeat"
+msgid "It will <b>not repeat</b>."
 msgstr "Оно будет повторяться"
-
-msgid "It will "
-msgstr "Оно "
-
-msgid "not repeat"
-msgstr "не будет повторяться"
 
 msgid "Unschedule"
 msgstr ""
@@ -7746,11 +7775,30 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
 
+#~ msgid "When this broadcast was created"
+#~ msgstr "Когда была создана эта рассылка"
+
 #~ msgid "The primary language will be used for contacts with no language preference."
 #~ msgstr "Основной язык, который будет использоваться для контактов без языковых предпочтений."
 
-#~ msgid "When this broadcast was created"
-#~ msgstr "Когда была создана эта рассылка"
+#~ msgid "on the"
+#~ msgstr "в"
+
+#~ msgid "It will "
+#~ msgstr "Оно "
+
+#~ msgid "not repeat"
+#~ msgstr "не будет повторяться"
+
+#, python-format
+#~ msgid "%(day)s is not a valid day of the week"
+#~ msgstr "%(day)s не является действительным днем ​​недели"
+
+#~ msgid "The groups and contacts the flow will be broadcast to"
+#~ msgstr "Группы и контакты, которым поток будет осуществлять рассылку"
+
+#~ msgid "Create Schedule"
+#~ msgstr "Создать Расписание"
 
 #, fuzzy
 #~| msgid "Unable to check WhatsApp enterprise account, please check username and password"

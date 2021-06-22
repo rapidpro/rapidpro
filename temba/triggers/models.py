@@ -143,10 +143,26 @@ class Trigger(SmartModel):
 
     @classmethod
     def create(
-        cls, org, user, trigger_type, flow, *, channel=None, groups=(), exclude_groups=(), keyword=None, **kwargs
+        cls,
+        org,
+        user,
+        trigger_type,
+        flow,
+        *,
+        channel=None,
+        groups=(),
+        exclude_groups=(),
+        contacts=(),
+        keyword=None,
+        schedule=None,
+        **kwargs,
     ):
         assert flow.flow_type != Flow.TYPE_SURVEY, "can't create triggers for surveyor flows"
         assert trigger_type != cls.TYPE_KEYWORD or keyword, "keyword can't be empty for keyword triggers"
+        assert trigger_type != cls.TYPE_SCHEDULE or schedule, "schedule must be provided for scheduled triggers"
+        assert (
+            trigger_type == cls.TYPE_SCHEDULE or not contacts
+        ), "contacts can only be provided for scheduled triggers"
 
         trigger = cls.objects.create(
             org=org,
@@ -154,6 +170,7 @@ class Trigger(SmartModel):
             flow=flow,
             channel=channel,
             keyword=keyword,
+            schedule=schedule,
             created_by=user,
             modified_by=user,
             **kwargs,
@@ -163,6 +180,8 @@ class Trigger(SmartModel):
             trigger.groups.add(group)
         for group in exclude_groups:
             trigger.exclude_groups.add(group)
+        for contact in contacts:
+            trigger.contacts.add(contact)
 
         # archive any conflicts
         trigger.archive_conflicts(user)

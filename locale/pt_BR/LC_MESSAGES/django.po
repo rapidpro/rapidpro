@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-22 16:44+0000\n"
+"POT-Creation-Date: 2021-06-22 17:26+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3821,22 +3821,40 @@ msgstr "cada semana em %(daysofweek)s"
 msgid "each month on the %(dayofmonth)s"
 msgstr "cada mês no %(dayofmonth)s"
 
-#, python-format
-msgid "%(day)s is not a valid day of the week"
-msgstr "%(day)snão é um dia válido da semana "
+msgid "Start Time"
+msgstr "Tempo de Início"
 
-msgid "Must specify at least one day of the week"
+#, fuzzy
+#| msgid "Select a field to update"
+msgid "Select a date and time"
+msgstr "Selecione um campo para atualizar"
+
+#, fuzzy
+#| msgid "not repeat"
+msgid "Repeat"
+msgstr "não repetir"
+
+#, fuzzy
+#| msgid "repeats daily"
+msgid "Repeat On Days"
+msgstr "repetir diariamente"
+
+msgid "The days of the week to repeat on for weekly schedules"
+msgstr ""
+
+#, fuzzy
+#| msgid "Select a unit"
+msgid "Select days"
+msgstr "Selecione uma unidade"
+
+#, python-format
+msgid "First time this should happen in the %s timezone."
+msgstr ""
+
+#, fuzzy
+#| msgid "Must specify at least one day of the week"
+msgid "Must specify at least one day of the week."
 msgstr "Ao menos um dia da semana deve ser especificado"
-
-msgid "Select days to repeat on"
-msgstr "Selecione os dias para se repetir"
-
-msgid " "
-msgstr " "
-
-#, python-format
-msgid "%s Time Zone"
-msgstr "%s Fuso Horário"
 
 msgid "English"
 msgstr "Inglês"
@@ -4111,11 +4129,21 @@ msgstr[1] "Respostas"
 msgid "The message to send in response after they join the group (optional)"
 msgstr "A mensagem para enviar em resposta após se juntar ao grupo (opcional)"
 
-msgid "Start Time"
-msgstr "Tempo de Início"
+#, fuzzy
+#| msgid "Group to Join"
+msgid "Contacts To Include"
+msgstr "Grupos para participar"
 
-msgid "The groups and contacts the flow will be broadcast to"
-msgstr "Os grupos e contatos para os quais o fluxo será distribuído"
+msgid "Additional specific contacts to include."
+msgstr ""
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Optional: Select contacts"
+msgstr "Opcional: Disparadores se aplicam somente à estes grupos"
+
+msgid "Must provide at least one group or contact to include."
+msgstr ""
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
 msgstr "O canal para aplicar esse gatilho,  ou deixe em branco para todos os canais do Facebook"
@@ -4134,9 +4162,6 @@ msgstr "Juntar palavra-chave"
 
 msgid "The first word of the message"
 msgstr "A primeira palavra da mensagem"
-
-msgid "Create Schedule"
-msgstr "Criar agendamento"
 
 msgid "Create Referral Trigger"
 msgstr "Criar Disparador de Referência"
@@ -7585,8 +7610,14 @@ msgstr "Agendar"
 msgid "Select when you would like the message to be sent"
 msgstr "Selecione quando você gostaria que a mensagem seja enviada"
 
-msgid "The next message will be sent on"
+#, fuzzy, python-format
+#| msgid "The next message will be sent on"
+msgid "The next message will be sent <b>%(when)s</b>."
 msgstr "As próximas mensagens serão enviadas no"
+
+#, python-format
+msgid "It will repeat every <b>month</b> on the %(date)s."
+msgstr ""
 
 msgid "It will repeat every"
 msgstr "Se repetirá a cada"
@@ -7594,17 +7625,15 @@ msgstr "Se repetirá a cada"
 msgid "at around the same time."
 msgstr "em torno da mesma hora"
 
-msgid "on the"
-msgstr "no"
+#, fuzzy
+#| msgid "at around the same time."
+msgid "It will repeat <d>daily</b> at around the same time."
+msgstr "em torno da mesma hora"
 
-msgid "It will repeat"
+#, fuzzy
+#| msgid "It will repeat"
+msgid "It will <b>not repeat</b>."
 msgstr "Isto irá repetir"
-
-msgid "It will "
-msgstr "Isto irá"
-
-msgid "not repeat"
-msgstr "não repetir"
 
 msgid "Unschedule"
 msgstr "Desmarcar"
@@ -7890,11 +7919,40 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
 
+#~ msgid "When this broadcast was created"
+#~ msgstr "Quando essa transmissão foi criada"
+
 #~ msgid "The primary language will be used for contacts with no language preference."
 #~ msgstr "O idioma primário será usado para contatos com nenhuma preferência de idioma."
 
-#~ msgid "When this broadcast was created"
-#~ msgstr "Quando essa transmissão foi criada"
+#~ msgid "on the"
+#~ msgstr "no"
+
+#~ msgid "It will "
+#~ msgstr "Isto irá"
+
+#~ msgid "not repeat"
+#~ msgstr "não repetir"
+
+#~ msgid "Select days to repeat on"
+#~ msgstr "Selecione os dias para se repetir"
+
+#, python-format
+#~ msgid "%(day)s is not a valid day of the week"
+#~ msgstr "%(day)snão é um dia válido da semana "
+
+#~ msgid " "
+#~ msgstr " "
+
+#, python-format
+#~ msgid "%s Time Zone"
+#~ msgstr "%s Fuso Horário"
+
+#~ msgid "The groups and contacts the flow will be broadcast to"
+#~ msgstr "Os grupos e contatos para os quais o fluxo será distribuído"
+
+#~ msgid "Create Schedule"
+#~ msgstr "Criar agendamento"
 
 #, fuzzy
 #~| msgid "Unable to check WhatsApp enterprise account, please check username and password"
