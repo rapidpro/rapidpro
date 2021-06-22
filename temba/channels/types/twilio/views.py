@@ -111,11 +111,11 @@ class ClaimView(BaseClaimNumberMixin, SmartFormView):
         channel_uuid = uuid4()
 
         # create new TwiML app
-        callback_domain = org.get_brand_domain()
-        base_url = "https://" + callback_domain
-        receive_url = base_url + reverse("courier.t", args=[channel_uuid, "receive"])
-        status_url = base_url + reverse("mailroom.ivr_handler", args=[channel_uuid, "status"])
-        voice_url = base_url + reverse("mailroom.ivr_handler", args=[channel_uuid, "incoming"])
+        callback_domain = settings.COURIER_DOMAIN
+        courier_base_url = "https://" + callback_domain
+        receive_url = courier_base_url + reverse("courier.t", args=[channel_uuid, "receive"])
+        status_url = settings.MAILROOM_URL + reverse("mailroom.ivr_handler", args=[channel_uuid, "status"])
+        voice_url = settings.MAILROOM_URL + reverse("mailroom.ivr_handler", args=[channel_uuid, "incoming"])
 
         new_app = client.api.applications.create(
             friendly_name="%s/%s" % (callback_domain.lower(), channel_uuid),

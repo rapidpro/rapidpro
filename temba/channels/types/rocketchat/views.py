@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 from smartmin.views import SmartFormView
 
 from django import forms
+from django.conf import settings
 from django.contrib import messages
 from django.urls import reverse
 from django.utils.translation import ugettext_lazy as _
@@ -123,7 +124,7 @@ class ClaimView(ClaimViewMixin, SmartFormView):
         )
 
         client = Client(config[RocketChatType.CONFIG_BASE_URL], config[RocketChatType.CONFIG_SECRET])
-        webhook_url = "https://" + self.object.callback_domain + reverse("courier.rc", args=[self.object.uuid])
+        webhook_url = "https://" + settings.COURIER_DOMAIN + reverse("courier.rc", args=[self.object.uuid])
 
         try:
             client.settings(webhook_url, bot_username)
