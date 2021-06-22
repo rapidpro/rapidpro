@@ -4571,6 +4571,9 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
     * **modified_after** - Date, excludes all contacts from the report that were modified earlier a certain date
     * **modified_before** - Date, excludes all contacts from the report that were modified later a certain date
 
+    This report can't be performed in one request so the report is being split into chunks,
+    you should follow the `next` link until it's `null` and merge data using your script.
+    * **next** - URL to get next chunk of the report.
 
     Example:
 
@@ -4613,7 +4616,7 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
     """
 
     permission = "orgs.org_api"
-    pagination_class = CreatedOnCursorPagination
+    pagination_class = ModifiedOnCursorPagination
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -4622,7 +4625,7 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
     @csv_response_wrapper
     def get(self, request, *args, **kwargs):
         try:
-            contacts = self.get_contacts_qs()
+            contacts = self.get_contacts_qs().only("modified_on")
             current_page, next_page = self.get_paginated_queryset(contacts)
             count = len(current_page)
             response_data = {"next": next_page, **self.applied_filters, "results": [{"total_unique_contacts": count}]}
@@ -4693,6 +4696,10 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     * **modified_before** - Date, excludes all contacts from the report that were modified later a certain date
     * **variables** - the values configuration to be included into report
 
+    This report can't be performed in one request so the report is being split into chunks,
+    you should follow the `next` link until it's `null` and merge data using your script.
+    * **next** - URL to get next chunk of the report.
+
     Example:
 
         POST /api/v2/contact_variable_report.json
@@ -4759,7 +4766,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     """
 
     permission = "orgs.org_api"
-    pagination_class = CreatedOnCursorPagination
+    pagination_class = ModifiedOnCursorPagination
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -4806,7 +4813,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         self.applied_filters["variables"] = variable_filters
 
-        contacts = contacts.filter(fields__has_any_keys=variable_filters.keys()).only("fields", "created_on")
+        contacts = contacts.filter(fields__has_any_keys=variable_filters.keys()).only("fields", "modified_on")
         current_page, next_page = self.get_paginated_queryset(contacts)
 
         for contact in current_page:
@@ -4877,6 +4884,10 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     * **channel** - UUID or Name of channel to select only messages related to specific channel
     * **after** - Date, excludes all messages from the report that were created earlier a certain date
     * **before** - Date, excludes all messages from the report that were created later a certain date
+
+    This report can't be performed in one request so the report is being split into chunks,
+    you should follow the `next` link until it's `null` and merge data using your script.
+    * **next** - URL to get next chunk of the report.
 
     Example:
 
@@ -5040,6 +5051,10 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     * **exited_after** - Date, excludes all runs from the report that were exited earlier a certain date
     * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
 
+    This report can't be performed in one request so the report is being split into chunks,
+    you should follow the `next` link until it's `null` and merge data using your script.
+    * **next** - URL to get next chunk of the report.
+
     Example:
 
         GET /api/v2/flow_report.json
@@ -5170,6 +5185,10 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     * **exited_after** - Date, excludes all runs from the report that were exited earlier a certain date
     * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
     * **variables** - configuration which define the fields to be included in the report
+
+    This report can't be performed in one request so the report is being split into chunks,
+    you should follow the `next` link until it's `null` and merge data using your script.
+    * **next** - URL to get next chunk of the report.
 
     Example:
 
