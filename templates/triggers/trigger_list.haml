@@ -17,7 +17,10 @@
 
 -block content
   -if not org_has_triggers
-    -include "triggers/empty_include.html"
+    .page-title
+      -trans "Triggers"
+    .mt-2
+      -trans "There have no triggers created yet."
   -else
 
     #pjax

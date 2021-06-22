@@ -12,7 +12,7 @@
       margin-top:15px;
     }
 
-    .embedded-data-keyword, .embedded-data-schedule {
+    [class^="embedded-data-"] {
       margin: 0 0 5px 4px;
       font-weight: 400;
       font-size: 13px;
@@ -25,13 +25,12 @@
       display: flex !important;
     }
 
-    .embed-field-keyword, .embed-value-keyword, .embed-field-schedule, .embed-value-schedule {
+    [class^="embed-field-"], [class^="embed-value-"] {
       width: 49%;
       margin: 0 5px 5px 0;
     }
 
-    .embed-field-keyword > input, .embed-value-keyword > input,
-    .embed-field-schedule > input, .embed-value-schedule > input {
+    [class^="embed-field-"] > input,  [class^="embed-value-"] > input{
       width: 100% !important;
       font-size: 13px;
       padding: 7px;
@@ -41,11 +40,11 @@
       outline: none;
     }
 
-    .embed-field-keyword > input:read-only, .embed-field-schedule > input:read-only {
+    [class^="embed-field-"] > input:read-only {
       background: #eee;
     }
 
-    .embed-value-keyword > input:focus, .embed-value-schedule > input:focus {
+    [class^="embed-value-"] > input:focus {
       background: var(--color-widget-bg-focused);
       border-color: var(--color-focus);
       box-shadow: var(--widget-box-shadow-focused);
@@ -70,8 +69,8 @@
   <script src="{{ STATIC_URL }}js/flow-parameters.js"></script>
   :javascript
 
-    ["keyword", "schedule"].forEach(triggerType => {
-      let triggerBody = document.getElementById(`id-trigger-${triggerType}`);
+    ["keyword", "schedule", "missed_call", "new_conversation", "referral", "catchall"].forEach(triggerType => {
+      let triggerBody = document.querySelector(`#id-trigger-${triggerType}, #id-trigger-${triggerType.replace('_', '')}, #id-trigger-${triggerType.replace('_', '-')}`);
       if (triggerBody) {
         let flowElement = triggerBody.querySelector(`#id_${triggerType}_flow`);
         flowElement.addEventListener('change', function(event) {

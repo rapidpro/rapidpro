@@ -27,7 +27,7 @@
   -else
     {{block.super}}
 
-  -if object.trigger_type == 'K' or object.trigger_type == 'S'
+  -if object.trigger_type in 'KSMNRC'
     %h5.embedded-data-update.hidden
       -trans "Flow Parameters"
     #embedded-data-update.hidden

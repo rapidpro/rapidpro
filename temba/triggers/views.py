@@ -76,6 +76,10 @@ class BaseTriggerForm(forms.ModelForm):
         data = super().clean()
         if self.get_existing_triggers(data):
             raise forms.ValidationError(_("An active trigger already exists, triggers must be unique for each group"))
+        # validate flow parameters
+        flow_params_values = [data.get(field) for field in data.keys() if "flow_parameter_value" in field]
+        if flow_params_values and not all(flow_params_values):
+            raise forms.ValidationError(_("Flow Parameters are not provided."))
         return data
 
     class Meta:
@@ -164,14 +168,6 @@ class KeywordTriggerForm(GroupBasedTriggerForm):
         if keyword:
             existing = existing.filter(keyword__iexact=keyword)
         return existing
-
-    def clean(self):
-        cleaned_data = super().clean()
-        # validate flow parameters
-        flow_params_values = [self.data.get(field) for field in self.data.keys() if "flow_parameter_value" in field]
-        if flow_params_values and not all(flow_params_values):
-            raise forms.ValidationError(_("Flow Parameters are not provided."))
-        return cleaned_data
 
     class Meta(BaseTriggerForm.Meta):
         fields = ("keyword", "match_type", "flow", "groups")
@@ -616,6 +612,13 @@ class TriggerCRUDL(SmartCRUDL):
         success_url = "@triggers.trigger_list"
         success_message = ""
 
+        @property
+        def flow_params(self):
+            flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
+            flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
+            params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
+            return params if params else None
+
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
             kwargs["user"] = self.request.user
@@ -627,13 +630,7 @@ class TriggerCRUDL(SmartCRUDL):
         def pre_save(self, obj, *args, **kwargs):
             obj = super().pre_save(obj, *args, **kwargs)
             obj.org = self.request.user.get_org()
-
-            flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
-            flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
-
-            params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
-            obj.extra = params if params else None
-
+            obj.extra = self.flow_params
             return obj
 
         def form_valid(self, form):
@@ -706,6 +703,7 @@ class TriggerCRUDL(SmartCRUDL):
                 form.cleaned_data["flow"],
                 form.cleaned_data["channel"],
                 referrer_id=form.cleaned_data["referrer_id"],
+                extra=self.flow_params,
             )
 
             analytics.track(self.request.user.username, "temba.trigger_created", dict(type="referral"))
@@ -749,11 +747,6 @@ class TriggerCRUDL(SmartCRUDL):
 
             recipients = self.form.cleaned_data["omnibox"]
 
-            # Getting flow parameters
-            flow_params_fields = [field for field in self.request.POST.keys() if "flow_parameter_field" in field]
-            flow_params_values = [field for field in self.request.POST.keys() if "flow_parameter_value" in field]
-            params = build_flow_parameters(self.request.POST, flow_params_fields, flow_params_values)
-
             trigger = Trigger.objects.create(
                 flow=self.form.cleaned_data["flow"],
                 org=self.request.user.get_org(),
@@ -761,7 +754,7 @@ class TriggerCRUDL(SmartCRUDL):
                 trigger_type=Trigger.TYPE_SCHEDULE,
                 created_by=self.request.user,
                 modified_by=self.request.user,
-                extra=params if params else None,
+                extra=self.flow_params,
             )
 
             for group in recipients["groups"]:
@@ -820,6 +813,7 @@ class TriggerCRUDL(SmartCRUDL):
                 org=org,
                 trigger_type=Trigger.TYPE_MISSED_CALL,
                 flow=form.cleaned_data["flow"],
+                extra=self.flow_params,
             )
 
             analytics.track(self.request.user.username, "temba.trigger_created", dict(type="missed_call"))
@@ -854,6 +848,7 @@ class TriggerCRUDL(SmartCRUDL):
                 org=org,
                 trigger_type=Trigger.TYPE_CATCH_ALL,
                 flow=form.cleaned_data["flow"],
+                extra=self.flow_params,
             )
 
             # add all the groups we are relevant for
@@ -879,7 +874,8 @@ class TriggerCRUDL(SmartCRUDL):
             org = user.get_org()
 
             self.object = Trigger.create(
-                org, user, Trigger.TYPE_NEW_CONVERSATION, form.cleaned_data["flow"], form.cleaned_data["channel"]
+                org, user, Trigger.TYPE_NEW_CONVERSATION, form.cleaned_data["flow"], form.cleaned_data["channel"],
+                extra=self.flow_params,
             )
 
             analytics.track(self.request.user.username, "temba.trigger_created", dict(type="new_conversation"))
