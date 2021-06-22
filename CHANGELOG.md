@@ -1,3 +1,8 @@
+v6.3.80
+----------
+ * Update components so omnibox behaves like a field
+ * Drop Language model and Org.primary_language field
+
 v6.3.79
 ----------
  * Order tickets by last_activity_on and update indexes to reflect that

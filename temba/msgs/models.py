@@ -24,7 +24,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.courier import push_courier_msgs
 from temba.channels.models import Channel, ChannelEvent, ChannelLog
 from temba.contacts.models import URN, Contact, ContactGroup, ContactURN
-from temba.orgs.models import DependencyMixin, Language, Org, TopUp
+from temba.orgs.models import DependencyMixin, Org, TopUp
 from temba.schedules.models import Schedule
 from temba.utils import chunk_list, extract_constants, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask
@@ -212,18 +212,20 @@ class Broadcast(models.Model):
     def get_message_count(self):
         return BroadcastMsgCount.get_count(self)
 
-    def get_default_text(self):
+    def get_text(self, contact=None):
         """
-        Gets the appropriate display text for the broadcast without a contact
+        Gets the text that will be sent. If contact is provided and their language is a valid flow language and there's
+        a translation for it then that will be used (used when rendering upcoming scheduled broadcasts).
         """
-        return self.text[self.base_language]
 
-    def get_translated_text(self, contact, org=None):
-        """
-        Gets the appropriate translation for the given contact
-        """
-        preferred_languages = self._get_preferred_languages(contact, org)
-        return Language.get_localized_text(self.text, preferred_languages)
+        if contact and contact.language and contact.language in self.org.flow_languages:  # try contact language
+            if contact.language in self.text:
+                return self.text[contact.language]
+
+        if self.org.flow_languages and self.org.flow_languages[0] in self.text:  # try org primary language
+            return self.text[self.org.flow_languages[0]]
+
+        return self.text[self.base_language]  # should always be a base language translation
 
     def release(self):
         for child in self.children.all():
@@ -268,24 +270,6 @@ class Broadcast(models.Model):
             for chunk in chunk_list(contact_ids, 1000):
                 bulk_contacts = [RelatedModel(contact_id=id, broadcast_id=self.id) for id in chunk]
                 RelatedModel.objects.bulk_create(bulk_contacts)
-
-    def _get_preferred_languages(self, contact=None, org=None):
-        """
-        Gets the ordered list of language preferences for the given contact
-        """
-        org = org or self.org  # org object can be provided to allow caching of org languages
-        preferred_languages = []
-
-        # if contact has a language and it's a valid org language, it has priority
-        if contact is not None and contact.language and contact.language in org.flow_languages:
-            preferred_languages.append(contact.language)
-
-        if org.flow_languages:
-            preferred_languages.append(org.flow_languages[0])
-
-        preferred_languages.append(self.base_language)
-
-        return preferred_languages
 
     def get_template_state(self):
         metadata = self.metadata or {}

@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-21 19:46+0000\n"
+"POT-Creation-Date: 2021-06-22 16:44+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3180,9 +3180,6 @@ msgstr "Uma senha que permite aos usuários se registrarem como pesquisadores"
 
 msgid "The parent org that manages this org"
 msgstr "A organização pai que gerencia essa organização"
-
-msgid "The primary language will be used for contacts with no language preference."
-msgstr "O idioma primário será usado para contatos com nenhuma preferência de idioma."
 
 #, python-format
 msgid "Invalid bundle: %s, cannot upgrade."
@@ -7892,6 +7889,9 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#~ msgid "The primary language will be used for contacts with no language preference."
+#~ msgstr "O idioma primário será usado para contatos com nenhuma preferência de idioma."
 
 #~ msgid "When this broadcast was created"
 #~ msgstr "Quando essa transmissão foi criada"

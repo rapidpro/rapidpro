@@ -760,7 +760,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             Q(contacts__in=[self]) | Q(urns__in=contact_urns) | Q(groups__in=contact_groups)
         )
 
-        return scheduled_broadcasts.order_by("schedule__next_fire")
+        return scheduled_broadcasts.select_related("org").order_by("schedule__next_fire")
 
     def get_history(self, after: datetime, before: datetime, include_event_types: set, limit: int) -> list:
         """

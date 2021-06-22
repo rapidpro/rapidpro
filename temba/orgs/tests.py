@@ -68,7 +68,7 @@ from temba.utils import dict_to_struct, json, languages
 from temba.utils.email import link_components
 
 from .context_processors import GroupPermWrapper
-from .models import CreditAlert, Invitation, Language, Org, OrgRole, TopUp, TopUpCredits
+from .models import CreditAlert, Invitation, Org, OrgRole, TopUp, TopUpCredits
 from .tasks import delete_orgs_task, resume_failed_tasks, squash_topupcredits
 
 
@@ -4181,23 +4181,6 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
             )
 
         languages.reload()
-
-
-class LanguageTest(TembaTest):
-    def test_get_localized_text(self):
-        text_translations = dict(eng="Hello", spa="Hola")
-
-        # null case
-        self.assertEqual(Language.get_localized_text(None, None), "")
-
-        # simple dictionary case
-        self.assertEqual(Language.get_localized_text(text_translations, ["eng"]), "Hello")
-
-        # missing language case
-        self.assertEqual(Language.get_localized_text(text_translations, ["fra"]), "")
-
-        # secondary option
-        self.assertEqual(Language.get_localized_text(text_translations, ["fra", "spa"]), "Hola")
 
 
 class BulkExportTest(TembaTest):

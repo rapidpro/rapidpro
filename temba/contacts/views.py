@@ -707,7 +707,7 @@ class ContactCRUDL(SmartCRUDL):
                     dict(
                         repeat_period=sched_broadcast.schedule.repeat_period,
                         event_type="M",
-                        message=sched_broadcast.get_translated_text(contact, org=contact.org),
+                        message=sched_broadcast.get_text(contact),
                         flow_uuid=None,
                         flow_name=None,
                         scheduled=sched_broadcast.schedule.next_fire,
