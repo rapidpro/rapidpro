@@ -878,9 +878,11 @@ GROUP_PERMISSIONS = {
         "orgs.org_export",
         "orgs.org_home",
         "orgs.org_profile",
+        "orgs.org_token",
         "orgs.topup_list",
         "orgs.topup_read",
         "orgs.org_token",
+        "orgs.org_api",
         "channels.channel_list",
         "channels.channel_read",
         "channels.channelevent_calls",
@@ -1348,6 +1350,7 @@ MAX_ACTIVE_CONTACTFIELDS_PER_ORG = 255
 MAX_ACTIVE_GLOBALS_PER_ORG = 255
 
 COURIER_DEFAULT_TPS = 1000
+COURIER_DOMAIN = os.environ.get("COURIER_DOMAIN", "courier.rapidpro.io")
 
 # Firebase Dynamic Links configuration
 FDL_API_KEY = "FirebaseDynamicLinkAPIKey"
