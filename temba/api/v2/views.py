@@ -4936,7 +4936,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                 FlowRun.STATUS_INTERRUPTED,
                 FlowRun.STATUS_FAILED,
                 FlowRun.STATUS_EXPIRED,
-            ]
+            ],
         )
         messages_uuids = []
         for run in runs:
@@ -5398,11 +5398,7 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
         time_filters = self.get_datetime_filters("", "modified_on", org)
 
         unique_clicks = (
-            LinkContacts.objects.filter(link_id=link.id)
-            .filter(time_filters)
-            .exclude(group_filters)
-            .distinct()
-            .count()
+            LinkContacts.objects.filter(link_id=link.id).filter(time_filters).exclude(group_filters).distinct().count()
         )
         unique_contacts = (
             link.related_flow.runs.filter(time_filters)

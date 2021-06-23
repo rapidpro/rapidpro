@@ -874,7 +874,11 @@ class TriggerCRUDL(SmartCRUDL):
             org = user.get_org()
 
             self.object = Trigger.create(
-                org, user, Trigger.TYPE_NEW_CONVERSATION, form.cleaned_data["flow"], form.cleaned_data["channel"],
+                org,
+                user,
+                Trigger.TYPE_NEW_CONVERSATION,
+                form.cleaned_data["flow"],
+                form.cleaned_data["channel"],
                 extra=self.flow_params,
             )
 
