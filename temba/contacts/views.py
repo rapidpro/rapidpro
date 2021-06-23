@@ -880,7 +880,7 @@ class ContactCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
 
         def get_queryset(self):
-            return Contact.objects.filter(is_active=True)
+            return Contact.objects.filter(is_active=True).select_related("org")
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -893,6 +893,9 @@ class ContactCRUDL(SmartCRUDL):
             before = int(self.request.GET.get("before", 0))
             after = int(self.request.GET.get("after", 0))
             limit = int(self.request.GET.get("limit", 50))
+
+            ticket_uuid = self.request.GET.get("ticket")
+            ticket = contact.org.tickets.filter(uuid=ticket_uuid).first()
 
             # if we want an expanding window, or just all the recent activity
             recent_only = False
@@ -911,7 +914,7 @@ class ContactCRUDL(SmartCRUDL):
             history = []
             fetch_before = before
             while True:
-                history += contact.get_history(after, fetch_before, HISTORY_INCLUDE_EVENTS, limit)
+                history += contact.get_history(after, fetch_before, HISTORY_INCLUDE_EVENTS, ticket=ticket, limit=limit)
                 if recent_only or len(history) >= 20 or after == contact_creation:
                     break
                 else:
@@ -927,7 +930,9 @@ class ContactCRUDL(SmartCRUDL):
             # check if there are more pages to fetch
             context["has_older"] = False
             if not recent_only and before > contact.created_on:
-                context["has_older"] = bool(contact.get_history(contact_creation, after, HISTORY_INCLUDE_EVENTS, 1))
+                context["has_older"] = bool(
+                    contact.get_history(contact_creation, after, HISTORY_INCLUDE_EVENTS, ticket=ticket, limit=1)
+                )
 
             context["recent_only"] = recent_only
             context["next_before"] = datetime_to_timestamp(after)
