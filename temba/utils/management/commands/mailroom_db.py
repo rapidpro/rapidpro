@@ -36,9 +36,11 @@ ORG1 = dict(
     languages=("eng", "fra"),
     sequence_start=10000,
     users=(
-        dict(email="admin1@nyaruka.com", role="administrators", first_name="Andy", last_name="Administrator"),
-        dict(email="editor1@nyaruka.com", role="editors", first_name="Ed", last_name="Editor"),
-        dict(email="viewer1@nyaruka.com", role="viewers", first_name="Veronica", last_name="Viewer"),
+        dict(email="admin1@nyaruka.com", role="administrators", first_name="Andy", last_name="Admin"),
+        dict(email="editor1@nyaruka.com", role="editors", first_name="Ed", last_name="McEditor"),
+        dict(email="viewer1@nyaruka.com", role="viewers", first_name="Veronica", last_name="Views"),
+        dict(email="agent1@nyaruka.com", role="agents", first_name="Ann", last_name="D'Agent"),
+        dict(email="surveyor1@nyaruka.com", role="surveyors", first_name="Steve", last_name="Surveys"),
     ),
     classifiers=(
         dict(
@@ -498,7 +500,9 @@ class Command(BaseCommand):
         self._log(f"Creating {len(spec['users'])} users... ")
 
         for u in spec["users"]:
-            user = User.objects.create_user(u["email"], u["email"], USER_PASSWORD)
+            user = User.objects.create_user(
+                u["email"], u["email"], USER_PASSWORD, first_name=u["first_name"], last_name=u["last_name"]
+            )
             getattr(org, u["role"]).add(user)
             user.set_org(org)
 
