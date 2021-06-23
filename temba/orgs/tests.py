@@ -1885,53 +1885,6 @@ class OrgTest(TembaTest):
         self.assertIsNone(self.org.editors.filter(username="beastmode@seahawks.com").first())
         self.assertIsNone(self.org.viewers.filter(username="beastmode@seahawks.com").first())
 
-    def test_choose(self):
-        self.client.logout()
-
-        choose_url = reverse("orgs.org_choose")
-
-        self.login(self.admin)
-
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertEqual(response.context["org"], self.org)
-
-        # add self.manager to self.org2 viewers
-        self.org2.viewers.add(self.admin)
-
-        response = self.client.get(choose_url)
-        self.assertEqual(200, response.status_code)
-
-        self.assertIn("organization", response.context["form"].fields)
-
-        post_data = dict()
-        post_data["organization"] = self.org2.pk
-
-        response = self.client.post(choose_url, post_data, follow=True)
-        self.assertEqual(200, response.status_code)
-        response = self.client.get(reverse("orgs.org_home"))
-        self.assertEqual(response.context_data["org"], self.org2)
-        self.assertContains(response, "Nyaruka")
-        self.assertContains(response, "Trileet Inc")
-
-        # make org2 inactive
-        self.org2.is_active = False
-        self.org2.save(update_fields=["is_active"])
-
-        # go back to our choose url, should only show Nyaruka
-        response = self.client.get(choose_url, follow=True)
-        self.assertNotContains(response, "Trileet Inc")
-        self.assertContains(response, "Nyaruka")
-
-        # a non org user get's logged out
-        self.login(self.non_org_user)
-        response = self.client.get(choose_url)
-        self.assertRedirect(response, reverse("users.user_login"))
-
-        # superuser gets redirected to user management page
-        self.login(self.superuser)
-        response = self.client.get(choose_url, follow=True)
-        self.assertEqual(reverse("orgs.org_manage"), response.request["PATH_INFO"])
-
     def test_topup_admin(self):
         self.login(self.admin)
 
@@ -3722,6 +3675,66 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
 
         user = User.objects.get(username="myal@wr.org")
         self.assertTrue(user.check_password("Password123"))
+
+    def test_choose(self):
+        choose_url = reverse("orgs.org_choose")
+
+        # create an inactive org which should never appear as an option
+        org3 = Org.objects.create(
+            name="Deactivated",
+            timezone=pytz.UTC,
+            brand=settings.DEFAULT_BRAND,
+            created_by=self.user,
+            modified_by=self.user,
+            is_active=False,
+        )
+        org3.editors.add(self.editor)
+
+        # and another org that none of our users belong to
+        org4 = Org.objects.create(
+            name="Other", timezone=pytz.UTC, brand=settings.DEFAULT_BRAND, created_by=self.user, modified_by=self.user
+        )
+
+        self.assertLoginRedirect(self.client.get(choose_url))
+
+        # users with a single org are always redirected right away to a page in that org that they have access to
+        self.assertRedirect(self.requestView(choose_url, self.admin), "/msg/inbox/")
+        self.assertRedirect(self.requestView(choose_url, self.editor), "/msg/inbox/")
+        self.assertRedirect(self.requestView(choose_url, self.user), "/msg/inbox/")
+        self.assertRedirect(self.requestView(choose_url, self.agent), "/ticket/")
+        self.assertRedirect(self.requestView(choose_url, self.surveyor), "/org/surveyor/")
+
+        # users with no org are redirected back to the login page
+        response = self.requestView(choose_url, self.non_org_user)
+        self.assertLoginRedirect(response)
+        response = self.client.get("/users/login/")
+        self.assertContains(response, "No organizations for this account, please contact your administrator.")
+
+        # unless they are Customer Support
+        Group.objects.get(name="Customer Support").user_set.add(self.non_org_user)
+        self.assertRedirect(self.requestView(choose_url, self.non_org_user), "/org/manage/")
+
+        # superusers are sent to the manage orgs page
+        self.assertRedirect(self.requestView(choose_url, self.superuser), "/org/manage/")
+
+        # turn editor into a multi-org user
+        self.org2.editors.add(self.editor)
+
+        # now we see a page to choose one of the two orgs
+        response = self.requestView(choose_url, self.editor)
+        self.assertEqual(["organization", "loc"], list(response.context["form"].fields.keys()))
+        self.assertEqual({self.org, self.org2}, set(response.context["form"].fields["organization"].queryset))
+        self.assertEqual({self.org, self.org2}, set(response.context["orgs"]))
+
+        # try to submit for an org we don't belong to
+        response = self.client.post(choose_url, {"organization": org4.id})
+        self.assertFormError(
+            response, "form", "organization", "Select a valid choice. That choice is not one of the available choices."
+        )
+
+        # user clicks org 2...
+        response = self.client.post(choose_url, {"organization": self.org2.id})
+        self.assertRedirect(response, "/msg/inbox/")
 
     def test_edit(self):
         edit_url = reverse("orgs.org_edit")
