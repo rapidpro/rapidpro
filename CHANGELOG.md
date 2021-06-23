@@ -1,3 +1,8 @@
+v6.3.83
+----------
+ * Fix default content type for pjax requests
+ * Tweak queuing of flow starts to include created_by_id
+
 v6.3.82
 ----------
  * Revert recent formax changes
