@@ -110,8 +110,9 @@
       form = $(this);
       section = form.parents(".formax-section");
       followRedirects = section.data("action") === 'redirect';
+      const formData = new FormData(this);
       return fetchPJAXContent(section.data("href"), "#" + section.attr("id") + " > .formax-container", {
-        postData: form.serialize(),
+        formData: formData,
         headers: {
           "X-FORMAX": true
         },
