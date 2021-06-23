@@ -2057,41 +2057,34 @@ class ContactTest(TembaTest):
         history = response.context["events"]
         self.assertEqual(99, len(history))
 
-        def assertPathValue(container: dict, path: str, expected, msg: str):
-            actual = container
-            for key in path.split("__"):
-                if key not in actual:
-                    self.fail(self._formatMessage(msg, f"path {path} not found"))
-                actual = actual[key]
-            self.assertEqual(actual, expected, self._formatMessage(msg, f"value mismatch at {path}"))
-
         def assertHistoryEvent(events, index, expected_type, **kwargs):
             item = events[index]
             self.assertEqual(expected_type, item["type"], f"event type mismatch for item {index}")
             self.assertTrue(iso8601.parse_date(item["created_on"]))  # check created_on exists and is ISO string
 
             for path, expected in kwargs.items():
-                assertPathValue(item, path, expected, f"item {index}")
+                self.assertPathValue(item, path, expected, f"item {index}")
 
         assertHistoryEvent(history, 0, "ticket_note_added", note="I have a bad feeling about this")
-        assertHistoryEvent(history, 1, "call_started")
-        assertHistoryEvent(history, 2, "channel_event")
-        assertHistoryEvent(history, 3, "channel_event")
-        assertHistoryEvent(history, 4, "channel_event")
+        assertHistoryEvent(history, 1, "call_started", status="N")
+        assertHistoryEvent(history, 2, "channel_event", channel_event_type="new_conversation")
+        assertHistoryEvent(history, 3, "channel_event", channel_event_type="mo_miss")
+        assertHistoryEvent(history, 4, "channel_event", channel_event_type="mt_miss")
         assertHistoryEvent(history, 5, "ticket_opened", ticket__subject="Question 2")
         assertHistoryEvent(history, 6, "ticket_closed", ticket__subject="Question 1")
         assertHistoryEvent(history, 7, "ticket_opened", ticket__subject="Question 1")
         assertHistoryEvent(history, 8, "airtime_transferred", actual_amount=Decimal("100.00"))
         assertHistoryEvent(history, 9, "webhook_called", url="https://example.com/")
-        assertHistoryEvent(history, 10, "run_result_changed")
-        assertHistoryEvent(history, 11, "msg_created")
-        assertHistoryEvent(history, 12, "flow_entered")
+        assertHistoryEvent(history, 10, "run_result_changed", value="green")
+        assertHistoryEvent(history, 11, "msg_created", msg__text="What is your favorite color?")
+        assertHistoryEvent(history, 12, "flow_entered", flow__name="Colors")
         assertHistoryEvent(history, 13, "msg_received", msg__text="Message caption")
-        assertHistoryEvent(history, 14, "msg_created", msg__text="A beautiful broadcast")
-        assertHistoryEvent(history, 15, "campaign_fired")
+        assertHistoryEvent(
+            history, 14, "msg_created", msg__text="A beautiful broadcast", msg__created_by__email="User@nyaruka.com"
+        )
+        assertHistoryEvent(history, 15, "campaign_fired", campaign__name="Planting Reminders")
         assertHistoryEvent(history, -1, "msg_received", msg__text="Inbound message 11")
 
-        self.assertEqual(history[14]["msg"]["created_by"]["email"], "User@nyaruka.com")
         self.assertContains(response, "<audio ")
         self.assertContains(response, '<source type="audio/mp3" src="http://blah/file.mp3" />')
         self.assertContains(response, "<video ")
@@ -2108,7 +2101,7 @@ class ContactTest(TembaTest):
         # can filter by ticket to only see ticket events from that ticket
         response = self.client.get(url + f"?ticket={ticket.uuid}&limit=100")
         history = response.context["events"]
-        assertHistoryEvent(history, 4, "channel_event")
+        assertHistoryEvent(history, 4, "channel_event", channel_event_type="mt_miss")
         assertHistoryEvent(history, 5, "ticket_opened", ticket__subject="Question 2")
         assertHistoryEvent(history, 6, "airtime_transferred", actual_amount=Decimal("100.00"))
 
@@ -2220,7 +2213,7 @@ class ContactTest(TembaTest):
         response = self.fetch_protected(
             url + "?limit=1&before=%d" % datetime_to_timestamp(scheduled + timedelta(minutes=5)), self.admin
         )
-        self.assertEqual(self.message_event.id, response.context["events"][0]["campaign_event"]["id"])
+        assertHistoryEvent(response.context["events"], 0, "campaign_fired", campaign_event__id=self.message_event.id)
 
         # now try the proper max history to test truncation
         response = self.fetch_protected(url + "?before=%d" % datetime_to_timestamp(timezone.now()), self.admin)

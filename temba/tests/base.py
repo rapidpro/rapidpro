@@ -638,6 +638,19 @@ class TembaTestMixin:
         for r, row in enumerate(rows):
             self.assertExcelRow(sheet, r, row, tz)
 
+    def assertPathValue(self, container: dict, path: str, expected, msg: str):
+        """
+        Asserts a value at a path in a container, e.g.
+          assertPathValue({"foo": "bar", "zed": 123}, "foo", "bar")
+          assertPathValue({"foo": {"bar": 123}}, "foo__bar", 123)
+        """
+        actual = container
+        for key in path.split("__"):
+            if key not in actual:
+                self.fail(self._formatMessage(msg, f"path {path} not found in {json.dumps(container)}"))
+            actual = actual[key]
+        self.assertEqual(actual, expected, self._formatMessage(msg, f"value mismatch at {path}"))
+
     def assertResponseError(self, response, field, message, status_code=400):
         self.assertEqual(status_code, response.status_code)
         body = response.json()
