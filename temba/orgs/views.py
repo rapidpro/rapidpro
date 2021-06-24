@@ -2126,16 +2126,31 @@ class OrgCRUDL(SmartCRUDL):
                 return self.render_modal_response()
 
     class Choose(SmartFormView):
-        class ChooseForm(forms.Form):
-            organization = forms.ModelChoiceField(queryset=Org.objects.all(), empty_label=None)
+        class Form(forms.Form):
+            organization = forms.ModelChoiceField(queryset=Org.objects.none(), empty_label=None)
 
-        form_class = ChooseForm
-        success_url = "@msgs.msg_inbox"
+            def __init__(self, orgs, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                self.fields["organization"].queryset = orgs
+
+        form_class = Form
         fields = ("organization",)
         title = _("Select your Workspace")
+        success_urls = {
+            OrgRole.ADMINISTRATOR: "msgs.msg_inbox",
+            OrgRole.EDITOR: "msgs.msg_inbox",
+            OrgRole.VIEWER: "msgs.msg_inbox",
+            OrgRole.AGENT: "tickets.ticket_list",
+            OrgRole.SURVEYOR: "orgs.org_surveyor",
+        }
 
         def get_user_orgs(self):
             return self.request.user.get_user_orgs(self.request.branding.get("keys"))
+
+        def get_success_url(self):
+            role = self.request.org.get_user_role(self.request.user)
+            return reverse(self.success_urls[role])
 
         def pre_process(self, request, *args, **kwargs):
             user = self.request.user
@@ -2146,13 +2161,12 @@ class OrgCRUDL(SmartCRUDL):
 
                 elif user_orgs.count() == 1:
                     org = user_orgs[0]
-                    self.request.session["org_id"] = org.pk
-                    if org.get_user_role(user) == OrgRole.SURVEYOR:
-                        return HttpResponseRedirect(reverse("orgs.org_surveyor"))
+                    self.request.session["org_id"] = org.id
+                    self.request.org = org
 
-                    return HttpResponseRedirect(self.get_success_url())  # pragma: needs cover
+                    return HttpResponseRedirect(self.get_success_url())
 
-                elif user_orgs.count() == 0:  # pragma: needs cover
+                elif user_orgs.count() == 0:
                     if user.is_support():
                         return HttpResponseRedirect(reverse("orgs.org_manage"))
 
@@ -2160,32 +2174,26 @@ class OrgCRUDL(SmartCRUDL):
                     messages.info(request, _("No organizations for this account, please contact your administrator."))
                     logout(request)
                     return HttpResponseRedirect(reverse("users.user_login"))
-            return None  # pragma: needs cover
+            return None
 
-        def get_context_data(self, **kwargs):  # pragma: needs cover
+        def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["orgs"] = self.get_user_orgs()
             return context
 
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["orgs"] = self.get_user_orgs()
+            return kwargs
+
         def has_permission(self, request, *args, **kwargs):
             return self.request.user.is_authenticated
 
-        def customize_form_field(self, name, field):  # pragma: needs cover
-            if name == "organization":
-                field.widget.choices.queryset = self.get_user_orgs()
-            return field
-
-        def form_valid(self, form):  # pragma: needs cover
+        def form_valid(self, form):
             org = form.cleaned_data["organization"]
 
-            if org in self.get_user_orgs():
-                self.request.session["org_id"] = org.pk
-            else:
-                return HttpResponseRedirect(reverse("orgs.org_choose"))
-
-            if org.get_user_role(self.request.user) == OrgRole.SURVEYOR:
-                return HttpResponseRedirect(reverse("orgs.org_surveyor"))
-
+            self.request.session["org_id"] = org.id
+            self.request.org = org
             return HttpResponseRedirect(self.get_success_url())
 
     class CreateLogin(SmartUpdateView):
