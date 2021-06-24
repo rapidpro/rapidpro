@@ -5186,6 +5186,11 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
     * **exited_before** - Date, excludes all runs from the report that were exited earlier a certain date
     * **variables** - configuration which define the fields to be included in the report
 
+    Variables filter configuration object:
+
+    * **format** - choice from two options to count by ("category" or "value", default is "category")
+    * **top** - return only top X most common responses
+
     This report can't be performed in one request so the report is being split into chunks,
     you should follow the `next` link until it's `null` and merge data using your script.
     * **next** - URL to get next chunk of the report.
@@ -5196,7 +5201,7 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
         {
             "flow": "2f613ae3-2ed6-49c9-9161-fd868451fb6a",
             "variables": {
-                "result_1": {
+                "variable_name": {
                     "format": "value",
                     "top": 3
                 }
@@ -5256,17 +5261,34 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
         for variable, conf in requested_variables.items():
             if variable not in existing_variables:
                 return Response(
-                    {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}}
+                    {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if not isinstance(conf, dict):
+                return Response(
+                    {
+                        "errors": {
+                            "variables": {
+                                variable: _(
+                                    "Wrong filter configuration provided. "
+                                    "There must be object with two optional parameters, format and top."
+                                )
+                            }
+                        }
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
             _format = conf.get("format", "").lower()
             if _format not in ["category", "value"]:
                 _format = "category"
             variable_filters[variable] = {"format": _format}
-            if _format == "value" and type(conf.get("top")) is int:
+            if _format == "value":
                 variable_filters[variable]["top"] = conf.get("top")
-                top_ordering[variable] = conf.get("top")
             if _format == "category":
                 counts[variable] = Counter({category: 0 for category in existing_variables[variable]["categories"]})
+            if isinstance(conf.get("top"), int):
+                top_ordering[variable] = conf.get("top")
+
         self.applied_filters["variables"] = variable_filters
 
         for flow_run in current_page:
