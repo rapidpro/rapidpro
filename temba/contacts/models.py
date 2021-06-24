@@ -762,7 +762,7 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
 
         return scheduled_broadcasts.select_related("org").order_by("schedule__next_fire")
 
-    def get_history(self, after: datetime, before: datetime, include_event_types: set, limit: int) -> list:
+    def get_history(self, after: datetime, before: datetime, include_event_types: set, ticket, limit: int) -> list:
         """
         Gets this contact's history of messages, calls, runs etc in the given time window
         """
@@ -770,7 +770,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from temba.ivr.models import IVRCall
         from temba.mailroom.events import get_event_time
         from temba.msgs.models import Msg
-        from temba.tickets.models import TicketEvent
 
         msgs = (
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
@@ -818,10 +817,16 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         )
 
         ticket_events = (
-            TicketEvent.objects.filter(created_on__gte=after, created_on__lt=before, contact=self)
+            self.ticket_events.filter(created_on__gte=after, created_on__lt=before)
             .select_related("ticket__ticketer")
-            .order_by("-created_on")[:limit]
+            .order_by("-created_on")
         )
+
+        # can limit to single ticket when viewing a specific ticket rather than the contact read page
+        if ticket:
+            ticket_events = ticket_events.filter(ticket=ticket)
+
+        ticket_events = ticket_events[:limit]
 
         transfers = self.airtime_transfers.filter(created_on__gte=after, created_on__lt=before).order_by(
             "-created_on"
