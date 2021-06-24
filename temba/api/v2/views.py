@@ -579,8 +579,6 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     def filter_queryset(self, queryset):
         org = self.request.user.get_org()
 
-        queryset = queryset.filter(is_active=True)
-
         # filter by id (optional)
         broadcast_id = self.get_int_param("id")
         if broadcast_id:
