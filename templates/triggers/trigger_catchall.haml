@@ -3,3 +3,10 @@
 
 -block summary
   -trans "Start a flow after receiving a message not handled elsewhere."
+
+-block fields
+  {{ block.super }}
+  %h5.embedded-data-catchall.hidden
+    -trans "Flow Parameters"
+  #embedded-data-catchall.hidden
+    #embed-container-catchall
