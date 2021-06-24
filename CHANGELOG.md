@@ -1,3 +1,9 @@
+v6.3.84
+----------
+ * Ignore scheduled triggers in imports because they don't import properly
+ * Fix redirect after choosing an org for users that can't access the inbox
+ * Optionally filter ticket events by ticket in contact history view
+
 v6.3.83
 ----------
  * Fix default content type for pjax requests
