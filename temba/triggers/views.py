@@ -65,7 +65,7 @@ class BaseTriggerForm(forms.ModelForm):
         self.org = user.get_org()
         self.trigger_type = trigger_type
 
-        flow_types = Trigger.ALLOWED_FLOW_TYPES[self.trigger_type]
+        flow_types = Trigger.get_allowed_flow_types(self.trigger_type)
         flows = self.org.flows.filter(flow_type__in=flow_types, is_active=True, is_archived=False, is_system=False)
 
         self.fields["flow"].queryset = flows.order_by("name")
