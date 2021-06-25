@@ -1978,6 +1978,10 @@ def _user_verify_2fa(user, *, otp: str = None, backup_token: str = None) -> bool
     return False
 
 
+def _user_str(user):
+    return user.get_full_name()
+
+
 User.release = release
 User.get_org = get_org
 User.set_org = set_org
@@ -1993,6 +1997,7 @@ User.record_auth = _user_record_auth
 User.enable_2fa = _user_enable_2fa
 User.disable_2fa = _user_disable_2fa
 User.verify_2fa = _user_verify_2fa
+User.__str__ = _user_str
 
 
 def get_stripe_credentials():
