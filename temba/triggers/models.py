@@ -13,6 +13,27 @@ from temba.flows.models import Flow
 from temba.orgs.models import Org
 
 
+class TriggerType:
+    code = None
+    allowed_flow_types = ()
+    exportable = True
+    export_fields = ("trigger_type", "flow", "groups", "exclude_groups")
+    form = None
+
+    def export_def(self, trigger) -> dict:
+        all_fields = {
+            "trigger_type": trigger.trigger_type,
+            "flow": trigger.flow.as_export_ref(),
+            "groups": [group.as_export_ref() for group in trigger.groups.all()],
+            "exclude_groups": [group.as_export_ref() for group in trigger.exclude_groups.all()],
+            "channel": trigger.channel.uuid if trigger.channel else None,
+            "keyword": trigger.keyword,
+            "match_type": trigger.match_type,
+            "referrer_id": trigger.referrer_id,
+        }
+        return {f: all_fields[f] for f in self.export_fields}
+
+
 class Folder(NamedTuple):
     label: str
     title: str

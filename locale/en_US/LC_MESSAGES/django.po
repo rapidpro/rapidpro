@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-22 17:26+0000\n"
+"POT-Creation-Date: 2021-06-25 16:07+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3961,6 +3961,27 @@ msgstr ""
 msgid "The associated channel."
 msgstr ""
 
+msgid "Contacts To Include"
+msgstr ""
+
+msgid "Additional specific contacts to include."
+msgstr ""
+
+msgid "Optional: Select contacts"
+msgstr ""
+
+msgid "Must provide at least one group or contact to include."
+msgstr ""
+
+msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
+msgstr ""
+
+msgid "Referrer Id"
+msgstr ""
+
+msgid "The referrer id that will trigger us"
+msgstr ""
+
 msgid "Select a flow"
 msgstr ""
 
@@ -3988,7 +4009,10 @@ msgstr ""
 msgid "There already exists a trigger of this type with these options."
 msgstr ""
 
-msgid "The first word of the message text"
+msgid "Join Keyword"
+msgstr ""
+
+msgid "The first word of the message"
 msgstr ""
 
 msgid "Group to Join"
@@ -4005,37 +4029,7 @@ msgstr[1] ""
 msgid "The message to send in response after they join the group (optional)"
 msgstr ""
 
-msgid "Contacts To Include"
-msgstr ""
-
-msgid "Additional specific contacts to include."
-msgstr ""
-
-msgid "Optional: Select contacts"
-msgstr ""
-
-msgid "Must provide at least one group or contact to include."
-msgstr ""
-
-msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
-msgstr ""
-
-msgid "Referrer Id"
-msgstr ""
-
-msgid "The referrer id that will trigger us"
-msgstr ""
-
 msgid "Create Trigger"
-msgstr ""
-
-msgid "Join Keyword"
-msgstr ""
-
-msgid "The first word of the message"
-msgstr ""
-
-msgid "Create Referral Trigger"
 msgstr ""
 
 msgid "Triggers"
