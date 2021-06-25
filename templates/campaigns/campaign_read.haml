@@ -12,10 +12,11 @@
 -block subtitle
   .flex.flex-col
     .summary
-      -if object.group.is_active
-        -include "includes/recipients_group.haml" with group=object.group
-      -else
-        -trans "No group assigned to this campaign"
+      .inline-block
+        -if object.group.is_active
+          -include "includes/recipients_group.haml" with group=object.group
+        -else
+          -trans "No group assigned to this campaign"
 
 -block post-title
   -if object.is_archived
@@ -41,7 +42,7 @@
 
         %tr.campaign-event{valign:'center', data-event-id:'{{event.pk}}'}
 
-          %td.whitespace-no-wrap
+          %td.whitespace-nowrap
             %a(href="{% url 'campaigns.campaignevent_read' event.pk %}")
               {{ event.offset_display }} {{ event.relative_to.label }}
 

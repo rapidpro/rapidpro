@@ -61,6 +61,7 @@
             } else {
               _bindToggle(section.find(".formax-icon"));
             }
+            document.dispatchEvent(new CustomEvent("temba-formax-ready", {bubbles: true}));
             return section.show();
           }
         });
@@ -109,8 +110,9 @@
       form = $(this);
       section = form.parents(".formax-section");
       followRedirects = section.data("action") === 'redirect';
+      const formData = new FormData(this);
       return fetchPJAXContent(section.data("href"), "#" + section.attr("id") + " > .formax-container", {
-        postData: form.serialize(),
+        formData: formData,
         headers: {
           "X-FORMAX": true
         },
@@ -129,10 +131,11 @@
           }
           dependents = section.data("dependents");
           if (dependents) {
-            return $("#id-" + dependents).each(function() {
+            $("#id-" + dependents).each(function() {
               return fetchData($(this));
             });
           }
+          document.dispatchEvent(new CustomEvent("temba-formax-ready", {bubbles: true}));
         }
       });
     };

@@ -2,7 +2,9 @@ from abc import ABCMeta
 
 from smartmin.models import SmartModel
 
+from django.conf import settings
 from django.conf.urls import url
+from django.contrib.auth.models import User
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models import Q
@@ -118,7 +120,7 @@ class Ticketer(SmartModel, DependencyMixin):
 
         open_tickets = self.tickets.filter(status=Ticket.STATUS_OPEN)
         if open_tickets.exists():
-            Ticket.bulk_close(self.org, open_tickets)
+            Ticket.bulk_close(self.org, user, open_tickets)
 
         self.is_active = False
         self.modified_by = user
@@ -130,7 +132,7 @@ class Ticketer(SmartModel, DependencyMixin):
 
 class Ticket(models.Model):
     """
-    A ticket represents a contact-initiated question or dialog.
+    A ticket represents a period of human interaction with a contact.
     """
 
     STATUS_OPEN = "O"
@@ -164,30 +166,59 @@ class Ticket(models.Model):
     # the status of this ticket, one of open, closed, expired
     status = models.CharField(max_length=1, choices=STATUS_CHOICES)
 
-    # when this ticket was opened
+    # when this ticket was opened, closed, modified
     opened_on = models.DateTimeField(default=timezone.now)
-
-    # when this ticket was last modified
+    closed_on = models.DateTimeField(null=True)
     modified_on = models.DateTimeField(default=timezone.now)
 
-    # when this ticket was closed
-    closed_on = models.DateTimeField(null=True)
+    # when this ticket last had activity which includes messages being sent and received, and is used for ordering
+    last_activity_on = models.DateTimeField(default=timezone.now)
+
+    assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
+
+    def assign(self, user: User, *, assignee: User, note: str):
+        now = timezone.now()
+        self.assignee = assignee
+        self.modified_on = now
+        self.last_activity_on = now
+        self.save(update_fields=("assignee", "modified_on", "last_activity_on"))
+
+        self.events.create(
+            org=self.org,
+            contact=self.contact,
+            event_type=TicketEvent.TYPE_ASSIGNED,
+            assignee=assignee,
+            note=note,
+            created_by=user,
+        )
+
+    def add_note(self, user: User, *, note: str):
+        now = timezone.now()
+        self.modified_on = timezone.now()
+        self.last_activity_on = now
+        self.save(update_fields=("modified_on", "last_activity_on"))
+
+        self.events.create(
+            org=self.org, contact=self.contact, event_type=TicketEvent.TYPE_NOTE, note=note, created_by=user
+        )
 
     @classmethod
-    def bulk_close(cls, org, tickets):
-        return mailroom.get_client().ticket_close(org.id, [t.id for t in tickets if t.ticketer.is_active])
+    def bulk_close(cls, org, user, tickets):
+        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        return mailroom.get_client().ticket_close(org.id, user.id, ticket_ids)
 
     @classmethod
-    def bulk_reopen(cls, org, tickets):
-        return mailroom.get_client().ticket_reopen(org.id, [t.id for t in tickets if t.ticketer.is_active])
+    def bulk_reopen(cls, org, user, tickets):
+        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        return mailroom.get_client().ticket_reopen(org.id, user.id, ticket_ids)
 
     @classmethod
     def apply_action_close(cls, user, tickets):
-        cls.bulk_close(tickets[0].org, tickets)
+        cls.bulk_close(tickets[0].org, user, tickets)
 
     @classmethod
     def apply_action_reopen(cls, user, tickets):
-        cls.bulk_reopen(tickets[0].org, tickets)
+        cls.bulk_reopen(tickets[0].org, user, tickets)
 
     def __str__(self):
         return f"Ticket[uuid={self.uuid}, subject={self.subject}]"
@@ -195,13 +226,52 @@ class Ticket(models.Model):
     class Meta:
         indexes = [
             # used by the open tickets view
-            models.Index(name="tickets_org_open", fields=["org", "-opened_on"], condition=Q(status="O")),
+            models.Index(name="tickets_org_open", fields=["org", "-last_activity_on", "-id"], condition=Q(status="O")),
             # used by the closed tickets view
-            models.Index(name="tickets_org_closed", fields=["org", "-opened_on"], condition=Q(status="C")),
+            models.Index(
+                name="tickets_org_closed", fields=["org", "-last_activity_on", "-id"], condition=Q(status="C")
+            ),
             # used by the tickets filtered by ticketer view
             models.Index(name="tickets_org_ticketer", fields=["ticketer", "-opened_on"]),
             # used by the list of tickets on contact page and also message handling to find open tickets for contact
             models.Index(name="tickets_contact_open", fields=["contact", "-opened_on"], condition=Q(status="O")),
             # used by ticket handlers in mailroom to find tickets from their external IDs
             models.Index(name="tickets_ticketer_external_id", fields=["ticketer", "external_id"]),
+        ]
+
+
+class TicketEvent(models.Model):
+    """
+    Models the history of a ticket.
+    """
+
+    TYPE_OPENED = "O"
+    TYPE_ASSIGNED = "A"
+    TYPE_NOTE = "N"
+    TYPE_CLOSED = "C"
+    TYPE_REOPENED = "R"
+    TYPE_CHOICES = (
+        (TYPE_OPENED, "Opened"),
+        (TYPE_ASSIGNED, "Assigned"),
+        (TYPE_NOTE, "Note"),
+        (TYPE_CLOSED, "Closed"),
+        (TYPE_REOPENED, "Reopened"),
+    )
+
+    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="ticket_events")
+    ticket = models.ForeignKey(Ticket, on_delete=models.PROTECT, related_name="events")
+    contact = models.ForeignKey(Contact, on_delete=models.PROTECT, related_name="ticket_events")
+    event_type = models.CharField(max_length=1, choices=TYPE_CHOICES)
+    note = models.TextField(null=True)
+    assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="ticket_assignee_events")
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, related_name="ticket_events"
+    )
+    created_on = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        indexes = [
+            # used for contact history
+            models.Index(name="ticketevents_contact_created", fields=["contact", "created_on"])
         ]

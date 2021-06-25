@@ -26,10 +26,20 @@
   function fetchPJAXContent(url, container, options) {
     var type = 'GET';
     var data = undefined;
+    var processData = true;
+    var contentType = 'application/x-www-form-urlencoded; charset=UTF-8';
+
     if (options) {
       if ('postData' in options) {
         type = 'POST';
         data = options['postData'];
+      }
+      
+      if('formData' in options) {
+         type = 'POST';
+         processData = false;
+         data = options['formData'];
+         contentType = false;
       }
     }
 
@@ -52,16 +62,19 @@
       }
     }
 
-    $.ajax({
+    const request = {
       headers: headers,
       type: type,
       url: url,
+      contentType: contentType,
+      processData: processData,
       data: data,
       success: function(response, status, jqXHR) {
         var toast = jqXHR.getResponseHeader('Temba-Toast');
         if (toast) {
           toastr.info(toast, '', {"positionClass": "toast-bottom-full-width"});
         }
+
 
         if ('followRedirects' in options && options['followRedirects'] == true) {
             var redirect = jqXHR.getResponseHeader('REDIRECT');
@@ -91,7 +104,9 @@
           }
         }
       }
-    });
+    }
+
+    $.ajax(request);
   }
 
 

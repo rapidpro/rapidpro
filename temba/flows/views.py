@@ -43,7 +43,7 @@ from temba.flows.tasks import export_flow_results_task
 from temba.ivr.models import IVRCall
 from temba.mailroom import FlowValidationException
 from temba.orgs.models import IntegrationType, Org
-from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import ModalMixin, OrgFilterMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.templates.models import Template
 from temba.triggers.models import Trigger
 from temba.utils import analytics, gettext, json, languages, on_transaction_commit, str_to_bool
@@ -92,15 +92,6 @@ EXPIRES_CHOICES = (
 )
 
 
-class OrgQuerysetMixin:
-    def derive_queryset(self, *args, **kwargs):
-        queryset = super().derive_queryset(*args, **kwargs)
-        if not self.request.user.is_authenticated:  # pragma: needs cover
-            return queryset.exclude(pk__gt=0)
-        else:
-            return queryset.filter(org=self.request.user.get_org())
-
-
 class BaseFlowForm(forms.ModelForm):
     def clean_keyword_triggers(self):
         org = self.user.get_org()
@@ -121,12 +112,12 @@ class BaseFlowForm(forms.ModelForm):
             ):
                 wrong_format.append(keyword)
 
-            # make sure it is unique on this org
-            existing = Trigger.objects.filter(org=org, keyword__iexact=keyword, is_archived=False, is_active=True)
+            # make sure it won't conflict with existing triggers
+            conflicts = Trigger.get_conflicts(org, Trigger.TYPE_KEYWORD, keyword=keyword)
             if self.instance:
-                existing = existing.exclude(flow=self.instance.pk)
+                conflicts = conflicts.exclude(flow=self.instance.id)
 
-            if existing:
+            if conflicts:
                 duplicates.append(keyword)
             else:
                 cleaned_keywords.append(keyword)
@@ -393,8 +384,8 @@ class FlowCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
                 self.user = user
 
-                org_languages = self.user.get_org().languages.all().order_by("orgs", "name")
-                language_choices = ((lang.iso_code, lang.name) for lang in org_languages)
+                org = self.user.get_org()
+                language_choices = languages.choices(org.flow_languages)
 
                 # prune our type choices by brand config
                 allowed_types = branding.get("flow_types")
@@ -403,7 +394,7 @@ class FlowCRUDL(SmartCRUDL):
 
                 self.fields["base_language"] = forms.ChoiceField(
                     label=_("Language"),
-                    initial=self.user.get_org().primary_language,
+                    initial=org.flow_languages[0] if org.flow_languages else None,
                     choices=language_choices,
                     widget=SelectWidget(attrs={"widget_only": False}),
                 )
@@ -423,7 +414,7 @@ class FlowCRUDL(SmartCRUDL):
             org = user.get_org()
             exclude = []
 
-            if not org.primary_language:
+            if not org.flow_languages:
                 exclude.append("base_language")
 
             return exclude
@@ -463,11 +454,11 @@ class FlowCRUDL(SmartCRUDL):
             user = self.request.user
             org = user.get_org()
 
-            # create triggers for this flow only if there are keywords and we aren't a survey
-            if self.form.cleaned_data.get("flow_type") != Flow.TYPE_SURVEY:
-                if len(self.form.cleaned_data["keyword_triggers"]) > 0:
-                    for keyword in self.form.cleaned_data["keyword_triggers"].split(","):
-                        Trigger.objects.create(org=org, keyword=keyword, flow=obj, created_by=user, modified_by=user)
+            # create any triggers if user provided keywords
+            if self.form.cleaned_data["keyword_triggers"]:
+                keywords = self.form.cleaned_data["keyword_triggers"].split(",")
+                for keyword in keywords:
+                    Trigger.create(org, user, Trigger.TYPE_KEYWORD, flow=obj, keyword=keyword)
 
             return obj
 
@@ -492,14 +483,7 @@ class FlowCRUDL(SmartCRUDL):
             flow.release()
 
             # we can't just redirect so as to make our modal do the right thing
-            response = self.render_to_response(
-                self.get_context_data(
-                    success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
-                )
-            )
-            response["Temba-Success"] = self.get_success_url()
-
-            return response
+            return self.render_modal_response()
 
     class Copy(OrgObjPermsMixin, SmartUpdateView):
         fields = []
@@ -679,22 +663,16 @@ class FlowCRUDL(SmartCRUDL):
             org = user.get_org()
 
             if "keyword_triggers" in self.form.cleaned_data:
-
-                existing_keywords = set(
-                    t.keyword
-                    for t in obj.triggers.filter(
-                        org=org, flow=obj, trigger_type=Trigger.TYPE_KEYWORD, is_archived=False, groups=None
-                    )
-                )
+                # get existing keyword triggers for this flow
+                existing = obj.triggers.filter(trigger_type=Trigger.TYPE_KEYWORD, is_archived=False, groups=None)
+                existing_keywords = {t.keyword for t in existing}
 
                 if len(self.form.cleaned_data["keyword_triggers"]) > 0:
                     keywords = set(self.form.cleaned_data["keyword_triggers"].split(","))
 
                 removed_keywords = existing_keywords.difference(keywords)
                 for keyword in removed_keywords:
-                    obj.triggers.filter(org=org, flow=obj, keyword=keyword, groups=None, is_archived=False).update(
-                        is_archived=True
-                    )
+                    obj.triggers.filter(keyword=keyword, groups=None, is_archived=False).update(is_archived=True)
 
                 added_keywords = keywords.difference(existing_keywords)
                 archived_keywords = [
@@ -759,7 +737,7 @@ class FlowCRUDL(SmartCRUDL):
             )
             return {"type": file.content_type, "url": f"{settings.STORAGE_URL}/{url}"}
 
-    class BaseList(OrgQuerysetMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
+    class BaseList(OrgFilterMixin, OrgPermsMixin, BulkActionMixin, SmartListView):
         title = _("Flows")
         refresh = 10000
         fields = ("name", "modified_on")
@@ -1165,7 +1143,7 @@ class FlowCRUDL(SmartCRUDL):
 
             def clean_language(self):
                 data = self.cleaned_data["language"]
-                if data and data not in self.user.get_org().get_language_codes():
+                if data and data not in self.user.get_org().flow_languages:
                     raise ValidationError(_("Not a valid language."))
 
                 return data
@@ -1210,7 +1188,7 @@ class FlowCRUDL(SmartCRUDL):
                 org = user.get_org()
 
                 self.user = user
-                self.fields["language"].choices += languages.choices(codes=org.get_language_codes())
+                self.fields["language"].choices += languages.choices(codes=org.flow_languages)
 
         form_class = Form
         submit_button_name = _("Export")
@@ -1231,13 +1209,7 @@ class FlowCRUDL(SmartCRUDL):
 
             # if this is an XHR request, we need to return a structured response that it can parse
             if "HTTP_X_PJAX" in self.request.META:
-                response = self.render_to_response(
-                    self.get_context_data(
-                        form=form,
-                        success_url=self.get_success_url(),
-                        success_script=getattr(self, "success_script", None),
-                    )
-                )
+                response = self.render_modal_response(form)
                 response["Temba-Success"] = download_url
                 return response
 
@@ -1294,7 +1266,7 @@ class FlowCRUDL(SmartCRUDL):
                                 params={"lang": po_info.language_name},
                             )
 
-                        if po_info.language_code not in self.flow.org.get_language_codes():
+                        if po_info.language_code not in self.flow.org.flow_languages:
                             raise ValidationError(
                                 _("Contains translations in %(lang)s which is not a supported translation language."),
                                 params={"lang": po_info.language_name},
@@ -1314,7 +1286,7 @@ class FlowCRUDL(SmartCRUDL):
                 super().__init__(*args, **kwargs)
 
                 org = user.get_org()
-                lang_codes = org.get_language_codes()
+                lang_codes = list(org.flow_languages)
                 lang_codes.remove(instance.base_language)
 
                 self.fields["language"].choices = languages.choices(codes=lang_codes)
@@ -1529,14 +1501,7 @@ class FlowCRUDL(SmartCRUDL):
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
-                response = self.render_to_response(
-                    self.get_context_data(
-                        form=form,
-                        success_url=self.get_success_url(),
-                        success_script=getattr(self, "success_script", None),
-                    )
-                )
-                response["Temba-Success"] = self.get_success_url()
+                response = self.render_modal_response(form)
                 response["REDIRECT"] = self.get_success_url()
                 return response
 
@@ -2069,7 +2034,7 @@ class FlowCRUDL(SmartCRUDL):
             if asset_type_name == "environment":
                 return JsonResponse(org.as_environment_def())
             else:
-                results = [{"iso": code, "name": languages.get_name(code)} for code in org.get_language_codes()]
+                results = [{"iso": code, "name": languages.get_name(code)} for code in org.flow_languages]
                 return JsonResponse({"results": sorted(results, key=lambda l: l["name"])})
 
 
@@ -2128,12 +2093,20 @@ class FlowLabelCRUDL(SmartCRUDL):
     model = FlowLabel
     actions = ("create", "update", "delete")
 
-    class Delete(OrgObjPermsMixin, SmartDeleteView):
-        success_url = "@flows.flow_list"
+    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
+        fields = ("uuid",)
         redirect_url = "@flows.flow_list"
         cancel_url = "@flows.flow_list"
         success_message = ""
         submit_button_name = _("Delete")
+
+        def get_success_url(self):
+            return reverse("flows.flow_list")
+
+        def post(self, request, *args, **kwargs):
+            self.object = self.get_object()
+            self.object.delete()
+            return self.render_modal_response()
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         form_class = FlowLabelForm
@@ -2154,7 +2127,7 @@ class FlowLabelCRUDL(SmartCRUDL):
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         fields = ("name", "parent", "flows")
-        success_url = "@flows.flow_list"
+        success_url = "hide"
         form_class = FlowLabelForm
         success_message = ""
         submit_button_name = _("Create")
@@ -2188,7 +2161,7 @@ class FlowStartCRUDL(SmartCRUDL):
     model = FlowStart
     actions = ("list",)
 
-    class List(OrgQuerysetMixin, OrgPermsMixin, SmartListView):
+    class List(OrgFilterMixin, OrgPermsMixin, SmartListView):
         title = _("Flow Start Log")
         ordering = ("-created_on",)
         select_related = ("flow", "created_by")

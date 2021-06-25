@@ -68,6 +68,7 @@ from temba.utils.fields import (
     InputWidget,
     SelectMultipleWidget,
     SelectWidget,
+    TembaChoiceField,
 )
 from temba.utils.http import http_headers
 from temba.utils.timezones import TimeZoneFormField
@@ -96,7 +97,7 @@ def check_login(request):
         return HttpResponseRedirect(settings.LOGIN_URL)
 
 
-class OrgPermsMixin(object):
+class OrgPermsMixin:
     """
     Get the organisation and the user within the inheriting view so that it be come easy to decide
     whether this user has a certain permission for that particular organization to perform the view's actions
@@ -145,6 +146,20 @@ class OrgPermsMixin(object):
                 return HttpResponseRedirect(reverse("orgs.org_choose"))
 
         return super().dispatch(request, *args, **kwargs)
+
+
+class OrgFilterMixin:
+    """
+    Simple mixin to filter a view's queryset by the user's org
+    """
+
+    def derive_queryset(self, *args, **kwargs):
+        queryset = super().derive_queryset(*args, **kwargs)
+
+        if not self.request.user.is_authenticated:
+            return queryset.none()  # pragma: no cover
+        else:
+            return queryset.filter(org=self.request.user.get_org())
 
 
 class AnonMixin(OrgPermsMixin):
@@ -208,6 +223,17 @@ class ModalMixin(SmartFormView):
 
         return context
 
+    def render_modal_response(self, form=None):
+        response = self.render_to_response(
+            self.get_context_data(
+                form=form,
+                success_url=self.get_success_url(),
+                success_script=getattr(self, "success_script", None),
+            )
+        )
+        response["Temba-Success"] = self.get_success_url()
+        return response
+
     def form_valid(self, form):
         if isinstance(form, forms.ModelForm):
             self.object = form.save(commit=False)
@@ -226,15 +252,7 @@ class ModalMixin(SmartFormView):
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
-                response = self.render_to_response(
-                    self.get_context_data(
-                        form=form,
-                        success_url=self.get_success_url(),
-                        success_script=getattr(self, "success_script", None),
-                    )
-                )
-                response["Temba-Success"] = self.get_success_url()
-                return response
+                return self.render_modal_response(form)
 
         except (IntegrityError, ValueError, ValidationError) as e:
             message = getattr(e, "message", str(e).capitalize())
@@ -303,9 +321,9 @@ class DependencyDeleteModal(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
 
     def post(self, request, *args, **kwargs):
         obj = self.get_object()
-        obj.release(self.request.user)
+        obj.release(request.user)
 
-        messages.info(request, self.success_message)
+        messages.info(request, self.derive_success_message())
         response = HttpResponse()
         response["Temba-Success"] = self.get_success_url()
         return response
@@ -655,7 +673,7 @@ class UserCRUDL(SmartCRUDL):
             username = user.username
 
             brand = self.request.branding.get("brand")
-            user.release(brand)
+            user.release(self.request.user, brand=brand)
 
             messages.success(self.request, _(f"Deleted user {username}"))
             return HttpResponseRedirect(reverse("orgs.user_list", args=()))
@@ -668,7 +686,9 @@ class UserCRUDL(SmartCRUDL):
             last_name = forms.CharField(label=_("Last Name"), widget=InputWidget(attrs={"placeholder": _("Required")}))
             email = forms.EmailField(required=True, label=_("Email"), widget=InputWidget())
             current_password = forms.CharField(
-                label=_("Current Password"), widget=InputWidget(attrs={"placeholder": _("Required"), "password": True})
+                required=False,
+                label=_("Current Password"),
+                widget=InputWidget({"widget_only": True, "placeholder": _("Password Required"), "password": True}),
             )
             new_password = forms.CharField(
                 required=False,
@@ -689,8 +709,10 @@ class UserCRUDL(SmartCRUDL):
                 user = self.instance
                 password = self.cleaned_data.get("current_password", None)
 
-                if not user.check_password(password):
-                    raise forms.ValidationError(_("Please enter your password to save changes."))
+                # password is required to change your email address or set a new password
+                if self.data.get("new_password", None) or self.data.get("email", None) != user.email:
+                    if not user.check_password(password):
+                        raise forms.ValidationError(_("Please enter your password to save changes."))
 
                 return password
 
@@ -709,7 +731,6 @@ class UserCRUDL(SmartCRUDL):
 
         form_class = EditForm
         permission = "orgs.org_profile"
-        success_url = "@orgs.org_home"
         success_message = ""
 
         @classmethod
@@ -721,7 +742,8 @@ class UserCRUDL(SmartCRUDL):
 
         def derive_initial(self):
             initial = super().derive_initial()
-            initial["language"] = self.get_object().get_settings().language
+            user_settings = self.get_object().get_settings()
+            initial["language"] = user_settings.language
             return initial
 
         def pre_save(self, obj):
@@ -1650,10 +1672,10 @@ class OrgCRUDL(SmartCRUDL):
                 if self.request.user.has_perm("orgs.org_delete"):
                     links.append(
                         dict(
-                            id="delete-flow",
+                            id="delete-org",
                             title=_("Delete"),
-                            href=reverse("orgs.org_delete", args=[org.pk]),
-                            modax="Delete Org",
+                            href=reverse("orgs.org_delete", args=[org.id]),
+                            modax=_("Delete Workspace"),
                         )
                     )
             return links
@@ -1680,19 +1702,19 @@ class OrgCRUDL(SmartCRUDL):
 
     class Delete(ModalMixin, SmartDeleteView):
         cancel_url = "id@orgs.org_update"
-        submit_button_name = _("Delete")
+        success_url = "id@orgs.org_update"
         fields = ("id",)
+        submit_button_name = _("Delete")
+
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            context["delete_on"] = timezone.now() + timedelta(days=Org.DELETE_DELAY_DAYS)
+            return context
 
         def post(self, request, *args, **kwargs):
             self.object = self.get_object()
-            self.pre_delete(self.object)
-            redirect_url = self.get_redirect_url()
-            self.object.release()
-
-            return HttpResponseRedirect(redirect_url)
-
-        def get_redirect_url(self, **kwargs):
-            return reverse("orgs.org_update", args=[self.object.pk])
+            self.object.release(request.user)
+            return self.render_modal_response()
 
     class Accounts(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class PasswordForm(forms.ModelForm):
@@ -1958,7 +1980,7 @@ class OrgCRUDL(SmartCRUDL):
 
     class Service(SmartFormView):
         class ServiceForm(forms.Form):
-            organization = forms.ModelChoiceField(queryset=Org.objects.all(), empty_label=None)
+            organization = TembaChoiceField(queryset=Org.objects.all(), empty_label=None)
             redirect_url = forms.CharField(required=False)
 
         form_class = ServiceForm
@@ -2101,27 +2123,34 @@ class OrgCRUDL(SmartCRUDL):
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
-                response = self.render_to_response(
-                    self.get_context_data(
-                        form=form,
-                        success_url=self.get_success_url(),
-                        success_script=getattr(self, "success_script", None),
-                    )
-                )
-                response["Temba-Success"] = self.get_success_url()
-                return response
+                return self.render_modal_response()
 
     class Choose(SmartFormView):
-        class ChooseForm(forms.Form):
-            organization = forms.ModelChoiceField(queryset=Org.objects.all(), empty_label=None)
+        class Form(forms.Form):
+            organization = forms.ModelChoiceField(queryset=Org.objects.none(), empty_label=None)
 
-        form_class = ChooseForm
-        success_url = "@msgs.msg_inbox"
+            def __init__(self, orgs, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+
+                self.fields["organization"].queryset = orgs
+
+        form_class = Form
         fields = ("organization",)
         title = _("Select your Workspace")
+        success_urls = {
+            OrgRole.ADMINISTRATOR: "msgs.msg_inbox",
+            OrgRole.EDITOR: "msgs.msg_inbox",
+            OrgRole.VIEWER: "msgs.msg_inbox",
+            OrgRole.AGENT: "tickets.ticket_list",
+            OrgRole.SURVEYOR: "orgs.org_surveyor",
+        }
 
         def get_user_orgs(self):
             return self.request.user.get_user_orgs(self.request.branding.get("keys"))
+
+        def get_success_url(self):
+            role = self.request.org.get_user_role(self.request.user)
+            return reverse(self.success_urls[role])
 
         def pre_process(self, request, *args, **kwargs):
             user = self.request.user
@@ -2132,13 +2161,12 @@ class OrgCRUDL(SmartCRUDL):
 
                 elif user_orgs.count() == 1:
                     org = user_orgs[0]
-                    self.request.session["org_id"] = org.pk
-                    if org.get_user_role(user) == OrgRole.SURVEYOR:
-                        return HttpResponseRedirect(reverse("orgs.org_surveyor"))
+                    self.request.session["org_id"] = org.id
+                    self.request.org = org
 
-                    return HttpResponseRedirect(self.get_success_url())  # pragma: needs cover
+                    return HttpResponseRedirect(self.get_success_url())
 
-                elif user_orgs.count() == 0:  # pragma: needs cover
+                elif user_orgs.count() == 0:
                     if user.is_support():
                         return HttpResponseRedirect(reverse("orgs.org_manage"))
 
@@ -2146,32 +2174,26 @@ class OrgCRUDL(SmartCRUDL):
                     messages.info(request, _("No organizations for this account, please contact your administrator."))
                     logout(request)
                     return HttpResponseRedirect(reverse("users.user_login"))
-            return None  # pragma: needs cover
+            return None
 
-        def get_context_data(self, **kwargs):  # pragma: needs cover
+        def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["orgs"] = self.get_user_orgs()
             return context
 
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["orgs"] = self.get_user_orgs()
+            return kwargs
+
         def has_permission(self, request, *args, **kwargs):
             return self.request.user.is_authenticated
 
-        def customize_form_field(self, name, field):  # pragma: needs cover
-            if name == "organization":
-                field.widget.choices.queryset = self.get_user_orgs()
-            return field
-
-        def form_valid(self, form):  # pragma: needs cover
+        def form_valid(self, form):
             org = form.cleaned_data["organization"]
 
-            if org in self.get_user_orgs():
-                self.request.session["org_id"] = org.pk
-            else:
-                return HttpResponseRedirect(reverse("orgs.org_choose"))
-
-            if org.get_user_role(self.request.user) == OrgRole.SURVEYOR:
-                return HttpResponseRedirect(reverse("orgs.org_surveyor"))
-
+            self.request.session["org_id"] = org.id
+            self.request.org = org
             return HttpResponseRedirect(self.get_success_url())
 
     class CreateLogin(SmartUpdateView):
@@ -2540,6 +2562,10 @@ class OrgCRUDL(SmartCRUDL):
             if obj.timezone.zone in pytz.country_timezones("US"):
                 obj.date_format = Org.DATE_FORMAT_MONTH_FIRST
 
+            # if we have a default UI language, use that as the default flow language too
+            default_flow_language = languages.alpha2_to_alpha3(obj.language)
+            obj.flow_languages = [default_flow_language] if default_flow_language else ["eng"]
+
             return obj
 
         def get_welcome_size(self):  # pragma: needs cover
@@ -2742,12 +2768,12 @@ class OrgCRUDL(SmartCRUDL):
                 links.append(dict(title=_("Import"), href=reverse("orgs.org_import")))
 
             if settings.HELP_URL:  # pragma: needs cover
-                if len(links) > 0:
+                if len(links) > 1:
                     links.append(dict(divider=True))
 
                 links.append(dict(title=_("Help"), href=settings.HELP_URL))
 
-            if len(links) > 0:
+            if len(links) > 1:
                 links.append(dict(divider=True))
 
             links.append(
@@ -3066,15 +3092,7 @@ class OrgCRUDL(SmartCRUDL):
             amount = form.cleaned_data["amount"]
 
             from_org.allocate_credits(from_org.created_by, to_org, amount)
-
-            response = self.render_to_response(
-                self.get_context_data(
-                    form=form, success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
-                )
-            )
-
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.render_modal_response(form)
 
     class Country(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
         class CountryForm(forms.ModelForm):
@@ -3098,27 +3116,27 @@ class OrgCRUDL(SmartCRUDL):
             return self.request.user.has_perm("orgs.org_country") or self.has_org_perm("orgs.org_country")
 
     class Languages(InferOrgMixin, OrgPermsMixin, SmartUpdateView):
-        class LanguagesForm(forms.ModelForm):
-
+        class Form(forms.ModelForm):
             primary_lang = ArbitraryJsonChoiceField(
-                required=False,
-                label=_("Primary Language"),
+                required=True,
+                label=_("Default Flow Language"),
+                help_text=_("Used for contacts with no language preference."),
                 widget=SelectWidget(
                     attrs={
-                        "placeholder": _("Select the primary language for contacts with no language preference"),
+                        "placeholder": _("Select a language"),
                         "searchable": True,
                         "queryParam": "q",
                         "endpoint": reverse_lazy("orgs.org_languages"),
                     }
                 ),
             )
-
-            languages = ArbitraryJsonChoiceField(
+            other_langs = ArbitraryJsonChoiceField(
                 required=False,
                 label=_("Additional Languages"),
+                help_text=_("The languages that your flows can be translated into."),
                 widget=SelectMultipleWidget(
                     attrs={
-                        "placeholder": _("Additional languages you would like to provide translations for"),
+                        "placeholder": _("Select languages"),
                         "searchable": True,
                         "queryParam": "q",
                         "endpoint": reverse_lazy("orgs.org_languages"),
@@ -3126,17 +3144,16 @@ class OrgCRUDL(SmartCRUDL):
                 ),
             )
 
-            def __init__(self, *args, **kwargs):
-                self.org = kwargs["org"]
-                del kwargs["org"]
+            def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
+                self.org = org
 
             class Meta:
                 model = Org
-                fields = ("primary_lang", "languages")
+                fields = ("primary_lang", "other_langs")
 
         success_message = ""
-        form_class = LanguagesForm
+        form_class = Form
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -3147,20 +3164,30 @@ class OrgCRUDL(SmartCRUDL):
             initial = super().derive_initial()
             org = self.get_object()
 
-            org_langs = org.languages.filter(orgs=None).order_by("name")
-            initial["languages"] = [{"value": lang.iso_code, "name": lang.name} for lang in org_langs]
+            def lang_json(code):
+                return {"value": code, "name": languages.get_name(code)}
 
-            if org.primary_language:
-                lang = org.primary_language
-                initial["primary_lang"] = [{"value": lang.iso_code, "name": lang.name}]
+            non_primary_langs = org.flow_languages[1:] if len(org.flow_languages) > 1 else []
+            initial["other_langs"] = [lang_json(ln) for ln in non_primary_langs]
+
+            if org.flow_languages:
+                initial["primary_lang"] = [lang_json(org.flow_languages[0])]
 
             return initial
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org = self.get_object()
-            lang_codes = org.get_language_codes(include_primary=False)
-            context["languages"] = sorted([languages.get_name(code) for code in lang_codes])
+
+            if org.flow_languages:
+                primary_lang = languages.get_name(org.flow_languages[0])
+                other_langs = sorted([languages.get_name(code) for code in org.flow_languages[1:]])
+            else:
+                primary_lang = None
+                other_langs = []
+
+            context["primary_lang"] = primary_lang
+            context["other_langs"] = other_langs
             return context
 
         def get(self, request, *args, **kwargs):
@@ -3183,16 +3210,13 @@ class OrgCRUDL(SmartCRUDL):
 
         def form_valid(self, form):
             user = self.request.user
-            primary = form.cleaned_data["primary_lang"]
-            if primary:
-                primary = primary["value"]
+            codes = [form.cleaned_data["primary_lang"]["value"]]
 
-            # remove empty codes and ensure primary is included in list
-            iso_codes = [d["value"] for d in form.cleaned_data["languages"] if d["value"]]
-            if primary and primary not in iso_codes:
-                iso_codes.append(primary)
+            for lang in form.cleaned_data["other_langs"]:
+                if lang["value"] and lang["value"] not in codes:
+                    codes.append(lang["value"])
 
-            self.object.set_languages(user, iso_codes, primary)
+            self.object.set_flow_languages(user, codes)
 
             return super().form_valid(form)
 

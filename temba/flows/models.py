@@ -70,6 +70,7 @@ FLOW_LOCK_KEY = "org:%d:lock:flow:%d:definition"
 
 
 class Flow(TembaModel):
+
     CONTACT_CREATION = "contact_creation"
     CONTACT_PER_RUN = "run"
     CONTACT_PER_LOGIN = "login"
@@ -237,7 +238,7 @@ class Flow(TembaModel):
         """
         Creates a special 'join group' flow
         """
-        base_language = org.primary_language.iso_code if org.primary_language else "base"
+        base_language = org.flow_languages[0] if org.flow_languages else "base"
 
         name = Flow.get_unique_name(org, "Join %s" % group.name)
         flow = Flow.create(org, user, name, base_language=base_language)
@@ -290,14 +291,6 @@ class Flow(TembaModel):
 
         flow.save_revision(user, definition)
         return flow
-
-    @classmethod
-    def get_triggerable_flows(cls, org, *, by_schedule: bool):
-        flow_types = [Flow.TYPE_MESSAGE, Flow.TYPE_VOICE]
-        if by_schedule:
-            flow_types.append(Flow.TYPE_BACKGROUND)
-
-        return org.flows.filter(flow_type__in=flow_types, is_active=True, is_archived=False, is_system=False)
 
     @classmethod
     def import_flows(cls, org, user, export_json, dependency_mapping, same_site=False):
@@ -452,6 +445,13 @@ class Flow(TembaModel):
                 flow.restore()
             except FlowException:  # pragma: no cover
                 pass
+
+    def get_icon(self):
+        if self.flow_type == Flow.TYPE_MESSAGE:
+            return "message-square"
+        elif self.flow_type == Flow.TYPE_VOICE:
+            return "phone"
+        return "flow"
 
     def get_category_counts(self):
         keys = [r["key"] for r in self.metadata["results"]]
@@ -958,6 +958,26 @@ class Flow(TembaModel):
             for run in runs:
                 run.release()
 
+    def delete(self):
+        """
+        Does actual deletion of this flow's data
+        """
+
+        assert not self.is_active, "can't delete flow which hasn't been released"
+
+        self.release_runs()
+
+        for rev in self.revisions.all():
+            rev.release()
+
+        self.category_counts.all().delete()
+        self.path_counts.all().delete()
+        self.node_counts.all().delete()
+        self.exit_counts.all().delete()
+        self.labels.clear()
+
+        super().delete()
+
     def __str__(self):
         return self.name
 
@@ -1008,6 +1028,9 @@ class FlowSession(models.Model):
 
     # the goflow output of this session
     output = JSONAsTextField(null=True, default=dict)
+
+    # the URL for the JSON file that contains our session content (optional)
+    output_url = models.URLField(null=True, max_length=2048)
 
     # when this session was created
     created_on = models.DateTimeField(default=timezone.now)
@@ -2347,6 +2370,12 @@ class FlowLabel(models.Model):
                     changed.append(flow.pk)
 
         return changed
+
+    def delete(self):
+        for child in self.children.all():
+            child.delete()
+
+        super().delete()
 
     def __str__(self):
         if self.parent:

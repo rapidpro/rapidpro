@@ -90,8 +90,20 @@ html {
   --font-size: 14px;
   --button-font-size: 1.125rem;
 
-  --header-bg: var(--color-primary-dark);
+  --icon-color: var(--text-color);
+  --icon-color-hover: var(--icon-color);
+  
+  --transition-speed: 200ms;
+  --event-padding: 0.5em 1em;
+  --help-text-margin-left: 4px;
+  --help-text-margin-top: 0px;
+  --temba-select-selected-padding: 9px;
+  --temba-select-selected-line-height: 16px;
+  --temba-select-selected-font-size: 13px;
 
+  --header-bg: var(--color-primary-dark);
+  --header-text: var(--color-text-light);
+  
   --temba-textinput-padding: 9px;
   --temba-textinput-font-size: var(--font-size);
 

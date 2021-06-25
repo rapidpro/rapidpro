@@ -43,7 +43,7 @@ from temba.tests import (
     mock_mailroom,
 )
 from temba.tests.engine import MockSessionWriter
-from temba.tickets.models import Ticket, Ticketer
+from temba.tickets.models import Ticketer
 from temba.triggers.models import Trigger
 from temba.utils import json
 from temba.utils.dates import datetime_to_str, datetime_to_timestamp
@@ -666,6 +666,9 @@ class ContactGroupTest(TembaTest):
         # put group back into evaluation state
         group.status = ContactGroup.STATUS_EVALUATING
         group.save(update_fields=("status",))
+
+        # dynamic groups should get their own icon
+        self.assertEqual(group.get_icon(), "atom")
 
         # can't update query again while it is in this state
         with self.assertRaises(ValueError):
@@ -1833,7 +1836,7 @@ class ContactTest(TembaTest):
             )
 
         # create twitter channel
-        Channel.create(self.org, self.user, None, "TT")
+        self.create_channel("TT", "Twitter", "nyaruka")
 
         # add add an external channel so numbers get normalized
         Channel.create(self.org, self.user, "RW", "EX", schemes=[URN.TEL_SCHEME])
@@ -1939,6 +1942,7 @@ class ContactTest(TembaTest):
         self.joe.created_on = timezone.now() - timedelta(days=1000)
         self.joe.save(update_fields=("created_on",))
 
+        self.create_broadcast(self.user, "A beautiful broadcast", contacts=[self.joe])
         self.create_campaign()
 
         # add a message with some attachments
@@ -1990,7 +1994,7 @@ class ContactTest(TembaTest):
         )
 
         # mark an outgoing message as failed
-        failed = Msg.objects.get(direction="O", contact=self.joe)
+        failed = Msg.objects.filter(direction="O", contact=self.joe).last()
         failed.status = "F"
         failed.save(update_fields=("status",))
         log = ChannelLog.objects.create(
@@ -2013,21 +2017,8 @@ class ContactTest(TembaTest):
 
         # two tickets for joe
         ticketer = Ticketer.create(self.org, self.user, "internal", "Internal", {})
-        Ticket.objects.create(
-            org=self.org,
-            ticketer=ticketer,
-            contact=self.joe,
-            subject="Question 1",
-            status="C",
-            closed_on=timezone.now(),
-        )
-        Ticket.objects.create(
-            org=self.org,
-            ticketer=ticketer,
-            contact=self.joe,
-            subject="Question 2",
-            status="O",
-        )
+        self.create_ticket(ticketer, self.joe, "Question 1", closed_on=timezone.now())
+        ticket = self.create_ticket(ticketer, self.joe, "Question 2")
 
         # create missed incoming and outgoing calls
         self.create_channel_event(
@@ -2054,34 +2045,45 @@ class ContactTest(TembaTest):
         # create a channel log for this call
         ChannelLog.objects.create(channel=self.channel, description="Its an ivr call", is_error=False, connection=call)
 
+        # add a note to our open ticket
+        ticket.add_note(self.user, note="I have a bad feeling about this")
+
         # fetch our contact history
         self.login(self.admin)
-        with self.assertNumQueries(51):
+        with self.assertNumQueries(50):
             response = self.client.get(url + "?limit=100")
 
         # history should include all messages in the last 90 days, the channel event, the call, and the flow run
         history = response.context["events"]
-        self.assertEqual(95, len(history))
+        self.assertEqual(99, len(history))
 
-        def assertHistoryEvent(item, expected_type, msg_text=None):
-            self.assertEqual(expected_type, item["type"])
-            self.assertTrue(iso8601.parse_date(item["created_on"]))
-            if msg_text:
-                self.assertEqual(msg_text, item["msg"]["text"])
+        def assertHistoryEvent(events, index, expected_type, **kwargs):
+            item = events[index]
+            self.assertEqual(expected_type, item["type"], f"event type mismatch for item {index}")
+            self.assertTrue(iso8601.parse_date(item["created_on"]))  # check created_on exists and is ISO string
 
-        assertHistoryEvent(history[0], "call_started")
-        assertHistoryEvent(history[1], "channel_event")
-        assertHistoryEvent(history[2], "channel_event")
-        assertHistoryEvent(history[3], "channel_event")
-        assertHistoryEvent(history[4], "ticket_closed")
-        assertHistoryEvent(history[5], "airtime_transferred")
-        assertHistoryEvent(history[6], "webhook_called")
-        assertHistoryEvent(history[7], "run_result_changed")
-        assertHistoryEvent(history[8], "msg_created")
-        assertHistoryEvent(history[9], "flow_entered")
-        assertHistoryEvent(history[10], "msg_received")
-        assertHistoryEvent(history[11], "campaign_fired")
-        assertHistoryEvent(history[-1], "msg_received", msg_text="Inbound message 11")
+            for path, expected in kwargs.items():
+                self.assertPathValue(item, path, expected, f"item {index}")
+
+        assertHistoryEvent(history, 0, "ticket_note_added", note="I have a bad feeling about this")
+        assertHistoryEvent(history, 1, "call_started", status="N")
+        assertHistoryEvent(history, 2, "channel_event", channel_event_type="new_conversation")
+        assertHistoryEvent(history, 3, "channel_event", channel_event_type="mo_miss")
+        assertHistoryEvent(history, 4, "channel_event", channel_event_type="mt_miss")
+        assertHistoryEvent(history, 5, "ticket_opened", ticket__subject="Question 2")
+        assertHistoryEvent(history, 6, "ticket_closed", ticket__subject="Question 1")
+        assertHistoryEvent(history, 7, "ticket_opened", ticket__subject="Question 1")
+        assertHistoryEvent(history, 8, "airtime_transferred", actual_amount=Decimal("100.00"))
+        assertHistoryEvent(history, 9, "webhook_called", url="https://example.com/")
+        assertHistoryEvent(history, 10, "run_result_changed", value="green")
+        assertHistoryEvent(history, 11, "msg_created", msg__text="What is your favorite color?")
+        assertHistoryEvent(history, 12, "flow_entered", flow__name="Colors")
+        assertHistoryEvent(history, 13, "msg_received", msg__text="Message caption")
+        assertHistoryEvent(
+            history, 14, "msg_created", msg__text="A beautiful broadcast", msg__created_by__email="User@nyaruka.com"
+        )
+        assertHistoryEvent(history, 15, "campaign_fired", campaign__name="Planting Reminders")
+        assertHistoryEvent(history, -1, "msg_received", msg__text="Inbound message 11")
 
         self.assertContains(response, "<audio ")
         self.assertContains(response, '<source type="audio/mp3" src="http://blah/file.mp3" />')
@@ -2096,9 +2098,16 @@ class ContactTest(TembaTest):
         self.assertContains(response, "Transferred <b>100.00</b> <b>RWF</b> of airtime")
         self.assertContains(response, reverse("airtime.airtimetransfer_read", args=[transfer.id]))
 
+        # can filter by ticket to only see ticket events from that ticket
+        response = self.client.get(url + f"?ticket={ticket.uuid}&limit=100")
+        history = response.context["events"]
+        assertHistoryEvent(history, 4, "channel_event", channel_event_type="mt_miss")
+        assertHistoryEvent(history, 5, "ticket_opened", ticket__subject="Question 2")
+        assertHistoryEvent(history, 6, "airtime_transferred", actual_amount=Decimal("100.00"))
+
         # can also fetch same page as JSON
         response_json = self.client.get(url + "?limit=100&_format=json").json()
-        self.assertEqual(95, len(response_json["events"]))
+        self.assertEqual(99, len(response_json["events"]))
 
         # fetch next page
         before = datetime_to_timestamp(timezone.now() - timedelta(days=90))
@@ -2111,15 +2120,15 @@ class ContactTest(TembaTest):
         # activity should include 11 remaining messages and the event fire
         history = response.context["events"]
         self.assertEqual(12, len(history))
-        assertHistoryEvent(history[0], "msg_received", msg_text="Inbound message 10")
-        assertHistoryEvent(history[10], "msg_received", msg_text="Inbound message 0")
-        assertHistoryEvent(history[11], "msg_received", msg_text="Very old inbound message")
+        assertHistoryEvent(history, 0, "msg_received", msg__text="Inbound message 10")
+        assertHistoryEvent(history, 10, "msg_received", msg__text="Inbound message 0")
+        assertHistoryEvent(history, 11, "msg_received", msg__text="Very old inbound message")
 
         response = self.fetch_protected(url + "?limit=100", self.admin)
         history = response.context["events"]
 
-        self.assertEqual(95, len(history))
-        assertHistoryEvent(history[8], "msg_created", msg_text="What is your favorite color?")
+        self.assertEqual(99, len(history))
+        assertHistoryEvent(history, 11, "msg_created", msg__text="What is your favorite color?")
 
         # if a new message comes in
         self.create_incoming_msg(self.joe, "Newer message")
@@ -2127,15 +2136,15 @@ class ContactTest(TembaTest):
 
         # now we'll see the message that just came in first, followed by the call event
         history = response.context["events"]
-        assertHistoryEvent(history[0], "msg_received", msg_text="Newer message")
-        assertHistoryEvent(history[1], "call_started")
+        assertHistoryEvent(history, 0, "msg_received", msg__text="Newer message")
+        assertHistoryEvent(history, 1, "ticket_note_added")
 
         recent_start = datetime_to_timestamp(timezone.now() - timedelta(days=1))
         response = self.fetch_protected(url + "?limit=100&after=%s" % recent_start, self.admin)
 
         # with our recent flag on, should not see the older messages
         events = response.context["events"]
-        self.assertEqual(12, len(events))
+        self.assertEqual(16, len(events))
         self.assertContains(response, "file.mp4")
 
         # can't view history of contact in another org
@@ -2149,7 +2158,7 @@ class ContactTest(TembaTest):
 
         # super users can view history of any contact
         response = self.fetch_protected(url + "?limit=100", self.superuser)
-        self.assertEqual(96, len(response.context["events"]))
+        self.assertEqual(100, len(response.context["events"]))
 
         response = self.fetch_protected(reverse("contacts.contact_history", args=[hans.uuid]), self.superuser)
         self.assertEqual(0, len(response.context["events"]))
@@ -2164,9 +2173,9 @@ class ContactTest(TembaTest):
             .save()
         )
 
-        response = self.fetch_protected(url + "?limit=100", self.admin)
+        response = self.fetch_protected(url + "?limit=200", self.admin)
         history = response.context["events"]
-        self.assertEqual(99, len(history))
+        self.assertEqual(103, len(history))
 
         # before date should not match our last activity, that only happens when we truncate
         self.assertNotEqual(
@@ -2174,20 +2183,23 @@ class ContactTest(TembaTest):
             datetime_to_timestamp(iso8601.parse_date(response.context["events"][-1]["created_on"])),
         )
 
-        assertHistoryEvent(history[0], "msg_created", msg_text="What is your favorite color?")
-        assertHistoryEvent(history[1], "flow_entered")
-        assertHistoryEvent(history[2], "flow_exited")
-        assertHistoryEvent(history[3], "msg_received", msg_text="Newer message")
-        assertHistoryEvent(history[4], "call_started")
-        assertHistoryEvent(history[5], "channel_event")
-        assertHistoryEvent(history[6], "channel_event")
-        assertHistoryEvent(history[7], "channel_event")
-        assertHistoryEvent(history[8], "ticket_closed")
-        assertHistoryEvent(history[9], "airtime_transferred")
-        assertHistoryEvent(history[10], "webhook_called")
-        assertHistoryEvent(history[11], "run_result_changed")
-        assertHistoryEvent(history[12], "msg_created", msg_text="What is your favorite color?")
-        assertHistoryEvent(history[13], "flow_entered")
+        assertHistoryEvent(history, 0, "msg_created", msg__text="What is your favorite color?")
+        assertHistoryEvent(history, 1, "flow_entered")
+        assertHistoryEvent(history, 2, "flow_exited")
+        assertHistoryEvent(history, 3, "msg_received", msg__text="Newer message")
+        assertHistoryEvent(history, 4, "ticket_note_added")
+        assertHistoryEvent(history, 5, "call_started")
+        assertHistoryEvent(history, 6, "channel_event")
+        assertHistoryEvent(history, 7, "channel_event")
+        assertHistoryEvent(history, 8, "channel_event")
+        assertHistoryEvent(history, 9, "ticket_opened")
+        assertHistoryEvent(history, 10, "ticket_closed")
+        assertHistoryEvent(history, 11, "ticket_opened")
+        assertHistoryEvent(history, 12, "airtime_transferred")
+        assertHistoryEvent(history, 13, "webhook_called")
+        assertHistoryEvent(history, 14, "run_result_changed")
+        assertHistoryEvent(history, 15, "msg_created", msg__text="What is your favorite color?")
+        assertHistoryEvent(history, 16, "flow_entered")
 
         # make our message event older than our planting reminder
         self.message_event.created_on = self.planting_reminder.created_on - timedelta(days=1)
@@ -2201,7 +2213,7 @@ class ContactTest(TembaTest):
         response = self.fetch_protected(
             url + "?limit=1&before=%d" % datetime_to_timestamp(scheduled + timedelta(minutes=5)), self.admin
         )
-        self.assertEqual(self.message_event.id, response.context["events"][0]["campaign_event"]["id"])
+        assertHistoryEvent(response.context["events"], 0, "campaign_fired", campaign_event__id=self.message_event.id)
 
         # now try the proper max history to test truncation
         response = self.fetch_protected(url + "?before=%d" % datetime_to_timestamp(timezone.now()), self.admin)
@@ -2963,7 +2975,7 @@ class ContactTest(TembaTest):
             reverse("orgs.org_languages"),
             dict(
                 primary_lang='{"name":"Haitian", "value":"hat"}',
-                languages=['{"name":"Official Aramaic", "value":"arc"}', '{"name":"Spanish", "value":"spa"}'],
+                languages=['{"name":"Kinyarwanda", "value":"kin"}', '{"name":"Spanish", "value":"spa"}'],
             ),
         )
 

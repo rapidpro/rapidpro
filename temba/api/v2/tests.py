@@ -23,7 +23,7 @@ from django.utils import timezone
 from temba.api.models import APIToken, Resthook, WebHookEvent
 from temba.archives.models import Archive
 from temba.campaigns.models import Campaign, CampaignEvent
-from temba.channels.models import Channel, ChannelEvent
+from temba.channels.models import ChannelEvent
 from temba.classifiers.models import Classifier
 from temba.classifiers.types.luis import LuisType
 from temba.classifiers.types.wit import WitType
@@ -32,11 +32,11 @@ from temba.flows.models import Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import BoundaryAlias
 from temba.msgs.models import Broadcast, Label, Msg
-from temba.orgs.models import Language, Org
+from temba.orgs.models import Org
 from temba.templates.models import TemplateTranslation
 from temba.tests import AnonymousOrg, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
-from temba.tickets.models import Ticket, Ticketer
+from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.tickets.types.zendesk import ZendeskType
 from temba.triggers.models import Trigger
@@ -55,15 +55,11 @@ class APITest(TembaTest):
         self.joe = self.create_contact("Joe Blow", phone="0788123123")
         self.frank = self.create_contact("Frank", urns=["twitter:franky"])
 
-        self.twitter = Channel.create(
-            self.org, self.user, None, "TT", name="Twitter Channel", address="billy_bob", role="SR"
-        )
+        self.twitter = self.create_channel("TT", "Twitter Channel", "billy_bob")
 
         self.hans = self.create_contact("Hans Gruber", phone="+4921551511", org=self.org2)
 
-        self.org2channel = Channel.create(self.org2, self.user, "RW", "A", name="Org2Channel")
-
-        self.maxDiff = None
+        self.org2channel = self.create_channel("A", "Org2Channel", "123456", country="RW", org=self.org2)
 
         # this is needed to prevent REST framework from rolling back transaction created around each unit test
         connection.settings_dict["ATOMIC_REQUESTS"] = False
@@ -265,7 +261,7 @@ class APITest(TembaTest):
         self.assertEqual(field.to_internal_value("Hello"), ({"base": "Hello"}, "base"))
         self.assertEqual(field.to_internal_value({"base": "Hello"}), ({"base": "Hello"}, "base"))
 
-        self.org.primary_language = Language.create(self.org, self.user, "Kinyarwanda", "kin")
+        self.org.set_flow_languages(self.admin, ["kin"])
         self.org.save()
 
         self.assertEqual(field.to_internal_value("Hello"), ({"kin": "Hello"}, "kin"))
@@ -656,6 +652,8 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         reporters = self.create_group("Reporters", [self.joe, self.frank])
+        ticketer = Ticketer.create(self.org, self.admin, "mailgun", "Support Tickets", {})
+        ticket = self.create_ticket(ticketer, self.joe, "Help!")
 
         bcast1 = Broadcast.create(self.org, self.admin, "Hello 1", urns=["twitter:franky"])
         bcast2 = Broadcast.create(self.org, self.admin, "Hello 2", contacts=[self.joe])
@@ -668,6 +666,7 @@ class APITest(TembaTest):
             contacts=[self.joe],
             groups=[reporters],
             status="F",
+            ticket=ticket,
         )
         Broadcast.create(self.org2, self.admin2, "Different org...", contacts=[self.hans])
 
@@ -738,6 +737,7 @@ class APITest(TembaTest):
                 "urns": ["twitter:franky"],
                 "contacts": [self.joe.uuid, self.frank.uuid],
                 "groups": [reporters.uuid],
+                "ticket": str(ticket.uuid),
             },
         )
 
@@ -746,6 +746,7 @@ class APITest(TembaTest):
         self.assertEqual(["twitter:franky"], broadcast.raw_urns)
         self.assertEqual({self.joe, self.frank}, set(broadcast.contacts.all()))
         self.assertEqual({reporters}, set(broadcast.groups.all()))
+        self.assertEqual(ticket, broadcast.ticket)
 
         mock_queue_broadcast.assert_called_once_with(broadcast)
 
@@ -1072,7 +1073,7 @@ class APITest(TembaTest):
                     "offset": 6,
                     "unit": "hours",
                     "delivery_hour": 12,
-                    "flow": {"uuid": flow.uuid, "name": "Color Flow"},
+                    "flow": {"uuid": flow.uuid, "name": "Test Flow"},
                     "message": None,
                     "created_on": format_datetime(event3.created_on),
                 },
@@ -1083,7 +1084,7 @@ class APITest(TembaTest):
                     "offset": 6,
                     "unit": "hours",
                     "delivery_hour": 12,
-                    "flow": {"uuid": flow.uuid, "name": "Color Flow"},
+                    "flow": {"uuid": flow.uuid, "name": "Test Flow"},
                     "message": None,
                     "created_on": format_datetime(event2.created_on),
                 },
@@ -1472,11 +1473,11 @@ class APITest(TembaTest):
         self.assertEndpointAccess(url)
 
         # create deleted channel
-        deleted = Channel.create(self.org, self.admin, None, "JC", name="Deleted", address="nyaruka", role="SR")
-        deleted.release()
+        deleted = self.create_channel("JC", "Deleted", "nyaruka")
+        deleted.release(self.admin)
 
         # create channel for other org
-        Channel.create(self.org2, self.admin2, None, "TT", name="Twitter Channel", address="nyaruka", role="SR")
+        self.create_channel("TT", "Twitter Channel", "nyaruka", org=self.org2)
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 2):
@@ -1630,6 +1631,15 @@ class APITest(TembaTest):
                 "last_seen_on": "2020-08-12T13:30:45.123456Z",
             },
         )
+
+        # reversed
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 4):
+            response = self.fetchJSON(url, "reverse=true")
+
+        resp_json = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(resp_json["next"], None)
+        self.assertResultsByUUID(response, [self.frank, contact1, contact2, self.joe, contact4])
 
         # filter by UUID
         response = self.fetchJSON(url, "uuid=%s" % contact2.uuid)
@@ -3302,7 +3312,7 @@ class APITest(TembaTest):
             },
         )
 
-        self.org.set_languages(self.admin, ["eng", "fra"], "eng")
+        self.org.set_flow_languages(self.admin, ["eng", "fra"])
 
         response = self.fetchJSON(url)
         self.assertEqual(
@@ -3319,26 +3329,6 @@ class APITest(TembaTest):
                 "anon": False,
             },
         )
-
-        # try to set languages which do not exist in iso639-3
-        self.org.set_languages(self.admin, ["fra", "123", "eng"], "eng")
-
-        for urn in ("/api/v2/org", "/api/v2/workspace"):
-            response = self.fetchJSON(url)
-            self.assertEqual(
-                response.json(),
-                {
-                    "uuid": str(self.org.uuid),
-                    "name": "Temba",
-                    "country": "RW",
-                    "languages": ["eng", "fra"],
-                    "primary_language": "eng",
-                    "timezone": "Africa/Kigali",
-                    "date_style": "day_first",
-                    "credits": {"used": 0, "remaining": 1000},
-                    "anon": False,
-                },
-            )
 
     def test_media(self):
         url = reverse("api.v2.media") + ".json"
@@ -3500,6 +3490,14 @@ class APITest(TembaTest):
             },
             resp_json["results"][4],
         )
+
+        # reversed
+        with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 5):
+            response = self.fetchJSON(url, "reverse=true")
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(None, response.json()["next"])
+        self.assertResultsById(response, [joe_run1, frank_run1, frank_run2, joe_run2, joe_run3])
 
         # filter by id
         response = self.fetchJSON(url, "id=%d" % frank_run2.pk)
@@ -4382,7 +4380,9 @@ class APITest(TembaTest):
         self.assertEqual(1, len(resp_json["results"]))
         self.assertEqual("Mailgun (bob@acme.com)", resp_json["results"][0]["name"])
 
-    def test_tickets(self):
+    @patch("temba.mailroom.client.MailroomClient.ticket_close")
+    @patch("temba.mailroom.client.MailroomClient.ticket_reopen")
+    def test_tickets(self, mock_ticket_reopen, mock_ticket_close):
         url = reverse("api.v2.tickets")
         self.assertEndpointAccess(url)
 
@@ -4390,36 +4390,15 @@ class APITest(TembaTest):
         mailgun = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun", {})
         ann = self.create_contact("Ann", urns=["twitter:annie"])
         bob = self.create_contact("Bob", urns=["twitter:bobby"])
-        ticket1 = Ticket.objects.create(
-            org=self.org, ticketer=mailgun, contact=ann, subject="Need help", body="Now", status=Ticket.STATUS_CLOSED
+        ticket1 = self.create_ticket(
+            mailgun, ann, "Need help", body="Now", closed_on=datetime(2021, 1, 1, 12, 30, 45, 123456, pytz.UTC)
         )
-        ticket2 = Ticket.objects.create(
-            org=self.org,
-            ticketer=mailgun,
-            contact=bob,
-            subject="Need help again",
-            body="Now",
-            status=Ticket.STATUS_OPEN,
-        )
-        ticket3 = Ticket.objects.create(
-            org=self.org,
-            ticketer=mailgun,
-            contact=bob,
-            subject="It's bob",
-            body="Pleeeease help",
-            status=Ticket.STATUS_OPEN,
-        )
+        ticket2 = self.create_ticket(mailgun, bob, "Need help again", body="Now")
+        ticket3 = self.create_ticket(mailgun, bob, "It's bob", body="Pleeeease help")
 
         # on another org
         zendesk = Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
-        Ticket.objects.create(
-            org=self.org2,
-            ticketer=zendesk,
-            contact=self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2),
-            subject="Need help",
-            body="Now",
-            status=Ticket.STATUS_CLOSED,
-        )
+        self.create_ticket(zendesk, self.create_contact("Jim", urns=["twitter:jimmy"], org=self.org2), "Need help")
 
         response = self.fetchJSON(url, "ticketer_type=zendesk")
         resp_json = response.json()
@@ -4457,7 +4436,7 @@ class APITest(TembaTest):
                 },
                 {
                     "uuid": str(ticket1.uuid),
-                    "closed_on": None,
+                    "closed_on": "2021-01-01T12:30:45.123456Z",
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
                     "contact": {"uuid": str(ann.uuid), "name": "Ann"},
                     "status": "closed",
@@ -4489,17 +4468,11 @@ class APITest(TembaTest):
         # close one of the tickets
         self.postJSON(url, f"uuid={ticket1.uuid}", {"status": "closed"})
 
-        # make sure it shows as closed with a closed_on date
-        response = self.fetchJSON(url)
-        resp_json = response.json()
-        updated = resp_json["results"][2]
-        self.assertEqual(updated["status"], "closed")
-        self.assertIsNotNone(updated["closed_on"])
+        # check that triggered a call to mailroom
+        mock_ticket_close.assert_called_once_with(self.org.id, self.admin.id, [ticket1.id])
 
-        # reopen that ticket
-        self.postJSON(url, f"uuid={ticket1.uuid}", {"status": "open"})
-        response = self.fetchJSON(url)
-        resp_json = response.json()
-        updated = resp_json["results"][1]
-        self.assertEqual(updated["status"], "open")
-        self.assertIsNone(updated["closed_on"])
+        # reopen a ticket
+        self.postJSON(url, f"uuid={ticket2.uuid}", {"status": "open"})
+
+        # check that triggered a call to mailroom
+        mock_ticket_reopen.assert_called_once_with(self.org.id, self.admin.id, [ticket2.id])

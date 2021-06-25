@@ -13,7 +13,6 @@ import requests
 import twilio.base.exceptions
 from smartmin.views import (
     SmartCRUDL,
-    SmartDeleteView,
     SmartFormView,
     SmartListView,
     SmartModelActionView,
@@ -40,7 +39,7 @@ from temba.contacts.models import URN
 from temba.msgs.models import OUTGOING, PENDING, QUEUED, WIRED, Msg, SystemLabel
 from temba.msgs.views import InboxView
 from temba.orgs.models import Org
-from temba.orgs.views import AnonMixin, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import AnonMixin, DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils import analytics, countries, json
 from temba.utils.fields import SelectWidget
 from temba.utils.models import patch_queryset_count
@@ -274,7 +273,7 @@ def sync(request, channel_id):
 
             elif keyword == "reset":
                 # release this channel
-                channel.release(False)
+                channel.release(channel.modified_by, trigger_sync=False)
                 channel.save()
 
                 # ack that things got handled
@@ -732,38 +731,36 @@ class ChannelCRUDL(SmartCRUDL):
         def get_gear_links(self):
             links = []
 
-            channel = self.get_object()
-
-            extra_links = channel.get_type().extra_links
+            extra_links = self.object.get_type().extra_links
             if extra_links:
                 for extra in extra_links:
-                    links.append(dict(title=extra["name"], href=reverse(extra["link"], args=[channel.uuid])))
+                    links.append(dict(title=extra["name"], href=reverse(extra["link"], args=[self.object.uuid])))
 
-            if channel.parent:
+            if self.object.parent:
                 links.append(
                     dict(
                         title=_("Android Channel"),
                         style="button-primary",
-                        href=reverse("channels.channel_read", args=[channel.parent.uuid]),
+                        href=reverse("channels.channel_read", args=[self.object.parent.uuid]),
                     )
                 )
 
-            if channel.get_type().show_config_page:
+            if self.object.get_type().show_config_page:
                 links.append(
-                    dict(title=_("Settings"), href=reverse("channels.channel_configuration", args=[channel.uuid]))
+                    dict(title=_("Settings"), href=reverse("channels.channel_configuration", args=[self.object.uuid]))
                 )
 
-            if not channel.is_android():
-                sender = channel.get_sender()
-                caller = channel.get_caller()
+            if not self.object.is_android():
+                sender = self.object.get_sender()
+                caller = self.object.get_caller()
 
                 if sender:
                     links.append(
                         dict(title=_("Channel Log"), href=reverse("channels.channellog_list", args=[sender.uuid]))
                     )
-                elif Channel.ROLE_RECEIVE in channel.role:
+                elif Channel.ROLE_RECEIVE in self.object.role:
                     links.append(
-                        dict(title=_("Channel Log"), href=reverse("channels.channellog_list", args=[channel.uuid]))
+                        dict(title=_("Channel Log"), href=reverse("channels.channellog_list", args=[self.object.uuid]))
                     )
 
                 if caller and caller != sender:
@@ -779,49 +776,49 @@ class ChannelCRUDL(SmartCRUDL):
                     dict(
                         id="update-channel",
                         title=_("Edit"),
-                        href=reverse("channels.channel_update", args=[self.get_object().id]),
+                        href=reverse("channels.channel_update", args=[self.object.id]),
                         modax=_("Edit Channel"),
                     )
                 )
 
-                if channel.is_android() or (channel.parent and channel.parent.is_android()):
+                if self.object.is_android() or (self.object.parent and self.object.parent.is_android()):
 
-                    sender = self.get_object().get_sender()
+                    sender = self.object.get_sender()
                     if sender and sender.is_delegate_sender():
                         links.append(
                             dict(
                                 id="disable-sender",
                                 title=_("Disable Bulk Sending"),
                                 modax=_("Disable Bulk Sending"),
-                                href=reverse("channels.channel_delete", args=[sender.pk]),
+                                href=reverse("channels.channel_delete", args=[sender.uuid]),
                             )
                         )
-                    elif self.get_object().is_android():
+                    elif self.object.is_android():
                         links.append(
                             dict(
                                 title=_("Enable Bulk Sending"),
                                 href="%s?channel=%d"
-                                % (reverse("channels.channel_bulk_sender_options"), self.get_object().pk),
+                                % (reverse("channels.channel_bulk_sender_options"), self.object.id),
                             )
                         )
 
-                    caller = self.get_object().get_caller()
+                    caller = self.object.get_caller()
                     if caller and caller.is_delegate_caller():
                         links.append(
                             dict(
                                 id="disable-voice",
                                 title=_("Disable Voice Calling"),
                                 modax=_("Disable Voice Calling"),
-                                href=reverse("channels.channel_delete", args=[caller.pk]),
+                                href=reverse("channels.channel_delete", args=[caller.uuid]),
                             )
                         )
-                    elif channel.org.is_connected_to_twilio():
+                    elif self.object.org.is_connected_to_twilio():
                         links.append(
                             dict(
                                 id="enable-voice",
                                 title=_("Enable Voice Calling"),
                                 js_class="posterize",
-                                href=f"{reverse('channels.channel_create_caller')}?channel={channel.id}",
+                                href=f"{reverse('channels.channel_create_caller')}?channel={self.object.id}",
                             )
                         )
 
@@ -829,9 +826,9 @@ class ChannelCRUDL(SmartCRUDL):
                 links.append(
                     dict(
                         id="delete-channel",
-                        title=_("Delete"),
+                        title=_("Delete Channel"),
                         modax=_("Delete Channel"),
-                        href=reverse("channels.channel_delete", args=[self.get_object().pk]),
+                        href=reverse("channels.channel_delete", args=[self.object.uuid]),
                     )
                 )
 
@@ -841,7 +838,7 @@ class ChannelCRUDL(SmartCRUDL):
                         id="fb-whitelist",
                         title=_("Whitelist Domain"),
                         modax=_("Whitelist Domain"),
-                        href=reverse("channels.channel_facebook_whitelist", args=[self.get_object().uuid]),
+                        href=reverse("channels.channel_facebook_whitelist", args=[self.object.uuid]),
                     )
                 )
 
@@ -851,7 +848,7 @@ class ChannelCRUDL(SmartCRUDL):
                     dict(
                         title=_("Service"),
                         posterize=True,
-                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("channels.channel_read", args=[self.get_object().uuid])}',
+                        href=f'{reverse("orgs.org_service")}?organization={self.object.org_id}&redirect_url={reverse("channels.channel_read", args=[self.object.uuid])}',
                     )
                 )
 
@@ -1085,25 +1082,27 @@ class ChannelCRUDL(SmartCRUDL):
                 default_error = dict(message=_("An error occured contacting the Facebook API"))
                 raise ValidationError(response_json.get("error", default_error)["message"])
 
-    class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
-        cancel_url = "id@channels.channel_read"
-        success_url = "@orgs.org_home"
-        title = _("Remove Android")
-        submit_button_name = _("Delete")
-        success_message = ""
-        fields = ("id",)
+    class Delete(DependencyDeleteModal):
+        cancel_url = "uuid@channels.channel_read"
+        success_message = _("Your channel has been removed.")
+        success_message_twilio = _(
+            "We have disconnected your Twilio number. "
+            "If you do not need this number you can delete it from the Twilio website."
+        )
 
         def get_success_url(self):
+            # if we're deleting a child channel, redirect to parent afterwards
             channel = self.get_object()
-            if channel.parent:  # pragma: needs cover
+            if channel.parent:
                 return reverse("channels.channel_read", args=[channel.parent.uuid])
+
             return reverse("orgs.org_home")
 
-        def derive_submit_button_name(self):  # pragma: needs cover
+        def derive_submit_button_name(self):
             channel = self.get_object()
+
             if channel.is_delegate_caller():
                 return _("Disable Voice Calling")
-
             if channel.is_delegate_sender():
                 return _("Disable Bulk Sending")
 
@@ -1113,46 +1112,28 @@ class ChannelCRUDL(SmartCRUDL):
             channel = self.get_object()
 
             try:
-                channel.release(trigger_sync=self.request.META["SERVER_NAME"] != "testserver")
-
-                if channel.channel_type == "T" and not channel.is_delegate_sender():
-                    messages.info(
-                        request,
-                        _(
-                            "We have disconnected your Twilio number. If you do not need this number you can delete it from the Twilio website."
-                        ),
-                    )
-                else:
-                    messages.info(request, _("Your channel has been removed."))
-
-                response = HttpResponse()
-                response["Temba-Success"] = self.get_success_url()
-                return response
-
+                channel.release(request.user)
             except TwilioRestException as e:
                 messages.error(
                     request,
                     _(
-                        "Twilio reported an error removing your channel (Twilio error %s). Please try again later."
-                        % e.code
+                        f"Twilio reported an error removing your channel (error code {e.code}). Please try again later."
                     ),
                 )
 
                 response = HttpResponse()
-                response["Temba-Success"] = self.get_success_url()
+                response["Temba-Success"] = self.cancel_url
                 return response
 
-            except ValueError as e:
-                logger.error("Error removing a channel", exc_info=True)
+            # override success message for Twilio channels
+            if channel.channel_type == "T" and not channel.is_delegate_sender():
+                messages.info(request, self.success_message_twilio)
+            else:
+                messages.info(request, self.success_message)
 
-                messages.error(request, str(e))
-                return HttpResponseRedirect(reverse("channels.channel_read", args=[channel.uuid]))
-
-            except Exception:  # pragma: no cover
-                logger.error("Error removing a channel", exc_info=True)
-
-                messages.error(request, _("We encountered an error removing your channel, please try again later."))
-                return HttpResponseRedirect(reverse("channels.channel_read", args=[channel.uuid]))
+            response = HttpResponse()
+            response["Temba-Success"] = self.get_success_url()
+            return response
 
     class Update(OrgObjPermsMixin, ComponentFormMixin, ModalMixin, SmartUpdateView):
         success_message = ""

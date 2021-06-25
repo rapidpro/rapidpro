@@ -24,6 +24,7 @@ from twilio.rest import Client as TwilioClient
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
+from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.temp import NamedTemporaryFile
@@ -259,6 +260,8 @@ class Org(SmartModel):
         LIMIT_GROUPS: settings.MAX_ACTIVE_CONTACTGROUPS_PER_ORG,
     }
 
+    DELETE_DELAY_DAYS = 7  # how many days after releasing that an org is deleted
+
     uuid = models.UUIDField(unique=True, default=uuid4)
 
     name = models.CharField(verbose_name=_("Name"), max_length=128)
@@ -349,14 +352,7 @@ class Org(SmartModel):
         default=False, help_text=_("Whether this organization can have multiple logins")
     )
 
-    primary_language = models.ForeignKey(
-        "orgs.Language",
-        null=True,
-        blank=True,
-        related_name="orgs",
-        help_text=_("The primary language will be used for contacts with no language preference."),
-        on_delete=models.PROTECT,
-    )
+    flow_languages = ArrayField(models.CharField(max_length=3), default=list)
 
     brand = models.CharField(
         max_length=128,
@@ -418,6 +414,7 @@ class Org(SmartModel):
                 name=name,
                 timezone=timezone,
                 language=self.language,
+                flow_languages=self.flow_languages,
                 brand=self.brand,
                 parent=self,
                 slug=slug,
@@ -793,7 +790,7 @@ class Org(SmartModel):
         if self.config:
             # release any vonage channels
             for channel in self.channels.filter(is_active=True, channel_type="NX"):  # pragma: needs cover
-                channel.release()
+                channel.release(user)
 
             self.config.pop(Org.CONFIG_VONAGE_KEY, None)
             self.config.pop(Org.CONFIG_VONAGE_SECRET, None)
@@ -804,7 +801,7 @@ class Org(SmartModel):
         if self.config:
             # release any Twilio and Twilio Messaging Service channels
             for channel in self.channels.filter(is_active=True, channel_type__in=["T", "TMS"]):
-                channel.release()
+                channel.release(user)
 
             self.config.pop(Org.CONFIG_TWILIO_SID, None)
             self.config.pop(Org.CONFIG_TWILIO_TOKEN, None)
@@ -869,36 +866,17 @@ class Org(SmartModel):
 
         return None
 
-    def get_language_codes(self, include_primary: bool = True) -> set:
-        qs = self.languages.values_list("iso_code", flat=True)
-        if not include_primary and self.primary_language:
-            qs = qs.filter(orgs=None)
-
-        return set(qs)
-
-    def set_languages(self, user, iso_codes, primary):
+    def set_flow_languages(self, user, codes):
         """
-        Sets languages for this org, creating and deleting language objects as necessary
+        Sets languages used in flows for this org, creating and deleting language objects as necessary
         """
-        for iso_code in iso_codes:
-            name = languages.get_name(iso_code)
-            language = self.languages.filter(iso_code=iso_code).first()
 
-            # if it's valid and doesn't exist yet, create it
-            if name and not language:
-                language = self.languages.create(iso_code=iso_code, name=name, created_by=user, modified_by=user)
+        assert all([languages.get_name(c) for c in codes]), "not a valid or allowed language"
+        assert len(set(codes)) == len(codes), "language code list contains duplicates"
 
-            if iso_code == primary:
-                self.primary_language = language
-                self.save(update_fields=("primary_language",))
-
-        # unset the primary language if not in the new list of codes
-        if self.primary_language and self.primary_language.iso_code not in iso_codes:
-            self.primary_language = None
-            self.save(update_fields=("primary_language",))
-
-        # remove any languages that are not in the new list
-        self.languages.exclude(iso_code__in=iso_codes).delete()
+        self.flow_languages = codes
+        self.modified_by = user
+        self.save(update_fields=("flow_languages", "modified_by", "modified_on"))
 
     def get_datetime_formats(self):
         format_date = Org.DATE_FORMATS_PYTHON.get(self.date_format)
@@ -1520,7 +1498,7 @@ class Org(SmartModel):
                         deps.update(campaigns_by_group[d])
 
         if include_triggers:
-            all_triggers = self.trigger_set.filter(is_archived=False, is_active=True).select_related("flow")
+            all_triggers = self.triggers.filter(is_archived=False, is_active=True).select_related("flow")
             for trigger in all_triggers:
                 dependencies[trigger] = {trigger.flow}
 
@@ -1636,7 +1614,7 @@ class Org(SmartModel):
 
         return f"{settings.STORAGE_URL}/{location}"
 
-    def release(self, *, release_users=True, delete=False):
+    def release(self, user, *, release_users=True):
         """
         Releases this org, marking it as inactive. Actual deletion of org data won't happen until after 7 days unless
         delete is True.
@@ -1647,33 +1625,25 @@ class Org(SmartModel):
 
         # deactivate ourselves
         self.is_active = False
+        self.modified_by = user
         self.released_on = timezone.now()
-        self.save(update_fields=("is_active", "released_on", "modified_on"))
+        self.save(update_fields=("is_active", "released_on", "modified_by", "modified_on"))
 
-        # clear all our channel dependencies on our flows
-        for flow in self.flows.all():
-            flow.channel_dependencies.clear()
-
-        # and immediately release our channels
-        from temba.channels.models import Channel
-
-        for channel in Channel.objects.filter(org=self, is_active=True):
-            channel.release()
+        # and immediately release our channels to halt messaging
+        for channel in self.channels.filter(is_active=True):
+            channel.release(user)
 
         # release any user that belongs only to us
         if release_users:
-            for user in self.get_users():
+            for org_user in self.get_users():
                 # check if this user is a member of any org on any brand
-                other_orgs = user.get_user_orgs().exclude(id=self.id)
+                other_orgs = org_user.get_user_orgs().exclude(id=self.id)
                 if not other_orgs:
-                    user.release(self.brand)
+                    org_user.release(user, brand=self.brand)
 
         # remove all the org users
-        for user in self.get_users():
-            self.remove_user(user)
-
-        if delete:
-            self.delete()
+        for org_user in self.get_users():
+            self.remove_user(org_user)
 
     def delete(self):
         """
@@ -1704,31 +1674,23 @@ class Org(SmartModel):
         # our system label counts
         self.system_labels.all().delete()
 
-        # delete our flow labels
-        self.flow_labels.all().delete()
-
         # delete all our campaigns and associated events
         for c in self.campaigns.all():
             c._full_release()
 
         # delete everything associated with our flows
         for flow in self.flows.all():
-            # we want to manually release runs so we don't fire a task to do it
+            # we want to manually release runs so we don't fire a mailroom task to do it
             flow.release(interrupt_sessions=False)
-            flow.release_runs()
-
-            for rev in flow.revisions.all():
-                rev.release()
-
-            flow.category_counts.all().delete()
-            flow.path_counts.all().delete()
-            flow.node_counts.all().delete()
-            flow.exit_counts.all().delete()
-
             flow.delete()
+
+        # delete our flow labels (deleting a label deletes its children)
+        for flow_label in self.flow_labels.filter(parent=None):
+            flow_label.delete()
 
         # delete contact-related data
         self.sessions.all().delete()
+        self.ticket_events.all().delete()
         self.tickets.all().delete()
         self.airtime_transfers.all().delete()
 
@@ -1755,8 +1717,6 @@ class Org(SmartModel):
 
         # delete our channels
         for channel in self.channels.all():
-            channel.release()
-
             channel.counts.all().delete()
             channel.logs.all().delete()
             channel.template_translations.all().delete()
@@ -1798,10 +1758,6 @@ class Org(SmartModel):
                 sub.delete()
             resthook.delete()
 
-        # delete org languages
-        Org.objects.filter(id=self.id).update(primary_language=None)
-        self.languages.all().delete()
-
         # release our broadcasts
         for bcast in self.broadcast_set.filter(parent=None):
             bcast.release()
@@ -1822,7 +1778,6 @@ class Org(SmartModel):
         self.deleted_on = timezone.now()
         self.config = {}
         self.surveyor_password = None
-        self.primary_language = None
         self.save()
 
     @classmethod
@@ -1855,8 +1810,8 @@ class Org(SmartModel):
             "date_format": Org.DATE_FORMATS_ENGINE.get(self.date_format),
             "time_format": "tt:mm",
             "timezone": str(self.timezone),
-            "default_language": self.primary_language.iso_code if self.primary_language else None,
-            "allowed_languages": list(self.get_language_codes()),
+            "default_language": self.flow_languages[0] if self.flow_languages else None,
+            "allowed_languages": self.flow_languages,
             "default_country": self.default_country_code,
             "redaction_policy": "urns" if self.is_anon else "none",
         }
@@ -1868,7 +1823,10 @@ class Org(SmartModel):
 # ===================== monkey patch User class with a few extra functions ========================
 
 
-def release(user, brand):
+def release(user, releasing_user, *, brand):
+    """
+    Releases this user, and any orgs of which they are the sole owner
+    """
 
     # if our user exists across brands don't muck with the user
     if user.get_user_orgs().order_by("brand").distinct("brand").count() < 2:
@@ -1883,7 +1841,7 @@ def release(user, brand):
 
     # release any orgs we own on this brand
     for org in user.get_owned_orgs([brand]):
-        org.release(release_users=False)
+        org.release(releasing_user, release_users=False)
 
     # remove user from all roles on any org for our brand
     for org in user.get_user_orgs([brand]):
@@ -2045,54 +2003,6 @@ def get_stripe_credentials():
         "STRIPE_PRIVATE_KEY", getattr(settings, "STRIPE_PRIVATE_KEY", "MISSING_STRIPE_PRIVATE_KEY")
     )
     return (public_key, private_key)
-
-
-class Language(SmartModel):
-    """
-    A Language that has been added to the org. In the end and language is just an iso_code and name
-    and it is not really restricted to real-world languages at this level. Instead we restrict the
-    language selection options to real-world languages.
-    """
-
-    name = models.CharField(max_length=128)
-
-    iso_code = models.CharField(max_length=4)
-
-    org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="languages")
-
-    @classmethod
-    def create(cls, org, user, name, iso_code):
-        return cls.objects.create(org=org, name=name, iso_code=iso_code, created_by=user, modified_by=user)
-
-    def as_json(self):  # pragma: needs cover
-        return dict(name=self.name, iso_code=self.iso_code)
-
-    @classmethod
-    def get_localized_text(cls, text_translations, preferred_languages, default_text=""):
-        """
-        Returns the appropriate translation to use.
-        :param text_translations: A dictionary (or plain text) which contains our message indexed by language iso code
-        :param preferred_languages: The prioritized list of language preferences (list of iso codes)
-        :param default_text: default text to use if no match is found
-        """
-        # No translations, return our default text
-        if not text_translations:
-            return default_text
-
-        # If we are handed raw text without translations, just return that
-        if not isinstance(text_translations, dict):  # pragma: no cover
-            return text_translations
-
-        # otherwise, find the first preferred language
-        for lang in preferred_languages:
-            localized = text_translations.get(lang)
-            if localized is not None:
-                return localized
-
-        return default_text
-
-    def __str__(self):  # pragma: needs cover
-        return "%s" % self.name
 
 
 class Invitation(SmartModel):

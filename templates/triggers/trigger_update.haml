@@ -1,55 +1,28 @@
 -extends 'includes/modax.html'
 -load i18n temba smartmin humanize
 
-
 -block fields
-  %script{src:"{{ STATIC_URL }}js/temba.js"}
-  
   -if object.schedule
-    :css
-      #schedule-options #start-datetime {
-        margin-top:10px;
-        color: #2980b9;
-        cursor:pointer;
-      }
-
-    #trigger_flow  
-      -render_field 'flow'
-    #trigger_omnibox
-      -render_field 'omnibox'
-    #schedule-options
-      -render_field 'start_datetime'
-    #recurrence{class:'{% if not object.schedule.next_fire %}hidden{%endif%}'}
-      .repeat-period
-        -render_field 'repeat_period'
-      .weekly-repeat-options{class:'{% if form.repeat_period.value == "W" %}{% else%}hidden{%endif%}'}
-        -render_field 'repeat_days_of_week'
-    -else
-      {{block.super}}
-
-
--block modal-extra-style
-  {{block.super}}
-  %link{rel:"stylesheet", href:"{{ STATIC_URL }}css/tailwind.css", type:"text/css"}
-  %link{type:'text/css', rel:'stylesheet', href:"{{ STATIC_URL }}fonts/temba/style.css", media:'all'}
+    -include 'includes/schedule_fields.haml' with form=form
+    -render_field 'flow'
+    -render_field 'groups'
+    -render_field 'exclude_groups'
+    -render_field 'contacts'
+  -else
+    {{ block.super }}
 
 -block modal-script
-  :javascript
-    {{block.super}}
-
-    var body = document.querySelector("#update-trigger").getBody();
-    var repeatPeriod = body.querySelector("#id_repeat_period");
-    if (repeatPeriod) {
+  {{ block.super }}
+  -if object.schedule
+    :javascript
+      var body = document.querySelector("#update-trigger").getBody();
+      var repeatPeriod = body.querySelector("#id_repeat_period");
+      var repeatDays = body.querySelector(".repeat-days-container");
       repeatPeriod.addEventListener("change", function(event){
         var currentRepeat = event.currentTarget.values[0].value;
-        if (currentRepeat == 'W') {
-          body.querySelector(".weekly-repeat-options").classList.remove("hidden");
+        if (currentRepeat === 'W') {
+          repeatDays.classList.remove("hidden");
         } else {
-          body.querySelector(".weekly-repeat-options").classList.add("hidden");
+          repeatDays.classList.add("hidden");
         }
       });
-    }
-
-
-
-

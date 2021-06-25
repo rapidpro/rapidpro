@@ -1,3 +1,4 @@
+from decimal import Decimal
 from unittest.mock import patch
 
 from django_redis import get_redis_connection
@@ -13,6 +14,7 @@ from temba.mailroom.client import ContactSpec, MailroomException, get_client
 from temba.msgs.models import Broadcast, Msg
 from temba.tests import MockResponse, TembaTest, matchers, mock_mailroom
 from temba.tests.engine import MockSessionWriter
+from temba.tickets.models import Ticketer, TicketEvent
 from temba.utils import json
 
 from . import modifiers, queue_interrupt
@@ -47,30 +49,50 @@ class MailroomClientTest(TembaTest):
             self.assertEqual("@(bad)", migrated)
 
     def test_flow_migrate(self):
+        flow_def = {"nodes": [{"val": Decimal("1.23")}]}
+
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"name": "Migrated!"}')
-            migrated = get_client().flow_migrate({"nodes": []}, to_version="13.1.0")
+            migrated = get_client().flow_migrate(flow_def, to_version="13.1.0")
 
             self.assertEqual({"name": "Migrated!"}, migrated)
 
-        mock_post.assert_called_once_with(
-            "http://localhost:8090/mr/flow/migrate",
-            headers={"User-Agent": "Temba"},
-            json={"flow": {"nodes": []}, "to_version": "13.1.0"},
-        )
+        call = mock_post.call_args
+
+        self.assertEqual(("http://localhost:8090/mr/flow/migrate",), call[0])
+        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
+        self.assertEqual({"flow": flow_def, "to_version": "13.1.0"}, json.loads(call[1]["data"]))
+
+    @override_settings(TESTING=False)
+    def test_flow_inspect(self):
+        flow_def = {"nodes": [{"val": Decimal("1.23")}]}
+
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"dependencies":[]}')
+            info = get_client().flow_inspect(self.org.id, flow_def)
+
+            self.assertEqual({"dependencies": []}, info)
+
+        call = mock_post.call_args
+
+        self.assertEqual(("http://localhost:8090/mr/flow/inspect",), call[0])
+        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
+        self.assertEqual({"org_id": self.org.id, "flow": flow_def}, json.loads(call[1]["data"]))
 
     def test_flow_change_language(self):
+        flow_def = {"nodes": [{"val": Decimal("1.23")}]}
+
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"language": "spa"}')
-            migrated = get_client().flow_change_language({"nodes": []}, language="spa")
+            migrated = get_client().flow_change_language(flow_def, language="spa")
 
             self.assertEqual({"language": "spa"}, migrated)
 
-        mock_post.assert_called_once_with(
-            "http://localhost:8090/mr/flow/change_language",
-            headers={"User-Agent": "Temba"},
-            json={"flow": {"nodes": []}, "language": "spa"},
-        )
+        call = mock_post.call_args
+
+        self.assertEqual(("http://localhost:8090/mr/flow/change_language",), call[0])
+        self.assertEqual({"User-Agent": "Temba", "Content-Type": "application/json"}, call[1]["headers"])
+        self.assertEqual({"flow": flow_def, "language": "spa"}, json.loads(call[1]["data"]))
 
     def test_contact_modify(self):
         with patch("requests.post") as mock_post:
@@ -302,38 +324,25 @@ class MailroomClientTest(TembaTest):
     def test_ticket_close(self):
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
-            response = get_client().ticket_close(1, [123, 345])
+            response = get_client().ticket_close(1, 12, [123, 345])
 
             self.assertEqual({"changed_ids": [123]}, response)
             mock_post.assert_called_once_with(
                 "http://localhost:8090/mr/ticket/close",
                 headers={"User-Agent": "Temba"},
-                json={"org_id": 1, "ticket_ids": [123, 345]},
+                json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345]},
             )
 
     def test_ticket_reopen(self):
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
-            response = get_client().ticket_reopen(1, [123, 345])
+            response = get_client().ticket_reopen(1, 12, [123, 345])
 
             self.assertEqual({"changed_ids": [123]}, response)
             mock_post.assert_called_once_with(
                 "http://localhost:8090/mr/ticket/reopen",
                 headers={"User-Agent": "Temba"},
-                json={"org_id": 1, "ticket_ids": [123, 345]},
-            )
-
-    @override_settings(TESTING=False)
-    def test_inspect_with_org(self):
-        with patch("requests.post") as mock_post:
-            mock_post.return_value = MockResponse(200, '{"dependencies":[]}')
-
-            get_client().flow_inspect(self.org.id, {"nodes": []})
-
-            mock_post.assert_called_once_with(
-                "http://localhost:8090/mr/flow/inspect",
-                headers={"User-Agent": "Temba"},
-                json={"org_id": self.org.id, "flow": {"nodes": []}},
+                json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345]},
             )
 
     def test_request_failure(self):
@@ -439,6 +448,8 @@ class MailroomQueueTest(TembaTest):
     def test_queue_broadcast(self):
         jim = self.create_contact("Jim", phone="+12065551212")
         bobs = self.create_group("Bobs", [self.create_contact("Bob", phone="+12065551313")])
+        ticketer = Ticketer.create(self.org, self.admin, "mailgun", "Support Tickets", {})
+        ticket = self.create_ticket(ticketer, jim, "Help!")
 
         bcast = Broadcast.create(
             self.org,
@@ -448,6 +459,7 @@ class MailroomQueueTest(TembaTest):
             contacts=[jim],
             urns=["tel:+12065556666"],
             base_language="eng",
+            ticket=ticket,
         )
 
         bcast.send_async()
@@ -470,6 +482,7 @@ class MailroomQueueTest(TembaTest):
                     "group_ids": [bobs.id],
                     "broadcast_id": bcast.id,
                     "org_id": self.org.id,
+                    "ticket_id": ticket.id,
                 },
                 "queued_on": matchers.ISODate(),
             },
@@ -504,6 +517,7 @@ class MailroomQueueTest(TembaTest):
                     "start_type": "M",
                     "org_id": self.org.id,
                     "created_by": self.admin.username,
+                    "created_by_id": self.admin.id,
                     "flow_id": flow.id,
                     "flow_type": "M",
                     "contact_ids": [jim.id],
@@ -551,7 +565,7 @@ class MailroomQueueTest(TembaTest):
         )
 
     def test_queue_interrupt_by_channel(self):
-        self.channel.release()
+        self.channel.release(self.admin)
 
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(
@@ -818,4 +832,62 @@ class EventTest(TembaTest):
                 "fired_result": "F",
             },
             Event.from_event_fire(self.org, self.admin, fire),
+        )
+
+    def test_from_ticket_event(self):
+        ticketer = Ticketer.create(self.org, self.user, "mailgun", "Email (bob@acme.com)", {})
+        contact = self.create_contact("Jim", phone="0979111111")
+        ticket = self.create_ticket(ticketer, contact, "Problem", body="Where my shoes?")
+
+        # event with a user
+        event1 = TicketEvent.objects.create(
+            org=self.org,
+            contact=contact,
+            ticket=ticket,
+            event_type=TicketEvent.TYPE_NOTE,
+            created_by=self.agent,
+            note="this is important",
+        )
+
+        self.assertEqual(
+            {
+                "type": "ticket_note_added",
+                "note": "this is important",
+                "ticket": {
+                    "uuid": str(ticket.uuid),
+                    "opened_on": matchers.ISODate(),
+                    "closed_on": None,
+                    "status": "O",
+                    "subject": "Problem",
+                    "body": "Where my shoes?",
+                    "ticketer": {"uuid": str(ticketer.uuid), "name": "Email (bob@acme.com)"},
+                },
+                "created_on": matchers.ISODate(),
+                "created_by": {"id": self.agent.id, "first_name": "", "last_name": "", "email": "Agent@nyaruka.com"},
+            },
+            Event.from_ticket_event(self.org, self.user, event1),
+        )
+
+        # event without a user
+        event2 = TicketEvent.objects.create(
+            org=self.org, contact=contact, ticket=ticket, event_type=TicketEvent.TYPE_CLOSED
+        )
+
+        self.assertEqual(
+            {
+                "type": "ticket_closed",
+                "note": None,
+                "ticket": {
+                    "uuid": str(ticket.uuid),
+                    "opened_on": matchers.ISODate(),
+                    "closed_on": None,
+                    "status": "O",
+                    "subject": "Problem",
+                    "body": "Where my shoes?",
+                    "ticketer": {"uuid": str(ticketer.uuid), "name": "Email (bob@acme.com)"},
+                },
+                "created_on": matchers.ISODate(),
+                "created_by": None,
+            },
+            Event.from_ticket_event(self.org, self.user, event2),
         )

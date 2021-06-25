@@ -1,4 +1,4 @@
-from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartTemplateView
+from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
 from django.db.models.aggregates import Max
@@ -10,7 +10,8 @@ from django.utils.html import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
 from temba.msgs.models import Msg
-from temba.orgs.views import DependencyDeleteModal, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.utils.fields import InputWidget
 from temba.utils.views import BulkActionMixin, ComponentFormMixin
 
 from .models import Ticket, Ticketer
@@ -62,7 +63,7 @@ class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
     folder = None
     fields = ("contact", "subject", "body", "opened_on")
     select_related = ("ticketer", "contact")
-    default_order = ("-opened_on",)
+    default_order = ("-last_activity_on", "-id")
     bulk_actions = ()
 
     def pre_process(self, request, *args, **kwargs):
@@ -83,7 +84,7 @@ class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("list", "folder", "open", "closed", "filter")
+    actions = ("list", "folder", "open", "closed", "filter", "note")
 
     class List(OrgPermsMixin, SmartListView):
         """
@@ -109,13 +110,11 @@ class TicketCRUDL(SmartCRUDL):
             qs = super().get_queryset(**kwargs).filter(org=org).prefetch_related("contact")
 
             if self.kwargs["folder"] == self.FOLDER_OPEN:
-                # TODO we probably want ordering by last message in either direction
-                qs = qs.filter(status=Ticket.STATUS_OPEN).order_by("-contact__last_seen_on", "-opened_on")
-
+                qs = qs.filter(status=Ticket.STATUS_OPEN)
             else:  # self.FOLDER_CLOSED:
-                qs = qs.filter(status=Ticket.STATUS_CLOSED).order_by("-closed_on", "-opened_on")
+                qs = qs.filter(status=Ticket.STATUS_CLOSED)
 
-            return qs
+            return qs.order_by("-last_activity_on", "-id")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -243,6 +242,33 @@ class TicketCRUDL(SmartCRUDL):
         @cached_property
         def ticketer(self):
             return Ticketer.objects.get(uuid=self.kwargs["ticketer"], is_active=True)
+
+    class Note(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
+        """
+        Creates a note for this contact
+        """
+
+        class Form(forms.Form):
+            text = forms.CharField(
+                max_length=2048,
+                required=True,
+                widget=InputWidget({"hide_label": True, "textarea": True}),
+                help_text=_("Notes can only be seen by the support team"),
+            )
+
+            def __init__(self, instance, **kwargs):
+                super().__init__(**kwargs)
+
+        form_class = Form
+        fields = ("text",)
+        success_url = "hide"
+        slug_url_kwarg = "uuid"
+        success_message = ""
+        submit_button_name = _("Add Note")
+
+        def form_valid(self, form):
+            self.get_object().add_note(self.request.user, note=form.cleaned_data["text"])
+            return self.render_modal_response(form)
 
 
 class TicketerCRUDL(SmartCRUDL):

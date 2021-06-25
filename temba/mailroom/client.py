@@ -91,7 +91,7 @@ class MailroomClient:
         if not to_version:
             to_version = Flow.CURRENT_SPEC_VERSION
 
-        return self._request("flow/migrate", {"flow": definition, "to_version": to_version})
+        return self._request("flow/migrate", {"flow": definition, "to_version": to_version}, encode_json=True)
 
     def flow_inspect(self, org_id, flow):
         payload = {"flow": flow}
@@ -100,12 +100,12 @@ class MailroomClient:
         if not settings.TESTING:
             payload["org_id"] = org_id
 
-        return self._request("flow/inspect", payload)
+        return self._request("flow/inspect", payload, encode_json=True)
 
     def flow_change_language(self, flow, language):
         payload = {"flow": flow, "language": language}
 
-        return self._request("flow/change_language", payload)
+        return self._request("flow/change_language", payload, encode_json=True)
 
     def flow_clone(self, flow, dependency_mapping):
         payload = {"flow": flow, "dependency_mapping": dependency_mapping}
@@ -182,13 +182,13 @@ class MailroomClient:
 
         return self._request("contact/parse_query", payload)
 
-    def ticket_close(self, org_id, ticket_ids):
-        payload = {"org_id": org_id, "ticket_ids": ticket_ids}
+    def ticket_close(self, org_id, user_id, ticket_ids):
+        payload = {"org_id": org_id, "user_id": user_id, "ticket_ids": ticket_ids}
 
         return self._request("ticket/close", payload)
 
-    def ticket_reopen(self, org_id, ticket_ids):
-        payload = {"org_id": org_id, "ticket_ids": ticket_ids}
+    def ticket_reopen(self, org_id, user_id, ticket_ids):
+        payload = {"org_id": org_id, "user_id": user_id, "ticket_ids": ticket_ids}
 
         return self._request("ticket/reopen", payload)
 

@@ -501,20 +501,9 @@ PERMISSIONS = {
     "policies.policy": ("admin", "history", "give_consent"),
     "request_logs.httplog": ("classifier", "ticketer"),
     "templates.template": ("api",),
-    "tickets.ticket": ("api", "open", "closed", "filter"),
+    "tickets.ticket": ("api", "open", "closed", "filter", "note"),
     "tickets.ticketer": ("api", "connect", "configure"),
-    "triggers.trigger": (
-        "archived",
-        "catchall",
-        "follow",
-        "inbound_call",
-        "keyword",
-        "missed_call",
-        "new_conversation",
-        "referral",
-        "register",
-        "schedule",
-    ),
+    "triggers.trigger": ("archived", "type"),
 }
 
 
@@ -699,6 +688,7 @@ GROUP_PERMISSIONS = {
         "tickets.ticket_filter",
         "tickets.ticket_open",
         "tickets.ticket_list",
+        "tickets.ticket_note",
         "tickets.ticket_update",
         "tickets.ticketer_api",
         "tickets.ticketer_configure",
@@ -805,6 +795,7 @@ GROUP_PERMISSIONS = {
         "tickets.ticket_api",
         "tickets.ticket_closed",
         "tickets.ticket_filter",
+        "tickets.ticket_note",
         "tickets.ticket_open",
         "tickets.ticket_update",
         "tickets.ticket_list",
@@ -886,8 +877,24 @@ GROUP_PERMISSIONS = {
         "tickets.ticketer_api",
         "triggers.trigger_archived",
         "triggers.trigger_list",
+        "triggers.trigger_type",
     ),
-    "Agents": ("tickets.ticket_list",),
+    "Agents": (
+        "contacts.contact_api",
+        "contacts.contact_history",
+        "contacts.contactfield_api",
+        "contacts.contactgroup_api",
+        "globals.global_api",
+        "msgs.broadcast_api",
+        "tickets.ticket_api",
+        "tickets.ticket_list",
+        "tickets.ticket_note",
+        "tickets.ticket_open",
+        "tickets.ticket_close",
+        "orgs.org_home",
+        "orgs.org_profile",
+        "policies.policy_give_consent",
+    ),
     "Prometheus": (),
 }
 
@@ -996,7 +1003,6 @@ CELERY_RESULT_BACKEND = None
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 
-IS_PROD = False
 HOSTNAME = "localhost"
 
 # The URL and port of the proxy server to use when needed (if any, in requests format)

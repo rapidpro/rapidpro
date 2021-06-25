@@ -89,8 +89,7 @@ class TextItWhatsappTypeTest(TembaTest):
                 pass
 
         # deactivate our channel
-        with self.settings(IS_PROD=True):
-            with patch("requests.post") as mock_post:
-                mock_post.side_effect = [MockResponse(200, '{"url": "" }')]
-                channel.release()
-                self.assertEqual(mock_post.call_args_list[0][1]["json"]["url"], "")
+        with patch("requests.post") as mock_post:
+            mock_post.side_effect = [MockResponse(200, '{"url": "" }')]
+            channel.release(self.admin)
+            self.assertEqual(mock_post.call_args_list[0][1]["json"]["url"], "")

@@ -5,7 +5,6 @@ from decimal import Decimal
 from itertools import chain
 from pathlib import Path
 from typing import Any, Dict, List, Set, Tuple
-from uuid import uuid4
 
 import iso8601
 import phonenumbers
@@ -21,6 +20,7 @@ from django.core.validators import validate_email
 from django.db import IntegrityError, models, transaction
 from django.db.models import Count, F, Max, Q, Sum, Value
 from django.db.models.functions import Concat
+from django.db.models.functions.text import Upper
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
 
@@ -35,6 +35,7 @@ from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExport
 from temba.utils.models import JSONField as TembaJSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
 from temba.utils.text import decode_stream, truncate, unsnakify
 from temba.utils.urns import ParsedURN, parse_number, parse_urn
+from temba.utils.uuid import uuid4
 
 from .search import SearchException, elastic, parse_query
 
@@ -759,9 +760,9 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             Q(contacts__in=[self]) | Q(urns__in=contact_urns) | Q(groups__in=contact_groups)
         )
 
-        return scheduled_broadcasts.order_by("schedule__next_fire")
+        return scheduled_broadcasts.select_related("org").order_by("schedule__next_fire")
 
-    def get_history(self, after: datetime, before: datetime, include_event_types: set, limit: int) -> list:
+    def get_history(self, after: datetime, before: datetime, include_event_types: set, ticket, limit: int) -> list:
         """
         Gets this contact's history of messages, calls, runs etc in the given time window
         """
@@ -769,7 +770,6 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
         from temba.ivr.models import IVRCall
         from temba.mailroom.events import get_event_time
         from temba.msgs.models import Msg
-        from temba.tickets.models import Ticket
 
         msgs = (
             self.msgs.filter(created_on__gte=after, created_on__lt=before)
@@ -816,9 +816,17 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             .select_related("channel")[:limit]
         )
 
-        closed_tickets = self.tickets.filter(
-            status=Ticket.STATUS_CLOSED, closed_on__gte=after, closed_on__lt=before
-        ).order_by("-closed_on")
+        ticket_events = (
+            self.ticket_events.filter(created_on__gte=after, created_on__lt=before)
+            .select_related("ticket__ticketer")
+            .order_by("-created_on")
+        )
+
+        # can limit to single ticket when viewing a specific ticket rather than the contact read page
+        if ticket:
+            ticket_events = ticket_events.filter(ticket=ticket)
+
+        ticket_events = ticket_events[:limit]
 
         transfers = self.airtime_transfers.filter(created_on__gte=after, created_on__lt=before).order_by(
             "-created_on"
@@ -831,13 +839,13 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
             msgs,
             started_runs,
             exited_runs,
+            ticket_events,
             channel_events,
             campaign_events,
             webhook_results,
             calls,
             transfers,
             session_events,
-            closed_tickets,
         )
 
         # sort and slice
@@ -1275,6 +1283,12 @@ class Contact(RequireUpdateFieldsMixin, TembaModel):
     def __str__(self):
         return self.get_display()
 
+    class Meta:
+        indexes = [
+            # used for getting the oldest modified_on per org in mailroom
+            models.Index(name="contacts_contact_org_modified", fields=["org", "-modified_on"]),
+        ]
+
 
 class ContactURN(models.Model):
     """
@@ -1542,6 +1556,8 @@ class ContactGroup(TembaModel):
         if ready_only:
             groups = groups.filter(status=ContactGroup.STATUS_READY)
 
+        # put our dynamic groups first, then alpha sort
+        groups = groups.annotate(has_query=Count("query")).select_related("org").order_by("-has_query", Upper("name"))
         return groups
 
     @classmethod
@@ -1624,6 +1640,11 @@ class ContactGroup(TembaModel):
 
         # first character must be a word char
         return regex.match(r"\w", name[0], flags=regex.UNICODE)
+
+    def get_icon(self):
+        if self.is_dynamic:
+            return "atom"
+        return "users"
 
     def update_query(self, query, reevaluate=True, parsed=None):
         """
@@ -1729,6 +1750,12 @@ class ContactGroup(TembaModel):
     @property
     def is_dynamic(self):
         return self.query is not None
+
+    @property
+    def triggers(self):
+        from temba.triggers.models import Trigger
+
+        return Trigger.objects.filter(Q(groups=self) | Q(exclude_groups=self))
 
     @classmethod
     def import_groups(cls, org, user, group_defs, dependency_mapping):

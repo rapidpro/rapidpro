@@ -33,7 +33,6 @@ from temba.msgs.models import (
     SystemLabel,
     SystemLabelCount,
 )
-from temba.orgs.models import Language
 from temba.schedules.models import Schedule
 from temba.tests import AnonymousOrg, CRUDLTestMixin, MigrationTest, TembaTest
 from temba.tests.engine import MockSessionWriter
@@ -260,7 +259,7 @@ class MsgTest(TembaTest):
         self.assertReleaseCount(INCOMING, HANDLED, Msg.VISIBILITY_VISIBLE, FLOW, SystemLabel.TYPE_FLOWS)
 
     def test_broadcast_metadata(self):
-        Channel.create(self.org, self.admin, None, channel_type="TT")
+        self.create_channel("TT", "Twitter", "nyaruka")
         contact1 = self.create_contact("Stephen", phone="+12078778899", language="fra")
         contact2 = self.create_contact("Maaaarcos", urns=["tel:+12078778888", "twitter:marky65"])
 
@@ -274,10 +273,7 @@ class MsgTest(TembaTest):
                 quick_replies=[dict(eng="Yes"), dict(eng="No")],
             )
 
-        eng = Language.create(self.org, self.admin, "English", "eng")
-        Language.create(self.org, self.admin, "French", "fra")
-        self.org.primary_language = eng
-        self.org.save()
+        self.org.set_flow_languages(self.admin, ["eng", "fra"])
 
         broadcast = Broadcast.create(
             self.org,
@@ -558,14 +554,11 @@ class MsgTest(TembaTest):
         self.channel.channel_type = "EX"
         self.channel.save()
 
-        android_channel = Channel.create(
-            self.org,
-            self.user,
-            "RW",
+        android_channel = self.create_channel(
             "A",
-            name="Android Channel",
-            address="+250785551414",
-            device="Nexus 5X",
+            "Android Channel",
+            "+250785551414",
+            country="RW",
             secret="12345678",
             config={Channel.CONFIG_FCM_ID: "123"},
         )
@@ -575,7 +568,7 @@ class MsgTest(TembaTest):
         msg1.save(update_fields=["next_attempt"])
 
         msg2 = self.create_outgoing_msg(self.joe, "android", status="E", channel=android_channel)
-        msg2.next_attempt = timezone.now()
+        msg2.next_attempt = None
         msg2.save(update_fields=["next_attempt"])
 
         msg3 = self.create_outgoing_msg(self.joe, "failed", status="F", channel=self.channel)
@@ -1768,7 +1761,7 @@ class BroadcastTest(TembaTest):
         self.lucy = self.create_contact(name="Lucy M", urns=["twitter:lucy"])
 
         # a Twitter channel
-        self.twitter = Channel.create(self.org, self.user, None, "TT")
+        self.twitter = self.create_channel("TT", "Twitter", "nyaruka")
 
     def run_msg_release_test(self, tc):
         label = Label.get_or_create(self.org, self.user, "Labeled")
@@ -1952,22 +1945,6 @@ class BroadcastTest(TembaTest):
 
             mock_queue_broadcast.assert_called_once_with(broadcast1)
 
-        # test resolving the broadcast text in different languages (used to render scheduled ones)
-        self.assertEqual("Hello everyone", broadcast1.get_translated_text(self.joe))  # uses broadcast base language
-
-        self.org.set_languages(self.admin, ["eng", "spa", "fra"], "spa")
-
-        self.assertEqual("Hola a todos", broadcast1.get_translated_text(self.joe))  # uses org primary language
-
-        self.joe.language = "fra"
-        self.joe.save(update_fields=("language",))
-
-        self.assertEqual("Salut à tous", broadcast1.get_translated_text(self.joe))  # uses contact language
-
-        self.org.set_languages(self.admin, ["eng", "spa"], "spa")
-
-        self.assertEqual("Hola a todos", broadcast1.get_translated_text(self.joe))  # but only if it's allowed
-
         # create a broadcast that looks like it has been sent
         broadcast2 = self.create_broadcast(self.admin, "Hi everyone", contacts=[self.kevin, self.lucy])
 
@@ -1983,11 +1960,38 @@ class BroadcastTest(TembaTest):
         with self.assertRaises(AssertionError):
             Broadcast.create(self.org, self.user, "no recipients")
 
+    def test_get_text(self):
+        broadcast = Broadcast.create(
+            self.org,
+            self.user,
+            {"eng": "Hello everyone", "spa": "Hola a todos", "fra": "Salut à tous"},
+            base_language="eng",
+            groups=[self.joe_and_frank],
+            contacts=[self.kevin, self.lucy],
+            schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
+        )
+
+        # test resolving the broadcast text in different languages (used to render scheduled ones)
+        self.assertEqual("Hello everyone", broadcast.get_text(self.joe))  # uses broadcast base language
+
+        self.org.set_flow_languages(self.admin, ["spa", "eng", "fra"])
+
+        self.assertEqual("Hola a todos", broadcast.get_text(self.joe))  # uses org primary language
+
+        self.joe.language = "fra"
+        self.joe.save(update_fields=("language",))
+
+        self.assertEqual("Salut à tous", broadcast.get_text(self.joe))  # uses contact language
+
+        self.org.set_flow_languages(self.admin, ["spa", "eng"])
+
+        self.assertEqual("Hola a todos", broadcast.get_text(self.joe))  # but only if it's allowed
+
     @patch("temba.mailroom.queue_broadcast")
     def test_send(self, mock_queue_broadcast):
         # remove all channels first
         for channel in Channel.objects.all():
-            channel.release()
+            channel.release(self.admin)
 
         send_url = reverse("msgs.broadcast_send")
         self.login(self.admin)
@@ -2018,13 +2022,13 @@ class BroadcastTest(TembaTest):
         self.assertContains(response, "You must add a phone number before sending messages", status_code=400)
 
         # test when we have many channels
-        Channel.create(
-            self.org, self.user, None, "A", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "1234"}
+        self.create_channel(
+            "A", "Android 1", "+2345", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "1234"}
         )
-        Channel.create(
-            self.org, self.user, None, "A", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "123"}
+        self.create_channel(
+            "A", "Android 2", "+3456", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "123"}
         )
-        Channel.create(self.org, self.user, None, "TT")
+        self.create_channel("TT", "Twitter", "nyaruka")
 
         response = self.client.get(send_url)
 
@@ -2035,7 +2039,7 @@ class BroadcastTest(TembaTest):
 
         broadcast = Broadcast.objects.get()
         self.assertEqual({"base": "message #1"}, broadcast.text)
-        self.assertEqual("message #1", broadcast.get_default_text())
+        self.assertEqual("message #1", broadcast.get_text())
         self.assertEqual(1, broadcast.groups.count())
         self.assertEqual(2, broadcast.contacts.count())
 
@@ -2043,16 +2047,10 @@ class BroadcastTest(TembaTest):
 
         # test with one channel now
         for channel in Channel.objects.all():
-            channel.release()
+            channel.release(self.admin)
 
-        Channel.create(
-            self.org,
-            self.user,
-            None,
-            "A",
-            None,
-            secret=Channel.generate_secret(),
-            config={Channel.CONFIG_FCM_ID: "123"},
+        self.create_channel(
+            "A", "Android", "+1234", secret=Channel.generate_secret(), config={Channel.CONFIG_FCM_ID: "123"}
         )
 
         response = self.client.get(send_url)
@@ -2923,14 +2921,7 @@ class ClearNextAttemptTest(MigrationTest):
 
     def setUpBeforeMigration(self, apps):
         self.android_channel = self.channel
-        self.twilio_channel = Channel.create(
-            self.org,
-            self.user,
-            "RW",
-            "T",
-            name="Twilio Channel",
-            address="+250785555555",
-        )
+        self.twilio_channel = self.create_channel("T", "Twilio Channel", "+250785555555")
 
         contact = self.create_contact("Joe", phone="+250788123123")
 

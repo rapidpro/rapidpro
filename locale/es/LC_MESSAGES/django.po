@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-05-20 16:11+0000\n"
+"POT-Creation-Date: 2021-06-22 17:26+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -1878,6 +1878,11 @@ msgstr "Token API"
 msgid "The API token for your integration as provided by Zenvia"
 msgstr ""
 
+#, fuzzy
+#| msgid "Invalid backup token. Please try again."
+msgid "Invalid token. Please check your Zenvia account settings."
+msgstr "Código de respaldo inválido. Por favor intente de nuevo"
+
 msgid "POST Required"
 msgstr "AVISO requerido"
 
@@ -1959,21 +1964,16 @@ msgstr "IVR saliente"
 msgid "An error occured contacting the Facebook API"
 msgstr "Ocurrió un error al contactar la API de Facebook"
 
-msgid "Remove Android"
-msgstr "Retirar Android"
+msgid "Your channel has been removed."
+msgstr "Tu canal ha sido eliminado."
 
 msgid "We have disconnected your Twilio number. If you do not need this number you can delete it from the Twilio website."
 msgstr "Hemos desconectado tu número de Twilio. Si no necesita este número, puede eliminarlo del sitio web de Twilio."
 
-msgid "Your channel has been removed."
-msgstr "Tu canal ha sido eliminado."
-
-#, python-format
-msgid "Twilio reported an error removing your channel (Twilio error %s). Please try again later."
+#, fuzzy, python-brace-format
+#| msgid "Twilio reported an error removing your channel (Twilio error %s). Please try again later."
+msgid "Twilio reported an error removing your channel (error code {e.code}). Please try again later."
 msgstr "Twilio informó un error al eliminar su canal (error de Twilio %s). Por favor, inténtelo de nuevo más tarde."
-
-msgid "We encountered an error removing your channel, please try again later."
-msgstr "Encontramos un error para retirar su transmisor, por favor, inténtelo nuevamente más tarde."
 
 msgid "Save Changes"
 msgstr "Guardar cambios"
@@ -2903,9 +2903,6 @@ msgstr "Envío no realizado"
 msgid "Resent message"
 msgstr "Mensaje reciente"
 
-msgid "When this broadcast was created"
-msgstr "Cuando se creó esta transmisión"
-
 msgid "Whether this count is for archived messages"
 msgstr "Si este recuento es para mensajes archivados"
 
@@ -3166,9 +3163,6 @@ msgstr "Si esta organización puede tener espacios de trabajo secundarios"
 msgid "Whether this organization can have multiple logins"
 msgstr "Si esta organización puede tener varios logins"
 
-msgid "The primary language will be used for contacts with no language preference."
-msgstr "Para los contactos sin preferencia de idioma, se usará el idioma principal"
-
 msgid "Brand"
 msgstr "Marca"
 
@@ -3359,6 +3353,11 @@ msgstr "Correo electrónico"
 msgid "Current Password"
 msgstr "contraseña actual"
 
+#, fuzzy
+#| msgid "POST Required"
+msgid "Password Required"
+msgstr "AVISO requerido"
+
 msgid "New Password"
 msgstr "Nueva contraseña"
 
@@ -3546,6 +3545,9 @@ msgstr "Bandera"
 msgid "Verify"
 msgstr "Verificar"
 
+msgid "Delete Workspace"
+msgstr "Eliminar Workspace"
+
 msgid "This password is not valid. Choose a new password and try again."
 msgstr "Esta contraseña no es válida. Elija una nueva contraseña y vuelva a intentarlo."
 
@@ -3674,19 +3676,31 @@ msgstr "Lo sentimos, %(org_name)s no tiene suficientes créditos para esta trans
 msgid "The country used for location values. (optional)"
 msgstr "El país usado para los valores de ubicación. (opcional)"
 
-msgid "Primary Language"
-msgstr "Idioma principal"
+#, fuzzy
+#| msgid "Base Language"
+msgid "Default Flow Language"
+msgstr "Idioma base"
 
-msgid "Select the primary language for contacts with no language preference"
-msgstr "Seleccione el idioma principal para los contactos sin preferencia de idioma"
+#, fuzzy
+#| msgid "The primary language will be used for contacts with no language preference."
+msgid "Used for contacts with no language preference."
+msgstr "Para los contactos sin preferencia de idioma, se usará el idioma principal"
+
+#, fuzzy
+#| msgid "Select Group"
+msgid "Select a language"
+msgstr "Elegir Grupo"
 
 msgid "Additional Languages"
 msgstr "Idiomas adicionales"
 
+msgid "The languages that your flows can be translated into."
+msgstr ""
+
 #, fuzzy
-#| msgid "Additional languages you would like to provid translations for"
-msgid "Additional languages you would like to provide translations for"
-msgstr "Idiomas adicionales para los que le gustaría proporcionar traducciones"
+#| msgid "Contact language"
+msgid "Select languages"
+msgstr "Idioma de contacto"
 
 #, python-format
 msgid "Cleared %(name)s cache for this workspace (%(count)d keys)"
@@ -3801,22 +3815,40 @@ msgstr "cada semana en %(daysofweek)s"
 msgid "each month on the %(dayofmonth)s"
 msgstr "cada mes en el %(dayofmonth)s"
 
-#, python-format
-msgid "%(day)s is not a valid day of the week"
-msgstr "%(day)s no es un día válido de la semana"
+msgid "Start Time"
+msgstr "Hora de inicio"
 
-msgid "Must specify at least one day of the week"
+#, fuzzy
+#| msgid "Select a field to update"
+msgid "Select a date and time"
+msgstr "Seleccione un campo para actualizar"
+
+#, fuzzy
+#| msgid "not repeat"
+msgid "Repeat"
+msgstr "no repetir"
+
+#, fuzzy
+#| msgid "repeats daily"
+msgid "Repeat On Days"
+msgstr "se repite a diario"
+
+msgid "The days of the week to repeat on for weekly schedules"
+msgstr ""
+
+#, fuzzy
+#| msgid "Select a unit"
+msgid "Select days"
+msgstr "Seleccione una unidad"
+
+#, python-format
+msgid "First time this should happen in the %s timezone."
+msgstr ""
+
+#, fuzzy
+#| msgid "Must specify at least one day of the week"
+msgid "Must specify at least one day of the week."
 msgstr "Debe especificar al menos un día de la semana"
-
-msgid "Select days to repeat on"
-msgstr "Seleccionar días para repetir"
-
-msgid " "
-msgstr " "
-
-#, python-format
-msgid "%s Time Zone"
-msgstr "%s Zona horaria"
 
 msgid "English"
 msgstr "Inglés"
@@ -3946,32 +3978,59 @@ msgstr "Eliminar servicio de tickets"
 msgid "HTTP Log"
 msgstr "Registro HTTP"
 
+msgid "Notes can only be seen by the support team"
+msgstr ""
+
+#, fuzzy
+#| msgid "Add Number"
+msgid "Add Note"
+msgstr "Agregar número"
+
 msgid "Your ticketing service has been deleted."
 msgstr "Su servicio de Tickets ha sido eliminado."
 
-msgid "Keyword Trigger"
+#, fuzzy
+#| msgid "Keyword Trigger"
+msgid "Keyword Triggers"
 msgstr "Activador de palabra clave"
 
-msgid "Schedule Trigger"
+#, fuzzy
+#| msgid "Schedule"
+msgid "Scheduled"
+msgstr "Horario"
+
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Scheduled Triggers"
 msgstr "Activador de programa"
 
-msgid "Inbound Call Trigger"
-msgstr "Activador de llamada entrante"
-
-msgid "Missed Call Trigger"
-msgstr "Activador de llamada perdida"
-
-msgid "Catch All Trigger"
+#, fuzzy
+#| msgid "Catch All Trigger"
+msgid "Call Triggers"
 msgstr "Obtener todos los activadores"
 
-msgid "New Conversation Trigger"
-msgstr "Activador de nueva conversación"
+msgid "Social Media"
+msgstr ""
 
-msgid "USSD Pull Session Trigger"
-msgstr "Activador de sesión de extracción de USSD"
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Social Media Triggers"
+msgstr "Activador de programa"
 
-msgid "Referral Trigger"
-msgstr "Activador de referencia"
+#, fuzzy
+#| msgid "Triggers"
+msgid "Ticket Triggers"
+msgstr "Activadores"
+
+#, fuzzy
+#| msgid "Catch All Trigger"
+msgid "Catch All"
+msgstr "Obtener todos los activadores"
+
+#, fuzzy
+#| msgid "Catch All Trigger"
+msgid "Catch All Triggers"
+msgstr "Obtener todos los activadores"
 
 msgid "Message starts with the keyword"
 msgstr "El mensaje comienza con la palabra clave"
@@ -3982,53 +4041,70 @@ msgstr "El mensaje contiene solo la palabra clave"
 msgid "Keyword"
 msgstr "Palabra clave"
 
-msgid "Word to match in the message text"
+#, fuzzy
+#| msgid "Word to match in the message text"
+msgid "Word to match in the message text."
 msgstr "Palabra para que coincida en el texto del mensaje"
-
-msgid "Referrer Id"
-msgstr "ID de referencia"
-
-msgid "The referrer id that triggers us"
-msgstr "El ID de referencia que nos activa"
 
 msgid "Flow"
 msgstr "Flujo"
 
-msgid "Which flow will be started"
+#, fuzzy
+#| msgid "Which flow will be started"
+msgid "Which flow will be started."
 msgstr "Qué flujo se iniciará"
-
-msgid "The groups to broadcast the flow to"
-msgstr "Los grupos para comunicar el flujo a"
-
-msgid "Individual contacts to broadcast the flow to"
-msgstr "Contactos individuales para comunicar el flujo a"
-
-msgid "Schedule"
-msgstr "Horario"
-
-msgid "Our recurring schedule"
-msgstr "Nuestro programa periódico"
 
 msgid "Trigger When"
 msgstr "Activar cuando"
 
-msgid "How to match a message with a keyword"
+#, fuzzy
+#| msgid "How to match a message with a keyword"
+msgid "How to match a message with a keyword."
 msgstr "Cómo hacer coincidir un mensaje con una palabra clave"
 
-msgid "The associated channel"
+#, fuzzy
+#| msgid "The associated channel"
+msgid "The associated channel."
 msgstr "El canal asociado"
 
 msgid "Select a flow"
 msgstr "Seleccione un flujo"
 
-msgid "Keywords must be a single word containing only letter and numbers"
+#, fuzzy
+#| msgid "Group to Join"
+msgid "Groups To Include"
+msgstr "Grupo para participar"
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Only includes contacts in these groups."
+msgstr "Opcional: el activador solo se aplica a estos grupos"
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Optional: Select contact groups"
+msgstr "Opcional: el activador solo se aplica a estos grupos"
+
+msgid "Groups To Exclude"
+msgstr ""
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Excludes contacts in these groups."
+msgstr "Opcional: el activador solo se aplica a estos grupos"
+
+#, fuzzy
+#| msgid "Keywords must be a single word containing only letter and numbers"
+msgid "Must be a single word containing only letters and numbers."
 msgstr "Las palabras clave deben ser una sola palabra que contenga solo letras y números"
 
-msgid "An active trigger already exists, triggers must be unique for each group"
-msgstr "Ya existe un activador activo, los activadores deben ser únicos para cada grupo"
+msgid "Can't include and exclude the same group."
+msgstr ""
 
-msgid "Optional: Trigger only applies to these groups"
-msgstr "Opcional: el activador solo se aplica a estos grupos"
+#, fuzzy
+#| msgid "An active trigger already exists, triggers must be unique for each group"
+msgid "There already exists a trigger of this type with these options."
+msgstr "Ya existe un activador activo, los activadores deben ser únicos para cada grupo"
 
 msgid "The first word of the message text"
 msgstr "La primera palabra del texto del mensaje."
@@ -4047,26 +4123,33 @@ msgstr[1] "Respuestas"
 msgid "The message to send in response after they join the group (optional)"
 msgstr "El mensaje para enviar como respuesta después de unirse al grupo (opcional)"
 
-msgid "Start Time"
-msgstr "Hora de inicio"
+#, fuzzy
+#| msgid "Group to Join"
+msgid "Contacts To Include"
+msgstr "Grupo para participar"
 
-msgid "The groups and contacts the flow will be broadcast to"
-msgstr "Los grupos y contactos al que se comunicará el flujo"
+msgid "Additional specific contacts to include."
+msgstr ""
 
-msgid "Trigger with this Channel already exists."
-msgstr "El activador con este canal ya existe."
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Optional: Select contacts"
+msgstr "Opcional: el activador solo se aplica a estos grupos"
+
+msgid "Must provide at least one group or contact to include."
+msgstr ""
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
 msgstr "El canal al que aplicar este activador, déjelo en blanco para todos los canales de Facebook"
+
+msgid "Referrer Id"
+msgstr "ID de referencia"
 
 msgid "The referrer id that will trigger us"
 msgstr "La identificación de referencia que nos activará"
 
 msgid "Create Trigger"
 msgstr "Crear Activador"
-
-msgid "Triggers"
-msgstr "Activadores"
 
 msgid "Join Keyword"
 msgstr "Palabra clave para participar"
@@ -4077,8 +4160,13 @@ msgstr "La primera palabra del mensaje"
 msgid "Create Referral Trigger"
 msgstr "Crear Activador de Referencias"
 
-msgid "Create Schedule"
-msgstr "Crear Cronograma"
+msgid "Triggers"
+msgstr "Activadores"
+
+#, fuzzy
+#| msgid "Schedule Trigger"
+msgid "Archived Triggers"
+msgstr "Activador de programa"
 
 msgid "United Kingdom"
 msgstr "Reino Unido"
@@ -4398,53 +4486,6 @@ msgstr "Direcciones IP"
 
 msgid "Additionally you will need to make sure the following IP addresses are whitelisted"
 msgstr "Además, deberá asegurarse de que las siguientes direcciones IP estén en la Whitelist"
-
-#, python-format
-msgid ""
-"\n"
-"        There is an active flow using this channel. It cannot be deleted until it is removed from the\n"
-"\n"
-"      "
-msgid_plural ""
-"\n"
-"        There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
-"\n"
-"      "
-msgstr[0] ""
-"\n"
-"        Hay un flujo activo usando este canal. No se puede eliminar hasta que se elimine de la\n"
-"\n"
-"      "
-msgstr[1] ""
-"\n"
-"        Hay %(counter)s flujos que utilizan este flujo. No se puede eliminar hasta que se elimine de la\n"
-"\n"
-"      "
-
-msgid ""
-"\n"
-"        flow.\n"
-"      "
-msgid_plural ""
-"\n"
-"        flows.\n"
-"      "
-msgstr[0] ""
-"\n"
-"        fluir.\n"
-"      "
-msgstr[1] ""
-"\n"
-"        fluye.\n"
-"      "
-
-#, python-format
-msgid "You are about to disable bulk sending for <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
-msgstr "Está a punto de deshabilitar el envío masivo para <span class='font-normal'> %(object)s. </span> No hay forma de deshacer esto. ¿Estás seguro?"
-
-#, python-format
-msgid "You are about to delete the channel <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
-msgstr "Está a punto de eliminar el canal <span class='font-normal'> %(object)s. </span> No hay forma de deshacer esto. ¿Estás seguro?"
 
 msgid "Bulk sending"
 msgstr "Envío masivo"
@@ -5866,6 +5907,23 @@ msgstr[1] ""
 "\n"
 "      "
 
+msgid ""
+"\n"
+"        flow.\n"
+"      "
+msgid_plural ""
+"\n"
+"        flows.\n"
+"      "
+msgstr[0] ""
+"\n"
+"        fluir.\n"
+"      "
+msgstr[1] ""
+"\n"
+"        fluye.\n"
+"      "
+
 #, python-format
 msgid ""
 "\n"
@@ -6777,7 +6835,13 @@ msgstr "Ha usado"
 msgid "credits since signing up."
 msgstr "créditos desde que se registró."
 
-msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
+#, python-format
+msgid "This will schedule deletion of <b>%(org)s</b> on <b>%(date)s</b>."
+msgstr ""
+
+#, fuzzy
+#| msgid "Are you sure you want to delete everything for this org? This cannot be undone. Any logins which only belong to this workspace will also be deleted."
+msgid "Are you sure you want to delete everything belonging to this workspace? This cannot be undone. Any logins which belong only to this workspace will also be deleted."
 msgstr "¿Está seguro de que desea eliminar todo para esta organización? Esto no se puede deshacer. También se eliminarán todos los logins que solo pertenezcan a este workspace."
 
 #, python-format
@@ -6867,8 +6931,9 @@ msgstr "Ha sido invitado a unirse a %(name)s."
 msgid "Please click Join to accept the invitation."
 msgstr "Por favor, haga clic en Participar para aceptar la invitación."
 
-#, python-format
-msgid "The primary language is <b>%(lang)s</b>."
+#, fuzzy, python-format
+#| msgid "The primary language is <b>%(lang)s</b>."
+msgid "The default flow language is <b>%(lang)s</b>."
 msgstr "El idioma principal es <b> %(lang)s </b>."
 
 #, fuzzy
@@ -7093,10 +7158,20 @@ msgstr "Gracias por apoyar %(brand)s."
 msgid "Complementary credits, thanks for trying %(brand)s."
 msgstr "Créditos complementarios, gracias por probar %(brand)s."
 
-#, python-format
+#, fuzzy
+#| msgid "Please enter your password to save changes."
+msgid "Confirm your current password to save these changes"
+msgstr "Por favor, ingrese su contraseña para guardar los cambios."
+
+#, fuzzy, python-format
+#| msgid ""
+#| "\n"
+#| "    Your email address is <b>%(email)s</b>.\n"
+#| "  "
 msgid ""
 "\n"
 "    Your email address is <b>%(email)s</b>.\n"
+"\n"
 "  "
 msgstr ""
 "\n"
@@ -7542,11 +7617,20 @@ msgstr "Evento clasificador"
 msgid "Connection Error"
 msgstr "Error de conexión"
 
+msgid "Schedule"
+msgstr "Horario"
+
 msgid "Select when you would like the message to be sent"
 msgstr "Seleccione cuándo desea que se envíe el mensaje"
 
-msgid "The next message will be sent on"
+#, fuzzy, python-format
+#| msgid "The next message will be sent on"
+msgid "The next message will be sent <b>%(when)s</b>."
 msgstr "El siguiente mensaje se enviará el"
+
+#, python-format
+msgid "It will repeat every <b>month</b> on the %(date)s."
+msgstr ""
 
 msgid "It will repeat every"
 msgstr "Será repetido cada"
@@ -7554,17 +7638,15 @@ msgstr "Será repetido cada"
 msgid "at around the same time."
 msgstr "aproximadamente a la misma hora."
 
-msgid "on the"
-msgstr "sobre el"
+#, fuzzy
+#| msgid "at around the same time."
+msgid "It will repeat <d>daily</b> at around the same time."
+msgstr "aproximadamente a la misma hora."
 
-msgid "It will repeat"
+#, fuzzy
+#| msgid "It will repeat"
+msgid "It will <b>not repeat</b>."
 msgstr "Se repetirá"
-
-msgid "It will "
-msgstr "Va a"
-
-msgid "not repeat"
-msgstr "no repetir"
 
 msgid "Unschedule"
 msgstr "Desprogramar"
@@ -7635,9 +7717,6 @@ msgstr "Confirmar nueva contraseña"
 
 msgid "Delete "
 msgstr "Eliminar"
-
-msgid "Delete Workspace"
-msgstr "Eliminar Workspace"
 
 msgid "Delete Login"
 msgstr "Eliminar login"
@@ -7750,17 +7829,44 @@ msgstr "Vaya a <a href=\"%(channels_url)s\"> integraciones de canales </a> donde
 msgid "Add account for the channel and enter <code>%(secret)s</code> as the secret."
 msgstr "Agregue una cuenta para el canal e ingrese <code> %(secret)s </code> como secret."
 
-msgid "Start a flow after receiving a message not handled elsewhere."
-msgstr "Empezar un flujo después de recibir un mensaje que no se haya manejado en ningún otro lugar."
-
 msgid "Triggers allow users to start flows based on user actions or schedules."
 msgstr "Los activadores permiten que los usuarios inicien los flujos a partir de las acciones o cronogramas del usuario."
+
+#, fuzzy
+#| msgid "Start a flow after receiving a message not handled elsewhere."
+msgid "Start a flow after receiving a message that doesn't match any keywords."
+msgstr "Empezar un flujo después de recibir un mensaje que no se haya manejado en ningún otro lugar."
+
+#, fuzzy
+#| msgid "Start a flow after a missed call."
+msgid "Start a flow after a ticket is closed."
+msgstr "Inicie un flujo después de una llamada perdida."
 
 msgid "Start a flow after receiving a call."
 msgstr "Inicie un flujo después de recibir una llamada."
 
 msgid "Create a message keyword that launches a flow."
 msgstr "Cree una palabra clave de mensaje que lance un flujo."
+
+msgid "Start a flow after a missed call."
+msgstr "Inicie un flujo después de una llamada perdida."
+
+msgid "Start a flow when a conversation is started by a contact."
+msgstr "Inicie un flujo cuando un contacto inicie una conversación."
+
+msgid "Start a flow when Facebook refers a contact."
+msgstr "Inicie un flujo cuando Facebook refiera un contacto."
+
+msgid "Create a message keyword that allows people to join a group."
+msgstr "Cree una palabra clave de mensaje que permita a las personas unirse a un grupo."
+
+msgid "Start a flow in the future or on a schedule."
+msgstr "Empezar un flujo en el futuro o en un horario."
+
+#, fuzzy
+#| msgid "Type"
+msgid "Types"
+msgstr "Tipo"
 
 msgid "The keyword"
 msgstr "La palabra clave"
@@ -7783,6 +7889,11 @@ msgstr "La identificación de referencia"
 msgid "on the channel"
 msgstr "en el canal"
 
+#, fuzzy
+#| msgid "Closed Tickets"
+msgid "A closed ticket"
+msgstr "Tickets Cerradas"
+
 msgid "starts"
 msgstr "empieza"
 
@@ -7794,21 +7905,6 @@ msgstr "Los activadores no corresponden."
 
 msgid "Update Trigger"
 msgstr "Actualizar activador"
-
-msgid "Start a flow after a missed call."
-msgstr "Inicie un flujo después de una llamada perdida."
-
-msgid "Start a flow when a conversation is started by a contact."
-msgstr "Inicie un flujo cuando un contacto inicie una conversación."
-
-msgid "Start a flow when Facebook refers a contact."
-msgstr "Inicie un flujo cuando Facebook refiera un contacto."
-
-msgid "Create a message keyword that allows people to join a group."
-msgstr "Cree una palabra clave de mensaje que permita a las personas unirse a un grupo."
-
-msgid "Start a flow in the future or on a schedule."
-msgstr "Empezar un flujo en el futuro o en un horario."
 
 msgid "Enter a query"
 msgstr "Ingrese una consulta"
@@ -7835,6 +7931,150 @@ msgstr "Las plantillas se sincronizan desde su cuenta de WhatsApp cada 15 minuto
 
 msgid "No synced templates at this time."
 msgstr "No hay plantillas sincronizadas en este momento."
+
+#~ msgid "When this broadcast was created"
+#~ msgstr "Cuando se creó esta transmisión"
+
+#~ msgid "The primary language will be used for contacts with no language preference."
+#~ msgstr "Para los contactos sin preferencia de idioma, se usará el idioma principal"
+
+#~ msgid "on the"
+#~ msgstr "sobre el"
+
+#~ msgid "It will "
+#~ msgstr "Va a"
+
+#~ msgid "not repeat"
+#~ msgstr "no repetir"
+
+#~ msgid "Select days to repeat on"
+#~ msgstr "Seleccionar días para repetir"
+
+#, python-format
+#~ msgid "%(day)s is not a valid day of the week"
+#~ msgstr "%(day)s no es un día válido de la semana"
+
+#~ msgid " "
+#~ msgstr " "
+
+#, python-format
+#~ msgid "%s Time Zone"
+#~ msgstr "%s Zona horaria"
+
+#~ msgid "The groups and contacts the flow will be broadcast to"
+#~ msgstr "Los grupos y contactos al que se comunicará el flujo"
+
+#~ msgid "Create Schedule"
+#~ msgstr "Crear Cronograma"
+
+#, fuzzy
+#~| msgid "Unable to check WhatsApp enterprise account, please check username and password"
+#~ msgid "Unable to check Zenvia account, please check the API token"
+#~ msgstr "No se puede verificar la cuenta empresarial de WhatsApp, verifique el nombre de usuario y la contraseña"
+
+#~ msgid "Primary Language"
+#~ msgstr "Idioma principal"
+
+#~ msgid "Select the primary language for contacts with no language preference"
+#~ msgstr "Seleccione el idioma principal para los contactos sin preferencia de idioma"
+
+#, fuzzy
+#~| msgid "Additional languages you would like to provid translations for"
+#~ msgid "Additional languages you would like to provide translations for"
+#~ msgstr "Idiomas adicionales para los que le gustaría proporcionar traducciones"
+
+#, fuzzy
+#~| msgid "Group to Join"
+#~ msgid "Group Filtering"
+#~ msgstr "Grupo para participar"
+
+#, fuzzy
+#~| msgid "There is already a channel configured for this URL."
+#~ msgid "There already exists a trigger of this type."
+#~ msgstr "Ya hay un canal configurado para esta URL."
+
+#, fuzzy
+#~| msgid "An active trigger already exists, triggers must be unique for each group"
+#~ msgid "There already exists a trigger with this keyword for these groups."
+#~ msgstr "Ya existe un activador activo, los activadores deben ser únicos para cada grupo"
+
+#, fuzzy
+#~| msgid "There is already a ticketing service configured for this subdomain."
+#~ msgid "There already exists a trigger of this type for this channel."
+#~ msgstr "Ya existe un servicio de Tickets configurado para este subdominio."
+
+#, fuzzy
+#~| msgid "Trigger with this Channel already exists."
+#~ msgid "Trigger with this channel already exists."
+#~ msgstr "El activador con este canal ya existe."
+
+#~ msgid "The referrer id that triggers us"
+#~ msgstr "El ID de referencia que nos activa"
+
+#~ msgid "The groups to broadcast the flow to"
+#~ msgstr "Los grupos para comunicar el flujo a"
+
+#~ msgid "Individual contacts to broadcast the flow to"
+#~ msgstr "Contactos individuales para comunicar el flujo a"
+
+#~ msgid "Our recurring schedule"
+#~ msgstr "Nuestro programa periódico"
+
+#~ msgid "Inbound Call Trigger"
+#~ msgstr "Activador de llamada entrante"
+
+#~ msgid "Missed Call Trigger"
+#~ msgstr "Activador de llamada perdida"
+
+#~ msgid "New Conversation Trigger"
+#~ msgstr "Activador de nueva conversación"
+
+#~ msgid "USSD Pull Session Trigger"
+#~ msgstr "Activador de sesión de extracción de USSD"
+
+#~ msgid "Referral Trigger"
+#~ msgstr "Activador de referencia"
+
+#, fuzzy
+#~| msgid "This workspace has been scheduled for deletion"
+#~ msgid "Workspace has been scheduled for deletion"
+#~ msgstr "Se ha programado la eliminación de este workspace"
+
+#~ msgid "Remove Android"
+#~ msgstr "Retirar Android"
+
+#~ msgid "We encountered an error removing your channel, please try again later."
+#~ msgstr "Encontramos un error para retirar su transmisor, por favor, inténtelo nuevamente más tarde."
+
+#, python-format
+#~ msgid ""
+#~ "\n"
+#~ "        There is an active flow using this channel. It cannot be deleted until it is removed from the\n"
+#~ "\n"
+#~ "      "
+#~ msgid_plural ""
+#~ "\n"
+#~ "        There are %(counter)s flows using this flow. It cannot be deleted until it is removed from the\n"
+#~ "\n"
+#~ "      "
+#~ msgstr[0] ""
+#~ "\n"
+#~ "        Hay un flujo activo usando este canal. No se puede eliminar hasta que se elimine de la\n"
+#~ "\n"
+#~ "      "
+#~ msgstr[1] ""
+#~ "\n"
+#~ "        Hay %(counter)s flujos que utilizan este flujo. No se puede eliminar hasta que se elimine de la\n"
+#~ "\n"
+#~ "      "
+
+#, python-format
+#~ msgid "You are about to disable bulk sending for <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
+#~ msgstr "Está a punto de deshabilitar el envío masivo para <span class='font-normal'> %(object)s. </span> No hay forma de deshacer esto. ¿Estás seguro?"
+
+#, python-format
+#~ msgid "You are about to delete the channel <span class='font-normal'> %(object)s. </span> There is no way to undo this. Are you sure?"
+#~ msgstr "Está a punto de eliminar el canal <span class='font-normal'> %(object)s. </span> No hay forma de deshacer esto. ¿Estás seguro?"
 
 #~ msgid "Ok"
 #~ msgstr "Okay"

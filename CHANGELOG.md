@@ -1,3 +1,163 @@
+v6.3.84
+----------
+ * Ignore scheduled triggers in imports because they don't import properly
+ * Fix redirect after choosing an org for users that can't access the inbox
+ * Optionally filter ticket events by ticket in contact history view
+
+v6.3.83
+----------
+ * Fix default content type for pjax requests
+ * Tweak queuing of flow starts to include created_by_id
+
+v6.3.82
+----------
+ * Revert recent formax changes
+
+v6.3.81
+----------
+ * Add Broadcast.ticket and expose as field (undocumented for now) on broadcast write API endpoint
+ * Refactor scheduling to use shared form
+ * Add exclusion groups to scheduled triggers
+
+v6.3.80
+----------
+ * Update components so omnibox behaves like a field
+ * Drop Language model and Org.primary_language field
+
+v6.3.79
+----------
+ * Order tickets by last_activity_on and update indexes to reflect that
+ * Backfill ticketevent.contact and use that for fetching events in contact history
+ * Fix creating scheduled triggers not being able to see week day options
+ * Handle reopen events for tickets
+ * Stop creating Language instances or setting Org.primary_language
+
+v6.3.78
+----------
+ * Add Ticket.last_activity_on and TicketEvent.contact
+ * Rreturn tickets by modified_on in the API
+ * Add ability to reverse results for runs/contacts API endpoints
+
+v6.3.77
+----------
+ * Better validation of invalid tokens when claiming Zenvia channels
+ * Fix languages formax to not allow empty primary language
+
+v6.3.76
+----------
+ * Read org languages from org.flow_languages instead of Language instances
+
+v6.3.75
+----------
+ * Fix closing and reopening of tickets from API
+
+v6.3.74
+----------
+ * Add better labels and help text for groups on trigger forms
+ * Load ticket events from database for contact histories
+ * Fix rendering of closed ticket triggers on trigger list page
+ * Fix rendering of ticket events as JSON
+ * Fix for delete modals
+
+v6.3.73
+----------
+ * Backfill ticket open and close events
+ * Add support for closed ticket triggers
+
+v6.3.72
+----------
+ * Add CSRF tokens to modaxes
+
+v6.3.70
+----------
+ * Add CSRF token to modax form
+ * Tweak padding for nav so we don't overlap alerts
+ * Only require current password to change email or password
+ * Fix icon colors on latest chrome
+ * Migration to backfill Org.flow_languages
+
+v6.3.69
+----------
+ * Add Org.flow_languages and start populating in Org.set_languages
+ * Raise the logo so it can be clicked
+
+v6.3.68
+----------
+ * Enable exclusion groups on triggers and make groups an option for all trigger types
+ * Add users to mailroom test db
+ * Add ticket note support to UI
+
+v6.3.67
+----------
+ * Pass user id to ticket/close ticket/reopen endpoints to use in the TicketEvent mailroom creates
+ * Model changes for ticket assignment
+ * Make flow session output URL have a max length of 2048
+
+v6.3.66
+----------
+ * Add new ticket event model
+ * Add output_url field to FlowSession
+
+v6.3.65
+----------
+ * Fix rendering of recipient buttons on outbox
+ * Rework trigger create forms to make conflict handling more consistent
+ * Iterate through all pages when syncing whatsapp templates
+
+v6.3.64
+----------
+ * URL field on HTTPRequestLog should have max length of 2048
+
+v6.3.63
+----------
+ * Drop unused index on contact name, and add new org+modified_on index
+
+v6.3.62
+----------
+ * Update components to single mailroom resource for completion
+
+v6.3.60
+----------
+ * Only retry 5000 messages at a time, prefetch channel and fields
+
+v6.3.59
+----------
+ * Enable model instances to show an icon in selects
+
+v6.3.58
+----------
+ * Add model changes for closed ticket triggers
+ * Add model changes for exclude groups support on triggers
+
+v6.3.57
+----------
+ * Tweak mailroom_db to make contact created_on values fixed
+ * Add trigger type folder list views
+ * Fix filtering of flows for new conversation triggers
+ * Fix ordering of channel fields on triggers
+ * Tweak inspect_flows command to handle unreadable flows
+ * Nest group buttons on campaign list so they don't grow to largest cell
+
+v6.3.56
+----------
+ * Fix migrating flows whose definitions contain decimal values
+ * Update to tailwind 2, fix security warnings
+ * Simplify org filtering on CRUDLs
+ * Remove IS_PROD setting
+
+v6.3.55
+----------
+ * Update layout and color for badge buttons
+ * Add management command to inspect flows and fix has_issues where needed
+ * Fix deleting flow labels with parents
+ * Fix broken org delete modal
+ * Add user arg to Org.release and User.release
+
+v6.3.54
+----------
+ * Optimize message retries with a perfect index
+ * Convert channels to soft dependencies
+
 v6.3.53
 ----------
  * Update to latest temba-components

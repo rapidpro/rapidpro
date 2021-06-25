@@ -81,20 +81,17 @@ class Dialog360TypeTest(TembaTest):
                 pass
 
         # deactivate our channel
-        with self.settings(IS_PROD=True):
-            channel.release()
+        channel.release(self.admin)
 
     @patch("requests.get")
     def test_get_api_templates(self, mock_get):
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
-        channel = Channel.create(
-            self.org,
-            self.admin,
-            "BR",
+        channel = self.create_channel(
             "D3",
-            name="360Dialog channel",
+            "360Dialog channel",
             address="1234",
+            country="BR",
             config={
                 Channel.CONFIG_BASE_URL: "https://example.com/whatsapp",
                 Channel.CONFIG_AUTH_TOKEN: "123456789",
@@ -137,13 +134,11 @@ class Dialog360TypeTest(TembaTest):
         TemplateTranslation.objects.all().delete()
         Channel.objects.all().delete()
 
-        channel = Channel.create(
-            self.org,
-            self.admin,
-            "BR",
+        channel = self.create_channel(
             "D3",
-            name="360Dialog channel",
+            "360Dialog channel",
             address="1234",
+            country="BR",
             config={
                 Channel.CONFIG_BASE_URL: "https://example.com/whatsapp",
                 Channel.CONFIG_AUTH_TOKEN: "123456789",
@@ -184,13 +179,11 @@ class Dialog360TypeTest(TembaTest):
         update_local_templates_mock.assert_called_once_with(channel, [{"name": "hello"}])
 
     def test_message_templates_and_logs_views(self):
-        channel = Channel.create(
-            self.org,
-            self.admin,
-            "BR",
+        channel = self.create_channel(
             "D3",
-            name="360Dialog channel",
+            "360Dialog channel",
             address="1234",
+            country="BR",
             config={
                 Channel.CONFIG_BASE_URL: "https://example.com/whatsapp",
                 Channel.CONFIG_AUTH_TOKEN: "123456789",

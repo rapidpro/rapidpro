@@ -36,6 +36,7 @@ from temba.utils.fields import (
     OmniboxChoice,
     SelectMultipleWidget,
     SelectWidget,
+    TembaChoiceField,
 )
 from temba.utils.models import patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin
@@ -53,6 +54,7 @@ class SendMessageForm(Form):
         widget=OmniboxChoice(
             attrs={
                 "placeholder": _("Recipients, enter contacts or groups"),
+                "widget_only": True,
                 "groups": True,
                 "contacts": True,
                 "urns": True,
@@ -313,7 +315,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
         def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
-            return qs.select_related("schedule").order_by("-created_on")
+            return qs.select_related("org", "schedule").order_by("-created_on")
 
     class Send(OrgPermsMixin, ModalMixin, SmartFormView):
         title = _("Send Message")
@@ -434,9 +436,7 @@ class BroadcastCRUDL(SmartCRUDL):
 
 
 class TestMessageForm(forms.Form):
-    channel = forms.ModelChoiceField(
-        Channel.objects.filter(id__lt=0), help_text=_("Which channel will deliver the message")
-    )
+    channel = TembaChoiceField(Channel.objects.filter(id__lt=0), help_text=_("Which channel will deliver the message"))
     urn = forms.CharField(max_length=14, help_text=_("The URN of the contact delivering this message"))
     text = forms.CharField(max_length=160, widget=forms.Textarea, help_text=_("The message that is being delivered"))
 
@@ -592,14 +592,7 @@ class MsgCRUDL(SmartCRUDL):
             if "HTTP_X_PJAX" not in self.request.META:
                 return HttpResponseRedirect(self.get_success_url())
             else:  # pragma: no cover
-                response = self.render_to_response(
-                    self.get_context_data(
-                        form=form,
-                        success_url=self.get_success_url(),
-                        success_script=getattr(self, "success_script", None),
-                    )
-                )
-                response["Temba-Success"] = self.get_success_url()
+                response = self.render_modal_response(form)
                 response["REDIRECT"] = self.get_success_url()
                 return response
 
@@ -658,6 +651,7 @@ class MsgCRUDL(SmartCRUDL):
                 Broadcast.objects.filter(
                     org=self.request.user.get_org(), status__in=[QUEUED, INITIALIZING], schedule=None
                 )
+                .select_related("org")
                 .prefetch_related("groups", "contacts", "urns")
                 .order_by("-created_on")
             )

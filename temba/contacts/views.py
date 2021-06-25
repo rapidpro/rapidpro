@@ -44,7 +44,14 @@ from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
-from temba.utils.fields import CheckboxWidget, InputWidget, SelectMultipleWidget, SelectWidget
+from temba.utils.fields import (
+    CheckboxWidget,
+    InputWidget,
+    SelectMultipleWidget,
+    SelectWidget,
+    TembaChoiceField,
+    TembaMultipleChoiceField,
+)
 from temba.utils.models import IDSliceQuerySet, patch_queryset_count
 from temba.utils.views import BulkActionMixin, ComponentFormMixin, NonAtomicMixin
 
@@ -76,13 +83,12 @@ HISTORY_INCLUDE_EVENTS = {
     Event.TYPE_FAILURE,
     Event.TYPE_INPUT_LABELS_ADDED,
     Event.TYPE_RUN_RESULT_CHANGED,
-    Event.TYPE_TICKET_OPENED,
 }
 
 
 class RemoveFromGroupForm(forms.Form):
-    contact = forms.ModelChoiceField(Contact.objects.all())
-    group = forms.ModelChoiceField(ContactGroup.user_groups.all())
+    contact = TembaChoiceField(Contact.objects.all())
+    group = TembaChoiceField(ContactGroup.user_groups.all())
 
     def __init__(self, *args, **kwargs):
         org = kwargs.pop("org")
@@ -470,7 +476,7 @@ class ContactForm(forms.ModelForm):
 
 
 class UpdateContactForm(ContactForm):
-    groups = forms.ModelMultipleChoiceField(
+    groups = TembaMultipleChoiceField(
         queryset=ContactGroup.user_groups.filter(pk__lt=0),
         required=False,
         label=_("Groups"),
@@ -482,14 +488,14 @@ class UpdateContactForm(ContactForm):
 
         choices = [("", "No Preference")]
 
-        org_lang_codes = self.instance.org.get_language_codes()
+        flow_langs = self.instance.org.flow_languages
 
         # if they had a preference that has since been removed, make sure we show it
-        if self.instance.language and self.instance.language not in org_lang_codes:
+        if self.instance.language and self.instance.language not in flow_langs:
             lang_name = languages.get_name(self.instance.language)
             choices += [(self.instance.language, _(f"{lang_name} (Missing)"))]
 
-        choices += list(languages.choices(codes=org_lang_codes))
+        choices += list(languages.choices(codes=flow_langs))
 
         self.fields["language"] = forms.ChoiceField(
             required=False, label=_("Language"), initial=self.instance.language, choices=choices, widget=SelectWidget()
@@ -701,7 +707,7 @@ class ContactCRUDL(SmartCRUDL):
                     dict(
                         repeat_period=sched_broadcast.schedule.repeat_period,
                         event_type="M",
-                        message=sched_broadcast.get_translated_text(contact, org=contact.org),
+                        message=sched_broadcast.get_text(contact),
                         flow_uuid=None,
                         flow_name=None,
                         scheduled=sched_broadcast.schedule.next_fire,
@@ -874,7 +880,7 @@ class ContactCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
 
         def get_queryset(self):
-            return Contact.objects.filter(is_active=True)
+            return Contact.objects.filter(is_active=True).select_related("org")
 
         def get_context_data(self, *args, **kwargs):
             context = super().get_context_data(*args, **kwargs)
@@ -887,6 +893,9 @@ class ContactCRUDL(SmartCRUDL):
             before = int(self.request.GET.get("before", 0))
             after = int(self.request.GET.get("after", 0))
             limit = int(self.request.GET.get("limit", 50))
+
+            ticket_uuid = self.request.GET.get("ticket")
+            ticket = contact.org.tickets.filter(uuid=ticket_uuid).first()
 
             # if we want an expanding window, or just all the recent activity
             recent_only = False
@@ -905,7 +914,7 @@ class ContactCRUDL(SmartCRUDL):
             history = []
             fetch_before = before
             while True:
-                history += contact.get_history(after, fetch_before, HISTORY_INCLUDE_EVENTS, limit)
+                history += contact.get_history(after, fetch_before, HISTORY_INCLUDE_EVENTS, ticket=ticket, limit=limit)
                 if recent_only or len(history) >= 20 or after == contact_creation:
                     break
                 else:
@@ -921,7 +930,9 @@ class ContactCRUDL(SmartCRUDL):
             # check if there are more pages to fetch
             context["has_older"] = False
             if not recent_only and before > contact.created_on:
-                context["has_older"] = bool(contact.get_history(contact_creation, after, HISTORY_INCLUDE_EVENTS, 1))
+                context["has_older"] = bool(
+                    contact.get_history(contact_creation, after, HISTORY_INCLUDE_EVENTS, ticket=ticket, limit=1)
+                )
 
             context["recent_only"] = recent_only
             context["next_before"] = datetime_to_timestamp(after)
@@ -1199,7 +1210,7 @@ class ContactCRUDL(SmartCRUDL):
             exclude = []
             exclude.extend(self.exclude)
 
-            if not obj.org.primary_language:
+            if not obj.org.flow_languages:
                 exclude.append("language")
 
             if obj.status != Contact.STATUS_ACTIVE:
@@ -1257,19 +1268,11 @@ class ContactCRUDL(SmartCRUDL):
 
             messages.success(self.request, self.derive_success_message())
 
-            response = self.render_to_response(
-                self.get_context_data(
-                    form=form,
-                    success_url=self.get_success_url(),
-                    success_script=getattr(self, "success_script", None),
-                )
-            )
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.render_modal_response(form)
 
     class UpdateFields(NonAtomicMixin, ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(forms.Form):
-            contact_field = forms.ModelChoiceField(
+            contact_field = TembaChoiceField(
                 ContactField.user_fields.all(),
                 widget=SelectWidget(
                     attrs={"widget_only": True, "searchable": True, "placeholder": _("Select a field to update")}
@@ -1389,7 +1392,7 @@ class ContactCRUDL(SmartCRUDL):
         """
 
         class Form(forms.Form):
-            flow = forms.ModelChoiceField(
+            flow = TembaChoiceField(
                 queryset=Flow.objects.none(),
                 widget=SelectWidget(
                     attrs={"placeholder": _("Select a flow to start"), "widget_only": True, "searchable": True}
@@ -1493,7 +1496,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             group = self.get_object()
 
-            context["triggers"] = group.trigger_set.filter(is_archived=False)
+            context["triggers"] = group.triggers.filter(is_archived=False)
             context["campaigns"] = group.campaigns.filter(is_archived=False)
 
             return context
@@ -1507,7 +1510,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             group = self.object
 
             # if there are still dependencies, give up
-            triggers = group.trigger_set.filter(is_archived=False)
+            triggers = group.triggers.filter(is_archived=False)
             if triggers.count() > 0:
                 return HttpResponseRedirect(smart_url(self.cancel_url, group))
 
@@ -1527,13 +1530,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             on_transaction_commit(lambda: release_group_task.delay(group.id))
 
             # we can't just redirect so as to make our modal do the right thing
-            response = self.render_to_response(
-                self.get_context_data(
-                    success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
-                )
-            )
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.render_modal_response()
 
 
 class ContactFieldFormMixin:
@@ -1685,14 +1682,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 value_type=form.cleaned_data["value_type"],
                 show_in_table=form.cleaned_data["show_in_table"],
             )
-
-            response = self.render_to_response(
-                self.get_context_data(
-                    form=form, success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
-                )
-            )
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.render_modal_response(form)
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         queryset = ContactField.user_fields
@@ -1717,13 +1707,7 @@ class ContactFieldCRUDL(SmartCRUDL):
                 priority=0,  # reset the priority, this will move CF to the bottom of the list
             )
 
-            response = self.render_to_response(
-                self.get_context_data(
-                    form=form, success_url=self.get_success_url(), success_script=getattr(self, "success_script", None)
-                )
-            )
-            response["Temba-Success"] = self.get_success_url()
-            return response
+            return self.render_modal_response(form)
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         queryset = ContactField.user_fields
@@ -1918,7 +1902,7 @@ class ContactImportCRUDL(SmartCRUDL):
             new_group_name = forms.CharField(
                 label=" ", required=False, max_length=ContactGroup.MAX_NAME_LEN, widget=InputWidget()
             )
-            existing_group = forms.ModelChoiceField(
+            existing_group = TembaChoiceField(
                 label=" ",
                 required=False,
                 queryset=ContactGroup.user_groups.none(),

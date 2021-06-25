@@ -2,7 +2,7 @@ import pycountry
 
 from django.core.management.base import BaseCommand
 
-from temba.orgs.models import Language, Org
+from temba.orgs.models import Org
 
 
 class Command(BaseCommand):  # pragma: no cover
@@ -10,12 +10,10 @@ class Command(BaseCommand):  # pragma: no cover
 
     def handle(self, *args, **options):
         # get all distinct ISO-639-2/ISO-639-3 codes in use
-        codes = (
-            Language.objects.filter(org__is_active=True)
-            .values_list("iso_code", flat=True)
-            .distinct()
-            .order_by("iso_code")
-        )
+        codes = set()
+        for org in Org.objects.filter(is_active=True):
+            codes.update(org.flow_languages)
+        codes = sorted(codes)
 
         # find all languages which aren't in ISO-639-1
         languages = {}
@@ -29,20 +27,15 @@ class Command(BaseCommand):  # pragma: no cover
                 languages[code] = name
 
         # fetch all orgs using one of these languages
-        orgs = (
-            Org.objects.filter(languages__iso_code__in=languages.keys())
-            .prefetch_related("languages")
-            .distinct()
-            .order_by("name")
-        )
+        orgs = Org.objects.filter(flow_languages__overlap=list(languages.keys())).order_by("name")
 
         print("The following orgs currently use non-ISO-639-1 languages:\n")
 
         # print each org and the languages it uses
         for org in orgs:
             print(f"{org.name} (#{org.id})")
-            for lang in org.languages.all():
-                name, alpha_3, alpha_2 = "", lang.iso_code, ""
+            for alpha_3 in org.flow_languages:
+                name, alpha_2 = "", ""
                 language = pycountry.languages.get(alpha_3=alpha_3)
                 if language:
                     name = language.name

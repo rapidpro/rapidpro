@@ -24,7 +24,6 @@ from temba.api.v2.views_base import (
     DeleteAPIMixin,
     ListAPIMixin,
     ModifiedOnCursorPagination,
-    OpenedOnCursorPagination,
     WriteAPIMixin,
 )
 from temba.archives.models import Archive
@@ -2197,7 +2196,7 @@ class GroupsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         instance = self.get_object()
 
         # if there are still dependencies, give up
-        triggers = instance.trigger_set.filter(is_archived=False)
+        triggers = instance.triggers.filter(is_archived=False)
         if triggers:
             deps = ", ".join([str(t.id) for t in triggers])
             raise InvalidQueryError(
@@ -2507,7 +2506,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
 
         def get_ordering(self, request, queryset, view=None):
             if request.query_params.get("folder", "").lower() == "incoming":
-                return ModifiedOnCursorPagination.ordering
+                return "-modified_on", "-id"
             else:
                 return CreatedOnCursorPagination.ordering
 
@@ -3518,7 +3517,7 @@ class TicketsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     model = Ticket
     serializer_class = TicketReadSerializer
     write_serializer_class = TicketWriteSerializer
-    pagination_class = OpenedOnCursorPagination
+    pagination_class = ModifiedOnCursorPagination
 
     def filter_queryset(self, queryset):
         params = self.request.query_params
