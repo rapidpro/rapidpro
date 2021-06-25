@@ -82,13 +82,17 @@ class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
         return context
 
 
-class NoteForm(forms.Form):
+class NoteForm(forms.ModelForm):
     note = forms.CharField(
         max_length=2048,
         required=True,
         widget=InputWidget({"hide_label": True, "textarea": True}),
         help_text=_("Notes can only be seen by the support team"),
     )
+
+    class Meta:
+        model = Ticket
+        fields = ("note",)
 
 
 class TicketCRUDL(SmartCRUDL):
