@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-22 17:26+0000\n"
+"POT-Creation-Date: 2021-06-25 18:40+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3974,6 +3974,9 @@ msgstr ""
 msgid "Connect %(ticketer)s"
 msgstr ""
 
+msgid "Notes can only be seen by the support team"
+msgstr ""
+
 msgid "Open Tickets"
 msgstr ""
 
@@ -3986,13 +3989,8 @@ msgstr ""
 msgid "HTTP Log"
 msgstr ""
 
-msgid "Notes can only be seen by the support team"
+msgid "Unassigned"
 msgstr ""
-
-#, fuzzy
-#| msgid "Add Number"
-msgid "Add Note"
-msgstr "Добавить Номер"
 
 msgid "Your ticketing service has been deleted."
 msgstr ""
@@ -7774,6 +7772,11 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#, fuzzy
+#~| msgid "Add Number"
+#~ msgid "Add Note"
+#~ msgstr "Добавить Номер"
 
 #~ msgid "When this broadcast was created"
 #~ msgstr "Когда была создана эта рассылка"

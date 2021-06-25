@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-22 17:26+0000\n"
+"POT-Creation-Date: 2021-06-25 18:40+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -3966,6 +3966,9 @@ msgstr "Añadir"
 msgid "Connect %(ticketer)s"
 msgstr "Conectar %(ticketer)s"
 
+msgid "Notes can only be seen by the support team"
+msgstr ""
+
 msgid "Open Tickets"
 msgstr "Tickets Abiertas"
 
@@ -3978,13 +3981,8 @@ msgstr "Eliminar servicio de tickets"
 msgid "HTTP Log"
 msgstr "Registro HTTP"
 
-msgid "Notes can only be seen by the support team"
+msgid "Unassigned"
 msgstr ""
-
-#, fuzzy
-#| msgid "Add Number"
-msgid "Add Note"
-msgstr "Agregar número"
 
 msgid "Your ticketing service has been deleted."
 msgstr "Su servicio de Tickets ha sido eliminado."
@@ -7931,6 +7929,11 @@ msgstr "Las plantillas se sincronizan desde su cuenta de WhatsApp cada 15 minuto
 
 msgid "No synced templates at this time."
 msgstr "No hay plantillas sincronizadas en este momento."
+
+#, fuzzy
+#~| msgid "Add Number"
+#~ msgid "Add Note"
+#~ msgstr "Agregar número"
 
 #~ msgid "When this broadcast was created"
 #~ msgstr "Cuando se creó esta transmisión"

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-22 17:26+0000\n"
+"POT-Creation-Date: 2021-06-25 18:40+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3963,6 +3963,9 @@ msgstr "Ajouter"
 msgid "Connect %(ticketer)s"
 msgstr "Connecter %(ticketer)s"
 
+msgid "Notes can only be seen by the support team"
+msgstr ""
+
 msgid "Open Tickets"
 msgstr "Billets ouverts"
 
@@ -3975,13 +3978,8 @@ msgstr "Supprimer le service de billetterie"
 msgid "HTTP Log"
 msgstr "Journal HTTP"
 
-msgid "Notes can only be seen by the support team"
+msgid "Unassigned"
 msgstr ""
-
-#, fuzzy
-#| msgid "Add Number"
-msgid "Add Note"
-msgstr "Ajouter un nombre"
 
 msgid "Your ticketing service has been deleted."
 msgstr "Votre service de billetterie a été supprimé."
@@ -7915,6 +7913,11 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#, fuzzy
+#~| msgid "Add Number"
+#~ msgid "Add Note"
+#~ msgstr "Ajouter un nombre"
 
 #~ msgid "When this broadcast was created"
 #~ msgstr "Quand cette diffusion a été créée"
