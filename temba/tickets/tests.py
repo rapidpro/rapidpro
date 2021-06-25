@@ -131,6 +131,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     },
                     "ticket": {
                         "uuid": str(contact2.tickets.filter(status="O").first().uuid),
+                        "assignee": None,
                         "subject": "Question 3",
                         "closed_on": None,
                     },
@@ -148,6 +149,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     },
                     "ticket": {
                         "uuid": str(joes_open_tickets[0].uuid),
+                        "assignee": None,
                         "subject": "Question 2",
                         "closed_on": None,
                     },
@@ -165,6 +167,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     },
                     "ticket": {
                         "uuid": str(joes_open_tickets[1].uuid),
+                        "assignee": None,
                         "subject": "Question 1",
                         "closed_on": None,
                     },
@@ -301,14 +304,14 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         update_url = reverse("tickets.ticket_note", args=[ticket.uuid])
 
         self.assertUpdateFetch(
-            update_url, allow_viewers=False, allow_editors=True, allow_agents=True, form_fields=["text"]
+            update_url, allow_viewers=False, allow_editors=True, allow_agents=True, form_fields=["note"]
         )
 
         self.assertUpdateSubmit(
-            update_url, {"text": ""}, form_errors={"text": "This field is required."}, object_unchanged=ticket
+            update_url, {"note": ""}, form_errors={"note": "This field is required."}, object_unchanged=ticket
         )
 
-        self.assertUpdateSubmit(update_url, {"text": "I have a bad feeling about this."}, success_status=200)
+        self.assertUpdateSubmit(update_url, {"note": "I have a bad feeling about this."}, success_status=200)
 
         self.assertEqual(1, ticket.events.filter(event_type=TicketEvent.TYPE_NOTE).count())
 

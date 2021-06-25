@@ -1979,7 +1979,10 @@ def _user_verify_2fa(user, *, otp: str = None, backup_token: str = None) -> bool
 
 
 def _user_str(user):
-    return user.get_full_name()
+    name = user.get_full_name()
+    if not name:
+        name = user.username
+    return name
 
 
 User.release = release

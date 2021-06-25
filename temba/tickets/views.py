@@ -90,9 +90,6 @@ class NoteForm(forms.Form):
         help_text=_("Notes can only be seen by the support team"),
     )
 
-    def __init__(self, instance, **kwargs):
-        super().__init__(**kwargs)
-
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
