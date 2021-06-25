@@ -890,7 +890,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
             allow_viewers=False,
             allow_editors=True,
             form_fields={
-                "start_datetime": datetime(2021, 6, 25, 10, 0, 0, 0, pytz.UTC),
+                "start_datetime": schedule.next_fire,
                 "repeat_period": "W",
                 "repeat_days_of_week": ["M", "F"],
                 "flow": flow1.id,

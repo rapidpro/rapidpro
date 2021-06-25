@@ -606,10 +606,10 @@ class Org(SmartModel):
                             fields.add(event.relative_to)
 
             elif isinstance(component, Trigger):
-                exported_triggers.append(component.as_export_def())
-
-                if include_groups:
-                    groups.update(component.groups.all())
+                if component.type.exportable:
+                    exported_triggers.append(component.as_export_def())
+                    if include_groups:
+                        groups.update(component.groups.all())
 
         return {
             Org.EXPORT_VERSION: Org.CURRENT_EXPORT_VERSION,

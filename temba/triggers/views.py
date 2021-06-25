@@ -63,9 +63,9 @@ class BaseTriggerForm(forms.ModelForm):
 
         self.user = user
         self.org = user.get_org()
-        self.trigger_type = trigger_type
+        self.trigger_type = Trigger.get_type(trigger_type)
 
-        flow_types = Trigger.get_allowed_flow_types(self.trigger_type)
+        flow_types = self.trigger_type.allowed_flow_types
         flows = self.org.flows.filter(flow_type__in=flow_types, is_active=True, is_archived=False, is_system=False)
 
         self.fields["flow"].queryset = flows.order_by("name")
@@ -79,7 +79,7 @@ class BaseTriggerForm(forms.ModelForm):
         return self.org.channels.filter(is_active=True, schemes__overlap=list(schemes)).order_by("name")
 
     def get_conflicts(self, cleaned_data):
-        conflicts = Trigger.get_conflicts(self.org, self.trigger_type, **self.get_conflicts_kwargs(cleaned_data))
+        conflicts = Trigger.get_conflicts(self.org, self.trigger_type.code, **self.get_conflicts_kwargs(cleaned_data))
 
         # if we're editing a trigger we can't conflict with ourselves
         if self.instance:
@@ -381,7 +381,7 @@ class TriggerCRUDL(SmartCRUDL):
             Trigger.create(
                 org,
                 user,
-                form.trigger_type,
+                form.trigger_type.code,
                 flow,
                 groups=groups,
                 exclude_groups=exclude_groups,
@@ -468,19 +468,9 @@ class TriggerCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
         success_message = ""
-        trigger_forms = {
-            Trigger.TYPE_KEYWORD: KeywordTriggerForm,
-            Trigger.TYPE_CATCH_ALL: CatchAllTriggerForm,
-            Trigger.TYPE_SCHEDULE: ScheduleTriggerForm,
-            Trigger.TYPE_INBOUND_CALL: InboundCallTriggerForm,
-            Trigger.TYPE_MISSED_CALL: MissedCallTriggerForm,
-            Trigger.TYPE_NEW_CONVERSATION: NewConversationTriggerForm,
-            Trigger.TYPE_REFERRAL: ReferralTriggerForm,
-            Trigger.TYPE_CLOSED_TICKET: ClosedTicketTriggerForm,
-        }
 
         def get_form_class(self):
-            return self.trigger_forms[self.object.trigger_type]
+            return self.object.type.form
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()

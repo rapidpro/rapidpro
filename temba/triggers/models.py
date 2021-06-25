@@ -34,17 +34,6 @@ class Trigger(SmartModel):
     TYPE_CLOSED_TICKET = "T"
     TYPE_CATCH_ALL = "C"
 
-    TRIGGER_TYPES = (
-        (TYPE_KEYWORD, "Keyword"),
-        (TYPE_SCHEDULE, "Schedule"),
-        (TYPE_INBOUND_CALL, "Inbound Call"),
-        (TYPE_MISSED_CALL, "Missed Call"),
-        (TYPE_NEW_CONVERSATION, "New Conversation"),
-        (TYPE_REFERRAL, "Referral"),
-        (TYPE_CLOSED_TICKET, "Closed Ticket"),
-        (TYPE_CATCH_ALL, "Catch All"),
-    )
-
     FOLDER_KEYWORDS = "keywords"
     FOLDER_SCHEDULED = "scheduled"
     FOLDER_CALLS = "calls"
@@ -75,9 +64,7 @@ class Trigger(SmartModel):
     )
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="triggers")
-
-    trigger_type = models.CharField(max_length=1, choices=TRIGGER_TYPES, default=TYPE_KEYWORD)
-
+    trigger_type = models.CharField(max_length=1, default=TYPE_KEYWORD)
     is_archived = models.BooleanField(default=False)
 
     keyword = models.CharField(
@@ -216,7 +203,7 @@ class Trigger(SmartModel):
     def get_conflicts(
         cls,
         org,
-        trigger_type,
+        trigger_type: str,
         channel=None,
         groups=None,
         keyword: str = None,
@@ -261,8 +248,10 @@ class Trigger(SmartModel):
         """
 
         for trigger_def in trigger_defs:
-            # skip scheduled triggers which we've been exporting without their schedules so they don't import correctly
-            if trigger_def["trigger_type"] == Trigger.TYPE_SCHEDULE:
+            trigger_type = cls.get_type(trigger_def["trigger_type"])
+
+            # old exports might include scheduled triggers without schedules
+            if not trigger_type.exportable:
                 continue
 
             # resolve groups, channel and flow
@@ -351,10 +340,6 @@ class Trigger(SmartModel):
                 trigger_scopes = trigger_scopes | trigger_scope
 
     @classmethod
-    def get_allowed_flow_types(cls, trigger_type: str) -> tuple:
-        return TYPES[trigger_type].allowed_flow_types
-
-    @classmethod
     def get_folder(cls, org, key: str):
         return cls.filter_folder(org.triggers.filter(is_active=True, is_archived=False), key)
 
@@ -364,12 +349,25 @@ class Trigger(SmartModel):
 
         return qs.filter(trigger_type__in=cls.FOLDERS[key].types)
 
-    def as_export_def(self):
+    def as_export_def(self) -> dict:
         """
         The definition of this trigger for export.
         """
+        return self.type.export_def(self)
 
-        return TYPES[self.trigger_type].export_def(self)
+    @classmethod
+    def get_type(cls, trigger_type: str):
+        from .types import TYPES
+
+        return TYPES[trigger_type]
+
+    @property
+    def type(self):
+        return self.get_type(self.trigger_type)
+
+    @classmethod
+    def get_allowed_flow_types(cls, trigger_type: str) -> tuple:
+        return cls.get_type(trigger_type).allowed_flow_types
 
     def release(self):
         """
@@ -383,76 +381,3 @@ class Trigger(SmartModel):
 
     def __str__(self):
         return f'Trigger[type={self.trigger_type}, flow="{self.flow.name}"]'
-
-
-class TriggerType:
-    code = None
-    allowed_flow_types = ()
-
-    def export_def(self, trigger: Trigger) -> dict:
-        return {
-            "trigger_type": trigger.trigger_type,
-            "flow": trigger.flow.as_export_ref(),
-            "groups": [group.as_export_ref() for group in trigger.groups.all()],
-            "exclude_groups": [group.as_export_ref() for group in trigger.exclude_groups.all()],
-        }
-
-
-class KeywordTriggerType(TriggerType):
-    code = Trigger.TYPE_KEYWORD
-    allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE)
-
-    def export_def(self, trigger: Trigger) -> dict:
-        ex_def = super().export_def(trigger)
-        ex_def["keyword"] = trigger.keyword
-        ex_def["match_type"] = trigger.match_type
-        return ex_def
-
-
-class CatchallTriggerType(TriggerType):
-    code = Trigger.TYPE_CATCH_ALL
-    allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE)
-
-
-class ScheduledTriggerType(TriggerType):
-    code = Trigger.TYPE_SCHEDULE
-    allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND)
-
-
-class InboundCallTriggerType(TriggerType):
-    code = Trigger.TYPE_INBOUND_CALL
-    allowed_flow_types = (Flow.TYPE_VOICE,)
-
-
-class MissedCallTriggerType(TriggerType):
-    code = Trigger.TYPE_MISSED_CALL
-    allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE)
-
-
-class NewConversationTriggerType(TriggerType):
-    code = Trigger.TYPE_NEW_CONVERSATION
-    allowed_flow_types = (Flow.TYPE_MESSAGE,)
-
-    def export_def(self, trigger: Trigger) -> dict:
-        ex_def = super().export_def(trigger)
-        ex_def["channel"] = trigger.channel.uuid if trigger.channel else None
-        return ex_def
-
-
-class ReferralTriggerType(TriggerType):
-    code = Trigger.TYPE_REFERRAL
-    allowed_flow_types = (Flow.TYPE_MESSAGE,)
-
-    def export_def(self, trigger: Trigger) -> dict:
-        ex_def = super().export_def(trigger)
-        ex_def["channel"] = trigger.channel.uuid if trigger.channel else None
-        ex_def["referrer_id"] = trigger.referrer_id
-        return ex_def
-
-
-class ClosedTicketTriggerType(TriggerType):
-    code = Trigger.TYPE_CLOSED_TICKET
-    allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND)
-
-
-TYPES = {tc.code: tc() for tc in TriggerType.__subclasses__()}
