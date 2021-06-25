@@ -157,6 +157,28 @@ class TriggerTest(TembaTest):
         self.assertEqual(Trigger.TYPE_NEW_CONVERSATION, trigger3.trigger_type)
         self.assertEqual({testers}, set(trigger3.exclude_groups.all()))
 
+        # we ignore scheduled triggers in imports as they're missing their schedules
+        self.org.import_app(
+            {
+                "version": "13",
+                "site": "https://app.rapidpro.com",
+                "flows": [],
+                "triggers": [
+                    {
+                        "trigger_type": "S",
+                        "keyword": None,
+                        "flow": {"uuid": "8907acb0-4f32-41c2-887d-b5d2ffcc2da9", "name": "Reminder"},
+                        "groups": [],
+                        "exclude_groups": [],
+                        "channel": None,
+                    }
+                ],
+            },
+            self.admin,
+        )
+
+        self.assertEqual(3, Trigger.objects.count())  # no new triggers imported
+
     def test_release(self):
         flow = self.create_flow()
         group = self.create_group("Trigger Group", [])

@@ -279,6 +279,10 @@ class Trigger(SmartModel):
         """
 
         for trigger_def in trigger_defs:
+            # skip scheduled triggers which we've been exporting without their schedules so they don't import correctly
+            if trigger_def[Trigger.EXPORT_TYPE] == Trigger.TYPE_SCHEDULE:
+                continue
+
             # resolve groups, channel and flow
             groups = cls._resolve_import_groups(org, user, same_site, trigger_def[Trigger.EXPORT_GROUPS])
             exclude_groups = cls._resolve_import_groups(
