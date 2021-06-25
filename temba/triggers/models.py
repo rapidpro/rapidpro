@@ -14,24 +14,46 @@ from temba.orgs.models import Org
 
 
 class TriggerType:
+    """
+    Base class for trigger types
+    """
+
+    # single char code used for database model
     code = None
+
+    # flow types allowed for this type
     allowed_flow_types = ()
+
+    # whether the type should be included in exports
     exportable = True
+
+    # which fields to include in exports
     export_fields = ("trigger_type", "flow", "groups", "exclude_groups")
+
+    # which field must be non-empty when importing
+    required_fields = ("trigger_type", "flow")
+
+    # form class used for creation and updating
     form = None
 
     def export_def(self, trigger) -> dict:
         all_fields = {
             "trigger_type": trigger.trigger_type,
             "flow": trigger.flow.as_export_ref(),
-            "groups": [group.as_export_ref() for group in trigger.groups.all()],
-            "exclude_groups": [group.as_export_ref() for group in trigger.exclude_groups.all()],
+            "groups": [group.as_export_ref() for group in trigger.groups.order_by("name")],
+            "exclude_groups": [group.as_export_ref() for group in trigger.exclude_groups.order_by("name")],
             "channel": trigger.channel.uuid if trigger.channel else None,
             "keyword": trigger.keyword,
-            "match_type": trigger.match_type,
-            "referrer_id": trigger.referrer_id,
         }
         return {f: all_fields[f] for f in self.export_fields}
+
+    def validate_import_def(self, trigger_def: dict):
+        """
+        Validates a trigger definition being imported
+        """
+        for field in self.required_fields:
+            if not trigger_def.get(field):
+                raise ValueError(f"Field '{field}' is required.")
 
 
 class Folder(NamedTuple):
@@ -263,6 +285,16 @@ class Trigger(SmartModel):
         return conflicts
 
     @classmethod
+    def validate_import_def(cls, trigger_def: dict):
+        type_code = trigger_def.get("trigger_type", "")
+        try:
+            trigger_type = cls.get_type(type_code)
+        except KeyError:
+            raise ValueError(f"{type_code} is not a valid trigger type")
+
+        trigger_type.validate_import_def(trigger_def)
+
+    @classmethod
     def import_triggers(cls, org, user, trigger_defs, same_site=False):
         """
         Import triggers from a list of exported triggers
@@ -274,6 +306,9 @@ class Trigger(SmartModel):
             # old exports might include scheduled triggers without schedules
             if not trigger_type.exportable:
                 continue
+
+            # only consider fields which are valid for this type of trigger
+            trigger_def = {k: v for k, v in trigger_def.items() if k in trigger_type.export_fields}
 
             # resolve groups, channel and flow
             groups = cls._resolve_import_groups(org, user, same_site, trigger_def["groups"])
@@ -374,7 +409,13 @@ class Trigger(SmartModel):
         """
         The definition of this trigger for export.
         """
-        return self.type.export_def(self)
+        export_def = self.type.export_def(self)
+
+        # for backwards compatibility keyword needs to always be present even if the trigger type doesn't use it
+        if "keyword" not in export_def:
+            export_def["keyword"] = None
+
+        return export_def
 
     @classmethod
     def get_type(cls, trigger_type: str):
@@ -385,10 +426,6 @@ class Trigger(SmartModel):
     @property
     def type(self):
         return self.get_type(self.trigger_type)
-
-    @classmethod
-    def get_allowed_flow_types(cls, trigger_type: str) -> tuple:
-        return cls.get_type(trigger_type).allowed_flow_types
 
     def release(self):
         """

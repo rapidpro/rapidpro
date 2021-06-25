@@ -1,3 +1,5 @@
+import regex
+
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 
@@ -17,6 +19,8 @@ class KeywordTriggerType(TriggerType):
     A trigger for incoming messages that match given keywords
     """
 
+    KEYWORD_REGEX = regex.compile(r"^\w+$", flags=regex.UNICODE | regex.V0)
+
     class Form(BaseTriggerForm):
         def __init__(self, user, *args, **kwargs):
             super().__init__(user, Trigger.TYPE_KEYWORD, *args, **kwargs)
@@ -32,8 +36,24 @@ class KeywordTriggerType(TriggerType):
 
     code = Trigger.TYPE_KEYWORD
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE)
-    export_fields = TriggerType.export_fields + ("keyword", "match_type")
+    export_fields = TriggerType.export_fields + ("keyword",)
+    required_fields = TriggerType.required_fields + ("keyword",)
     form = Form
+
+    def validate_import_def(self, trigger_def: dict):
+        super().validate_import_def(trigger_def)
+
+        if not self.is_valid_keyword(trigger_def["keyword"]):
+            raise ValueError(f"{trigger_def['keyword']} is not a valid keyword")
+
+    def is_valid_keyword(self, keyword):
+        return (
+            keyword
+            and len(keyword) <= Trigger.KEYWORD_MAX_LEN
+            and self.KEYWORD_REGEX.match(
+                keyword.strip(),
+            )
+        )
 
 
 class CatchallTriggerType(TriggerType):
@@ -143,6 +163,7 @@ class NewConversationTriggerType(TriggerType):
     code = Trigger.TYPE_NEW_CONVERSATION
     allowed_flow_types = (Flow.TYPE_MESSAGE,)
     export_fields = TriggerType.export_fields + ("channel",)
+    required_fields = TriggerType.required_fields + ("channel",)
     form = Form
 
 
@@ -178,7 +199,7 @@ class ReferralTriggerType(TriggerType):
 
     code = Trigger.TYPE_REFERRAL
     allowed_flow_types = (Flow.TYPE_MESSAGE,)
-    export_fields = TriggerType.export_fields + ("channel", "referrer_id")
+    export_fields = TriggerType.export_fields + ("channel",)
     form = Form
 
 

@@ -1,4 +1,3 @@
-import regex
 from smartmin.views import SmartCreateView, SmartCRUDL, SmartListView, SmartTemplateView, SmartUpdateView
 
 from django import forms
@@ -91,7 +90,7 @@ class BaseTriggerForm(forms.ModelForm):
         keyword = self.cleaned_data.get("keyword") or ""
         keyword = keyword.strip()
 
-        if keyword == "" or (keyword and not regex.match(r"^\w+$", keyword, flags=regex.UNICODE | regex.V0)):
+        if not self.trigger_type.is_valid_keyword(keyword):
             raise forms.ValidationError(_("Must be a single word containing only letters and numbers."))
 
         return keyword.lower()
