@@ -1977,6 +1977,14 @@ def _user_verify_2fa(user, *, otp: str = None, backup_token: str = None) -> bool
     return False
 
 
+def _user_name(user: User) -> str:
+    return " ".join([n for n in (user.first_name, user.last_name) if n])
+
+
+def _user_as_engine_ref(user: User) -> dict:
+    return {"email": user.email, "name": user.name}
+
+
 User.release = release
 User.get_org = get_org
 User.set_org = set_org
@@ -1992,6 +2000,8 @@ User.record_auth = _user_record_auth
 User.enable_2fa = _user_enable_2fa
 User.disable_2fa = _user_disable_2fa
 User.verify_2fa = _user_verify_2fa
+User.name = property(_user_name)
+User.as_engine_ref = _user_as_engine_ref
 
 
 def get_stripe_credentials():
