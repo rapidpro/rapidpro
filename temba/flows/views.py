@@ -1782,6 +1782,7 @@ class FlowCRUDL(SmartCRUDL):
                     }
 
                 payload["trigger"]["environment"] = flow.org.as_environment_def()
+                payload["trigger"]["user"] = self.request.user.as_engine_ref()
 
                 try:
                     return JsonResponse(client.sim_start(payload))
