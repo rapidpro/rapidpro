@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-22 17:26+0000\n"
+"POT-Creation-Date: 2021-06-25 16:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -4073,6 +4073,31 @@ msgstr "Como combinar a mensagem com a palavra-chave"
 msgid "The associated channel."
 msgstr "O canal associado"
 
+#, fuzzy
+#| msgid "Group to Join"
+msgid "Contacts To Include"
+msgstr "Grupos para participar"
+
+msgid "Additional specific contacts to include."
+msgstr ""
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Optional: Select contacts"
+msgstr "Opcional: Disparadores se aplicam somente à estes grupos"
+
+msgid "Must provide at least one group or contact to include."
+msgstr ""
+
+msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
+msgstr "O canal para aplicar esse gatilho,  ou deixe em branco para todos os canais do Facebook"
+
+msgid "Referrer Id"
+msgstr "Id do referente"
+
+msgid "The referrer id that will trigger us"
+msgstr "O id do referente que iniciara"
+
 msgid "Select a flow"
 msgstr "Selecione um fluxo"
 
@@ -4112,8 +4137,11 @@ msgstr ""
 msgid "There already exists a trigger of this type with these options."
 msgstr "Um disparador ativo já existe, disparadores devem ser exclusivos para cada grupo"
 
-msgid "The first word of the message text"
-msgstr "A primeira palavra do texto de mensagem"
+msgid "Join Keyword"
+msgstr "Juntar palavra-chave"
+
+msgid "The first word of the message"
+msgstr "A primeira palavra da mensagem"
 
 msgid "Group to Join"
 msgstr "Grupos para participar"
@@ -4129,42 +4157,8 @@ msgstr[1] "Respostas"
 msgid "The message to send in response after they join the group (optional)"
 msgstr "A mensagem para enviar em resposta após se juntar ao grupo (opcional)"
 
-#, fuzzy
-#| msgid "Group to Join"
-msgid "Contacts To Include"
-msgstr "Grupos para participar"
-
-msgid "Additional specific contacts to include."
-msgstr ""
-
-#, fuzzy
-#| msgid "Optional: Trigger only applies to these groups"
-msgid "Optional: Select contacts"
-msgstr "Opcional: Disparadores se aplicam somente à estes grupos"
-
-msgid "Must provide at least one group or contact to include."
-msgstr ""
-
-msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
-msgstr "O canal para aplicar esse gatilho,  ou deixe em branco para todos os canais do Facebook"
-
-msgid "Referrer Id"
-msgstr "Id do referente"
-
-msgid "The referrer id that will trigger us"
-msgstr "O id do referente que iniciara"
-
 msgid "Create Trigger"
 msgstr "Criar disparador"
-
-msgid "Join Keyword"
-msgstr "Juntar palavra-chave"
-
-msgid "The first word of the message"
-msgstr "A primeira palavra da mensagem"
-
-msgid "Create Referral Trigger"
-msgstr "Criar Disparador de Referência"
 
 msgid "Triggers"
 msgstr "Disparadores"
@@ -7918,6 +7912,12 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#~ msgid "The first word of the message text"
+#~ msgstr "A primeira palavra do texto de mensagem"
+
+#~ msgid "Create Referral Trigger"
+#~ msgstr "Criar Disparador de Referência"
 
 #~ msgid "When this broadcast was created"
 #~ msgstr "Quando essa transmissão foi criada"
