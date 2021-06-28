@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-22 17:26+0000\n"
+"POT-Creation-Date: 2021-06-25 16:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -4075,6 +4075,31 @@ msgstr "Как сопоставить сообщение с ключевым с�
 msgid "The associated channel."
 msgstr "Связанный канал"
 
+#, fuzzy
+#| msgid "Group to Join"
+msgid "Contacts To Include"
+msgstr "Группа для Присоединения"
+
+msgid "Additional specific contacts to include."
+msgstr ""
+
+#, fuzzy
+#| msgid "Recipients, enter contacts or groups"
+msgid "Optional: Select contacts"
+msgstr "Получатели, введите контакты или группы"
+
+msgid "Must provide at least one group or contact to include."
+msgstr ""
+
+msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
+msgstr "Канал, к которому применить этот триггер, оставьте пустым для охвата всех каналов Facebook"
+
+msgid "Referrer Id"
+msgstr "Id Источника ссылки"
+
+msgid "The referrer id that will trigger us"
+msgstr "Id источника ссылки, который запустит нас"
+
 msgid "Select a flow"
 msgstr "Выберите поток"
 
@@ -4112,8 +4137,11 @@ msgstr ""
 msgid "There already exists a trigger of this type with these options."
 msgstr "Активный триггер уже существует, триггеры должны быть уникальными для каждой группы"
 
-msgid "The first word of the message text"
-msgstr "Первое слово текста сообщения"
+msgid "Join Keyword"
+msgstr "Присоединить ключевое слово"
+
+msgid "The first word of the message"
+msgstr "Первое слово сообщения"
 
 msgid "Group to Join"
 msgstr "Группа для Присоединения"
@@ -4131,42 +4159,8 @@ msgstr[3] "Ответы"
 msgid "The message to send in response after they join the group (optional)"
 msgstr "Ответное сообщение для отправки после того, как они присоединятся к группе (опционально)"
 
-#, fuzzy
-#| msgid "Group to Join"
-msgid "Contacts To Include"
-msgstr "Группа для Присоединения"
-
-msgid "Additional specific contacts to include."
-msgstr ""
-
-#, fuzzy
-#| msgid "Recipients, enter contacts or groups"
-msgid "Optional: Select contacts"
-msgstr "Получатели, введите контакты или группы"
-
-msgid "Must provide at least one group or contact to include."
-msgstr ""
-
-msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
-msgstr "Канал, к которому применить этот триггер, оставьте пустым для охвата всех каналов Facebook"
-
-msgid "Referrer Id"
-msgstr "Id Источника ссылки"
-
-msgid "The referrer id that will trigger us"
-msgstr "Id источника ссылки, который запустит нас"
-
 msgid "Create Trigger"
 msgstr "Создать Триггер"
-
-msgid "Join Keyword"
-msgstr "Присоединить ключевое слово"
-
-msgid "The first word of the message"
-msgstr "Первое слово сообщения"
-
-msgid "Create Referral Trigger"
-msgstr "Создать Реферальный Триггер"
 
 msgid "Triggers"
 msgstr "Триггеры"
@@ -7774,6 +7768,12 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#~ msgid "The first word of the message text"
+#~ msgstr "Первое слово текста сообщения"
+
+#~ msgid "Create Referral Trigger"
+#~ msgstr "Создать Реферальный Триггер"
 
 #~ msgid "When this broadcast was created"
 #~ msgstr "Когда была создана эта рассылка"

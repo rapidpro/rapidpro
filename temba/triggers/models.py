@@ -13,6 +13,49 @@ from temba.flows.models import Flow
 from temba.orgs.models import Org
 
 
+class TriggerType:
+    """
+    Base class for trigger types
+    """
+
+    # single char code used for database model
+    code = None
+
+    # flow types allowed for this type
+    allowed_flow_types = ()
+
+    # whether the type should be included in exports
+    exportable = True
+
+    # which fields to include in exports
+    export_fields = ("trigger_type", "flow", "groups", "exclude_groups")
+
+    # which field must be non-empty when importing
+    required_fields = ("trigger_type", "flow")
+
+    # form class used for creation and updating
+    form = None
+
+    def export_def(self, trigger) -> dict:
+        all_fields = {
+            "trigger_type": trigger.trigger_type,
+            "flow": trigger.flow.as_export_ref(),
+            "groups": [group.as_export_ref() for group in trigger.groups.order_by("name")],
+            "exclude_groups": [group.as_export_ref() for group in trigger.exclude_groups.order_by("name")],
+            "channel": trigger.channel.uuid if trigger.channel else None,
+            "keyword": trigger.keyword,
+        }
+        return {f: all_fields[f] for f in self.export_fields}
+
+    def validate_import_def(self, trigger_def: dict):
+        """
+        Validates a trigger definition being imported
+        """
+        for field in self.required_fields:
+            if not trigger_def.get(field):
+                raise ValueError(f"Field '{field}' is required.")
+
+
 class Folder(NamedTuple):
     label: str
     title: str
@@ -33,28 +76,6 @@ class Trigger(SmartModel):
     TYPE_REFERRAL = "R"
     TYPE_CLOSED_TICKET = "T"
     TYPE_CATCH_ALL = "C"
-
-    TRIGGER_TYPES = (
-        (TYPE_KEYWORD, "Keyword"),
-        (TYPE_SCHEDULE, "Schedule"),
-        (TYPE_INBOUND_CALL, "Inbound Call"),
-        (TYPE_MISSED_CALL, "Missed Call"),
-        (TYPE_NEW_CONVERSATION, "New Conversation"),
-        (TYPE_REFERRAL, "Referral"),
-        (TYPE_CLOSED_TICKET, "Closed Ticket"),
-        (TYPE_CATCH_ALL, "Catch All"),
-    )
-
-    ALLOWED_FLOW_TYPES = {
-        TYPE_KEYWORD: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE),
-        TYPE_SCHEDULE: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND),
-        TYPE_INBOUND_CALL: (Flow.TYPE_VOICE,),
-        TYPE_MISSED_CALL: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE),
-        TYPE_NEW_CONVERSATION: (Flow.TYPE_MESSAGE,),
-        TYPE_REFERRAL: (Flow.TYPE_MESSAGE,),
-        TYPE_CLOSED_TICKET: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND),
-        TYPE_CATCH_ALL: (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE),
-    }
 
     FOLDER_KEYWORDS = "keywords"
     FOLDER_SCHEDULED = "scheduled"
@@ -85,17 +106,8 @@ class Trigger(SmartModel):
         (MATCH_ONLY_WORD, _("Message contains only the keyword")),
     )
 
-    EXPORT_TYPE = "trigger_type"
-    EXPORT_KEYWORD = "keyword"
-    EXPORT_FLOW = "flow"
-    EXPORT_GROUPS = "groups"
-    EXPORT_EXCLUDE_GROUPS = "exclude_groups"
-    EXPORT_CHANNEL = "channel"
-
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="triggers")
-
-    trigger_type = models.CharField(max_length=1, choices=TRIGGER_TYPES, default=TYPE_KEYWORD)
-
+    trigger_type = models.CharField(max_length=1, default=TYPE_KEYWORD)
     is_archived = models.BooleanField(default=False)
 
     keyword = models.CharField(
@@ -234,7 +246,7 @@ class Trigger(SmartModel):
     def get_conflicts(
         cls,
         org,
-        trigger_type,
+        trigger_type: str,
         channel=None,
         groups=None,
         keyword: str = None,
@@ -273,30 +285,47 @@ class Trigger(SmartModel):
         return conflicts
 
     @classmethod
+    def validate_import_def(cls, trigger_def: dict):
+        type_code = trigger_def.get("trigger_type", "")
+        try:
+            trigger_type = cls.get_type(type_code)
+        except KeyError:
+            raise ValueError(f"{type_code} is not a valid trigger type")
+
+        trigger_type.validate_import_def(trigger_def)
+
+    @classmethod
     def import_triggers(cls, org, user, trigger_defs, same_site=False):
         """
         Import triggers from a list of exported triggers
         """
 
         for trigger_def in trigger_defs:
-            # resolve groups, channel and flow
-            groups = cls._resolve_import_groups(org, user, same_site, trigger_def[Trigger.EXPORT_GROUPS])
-            exclude_groups = cls._resolve_import_groups(
-                org, user, same_site, trigger_def.get(Trigger.EXPORT_EXCLUDE_GROUPS, [])
-            )
+            trigger_type = cls.get_type(trigger_def["trigger_type"])
 
-            channel_uuid = trigger_def.get(Trigger.EXPORT_CHANNEL)
+            # old exports might include scheduled triggers without schedules
+            if not trigger_type.exportable:
+                continue
+
+            # only consider fields which are valid for this type of trigger
+            trigger_def = {k: v for k, v in trigger_def.items() if k in trigger_type.export_fields}
+
+            # resolve groups, channel and flow
+            groups = cls._resolve_import_groups(org, user, same_site, trigger_def["groups"])
+            exclude_groups = cls._resolve_import_groups(org, user, same_site, trigger_def.get("exclude_groups", []))
+
+            channel_uuid = trigger_def.get("channel")
             channel = org.channels.filter(uuid=channel_uuid, is_active=True).first() if channel_uuid else None
 
-            flow_uuid = trigger_def[Trigger.EXPORT_FLOW]["uuid"]
+            flow_uuid = trigger_def["flow"]["uuid"]
             flow = org.flows.get(uuid=flow_uuid, is_active=True)
 
             # see if that trigger already exists
             conflicts = cls.get_conflicts(
                 org,
-                trigger_def[Trigger.EXPORT_TYPE],
+                trigger_def["trigger_type"],
                 groups=groups,
-                keyword=trigger_def[Trigger.EXPORT_KEYWORD],
+                keyword=trigger_def.get("keyword"),
                 channel=channel,
                 include_archived=True,
             )
@@ -311,15 +340,17 @@ class Trigger(SmartModel):
                 if exact_match.is_archived:
                     exact_match.restore(user)
             else:
-                Trigger.create(
+                cls.create(
                     org,
                     user,
-                    trigger_def[Trigger.EXPORT_TYPE],
+                    trigger_def["trigger_type"],
                     flow,
                     channel=channel,
                     groups=groups,
                     exclude_groups=exclude_groups,
-                    keyword=trigger_def[Trigger.EXPORT_KEYWORD],
+                    keyword=trigger_def.get("keyword"),
+                    match_type=trigger_def.get("match_type"),
+                    referrer_id=trigger_def.get("referrer_id"),
                 )
 
     @classmethod
@@ -374,18 +405,27 @@ class Trigger(SmartModel):
 
         return qs.filter(trigger_type__in=cls.FOLDERS[key].types)
 
-    def as_export_def(self):
+    def as_export_def(self) -> dict:
         """
         The definition of this trigger for export.
         """
-        return {
-            Trigger.EXPORT_TYPE: self.trigger_type,
-            Trigger.EXPORT_KEYWORD: self.keyword,
-            Trigger.EXPORT_FLOW: self.flow.as_export_ref(),
-            Trigger.EXPORT_GROUPS: [group.as_export_ref() for group in self.groups.all()],
-            Trigger.EXPORT_EXCLUDE_GROUPS: [group.as_export_ref() for group in self.exclude_groups.all()],
-            Trigger.EXPORT_CHANNEL: self.channel.uuid if self.channel else None,
-        }
+        export_def = self.type.export_def(self)
+
+        # for backwards compatibility keyword needs to always be present even if the trigger type doesn't use it
+        if "keyword" not in export_def:
+            export_def["keyword"] = None
+
+        return export_def
+
+    @classmethod
+    def get_type(cls, trigger_type: str):
+        from .types import TYPES
+
+        return TYPES[trigger_type]
+
+    @property
+    def type(self):
+        return self.get_type(self.trigger_type)
 
     def release(self):
         """
