@@ -1,3 +1,9 @@
+v6.3.85
+----------
+ * User the current user as the manual trigger user during simulation
+ * Better trigger exports and imports
+ * Make broadcast.is_active nullable and stop filtering by it in the API
+
 v6.3.84
 ----------
  * Ignore scheduled triggers in imports because they don't import properly
