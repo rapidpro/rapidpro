@@ -349,8 +349,6 @@ class Trigger(SmartModel):
                     groups=groups,
                     exclude_groups=exclude_groups,
                     keyword=trigger_def.get("keyword"),
-                    match_type=trigger_def.get("match_type"),
-                    referrer_id=trigger_def.get("referrer_id"),
                 )
 
     @classmethod
