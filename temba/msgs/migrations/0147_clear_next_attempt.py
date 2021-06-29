@@ -5,7 +5,7 @@ from django.db import migrations
 from temba.utils import chunk_list
 
 
-def clear_next_attempt(apps, schema_editor):
+def clear_next_attempt(apps, schema_editor):  # pragma: no cover
     Msg = apps.get_model("msgs", "Msg")
     Channel = apps.get_model("channels", "Channel")
 
@@ -15,7 +15,7 @@ def clear_next_attempt(apps, schema_editor):
         Msg.objects.filter(channel_id__in=android_chunk).update(next_attempt=None)
 
 
-def reverse(apps, schema_editor):
+def reverse(apps, schema_editor):  # pragma: no cover
     pass
 
 
