@@ -1,3 +1,8 @@
+v6.3.86
+----------
+ * Stop writing Broadcast.is_active as default value
+ * Fix keyword triggers being imported without a valid match_type
+
 v6.3.85
 ----------
  * User the current user as the manual trigger user during simulation
