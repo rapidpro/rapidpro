@@ -101,6 +101,10 @@ class TriggerTest(TembaTest):
         export_def = self._export_trigger(trigger)
         self.assertEqual(expected_def, export_def["triggers"][0])
 
+        original_groups = set(trigger.groups.all())
+        original_exclude_groups = set(trigger.exclude_groups.all())
+        original_contacts = set(trigger.contacts.all())
+
         # do import to clean workspace
         Trigger.objects.all().delete()
         self.org.import_app(export_def, self.admin)
@@ -111,7 +115,14 @@ class TriggerTest(TembaTest):
             trigger_type=trigger.trigger_type,
             flow=trigger.flow,
             keyword=trigger.keyword,
+            match_type=trigger.match_type,
+            channel=trigger.channel,
+            referrer_id=trigger.referrer_id,
         )
+
+        self.assertEqual(original_groups, set(imported.groups.all()))
+        self.assertEqual(original_exclude_groups, set(imported.exclude_groups.all()))
+        self.assertEqual(original_contacts, set(imported.contacts.all()))
 
         # which can be exported and should have the same definition
         export_def = self._export_trigger(imported)
