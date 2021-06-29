@@ -192,7 +192,9 @@ class ChannelTest(TembaTest):
         self.assertFormError(response, "form", "channel", "A caller cannot be added for that number")
 
         # disable our twilio connection
-        self.org.remove_twilio_account(self.admin)
+        with patch("temba.channels.types.twilio.TwilioType.deactivate"):
+            self.org.remove_twilio_account(self.admin)
+
         self.assertFalse(self.org.supports_ivr())
 
         # we should lose our caller
