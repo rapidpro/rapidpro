@@ -318,9 +318,6 @@ class TicketCRUDL(SmartCRUDL):
                 self.fields["assignee"].choices = choices
                 self.fields["note"].required = False
 
-                if ticket.assignee:
-                    self.fields["assignee"].initial = ticket.assignee.pk
-
         slug_url_kwarg = "uuid"
         form_class = Form
         fields = ("assignee", "note")
@@ -334,8 +331,8 @@ class TicketCRUDL(SmartCRUDL):
             kwargs["ticket"] = self.get_object()
             return kwargs
 
-        def get_initial(self):
-            initial = super().get_initial()
+        def derive_initial(self):
+            initial = super().derive_initial()
             ticket = self.get_object()
             if ticket.assignee:
                 initial["assignee"] = ticket.assignee.pk
