@@ -1986,10 +1986,11 @@ def _user_as_engine_ref(user: User) -> dict:
 
 
 def _user_str(user):
-     as_str = _user_name(user)
-     if not as_str:
-         as_str = user.username
-     return as_str
+    as_str = _user_name(user)
+    if not as_str:
+        as_str = user.username
+    return as_str
+
 
 User.release = release
 User.get_org = get_org
