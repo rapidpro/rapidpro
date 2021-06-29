@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-25 18:40+0000\n"
+"POT-Creation-Date: 2021-06-29 21:25+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -4062,6 +4062,31 @@ msgstr "Comment faire correspondre un message avec un mot clé"
 msgid "The associated channel."
 msgstr "Le canal associé"
 
+#, fuzzy
+#| msgid "Group to Join"
+msgid "Contacts To Include"
+msgstr "Groupe à rejoindre"
+
+msgid "Additional specific contacts to include."
+msgstr ""
+
+#, fuzzy
+#| msgid "Optional: Trigger only applies to these groups"
+msgid "Optional: Select contacts"
+msgstr "Facultatif: le déclencheur ne s'applique qu'à ces groupes"
+
+msgid "Must provide at least one group or contact to include."
+msgstr ""
+
+msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
+msgstr "Le canal auquel appliquer ce déclencheur, laissez vide pour tous les canaux Facebook"
+
+msgid "Referrer Id"
+msgstr "Identifiant du référent"
+
+msgid "The referrer id that will trigger us"
+msgstr "L'identifiant de référence qui nous déclenchera"
+
 msgid "Select a flow"
 msgstr "Sélectionnez un flux"
 
@@ -4101,8 +4126,11 @@ msgstr ""
 msgid "There already exists a trigger of this type with these options."
 msgstr "Un déclencheur actif existe déjà, les déclencheurs doivent être uniques pour chaque groupe"
 
-msgid "The first word of the message text"
-msgstr "Le premier mot du texte du message"
+msgid "Join Keyword"
+msgstr "Joindre un mot clé"
+
+msgid "The first word of the message"
+msgstr "Le premier mot du message"
 
 msgid "Group to Join"
 msgstr "Groupe à rejoindre"
@@ -4118,42 +4146,8 @@ msgstr[1] "Réponses"
 msgid "The message to send in response after they join the group (optional)"
 msgstr "Le message à envoyer en réponse suite à leur entrée dans le groupe (facultatif)"
 
-#, fuzzy
-#| msgid "Group to Join"
-msgid "Contacts To Include"
-msgstr "Groupe à rejoindre"
-
-msgid "Additional specific contacts to include."
-msgstr ""
-
-#, fuzzy
-#| msgid "Optional: Trigger only applies to these groups"
-msgid "Optional: Select contacts"
-msgstr "Facultatif: le déclencheur ne s'applique qu'à ces groupes"
-
-msgid "Must provide at least one group or contact to include."
-msgstr ""
-
-msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
-msgstr "Le canal auquel appliquer ce déclencheur, laissez vide pour tous les canaux Facebook"
-
-msgid "Referrer Id"
-msgstr "Identifiant du référent"
-
-msgid "The referrer id that will trigger us"
-msgstr "L'identifiant de référence qui nous déclenchera"
-
 msgid "Create Trigger"
 msgstr "Créer des declencheurs"
-
-msgid "Join Keyword"
-msgstr "Joindre un mot clé"
-
-msgid "The first word of the message"
-msgstr "Le premier mot du message"
-
-msgid "Create Referral Trigger"
-msgstr "Créer un déclencheur de référence"
 
 msgid "Triggers"
 msgstr "Déclencheurs"
@@ -7913,6 +7907,12 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#~ msgid "The first word of the message text"
+#~ msgstr "Le premier mot du texte du message"
+
+#~ msgid "Create Referral Trigger"
+#~ msgstr "Créer un déclencheur de référence"
 
 #, fuzzy
 #~| msgid "Add Number"

@@ -18,7 +18,7 @@ from temba.contacts.models import Contact, ContactField, ContactGroup, ContactUR
 from temba.flows.models import Flow
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
-from temba.msgs.models import FAILED, HANDLED, INCOMING, OUTGOING, SENT, Label, Msg
+from temba.msgs.models import Label
 from temba.orgs.models import Org
 from temba.templates.models import Template, TemplateTranslation
 from temba.tickets.models import Ticketer
@@ -277,29 +277,6 @@ ORG1 = dict(
             ),
         ),
     ),
-    messages=(
-        dict(
-            contact="6393abc0-283d-4c9b-a1b3-641a035c34bf",
-            channel="74729f45-7f29-4868-9dc4-90e491e3c7d8",
-            direction=INCOMING,
-            status=HANDLED,
-            text="hello",
-        ),
-        dict(
-            contact="6393abc0-283d-4c9b-a1b3-641a035c34bf",
-            channel="74729f45-7f29-4868-9dc4-90e491e3c7d8",
-            direction=OUTGOING,
-            status=SENT,
-            text="how can we help",
-        ),
-        dict(
-            contact="b699a406-7e44-49be-9f01-1a82893e8a10",
-            channel="19012bfd-3ce3-4cae-9bb9-76cf92c73d49",
-            direction=OUTGOING,
-            status=FAILED,
-            text="this failed",
-        ),
-    ),
 )
 
 ORG2 = dict(
@@ -339,15 +316,6 @@ ORG2 = dict(
     campaigns=(),
     templates=(),
     ticketers=(),
-    messages=(
-        dict(
-            contact="26d20b72-f7d8-44dc-87f2-aae046dbff95",
-            channel="a89bc872-3763-4b95-91d9-31d4e56c6651",
-            direction=OUTGOING,
-            status=SENT,
-            text="hello",
-        ),
-    ),
 )
 
 ORGS = [ORG1, ORG2]
@@ -361,7 +329,6 @@ RESET_SEQUENCES = (
     "channels_channel_id_seq",
     "campaigns_campaign_id_seq",
     "campaigns_campaignevent_id_seq",
-    "msgs_msg_id_seq",
     "msgs_label_id_seq",
     "templates_template_id_seq",
     "templates_templatetranslation_id_seq",
@@ -492,7 +459,6 @@ class Command(BaseCommand):
         self.create_templates(spec, org, superuser)
         self.create_classifiers(spec, org, superuser)
         self.create_ticketers(spec, org, superuser)
-        self.create_msgs(spec, org, superuser)
 
         return org
 
@@ -726,29 +692,6 @@ class Command(BaseCommand):
                     contacts.append(contact)
 
                 Contact.bulk_change_group(user, contacts, group, add=True)
-
-        self._log(self.style.SUCCESS("OK") + "\n")
-
-    def create_msgs(self, spec, org, user):
-        self._log(f"Creating {len(spec['messages'])} messages... ")
-
-        for m in spec["messages"]:
-            channel = Channel.objects.get(org=org, uuid=m["channel"])
-            contact = Contact.objects.get(org=org, uuid=m["contact"])
-            urn = contact.urns.first()
-
-            Msg.objects.create(
-                org=org,
-                direction=m["direction"],
-                contact=contact,
-                contact_urn=urn,
-                text=m["text"],
-                channel=channel,
-                status=m["status"],
-                msg_type="F",
-                created_on=timezone.now(),
-                sent_on=timezone.now(),
-            )
 
         self._log(self.style.SUCCESS("OK") + "\n")
 

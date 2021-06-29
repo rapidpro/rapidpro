@@ -299,13 +299,12 @@ class Flow(TembaModel):
         """
 
         from temba.campaigns.models import Campaign
-        from temba.triggers.models import Trigger
 
         created_flows = []
         db_types = {value: key for key, value in Flow.GOFLOW_TYPES.items()}
 
         # fetch or create all the flow db objects
-        for flow_def in export_json[Org.EXPORT_FLOWS]:
+        for flow_def in export_json["flows"]:
             flow_version = Version(flow_def[Flow.DEFINITION_SPEC_VERSION])
             flow_type = db_types[flow_def[Flow.DEFINITION_TYPE]]
             flow_uuid = flow_def[Flow.DEFINITION_UUID]
@@ -353,7 +352,7 @@ class Flow(TembaModel):
             flow.import_definition(user, definition, dependency_mapping)
 
         # remap flow UUIDs in any campaign events
-        for campaign in export_json.get(Org.EXPORT_CAMPAIGNS, []):
+        for campaign in export_json.get("campaigns", []):
             for event in campaign[Campaign.EXPORT_EVENTS]:
                 if "flow" in event:
                     flow_uuid = event["flow"]["uuid"]
@@ -361,11 +360,11 @@ class Flow(TembaModel):
                         event["flow"]["uuid"] = dependency_mapping[flow_uuid]
 
         # remap flow UUIDs in any triggers
-        for trigger in export_json.get(Org.EXPORT_TRIGGERS, []):
-            if Trigger.EXPORT_FLOW in trigger:
-                flow_uuid = trigger[Trigger.EXPORT_FLOW]["uuid"]
+        for trigger in export_json.get("triggers", []):
+            if "flow" in trigger:
+                flow_uuid = trigger["flow"]["uuid"]
                 if flow_uuid in dependency_mapping:
-                    trigger[Trigger.EXPORT_FLOW]["uuid"] = dependency_mapping[flow_uuid]
+                    trigger["flow"]["uuid"] = dependency_mapping[flow_uuid]
 
         # return the created flows
         return [f[0] for f in created_flows]
@@ -863,11 +862,11 @@ class Flow(TembaModel):
             exported_json = exports.migrate(org, exported_json, same_site, version)
 
         migrated_flows = []
-        for flow_def in exported_json[Org.EXPORT_FLOWS]:
+        for flow_def in exported_json["flows"]:
             migrated_def = Flow.migrate_definition(flow_def, flow=None)
             migrated_flows.append(migrated_def)
 
-        exported_json[Org.EXPORT_FLOWS] = migrated_flows
+        exported_json["flows"] = migrated_flows
 
         return exported_json
 

@@ -118,6 +118,22 @@ class OrgContextProcessorTest(TembaTest):
 
 
 class UserTest(TembaTest):
+    def test_model(self):
+        user = User.objects.create(
+            username="jim@rapidpro.io", email="jim@rapidpro.io", password="super", first_name="Jim", last_name="McFlow"
+        )
+
+        self.assertFalse(user.is_beta())
+        self.assertFalse(user.is_support())
+        self.assertEqual("Jim McFlow", user.name)
+        self.assertEqual({"email": "jim@rapidpro.io", "name": "Jim McFlow"}, user.as_engine_ref())
+
+        user.last_name = ""
+        user.save(update_fields=("last_name",))
+
+        self.assertEqual("Jim", user.name)
+        self.assertEqual({"email": "jim@rapidpro.io", "name": "Jim"}, user.as_engine_ref())
+
     def test_login(self):
         login_url = reverse("users.user_login")
         verify_url = reverse("users.two_factor_verify")

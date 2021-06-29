@@ -5552,6 +5552,7 @@ class SimulationTest(TembaTest):
                             "default_country": "RW",
                             "redaction_policy": "none",
                         },
+                        "user": {"email": "Administrator@nyaruka.com", "name": ""},
                     },
                     json.loads(mock_post.call_args[1]["data"])["trigger"],
                 )
