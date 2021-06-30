@@ -15,6 +15,11 @@
       --color-text-dark: #555;
     }
 
+    temba-contact-chat {
+      transition: all 200ms ease-in-out;
+      transition-delay: 200ms;
+    }
+
     temba-select[name='ticket-filter'] {
       margin-bottom: 0.5em;
       margin-top: -1.3em;
@@ -55,9 +60,21 @@
     }
 
     function handleTicketsRefreshed(event) {
+      var tickets = event.target;
+      console.log(tickets.items);
+
       // tell our chat to refresh since we know things are new in our list
+
       var chat = document.querySelector("temba-contact-chat");
-      chat.refresh();
+
+      if (tickets.items.length > 0) {
+        chat.style.opacity = '1';
+        chat.refresh();
+        
+      } else {
+        chat.style.opacity = '0';
+      }
+
     }
 
     var focusNext = null;
