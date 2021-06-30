@@ -354,13 +354,13 @@ class TicketerTest(TembaTest):
 
 class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
     def test_org_home(self):
-        ticketer = Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
+        Ticketer.create(self.org, self.user, MailgunType.slug, "Email (bob@acme.com)", {})
 
         self.login(self.admin)
         response = self.client.get(reverse("orgs.org_home"))
 
         self.assertContains(response, "Email (bob@acme.com)")
-        self.assertContains(response, reverse("tickets.ticket_filter", args=[ticketer.uuid]))
+        self.assertContains(response, "ticketer/delete/")
 
     def test_connect(self):
         connect_url = reverse("tickets.ticketer_connect")

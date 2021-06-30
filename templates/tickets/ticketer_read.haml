@@ -1,19 +1,26 @@
 -extends "smartmin/read.html"
 -load smartmin i18n
 
--block summary
+-block pjax
   %temba-modax(id="delete-ticketer-{{ object.uuid }}" header='{% trans "Delete Ticket Service" %}')
 
-  .flex.items-center
-    .flex-grow.mr-4
-      {{ object.get_type.name }}
-      -trans "Ticketing Service over"
-      %b
-        {{ object.name }}
-    .buttons
-      -if org_perms.tickets.ticketer_delete
-        .button-light(onclick='showDeleteTicketerModal("{{ object.uuid }}")')
-          -trans "Remove"
+  -blocktrans trimmed with type_name=object.get_type.name name=object.name
+    {{ type_name }} ticketing service over <b>{{ name }}</b>. Contacts who have open tickets with this service will have their
+    messages forwarded to the service, and replies made using the service will be sent back to the contact.
+
+  .buttons.mt-5
+    -if org_perms.request_logs.httplog_ticketer
+      .button-light.mr-3(onclick='goto(event)' href='{% url "request_logs.httplog_ticketer" object.uuid %}')
+        -trans "HTTP Log"
+    -if org_perms.tickets.ticketer_delete
+      .button-light(onclick='showDeleteTicketerModal("{{ object.uuid }}")')
+        -trans "Remove"
+
+
+-block summary
+  -blocktrans trimmed with type_name=object.get_type.name name=object.name
+    {{ type_name }} ticketing service over <b>{{ name }}</b>.
+
 
 -block extra-script
   :javascript

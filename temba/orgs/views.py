@@ -2810,14 +2810,6 @@ class OrgCRUDL(SmartCRUDL):
                     action="link",
                 )
 
-        def add_ticketer_section(self, formax, ticketer):
-            formax.add_section(
-                "tickets",
-                reverse("tickets.ticketer_read", args=[ticketer.uuid]),
-                icon=ticketer.get_type().icon,
-                action="summary",
-            )
-
         def derive_formax_sections(self, formax, context):
 
             # add the channel option if we have one
@@ -2861,7 +2853,11 @@ class OrgCRUDL(SmartCRUDL):
                     .order_by("created_on")
                 )
                 for ticketer in ext_ticketers:
-                    self.add_ticketer_section(formax, ticketer)
+                    formax.add_section(
+                        "tickets",
+                        reverse("tickets.ticketer_read", args=[ticketer.uuid]),
+                        icon=ticketer.get_type().icon,
+                    )
 
             if self.has_org_perm("orgs.org_profile"):
                 formax.add_section("user", reverse("orgs.user_edit"), icon="icon-user", action="redirect")
