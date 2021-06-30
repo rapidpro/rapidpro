@@ -2811,14 +2811,12 @@ class OrgCRUDL(SmartCRUDL):
                 )
 
         def add_ticketer_section(self, formax, ticketer):
-
-            if self.has_org_perm("tickets.ticket_filter"):
-                formax.add_section(
-                    "tickets",
-                    reverse("tickets.ticket_filter", args=[ticketer.uuid]),
-                    icon=ticketer.get_type().icon,
-                    action="link",
-                )
+            formax.add_section(
+                "tickets",
+                reverse("tickets.ticketer_read", args=[ticketer.uuid]),
+                icon=ticketer.get_type().icon,
+                action="summary",
+            )
 
         def derive_formax_sections(self, formax, context):
 
@@ -2854,7 +2852,7 @@ class OrgCRUDL(SmartCRUDL):
                 for classifier in classifiers:
                     self.add_classifier_section(formax, classifier)
 
-            if self.has_org_perm("tickets.ticket_filter"):
+            if self.has_org_perm("tickets.ticketer_read"):
                 from temba.tickets.types.internal import InternalType
 
                 ext_ticketers = (

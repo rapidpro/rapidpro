@@ -1,0 +1,24 @@
+-extends "smartmin/read.html"
+-load smartmin i18n
+
+-block summary
+  %temba-modax(id="delete-ticketer-{{ object.uuid }}" header='{% trans "Delete Ticket Service" %}')
+
+  .flex.items-center
+    .flex-grow.mr-4
+      {{ object.get_type.name }}
+      -trans "Ticketing Service over"
+      %b
+        {{ object.name }}
+    .buttons
+      -if org_perms.tickets.ticketer_delete
+        .button-light(onclick='showDeleteTicketerModal("{{ object.uuid }}")')
+          -trans "Remove"
+
+-block extra-script
+  :javascript
+    function showDeleteTicketerModal(uuid) {
+      var modax = document.querySelector(`#delete-ticketer-${uuid}`);
+      modax.endpoint = `/ticketer/delete/${uuid}/`;
+      modax.open = true;
+    }
