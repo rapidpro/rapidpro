@@ -2506,7 +2506,7 @@ class APITest(TembaTest):
         survey = self.get_flow("media_survey")
         color = self.get_flow("color")
         archived = self.get_flow("favorites")
-        archived.archive()
+        archived.archive(self.admin)
 
         # add a campaign message flow that should be filtered out
         Flow.create_single_message(self.org, self.admin, dict(eng="Hello world"), "eng")

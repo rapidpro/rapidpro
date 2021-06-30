@@ -1675,12 +1675,12 @@ class Org(SmartModel):
 
         # delete all our campaigns and associated events
         for c in self.campaigns.all():
-            c._full_release()
+            c.delete()
 
         # delete everything associated with our flows
         for flow in self.flows.all():
             # we want to manually release runs so we don't fire a mailroom task to do it
-            flow.release(interrupt_sessions=False)
+            flow.release(user, interrupt_sessions=False)
             flow.delete()
 
         # delete our flow labels (deleting a label deletes its children)

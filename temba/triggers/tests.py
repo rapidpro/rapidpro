@@ -30,52 +30,58 @@ class TriggerTest(TembaTest):
         channel1 = self.create_channel("FB", "FB Channel 1", "12345")
         channel2 = self.create_channel("FB", "FB Channel 2", "23456")
 
-        def assert_conflict_resolution(archived, not_archived):
-            archived.refresh_from_db()
-            not_archived.refresh_from_db()
+        def create_trigger(trigger_type, **kwargs):
+            return Trigger.create(self.org, self.admin, trigger_type, flow, **kwargs)
 
-            self.assertTrue(archived.is_archived)
-            self.assertFalse(not_archived.is_archived)
+        def assert_conflict_resolution(archived: list, unchanged: list):
+            for trigger in archived:
+                trigger.refresh_from_db()
+                self.assertTrue(trigger.is_archived)
 
-        # keyword triggers conflict if keyword and groups match
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="join")
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="start")
-        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="join")
+            for trigger in unchanged:
+                trigger.refresh_from_db()
+                self.assertFalse(trigger.is_archived)
 
-        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+            # keyword triggers conflict if keyword and groups match
+            trigger1 = create_trigger(Trigger.TYPE_KEYWORD, keyword="join", match_type="O")
+            trigger2 = create_trigger(Trigger.TYPE_KEYWORD, keyword="join", match_type="S")
+            trigger3 = create_trigger(Trigger.TYPE_KEYWORD, keyword="start")
+            create_trigger(Trigger.TYPE_KEYWORD, keyword="join")
 
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, groups=(group1,), keyword="join")
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, groups=(group2,), keyword="join")
-        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, groups=(group1,), keyword="join")
+            assert_conflict_resolution(archived=[trigger1, trigger2], unchanged=[trigger3])
 
-        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+            trigger1 = create_trigger(Trigger.TYPE_KEYWORD, groups=(group1,), keyword="join")
+            trigger2 = create_trigger(Trigger.TYPE_KEYWORD, groups=(group2,), keyword="join")
+            create_trigger(Trigger.TYPE_KEYWORD, groups=(group1,), keyword="join")
 
-        # incoming call triggers conflict if groups match
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow, groups=(group1,))
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow, groups=(group2,))
-        Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow, groups=(group1,))
+            assert_conflict_resolution(archived=[trigger1], unchanged=[trigger2])
 
-        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+            # incoming call triggers conflict if groups match
+            trigger1 = create_trigger(Trigger.TYPE_INBOUND_CALL, groups=(group1,))
+            trigger2 = create_trigger(Trigger.TYPE_INBOUND_CALL, groups=(group2,))
+            create_trigger(Trigger.TYPE_INBOUND_CALL, groups=(group1,))
 
-        # missed call triggers always conflict
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_MISSED_CALL, flow)
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_MISSED_CALL, flow)
+            assert_conflict_resolution(archived=[trigger1], unchanged=[trigger2])
 
-        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+            # missed call triggers always conflict
+            trigger1 = create_trigger(Trigger.TYPE_MISSED_CALL)
+            trigger2 = create_trigger(Trigger.TYPE_MISSED_CALL)
 
-        # new conversation triggers conflict if channels match
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, channel=channel1)
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, channel=channel2)
-        Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, channel=channel1)
+            assert_conflict_resolution(archived=[trigger1], unchanged=[trigger2])
 
-        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+            # new conversation triggers conflict if channels match
+            trigger1 = create_trigger(Trigger.TYPE_REFERRAL, channel=channel1)
+            trigger2 = create_trigger(Trigger.TYPE_REFERRAL, channel=channel2)
+            create_trigger(Trigger.TYPE_REFERRAL, channel=channel1)
 
-        # referral triggers conflict if referral ids match
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, referrer_id="12345")
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, referrer_id="23456")
-        Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, referrer_id="12345")
+            assert_conflict_resolution(archived=[trigger1], unchanged=[trigger2])
 
-        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+            # referral triggers conflict if referral ids match
+            trigger1 = create_trigger(Trigger.TYPE_REFERRAL, referrer_id="12345")
+            trigger2 = create_trigger(Trigger.TYPE_REFERRAL, referrer_id="23456")
+            create_trigger(Trigger.TYPE_REFERRAL, referrer_id="12345")
+
+            assert_conflict_resolution(archived=[trigger1], unchanged=[trigger2])
 
     def _export_trigger(self, trigger: Trigger) -> dict:
         components = self.org.resolve_dependencies([trigger.flow], [], include_triggers=True)
@@ -361,7 +367,9 @@ class TriggerTest(TembaTest):
             },
         )
 
-    def test_release(self):
+    @patch("temba.channels.types.facebook.FacebookType.deactivate_trigger")
+    def test_release(self, mock_deactivate_trigger):
+        channel = self.create_channel("FB", "Facebook", "234567")
         flow = self.create_flow()
         group = self.create_group("Trigger Group", [])
         trigger = Trigger.objects.create(
@@ -370,13 +378,33 @@ class TriggerTest(TembaTest):
             trigger_type=Trigger.TYPE_SCHEDULE,
             created_by=self.admin,
             modified_by=self.admin,
+            channel=channel,
             schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
         )
         trigger.groups.add(group)
 
-        trigger.release()
+        trigger.release(self.admin)
 
-        # schedule should also have been deleted but obviously not group or flow
+        trigger.refresh_from_db()
+        self.assertFalse(trigger.is_active)
+
+        trigger.schedule.refresh_from_db()
+        self.assertFalse(trigger.schedule.is_active)
+
+        # flow, channel and group are unaffected
+        flow.refresh_from_db()
+        self.assertTrue(flow.is_active)
+        self.assertFalse(flow.is_archived)
+
+        group.refresh_from_db()
+        self.assertTrue(group.is_active)
+
+        channel.refresh_from_db()
+        self.assertTrue(channel.is_active)
+
+        # now do real delete
+        trigger.delete()
+
         self.assertEqual(Trigger.objects.count(), 0)
         self.assertEqual(Schedule.objects.count(), 0)
         self.assertEqual(ContactGroup.user_groups.count(), 1)

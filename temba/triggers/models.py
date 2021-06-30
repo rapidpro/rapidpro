@@ -425,12 +425,20 @@ class Trigger(SmartModel):
     def type(self):
         return self.get_type(self.trigger_type)
 
-    def release(self):
+    def release(self, user):
         """
         Releases this trigger
         """
 
-        self.delete()
+        self.is_active = False
+        self.modified_by = user
+        self.save(update_fields=("is_active", "modified_by", "modified_on"))
+
+        if self.schedule:
+            self.schedule.release(user)
+
+    def delete(self):
+        super().delete()
 
         if self.schedule:
             self.schedule.delete()
