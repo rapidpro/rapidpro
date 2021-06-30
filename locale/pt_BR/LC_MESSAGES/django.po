@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-30 21:53+0000\n"
+"POT-Creation-Date: 2021-06-30 22:34+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3886,12 +3886,19 @@ msgstr "Aberto"
 msgid "Closed"
 msgstr "Fechado"
 
-msgid "Enabling this will allow you to handle tickets within this application."
+#, fuzzy
+#| msgid "Enabling this will allow you to handle tickets within this application."
+msgid "Enabling this will allow you to handle tickets within {{brand.name}}."
 msgstr "Habilitar isto irá permitir que você lide com tickets dentro desta aplicação."
 
 #, python-format
 msgid "This will enable handling tickets internally in %(brand)s."
 msgstr "Isso irá permitir que tickets sejam lidados internamente em %(brand)s."
+
+#, fuzzy, python-format
+#| msgid "The %(brand)s Team"
+msgid "%(brand)s Tickets"
+msgstr "O time %(brand)s"
 
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr "Conectando um endereço de email irá encaminhar todos os novos tickets e suas respostas para aquele endereço de email. Você será capaz de responder a eles diretamente, e suas respostas serão enviadas ao contato."

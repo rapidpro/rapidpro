@@ -69,7 +69,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         list_url = reverse("tickets.ticket_list")
 
         # just a placeholder view for frontend components
-        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, allow_agents=True, context_objects=[])
+        self.assertListFetch(list_url, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[])
 
     def test_folder(self):
         self.login(self.admin)
@@ -229,7 +229,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_ticket(self.other_org_internal, self.contact, "Ticket 4")
 
         response = self.assertListFetch(
-            open_url, allow_viewers=True, allow_editors=True, allow_agents=True, context_objects=[ticket2, ticket1]
+            open_url, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[ticket2, ticket1]
         )
 
         self.assertEqual(("close",), response.context["actions"])
@@ -248,7 +248,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # unless you're only a user
         response = self.requestView(open_url, self.user, post_data={"action": "close", "objects": [ticket1.id]})
-        self.assertEqual(403, response.status_code)
+        self.assertEqual(302, response.status_code)
 
         # return generic error as a toast if mailroom blows up (actual mailroom error will be logged to sentry)
         mr_mocks.error("boom!")
@@ -270,7 +270,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.create_ticket(self.other_org_internal, self.contact, "Ticket 4", closed_on=timezone.now())
 
         response = self.assertListFetch(
-            closed_url, allow_viewers=True, allow_editors=True, context_objects=[ticket2, ticket1]
+            closed_url, allow_viewers=False, allow_editors=True, context_objects=[ticket2, ticket1]
         )
         self.assertEqual(("reopen",), response.context["actions"])
         self.assertContains(response, reverse("tickets.ticket_filter", args=[self.mailgun.uuid]))
@@ -290,7 +290,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # unless you're only a user
         response = self.requestView(closed_url, self.user, post_data={"action": "reopen", "objects": [ticket2.id]})
-        self.assertEqual(403, response.status_code)
+        self.assertEqual(302, response.status_code)
 
     def test_filter(self):
         filter_url = reverse("tickets.ticket_filter", args=[self.mailgun.uuid])
@@ -299,7 +299,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         ticket2 = self.create_ticket(self.mailgun, self.contact, "Ticket 2", closed_on=timezone.now())
         self.create_ticket(self.zendesk, self.contact, "Ticket 3")
 
-        response = self.assertReadFetch(filter_url, allow_viewers=True, allow_editors=True)
+        response = self.assertReadFetch(filter_url, allow_viewers=False, allow_editors=True)
         self.assertEqual(self.mailgun, response.context["ticketer"])
         self.assertEqual([ticket2, ticket1], list(response.context["object_list"]))
         self.assertEqual(("close", "reopen"), response.context["actions"])
