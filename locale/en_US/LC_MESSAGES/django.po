@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-30 19:29+0000\n"
+"POT-Creation-Date: 2021-06-30 22:01+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -7224,6 +7224,14 @@ msgid "Select the ticketing service you want to connect below to get started."
 msgstr ""
 
 msgid "No ticketing services are available."
+msgstr ""
+
+#, python-format
+msgid "%(type_name)s ticketing service over <b>%(name)s</b>. Contacts who have open tickets with this service will have their messages forwarded to the service, and replies made using the service will be sent back to the contact."
+msgstr ""
+
+#, python-format
+msgid "%(type_name)s ticketing service over <b>%(name)s</b>."
 msgstr ""
 
 #, python-format

@@ -1,4 +1,4 @@
-from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartTemplateView, SmartUpdateView
+from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView, SmartUpdateView
 
 from django import forms
 from django.db.models.aggregates import Max
@@ -356,12 +356,7 @@ class TicketCRUDL(SmartCRUDL):
 
 class TicketerCRUDL(SmartCRUDL):
     model = Ticketer
-    actions = ("connect", "delete")
-
-    class Delete(DependencyDeleteModal):
-        cancel_url = "uuid@tickets.ticket_filter"
-        success_url = "@orgs.org_home"
-        success_message = _("Your ticketing service has been deleted.")
+    actions = ("connect", "read", "delete")
 
     class Connect(OrgPermsMixin, SmartTemplateView):
         def get_gear_links(self):
@@ -371,3 +366,11 @@ class TicketerCRUDL(SmartCRUDL):
             context = super().get_context_data(**kwargs)
             context["ticketer_types"] = [tt for tt in Ticketer.get_types() if tt.is_available_to(self.get_user())]
             return context
+
+    class Read(OrgObjPermsMixin, SmartReadView):
+        slug_url_kwarg = "uuid"
+
+    class Delete(DependencyDeleteModal):
+        cancel_url = "uuid@tickets.ticket_filter"
+        success_url = "@orgs.org_home"
+        success_message = _("Your ticketing service has been deleted.")
