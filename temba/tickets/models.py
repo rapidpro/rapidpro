@@ -212,14 +212,6 @@ class Ticket(models.Model):
         ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
         return mailroom.get_client().ticket_reopen(org.id, user.id, ticket_ids)
 
-    @classmethod
-    def apply_action_close(cls, user, tickets):
-        cls.bulk_close(tickets[0].org, user, tickets)
-
-    @classmethod
-    def apply_action_reopen(cls, user, tickets):
-        cls.bulk_reopen(tickets[0].org, user, tickets)
-
     def __str__(self):
         return f"Ticket[uuid={self.uuid}, subject={self.subject}]"
 
