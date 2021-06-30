@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-29 21:25+0000\n"
+"POT-Creation-Date: 2021-06-30 21:53+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -7732,6 +7732,15 @@ msgstr "Service de billetterie"
 msgid "Ticketing Service over"
 msgstr "Service de billetterie terminé"
 
+msgid "All done!"
+msgstr ""
+
+msgid "Nice work, there aren't any more tickets here that need your attention."
+msgstr ""
+
+msgid "If you haven't yet, you can use the Open Ticket action in one or more of your flows to allow contacts to open tickets for support."
+msgstr ""
+
 msgid "Services"
 msgstr "Services"
 
@@ -7770,6 +7779,14 @@ msgstr "Sélectionnez le service de billetterie auquel vous souhaitez vous conne
 
 msgid "No ticketing services are available."
 msgstr "Aucun service de billetterie n'est disponible."
+
+#, python-format
+msgid "%(type_name)s ticketing service over <b>%(name)s</b>. Contacts who have open tickets with this service will have their messages forwarded to the service, and replies made using the service will be sent back to the contact."
+msgstr ""
+
+#, python-format
+msgid "%(type_name)s ticketing service over <b>%(name)s</b>."
+msgstr ""
 
 #, python-format
 msgid "Your verification code is <b>%(code)s</b> to continue adding an email-based ticketing service."

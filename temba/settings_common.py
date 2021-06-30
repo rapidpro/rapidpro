@@ -309,6 +309,7 @@ LOGGING = {
         "pycountry": {"level": "ERROR", "handlers": ["console"], "propagate": False},
         "django.security.DisallowedHost": {"handlers": ["null"], "propagate": False},
         "django.db.backends": {"level": "ERROR", "handlers": ["console"], "propagate": False},
+        "temba.formax": {"level": "DEBUG" if DEBUG else "ERROR", "handlers": ["console"], "propagate": False},
     },
 }
 
@@ -691,10 +692,7 @@ GROUP_PERMISSIONS = {
         "tickets.ticket_list",
         "tickets.ticket_note",
         "tickets.ticket_update",
-        "tickets.ticketer_api",
-        "tickets.ticketer_configure",
-        "tickets.ticketer_connect",
-        "tickets.ticketer_delete",
+        "tickets.ticketer.*",
         "triggers.trigger.*",
     ),
     "Editors": (
