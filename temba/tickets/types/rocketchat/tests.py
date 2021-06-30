@@ -159,7 +159,7 @@ class RocketChatViewTest(RocketChatMixin):
 
             ticketer = Ticketer.objects.order_by("id").last()
 
-            self.assertRedirect(response, reverse("tickets.ticket_filter", args=[ticketer.uuid]))
+            self.assertRedirect(response, reverse("tickets.ticket_list"))
 
             domain = data["base_url"].replace("http://", "").replace("https://", "").split("/")[0]
             expected = f"{RocketChatType.name}: {domain}"

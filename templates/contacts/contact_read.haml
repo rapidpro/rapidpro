@@ -164,9 +164,6 @@
           %td.icon
             %span.glyph.icon-ticket
           %td.details
-            %a(href="{% url 'tickets.ticket_filter' ticket.ticketer.uuid %}")
-              {{ ticket.ticketer.name }}
-          %td.details
             {{ ticket.subject }}
           %td.details
             {{ ticket.body }}

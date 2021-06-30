@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-30 19:05+0000\n"
+"POT-Creation-Date: 2021-06-30 20:47+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -5467,13 +5467,14 @@ msgstr "Mensaje etiquetado como"
 msgid "Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%(category)s</b>"
 msgstr "Resultado de ejecución <b>%(name)s</b> actualizado a <b>%(value)s</b> con categoría <b>%(category)s</b>"
 
-#, python-format
-msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+#, fuzzy, python-format
+#| msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgid "Opened ticket with subject <b>%(subject)s</b>"
 msgstr "Boleto abierto en <a href=\"%(ticketer_url)s\"> %(ticketer)s </a> con asunto <b> %(subject)s </b>"
 
 #, fuzzy, python-format
 #| msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
-msgid "Closed ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgid "Closed ticket with subject <b>%(subject)s</b>"
 msgstr "Boleto abierto en <a href=\"%(ticketer_url)s\"> %(ticketer)s </a> con asunto <b> %(subject)s </b>"
 
 msgid "Successfully called"
@@ -7747,15 +7748,15 @@ msgstr "Seleccione el servicio de tickets que desea conectar a continuación par
 msgid "No ticketing services are available."
 msgstr "No hay servicios de tickets disponibles."
 
-msgid "Delete Ticket Service"
-msgstr "Eliminar servicio de tickets"
-
 #, python-format
 msgid "%(type_name)s ticketing service over <b>%(name)s</b>. Contacts who have open tickets with this service will have their messages forwarded to the service, and replies made using the service will be sent back to the contact."
 msgstr ""
 
 msgid "HTTP Log"
 msgstr "Registro HTTP"
+
+msgid "Delete Ticket Service"
+msgstr "Eliminar servicio de tickets"
 
 #, python-format
 msgid "%(type_name)s ticketing service over <b>%(name)s</b>."

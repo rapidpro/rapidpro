@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-30 19:05+0000\n"
+"POT-Creation-Date: 2021-06-30 20:47+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -5459,13 +5459,14 @@ msgstr "Message étiqueté comme"
 msgid "Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%(category)s</b>"
 msgstr "Résultat d'exécution <b>%(name)s</b> mis à jour à <b>%(value)s</b> avec la catégorie <b>%(category)s</b>"
 
-#, python-format
-msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+#, fuzzy, python-format
+#| msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgid "Opened ticket with subject <b>%(subject)s</b>"
 msgstr "Billet ouvert sur <a href=\"%(ticketer_url)s\">%(ticketer)s</a> avec comme sujet <b>%(subject)s</b>"
 
 #, fuzzy, python-format
 #| msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
-msgid "Closed ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgid "Closed ticket with subject <b>%(subject)s</b>"
 msgstr "Billet ouvert sur <a href=\"%(ticketer_url)s\">%(ticketer)s</a> avec comme sujet <b>%(subject)s</b>"
 
 msgid "Successfully called"
@@ -7731,15 +7732,15 @@ msgstr "Sélectionnez le service de billetterie auquel vous souhaitez vous conne
 msgid "No ticketing services are available."
 msgstr "Aucun service de billetterie n'est disponible."
 
-msgid "Delete Ticket Service"
-msgstr "Supprimer le service de billetterie"
-
 #, python-format
 msgid "%(type_name)s ticketing service over <b>%(name)s</b>. Contacts who have open tickets with this service will have their messages forwarded to the service, and replies made using the service will be sent back to the contact."
 msgstr ""
 
 msgid "HTTP Log"
 msgstr "Journal HTTP"
+
+msgid "Delete Ticket Service"
+msgstr "Supprimer le service de billetterie"
 
 #, python-format
 msgid "%(type_name)s ticketing service over <b>%(name)s</b>."

@@ -195,6 +195,6 @@ class TicketerCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
 
     class Delete(DependencyDeleteModal):
-        cancel_url = "uuid@tickets.ticket_filter"
+        cancel_url = "@orgs.org_home"
         success_url = "@orgs.org_home"
         success_message = _("Your ticketing service has been deleted.")
