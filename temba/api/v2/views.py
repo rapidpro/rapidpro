@@ -308,7 +308,7 @@ class ExplorerView(SmartTemplateView):
             WorkspaceEndpoint.get_read_explorer(),
             ContactsReportEndpoint.get_read_explorer(),
             ContactVariablesReportEndpoint.get_read_explorer(),
-            MessagesReportEndpoint.get_read_explorer(),
+            # MessagesReportEndpoint.get_read_explorer(),
             FlowReportEndpoint.get_read_explorer(),
             FlowVariableReportEndpoint.get_read_explorer(),
             TrackableLinkReportEndpoint.get_read_explorer(),
