@@ -2604,7 +2604,8 @@ class TopUp(SmartModel):
             org = user.get_org()
 
         if not expires_on:
-            expires_on = timezone.now() + timedelta(days=365)  # credits last 1 year
+            delta_days = 365 if settings.CREDITS_EXPIRATION else 365 * 50  # credits last 1 or 50 years depend on conf
+            expires_on = timezone.now() + timedelta(days=delta_days)
 
         topup = TopUp.objects.create(
             org=org,
@@ -2899,6 +2900,8 @@ class CreditAlert(SmartModel):
         Triggers an expiring credit alert for any org that has its last
         active topup expiring in the next 30 days and still has available credits
         """
+        if not settings.CREDITS_EXPIRATION:
+            return
 
         # get the ids of the last to expire topup, with credits, for each org
         final_topups = (
