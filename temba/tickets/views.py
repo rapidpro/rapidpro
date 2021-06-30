@@ -11,7 +11,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from temba.msgs.models import Msg
 from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
-from temba.utils.fields import InputWidget
+from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.views import BulkActionMixin, ComponentFormMixin
 
 from .models import Ticket, Ticketer
@@ -82,9 +82,22 @@ class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
         return context
 
 
+class NoteForm(forms.ModelForm):
+    note = forms.CharField(
+        max_length=2048,
+        required=True,
+        widget=InputWidget({"hide_label": True, "textarea": True}),
+        help_text=_("Notes can only be seen by the support team"),
+    )
+
+    class Meta:
+        model = Ticket
+        fields = ("note",)
+
+
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("list", "folder", "open", "closed", "filter", "note")
+    actions = ("list", "folder", "open", "closed", "filter", "note", "assign")
 
     class List(OrgPermsMixin, SmartListView):
         """
@@ -95,9 +108,13 @@ class TicketCRUDL(SmartCRUDL):
             return super().get_queryset(**kwargs).none()
 
     class Folder(OrgPermsMixin, SmartListView):
+
+        FOLDER_MINE = "mine"
+        FOLDER_UNASSIGNED = "unassigned"
         FOLDER_OPEN = "open"
         FOLDER_CLOSED = "closed"
-        FOLDERS = (FOLDER_OPEN, FOLDER_CLOSED)
+
+        FOLDERS = (FOLDER_MINE, FOLDER_UNASSIGNED, FOLDER_OPEN, FOLDER_CLOSED)
 
         permission = "tickets.ticket_list"
 
@@ -111,6 +128,10 @@ class TicketCRUDL(SmartCRUDL):
 
             if self.kwargs["folder"] == self.FOLDER_OPEN:
                 qs = qs.filter(status=Ticket.STATUS_OPEN)
+            elif self.kwargs["folder"] == self.FOLDER_UNASSIGNED:
+                qs = qs.filter(status=Ticket.STATUS_OPEN, assignee=None)
+            elif self.kwargs["folder"] == self.FOLDER_MINE:
+                qs = qs.filter(status=Ticket.STATUS_OPEN, assignee=self.request.user)
             else:  # self.FOLDER_CLOSED:
                 qs = qs.filter(status=Ticket.STATUS_CLOSED)
 
@@ -137,6 +158,14 @@ class TicketCRUDL(SmartCRUDL):
             return context
 
         def render_to_response(self, context, **response_kwargs):
+            def user_as_json(u):
+                return {
+                    "id": u.id,
+                    "first_name": u.first_name,
+                    "last_name": u.last_name,
+                    "email": u.email,
+                }
+
             def msg_as_json(m):
                 sender = None
                 if m.broadcast and m.broadcast.created_by:
@@ -162,6 +191,7 @@ class TicketCRUDL(SmartCRUDL):
                     "last_msg": msg_as_json(last_msg) if last_msg else None,
                     "ticket": {
                         "uuid": str(t.uuid),
+                        "assignee": user_as_json(t.assignee) if t.assignee else None,
                         "subject": t.subject,
                         "closed_on": t.closed_on,
                     },
@@ -248,26 +278,79 @@ class TicketCRUDL(SmartCRUDL):
         Creates a note for this contact
         """
 
-        class Form(forms.Form):
-            text = forms.CharField(
-                max_length=2048,
-                required=True,
-                widget=InputWidget({"hide_label": True, "textarea": True}),
-                help_text=_("Notes can only be seen by the support team"),
-            )
-
-            def __init__(self, instance, **kwargs):
-                super().__init__(**kwargs)
-
-        form_class = Form
-        fields = ("text",)
+        form_class = NoteForm
+        fields = ("note",)
         success_url = "hide"
         slug_url_kwarg = "uuid"
         success_message = ""
-        submit_button_name = _("Add Note")
+        submit_button_name = _("Save")
 
         def form_valid(self, form):
-            self.get_object().add_note(self.request.user, note=form.cleaned_data["text"])
+            self.get_object().add_note(self.request.user, note=form.cleaned_data["note"])
+            return self.render_modal_response(form)
+
+    class Assign(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
+        class Form(NoteForm):
+            assignee = forms.ChoiceField(
+                required=True,
+                widget=SelectWidget(
+                    attrs={
+                        "searchable": True,
+                        "widget_only": True,
+                    }
+                ),
+            )
+
+            def clean_assignee(self):
+                assignee = self.data["assignee"]
+                return self.org.administrators.filter(pk=assignee).union(self.org.agents.filter(pk=assignee)).first()
+
+            def __init__(self, user, ticket, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.org = user.get_org()
+                choices = [
+                    (user.pk, user.get_full_name())
+                    for user in self.org.administrators.all().union(self.org.agents.all())
+                ]
+
+                choices.insert(0, (-1, str(_("Unassigned"))))
+
+                self.fields["assignee"].choices = choices
+                self.fields["note"].required = False
+
+        slug_url_kwarg = "uuid"
+        form_class = Form
+        fields = ("assignee", "note")
+        success_url = "hide"
+        success_message = ""
+        submit_button_name = _("Save")
+
+        def get_form_kwargs(self):
+            kwargs = super().get_form_kwargs()
+            kwargs["user"] = self.request.user
+            kwargs["ticket"] = self.get_object()
+            return kwargs
+
+        def derive_initial(self):
+            initial = super().derive_initial()
+            ticket = self.get_object()
+            if ticket.assignee:
+                initial["assignee"] = ticket.assignee.pk
+            return initial
+
+        def form_valid(self, form):
+            ticket = self.get_object()
+            assignee = form.cleaned_data["assignee"]
+            note = form.cleaned_data["note"]
+
+            # if our assignee is new
+            if ticket.assignee != assignee:
+                ticket.assign(self.request.user, assignee=assignee, note=note)
+
+            # otherwise just add the note if we have one
+            elif note:
+                ticket.add_note(self.request.user, note=form.cleaned_data["note"])
+
             return self.render_modal_response(form)
 
 

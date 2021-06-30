@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-25 16:07+0000\n"
+"POT-Creation-Date: 2021-06-29 21:25+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3972,6 +3972,9 @@ msgstr "Adicionar"
 msgid "Connect %(ticketer)s"
 msgstr "Conectar %(ticketer)s"
 
+msgid "Notes can only be seen by the support team"
+msgstr ""
+
 msgid "Open Tickets"
 msgstr "Tickets abertos"
 
@@ -3984,13 +3987,8 @@ msgstr "Deletar Serviço de Ticket"
 msgid "HTTP Log"
 msgstr "Log HTTP"
 
-msgid "Notes can only be seen by the support team"
+msgid "Unassigned"
 msgstr ""
-
-#, fuzzy
-#| msgid "Add Number"
-msgid "Add Note"
-msgstr "Adicionar números"
 
 msgid "Your ticketing service has been deleted."
 msgstr "Seu serviço de tickets foi deletado."
@@ -7918,6 +7916,11 @@ msgstr "Sem templates sincronizados neste momento."
 
 #~ msgid "Create Referral Trigger"
 #~ msgstr "Criar Disparador de Referência"
+
+#, fuzzy
+#~| msgid "Add Number"
+#~ msgid "Add Note"
+#~ msgstr "Adicionar números"
 
 #~ msgid "When this broadcast was created"
 #~ msgstr "Quando essa transmissão foi criada"

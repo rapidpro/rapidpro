@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-25 16:07+0000\n"
+"POT-Creation-Date: 2021-06-29 21:25+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3886,6 +3886,9 @@ msgstr ""
 msgid "Connect %(ticketer)s"
 msgstr ""
 
+msgid "Notes can only be seen by the support team"
+msgstr ""
+
 msgid "Open Tickets"
 msgstr ""
 
@@ -3898,10 +3901,7 @@ msgstr ""
 msgid "HTTP Log"
 msgstr ""
 
-msgid "Notes can only be seen by the support team"
-msgstr ""
-
-msgid "Add Note"
+msgid "Unassigned"
 msgstr ""
 
 msgid "Your ticketing service has been deleted."

@@ -195,6 +195,7 @@ class Event:
         return {
             "type": cls.ticket_event_types[obj.event_type],
             "note": obj.note,
+            "assignee": _user(obj.assignee) if obj.assignee else None,
             "ticket": {
                 "uuid": str(obj.ticket.uuid),
                 "opened_on": obj.ticket.opened_on.isoformat(),
