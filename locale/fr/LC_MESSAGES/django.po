@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-30 17:31+0000\n"
+"POT-Creation-Date: 2021-06-30 19:05+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3963,18 +3963,6 @@ msgstr "Ajouter"
 msgid "Connect %(ticketer)s"
 msgstr "Connecter %(ticketer)s"
 
-msgid "Open Tickets"
-msgstr "Billets ouverts"
-
-msgid "Closed Tickets"
-msgstr "Billets fermés"
-
-msgid "Delete Ticket Service"
-msgstr "Supprimer le service de billetterie"
-
-msgid "HTTP Log"
-msgstr "Journal HTTP"
-
 msgid "Notes can only be seen by the support team"
 msgstr ""
 
@@ -5548,6 +5536,9 @@ msgstr "Détails"
 
 msgid "Contact Id"
 msgstr "Identifiant de contact"
+
+msgid "Open Tickets"
+msgstr "Billets ouverts"
 
 msgid "Upcoming"
 msgstr "À venir"
@@ -7728,39 +7719,6 @@ msgstr ""
 "\n"
 "            "
 
-msgid "Ticketing Service"
-msgstr "Service de billetterie"
-
-msgid "Ticketing Service over"
-msgstr "Service de billetterie terminé"
-
-msgid "Services"
-msgstr "Services"
-
-msgid "Close"
-msgstr "Fermer"
-
-msgid "Reopen"
-msgstr "Rouvrir"
-
-msgid "No tickets."
-msgstr "Pas de billets."
-
-msgid "Through"
-msgstr "Via"
-
-msgid "Body"
-msgstr "Corps"
-
-msgid "Opened On"
-msgstr "Ouvert le"
-
-msgid "Close Ticket"
-msgstr "Fermer le ticket"
-
-msgid "Are you sure you want to close this ticket?"
-msgstr "Voulez-vous vraiment fermer ce ticket?"
-
 msgid "Connect a Ticketing Service"
 msgstr "Connecter un service de billetterie"
 
@@ -7773,9 +7731,15 @@ msgstr "Sélectionnez le service de billetterie auquel vous souhaitez vous conne
 msgid "No ticketing services are available."
 msgstr "Aucun service de billetterie n'est disponible."
 
+msgid "Delete Ticket Service"
+msgstr "Supprimer le service de billetterie"
+
 #, python-format
 msgid "%(type_name)s ticketing service over <b>%(name)s</b>. Contacts who have open tickets with this service will have their messages forwarded to the service, and replies made using the service will be sent back to the contact."
 msgstr ""
+
+msgid "HTTP Log"
+msgstr "Journal HTTP"
 
 #, python-format
 msgid "%(type_name)s ticketing service over <b>%(name)s</b>."
@@ -7799,6 +7763,9 @@ msgstr "Ouvrez les détails de l'application dans <i>Administration</i> &gt; <i>
 
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."
 msgstr "Cela connectera votre compte à Zendesk vous permettant d'ouvrir des tickets en flux."
+
+msgid "Ticketing Service"
+msgstr "Service de billetterie"
 
 msgid "To complete connecting your account here to your Zendesk account you need to complete the following steps."
 msgstr "Pour terminer la connexion de votre compte ici à votre compte Zendesk, vous devez effectuer les étapes suivantes."
@@ -7917,6 +7884,39 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#~ msgid "Closed Tickets"
+#~ msgstr "Billets fermés"
+
+#~ msgid "Ticketing Service over"
+#~ msgstr "Service de billetterie terminé"
+
+#~ msgid "Services"
+#~ msgstr "Services"
+
+#~ msgid "Close"
+#~ msgstr "Fermer"
+
+#~ msgid "Reopen"
+#~ msgstr "Rouvrir"
+
+#~ msgid "No tickets."
+#~ msgstr "Pas de billets."
+
+#~ msgid "Through"
+#~ msgstr "Via"
+
+#~ msgid "Body"
+#~ msgstr "Corps"
+
+#~ msgid "Opened On"
+#~ msgstr "Ouvert le"
+
+#~ msgid "Close Ticket"
+#~ msgstr "Fermer le ticket"
+
+#~ msgid "Are you sure you want to close this ticket?"
+#~ msgstr "Voulez-vous vraiment fermer ce ticket?"
 
 #~ msgid "The first word of the message text"
 #~ msgstr "Le premier mot du texte du message"

@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-30 17:31+0000\n"
+"POT-Creation-Date: 2021-06-30 19:05+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3974,18 +3974,6 @@ msgstr ""
 msgid "Connect %(ticketer)s"
 msgstr ""
 
-msgid "Open Tickets"
-msgstr ""
-
-msgid "Closed Tickets"
-msgstr ""
-
-msgid "Delete Ticket Service"
-msgstr ""
-
-msgid "HTTP Log"
-msgstr ""
-
 msgid "Notes can only be seen by the support team"
 msgstr ""
 
@@ -5583,6 +5571,9 @@ msgid "Details"
 msgstr "Детальная информация"
 
 msgid "Contact Id"
+msgstr ""
+
+msgid "Open Tickets"
 msgstr ""
 
 msgid "Upcoming"
@@ -7589,39 +7580,6 @@ msgid ""
 "            "
 msgstr ""
 
-msgid "Ticketing Service"
-msgstr ""
-
-msgid "Ticketing Service over"
-msgstr ""
-
-msgid "Services"
-msgstr ""
-
-msgid "Close"
-msgstr ""
-
-msgid "Reopen"
-msgstr ""
-
-msgid "No tickets."
-msgstr ""
-
-msgid "Through"
-msgstr ""
-
-msgid "Body"
-msgstr ""
-
-msgid "Opened On"
-msgstr ""
-
-msgid "Close Ticket"
-msgstr ""
-
-msgid "Are you sure you want to close this ticket?"
-msgstr ""
-
 msgid "Connect a Ticketing Service"
 msgstr ""
 
@@ -7634,8 +7592,14 @@ msgstr ""
 msgid "No ticketing services are available."
 msgstr ""
 
+msgid "Delete Ticket Service"
+msgstr ""
+
 #, python-format
 msgid "%(type_name)s ticketing service over <b>%(name)s</b>. Contacts who have open tickets with this service will have their messages forwarded to the service, and replies made using the service will be sent back to the contact."
+msgstr ""
+
+msgid "HTTP Log"
 msgstr ""
 
 #, python-format
@@ -7659,6 +7623,9 @@ msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(
 msgstr ""
 
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."
+msgstr ""
+
+msgid "Ticketing Service"
 msgstr ""
 
 msgid "To complete connecting your account here to your Zendesk account you need to complete the following steps."

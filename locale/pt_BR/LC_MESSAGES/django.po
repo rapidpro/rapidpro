@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-30 17:31+0000\n"
+"POT-Creation-Date: 2021-06-30 19:05+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3972,18 +3972,6 @@ msgstr "Adicionar"
 msgid "Connect %(ticketer)s"
 msgstr "Conectar %(ticketer)s"
 
-msgid "Open Tickets"
-msgstr "Tickets abertos"
-
-msgid "Closed Tickets"
-msgstr "Tickets fechados"
-
-msgid "Delete Ticket Service"
-msgstr "Deletar Serviço de Ticket"
-
-msgid "HTTP Log"
-msgstr "Log HTTP"
-
 msgid "Notes can only be seen by the support team"
 msgstr ""
 
@@ -5562,6 +5550,9 @@ msgstr "Detalhes"
 
 msgid "Contact Id"
 msgstr "ID do Contato"
+
+msgid "Open Tickets"
+msgstr "Tickets abertos"
 
 msgid "Upcoming"
 msgstr "Próximos"
@@ -7731,39 +7722,6 @@ msgstr ""
 "\n"
 "            "
 
-msgid "Ticketing Service"
-msgstr "Serviço de Ticket"
-
-msgid "Ticketing Service over"
-msgstr "Serviço de Ticket sobre"
-
-msgid "Services"
-msgstr "Serviços"
-
-msgid "Close"
-msgstr "Fechar"
-
-msgid "Reopen"
-msgstr "Reabrir"
-
-msgid "No tickets."
-msgstr "Nenhum ticket."
-
-msgid "Through"
-msgstr "Através"
-
-msgid "Body"
-msgstr "Corpo"
-
-msgid "Opened On"
-msgstr "Aberto em"
-
-msgid "Close Ticket"
-msgstr "Fechar Ticket"
-
-msgid "Are you sure you want to close this ticket?"
-msgstr "Você tem certeza que deseja fechar o ticket?"
-
 msgid "Connect a Ticketing Service"
 msgstr "Conecte um Serviço de Ticket"
 
@@ -7776,9 +7734,15 @@ msgstr "Selecione o serviço de ticket que você deseja conectar abaixo para ini
 msgid "No ticketing services are available."
 msgstr "Nenhum serviço de tickets disponível."
 
+msgid "Delete Ticket Service"
+msgstr "Deletar Serviço de Ticket"
+
 #, python-format
 msgid "%(type_name)s ticketing service over <b>%(name)s</b>. Contacts who have open tickets with this service will have their messages forwarded to the service, and replies made using the service will be sent back to the contact."
 msgstr ""
+
+msgid "HTTP Log"
+msgstr "Log HTTP"
 
 #, python-format
 msgid "%(type_name)s ticketing service over <b>%(name)s</b>."
@@ -7802,6 +7766,9 @@ msgstr "Abra os detalhes do aplicativo em <i> Administração </i> &gt; <i> Apps
 
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."
 msgstr "Isso irá conectar a sua conta com Zendesk, permitindo que você abra tickets em fluxos."
+
+msgid "Ticketing Service"
+msgstr "Serviço de Ticket"
 
 msgid "To complete connecting your account here to your Zendesk account you need to complete the following steps."
 msgstr "Para completar a conexão da sua conta aqui com a sua conta do Zendesk você precisaŕa seguir os próximos passos."
@@ -7920,6 +7887,39 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#~ msgid "Closed Tickets"
+#~ msgstr "Tickets fechados"
+
+#~ msgid "Ticketing Service over"
+#~ msgstr "Serviço de Ticket sobre"
+
+#~ msgid "Services"
+#~ msgstr "Serviços"
+
+#~ msgid "Close"
+#~ msgstr "Fechar"
+
+#~ msgid "Reopen"
+#~ msgstr "Reabrir"
+
+#~ msgid "No tickets."
+#~ msgstr "Nenhum ticket."
+
+#~ msgid "Through"
+#~ msgstr "Através"
+
+#~ msgid "Body"
+#~ msgstr "Corpo"
+
+#~ msgid "Opened On"
+#~ msgstr "Aberto em"
+
+#~ msgid "Close Ticket"
+#~ msgstr "Fechar Ticket"
+
+#~ msgid "Are you sure you want to close this ticket?"
+#~ msgstr "Você tem certeza que deseja fechar o ticket?"
 
 #~ msgid "The first word of the message text"
 #~ msgstr "A primeira palavra do texto de mensagem"
