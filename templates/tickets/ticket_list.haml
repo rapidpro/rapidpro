@@ -20,6 +20,24 @@
       transition-delay: 200ms;
     }
 
+    .empty {
+      position: absolute;
+      transition: all 200ms ease-in-out;
+      transition-delay: 200ms;
+      opacity: 0;
+      padding: 3px 40px;
+    }
+
+    .empty h2 {
+      font-size: 36px;
+      margin-top: 16px;
+    }
+
+    .popper {
+      font-size: 48px;
+      display: inline;
+    }
+
     temba-select[name='ticket-filter'] {
       margin-bottom: 0.5em;
       margin-top: -1.3em;
@@ -32,15 +50,23 @@
       transition: all 200ms ease-in;
     }
 
-    @media only screen and (max-width: 1024px) {
+    @media only screen and (max-width: 850px) {
       .ticket-list {
         flex-basis: 200px; 
       }
+
     }
 
     @media only screen and (max-width: 768px) {
       .ticket-list {
         flex-basis: 125px; 
+      }
+
+      .widget-container {
+        margin-top:16px !important;
+        padding-top:0px !important;
+        margin-bottom:-120px;
+        padding-bottom:120px;
       }
     }
 
@@ -61,18 +87,22 @@
 
     function handleTicketsRefreshed(event) {
       var tickets = event.target;
-      console.log(tickets.items);
 
       // tell our chat to refresh since we know things are new in our list
-
       var chat = document.querySelector("temba-contact-chat");
+      var empty = document.querySelector(".empty");
+      var filter = document.querySelector('temba-select[name="ticket-filter"]');
 
       if (tickets.items.length > 0) {
         chat.style.opacity = '1';
         chat.refresh();
-        
+        empty.style.opacity = '0';
       } else {
-        chat.style.opacity = '0';
+        // if we aren't looking at closed tickets, show the empty view
+        if (filter.value.value != "C") {
+          chat.style.opacity = '0';
+          empty.style.opacity = '1';
+        }
       }
 
     }
@@ -133,7 +163,7 @@
       
 -block page-container
   .flex-col
-    .flex(style="height:100vh;margin-top:-121px;padding-top:121px;margin-bottom:-100px;padding-bottom:100px;")
+    .flex.widget-container(style="height:100vh;margin-top:-121px;padding-top:121px;margin-bottom:-100px;padding-bottom:100px;")
       .ticket-list.flex.flex-col.m-4.mr-2.pt-4
         %temba-select(name="ticket-filter" onchange="handleFilterChanged(event)")
           %temba-option(name="My Tickets" value="M" icon="coffee")
@@ -145,5 +175,20 @@
           %temba-contacts(agent="{{request.user.pk}}" endpoint="{% url 'tickets.ticket_folder' folder='mine' %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
 
       .flex-grow.flex-col.h-full.py-4.pb-4.pr-4
-        
+        .empty
+
+
+          %h2 
+            .popper
+              🎉
+
+            -blocktrans trimmed
+              All done!
+          .mt-4
+            -blocktrans trimmed
+              Nice work, there aren't any more tickets that need your attention here. 
+          
+          .mt-4
+            -blocktrans trimmed
+              If you haven't yet, you can use the Open Ticket action in one or more of your flows to allow contacts to open tickets for support.
         %temba-contact-chat(agent="{{request.user.pk}}" -temba-refreshed="handleContactHistoryUpdated" -temba-content-changed="handleTicketUpdated")
