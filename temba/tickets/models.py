@@ -271,3 +271,75 @@ class TicketEvent(models.Model):
             # used for contact history
             models.Index(name="ticketevents_contact_created", fields=["contact", "created_on"])
         ]
+
+
+class TicketFolder(metaclass=ABCMeta):
+    slug = None
+    name = None
+    icon = None
+
+    def get_queryset(self, org, user):
+        return Ticket.objects.filter(org=org).order_by("-last_activity_on", "-id").prefetch_related("contact")
+
+    @classmethod
+    def from_slug(cls, slug: str):
+        return FOLDERS[slug]
+
+    @classmethod
+    def all(cls):
+        return FOLDERS
+
+
+class MineFolder(TicketFolder):
+    """
+    Tickets assigned to the current user
+    """
+
+    slug = "mine"
+    name = _("My Tickets")
+    icon = "coffee"
+
+    def get_queryset(self, org, user):
+        return super().get_queryset(org, user).filter(status=Ticket.STATUS_OPEN, assignee=user)
+
+
+class UnassignedFolder(TicketFolder):
+    """
+    Tickets not assigned to any user
+    """
+
+    slug = "unassigned"
+    name = _("Unassigned")
+    icon = "mail"
+
+    def get_queryset(self, org, user):
+        return super().get_queryset(org, user).filter(status=Ticket.STATUS_OPEN, assignee=None)
+
+
+class OpenFolder(TicketFolder):
+    """
+    All open tickets
+    """
+
+    slug = "open"
+    name = _("Open")
+    icon = "inbox"
+
+    def get_queryset(self, org, user):
+        return super().get_queryset(org, user).filter(status=Ticket.STATUS_OPEN)
+
+
+class ClosedFolder(TicketFolder):
+    """
+    All closed tickets
+    """
+
+    slug = "closed"
+    name = _("Closed")
+    icon = "check"
+
+    def get_queryset(self, org, user):
+        return super().get_queryset(org, user).filter(status=Ticket.STATUS_CLOSED)
+
+
+FOLDERS = {f.slug: f() for f in TicketFolder.__subclasses__()}
