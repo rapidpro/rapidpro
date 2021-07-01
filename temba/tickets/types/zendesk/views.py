@@ -109,7 +109,7 @@ class ConnectView(BaseConnectView):
             org=self.org,
             user=self.request.user,
             ticketer_type=ZendeskType.slug,
-            name=f"Zendesk ({subdomain})",
+            name=subdomain,
             config=config,
         )
 

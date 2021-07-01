@@ -144,7 +144,6 @@ class RocketChatViewTest(RocketChatMixin):
 
         self.client.force_login(self.admin)
 
-        max_length = Ticketer._meta.get_field("name").max_length
         for path in [f"/{self.app_id}", f"/{self.app_id}/", f"/{self.app_id}/path", f"/path/{self.app_id}/"]:
             choices = (c for c in self.secret)
             data = {
@@ -162,10 +161,7 @@ class RocketChatViewTest(RocketChatMixin):
             self.assertRedirect(response, reverse("tickets.ticket_list"))
 
             domain = data["base_url"].replace("http://", "").replace("https://", "").split("/")[0]
-            expected = f"{RocketChatType.name}: {domain}"
-            if len(expected) > max_length:
-                expected = f"{expected[:max_length - 3]}..."
-            self.assertEqual(ticketer.name, expected)
+            self.assertEqual(domain, ticketer.name)
             self.assertFalse(ticketer.config[RocketChatType.CONFIG_BASE_URL].endswith("/"))
 
     @patch("temba.tickets.types.rocketchat.client.Client.settings")
