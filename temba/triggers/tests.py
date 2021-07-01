@@ -1162,12 +1162,16 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         next_fire = trigger.schedule.calculate_next_fire(datetime(2021, 6, 23, 12, 0, 0, 0, pytz.UTC))  # Wed 23rd
         self.assertEqual(tz.localize(datetime(2021, 6, 24, 12, 0, 0, 0)), next_fire)  # Thu 24th
 
-    def test_list(self):
+    @patch("temba.channels.types.facebook.FacebookType.deactivate_trigger")
+    @patch("temba.channels.types.facebook.FacebookType.activate_trigger")
+    def test_list(self, mock_activate_trigger, mock_deactivate_trigger):
         flow1 = self.create_flow("Report")
         flow2 = self.create_flow("Survey")
+        channel = self.create_channel("FB", "Facebook", "1234567")
         trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="test")
         trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow2, keyword="abc")
         trigger3 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="start")
+        trigger4 = Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow1, channel=channel)
 
         Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="archived", is_archived=True)
         Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="inactive", is_active=False)
@@ -1176,7 +1180,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         list_url = reverse("triggers.trigger_list")
 
         response = self.assertListFetch(
-            list_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger3, trigger1]
+            list_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger3, trigger1, trigger4]
         )
         self.assertEqual(("archive",), response.context["actions"])
 
@@ -1197,7 +1201,15 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(trigger3.is_archived)
 
         # no longer appears in list
-        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1])
+        self.assertListFetch(
+            list_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1, trigger4]
+        )
+
+        # test when archiving fails
+        mock_deactivate_trigger.side_effect = ValueError("boom")
+
+        response = self.client.post(list_url, {"action": "archive", "objects": trigger4.id})
+        self.assertEqual("An error occurred while making your changes. Please try again.", response["Temba-Toast"])
 
     def test_list_redirect_when_no_triggers(self):
         Trigger.objects.all().delete()

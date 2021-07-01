@@ -1,11 +1,10 @@
 from unittest.mock import patch
 
-from django.contrib.auth.models import Group
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.tests import CRUDLTestMixin, TembaTest, matchers
 
 from .models import Ticket, Ticketer, TicketEvent
 from .types import reload_ticketer_types
@@ -118,7 +117,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(open_url)
         assert_tickets(response, [c2_t1, c1_t2, c1_t1])
 
-        joes_open_tickets = contact1.tickets.filter(status="O")
+        joes_open_tickets = contact1.tickets.filter(status="O").order_by("-opened_on")
 
         expected_json = {
             "results": [
@@ -201,119 +200,6 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         with patch("temba.tickets.views.TicketCRUDL.Folder.paginate_by", 1):
             response = self.client.get(open_url + "?_format=json")
             self.assertIsNotNone(response.json()["next"])
-
-    @mock_mailroom
-    def test_open_redirect(self, mr_mocks):
-        open_url = reverse("tickets.ticket_open")
-
-        self.mailgun.delete()
-        self.zendesk.delete()
-
-        # visiting the open tickets shouldn't redirect since we aren't beta
-        response = self.requestView(open_url, self.admin)
-        self.assertIsNone(response.get("Location", None))
-
-        beta = Group.objects.filter(name="Beta").first()
-        self.admin.groups.add(beta)
-
-        response = self.requestView(open_url, self.admin)
-        self.assertEqual(reverse("tickets.ticket_list"), response.get("Location", None))
-
-    @mock_mailroom
-    def test_open(self, mr_mocks):
-        open_url = reverse("tickets.ticket_open")
-
-        ticket1 = self.create_ticket(self.mailgun, self.contact, "Ticket 1")
-        ticket2 = self.create_ticket(self.zendesk, self.contact, "Ticket 2")
-        self.create_ticket(self.mailgun, self.contact, "Ticket 3", closed_on=timezone.now())
-        self.create_ticket(self.other_org_internal, self.contact, "Ticket 4")
-
-        response = self.assertListFetch(
-            open_url, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[ticket2, ticket1]
-        )
-
-        self.assertEqual(("close",), response.context["actions"])
-        self.assertContains(response, reverse("tickets.ticket_filter", args=[self.mailgun.uuid]))
-        self.assertContains(response, reverse("tickets.ticket_filter", args=[self.zendesk.uuid]))
-
-        # can close tickets with an action POST
-        response = self.requestView(open_url, self.admin, post_data={"action": "close", "objects": [ticket2.id]})
-        self.assertEqual(200, response.status_code)
-
-        ticket1.refresh_from_db()
-        ticket2.refresh_from_db()
-
-        self.assertEqual("O", ticket1.status)
-        self.assertEqual("C", ticket2.status)
-
-        # unless you're only a user
-        response = self.requestView(open_url, self.user, post_data={"action": "close", "objects": [ticket1.id]})
-        self.assertEqual(302, response.status_code)
-
-        # return generic error as a toast if mailroom blows up (actual mailroom error will be logged to sentry)
-        mr_mocks.error("boom!")
-
-        response = self.requestView(open_url, self.admin, post_data={"action": "close", "objects": [ticket1.id]})
-        self.assertEqual(200, response.status_code)
-        self.assertEqual("An error occurred while making your changes. Please try again.", response["Temba-Toast"])
-
-    @mock_mailroom
-    def test_closed(self, mr_mocks):
-        closed_url = reverse("tickets.ticket_closed")
-
-        # still see closed tickets for deleted ticketers
-        self.zendesk.release(self.admin)
-
-        ticket1 = self.create_ticket(self.mailgun, self.contact, "Ticket 1", closed_on=timezone.now())
-        ticket2 = self.create_ticket(self.zendesk, self.contact, "Ticket 2", closed_on=timezone.now())
-        self.create_ticket(self.mailgun, self.contact, "Ticket 3")
-        self.create_ticket(self.other_org_internal, self.contact, "Ticket 4", closed_on=timezone.now())
-
-        response = self.assertListFetch(
-            closed_url, allow_viewers=False, allow_editors=True, context_objects=[ticket2, ticket1]
-        )
-        self.assertEqual(("reopen",), response.context["actions"])
-        self.assertContains(response, reverse("tickets.ticket_filter", args=[self.mailgun.uuid]))
-
-        # can't link to deleted ticketer
-        self.assertNotContains(response, reverse("tickets.ticket_filter", args=[self.zendesk.uuid]))
-
-        # can reopen tickets with an action POST
-        response = self.requestView(closed_url, self.admin, post_data={"action": "reopen", "objects": [ticket1.id]})
-        self.assertEqual(200, response.status_code)
-
-        ticket1.refresh_from_db()
-        ticket2.refresh_from_db()
-
-        self.assertEqual("O", ticket1.status)
-        self.assertEqual("C", ticket2.status)
-
-        # unless you're only a user
-        response = self.requestView(closed_url, self.user, post_data={"action": "reopen", "objects": [ticket2.id]})
-        self.assertEqual(302, response.status_code)
-
-    def test_filter(self):
-        filter_url = reverse("tickets.ticket_filter", args=[self.mailgun.uuid])
-
-        ticket1 = self.create_ticket(self.mailgun, self.contact, "Ticket 1")
-        ticket2 = self.create_ticket(self.mailgun, self.contact, "Ticket 2", closed_on=timezone.now())
-        self.create_ticket(self.zendesk, self.contact, "Ticket 3")
-
-        response = self.assertReadFetch(filter_url, allow_viewers=False, allow_editors=True)
-        self.assertEqual(self.mailgun, response.context["ticketer"])
-        self.assertEqual([ticket2, ticket1], list(response.context["object_list"]))
-        self.assertEqual(("close", "reopen"), response.context["actions"])
-
-        # normal users don't see HTTP logs for ticketers
-        logs_url = reverse("request_logs.httplog_ticketer", args=[self.mailgun.uuid])
-        self.assertNotContains(response, logs_url)
-
-        support = Group.objects.get(name="Customer Support")
-        support.user_set.add(self.admin)
-
-        # customer support users do
-        response = self.requestView(filter_url, self.admin)
-        self.assertContains(response, logs_url)
 
     def test_note(self):
         ticket = self.create_ticket(self.mailgun, self.contact, "Ticket 1")

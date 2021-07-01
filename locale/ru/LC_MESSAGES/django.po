@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-07-01 17:31+0000\n"
+"POT-Creation-Date: 2021-07-01 20:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3982,18 +3982,6 @@ msgstr ""
 msgid "Notes can only be seen by the support team"
 msgstr ""
 
-msgid "Open Tickets"
-msgstr ""
-
-msgid "Closed Tickets"
-msgstr ""
-
-msgid "Delete Ticket Service"
-msgstr ""
-
-msgid "HTTP Log"
-msgstr ""
-
 msgid "Unassigned"
 msgstr ""
 
@@ -5502,11 +5490,11 @@ msgid "Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%
 msgstr ""
 
 #, python-format
-msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgid "Opened ticket with subject <b>%(subject)s</b>"
 msgstr ""
 
 #, python-format
-msgid "Closed ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgid "Closed ticket with subject <b>%(subject)s</b>"
 msgstr ""
 
 msgid "Successfully called"
@@ -5586,6 +5574,9 @@ msgid "Details"
 msgstr "Детальная информация"
 
 msgid "Contact Id"
+msgstr ""
+
+msgid "Open Tickets"
 msgstr ""
 
 msgid "Upcoming"
@@ -7592,12 +7583,6 @@ msgid ""
 "            "
 msgstr ""
 
-msgid "Ticketing Service"
-msgstr ""
-
-msgid "Ticketing Service over"
-msgstr ""
-
 msgid "My Tickets"
 msgstr ""
 
@@ -7614,33 +7599,6 @@ msgstr ""
 msgid "Sometimes an automated chatbot isn't enough. When your contacts need to chat with a real person, you can use the Open Ticket action to open a new ticket."
 msgstr ""
 
-msgid "Services"
-msgstr ""
-
-msgid "Close"
-msgstr ""
-
-msgid "Reopen"
-msgstr ""
-
-msgid "No tickets."
-msgstr ""
-
-msgid "Through"
-msgstr ""
-
-msgid "Body"
-msgstr ""
-
-msgid "Opened On"
-msgstr ""
-
-msgid "Close Ticket"
-msgstr ""
-
-msgid "Are you sure you want to close this ticket?"
-msgstr ""
-
 msgid "Connect a Ticketing Service"
 msgstr ""
 
@@ -7655,6 +7613,12 @@ msgstr ""
 
 #, python-format
 msgid "%(type_name)s ticketing service over <b>%(name)s</b>. Contacts who have open tickets with this service will have their messages forwarded to the service, and replies made using the service will be sent back to the contact."
+msgstr ""
+
+msgid "HTTP Log"
+msgstr ""
+
+msgid "Delete Ticket Service"
 msgstr ""
 
 #, python-format
@@ -7678,6 +7642,9 @@ msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(
 msgstr ""
 
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."
+msgstr ""
+
+msgid "Ticketing Service"
 msgstr ""
 
 msgid "To complete connecting your account here to your Zendesk account you need to complete the following steps."
@@ -7796,16 +7763,16 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
 
+#, fuzzy
+#~| msgid "Add Number"
+#~ msgid "Add Note"
+#~ msgstr "Добавить Номер"
+
 #~ msgid "The first word of the message text"
 #~ msgstr "Первое слово текста сообщения"
 
 #~ msgid "Create Referral Trigger"
 #~ msgstr "Создать Реферальный Триггер"
-
-#, fuzzy
-#~| msgid "Add Number"
-#~ msgid "Add Note"
-#~ msgstr "Добавить Номер"
 
 #~ msgid "When this broadcast was created"
 #~ msgstr "Когда была создана эта рассылка"

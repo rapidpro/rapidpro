@@ -3,16 +3,14 @@ from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadVi
 from django import forms
 from django.db.models.aggregates import Max
 from django.http import JsonResponse
-from django.http.response import HttpResponseRedirect
 from django.urls import reverse
-from django.utils.functional import cached_property
 from django.utils.html import mark_safe
 from django.utils.translation import ugettext_lazy as _
 
 from temba.msgs.models import Msg
 from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.utils.fields import InputWidget, SelectWidget
-from temba.utils.views import BulkActionMixin, ComponentFormMixin
+from temba.utils.views import ComponentFormMixin
 
 from .models import Ticket, Ticketer
 
@@ -29,6 +27,7 @@ class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
     permission = "tickets.ticketer_connect"
     ticketer_type = None
     form_blurb = ""
+    success_url = "@tickets.ticket_list"
 
     def __init__(self, ticketer_type):
         self.ticketer_type = ticketer_type
@@ -47,38 +46,12 @@ class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
     def derive_title(self):
         return _("Connect %(ticketer)s") % {"ticketer": self.ticketer_type.name}
 
-    def get_success_url(self):
-        return reverse("tickets.ticket_filter", args=[self.object.uuid])
-
     def get_form_blurb(self):
         return self.form_blurb
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["form_blurb"] = mark_safe(self.get_form_blurb())
-        return context
-
-
-class TicketListView(OrgPermsMixin, BulkActionMixin, SmartListView):
-    folder = None
-    fields = ("contact", "subject", "body", "opened_on")
-    select_related = ("ticketer", "contact")
-    default_order = ("-last_activity_on", "-id")
-    bulk_actions = ()
-
-    def pre_process(self, request, *args, **kwargs):
-        user = self.get_user()
-        if user.is_beta():
-            return HttpResponseRedirect(reverse("tickets.ticket_list"))
-        return super().pre_process(request, *args, **kwargs)
-
-    def get_context_data(self, **kwargs):
-        user = self.get_user()
-        org = user.get_org()
-
-        context = super().get_context_data(**kwargs)
-        context["folder"] = self.folder
-        context["ticketers"] = org.ticketers.filter(is_active=True).order_by("created_on")
         return context
 
 
@@ -97,7 +70,7 @@ class NoteForm(forms.ModelForm):
 
 class TicketCRUDL(SmartCRUDL):
     model = Ticket
-    actions = ("list", "folder", "open", "closed", "filter", "note", "assign")
+    actions = ("list", "folder", "note", "assign")
 
     class List(OrgPermsMixin, SmartListView):
         """
@@ -213,72 +186,6 @@ class TicketCRUDL(SmartCRUDL):
 
             return JsonResponse(results)
 
-    class Open(TicketListView):
-        title = _("Open Tickets")
-        folder = "open"
-        bulk_actions = ("close",)
-
-        def get_queryset(self, **kwargs):
-            org = self.get_user().get_org()
-            return super().get_queryset(**kwargs).filter(org=org, status=Ticket.STATUS_OPEN)
-
-    class Closed(TicketListView):
-        title = _("Closed Tickets")
-        folder = "closed"
-        bulk_actions = ("reopen",)
-
-        def get_queryset(self, **kwargs):
-            org = self.get_user().get_org()
-            return super().get_queryset(**kwargs).filter(org=org, status=Ticket.STATUS_CLOSED)
-
-    class Filter(OrgObjPermsMixin, TicketListView):
-        bulk_actions = ("close", "reopen")
-
-        @classmethod
-        def derive_url_pattern(cls, path, action):
-            return r"^%s/%s/(?P<ticketer>[^/]+)/$" % (path, action)
-
-        def derive_title(self, *args, **kwargs):
-            return self.ticketer.name
-
-        def get_queryset(self, **kwargs):
-            return super().get_queryset(**kwargs).filter(ticketer=self.ticketer)
-
-        def get_gear_links(self):
-            from .types.internal import InternalType
-
-            links = []
-
-            if self.has_org_perm("tickets.ticketer_delete") and self.ticketer.ticketer_type != InternalType.slug:
-                links.append(
-                    dict(
-                        id="ticketer-delete",
-                        title=_("Delete"),
-                        modax=_("Delete Ticket Service"),
-                        href=reverse("tickets.ticketer_delete", args=[self.ticketer.uuid]),
-                    )
-                )
-
-            if self.has_org_perm("request_logs.httplog_ticketer"):
-                links.append(
-                    dict(title=_("HTTP Log"), href=reverse("request_logs.httplog_ticketer", args=[self.ticketer.uuid]))
-                )
-
-            return links
-
-        def get_object_org(self):
-            return self.ticketer.org
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["ticketer"] = self.ticketer
-            context["used_by_flows"] = self.ticketer.dependent_flows.all()[:5]
-            return context
-
-        @cached_property
-        def ticketer(self):
-            return Ticketer.objects.get(uuid=self.kwargs["ticketer"], is_active=True)
-
     class Note(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
         """
         Creates a note for this contact
@@ -377,6 +284,6 @@ class TicketerCRUDL(SmartCRUDL):
         slug_url_kwarg = "uuid"
 
     class Delete(DependencyDeleteModal):
-        cancel_url = "uuid@tickets.ticket_filter"
+        cancel_url = "@orgs.org_home"
         success_url = "@orgs.org_home"
         success_message = _("Your ticketing service has been deleted.")
