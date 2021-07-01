@@ -4331,16 +4331,18 @@ class APITest(TembaTest):
         url = reverse("api.v2.ticketers")
         self.assertEndpointAccess(url)
 
-        # create some ticketers
-        c1 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun (bob@acme.com)", {})
-        c2 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun (jim@acme.com)", {})
+        t1 = self.org.ticketers.get()  # the internal ticketer
 
-        c3 = Ticketer.create(self.org, self.admin, MailgunType.slug, "Mailgun (deleted)", {})
-        c3.is_active = False
-        c3.save()
+        # create some additional ticketers
+        t2 = Ticketer.create(self.org, self.admin, MailgunType.slug, "bob@acme.com", {})
+        t3 = Ticketer.create(self.org, self.admin, MailgunType.slug, "jim@acme.com", {})
+
+        t4 = Ticketer.create(self.org, self.admin, MailgunType.slug, "deleted", {})
+        t4.is_active = False
+        t4.save()
 
         # on another org
-        Ticketer.create(self.org2, self.admin, ZendeskType.slug, "Zendesk", {})
+        Ticketer.create(self.org2, self.admin, ZendeskType.slug, "zendesk", {})
 
         # no filtering
         with self.assertNumQueries(NUM_BASE_REQUEST_QUERIES + 1):
@@ -4353,16 +4355,22 @@ class APITest(TembaTest):
             resp_json["results"],
             [
                 {
-                    "uuid": str(c2.uuid),
-                    "name": "Mailgun (jim@acme.com)",
+                    "uuid": str(t3.uuid),
+                    "name": "jim@acme.com",
                     "type": "mailgun",
-                    "created_on": format_datetime(c2.created_on),
+                    "created_on": format_datetime(t3.created_on),
                 },
                 {
-                    "uuid": str(c1.uuid),
-                    "name": "Mailgun (bob@acme.com)",
+                    "uuid": str(t2.uuid),
+                    "name": "bob@acme.com",
                     "type": "mailgun",
-                    "created_on": format_datetime(c1.created_on),
+                    "created_on": format_datetime(t2.created_on),
+                },
+                {
+                    "uuid": str(t1.uuid),
+                    "name": "RapidPro Tickets",
+                    "type": "internal",
+                    "created_on": format_datetime(t1.created_on),
                 },
             ],
         )
@@ -4374,11 +4382,11 @@ class APITest(TembaTest):
         self.assertEqual(0, len(resp_json["results"]))
 
         # filter by uuid present
-        response = self.fetchJSON(url, "uuid=" + str(c1.uuid))
+        response = self.fetchJSON(url, "uuid=" + str(t2.uuid))
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(1, len(resp_json["results"]))
-        self.assertEqual("Mailgun (bob@acme.com)", resp_json["results"][0]["name"])
+        self.assertEqual("bob@acme.com", resp_json["results"][0]["name"])
 
     @patch("temba.mailroom.client.MailroomClient.ticket_close")
     @patch("temba.mailroom.client.MailroomClient.ticket_reopen")
