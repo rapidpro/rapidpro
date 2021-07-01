@@ -166,10 +166,10 @@
     .flex.widget-container(style="height:100vh;margin-top:-121px;padding-top:121px;margin-bottom:-100px;padding-bottom:100px;")
       .ticket-list.flex.flex-col.m-4.mr-2.pt-4
         %temba-select(name="ticket-filter" onchange="handleFilterChanged(event)")
-          %temba-option(name="My Tickets" value="M" icon="coffee")
-          %temba-option(name="Unassigned" value="U" icon="mail")
-          %temba-option(name="Open" value="O" icon="inbox")
-          %temba-option(name="Closed" value="C" icon="check")
+          %temba-option(name='{{_("My Tickets")|escapejs}}' value="M" icon="coffee")
+          %temba-option(name='{{_("Unassigned")|escapejs}}' value="U" icon="mail")
+          %temba-option(name='{{_("Open")|escapejs}}' value="O" icon="inbox")
+          %temba-option(name='{{_("Closed")|escapejs}}' value="C" icon="check")
         
         .flex.flex-grow(style="max-height:100%;margin-bottom:-30px;padding-bottom:30px")
           %temba-contacts(agent="{{request.user.pk}}" endpoint="{% url 'tickets.ticket_folder' folder='mine' %}" -temba-refreshed="handleTicketsRefreshed" onchange="handleContactChanged(event)")
