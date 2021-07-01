@@ -20,15 +20,6 @@ COPY docker/docker.settings /rapidpro/temba/settings.py
 
 RUN npm install
 
-RUN python3.6 manage.py collectstatic --noinput
-
-RUN sed -i "/worker_processes\s/c\worker_processes auto;" /etc/nginx/nginx.conf
-RUN sed -i "/worker_connections\s/c\    worker_connections 106384;\n    use epoll;\n    multi_accept on;" /etc/nginx/nginx.conf
-RUN echo "worker_rlimit_nofile 300000;" >> /etc/nginx/nginx.conf
-RUN echo "daemon off;" >> /etc/nginx/nginx.conf
-
-RUN rm -f /etc/nginx/sites-enabled/default
-
 RUN rm -f /rapidpro/temba/settings.pyc
 
 COPY docker/entrypoint.sh /
@@ -41,4 +32,4 @@ EXPOSE 8000
 
 ENTRYPOINT ["/entrypoint.sh"]
 
-CMD ["supervisor"]
+CMD ["celery"]
