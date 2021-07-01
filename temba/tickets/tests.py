@@ -68,10 +68,10 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         list_url = reverse("tickets.ticket_list")
 
         # just a placeholder view for frontend components
-        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, allow_agents=True, context_objects=[])
+        self.assertListFetch(list_url, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[])
 
     def test_folder(self):
-        self.login(self.user)
+        self.login(self.admin)
 
         contact1 = self.create_contact("Joe", phone="123", last_seen_on=timezone.now())
         contact2 = self.create_contact("Frank", phone="124", last_seen_on=timezone.now())
@@ -81,6 +81,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         open_url = reverse("tickets.ticket_folder", kwargs={"folder": "open"})
         closed_url = reverse("tickets.ticket_folder", kwargs={"folder": "closed"})
+        mine_url = reverse("tickets.ticket_folder", kwargs={"folder": "mine"})
+        unassigned_url = reverse("tickets.ticket_folder", kwargs={"folder": "unassigned"})
 
         def assert_tickets(resp, tickets: list):
             actual_tickets = [t["ticket"]["uuid"] for t in resp.json()["results"]]
@@ -93,6 +95,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         # contact 1 has two open tickets
         c1_t1 = self.create_ticket(self.mailgun, contact1, "Question 1")
+        # assign it
+        c1_t1.assign(self.admin, assignee=self.admin, note="I've got this")
         c1_t2 = self.create_ticket(self.mailgun, contact1, "Question 2")
 
         self.create_incoming_msg(contact1, "I have an issue")
@@ -130,6 +134,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     },
                     "ticket": {
                         "uuid": str(contact2.tickets.filter(status="O").first().uuid),
+                        "assignee": None,
                         "subject": "Question 3",
                         "closed_on": None,
                     },
@@ -147,6 +152,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     },
                     "ticket": {
                         "uuid": str(joes_open_tickets[0].uuid),
+                        "assignee": None,
                         "subject": "Question 2",
                         "closed_on": None,
                     },
@@ -164,6 +170,12 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
                     },
                     "ticket": {
                         "uuid": str(joes_open_tickets[1].uuid),
+                        "assignee": {
+                            "id": self.admin.id,
+                            "first_name": "",
+                            "last_name": "",
+                            "email": "Administrator@nyaruka.com",
+                        },
                         "subject": "Question 1",
                         "closed_on": None,
                     },
@@ -171,6 +183,14 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             ]
         }
         self.assertEqual(expected_json, response.json())
+
+        # the two unassigned tickets
+        response = self.client.get(unassigned_url)
+        assert_tickets(response, [c2_t1, c1_t2])
+
+        # one assigned ticket for mine
+        response = self.client.get(mine_url)
+        assert_tickets(response, [c1_t1])
 
         # fetching closed folder returns all closed tickets
         response = self.client.get(closed_url)
@@ -187,16 +207,54 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         update_url = reverse("tickets.ticket_note", args=[ticket.uuid])
 
         self.assertUpdateFetch(
-            update_url, allow_viewers=False, allow_editors=True, allow_agents=True, form_fields=["text"]
+            update_url, allow_viewers=False, allow_editors=True, allow_agents=True, form_fields=["note"]
         )
 
         self.assertUpdateSubmit(
-            update_url, {"text": ""}, form_errors={"text": "This field is required."}, object_unchanged=ticket
+            update_url, {"note": ""}, form_errors={"note": "This field is required."}, object_unchanged=ticket
         )
 
-        self.assertUpdateSubmit(update_url, {"text": "I have a bad feeling about this."}, success_status=200)
+        self.assertUpdateSubmit(update_url, {"note": "I have a bad feeling about this."}, success_status=200)
 
         self.assertEqual(1, ticket.events.filter(event_type=TicketEvent.TYPE_NOTE).count())
+
+    def test_assign(self):
+        ticket = self.create_ticket(self.mailgun, self.contact, "Some ticket")
+
+        assign_url = reverse("tickets.ticket_assign", args=[ticket.uuid])
+
+        self.assertUpdateFetch(
+            assign_url, allow_viewers=False, allow_editors=True, allow_agents=True, form_fields=["note", "assignee"]
+        )
+
+        self.assertUpdateSubmit(
+            assign_url, {"assignee": self.admin.pk, "note": "You got this one"}, success_status=200
+        )
+        ticket.refresh_from_db()
+        self.assertEqual(self.admin.pk, ticket.assignee.pk)
+
+        last_event = ticket.events.all().last()
+        self.assertEqual(self.admin.pk, last_event.assignee.pk)
+        self.assertEqual("You got this one", last_event.note)
+
+        # now fetch it again to make sure our initial value is set
+        self.assertUpdateFetch(
+            assign_url,
+            allow_viewers=False,
+            allow_editors=True,
+            allow_agents=True,
+            form_fields={"note": None, "assignee": self.admin.pk},
+        )
+
+        # sumbit an assignment to the same person
+        self.assertUpdateSubmit(
+            assign_url, {"assignee": self.admin.pk, "note": "Have you looked?"}, success_status=200
+        )
+
+        # this should create a note event instead of an assignment event
+        last_event = ticket.events.all().last()
+        self.assertIsNone(last_event.assignee)
+        self.assertEqual("Have you looked?", last_event.note)
 
 
 class TicketerTest(TembaTest):

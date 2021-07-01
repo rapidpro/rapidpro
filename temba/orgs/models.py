@@ -1985,6 +1985,13 @@ def _user_as_engine_ref(user: User) -> dict:
     return {"email": user.email, "name": user.name}
 
 
+def _user_str(user):
+    as_str = _user_name(user)
+    if not as_str:
+        as_str = user.username
+    return as_str
+
+
 User.release = release
 User.get_org = get_org
 User.set_org = set_org
@@ -2002,6 +2009,7 @@ User.disable_2fa = _user_disable_2fa
 User.verify_2fa = _user_verify_2fa
 User.name = property(_user_name)
 User.as_engine_ref = _user_as_engine_ref
+User.__str__ = _user_str
 
 
 def get_stripe_credentials():

@@ -17,7 +17,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-30 20:47+0000\n"
+"POT-Creation-Date: 2021-07-01 15:20+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -3886,12 +3886,19 @@ msgstr "Aberto"
 msgid "Closed"
 msgstr "Fechado"
 
-msgid "Enabling this will allow you to handle tickets within this application."
+#, fuzzy
+#| msgid "Enabling this will allow you to handle tickets within this application."
+msgid "Enabling this will allow you to handle tickets within {{brand.name}}."
 msgstr "Habilitar isto irá permitir que você lide com tickets dentro desta aplicação."
 
 #, python-format
 msgid "This will enable handling tickets internally in %(brand)s."
 msgstr "Isso irá permitir que tickets sejam lidados internamente em %(brand)s."
+
+#, fuzzy, python-format
+#| msgid "The %(brand)s Team"
+msgid "%(brand)s Tickets"
+msgstr "O time %(brand)s"
 
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr "Conectando um endereço de email irá encaminhar todos os novos tickets e suas respostas para aquele endereço de email. Você será capaz de responder a eles diretamente, e suas respostas serão enviadas ao contato."
@@ -3975,10 +3982,8 @@ msgstr "Conectar %(ticketer)s"
 msgid "Notes can only be seen by the support team"
 msgstr ""
 
-#, fuzzy
-#| msgid "Add Number"
-msgid "Add Note"
-msgstr "Adicionar números"
+msgid "Unassigned"
+msgstr ""
 
 msgid "Your ticketing service has been deleted."
 msgstr "Seu serviço de tickets foi deletado."
@@ -7723,6 +7728,11 @@ msgstr ""
 "\n"
 "            "
 
+#, fuzzy
+#| msgid "Tickets"
+msgid "My Tickets"
+msgstr "Tickets"
+
 msgid "Connect a Ticketing Service"
 msgstr "Conecte um Serviço de Ticket"
 
@@ -7888,6 +7898,11 @@ msgstr "Templates são sincronizados da sua conta do WhatsApp a cada 15 minutos.
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
+
+#, fuzzy
+#~| msgid "Add Number"
+#~ msgid "Add Note"
+#~ msgstr "Adicionar números"
 
 #~ msgid "Closed Tickets"
 #~ msgstr "Tickets fechados"

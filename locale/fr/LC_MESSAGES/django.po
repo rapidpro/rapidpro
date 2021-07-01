@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-30 20:47+0000\n"
+"POT-Creation-Date: 2021-07-01 15:20+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3877,12 +3877,17 @@ msgstr "Ouvert"
 msgid "Closed"
 msgstr "Fermé"
 
-msgid "Enabling this will allow you to handle tickets within this application."
+msgid "Enabling this will allow you to handle tickets within {{brand.name}}."
 msgstr ""
 
 #, python-format
 msgid "This will enable handling tickets internally in %(brand)s."
 msgstr ""
+
+#, fuzzy, python-format
+#| msgid "The %(brand)s Team"
+msgid "%(brand)s Tickets"
+msgstr "The %(brand)s Team"
 
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr "La connexion d'une adresse e-mail transmet tous les nouveaux tickets et leurs réponses à cette adresse e-mail. Vous pourrez y répondre directement et vos réponses seront envoyées au contact."
@@ -3966,10 +3971,8 @@ msgstr "Connecter %(ticketer)s"
 msgid "Notes can only be seen by the support team"
 msgstr ""
 
-#, fuzzy
-#| msgid "Add Number"
-msgid "Add Note"
-msgstr "Ajouter un nombre"
+msgid "Unassigned"
+msgstr ""
 
 msgid "Your ticketing service has been deleted."
 msgstr "Votre service de billetterie a été supprimé."
@@ -7720,6 +7723,11 @@ msgstr ""
 "\n"
 "            "
 
+#, fuzzy
+#| msgid "Tickets"
+msgid "My Tickets"
+msgstr "Billets"
+
 msgid "Connect a Ticketing Service"
 msgstr "Connecter un service de billetterie"
 
@@ -7885,6 +7893,11 @@ msgstr "Les modèles sont synchronisés à partir de votre compte WhatsApp toute
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
+
+#, fuzzy
+#~| msgid "Add Number"
+#~ msgid "Add Note"
+#~ msgstr "Ajouter un nombre"
 
 #~ msgid "Closed Tickets"
 #~ msgstr "Billets fermés"
