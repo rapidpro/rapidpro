@@ -93,18 +93,14 @@
       var empty = document.querySelector(".empty");
       var filter = document.querySelector('temba-select[name="ticket-filter"]');
 
-      if (tickets.items.length > 0) {
+      if (tickets.items.length > 0 || filter.value.value == "C") {
         chat.style.opacity = '1';
         chat.refresh();
         empty.style.opacity = '0';
       } else {
-        // if we aren't looking at closed tickets, show the empty view
-        if (filter.value.value != "C") {
-          chat.style.opacity = '0';
-          empty.style.opacity = '1';
-        }
+        chat.style.opacity = '0';
+        empty.style.opacity = '1';
       }
-
     }
 
     var focusNext = null;
@@ -177,18 +173,30 @@
       .flex-grow.flex-col.h-full.py-4.pb-4.pr-4
         .empty
 
+            -if has_tickets
+              %h2 
+                .popper
+                  🎉
 
-          %h2 
-            .popper
-              🎉
+                -blocktrans trimmed
+                  All done!
+              .mt-4
+                -blocktrans trimmed
+                  Nice work, there aren't any more tickets here that need your attention.
 
-            -blocktrans trimmed
-              All done!
-          .mt-4
-            -blocktrans trimmed
-              Nice work, there aren't any more tickets here that need your attention.
-          
-          .mt-4
-            -blocktrans trimmed
-              If you haven't yet, you can use the Open Ticket action in one or more of your flows to allow contacts to open tickets for support.
+            -else            
+              %h2 
+                -blocktrans trimmed
+                  Tickets
+
+              .mt-6
+                -blocktrans with name=brand.name trimmed
+                  {{name}} Tickets makes it easy to chat directly with your contacts.
+
+              .mt-4
+                -blocktrans trimmed
+                  Sometimes an automated chatbot isn't enough. When your contacts need to chat with a real person, you can use the 
+                  Open Ticket action to open a new ticket.
+                  
+                  
         %temba-contact-chat(agent="{{request.user.pk}}" -temba-refreshed="handleContactHistoryUpdated" -temba-content-changed="handleTicketUpdated")

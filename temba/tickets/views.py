@@ -104,6 +104,12 @@ class TicketCRUDL(SmartCRUDL):
         A placeholder view for the ticket handling frontend components which fetch tickets from the endpoint below
         """
 
+        def get_context_data(self, **kwargs):
+            context = super().get_context_data(**kwargs)
+            org = self.request.user.get_org()
+            context["has_tickets"] = Ticket.objects.filter(org=org).exists()
+            return context
+
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).none()
 
