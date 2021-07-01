@@ -1437,9 +1437,6 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
         else:
             return generics.get_object_or_404(queryset)
 
-    def perform_destroy(self, instance):
-        instance.release(self.request.user)
-
     @classmethod
     def get_read_explorer(cls):
         return {
@@ -2368,9 +2365,6 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         for label in object_list:
             label.count = label_counts[label]
 
-    def perform_destroy(self, instance):
-        instance.release(self.request.user)
-
     @classmethod
     def get_read_explorer(cls):
         return {
@@ -2832,9 +2826,6 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
             queryset = queryset.filter(resthook__slug=resthook)
 
         return queryset.select_related("resthook")
-
-    def perform_destroy(self, instance):
-        instance.release(self.request.user)
 
     @classmethod
     def get_read_explorer(cls):

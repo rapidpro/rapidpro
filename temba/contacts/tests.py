@@ -572,7 +572,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         background_flow = self.get_flow("background")
         self.get_flow("media_survey")
         archived_flow = self.get_flow("color")
-        archived_flow.archive()
+        archived_flow.archive(self.admin)
 
         contact = self.create_contact("Joe", phone="+593979000111")
         start_url = reverse("contacts.contact_start", args=[contact.id])
