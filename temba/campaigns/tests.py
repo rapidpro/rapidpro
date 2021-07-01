@@ -262,7 +262,7 @@ class CampaignTest(TembaTest):
 
         # create an unfired fire and release its event
         EventFire.objects.create(event=second_event, contact=self.farmer1, scheduled=trim_date)
-        second_event.release()
+        second_event.release(self.admin)
 
         # trim our events, one fired and one inactive onfired
         trim_event_fires_task()
@@ -556,7 +556,7 @@ class CampaignTest(TembaTest):
         )
 
         for e in CampaignEvent.objects.filter(flow=self.reminder2_flow.pk):
-            e.release()
+            e.release(self.admin)
 
         # archive the campaign
         post_data = dict(action="archive", objects=campaign.pk)
@@ -917,7 +917,7 @@ class CampaignTest(TembaTest):
             ContactField.get_or_create(self.org, self.admin, "planting_date", value_type=ContactField.TYPE_TEXT)
 
         # release our campaign event
-        event.release()
+        event.release(self.admin)
 
         # should be able to change our field type now
         ContactField.get_or_create(self.org, self.admin, "planting_date", value_type=ContactField.TYPE_TEXT)
@@ -978,7 +978,7 @@ class CampaignTest(TembaTest):
             "Don't forget to brush your teeth",
         )
 
-        flow.archive()
+        flow.archive(self.admin)
         campaign.is_archived = True
         campaign.save()
 

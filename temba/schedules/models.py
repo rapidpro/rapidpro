@@ -7,6 +7,7 @@ from smartmin.models import SmartModel
 
 from django.contrib.humanize.templatetags.humanize import ordinal
 from django.db import models
+from django.db.models import Index, Q
 from django.utils import timezone
 from django.utils.timesince import timeuntil
 from django.utils.translation import ugettext_lazy as _
@@ -212,5 +213,20 @@ class Schedule(SmartModel):
         """
         return Schedule.DAYS_OF_WEEK_OFFSET[d.weekday()]
 
+    def release(self, user):
+        self.is_active = False
+        self.modified_by = user
+        self.save(update_fields=("is_active", "modified_by", "modified_on"))
+
     def __str__(self):
         return f'Schedule[id={self.id} repeat="{self.get_display()}" next={str(self.next_fire)}]'
+
+    class Meta:
+        indexes = [
+            # used by mailroom for fetching schedules that need to be fired
+            Index(
+                name="schedules_next_fire_active",
+                fields=["next_fire"],
+                condition=Q(is_active=True, next_fire__isnull=False),
+            )
+        ]

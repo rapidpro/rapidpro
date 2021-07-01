@@ -336,7 +336,7 @@ class ChannelTest(TembaTest):
 
         self.assertEqual(0, channel1.alerts.count())
         self.assertEqual(0, channel1.sync_events.count())
-        self.assertEqual(0, channel1.triggers.count())
+        self.assertEqual(0, channel1.triggers.filter(is_active=True).count())
 
         # check that we queued a task to interrupt sessions tied to this channel
         self.assertEqual(
@@ -353,7 +353,7 @@ class ChannelTest(TembaTest):
         self.assertEqual(1, channel2.msgs.filter(status="E").count())
         self.assertEqual(1, channel2.alerts.count())
         self.assertEqual(1, channel2.sync_events.count())
-        self.assertEqual(1, channel2.triggers.count())
+        self.assertEqual(1, channel2.triggers.filter(is_active=True).count())
 
     @mock_mailroom
     def test_release_android(self, mr_mocks):

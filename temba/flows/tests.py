@@ -88,7 +88,7 @@ class FlowTest(TembaTest):
     @patch("temba.mailroom.queue_interrupt")
     def test_archive(self, mock_queue_interrupt):
         flow = self.get_flow("color")
-        flow.archive()
+        flow.archive(self.admin)
 
         mock_queue_interrupt.assert_called_once_with(self.org, flow=flow)
 
@@ -102,7 +102,7 @@ class FlowTest(TembaTest):
         flow = self.get_flow("color")
         flow.global_dependencies.add(global1)
 
-        flow.release()
+        flow.release(self.admin)
 
         mock_queue_interrupt.assert_called_once_with(self.org, flow=flow)
 
@@ -1326,8 +1326,7 @@ class FlowTest(TembaTest):
 
     def test_flow_update_of_inactive_flow(self):
         flow = self.get_flow("favorites")
-        # release the flow
-        flow.release()
+        flow.release(self.admin)
 
         post_data = {"name": "Flow that does not exist"}
 
@@ -1339,8 +1338,7 @@ class FlowTest(TembaTest):
 
     def test_flow_results_of_inactive_flow(self):
         flow = self.get_flow("favorites")
-        # release the flow
-        flow.release()
+        flow.release(self.admin)
 
         self.login(self.admin)
         response = self.client.get(reverse("flows.flow_results", args=[flow.uuid]))
@@ -1581,9 +1579,7 @@ class FlowTest(TembaTest):
 
     def test_flow_delete_of_inactive_flow(self):
         flow = self.get_flow("favorites")
-
-        # release the flow
-        flow.release()
+        flow.release(self.admin)
 
         self.login(self.admin)
         response = self.client.post(reverse("flows.flow_delete", args=[flow.pk]))
@@ -1665,11 +1661,12 @@ class FlowTest(TembaTest):
         # runs should not be deleted
         self.assertEqual(flow.runs.count(), 2)
 
-        # our campaign event should no longer be active
-        self.assertFalse(CampaignEvent.objects.filter(id=event1.id, is_active=True).exists())
+        # our campaign event and trigger should no longer be active
+        event1.refresh_from_db()
+        self.assertFalse(event1.is_active)
 
-        # nor should our trigger
-        self.assertFalse(Trigger.objects.filter(id=trigger.id).exists())
+        trigger.refresh_from_db()
+        self.assertFalse(trigger.is_active)
 
     def test_flow_delete_with_dependencies(self):
         self.login(self.admin)
@@ -2513,7 +2510,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_inactive_flow(self):
         flow = self.get_flow("color_v13")
-        flow.release()
+        flow.release(self.admin)
 
         self.login(self.admin)
 
@@ -3035,8 +3032,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_activity_chart_of_inactive_flow(self):
         flow = self.get_flow("favorites")
-        # release the flow
-        flow.release()
+        flow.release(self.admin)
 
         self.login(self.admin)
         response = self.client.get(reverse("flows.flow_activity_chart", args=[flow.id]))
@@ -3045,8 +3041,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_run_table_of_inactive_flow(self):
         flow = self.get_flow("favorites")
-        # release the flow
-        flow.release()
+        flow.release(self.admin)
 
         self.login(self.admin)
         response = self.client.get(reverse("flows.flow_run_table", args=[flow.id]))
@@ -3055,8 +3050,7 @@ class FlowCRUDLTest(TembaTest, CRUDLTestMixin):
 
     def test_category_counts_of_inactive_flow(self):
         flow = self.get_flow("favorites")
-        # release the flow
-        flow.release()
+        flow.release(self.admin)
 
         self.login(self.admin)
         response = self.client.get(reverse("flows.flow_category_counts", args=[flow.uuid]))

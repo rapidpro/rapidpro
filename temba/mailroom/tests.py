@@ -580,7 +580,7 @@ class MailroomQueueTest(TembaTest):
 
     def test_queue_interrupt_by_flow(self):
         flow = self.get_flow("favorites")
-        flow.archive()
+        flow.archive(self.admin)
 
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(

@@ -244,7 +244,7 @@ class DeleteAPIMixin(mixins.DestroyModelMixin):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def perform_destroy(self, instance):
-        instance.release()
+        instance.release(self.request.user)
 
 
 class CreatedOnCursorPagination(CursorPagination):

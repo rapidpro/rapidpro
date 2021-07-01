@@ -555,7 +555,7 @@ class CampaignEventCRUDL(SmartCRUDL):
 
         def post(self, request, *args, **kwargs):
             self.object = self.get_object()
-            self.object.release()
+            self.object.release(self.request.user)
 
             redirect_url = self.get_redirect_url()
             return HttpResponseRedirect(redirect_url)
