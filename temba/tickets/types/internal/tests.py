@@ -37,4 +37,4 @@ class InternalTypeTest(TembaTest):
 
         ticketer = Ticketer.objects.get(ticketer_type="internal")
 
-        self.assertEqual("Internal", ticketer.name)
+        self.assertEqual("RapidPro Tickets", ticketer.name)

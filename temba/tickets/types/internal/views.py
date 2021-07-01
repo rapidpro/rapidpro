@@ -17,8 +17,14 @@ class ConnectView(BaseConnectView):
     def form_valid(self, form):
         from .type import InternalType
 
+        brand = self.request.user.get_org().get_branding()
+
         self.object = Ticketer.create(
-            org=self.org, user=self.request.user, ticketer_type=InternalType.slug, config={}, name=f"Internal"
+            org=self.org,
+            user=self.request.user,
+            ticketer_type=InternalType.slug,
+            config={},
+            name=_("%(brand)s Tickets") % {"brand": brand["name"]},
         )
 
         return super().form_valid(form)

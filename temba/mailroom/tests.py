@@ -853,6 +853,7 @@ class EventTest(TembaTest):
             {
                 "type": "ticket_note_added",
                 "note": "this is important",
+                "assignee": None,
                 "ticket": {
                     "uuid": str(ticket.uuid),
                     "opened_on": matchers.ISODate(),
@@ -877,6 +878,7 @@ class EventTest(TembaTest):
             {
                 "type": "ticket_closed",
                 "note": None,
+                "assignee": None,
                 "ticket": {
                     "uuid": str(ticket.uuid),
                     "opened_on": matchers.ISODate(),

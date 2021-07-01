@@ -1426,16 +1426,24 @@ class TicketReadSerializer(ReadSerializer):
 
     ticketer = fields.TicketerField()
     contact = fields.ContactField()
+    assignee = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     opened_on = serializers.DateTimeField(default_timezone=pytz.UTC)
     closed_on = serializers.DateTimeField(default_timezone=pytz.UTC)
+
+    def get_assignee(self, obj):
+        return (
+            {"id": obj.assignee.id, "first_name": obj.assignee.first_name, "last_name": obj.assignee.last_name}
+            if obj.assignee
+            else None
+        )
 
     def get_status(self, obj):
         return self.STATUSES.get(obj.status)
 
     class Meta:
         model = Ticket
-        fields = ("uuid", "ticketer", "contact", "status", "subject", "body", "opened_on", "closed_on")
+        fields = ("uuid", "ticketer", "assignee", "contact", "status", "subject", "body", "opened_on", "closed_on")
 
 
 class TicketWriteSerializer(WriteSerializer):
