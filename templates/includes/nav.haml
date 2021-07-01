@@ -168,7 +168,7 @@
       .title
         -trans "triggers"
 
-  -if org_perms.tickets.ticket_list and not request.user.is_superuser and user_org and user_org.has_ticketer
+  -if org_perms.tickets.ticket_list and not request.user.is_superuser
     %a{href:"{% url 'tickets.ticket_list' %}", class:"{% active request 'ticket' %}"}
       .circle
         .icon-ticket
