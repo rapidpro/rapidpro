@@ -117,7 +117,7 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         response = self.client.get(open_url)
         assert_tickets(response, [c2_t1, c1_t2, c1_t1])
 
-        joes_open_tickets = contact1.tickets.filter(status="O")
+        joes_open_tickets = contact1.tickets.filter(status="O").order_by("-opened_on")
 
         expected_json = {
             "results": [
