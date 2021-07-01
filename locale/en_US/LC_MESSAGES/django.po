@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-07-01 20:07+0000\n"
+"POT-Creation-Date: 2021-07-01 21:07+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3800,17 +3800,6 @@ msgstr ""
 msgid "Closed"
 msgstr ""
 
-msgid "Enabling this will allow you to handle tickets within {{brand.name}}."
-msgstr ""
-
-#, python-format
-msgid "This will enable handling tickets internally in %(brand)s."
-msgstr ""
-
-#, python-format
-msgid "%(brand)s Tickets"
-msgstr ""
-
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr ""
 
@@ -7195,6 +7184,10 @@ msgid "Ticketing Services let a human agent take over communication for a contac
 msgstr ""
 
 msgid "Select the ticketing service you want to connect below to get started."
+msgstr ""
+
+#, python-format
+msgid "%(brand)s Tickets"
 msgstr ""
 
 msgid "No ticketing services are available."

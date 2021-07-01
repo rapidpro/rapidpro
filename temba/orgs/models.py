@@ -961,11 +961,6 @@ class Org(SmartModel):
 
         return user._org_group
 
-    def has_internal_ticketing(self):
-        from temba.tickets.types.internal import InternalType
-
-        return self.ticketers.filter(ticketer_type=InternalType.slug).exists()
-
     def has_twilio_number(self):  # pragma: needs cover
         return self.channels.filter(channel_type="T")
 
@@ -1544,6 +1539,7 @@ class Org(SmartModel):
         """
         from temba.middleware import BrandingMiddleware
         from temba.contacts.models import ContactField, ContactGroup
+        from temba.tickets.models import Ticketer
 
         with transaction.atomic():
             if not branding:
@@ -1551,6 +1547,7 @@ class Org(SmartModel):
 
             ContactGroup.create_system_groups(self)
             ContactField.create_system_fields(self)
+            Ticketer.create_internal_ticketer(self, branding)
 
             self.init_topups(topup_size)
             self.update_capabilities()

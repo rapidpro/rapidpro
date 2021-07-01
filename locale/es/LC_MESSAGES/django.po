@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-07-01 20:07+0000\n"
+"POT-Creation-Date: 2021-07-01 21:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -3879,20 +3879,6 @@ msgstr "Abierto"
 
 msgid "Closed"
 msgstr "Cerrado"
-
-#, fuzzy
-#| msgid "Enabling this will allow you to handle tickets within this application."
-msgid "Enabling this will allow you to handle tickets within {{brand.name}}."
-msgstr "Habilitar esto le permitirá manejar tickets dentro de esta aplicación."
-
-#, python-format
-msgid "This will enable handling tickets internally in %(brand)s."
-msgstr "Esto permitirá el manejo de tickets internamente en %(brand)s."
-
-#, fuzzy, python-format
-#| msgid "The %(brand)s Team"
-msgid "%(brand)s Tickets"
-msgstr "El Equipo de %(brand)s"
 
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr "Al conectar una dirección de correo electrónico, se enviarán todos los tickets nuevos y sus respuestas a esa dirección de correo electrónico. Podrás responderles directamente y tus respuestas se enviarán al contacto."
@@ -7768,6 +7754,11 @@ msgstr "Los servicios de tickets permiten que un agente humano se haga cargo de 
 msgid "Select the ticketing service you want to connect below to get started."
 msgstr "Seleccione el servicio de tickets que desea conectar a continuación para comenzar."
 
+#, fuzzy, python-format
+#| msgid "The %(brand)s Team"
+msgid "%(brand)s Tickets"
+msgstr "El Equipo de %(brand)s"
+
 msgid "No ticketing services are available."
 msgstr "No hay servicios de tickets disponibles."
 
@@ -7924,6 +7915,15 @@ msgstr "Las plantillas se sincronizan desde su cuenta de WhatsApp cada 15 minuto
 
 msgid "No synced templates at this time."
 msgstr "No hay plantillas sincronizadas en este momento."
+
+#, fuzzy
+#~| msgid "Enabling this will allow you to handle tickets within this application."
+#~ msgid "Enabling this will allow you to handle tickets within {{brand.name}}."
+#~ msgstr "Habilitar esto le permitirá manejar tickets dentro de esta aplicación."
+
+#, python-format
+#~ msgid "This will enable handling tickets internally in %(brand)s."
+#~ msgstr "Esto permitirá el manejo de tickets internamente en %(brand)s."
 
 #, fuzzy
 #~| msgid "Add Number"

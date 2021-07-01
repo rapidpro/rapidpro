@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-07-01 20:07+0000\n"
+"POT-Creation-Date: 2021-07-01 21:07+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3877,18 +3877,6 @@ msgstr "Ouvert"
 msgid "Closed"
 msgstr "Fermé"
 
-msgid "Enabling this will allow you to handle tickets within {{brand.name}}."
-msgstr ""
-
-#, python-format
-msgid "This will enable handling tickets internally in %(brand)s."
-msgstr ""
-
-#, fuzzy, python-format
-#| msgid "The %(brand)s Team"
-msgid "%(brand)s Tickets"
-msgstr "The %(brand)s Team"
-
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr "La connexion d'une adresse e-mail transmet tous les nouveaux tickets et leurs réponses à cette adresse e-mail. Vous pourrez y répondre directement et vos réponses seront envoyées au contact."
 
@@ -7749,6 +7737,11 @@ msgstr "Les services de billetterie permettent à un agent humain de prendre en 
 
 msgid "Select the ticketing service you want to connect below to get started."
 msgstr "Sélectionnez le service de billetterie auquel vous souhaitez vous connecter ci-dessous pour commencer."
+
+#, fuzzy, python-format
+#| msgid "The %(brand)s Team"
+msgid "%(brand)s Tickets"
+msgstr "The %(brand)s Team"
 
 msgid "No ticketing services are available."
 msgstr "Aucun service de billetterie n'est disponible."
