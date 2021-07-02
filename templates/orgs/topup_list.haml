@@ -40,13 +40,14 @@
           {{ topup.get_price_display }}
 
       .flex.mb-4
-        .flex-1
-          -if topup.expires_on < now
-            -trans "Expired on "
-            {{ topup.expires_on }}
-          -else
-            -trans "Expires on "
-            {{ topup.expires_on }}
+        - if credits_expiration
+          .flex-1
+            -if topup.expires_on < now
+              -trans "Expired on "
+              {{ topup.expires_on }}
+            -else
+              -trans "Expires on "
+              {{ topup.expires_on }}
 
         .flex-1.text-right
           -if topup.price|default_if_none:0 > 5
