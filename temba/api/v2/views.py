@@ -4442,7 +4442,7 @@ class ReportEndpointMixin:
 
     def get_paginated_queryset(self, queryset):
         pagination_class: CursorPagination = getattr(self, "pagination_class", CreatedOnCursorPagination)()
-        pagination_class.page_size_query_param = "page_size"
+        pagination_class.page_size_query_param = getattr(self, "page_size_query_param", "page_size")
         pagination_class.page_size = getattr(self, "chunk_size", 2000)
         pagination_class.max_page_size = 2000
         pagination_class.paginate_queryset(queryset, self.request, self)
@@ -4924,28 +4924,63 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     """
 
     permission = "orgs.org_api"
+    page_size_query_param = "page_size"
     pagination_class = CreatedOnCursorPagination
 
     def get_flow_messages(self, org, flow, qs):
-        runs = FlowRun.objects.filter(
+        runs = flow.runs.filter(
             self.get_datetime_filters("", "exited_on", org),
             org=org,
-            flow__uuid=flow,
             status__in=[
                 FlowRun.STATUS_COMPLETED,
                 FlowRun.STATUS_INTERRUPTED,
                 FlowRun.STATUS_FAILED,
                 FlowRun.STATUS_EXPIRED,
             ],
-        )
-        messages_uuids = []
-        for run in runs:
-            messages_uuids += [
-                evt["msg"].get("uuid")
-                for evt in run.get_msg_events()
-                if evt["msg"].get("uuid") not in [None, "None", ""]
-            ]
-        return qs.filter(uuid__in=messages_uuids)
+        ).only("flow_id", "events", "modified_on")
+        self.update_paginator_conf_for_flow_runs(runs)
+        runs, next_page = self.get_paginated_queryset(runs)
+        messages_uuids = [
+            evt["msg"].get("uuid")
+            for run in runs
+            for evt in run.get_msg_events()
+            if evt["msg"].get("uuid") not in [None, "None", ""]
+        ]
+        self.attach_messages_uuids_join(qs, messages_uuids)
+        qs = qs.only("created_on").annotate(ds=Concat("direction", "status"))
+        return qs, next_page
+
+    def update_paginator_conf_for_flow_runs(self, flow_run_qs):
+        run = flow_run_qs.first()
+        msgs_count = len([1 for evt in run.get_msg_events() if evt["msg"].get("uuid") not in [None, "None", ""]])
+        page_size = max(self.get_page_size() // msgs_count, 1)
+        setattr(self, "chunk_size", page_size)
+        setattr(self, "pagination_class", ModifiedOnCursorPagination)
+        setattr(self, "page_size_query_param", "__removed_page_size")
+
+    def get_page_size(self):
+        page_size = self.request.query_params.get("page_size") or 2000
+        try:
+            return int(page_size)
+        except ValueError:
+            return 2000
+
+    @staticmethod
+    def attach_messages_uuids_join(queryset: QuerySet, uuids: list):
+        msgs_uuid_pairs = ",".join(str((seq, model_uuid)) for seq, model_uuid in enumerate(uuids, start=1))
+
+        class MessagesUuidJoin:
+            table_name = "t"
+            join_type = "INNER JOIN"
+            parent_alias = "msgs_msg"
+            filtered_relation = None
+            nullable = None
+
+            @classmethod
+            def as_sql(cls, *args):
+                return f"INNER JOIN (VALUES {msgs_uuid_pairs}) t (seq, uuid) ON msgs_msg.uuid = t.uuid::uuid", []
+
+        queryset.query.join(MessagesUuidJoin)
 
     @csv_response_wrapper
     def get(self, request, *args, **kwargs):
@@ -4953,15 +4988,25 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         queryset = Msg.objects.filter(org=org)
         self.applied_filters, arg_filters = {}, []
 
-        flow = self.get_query_parameter("flow")
-        queryset = self.get_flow_messages(org, flow, queryset) if flow else queryset
         arg_filters.append(self.get_name_uuid_filters("exclude", "contact__all_groups", exclude=True))
         arg_filters.append(self.get_name_uuid_filters("channel", "channel"))
         arg_filters.append(self.get_datetime_filters("", "created_on", org))
         arg_filters = [_filter for _filter in arg_filters if _filter]
+        queryset = queryset.filter(*arg_filters)
 
-        queryset = queryset.filter(*arg_filters).only("created_on").annotate(ds=Concat("direction", "status"))
-        current_page, next_page = self.get_paginated_queryset(queryset)
+        try:
+            flow__uuid = self.get_query_parameter("flow")
+            if flow__uuid:
+                flow = Flow.objects.get(org=org, uuid=flow__uuid)
+                current_page, next_page = self.get_flow_messages(org, flow, queryset)
+            else:
+                queryset = queryset.only("created_on").annotate(ds=Concat("direction", "status"))
+                current_page, next_page = self.get_paginated_queryset(queryset)
+        except Flow.DoesNotExist:
+            return Response(
+                {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
+            )
+
         counter = Counter([rec.ds for rec in current_page])
         results = dict(total_inbound_messages=0, total_outbound_messages=0, total_outbound_message_failures=0)
         for msg_type, count in counter.items():
