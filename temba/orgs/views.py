@@ -1504,7 +1504,7 @@ class OrgCRUDL(SmartCRUDL):
             owner = obj.get_owner()
 
             return mark_safe(
-                f"<div class='owner-name'>{escape(owner.first_name)} {escape(owner.last_name)}</div><div class='owner-email'>{owner}</div>"
+                f"<div class='owner-name'>{escape(owner.first_name)} {escape(owner.last_name)}</div><div class='owner-email'>{escape(owner.username)}</div>"
             )
 
         def get_service(self, obj):
