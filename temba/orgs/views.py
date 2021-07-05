@@ -689,7 +689,6 @@ class UserCRUDL(SmartCRUDL):
                 return email
 
         title = _("Password Recovery")
-        template_name = "smartmin/users/user_forget.html"
         form_class = ForgetForm
         permission = None
         success_message = _("An Email has been sent to your account with further instructions.")
