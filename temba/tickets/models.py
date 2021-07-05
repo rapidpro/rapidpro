@@ -176,6 +176,12 @@ class Ticket(models.Model):
 
     assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
 
+    def assign(self, user: User, *, assignee: User, note: str):
+        self.bulk_assign(self.org, user, [self], assignee=assignee, note=note)
+
+    def add_note(self, user: User, *, note: str):
+        self.bulk_note(self.org, user, [self], note=note)
+
     @classmethod
     def bulk_assign(cls, org, user: User, tickets: list, assignee: User, note: str = None):
         ticket_ids = [t.id for t in tickets if t.ticketer.is_active]

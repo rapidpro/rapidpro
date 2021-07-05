@@ -4,7 +4,7 @@ from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.tests import CRUDLTestMixin, TembaTest, matchers
+from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
 
 from .models import Ticket, Ticketer, TicketEvent
 from .types import reload_ticketer_types
@@ -79,7 +79,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # just a placeholder view for frontend components
         self.assertListFetch(list_url, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[])
 
-    def test_folder(self):
+    @mock_mailroom
+    def test_folder(self, mr_mocks):
         self.login(self.admin)
 
         contact1 = self.create_contact("Joe", phone="123", last_seen_on=timezone.now())
@@ -210,7 +211,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             response = self.client.get(open_url + "?_format=json")
             self.assertIsNotNone(response.json()["next"])
 
-    def test_note(self):
+    @mock_mailroom
+    def test_note(self, mr_mocks):
         ticket = self.create_ticket(self.mailgun, self.contact, "Ticket 1")
 
         update_url = reverse("tickets.ticket_note", args=[ticket.uuid])
@@ -227,7 +229,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual(1, ticket.events.filter(event_type=TicketEvent.TYPE_NOTE).count())
 
-    def test_assign(self):
+    @mock_mailroom
+    def test_assign(self, mr_mocks):
         ticket = self.create_ticket(self.mailgun, self.contact, "Some ticket")
 
         assign_url = reverse("tickets.ticket_assign", args=[ticket.uuid])
@@ -237,13 +240,13 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         )
 
         self.assertUpdateSubmit(
-            assign_url, {"assignee": self.admin.pk, "note": "You got this one"}, success_status=200
+            assign_url, {"assignee": self.admin.id, "note": "You got this one"}, success_status=200
         )
         ticket.refresh_from_db()
-        self.assertEqual(self.admin.pk, ticket.assignee.pk)
+        self.assertEqual(self.admin, ticket.assignee)
 
-        last_event = ticket.events.all().last()
-        self.assertEqual(self.admin.pk, last_event.assignee.pk)
+        last_event = ticket.events.order_by("id").last()
+        self.assertEqual(self.admin, last_event.assignee)
         self.assertEqual("You got this one", last_event.note)
 
         # now fetch it again to make sure our initial value is set
@@ -252,12 +255,12 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             allow_viewers=False,
             allow_editors=True,
             allow_agents=True,
-            form_fields={"note": None, "assignee": self.admin.pk},
+            form_fields={"note": None, "assignee": self.admin.id},
         )
 
-        # sumbit an assignment to the same person
+        # submit an assignment to the same person
         self.assertUpdateSubmit(
-            assign_url, {"assignee": self.admin.pk, "note": "Have you looked?"}, success_status=200
+            assign_url, {"assignee": self.admin.id, "note": "Have you looked?"}, success_status=200
         )
 
         # this should create a note event instead of an assignment event
