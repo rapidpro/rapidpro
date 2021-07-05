@@ -1,3 +1,8 @@
+v6.3.88
+----------
+ * Fix to display email on manage orgs
+ * Drop no longer used Broadcast.is_active field
+
 v6.3.87
 ----------
  * Update indexes on ticket model
