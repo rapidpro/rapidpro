@@ -10,7 +10,7 @@ import stripe
 import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
-from smartmin.users.models import FailedLogin
+from smartmin.users.models import FailedLogin, RecoveryToken
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
@@ -1065,6 +1065,62 @@ class OrgTest(TembaTest):
         self.org.channels.all().delete()
 
         self.assertIsNone(self.org.default_country)
+
+    @patch("temba.utils.email.send_temba_email")
+    def test_user_forget(self, mock_send_temba_email):
+
+        invitation = Invitation.objects.create(
+            org=self.org,
+            user_group="A",
+            email="invited@nyaruka.com",
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+        user = User.objects.create_user("existing@nyaruka.com", "existing@nyaruka.com")
+        user.set_password("existing@nyaruka.com")
+        user.save()
+
+        forget_url = reverse("orgs.user_forget")
+        smartmin_forget_url = reverse("users.user_forget")
+
+        # make sure smartmin forget view is redirecting to our forget view
+        response = self.client.get(smartmin_forget_url)
+        self.assertEqual(301, response.status_code)
+        self.assertEqual(response.url, forget_url)
+
+        response = self.client.get(forget_url)
+        self.assertEqual(200, response.status_code)
+
+        post_data = dict(email="invited@nyaruka.com")
+
+        response = self.client.post(forget_url, post_data, follow=True)
+        self.assertEqual(200, response.status_code)
+
+        email_args = mock_send_temba_email.call_args[0]  # all positional args
+
+        self.assertEqual(email_args[0], "RapidPro Invitation")
+        self.assertIn(f"https://app.rapidpro.io/org/join/{invitation.secret}/", email_args[1])
+        self.assertNotIn("{{", email_args[1])
+        self.assertIn(f"https://app.rapidpro.io/org/join/{invitation.secret}/", email_args[2])
+        self.assertNotIn("{{", email_args[2])
+        self.assertEqual(email_args[4], ["invited@nyaruka.com"])
+
+        mock_send_temba_email.reset_mock()
+        post_data = dict(email="existing@nyaruka.com")
+
+        response = self.client.post(forget_url, post_data, follow=True)
+        self.assertEqual(200, response.status_code)
+
+        token_obj = RecoveryToken.objects.filter(user=user).first()
+
+        email_args = mock_send_temba_email.call_args[0]  # all positional args
+        self.assertEqual(email_args[0], "Password Recovery Request")
+        self.assertIn(f"app.rapidpro.io/users/user/recover/{token_obj.token}/", email_args[1])
+        self.assertNotIn("{{", email_args[1])
+        self.assertIn(f"app.rapidpro.io/users/user/recover/{token_obj.token}/", email_args[2])
+        self.assertNotIn("{{", email_args[2])
+        self.assertEqual(email_args[4], ["existing@nyaruka.com"])
 
     def test_user_update(self):
         update_url = reverse("orgs.user_edit")
