@@ -2,7 +2,7 @@ import io
 import smtplib
 from datetime import timedelta
 from decimal import Decimal
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from urllib.parse import urlencode
 
 import pytz
@@ -16,7 +16,6 @@ from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.core.exceptions import ValidationError
-from django.http import HttpRequest, HttpResponse
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -43,7 +42,6 @@ from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
-from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Broadcast, ExportMessagesTask, Label, Msg
 from temba.orgs.models import BackupToken, Debit, OrgActivity
 from temba.orgs.tasks import suspend_topup_orgs_task
@@ -65,7 +63,6 @@ from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json, languages
-from temba.utils.email import link_components
 
 from .context_processors import GroupPermWrapper
 from .models import CreditAlert, Invitation, Org, OrgRole, TopUp, TopUpCredits
@@ -5057,35 +5054,6 @@ class CreditAlertTest(TembaTest):
                     self.assertEqual(4, len(mail.outbox))
 
                     mock_has_low_credits.return_value = False
-
-
-class EmailContextProcessorsTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        self.middleware = BrandingMiddleware(get_response=HttpResponse)
-
-    def test_link_components(self):
-        self.request = Mock(spec=HttpRequest)
-        self.request.get_host.return_value = "rapidpro.io"
-
-        self.middleware(self.request)
-
-        self.assertEqual(link_components(self.request, self.admin), dict(protocol="https", hostname="app.rapidpro.io"))
-
-        with self.settings(HOSTNAME="rapidpro.io"):
-            forget_url = reverse("users.user_forget")
-
-            response = self.client.post(forget_url, {"email": "Administrator@nyaruka.com"})
-            self.assertLoginRedirect(response)
-            self.assertEqual(1, len(mail.outbox))
-
-            sent_email = mail.outbox[0]
-            self.assertEqual(len(sent_email.to), 1)
-            self.assertEqual(sent_email.to[0], "Administrator@nyaruka.com")
-
-            # we have the domain of rapipro.io brand
-            self.assertIn("app.rapidpro.io", sent_email.body)
 
 
 class StripeCreditsTest(TembaTest):
