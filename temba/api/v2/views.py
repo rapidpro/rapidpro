@@ -4483,10 +4483,10 @@ class ReportEndpointMixin:
     def get_query_parameter(self, name, default=None):
         return self.request.data.get(name, self.request.query_params.get(name, default))
 
-    def get_search_query_filter(self, org, prefix=""):
-        search_query, qs_filter = self.get_query_parameter("search_query", ""), Q()
+    def get_contact_ids_by_query(self, org):
+        search_query = self.get_query_parameter("search_query", "")
         if not search_query:
-            return qs_filter
+            return []
 
         parsed_search_query = parse_query(org, search_query)
         self.applied_filters["search_query"] = parsed_search_query.query
@@ -4499,9 +4499,7 @@ class ReportEndpointMixin:
         except IndexError:
             pass
 
-        contact_ids = query_contact_ids_from_elasticsearch(org, elastic_query_conf)
-        qs_filter = Q(**{f"{prefix}id__in": contact_ids}) if contact_ids else Q(**{f"{prefix}id": 0})
-        return qs_filter
+        return query_contact_ids_from_elasticsearch(org, elastic_query_conf)
 
     def get_name_uuid_filters(self, field_name, key, prefix="", exclude=False):
         qs_filter, __ = Q(), ("__" if key else "")
@@ -4537,7 +4535,6 @@ class ReportEndpointMixin:
         org = self.request.user.get_org()
 
         if not limited_filters:
-            arg_filters.append(self.get_search_query_filter(org, prefix=filter_prefix))
             arg_filters.append(self.get_name_uuid_filters("flow", "runs__flow", prefix=filter_prefix))
             arg_filters.append(self.get_datetime_filters("created", "created_on", org, filter_prefix))
             arg_filters.append(self.get_datetime_filters("modified", "modified_on", org, filter_prefix))
@@ -4552,6 +4549,31 @@ class ReportEndpointMixin:
             return arg_filters
 
         contacts = Contact.objects.filter(org_id=org.id).filter(*arg_filters).distinct()
+
+        # perform search by query in ElasticSearch and join the result to the filter in DB
+        if not limited_filters:
+            queried_contact_ids = self.get_contact_ids_by_query(org, prefix=filter_prefix)
+            if queried_contact_ids:
+                contact_id_pairs = ",".join(
+                    str((seq, model_id)) for seq, model_id in enumerate(queried_contact_ids, start=1)
+                )
+
+                class ContactIDFilterJoin:
+                    table_name = "t"
+                    join_type = "INNER JOIN"
+                    parent_alias = "contacts_contact"
+                    filtered_relation = None
+                    nullable = None
+
+                    @classmethod
+                    def as_sql(cls, *args):
+                        return f"INNER JOIN (VALUES {contact_id_pairs}) t (seq, id) ON contacts_contact.id = t.id", []
+
+                contacts.query.join(ContactIDFilterJoin)
+
+            elif self.get_query_parameter("search_query"):
+                contacts = Contact.objects.none()
+
         return contacts
 
 
