@@ -139,6 +139,9 @@ class Ticket(models.Model):
     STATUS_CLOSED = "C"
     STATUS_CHOICES = ((STATUS_OPEN, _("Open")), (STATUS_CLOSED, _("Closed")))
 
+    # permission that users need to have a ticket assigned to them
+    ASSIGNMENT_PERMISSION = "tickets.ticket_assignee"
+
     # our UUID
     uuid = models.UUIDField(unique=True, default=uuid4)
 
@@ -211,6 +214,10 @@ class Ticket(models.Model):
     def bulk_reopen(cls, org, user, tickets):
         ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
         return mailroom.get_client().ticket_reopen(org.id, user.id, ticket_ids)
+
+    @classmethod
+    def get_allowed_assignees(cls, org):
+        return org.get_users_with_perm(cls.ASSIGNMENT_PERMISSION)
 
     def __str__(self):
         return f"Ticket[uuid={self.uuid}, subject={self.subject}]"

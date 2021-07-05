@@ -23,7 +23,7 @@ from timezone_field import TimeZoneField
 from twilio.rest import Client as TwilioClient
 
 from django.conf import settings
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group, Permission, User
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.core.files import File
@@ -157,6 +157,13 @@ class OrgRole(Enum):
     def from_code(cls, code: str):
         for role in cls:
             if role.code == code:
+                return role
+        return None
+
+    @classmethod
+    def from_group(cls, group: Group):
+        for role in cls:
+            if role.group == group:
                 return role
         return None
 
@@ -902,13 +909,24 @@ class Org(SmartModel):
         """
         return self.get_users_with_role(OrgRole.ADMINISTRATOR)
 
-    def get_users(self):
+    def get_users(self, *, roles=None):
         """
         Gets all of the users across all roles for this org
         """
-        user_sets = [role.get_users(self) for role in OrgRole]
+        user_sets = [role.get_users(self) for role in roles or OrgRole]
         all_users = functools.reduce(operator.or_, user_sets)
-        return all_users.distinct().order_by("email")
+        return all_users.distinct()
+
+    def get_users_with_perm(self, perm: str):
+        """
+        Gets all of the users with the given permission for this org
+        """
+
+        app_label, codename = perm.split(".")
+        permission = Permission.objects.get(content_type__app_label=app_label, codename=codename)
+        groups = Group.objects.filter(permissions=permission)
+
+        return self.get_users(roles=[OrgRole.from_group(g) for g in groups])
 
     def has_user(self, user: User) -> bool:
         """
