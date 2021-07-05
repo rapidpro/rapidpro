@@ -12,7 +12,7 @@ from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin
 from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.views import ComponentFormMixin
 
-from .models import Ticket, Ticketer
+from .models import Ticket, Ticketer, TicketFolder
 
 
 class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
@@ -80,6 +80,7 @@ class TicketCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org = self.request.user.get_org()
+            context["folders"] = TicketFolder.all().values()
             context["has_tickets"] = Ticket.objects.filter(org=org).exists()
             return context
 
@@ -87,34 +88,15 @@ class TicketCRUDL(SmartCRUDL):
             return super().get_queryset(**kwargs).none()
 
     class Folder(OrgPermsMixin, SmartListView):
-
-        FOLDER_MINE = "mine"
-        FOLDER_UNASSIGNED = "unassigned"
-        FOLDER_OPEN = "open"
-        FOLDER_CLOSED = "closed"
-
-        FOLDERS = (FOLDER_MINE, FOLDER_UNASSIGNED, FOLDER_OPEN, FOLDER_CLOSED)
-
         permission = "tickets.ticket_list"
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return rf"^{path}/{action}/(?P<folder>{'|'.join(cls.FOLDERS)})/$"
+            return rf"^{path}/{action}/(?P<folder>{'|'.join(TicketFolder.all().keys())})/$"
 
         def get_queryset(self, **kwargs):
-            org = self.request.user.get_org()
-            qs = super().get_queryset(**kwargs).filter(org=org).prefetch_related("contact")
-
-            if self.kwargs["folder"] == self.FOLDER_OPEN:
-                qs = qs.filter(status=Ticket.STATUS_OPEN)
-            elif self.kwargs["folder"] == self.FOLDER_UNASSIGNED:
-                qs = qs.filter(status=Ticket.STATUS_OPEN, assignee=None)
-            elif self.kwargs["folder"] == self.FOLDER_MINE:
-                qs = qs.filter(status=Ticket.STATUS_OPEN, assignee=self.request.user)
-            else:  # self.FOLDER_CLOSED:
-                qs = qs.filter(status=Ticket.STATUS_CLOSED)
-
-            return qs.order_by("-last_activity_on", "-id")
+            user = self.request.user
+            return TicketFolder.from_slug(self.kwargs["folder"]).get_queryset(user.get_org(), user)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
