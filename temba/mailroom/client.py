@@ -182,6 +182,22 @@ class MailroomClient:
 
         return self._request("contact/parse_query", payload)
 
+    def ticket_assign(self, org_id: int, user_id: int, ticket_ids: list, assignee_id: int, note: str):
+        payload = {
+            "org_id": org_id,
+            "user_id": user_id,
+            "ticket_ids": ticket_ids,
+            "assignee_id": assignee_id,
+            "note": note,
+        }
+
+        return self._request("ticket/assign", payload)
+
+    def ticket_note(self, org_id: int, user_id: int, ticket_ids: list, note: str):
+        payload = {"org_id": org_id, "user_id": user_id, "ticket_ids": ticket_ids, "note": note}
+
+        return self._request("ticket/note", payload)
+
     def ticket_close(self, org_id, user_id, ticket_ids):
         payload = {"org_id": org_id, "user_id": user_id, "ticket_ids": ticket_ids}
 
