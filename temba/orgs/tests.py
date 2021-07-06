@@ -821,7 +821,7 @@ class OrgDeleteTest(TembaNonAtomicTest):
         # add a ticketer and ticket
         ticketer = Ticketer.create(self.org, self.admin, MailgunType.slug, "Email (bob)", {})
         ticket = self.create_ticket(ticketer, self.org.contacts.first(), "Need help")
-        ticket.add_note(self.admin, note="This is interesting!")
+        ticket.events.create(org=self.org, contact=ticket.contact, event_type="N", note="spam", created_by=self.admin)
 
     def release_org(self, org, child_org=None, delete=False, expected_files=3):
 

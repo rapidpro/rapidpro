@@ -180,30 +180,21 @@ class Ticket(models.Model):
     assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
 
     def assign(self, user: User, *, assignee: User, note: str):
-        now = timezone.now()
-        self.assignee = assignee
-        self.modified_on = now
-        self.last_activity_on = now
-        self.save(update_fields=("assignee", "modified_on", "last_activity_on"))
-
-        self.events.create(
-            org=self.org,
-            contact=self.contact,
-            event_type=TicketEvent.TYPE_ASSIGNED,
-            assignee=assignee,
-            note=note,
-            created_by=user,
-        )
+        self.bulk_assign(self.org, user, [self], assignee=assignee, note=note)
 
     def add_note(self, user: User, *, note: str):
-        now = timezone.now()
-        self.modified_on = timezone.now()
-        self.last_activity_on = now
-        self.save(update_fields=("modified_on", "last_activity_on"))
+        self.bulk_note(self.org, user, [self], note=note)
 
-        self.events.create(
-            org=self.org, contact=self.contact, event_type=TicketEvent.TYPE_NOTE, note=note, created_by=user
-        )
+    @classmethod
+    def bulk_assign(cls, org, user: User, tickets: list, assignee: User, note: str = None):
+        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        assignee_id = assignee.id if assignee else None
+        return mailroom.get_client().ticket_assign(org.id, user.id, ticket_ids, assignee_id, note)
+
+    @classmethod
+    def bulk_note(cls, org, user: User, tickets: list, note: str):
+        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        return mailroom.get_client().ticket_note(org.id, user.id, ticket_ids, note)
 
     @classmethod
     def bulk_close(cls, org, user, tickets):

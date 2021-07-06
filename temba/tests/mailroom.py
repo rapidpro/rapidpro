@@ -180,26 +180,64 @@ class TestClient(MailroomClient):
         return mock(offset, sort)
 
     @_client_method
+    def ticket_assign(self, org_id, user_id, ticket_ids, assignee_id, note):
+        now = timezone.now()
+        tickets = Ticket.objects.filter(org_id=org_id, id__in=ticket_ids).exclude(assignee_id=assignee_id)
+
+        for ticket in tickets:
+            ticket.events.create(
+                org_id=org_id,
+                contact=ticket.contact,
+                event_type=TicketEvent.TYPE_ASSIGNED,
+                assignee_id=assignee_id,
+                note=note,
+                created_by_id=user_id,
+            )
+
+        tickets.update(assignee_id=assignee_id, modified_on=now, last_activity_on=now)
+
+        return {"changed_ids": [t.id for t in tickets]}
+
+    @_client_method
+    def ticket_note(self, org_id, user_id, ticket_ids, note):
+        now = timezone.now()
+        tickets = Ticket.objects.filter(org_id=org_id, id__in=ticket_ids)
+        tickets.update(modified_on=now, last_activity_on=now)
+
+        for ticket in tickets:
+            ticket.events.create(
+                org_id=org_id,
+                contact=ticket.contact,
+                event_type=TicketEvent.TYPE_NOTE,
+                note=note,
+                created_by_id=user_id,
+            )
+
+        return {"changed_ids": [t.id for t in tickets]}
+
+    @_client_method
     def ticket_close(self, org_id, user_id, ticket_ids):
         tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_OPEN, id__in=ticket_ids)
-        tickets.update(status=Ticket.STATUS_CLOSED, closed_on=timezone.now())
 
         for ticket in tickets:
             ticket.events.create(
                 org_id=org_id, contact=ticket.contact, event_type=TicketEvent.TYPE_CLOSED, created_by_id=user_id
             )
 
+        tickets.update(status=Ticket.STATUS_CLOSED, closed_on=timezone.now())
+
         return {"changed_ids": [t.id for t in tickets]}
 
     @_client_method
     def ticket_reopen(self, org_id, user_id, ticket_ids):
         tickets = Ticket.objects.filter(org_id=org_id, status=Ticket.STATUS_CLOSED, id__in=ticket_ids)
-        tickets.update(status=Ticket.STATUS_OPEN, closed_on=None)
 
         for ticket in tickets:
             ticket.events.create(
                 org_id=org_id, contact=ticket.contact, event_type=TicketEvent.TYPE_REOPENED, created_by_id=user_id
             )
+
+        tickets.update(status=Ticket.STATUS_OPEN, closed_on=None)
 
         return {"changed_ids": [t.id for t in tickets]}
 
