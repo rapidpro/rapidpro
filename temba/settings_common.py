@@ -499,7 +499,7 @@ PERMISSIONS = {
     "policies.policy": ("admin", "history", "give_consent"),
     "request_logs.httplog": ("classifier", "ticketer"),
     "templates.template": ("api",),
-    "tickets.ticket": ("api", "assign", "note"),
+    "tickets.ticket": ("api", "assign", "assignee", "note"),
     "tickets.ticketer": ("api", "connect", "configure"),
     "triggers.trigger": ("archived", "type"),
 }
@@ -866,6 +866,7 @@ GROUP_PERMISSIONS = {
         "msgs.broadcast_api",
         "tickets.ticket_api",
         "tickets.ticket_assign",
+        "tickets.ticket_assignee",
         "tickets.ticket_list",
         "tickets.ticket_note",
         "orgs.org_home",

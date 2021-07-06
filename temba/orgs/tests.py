@@ -74,6 +74,10 @@ class OrgRoleTest(TembaTest):
         self.assertEqual(OrgRole.EDITOR, OrgRole.from_code("E"))
         self.assertIsNone(OrgRole.from_code("X"))
 
+    def test_from_group(self):
+        self.assertEqual(OrgRole.EDITOR, OrgRole.from_group(Group.objects.get(name="Editors")))
+        self.assertIsNone(OrgRole.from_group(Group.objects.get(name="Beta")))
+
     def test_group(self):
         self.assertEqual(Group.objects.get(name="Editors"), OrgRole.EDITOR.group)
         self.assertEqual(Group.objects.get(name="Agents"), OrgRole.AGENT.group)
@@ -967,8 +971,16 @@ class OrgDeleteTest(TembaNonAtomicTest):
 
 class OrgTest(TembaTest):
     def test_get_users(self):
-        # should return all org users ordered by email
-        self.assertEqual([self.admin, self.agent, self.editor, self.surveyor, self.user], list(self.org.get_users()))
+        # should return all org users
+        self.assertEqual({self.admin, self.editor, self.user, self.agent, self.surveyor}, set(self.org.get_users()))
+
+        # can filter by roles
+        self.assertEqual({self.agent, self.editor}, set(self.org.get_users(roles=[OrgRole.EDITOR, OrgRole.AGENT])))
+
+        # can get users with a specific permission
+        self.assertEqual(
+            {self.admin, self.agent, self.editor}, set(self.org.get_users_with_perm("tickets.ticket_assignee"))
+        )
 
     def test_get_owner(self):
         # admins take priority

@@ -62,6 +62,10 @@ class TicketTest(TembaTest):
 
         mock_reopen.assert_called_once_with(self.org.id, self.admin.id, [ticket.id])
 
+    def test_allowed_assignees(self):
+        self.assertEqual({self.admin, self.editor, self.agent}, set(Ticket.get_allowed_assignees(self.org)))
+        self.assertEqual({self.admin2}, set(Ticket.get_allowed_assignees(self.org2)))
+
 
 class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
     def setUp(self):
@@ -235,8 +239,18 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         assign_url = reverse("tickets.ticket_assign", args=[ticket.uuid])
 
-        self.assertUpdateFetch(
+        response = self.assertUpdateFetch(
             assign_url, allow_viewers=False, allow_editors=True, allow_agents=True, form_fields=["note", "assignee"]
+        )
+        # should show unassigned as option plus other permitted users
+        self.assertEqual(
+            [
+                ("", "Unassigned"),
+                (self.admin.id, "Administrator"),
+                (self.agent.id, "Agent"),
+                (self.editor.id, "Editor"),
+            ],
+            list(response.context["form"].fields["assignee"].choices),
         )
 
         self.assertUpdateSubmit(

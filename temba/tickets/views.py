@@ -1,6 +1,7 @@
 from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView, SmartUpdateView
 
 from django import forms
+from django.contrib.auth.models import User
 from django.db.models.aggregates import Max
 from django.http import JsonResponse
 from django.urls import reverse
@@ -186,31 +187,26 @@ class TicketCRUDL(SmartCRUDL):
 
     class Assign(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(NoteForm):
-            assignee = forms.ChoiceField(
-                required=True,
+            assignee = forms.ModelChoiceField(
+                queryset=User.objects.none(),
                 widget=SelectWidget(
                     attrs={
                         "searchable": True,
                         "widget_only": True,
                     }
                 ),
+                empty_label=_("Unassigned"),
             )
 
             def clean_assignee(self):
-                assignee = self.data["assignee"]
-                return self.org.administrators.filter(pk=assignee).union(self.org.agents.filter(pk=assignee)).first()
+                assignee_id = self.data["assignee"]
+                return Ticket.get_allowed_assignees(self.org).filter(id=assignee_id).first()
 
-            def __init__(self, user, ticket, *args, **kwargs):
+            def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.org = user.get_org()
-                choices = [
-                    (user.pk, user.get_full_name())
-                    for user in self.org.administrators.all().union(self.org.agents.all())
-                ]
 
-                choices.insert(0, (-1, str(_("Unassigned"))))
-
-                self.fields["assignee"].choices = choices
+                self.org = org
+                self.fields["assignee"].queryset = Ticket.get_allowed_assignees(self.org).order_by("email")
                 self.fields["note"].required = False
 
         slug_url_kwarg = "uuid"
@@ -222,8 +218,7 @@ class TicketCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
-            kwargs["ticket"] = self.get_object()
+            kwargs["org"] = self.request.user.get_org()
             return kwargs
 
         def derive_initial(self):
