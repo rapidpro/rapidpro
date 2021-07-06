@@ -17,4 +17,4 @@ class InternalType(TicketerType):
     connect_blurb = _("Enabling this will allow you to handle tickets within {{brand.name}}.")
 
     def is_available_to(self, user):
-        return user.is_beta() and not user.get_org().ticketers.filter(ticketer_type=self.slug, is_active=True).exists()
+        return not user.get_org().ticketers.filter(ticketer_type=self.slug, is_active=True).exists()

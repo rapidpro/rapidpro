@@ -1,4 +1,3 @@
-from django.contrib.auth.models import Group
 from django.urls import reverse
 
 from temba.tests import TembaTest
@@ -9,16 +8,11 @@ from .type import InternalType
 
 class InternalTypeTest(TembaTest):
     def test_is_available_to(self):
-        self.assertFalse(InternalType().is_available_to(self.admin))
-
-        # only beta users see this
-        Group.objects.get(name="Beta").user_set.add(self.admin)
-
         self.assertTrue(InternalType().is_available_to(self.admin))
 
         Ticketer.create(org=self.org, user=self.admin, ticketer_type=InternalType.slug, config={}, name=f"Internal")
 
-        # and not if they already created one
+        # not if they already created one
         self.assertFalse(InternalType().is_available_to(self.admin))
 
     def test_connect(self):
