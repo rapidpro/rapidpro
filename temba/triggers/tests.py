@@ -30,52 +30,113 @@ class TriggerTest(TembaTest):
         channel1 = self.create_channel("FB", "FB Channel 1", "12345")
         channel2 = self.create_channel("FB", "FB Channel 2", "23456")
 
-        def assert_conflict_resolution(archived, not_archived):
-            archived.refresh_from_db()
-            not_archived.refresh_from_db()
+        def create_trigger(trigger_type, **kwargs):
+            return Trigger.create(self.org, self.admin, trigger_type, flow, **kwargs)
 
-            self.assertTrue(archived.is_archived)
-            self.assertFalse(not_archived.is_archived)
+        def assert_conflict_resolution(archived: list, unchanged: list):
+            for trigger in archived:
+                trigger.refresh_from_db()
+                self.assertTrue(trigger.is_archived)
 
-        # keyword triggers conflict if keyword and groups match
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="join")
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="start")
-        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, keyword="join")
+            for trigger in unchanged:
+                trigger.refresh_from_db()
+                self.assertFalse(trigger.is_archived)
 
-        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+            # keyword triggers conflict if keyword and groups match
+            trigger1 = create_trigger(Trigger.TYPE_KEYWORD, keyword="join", match_type="O")
+            trigger2 = create_trigger(Trigger.TYPE_KEYWORD, keyword="join", match_type="S")
+            trigger3 = create_trigger(Trigger.TYPE_KEYWORD, keyword="start")
+            create_trigger(Trigger.TYPE_KEYWORD, keyword="join")
 
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, groups=(group1,), keyword="join")
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, groups=(group2,), keyword="join")
-        Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow, groups=(group1,), keyword="join")
+            assert_conflict_resolution(archived=[trigger1, trigger2], unchanged=[trigger3])
 
-        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+            trigger1 = create_trigger(Trigger.TYPE_KEYWORD, groups=(group1,), keyword="join")
+            trigger2 = create_trigger(Trigger.TYPE_KEYWORD, groups=(group2,), keyword="join")
+            create_trigger(Trigger.TYPE_KEYWORD, groups=(group1,), keyword="join")
 
-        # incoming call triggers conflict if groups match
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow, groups=(group1,))
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow, groups=(group2,))
-        Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow, groups=(group1,))
+            assert_conflict_resolution(archived=[trigger1], unchanged=[trigger2])
 
-        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+            # incoming call triggers conflict if groups match
+            trigger1 = create_trigger(Trigger.TYPE_INBOUND_CALL, groups=(group1,))
+            trigger2 = create_trigger(Trigger.TYPE_INBOUND_CALL, groups=(group2,))
+            create_trigger(Trigger.TYPE_INBOUND_CALL, groups=(group1,))
 
-        # missed call triggers always conflict
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_MISSED_CALL, flow)
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_MISSED_CALL, flow)
+            assert_conflict_resolution(archived=[trigger1], unchanged=[trigger2])
 
-        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+            # missed call triggers always conflict
+            trigger1 = create_trigger(Trigger.TYPE_MISSED_CALL)
+            trigger2 = create_trigger(Trigger.TYPE_MISSED_CALL)
 
-        # new conversation triggers conflict if channels match
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, channel=channel1)
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, channel=channel2)
-        Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, channel=channel1)
+            assert_conflict_resolution(archived=[trigger1], unchanged=[trigger2])
 
-        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+            # new conversation triggers conflict if channels match
+            trigger1 = create_trigger(Trigger.TYPE_REFERRAL, channel=channel1)
+            trigger2 = create_trigger(Trigger.TYPE_REFERRAL, channel=channel2)
+            create_trigger(Trigger.TYPE_REFERRAL, channel=channel1)
 
-        # referral triggers conflict if referral ids match
-        trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, referrer_id="12345")
-        trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, referrer_id="23456")
-        Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, referrer_id="12345")
+            assert_conflict_resolution(archived=[trigger1], unchanged=[trigger2])
 
-        assert_conflict_resolution(archived=trigger1, not_archived=trigger2)
+            # referral triggers conflict if referral ids match
+            trigger1 = create_trigger(Trigger.TYPE_REFERRAL, referrer_id="12345")
+            trigger2 = create_trigger(Trigger.TYPE_REFERRAL, referrer_id="23456")
+            create_trigger(Trigger.TYPE_REFERRAL, referrer_id="12345")
+
+            assert_conflict_resolution(archived=[trigger1], unchanged=[trigger2])
+
+    def _export_trigger(self, trigger: Trigger) -> dict:
+        components = self.org.resolve_dependencies([trigger.flow], [], include_triggers=True)
+        return self.org.export_definitions("http://rapidpro.io", components)
+
+    def _import_trigger(self, trigger_def: dict, version=13):
+        self.org.import_app(
+            {
+                "version": str(version),
+                "site": "https://app.rapidpro.com",
+                "flows": [],
+                "triggers": [trigger_def],
+            },
+            self.admin,
+        )
+
+    def assert_import_error(self, trigger_def: dict, error: str):
+        with self.assertRaisesMessage(ValueError, expected_message=error):
+            self._import_trigger(trigger_def)
+
+    def assert_export_import(self, trigger: Trigger, expected_def: dict):
+        # export trigger and check def
+        export_def = self._export_trigger(trigger)
+        self.assertEqual(expected_def, export_def["triggers"][0])
+
+        original_groups = set(trigger.groups.all())
+        original_exclude_groups = set(trigger.exclude_groups.all())
+        original_contacts = set(trigger.contacts.all())
+
+        # do import to clean workspace
+        Trigger.objects.all().delete()
+        self.org.import_app(export_def, self.admin)
+
+        # should have a single identical trigger
+        imported = Trigger.objects.get(
+            org=trigger.org,
+            trigger_type=trigger.trigger_type,
+            flow=trigger.flow,
+            keyword=trigger.keyword,
+            match_type=trigger.match_type,
+            channel=trigger.channel,
+            referrer_id=trigger.referrer_id,
+        )
+
+        self.assertEqual(original_groups, set(imported.groups.all()))
+        self.assertEqual(original_exclude_groups, set(imported.exclude_groups.all()))
+        self.assertEqual(original_contacts, set(imported.contacts.all()))
+
+        # which can be exported and should have the same definition
+        export_def = self._export_trigger(imported)
+        self.assertEqual(expected_def, export_def["triggers"][0])
+
+        # and re-importing that shouldn't create a new trigger
+        self.org.import_app(export_def, self.admin)
+        self.assertEqual(1, Trigger.objects.count())
 
     def test_export_import(self):
         # tweak our current channel to be twitter so we can create a channel-based trigger
@@ -87,7 +148,7 @@ class TriggerTest(TembaTest):
         testers = self.create_group("Testers", contacts=[])
 
         # create a trigger on this flow for the new conversation actions but only on some groups
-        Trigger.create(
+        trigger = Trigger.create(
             self.org,
             self.admin,
             Trigger.TYPE_NEW_CONVERSATION,
@@ -97,9 +158,7 @@ class TriggerTest(TembaTest):
             channel=self.channel,
         )
 
-        # export as a dependency of our flow
-        components = self.org.resolve_dependencies([flow], [], include_triggers=True)
-        export = self.org.export_definitions("http://rapidpro.io", components)
+        export = self._export_trigger(trigger)
 
         # remove our trigger
         Trigger.objects.all().delete()
@@ -158,44 +217,194 @@ class TriggerTest(TembaTest):
         self.assertEqual({testers}, set(trigger3.exclude_groups.all()))
 
         # we ignore scheduled triggers in imports as they're missing their schedules
-        self.org.import_app(
+        self._import_trigger(
             {
-                "version": "13",
-                "site": "https://app.rapidpro.com",
-                "flows": [],
-                "triggers": [
-                    {
-                        "trigger_type": "S",
-                        "keyword": None,
-                        "flow": {"uuid": "8907acb0-4f32-41c2-887d-b5d2ffcc2da9", "name": "Reminder"},
-                        "groups": [],
-                        "exclude_groups": [],
-                        "channel": None,
-                    }
-                ],
-            },
-            self.admin,
+                "trigger_type": "S",
+                "keyword": None,
+                "flow": {"uuid": "8907acb0-4f32-41c2-887d-b5d2ffcc2da9", "name": "Reminder"},
+                "groups": [],
+            }
         )
 
         self.assertEqual(3, Trigger.objects.count())  # no new triggers imported
 
-    def test_release(self):
+    def test_import_invalid(self):
+        flow = self.create_flow()
+        flow_ref = {"uuid": str(flow.uuid), "name": "Test Flow"}
+
+        # invalid type
+        self.assert_import_error(
+            {"trigger_type": "Z", "keyword": None, "flow": flow_ref, "groups": []},
+            "Z is not a valid trigger type",
+        )
+
+        # no flow
+        self.assert_import_error({"trigger_type": "M", "keyword": None, "groups": []}, "Field 'flow' is required.")
+
+        # keyword with no keyword
+        self.assert_import_error(
+            {
+                "trigger_type": "K",
+                "flow": flow_ref,
+                "groups": [],
+            },
+            "Field 'keyword' is required.",
+        )
+
+        # keyword with invalid keyword
+        self.assert_import_error(
+            {"trigger_type": "K", "flow": flow_ref, "groups": [], "keyword": "12345678901234567"},
+            "12345678901234567 is not a valid keyword",
+        )
+
+        # new conversation without a channel
+        self.assert_import_error(
+            {
+                "trigger_type": "N",
+                "flow": flow_ref,
+                "groups": [],
+            },
+            "Field 'channel' is required.",
+        )
+
+        # fields which don't apply to the trigger type are ignored
+        self._import_trigger({"trigger_type": "C", "keyword": "this is ignored", "flow": flow_ref, "groups": []})
+
+        trigger = Trigger.objects.get(trigger_type="C")
+        self.assertIsNone(trigger.keyword)
+
+    def test_export_import_keyword(self):
+        flow = self.create_flow()
+        doctors = self.create_group("Doctors", contacts=[])
+        farmers = self.create_group("Farmers", contacts=[])
+        testers = self.create_group("Testers", contacts=[])
+        trigger = Trigger.create(
+            self.org,
+            self.admin,
+            Trigger.TYPE_KEYWORD,
+            flow,
+            groups=[doctors, farmers],
+            exclude_groups=[testers],
+            keyword="join",
+        )
+
+        self.assert_export_import(
+            trigger,
+            {
+                "trigger_type": "K",
+                "flow": {"uuid": str(flow.uuid), "name": "Test Flow"},
+                "groups": [
+                    {"uuid": str(doctors.uuid), "name": "Doctors"},
+                    {"uuid": str(farmers.uuid), "name": "Farmers"},
+                ],
+                "exclude_groups": [{"uuid": str(testers.uuid), "name": "Testers"}],
+                "keyword": "join",
+            },
+        )
+
+    def test_export_import_inbound_call(self):
+        flow = self.create_flow()
+        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_INBOUND_CALL, flow)
+
+        self.assert_export_import(
+            trigger,
+            {
+                "trigger_type": "V",
+                "flow": {"uuid": str(flow.uuid), "name": "Test Flow"},
+                "groups": [],
+                "exclude_groups": [],
+                "keyword": None,
+            },
+        )
+
+    def test_export_import_missed_call(self):
+        flow = self.create_flow()
+        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_MISSED_CALL, flow)
+
+        self.assert_export_import(
+            trigger,
+            {
+                "trigger_type": "M",
+                "flow": {"uuid": str(flow.uuid), "name": "Test Flow"},
+                "groups": [],
+                "exclude_groups": [],
+                "keyword": None,
+            },
+        )
+
+    @patch("temba.channels.types.facebook.FacebookType.activate_trigger")
+    def test_export_import_new_conversation(self, mock_activate_trigger):
+        flow = self.create_flow()
+        channel = self.create_channel("FB", "Facebook", "1234")
+        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow, channel=channel)
+
+        self.assert_export_import(
+            trigger,
+            {
+                "trigger_type": "N",
+                "flow": {"uuid": str(flow.uuid), "name": "Test Flow"},
+                "groups": [],
+                "exclude_groups": [],
+                "keyword": None,
+                "channel": str(channel.uuid),
+            },
+        )
+
+    def test_export_import_referral(self):
+        flow = self.create_flow()
+        channel = self.create_channel("FB", "Facebook", "1234")
+        trigger = Trigger.create(self.org, self.admin, Trigger.TYPE_REFERRAL, flow, channel=channel)
+
+        self.assert_export_import(
+            trigger,
+            {
+                "trigger_type": "R",
+                "flow": {"uuid": str(flow.uuid), "name": "Test Flow"},
+                "groups": [],
+                "exclude_groups": [],
+                "keyword": None,
+                "channel": str(channel.uuid),
+            },
+        )
+
+    @patch("temba.channels.types.facebook.FacebookType.deactivate_trigger")
+    def test_release(self, mock_deactivate_trigger):
+        channel = self.create_channel("FB", "Facebook", "234567")
         flow = self.create_flow()
         group = self.create_group("Trigger Group", [])
-
         trigger = Trigger.objects.create(
             org=self.org,
             flow=flow,
             trigger_type=Trigger.TYPE_SCHEDULE,
             created_by=self.admin,
             modified_by=self.admin,
+            channel=channel,
             schedule=Schedule.create_schedule(self.org, self.admin, timezone.now(), Schedule.REPEAT_MONTHLY),
         )
         trigger.groups.add(group)
 
-        trigger.release()
+        trigger.release(self.admin)
 
-        # schedule should also have been deleted but obviously not group or flow
+        trigger.refresh_from_db()
+        self.assertFalse(trigger.is_active)
+
+        trigger.schedule.refresh_from_db()
+        self.assertFalse(trigger.schedule.is_active)
+
+        # flow, channel and group are unaffected
+        flow.refresh_from_db()
+        self.assertTrue(flow.is_active)
+        self.assertFalse(flow.is_archived)
+
+        group.refresh_from_db()
+        self.assertTrue(group.is_active)
+
+        channel.refresh_from_db()
+        self.assertTrue(channel.is_active)
+
+        # now do real delete
+        trigger.delete()
+
         self.assertEqual(Trigger.objects.count(), 0)
         self.assertEqual(Schedule.objects.count(), 0)
         self.assertEqual(ContactGroup.user_groups.count(), 1)
@@ -953,12 +1162,16 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         next_fire = trigger.schedule.calculate_next_fire(datetime(2021, 6, 23, 12, 0, 0, 0, pytz.UTC))  # Wed 23rd
         self.assertEqual(tz.localize(datetime(2021, 6, 24, 12, 0, 0, 0)), next_fire)  # Thu 24th
 
-    def test_list(self):
+    @patch("temba.channels.types.facebook.FacebookType.deactivate_trigger")
+    @patch("temba.channels.types.facebook.FacebookType.activate_trigger")
+    def test_list(self, mock_activate_trigger, mock_deactivate_trigger):
         flow1 = self.create_flow("Report")
         flow2 = self.create_flow("Survey")
+        channel = self.create_channel("FB", "Facebook", "1234567")
         trigger1 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="test")
         trigger2 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow2, keyword="abc")
         trigger3 = Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="start")
+        trigger4 = Trigger.create(self.org, self.admin, Trigger.TYPE_NEW_CONVERSATION, flow1, channel=channel)
 
         Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="archived", is_archived=True)
         Trigger.create(self.org, self.admin, Trigger.TYPE_KEYWORD, flow1, keyword="inactive", is_active=False)
@@ -967,7 +1180,7 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         list_url = reverse("triggers.trigger_list")
 
         response = self.assertListFetch(
-            list_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger3, trigger1]
+            list_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger3, trigger1, trigger4]
         )
         self.assertEqual(("archive",), response.context["actions"])
 
@@ -988,7 +1201,15 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertTrue(trigger3.is_archived)
 
         # no longer appears in list
-        self.assertListFetch(list_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1])
+        self.assertListFetch(
+            list_url, allow_viewers=True, allow_editors=True, context_objects=[trigger2, trigger1, trigger4]
+        )
+
+        # test when archiving fails
+        mock_deactivate_trigger.side_effect = ValueError("boom")
+
+        response = self.client.post(list_url, {"action": "archive", "objects": trigger4.id})
+        self.assertEqual("An error occurred while making your changes. Please try again.", response["Temba-Toast"])
 
     def test_list_redirect_when_no_triggers(self):
         Trigger.objects.all().delete()

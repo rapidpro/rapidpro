@@ -60,7 +60,7 @@ class HTTPLogCRUDL(SmartCRUDL):
 
     class Ticketer(LogListView):
         source_field = "ticketer"
-        source_url = "uuid@tickets.ticket_filter"
+        source_url = "@tickets.ticket_list"
         title = _("Recent Ticketing Service Events")
 
         def get_source(self, uuid):

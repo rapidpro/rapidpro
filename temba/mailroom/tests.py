@@ -321,6 +321,30 @@ class MailroomClientTest(TembaTest):
         with self.assertRaises(MailroomException):
             get_client().contact_search(1, "2752dbbc-723f-4007-8bc5-b3720835d3a9", "age > 10", "-created_on")
 
+    def test_ticket_assign(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
+            response = get_client().ticket_assign(1, 12, [123, 345], 4, "please handle")
+
+            self.assertEqual({"changed_ids": [123]}, response)
+            mock_post.assert_called_once_with(
+                "http://localhost:8090/mr/ticket/assign",
+                headers={"User-Agent": "Temba"},
+                json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345], "assignee_id": 4, "note": "please handle"},
+            )
+
+    def test_ticket_note(self):
+        with patch("requests.post") as mock_post:
+            mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
+            response = get_client().ticket_note(1, 12, [123, 345], "please handle")
+
+            self.assertEqual({"changed_ids": [123]}, response)
+            mock_post.assert_called_once_with(
+                "http://localhost:8090/mr/ticket/note",
+                headers={"User-Agent": "Temba"},
+                json={"org_id": 1, "user_id": 12, "ticket_ids": [123, 345], "note": "please handle"},
+            )
+
     def test_ticket_close(self):
         with patch("requests.post") as mock_post:
             mock_post.return_value = MockResponse(200, '{"changed_ids": [123]}')
@@ -580,7 +604,7 @@ class MailroomQueueTest(TembaTest):
 
     def test_queue_interrupt_by_flow(self):
         flow = self.get_flow("favorites")
-        flow.archive()
+        flow.archive(self.admin)
 
         self.assert_org_queued(self.org, "batch")
         self.assert_queued_batch_task(
@@ -853,6 +877,7 @@ class EventTest(TembaTest):
             {
                 "type": "ticket_note_added",
                 "note": "this is important",
+                "assignee": None,
                 "ticket": {
                     "uuid": str(ticket.uuid),
                     "opened_on": matchers.ISODate(),
@@ -877,6 +902,7 @@ class EventTest(TembaTest):
             {
                 "type": "ticket_closed",
                 "note": None,
+                "assignee": None,
                 "ticket": {
                     "uuid": str(ticket.uuid),
                     "opened_on": matchers.ISODate(),

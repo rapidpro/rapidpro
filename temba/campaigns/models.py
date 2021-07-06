@@ -123,7 +123,7 @@ class Campaign(TembaModel):
 
             # deactivate all of our events, we'll recreate these
             for event in campaign.events.all():
-                event.release()
+                event.release(user)
 
             # fill our campaign with events
             for event_spec in campaign_def[Campaign.EXPORT_EVENTS]:
@@ -206,7 +206,7 @@ class Campaign(TembaModel):
                 .select_related("flow")
             )
             for event in events:
-                event.flow.restore()
+                event.flow.restore(user)
 
             campaign.schedule_events_async()
 
@@ -261,14 +261,14 @@ class Campaign(TembaModel):
 
         return sorted(events, key=lambda e: e.relative_to.pk * 100_000 + e.minute_offset())
 
-    def _full_release(self):
+    def delete(self):
         """
         Deletes this campaign completely
         """
         for event in self.events.all():
-            event._full_release()
+            event.delete()
 
-        self.delete()
+        super().delete()
 
     def __str__(self):
         return f'Campaign[uuid={self.uuid}, name="{self.name}"]'
@@ -491,7 +491,7 @@ class CampaignEvent(TembaModel):
         and when a change is made that would invalidate existing event fires, we deactivate the event and recreate it.
         The event fire handling code knows to ignore event fires for deactivated event.
         """
-        self.release()
+        self.release(self.created_by)
 
         # clone our event into a new event
         if self.event_type == CampaignEvent.TYPE_FLOW:
@@ -521,32 +521,32 @@ class CampaignEvent(TembaModel):
                 self.start_mode,
             )
 
-    def release(self):
+    def release(self, user):
         """
         Marks the event inactive and releases flows for single message flows
         """
         # we need to be inactive so our fires are noops
         self.is_active = False
-        self.save(update_fields=("is_active",))
+        self.modified_by = user
+        self.save(update_fields=("is_active", "modified_by", "modified_on"))
 
         # detach any associated flow starts
         self.flow_starts.all().update(campaign_event=None)
 
         # if flow isn't a user created flow we can delete it too
         if self.event_type == CampaignEvent.TYPE_MESSAGE:
-            self.flow.release()
+            self.flow.release(user)
 
-    def _full_release(self):
+    def delete(self):
         """
         Deletes this event completely along with associated fires
         """
-        self.release()
 
         # delete any associated fires
         self.fires.all().delete()
 
         # and ourselves
-        self.delete()
+        super().delete()
 
     def __str__(self):
         return f'Event[relative_to={self.relative_to.key}, offset={self.offset}, flow="{self.flow.name}"]'

@@ -15,10 +15,8 @@ class ConnectView(BaseConnectView):
         return _("This will enable handling tickets internally in %(brand)s.") % {"brand": brand["name"]}
 
     def form_valid(self, form):
-        from .type import InternalType
+        org = self.request.user.get_org()
 
-        self.object = Ticketer.create(
-            org=self.org, user=self.request.user, ticketer_type=InternalType.slug, config={}, name=f"Internal"
-        )
+        self.object = Ticketer.create_internal_ticketer(org, org.get_branding())
 
         return super().form_valid(form)

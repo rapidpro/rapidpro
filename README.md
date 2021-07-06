@@ -24,7 +24,7 @@ Major releases of RapidPro are made every four months on a set schedule. We targ
 as a major release (`v6.0.0`), then March 1st as the first stable dot release (`v6.2.0`) and July 1st
 as the second stable dot release (`v6.4.0`). The next November would start the next major release `v7.0.0`.
 
-Unstable releases have odd minor versions, that is versions `v6.3.*` would indicate an unstable or *development*
+Unstable releases have odd minor versions, that is versions `v6.5.*` would indicate an unstable or *development*
 version of RapidPro. Generally we recommend staying on stable releases unless you
 have experience developing against RapidPro.
 

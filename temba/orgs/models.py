@@ -23,7 +23,7 @@ from timezone_field import TimeZoneField
 from twilio.rest import Client as TwilioClient
 
 from django.conf import settings
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group, Permission, User
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.core.files import File
@@ -160,6 +160,13 @@ class OrgRole(Enum):
                 return role
         return None
 
+    @classmethod
+    def from_group(cls, group: Group):
+        for role in cls:
+            if role.group == group:
+                return role
+        return None
+
     @cached_property
     def group(self):
         """
@@ -237,15 +244,6 @@ class Org(SmartModel):
     CONFIG_TWILIO_TOKEN = "ACCOUNT_TOKEN"
     CONFIG_VONAGE_KEY = "NEXMO_KEY"
     CONFIG_VONAGE_SECRET = "NEXMO_SECRET"
-
-    # items in export JSON
-    EXPORT_VERSION = "version"
-    EXPORT_SITE = "site"
-    EXPORT_FLOWS = "flows"
-    EXPORT_CAMPAIGNS = "campaigns"
-    EXPORT_TRIGGERS = "triggers"
-    EXPORT_FIELDS = "fields"
-    EXPORT_GROUPS = "groups"
 
     EARLIEST_IMPORT_VERSION = "3"
     CURRENT_EXPORT_VERSION = "13"
@@ -461,11 +459,11 @@ class Org(SmartModel):
         return (counts[ContactGroup.TYPE_ACTIVE] + counts[ContactGroup.TYPE_BLOCKED]) > 0
 
     @cached_property
-    def has_ticketer(self):
+    def has_ticketer(self) -> bool:
         """
         Gets whether this org has an active ticketer configured
         """
-        return self.ticketers.filter(is_active=True)
+        return self.ticketers.filter(is_active=True).exists()
 
     def get_integrations(self, category: IntegrationType.Category) -> list:
         """
@@ -526,11 +524,11 @@ class Org(SmartModel):
         from temba.triggers.models import Trigger
 
         # only required field is version
-        if Org.EXPORT_VERSION not in export_json:
+        if "version" not in export_json:
             raise ValueError("Export missing version field")
 
-        export_version = Version(str(export_json[Org.EXPORT_VERSION]))
-        export_site = export_json.get(Org.EXPORT_SITE)
+        export_version = Version(str(export_json["version"]))
+        export_site = export_json.get("site")
 
         # determine if this app is being imported from the same site
         same_site = False
@@ -545,10 +543,12 @@ class Org(SmartModel):
         if export_version < Version(Flow.CURRENT_SPEC_VERSION):
             export_json = Flow.migrate_export(self, export_json, same_site, export_version)
 
-        export_fields = export_json.get(Org.EXPORT_FIELDS, [])
-        export_groups = export_json.get(Org.EXPORT_GROUPS, [])
-        export_campaigns = export_json.get(Org.EXPORT_CAMPAIGNS, [])
-        export_triggers = export_json.get(Org.EXPORT_TRIGGERS, [])
+        self.validate_import(export_json)
+
+        export_fields = export_json.get("fields", [])
+        export_groups = export_json.get("groups", [])
+        export_campaigns = export_json.get("campaigns", [])
+        export_triggers = export_json.get("triggers", [])
 
         dependency_mapping = {}  # dependency UUIDs in import => new UUIDs
 
@@ -569,6 +569,12 @@ class Org(SmartModel):
         # with all the flows and dependencies committed, we can now have mailroom do full validation
         for flow in new_flows:
             mailroom.get_client().flow_inspect(self.id, flow.get_definition())
+
+    def validate_import(self, import_def):
+        from temba.triggers.models import Trigger
+
+        for trigger_def in import_def.get("triggers", []):
+            Trigger.validate_import_def(trigger_def)
 
     @classmethod
     def export_definitions(cls, site_link, components, include_fields=True, include_groups=True):
@@ -606,19 +612,19 @@ class Org(SmartModel):
                             fields.add(event.relative_to)
 
             elif isinstance(component, Trigger):
-                exported_triggers.append(component.as_export_def())
-
-                if include_groups:
-                    groups.update(component.groups.all())
+                if component.type.exportable:
+                    exported_triggers.append(component.as_export_def())
+                    if include_groups:
+                        groups.update(component.groups.all())
 
         return {
-            Org.EXPORT_VERSION: Org.CURRENT_EXPORT_VERSION,
-            Org.EXPORT_SITE: site_link,
-            Org.EXPORT_FLOWS: exported_flows,
-            Org.EXPORT_CAMPAIGNS: exported_campaigns,
-            Org.EXPORT_TRIGGERS: exported_triggers,
-            Org.EXPORT_FIELDS: [f.as_export_def() for f in sorted(fields, key=lambda f: f.key)],
-            Org.EXPORT_GROUPS: [g.as_export_def() for g in sorted(groups, key=lambda g: g.name)],
+            "version": Org.CURRENT_EXPORT_VERSION,
+            "site": site_link,
+            "flows": exported_flows,
+            "campaigns": exported_campaigns,
+            "triggers": exported_triggers,
+            "fields": [f.as_export_def() for f in sorted(fields, key=lambda f: f.key)],
+            "groups": [g.as_export_def() for g in sorted(groups, key=lambda g: g.name)],
         }
 
     def can_add_sender(self):  # pragma: needs cover
@@ -903,13 +909,24 @@ class Org(SmartModel):
         """
         return self.get_users_with_role(OrgRole.ADMINISTRATOR)
 
-    def get_users(self):
+    def get_users(self, *, roles=None):
         """
         Gets all of the users across all roles for this org
         """
-        user_sets = [role.get_users(self) for role in OrgRole]
+        user_sets = [role.get_users(self) for role in roles or OrgRole]
         all_users = functools.reduce(operator.or_, user_sets)
-        return all_users.distinct().order_by("email")
+        return all_users.distinct()
+
+    def get_users_with_perm(self, perm: str):
+        """
+        Gets all of the users with the given permission for this org
+        """
+
+        app_label, codename = perm.split(".")
+        permission = Permission.objects.get(content_type__app_label=app_label, codename=codename)
+        groups = Group.objects.filter(permissions=permission)
+
+        return self.get_users(roles=[OrgRole.from_group(g) for g in groups])
 
     def has_user(self, user: User) -> bool:
         """
@@ -1676,12 +1693,12 @@ class Org(SmartModel):
 
         # delete all our campaigns and associated events
         for c in self.campaigns.all():
-            c._full_release()
+            c.delete()
 
         # delete everything associated with our flows
         for flow in self.flows.all():
             # we want to manually release runs so we don't fire a mailroom task to do it
-            flow.release(interrupt_sessions=False)
+            flow.release(user, interrupt_sessions=False)
             flow.delete()
 
         # delete our flow labels (deleting a label deletes its children)
@@ -1978,6 +1995,21 @@ def _user_verify_2fa(user, *, otp: str = None, backup_token: str = None) -> bool
     return False
 
 
+def _user_name(user: User) -> str:
+    return " ".join([n for n in (user.first_name, user.last_name) if n])
+
+
+def _user_as_engine_ref(user: User) -> dict:
+    return {"email": user.email, "name": user.name}
+
+
+def _user_str(user):
+    as_str = _user_name(user)
+    if not as_str:
+        as_str = user.username
+    return as_str
+
+
 User.release = release
 User.get_org = get_org
 User.set_org = set_org
@@ -1993,6 +2025,9 @@ User.record_auth = _user_record_auth
 User.enable_2fa = _user_enable_2fa
 User.disable_2fa = _user_disable_2fa
 User.verify_2fa = _user_verify_2fa
+User.name = property(_user_name)
+User.as_engine_ref = _user_as_engine_ref
+User.__str__ = _user_str
 
 
 def get_stripe_credentials():

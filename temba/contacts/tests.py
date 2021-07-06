@@ -572,7 +572,7 @@ class ContactCRUDLTest(CRUDLTestMixin, TembaTest):
         background_flow = self.get_flow("background")
         self.get_flow("media_survey")
         archived_flow = self.get_flow("color")
-        archived_flow.archive()
+        archived_flow.archive(self.admin)
 
         contact = self.create_contact("Joe", phone="+593979000111")
         start_url = reverse("contacts.contact_start", args=[contact.id])
@@ -2046,7 +2046,13 @@ class ContactTest(TembaTest):
         ChannelLog.objects.create(channel=self.channel, description="Its an ivr call", is_error=False, connection=call)
 
         # add a note to our open ticket
-        ticket.add_note(self.user, note="I have a bad feeling about this")
+        ticket.events.create(
+            org=self.org,
+            contact=ticket.contact,
+            event_type="N",
+            note="I have a bad feeling about this",
+            created_by=self.admin,
+        )
 
         # fetch our contact history
         self.login(self.admin)

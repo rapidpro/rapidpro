@@ -1,3 +1,46 @@
+v6.4.0
+----------
+ * Update README
+
+v6.3.90
+----------
+ * Fix alias editor to post json
+
+v6.3.89
+----------
+ * Remove beta grating of internal ticketers
+ * Control which users can have tickets assigned to them with a permission
+ * Use mailroom endpoints for ticket assignment and notes
+ * Add custom user recover password view
+
+v6.3.88
+----------
+ * Fix to display email on manage orgs
+ * Drop no longer used Broadcast.is_active field
+
+v6.3.87
+----------
+ * Update indexes on ticket model
+ * Tweak ticketer default names
+ * Add empty ticket list treatment
+ * Fix API docs for messages endpoint to mention attachments rather than the deprecated media field
+ * Update to editor with hidden internal ticketers
+ * Consistent setting of modified_by when releasing/archiving/restoring
+ * Remove old ticket views
+ * Change ticketer sections on org home page to have Remove button and not link to old ticket views
+ * Add assignee to ticketing endpoints, some new filters and new assignment view
+
+v6.3.86
+----------
+ * Stop writing Broadcast.is_active as default value
+ * Fix keyword triggers being imported without a valid match_type
+
+v6.3.85
+----------
+ * User the current user as the manual trigger user during simulation
+ * Better trigger exports and imports
+ * Make broadcast.is_active nullable and stop filtering by it in the API
+
 v6.3.84
 ----------
  * Ignore scheduled triggers in imports because they don't import properly

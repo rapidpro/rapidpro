@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-06-22 17:26+0000\n"
+"POT-Creation-Date: 2021-07-05 16:25+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -3346,6 +3346,24 @@ msgstr ""
 msgid "Deleted user {username}"
 msgstr "Удаленный пользователь {username}"
 
+#, fuzzy
+#| msgid "Alert Email"
+msgid "Your Email"
+msgstr "Оповещение через электронную почту"
+
+#, fuzzy
+#| msgid "POST Required"
+msgid "Password Recovery"
+msgstr "Требуется POST"
+
+msgid "An Email has been sent to your account with further instructions."
+msgstr ""
+
+#, fuzzy
+#| msgid "POST Required"
+msgid "Password Recovery Request"
+msgstr "Требуется POST"
+
 msgid "First Name"
 msgstr "Имя"
 
@@ -3888,12 +3906,17 @@ msgstr "Открыто"
 msgid "Closed"
 msgstr "Закрыто"
 
-msgid "Enabling this will allow you to handle tickets within this application."
+msgid "Enabling this will allow you to handle tickets within {{brand.name}}."
 msgstr ""
 
 #, python-format
 msgid "This will enable handling tickets internally in %(brand)s."
 msgstr ""
+
+#, fuzzy, python-format
+#| msgid "The %(brand)s Team"
+msgid "%(brand)s Tickets"
+msgstr "Команда %(brand)s"
 
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr ""
@@ -3974,25 +3997,11 @@ msgstr ""
 msgid "Connect %(ticketer)s"
 msgstr ""
 
-msgid "Open Tickets"
-msgstr ""
-
-msgid "Closed Tickets"
-msgstr ""
-
-msgid "Delete Ticket Service"
-msgstr ""
-
-msgid "HTTP Log"
-msgstr ""
-
 msgid "Notes can only be seen by the support team"
 msgstr ""
 
-#, fuzzy
-#| msgid "Add Number"
-msgid "Add Note"
-msgstr "Добавить Номер"
+msgid "Unassigned"
+msgstr ""
 
 msgid "Your ticketing service has been deleted."
 msgstr ""
@@ -4075,6 +4084,31 @@ msgstr "Как сопоставить сообщение с ключевым с�
 msgid "The associated channel."
 msgstr "Связанный канал"
 
+#, fuzzy
+#| msgid "Group to Join"
+msgid "Contacts To Include"
+msgstr "Группа для Присоединения"
+
+msgid "Additional specific contacts to include."
+msgstr ""
+
+#, fuzzy
+#| msgid "Recipients, enter contacts or groups"
+msgid "Optional: Select contacts"
+msgstr "Получатели, введите контакты или группы"
+
+msgid "Must provide at least one group or contact to include."
+msgstr ""
+
+msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
+msgstr "Канал, к которому применить этот триггер, оставьте пустым для охвата всех каналов Facebook"
+
+msgid "Referrer Id"
+msgstr "Id Источника ссылки"
+
+msgid "The referrer id that will trigger us"
+msgstr "Id источника ссылки, который запустит нас"
+
 msgid "Select a flow"
 msgstr "Выберите поток"
 
@@ -4112,8 +4146,11 @@ msgstr ""
 msgid "There already exists a trigger of this type with these options."
 msgstr "Активный триггер уже существует, триггеры должны быть уникальными для каждой группы"
 
-msgid "The first word of the message text"
-msgstr "Первое слово текста сообщения"
+msgid "Join Keyword"
+msgstr "Присоединить ключевое слово"
+
+msgid "The first word of the message"
+msgstr "Первое слово сообщения"
 
 msgid "Group to Join"
 msgstr "Группа для Присоединения"
@@ -4131,42 +4168,8 @@ msgstr[3] "Ответы"
 msgid "The message to send in response after they join the group (optional)"
 msgstr "Ответное сообщение для отправки после того, как они присоединятся к группе (опционально)"
 
-#, fuzzy
-#| msgid "Group to Join"
-msgid "Contacts To Include"
-msgstr "Группа для Присоединения"
-
-msgid "Additional specific contacts to include."
-msgstr ""
-
-#, fuzzy
-#| msgid "Recipients, enter contacts or groups"
-msgid "Optional: Select contacts"
-msgstr "Получатели, введите контакты или группы"
-
-msgid "Must provide at least one group or contact to include."
-msgstr ""
-
-msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
-msgstr "Канал, к которому применить этот триггер, оставьте пустым для охвата всех каналов Facebook"
-
-msgid "Referrer Id"
-msgstr "Id Источника ссылки"
-
-msgid "The referrer id that will trigger us"
-msgstr "Id источника ссылки, который запустит нас"
-
 msgid "Create Trigger"
 msgstr "Создать Триггер"
-
-msgid "Join Keyword"
-msgstr "Присоединить ключевое слово"
-
-msgid "The first word of the message"
-msgstr "Первое слово сообщения"
-
-msgid "Create Referral Trigger"
-msgstr "Создать Реферальный Триггер"
 
 msgid "Triggers"
 msgstr "Триггеры"
@@ -5505,11 +5508,11 @@ msgid "Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%
 msgstr ""
 
 #, python-format
-msgid "Opened ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgid "Opened ticket with subject <b>%(subject)s</b>"
 msgstr ""
 
 #, python-format
-msgid "Closed ticket on <a href=\"%(ticketer_url)s\">%(ticketer)s</a> with subject <b>%(subject)s</b>"
+msgid "Closed ticket with subject <b>%(subject)s</b>"
 msgstr ""
 
 msgid "Successfully called"
@@ -5589,6 +5592,9 @@ msgid "Details"
 msgstr "Детальная информация"
 
 msgid "Contact Id"
+msgstr ""
+
+msgid "Open Tickets"
 msgstr ""
 
 msgid "Upcoming"
@@ -6644,6 +6650,52 @@ msgid ""
 "\n"
 msgstr ""
 
+#, python-format
+msgid ""
+"\n"
+"\n"
+"<br/>\n"
+"Hi from %(hostname)s,\n"
+"<br/>\n"
+"<br/>\n"
+"Someone has requested that the password for this email address be reset.\n"
+"<br/>\n"
+"<br/>\n"
+"Clicking on the following link will allow you to reset the password for the account %(account_name)s:\n"
+"<br/>\n"
+"<a href='%(brand_link)s%(path)s'>Reset password</a>.\n"
+"<br/>\n"
+"<br/>\n"
+"If you did not request this, don't worry, this email has only been sent to you and your account remains secure.\n"
+"<br/>\n"
+"Thank you.\n"
+"<br/>\n"
+"<br/>\n"
+"Please do not reply to this email.\n"
+"<br/>\n"
+"<br/>\n"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"\n"
+"Hi from %(hostname)s,\n"
+"\n"
+"Someone has requested that the password for this email address be reset.\n"
+"\n"
+"Clicking on the following link will allow you to reset the password for the account %(account_name)s:\n"
+"\n"
+"%(brand_link)s%(path)s\n"
+"\n"
+"If you did not request this, don't worry, this email has only been sent to you and your account remains secure.\n"
+"\n"
+"Thank you.\n"
+"\n"
+"Please do not reply to this email.\n"
+"\n"
+msgstr ""
+
 #, fuzzy, python-format
 #| msgid "A connection to a Twilio account is required"
 msgid "Connected to your Chatbase account as agent <b>%(agent)s</b>."
@@ -7595,37 +7647,20 @@ msgid ""
 "            "
 msgstr ""
 
-msgid "Ticketing Service"
+msgid "My Tickets"
 msgstr ""
 
-msgid "Ticketing Service over"
+msgid "All done!"
 msgstr ""
 
-msgid "Services"
+msgid "Nice work, there aren't any more tickets here that need your attention."
 msgstr ""
 
-msgid "Close"
+#, python-format
+msgid "%(name)s Tickets makes it easy to chat directly with your contacts."
 msgstr ""
 
-msgid "Reopen"
-msgstr ""
-
-msgid "No tickets."
-msgstr ""
-
-msgid "Through"
-msgstr ""
-
-msgid "Body"
-msgstr ""
-
-msgid "Opened On"
-msgstr ""
-
-msgid "Close Ticket"
-msgstr ""
-
-msgid "Are you sure you want to close this ticket?"
+msgid "Sometimes an automated chatbot isn't enough. When your contacts need to chat with a real person, you can use the Open Ticket action to open a new ticket."
 msgstr ""
 
 msgid "Connect a Ticketing Service"
@@ -7638,6 +7673,20 @@ msgid "Select the ticketing service you want to connect below to get started."
 msgstr ""
 
 msgid "No ticketing services are available."
+msgstr ""
+
+#, python-format
+msgid "%(type_name)s ticketing service over <b>%(name)s</b>. Contacts who have open tickets with this service will have their messages forwarded to the service, and replies made using the service will be sent back to the contact."
+msgstr ""
+
+msgid "HTTP Log"
+msgstr ""
+
+msgid "Delete Ticket Service"
+msgstr ""
+
+#, python-format
+msgid "%(type_name)s ticketing service over <b>%(name)s</b>."
 msgstr ""
 
 #, python-format
@@ -7657,6 +7706,9 @@ msgid "Open the app details at <i>Administration</i> &gt; <i>Apps</i> &gt; <i>%(
 msgstr ""
 
 msgid "This will connect your account to Zendesk allowing you to open tickets in flows."
+msgstr ""
+
+msgid "Ticketing Service"
 msgstr ""
 
 msgid "To complete connecting your account here to your Zendesk account you need to complete the following steps."
@@ -7774,6 +7826,17 @@ msgstr "Шаблоны синхронизируются с Вашей учетн
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#, fuzzy
+#~| msgid "Add Number"
+#~ msgid "Add Note"
+#~ msgstr "Добавить Номер"
+
+#~ msgid "The first word of the message text"
+#~ msgstr "Первое слово текста сообщения"
+
+#~ msgid "Create Referral Trigger"
+#~ msgstr "Создать Реферальный Триггер"
 
 #~ msgid "When this broadcast was created"
 #~ msgstr "Когда была создана эта рассылка"

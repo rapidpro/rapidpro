@@ -96,6 +96,18 @@ class Ticketer(SmartModel, DependencyMixin):
         )
 
     @classmethod
+    def create_internal_ticketer(cls, org, brand: dict):
+        """
+        Every org gets a single internal ticketer
+        """
+
+        from .types.internal import InternalType
+
+        assert not org.ticketers.filter(ticketer_type=InternalType.slug).exists(), "org already has internal tickteter"
+
+        return cls.create(org, org.created_by, InternalType.slug, f"{brand['name']} Tickets", {})
+
+    @classmethod
     def get_types(cls):
         """
         Returns the possible types available for ticketers
@@ -139,6 +151,9 @@ class Ticket(models.Model):
     STATUS_CLOSED = "C"
     STATUS_CHOICES = ((STATUS_OPEN, _("Open")), (STATUS_CLOSED, _("Closed")))
 
+    # permission that users need to have a ticket assigned to them
+    ASSIGNEE_PERMISSION = "tickets.ticket_assignee"
+
     # our UUID
     uuid = models.UUIDField(unique=True, default=uuid4)
 
@@ -177,30 +192,21 @@ class Ticket(models.Model):
     assignee = models.ForeignKey(User, on_delete=models.PROTECT, null=True, related_name="assigned_tickets")
 
     def assign(self, user: User, *, assignee: User, note: str):
-        now = timezone.now()
-        self.assignee = assignee
-        self.modified_on = now
-        self.last_activity_on = now
-        self.save(update_fields=("assignee", "modified_on", "last_activity_on"))
-
-        self.events.create(
-            org=self.org,
-            contact=self.contact,
-            event_type=TicketEvent.TYPE_ASSIGNED,
-            assignee=assignee,
-            note=note,
-            created_by=user,
-        )
+        self.bulk_assign(self.org, user, [self], assignee=assignee, note=note)
 
     def add_note(self, user: User, *, note: str):
-        now = timezone.now()
-        self.modified_on = timezone.now()
-        self.last_activity_on = now
-        self.save(update_fields=("modified_on", "last_activity_on"))
+        self.bulk_note(self.org, user, [self], note=note)
 
-        self.events.create(
-            org=self.org, contact=self.contact, event_type=TicketEvent.TYPE_NOTE, note=note, created_by=user
-        )
+    @classmethod
+    def bulk_assign(cls, org, user: User, tickets: list, assignee: User, note: str = None):
+        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        assignee_id = assignee.id if assignee else None
+        return mailroom.get_client().ticket_assign(org.id, user.id, ticket_ids, assignee_id, note)
+
+    @classmethod
+    def bulk_note(cls, org, user: User, tickets: list, note: str):
+        ticket_ids = [t.id for t in tickets if t.ticketer.is_active]
+        return mailroom.get_client().ticket_note(org.id, user.id, ticket_ids, note)
 
     @classmethod
     def bulk_close(cls, org, user, tickets):
@@ -213,26 +219,26 @@ class Ticket(models.Model):
         return mailroom.get_client().ticket_reopen(org.id, user.id, ticket_ids)
 
     @classmethod
-    def apply_action_close(cls, user, tickets):
-        cls.bulk_close(tickets[0].org, user, tickets)
-
-    @classmethod
-    def apply_action_reopen(cls, user, tickets):
-        cls.bulk_reopen(tickets[0].org, user, tickets)
+    def get_allowed_assignees(cls, org):
+        return org.get_users_with_perm(cls.ASSIGNEE_PERMISSION)
 
     def __str__(self):
         return f"Ticket[uuid={self.uuid}, subject={self.subject}]"
 
     class Meta:
         indexes = [
-            # used by the open tickets view
+            # used by the open folder
             models.Index(name="tickets_org_open", fields=["org", "-last_activity_on", "-id"], condition=Q(status="O")),
-            # used by the closed tickets view
+            # used by the closed folder
             models.Index(
                 name="tickets_org_closed", fields=["org", "-last_activity_on", "-id"], condition=Q(status="C")
             ),
-            # used by the tickets filtered by ticketer view
-            models.Index(name="tickets_org_ticketer", fields=["ticketer", "-opened_on"]),
+            # used by the unassigned and mine folders
+            models.Index(
+                name="tickets_org_ticketer",
+                fields=["org", "assignee", "-last_activity_on", "-id"],
+                condition=Q(status="O"),
+            ),
             # used by the list of tickets on contact page and also message handling to find open tickets for contact
             models.Index(name="tickets_contact_open", fields=["contact", "-opened_on"], condition=Q(status="O")),
             # used by ticket handlers in mailroom to find tickets from their external IDs
@@ -275,3 +281,75 @@ class TicketEvent(models.Model):
             # used for contact history
             models.Index(name="ticketevents_contact_created", fields=["contact", "created_on"])
         ]
+
+
+class TicketFolder(metaclass=ABCMeta):
+    slug = None
+    name = None
+    icon = None
+
+    def get_queryset(self, org, user):
+        return Ticket.objects.filter(org=org).order_by("-last_activity_on", "-id").prefetch_related("contact")
+
+    @classmethod
+    def from_slug(cls, slug: str):
+        return FOLDERS[slug]
+
+    @classmethod
+    def all(cls):
+        return FOLDERS
+
+
+class MineFolder(TicketFolder):
+    """
+    Tickets assigned to the current user
+    """
+
+    slug = "mine"
+    name = _("My Tickets")
+    icon = "coffee"
+
+    def get_queryset(self, org, user):
+        return super().get_queryset(org, user).filter(status=Ticket.STATUS_OPEN, assignee=user)
+
+
+class UnassignedFolder(TicketFolder):
+    """
+    Tickets not assigned to any user
+    """
+
+    slug = "unassigned"
+    name = _("Unassigned")
+    icon = "mail"
+
+    def get_queryset(self, org, user):
+        return super().get_queryset(org, user).filter(status=Ticket.STATUS_OPEN, assignee=None)
+
+
+class OpenFolder(TicketFolder):
+    """
+    All open tickets
+    """
+
+    slug = "open"
+    name = _("Open")
+    icon = "inbox"
+
+    def get_queryset(self, org, user):
+        return super().get_queryset(org, user).filter(status=Ticket.STATUS_OPEN)
+
+
+class ClosedFolder(TicketFolder):
+    """
+    All closed tickets
+    """
+
+    slug = "closed"
+    name = _("Closed")
+    icon = "check"
+
+    def get_queryset(self, org, user):
+        return super().get_queryset(org, user).filter(status=Ticket.STATUS_CLOSED)
+
+
+FOLDERS = {f.slug: f() for f in TicketFolder.__subclasses__()}

@@ -890,7 +890,7 @@ class Channel(TembaModel, DependencyMixin):
 
         org.normalize_contact_tels()
 
-    def release(self, user, *, trigger_sync=True):
+    def release(self, user, *, trigger_sync: bool = True):
         """
         Releases this channel making it inactive
         """
@@ -947,7 +947,7 @@ class Channel(TembaModel, DependencyMixin):
         # any triggers associated with our channel get archived and released
         for trigger in self.triggers.all():
             trigger.archive(user)
-            trigger.release()
+            trigger.release(user)
 
     def trigger_sync(self, registration_id=None):  # pragma: no cover
         """

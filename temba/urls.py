@@ -2,6 +2,7 @@ from django.conf import settings
 from django.conf.urls import include, url
 from django.conf.urls.static import static
 from django.contrib.auth.models import AnonymousUser, User
+from django.views.generic import RedirectView
 from django.views.i18n import JavaScriptCatalog
 
 from celery.signals import worker_process_init
@@ -36,6 +37,7 @@ urlpatterns = [
     url(r"^", include("temba.triggers.urls")),
     url(r"^relayers/relayer/sync/(\d+)/$", sync, {}, "sync"),
     url(r"^relayers/relayer/register/$", register, {}, "register"),
+    url(r"users/user/forget/", RedirectView.as_view(pattern_name="orgs.user_forget", permanent=True)),
     url(r"^users/", include("smartmin.users.urls")),
     url(r"^imports/", include("smartmin.csv_imports.urls")),
     url(r"^assets/", include("temba.assets.urls")),

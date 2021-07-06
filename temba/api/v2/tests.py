@@ -2506,7 +2506,7 @@ class APITest(TembaTest):
         survey = self.get_flow("media_survey")
         color = self.get_flow("color")
         archived = self.get_flow("favorites")
-        archived.archive()
+        archived.archive(self.admin)
 
         # add a campaign message flow that should be filtered out
         Flow.create_single_message(self.org, self.admin, dict(eng="Hello world"), "eng")
@@ -4411,6 +4411,7 @@ class APITest(TembaTest):
         resp_json = response.json()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(resp_json["next"], None)
+
         self.assertEqual(
             resp_json["results"],
             [
@@ -4418,6 +4419,7 @@ class APITest(TembaTest):
                     "uuid": str(ticket3.uuid),
                     "closed_on": None,
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
+                    "assignee": None,
                     "contact": {"uuid": str(bob.uuid), "name": "Bob"},
                     "status": "open",
                     "subject": "It's bob",
@@ -4428,6 +4430,7 @@ class APITest(TembaTest):
                     "uuid": str(ticket2.uuid),
                     "closed_on": None,
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
+                    "assignee": None,
                     "contact": {"uuid": str(bob.uuid), "name": "Bob"},
                     "status": "open",
                     "subject": "Need help again",
@@ -4438,6 +4441,7 @@ class APITest(TembaTest):
                     "uuid": str(ticket1.uuid),
                     "closed_on": "2021-01-01T12:30:45.123456Z",
                     "ticketer": {"uuid": str(mailgun.uuid), "name": "Mailgun"},
+                    "assignee": None,
                     "contact": {"uuid": str(ann.uuid), "name": "Ann"},
                     "status": "closed",
                     "subject": "Need help",

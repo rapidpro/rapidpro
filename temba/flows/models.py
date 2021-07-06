@@ -299,13 +299,12 @@ class Flow(TembaModel):
         """
 
         from temba.campaigns.models import Campaign
-        from temba.triggers.models import Trigger
 
         created_flows = []
         db_types = {value: key for key, value in Flow.GOFLOW_TYPES.items()}
 
         # fetch or create all the flow db objects
-        for flow_def in export_json[Org.EXPORT_FLOWS]:
+        for flow_def in export_json["flows"]:
             flow_version = Version(flow_def[Flow.DEFINITION_SPEC_VERSION])
             flow_type = db_types[flow_def[Flow.DEFINITION_TYPE]]
             flow_uuid = flow_def[Flow.DEFINITION_UUID]
@@ -342,8 +341,7 @@ class Flow(TembaModel):
 
             # make sure the flow is unarchived
             if flow.is_archived:
-                flow.is_archived = False
-                flow.save(update_fields=("is_archived",))
+                flow.restore(user)
 
             dependency_mapping[flow_uuid] = str(flow.uuid)
             created_flows.append((flow, flow_def))
@@ -353,7 +351,7 @@ class Flow(TembaModel):
             flow.import_definition(user, definition, dependency_mapping)
 
         # remap flow UUIDs in any campaign events
-        for campaign in export_json.get(Org.EXPORT_CAMPAIGNS, []):
+        for campaign in export_json.get("campaigns", []):
             for event in campaign[Campaign.EXPORT_EVENTS]:
                 if "flow" in event:
                     flow_uuid = event["flow"]["uuid"]
@@ -361,11 +359,11 @@ class Flow(TembaModel):
                         event["flow"]["uuid"] = dependency_mapping[flow_uuid]
 
         # remap flow UUIDs in any triggers
-        for trigger in export_json.get(Org.EXPORT_TRIGGERS, []):
-            if Trigger.EXPORT_FLOW in trigger:
-                flow_uuid = trigger[Trigger.EXPORT_FLOW]["uuid"]
+        for trigger in export_json.get("triggers", []):
+            if "flow" in trigger:
+                flow_uuid = trigger["flow"]["uuid"]
                 if flow_uuid in dependency_mapping:
-                    trigger[Trigger.EXPORT_FLOW]["uuid"] = dependency_mapping[flow_uuid]
+                    trigger["flow"]["uuid"] = dependency_mapping[flow_uuid]
 
         # return the created flows
         return [f[0] for f in created_flows]
@@ -427,22 +425,22 @@ class Flow(TembaModel):
 
     @classmethod
     def apply_action_archive(cls, user, flows):
+        from temba.campaigns.models import CampaignEvent
+
         for flow in flows:
             # don't archive flows that belong to campaigns
-            from temba.campaigns.models import CampaignEvent
-
             has_events = CampaignEvent.objects.filter(
                 is_active=True, flow=flow, campaign__org=user.get_org(), campaign__is_archived=False
             ).exists()
 
             if not has_events:
-                flow.archive()
+                flow.archive(user)
 
     @classmethod
     def apply_action_restore(cls, user, flows):
         for flow in flows:
             try:
-                flow.restore()
+                flow.restore(user)
             except FlowException:  # pragma: no cover
                 pass
 
@@ -594,21 +592,22 @@ class Flow(TembaModel):
         # won't see any new database objects
         self.save_revision(user, cloned_definition)
 
-    def archive(self):
+    def archive(self, user):
         self.is_archived = True
-        self.save(update_fields=["is_archived"])
+        self.modified_by = user
+        self.save(update_fields=("is_archived", "modified_by", "modified_on"))
 
         # queue mailroom to interrupt sessions where contact is currently in this flow
         mailroom.queue_interrupt(self.org, flow=self)
 
         # archive our triggers as well
-        from temba.triggers.models import Trigger
+        for trigger in self.triggers.all():
+            trigger.archive(user)
 
-        Trigger.objects.filter(flow=self).update(is_archived=True)
-
-    def restore(self):
+    def restore(self, user):
         self.is_archived = False
-        self.save(update_fields=["is_archived"])
+        self.modified_by = user
+        self.save(update_fields=("is_archived", "modified_by", "modified_on"))
 
     def update_single_message_flow(self, user, translations, base_language):
         assert translations and base_language in translations, "must include translation for base language"
@@ -863,11 +862,11 @@ class Flow(TembaModel):
             exported_json = exports.migrate(org, exported_json, same_site, version)
 
         migrated_flows = []
-        for flow_def in exported_json[Org.EXPORT_FLOWS]:
+        for flow_def in exported_json["flows"]:
             migrated_def = Flow.migrate_definition(flow_def, flow=None)
             migrated_flows.append(migrated_def)
 
-        exported_json[Org.EXPORT_FLOWS] = migrated_flows
+        exported_json["flows"] = migrated_flows
 
         return exported_json
 
@@ -905,24 +904,25 @@ class Flow(TembaModel):
             m2m.clear()
             m2m.add(*objects)
 
-    def release(self, interrupt_sessions=True):
+    def release(self, user, *, interrupt_sessions: bool = True):
         """
         Releases this flow, marking it inactive. We interrupt all flow runs in a background process.
         We keep FlowRevisions and FlowStarts however.
         """
 
         self.is_active = False
-        self.save(update_fields=("is_active",))
+        self.modified_by = user
+        self.save(update_fields=("is_active", "modified_by", "modified_on"))
 
         # release any campaign events that depend on this flow
         from temba.campaigns.models import CampaignEvent
 
         for event in CampaignEvent.objects.filter(flow=self, is_active=True):
-            event.release()
+            event.release(user)
 
         # release any triggers that depend on this flow
         for trigger in self.triggers.all():
-            trigger.release()
+            trigger.release(user)
 
         # release any starts
         for start in self.starts.all():
@@ -969,6 +969,9 @@ class Flow(TembaModel):
 
         for rev in self.revisions.all():
             rev.release()
+
+        for trigger in self.triggers.all():
+            trigger.delete()
 
         self.category_counts.all().delete()
         self.path_counts.all().delete()

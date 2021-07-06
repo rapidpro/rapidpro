@@ -579,8 +579,6 @@ class BroadcastsEndpoint(ListAPIMixin, WriteAPIMixin, BaseAPIView):
     def filter_queryset(self, queryset):
         org = self.request.user.get_org()
 
-        queryset = queryset.filter(is_active=True)
-
         # filter by id (optional)
         broadcast_id = self.get_int_param("id")
         if broadcast_id:
@@ -1438,9 +1436,6 @@ class ContactsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView)
             return queryset.first()
         else:
             return generics.get_object_or_404(queryset)
-
-    def perform_destroy(self, instance):
-        instance.release(self.request.user)
 
     @classmethod
     def get_read_explorer(cls):
@@ -2370,9 +2365,6 @@ class LabelsEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, BaseAPIView):
         for label in object_list:
             label.count = label_counts[label]
 
-    def perform_destroy(self, instance):
-        instance.release(self.request.user)
-
     @classmethod
     def get_read_explorer(cls):
         return {
@@ -2450,9 +2442,9 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
      * **direction** - the direction of the message (one of "incoming" or "outgoing").
      * **type** - the type of the message (one of "inbox", "flow", "ivr").
      * **status** - the status of the message (one of "initializing", "queued", "wired", "sent", "delivered", "handled", "errored", "failed", "resent").
-     * **media** - the media if set for a message (ie, the recording played for IVR messages, audio-xwav:http://domain.com/recording.wav)
      * **visibility** - the visibility of the message (one of "visible", "archived" or "deleted")
      * **text** - the text of the message received (string). Note this is the logical view and the message may have been received as multiple physical messages.
+     * **attachments** - the attachments on the message (array of objects).
      * **labels** - any labels set on this message (array of objects), filterable as `label` with label name or UUID.
      * **created_on** - when this message was either received by the channel or created (datetime) (filterable as `before` and `after`).
      * **sent_on** - for outgoing messages, when the channel sent the message (null if not yet sent or an incoming message) (datetime).
@@ -2488,7 +2480,7 @@ class MessagesEndpoint(ListAPIMixin, BaseAPIView):
                 "status": "wired",
                 "visibility": "visible",
                 "text": "How are you?",
-                "media": "wav:http://domain.com/recording.wav",
+                "attachments": [{"content_type": "audio/wav" "url": "http://domain.com/recording.wav"}],
                 "labels": [{"name": "Important", "uuid": "5a4eb79e-1b1f-4ae3-8700-09384cca385f"}],
                 "created_on": "2016-01-06T15:33:00.813162Z",
                 "sent_on": "2016-01-06T15:35:03.675716Z",
@@ -2834,9 +2826,6 @@ class ResthookSubscribersEndpoint(ListAPIMixin, WriteAPIMixin, DeleteAPIMixin, B
             queryset = queryset.filter(resthook__slug=resthook)
 
         return queryset.select_related("resthook")
-
-    def perform_destroy(self, instance):
-        instance.release(self.request.user)
 
     @classmethod
     def get_read_explorer(cls):

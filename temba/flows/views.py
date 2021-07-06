@@ -480,7 +480,7 @@ class FlowCRUDL(SmartCRUDL):
                 return HttpResponseRedirect(smart_url(self.cancel_url, flow))
 
             # do the actual deletion
-            flow.release()
+            flow.release(self.request.user)
 
             # we can't just redirect so as to make our modal do the right thing
             return self.render_modal_response()
@@ -1782,6 +1782,7 @@ class FlowCRUDL(SmartCRUDL):
                     }
 
                 payload["trigger"]["environment"] = flow.org.as_environment_def()
+                payload["trigger"]["user"] = self.request.user.as_engine_ref()
 
                 try:
                     return JsonResponse(client.sim_start(payload))

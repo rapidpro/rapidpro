@@ -123,8 +123,6 @@ class Broadcast(models.Model):
     # used for repeating scheduled broadcasts
     parent = models.ForeignKey("Broadcast", on_delete=models.PROTECT, null=True, related_name="children")
 
-    is_active = models.BooleanField(default=True)  # TODO not used and could be removed
-
     created_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_creations")
     created_on = models.DateTimeField(default=timezone.now, db_index=True)  # TODO remove index
     modified_by = models.ForeignKey(User, null=True, on_delete=models.PROTECT, related_name="broadcast_modifications")
@@ -277,6 +275,12 @@ class Broadcast(models.Model):
 
     def __str__(self):  # pragma: no cover
         return f"Broadcast[id={self.id}, text={self.text}]"
+
+    class Meta:
+        indexes = [
+            # used by the broadcasts API endpoint
+            models.Index(name="msgs_broadcasts_org_created_id", fields=["org", "-created_on", "-id"]),
+        ]
 
 
 class Attachment(object):

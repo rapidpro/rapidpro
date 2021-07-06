@@ -139,9 +139,6 @@ STATICFILES_FINDERS = (
 # Make this unique, and don't share it with anybody.
 SECRET_KEY = "your own secret key"
 
-EMAIL_CONTEXT_PROCESSORS = ("temba.utils.email.link_components",)
-
-
 # -----------------------------------------------------------------------------------
 # Directory Configuration
 # -----------------------------------------------------------------------------------
@@ -309,6 +306,7 @@ LOGGING = {
         "pycountry": {"level": "ERROR", "handlers": ["console"], "propagate": False},
         "django.security.DisallowedHost": {"handlers": ["null"], "propagate": False},
         "django.db.backends": {"level": "ERROR", "handlers": ["console"], "propagate": False},
+        "temba.formax": {"level": "DEBUG" if DEBUG else "ERROR", "handlers": ["console"], "propagate": False},
     },
 }
 
@@ -501,7 +499,7 @@ PERMISSIONS = {
     "policies.policy": ("admin", "history", "give_consent"),
     "request_logs.httplog": ("classifier", "ticketer"),
     "templates.template": ("api",),
-    "tickets.ticket": ("api", "open", "closed", "filter", "note"),
+    "tickets.ticket": ("api", "assign", "assignee", "note"),
     "tickets.ticketer": ("api", "connect", "configure"),
     "triggers.trigger": ("archived", "type"),
 }
@@ -683,17 +681,8 @@ GROUP_PERMISSIONS = {
         "request_logs.httplog_classifier",
         "request_logs.httplog_read",
         "templates.template_api",
-        "tickets.ticket_api",
-        "tickets.ticket_closed",
-        "tickets.ticket_filter",
-        "tickets.ticket_open",
-        "tickets.ticket_list",
-        "tickets.ticket_note",
-        "tickets.ticket_update",
-        "tickets.ticketer_api",
-        "tickets.ticketer_configure",
-        "tickets.ticketer_connect",
-        "tickets.ticketer_delete",
+        "tickets.ticket.*",
+        "tickets.ticketer.*",
         "triggers.trigger.*",
     ),
     "Editors": (
@@ -792,13 +781,7 @@ GROUP_PERMISSIONS = {
         "policies.policy_list",
         "policies.policy_give_consent",
         "templates.template_api",
-        "tickets.ticket_api",
-        "tickets.ticket_closed",
-        "tickets.ticket_filter",
-        "tickets.ticket_note",
-        "tickets.ticket_open",
-        "tickets.ticket_update",
-        "tickets.ticket_list",
+        "tickets.ticket.*",
         "tickets.ticketer_api",
         "triggers.trigger.*",
     ),
@@ -869,11 +852,6 @@ GROUP_PERMISSIONS = {
         "policies.policy_read",
         "policies.policy_list",
         "policies.policy_give_consent",
-        "tickets.ticket_api",
-        "tickets.ticket_closed",
-        "tickets.ticket_filter",
-        "tickets.ticket_open",
-        "tickets.ticket_list",
         "tickets.ticketer_api",
         "triggers.trigger_archived",
         "triggers.trigger_list",
@@ -887,10 +865,10 @@ GROUP_PERMISSIONS = {
         "globals.global_api",
         "msgs.broadcast_api",
         "tickets.ticket_api",
+        "tickets.ticket_assign",
+        "tickets.ticket_assignee",
         "tickets.ticket_list",
         "tickets.ticket_note",
-        "tickets.ticket_open",
-        "tickets.ticket_close",
         "orgs.org_home",
         "orgs.org_profile",
         "policies.policy_give_consent",

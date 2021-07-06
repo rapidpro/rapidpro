@@ -1076,7 +1076,7 @@ class FlowMigrationTest(TembaTest):
 
             ContactGroup.user_groups.all().delete()
             self.assertEqual(Flow.CURRENT_SPEC_VERSION, flow.version_number)
-            flow.release()
+            flow.release(self.admin)
 
     def test_migrate_malformed_groups(self):
         flow = self.get_flow("malformed_groups")

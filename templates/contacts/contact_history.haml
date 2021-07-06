@@ -156,13 +156,11 @@
       -elif event.type == 'ticket_note_added'
         {{ event.note }}
       -elif event.type == 'ticket_opened'
-        -url 'tickets.ticket_filter' event.ticket.ticketer.uuid as ticketer_url
-        -blocktrans trimmed with subject=event.ticket.subject ticketer=event.ticket.ticketer.name
-          Opened ticket on <a href="{{ ticketer_url }}">{{ ticketer }}</a> with subject <b>{{ subject }}</b>
+        -blocktrans trimmed with subject=event.ticket.subject
+          Opened ticket with subject <b>{{ subject }}</b>
       -elif event.type == 'ticket_closed'
-        -url 'tickets.ticket_filter' event.ticket.ticketer.uuid as ticketer_url
-        -blocktrans trimmed with subject=event.ticket.subject ticketer=event.ticket.ticketer.name
-          Closed ticket on <a href="{{ ticketer_url }}">{{ ticketer }}</a> with subject <b>{{ subject }}</b>
+        -blocktrans trimmed with subject=event.ticket.subject
+          Closed ticket with subject <b>{{ subject }}</b>
       -elif event.type == 'webhook_called'
         -if event.status == "success"
           -trans "Successfully called"
