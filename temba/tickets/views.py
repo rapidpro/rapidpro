@@ -202,11 +202,11 @@ class TicketCRUDL(SmartCRUDL):
                 assignee_id = self.data["assignee"]
                 return Ticket.get_allowed_assignees(self.org).filter(id=assignee_id).first()
 
-            def __init__(self, user, ticket, *args, **kwargs):
+            def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.org = user.get_org()
 
-                self.fields["assignee"].queryset = Ticket.get_allowed_assignees(self.org)
+                self.org = org
+                self.fields["assignee"].queryset = Ticket.get_allowed_assignees(self.org).order_by("email")
                 self.fields["note"].required = False
 
         slug_url_kwarg = "uuid"
@@ -218,8 +218,7 @@ class TicketCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
-            kwargs["ticket"] = self.get_object()
+            kwargs["org"] = self.request.user.get_org()
             return kwargs
 
         def derive_initial(self):

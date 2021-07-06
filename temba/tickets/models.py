@@ -140,7 +140,7 @@ class Ticket(models.Model):
     STATUS_CHOICES = ((STATUS_OPEN, _("Open")), (STATUS_CLOSED, _("Closed")))
 
     # permission that users need to have a ticket assigned to them
-    ASSIGNMENT_PERMISSION = "tickets.ticket_assignee"
+    ASSIGNEE_PERMISSION = "tickets.ticket_assignee"
 
     # our UUID
     uuid = models.UUIDField(unique=True, default=uuid4)
@@ -217,7 +217,7 @@ class Ticket(models.Model):
 
     @classmethod
     def get_allowed_assignees(cls, org):
-        return org.get_users_with_perm(cls.ASSIGNMENT_PERMISSION)
+        return org.get_users_with_perm(cls.ASSIGNEE_PERMISSION)
 
     def __str__(self):
         return f"Ticket[uuid={self.uuid}, subject={self.subject}]"
