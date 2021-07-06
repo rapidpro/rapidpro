@@ -2,7 +2,7 @@ import io
 import smtplib
 from datetime import timedelta
 from decimal import Decimal
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from urllib.parse import urlencode
 
 import pytz
@@ -10,13 +10,12 @@ import stripe
 import stripe.error
 from bs4 import BeautifulSoup
 from dateutil.relativedelta import relativedelta
-from smartmin.users.models import FailedLogin
+from smartmin.users.models import FailedLogin, RecoveryToken
 
 from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core import mail
 from django.core.exceptions import ValidationError
-from django.http import HttpRequest, HttpResponse
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -43,7 +42,6 @@ from temba.contacts.search.omnibox import omnibox_serialize
 from temba.flows.models import ExportFlowResultsTask, Flow, FlowLabel, FlowRun, FlowStart
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary
-from temba.middleware import BrandingMiddleware
 from temba.msgs.models import Broadcast, ExportMessagesTask, Label, Msg
 from temba.orgs.models import BackupToken, Debit, OrgActivity
 from temba.orgs.tasks import suspend_topup_orgs_task
@@ -65,7 +63,6 @@ from temba.tickets.models import Ticketer
 from temba.tickets.types.mailgun import MailgunType
 from temba.triggers.models import Trigger
 from temba.utils import dict_to_struct, json, languages
-from temba.utils.email import link_components
 
 from .context_processors import GroupPermWrapper
 from .models import CreditAlert, Invitation, Org, OrgRole, TopUp, TopUpCredits
@@ -1065,6 +1062,62 @@ class OrgTest(TembaTest):
         self.org.channels.all().delete()
 
         self.assertIsNone(self.org.default_country)
+
+    @patch("temba.utils.email.send_temba_email")
+    def test_user_forget(self, mock_send_temba_email):
+
+        invitation = Invitation.objects.create(
+            org=self.org,
+            user_group="A",
+            email="invited@nyaruka.com",
+            created_by=self.admin,
+            modified_by=self.admin,
+        )
+
+        user = User.objects.create_user("existing@nyaruka.com", "existing@nyaruka.com")
+        user.set_password("existing@nyaruka.com")
+        user.save()
+
+        forget_url = reverse("orgs.user_forget")
+        smartmin_forget_url = reverse("users.user_forget")
+
+        # make sure smartmin forget view is redirecting to our forget view
+        response = self.client.get(smartmin_forget_url)
+        self.assertEqual(301, response.status_code)
+        self.assertEqual(response.url, forget_url)
+
+        response = self.client.get(forget_url)
+        self.assertEqual(200, response.status_code)
+
+        post_data = dict(email="invited@nyaruka.com")
+
+        response = self.client.post(forget_url, post_data, follow=True)
+        self.assertEqual(200, response.status_code)
+
+        email_args = mock_send_temba_email.call_args[0]  # all positional args
+
+        self.assertEqual(email_args[0], "RapidPro Invitation")
+        self.assertIn(f"https://app.rapidpro.io/org/join/{invitation.secret}/", email_args[1])
+        self.assertNotIn("{{", email_args[1])
+        self.assertIn(f"https://app.rapidpro.io/org/join/{invitation.secret}/", email_args[2])
+        self.assertNotIn("{{", email_args[2])
+        self.assertEqual(email_args[4], ["invited@nyaruka.com"])
+
+        mock_send_temba_email.reset_mock()
+        post_data = dict(email="existing@nyaruka.com")
+
+        response = self.client.post(forget_url, post_data, follow=True)
+        self.assertEqual(200, response.status_code)
+
+        token_obj = RecoveryToken.objects.filter(user=user).first()
+
+        email_args = mock_send_temba_email.call_args[0]  # all positional args
+        self.assertEqual(email_args[0], "Password Recovery Request")
+        self.assertIn(f"app.rapidpro.io/users/user/recover/{token_obj.token}/", email_args[1])
+        self.assertNotIn("{{", email_args[1])
+        self.assertIn(f"app.rapidpro.io/users/user/recover/{token_obj.token}/", email_args[2])
+        self.assertNotIn("{{", email_args[2])
+        self.assertEqual(email_args[4], ["existing@nyaruka.com"])
 
     def test_user_update(self):
         update_url = reverse("orgs.user_edit")
@@ -5001,35 +5054,6 @@ class CreditAlertTest(TembaTest):
                     self.assertEqual(4, len(mail.outbox))
 
                     mock_has_low_credits.return_value = False
-
-
-class EmailContextProcessorsTest(TembaTest):
-    def setUp(self):
-        super().setUp()
-
-        self.middleware = BrandingMiddleware(get_response=HttpResponse)
-
-    def test_link_components(self):
-        self.request = Mock(spec=HttpRequest)
-        self.request.get_host.return_value = "rapidpro.io"
-
-        self.middleware(self.request)
-
-        self.assertEqual(link_components(self.request, self.admin), dict(protocol="https", hostname="app.rapidpro.io"))
-
-        with self.settings(HOSTNAME="rapidpro.io"):
-            forget_url = reverse("users.user_forget")
-
-            response = self.client.post(forget_url, {"email": "Administrator@nyaruka.com"})
-            self.assertLoginRedirect(response)
-            self.assertEqual(1, len(mail.outbox))
-
-            sent_email = mail.outbox[0]
-            self.assertEqual(len(sent_email.to), 1)
-            self.assertEqual(sent_email.to[0], "Administrator@nyaruka.com")
-
-            # we have the domain of rapipro.io brand
-            self.assertIn("app.rapidpro.io", sent_email.body)
 
 
 class StripeCreditsTest(TembaTest):
