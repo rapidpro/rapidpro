@@ -230,7 +230,7 @@ class TicketCRUDL(SmartCRUDL):
             initial = super().derive_initial()
             ticket = self.get_object()
             if ticket.assignee:
-                initial["assignee"] = ticket.assignee.pk
+                initial["assignee"] = ticket.assignee.id
             return initial
 
         def form_valid(self, form):
