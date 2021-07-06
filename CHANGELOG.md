@@ -1,3 +1,7 @@
+v6.4.0
+----------
+ * Update README
+
 v6.3.90
 ----------
  * Fix alias editor to post json
