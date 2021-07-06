@@ -452,11 +452,11 @@ class Org(SmartModel):
         return (counts[ContactGroup.TYPE_ACTIVE] + counts[ContactGroup.TYPE_BLOCKED]) > 0
 
     @cached_property
-    def has_ticketer(self):
+    def has_ticketer(self) -> bool:
         """
         Gets whether this org has an active ticketer configured
         """
-        return self.ticketers.filter(is_active=True)
+        return self.ticketers.filter(is_active=True).exists()
 
     def get_integrations(self, category: IntegrationType.Category) -> list:
         """

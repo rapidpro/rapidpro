@@ -96,6 +96,18 @@ class Ticketer(SmartModel, DependencyMixin):
         )
 
     @classmethod
+    def create_internal_ticketer(cls, org, brand: dict):
+        """
+        Every org gets a single internal ticketer
+        """
+
+        from .types.internal import InternalType
+
+        assert not org.ticketers.filter(ticketer_type=InternalType.slug).exists(), "org already has internal tickteter"
+
+        return cls.create(org, org.created_by, InternalType.slug, f"{brand['name']} Tickets", {})
+
+    @classmethod
     def get_types(cls):
         """
         Returns the possible types available for ticketers
