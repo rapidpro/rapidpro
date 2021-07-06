@@ -1,3 +1,7 @@
+v6.3.90
+----------
+ * Fix alias editor to post json
+
 v6.3.89
 ----------
  * Remove beta grating of internal ticketers
