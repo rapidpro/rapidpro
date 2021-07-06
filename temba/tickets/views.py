@@ -1,6 +1,7 @@
 from smartmin.views import SmartCRUDL, SmartFormView, SmartListView, SmartReadView, SmartTemplateView, SmartUpdateView
 
 from django import forms
+from django.contrib.auth.models import User
 from django.db.models.aggregates import Max
 from django.http import JsonResponse
 from django.urls import reverse
@@ -12,7 +13,7 @@ from temba.orgs.views import DependencyDeleteModal, ModalMixin, OrgObjPermsMixin
 from temba.utils.fields import InputWidget, SelectWidget
 from temba.utils.views import ComponentFormMixin
 
-from .models import Ticket, Ticketer
+from .models import Ticket, Ticketer, TicketFolder
 
 
 class BaseConnectView(ComponentFormMixin, OrgPermsMixin, SmartFormView):
@@ -80,6 +81,7 @@ class TicketCRUDL(SmartCRUDL):
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             org = self.request.user.get_org()
+            context["folders"] = TicketFolder.all().values()
             context["has_tickets"] = Ticket.objects.filter(org=org).exists()
             return context
 
@@ -87,34 +89,15 @@ class TicketCRUDL(SmartCRUDL):
             return super().get_queryset(**kwargs).none()
 
     class Folder(OrgPermsMixin, SmartListView):
-
-        FOLDER_MINE = "mine"
-        FOLDER_UNASSIGNED = "unassigned"
-        FOLDER_OPEN = "open"
-        FOLDER_CLOSED = "closed"
-
-        FOLDERS = (FOLDER_MINE, FOLDER_UNASSIGNED, FOLDER_OPEN, FOLDER_CLOSED)
-
         permission = "tickets.ticket_list"
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return rf"^{path}/{action}/(?P<folder>{'|'.join(cls.FOLDERS)})/$"
+            return rf"^{path}/{action}/(?P<folder>{'|'.join(TicketFolder.all().keys())})/$"
 
         def get_queryset(self, **kwargs):
-            org = self.request.user.get_org()
-            qs = super().get_queryset(**kwargs).filter(org=org).prefetch_related("contact")
-
-            if self.kwargs["folder"] == self.FOLDER_OPEN:
-                qs = qs.filter(status=Ticket.STATUS_OPEN)
-            elif self.kwargs["folder"] == self.FOLDER_UNASSIGNED:
-                qs = qs.filter(status=Ticket.STATUS_OPEN, assignee=None)
-            elif self.kwargs["folder"] == self.FOLDER_MINE:
-                qs = qs.filter(status=Ticket.STATUS_OPEN, assignee=self.request.user)
-            else:  # self.FOLDER_CLOSED:
-                qs = qs.filter(status=Ticket.STATUS_CLOSED)
-
-            return qs.order_by("-last_activity_on", "-id")
+            user = self.request.user
+            return TicketFolder.from_slug(self.kwargs["folder"]).get_queryset(user.get_org(), user)
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
@@ -204,31 +187,26 @@ class TicketCRUDL(SmartCRUDL):
 
     class Assign(ModalMixin, ComponentFormMixin, OrgObjPermsMixin, SmartUpdateView):
         class Form(NoteForm):
-            assignee = forms.ChoiceField(
-                required=True,
+            assignee = forms.ModelChoiceField(
+                queryset=User.objects.none(),
                 widget=SelectWidget(
                     attrs={
                         "searchable": True,
                         "widget_only": True,
                     }
                 ),
+                empty_label=_("Unassigned"),
             )
 
             def clean_assignee(self):
-                assignee = self.data["assignee"]
-                return self.org.administrators.filter(pk=assignee).union(self.org.agents.filter(pk=assignee)).first()
+                assignee_id = self.data["assignee"]
+                return Ticket.get_allowed_assignees(self.org).filter(id=assignee_id).first()
 
-            def __init__(self, user, ticket, *args, **kwargs):
+            def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self.org = user.get_org()
-                choices = [
-                    (user.pk, user.get_full_name())
-                    for user in self.org.administrators.all().union(self.org.agents.all())
-                ]
 
-                choices.insert(0, (-1, str(_("Unassigned"))))
-
-                self.fields["assignee"].choices = choices
+                self.org = org
+                self.fields["assignee"].queryset = Ticket.get_allowed_assignees(self.org).order_by("email")
                 self.fields["note"].required = False
 
         slug_url_kwarg = "uuid"
@@ -240,15 +218,14 @@ class TicketCRUDL(SmartCRUDL):
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
-            kwargs["user"] = self.request.user
-            kwargs["ticket"] = self.get_object()
+            kwargs["org"] = self.request.user.get_org()
             return kwargs
 
         def derive_initial(self):
             initial = super().derive_initial()
             ticket = self.get_object()
             if ticket.assignee:
-                initial["assignee"] = ticket.assignee.pk
+                initial["assignee"] = ticket.assignee.id
             return initial
 
         def form_valid(self, form):

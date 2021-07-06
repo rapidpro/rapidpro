@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from temba.orgs.models import Org
-from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 
 from .models import Ticket, Ticketer, TicketEvent
 from .types import reload_ticketer_types
@@ -32,28 +32,41 @@ class TicketTest(TembaTest):
 
         self.assertEqual(f"Ticket[uuid={ticket.uuid}, subject=Need help]", str(ticket))
 
-        ticket.assign(self.admin, assignee=self.editor, note="Please deal with this")
-        ticket.add_note(self.admin, note="This is important")
+        # test bulk assignment
+        with patch("temba.mailroom.client.MailroomClient.ticket_assign") as mock_assign:
+            Ticket.bulk_assign(self.org, self.admin, [ticket], self.agent, "over to you")
 
-        self.assertEqual(self.editor, ticket.assignee)
+        mock_assign.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], self.agent.id, "over to you")
+        mock_assign.reset_mock()
 
-        events = list(ticket.events.order_by("id"))
-        self.assertEqual(TicketEvent.TYPE_ASSIGNED, events[0].event_type)
-        self.assertEqual("Please deal with this", events[0].note)
-        self.assertEqual(self.admin, events[0].created_by)
-        self.assertEqual(TicketEvent.TYPE_NOTE, events[1].event_type)
-        self.assertEqual("This is important", events[1].note)
-        self.assertEqual(self.admin, events[1].created_by)
+        # test bulk un-assignment
+        with patch("temba.mailroom.client.MailroomClient.ticket_assign") as mock_assign:
+            Ticket.bulk_assign(self.org, self.admin, [ticket], None)
 
+        mock_assign.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], None, None)
+        mock_assign.reset_mock()
+
+        # test bulk adding a note
+        with patch("temba.mailroom.client.MailroomClient.ticket_note") as mock_note:
+            Ticket.bulk_note(self.org, self.admin, [ticket], "please handle")
+
+        mock_note.assert_called_once_with(self.org.id, self.admin.id, [ticket.id], "please handle")
+
+        # test bulk closing
         with patch("temba.mailroom.client.MailroomClient.ticket_close") as mock_close:
             Ticket.bulk_close(self.org, self.admin, [ticket])
 
         mock_close.assert_called_once_with(self.org.id, self.admin.id, [ticket.id])
 
+        # test bulk re-opening
         with patch("temba.mailroom.client.MailroomClient.ticket_reopen") as mock_reopen:
             Ticket.bulk_reopen(self.org, self.admin, [ticket])
 
         mock_reopen.assert_called_once_with(self.org.id, self.admin.id, [ticket.id])
+
+    def test_allowed_assignees(self):
+        self.assertEqual({self.admin, self.editor, self.agent}, set(Ticket.get_allowed_assignees(self.org)))
+        self.assertEqual({self.admin2}, set(Ticket.get_allowed_assignees(self.org2)))
 
 
 class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
@@ -72,7 +85,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         # just a placeholder view for frontend components
         self.assertListFetch(list_url, allow_viewers=False, allow_editors=True, allow_agents=True, context_objects=[])
 
-    def test_folder(self):
+    @mock_mailroom
+    def test_folder(self, mr_mocks):
         self.login(self.admin)
 
         contact1 = self.create_contact("Joe", phone="123", last_seen_on=timezone.now())
@@ -203,7 +217,8 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             response = self.client.get(open_url + "?_format=json")
             self.assertIsNotNone(response.json()["next"])
 
-    def test_note(self):
+    @mock_mailroom
+    def test_note(self, mr_mocks):
         ticket = self.create_ticket(self.mailgun, self.contact, "Ticket 1")
 
         update_url = reverse("tickets.ticket_note", args=[ticket.uuid])
@@ -220,23 +235,34 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
 
         self.assertEqual(1, ticket.events.filter(event_type=TicketEvent.TYPE_NOTE).count())
 
-    def test_assign(self):
+    @mock_mailroom
+    def test_assign(self, mr_mocks):
         ticket = self.create_ticket(self.mailgun, self.contact, "Some ticket")
 
         assign_url = reverse("tickets.ticket_assign", args=[ticket.uuid])
 
-        self.assertUpdateFetch(
+        response = self.assertUpdateFetch(
             assign_url, allow_viewers=False, allow_editors=True, allow_agents=True, form_fields=["note", "assignee"]
+        )
+        # should show unassigned as option plus other permitted users
+        self.assertEqual(
+            [
+                ("", "Unassigned"),
+                (self.admin.id, "Administrator"),
+                (self.agent.id, "Agent"),
+                (self.editor.id, "Editor"),
+            ],
+            list(response.context["form"].fields["assignee"].choices),
         )
 
         self.assertUpdateSubmit(
-            assign_url, {"assignee": self.admin.pk, "note": "You got this one"}, success_status=200
+            assign_url, {"assignee": self.admin.id, "note": "You got this one"}, success_status=200
         )
         ticket.refresh_from_db()
-        self.assertEqual(self.admin.pk, ticket.assignee.pk)
+        self.assertEqual(self.admin, ticket.assignee)
 
-        last_event = ticket.events.all().last()
-        self.assertEqual(self.admin.pk, last_event.assignee.pk)
+        last_event = ticket.events.order_by("id").last()
+        self.assertEqual(self.admin, last_event.assignee)
         self.assertEqual("You got this one", last_event.note)
 
         # now fetch it again to make sure our initial value is set
@@ -245,12 +271,12 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
             allow_viewers=False,
             allow_editors=True,
             allow_agents=True,
-            form_fields={"note": None, "assignee": self.admin.pk},
+            form_fields={"note": None, "assignee": self.admin.id},
         )
 
-        # sumbit an assignment to the same person
+        # submit an assignment to the same person
         self.assertUpdateSubmit(
-            assign_url, {"assignee": self.admin.pk, "note": "Have you looked?"}, success_status=200
+            assign_url, {"assignee": self.admin.id, "note": "Have you looked?"}, success_status=200
         )
 
         # this should create a note event instead of an assignment event

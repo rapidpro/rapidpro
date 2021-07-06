@@ -2046,7 +2046,13 @@ class ContactTest(TembaTest):
         ChannelLog.objects.create(channel=self.channel, description="Its an ivr call", is_error=False, connection=call)
 
         # add a note to our open ticket
-        ticket.add_note(self.user, note="I have a bad feeling about this")
+        ticket.events.create(
+            org=self.org,
+            contact=ticket.contact,
+            event_type="N",
+            note="I have a bad feeling about this",
+            created_by=self.admin,
+        )
 
         # fetch our contact history
         self.login(self.admin)

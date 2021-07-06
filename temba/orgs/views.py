@@ -1,6 +1,8 @@
 import itertools
 import logging
+import random
 import smtplib
+import string
 from collections import OrderedDict
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -13,7 +15,7 @@ import pyotp
 import pytz
 import requests
 from packaging.version import Version
-from smartmin.users.models import FailedLogin
+from smartmin.users.models import FailedLogin, RecoveryToken
 from smartmin.users.views import Login
 from smartmin.views import (
     SmartCreateView,
@@ -61,7 +63,7 @@ from temba.contacts.models import ContactGroupCount
 from temba.flows.models import Flow
 from temba.formax import FormaxMixin
 from temba.utils import analytics, get_anonymous_user, json, languages, str_to_bool
-from temba.utils.email import is_valid_address
+from temba.utils.email import is_valid_address, send_template_email
 from temba.utils.fields import (
     ArbitraryJsonChoiceField,
     CheckboxWidget,
@@ -631,7 +633,7 @@ class InferOrgMixin:
 
 class UserCRUDL(SmartCRUDL):
     model = User
-    actions = ("list", "edit", "delete", "two_factor_enable", "two_factor_disable", "two_factor_tokens")
+    actions = ("list", "edit", "delete", "forget", "two_factor_enable", "two_factor_disable", "two_factor_tokens")
 
     class List(SmartListView):
         fields = ("username", "orgs", "date_joined")
@@ -677,6 +679,45 @@ class UserCRUDL(SmartCRUDL):
 
             messages.success(self.request, _(f"Deleted user {username}"))
             return HttpResponseRedirect(reverse("orgs.user_list", args=()))
+
+    class Forget(SmartFormView):
+        class ForgetForm(forms.Form):
+            email = forms.EmailField(required=True, label=_("Your Email"), widget=InputWidget())
+
+            def clean_email(self):
+                email = self.cleaned_data["email"].lower().strip()
+                return email
+
+        title = _("Password Recovery")
+        form_class = ForgetForm
+        permission = None
+        success_message = _("An Email has been sent to your account with further instructions.")
+        success_url = "@users.user_login"
+        fields = ("email",)
+
+        def form_valid(self, form):
+
+            email = form.cleaned_data["email"]
+            user = User.objects.filter(email__iexact=email).first()
+
+            if user:
+                subject = _("Password Recovery Request")
+                template = "orgs/email/user_forget"
+
+                token = "".join(random.choice(string.ascii_uppercase + string.digits) for x in range(32))
+                RecoveryToken.objects.create(token=token, user=user)
+                FailedLogin.objects.filter(username__iexact=user.username).delete()
+
+                context = dict(user=user, path=f'{reverse("users.user_recover", args=[token])}')
+                send_template_email(email, subject, template, context, self.request.branding)
+
+            else:
+                # No user, check if we have an invite for the email and resend that
+                existing_invite = Invitation.objects.filter(is_active=True, email__iexact=email).first()
+                if existing_invite:
+                    existing_invite.send()
+
+            return super().form_valid(form)
 
     class Edit(SmartUpdateView):
         class EditForm(forms.ModelForm):
@@ -1504,7 +1545,7 @@ class OrgCRUDL(SmartCRUDL):
             owner = obj.get_owner()
 
             return mark_safe(
-                f"<div class='owner-name'>{escape(owner.first_name)} {escape(owner.last_name)}</div><div class='owner-email'>{owner}</div>"
+                f"<div class='owner-name'>{escape(owner.first_name)} {escape(owner.last_name)}</div><div class='owner-email'>{escape(owner.username)}</div>"
             )
 
         def get_service(self, obj):
@@ -1778,7 +1819,7 @@ class OrgCRUDL(SmartCRUDL):
                 self.add_per_invite_fields(org)
 
             def add_per_user_fields(self, org: Org, role_choices: list):
-                for user in org.get_users():
+                for user in org.get_users().order_by("email"):
                     role_field = forms.ChoiceField(
                         choices=role_choices,
                         required=True,

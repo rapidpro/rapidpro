@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-07-01 21:07+0000\n"
+"POT-Creation-Date: 2021-07-06 17:16+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3294,6 +3294,18 @@ msgstr ""
 msgid "Deleted user {username}"
 msgstr ""
 
+msgid "Your Email"
+msgstr ""
+
+msgid "Password Recovery"
+msgstr ""
+
+msgid "An Email has been sent to your account with further instructions."
+msgstr ""
+
+msgid "Password Recovery Request"
+msgstr ""
+
 msgid "First Name"
 msgstr ""
 
@@ -3800,6 +3812,12 @@ msgstr ""
 msgid "Closed"
 msgstr ""
 
+msgid "My Tickets"
+msgstr ""
+
+msgid "Unassigned"
+msgstr ""
+
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr ""
 
@@ -3880,9 +3898,6 @@ msgid "Connect %(ticketer)s"
 msgstr ""
 
 msgid "Notes can only be seen by the support team"
-msgstr ""
-
-msgid "Unassigned"
 msgstr ""
 
 msgid "Your ticketing service has been deleted."
@@ -6297,6 +6312,52 @@ msgid ""
 msgstr ""
 
 #, python-format
+msgid ""
+"\n"
+"\n"
+"<br/>\n"
+"Hi from %(hostname)s,\n"
+"<br/>\n"
+"<br/>\n"
+"Someone has requested that the password for this email address be reset.\n"
+"<br/>\n"
+"<br/>\n"
+"Clicking on the following link will allow you to reset the password for the account %(account_name)s:\n"
+"<br/>\n"
+"<a href='%(brand_link)s%(path)s'>Reset password</a>.\n"
+"<br/>\n"
+"<br/>\n"
+"If you did not request this, don't worry, this email has only been sent to you and your account remains secure.\n"
+"<br/>\n"
+"Thank you.\n"
+"<br/>\n"
+"<br/>\n"
+"Please do not reply to this email.\n"
+"<br/>\n"
+"<br/>\n"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"\n"
+"Hi from %(hostname)s,\n"
+"\n"
+"Someone has requested that the password for this email address be reset.\n"
+"\n"
+"Clicking on the following link will allow you to reset the password for the account %(account_name)s:\n"
+"\n"
+"%(brand_link)s%(path)s\n"
+"\n"
+"If you did not request this, don't worry, this email has only been sent to you and your account remains secure.\n"
+"\n"
+"Thank you.\n"
+"\n"
+"Please do not reply to this email.\n"
+"\n"
+msgstr ""
+
+#, python-format
 msgid "Connected to your Chatbase account as agent <b>%(agent)s</b>."
 msgstr ""
 
@@ -6741,6 +6802,17 @@ msgid ""
 "  "
 msgstr ""
 
+msgid "Reset Password"
+msgstr ""
+
+msgid ""
+"\n"
+"    Enter the email address you used to sign up. We will\n"
+"    send you an email with details on how to reset your password.\n"
+"\n"
+"  "
+msgstr ""
+
 msgid "To disable two-factor authentication for your login, enter your current password."
 msgstr ""
 
@@ -7114,17 +7186,6 @@ msgstr ""
 msgid "Reset"
 msgstr ""
 
-msgid "Reset Password"
-msgstr ""
-
-msgid ""
-"\n"
-"    Enter the email address you used to sign up. We will\n"
-"    send you an email with details on how to reset your password.\n"
-"\n"
-"  "
-msgstr ""
-
 msgid "Pick a new password and enter it below. A good password will be at least eight characters long and have a mixture of upper and lower case letters."
 msgstr ""
 
@@ -7159,9 +7220,6 @@ msgid ""
 "              Are you sure you want to delete the login %(name)s?\n"
 "\n"
 "            "
-msgstr ""
-
-msgid "My Tickets"
 msgstr ""
 
 msgid "All done!"

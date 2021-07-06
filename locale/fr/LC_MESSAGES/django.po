@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-07-01 21:07+0000\n"
+"POT-Creation-Date: 2021-07-06 17:16+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2020\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -3335,6 +3335,24 @@ msgstr ""
 msgid "Deleted user {username}"
 msgstr "Utilisateur supprimé {username}"
 
+#, fuzzy
+#| msgid "Alert Email"
+msgid "Your Email"
+msgstr "alerte Email"
+
+#, fuzzy
+#| msgid "POST Required"
+msgid "Password Recovery"
+msgstr "POST requis"
+
+msgid "An Email has been sent to your account with further instructions."
+msgstr ""
+
+#, fuzzy
+#| msgid "POST Required"
+msgid "Password Recovery Request"
+msgstr "POST requis"
+
 msgid "First Name"
 msgstr "Prénom"
 
@@ -3877,6 +3895,14 @@ msgstr "Ouvert"
 msgid "Closed"
 msgstr "Fermé"
 
+#, fuzzy
+#| msgid "Tickets"
+msgid "My Tickets"
+msgstr "Billets"
+
+msgid "Unassigned"
+msgstr ""
+
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr "La connexion d'une adresse e-mail transmet tous les nouveaux tickets et leurs réponses à cette adresse e-mail. Vous pourrez y répondre directement et vos réponses seront envoyées au contact."
 
@@ -3957,9 +3983,6 @@ msgid "Connect %(ticketer)s"
 msgstr "Connecter %(ticketer)s"
 
 msgid "Notes can only be seen by the support team"
-msgstr ""
-
-msgid "Unassigned"
 msgstr ""
 
 msgid "Your ticketing service has been deleted."
@@ -6663,6 +6686,52 @@ msgstr ""
 "Carte de crédit: %(cc_type)s X%(cc_last4)s\n"
 "\n"
 
+#, python-format
+msgid ""
+"\n"
+"\n"
+"<br/>\n"
+"Hi from %(hostname)s,\n"
+"<br/>\n"
+"<br/>\n"
+"Someone has requested that the password for this email address be reset.\n"
+"<br/>\n"
+"<br/>\n"
+"Clicking on the following link will allow you to reset the password for the account %(account_name)s:\n"
+"<br/>\n"
+"<a href='%(brand_link)s%(path)s'>Reset password</a>.\n"
+"<br/>\n"
+"<br/>\n"
+"If you did not request this, don't worry, this email has only been sent to you and your account remains secure.\n"
+"<br/>\n"
+"Thank you.\n"
+"<br/>\n"
+"<br/>\n"
+"Please do not reply to this email.\n"
+"<br/>\n"
+"<br/>\n"
+msgstr ""
+
+#, python-format
+msgid ""
+"\n"
+"\n"
+"Hi from %(hostname)s,\n"
+"\n"
+"Someone has requested that the password for this email address be reset.\n"
+"\n"
+"Clicking on the following link will allow you to reset the password for the account %(account_name)s:\n"
+"\n"
+"%(brand_link)s%(path)s\n"
+"\n"
+"If you did not request this, don't worry, this email has only been sent to you and your account remains secure.\n"
+"\n"
+"Thank you.\n"
+"\n"
+"Please do not reply to this email.\n"
+"\n"
+msgstr ""
+
 #, fuzzy, python-format
 #| msgid "A connection to a Twilio account is required"
 msgid "Connected to your Chatbase account as agent <b>%(agent)s</b>."
@@ -7145,6 +7214,22 @@ msgid ""
 msgstr ""
 "\n"
 "    Votre adresse e-mail est <b>%(email)s</b>.\n"
+"  "
+
+msgid "Reset Password"
+msgstr "Réinitialiser le mot de passe"
+
+msgid ""
+"\n"
+"    Enter the email address you used to sign up. We will\n"
+"    send you an email with details on how to reset your password.\n"
+"\n"
+"  "
+msgstr ""
+"\n"
+"    Saisissez l'adresse e-mail que vous avez utilisée pour vous inscrire. Nous allons\n"
+"    vous envoyer un e-mail avec des détails sur la réinitialisation de votre mot de passe.\n"
+"\n"
 "  "
 
 msgid "To disable two-factor authentication for your login, enter your current password."
@@ -7651,22 +7736,6 @@ msgstr "Veuillez contacter l'administrateur du site Web pour réinitialiser votr
 msgid "Reset"
 msgstr "Réinitialiser"
 
-msgid "Reset Password"
-msgstr "Réinitialiser le mot de passe"
-
-msgid ""
-"\n"
-"    Enter the email address you used to sign up. We will\n"
-"    send you an email with details on how to reset your password.\n"
-"\n"
-"  "
-msgstr ""
-"\n"
-"    Saisissez l'adresse e-mail que vous avez utilisée pour vous inscrire. Nous allons\n"
-"    vous envoyer un e-mail avec des détails sur la réinitialisation de votre mot de passe.\n"
-"\n"
-"  "
-
 msgid "Pick a new password and enter it below. A good password will be at least eight characters long and have a mixture of upper and lower case letters."
 msgstr "Choisissez un nouveau mot de passe et entrez-le ci-dessous. Un bon mot de passe comprendra au moins huit caractères et un mélange de lettres majuscules et minuscules."
 
@@ -7710,11 +7779,6 @@ msgstr ""
 "              Voulez-vous vraiment supprimer les identifiants %(name)s?\n"
 "\n"
 "            "
-
-#, fuzzy
-#| msgid "Tickets"
-msgid "My Tickets"
-msgstr "Billets"
 
 msgid "All done!"
 msgstr ""
