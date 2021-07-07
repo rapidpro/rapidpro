@@ -4805,6 +4805,11 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                     {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            elif not isinstance(conf, dict):
+                return Response(
+                    {"errors": {"variables": _("'{}' must be an object.").format(variable)}},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             variable_uuid = str(existing_variables[variable])
             variable_filters[variable_uuid] = {"key": variable}
             if type(conf.get("top")) is int:
