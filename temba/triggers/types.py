@@ -79,7 +79,7 @@ class ScheduledTriggerType(TriggerType):
         contacts = JSONField(
             label=_("Contacts To Include"),
             required=False,
-            help_text=_("Additional specific contacts to include."),
+            help_text=_("Additional specific contacts that will be started in the flow."),
             widget=OmniboxChoice(attrs={"placeholder": _("Optional: Select contacts"), "contacts": True}),
         )
 
@@ -103,7 +103,7 @@ class ScheduledTriggerType(TriggerType):
             return cleaned_data
 
         class Meta(BaseTriggerForm.Meta):
-            fields = ScheduleFormMixin.Meta.fields + BaseTriggerForm.Meta.fields + ("contacts",)
+            fields = ScheduleFormMixin.Meta.fields + ("flow", "groups", "contacts", "exclude_groups")
 
     code = Trigger.TYPE_SCHEDULE
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND)
