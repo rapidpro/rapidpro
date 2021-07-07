@@ -4442,7 +4442,7 @@ class ReportEndpointMixin:
 
     def get_paginated_queryset(self, queryset):
         pagination_class: CursorPagination = getattr(self, "pagination_class", CreatedOnCursorPagination)()
-        pagination_class.page_size_query_param = "page_size"
+        pagination_class.page_size_query_param = getattr(self, "page_size_query_param", "page_size")
         pagination_class.page_size = getattr(self, "chunk_size", 2000)
         pagination_class.max_page_size = 2000
         pagination_class.paginate_queryset(queryset, self.request, self)
@@ -4483,10 +4483,10 @@ class ReportEndpointMixin:
     def get_query_parameter(self, name, default=None):
         return self.request.data.get(name, self.request.query_params.get(name, default))
 
-    def get_search_query_filter(self, org, prefix=""):
-        search_query, qs_filter = self.get_query_parameter("search_query", ""), Q()
+    def get_contact_ids_by_query(self, org):
+        search_query = self.get_query_parameter("search_query", "")
         if not search_query:
-            return qs_filter
+            return []
 
         parsed_search_query = parse_query(org, search_query)
         self.applied_filters["search_query"] = parsed_search_query.query
@@ -4499,9 +4499,7 @@ class ReportEndpointMixin:
         except IndexError:
             pass
 
-        contact_ids = query_contact_ids_from_elasticsearch(org, elastic_query_conf)
-        qs_filter = Q(**{f"{prefix}id__in": contact_ids}) if contact_ids else Q(**{f"{prefix}id": 0})
-        return qs_filter
+        return query_contact_ids_from_elasticsearch(org, elastic_query_conf)
 
     def get_name_uuid_filters(self, field_name, key, prefix="", exclude=False):
         qs_filter, __ = Q(), ("__" if key else "")
@@ -4537,7 +4535,6 @@ class ReportEndpointMixin:
         org = self.request.user.get_org()
 
         if not limited_filters:
-            arg_filters.append(self.get_search_query_filter(org, prefix=filter_prefix))
             arg_filters.append(self.get_name_uuid_filters("flow", "runs__flow", prefix=filter_prefix))
             arg_filters.append(self.get_datetime_filters("created", "created_on", org, filter_prefix))
             arg_filters.append(self.get_datetime_filters("modified", "modified_on", org, filter_prefix))
@@ -4552,6 +4549,31 @@ class ReportEndpointMixin:
             return arg_filters
 
         contacts = Contact.objects.filter(org_id=org.id).filter(*arg_filters).distinct()
+
+        # perform search by query in ElasticSearch and join the result to the filter in DB
+        if not limited_filters:
+            queried_contact_ids = self.get_contact_ids_by_query(org, prefix=filter_prefix)
+            if queried_contact_ids:
+                contact_id_pairs = ",".join(
+                    str((seq, model_id)) for seq, model_id in enumerate(queried_contact_ids, start=1)
+                )
+
+                class ContactIDFilterJoin:
+                    table_name = "t"
+                    join_type = "INNER JOIN"
+                    parent_alias = "contacts_contact"
+                    filtered_relation = None
+                    nullable = None
+
+                    @classmethod
+                    def as_sql(cls, *args):
+                        return f"INNER JOIN (VALUES {contact_id_pairs}) t (seq, id) ON contacts_contact.id = t.id", []
+
+                contacts.query.join(ContactIDFilterJoin)
+
+            elif self.get_query_parameter("search_query"):
+                contacts = Contact.objects.none()
+
         return contacts
 
 
@@ -4884,7 +4906,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
     A **GET** returns numbers of sent, received, and failed messages.
 
-    * **flow** - UUID of flow to select only messages related to specific flow
+    * **flow** - UUID of flow to select only messages related to specific flow (required)
     * **exclude** - UUID or Name of contact group, messages of contacts from which are not supposed to be included in the report
     * **channel** - UUID or Name of channel to select only messages related to specific channel
     * **after** - Date, excludes all messages from the report that were created earlier a certain date
@@ -4929,28 +4951,71 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     """
 
     permission = "orgs.org_api"
+    page_size_query_param = "page_size"
     pagination_class = CreatedOnCursorPagination
 
-    def get_flow_messages(self, org, flow, qs):
-        runs = FlowRun.objects.filter(
+    def filter_and_paginate_qs_by_flow(self, org, flow, qs):
+        # filter and paginate flow runs
+        runs = flow.runs.filter(
             self.get_datetime_filters("", "exited_on", org),
             org=org,
-            flow__uuid=flow,
             status__in=[
                 FlowRun.STATUS_COMPLETED,
                 FlowRun.STATUS_INTERRUPTED,
                 FlowRun.STATUS_FAILED,
                 FlowRun.STATUS_EXPIRED,
             ],
-        )
-        messages_uuids = []
-        for run in runs:
-            messages_uuids += [
-                evt["msg"].get("uuid")
-                for evt in run.get_msg_events()
-                if evt["msg"].get("uuid") not in [None, "None", ""]
-            ]
-        return qs.filter(uuid__in=messages_uuids)
+        ).only("flow_id", "events", "modified_on")
+        self.configure_paginator_for_flow_runs(runs)
+        runs, next_page = self.get_paginated_queryset(runs)
+
+        # get messages uuids from filtered runs
+        messages_uuids = [
+            evt["msg"].get("uuid")
+            for run in runs
+            for evt in run.get_msg_events()
+            if evt["msg"].get("uuid") not in [None, "None", ""]
+        ]
+
+        # filter messages by uuids
+        if messages_uuids:
+            msgs_uuid_pairs = ",".join(
+                str((seq, model_uuid)) for seq, model_uuid in enumerate(messages_uuids, start=1)
+            )
+
+            class MessagesUUIDFilterJoin:
+                table_name = "t"
+                join_type = "INNER JOIN"
+                parent_alias = "msgs_msg"
+                filtered_relation = None
+                nullable = None
+
+                @classmethod
+                def as_sql(cls, *args):
+                    return f"INNER JOIN (VALUES {msgs_uuid_pairs}) t (seq, uuid) ON msgs_msg.uuid = t.uuid::uuid", []
+
+            qs.query.join(MessagesUUIDFilterJoin)
+        else:
+            qs = Msg.objects.none()
+        qs = qs.only("created_on").annotate(ds=Concat("direction", "status"))
+        return qs, next_page
+
+    def configure_paginator_for_flow_runs(self, flow_run_qs):
+        run = flow_run_qs.first()
+        if not run:
+            return
+        msgs_count = len([1 for evt in run.get_msg_events() if evt["msg"].get("uuid") not in [None, "None", ""]])
+        page_size = max(self.get_page_size() // msgs_count, 1)
+        setattr(self, "chunk_size", page_size)
+        setattr(self, "pagination_class", ModifiedOnCursorPagination)
+        setattr(self, "page_size_query_param", "__removed_page_size")
+
+    def get_page_size(self):
+        page_size = self.request.query_params.get("page_size") or 2000
+        try:
+            return int(page_size)
+        except ValueError:
+            return 2000
 
     @csv_response_wrapper
     def get(self, request, *args, **kwargs):
@@ -4958,15 +5023,21 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         queryset = Msg.objects.filter(org=org)
         self.applied_filters, arg_filters = {}, []
 
-        flow = self.get_query_parameter("flow")
-        queryset = self.get_flow_messages(org, flow, queryset) if flow else queryset
         arg_filters.append(self.get_name_uuid_filters("exclude", "contact__all_groups", exclude=True))
         arg_filters.append(self.get_name_uuid_filters("channel", "channel"))
         arg_filters.append(self.get_datetime_filters("", "created_on", org))
         arg_filters = [_filter for _filter in arg_filters if _filter]
+        queryset = queryset.filter(*arg_filters)
 
-        queryset = queryset.filter(*arg_filters).only("created_on").annotate(ds=Concat("direction", "status"))
-        current_page, next_page = self.get_paginated_queryset(queryset)
+        try:
+            flow__uuid = self.get_query_parameter("flow")
+            flow = Flow.objects.get(org=org, uuid=flow__uuid)
+            current_page, next_page = self.filter_and_paginate_qs_by_flow(org, flow, queryset)
+        except Flow.DoesNotExist:
+            return Response(
+                {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
+            )
+
         counter = Counter([rec.ds for rec in current_page])
         results = dict(total_inbound_messages=0, total_outbound_messages=0, total_outbound_message_failures=0)
         for msg_type, count in counter.items():
@@ -4991,7 +5062,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
             slug="messages-report",
             fields=[
                 dict(
-                    name="flow", required=False, help="UUID of flow to select only messages related to specific flow"
+                    name="flow", required=True, help="UUID of flow to select only messages related to specific flow"
                 ),
                 dict(name="after", required=False, help="Select messages since specific date"),
                 dict(name="before", required=False, help="Select messages until specific date"),
