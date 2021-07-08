@@ -104,6 +104,10 @@ class ScheduledTriggerType(TriggerType):
 
         class Meta(BaseTriggerForm.Meta):
             fields = ScheduleFormMixin.Meta.fields + ("flow", "groups", "contacts", "exclude_groups")
+            help_texts = {
+                "groups": _("The groups that will be started in the flow."),
+                "exclude_groups": _("Any contacts in these groups will not be started in the flow."),
+            }
 
     code = Trigger.TYPE_SCHEDULE
     allowed_flow_types = (Flow.TYPE_MESSAGE, Flow.TYPE_VOICE, Flow.TYPE_BACKGROUND)

@@ -42,14 +42,14 @@ class BaseTriggerForm(forms.ModelForm):
     groups = TembaMultipleChoiceField(
         queryset=ContactGroup.user_groups.none(),
         label=_("Groups To Include"),
-        help_text=_("The groups that will be started in the flow."),
+        help_text=_("Only includes contacts in these groups."),
         required=False,
         widget=SelectMultipleWidget(attrs={"icons": True, "placeholder": _("Optional: Select contact groups")}),
     )
     exclude_groups = TembaMultipleChoiceField(
         queryset=ContactGroup.user_groups.none(),
         label=_("Groups To Exclude"),
-        help_text=_("Any contacts in these groups will not be started in the flow."),
+        help_text=_("Excludes contacts in these groups."),
         required=False,
         widget=SelectMultipleWidget(attrs={"icons": True, "placeholder": _("Optional: Select contact groups")}),
     )
