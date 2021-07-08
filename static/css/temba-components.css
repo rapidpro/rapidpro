@@ -52,7 +52,6 @@ html {
   --color-text-light: rgba(255, 255, 255, 1);
   --color-text-dark: rgba(0, 0, 0, 0.5);
   --color-text-dark-secondary: rgba(0, 0, 0, 0.25);
-  --color-text-help: rgba(0, 0, 0, 0.35);
 
   /* solid overlays with text */
   --color-overlay-dark: rgba(0, 0, 0, 0.2);
@@ -95,17 +94,21 @@ html {
   
   --transition-speed: 200ms;
   --event-padding: 0.5em 1em;
-  --help-text-margin-left: 4px;
-  --help-text-margin-top: 0px;
   --temba-select-selected-padding: 9px;
   --temba-select-selected-line-height: 16px;
   --temba-select-selected-font-size: 13px;
 
+  --help-text-margin-top: 0px;
+  --help-text-margin-left: 0.3em;
+  --help-text-size: 0.85em;
+  --color-text-help: rgb(120,120,120);
+  --label-size: 14px;
+  
   --header-bg: var(--color-primary-dark);
   --header-text: var(--color-text-light);
   
   --temba-textinput-padding: 9px;
-  --temba-textinput-font-size: var(--font-size);
+  --temba-textinput-font-size: 13px;
 
   font-size: var(--font-size);
   font-weight: 300;
