@@ -14,18 +14,22 @@ class Command(BaseCommand):
         parser.add_argument("--token", type=str, action="store", dest="token", required=True)
 
     def handle(self, token, *args, **kwargs):
-        self.extract_default_translation()
-
         self.client = TransifexClient(token)
 
         for lang, name in settings.LANGUAGES:
             if lang != settings.DEFAULT_LANGUAGE:
                 self.fetch_translation(lang)
 
+        self.stdout.write(f"running makemessages to extract new strings...")
+
+        self.extract_default_translation()
+
+        self.stdout.write(f"compiling MO files...")
+
         # rebuild the .mo files too
         subprocess.check_output("./manage.py compilemessages", shell=True)
 
-        self.stdout.write(f"mo files updated")
+        self.stdout.write(f"🍾 finished")
 
     def extract_default_translation(self):
         """
