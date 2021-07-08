@@ -4552,7 +4552,7 @@ class ReportEndpointMixin:
 
         # perform search by query in ElasticSearch and join the result to the filter in DB
         if not limited_filters:
-            queried_contact_ids = self.get_contact_ids_by_query(org, prefix=filter_prefix)
+            queried_contact_ids = self.get_contact_ids_by_query(org)
             if queried_contact_ids:
                 contact_id_pairs = ",".join(
                     str((seq, model_id)) for seq, model_id in enumerate(queried_contact_ids, start=1)
@@ -4827,6 +4827,11 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                     {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            elif not isinstance(conf, dict):
+                return Response(
+                    {"errors": {"variables": _("'{}' must be an object.").format(variable)}},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             variable_uuid = str(existing_variables[variable])
             variable_filters[variable_uuid] = {"key": variable}
             if type(conf.get("top")) is int:
@@ -4999,7 +5004,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         run = flow_run_qs.first()
         if not run:
             return
-        msgs_count = len([1 for evt in run.get_msg_events() if evt["msg"].get("uuid") not in [None, "None", ""]])
+        msgs_count = len([1 for evt in run.get_msg_events() if evt["msg"].get("uuid") not in [None, "None", ""]]) or 1
         page_size = max(self.get_page_size() // msgs_count, 1)
         setattr(self, "chunk_size", page_size)
         setattr(self, "pagination_class", ModifiedOnCursorPagination)
