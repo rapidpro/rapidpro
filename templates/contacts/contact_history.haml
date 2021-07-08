@@ -155,12 +155,23 @@
           Run result <b>{{ name }}</b> updated to <b>{{ value }}</b> with category <b>{{ category }}</b>
       -elif event.type == 'ticket_note_added'
         {{ event.note }}
+      -elif event.type == 'ticket_assigned'
+
+        -if event.assignee.id == event.created_by.id
+          -blocktrans trimmed with assigner=event.created_by|history_user assignee=event.assignee|history_user subject=event.ticket.subject
+            <b>{{assigner}}</b> took <b>{{subject}}</b>
+        -else
+          -blocktrans trimmed with assigner=event.created_by|history_user assignee=event.assignee|history_user subject=event.ticket.subject
+            <b>{{assigner}}</b> assigned <b>{{subject}}</b> to <b>{{ assignee }}</b>
       -elif event.type == 'ticket_opened'
         -blocktrans trimmed with subject=event.ticket.subject
-          Opened ticket with subject <b>{{ subject }}</b>
+          Opened ticket <b>{{ subject }}</b>
+      -elif event.type == 'ticket_reopened'
+        -blocktrans trimmed with subject=event.ticket.subject
+          Reopened ticket <b>{{ subject }}</b>
       -elif event.type == 'ticket_closed'
         -blocktrans trimmed with subject=event.ticket.subject
-          Closed ticket with subject <b>{{ subject }}</b>
+          Closed ticket <b>{{ subject }}</b>
       -elif event.type == 'webhook_called'
         -if event.status == "success"
           -trans "Successfully called"
