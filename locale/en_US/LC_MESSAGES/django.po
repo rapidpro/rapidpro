@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-07-05 16:25+0000\n"
+"POT-Creation-Date: 2021-07-08 17:35+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3812,15 +3812,17 @@ msgstr ""
 msgid "Closed"
 msgstr ""
 
+msgid "My Tickets"
+msgstr ""
+
+msgid "Unassigned"
+msgstr ""
+
 msgid "Enabling this will allow you to handle tickets within {{brand.name}}."
 msgstr ""
 
 #, python-format
 msgid "This will enable handling tickets internally in %(brand)s."
-msgstr ""
-
-#, python-format
-msgid "%(brand)s Tickets"
 msgstr ""
 
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
@@ -3905,9 +3907,6 @@ msgstr ""
 msgid "Notes can only be seen by the support team"
 msgstr ""
 
-msgid "Unassigned"
-msgstr ""
-
 msgid "Your ticketing service has been deleted."
 msgstr ""
 
@@ -3968,13 +3967,19 @@ msgstr ""
 msgid "Contacts To Include"
 msgstr ""
 
-msgid "Additional specific contacts to include."
+msgid "Additional specific contacts that will be started in the flow."
 msgstr ""
 
 msgid "Optional: Select contacts"
 msgstr ""
 
 msgid "Must provide at least one group or contact to include."
+msgstr ""
+
+msgid "The groups that will be started in the flow."
+msgstr ""
+
+msgid "Any contacts in these groups will not be started in the flow."
 msgstr ""
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
@@ -6810,6 +6815,17 @@ msgid ""
 "  "
 msgstr ""
 
+msgid "Reset Password"
+msgstr ""
+
+msgid ""
+"\n"
+"    Enter the email address you used to sign up. We will\n"
+"    send you an email with details on how to reset your password.\n"
+"\n"
+"  "
+msgstr ""
+
 msgid "To disable two-factor authentication for your login, enter your current password."
 msgstr ""
 
@@ -7183,17 +7199,6 @@ msgstr ""
 msgid "Reset"
 msgstr ""
 
-msgid "Reset Password"
-msgstr ""
-
-msgid ""
-"\n"
-"    Enter the email address you used to sign up. We will\n"
-"    send you an email with details on how to reset your password.\n"
-"\n"
-"  "
-msgstr ""
-
 msgid "Pick a new password and enter it below. A good password will be at least eight characters long and have a mixture of upper and lower case letters."
 msgstr ""
 
@@ -7230,9 +7235,6 @@ msgid ""
 "            "
 msgstr ""
 
-msgid "My Tickets"
-msgstr ""
-
 msgid "All done!"
 msgstr ""
 
@@ -7253,6 +7255,10 @@ msgid "Ticketing Services let a human agent take over communication for a contac
 msgstr ""
 
 msgid "Select the ticketing service you want to connect below to get started."
+msgstr ""
+
+#, python-format
+msgid "%(brand)s Tickets"
 msgstr ""
 
 msgid "No ticketing services are available."
