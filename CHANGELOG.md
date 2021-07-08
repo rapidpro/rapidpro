@@ -1,3 +1,7 @@
+v6.4.1
+----------
+ * Fix unassigning tickets
+
 v6.4.0
 ----------
  * Update README

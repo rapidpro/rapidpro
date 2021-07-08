@@ -634,8 +634,8 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
                 "repeat_days_of_week",
                 "flow",
                 "groups",
-                "exclude_groups",
                 "contacts",
+                "exclude_groups",
             ],
         )
 
@@ -686,8 +686,8 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
                 "repeat_days_of_week": ["M", "F"],
                 "flow": flow1.id,
                 "groups": [group1.id],
-                "exclude_groups": [group2.id],
                 "contacts": omnibox_serialize(self.org, [], [contact1], json_encode=True),
+                "exclude_groups": [group2.id],
             },
             new_obj_query=Trigger.objects.filter(trigger_type="S", flow=flow1),
             success_status=200,
@@ -710,8 +710,8 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
                 "repeat_days_of_week": ["M", "F"],
                 "flow": flow1.id,
                 "groups": [group1.id],
-                "exclude_groups": [group2.id],
                 "contacts": omnibox_serialize(self.org, [], [contact1], json_encode=True),
+                "exclude_groups": [group2.id],
             },
             new_obj_query=Trigger.objects.filter(trigger_type="S", flow=flow1).exclude(id=trigger.id),
             success_status=200,
@@ -1104,8 +1104,8 @@ class TriggerCRUDLTest(TembaTest, CRUDLTestMixin):
                 "repeat_days_of_week": ["M", "F"],
                 "flow": flow1.id,
                 "groups": [group1],
-                "exclude_groups": [group2],
                 "contacts": [{"id": str(contact1.uuid), "name": "Jim", "type": "contact", "urn": "0788 987 651"}],
+                "exclude_groups": [group2],
             },
         )
 
