@@ -18,25 +18,24 @@ from temba.utils.views import BulkActionMixin
 from .models import Campaign, CampaignEvent
 
 
-class UpdateCampaignForm(forms.ModelForm):
+class CampaignForm(forms.ModelForm):
     group = TembaChoiceField(
         queryset=ContactGroup.user_groups.none(),
         empty_label=None,
-        widget=SelectWidget(attrs={"placeholder": _("Select a group to base the campaign on"), "searchable": True}),
+        widget=SelectWidget(attrs={"placeholder": _("Select group"), "searchable": True}),
+        label=_("Group"),
+        help_text=_("Only contacts in this group will be included in this campaign's events."),
     )
 
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs["user"]
-        del kwargs["user"]
-
+    def __init__(self, user, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["group"].initial = self.instance.group
-        self.fields["group"].queryset = ContactGroup.get_user_groups(self.user.get_org(), ready_only=False)
+
+        self.fields["group"].queryset = ContactGroup.get_user_groups(user.get_org(), ready_only=False)
 
     class Meta:
         model = Campaign
         fields = ("name", "group")
-
+        labels = {"name": _("Name")}
         widgets = {"name": InputWidget()}
 
 
@@ -47,7 +46,7 @@ class CampaignCRUDL(SmartCRUDL):
     class Update(OrgObjPermsMixin, ModalMixin, SmartUpdateView):
         fields = ("name", "group")
         success_message = ""
-        form_class = UpdateCampaignForm
+        form_class = CampaignForm
 
         def pre_process(self, request, *args, **kwargs):
             campaign_id = kwargs.get("pk")
@@ -152,27 +151,6 @@ class CampaignCRUDL(SmartCRUDL):
             return links
 
     class Create(OrgPermsMixin, ModalMixin, SmartCreateView):
-        class CampaignForm(forms.ModelForm):
-
-            group = TembaChoiceField(
-                queryset=ContactGroup.user_groups.none(),
-                required=True,
-                empty_label=None,
-                widget=SelectWidget(
-                    attrs={"placeholder": _("Select a group to base the campaign on"), "searchable": True}
-                ),
-            )
-
-            def __init__(self, user, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.fields["group"].queryset = ContactGroup.get_user_groups(user.get_org())
-
-            class Meta:
-                model = Campaign
-                fields = ("name", "group")
-
-                widgets = {"name": InputWidget()}
-
         fields = ("name", "group")
         form_class = CampaignForm
         success_message = ""
