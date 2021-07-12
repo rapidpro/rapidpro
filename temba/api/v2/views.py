@@ -4554,9 +4554,6 @@ class ReportEndpointMixin:
         if not limited_filters:
             queried_contact_ids = self.get_contact_ids_by_query(org)
             if queried_contact_ids:
-                contact_id_pairs = ",".join(
-                    str((seq, model_id)) for seq, model_id in enumerate(queried_contact_ids, start=1)
-                )
 
                 class ContactIDFilterJoin:
                     table_name = "t"
@@ -4567,7 +4564,7 @@ class ReportEndpointMixin:
 
                     @classmethod
                     def as_sql(cls, *args):
-                        return f"INNER JOIN (VALUES {contact_id_pairs}) t (seq, id) ON contacts_contact.id = t.id", []
+                        return "INNER JOIN (SELECT unnest(%s::int[]) as id) x USING(id)", [queried_contact_ids]
 
                 contacts.query.join(ContactIDFilterJoin)
 
@@ -4647,7 +4644,7 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
     @csv_response_wrapper
     def get(self, request, *args, **kwargs):
         try:
-            contacts = self.get_contacts_qs().only("modified_on")
+            contacts = self.get_contacts_qs().only("modified_on").using("read_only_db")
             current_page, next_page = self.get_paginated_queryset(contacts)
             count = len(current_page)
             response_data = {"next": next_page, **self.applied_filters, "results": [{"total_unique_contacts": count}]}
@@ -4799,14 +4796,16 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         org = self.request.user.get_org()
         counts = defaultdict(lambda: Counter())
         try:
-            contacts = self.get_contacts_qs()
+            contacts = self.get_contacts_qs().using("read_only_db")
         except SearchException as e:
             return Response({"error": e.message}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": e.args[0] if e.args else "Request failed!"}, status=status.HTTP_400_BAD_REQUEST)
 
         requested_variables = self.request.GET.get("variables", self.request.data.get("variables"))
-        existing_variables = dict(ContactField.user_fields.filter(org=org).values_list("key", "uuid"))
+        existing_variables = dict(
+            ContactField.user_fields.using("read_only_db").filter(org=org).values_list("key", "uuid")
+        )
         variable_filters = {}
         top_ordering = {}
         if not (requested_variables and type(requested_variables) is dict):
@@ -4956,16 +4955,20 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
     def filter_and_paginate_qs_by_flow(self, org, flow, qs):
         # filter and paginate flow runs
-        runs = flow.runs.filter(
-            self.get_datetime_filters("", "exited_on", org),
-            org=org,
-            status__in=[
-                FlowRun.STATUS_COMPLETED,
-                FlowRun.STATUS_INTERRUPTED,
-                FlowRun.STATUS_FAILED,
-                FlowRun.STATUS_EXPIRED,
-            ],
-        ).only("flow_id", "events", "modified_on")
+        runs = (
+            flow.runs.filter(
+                self.get_datetime_filters("", "exited_on", org),
+                org=org,
+                status__in=[
+                    FlowRun.STATUS_COMPLETED,
+                    FlowRun.STATUS_INTERRUPTED,
+                    FlowRun.STATUS_FAILED,
+                    FlowRun.STATUS_EXPIRED,
+                ],
+            )
+            .only("flow_id", "events", "modified_on")
+            .using("read_only_db")
+        )
         self.configure_paginator_for_flow_runs(runs)
         runs, next_page = self.get_paginated_queryset(runs)
 
@@ -4979,9 +4982,6 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         # filter messages by uuids
         if messages_uuids:
-            msgs_uuid_pairs = ",".join(
-                str((seq, model_uuid)) for seq, model_uuid in enumerate(messages_uuids, start=1)
-            )
 
             class MessagesUUIDFilterJoin:
                 table_name = "t"
@@ -4992,12 +4992,12 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
                 @classmethod
                 def as_sql(cls, *args):
-                    return f"INNER JOIN (VALUES {msgs_uuid_pairs}) t (seq, uuid) ON msgs_msg.uuid = t.uuid::uuid", []
+                    return "INNER JOIN (SELECT unnest(%s::uuid[]) as uuid) x USING(uuid)", [messages_uuids]
 
             qs.query.join(MessagesUUIDFilterJoin)
         else:
             qs = Msg.objects.none()
-        qs = qs.only("created_on").annotate(ds=Concat("direction", "status"))
+        qs = qs.only("created_on").annotate(ds=Concat("direction", "status")).using("read_only_db")
         return qs, next_page
 
     def configure_paginator_for_flow_runs(self, flow_run_qs):
@@ -5020,7 +5020,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     @csv_response_wrapper
     def get(self, request, *args, **kwargs):
         org = self.request.user.get_org()
-        queryset = Msg.objects.filter(org=org)
+        queryset = Msg.objects.filter(org__id=org.id).using("read_only_db")
         self.applied_filters, arg_filters = {}, []
 
         arg_filters.append(self.get_name_uuid_filters("exclude", "contact__all_groups", exclude=True))
@@ -5031,7 +5031,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         try:
             flow__uuid = self.get_query_parameter("flow")
-            flow = Flow.objects.get(org=org, uuid=flow__uuid)
+            flow = Flow.objects.using("read_only_db").get(org__id=org.id, uuid=flow__uuid)
             current_page, next_page = self.filter_and_paginate_qs_by_flow(org, flow, queryset)
         except Flow.DoesNotExist:
             return Response(
@@ -5061,9 +5061,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
             url=reverse("api.v2.messages_report"),
             slug="messages-report",
             fields=[
-                dict(
-                    name="flow", required=True, help="UUID of flow to select only messages related to specific flow"
-                ),
+                dict(name="flow", required=True, help="UUID of flow to select only messages related to specific flow"),
                 dict(name="after", required=False, help="Select messages since specific date"),
                 dict(name="before", required=False, help="Select messages until specific date"),
                 dict(name="channel", required=False, help="Select messages sent via specific channel"),
@@ -5088,9 +5086,12 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 class FlowReportFiltersMixin(ReportEndpointMixin):
     chunk_size = 2000
 
-    def get_runs(self, org, flow) -> QuerySet:
+    def get_runs(self, with_flow=False) -> QuerySet:
+        org = self.request.user.get_org()
+        flow = Flow.objects.using("read_only_db").get(org__id=org.id, uuid=self.get_query_parameter("flow"))
+
         self.applied_filters = {"flow": flow.uuid}
-        queryset = FlowRun.objects.filter(flow_id=flow.id)
+        queryset = FlowRun.objects.filter(flow_id=flow.id).using("read_only_db")
 
         if {"channel", "exclude", "group"}.intersection(
             [*self.request.query_params.keys(), *self.request.data.keys()]
@@ -5110,7 +5111,7 @@ class FlowReportFiltersMixin(ReportEndpointMixin):
                 queryset = _filter(filter_value)
                 self.applied_filters[name] = filter_value
 
-        return queryset
+        return (flow, queryset) if with_flow else queryset
 
 
 class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
@@ -5174,27 +5175,24 @@ class FlowReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
 
     @csv_response_wrapper
     def get(self, request, *args, **kwargs):
-        org = self.request.user.get_org()
         try:
-            flow = Flow.objects.get(org=org, uuid=self.request.data.get("flow", self.request.query_params.get("flow")))
+            runs = self.get_runs().only("contact_id", "exit_type", "modified_on")
+            contacts, counter, (current_page, next_page) = set(), Counter(), self.get_paginated_queryset(runs)
+            for run in current_page:
+                contacts.add(run.contact_id)
+                counter[run.exit_type] += 1
+
+            results = {
+                "total_contacts": len(contacts),
+                "total_completes": counter[FlowRun.EXIT_TYPE_COMPLETED],
+                "total_expired": counter[FlowRun.EXIT_TYPE_EXPIRED],
+                "total_interrupts": counter[FlowRun.STATUS_INTERRUPTED],
+            }
+            return Response({**self.applied_filters, "next": next_page, "results": [results]})
         except Flow.DoesNotExist:
             return Response(
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
-
-        runs = self.get_runs(org, flow).only("contact_id", "exit_type", "modified_on")
-        contacts, counter, (current_page, next_page) = set(), Counter(), self.get_paginated_queryset(runs)
-        for run in current_page:
-            contacts.add(run.contact_id)
-            counter[run.exit_type] += 1
-
-        results = {
-            "total_contacts": len(contacts),
-            "total_completes": counter[FlowRun.EXIT_TYPE_COMPLETED],
-            "total_expired": counter[FlowRun.EXIT_TYPE_EXPIRED],
-            "total_interrupts": counter[FlowRun.STATUS_INTERRUPTED],
-        }
-        return Response({**self.applied_filters, "next": next_page, "results": [results]})
 
     @staticmethod
     def csv_convertor(result, response):
@@ -5316,66 +5314,66 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
 
     @csv_response_wrapper
     def post(self, request, *args, **kwargs):
-        org = self.request.user.get_org()
         try:
-            flow = Flow.objects.get(org=org, uuid=self.request.data.get("flow"))
+            flow, runs = self.get_runs(with_flow=True)
+            runs = runs.only("results", "modified_on")
+            counts, (current_page, next_page) = defaultdict(lambda: Counter()), self.get_paginated_queryset(runs)
+
+            requested_variables = self.request.data.get("variables")
+            existing_variables = {result.get("key", ""): result for result in flow.metadata.get("results", [])}
+            variable_filters = {}
+            top_ordering = {}
+            if not (requested_variables and type(requested_variables) is dict):
+                return Response({"errors": {"variables": _("Filter 'variables' invalid or not provided.")}})
+
+            for variable, conf in requested_variables.items():
+                if variable not in existing_variables:
+                    return Response(
+                        {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if not isinstance(conf, dict):
+                    return Response(
+                        {
+                            "errors": {
+                                "variables": {
+                                    variable: _(
+                                        "Wrong filter configuration provided. "
+                                        "There must be object with two optional parameters, format and top."
+                                    )
+                                }
+                            }
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                _format = conf.get("format", "").lower()
+                if _format not in ["category", "value"]:
+                    _format = "category"
+                variable_filters[variable] = {"format": _format}
+                if _format == "value":
+                    variable_filters[variable]["top"] = conf.get("top")
+                if _format == "category":
+                    counts[variable] = Counter(
+                        {category: 0 for category in existing_variables[variable]["categories"]}
+                    )
+                if isinstance(conf.get("top"), int):
+                    top_ordering[variable] = conf.get("top")
+
+            self.applied_filters["variables"] = variable_filters
+
+            for flow_run in current_page:
+                for result_name, result in flow_run.results.items():
+                    if result_name in variable_filters:
+                        counts[result_name][result[variable_filters[result_name]["format"]]] += 1
+
+            for variable, top_x in top_ordering.items():
+                counts[variable] = dict(counts[variable].most_common(top_x))
+
+            return Response({**self.applied_filters, "next": next_page, "results": [counts]})
         except Flow.DoesNotExist:
             return Response(
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
-
-        runs = self.get_runs(org, flow).only("results", "modified_on")
-        counts, (current_page, next_page) = defaultdict(lambda: Counter()), self.get_paginated_queryset(runs)
-
-        requested_variables = self.request.data.get("variables")
-        existing_variables = {result.get("key", ""): result for result in flow.metadata.get("results", [])}
-        variable_filters = {}
-        top_ordering = {}
-        if not (requested_variables and type(requested_variables) is dict):
-            return Response({"errors": {"variables": _("Filter 'variables' invalid or not provided.")}})
-
-        for variable, conf in requested_variables.items():
-            if variable not in existing_variables:
-                return Response(
-                    {"errors": {"variables": _("Variable with name '{}', does not exists.").format(variable)}},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            if not isinstance(conf, dict):
-                return Response(
-                    {
-                        "errors": {
-                            "variables": {
-                                variable: _(
-                                    "Wrong filter configuration provided. "
-                                    "There must be object with two optional parameters, format and top."
-                                )
-                            }
-                        }
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            _format = conf.get("format", "").lower()
-            if _format not in ["category", "value"]:
-                _format = "category"
-            variable_filters[variable] = {"format": _format}
-            if _format == "value":
-                variable_filters[variable]["top"] = conf.get("top")
-            if _format == "category":
-                counts[variable] = Counter({category: 0 for category in existing_variables[variable]["categories"]})
-            if isinstance(conf.get("top"), int):
-                top_ordering[variable] = conf.get("top")
-
-        self.applied_filters["variables"] = variable_filters
-
-        for flow_run in current_page:
-            for result_name, result in flow_run.results.items():
-                if result_name in variable_filters:
-                    counts[result_name][result[variable_filters[result_name]["format"]]] += 1
-
-        for variable, top_x in top_ordering.items():
-            counts[variable] = dict(counts[variable].most_common(top_x))
-
-        return Response({**self.applied_filters, "next": next_page, "results": [counts]})
 
     @staticmethod
     def csv_convertor(result, response):
@@ -5481,7 +5479,7 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
         self.applied_filters = {}
         org = self.request.user.get_org()
         link_filter = self.get_name_uuid_filters("link", key="")
-        link = Link.objects.filter(link_filter, org=org).first()
+        link = Link.objects.using("read_only_db").filter(link_filter, org__id=org.id).first()
         if link is None:
             errors = {
                 status.HTTP_400_BAD_REQUEST: _("Parameter 'link_name' is not provider."),
@@ -5496,7 +5494,12 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
         time_filters = self.get_datetime_filters("", "modified_on", org)
 
         unique_clicks = (
-            LinkContacts.objects.filter(link_id=link.id).filter(time_filters).exclude(group_filters).distinct().count()
+            LinkContacts.objects.using("read_only_db")
+            .filter(link_id=link.id)
+            .filter(time_filters)
+            .exclude(group_filters)
+            .distinct()
+            .count()
         )
         unique_contacts = (
             link.related_flow.runs.filter(time_filters)
