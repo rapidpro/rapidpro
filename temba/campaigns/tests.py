@@ -1227,6 +1227,25 @@ class CampaignCRUDLTest(TembaTest, CRUDLTestMixin):
         )
         return campaign
 
+    def test_create(self):
+        group = self.create_group("Reporters", contacts=[])
+
+        create_url = reverse("campaigns.campaign_create")
+
+        self.assertCreateFetch(create_url, allow_viewers=False, allow_editors=True, form_fields=["name", "group"])
+
+        # try to submit with no data
+        self.assertCreateSubmit(
+            create_url, {}, form_errors={"name": "This field is required.", "group": "This field is required."}
+        )
+
+        # submit with valid data
+        self.assertCreateSubmit(
+            create_url,
+            {"name": "Reminders", "group": group.id},
+            new_obj_query=Campaign.objects.filter(name="Reminders", group=group),
+        )
+
     def test_read(self):
         group = self.create_group("Reporters", contacts=[])
         campaign = self.create_campaign(self.org, "Welcomes", group)
