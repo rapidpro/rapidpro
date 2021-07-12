@@ -983,6 +983,7 @@ _default_database_config = {
 _readonly_database_config = _default_database_config.copy()
 _direct_database_config = _default_database_config.copy()
 _default_database_config["DISABLE_SERVER_SIDE_CURSORS"] = True
+_readonly_database_config["DISABLE_SERVER_SIDE_CURSORS"] = True
 
 DATABASES = {
     "default": _default_database_config,
