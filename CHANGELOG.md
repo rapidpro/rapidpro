@@ -1,3 +1,10 @@
+v6.4.3
+----------
+ * Improve contact field forms
+ * Fix urn sorting on contact update
+ * Improve wording on forms for contact groups, message labels and flow labels
+ * Improve wording on campaign form
+
 v6.4.2
 ----------
  * Fix attachment button when attachments don't have extensions
