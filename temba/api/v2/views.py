@@ -4554,6 +4554,7 @@ class ReportEndpointMixin:
         if not limited_filters:
             queried_contact_ids = self.get_contact_ids_by_query(org)
             if queried_contact_ids:
+
                 class ContactIDFilterJoin:
                     table_name = "t"
                     join_type = "INNER JOIN"
@@ -4564,6 +4565,7 @@ class ReportEndpointMixin:
                     @classmethod
                     def as_sql(cls, *args):
                         return "INNER JOIN (SELECT unnest(%s::int[]) as id) x USING(id)", [queried_contact_ids]
+
                 contacts.query.join(ContactIDFilterJoin)
 
             elif self.get_query_parameter("search_query"):
@@ -4802,8 +4804,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         requested_variables = self.request.GET.get("variables", self.request.data.get("variables"))
         existing_variables = dict(
-            ContactField.user_fields.using("read_only_db")
-            .filter(org=org).values_list("key", "uuid")
+            ContactField.user_fields.using("read_only_db").filter(org=org).values_list("key", "uuid")
         )
         variable_filters = {}
         top_ordering = {}
@@ -4954,16 +4955,20 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
     def filter_and_paginate_qs_by_flow(self, org, flow, qs):
         # filter and paginate flow runs
-        runs = flow.runs.filter(
-            self.get_datetime_filters("", "exited_on", org),
-            org=org,
-            status__in=[
-                FlowRun.STATUS_COMPLETED,
-                FlowRun.STATUS_INTERRUPTED,
-                FlowRun.STATUS_FAILED,
-                FlowRun.STATUS_EXPIRED,
-            ],
-        ).only("flow_id", "events", "modified_on").using("read_only_db")
+        runs = (
+            flow.runs.filter(
+                self.get_datetime_filters("", "exited_on", org),
+                org=org,
+                status__in=[
+                    FlowRun.STATUS_COMPLETED,
+                    FlowRun.STATUS_INTERRUPTED,
+                    FlowRun.STATUS_FAILED,
+                    FlowRun.STATUS_EXPIRED,
+                ],
+            )
+            .only("flow_id", "events", "modified_on")
+            .using("read_only_db")
+        )
         self.configure_paginator_for_flow_runs(runs)
         runs, next_page = self.get_paginated_queryset(runs)
 
@@ -4977,6 +4982,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         # filter messages by uuids
         if messages_uuids:
+
             class MessagesUUIDFilterJoin:
                 table_name = "t"
                 join_type = "INNER JOIN"
@@ -5055,9 +5061,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
             url=reverse("api.v2.messages_report"),
             slug="messages-report",
             fields=[
-                dict(
-                    name="flow", required=True, help="UUID of flow to select only messages related to specific flow"
-                ),
+                dict(name="flow", required=True, help="UUID of flow to select only messages related to specific flow"),
                 dict(name="after", required=False, help="Select messages since specific date"),
                 dict(name="before", required=False, help="Select messages until specific date"),
                 dict(name="channel", required=False, help="Select messages sent via specific channel"),
@@ -5349,7 +5353,9 @@ class FlowVariableReportEndpoint(BaseAPIView, FlowReportFiltersMixin):
                 if _format == "value":
                     variable_filters[variable]["top"] = conf.get("top")
                 if _format == "category":
-                    counts[variable] = Counter({category: 0 for category in existing_variables[variable]["categories"]})
+                    counts[variable] = Counter(
+                        {category: 0 for category in existing_variables[variable]["categories"]}
+                    )
                 if isinstance(conf.get("top"), int):
                     top_ordering[variable] = conf.get("top")
 
@@ -5489,7 +5495,11 @@ class TrackableLinkReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         unique_clicks = (
             LinkContacts.objects.using("read_only_db")
-            .filter(link_id=link.id).filter(time_filters).exclude(group_filters).distinct().count()
+            .filter(link_id=link.id)
+            .filter(time_filters)
+            .exclude(group_filters)
+            .distinct()
+            .count()
         )
         unique_contacts = (
             link.related_flow.runs.filter(time_filters)
