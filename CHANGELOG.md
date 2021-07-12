@@ -1,3 +1,19 @@
+v6.4.3
+----------
+ * Improve contact field forms
+ * Fix urn sorting on contact update
+ * Improve wording on forms for contact groups, message labels and flow labels
+ * Improve wording on campaign form
+
+v6.4.2
+----------
+ * Fix attachment button when attachments don't have extensions
+ * Add missing ticket events to contact history
+ * Fix clicking attachments in msgs view sometimes navigating to contact page
+ * Parameterized form widgets. Bigger, darker form bits.
+ * Tweak trigger forms for clarity
+ * Add command to rebuild messages and pull translations from transifex
+
 v6.4.1
 ----------
  * Fix unassigning tickets

@@ -417,13 +417,13 @@ class ContactField(SmartModel):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contactfields")
 
-    label = models.CharField(verbose_name=_("Label"), max_length=MAX_LABEL_LEN)
+    label = models.CharField(max_length=MAX_LABEL_LEN)
 
     key = models.CharField(max_length=MAX_KEY_LEN)
 
     field_type = models.CharField(max_length=1, choices=FIELD_TYPE_CHOICES, default=FIELD_TYPE_USER)
 
-    value_type = models.CharField(choices=TYPE_CHOICES, max_length=1, default=TYPE_TEXT, verbose_name=_("Field Type"))
+    value_type = models.CharField(choices=TYPE_CHOICES, max_length=1, default=TYPE_TEXT)
 
     # how field is displayed in the UI
     show_in_table = models.BooleanField(default=False)
@@ -1489,9 +1489,7 @@ class ContactGroup(TembaModel):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="all_groups")
 
-    name = models.CharField(
-        verbose_name=_("Name"), max_length=MAX_NAME_LEN, help_text=_("The name of this contact group")
-    )
+    name = models.CharField(max_length=MAX_NAME_LEN)
 
     group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_USER_DEFINED)
 
@@ -1500,7 +1498,7 @@ class ContactGroup(TembaModel):
     contacts = models.ManyToManyField(Contact, related_name="all_groups")
 
     # fields used by smart groups
-    query = models.TextField(null=True, verbose_name=_("Query"), help_text=_("The membership query for this group"))
+    query = models.TextField(null=True)
     query_fields = models.ManyToManyField(ContactField)
 
     # define some custom managers to do the filtering of user / system groups for us

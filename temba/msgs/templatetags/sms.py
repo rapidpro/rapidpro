@@ -104,16 +104,18 @@ def render(parser, token):
 
 
 @register.inclusion_tag("msgs/tags/attachment.haml")
-def attachment_button(attachment):
+def attachment_button(attachment: str) -> dict:
     content_type, delim, url = attachment.partition(":")
 
     # some OGG/OGA attachments may have wrong content type
-    if content_type == "application/octet-stream" and (
-        url.endswith(".ogg") or url.endswith(".oga")
-    ):  # pragma: no cover
+    if content_type == "application/octet-stream" and (url.endswith(".ogg") or url.endswith(".oga")):
         content_type = "audio/ogg"
 
-    category = content_type.split("/")[0] if "/" in content_type else content_type
+    # parse the MIME content type
+    if "/" in content_type:
+        category, sub_type = content_type.split("/", maxsplit=2)
+    else:
+        category, sub_type = content_type, ""
 
     if category == "geo":
         preview = url
@@ -124,7 +126,7 @@ def attachment_button(attachment):
             "lng": lng,
         }
     else:
-        preview = url.rpartition(".")[2].upper()  # preview is the file extension in uppercase
+        preview = (sub_type or category).upper()  # preview the sub type if it exists or category
 
     return {
         "content_type": content_type,

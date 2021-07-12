@@ -54,6 +54,8 @@ ACTIVITY_ICONS = {
     Event.TYPE_MSG_RECEIVED: "icon-bubble-user",
     Event.TYPE_MSG_RECEIVED + ":voice": "icon-call-incoming",
     Event.TYPE_RUN_RESULT_CHANGED: "icon-bars",
+    Event.TYPE_TICKET_ASSIGNED: "icon-ticket",
+    Event.TYPE_TICKET_REOPENED: "icon-ticket",
     Event.TYPE_TICKET_OPENED: "icon-ticket",
     Event.TYPE_TICKET_CLOSED: "icon-ticket",
     Event.TYPE_TICKET_NOTE_ADDED: "icon-pencil",
@@ -167,11 +169,19 @@ def history_icon(event: dict) -> str:
             variant = "missed_outgoing"
 
     if variant:
-        glyph_name = ACTIVITY_ICONS[event_type + ":" + variant]
+        glyph_name = ACTIVITY_ICONS.get(event_type + ":" + variant)
     else:
-        glyph_name = ACTIVITY_ICONS[event_type]
+        glyph_name = ACTIVITY_ICONS.get(event_type)
 
     return mark_safe(f'<span class="glyph {glyph_name}"></span>')
+
+
+@register.filter
+def history_user(user: dict) -> str:
+    name = " ".join([user.get("first_name"), user.get("last_name")]).strip()
+    if not name:
+        name = user.get("email")
+    return name
 
 
 @register.filter

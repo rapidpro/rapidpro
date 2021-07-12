@@ -116,6 +116,8 @@ html {
 
   --button-y: 6px;  
   --button-x: 14px;
+
+  --control-margin-bottom: 15px;
 }
 
 temba-select:focus {
