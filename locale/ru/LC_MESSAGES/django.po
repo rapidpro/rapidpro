@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-07-08 17:42+0000\n"
+"POT-Creation-Date: 2021-07-12 20:54+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -75,12 +75,6 @@ msgstr "Файл не найден"
 
 msgid "You do not have permission to access this file"
 msgstr "У Вас нет прав доступа к данному файлу"
-
-msgid "The name of this campaign"
-msgstr "Название данной кампании"
-
-msgid "The group this campaign operates on"
-msgstr "Группа, по которой работает данная кампания"
 
 msgid "Minutes"
 msgstr "Минуты"
@@ -161,8 +155,19 @@ msgstr[3] ""
 msgid "on"
 msgstr ""
 
-msgid "Select a group to base the campaign on"
-msgstr "Выберите группу, на которой будет основана кампания"
+#, fuzzy
+#| msgid "Select Group"
+msgid "Select group"
+msgstr "Выбрать Группу"
+
+msgid "Group"
+msgstr "Группа"
+
+msgid "Only contacts in this group will be included in this campaign's events."
+msgstr ""
+
+msgid "Name"
+msgstr "Название"
 
 msgid "Export"
 msgstr "Экспорт"
@@ -261,9 +266,6 @@ msgstr "JSON - application/json"
 
 msgid "XML - text/xml; charset=utf-8"
 msgstr "XML - text/xml; charset=utf-8"
-
-msgid "Name"
-msgstr "Название"
 
 msgid "Descriptive label for this channel"
 msgstr "Описательная метка данного канала"
@@ -2132,12 +2134,6 @@ msgstr "Район"
 msgid "Ward"
 msgstr "Административный округ"
 
-msgid "Label"
-msgstr "Метка"
-
-msgid "Field Type"
-msgstr ""
-
 msgid "The name of this contact"
 msgstr "Название данного контакта"
 
@@ -2155,15 +2151,6 @@ msgstr "Оценка"
 
 msgid "Ready"
 msgstr "Готов"
-
-msgid "The name of this contact group"
-msgstr "Название данной группы контактов"
-
-msgid "Query"
-msgstr ""
-
-msgid "The membership query for this group"
-msgstr "Запрос членства для данной группы"
 
 msgid "The unique group to export"
 msgstr "Уникальная группа для экспорта"
@@ -2267,6 +2254,12 @@ msgstr ""
 
 msgid "You cannot update the query of a group that is evaluating."
 msgstr "Вы не можете обновить запрос для группы, которая проводит оценку."
+
+msgid "Query"
+msgstr ""
+
+msgid "Only contacts matching this query will belong to this group."
+msgstr ""
 
 msgid "Active"
 msgstr "Активный"
@@ -2393,24 +2386,33 @@ msgstr "Начать"
 msgid "Can only contain letters, numbers and hypens."
 msgstr "Может содержать только буквы, числа и дефисы."
 
+#, fuzzy
+#| msgid "Can't be a reserved word"
+msgid "Can't be a reserved word."
+msgstr "Не может являться зарезервированным словом"
+
 msgid "Must be unique."
 msgstr "Должен быть уникальным."
 
-msgid "Can't be a reserved word"
-msgstr "Не может являться зарезервированным словом"
+#, fuzzy
+#| msgid "Alert Type"
+msgid "Data Type"
+msgstr "Тип Оповещения"
 
-#, python-format
-msgid "Cannot create a new field as limit is %(limit)s."
-msgstr "Невозможно создать новое поле, так как предел равен %(limit)s."
+msgid "Featured"
+msgstr "Рекомендованный"
 
-msgid "Field Name"
-msgstr ""
+#, fuzzy
+#| msgid "The token the user will us to claim this channel"
+msgid "The type of the values that will be stored in this field."
+msgstr "Токен, который пользователь будет использовать для запроса данного канала"
 
 msgid "Manage Contact Fields"
 msgstr "Управление Полями Контактов"
 
-msgid "Featured"
-msgstr "Рекомендованный"
+#, python-format
+msgid "Cannot create a new field as limit is %(limit)s."
+msgstr "Невозможно создать новое поле, так как предел равен %(limit)s."
 
 msgid "Update"
 msgstr "Обновить"
@@ -2506,12 +2508,6 @@ msgstr "Выполнено"
 
 msgid "Failed"
 msgstr "Не выполнено"
-
-msgid "The name of this flow label"
-msgstr "Название метки данного потока"
-
-msgid "Parent"
-msgstr "Родительский элемент"
 
 msgid "After 5 minutes"
 msgstr "Через 5 минут"
@@ -2817,7 +2813,15 @@ msgstr "Шаблон сообщения {ref['name']} не существует 
 msgid "Your message template {template.name} is not approved and cannot be sent."
 msgstr "Ваш шаблон сообщения {template.name} не утвержден и не может быть отправлен."
 
-msgid "Optional: Select parent label"
+msgid "Parent"
+msgstr "Родительский элемент"
+
+#, fuzzy
+#| msgid "Select All"
+msgid "Select label"
+msgstr "Выбрать Все"
+
+msgid "Optional parent label which can be used to group related labels."
 msgstr ""
 
 msgid "Name already used"
@@ -2895,12 +2899,6 @@ msgstr "Будет ли этот подсчет проводиться для а
 
 msgid "Number of items with this system label"
 msgstr "Количество объектов с этой системной меткой"
-
-msgid "Choose a name for your label"
-msgstr ""
-
-msgid "Folder"
-msgstr "Папка"
 
 msgid "The date for the oldest message to export"
 msgstr "Дата самого старого сообщения для экспорта"
@@ -3026,10 +3024,15 @@ msgstr "Название должно быть уникальным"
 msgid "This org has %(count)d labels and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr "Эта организация имеет %(count)d меток и предел составляет %(limit)d. Вы должны удалить существующие, прежде чем сможете создавать новые."
 
-msgid "Optional: Parent Folder"
-msgstr ""
+msgid "Folder"
+msgstr "Папка"
 
-msgid "Choose a name for your folder"
+#, fuzzy
+#| msgid "Select All"
+msgid "Select folder"
+msgstr "Выбрать Все"
+
+msgid "Optional folder which can be used to group related labels."
 msgstr ""
 
 msgid "Update Folder"
@@ -5389,11 +5392,23 @@ msgid "Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%
 msgstr ""
 
 #, python-format
-msgid "Opened ticket with subject <b>%(subject)s</b>"
+msgid "<b>%(assigner)s</b> took <b>%(subject)s</b>"
 msgstr ""
 
 #, python-format
-msgid "Closed ticket with subject <b>%(subject)s</b>"
+msgid "<b>%(assigner)s</b> assigned <b>%(subject)s</b> to <b>%(assignee)s</b>"
+msgstr ""
+
+#, python-format
+msgid "Opened ticket <b>%(subject)s</b>"
+msgstr ""
+
+#, python-format
+msgid "Reopened ticket <b>%(subject)s</b>"
+msgstr ""
+
+#, python-format
+msgid "Closed ticket <b>%(subject)s</b>"
 msgstr ""
 
 msgid "Successfully called"
@@ -5495,6 +5510,14 @@ msgstr "Полностью"
 
 msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
 msgstr "Эти контакты были исключены, и Вы больше не можете отправлять им сообщения, они были удалены из всех групп."
+
+#, fuzzy
+#| msgid "Connection Error"
+msgid "Add Connection"
+msgstr "Ошибка подключения"
+
+msgid "Add a new way connect with this contact"
+msgstr ""
 
 #, python-format
 msgid "<b>%(name)s</b> cannot be deleted since it is currently in use."
@@ -5923,6 +5946,9 @@ msgstr "Метки"
 
 msgid "Webhook Call Log"
 msgstr ""
+
+msgid "Label"
+msgstr "Метка"
 
 msgid "New Label"
 msgstr ""
@@ -6752,9 +6778,6 @@ msgstr "Скрыть Архивированное"
 
 msgid "Select all of the items below that you would like to include in your export. We've grouped them together based on which flows and campaigns work with each other. Any related triggers will automatically be included in the export."
 msgstr ""
-
-msgid "Group"
-msgstr "Группа"
 
 msgid "Select Group"
 msgstr "Выбрать Группу"
@@ -7670,3 +7693,21 @@ msgstr ""
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
+
+#~ msgid "The name of this campaign"
+#~ msgstr "Название данной кампании"
+
+#~ msgid "The group this campaign operates on"
+#~ msgstr "Группа, по которой работает данная кампания"
+
+#~ msgid "Select a group to base the campaign on"
+#~ msgstr "Выберите группу, на которой будет основана кампания"
+
+#~ msgid "The name of this contact group"
+#~ msgstr "Название данной группы контактов"
+
+#~ msgid "The membership query for this group"
+#~ msgstr "Запрос членства для данной группы"
+
+#~ msgid "The name of this flow label"
+#~ msgstr "Название метки данного потока"

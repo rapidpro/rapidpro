@@ -13,7 +13,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-07-08 17:42+0000\n"
+"POT-Creation-Date: 2021-07-12 20:54+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Moy Moussan <moymoussan@gmail.com>, 2021\n"
 "Language-Team: Spanish (https://www.transifex.com/rapidpro/teams/226/es/)\n"
@@ -76,12 +76,6 @@ msgstr "Archivo no encontrado"
 
 msgid "You do not have permission to access this file"
 msgstr "No tienes permiso para acceder a este archivo."
-
-msgid "The name of this campaign"
-msgstr "El nombre de esta campaña"
-
-msgid "The group this campaign operates on"
-msgstr "El grupo en el que opera esta campaña"
 
 msgid "Minutes"
 msgstr "Minutos"
@@ -146,8 +140,19 @@ msgstr[1] "%d semanas después"
 msgid "on"
 msgstr "en"
 
-msgid "Select a group to base the campaign on"
-msgstr "Seleccione un grupo en el que basar la campaña"
+#, fuzzy
+#| msgid "Select a group"
+msgid "Select group"
+msgstr "Seleccione un grupo"
+
+msgid "Group"
+msgstr "Grupo"
+
+msgid "Only contacts in this group will be included in this campaign's events."
+msgstr ""
+
+msgid "Name"
+msgstr "Nombre"
 
 msgid "Export"
 msgstr "Exportar"
@@ -246,9 +251,6 @@ msgstr "JSON - application/json"
 
 msgid "XML - text/xml; charset=utf-8"
 msgstr "XML - text/xml; charset=utf-8"
-
-msgid "Name"
-msgstr "Nombre"
 
 msgid "Descriptive label for this channel"
 msgstr "Etiqueta descriptiva para este canal"
@@ -2117,12 +2119,6 @@ msgstr "Distrito"
 msgid "Ward"
 msgstr "Sala"
 
-msgid "Label"
-msgstr "Etiquetar"
-
-msgid "Field Type"
-msgstr "Tipo de campo"
-
 msgid "The name of this contact"
 msgstr "El nombre de este contacto"
 
@@ -2140,15 +2136,6 @@ msgstr "Evaluar"
 
 msgid "Ready"
 msgstr "Listo"
-
-msgid "The name of this contact group"
-msgstr "El nombre de este grupo de contacto"
-
-msgid "Query"
-msgstr "Consulta"
-
-msgid "The membership query for this group"
-msgstr "La solicitud de membresía para este grupo"
 
 msgid "The unique group to export"
 msgstr "El grupo único para exportar"
@@ -2252,6 +2239,12 @@ msgstr "No puede crear un grupo inteligente basado en \"id\" o \"grupo\"."
 
 msgid "You cannot update the query of a group that is evaluating."
 msgstr "No puede actualizar la consulta de un grupo que está evaluando."
+
+msgid "Query"
+msgstr "Consulta"
+
+msgid "Only contacts matching this query will belong to this group."
+msgstr ""
 
 msgid "Active"
 msgstr "Activo"
@@ -2378,24 +2371,33 @@ msgstr "comienzo"
 msgid "Can only contain letters, numbers and hypens."
 msgstr "Solo puede contener letras, números y guiones."
 
+#, fuzzy
+#| msgid "Can't be a reserved word"
+msgid "Can't be a reserved word."
+msgstr "No puede ser una palabra reservada"
+
 msgid "Must be unique."
 msgstr "Debe ser único."
 
-msgid "Can't be a reserved word"
-msgstr "No puede ser una palabra reservada"
+#, fuzzy
+#| msgid "Alert Type"
+msgid "Data Type"
+msgstr "Tipo de alerta"
 
-#, python-format
-msgid "Cannot create a new field as limit is %(limit)s."
-msgstr "No se puede crear un nuevo campo porque el límite es %(limit)s."
+msgid "Featured"
+msgstr "Destacados"
 
-msgid "Field Name"
-msgstr "Nombre del campo"
+#, fuzzy
+#| msgid "The token the user will us to claim this channel"
+msgid "The type of the values that will be stored in this field."
+msgstr "El token que el usuario nos pedirá para este transmisor"
 
 msgid "Manage Contact Fields"
 msgstr "Manejar Campos de Contactos"
 
-msgid "Featured"
-msgstr "Destacados"
+#, python-format
+msgid "Cannot create a new field as limit is %(limit)s."
+msgstr "No se puede crear un nuevo campo porque el límite es %(limit)s."
 
 msgid "Update"
 msgstr "Actualizar"
@@ -2491,12 +2493,6 @@ msgstr "Completar"
 
 msgid "Failed"
 msgstr "Error"
-
-msgid "The name of this flow label"
-msgstr "El nombre de la etiqueta de este flujo"
-
-msgid "Parent"
-msgstr "Matriz"
 
 msgid "After 5 minutes"
 msgstr "Después de 5 minutos"
@@ -2802,8 +2798,16 @@ msgstr "La plantilla de mensaje {ref ['name']} no existe en su cuenta y no se pu
 msgid "Your message template {template.name} is not approved and cannot be sent."
 msgstr "Su plantilla de mensaje {template.name} no está aprobada y no se puede enviar."
 
-msgid "Optional: Select parent label"
-msgstr "Opcional: seleccione la etiqueta principal"
+msgid "Parent"
+msgstr "Matriz"
+
+#, fuzzy
+#| msgid "Select All"
+msgid "Select label"
+msgstr "Elegir todos"
+
+msgid "Optional parent label which can be used to group related labels."
+msgstr ""
 
 msgid "Name already used"
 msgstr "Nombre ya utilizado"
@@ -2880,12 +2884,6 @@ msgstr "Si este recuento es para mensajes archivados"
 
 msgid "Number of items with this system label"
 msgstr "Número de elementos con esta etiqueta del sistema"
-
-msgid "Choose a name for your label"
-msgstr "Elija un nombre para su etiqueta"
-
-msgid "Folder"
-msgstr "Carpeta"
 
 msgid "The date for the oldest message to export"
 msgstr "La fecha para el mensaje más antiguo para exportar"
@@ -3011,11 +3009,16 @@ msgstr "El nombre debe ser único"
 msgid "This org has %(count)d labels and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr "Esta organización tiene etiquetas %(count)d y el límite es %(limit)d. Debe eliminar los existentes antes de poder crear nuevos."
 
-msgid "Optional: Parent Folder"
-msgstr "Opcional: carpeta principal"
+msgid "Folder"
+msgstr "Carpeta"
 
-msgid "Choose a name for your folder"
-msgstr "Elija un nombre para su carpeta"
+#, fuzzy
+#| msgid "Delete Folder"
+msgid "Select folder"
+msgstr "Eliminar Carpeta"
+
+msgid "Optional folder which can be used to group related labels."
+msgstr ""
 
 msgid "Update Folder"
 msgstr "Actualizar carpeta"
@@ -5360,12 +5363,26 @@ msgstr "Mensaje etiquetado como"
 msgid "Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%(category)s</b>"
 msgstr "Resultado de ejecución <b>%(name)s</b> actualizado a <b>%(value)s</b> con categoría <b>%(category)s</b>"
 
+#, fuzzy, python-format
+#| msgid "Field <b>%(name)s</b> updated to <b>%(value)s</b>"
+msgid "<b>%(assigner)s</b> took <b>%(subject)s</b>"
+msgstr "Campo <b> %(name)s </b> actualizado a <b> %(value)s </b>"
+
+#, fuzzy, python-format
+#| msgid "Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%(category)s</b>"
+msgid "<b>%(assigner)s</b> assigned <b>%(subject)s</b> to <b>%(assignee)s</b>"
+msgstr "Resultado de ejecución <b>%(name)s</b> actualizado a <b>%(value)s</b> con categoría <b>%(category)s</b>"
+
 #, python-format
-msgid "Opened ticket with subject <b>%(subject)s</b>"
+msgid "Opened ticket <b>%(subject)s</b>"
 msgstr ""
 
 #, python-format
-msgid "Closed ticket with subject <b>%(subject)s</b>"
+msgid "Reopened ticket <b>%(subject)s</b>"
+msgstr ""
+
+#, python-format
+msgid "Closed ticket <b>%(subject)s</b>"
 msgstr ""
 
 msgid "Successfully called"
@@ -5457,6 +5474,14 @@ msgstr "Lleno"
 
 msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
 msgstr "Estos contactos se han excluido y ya no puede enviarles mensajes, se han eliminado de todos los grupos."
+
+#, fuzzy
+#| msgid "Connection Error"
+msgid "Add Connection"
+msgstr "Error de conexión"
+
+msgid "Add a new way connect with this contact"
+msgstr ""
 
 #, python-format
 msgid "<b>%(name)s</b> cannot be deleted since it is currently in use."
@@ -5883,6 +5908,9 @@ msgstr "Etiquetas"
 
 msgid "Webhook Call Log"
 msgstr "Registro de Webhook"
+
+msgid "Label"
+msgstr "Etiquetar"
 
 msgid "New Label"
 msgstr "Nueva etiqueta"
@@ -6793,9 +6821,6 @@ msgstr "Ocultar archivado"
 
 msgid "Select all of the items below that you would like to include in your export. We've grouped them together based on which flows and campaigns work with each other. Any related triggers will automatically be included in the export."
 msgstr "Seleccione todos los elementos a continuación que le gustaría incluir en su exportación. Los hemos agrupado según los flujos y campañas que funcionan entre sí. Todos los activadores relacionados se incluirán automáticamente en la exportación."
-
-msgid "Group"
-msgstr "Grupo"
 
 msgid "Select Group"
 msgstr "Elegir Grupo"
@@ -7796,3 +7821,39 @@ msgstr ""
 
 msgid "No synced templates at this time."
 msgstr "No hay plantillas sincronizadas en este momento."
+
+#~ msgid "The name of this campaign"
+#~ msgstr "El nombre de esta campaña"
+
+#~ msgid "The group this campaign operates on"
+#~ msgstr "El grupo en el que opera esta campaña"
+
+#~ msgid "Select a group to base the campaign on"
+#~ msgstr "Seleccione un grupo en el que basar la campaña"
+
+#~ msgid "Field Type"
+#~ msgstr "Tipo de campo"
+
+#~ msgid "The name of this contact group"
+#~ msgstr "El nombre de este grupo de contacto"
+
+#~ msgid "The membership query for this group"
+#~ msgstr "La solicitud de membresía para este grupo"
+
+#~ msgid "Field Name"
+#~ msgstr "Nombre del campo"
+
+#~ msgid "The name of this flow label"
+#~ msgstr "El nombre de la etiqueta de este flujo"
+
+#~ msgid "Optional: Select parent label"
+#~ msgstr "Opcional: seleccione la etiqueta principal"
+
+#~ msgid "Choose a name for your label"
+#~ msgstr "Elija un nombre para su etiqueta"
+
+#~ msgid "Optional: Parent Folder"
+#~ msgstr "Opcional: carpeta principal"
+
+#~ msgid "Choose a name for your folder"
+#~ msgstr "Elija un nombre para su carpeta"
