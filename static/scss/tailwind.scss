@@ -786,6 +786,10 @@ code {
   }
 }
 
+.control-group {
+  margin-bottom: var(--control-margin-bottom);
+}
+
 @responsive {
   .text-shadow {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.10);
