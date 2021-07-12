@@ -1489,9 +1489,7 @@ class ContactGroup(TembaModel):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="all_groups")
 
-    name = models.CharField(
-        verbose_name=_("Name"), max_length=MAX_NAME_LEN, help_text=_("The name of this contact group")
-    )
+    name = models.CharField(max_length=MAX_NAME_LEN)
 
     group_type = models.CharField(max_length=1, choices=TYPE_CHOICES, default=TYPE_USER_DEFINED)
 
@@ -1500,7 +1498,7 @@ class ContactGroup(TembaModel):
     contacts = models.ManyToManyField(Contact, related_name="all_groups")
 
     # fields used by smart groups
-    query = models.TextField(null=True, verbose_name=_("Query"), help_text=_("The membership query for this group"))
+    query = models.TextField(null=True)
     query_fields = models.ManyToManyField(ContactField)
 
     # define some custom managers to do the filtering of user / system groups for us

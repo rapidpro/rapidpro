@@ -796,7 +796,8 @@ class BaseLabelForm(forms.ModelForm):
 
     class Meta:
         model = Label
-        fields = "__all__"
+        fields = ("name",)
+        labels = {"name": _("Name")}
         widgets = {"name": InputWidget()}
 
 
@@ -805,7 +806,8 @@ class LabelForm(BaseLabelForm):
         Label.folder_objects.none(),
         required=False,
         label=_("Folder"),
-        widget=SelectWidget(attrs={"placeholder": _("Optional: Parent Folder"), "widget_only": True}),
+        widget=SelectWidget(attrs={"placeholder": _("Select folder")}),
+        help_text=_("Optional folder which can be used to group related labels."),
     )
 
     messages = forms.CharField(required=False, widget=forms.HiddenInput)
@@ -818,12 +820,11 @@ class LabelForm(BaseLabelForm):
 
         self.fields["folder"].queryset = Label.folder_objects.filter(org=self.org, is_active=True)
 
+    class Meta(BaseLabelForm.Meta):
+        fields = ("name", "folder")
+
 
 class FolderForm(BaseLabelForm):
-    name = forms.CharField(
-        label=_("Name"), help_text=_("Choose a name for your folder"), widget=InputWidget(attrs={"widget_only": False})
-    )
-
     def __init__(self, *args, **kwargs):
         self.org = kwargs.pop("org")
         self.existing = kwargs.pop("object", None)

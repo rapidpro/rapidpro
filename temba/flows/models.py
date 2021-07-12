@@ -2311,14 +2311,9 @@ class FlowLabel(models.Model):
     """
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="flow_labels")
-
     uuid = models.CharField(max_length=36, unique=True, db_index=True, default=generate_uuid)
-
-    name = models.CharField(max_length=64, verbose_name=_("Name"), help_text=_("The name of this flow label"))
-
-    parent = models.ForeignKey(
-        "FlowLabel", on_delete=models.PROTECT, verbose_name=_("Parent"), null=True, related_name="children"
-    )
+    name = models.CharField(max_length=64)
+    parent = models.ForeignKey("FlowLabel", on_delete=models.PROTECT, null=True, related_name="children")
 
     @classmethod
     def create(cls, org, base, parent=None):
