@@ -4357,241 +4357,6 @@ class ContactFieldTest(TembaTest):
         response = self.client.get(manage_fields_url)
         self.assertEqual(len(response.context["object_list"]), 2)
 
-    def test_view_create_valid(self):
-        # we have three fields
-        self.assertEqual(ContactField.user_fields.filter(org=self.org).count(), 3)
-        # there are not featured fields
-        self.assertEqual(ContactField.user_fields.filter(org=self.org, show_in_table=True).count(), 0)
-
-        self.login(self.admin)
-
-        create_url = reverse("contacts.contactfield_create")
-
-        response = self.client.get(create_url)
-        self.assertEqual(response.status_code, 200)
-
-        # we got a form with expected form fields
-        self.assertListEqual(
-            list(response.context["form"].fields.keys()), ["label", "value_type", "show_in_table", "loc"]
-        )
-
-        # a valid form
-        post_data = {"label": "this is a label", "value_type": "T", "show_in_table": True}
-
-        response = self.client.post(create_url, post_data)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertNoFormErrors(response, post_data)
-
-        # after creating a field there should be 4
-        self.assertEqual(ContactField.user_fields.filter(org=self.org).count(), 4)
-        # newly created field is featured
-        self.assertEqual(ContactField.user_fields.filter(org=self.org, show_in_table=True).count(), 1)
-
-    def test_view_create_field_with_same_name_as_deleted_field(self):
-        create_url = reverse("contacts.contactfield_create")
-        self.login(self.admin)
-
-        # we have three fields
-        self.assertEqual(ContactField.user_fields.filter(org=self.org).count(), 3)
-
-        old_first = ContactField.get_or_create(self.org, self.admin, "first")
-        # a valid form
-        post_data = {"label": old_first.label, "value_type": old_first.value_type}
-
-        response = self.client.post(create_url, post_data)
-
-        # field cannot be created because there is an active field 'First'
-        self.assertFormError(response, "form", None, "Must be unique.")
-
-        # then we hide the field
-        ContactField.hide_field(self.org, self.admin, key="first")
-
-        # and try to create a new field
-        response = self.client.post(create_url, post_data)
-        self.assertNoFormErrors(response, post_data)
-
-        # after creating a field there should be 4
-        self.assertEqual(ContactField.user_fields.filter(org=self.org).count(), 4)
-        # there are two fields with "First" label, but only one is active
-        self.assertEqual(ContactField.user_fields.filter(org=self.org, label="First").count(), 2)
-
-        new_first = ContactField.get_or_create(self.org, self.admin, "first")
-
-        self.assertNotEqual(new_first.uuid, old_first.uuid)
-
-    def test_view_create_invalid(self):
-        self.login(self.admin)
-
-        create_cf_url = reverse("contacts.contactfield_create")
-
-        response = self.client.get(create_cf_url)
-        self.assertEqual(response.status_code, 200)
-
-        # we got a form with expected form fields
-        self.assertListEqual(
-            list(response.context["form"].fields.keys()), ["label", "value_type", "show_in_table", "loc"]
-        )
-
-        # an empty form
-        post_data = {}
-
-        response = self.client.post(create_cf_url, post_data)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Can only contain letters, numbers and hypens.")
-        self.assertFormError(response, "form", "value_type", "This field is required.")
-
-        # a form with an invalid label
-        post_data = {"label": "!@#"}
-
-        response = self.client.post(create_cf_url, post_data)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Can only contain letters, numbers and hypens.")
-
-        # a form trying to create a field that already exists
-        post_data = {"label": "First"}
-
-        response = self.client.post(create_cf_url, post_data)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Must be unique.")
-
-        # a form creating a field that does not have a valid key
-        post_data = {"label": "modified by"}
-
-        response = self.client.post(create_cf_url, post_data)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Can't be a reserved word")
-
-        with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=2):
-            with patch.object(Org, "LIMIT_DEFAULTS", dict(fields=2)):
-                # a valid form, but ORG has reached max active fields limit
-                post_data = {"label": "teefilter", "value_type": "T"}
-
-                response = self.client.post(create_cf_url, post_data)
-
-                self.assertEqual(response.status_code, 200)
-                self.assertFormError(response, "form", None, "Cannot create a new field as limit is 2.")
-
-        # value_type not supported
-        post_data = {"label": "teefilter", "value_type": "J"}
-
-        response = self.client.post(create_cf_url, post_data)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(
-            response, "form", "value_type", "Select a valid choice. J is not one of the available choices."
-        )
-
-    def test_update(self):
-        cf_to_update = ContactField.user_fields.get(key="first")
-
-        self.login(self.admin)
-
-        update_url = reverse("contacts.contactfield_update", args=(cf_to_update.id,))
-
-        response = self.client.get(update_url)
-        self.assertEqual(response.status_code, 200)
-
-        initial_data = {"label": "First", "value_type": "T", "show_in_table": False}
-
-        # we got a form with expected form fields
-        self.assertListEqual(
-            list(response.context["form"].fields.keys()), ["label", "value_type", "show_in_table", "loc"]
-        )
-        self.assertDictEqual(response.context["form"].initial, initial_data)
-
-        initial_data["show_in_table"] = True
-        initial_data["label"] = "First 1"
-
-        response = self.client.post(update_url, initial_data)
-        self.assertEqual(response.status_code, 200)
-        self.assertNoFormErrors(response, initial_data)
-
-        cf_to_update.refresh_from_db()
-        self.assertEqual(cf_to_update.label, "First 1")
-
-        # can't update field in other org
-        response = self.client.post(
-            reverse("contacts.contactfield_update", args=[self.other_org_field.id]),
-            {"label": "Changed", "value_type": "T", "show_in_table": False},
-        )
-        self.assertLoginRedirect(response)
-
-        # check field isn't changed
-        self.other_org_field.refresh_from_db()
-        self.assertEqual("Other", self.other_org_field.label)
-
-    def test_view_update_invalid(self):
-        self.login(self.admin)
-
-        # cannot update a contact field which does not exist
-        update_cf_url = reverse("contacts.contactfield_update", args=(123_123,))
-
-        response = self.client.get(update_cf_url)
-        self.assertEqual(response.status_code, 404)
-
-        # cannot update a contact field which does not exist
-        response = self.client.post(update_cf_url, {})
-        self.assertEqual(response.status_code, 404)
-
-        # get a valid field to update
-        cf_to_update = ContactField.user_fields.get(key="first")
-        update_cf_url = reverse("contacts.contactfield_update", args=(cf_to_update.id,))
-
-        response = self.client.get(update_cf_url)
-
-        # we got a form with expected form fields
-        self.assertListEqual(
-            list(response.context["form"].fields.keys()), ["label", "value_type", "show_in_table", "loc"]
-        )
-
-        # an empty form
-        post_data = {}
-
-        response = self.client.post(update_cf_url, post_data)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Can only contain letters, numbers and hypens.")
-        self.assertFormError(response, "form", "value_type", "This field is required.")
-
-        # a form with an invalid label
-        post_data = {"label": "!@#"}
-
-        response = self.client.post(update_cf_url, post_data)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Can only contain letters, numbers and hypens.")
-
-        # a form trying to create a field that already exists
-        post_data = {"label": "Second"}
-
-        response = self.client.post(update_cf_url, post_data)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Must be unique.")
-
-        # a form creating a field that does not have a valid key
-        post_data = {"label": "modified by"}
-
-        response = self.client.post(update_cf_url, post_data)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(response, "form", None, "Can't be a reserved word")
-
-        # value_type not supported
-        post_data = {"label": "teefilter", "value_type": "J"}
-
-        response = self.client.post(update_cf_url, post_data)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertFormError(
-            response, "form", "value_type", "Select a valid choice. J is not one of the available choices."
-        )
-
     def test_view_delete(self):
         cf_to_delete = ContactField.user_fields.get(key="first")
         self.assertTrue(cf_to_delete.is_active)
@@ -4794,6 +4559,124 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         self.deleted.save(update_fields=("is_active",))
 
         self.other_org_field = ContactField.get_or_create(self.org2, self.admin2, "other", "Other")
+
+    def test_create(self):
+        create_url = reverse("contacts.contactfield_create")
+
+        self.assertCreateFetch(
+            create_url, allow_viewers=False, allow_editors=True, form_fields=["label", "value_type", "show_in_table"]
+        )
+
+        # try to submit with empty name
+        self.assertCreateSubmit(
+            create_url,
+            {"label": "", "value_type": "T", "show_in_table": True},
+            form_errors={"label": "This field is required."},
+        )
+
+        # try to submit with invalid name
+        self.assertCreateSubmit(
+            create_url,
+            {"label": "???", "value_type": "T", "show_in_table": True},
+            form_errors={"label": "Can only contain letters, numbers and hypens."},
+        )
+
+        # try to submit with something that would be an invalid key
+        self.assertCreateSubmit(
+            create_url,
+            {"label": "UUID", "value_type": "T", "show_in_table": True},
+            form_errors={"label": "Can't be a reserved word."},
+        )
+
+        # try to submit with name of existing field
+        self.assertCreateSubmit(
+            create_url,
+            {"label": "AGE", "value_type": "N", "show_in_table": True},
+            form_errors={"label": "Must be unique."},
+        )
+
+        # submit with valid data
+        self.assertCreateSubmit(
+            create_url,
+            {"label": "Goats", "value_type": "N", "show_in_table": True},
+            new_obj_query=ContactField.user_fields.filter(
+                org=self.org, label="Goats", value_type="N", show_in_table=True
+            ),
+            success_status=200,
+        )
+
+        # it's also ok to create a field with the same name as a deleted field
+        ContactField.hide_field(self.org, self.admin, "age")
+
+        self.assertCreateSubmit(
+            create_url,
+            {"label": "Age", "value_type": "N", "show_in_table": True},
+            new_obj_query=ContactField.user_fields.filter(
+                org=self.org, label="Age", value_type="N", show_in_table=True
+            ),
+            success_status=200,
+        )
+
+        # simulate an org which has reached the limit for fields
+        with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=2), patch.object(Org, "LIMIT_DEFAULTS", {"fields": 2}):
+            self.assertCreateSubmit(
+                create_url,
+                {"label": "Sheep", "value_type": "T", "show_in_table": True},
+                form_errors={"__all__": "Cannot create a new field as limit is 2."},
+            )
+
+    def test_update(self):
+        update_url = reverse("contacts.contactfield_update", args=[self.age.id])
+
+        self.assertUpdateFetch(
+            update_url,
+            allow_viewers=False,
+            allow_editors=True,
+            form_fields={"label": "Age", "value_type": "N", "show_in_table": True},
+        )
+
+        # try to submit with empty name
+        self.assertUpdateSubmit(
+            update_url,
+            {"label": "", "value_type": "N", "show_in_table": True},
+            form_errors={"label": "This field is required."},
+            object_unchanged=self.age,
+        )
+
+        # try to submit with invalid name
+        self.assertUpdateSubmit(
+            update_url,
+            {"label": "???", "value_type": "N", "show_in_table": True},
+            form_errors={"label": "Can only contain letters, numbers and hypens."},
+            object_unchanged=self.age,
+        )
+
+        # try to submit with a name that is used by another field
+        self.assertUpdateSubmit(
+            update_url,
+            {"label": "GENDER", "value_type": "N", "show_in_table": True},
+            form_errors={"label": "Must be unique."},
+            object_unchanged=self.age,
+        )
+
+        # submit with different name and type
+        self.assertUpdateSubmit(
+            update_url, {"label": "Age In Years", "value_type": "T", "show_in_table": False}, success_status=200
+        )
+
+        self.age.refresh_from_db()
+        self.assertEqual("Age In Years", self.age.label)
+        self.assertEqual("T", self.age.value_type)
+        self.assertFalse(self.age.show_in_table)
+
+        # simulate an org which has reached the limit for fields - should still be able to update a field
+        with override_settings(MAX_ACTIVE_CONTACTFIELDS_PER_ORG=2), patch.object(Org, "LIMIT_DEFAULTS", {"fields": 2}):
+            self.assertUpdateSubmit(
+                update_url, {"label": "Age 2", "value_type": "T", "show_in_table": True}, success_status=200
+            )
+
+        self.age.refresh_from_db()
+        self.assertEqual("Age 2", self.age.label)
 
     def test_list(self):
         list_url = reverse("contacts.contactfield_list")
