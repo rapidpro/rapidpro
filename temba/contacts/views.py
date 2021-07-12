@@ -1535,7 +1535,7 @@ class ContactGroupCRUDL(SmartCRUDL):
             return self.render_modal_response()
 
 
-class BaseFieldForm(forms.ModelForm):
+class ContactFieldForm(forms.ModelForm):
     def __init__(self, org, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -1547,13 +1547,15 @@ class BaseFieldForm(forms.ModelForm):
         if not ContactField.is_valid_label(label):
             raise forms.ValidationError(_("Can only contain letters, numbers and hypens."))
 
-        cf_exists = ContactField.user_fields.active_for_org(org=self.org).filter(label__iexact=label.lower()).exists()
-
-        if self.instance.label != label and cf_exists is True:
-            raise forms.ValidationError(_("Must be unique."))
-
         if not ContactField.is_valid_key(ContactField.make_key(label)):
             raise forms.ValidationError(_("Can't be a reserved word."))
+
+        conflict = ContactField.user_fields.active_for_org(org=self.org).filter(label__iexact=label.lower())
+        if self.instance:
+            conflict.exclude(id=self.instance.id)
+
+        if conflict.exists():
+            raise forms.ValidationError(_("Must be unique."))
 
         return label
 
@@ -1567,23 +1569,6 @@ class BaseFieldForm(forms.ModelForm):
             "value_type": SelectWidget(attrs={"widget_only": False}),
             "show_in_table": CheckboxWidget(attrs={"widget_only": True}),
         }
-
-
-class CreateContactFieldForm(BaseFieldForm):
-    def clean(self):
-        super().clean()
-
-        org_active_fields_limit = self.org.get_limit(Org.LIMIT_FIELDS)
-
-        field_count = ContactField.user_fields.count_active_for_org(org=self.org)
-        if field_count >= org_active_fields_limit:
-            raise forms.ValidationError(
-                _(f"Cannot create a new field as limit is %(limit)s."), params={"limit": org_active_fields_limit}
-            )
-
-
-class UpdateContactFieldForm(BaseFieldForm):
-    pass
 
 
 class ContactFieldListView(OrgPermsMixin, SmartListView):
@@ -1652,8 +1637,21 @@ class ContactFieldCRUDL(SmartCRUDL):
     actions = ("list", "create", "update", "update_priority", "delete", "featured", "filter_by_type", "detail")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
+        class Form(ContactFieldForm):
+            def clean(self):
+                super().clean()
+
+                org_active_fields_limit = self.org.get_limit(Org.LIMIT_FIELDS)
+
+                field_count = ContactField.user_fields.count_active_for_org(org=self.org)
+                if field_count >= org_active_fields_limit:
+                    raise forms.ValidationError(
+                        _(f"Cannot create a new field as limit is %(limit)s."),
+                        params={"limit": org_active_fields_limit},
+                    )
+
         queryset = ContactField.user_fields
-        form_class = CreateContactFieldForm
+        form_class = Form
         success_message = ""
         submit_button_name = _("Create")
 
@@ -1675,7 +1673,7 @@ class ContactFieldCRUDL(SmartCRUDL):
 
     class Update(ModalMixin, OrgObjPermsMixin, SmartUpdateView):
         queryset = ContactField.user_fields
-        form_class = UpdateContactFieldForm
+        form_class = ContactFieldForm
         success_message = ""
         submit_button_name = _("Update")
 
