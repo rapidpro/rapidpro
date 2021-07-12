@@ -417,13 +417,13 @@ class ContactField(SmartModel):
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="contactfields")
 
-    label = models.CharField(verbose_name=_("Label"), max_length=MAX_LABEL_LEN)
+    label = models.CharField(max_length=MAX_LABEL_LEN)
 
     key = models.CharField(max_length=MAX_KEY_LEN)
 
     field_type = models.CharField(max_length=1, choices=FIELD_TYPE_CHOICES, default=FIELD_TYPE_USER)
 
-    value_type = models.CharField(choices=TYPE_CHOICES, max_length=1, default=TYPE_TEXT, verbose_name=_("Field Type"))
+    value_type = models.CharField(choices=TYPE_CHOICES, max_length=1, default=TYPE_TEXT)
 
     # how field is displayed in the UI
     show_in_table = models.BooleanField(default=False)

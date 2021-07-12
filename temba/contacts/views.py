@@ -1535,12 +1535,14 @@ class ContactGroupCRUDL(SmartCRUDL):
             return self.render_modal_response()
 
 
-class ContactFieldFormMixin:
-    org = None
+class BaseFieldForm(forms.ModelForm):
+    def __init__(self, org, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-    def clean(self):
-        cleaned_data = super().clean()
-        label = cleaned_data.get("label", "")
+        self.org = org
+
+    def clean_label(self):
+        label = self.cleaned_data["label"]
 
         if not ContactField.is_valid_label(label):
             raise forms.ValidationError(_("Can only contain letters, numbers and hypens."))
@@ -1551,18 +1553,26 @@ class ContactFieldFormMixin:
             raise forms.ValidationError(_("Must be unique."))
 
         if not ContactField.is_valid_key(ContactField.make_key(label)):
-            raise forms.ValidationError(_("Can't be a reserved word"))
+            raise forms.ValidationError(_("Can't be a reserved word."))
+
+        return label
+
+    class Meta:
+        model = ContactField
+        fields = ("label", "value_type", "show_in_table")
+        labels = {"label": _("Name"), "value_type": _("Data Type"), "show_in_table": _("Featured")}
+        help_texts = {"value_type": _("The type of the values that will be stored in this field.")}
+        widgets = {
+            "label": InputWidget(attrs={"widget_only": False}),
+            "value_type": SelectWidget(attrs={"widget_only": False}),
+            "show_in_table": CheckboxWidget(attrs={"widget_only": True}),
+        }
 
 
-class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
-    def __init__(self, *args, **kwargs):
-        self.org = kwargs["org"]
-        del kwargs["org"]
-
-        super().__init__(*args, **kwargs)
-
+class CreateContactFieldForm(BaseFieldForm):
     def clean(self):
         super().clean()
+
         org_active_fields_limit = self.org.get_limit(Org.LIMIT_FIELDS)
 
         field_count = ContactField.user_fields.count_active_for_org(org=self.org)
@@ -1571,31 +1581,9 @@ class CreateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
                 _(f"Cannot create a new field as limit is %(limit)s."), params={"limit": org_active_fields_limit}
             )
 
-    class Meta:
-        model = ContactField
-        fields = ("label", "value_type", "show_in_table")
-        widgets = {
-            "label": InputWidget(attrs={"name": _("Field Name"), "widget_only": False}),
-            "value_type": SelectWidget(attrs={"widget_only": False}),
-            "show_in_table": CheckboxWidget(attrs={"widget_only": True}),
-        }
 
-
-class UpdateContactFieldForm(ContactFieldFormMixin, forms.ModelForm):
-    def __init__(self, *args, **kwargs):
-        self.org = kwargs["org"]
-        del kwargs["org"]
-
-        super().__init__(*args, **kwargs)
-
-    class Meta:
-        model = ContactField
-        fields = ("label", "value_type", "show_in_table")
-        widgets = {
-            "label": InputWidget(attrs={"name": _("Field Name"), "widget_only": False}),
-            "value_type": SelectWidget(attrs={"widget_only": False}),
-            "show_in_table": CheckboxWidget(attrs={"widget_only": True}),
-        }
+class UpdateContactFieldForm(BaseFieldForm):
+    pass
 
 
 class ContactFieldListView(OrgPermsMixin, SmartListView):
@@ -1668,7 +1656,6 @@ class ContactFieldCRUDL(SmartCRUDL):
         form_class = CreateContactFieldForm
         success_message = ""
         submit_button_name = _("Create")
-        field_config = {"show_in_table": {"label": _("Featured")}}
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -1691,7 +1678,6 @@ class ContactFieldCRUDL(SmartCRUDL):
         form_class = UpdateContactFieldForm
         success_message = ""
         submit_button_name = _("Update")
-        field_config = {"show_in_table": {"label": _("Featured")}}
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
