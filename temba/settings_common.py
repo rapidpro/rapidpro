@@ -980,10 +980,15 @@ _default_database_config = {
     "OPTIONS": {},
 }
 
+_readonly_database_config = _default_database_config.copy()
 _direct_database_config = _default_database_config.copy()
 _default_database_config["DISABLE_SERVER_SIDE_CURSORS"] = True
 
-DATABASES = {"default": _default_database_config, "direct": _direct_database_config}
+DATABASES = {
+    "default": _default_database_config,
+    "direct": _direct_database_config,
+    "read_only_db": _readonly_database_config,
+}
 
 # If we are testing, set both our connections as the same, Django seems to get
 # confused on Python 3.6 with transactional tests otherwise
