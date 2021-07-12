@@ -4554,10 +4554,6 @@ class ReportEndpointMixin:
         if not limited_filters:
             queried_contact_ids = self.get_contact_ids_by_query(org)
             if queried_contact_ids:
-                contact_id_pairs = ",".join(
-                    str((seq, model_id)) for seq, model_id in enumerate(queried_contact_ids, start=1)
-                )
-
                 class ContactIDFilterJoin:
                     table_name = "t"
                     join_type = "INNER JOIN"
@@ -4567,8 +4563,7 @@ class ReportEndpointMixin:
 
                     @classmethod
                     def as_sql(cls, *args):
-                        return f"INNER JOIN (VALUES {contact_id_pairs}) t (seq, id) ON contacts_contact.id = t.id", []
-
+                        return "INNER JOIN (SELECT unnest(%s::int[]) as id) x USING(id)", [queried_contact_ids]
                 contacts.query.join(ContactIDFilterJoin)
 
             elif self.get_query_parameter("search_query"):
@@ -4982,10 +4977,6 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         # filter messages by uuids
         if messages_uuids:
-            msgs_uuid_pairs = ",".join(
-                str((seq, model_uuid)) for seq, model_uuid in enumerate(messages_uuids, start=1)
-            )
-
             class MessagesUUIDFilterJoin:
                 table_name = "t"
                 join_type = "INNER JOIN"
@@ -4995,7 +4986,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
                 @classmethod
                 def as_sql(cls, *args):
-                    return f"INNER JOIN (VALUES {msgs_uuid_pairs}) t (seq, uuid) ON msgs_msg.uuid = t.uuid::uuid", []
+                    return "INNER JOIN (SELECT unnest(%s::uuid[]) as uuid) x USING(uuid)", [messages_uuids]
 
             qs.query.join(MessagesUUIDFilterJoin)
         else:
