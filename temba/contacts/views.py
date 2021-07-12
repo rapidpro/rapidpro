@@ -166,8 +166,10 @@ class ContactGroupForm(forms.ModelForm):
             raise forms.ValidationError(str(e))
 
     class Meta:
-        fields = ("name", "query")
         model = ContactGroup
+        fields = ("name", "query")
+        labels = {"name": _("Name"), "query": _("Query")}
+        help_texts = {"query": _("Only contacts matching this query will belong to this group.")}
 
 
 class ContactListView(OrgPermsMixin, BulkActionMixin, SmartListView):
