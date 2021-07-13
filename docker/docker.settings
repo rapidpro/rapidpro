@@ -72,12 +72,11 @@ _default_database_config = {
 }
 
 _readonly_database_config = _default_database_config.copy()
-_readonly_database_config["HOST"] = os.environ.get("RO_DB_HOST", _readonly_database_config["HOST"]),
-_readonly_database_config["PORT"] = os.environ.get("RO_DB_PORT", _readonly_database_config["PORT"]),
-_readonly_database_config["NAME"] = os.environ.get("RO_DB_NAME", _readonly_database_config["NAME"]),
-_readonly_database_config["USER"] = os.environ.get("RO_DB_USER", _readonly_database_config["USER"]),
-_readonly_database_config["PASSWORD"] = os.environ.get("RO_DB_PASSWORD", _readonly_database_config["PASSWORD"]),
-_readonly_database_config["OPTIONS"] = os.environ.get("RO_DB_OPTIONS", _readonly_database_config["OPTIONS"]),
+_readonly_database_config["HOST"] = os.environ.get("RO_DB_HOST", _readonly_database_config["HOST"])
+_readonly_database_config["PORT"] = os.environ.get("RO_DB_PORT", _readonly_database_config["PORT"])
+_readonly_database_config["NAME"] = os.environ.get("RO_DB_NAME", _readonly_database_config["NAME"])
+_readonly_database_config["USER"] = os.environ.get("RO_DB_USER", _readonly_database_config["USER"])
+_readonly_database_config["PASSWORD"] = os.environ.get("RO_DB_PASSWORD", _readonly_database_config["PASSWORD"])
 
 _direct_database_config = _default_database_config.copy()
 _default_database_config["DISABLE_SERVER_SIDE_CURSORS"] = True
