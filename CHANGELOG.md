@@ -1,3 +1,10 @@
+v6.4.4
+----------
+ * Start background flows with include_active = true
+ * Update flow editor with MediaPlayer fix
+ * Fix poetry content-hash to remove install warning
+ * Update translations from transifex
+
 v6.4.3
 ----------
  * Improve contact field forms
