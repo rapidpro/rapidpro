@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-07-06 17:16+0000\n"
+"POT-Creation-Date: 2021-07-13 16:47+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -69,12 +69,6 @@ msgid "File not found"
 msgstr ""
 
 msgid "You do not have permission to access this file"
-msgstr ""
-
-msgid "The name of this campaign"
-msgstr ""
-
-msgid "The group this campaign operates on"
 msgstr ""
 
 msgid "Minutes"
@@ -140,7 +134,16 @@ msgstr[1] ""
 msgid "on"
 msgstr ""
 
-msgid "Select a group to base the campaign on"
+msgid "Select group"
+msgstr ""
+
+msgid "Group"
+msgstr ""
+
+msgid "Only contacts in this group will be included in this campaign's events."
+msgstr ""
+
+msgid "Name"
 msgstr ""
 
 msgid "Export"
@@ -239,9 +242,6 @@ msgid "JSON - application/json"
 msgstr ""
 
 msgid "XML - text/xml; charset=utf-8"
-msgstr ""
-
-msgid "Name"
 msgstr ""
 
 msgid "Descriptive label for this channel"
@@ -2111,12 +2111,6 @@ msgstr ""
 msgid "Ward"
 msgstr ""
 
-msgid "Label"
-msgstr ""
-
-msgid "Field Type"
-msgstr ""
-
 msgid "The name of this contact"
 msgstr ""
 
@@ -2133,15 +2127,6 @@ msgid "Evaluating"
 msgstr ""
 
 msgid "Ready"
-msgstr ""
-
-msgid "The name of this contact group"
-msgstr ""
-
-msgid "Query"
-msgstr ""
-
-msgid "The membership query for this group"
 msgstr ""
 
 msgid "The unique group to export"
@@ -2245,6 +2230,12 @@ msgid "You cannot create a smart group based on \"id\" or \"group\"."
 msgstr ""
 
 msgid "You cannot update the query of a group that is evaluating."
+msgstr ""
+
+msgid "Query"
+msgstr ""
+
+msgid "Only contacts matching this query will belong to this group."
 msgstr ""
 
 msgid "Active"
@@ -2372,23 +2363,26 @@ msgstr ""
 msgid "Can only contain letters, numbers and hypens."
 msgstr ""
 
+msgid "Can't be a reserved word."
+msgstr ""
+
 msgid "Must be unique."
 msgstr ""
 
-msgid "Can't be a reserved word"
+msgid "Data Type"
 msgstr ""
 
-#, python-format
-msgid "Cannot create a new field as limit is %(limit)s."
+msgid "Featured"
 msgstr ""
 
-msgid "Field Name"
+msgid "The type of the values that will be stored in this field."
 msgstr ""
 
 msgid "Manage Contact Fields"
 msgstr ""
 
-msgid "Featured"
+#, python-format
+msgid "Cannot create a new field as limit is %(limit)s."
 msgstr ""
 
 msgid "Update"
@@ -2484,12 +2478,6 @@ msgid "Complete"
 msgstr ""
 
 msgid "Failed"
-msgstr ""
-
-msgid "The name of this flow label"
-msgstr ""
-
-msgid "Parent"
 msgstr ""
 
 msgid "After 5 minutes"
@@ -2796,7 +2784,13 @@ msgstr ""
 msgid "Your message template {template.name} is not approved and cannot be sent."
 msgstr ""
 
-msgid "Optional: Select parent label"
+msgid "Parent"
+msgstr ""
+
+msgid "Select label"
+msgstr ""
+
+msgid "Optional parent label which can be used to group related labels."
 msgstr ""
 
 msgid "Name already used"
@@ -2873,12 +2867,6 @@ msgid "Whether this count is for archived messages"
 msgstr ""
 
 msgid "Number of items with this system label"
-msgstr ""
-
-msgid "Choose a name for your label"
-msgstr ""
-
-msgid "Folder"
 msgstr ""
 
 msgid "The date for the oldest message to export"
@@ -3005,10 +2993,13 @@ msgstr ""
 msgid "This org has %(count)d labels and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr ""
 
-msgid "Optional: Parent Folder"
+msgid "Folder"
 msgstr ""
 
-msgid "Choose a name for your folder"
+msgid "Select folder"
+msgstr ""
+
+msgid "Optional folder which can be used to group related labels."
 msgstr ""
 
 msgid "Update Folder"
@@ -3818,6 +3809,13 @@ msgstr ""
 msgid "Unassigned"
 msgstr ""
 
+msgid "Enabling this will allow you to handle tickets within {{brand.name}}."
+msgstr ""
+
+#, python-format
+msgid "This will enable handling tickets internally in %(brand)s."
+msgstr ""
+
 msgid "Connecting an email address will forward all new tickets and their responses to that email address. You will be able to respond to them directly and your replies will be sent to the contact."
 msgstr ""
 
@@ -3960,13 +3958,19 @@ msgstr ""
 msgid "Contacts To Include"
 msgstr ""
 
-msgid "Additional specific contacts to include."
+msgid "Additional specific contacts that will be started in the flow."
 msgstr ""
 
 msgid "Optional: Select contacts"
 msgstr ""
 
 msgid "Must provide at least one group or contact to include."
+msgstr ""
+
+msgid "The groups that will be started in the flow."
+msgstr ""
+
+msgid "Any contacts in these groups will not be started in the flow."
 msgstr ""
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
@@ -5295,11 +5299,23 @@ msgid "Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%
 msgstr ""
 
 #, python-format
-msgid "Opened ticket with subject <b>%(subject)s</b>"
+msgid "<b>%(assigner)s</b> took <b>%(subject)s</b>"
 msgstr ""
 
 #, python-format
-msgid "Closed ticket with subject <b>%(subject)s</b>"
+msgid "<b>%(assigner)s</b> assigned <b>%(subject)s</b> to <b>%(assignee)s</b>"
+msgstr ""
+
+#, python-format
+msgid "Opened ticket <b>%(subject)s</b>"
+msgstr ""
+
+#, python-format
+msgid "Reopened ticket <b>%(subject)s</b>"
+msgstr ""
+
+#, python-format
+msgid "Closed ticket <b>%(subject)s</b>"
 msgstr ""
 
 msgid "Successfully called"
@@ -5383,6 +5399,12 @@ msgid "Full"
 msgstr ""
 
 msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
+msgstr ""
+
+msgid "Add Connection"
+msgstr ""
+
+msgid "Add a new way connect with this contact"
 msgstr ""
 
 #, python-format
@@ -5773,6 +5795,9 @@ msgid "Labels"
 msgstr ""
 
 msgid "Webhook Call Log"
+msgstr ""
+
+msgid "Label"
 msgstr ""
 
 msgid "New Label"
@@ -6535,9 +6560,6 @@ msgid "Hide Archived"
 msgstr ""
 
 msgid "Select all of the items below that you would like to include in your export. We've grouped them together based on which flows and campaigns work with each other. Any related triggers will automatically be included in the export."
-msgstr ""
-
-msgid "Group"
 msgstr ""
 
 msgid "Select Group"

@@ -189,18 +189,10 @@ class TicketCRUDL(SmartCRUDL):
         class Form(NoteForm):
             assignee = forms.ModelChoiceField(
                 queryset=User.objects.none(),
-                widget=SelectWidget(
-                    attrs={
-                        "searchable": True,
-                        "widget_only": True,
-                    }
-                ),
+                widget=SelectWidget(attrs={"searchable": True, "widget_only": True}),
+                required=False,
                 empty_label=_("Unassigned"),
             )
-
-            def clean_assignee(self):
-                assignee_id = self.data["assignee"]
-                return Ticket.get_allowed_assignees(self.org).filter(id=assignee_id).first()
 
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)

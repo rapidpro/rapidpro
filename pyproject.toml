@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "temba"
-version = "6.3.89"
+version = "6.4.3"
 description = "Hosted service for visually building interactive messaging applications"
 authors = ["Nyaruka <code@nyaruka.com>"]
 license = "AGPL-3"
@@ -20,7 +20,7 @@ django-storages = "^1.11.1"
 django-timezone-field = "^4.1.1"
 djangorestframework = "^3.12.2"
 dj-database-url = "^0.5.0"
-smartmin = "^2.3.8"
+smartmin = "^2.3.9"
 celery = "4.4.6"
 redis = "^3.5.3"
 elasticsearch = "^7.11.0"

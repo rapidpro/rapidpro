@@ -284,6 +284,12 @@ class TicketCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertIsNone(last_event.assignee)
         self.assertEqual("Have you looked?", last_event.note)
 
+        # submit with no assignee to un-assign
+        self.assertUpdateSubmit(assign_url, {"assignee": ""}, success_status=200)
+
+        ticket.refresh_from_db()
+        self.assertIsNone(ticket.assignee)
+
 
 class TicketerTest(TembaTest):
     @patch("temba.mailroom.client.MailroomClient.ticket_close")
