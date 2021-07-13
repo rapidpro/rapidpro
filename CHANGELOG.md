@@ -1,3 +1,7 @@
+v6.4.6
+----------
+ * Update flow editor to fix not being able to play audio attachments in simulator
+
 v6.4.4
 ----------
  * Start background flows with include_active = true
