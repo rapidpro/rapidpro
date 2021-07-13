@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-07-12 20:54+0000\n"
+"POT-Creation-Date: 2021-07-13 16:47+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Hudson Brendon <hudson.brendon@ilhasoft.com.br>, 2020\n"
 "Language-Team: Russian (https://www.transifex.com/rapidpro/teams/226/ru/)\n"
@@ -155,10 +155,8 @@ msgstr[3] ""
 msgid "on"
 msgstr ""
 
-#, fuzzy
-#| msgid "Select Group"
 msgid "Select group"
-msgstr "Выбрать Группу"
+msgstr ""
 
 msgid "Group"
 msgstr "Группа"
@@ -2386,26 +2384,20 @@ msgstr "Начать"
 msgid "Can only contain letters, numbers and hypens."
 msgstr "Может содержать только буквы, числа и дефисы."
 
-#, fuzzy
-#| msgid "Can't be a reserved word"
 msgid "Can't be a reserved word."
-msgstr "Не может являться зарезервированным словом"
+msgstr ""
 
 msgid "Must be unique."
 msgstr "Должен быть уникальным."
 
-#, fuzzy
-#| msgid "Alert Type"
 msgid "Data Type"
-msgstr "Тип Оповещения"
+msgstr ""
 
 msgid "Featured"
 msgstr "Рекомендованный"
 
-#, fuzzy
-#| msgid "The token the user will us to claim this channel"
 msgid "The type of the values that will be stored in this field."
-msgstr "Токен, который пользователь будет использовать для запроса данного канала"
+msgstr ""
 
 msgid "Manage Contact Fields"
 msgstr "Управление Полями Контактов"
@@ -2816,10 +2808,8 @@ msgstr "Ваш шаблон сообщения {template.name} не утверж
 msgid "Parent"
 msgstr "Родительский элемент"
 
-#, fuzzy
-#| msgid "Select All"
 msgid "Select label"
-msgstr "Выбрать Все"
+msgstr ""
 
 msgid "Optional parent label which can be used to group related labels."
 msgstr ""
@@ -3027,10 +3017,8 @@ msgstr "Эта организация имеет %(count)d меток и пре�
 msgid "Folder"
 msgstr "Папка"
 
-#, fuzzy
-#| msgid "Select All"
 msgid "Select folder"
-msgstr "Выбрать Все"
+msgstr ""
 
 msgid "Optional folder which can be used to group related labels."
 msgstr ""
@@ -5511,10 +5499,8 @@ msgstr "Полностью"
 msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
 msgstr "Эти контакты были исключены, и Вы больше не можете отправлять им сообщения, они были удалены из всех групп."
 
-#, fuzzy
-#| msgid "Connection Error"
 msgid "Add Connection"
-msgstr "Ошибка подключения"
+msgstr ""
 
 msgid "Add a new way connect with this contact"
 msgstr ""
@@ -7693,21 +7679,3 @@ msgstr ""
 
 msgid "No synced templates at this time."
 msgstr "На данный момент синхронизированные шаблоны отсутствуют."
-
-#~ msgid "The name of this campaign"
-#~ msgstr "Название данной кампании"
-
-#~ msgid "The group this campaign operates on"
-#~ msgstr "Группа, по которой работает данная кампания"
-
-#~ msgid "Select a group to base the campaign on"
-#~ msgstr "Выберите группу, на которой будет основана кампания"
-
-#~ msgid "The name of this contact group"
-#~ msgstr "Название данной группы контактов"
-
-#~ msgid "The membership query for this group"
-#~ msgstr "Запрос членства для данной группы"
-
-#~ msgid "The name of this flow label"
-#~ msgstr "Название метки данного потока"

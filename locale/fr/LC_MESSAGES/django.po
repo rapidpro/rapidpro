@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-07-12 20:54+0000\n"
+"POT-Creation-Date: 2021-07-13 16:47+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2021\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -139,18 +139,14 @@ msgstr[1] "%d semaines après"
 msgid "on"
 msgstr "actif"
 
-#, fuzzy
-#| msgid "Select a group"
 msgid "Select group"
-msgstr "Sélectionnez un groupe"
+msgstr ""
 
 msgid "Group"
 msgstr "Groupe"
 
-#, fuzzy
-#| msgid "Any contacts in these groups will not be started in the flow."
 msgid "Only contacts in this group will be included in this campaign's events."
-msgstr "Les contacts de ces groupes ne seront pas lancés dans le flux."
+msgstr ""
 
 msgid "Name"
 msgstr "Nom"
@@ -2372,26 +2368,20 @@ msgstr "Démarrer"
 msgid "Can only contain letters, numbers and hypens."
 msgstr "Ne peut contenir que des lettres, des chiffres et des tirets."
 
-#, fuzzy
-#| msgid "Can't be a reserved word"
 msgid "Can't be a reserved word."
-msgstr "Ne peut pas être un mot réservé"
+msgstr ""
 
 msgid "Must be unique."
 msgstr "Doit être unique."
 
-#, fuzzy
-#| msgid "Alert Type"
 msgid "Data Type"
-msgstr "type d'alerte"
+msgstr ""
 
 msgid "Featured"
 msgstr "En vedette"
 
-#, fuzzy
-#| msgid "The groups that will be started in the flow."
 msgid "The type of the values that will be stored in this field."
-msgstr "Les groupes qui seront lancés dans le flux."
+msgstr ""
 
 msgid "Manage Contact Fields"
 msgstr "Gérer les champs de contact"
@@ -2802,10 +2792,8 @@ msgstr "Votre modèle de message {template.name} n'est pas approuvé et ne peut 
 msgid "Parent"
 msgstr "Parent"
 
-#, fuzzy
-#| msgid "Select All"
 msgid "Select label"
-msgstr "Tout sélectionner"
+msgstr ""
 
 msgid "Optional parent label which can be used to group related labels."
 msgstr ""
@@ -3013,10 +3001,8 @@ msgstr "Cette organisation a %(count)d étiquettes et la limite est %(limit)d. V
 msgid "Folder"
 msgstr "Dossier"
 
-#, fuzzy
-#| msgid "Delete Folder"
 msgid "Select folder"
-msgstr "Supprimer le dossier"
+msgstr ""
 
 msgid "Optional folder which can be used to group related labels."
 msgstr ""
@@ -5364,30 +5350,25 @@ msgstr "Message étiqueté comme"
 msgid "Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%(category)s</b>"
 msgstr "Résultat d'exécution <b>%(name)s</b> mis à jour à <b>%(value)s</b> avec la catégorie <b>%(category)s</b>"
 
-#, fuzzy, python-format
-#| msgid "Field <b>%(name)s</b> updated to <b>%(value)s</b>"
+#, python-format
 msgid "<b>%(assigner)s</b> took <b>%(subject)s</b>"
-msgstr "Champ <b>%(name)s</b> mis à jour à <b>%(value)s</b>"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%(category)s</b>"
+#, python-format
 msgid "<b>%(assigner)s</b> assigned <b>%(subject)s</b> to <b>%(assignee)s</b>"
-msgstr "Résultat d'exécution <b>%(name)s</b> mis à jour à <b>%(value)s</b> avec la catégorie <b>%(category)s</b>"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "Opened ticket with subject <b>%(subject)s</b>"
+#, python-format
 msgid "Opened ticket <b>%(subject)s</b>"
-msgstr "Billet ouvert avec le sujet <b>%(subject)s</b>"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "Opened ticket with subject <b>%(subject)s</b>"
+#, python-format
 msgid "Reopened ticket <b>%(subject)s</b>"
-msgstr "Billet ouvert avec le sujet <b>%(subject)s</b>"
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "Closed ticket with subject <b>%(subject)s</b>"
+#, python-format
 msgid "Closed ticket <b>%(subject)s</b>"
-msgstr "Billet fermé avec le sujet <b>%(subject)s</b>"
+msgstr ""
 
 msgid "Successfully called"
 msgstr "Appelé avec succès"
@@ -5479,10 +5460,8 @@ msgstr "Plein"
 msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
 msgstr "Ces contacts se sont retirés et vous ne pouvez plus leur envoyer de messages, ils ont été supprimés de tous les groupes."
 
-#, fuzzy
-#| msgid "Connection Error"
 msgid "Add Connection"
-msgstr "Erreur de connexion"
+msgstr ""
 
 msgid "Add a new way connect with this contact"
 msgstr ""
@@ -7859,39 +7838,3 @@ msgstr "Les modèles sont synchronisés à partir de votre compte toutes les 15 
 
 msgid "No synced templates at this time."
 msgstr "Aucun modèle synchronisé pour le moment."
-
-#~ msgid "The name of this campaign"
-#~ msgstr "Le nom de cette campagne"
-
-#~ msgid "The group this campaign operates on"
-#~ msgstr "Le groupe sur lequel cette campagne opère"
-
-#~ msgid "Select a group to base the campaign on"
-#~ msgstr "Sélectionnez un groupe sur lequel baser la campagne"
-
-#~ msgid "Field Type"
-#~ msgstr "Type de champ"
-
-#~ msgid "The name of this contact group"
-#~ msgstr "Le nom de ce groupe de contact"
-
-#~ msgid "The membership query for this group"
-#~ msgstr "La requête d'adhésion pour ce groupe"
-
-#~ msgid "Field Name"
-#~ msgstr "Nom de domaine"
-
-#~ msgid "The name of this flow label"
-#~ msgstr "Le nom de ce label de flux"
-
-#~ msgid "Optional: Select parent label"
-#~ msgstr "Facultatif: sélectionnez l'étiquette parent"
-
-#~ msgid "Choose a name for your label"
-#~ msgstr "Choisissez un nom pour votre étiquette"
-
-#~ msgid "Optional: Parent Folder"
-#~ msgstr "Facultatif: dossier parent"
-
-#~ msgid "Choose a name for your folder"
-#~ msgstr "Choisissez un nom pour votre dossier"

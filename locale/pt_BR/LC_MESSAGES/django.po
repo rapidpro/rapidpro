@@ -7,7 +7,6 @@
 # Nyaruka <info@textit.in>, 2019
 # pericles ilha <pericles.terto@ilhasoft.com.br>, 2019
 # Nathallia Salvador <nathallia.salvador@ilhasoft.com.br>, 2019
-# Tales Souza <tales@ilhasoft.com.br>, 2020
 # Paulo Bernardo <paulo.bernardo@ilhasoft.com.br>, 2020
 # Matheus Soares <matheus.soares@ilhasoft.com.br>, 2020
 # Ilhasoft <contato@ilhasoft.com.br>, 2021
@@ -17,7 +16,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-07-12 20:54+0000\n"
+"POT-Creation-Date: 2021-07-13 16:47+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Ilhasoft <contato@ilhasoft.com.br>, 2021\n"
 "Language-Team: Portuguese (Brazil) (https://www.transifex.com/rapidpro/teams/226/pt_BR/)\n"
@@ -144,10 +143,8 @@ msgstr[1] "%d semanas depois"
 msgid "on"
 msgstr "ligado"
 
-#, fuzzy
-#| msgid "Select Group"
 msgid "Select group"
-msgstr "Selecionar Grupo"
+msgstr ""
 
 msgid "Group"
 msgstr "Grupo"
@@ -2377,26 +2374,20 @@ msgstr "Começar"
 msgid "Can only contain letters, numbers and hypens."
 msgstr "Pode somente conter letras, números e hífens."
 
-#, fuzzy
-#| msgid "Can't be a reserved word"
 msgid "Can't be a reserved word."
-msgstr "Não pode ser uma palavra reservada."
+msgstr ""
 
 msgid "Must be unique."
 msgstr "Deve ser único."
 
-#, fuzzy
-#| msgid "Alert Type"
 msgid "Data Type"
-msgstr "Tipo do alerta"
+msgstr ""
 
 msgid "Featured"
 msgstr "Destaque"
 
-#, fuzzy
-#| msgid "The token the user will us to claim this channel"
 msgid "The type of the values that will be stored in this field."
-msgstr "O token que será usado para requisitar este transmissor"
+msgstr ""
 
 msgid "Manage Contact Fields"
 msgstr "Configurar campo de contatos"
@@ -2807,10 +2798,8 @@ msgstr "Seu template de mensagem {template.name} não foi aprovado e não pode s
 msgid "Parent"
 msgstr "Pais"
 
-#, fuzzy
-#| msgid "Select All"
 msgid "Select label"
-msgstr "Selecionar Tudo"
+msgstr ""
 
 msgid "Optional parent label which can be used to group related labels."
 msgstr ""
@@ -3018,10 +3007,8 @@ msgstr "Esta org tem  %(count)d labels  e o limite é %(limit)d. Você deve dele
 msgid "Folder"
 msgstr "Pasta"
 
-#, fuzzy
-#| msgid "Select All"
 msgid "Select folder"
-msgstr "Selecionar Tudo"
+msgstr ""
 
 msgid "Optional folder which can be used to group related labels."
 msgstr ""
@@ -5369,15 +5356,13 @@ msgstr "Mensagem rotulada como"
 msgid "Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%(category)s</b>"
 msgstr "Resultado da execução <b>%(name)s</b> atualizado para <b>%(value)s</b> com categoria <b>%(category)s</b>"
 
-#, fuzzy, python-format
-#| msgid "Field <b>%(name)s</b> updated to <b>%(value)s</b>"
+#, python-format
 msgid "<b>%(assigner)s</b> took <b>%(subject)s</b>"
-msgstr "Campo <b>%(name)s</b> atualizado para  <b>%(value)s</b>  "
+msgstr ""
 
-#, fuzzy, python-format
-#| msgid "Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%(category)s</b>"
+#, python-format
 msgid "<b>%(assigner)s</b> assigned <b>%(subject)s</b> to <b>%(assignee)s</b>"
-msgstr "Resultado da execução <b>%(name)s</b> atualizado para <b>%(value)s</b> com categoria <b>%(category)s</b>"
+msgstr ""
 
 #, python-format
 msgid "Opened ticket <b>%(subject)s</b>"
@@ -5481,10 +5466,8 @@ msgstr "Cheio"
 msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
 msgstr "Esses contatos foram excluídos e você não pode mais enviar mensagens, eles foram removidos de todos os grupos."
 
-#, fuzzy
-#| msgid "Connection Error"
 msgid "Add Connection"
-msgstr "Erro de Conexão"
+msgstr ""
 
 msgid "Add a new way connect with this contact"
 msgstr ""
@@ -7808,39 +7791,3 @@ msgstr ""
 
 msgid "No synced templates at this time."
 msgstr "Sem templates sincronizados neste momento."
-
-#~ msgid "The name of this campaign"
-#~ msgstr "O nome desta campanha"
-
-#~ msgid "The group this campaign operates on"
-#~ msgstr "O grupo em que essa campanha opera"
-
-#~ msgid "Select a group to base the campaign on"
-#~ msgstr "Selecione um grupo base para a campanha"
-
-#~ msgid "Field Type"
-#~ msgstr "Tipo de Campo"
-
-#~ msgid "The name of this contact group"
-#~ msgstr "O nome deste grupo de contato"
-
-#~ msgid "The membership query for this group"
-#~ msgstr "A questão de associação para este grupo"
-
-#~ msgid "Field Name"
-#~ msgstr "Nome do Campo"
-
-#~ msgid "The name of this flow label"
-#~ msgstr "O nome do rótulo desse fluxo"
-
-#~ msgid "Optional: Select parent label"
-#~ msgstr "Opcional: Selecione o rótulo pai"
-
-#~ msgid "Choose a name for your label"
-#~ msgstr "Escolha um nome para o seu rótulo"
-
-#~ msgid "Optional: Parent Folder"
-#~ msgstr "Opcional: Pasta pai"
-
-#~ msgid "Choose a name for your folder"
-#~ msgstr "Escolha um nome para a sua pasta"
