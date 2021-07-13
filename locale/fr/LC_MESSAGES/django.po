@@ -12,7 +12,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2021-07-08 17:42+0000\n"
+"POT-Creation-Date: 2021-07-13 16:47+0000\n"
 "PO-Revision-Date: 2019-05-13 20:14+0000\n"
 "Last-Translator: Jesus EKIE <jesus@fehudigital.com>, 2021\n"
 "Language-Team: French (https://www.transifex.com/rapidpro/teams/226/fr/)\n"
@@ -75,12 +75,6 @@ msgstr "Fichier introuvable"
 
 msgid "You do not have permission to access this file"
 msgstr "Vous ne disposez pas des permissions pour accéder à ce fichier"
-
-msgid "The name of this campaign"
-msgstr "Le nom de cette campagne"
-
-msgid "The group this campaign operates on"
-msgstr "Le groupe sur lequel cette campagne opère"
 
 msgid "Minutes"
 msgstr "Minutes"
@@ -145,8 +139,17 @@ msgstr[1] "%d semaines après"
 msgid "on"
 msgstr "actif"
 
-msgid "Select a group to base the campaign on"
-msgstr "Sélectionnez un groupe sur lequel baser la campagne"
+msgid "Select group"
+msgstr ""
+
+msgid "Group"
+msgstr "Groupe"
+
+msgid "Only contacts in this group will be included in this campaign's events."
+msgstr ""
+
+msgid "Name"
+msgstr "Nom"
 
 msgid "Export"
 msgstr "Exporter"
@@ -245,9 +248,6 @@ msgstr "JSON - application/json"
 
 msgid "XML - text/xml; charset=utf-8"
 msgstr "XML - text/xml; charset=utf-8"
-
-msgid "Name"
-msgstr "Nom"
 
 msgid "Descriptive label for this channel"
 msgstr "Etiquette descriptive pour ce canal"
@@ -2116,12 +2116,6 @@ msgstr "District"
 msgid "Ward"
 msgstr "Quartier"
 
-msgid "Label"
-msgstr "Etiquette"
-
-msgid "Field Type"
-msgstr "Type de champ"
-
 msgid "The name of this contact"
 msgstr "Le nom de ce contact"
 
@@ -2139,15 +2133,6 @@ msgstr "Evaluation"
 
 msgid "Ready"
 msgstr "Prêt"
-
-msgid "The name of this contact group"
-msgstr "Le nom de ce groupe de contact"
-
-msgid "Query"
-msgstr "Requete"
-
-msgid "The membership query for this group"
-msgstr "La requête d'adhésion pour ce groupe"
 
 msgid "The unique group to export"
 msgstr "Le groupe unique à exporter"
@@ -2251,6 +2236,12 @@ msgstr "Vous ne pouvez pas créer un groupe intelligent basé sur \"id\" ou \"gr
 
 msgid "You cannot update the query of a group that is evaluating."
 msgstr "Vous ne pouvez pas mettre à jour la requête d'un groupe en cours d'évaluation."
+
+msgid "Query"
+msgstr "Requete"
+
+msgid "Only contacts matching this query will belong to this group."
+msgstr ""
 
 msgid "Active"
 msgstr "Actif"
@@ -2377,24 +2368,27 @@ msgstr "Démarrer"
 msgid "Can only contain letters, numbers and hypens."
 msgstr "Ne peut contenir que des lettres, des chiffres et des tirets."
 
+msgid "Can't be a reserved word."
+msgstr ""
+
 msgid "Must be unique."
 msgstr "Doit être unique."
 
-msgid "Can't be a reserved word"
-msgstr "Ne peut pas être un mot réservé"
+msgid "Data Type"
+msgstr ""
 
-#, python-format
-msgid "Cannot create a new field as limit is %(limit)s."
-msgstr "Impossible de créer un nouveau champ car la limite est %(limit)s."
+msgid "Featured"
+msgstr "En vedette"
 
-msgid "Field Name"
-msgstr "Nom de domaine"
+msgid "The type of the values that will be stored in this field."
+msgstr ""
 
 msgid "Manage Contact Fields"
 msgstr "Gérer les champs de contact"
 
-msgid "Featured"
-msgstr "En vedette"
+#, python-format
+msgid "Cannot create a new field as limit is %(limit)s."
+msgstr "Impossible de créer un nouveau champ car la limite est %(limit)s."
 
 msgid "Update"
 msgstr "Mettre à jour"
@@ -2490,12 +2484,6 @@ msgstr "Terminé"
 
 msgid "Failed"
 msgstr "manqué"
-
-msgid "The name of this flow label"
-msgstr "Le nom de ce label de flux"
-
-msgid "Parent"
-msgstr "Parent"
 
 msgid "After 5 minutes"
 msgstr "Après 5 minutes"
@@ -2801,8 +2789,14 @@ msgstr "Le modèle de message {ref['name']} n'existe pas sur votre compte et ne 
 msgid "Your message template {template.name} is not approved and cannot be sent."
 msgstr "Votre modèle de message {template.name} n'est pas approuvé et ne peut pas être envoyé."
 
-msgid "Optional: Select parent label"
-msgstr "Facultatif: sélectionnez l'étiquette parent"
+msgid "Parent"
+msgstr "Parent"
+
+msgid "Select label"
+msgstr ""
+
+msgid "Optional parent label which can be used to group related labels."
+msgstr ""
 
 msgid "Name already used"
 msgstr "Nom déjà utilisé"
@@ -2879,12 +2873,6 @@ msgstr "Si ce nombre est pour les messages archivés"
 
 msgid "Number of items with this system label"
 msgstr "Nombre d'éléments avec cette étiquette système"
-
-msgid "Choose a name for your label"
-msgstr "Choisissez un nom pour votre étiquette"
-
-msgid "Folder"
-msgstr "Dossier"
 
 msgid "The date for the oldest message to export"
 msgstr "La date du message le plus ancien à exporter"
@@ -3010,11 +2998,14 @@ msgstr "Le nom doit être unique"
 msgid "This org has %(count)d labels and the limit is %(limit)d. You must delete existing ones before you can create new ones."
 msgstr "Cette organisation a %(count)d étiquettes et la limite est %(limit)d. Vous devez supprimer celles qui existent avant de pouvoir en créer de nouvelles."
 
-msgid "Optional: Parent Folder"
-msgstr "Facultatif: dossier parent"
+msgid "Folder"
+msgstr "Dossier"
 
-msgid "Choose a name for your folder"
-msgstr "Choisissez un nom pour votre dossier"
+msgid "Select folder"
+msgstr ""
+
+msgid "Optional folder which can be used to group related labels."
+msgstr ""
 
 msgid "Update Folder"
 msgstr "Mettre à jour le dossier"
@@ -3973,7 +3964,7 @@ msgid "Contacts To Include"
 msgstr "Contacts à inclure"
 
 msgid "Additional specific contacts that will be started in the flow."
-msgstr ""
+msgstr "Contacts spécifiques supplémentaires qui seront lancés dans le flux."
 
 msgid "Optional: Select contacts"
 msgstr "Facultatif : Sélectionnez des contacts"
@@ -3982,10 +3973,10 @@ msgid "Must provide at least one group or contact to include."
 msgstr "Vous devez fournir au moins un groupe ou un contact à inclure."
 
 msgid "The groups that will be started in the flow."
-msgstr ""
+msgstr "Les groupes qui seront lancés dans le flux."
 
 msgid "Any contacts in these groups will not be started in the flow."
-msgstr ""
+msgstr "Les contacts de ces groupes ne seront pas lancés dans le flux."
 
 msgid "The channel to apply this trigger to, leave blank for all Facebook channels"
 msgstr "Le canal auquel appliquer ce déclencheur, laissez vide pour tous les canaux Facebook"
@@ -5360,12 +5351,24 @@ msgid "Run result <b>%(name)s</b> updated to <b>%(value)s</b> with category <b>%
 msgstr "Résultat d'exécution <b>%(name)s</b> mis à jour à <b>%(value)s</b> avec la catégorie <b>%(category)s</b>"
 
 #, python-format
-msgid "Opened ticket with subject <b>%(subject)s</b>"
-msgstr "Billet ouvert avec le sujet <b>%(subject)s</b>"
+msgid "<b>%(assigner)s</b> took <b>%(subject)s</b>"
+msgstr ""
 
 #, python-format
-msgid "Closed ticket with subject <b>%(subject)s</b>"
-msgstr "Billet fermé avec le sujet <b>%(subject)s</b>"
+msgid "<b>%(assigner)s</b> assigned <b>%(subject)s</b> to <b>%(assignee)s</b>"
+msgstr ""
+
+#, python-format
+msgid "Opened ticket <b>%(subject)s</b>"
+msgstr ""
+
+#, python-format
+msgid "Reopened ticket <b>%(subject)s</b>"
+msgstr ""
+
+#, python-format
+msgid "Closed ticket <b>%(subject)s</b>"
+msgstr ""
 
 msgid "Successfully called"
 msgstr "Appelé avec succès"
@@ -5456,6 +5459,12 @@ msgstr "Plein"
 
 msgid "These contacts have opted out and you can no longer send them messages, they have been removed from all groups."
 msgstr "Ces contacts se sont retirés et vous ne pouvez plus leur envoyer de messages, ils ont été supprimés de tous les groupes."
+
+msgid "Add Connection"
+msgstr ""
+
+msgid "Add a new way connect with this contact"
+msgstr ""
 
 #, python-format
 msgid "<b>%(name)s</b> cannot be deleted since it is currently in use."
@@ -5882,6 +5891,9 @@ msgstr "Etiquettes"
 
 msgid "Webhook Call Log"
 msgstr "Journal des appels Webhook"
+
+msgid "Label"
+msgstr "Etiquette"
 
 msgid "New Label"
 msgstr "Nouvelle étiquette"
@@ -6830,9 +6842,6 @@ msgstr "Cacher les éléments archivés"
 
 msgid "Select all of the items below that you would like to include in your export. We've grouped them together based on which flows and campaigns work with each other. Any related triggers will automatically be included in the export."
 msgstr "Sélectionnez tous les éléments ci-dessous que vous souhaitez inclure dans votre exportation. Nous les avons regroupés en fonction des flux et des campagnes qui fonctionnent les uns avec les autres. Tous les déclencheurs associés seront automatiquement inclus dans l'exportation."
-
-msgid "Group"
-msgstr "Groupe"
 
 msgid "Select Group"
 msgstr "Sélectionner un groupe"
