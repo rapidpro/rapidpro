@@ -6,16 +6,7 @@
     %span.font-normal
       {{ object.name }}
     -trans "is used by the following flows which may not work as expected if you delete it:"
-    %ul.mt-2.ml-4
-      -for flow in used_by_flows
-        %li
-          %a(href="{% url 'flows.flow_editor' flow.uuid %}")
-            {{ flow.name }}
-      -if used_by_more > 0
-        %li
-          %i
-            -blocktrans trimmed with count=used_by_more
-              and {{ count }} more
+    -include "includes/dependencies" with dependencies=used_by_flows hide_type_name=True
   -else
     -trans "You are about to delete"
     %span.font-normal

@@ -1,12 +1,9 @@
 -load temba i18n
 
 .dependencies-of-type.mb-2
-  %span.font-normal
-    {{ dependencies|first|verbose_name_plural }}
-
-  -if blurb
-    \-
-    {{ blurb }}
+  -if not hide_type_name
+    %span.font-normal
+      {{ dependencies|first|verbose_name_plural }}
 
   .mt-1.ml-8
     %ul.list-disc
