@@ -4554,20 +4554,7 @@ class ReportEndpointMixin:
         if not limited_filters:
             queried_contact_ids = self.get_contact_ids_by_query(org)
             if queried_contact_ids:
-
-                class ContactIDFilterJoin:
-                    table_name = "t"
-                    join_type = "INNER JOIN"
-                    parent_alias = "contacts_contact"
-                    filtered_relation = None
-                    nullable = None
-
-                    @classmethod
-                    def as_sql(cls, *args):
-                        return "INNER JOIN (SELECT unnest(%s::int[]) as id) x USING(id)", [queried_contact_ids]
-
-                contacts.query.join(ContactIDFilterJoin)
-
+                contacts = contacts.filter(id__in=queried_contact_ids)
             elif self.get_query_parameter("search_query"):
                 contacts = Contact.objects.none()
 
@@ -4981,22 +4968,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         ]
 
         # filter messages by uuids
-        if messages_uuids:
-
-            class MessagesUUIDFilterJoin:
-                table_name = "t"
-                join_type = "INNER JOIN"
-                parent_alias = "msgs_msg"
-                filtered_relation = None
-                nullable = None
-
-                @classmethod
-                def as_sql(cls, *args):
-                    return "INNER JOIN (SELECT unnest(%s::uuid[]) as uuid) x USING(uuid)", [messages_uuids]
-
-            qs.query.join(MessagesUUIDFilterJoin)
-        else:
-            qs = Msg.objects.none()
+        qs = qs.filter(uuid__in=messages_uuids) if messages_uuids else Msg.objects.none()
         qs = qs.only("created_on").annotate(ds=Concat("direction", "status")).using("read_only_db")
         return qs, next_page
 
