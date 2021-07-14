@@ -4558,7 +4558,7 @@ class ReportEndpointMixin:
         return query_contact_ids_from_elasticsearch(org, elastic_query_conf)
 
     def update_next_page_with_cache_uuid(self, url):
-        if getattr(self, "new_cache_uuid", None):
+        if getattr(self, "new_cache_uuid", None) and url:
             url = replace_query_param(url, "cache_uuid", getattr(self, "new_cache_uuid"))
         return url
 
