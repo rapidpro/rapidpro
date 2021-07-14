@@ -72,7 +72,7 @@ class UpdateGlobalForm(forms.ModelForm):
 
 class GlobalCRUDL(SmartCRUDL):
     model = Global
-    actions = ("create", "update", "delete", "list", "unused", "detail")
+    actions = ("create", "update", "delete", "list", "unused", "usages")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = CreateGlobalForm
@@ -143,10 +143,10 @@ class GlobalCRUDL(SmartCRUDL):
         def get_queryset(self, **kwargs):
             return super().get_queryset(**kwargs).filter(usage_count=0)
 
-    class Detail(OrgObjPermsMixin, SmartReadView):
-        template_name = "globals/global_detail.haml"
+    class Usages(OrgObjPermsMixin, SmartReadView):
+        template_name = "globals/global_usages.haml"
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-            context["dep_flows"] = list(self.object.dependent_flows.filter(is_active=True))
+            context["dep_flows"] = self.object.dependent_flows.filter(is_active=True)
             return context

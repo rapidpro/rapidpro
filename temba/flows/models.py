@@ -986,6 +986,8 @@ class Flow(TembaModel):
 
     class Meta:
         ordering = ("-modified_on",)
+        verbose_name = _("Flow")
+        verbose_name_plural = _("Flows")
 
 
 class FlowSession(models.Model):

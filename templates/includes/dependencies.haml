@@ -1,0 +1,23 @@
+-load temba i18n
+
+.dependencies-of-type.mb-2
+  %span.font-normal
+    {{ dependencies|first|verbose_name_plural }}
+
+  -if blurb
+    \-
+    {{ blurb }}
+
+  .mt-1.ml-8
+    %ul.list-disc
+      -for obj in dependencies|slice:":5"
+        %li
+          %a(href="{{ obj|object_url }}")
+            {{ obj.name }}
+      -if dependencies|length > 5
+        %li
+          %i
+            -with num_more=dependencies|length|add:"-5"
+              -if num_more > 0
+                -blocktrans trimmed with count=num_more
+                  and {{ count }} more

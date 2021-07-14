@@ -1,0 +1,11 @@
+-extends "includes/modal.html"
+-load smartmin i18n
+
+-block modal
+  -block pjax
+    {% blocktrans trimmed with name=object.name %}
+    Global <b>{{ name }}</b> is currently being used by the following
+    {% endblocktrans %}:
+
+    .mt-3
+      -include "includes/dependencies" with dependencies=dep_flows

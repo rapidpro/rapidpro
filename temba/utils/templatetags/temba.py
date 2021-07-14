@@ -65,6 +65,13 @@ def icon(o):
 
 
 @register.filter
+def object_url(o):
+    if isinstance(o, Flow):
+        return reverse("flows.flow_editor", args=[o.uuid])
+    return ""
+
+
+@register.filter
 def verbose_name_plural(object):
     return object._meta.verbose_name_plural
 
