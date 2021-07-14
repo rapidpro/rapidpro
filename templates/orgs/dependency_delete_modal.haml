@@ -2,11 +2,11 @@
 -load i18n
 
 -block modal
-  -if used_by_flows
+  -if dep_flows
     %span.font-normal
       {{ object.name }}
     -trans "is used by the following flows which may not work as expected if you delete it:"
-    -include "includes/dependencies" with dependencies=used_by_flows hide_type_name=True
+    -include "includes/dependents.haml" with dependents=dep_flows hide_type_name=True
   -else
     -trans "You are about to delete"
     %span.font-normal

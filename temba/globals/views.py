@@ -144,8 +144,6 @@ class GlobalCRUDL(SmartCRUDL):
             return super().get_queryset(**kwargs).filter(usage_count=0)
 
     class Usages(OrgObjPermsMixin, SmartReadView):
-        template_name = "globals/global_usages.haml"
-
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["dep_flows"] = self.object.dependent_flows.filter(is_active=True)

@@ -179,8 +179,8 @@ class GlobalCRUDLTest(TembaTest, CRUDLTestMixin):
         self.other_org_global.refresh_from_db()
         self.assertEqual("653732", self.other_org_global.value)
 
-    def test_detail(self):
-        detail_url = reverse("globals.global_detail", args=[self.global1.id])
+    def test_usages(self):
+        detail_url = reverse("globals.global_usages", args=[self.global1.id])
 
         response = self.assertReadFetch(
             detail_url, allow_viewers=False, allow_editors=False, context_object=self.global1

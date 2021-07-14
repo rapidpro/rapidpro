@@ -4435,53 +4435,6 @@ class ContactFieldTest(TembaTest):
 
         self.assertEqual(response.context_data["selected_value_type"], "T")
 
-    def test_view_detail(self):
-
-        self.login(self.admin)
-        flow = self.get_flow("dependencies")
-        dependant_field = ContactField.user_fields.filter(is_active=True, org=self.org, key="favorite_cat").get()
-        dependant_field.value_type = ContactField.TYPE_DATETIME
-        dependant_field.save(update_fields=("value_type",))
-
-        farmers = self.create_group("Farmers", [self.joe])
-        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", farmers)
-
-        # create flow events
-        CampaignEvent.create_flow_event(
-            self.org,
-            self.admin,
-            campaign,
-            relative_to=dependant_field,
-            offset=0,
-            unit="D",
-            flow=flow,
-            delivery_hour=17,
-        )
-        inactive_campaignevent = CampaignEvent.create_flow_event(
-            self.org,
-            self.admin,
-            campaign,
-            relative_to=dependant_field,
-            offset=0,
-            unit="D",
-            flow=flow,
-            delivery_hour=20,
-        )
-        inactive_campaignevent.is_active = False
-        inactive_campaignevent.save(update_fields=("is_active",))
-
-        detail_contactfield_url = reverse("contacts.contactfield_detail", args=[dependant_field.id])
-
-        response = self.client.get(detail_contactfield_url)
-        self.assertEqual(response.status_code, 200)
-
-        self.assertEqual(response.context_data["object"].label, "Favorite Cat")
-
-        self.assertEqual(len(response.context_data["dep_flows"]), 1)
-        # there should be only one active campaign event
-        self.assertEqual(len(response.context_data["dep_campaignevents"]), 1)
-        self.assertEqual(len(response.context_data["dep_groups"]), 0)
-
     def test_view_updatepriority_valid(self):
         org_fields = ContactField.user_fields.filter(org=self.org, is_active=True)
 
@@ -4700,6 +4653,50 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
                 response = self.requestView(list_url, self.admin)
 
                 self.assertContains(response, "You have reached the limit")
+
+    @mock_mailroom
+    def test_usages(self, mr_mocks):
+        flow = self.get_flow("dependencies", name="Dependencies")
+        field = ContactField.user_fields.filter(is_active=True, org=self.org, key="favorite_cat").get()
+        field.value_type = ContactField.TYPE_DATETIME
+        field.save(update_fields=("value_type",))
+
+        mr_mocks.parse_query('favorite_cat != ""', fields=[field])
+
+        group = self.create_group("Farmers", query='favorite_cat != ""')
+        campaign = Campaign.create(self.org, self.admin, "Planting Reminders", group)
+
+        # create flow events
+        event1 = CampaignEvent.create_flow_event(
+            self.org,
+            self.admin,
+            campaign,
+            relative_to=field,
+            offset=0,
+            unit="D",
+            flow=flow,
+            delivery_hour=17,
+        )
+        inactive_campaignevent = CampaignEvent.create_flow_event(
+            self.org,
+            self.admin,
+            campaign,
+            relative_to=field,
+            offset=0,
+            unit="D",
+            flow=flow,
+            delivery_hour=20,
+        )
+        inactive_campaignevent.is_active = False
+        inactive_campaignevent.save(update_fields=("is_active",))
+
+        usages_url = reverse("contacts.contactfield_usages", args=[field.id])
+
+        response = self.assertReadFetch(usages_url, allow_viewers=True, allow_editors=True, context_object=field)
+
+        self.assertEqual([flow], list(response.context["dep_flows"]))
+        self.assertEqual([event1], list(response.context["dep_campaignevents"]))
+        self.assertEqual([group], list(response.context["dep_groups"]))
 
 
 class URNTest(TembaTest):

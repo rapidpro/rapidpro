@@ -313,7 +313,7 @@ class DependencyDeleteModal(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         context = super().get_context_data(**kwargs)
 
         # lookup dependent flows for this object
-        context["used_by_flows"] = self.get_object().dependent_flows.only("uuid", "name").order_by("name")
+        context["dep_flows"] = self.get_object().dependent_flows.only("uuid", "name").order_by("name")
         return context
 
     def post(self, request, *args, **kwargs):

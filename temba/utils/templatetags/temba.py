@@ -16,7 +16,7 @@ from django.utils.translation import ugettext, ugettext_lazy as _, ungettext_laz
 
 from temba.utils.dates import datetime_to_str
 
-from ...campaigns.models import Campaign
+from ...campaigns.models import Campaign, CampaignEvent
 from ...contacts.models import ContactGroup
 from ...flows.models import Flow
 from ...triggers.models import Trigger
@@ -35,6 +35,7 @@ TIME_SINCE_CHUNKS = (
 OBJECT_URLS = {
     Flow: lambda o: reverse("flows.flow_editor", args=[o.uuid]),
     Campaign: lambda o: reverse("campaigns.campaign_read", args=[o.uuid]),
+    CampaignEvent: lambda o: reverse("campaigns.campaign_read", args=[o.id]),
     ContactGroup: lambda o: reverse("contacts.contact_filter", args=[o.uuid]),
 }
 
