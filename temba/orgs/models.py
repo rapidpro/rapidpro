@@ -2348,12 +2348,10 @@ class TopUpCredits(SquashableModel):
     Used to track number of credits used on a topup, mostly maintained by triggers on Msg insertion.
     """
 
-    SQUASH_OVER = ("topup_id",)
+    squash_over = ("topup_id",)
 
-    topup = models.ForeignKey(
-        TopUp, on_delete=models.PROTECT, help_text=_("The topup these credits are being used against")
-    )
-    used = models.IntegerField(help_text=_("How many credits were used, can be negative"))
+    topup = models.ForeignKey(TopUp, on_delete=models.PROTECT)
+    used = models.IntegerField()  # how many credits were used, can be negative
 
     def release(self):
         self.delete()

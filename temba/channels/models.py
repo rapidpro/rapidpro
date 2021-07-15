@@ -1091,7 +1091,7 @@ class ChannelCount(SquashableModel):
     of message usage over the course of time.
     """
 
-    SQUASH_OVER = ("channel_id", "count_type", "day")
+    squash_over = ("channel_id", "count_type", "day")
 
     INCOMING_MSG_TYPE = "IM"  # Incoming message
     OUTGOING_MSG_TYPE = "OM"  # Outgoing message
@@ -1109,24 +1109,15 @@ class ChannelCount(SquashableModel):
         (ERROR_LOG_TYPE, _("Error Log Record")),
     )
 
-    channel = models.ForeignKey(
-        Channel,
-        on_delete=models.PROTECT,
-        related_name="counts",
-        help_text=_("The channel this is a daily summary count for"),
-    )
-    count_type = models.CharField(
-        choices=COUNT_TYPE_CHOICES, max_length=2, help_text=_("What type of message this row is counting")
-    )
-    day = models.DateField(null=True, help_text=_("The day this count is for"))
-    count = models.IntegerField(default=0, help_text=_("The count of messages on this day and type"))
+    channel = models.ForeignKey(Channel, on_delete=models.PROTECT, related_name="counts")
+    count_type = models.CharField(choices=COUNT_TYPE_CHOICES, max_length=2)
+    day = models.DateField(null=True)
+    count = models.IntegerField(default=0)
 
     @classmethod
     def get_day_count(cls, channel, count_type, day):
-        count = ChannelCount.objects.filter(channel=channel, count_type=count_type, day=day)
-        count = count.order_by("day", "count_type").aggregate(count_sum=Sum("count"))
-
-        return count["count_sum"] if count["count_sum"] is not None else 0
+        counts = cls.objects.filter(channel=channel, count_type=count_type, day=day).order_by("day", "count_type")
+        return cls.sum(counts)
 
     @classmethod
     def get_squash_query(cls, distinct_set):

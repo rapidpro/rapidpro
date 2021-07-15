@@ -841,7 +841,7 @@ class BroadcastMsgCount(SquashableModel):
     Maintains count of how many msgs are tied to a broadcast
     """
 
-    SQUASH_OVER = ("broadcast_id",)
+    squash_over = ("broadcast_id",)
 
     broadcast = models.ForeignKey(Broadcast, on_delete=models.PROTECT, related_name="counts", db_index=True)
     count = models.IntegerField(default=0)
@@ -862,8 +862,7 @@ class BroadcastMsgCount(SquashableModel):
 
     @classmethod
     def get_count(cls, broadcast):
-        count = BroadcastMsgCount.objects.filter(broadcast=broadcast).aggregate(count_sum=Sum("count"))["count_sum"]
-        return count if count else 0
+        return cls.sum(broadcast.counts.all())
 
     def __str__(self):  # pragma: needs cover
         return f"BroadcastMsgCount[{self.broadcast_id}:{self.count}]"
@@ -967,15 +966,12 @@ class SystemLabelCount(SquashableModel):
     Counts of messages/broadcasts/calls maintained by database level triggers
     """
 
-    SQUASH_OVER = ("org_id", "label_type", "is_archived")
+    squash_over = ("org_id", "label_type", "is_archived")
 
     org = models.ForeignKey(Org, on_delete=models.PROTECT, related_name="system_labels")
-
     label_type = models.CharField(max_length=1, choices=SystemLabel.TYPE_CHOICES)
-
-    is_archived = models.BooleanField(default=False, help_text=_("Whether this count is for archived messages"))
-
-    count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
+    is_archived = models.BooleanField(default=False)
+    count = models.IntegerField(default=0)
 
     @classmethod
     def get_squash_query(cls, distinct_set):
@@ -1192,13 +1188,11 @@ class LabelCount(SquashableModel):
     Counts of user labels maintained by database level triggers
     """
 
-    SQUASH_OVER = ("label_id", "is_archived")
+    squash_over = ("label_id", "is_archived")
 
     label = models.ForeignKey(Label, on_delete=models.PROTECT, related_name="counts")
-
-    is_archived = models.BooleanField(default=False, help_text=_("Whether this count is for archived messages"))
-
-    count = models.IntegerField(default=0, help_text=_("Number of items with this system label"))
+    is_archived = models.BooleanField(default=False)
+    count = models.IntegerField(default=0)
 
     @classmethod
     def get_squash_query(cls, distinct_set):
