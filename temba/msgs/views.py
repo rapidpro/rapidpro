@@ -669,7 +669,7 @@ class MsgCRUDL(SmartCRUDL):
         allow_export = True
         show_channel_logs = True
 
-        def get_queryset(self, **kwargs):  # pragma: needs cover
+        def get_queryset(self, **kwargs):
             qs = super().get_queryset(**kwargs)
             return qs.prefetch_related("channel_logs").select_related("contact")
 
