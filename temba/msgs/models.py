@@ -828,11 +828,18 @@ class Msg(models.Model):
 
     class Meta:
         indexes = [
+            # used for finding errored messages to retry
             models.Index(
                 name="msgs_next_attempt_out_errored",
                 fields=["next_attempt", "created_on", "id"],
                 condition=Q(direction=OUTGOING, status=ERRORED, next_attempt__isnull=False),
-            )
+            ),
+            # used for view of sent messages
+            models.Index(
+                name="msgs_outgoing_visible_sent",
+                fields=["org", "-sent_on", "-id"],
+                condition=Q(direction="O", visibility="V", status__in=("W", "S", "D")),
+            ),
         ]
 
 
@@ -879,7 +886,7 @@ STOP_WORDS = (
 )
 
 
-class SystemLabel(object):
+class SystemLabel:
     TYPE_INBOX = "I"
     TYPE_FLOWS = "W"
     TYPE_ARCHIVED = "A"
