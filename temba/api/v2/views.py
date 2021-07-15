@@ -7,10 +7,12 @@ import requests
 from collections import defaultdict, Counter
 from enum import Enum
 from mimetypes import guess_extension
+from uuid import uuid4
 
 from django.conf import settings
 from django.db.models.functions import Concat
 from django.template.defaultfilters import slugify
+from django_redis import get_redis_connection
 from parse_rest.datatypes import Date
 from rest_framework import generics, status, views
 from rest_framework.pagination import CursorPagination
@@ -18,6 +20,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
+from rest_framework.utils.urls import replace_query_param
 from smartmin.views import SmartFormView, SmartTemplateView
 
 from django import forms
@@ -4435,6 +4438,31 @@ class ParseDatabaseRecordsEndpoint(ParseDatabaseEndpoint):
         )
 
 
+def cache_elastic_ids(func):
+    """
+    Decorator for 'get_contact_ids_by_query' method to cache search result from elasticsearch,
+    in the contact report endpoint, to reduce redundant calls to the elasticsearch.
+    """
+
+    def wrapper(view: BaseAPIView, *args, **kwargs):
+        r = get_redis_connection()
+        cache_uuid = view.request.query_params.get("cache_uuid")
+        if cache_uuid:
+            key = f"elastic-cache-{cache_uuid}"
+            cached_result = r.get(key)
+            if cached_result:
+                r.expire(key, 300)
+                return json.loads(cached_result.decode())
+        cache_uuid = str(uuid4())
+        key = f"elastic-cache-{cache_uuid}"
+        result = func(view, *args, **kwargs)
+        r.set(key, json.dumps(result), ex=300)
+        setattr(view, "new_cache_uuid", cache_uuid)
+        return result
+
+    return wrapper
+
+
 class ReportEndpointMixin:
     def __init__(self):
         self.applied_filters = {}
@@ -4483,23 +4511,56 @@ class ReportEndpointMixin:
     def get_query_parameter(self, name, default=None):
         return self.request.data.get(name, self.request.query_params.get(name, default))
 
-    def get_contact_ids_by_query(self, org):
+    @cache_elastic_ids
+    def get_contact_ids_by_query(self, org, with_exclude=False):
         search_query = self.get_query_parameter("search_query", "")
         if not search_query:
-            return []
+            return ([], []) if with_exclude else []
 
         parsed_search_query = parse_query(org, search_query)
         self.applied_filters["search_query"] = parsed_search_query.query
 
         elastic_query_conf = parsed_search_query.elastic_query
         main_conditions = elastic_query_conf.get("bool", {}).get("must", [])
+        cond_index = 3
         try:
             main_conditions.pop(1)  # remove condition `is_active`
             main_conditions.pop(1)  # remove condition `groups` (filter by active group)
+            cond_index = 1
         except IndexError:
             pass
 
+        # add group filter if it is possible to decrease the amount of ids to search by
+        group_uuid_names = self.request__get_separated_names_and_uuids("group")
+        if group_uuid_names["names"]:
+            group_name_filter = Q()
+            for group_name in group_uuid_names["names"]:
+                group_name_filter |= Q(name__iexact=group_name)
+            group_uuid_names["uuids"].extend(
+                ContactGroup.user_groups.filter(org=org).filter(group_name_filter).values_list("uuid", flat=True)
+            )
+        if group_uuid_names["uuids"]:
+            main_conditions.insert(1, {"term": {"groups": group_uuid_names["uuids"][0]}})
+            cond_index += 1
+
+        if with_exclude:
+            try:
+                exclude_query_conf = {"bool": {}}
+                exclude_query_conf["bool"]["must"] = main_conditions[:cond_index]
+                exclude_query_conf["bool"]["must_not"] = main_conditions[cond_index:]
+
+                return (
+                    query_contact_ids_from_elasticsearch(org, elastic_query_conf),
+                    query_contact_ids_from_elasticsearch(org, exclude_query_conf),
+                )
+            except KeyError:
+                return query_contact_ids_from_elasticsearch(org, elastic_query_conf), []
         return query_contact_ids_from_elasticsearch(org, elastic_query_conf)
+
+    def update_next_page_with_cache_uuid(self, url):
+        if getattr(self, "new_cache_uuid", None) and url:
+            url = replace_query_param(url, "cache_uuid", getattr(self, "new_cache_uuid"))
+        return url
 
     def get_name_uuid_filters(self, field_name, key, prefix="", exclude=False):
         qs_filter, __ = Q(), ("__" if key else "")
@@ -4552,22 +4613,11 @@ class ReportEndpointMixin:
 
         # perform search by query in ElasticSearch and join the result to the filter in DB
         if not limited_filters:
-            queried_contact_ids = self.get_contact_ids_by_query(org)
-            if queried_contact_ids:
-
-                class ContactIDFilterJoin:
-                    table_name = "t"
-                    join_type = "INNER JOIN"
-                    parent_alias = "contacts_contact"
-                    filtered_relation = None
-                    nullable = None
-
-                    @classmethod
-                    def as_sql(cls, *args):
-                        return "INNER JOIN (SELECT unnest(%s::int[]) as id) x USING(id)", [queried_contact_ids]
-
-                contacts.query.join(ContactIDFilterJoin)
-
+            queried_contact_ids, exclude_contact_ids = self.get_contact_ids_by_query(org, with_exclude=True)
+            if exclude_contact_ids and len(exclude_contact_ids) < len(queried_contact_ids):
+                contacts = contacts.exclude(id__in=exclude_contact_ids)
+            elif queried_contact_ids:
+                contacts = contacts.filter(id__in=queried_contact_ids)
             elif self.get_query_parameter("search_query"):
                 contacts = Contact.objects.none()
 
@@ -4646,6 +4696,7 @@ class ContactsReportEndpoint(BaseAPIView, ReportEndpointMixin):
         try:
             contacts = self.get_contacts_qs().only("modified_on").using("read_only_db")
             current_page, next_page = self.get_paginated_queryset(contacts)
+            next_page = self.update_next_page_with_cache_uuid(next_page)
             count = len(current_page)
             response_data = {"next": next_page, **self.applied_filters, "results": [{"total_unique_contacts": count}]}
             return Response(response_data)
@@ -4850,6 +4901,7 @@ class ContactVariablesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         for variable, top_x in top_ordering.items():
             counts[variable] = dict(counts[variable].most_common(top_x))
 
+        next_page = self.update_next_page_with_cache_uuid(next_page)
         response_data = {"next": next_page, **self.applied_filters, "results": [counts]}
         return Response(response_data)
 
@@ -4981,22 +5033,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         ]
 
         # filter messages by uuids
-        if messages_uuids:
-
-            class MessagesUUIDFilterJoin:
-                table_name = "t"
-                join_type = "INNER JOIN"
-                parent_alias = "msgs_msg"
-                filtered_relation = None
-                nullable = None
-
-                @classmethod
-                def as_sql(cls, *args):
-                    return "INNER JOIN (SELECT unnest(%s::uuid[]) as uuid) x USING(uuid)", [messages_uuids]
-
-            qs.query.join(MessagesUUIDFilterJoin)
-        else:
-            qs = Msg.objects.none()
+        qs = qs.filter(uuid__in=messages_uuids) if messages_uuids else Msg.objects.none()
         qs = qs.only("created_on").annotate(ds=Concat("direction", "status")).using("read_only_db")
         return qs, next_page
 
