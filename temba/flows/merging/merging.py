@@ -3,7 +3,7 @@ import math
 from collections import OrderedDict, Counter, defaultdict
 from jellyfish import jaro_similarity
 
-from .test_data import get_flow_step_name, get_flow_step_type
+from .helpers import get_flow_step_name, get_flow_step_type
 
 
 def all_equal(iterable):
