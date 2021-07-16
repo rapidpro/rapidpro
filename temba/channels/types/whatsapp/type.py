@@ -58,9 +58,12 @@ class WhatsAppType(ChannelType):
         # deactivate all translations associated with us
         TemplateTranslation.trim(channel, [])
 
+    def get_api_headers(self, channel):
+        return {"Authorization": "Bearer %s" % channel.config[Channel.CONFIG_AUTH_TOKEN]}
+
     def activate(self, channel):
         domain = channel.org.get_brand_domain()
-        headers = {"Authorization": "Bearer %s" % channel.config[Channel.CONFIG_AUTH_TOKEN]}
+        headers = self.get_api_headers(channel)
 
         # first set our callbacks
         payload = {"webhooks": {"url": "https://" + domain + reverse("courier.wa", args=[channel.uuid, "receive"])}}
@@ -116,3 +119,16 @@ class WhatsAppType(ChannelType):
         except requests.RequestException as e:
             HTTPLog.create_from_exception(HTTPLog.WHATSAPP_TEMPLATES_SYNCED, url, e, start, channel=channel)
             return [], False
+
+    def check_health(self, channel):
+        headers = self.get_api_headers(channel)
+
+        try:
+            response = requests.get(channel.config[Channel.CONFIG_BASE_URL] + "/v1/health", headers=headers)
+        except Exception as ex:
+            raise Exception("Could not stablish a connection with the WPP server: %s", ex)
+
+        if response.status_code >= 400:
+            raise Exception("Error checking API health: %s", response.content)
+
+        return response.json()
