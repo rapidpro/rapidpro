@@ -1982,6 +1982,7 @@ class FlowCRUDL(SmartCRUDL):
         def save(self, *args, **kwargs):
             form = self.form
             flow = self.object
+            include_active = form.cleaned_data["include_active"] or flow.flow_type == Flow.TYPE_BACKGROUND
 
             recipients_mode = form.cleaned_data["recipients_mode"]
 
@@ -2010,7 +2011,7 @@ class FlowCRUDL(SmartCRUDL):
                 contacts,
                 contact_query,
                 restart_participants=form.cleaned_data["restart_participants"],
-                include_active=form.cleaned_data["include_active"],
+                include_active=include_active,
             )
             return flow
 
