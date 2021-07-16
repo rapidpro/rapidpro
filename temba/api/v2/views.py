@@ -5008,16 +5008,8 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     def filter_and_paginate_qs_by_flow(self, org, flow, qs):
         # filter and paginate flow runs
         runs = (
-            flow.runs.filter(
-                self.get_datetime_filters("", "exited_on", org),
-                org=org,
-                status__in=[
-                    FlowRun.STATUS_COMPLETED,
-                    FlowRun.STATUS_INTERRUPTED,
-                    FlowRun.STATUS_FAILED,
-                    FlowRun.STATUS_EXPIRED,
-                ],
-            )
+            flow.runs.filter(self.get_datetime_filters("", "exited_on", org), org_id=org.id)
+            .exclude(status__in=[FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING])
             .only("flow_id", "events", "modified_on")
             .using("read_only_db")
         )
@@ -5025,16 +5017,16 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         runs, next_page = self.get_paginated_queryset(runs)
 
         # get messages uuids from filtered runs
-        messages_uuids = [
+        messages_uuids = set(
             evt["msg"].get("uuid")
             for run in runs
             for evt in run.get_msg_events()
             if evt["msg"].get("uuid") not in [None, "None", ""]
-        ]
+        )
 
         # filter messages by uuids
         qs = qs.filter(uuid__in=messages_uuids) if messages_uuids else Msg.objects.none()
-        qs = qs.only("created_on").annotate(ds=Concat("direction", "status")).using("read_only_db")
+        qs = qs.only("created_on", "direction", "status").using("read_only_db")
         return qs, next_page
 
     def configure_paginator_for_flow_runs(self, flow_run_qs):
@@ -5075,7 +5067,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        counter = Counter([rec.ds for rec in current_page])
+        counter = Counter([f"{rec.direction}{rec.status}" for rec in current_page])
         results = dict(total_inbound_messages=0, total_outbound_messages=0, total_outbound_message_failures=0)
         for msg_type, count in counter.items():
             results["total_inbound_messages" if msg_type[0] == "I" else "total_outbound_messages"] += count
