@@ -10,6 +10,7 @@ from temba.channels.models import Channel
 from temba.channels.types.dialog360.views import ClaimView
 from temba.contacts.models import URN
 from temba.request_logs.models import HTTPLog
+from temba.utils.whatsapp import update_api_version
 from temba.utils.whatsapp.views import SyncLogsView, TemplatesView
 
 from ...models import ChannelType
@@ -62,6 +63,8 @@ class Dialog360Type(ChannelType):
 
         if resp.status_code != 200:
             raise ValidationError(_("Unable to register callbacks: %(resp)s"), params={"resp": resp.content})
+
+        update_api_version(channel)
 
     def get_api_templates(self, channel):
         if Channel.CONFIG_AUTH_TOKEN not in channel.config:  # pragma: no cover
