@@ -10,7 +10,6 @@ from mimetypes import guess_extension
 from uuid import uuid4
 
 from django.conf import settings
-from django.db.models.functions import Concat
 from django.template.defaultfilters import slugify
 from django_redis import get_redis_connection
 from parse_rest.datatypes import Date
@@ -49,6 +48,7 @@ from temba.contacts.tasks import release_group_task
 from temba.contacts.search import SearchException, parse_query
 from temba.contacts.search.elastic import query_contact_ids_from_elasticsearch
 from temba.flows.models import Flow, FlowRun, FlowStart
+from temba.flows.merging.helpers import get_flow_step_type
 from temba.flows.search.parser import FlowRunSearch
 from temba.globals.models import Global
 from temba.locations.models import AdminBoundary, BoundaryAlias
@@ -4957,7 +4957,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
     A **GET** returns numbers of sent, received, and failed messages.
 
-    * **flow** - UUID of flow to select only messages related to specific flow (required)
+    * **flow** - UUID of flow to select only messages related to specific flow
     * **exclude** - UUID or Name of contact group, messages of contacts from which are not supposed to be included in the report
     * **channel** - UUID or Name of channel to select only messages related to specific channel
     * **after** - Date, excludes all messages from the report that were created earlier a certain date
@@ -5008,40 +5008,45 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     def filter_and_paginate_qs_by_flow(self, org, flow, qs):
         # filter and paginate flow runs
         runs = (
-            flow.runs.filter(
-                self.get_datetime_filters("", "exited_on", org),
-                org=org,
-                status__in=[
-                    FlowRun.STATUS_COMPLETED,
-                    FlowRun.STATUS_INTERRUPTED,
-                    FlowRun.STATUS_FAILED,
-                    FlowRun.STATUS_EXPIRED,
-                ],
-            )
-            .only("flow_id", "events", "modified_on")
+            FlowRun.objects.filter(self.get_datetime_filters("", "exited_on", org), flow_id=flow.id)
+            .exclude(status__in=[FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING])
+            .only("events", "modified_on")
             .using("read_only_db")
         )
-        self.configure_paginator_for_flow_runs(runs)
+        self.configure_paginator_for_flow_runs(flow)
         runs, next_page = self.get_paginated_queryset(runs)
 
         # get messages uuids from filtered runs
-        messages_uuids = [
+        messages_uuids = set(
             evt["msg"].get("uuid")
             for run in runs
             for evt in run.get_msg_events()
             if evt["msg"].get("uuid") not in [None, "None", ""]
-        ]
+        )
 
         # filter messages by uuids
         qs = qs.filter(uuid__in=messages_uuids) if messages_uuids else Msg.objects.none()
-        qs = qs.only("created_on").annotate(ds=Concat("direction", "status")).using("read_only_db")
+        qs = qs.only("created_on", "direction", "status").using("read_only_db")
+        qs = qs[:len(messages_uuids)]
         return qs, next_page
 
-    def configure_paginator_for_flow_runs(self, flow_run_qs):
-        run = flow_run_qs.first()
-        if not run:
-            return
-        msgs_count = len([1 for evt in run.get_msg_events() if evt["msg"].get("uuid") not in [None, "None", ""]]) or 1
+    def configure_paginator_for_flow_runs(self, flow: Flow):
+        nodes_that_send_or_receive_msgs = [
+            "send_msg",
+            "send_broadcast",
+            "wait_for_response",
+            "play_message",
+            "play_audio",
+            "wait_for_audio",
+            "wait_for_video",
+            "wait_for_digits",
+            "wait_for_image",
+            "wait_for_location",
+            "wait_for_menu",
+            "say_msg",
+        ]
+        nodes = flow.get_definition().get("nodes", [])
+        msgs_count = len([node for node in nodes if get_flow_step_type(node) in nodes_that_send_or_receive_msgs]) or 1
         page_size = max(self.get_page_size() // msgs_count, 1)
         setattr(self, "chunk_size", page_size)
         setattr(self, "pagination_class", ModifiedOnCursorPagination)
@@ -5057,7 +5062,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     @csv_response_wrapper
     def get(self, request, *args, **kwargs):
         org = self.request.user.get_org()
-        queryset = Msg.objects.filter(org__id=org.id).using("read_only_db")
+        queryset = Msg.objects.filter(org__id=org.id).using("read_only_db").order_by("-created_on", "-id")
         self.applied_filters, arg_filters = {}, []
 
         arg_filters.append(self.get_name_uuid_filters("exclude", "contact__all_groups", exclude=True))
@@ -5068,14 +5073,17 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
 
         try:
             flow__uuid = self.get_query_parameter("flow")
-            flow = Flow.objects.using("read_only_db").get(org__id=org.id, uuid=flow__uuid)
-            current_page, next_page = self.filter_and_paginate_qs_by_flow(org, flow, queryset)
+            if flow__uuid:
+                flow = Flow.objects.using("read_only_db").get(org__id=org.id, uuid=flow__uuid)
+                current_page, next_page = self.filter_and_paginate_qs_by_flow(org, flow, queryset)
+            else:
+                current_page, next_page = self.get_paginated_queryset(queryset)
         except Flow.DoesNotExist:
             return Response(
                 {"errors": {"flow": _("Please enter valid flow UUID.")}}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        counter = Counter([rec.ds for rec in current_page])
+        counter = Counter([f"{rec.direction}{rec.status}" for rec in current_page])
         results = dict(total_inbound_messages=0, total_outbound_messages=0, total_outbound_message_failures=0)
         for msg_type, count in counter.items():
             results["total_inbound_messages" if msg_type[0] == "I" else "total_outbound_messages"] += count
@@ -5098,7 +5106,9 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
             url=reverse("api.v2.messages_report"),
             slug="messages-report",
             fields=[
-                dict(name="flow", required=True, help="UUID of flow to select only messages related to specific flow"),
+                dict(
+                    name="flow", required=False, help="UUID of flow to select only messages related to specific flow"
+                ),
                 dict(name="after", required=False, help="Select messages since specific date"),
                 dict(name="before", required=False, help="Select messages until specific date"),
                 dict(name="channel", required=False, help="Select messages sent via specific channel"),
