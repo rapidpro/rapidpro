@@ -5010,7 +5010,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         runs = (
             FlowRun.objects.filter(self.get_datetime_filters("", "exited_on", org), flow_id=flow.id)
             .exclude(status__in=[FlowRun.STATUS_ACTIVE, FlowRun.STATUS_WAITING])
-            .only("flow_id", "events", "modified_on")
+            .only("events", "modified_on")
             .using("read_only_db")
         )
         self.configure_paginator_for_flow_runs(flow)
@@ -5027,6 +5027,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
         # filter messages by uuids
         qs = qs.filter(uuid__in=messages_uuids) if messages_uuids else Msg.objects.none()
         qs = qs.only("created_on", "direction", "status").using("read_only_db")
+        qs = qs[:len(messages_uuids)]
         return qs, next_page
 
     def configure_paginator_for_flow_runs(self, flow: Flow):
@@ -5061,7 +5062,7 @@ class MessagesReportEndpoint(BaseAPIView, ReportEndpointMixin):
     @csv_response_wrapper
     def get(self, request, *args, **kwargs):
         org = self.request.user.get_org()
-        queryset = Msg.objects.filter(org__id=org.id).using("read_only_db")
+        queryset = Msg.objects.filter(org__id=org.id).using("read_only_db").order_by("-created_on", "-id")
         self.applied_filters, arg_filters = {}, []
 
         arg_filters.append(self.get_name_uuid_filters("exclude", "contact__all_groups", exclude=True))
