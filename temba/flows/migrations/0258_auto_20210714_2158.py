@@ -6,12 +6,12 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("contacts", "0135_auto_20210712_1845"),
+        ("flows", "0257_auto_20210715_1825"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name="contactgroup",
-            options={"verbose_name": "Group", "verbose_name_plural": "Groups"},
+            name="flow",
+            options={"ordering": ("-modified_on",), "verbose_name": "Flow", "verbose_name_plural": "Flows"},
         ),
     ]

@@ -1,8 +1,3 @@
-v6.5.3
-----------
- * Add Last Seen On as column to contact exports
- * Add re-usable template for usage lists and use for globals and fields
-
 v6.5.2
 ----------
  * Internal ticketer for all orgs
