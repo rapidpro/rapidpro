@@ -602,6 +602,10 @@ class ContactField(SmartModel):
     def get_location_field(cls, org, value_type):
         return cls.user_fields.active_for_org(org=org).filter(value_type=value_type).first()
 
+    @property
+    def name(self):
+        return self.label
+
     @classmethod
     def import_fields(cls, org, user, field_defs):
         """
@@ -1795,6 +1799,10 @@ class ContactGroup(TembaModel):
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        verbose_name = _("Group")
+        verbose_name_plural = _("Groups")
 
 
 class ContactGroupCount(SquashableModel):

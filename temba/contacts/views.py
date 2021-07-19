@@ -1634,7 +1634,7 @@ class ContactFieldListView(OrgPermsMixin, SmartListView):
 
 class ContactFieldCRUDL(SmartCRUDL):
     model = ContactField
-    actions = ("list", "create", "update", "update_priority", "delete", "featured", "filter_by_type", "detail")
+    actions = ("list", "create", "update", "update_priority", "delete", "featured", "filter_by_type", "usages")
 
     class Create(ModalMixin, OrgPermsMixin, SmartCreateView):
         class Form(ContactFieldForm):
@@ -1797,20 +1797,16 @@ class ContactFieldCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/(?P<value_type>[^/]+)/$" % (path, action)
 
-    class Detail(OrgObjPermsMixin, SmartReadView):
+    class Usages(OrgObjPermsMixin, SmartReadView):
         queryset = ContactField.user_fields
-        template_name = "contacts/contactfield_detail.haml"
-        title = _("Contact field uses")
 
         def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
-
-            context["dep_flows"] = list(self.object.dependent_flows.filter(is_active=True).all())
-            context["dep_campaignevents"] = list(
-                self.object.campaign_events.filter(is_active=True).select_related("campaign").all()
+            context["dep_flows"] = self.object.dependent_flows.filter(is_active=True)
+            context["dep_campaignevents"] = self.object.campaign_events.filter(is_active=True).select_related(
+                "campaign", "relative_to"
             )
-            context["dep_groups"] = list(self.object.contactgroup_set.filter(is_active=True).all())
-
+            context["dep_groups"] = self.object.contactgroup_set.filter(is_active=True)
             return context
 
 
