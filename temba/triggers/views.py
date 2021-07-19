@@ -59,7 +59,7 @@ class BaseTriggerForm(forms.ModelForm):
 
         self.user = user
         self.org = user.get_org()
-        self.trigger_type = Trigger.get_type(trigger_type)
+        self.trigger_type = Trigger.get_type(code=trigger_type)
 
         flow_types = self.trigger_type.allowed_flow_types
         flows = self.org.flows.filter(flow_type__in=flow_types, is_active=True, is_archived=False, is_system=False)
@@ -225,7 +225,7 @@ class TriggerCRUDL(SmartCRUDL):
         success_message = ""
 
         def get_form_class(self):
-            return self.form_class or Trigger.get_type(self.trigger_type).form
+            return self.form_class or Trigger.get_type(code=self.trigger_type).form
 
         def get_form_kwargs(self):
             kwargs = super().get_form_kwargs()
@@ -409,11 +409,18 @@ class TriggerCRUDL(SmartCRUDL):
             ]
 
         def get_type_folders(self, org):
+            from .types import TYPES_BY_SLUG
+
+            org_triggers = org.triggers.filter(is_active=True, is_archived=False)
             folders = []
-            for key, folder in Trigger.FOLDERS.items():
-                folder_url = reverse("triggers.trigger_type", kwargs={"folder": key})
-                folder_count = Trigger.get_folder(org, key).count()
-                folders.append(dict(label=folder.label, url=folder_url, count=folder_count))
+            for slug, trigger_type in TYPES_BY_SLUG.items():
+                folders.append(
+                    dict(
+                        label=trigger_type.name,
+                        url=reverse("triggers.trigger_type", kwargs={"type": slug}),
+                        count=org_triggers.filter(trigger_type=trigger_type.code).count(),
+                    )
+                )
             return folders
 
     class List(BaseList):
@@ -447,18 +454,23 @@ class TriggerCRUDL(SmartCRUDL):
 
     class Type(BaseList):
         """
-        Folders of related trigger types
+        Type filtered list view
         """
 
         bulk_actions = ("archive",)
 
         @classmethod
         def derive_url_pattern(cls, path, action):
-            return rf"^%s/%s/(?P<folder>{'|'.join(Trigger.FOLDERS.keys())}+)/$" % (path, action)
+            from .types import TYPES_BY_SLUG
+
+            return rf"^%s/%s/(?P<type>{'|'.join(TYPES_BY_SLUG.keys())}+)/$" % (path, action)
+
+        @property
+        def trigger_type(self):
+            return Trigger.get_type(slug=self.kwargs["type"])
 
         def derive_title(self):
-            return Trigger.FOLDERS[self.kwargs["folder"]].title
+            return self.trigger_type.title
 
         def get_queryset(self, *args, **kwargs):
-            qs = super().get_queryset(*args, **kwargs)
-            return Trigger.filter_folder(qs, self.kwargs["folder"]).filter(is_archived=False)
+            return super().get_queryset(*args, **kwargs).filter(is_archived=False, trigger_type=self.trigger_type.code)

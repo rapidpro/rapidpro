@@ -1,3 +1,26 @@
+v6.5.1
+----------
+ * Cleanup Msg CRUDL tests
+ * Cleanup squashable models
+ * Apply translations in fr
+ * Replace trigger folders with type specific filtered list pages so that they can be sortable within types
+
+v6.4.7
+----------
+ * Update flow editor to include lone-ticketer submit fix
+ * Fix pagination on the webhook results page
+
+v6.4.6
+----------
+ * Update flow editor to fix not being able to play audio attachments in simulator
+
+v6.4.4
+----------
+ * Start background flows with include_active = true
+ * Update flow editor with MediaPlayer fix
+ * Fix poetry content-hash to remove install warning
+ * Update translations from transifex
+
 v6.4.3
 ----------
  * Improve contact field forms
