@@ -1798,7 +1798,7 @@ class ContactGroupCount(SquashableModel):
     by a recurring task.
     """
 
-    SQUASH_OVER = ("group_id",)
+    squash_over = ("group_id",)
 
     group = models.ForeignKey(ContactGroup, on_delete=models.PROTECT, related_name="counts", db_index=True)
     count = models.IntegerField(default=0)

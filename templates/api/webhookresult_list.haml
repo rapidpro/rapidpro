@@ -36,3 +36,7 @@
               {{ "--" }}
           %td{ style:'text-align: right', nowrap:'true' }
             {% format_datetime obj.created_on %}
+
+  -block paginator
+    -if object_list.count
+      -include "includes/pagination.haml"
