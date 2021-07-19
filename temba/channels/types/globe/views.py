@@ -11,7 +11,7 @@ class ClaimView(AuthenticatedExternalClaimView):
             max_length=14,
             min_length=1,
             label=_("Number"),
-            help_text=_("The shortcode you have been assigned by Globe Labs " "ex: 15543"),
+            help_text=_("The short code you have been assigned by Globe Labs ex: 15543"),
         )
         app_id = forms.CharField(label=_("Application Id"), help_text=_("The id of your Globe Labs application"))
         app_secret = forms.CharField(
