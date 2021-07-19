@@ -1,20 +1,11 @@
 -extends "smartmin/list.html"
 -load smartmin sms temba compress i18n humanize
 
-
 -block title
-  {{selected|title}}
-
-  -trans "Archives"
-
--block subtitle
+  {{ title }}
 
 -block page-title
-  -trans "Archives"
-
--block title-icon
-  .title-icon
-    %span.glyph.icon-box
+  {{ title }}
 
 -block summary
   -if archive_count

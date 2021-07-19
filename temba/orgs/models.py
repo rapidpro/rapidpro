@@ -458,13 +458,6 @@ class Org(SmartModel):
         counts = ContactGroup.get_system_group_counts(self, (ContactGroup.TYPE_ACTIVE, ContactGroup.TYPE_BLOCKED))
         return (counts[ContactGroup.TYPE_ACTIVE] + counts[ContactGroup.TYPE_BLOCKED]) > 0
 
-    @cached_property
-    def has_ticketer(self) -> bool:
-        """
-        Gets whether this org has an active ticketer configured
-        """
-        return self.ticketers.filter(is_active=True).exists()
-
     def get_integrations(self, category: IntegrationType.Category) -> list:
         """
         Returns the connected integrations on this org of the given category
@@ -978,11 +971,6 @@ class Org(SmartModel):
         user._org_group = role.group if role else None
 
         return user._org_group
-
-    def has_internal_ticketing(self):
-        from temba.tickets.types.internal import InternalType
-
-        return self.ticketers.filter(ticketer_type=InternalType.slug).exists()
 
     def has_twilio_number(self):  # pragma: needs cover
         return self.channels.filter(channel_type="T")
@@ -1562,6 +1550,7 @@ class Org(SmartModel):
         """
         from temba.middleware import BrandingMiddleware
         from temba.contacts.models import ContactField, ContactGroup
+        from temba.tickets.models import Ticketer
 
         with transaction.atomic():
             if not branding:
@@ -1569,6 +1558,7 @@ class Org(SmartModel):
 
             ContactGroup.create_system_groups(self)
             ContactField.create_system_fields(self)
+            Ticketer.create_internal_ticketer(self, branding)
 
             self.init_topups(topup_size)
             self.update_capabilities()
@@ -2348,12 +2338,10 @@ class TopUpCredits(SquashableModel):
     Used to track number of credits used on a topup, mostly maintained by triggers on Msg insertion.
     """
 
-    SQUASH_OVER = ("topup_id",)
+    squash_over = ("topup_id",)
 
-    topup = models.ForeignKey(
-        TopUp, on_delete=models.PROTECT, help_text=_("The topup these credits are being used against")
-    )
-    used = models.IntegerField(help_text=_("How many credits were used, can be negative"))
+    topup = models.ForeignKey(TopUp, on_delete=models.PROTECT)
+    used = models.IntegerField()  # how many credits were used, can be negative
 
     def release(self):
         self.delete()

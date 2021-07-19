@@ -26,7 +26,7 @@ class ArabiaCellType(ChannelType):
     }
 
     configuration_blurb = _(
-        "To finish connecting your channel, you need to have ArabiaCell configure the URL below for your shortcode."
+        "To finish connecting your channel, you need to have ArabiaCell configure the URL below for your short code."
     )
 
     configuration_urls = (

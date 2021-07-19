@@ -1374,15 +1374,6 @@ class OrgTest(TembaTest):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
 
-        # because we don't have internal ticketing, don't yet see agent role
-        self.assertEqual(
-            [("A", "Administrator"), ("E", "Editor"), ("V", "Viewer"), ("S", "Surveyor")],
-            response.context["form"].fields["invite_role"].choices,
-        )
-
-        # add internal ticketer so that agent role appears
-        Ticketer.create(self.org, self.admin, "internal", "Internal", config={})
-
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
 
@@ -3673,8 +3664,19 @@ class OrgCRUDLTest(TembaTest, CRUDLTestMixin):
         self.assertEqual(topup.credits, 1000)
         self.assertEqual(topup.price, 0)
 
-        # and 3 sample flows
-        self.assertEqual(3, org.flows.count())
+        # check default org content was created correctly
+        system_fields = list(org.contactfields(manager="system_fields").order_by("key").values_list("key", flat=True))
+        system_groups = list(org.all_groups(manager="system_groups").order_by("name").values_list("name", flat=True))
+        sample_flows = list(org.flows.order_by("name").values_list("name", flat=True))
+        internal_ticketer = org.ticketers.get()
+
+        self.assertEqual(["created_on", "id", "language", "last_seen_on", "name"], system_fields)
+        self.assertEqual(["Active", "Archived", "Blocked", "Stopped"], system_groups)
+        self.assertEqual(
+            ["Sample Flow - Order Status Checker", "Sample Flow - Satisfaction Survey", "Sample Flow - Simple Poll"],
+            sample_flows,
+        )
+        self.assertEqual("RapidPro Tickets", internal_ticketer.name)
 
         # fake session set_org to make the test work
         user.set_org(org)

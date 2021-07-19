@@ -313,12 +313,7 @@ class DependencyDeleteModal(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         context = super().get_context_data(**kwargs)
 
         # lookup dependent flows for this object
-        dependent_flows = self.get_object().dependent_flows.only("uuid", "name")
-        used_by_flows = list(dependent_flows.order_by("name")[:5])  # display first 5
-
-        context["used_by_flows"] = used_by_flows
-        context["used_by_more"] = dependent_flows.count() - len(used_by_flows)
-
+        context["dep_flows"] = self.get_object().dependent_flows.only("uuid", "name").order_by("name")
         return context
 
     def post(self, request, *args, **kwargs):
@@ -1808,9 +1803,7 @@ class OrgCRUDL(SmartCRUDL):
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
-                # orgs see agent role choice if they have an internal ticketing enabled
-                has_internal = org.has_internal_ticketing()
-                role_choices = [(r.code, r.display) for r in OrgRole if r != OrgRole.AGENT or has_internal]
+                role_choices = [(r.code, r.display) for r in OrgRole]
 
                 self.fields["invite_role"].choices = role_choices
 

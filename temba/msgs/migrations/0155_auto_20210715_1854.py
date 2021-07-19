@@ -8,7 +8,7 @@ SQL = """DROP INDEX msgs_msg_org_created_id_where_outbound_visible_sent"""
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("msgs", "0153_auto_20210712_1723"),
+        ("msgs", "0154_auto_20210715_1825"),
     ]
 
     operations = [
