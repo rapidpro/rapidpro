@@ -1,3 +1,7 @@
+v6.5.2
+----------
+ * Internal ticketer for all orgs
+
 v6.5.1
 ----------
  * Cleanup Msg CRUDL tests

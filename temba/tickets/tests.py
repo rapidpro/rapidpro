@@ -1,10 +1,12 @@
 from unittest.mock import patch
 
+from django.conf import settings
 from django.test.utils import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from temba.tests import CRUDLTestMixin, TembaTest, matchers, mock_mailroom
+from temba.orgs.models import Org
+from temba.tests import CRUDLTestMixin, MigrationTest, TembaTest, matchers, mock_mailroom
 
 from .models import Ticket, Ticketer, TicketEvent
 from .types import reload_ticketer_types
@@ -391,3 +393,33 @@ class TicketerCRUDLTest(TembaTest, CRUDLTestMixin):
         flow.refresh_from_db()
         self.assertTrue(flow.has_issues)
         self.assertNotIn(ticketer, flow.ticketer_dependencies.all())
+
+
+class CreateInternalTicketersTest(MigrationTest):
+    app = "tickets"
+    migrate_from = "0011_auto_20210701_1719"
+    migrate_to = "0012_create_internal_ticketers"
+
+    def setUpBeforeMigration(self, apps):
+        Ticketer.objects.all().delete()
+        Org.objects.all().update(is_active=False)
+
+        # create org with no internal ticketer
+        self.org3 = Org.objects.create(name="Org 3", created_by=self.superuser, modified_by=self.superuser)
+
+        # create org with old internal ticketer (wrong name) and other external ticketer
+        self.org4 = Org.objects.create(name="Org 4", created_by=self.superuser, modified_by=self.superuser)
+        Ticketer.create(self.org4, self.admin, "internal", "Internal", {})
+        Ticketer.create(self.org4, self.admin, "mailgun", "jim@nyaruka.com", {})
+
+        # create org with new internal ticketer
+        self.org5 = Org.objects.create(name="Org 5", created_by=self.superuser, modified_by=self.superuser)
+        Ticketer.create_internal_ticketer(self.org5, settings.BRANDING[settings.DEFAULT_BRAND])
+
+    def test_migration(self):
+        self.assertEqual(4, Ticketer.objects.count())
+
+        self.assertEqual("jim@nyaruka.com", Ticketer.objects.get(ticketer_type="mailgun").name)  # unchanged
+
+        for ticketer in Ticketer.objects.filter(ticketer_type="internal"):
+            self.assertEqual("RapidPro Tickets", ticketer.name)

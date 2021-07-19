@@ -1,7 +1,4 @@
-from django.utils.translation import ugettext_lazy as _
-
 from ...models import TicketerType
-from .views import ConnectView
 
 
 class InternalType(TicketerType):
@@ -13,8 +10,8 @@ class InternalType(TicketerType):
     slug = "internal"
     icon = "icon-channel-external"
 
-    connect_view = ConnectView
-    connect_blurb = _("Enabling this will allow you to handle tickets within {{brand.name}}.")
-
     def is_available_to(self, user):
-        return not user.get_org().ticketers.filter(ticketer_type=self.slug, is_active=True).exists()
+        return False  # all orgs automatically have one and they can't connect another
+
+    def get_urls(self):
+        return []

@@ -18,7 +18,7 @@ class ClaimView(AuthenticatedExternalClaimView):
             max_length=14,
             min_length=4,
             label=_("Number"),
-            help_text=("The shortcode or phone number you are connecting."),
+            help_text=("The short code or phone number you are connecting."),
         )
         url = ExternalURLField(
             label=_("URL"),

@@ -1808,9 +1808,7 @@ class OrgCRUDL(SmartCRUDL):
             def __init__(self, org, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
-                # orgs see agent role choice if they have an internal ticketing enabled
-                has_internal = org.has_internal_ticketing()
-                role_choices = [(r.code, r.display) for r in OrgRole if r != OrgRole.AGENT or has_internal]
+                role_choices = [(r.code, r.display) for r in OrgRole]
 
                 self.fields["invite_role"].choices = role_choices
 

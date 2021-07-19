@@ -436,6 +436,8 @@ class ContactField(SmartModel):
 
     @classmethod
     def create_system_fields(cls, org):
+        assert not org.contactfields(manager="system_fields").exists(), "org already has system fields"
+
         for key, spec in ContactField.SYSTEM_FIELDS.items():
             org.contactfields.create(
                 field_type=ContactField.FIELD_TYPE_SYSTEM,
@@ -1511,6 +1513,9 @@ class ContactGroup(TembaModel):
         """
         Creates our system groups for the given organization so that we can keep track of counts etc..
         """
+
+        assert not org.all_groups(manager="system_groups").exists(), "org already has system groups"
+
         org.all_groups.create(
             name="Active",
             group_type=ContactGroup.TYPE_ACTIVE,
