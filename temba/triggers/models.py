@@ -1,5 +1,3 @@
-from typing import NamedTuple
-
 from smartmin.models import SmartModel
 
 from django.db import models
@@ -18,8 +16,10 @@ class TriggerType:
     Base class for trigger types
     """
 
-    # single char code used for database model
-    code = None
+    code = None  # single char code used for database model
+    slug = None  # used for URLs
+    name = None
+    title = None  # used for list page title
 
     # flow types allowed for this type
     allowed_flow_types = ()
@@ -56,12 +56,6 @@ class TriggerType:
                 raise ValueError(f"Field '{field}' is required.")
 
 
-class Folder(NamedTuple):
-    label: str
-    title: str
-    types: tuple
-
-
 class Trigger(SmartModel):
     """
     A Trigger is used to start a user in a flow based on an event. For example, triggers might fire for missed calls,
@@ -76,25 +70,6 @@ class Trigger(SmartModel):
     TYPE_REFERRAL = "R"
     TYPE_CLOSED_TICKET = "T"
     TYPE_CATCH_ALL = "C"
-
-    FOLDER_KEYWORDS = "keywords"
-    FOLDER_SCHEDULED = "scheduled"
-    FOLDER_CALLS = "calls"
-    FOLDER_SOCIAL_MEDIA = "social"
-    FOLDER_TICKETS = "tickets"
-    FOLDER_CATCHALL = "catchall"
-    FOLDERS = {
-        FOLDER_KEYWORDS: Folder(_("Keywords"), _("Keyword Triggers"), (TYPE_KEYWORD,)),
-        FOLDER_SCHEDULED: Folder(_("Scheduled"), _("Scheduled Triggers"), (TYPE_SCHEDULE,)),
-        FOLDER_CALLS: Folder(_("Calls"), _("Call Triggers"), (TYPE_INBOUND_CALL, TYPE_MISSED_CALL)),
-        FOLDER_SOCIAL_MEDIA: Folder(
-            _("Social Media"),
-            _("Social Media Triggers"),
-            (TYPE_NEW_CONVERSATION, TYPE_REFERRAL),
-        ),
-        FOLDER_TICKETS: Folder(_("Tickets"), _("Ticket Triggers"), (TYPE_CLOSED_TICKET,)),
-        FOLDER_CATCHALL: Folder(_("Catch All"), _("Catch All Triggers"), (TYPE_CATCH_ALL,)),
-    }
 
     KEYWORD_MAX_LEN = 16
 
@@ -288,7 +263,7 @@ class Trigger(SmartModel):
     def validate_import_def(cls, trigger_def: dict):
         type_code = trigger_def.get("trigger_type", "")
         try:
-            trigger_type = cls.get_type(type_code)
+            trigger_type = cls.get_type(code=type_code)
         except KeyError:
             raise ValueError(f"{type_code} is not a valid trigger type")
 
@@ -301,7 +276,7 @@ class Trigger(SmartModel):
         """
 
         for trigger_def in trigger_defs:
-            trigger_type = cls.get_type(trigger_def["trigger_type"])
+            trigger_type = cls.get_type(code=trigger_def["trigger_type"])
 
             # old exports might include scheduled triggers without schedules
             if not trigger_type.exportable:
@@ -393,16 +368,6 @@ class Trigger(SmartModel):
                 trigger.restore(user)
                 trigger_scopes = trigger_scopes | trigger_scope
 
-    @classmethod
-    def get_folder(cls, org, key: str):
-        return cls.filter_folder(org.triggers.filter(is_active=True, is_archived=False), key)
-
-    @classmethod
-    def filter_folder(cls, qs, key: str):
-        assert key in cls.FOLDERS, f"{key} is not a valid trigger folder"
-
-        return qs.filter(trigger_type__in=cls.FOLDERS[key].types)
-
     def as_export_def(self) -> dict:
         """
         The definition of this trigger for export.
@@ -416,14 +381,14 @@ class Trigger(SmartModel):
         return export_def
 
     @classmethod
-    def get_type(cls, trigger_type: str):
-        from .types import TYPES
+    def get_type(cls, *, code: str = None, slug: str = None):
+        from .types import TYPES_BY_CODE, TYPES_BY_SLUG
 
-        return TYPES[trigger_type]
+        return TYPES_BY_CODE[code] if code else TYPES_BY_SLUG[slug]
 
     @property
     def type(self):
-        return self.get_type(self.trigger_type)
+        return self.get_type(code=self.trigger_type)
 
     def release(self, user):
         """

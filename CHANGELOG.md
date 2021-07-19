@@ -1,3 +1,10 @@
+v6.5.1
+----------
+ * Cleanup Msg CRUDL tests
+ * Cleanup squashable models
+ * Apply translations in fr
+ * Replace trigger folders with type specific filtered list pages so that they can be sortable within types
+
 v6.4.7
 ----------
  * Update flow editor to include lone-ticketer submit fix

@@ -1450,7 +1450,7 @@ class FlowCategoryCount(SquashableModel):
     Maintains counts for categories across all possible results in a flow
     """
 
-    SQUASH_OVER = ("flow_id", "node_uuid", "result_key", "result_name", "category_name")
+    squash_over = ("flow_id", "node_uuid", "result_key", "result_name", "category_name")
 
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="category_counts")
 
@@ -1501,7 +1501,7 @@ class FlowPathCount(SquashableModel):
     Maintains hourly counts of flow paths
     """
 
-    SQUASH_OVER = ("flow_id", "from_uuid", "to_uuid", "period")
+    squash_over = ("flow_id", "from_uuid", "to_uuid", "period")
 
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="path_counts")
 
@@ -1652,7 +1652,7 @@ class FlowNodeCount(SquashableModel):
     Maintains counts of unique contacts at each flow node.
     """
 
-    SQUASH_OVER = ("node_uuid",)
+    squash_over = ("node_uuid",)
 
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="node_counts")
 
@@ -1688,7 +1688,7 @@ class FlowRunCount(SquashableModel):
     via triggers on the database.
     """
 
-    SQUASH_OVER = ("flow_id", "exit_type")
+    squash_over = ("flow_id", "exit_type")
 
     flow = models.ForeignKey(Flow, on_delete=models.PROTECT, related_name="exit_counts")
 
@@ -2264,7 +2264,7 @@ class FlowStartCount(SquashableModel):
     Maintains count of how many runs a FlowStart has created.
     """
 
-    SQUASH_OVER = ("start_id",)
+    squash_over = ("start_id",)
 
     start = models.ForeignKey(FlowStart, on_delete=models.PROTECT, related_name="counts", db_index=True)
     count = models.IntegerField(default=0)
@@ -2285,8 +2285,7 @@ class FlowStartCount(SquashableModel):
 
     @classmethod
     def get_count(cls, start):
-        count = start.counts.aggregate(count_sum=Sum("count"))["count_sum"]
-        return count if count else 0
+        return cls.sum(start.counts.all())
 
     @classmethod
     def bulk_annotate(cls, starts):
