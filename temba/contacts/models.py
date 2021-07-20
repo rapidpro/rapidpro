@@ -29,7 +29,7 @@ from temba.assets.models import register_asset_store
 from temba.channels.models import Channel, ChannelEvent
 from temba.locations.models import AdminBoundary
 from temba.mailroom import ContactSpec, modifiers, queue_populate_dynamic_group
-from temba.orgs.models import Org, OrgLock
+from temba.orgs.models import DependencyMixin, Org, OrgLock
 from temba.utils import chunk_list, format_number, on_transaction_commit
 from temba.utils.export import BaseExportAssetStore, BaseExportTask, TableExporter
 from temba.utils.models import JSONField as TembaJSONField, RequireUpdateFieldsMixin, SquashableModel, TembaModel
@@ -318,7 +318,9 @@ class UserContactFieldsQuerySet(models.QuerySet):
             .annotate(
                 campaign_count=Count("campaign_events", distinct=True, filter=Q(campaign_events__is_active=True))
             )
-            .annotate(contactgroup_count=Count("contactgroup", distinct=True, filter=Q(contactgroup__is_active=True)))
+            .annotate(
+                contactgroup_count=Count("dependent_groups", distinct=True, filter=Q(dependent_groups__is_active=True))
+            )
         )
 
     def active_for_org(self, org):
@@ -354,9 +356,9 @@ class SystemContactFieldsManager(models.Manager):
         return super().create(**kwargs)
 
 
-class ContactField(SmartModel):
+class ContactField(SmartModel, DependencyMixin):
     """
-    Represents a type of field that can be put on Contacts.
+    A custom user field for contacts.
     """
 
     MAX_KEY_LEN = 36
@@ -627,7 +629,17 @@ class ContactField(SmartModel):
             ContactField.EXPORT_TYPE: ContactField.ENGINE_TYPES[self.value_type],
         }
 
+    def get_dependents(self):
+        dependents = super().get_dependents()
+        dependents["group"] = self.dependent_groups.filter(is_active=True)
+        dependents["campaign_event"] = self.campaign_events.filter(is_active=True).select_related(
+            "campaign", "relative_to"
+        )
+        return dependents
+
     def release(self, user):
+        super().release(user)
+
         self.is_active = False
         self.modified_by = user
         self.save(update_fields=("is_active", "modified_on", "modified_by"))
@@ -1505,7 +1517,7 @@ class ContactGroup(TembaModel):
 
     # fields used by smart groups
     query = models.TextField(null=True)
-    query_fields = models.ManyToManyField(ContactField)
+    query_fields = models.ManyToManyField(ContactField, related_name="dependent_groups")
 
     # define some custom managers to do the filtering of user / system groups for us
     all_groups = models.Manager()

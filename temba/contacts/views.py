@@ -40,7 +40,7 @@ from temba.flows.models import Flow, FlowStart
 from temba.mailroom.events import Event
 from temba.msgs.views import SendMessageForm
 from temba.orgs.models import Org
-from temba.orgs.views import ModalMixin, OrgObjPermsMixin, OrgPermsMixin
+from temba.orgs.views import DependencyUsagesModal, ModalMixin, OrgObjPermsMixin, OrgPermsMixin
 from temba.tickets.models import Ticket
 from temba.utils import analytics, json, languages, on_transaction_commit
 from temba.utils.dates import datetime_to_timestamp, timestamp_to_datetime
@@ -1797,17 +1797,8 @@ class ContactFieldCRUDL(SmartCRUDL):
         def derive_url_pattern(cls, path, action):
             return r"^%s/%s/(?P<value_type>[^/]+)/$" % (path, action)
 
-    class Usages(OrgObjPermsMixin, SmartReadView):
+    class Usages(DependencyUsagesModal):
         queryset = ContactField.user_fields
-
-        def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["dep_flows"] = self.object.dependent_flows.filter(is_active=True)
-            context["dep_campaignevents"] = self.object.campaign_events.filter(is_active=True).select_related(
-                "campaign", "relative_to"
-            )
-            context["dep_groups"] = self.object.contactgroup_set.filter(is_active=True)
-            return context
 
 
 class ContactImportCRUDL(SmartCRUDL):

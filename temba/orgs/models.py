@@ -70,10 +70,17 @@ class DependencyMixin:
     Utility mixin for models which can be flow dependencies
     """
 
+    def get_dependents(self):
+        return {"flow": self.dependent_flows.filter(is_active=True)}
+
     def release(self, user):
         """
         Mark this dependency's flows as having issues, and then remove the dependencies
         """
+
+        for dep_type, deps in self.get_dependents().items():
+            if dep_type != "flow" and deps.exists():
+                raise AssertionError(f"can't delete {self} that still has {dep_type} dependents")
 
         self.dependent_flows.update(has_issues=True)
         self.dependent_flows.clear()

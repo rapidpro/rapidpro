@@ -4714,13 +4714,11 @@ class ContactFieldCRUDLTest(TembaTest, CRUDLTestMixin):
         inactive_campaignevent.is_active = False
         inactive_campaignevent.save(update_fields=("is_active",))
 
-        usages_url = reverse("contacts.contactfield_usages", args=[field.id])
+        usages_url = reverse("contacts.contactfield_usages", args=[field.uuid])
 
         response = self.assertReadFetch(usages_url, allow_viewers=True, allow_editors=True, context_object=field)
 
-        self.assertEqual([flow], list(response.context["dep_flows"]))
-        self.assertEqual([event1], list(response.context["dep_campaignevents"]))
-        self.assertEqual([group], list(response.context["dep_groups"]))
+        self.assertEqual([[flow], [group], [event1]], [list(qs) for qs in response.context["dependents"]])
 
 
 class URNTest(TembaTest):
