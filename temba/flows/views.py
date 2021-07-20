@@ -1838,7 +1838,7 @@ class FlowCRUDL(SmartCRUDL):
                 label=_("Exclude contacts currently in a flow"),
                 required=False,
                 initial=False,
-                help_text=_("Any contacts currently in a flow will not be interrupted and started in this flow."),
+                help_text=_("Any contacts currently in a flow will not be interrupted and not started in this flow."),
                 widget=CheckboxWidget(),
             )
 
