@@ -1115,7 +1115,7 @@ class ContactCRUDL(SmartCRUDL):
 
         def get_gear_links(self):
             links = []
-            pk = self.derive_group().pk
+            group = self.derive_group()
 
             if self.has_org_perm("contacts.contactfield_list"):
                 links.append(dict(title=_("Manage Fields"), href=reverse("contacts.contactfield_list")))
@@ -1126,7 +1126,7 @@ class ContactCRUDL(SmartCRUDL):
                         id="edit-group",
                         title=_("Edit Group"),
                         modax=_("Edit Group"),
-                        href=reverse("contacts.contactgroup_update", args=[pk]),
+                        href=reverse("contacts.contactgroup_update", args=[group.id]),
                     )
                 )
 
@@ -1140,13 +1140,22 @@ class ContactCRUDL(SmartCRUDL):
                     )
                 )
 
+            links.append(
+                dict(
+                    id="group-usages",
+                    title=_("Usages"),
+                    modax=_("Usages"),
+                    href=reverse("contacts.contactgroup_usages", args=[group.uuid]),
+                )
+            )
+
             if self.has_org_perm("contacts.contactgroup_delete"):
                 links.append(
                     dict(
                         id="delete-group",
                         title=_("Delete Group"),
                         modax=_("Delete Group"),
-                        href=reverse("contacts.contactgroup_delete", args=[pk]),
+                        href=reverse("contacts.contactgroup_delete", args=[group.id]),
                     )
                 )
             return links
@@ -1424,7 +1433,7 @@ class ContactCRUDL(SmartCRUDL):
 
 class ContactGroupCRUDL(SmartCRUDL):
     model = ContactGroup
-    actions = ("create", "update", "delete")
+    actions = ("create", "update", "usages", "delete")
 
     class Create(ComponentFormMixin, ModalMixin, OrgPermsMixin, SmartCreateView):
         form_class = ContactGroupForm
@@ -1486,6 +1495,9 @@ class ContactGroupCRUDL(SmartCRUDL):
             if obj.query and obj.query != self.prev_query:
                 obj.update_query(obj.query)
             return obj
+
+    class Usages(DependencyUsagesModal):
+        permission = "contacts.contactgroup_read"
 
     class Delete(ModalMixin, OrgObjPermsMixin, SmartDeleteView):
         cancel_url = "uuid@contacts.contact_filter"

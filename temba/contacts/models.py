@@ -1465,7 +1465,7 @@ class UserContactGroupManager(models.Manager):
         return super().get_queryset().filter(group_type=ContactGroup.TYPE_USER_DEFINED, is_active=True)
 
 
-class ContactGroup(TembaModel):
+class ContactGroup(TembaModel, DependencyMixin):
     """
     A static or dynamic group of contacts
     """
@@ -1720,6 +1720,11 @@ class ContactGroup(TembaModel):
         Returns the number of active and non-test contacts in the group
         """
         return ContactGroupCount.get_totals([self])[self]
+
+    def get_dependents(self):
+        dependents = super().get_dependents()
+        dependents["campaign"] = self.campaigns.filter(is_active=True)
+        return dependents
 
     def release(self):
         """
